@@ -322,6 +322,7 @@ mod tests {
                     height: 1,
                     aspect_ratio_milli: 2_000,
                     dominant_color_buckets: vec![ReferenceImageColorBucket::Blue],
+                    foreground_dominant_color_buckets: Vec::new(),
                     brightness: ReferenceImageBrightnessBucket::Balanced,
                     edge_density: ReferenceImageEdgeDensityBucket::Low,
                     foreground_bbox_normalized: [0, 0, 1_000, 1_000],

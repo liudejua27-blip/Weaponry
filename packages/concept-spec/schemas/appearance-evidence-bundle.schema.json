@@ -5,14 +5,15 @@
   "description": "Hash-only reference, camera and derived appearance evidence. It contains no pixels, paths, URLs, shader code or material truth.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "bundle_id", "request_sha256", "references", "camera_hypotheses", "derived_artifacts"],
+  "required": ["schema_version", "bundle_id", "request_sha256", "references", "camera_hypotheses", "derived_artifacts", "projection_receipts"],
   "properties": {
     "schema_version": { "const": "AppearanceEvidenceBundle@1" },
     "bundle_id": { "type": "string", "minLength": 1, "maxLength": 200 },
     "request_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
     "references": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/reference" } },
     "camera_hypotheses": { "type": "array", "maxItems": 24, "items": { "$ref": "reference-camera-hypothesis.schema.json" } },
-    "derived_artifacts": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/artifact" } }
+    "derived_artifacts": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/artifact" } },
+    "projection_receipts": { "type": "array", "maxItems": 128, "items": { "$ref": "reference-appearance-projection-receipt.schema.json" } }
   },
   "$defs": {
     "reference": {

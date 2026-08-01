@@ -341,9 +341,9 @@ class GeometryFeatureNodeReadback(StrictApiModel):
             raise ValueError("feature node inputs must reference ordered operation nodes")
         if any(len(value) != 64 or any(char not in "0123456789abcdef" for char in value) for value in self.input_hashes):
             raise ValueError("feature node input hashes must be sha256 values")
-        if self.kernel_id == "manifold3d" and self.operation not in {"union", "subtract"}:
+        if self.kernel_id == "manifold3d" and self.operation not in {"union", "subtract", "groove"}:
             raise ValueError("Manifold may only own the selected CSG operations")
-        if self.operation in {"union", "subtract"} and self.kernel_id != "manifold3d":
+        if self.operation in {"union", "subtract", "groove"} and self.kernel_id != "manifold3d":
             raise ValueError("CSG operations must use the selected Manifold kernel")
         return self
 

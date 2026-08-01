@@ -220,6 +220,7 @@ export function useConceptWorkbench() {
         undefined,
         projects,
       )
+      return true
     } catch (caught) {
       setState((current) => ({
         ...current,
@@ -227,6 +228,7 @@ export function useConceptWorkbench() {
         error: errorMessage(caught),
         statusMessage: '初始 Concept Project 创建失败。请检查本地 Agent。',
       }))
+      return false
     }
   }, [loadProject])
 
@@ -288,7 +290,7 @@ export function useConceptWorkbench() {
           projects,
           loading: false,
           error: null,
-          statusMessage: '工作台已就绪。直接描述你想生成的机械概念，或从左侧明确打开已有项目。',
+          statusMessage: '工作台已就绪。直接描述你想生成的对象，或从左侧明确打开已有项目。',
         }))
         return
       }

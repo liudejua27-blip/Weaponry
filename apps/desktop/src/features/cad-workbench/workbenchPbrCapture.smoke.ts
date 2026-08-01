@@ -37,6 +37,8 @@ export function runWorkbenchPbrCaptureSmoke(): void {
   expectFailure(() => readWorkbenchPbrViewportIdentity(fakeViewport({ blockoutGlbSha256: 'c'.repeat(64) }), SOURCE_SHA256))
   expectFailure(() => readWorkbenchPbrViewportIdentity(fakeViewport({ blockoutRenderSource: 'shape_program_fallback' }), SOURCE_SHA256))
   expectFailure(() => readWorkbenchPbrViewportIdentity(fakeViewport({ blockoutGlbKind: 'external_reference' }), SOURCE_SHA256))
+  expectFailure(() => readWorkbenchPbrViewportIdentity(fakeViewport({ blockoutPbrTextureCount: '4' }), SOURCE_SHA256))
+  expectFailure(() => readWorkbenchPbrViewportIdentity(fakeViewport({ blockoutPbrSamplingValid: 'false' }), SOURCE_SHA256))
   expectFailure(() => readWorkbenchPbrViewportIdentity(fakeViewport({ pbrRendererId: 'forgecad-agent-software-raster@1' }), SOURCE_SHA256))
 }
 
@@ -53,6 +55,10 @@ function fakeViewport(overrides: Record<string, string> = {}): HTMLElement {
       toneMapping: 'aces_filmic',
       visualEnvironmentId: 'env_forgecad_room_studio_v2',
       visualEnvironmentSha256: ENVIRONMENT_SHA256,
+      blockoutEmbeddedPbrMaterialCount: '1',
+      blockoutPbrTextureCount: '5',
+      blockoutPbrColorSpaces: 'valid',
+      blockoutPbrSamplingValid: 'true',
       ...overrides,
     },
   } as unknown as HTMLElement

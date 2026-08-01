@@ -45,7 +45,10 @@ def main() -> int:
         )
         turn = service.start_turn(thread.thread_id, turn_request, "idem-turn-1")
         assert turn.status == "completed"
-        assert len(turn.items) == 16, [item.item_type for item in turn.items]
+        # The concept plan is now a first-class product-tool exchange, so the
+        # deterministic turn contains its tool_call/tool_result pair in
+        # addition to the plan item and the six downstream action pairs.
+        assert len(turn.items) == 18, [item.item_type for item in turn.items]
         provider_result = next(
             item
             for item in turn.items

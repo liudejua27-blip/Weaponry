@@ -76,7 +76,7 @@ U001 通用产品/文档/任务决策
 
 当前不再通过新增固定整机模板、增加三角形数量或提高纹理分辨率来替代设计语言建设。
 
-当前进度：U002 已完成类别开放理解、视觉合同、逐部件表示规划和 typed limitation；U003 已完成 Rust 派生的统一资产源、外观证据合同与当前程序化结果的 GLB/readback/固定视图 exact-lineage。只有验证后的机械臂程序化 capability 可执行；下一唯一任务是 U004，角色、生物、植物、建筑等尚不能据此宣称已生成。
+当前进度：U002 已完成类别开放理解、视觉合同、逐部件表示规划和 typed limitation；U003/U004 已完成 Rust 派生的统一资产源、受限几何/外观证据合同与机械臂、generic hard-surface、开发期 generic visual exterior 的 GLB/readback/固定视图 exact-lineage。generic visual exterior 是面向任意对象的轻量可见外观代理，不是专用角色/生物重建或照片级质量；正式跨类别质量和真实 Provider 视觉验收仍未完成。
 
 ## 本机开发
 

@@ -57,7 +57,9 @@ const G819_OPERATIONS: &[&str] = &[
     "subtract",
     "bevel_approx",
     "surface_panel",
+    "shell",
     "lattice_deform",
+    "local_mesh_patch",
 ];
 // C106 is intentionally an exact, reviewed first-party allowlist.  New
 // Recipe IDs do not gain an A005 surface allowance merely by sharing a prefix
@@ -206,7 +208,7 @@ impl AgentSkillManifest {
             "SKILL_G819_POLICY_INVALID",
             &self.g819_operations,
             0,
-            16,
+            20,
             |value| G819_OPERATIONS.contains(&value),
         )?;
         validate_unique(
@@ -763,6 +765,8 @@ pub fn c111_link_finish_surface_layer(target_part_id: &str) -> CoreResult<Surfac
         target_part_role: "link_armor".into(),
         material_zone_id: "zone_arm_link_armor".into(),
         base_material: "mat_automotive_paint".into(),
+        base_color_token: None,
+        surface_finish_token: None,
         vector_paths: Vec::new(),
         decal_layers: vec![
             DecalLayer {
@@ -945,7 +949,7 @@ mod tests {
             allowed_domains: vec!["pack_future_weapon_prop".into()],
             triggers: vec!["surface groove".into()],
             product_tool_ids: vec!["forgecad.preview.prepare.v1".into()],
-            g819_operations: vec!["surface_panel".into()],
+            g819_operations: vec!["surface_panel".into(), "shell".into(), "lattice_deform".into()],
             recipe_ids: vec!["recipe_future_prop_shell".into()],
             material_preset_ids: vec!["mat_graphite".into()],
             reference_hashes: vec!["a".repeat(64)],

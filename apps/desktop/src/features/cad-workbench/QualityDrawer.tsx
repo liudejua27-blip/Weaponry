@@ -36,7 +36,7 @@ export function QualityDrawer({
         </div>
         <p>这里仅在需要时显示模型连接和几何质量信息，不会干扰设计过程。</p>
         <div className="quality-overview">
-          <div className="dfm-row"><span>当前版本</span><strong>{activeAgentAssetVersion ? '活动 Agent 资产' : '未准备'}</strong>{activeAgentAssetVersion ? <Check size={15} weight="bold" /> : <WarningCircle size={15} />}</div>
+          <div className="dfm-row"><span>当前版本</span><strong>{activeAgentAssetVersion ? '当前设计已准备' : '未准备'}</strong>{activeAgentAssetVersion ? <Check size={15} weight="bold" /> : <WarningCircle size={15} />}</div>
           <div className="dfm-row"><span>几何检查</span><strong>{qualityLabel(status)}</strong>{status === 'passed' ? <Check size={15} weight="bold" /> : <WarningCircle size={15} />}</div>
         </div>
         {(agentQualityReport?.findings ?? []).slice(0, 3).map((finding) => (

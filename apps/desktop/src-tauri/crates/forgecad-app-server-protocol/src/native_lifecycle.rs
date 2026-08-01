@@ -516,6 +516,7 @@ mod tests {
                     clarification_domain_pack_id: None,
                     author_context: None,
                     multimodal_context: None,
+                    game_asset_delivery: None,
                 },
             },
         }

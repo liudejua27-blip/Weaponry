@@ -59,6 +59,7 @@ fn image_evidence() -> ReferenceEvidence {
                     forgecad_core::ReferenceImageColorBucket::Black,
                     forgecad_core::ReferenceImageColorBucket::Blue,
                 ],
+                foreground_dominant_color_buckets: Vec::new(),
                 brightness: forgecad_core::ReferenceImageBrightnessBucket::Dark,
                 edge_density: forgecad_core::ReferenceImageEdgeDensityBucket::Medium,
                 foreground_bbox_normalized: [120, 80, 870, 910],

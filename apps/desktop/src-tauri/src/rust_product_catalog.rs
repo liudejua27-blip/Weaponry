@@ -72,7 +72,8 @@ pub fn material_presets() -> Value {
         "future_weapon_prop",
         "vehicle_concept",
         "aircraft_concept",
-        "robotic_arm_concept"
+        "robotic_arm_concept",
+        "generic_visual_exterior"
     ]);
     let preset = |material_id: &str,
                   display_name: &str,
@@ -116,7 +117,7 @@ pub fn material_presets() -> Value {
             "亮面汽车漆",
             "coating",
             json!({"base_color":"#3d78b8","metallic":0.38,"roughness":0.2,"opacity":1}),
-            json!(["vehicle_concept", "future_weapon_prop"]),
+            json!(["vehicle_concept", "future_weapon_prop", "generic_visual_exterior"]),
         ),
         preset(
             "mat_rubber",
@@ -126,7 +127,8 @@ pub fn material_presets() -> Value {
             json!([
                 "vehicle_concept",
                 "robotic_arm_concept",
-                "future_weapon_prop"
+                "future_weapon_prop",
+                "generic_visual_exterior"
             ]),
         ),
         preset(
@@ -137,7 +139,8 @@ pub fn material_presets() -> Value {
             json!([
                 "aircraft_concept",
                 "robotic_arm_concept",
-                "future_weapon_prop"
+                "future_weapon_prop",
+                "generic_visual_exterior"
             ]),
         ),
         preset(
@@ -145,7 +148,7 @@ pub fn material_presets() -> Value {
             "深色玻璃",
             "glass",
             json!({"base_color":"#172a3d","metallic":0.12,"roughness":0.12,"opacity":0.58}),
-            json!(["aircraft_concept", "vehicle_concept", "future_weapon_prop"]),
+            json!(["aircraft_concept", "vehicle_concept", "future_weapon_prop", "generic_visual_exterior"]),
         ),
         preset(
             "mat_signal_red",
@@ -173,7 +176,7 @@ pub fn material_presets() -> Value {
             "轮胎橡胶",
             "rubber",
             json!({"base_color":"#101214","metallic":0.0,"roughness":0.9,"opacity":1}),
-            json!(["vehicle_concept", "robotic_arm_concept"]),
+            json!(["vehicle_concept", "robotic_arm_concept", "generic_visual_exterior"]),
         ),
         preset(
             "mat_carbon_composite",
@@ -187,7 +190,7 @@ pub fn material_presets() -> Value {
             "透明玻璃",
             "glass",
             json!({"base_color":"#c8e5f2","metallic":0.0,"roughness":0.08,"opacity":0.32,"transmission":0.72,"ior":1.5}),
-            json!(["vehicle_concept", "aircraft_concept", "future_weapon_prop"]),
+            json!(["vehicle_concept", "aircraft_concept", "future_weapon_prop", "generic_visual_exterior"]),
         ),
         preset(
             "mat_powder_coat",

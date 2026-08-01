@@ -8,7 +8,12 @@ import type {
   AgentClarificationOption,
   AgentTurnPresentation,
 } from './agentConversationState'
-import type { MultimodalAgentTurnContext, AgentTurnRecordResult } from './agentTurnSubmissionLoader'
+import type {
+  GameAssetDeliveryRequestInput,
+  MultimodalAgentTurnContext,
+  AgentTurnRecordResult,
+  AgentTurnIntent,
+} from './agentTurnSubmissionLoader'
 import { recordAgentTurn as recordAgentTurnRequest } from './agentTurnSubmissionLoader'
 import type { SingleResultDecisionPresentationAction } from './singleResultDecisionPresentationState'
 
@@ -78,6 +83,8 @@ type UseCadWorkbenchPanelRecordAgentTurnOutput = {
     message: string,
     clarificationDomainPackId?: string,
     multimodalContext?: MultimodalAgentTurnContext,
+    gameAssetDelivery?: GameAssetDeliveryRequestInput,
+    intent?: AgentTurnIntent,
   ) => Promise<AgentTurnRecordResult>
 }
 
@@ -110,6 +117,8 @@ export function useCadWorkbenchPanelRecordAgentTurn({
     message: string,
     clarificationDomainPackId?: string,
     multimodalContext?: MultimodalAgentTurnContext,
+    gameAssetDelivery?: GameAssetDeliveryRequestInput,
+    intent?: AgentTurnIntent,
   ) => recordAgentTurnRequest(
     api,
     {
@@ -139,6 +148,8 @@ export function useCadWorkbenchPanelRecordAgentTurn({
       message,
       clarificationDomainPackId,
       multimodalContext,
+      gameAssetDelivery,
+      intent,
       clarificationOptions,
     },
   ), [

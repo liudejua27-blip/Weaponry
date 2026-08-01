@@ -146,6 +146,200 @@ def test_vectorized_retained_production_bake_preserves_frozen_bytes() -> None:
     } == expected
 
 
+def test_retained_surface_layer_renders_feature_driven_roughness_and_emissive_motifs() -> None:
+    baseline = _lowering()
+    feature_driven = copy.deepcopy(baseline)
+    feature_driven["retained_layers"]["roughness_masks"][0]["motif"] = "microgrid"
+    feature_driven["retained_layers"]["emissive_masks"][0]["motif"] = "panel_indicator"
+    feature_driven["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(feature_driven["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+
+    normalize_surface_layer_lowering(feature_driven)
+    baseline_maps = {
+        item.texture_role: surface_layer_visual_texture_png_bytes(
+            baseline,
+            artifact_profile_id="interactive_preview",
+            texture_role=item.texture_role,
+        )
+        for item in surface_layer_visual_texture_set(
+            baseline,
+            artifact_profile_id="interactive_preview",
+        ).maps
+    }
+    feature_maps = {
+        item.texture_role: surface_layer_visual_texture_png_bytes(
+            feature_driven,
+            artifact_profile_id="interactive_preview",
+            texture_role=item.texture_role,
+        )
+        for item in surface_layer_visual_texture_set(
+            feature_driven,
+            artifact_profile_id="interactive_preview",
+        ).maps
+    }
+    assert feature_maps["metallic_roughness"] != baseline_maps["metallic_roughness"]
+    assert feature_maps["emissive"] != baseline_maps["emissive"]
+
+
+def test_retained_surface_layer_renders_reviewed_decal_motifs_into_base_color() -> None:
+    baseline = _lowering()
+    feature_driven = copy.deepcopy(baseline)
+    feature_driven["retained_layers"]["decal_layers"][0]["motif"] = "warning_stripe"
+    feature_driven["retained_layers"]["decal_layers"][0]["text_token"] = "CAUTION"
+    feature_driven["retained_layers"]["decal_layers"][0]["color_token"] = "signal_red"
+    feature_driven["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(feature_driven["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+
+    normalize_surface_layer_lowering(feature_driven)
+    baseline_base_color = surface_layer_visual_texture_png_bytes(
+        baseline,
+        artifact_profile_id="interactive_preview",
+        texture_role="base_color",
+    )
+    feature_base_color = surface_layer_visual_texture_png_bytes(
+        feature_driven,
+        artifact_profile_id="interactive_preview",
+        texture_role="base_color",
+    )
+    assert feature_base_color != baseline_base_color
+
+
+def test_retained_surface_layer_renders_evidence_conditioned_silver_color_token() -> None:
+    baseline = _lowering()
+    silver = copy.deepcopy(baseline)
+    silver["retained_layers"]["base_color_token"] = "silver"
+    silver["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(silver["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+
+    normalize_surface_layer_lowering(silver)
+    assert surface_layer_visual_texture_png_bytes(
+        silver,
+        artifact_profile_id="interactive_preview",
+        texture_role="base_color",
+    ) != surface_layer_visual_texture_png_bytes(
+        baseline,
+        artifact_profile_id="interactive_preview",
+        texture_role="base_color",
+    )
+
+    forged = copy.deepcopy(silver)
+    forged["retained_layers"]["base_color_token"] = "rgb(255,255,255)"
+    forged["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(forged["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+    with pytest.raises(ValueError, match="base color token"):
+        normalize_surface_layer_lowering(forged)
+
+
+def test_retained_surface_finish_token_changes_metallic_roughness_channel() -> None:
+    baseline = _lowering()
+    polished = copy.deepcopy(baseline)
+    polished["retained_layers"]["surface_finish_token"] = "polished_metal"
+    polished["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(polished["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+    ceramic = copy.deepcopy(baseline)
+    ceramic["retained_layers"]["surface_finish_token"] = "ceramic_coat"
+    ceramic["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(ceramic["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+
+    normalize_surface_layer_lowering(polished)
+    normalize_surface_layer_lowering(ceramic)
+    baseline_map = surface_layer_visual_texture_png_bytes(
+        baseline,
+        artifact_profile_id="interactive_preview",
+        texture_role="metallic_roughness",
+    )
+    polished_map = surface_layer_visual_texture_png_bytes(
+        polished,
+        artifact_profile_id="interactive_preview",
+        texture_role="metallic_roughness",
+    )
+    ceramic_map = surface_layer_visual_texture_png_bytes(
+        ceramic,
+        artifact_profile_id="interactive_preview",
+        texture_role="metallic_roughness",
+    )
+    assert polished_map != baseline_map
+    assert ceramic_map != polished_map
+
+    forged = copy.deepcopy(polished)
+    forged["retained_layers"]["surface_finish_token"] = "freeform_finish"
+    forged["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(forged["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+    with pytest.raises(ValueError, match="surface finish token"):
+        normalize_surface_layer_lowering(forged)
+
+
+def test_category_open_natural_finish_tokens_change_all_relevant_pbr_fields() -> None:
+    baseline = _lowering()
+    wood = copy.deepcopy(baseline)
+    wood["retained_layers"]["base_color_token"] = "wood_warm"
+    wood["retained_layers"]["surface_finish_token"] = "wood_grain"
+    wood["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(wood["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+    fur = copy.deepcopy(baseline)
+    fur["retained_layers"]["base_color_token"] = "fur_warm"
+    fur["retained_layers"]["surface_finish_token"] = "fur_soft"
+    fur["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(fur["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+
+    for lowering in (wood, fur):
+        normalize_surface_layer_lowering(lowering)
+
+    for role in ("base_color", "metallic_roughness", "normal"):
+        baseline_map = surface_layer_visual_texture_png_bytes(
+            baseline,
+            artifact_profile_id="interactive_preview",
+            texture_role=role,
+        )
+        natural_map = surface_layer_visual_texture_png_bytes(
+            wood,
+            artifact_profile_id="interactive_preview",
+            texture_role=role,
+        )
+        assert natural_map != baseline_map
+
+    assert surface_layer_visual_texture_png_bytes(
+        wood,
+        artifact_profile_id="interactive_preview",
+        texture_role="base_color",
+    ) != surface_layer_visual_texture_png_bytes(
+        fur,
+        artifact_profile_id="interactive_preview",
+        texture_role="base_color",
+    )
+
+
+def test_retained_surface_layer_renders_reviewed_vector_paths_into_pbr_channels() -> None:
+    with_path = _lowering()
+    without_path = copy.deepcopy(with_path)
+    without_path["retained_layers"]["vector_paths"] = []
+    without_path["retained_layers_sha256"] = hashlib.sha256(
+        _canonical(without_path["retained_layers"]).encode("utf-8")
+    ).hexdigest()
+
+    normalize_surface_layer_lowering(with_path)
+    normalize_surface_layer_lowering(without_path)
+    for role in ("base_color", "metallic_roughness", "occlusion"):
+        assert surface_layer_visual_texture_png_bytes(
+            with_path,
+            artifact_profile_id="interactive_preview",
+            texture_role=role,
+        ) != surface_layer_visual_texture_png_bytes(
+            without_path,
+            artifact_profile_id="interactive_preview",
+            texture_role=role,
+        )
+
+
 def test_retained_lowering_rejects_untrusted_or_noncanonical_input() -> None:
     lowering = _lowering()
     assert normalize_surface_layer_lowering(lowering)["retained_layers_sha256"] == lowering["retained_layers_sha256"]

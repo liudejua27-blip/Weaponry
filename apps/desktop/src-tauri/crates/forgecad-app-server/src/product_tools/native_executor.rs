@@ -20,29 +20,30 @@ use forgecad_app_server_protocol::{
     PRODUCT_TOOL_EXECUTION_RESULT_SCHEMA_VERSION, PRODUCT_TOOL_REGISTRY_SCHEMA_VERSION,
 };
 use forgecad_core::{
-    apply_forge_visual_geometry_patch_v2, build_c111_structural_detail_contract,
-    build_reference_camera_uv_raster_bake_from_geometry, builtin_surface_adornment_manifest_v3,
-    c111_golden_surface_adornment_programs, c111_golden_surface_layer_program,
-    c111_link_finish_surface_layer, c111b_visual_reference_acceptance_policy,
-    compiled_visual_base_material_id, compile_game_asset_delivery,
-    derive_game_asset_delivery_bindings, derive_geometry_invariant_binding,
-    derive_geometry_projection_camera_binding, derive_projection_camera_binding,
-    derive_reference_appearance_bindings, evaluate_native_v003_gate_profile_v2,
+    analyze_reference_image_bytes, apply_forge_visual_geometry_patch_v2,
+    build_c111_structural_detail_contract, build_reference_camera_uv_raster_bake_from_geometry,
+    builtin_surface_adornment_manifest_v3, c111_golden_surface_adornment_programs,
+    c111_golden_surface_layer_program, c111_link_finish_surface_layer,
+    c111b_visual_reference_acceptance_policy, compile_game_asset_delivery,
+    compiled_visual_base_material_id, derive_game_asset_delivery_bindings,
+    derive_geometry_invariant_binding, derive_geometry_projection_camera_binding,
+    derive_projection_camera_binding, derive_reference_appearance_bindings,
+    derive_reference_silhouette_profile, evaluate_native_v003_gate_profile_v2,
     fit_reference_camera_from_view_regions, lower_assembly_delta,
     lower_forge_visual_authoring_intent, lower_forge_visual_program,
     normalize_persisted_shape_program, semantic_sha256, verify_forgecad_glb,
-    verify_game_asset_delivery_glb,
-    visual_reference_authorization_binding_sha256, C111StructuralDetailContract,
-    CandidateCameraSilhouette, CandidatePbrCaptureEvidence, CandidatePbrCaptureSession,
-    CandidatePbrCaptureSubmission, CandidatePbrCapturedView, ComponentRecipeInstanceProvenance,
-    ComponentRecipeRef, DesignBuildLedger, EvidenceStatus, ForgeVisualInspectionView,
-    ForgeVisualProgramRevision, GameAssetDeliveryArtifact, GenerationAttemptKind,
-    GenerationGateCheck, GenerationGateReport,
-    GenerationPreview, MultimodalProgramEvidenceBinding, NativeGateEvidenceSource,
-    NativeGenerationGateBinding, NativeGenerationGateEvidence, ProjectionCameraBinding,
-    RecipeExpander, RecipeExpansionPolicy, RecipeInstantiationRequest, RecipeRegistry,
-    RecipeValidator, ReferenceCameraUvRasterBake, ReferenceCameraUvRasterTextureProfile,
-    ReferenceEvidence, ReferenceEvidenceKind, ReferenceProjectionType, ReferenceViewRegion,
+    verify_game_asset_delivery_glb, visual_reference_authorization_binding_sha256,
+    C111StructuralDetailContract, CameraParameterSource, CandidateCameraSilhouette,
+    CandidatePbrCaptureEvidence, CandidatePbrCaptureSession, CandidatePbrCaptureSubmission,
+    CandidatePbrCapturedView, ComponentRecipeInstanceProvenance, ComponentRecipeRef,
+    DesignBuildLedger, EvidenceStatus, ForgeVisualInspectionView, ForgeVisualProgramRevision,
+    GameAssetDeliveryArtifact, GameAssetDeliveryRequest, GenerationAttemptKind,
+    GenerationGateCheck, GenerationGateReport, GenerationPreview, MultimodalProgramEvidenceBinding,
+    NativeGateEvidenceSource, NativeGenerationGateBinding, NativeGenerationGateEvidence,
+    ProjectionCameraBinding, RecipeExpander, RecipeExpansionPolicy, RecipeInstantiationRequest,
+    RecipeRegistry, RecipeValidator, ReferenceAppearanceProjectionReceipt,
+    ReferenceCameraUvRasterBake, ReferenceCameraUvRasterTextureProfile, ReferenceEvidence,
+    ReferenceEvidenceKind, ReferenceImageColorBucket, ReferenceProjectionType, ReferenceViewRegion,
     RepairAttempt, SingleGenerationAttempt, SingleResultDecision, SurfaceAdornmentProgram,
     SurfaceLayerLowering, SurfaceLayerProgram, UniversalAssetSource, UniversalAssetSourceState,
     UniversalAssetSourceV2, UniversalAuthorOutcome, UniversalCompiledArtifactBinding,
@@ -53,19 +54,23 @@ use forgecad_core::{
     VisualEvidenceClaim, VisualEvidenceGraph, VisualFeatureLevel, VisualFixedViewEvidence,
     VisualFixedViewProfile, VisualGlbReadbackEvidence, VisualReferenceCandidateViewProfile,
     VisualReferenceComparisonInput, VisualReferenceComparisonReport,
-    VisualReferenceConvergenceEvidence, VisualRepairEvidence,
+    VisualReferenceConvergenceEvidence, VisualReferenceRenderContract, VisualRepairEvidence,
     CANDIDATE_PBR_CAPTURE_EVIDENCE_SCHEMA_VERSION, CANDIDATE_PBR_CAPTURE_SESSION_SCHEMA_VERSION,
     DESIGN_BUILD_LEDGER_SCHEMA_VERSION, GENERATION_GATE_REPORT_SCHEMA_VERSION,
-    GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID, LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID,
-    MAX_CAPTURE_AUXILIARY_VIEW_BYTES, MAX_CAPTURE_TOTAL_BYTES, MAX_CAPTURE_TTL_MS,
-    MAX_CAPTURE_VIEW_BYTES, MAX_SAME_INTENT_REPAIR_ATTEMPTS, MAX_VISUAL_REPAIR_ATTEMPTS,
-    NATIVE_GENERATION_GATE_EVIDENCE_SCHEMA_VERSION, REPAIR_ATTEMPT_SCHEMA_VERSION,
-    SINGLE_GENERATION_ATTEMPT_SCHEMA_VERSION, TURN_TABLE_EIGHT_VIEW_IDS,
-    VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION, VISUAL_REFERENCE_COMPARISON_MAXIMUM_CALLS,
+    GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID,
+    GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID, LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID,
+    LOCAL_MESH_PATCH_CAPABILITY_ID, MAX_CAPTURE_AUXILIARY_VIEW_BYTES, MAX_CAPTURE_TOTAL_BYTES,
+    MAX_CAPTURE_TTL_MS, MAX_CAPTURE_VIEW_BYTES, MAX_SAME_INTENT_REPAIR_ATTEMPTS,
+    MAX_VISUAL_REPAIR_ATTEMPTS, NATIVE_GENERATION_GATE_EVIDENCE_SCHEMA_VERSION,
+    REPAIR_ATTEMPT_SCHEMA_VERSION, SINGLE_GENERATION_ATTEMPT_SCHEMA_VERSION,
+    TURN_TABLE_EIGHT_VIEW_IDS, VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION,
+    VISUAL_REFERENCE_COMPARISON_MAXIMUM_CALLS,
     VISUAL_REFERENCE_COMPARISON_MAXIMUM_VARIABLE_COST_MICROUSD,
     WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX, WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX,
     WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX, WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX,
     WORKBENCH_PBR_CAPTURE_HEIGHT_PX, WORKBENCH_PBR_CAPTURE_WIDTH_PX, WORKBENCH_PBR_RENDERER_ID,
+    WORKBENCH_PBR_RENDER_MANIFEST_SHA256, WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID,
+    WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -118,6 +123,8 @@ const WORKBENCH_PBR_RENDER_MANIFEST_SOURCE: &str = concat!(
 );
 const MAX_VISUAL_REPAIR_TARGETS: usize = 8;
 const MAX_VISUAL_REPAIR_TARGET_PROJECTION_BYTES: usize = 8 * 1024;
+const AUXILIARY_PBR_QUALITY_SCHEMA_VERSION: &str = "CandidatePbrAuxiliaryQuality@1";
+const AUXILIARY_PBR_PASS_COUNT: usize = 5;
 const WORKBENCH_REQUIRED_VIEWS: [&str; 4] = ["front", "iso", "side", "top"];
 const CONVERGENCE_REQUIRED_VIEWS: [&str; 8] = [
     "iso",
@@ -140,7 +147,7 @@ const TURNTABLE_REQUIRED_VIEWS: [&str; 8] = [
     "turntable_315",
 ];
 const BOUNDED_REPAIR_PATCH_SCHEMA_VERSION: &str = "BoundedGeometryRepairPatch@1";
-const G819_OPERATIONS: [&str; 17] = [
+const G819_OPERATIONS: [&str; 20] = [
     "box",
     "cylinder",
     "capsule",
@@ -157,7 +164,10 @@ const G819_OPERATIONS: [&str; 17] = [
     "subtract",
     "bevel_approx",
     "surface_panel",
+    "groove",
+    "shell",
     "lattice_deform",
+    "local_mesh_patch",
 ];
 const FORBIDDEN_KEYS: [&str; 33] = [
     "provider_key",
@@ -557,15 +567,45 @@ impl RestrictedGeometryInput {
                 "Restricted geometry accepts at most eight Rust-sealed reference UV bakes.",
             ));
         }
-        let mut evidence_zones = BTreeSet::new();
+        let mut evidence_zones = BTreeMap::<&str, BTreeSet<String>>::new();
+        let mut evidence_zone_schemas = BTreeMap::<&str, BTreeSet<String>>::new();
         for bake in &self.reference_uv_evidence_bakes {
             bake.validate()
                 .map_err(|error| restricted_input_error(error.to_string()))?;
-            if !retained_zone_ids.contains(bake.target_material_zone_id.as_str())
-                || !evidence_zones.insert(bake.target_material_zone_id.as_str())
+            if !retained_zone_ids.contains(bake.target_material_zone_id.as_str()) {
+                return Err(restricted_input_error(
+                    "Reference UV evidence must target a Rust-sealed retained material zone.",
+                ));
+            }
+            let identity = format!("{}:{}", bake.source_evidence_id, bake.camera_hypothesis_id);
+            let identities = evidence_zones
+                .entry(bake.target_material_zone_id.as_str())
+                .or_default();
+            if !identities.insert(identity) {
+                return Err(restricted_input_error(
+                    "Reference UV fusion cannot repeat one sealed evidence/camera identity.",
+                ));
+            }
+            if identities.len() > 2 {
+                return Err(restricted_input_error(
+                    "Reference UV fusion accepts at most two sealed views per Material Zone.",
+                ));
+            }
+            evidence_zone_schemas
+                .entry(bake.target_material_zone_id.as_str())
+                .or_default()
+                .insert(bake.schema_version.clone());
+        }
+        for (zone_id, schemas) in evidence_zone_schemas {
+            let count = evidence_zones
+                .get(zone_id)
+                .map(BTreeSet::len)
+                .unwrap_or_default();
+            if count > 1
+                && (schemas.len() != 1 || !schemas.contains("ReferenceCameraUvRasterBake@2"))
             {
                 return Err(restricted_input_error(
-                    "Reference UV evidence must target one unique Rust-sealed retained material zone.",
+                    "Only camera-space ReferenceCameraUvRasterBake@2 may fuse multiple views for one Material Zone.",
                 ));
             }
         }
@@ -682,6 +722,147 @@ pub struct RestrictedGeometryReadback {
     pub visual_texture_set_count: u32,
     pub visual_texture_map_count: u32,
     pub visual_texture_provenance_verified: bool,
+    /// Hash/count-only reference projection facts extracted from the exact
+    /// worker GLB. The native UAS path later adds source/request lineage and
+    /// the final compiled-artifact identity before persistence.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reference_appearance_projection_receipts: Vec<ReferenceAppearanceProjectionReadback>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ReferenceAppearanceProjectionReadback {
+    #[serde(alias = "schema_version")]
+    pub worker_schema_version: String,
+    pub algorithm_id: String,
+    pub algorithm_version: String,
+    pub projection_id: String,
+    pub projection_sha256: String,
+    pub source_evidence_id: String,
+    pub source_image_sha256: String,
+    pub camera_hypothesis_id: String,
+    pub camera_provenance_sha256: String,
+    pub target_material_zone_id: String,
+    pub base_color_texture_id: String,
+    pub base_color_sha256: String,
+    pub base_color_byte_size: u64,
+    pub unobserved_texel_mask_id: String,
+    pub unobserved_texel_mask_sha256: String,
+    pub unobserved_texel_mask_byte_size: u64,
+    pub observed_texel_count: u64,
+    pub unobserved_texel_count: u64,
+    pub fusion_count: u8,
+    pub raster_triangle_count: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub world_to_clip_sha256: Option<String>,
+    #[serde(default)]
+    pub source_evidence_ids: Vec<String>,
+    #[serde(default)]
+    pub source_image_sha256s: Vec<String>,
+    #[serde(default)]
+    pub camera_hypothesis_ids: Vec<String>,
+    #[serde(default)]
+    pub camera_provenance_sha256s: Vec<String>,
+    #[serde(default)]
+    pub world_to_clip_sha256s: Vec<String>,
+    /// Digest of the exact worker receipt object, before this bounded bridge
+    /// DTO was extracted. It prevents a later source binding from proving a
+    /// different receipt than the one read from the GLB.
+    #[serde(skip, default)]
+    pub worker_receipt_sha256: String,
+}
+
+impl ReferenceAppearanceProjectionReadback {
+    pub fn validate(&self) -> Result<(), RestrictedGeometryError> {
+        let stable = |value: &str| {
+            !value.is_empty()
+                && value.len() <= 200
+                && value.chars().all(|character| {
+                    character.is_ascii_alphanumeric() || matches!(character, '_' | '-')
+                })
+        };
+        if !matches!(
+            self.worker_schema_version.as_str(),
+            "ReferenceCameraUvRasterBakeReceipt@2" | "ReferenceCameraUvRasterFusionReceipt@3"
+        ) || self.algorithm_id != "forgecad.reference_camera_uv_raster"
+            || self.algorithm_version != "1"
+            || !is_sha256(&self.projection_sha256)
+            || !is_sha256(&self.source_image_sha256)
+            || !is_sha256(&self.camera_provenance_sha256)
+            || !is_sha256(&self.base_color_sha256)
+            || !is_sha256(&self.unobserved_texel_mask_sha256)
+            || !is_sha256(&self.worker_receipt_sha256)
+            || !stable(&self.projection_id)
+            || !stable(&self.source_evidence_id)
+            || !stable(&self.camera_hypothesis_id)
+            || !stable(&self.target_material_zone_id)
+            || !stable(&self.base_color_texture_id)
+            || !stable(&self.unobserved_texel_mask_id)
+            || self.base_color_byte_size == 0
+            || self.unobserved_texel_mask_byte_size == 0
+            || self.observed_texel_count == 0
+            || self.unobserved_texel_count == 0
+            || self.fusion_count == 0
+            || self.fusion_count > 2
+            || self.raster_triangle_count == 0
+        {
+            return Err(restricted_geometry_invalid_response());
+        }
+        if self.worker_schema_version == "ReferenceCameraUvRasterBakeReceipt@2" {
+            if self.fusion_count != 1
+                || self
+                    .world_to_clip_sha256
+                    .as_ref()
+                    .is_none_or(|hash| !is_sha256(hash))
+                || !self.source_evidence_ids.is_empty()
+                || !self.source_image_sha256s.is_empty()
+                || !self.camera_hypothesis_ids.is_empty()
+                || !self.camera_provenance_sha256s.is_empty()
+                || !self.world_to_clip_sha256s.is_empty()
+            {
+                return Err(restricted_geometry_invalid_response());
+            }
+        } else if self.fusion_count != 2
+            || self.world_to_clip_sha256.is_some()
+            || self.source_evidence_ids.len() != 2
+            || self.source_image_sha256s.len() != 2
+            || self.camera_hypothesis_ids.len() != 2
+            || self.camera_provenance_sha256s.len() != 2
+            || self.world_to_clip_sha256s.len() != 2
+            || self.source_evidence_ids[0] != self.source_evidence_id
+            || self.source_image_sha256s[0] != self.source_image_sha256
+            || self.camera_hypothesis_ids[0] != self.camera_hypothesis_id
+            || self.camera_provenance_sha256s[0] != self.camera_provenance_sha256
+            || self.source_evidence_ids[0] == self.source_evidence_ids[1]
+            || self
+                .source_image_sha256s
+                .iter()
+                .any(|hash| !is_sha256(hash))
+            || self
+                .camera_provenance_sha256s
+                .iter()
+                .any(|hash| !is_sha256(hash))
+            || self
+                .world_to_clip_sha256s
+                .iter()
+                .any(|hash| !is_sha256(hash))
+            || self.source_evidence_ids.iter().any(|value| !stable(value))
+            || self
+                .camera_hypothesis_ids
+                .iter()
+                .any(|value| !stable(value))
+        {
+            return Err(restricted_geometry_invalid_response());
+        }
+        Ok(())
+    }
+}
+
+fn restricted_geometry_invalid_response() -> RestrictedGeometryError {
+    RestrictedGeometryError::execution(
+        "RESTRICTED_GEOMETRY_RESPONSE_INVALID",
+        "Restricted geometry returned bytes or readback outside the frozen contract.",
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -858,15 +1039,16 @@ impl NativePreviewArtifact {
                     && self.readback.glb_byte_size > 0
             },
         );
-        let source_bytes_match_delivery = match (game_delivery, self.visual_source_glb_bytes.as_deref()) {
-            (None, None) => true,
-            (Some(delivery), Some(source_bytes)) => {
-                !source_bytes.is_empty()
-                    && source_bytes.len() <= MAX_GLTF_BYTES
-                    && sha256_hex(source_bytes) == delivery.source_glb_sha256
-            }
-            _ => false,
-        };
+        let source_bytes_match_delivery =
+            match (game_delivery, self.visual_source_glb_bytes.as_deref()) {
+                (None, None) => true,
+                (Some(delivery), Some(source_bytes)) => {
+                    !source_bytes.is_empty()
+                        && source_bytes.len() <= MAX_GLTF_BYTES
+                        && sha256_hex(source_bytes) == delivery.source_glb_sha256
+                }
+                _ => false,
+            };
         if self.schema_version != NATIVE_PREVIEW_ARTIFACT_SCHEMA_VERSION
             || !is_stable_id(&self.preview_id)
             || !self.preview_id.starts_with("preview_")
@@ -968,13 +1150,13 @@ impl NativePreviewArtifact {
             let readback_sha256 = semantic_sha256(&self.readback).map_err(|error| {
                 preview_port_error("NATIVE_PREVIEW_ARTIFACT_INVALID", error.to_string())
             })?;
-            let preview_glb_matches = source
-                .game_asset_delivery
-                .as_ref()
-                .map_or(compiled.glb_sha256 == self.glb_sha256, |delivery| {
+            let preview_glb_matches = source.game_asset_delivery.as_ref().map_or(
+                compiled.glb_sha256 == self.glb_sha256,
+                |delivery| {
                     delivery.source_glb_sha256 == compiled.glb_sha256
                         && delivery.delivery_glb_sha256 == self.glb_sha256
-                });
+                },
+            );
             if source.state != UniversalAssetSourceState::Compiled
                 || procedural.shape_program != self.shape_program
                 || compiled.source_program_sha256 != procedural.source_program_sha256
@@ -1087,12 +1269,18 @@ impl NativePreviewArtifact {
             self.visual_reference_comparison_report.as_ref(),
         ) {
             (Some(input), Some(report)) => {
-                let comparison_source_program_sha256 = if let Some(revision) = &self.forge_visual_program_revision {
+                let comparison_source_program_sha256 = if let Some(revision) =
+                    &self.forge_visual_program_revision
+                {
                     revision.source_program_sha256.as_str()
                 } else if let Some(source) = &self.universal_asset_source_v2 {
-                    source.runtime_procedural().map_err(|error| {
-                        preview_port_error("NATIVE_PREVIEW_ARTIFACT_INVALID", error.to_string())
-                    })?.source_program_sha256.as_str()
+                    source
+                        .runtime_procedural()
+                        .map_err(|error| {
+                            preview_port_error("NATIVE_PREVIEW_ARTIFACT_INVALID", error.to_string())
+                        })?
+                        .source_program_sha256
+                        .as_str()
                 } else {
                     return Err(preview_port_error(
                         "NATIVE_PREVIEW_ARTIFACT_INVALID",
@@ -1480,9 +1668,9 @@ fn build_native_preview_artifact(
         state.universal_asset_source_v2.as_ref(),
     ) {
         (true, Some(project_id), Some(source)) => {
-            source.validate().map_err(|error| {
-                NativeToolFailure::schema(error.code(), error.to_string())
-            })?;
+            source
+                .validate()
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
             if project_id != source.request.project_id || turn_id != source.request.turn_id {
                 return Err(NativeToolFailure::conflict(
                     "NATIVE_UNIVERSAL_PREVIEW_PROJECT_TURN_MISMATCH",
@@ -1500,9 +1688,8 @@ fn build_native_preview_artifact(
                         "A category-open preview requires its single verified build direction.",
                     )
                 })?;
-            let expected_direction_id = universal_v2_direction_id(source).map_err(|error| {
-                NativeToolFailure::schema(error.code, error.message)
-            })?;
+            let expected_direction_id = universal_v2_direction_id(source)
+                .map_err(|error| NativeToolFailure::schema(error.code, error.message))?;
             if direction_id != expected_direction_id {
                 return Err(NativeToolFailure::conflict(
                     "NATIVE_UNIVERSAL_PREVIEW_DIRECTION_CONFLICT",
@@ -1516,9 +1703,8 @@ fn build_native_preview_artifact(
                 request_id: source.request.request_id.clone(),
                 request_sha256: source.request_sha256.clone(),
                 source_id: source.source_id.clone(),
-                source_sha256: semantic_sha256(source).map_err(|error| {
-                    NativeToolFailure::schema(error.code(), error.to_string())
-                })?,
+                source_sha256: semantic_sha256(source)
+                    .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?,
                 direction_id: direction_id.to_string(),
             })
         }
@@ -1674,13 +1860,26 @@ fn universal_v2_direction_id(
     source: &UniversalAssetSourceV2,
 ) -> Result<&'static str, ProductToolPortError> {
     match &source.representation_source {
-        UniversalRepresentationSourceV2::Procedural(_) => Ok("direction_universal_hard_surface"),
+        UniversalRepresentationSourceV2::Procedural(_) => {
+            let capabilities = source
+                .representation_plan
+                .parts
+                .iter()
+                .map(|part| part.capability_id.as_str())
+                .collect::<BTreeSet<_>>();
+            if capabilities.len() == 1
+                && capabilities.contains(GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID)
+            {
+                Ok("direction_universal_visual_exterior")
+            } else {
+                Ok("direction_universal_hard_surface")
+            }
+        }
         UniversalRepresentationSourceV2::Deformable(_) => Ok("direction_universal_local_lattice"),
         UniversalRepresentationSourceV2::Hybrid(_) => Ok("direction_universal_local_hybrid"),
-        UniversalRepresentationSourceV2::LocalMeshPatch(_) => Err(preview_port_error(
-            "NATIVE_UNIVERSAL_PREVIEW_REPRESENTATION_UNAVAILABLE",
-            "An unavailable mesh-patch representation cannot create a confirmable preview.",
-        )),
+        UniversalRepresentationSourceV2::LocalMeshPatch(_) => {
+            Ok("direction_universal_local_mesh_patch")
+        }
     }
 }
 
@@ -2596,7 +2795,50 @@ fn current_unix_ms() -> Result<u64, ProductToolPortError> {
 }
 
 fn workbench_pbr_render_manifest_sha256() -> String {
-    sha256_hex(WORKBENCH_PBR_RENDER_MANIFEST_SOURCE.as_bytes())
+    let computed = sha256_hex(WORKBENCH_PBR_RENDER_MANIFEST_SOURCE.as_bytes());
+    debug_assert_eq!(computed, WORKBENCH_PBR_RENDER_MANIFEST_SHA256);
+    WORKBENCH_PBR_RENDER_MANIFEST_SHA256.into()
+}
+
+#[cfg(test)]
+fn workbench_pbr_visual_render_contract() -> VisualReferenceRenderContract {
+    VisualReferenceRenderContract {
+        schema_version: "VisualReferenceRenderContract@1".into(),
+        renderer_id: WORKBENCH_PBR_RENDERER_ID.into(),
+        render_manifest_sha256: workbench_pbr_render_manifest_sha256(),
+        visual_environment_id: WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into(),
+        visual_environment_sha256: WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into(),
+        output_color_space: "srgb".into(),
+        tone_mapping: "aces_filmic".into(),
+    }
+}
+
+fn workbench_pbr_visual_render_contract_from_capture(
+    evidence: &CandidatePbrCaptureEvidence,
+) -> Result<VisualReferenceRenderContract, NativeToolFailure> {
+    let contract = VisualReferenceRenderContract {
+        schema_version: "VisualReferenceRenderContract@1".into(),
+        renderer_id: evidence.renderer_id.clone(),
+        render_manifest_sha256: evidence.render_manifest_sha256.clone(),
+        visual_environment_id: evidence.visual_environment_id.clone().ok_or_else(|| {
+            NativeToolFailure::conflict(
+                "UNIVERSAL_VISUAL_AUTHORIZATION_ENVIRONMENT_REQUIRED",
+                "Universal visual comparison requires Rust-accepted visual environment identity.",
+            )
+        })?,
+        visual_environment_sha256: evidence.visual_environment_sha256.clone().ok_or_else(|| {
+            NativeToolFailure::conflict(
+                "UNIVERSAL_VISUAL_AUTHORIZATION_ENVIRONMENT_REQUIRED",
+                "Universal visual comparison requires Rust-accepted visual environment hash.",
+            )
+        })?,
+        output_color_space: "srgb".into(),
+        tone_mapping: "aces_filmic".into(),
+    };
+    contract
+        .validate()
+        .map_err(|error| NativeToolFailure::conflict(error.code(), error.to_string()))?;
+    Ok(contract)
 }
 
 fn hex_bytes(bytes: &[u8]) -> String {
@@ -2618,50 +2860,137 @@ fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
 }
 
 /// Reject an empty or malformed diagnostic bundle before it can be accepted
-/// as same-renderer evidence. This deliberately proves only that each fixed
-/// GPU pass emitted visible pixels and was not a uniform fabricated tile;
-/// silhouette and single-zone ID passes may correctly contain only a
-/// foreground colour plus the black background. Qwen still sees and scores
-/// only the colour-managed PBR beauty frames.
+/// as same-renderer evidence. This proves that each fixed GPU pass emitted
+/// visible pixels; silhouette and single-zone ID passes may correctly contain
+/// only a foreground colour plus the black background. Qwen still sees and
+/// scores only the colour-managed PBR beauty frames; the Rust metrics below
+/// provide bounded renderer evidence rather than pretending to be a semantic
+/// similarity score.
 fn valid_auxiliary_pbr_contact_sheet(bytes: &[u8]) -> bool {
-    let image = match image::load_from_memory_with_format(bytes, image::ImageFormat::Png) {
-        Ok(value) => value.into_rgba8(),
-        Err(_) => return false,
-    };
+    auxiliary_pbr_quality_metrics(bytes).is_some_and(|metrics| metrics.semantic_passed)
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct AuxiliaryPbrTileMetrics {
+    foreground_occupancy_per_mille: u16,
+    foreground_distinct_rgb_count: u32,
+    foreground_channel_range: [u8; 3],
+}
+
+/// Rust-owned facts derived from the exact same-renderer auxiliary contact
+/// sheet. These values are transient quality evidence, not a new asset
+/// property: the raw PNG remains bound by CandidatePbrCaptureEvidence and is
+/// discarded before preview/version persistence. The metric deliberately
+/// checks semantic coverage rather than a beauty-image score: a candidate
+/// must expose geometry in all five declared GPU passes, while flat single
+/// material/part results remain valid and are reported instead of being
+/// rejected as a false universal quality rule.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct AuxiliaryPbrQualityMetrics {
+    schema_version: String,
+    pass_count: u8,
+    tiles: [AuxiliaryPbrTileMetrics; AUXILIARY_PBR_PASS_COUNT],
+    semantic_passed: bool,
+    failure_codes: Vec<String>,
+}
+
+fn auxiliary_pbr_quality_metrics(bytes: &[u8]) -> Option<AuxiliaryPbrQualityMetrics> {
+    let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+        .ok()?
+        .into_rgba8();
     if image.width() != WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX
         || image.height() != WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX
     {
-        return false;
+        return None;
     }
-    for pass_index in 0..5_u32 {
+
+    let mut tiles = Vec::with_capacity(AUXILIARY_PBR_PASS_COUNT);
+    let mut anti_tamper_passed = Vec::with_capacity(AUXILIARY_PBR_PASS_COUNT);
+    for pass_index in 0..AUXILIARY_PBR_PASS_COUNT as u32 {
         let column = pass_index % 3;
         let row = pass_index / 3;
-        let x_start = column * 320;
-        let y_start = row * 320;
-        let mut non_black = 0_u32;
-        let mut first_sample = None;
-        let mut differs_from_first_sample = false;
-        // A 16px grid rejects empty/tampered tiles without retaining or
-        // semantically interpreting the image pixels in product state.
-        for y in (y_start..y_start + 320).step_by(16) {
-            for x in (x_start..x_start + 320).step_by(16) {
+        let x_start = column * WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX;
+        let y_start = row * WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX;
+        let mut foreground_pixel_count = 0_u32;
+        let mut foreground_colors = BTreeSet::<[u8; 3]>::new();
+        let mut channel_min = [u8::MAX; 3];
+        let mut channel_max = [0_u8; 3];
+        let mut sampled_non_black = 0_u32;
+        let mut sampled_first_rgb = None;
+        let mut sampled_differs = false;
+        // Read every pixel for the quality evidence and sample the same pass
+        // at 16px intervals for the bounded anti-tamper check. The full scan
+        // records facts used by the Rust hard gate and later diagnostics;
+        // neither scan retains pixels in product state.
+        for y in y_start..y_start + WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX {
+            for x in x_start..x_start + WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX {
                 let pixel = image.get_pixel(x, y).0;
                 let rgb = [pixel[0], pixel[1], pixel[2]];
-                if let Some(first) = first_sample {
-                    differs_from_first_sample |= first != rgb;
-                } else {
-                    first_sample = Some(rgb);
+                if x % 16 == 0 && y % 16 == 0 {
+                    if let Some(first) = sampled_first_rgb {
+                        sampled_differs |= first != rgb;
+                    } else {
+                        sampled_first_rgb = Some(rgb);
+                    }
+                    if rgb != [0, 0, 0] {
+                        sampled_non_black = sampled_non_black.saturating_add(1);
+                    }
                 }
-                if rgb != [0, 0, 0] {
-                    non_black += 1;
+                if rgb == [0, 0, 0] {
+                    continue;
+                }
+                foreground_pixel_count = foreground_pixel_count.saturating_add(1);
+                foreground_colors.insert(rgb);
+                for channel in 0..3 {
+                    channel_min[channel] = channel_min[channel].min(rgb[channel]);
+                    channel_max[channel] = channel_max[channel].max(rgb[channel]);
                 }
             }
         }
-        if non_black < 4 || !differs_from_first_sample {
-            return false;
+        let total_pixels = WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX
+            .saturating_mul(WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX);
+        tiles.push(AuxiliaryPbrTileMetrics {
+            foreground_occupancy_per_mille: ((u64::from(foreground_pixel_count) * 1_000)
+                / u64::from(total_pixels))
+            .min(u64::from(u16::MAX)) as u16,
+            foreground_distinct_rgb_count: foreground_colors.len().min(u32::MAX as usize) as u32,
+            foreground_channel_range: [
+                channel_max[0].saturating_sub(channel_min[0]),
+                channel_max[1].saturating_sub(channel_min[1]),
+                channel_max[2].saturating_sub(channel_min[2]),
+            ],
+        });
+        anti_tamper_passed.push(sampled_non_black >= 4 && sampled_differs);
+    }
+
+    let mut failure_codes = Vec::new();
+    for (index, tile) in tiles.iter().enumerate() {
+        if tile.foreground_occupancy_per_mille == 0 {
+            failure_codes.push(format!("GPU_AUXILIARY_PASS_{index}_EMPTY"));
+        }
+        if tile.foreground_distinct_rgb_count == 0 {
+            failure_codes.push(format!("GPU_AUXILIARY_PASS_{index}_NO_FOREGROUND"));
+        }
+        if tile.foreground_occupancy_per_mille > 0 && !anti_tamper_passed[index] {
+            // Preserve the bounded anti-tamper rule from the capture
+            // contract. A legal binary silhouette or single-zone pass has
+            // black background plus one foreground colour; a full tile with
+            // no sampled contrast is not accepted as renderer evidence.
+            failure_codes.push(format!("GPU_AUXILIARY_PASS_{index}_UNIFORM"));
         }
     }
-    true
+    failure_codes.sort();
+    failure_codes.dedup();
+    let tiles: [AuxiliaryPbrTileMetrics; AUXILIARY_PBR_PASS_COUNT] = tiles
+        .try_into()
+        .expect("fixed auxiliary pass count is five");
+    Some(AuxiliaryPbrQualityMetrics {
+        schema_version: AUXILIARY_PBR_QUALITY_SCHEMA_VERSION.into(),
+        pass_count: AUXILIARY_PBR_PASS_COUNT as u8,
+        semantic_passed: failure_codes.is_empty(),
+        tiles,
+        failure_codes,
+    })
 }
 
 /// Derives the candidate silhouette bounds from the first diagnostic tile of
@@ -2708,11 +3037,303 @@ fn silhouette_bounds_from_auxiliary_pbr_contact_sheet(bytes: &[u8]) -> Option<[u
     })
 }
 
+/// Derives the same sixteen coarse occupancy samples from the accepted GPU
+/// silhouette tile. This is intentionally transient and Rust-owned: the
+/// desktop cannot submit a self-reported contour to influence camera fitting.
+fn silhouette_profile_from_auxiliary_pbr_contact_sheet(bytes: &[u8]) -> Option<Vec<u16>> {
+    let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+        .ok()?
+        .into_rgb8();
+    if image.width() != WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX
+        || image.height() != WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX
+    {
+        return None;
+    }
+    let bucket_count = forgecad_core::SILHOUETTE_PROFILE_BUCKET_COUNT;
+    let mut foreground = vec![0_u32; bucket_count];
+    let mut totals = vec![0_u32; bucket_count];
+    for y in 0..WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX {
+        for x in 0..WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX {
+            let bucket = ((x as usize * bucket_count)
+                / WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX as usize)
+                .min(bucket_count - 1);
+            totals[bucket] = totals[bucket].saturating_add(1);
+            if image.get_pixel(x, y).0 != [0, 0, 0] {
+                foreground[bucket] = foreground[bucket].saturating_add(1);
+            }
+        }
+    }
+    Some(
+        foreground
+            .into_iter()
+            .zip(totals)
+            .map(|(count, total)| {
+                if total == 0 {
+                    0
+                } else {
+                    ((u64::from(count) * 1_000) / u64::from(total)).min(1_000) as u16
+                }
+            })
+            .collect(),
+    )
+}
+
+const RUST_REFERENCE_VISUAL_METRICS_SCHEMA_VERSION: &str = "RustReferenceVisualMetrics@1";
+const MAX_RUST_REFERENCE_SILHOUETTE_ERROR_PER_MILLE: u16 = 520;
+const MIN_RUST_REFERENCE_BOUNDS_IOU_BPS: u16 = 2_000;
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct RustReferenceVisualMetricView {
+    candidate_view_id: String,
+    silhouette_profile_error_per_mille: Option<u16>,
+    bounds_iou_bps: Option<u16>,
+    dominant_color_overlap_bps: Option<u16>,
+    brightness_match: Option<bool>,
+    edge_density_match: Option<bool>,
+    score_bps: Option<u16>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct RustReferenceVisualMetricEvidence {
+    reference_evidence_id: String,
+    availability: String,
+    passed: bool,
+    selected_view: Option<RustReferenceVisualMetricView>,
+    views: Vec<RustReferenceVisualMetricView>,
+    failure_codes: Vec<String>,
+}
+
+/// Compact, deterministic evidence derived from exact sealed reference bytes
+/// and the same-renderer candidate capture. This is deliberately weaker than
+/// semantic Qwen comparison: it catches obvious contour/bounds/appearance
+/// divergence without pretending to understand object identity or hidden
+/// surfaces. No source or candidate pixels enter the returned value.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct RustReferenceVisualMetrics {
+    schema_version: String,
+    availability: String,
+    passed: bool,
+    references: Vec<RustReferenceVisualMetricEvidence>,
+    failure_codes: Vec<String>,
+}
+
+fn rust_reference_visual_metrics(
+    reference_content_by_id: &BTreeMap<String, ReferenceEvidenceContent>,
+    capture: &NativeCandidatePbrCaptureEvidence,
+) -> RustReferenceVisualMetrics {
+    let mut references = Vec::new();
+    let mut failure_codes = Vec::new();
+    for content in reference_content_by_id.values() {
+        if content.evidence.kind != ReferenceEvidenceKind::Image {
+            continue;
+        }
+        let Some(reference_facts) = content
+            .evidence
+            .observations
+            .image_surface_facts
+            .clone()
+            .or_else(|| {
+                analyze_reference_image_bytes(&content.evidence.source_media_type, &content.bytes)
+                    .ok()
+            })
+        else {
+            references.push(RustReferenceVisualMetricEvidence {
+                reference_evidence_id: content.evidence.evidence_id.clone(),
+                availability: "not_available".into(),
+                passed: true,
+                selected_view: None,
+                views: Vec::new(),
+                failure_codes: Vec::new(),
+            });
+            continue;
+        };
+        let reference_profile = (reference_facts.width.min(reference_facts.height) >= 32)
+            .then(|| {
+                derive_reference_silhouette_profile(
+                    &content.evidence.source_media_type,
+                    &content.bytes,
+                )
+                .ok()
+            })
+            .flatten();
+        let mut views = capture
+            .png_by_view_id
+            .iter()
+            .filter_map(|(view_id, bytes)| {
+                let candidate_facts = analyze_reference_image_bytes("image/png", bytes).ok();
+                let candidate_profile = capture
+                    .silhouette_profile_per_mille_by_view_id
+                    .get(view_id)
+                    .cloned();
+                let candidate_bounds = capture
+                    .silhouette_bounds_per_mille_by_view_id
+                    .get(view_id)
+                    .copied()
+                    .or_else(|| {
+                        candidate_facts
+                            .as_ref()
+                            .map(|facts| facts.foreground_bbox_normalized)
+                    });
+                let silhouette_profile_error_per_mille = reference_profile
+                    .as_deref()
+                    .zip(candidate_profile.as_deref())
+                    .filter(|(reference, candidate)| reference.len() == candidate.len())
+                    .map(|(reference, candidate)| {
+                        (reference
+                            .iter()
+                            .zip(candidate)
+                            .map(|(left, right)| u32::from(left.abs_diff(*right)))
+                            .sum::<u32>()
+                            / reference.len() as u32)
+                            .min(u32::from(u16::MAX)) as u16
+                    });
+                let bounds_iou_bps = candidate_bounds.map(|candidate| {
+                    bounds_iou_bps(reference_facts.foreground_bbox_normalized, candidate)
+                });
+                let dominant_color_overlap_bps = candidate_facts.as_ref().map(|facts| {
+                    color_bucket_overlap_bps(
+                        &reference_facts.dominant_color_buckets,
+                        &facts.dominant_color_buckets,
+                    )
+                });
+                let brightness_match = candidate_facts
+                    .as_ref()
+                    .map(|facts| reference_facts.brightness == facts.brightness);
+                let edge_density_match = candidate_facts
+                    .as_ref()
+                    .map(|facts| reference_facts.edge_density == facts.edge_density);
+                let mut weighted = 0_u32;
+                let mut weight = 0_u32;
+                if let Some(error) = silhouette_profile_error_per_mille {
+                    weighted += (10_000_u32.saturating_sub(u32::from(error) * 10)) * 50;
+                    weight += 50;
+                }
+                if let Some(iou) = bounds_iou_bps {
+                    weighted += u32::from(iou) * 20;
+                    weight += 20;
+                }
+                if let Some(overlap) = dominant_color_overlap_bps {
+                    weighted += u32::from(overlap) * 15;
+                    weight += 15;
+                }
+                if let Some(matches) = brightness_match {
+                    weighted += if matches { 10_000 * 10 } else { 0 };
+                    weight += 10;
+                }
+                if let Some(matches) = edge_density_match {
+                    weighted += if matches { 10_000 * 5 } else { 0 };
+                    weight += 5;
+                }
+                (weight > 0).then(|| RustReferenceVisualMetricView {
+                    candidate_view_id: view_id.clone(),
+                    silhouette_profile_error_per_mille,
+                    bounds_iou_bps,
+                    dominant_color_overlap_bps,
+                    brightness_match,
+                    edge_density_match,
+                    score_bps: Some((weighted / weight).min(u32::from(u16::MAX)) as u16),
+                })
+            })
+            .collect::<Vec<_>>();
+        views.sort_by(|left, right| {
+            right
+                .score_bps
+                .cmp(&left.score_bps)
+                .then_with(|| left.candidate_view_id.cmp(&right.candidate_view_id))
+        });
+        let selected_view = views.first().cloned();
+        let mut reference_failures = Vec::new();
+        if let Some(selected) = selected_view.as_ref() {
+            if selected
+                .silhouette_profile_error_per_mille
+                .is_some_and(|error| error > MAX_RUST_REFERENCE_SILHOUETTE_ERROR_PER_MILLE)
+            {
+                reference_failures.push("RUST_REFERENCE_SILHOUETTE_DEVIATION".into());
+            }
+            if selected
+                .bounds_iou_bps
+                .is_some_and(|iou| iou < MIN_RUST_REFERENCE_BOUNDS_IOU_BPS)
+            {
+                reference_failures.push("RUST_REFERENCE_BOUNDS_LOW_OVERLAP".into());
+            }
+        }
+        reference_failures.sort();
+        reference_failures.dedup();
+        failure_codes.extend(reference_failures.iter().cloned());
+        references.push(RustReferenceVisualMetricEvidence {
+            reference_evidence_id: content.evidence.evidence_id.clone(),
+            availability: if selected_view.is_some() {
+                "available".into()
+            } else {
+                "not_available".into()
+            },
+            passed: reference_failures.is_empty(),
+            selected_view,
+            views,
+            failure_codes: reference_failures,
+        });
+    }
+    failure_codes.sort();
+    failure_codes.dedup();
+    let available = references
+        .iter()
+        .any(|reference| reference.availability == "available");
+    RustReferenceVisualMetrics {
+        schema_version: RUST_REFERENCE_VISUAL_METRICS_SCHEMA_VERSION.into(),
+        availability: if available {
+            "available".into()
+        } else {
+            "not_available".into()
+        },
+        passed: failure_codes.is_empty(),
+        references,
+        failure_codes,
+    }
+}
+
+fn bounds_iou_bps(left: [u16; 4], right: [u16; 4]) -> u16 {
+    let intersection_left = u32::from(left[0].max(right[0]));
+    let intersection_top = u32::from(left[1].max(right[1]));
+    let intersection_right = u32::from(left[2].min(right[2]));
+    let intersection_bottom = u32::from(left[3].min(right[3]));
+    let intersection =
+        if intersection_left < intersection_right && intersection_top < intersection_bottom {
+            (intersection_right - intersection_left) * (intersection_bottom - intersection_top)
+        } else {
+            0
+        };
+    let left_area = u32::from(left[2] - left[0]) * u32::from(left[3] - left[1]);
+    let right_area = u32::from(right[2] - right[0]) * u32::from(right[3] - right[1]);
+    let union = left_area + right_area - intersection;
+    if union == 0 {
+        0
+    } else {
+        ((u64::from(intersection) * 10_000) / u64::from(union)) as u16
+    }
+}
+
+fn color_bucket_overlap_bps(
+    reference: &[ReferenceImageColorBucket],
+    candidate: &[ReferenceImageColorBucket],
+) -> u16 {
+    let reference = reference.iter().copied().collect::<BTreeSet<_>>();
+    let candidate = candidate.iter().copied().collect::<BTreeSet<_>>();
+    let denominator = reference.len().max(candidate.len());
+    if denominator == 0 {
+        0
+    } else {
+        ((reference.intersection(&candidate).count() * 10_000) / denominator) as u16
+    }
+}
+
 /// Finds the single most-salient observed macro geometry region for each
 /// sealed reference. A region is evidence, not a provider assertion: it must
 /// already be present in the Rust-validated feature contract. Meso/micro
 /// features intentionally cannot solve a whole-object camera view.
-fn observed_reference_view_regions(source: &UniversalAssetSourceV2) -> Vec<ReferenceViewRegion> {
+fn observed_reference_view_regions(
+    source: &UniversalAssetSourceV2,
+    evidence_content_by_id: &BTreeMap<String, ReferenceEvidenceContent>,
+) -> Vec<ReferenceViewRegion> {
     let reference_ids = source
         .request
         .reference_inputs
@@ -2762,11 +3383,35 @@ fn observed_reference_view_regions(source: &UniversalAssetSourceV2) -> Vec<Refer
     selected
         .into_iter()
         .map(
-            |(evidence_id, (view_id, bounds_per_mille, feature_id, _))| ReferenceViewRegion {
-                evidence_id,
-                view_id,
-                bounds_per_mille,
-                observed_feature_ids: vec![feature_id],
+            |(evidence_id, (view_id, bounds_per_mille, feature_id, _))| {
+                let silhouette_profile_per_mille = evidence_content_by_id
+                    .get(&evidence_id)
+                    .filter(|content| content.evidence.kind == ReferenceEvidenceKind::Image)
+                    // Tiny hermetic fixtures are valid sealed evidence but
+                    // do not carry enough spatial samples for a contour
+                    // gate. They retain the explicit bounds-only fallback.
+                    .filter(|content| {
+                        content
+                            .evidence
+                            .observations
+                            .image_surface_facts
+                            .as_ref()
+                            .is_some_and(|facts| facts.width.min(facts.height) >= 32)
+                    })
+                    .and_then(|content| {
+                        derive_reference_silhouette_profile(
+                            &content.evidence.source_media_type,
+                            &content.bytes,
+                        )
+                        .ok()
+                    });
+                ReferenceViewRegion {
+                    evidence_id,
+                    view_id,
+                    bounds_per_mille,
+                    silhouette_profile_per_mille,
+                    observed_feature_ids: vec![feature_id],
+                }
             },
         )
         .collect()
@@ -2791,6 +3436,10 @@ fn candidate_camera_silhouettes(
                 projection_type: ReferenceProjectionType::Perspective,
                 vertical_fov_millidegrees: Some(WORKBENCH_PBR_CAPTURE_VERTICAL_FOV_MILLIDEGREES),
                 bounds_per_mille,
+                silhouette_profile_per_mille: capture
+                    .silhouette_profile_per_mille_by_view_id
+                    .get(view.view_id.as_str())
+                    .cloned(),
                 landmark_feature_ids: Vec::new(),
             })
         })
@@ -2800,12 +3449,13 @@ fn candidate_camera_silhouettes(
 fn attach_bounded_silhouette_camera_fits(
     source: UniversalAssetSourceV2,
     capture: &NativeCandidatePbrCaptureEvidence,
+    evidence_content_by_id: &BTreeMap<String, ReferenceEvidenceContent>,
 ) -> Result<UniversalAssetSourceV2, NativeToolFailure> {
     let candidates = candidate_camera_silhouettes(capture);
     if candidates.is_empty() {
         return Ok(source);
     }
-    let fits = observed_reference_view_regions(&source)
+    let fits = observed_reference_view_regions(&source, evidence_content_by_id)
         .iter()
         .filter_map(|reference| fit_reference_camera_from_view_regions(reference, &candidates).ok())
         .collect::<Vec<_>>();
@@ -2894,6 +3544,17 @@ impl RestrictedGeometryOutput {
         {
             return Err(restricted_output_error(
                 "Restricted geometry output failed GLB/readback integrity validation.",
+            ));
+        }
+        if self.readback.reference_appearance_projection_receipts.len() > 64
+            || self
+                .readback
+                .reference_appearance_projection_receipts
+                .iter()
+                .any(|receipt| receipt.validate().is_err())
+        {
+            return Err(restricted_output_error(
+                "Restricted geometry reference appearance projection readback is invalid.",
             ));
         }
         // `closed_manifold` and `surface_provenance_present` are quality
@@ -3951,6 +4612,8 @@ pub struct NativeCandidatePbrCaptureUpload {
     pub view_id: String,
     pub camera_pose_sha256: String,
     pub projection_camera_binding_sha256: String,
+    pub visual_environment_id: String,
+    pub visual_environment_sha256: String,
     pub png_bytes: Vec<u8>,
     pub auxiliary_png_bytes: Vec<u8>,
 }
@@ -3969,6 +4632,10 @@ pub struct NativeCandidatePbrCaptureEvidence {
     /// Rust-derived from the silhouette tile of the exact retained auxiliary
     /// image. This remains transient evidence, not an asset property.
     pub silhouette_bounds_per_mille_by_view_id: BTreeMap<String, [u16; 4]>,
+    /// Rust-derived low-dimensional occupancy profiles from the same
+    /// auxiliary silhouette tiles. These remain transient and are used only
+    /// to reject a poor discrete camera fit; they are not asset properties.
+    pub silhouette_profile_per_mille_by_view_id: BTreeMap<String, Vec<u16>>,
 }
 
 impl NativeCandidatePbrCaptureEvidence {
@@ -4284,6 +4951,8 @@ impl NativeProductToolExecutor {
             compile_readback_sha256: geometry.readback.compile_readback_sha256.clone(),
             artifact_profile_id: geometry.readback.artifact_profile_id.clone(),
             render_manifest_sha256: workbench_pbr_render_manifest_sha256(),
+            visual_environment_id: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into()),
+            visual_environment_sha256: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into()),
             expected_renderer_id: WORKBENCH_PBR_RENDERER_ID.into(),
             capture_nonce,
             issued_at_unix_ms: now_unix_ms,
@@ -4441,50 +5110,114 @@ impl NativeProductToolExecutor {
         let mut png_by_view_id = BTreeMap::new();
         let mut auxiliary_png_by_view_id = BTreeMap::new();
         let mut silhouette_bounds_per_mille_by_view_id = BTreeMap::new();
+        let mut silhouette_profile_per_mille_by_view_id = BTreeMap::new();
         let mut views = Vec::with_capacity(uploads.len());
         for upload in uploads {
             let beauty_png_dimensions = png_dimensions(&upload.png_bytes);
             let auxiliary_png_dimensions = png_dimensions(&upload.auxiliary_png_bytes);
             let silhouette_bounds =
                 silhouette_bounds_from_auxiliary_pbr_contact_sheet(&upload.auxiliary_png_bytes);
-            if upload.schema_version != NATIVE_CANDIDATE_PBR_CAPTURE_UPLOAD_SCHEMA_VERSION
-                || !record.session.required_view_ids.contains(&upload.view_id)
-                || !is_sha256(&upload.camera_pose_sha256)
-                || !is_sha256(&upload.projection_camera_binding_sha256)
-                || upload.png_bytes.is_empty()
-                || upload.png_bytes.len() as u64 > record.session.max_view_bytes
-                || upload.auxiliary_png_bytes.is_empty()
-                || upload.auxiliary_png_bytes.len() as u64 > MAX_CAPTURE_AUXILIARY_VIEW_BYTES
-                || beauty_png_dimensions
-                    != Some((
+            let silhouette_profile =
+                silhouette_profile_from_auxiliary_pbr_contact_sheet(&upload.auxiliary_png_bytes);
+            let mut failures = Vec::new();
+            macro_rules! require_capture {
+                ($condition:expr, $label:literal) => {
+                    if !$condition {
+                        failures.push($label);
+                    }
+                };
+            }
+            require_capture!(
+                upload.schema_version == NATIVE_CANDIDATE_PBR_CAPTURE_UPLOAD_SCHEMA_VERSION,
+                "schema"
+            );
+            require_capture!(
+                record.session.required_view_ids.contains(&upload.view_id),
+                "view"
+            );
+            require_capture!(is_sha256(&upload.camera_pose_sha256), "camera_hash");
+            require_capture!(
+                is_sha256(&upload.projection_camera_binding_sha256),
+                "camera_binding_hash"
+            );
+            require_capture!(
+                record.session.visual_environment_id.as_deref()
+                    == Some(upload.visual_environment_id.as_str()),
+                "visual_environment_id"
+            );
+            require_capture!(
+                record.session.visual_environment_sha256.as_deref()
+                    == Some(upload.visual_environment_sha256.as_str()),
+                "visual_environment_sha256"
+            );
+            require_capture!(!upload.png_bytes.is_empty(), "beauty_empty");
+            require_capture!(
+                upload.png_bytes.len() as u64 <= record.session.max_view_bytes,
+                "beauty_size"
+            );
+            require_capture!(!upload.auxiliary_png_bytes.is_empty(), "auxiliary_empty");
+            require_capture!(
+                upload.auxiliary_png_bytes.len() as u64 <= MAX_CAPTURE_AUXILIARY_VIEW_BYTES,
+                "auxiliary_size"
+            );
+            require_capture!(
+                beauty_png_dimensions
+                    == Some((
                         record.session.capture_width_px,
                         record.session.capture_height_px,
-                    ))
-                || auxiliary_png_dimensions
-                    != Some((
+                    )),
+                "beauty_dimensions"
+            );
+            require_capture!(
+                auxiliary_png_dimensions
+                    == Some((
                         WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX,
                         WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX,
-                    ))
-                || !valid_auxiliary_pbr_contact_sheet(&upload.auxiliary_png_bytes)
-                || silhouette_bounds.is_none()
-                || png_by_view_id
-                    .insert(upload.view_id.clone(), upload.png_bytes.clone())
-                    .is_some()
-                || auxiliary_png_by_view_id
-                    .insert(upload.view_id.clone(), upload.auxiliary_png_bytes.clone())
-                    .is_some()
-                || silhouette_bounds_per_mille_by_view_id
-                    .insert(
-                        upload.view_id.clone(),
-                        silhouette_bounds.expect("checked above"),
-                    )
-                    .is_some()
-            {
+                    )),
+                "auxiliary_dimensions"
+            );
+            require_capture!(
+                valid_auxiliary_pbr_contact_sheet(&upload.auxiliary_png_bytes),
+                "auxiliary_content"
+            );
+            require_capture!(silhouette_bounds.is_some(), "silhouette");
+            require_capture!(silhouette_profile.is_some(), "silhouette_profile");
+            require_capture!(
+                !png_by_view_id.contains_key(&upload.view_id),
+                "duplicate_beauty"
+            );
+            require_capture!(
+                !auxiliary_png_by_view_id.contains_key(&upload.view_id),
+                "duplicate_auxiliary"
+            );
+            require_capture!(
+                !silhouette_bounds_per_mille_by_view_id.contains_key(&upload.view_id),
+                "duplicate_silhouette"
+            );
+            require_capture!(
+                !silhouette_profile_per_mille_by_view_id.contains_key(&upload.view_id),
+                "duplicate_silhouette_profile"
+            );
+            if !failures.is_empty() {
                 return Err(candidate_pbr_capture_port_error(
                     "NATIVE_CANDIDATE_PBR_CAPTURE_UPLOAD_INVALID",
-                    "Candidate PBR upload has an invalid view, camera proof, PNG payload, or duplicate identity.",
+                    &format!(
+                        "Candidate PBR upload has an invalid view, camera proof, PNG payload, or duplicate identity (failed: {}).",
+                        failures.join(",")
+                    ),
                 ));
             }
+            png_by_view_id.insert(upload.view_id.clone(), upload.png_bytes.clone());
+            auxiliary_png_by_view_id
+                .insert(upload.view_id.clone(), upload.auxiliary_png_bytes.clone());
+            silhouette_bounds_per_mille_by_view_id.insert(
+                upload.view_id.clone(),
+                silhouette_bounds.expect("checked above"),
+            );
+            silhouette_profile_per_mille_by_view_id.insert(
+                upload.view_id.clone(),
+                silhouette_profile.expect("checked above"),
+            );
             views.push(CandidatePbrCapturedView {
                 view_id: upload.view_id,
                 glb_sha256: record.session.candidate_glb_sha256.clone(),
@@ -4512,6 +5245,8 @@ impl NativeProductToolExecutor {
                     candidate_glb_sha256: record.session.candidate_glb_sha256.clone(),
                     renderer_id: record.session.expected_renderer_id.clone(),
                     render_manifest_sha256: record.session.render_manifest_sha256.clone(),
+                    visual_environment_id: record.session.visual_environment_id.clone(),
+                    visual_environment_sha256: record.session.visual_environment_sha256.clone(),
                     views,
                 },
                 now_unix_ms,
@@ -4530,6 +5265,7 @@ impl NativeProductToolExecutor {
             png_by_view_id,
             auxiliary_png_by_view_id,
             silhouette_bounds_per_mille_by_view_id,
+            silhouette_profile_per_mille_by_view_id,
         };
         inner.insert_candidate_pbr_capture_evidence(
             accepted.clone(),
@@ -4602,6 +5338,17 @@ impl NativeProductToolExecutor {
                 "Candidate PBR evidence no longer matches the live unpromoted candidate.",
             ));
         }
+        let evidence_content_by_id = match run.state.universal_author_context.as_ref() {
+            Some(context) => self
+                .read_exact_reference_contents_for_camera_fit(context)
+                .map_err(|error| {
+                    candidate_pbr_capture_port_error(
+                        "NATIVE_CANDIDATE_PBR_CAPTURE_REFERENCE_READ_FAILED",
+                        &error.message,
+                    )
+                })?,
+            None => BTreeMap::new(),
+        };
         let receipt = evidence.evidence.clone();
         run.state.candidate_pbr_capture = Some(evidence);
         if let (Some(source), Some(capture)) = (
@@ -4609,15 +5356,351 @@ impl NativeProductToolExecutor {
             run.state.candidate_pbr_capture.as_ref(),
         ) {
             run.state.universal_asset_source_v2 = Some(
-                attach_bounded_silhouette_camera_fits(source, capture).map_err(|failure| {
-                    candidate_pbr_capture_port_error(
-                        "NATIVE_CANDIDATE_PBR_CAPTURE_CAMERA_FIT_INVALID",
-                        &failure.message,
-                    )
-                })?,
+                attach_bounded_silhouette_camera_fits(source, capture, &evidence_content_by_id)
+                    .map_err(|failure| {
+                        candidate_pbr_capture_port_error(
+                            "NATIVE_CANDIDATE_PBR_CAPTURE_CAMERA_FIT_INVALID",
+                            &failure.message,
+                        )
+                    })?,
             );
         }
         Ok(receipt)
+    }
+
+    fn read_exact_reference_contents_for_camera_fit(
+        &self,
+        context: &ValidatedUniversalAuthorContext,
+    ) -> Result<BTreeMap<String, ReferenceEvidenceContent>, ProductToolPortError> {
+        let reader = self
+            .active_snapshot_reader
+            .lock()
+            .map_err(|_| {
+                port_error(
+                    "REFERENCE_EVIDENCE_READER_UNAVAILABLE",
+                    ProductToolPortErrorKind::InvalidResponse,
+                    "Reference evidence reader state is unavailable.",
+                    false,
+                )
+            })?
+            .clone();
+        let Some(reader) = reader else {
+            return Ok(BTreeMap::new());
+        };
+        let expected_by_id = context
+            .request()
+            .reference_inputs
+            .iter()
+            .map(|reference| (reference.evidence_id.as_str(), reference))
+            .collect::<BTreeMap<_, _>>();
+        let mut exact = BTreeMap::new();
+        for reference in context
+            .evidence()
+            .iter()
+            .filter(|reference| reference.kind == ReferenceEvidenceKind::Image)
+        {
+            let Some(expected_request) = expected_by_id.get(reference.evidence_id.as_str()) else {
+                continue;
+            };
+            let Some(content) = reader
+                .read_reference_evidence_content(&reference.project_id, &reference.evidence_id)?
+            else {
+                continue;
+            };
+            if content.evidence != *reference
+                || semantic_sha256(&content.evidence).map_err(|error| {
+                    port_error(
+                        "REFERENCE_EVIDENCE_HASH_FAILED",
+                        ProductToolPortErrorKind::InvalidResponse,
+                        error.to_string(),
+                        false,
+                    )
+                })? != expected_request.evidence_sha256
+                || sha256_hex(&content.bytes) != content.evidence.source_object_sha256
+            {
+                return Err(port_error(
+                    "REFERENCE_EVIDENCE_STALE",
+                    ProductToolPortErrorKind::InvalidResponse,
+                    "Sealed reference evidence changed or its image bytes no longer match the universal request.",
+                    false,
+                ));
+            }
+            exact.insert(reference.evidence_id.clone(), content);
+        }
+        Ok(exact)
+    }
+
+    /// Recompiles the exact UAS@2 candidate after Rust has fitted reference
+    /// cameras from the first same-renderer capture.  The old capture is
+    /// intentionally discarded because its GLB no longer matches the
+    /// projection-bearing candidate.  `Some` returns the new GLB identity and
+    /// asks the workbench for one bounded second capture; `None` means this
+    /// request had no executable reference appearance binding and can proceed
+    /// through the normal quality tail.
+    pub async fn recompile_candidate_after_camera_fit(
+        &self,
+        execution_id: &str,
+        project_id: &str,
+        turn_id: &str,
+    ) -> Result<Option<String>, ProductToolPortError> {
+        if !is_stable_id(execution_id) || !is_stable_id(project_id) || !is_stable_id(turn_id) {
+            return Err(candidate_pbr_capture_port_error(
+                "NATIVE_CANDIDATE_PBR_CAPTURE_IDENTITY_INVALID",
+                "Camera-fit recompilation requires bounded execution, Project, and Turn identities.",
+            ));
+        }
+        let (source, context, mut expanded, previous_geometry, run_cancellation, source_sha256) = {
+            let inner = self.lock_inner()?;
+            let run = inner.runs.get(execution_id).ok_or_else(|| {
+                candidate_pbr_capture_port_error(
+                    "NATIVE_CANDIDATE_PBR_CAPTURE_STATE_UNAVAILABLE",
+                    "Camera-fit recompilation has no live native execution state.",
+                )
+            })?;
+            let source = run.state.universal_asset_source_v2.clone();
+            let context = run.state.universal_author_context.clone();
+            let expanded = run.state.expanded_geometry.clone();
+            let previous_geometry = run.state.geometry.clone();
+            let capture = run.state.candidate_pbr_capture.as_ref().ok_or_else(|| {
+                candidate_pbr_capture_port_error(
+                    "NATIVE_CANDIDATE_PBR_CAPTURE_EVIDENCE_NOT_ADOPTED",
+                    "Camera-fit recompilation requires adopted same-renderer PBR evidence.",
+                )
+            })?;
+            if run.turn_id != turn_id
+                || run.project_id.as_deref() != Some(project_id)
+                || run.in_flight.iter().next().is_some()
+                || run.state.evaluation.is_some()
+                || run.state.preview.is_some()
+                || previous_geometry.as_ref().is_none_or(|geometry| {
+                    capture.evidence.candidate_glb_sha256 != geometry.glb_sha256
+                })
+            {
+                return Err(candidate_pbr_capture_port_error(
+                    "NATIVE_CANDIDATE_PBR_CAPTURE_RESUME_INVALID",
+                    "Camera-fit recompilation no longer matches one live unpromoted candidate.",
+                ));
+            }
+            let (Some(source), Some(context), Some(expanded), Some(previous_geometry)) =
+                (source, context, expanded, previous_geometry)
+            else {
+                return Err(candidate_pbr_capture_port_error(
+                    "REFERENCE_APPEARANCE_RECOMPILE_BUILD_REQUIRED",
+                    "Camera-fit recompilation requires the exact UAS@2 source and geometry build.",
+                ));
+            };
+            if !source.appearance_evidence.projection_receipts.is_empty() {
+                return Ok(None);
+            }
+            let bindings = derive_reference_appearance_bindings(&source, context.evidence())
+                .map_err(|error| {
+                    candidate_pbr_capture_port_error(error.code(), &error.to_string())
+                })?;
+            if bindings.is_empty() {
+                return Ok(None);
+            }
+            let unresolved = bindings.iter().any(|binding| {
+                source
+                    .appearance_evidence
+                    .camera_hypotheses
+                    .iter()
+                    .find(|camera| camera.evidence_id == binding.evidence_id)
+                    .is_none_or(|camera| {
+                        matches!(
+                            camera.parameter_source,
+                            CameraParameterSource::Unresolved
+                                | CameraParameterSource::DefaultHypothesis
+                        ) || camera.projection_type == ReferenceProjectionType::Unknown
+                            || camera.vertical_fov_millidegrees.is_none()
+                            || !camera.unresolved_fields.is_empty()
+                    })
+            });
+            if unresolved {
+                return Err(candidate_pbr_capture_port_error(
+                    "REFERENCE_APPEARANCE_CAMERA_FIT_REQUIRED",
+                    "The candidate silhouette did not produce a complete Rust-owned camera fit for every observed reference binding.",
+                ));
+            }
+            let source_sha256 = semantic_sha256(&source).map_err(|error| {
+                candidate_pbr_capture_port_error(error.code(), &error.to_string())
+            })?;
+            (
+                source,
+                context,
+                expanded,
+                previous_geometry,
+                run.run_cancellation.clone(),
+                source_sha256,
+            )
+        };
+
+        let bakes = self
+            .reference_uv_bakes_for_universal_source(&source, Some(&context), &previous_geometry)
+            .map_err(|failure| candidate_pbr_capture_port_error(&failure.code, &failure.message))?;
+        if bakes.is_empty() {
+            return Err(candidate_pbr_capture_port_error(
+                "REFERENCE_APPEARANCE_CAMERA_FIT_REQUIRED",
+                "The fitted camera set did not produce a Rust-verifiable reference UV bake.",
+            ));
+        }
+        expanded.reference_uv_evidence_bakes = bakes;
+        expanded
+            .validate()
+            .map_err(|failure| candidate_pbr_capture_port_error(&failure.code, &failure.message))?;
+        let work = self
+            .geometry
+            .build_compile_render(expanded.clone(), run_cancellation.clone());
+        let baked_geometry = race_cancellation(work, run_cancellation)
+            .await
+            .map_err(|()| {
+                candidate_pbr_capture_port_error(
+                    "NATIVE_CANDIDATE_PBR_CAPTURE_CANCELLED",
+                    "Camera-fit recompilation was cancelled before a new candidate was sealed.",
+                )
+            })?
+            .map_err(|failure| candidate_pbr_capture_port_error(&failure.code, &failure.message))?;
+        baked_geometry
+            .validate(&expanded)
+            .map_err(|failure| candidate_pbr_capture_port_error(&failure.code, &failure.message))?;
+        if baked_geometry.topology_hash != previous_geometry.topology_hash
+            || baked_geometry.readback.shape_program_sha256
+                != previous_geometry.readback.shape_program_sha256
+            || baked_geometry.readback.triangle_count != previous_geometry.readback.triangle_count
+            || baked_geometry.readback.bounds_mm != previous_geometry.readback.bounds_mm
+        {
+            return Err(candidate_pbr_capture_port_error(
+                "REFERENCE_UV_BAKE_GEOMETRY_DRIFT",
+                "Camera-fit appearance recompilation changed geometry readback facts.",
+            ));
+        }
+        let source = source
+            .reopen_for_appearance_recompile()
+            .map_err(|error| candidate_pbr_capture_port_error(error.code(), &error.to_string()))?;
+        let projection_receipts =
+            Self::reference_appearance_projection_receipts_for_universal_source(
+                &source,
+                &baked_geometry,
+                true,
+            )
+            .map_err(|failure| candidate_pbr_capture_port_error(&failure.code, &failure.message))?;
+        let source = source
+            .with_reference_appearance_projection_receipts(projection_receipts)
+            .map_err(|error| candidate_pbr_capture_port_error(error.code(), &error.to_string()))?;
+        let source_program_sha256 = source
+            .runtime_procedural()
+            .map_err(|error| candidate_pbr_capture_port_error(error.code(), &error.to_string()))?
+            .source_program_sha256
+            .clone();
+        let readback_sha256 = semantic_sha256(&baked_geometry.readback)
+            .map_err(|error| candidate_pbr_capture_port_error(error.code(), &error.to_string()))?;
+        let source = source
+            .with_compiled_artifact(UniversalCompiledArtifactBinding {
+                source_program_sha256,
+                shape_program_sha256: baked_geometry.readback.shape_program_sha256.clone(),
+                glb_sha256: baked_geometry.glb_sha256.clone(),
+                readback_sha256,
+                compile_readback_sha256: baked_geometry.readback.compile_readback_sha256.clone(),
+                artifact_profile_id: baked_geometry.readback.artifact_profile_id.clone(),
+                renderer_id: baked_geometry.renderer_id.clone(),
+                view_sha256: baked_geometry.view_sha256.clone(),
+            })
+            .map_err(|error| candidate_pbr_capture_port_error(error.code(), &error.to_string()))?;
+        let (source, game_asset_delivery) =
+            if let Some(profile) = source.game_asset_profile.as_ref() {
+                let bindings = derive_game_asset_delivery_bindings(&source).map_err(|error| {
+                    candidate_pbr_capture_port_error(error.code(), &error.to_string())
+                })?;
+                let delivery =
+                    compile_game_asset_delivery(&baked_geometry.glb_bytes, profile, &bindings)
+                        .map_err(|error| {
+                            candidate_pbr_capture_port_error(error.code(), &error.to_string())
+                        })?;
+                if delivery.glb_bytes.len() > MAX_GLTF_BYTES {
+                    return Err(candidate_pbr_capture_port_error(
+                        "GAME_ASSET_DELIVERY_BYTES_EXCEEDED",
+                        "The recompiled game delivery GLB exceeds the native preview byte budget.",
+                    ));
+                }
+                let source = source
+                    .with_game_asset_delivery(delivery.readback.clone())
+                    .map_err(|error| {
+                        candidate_pbr_capture_port_error(error.code(), &error.to_string())
+                    })?;
+                (source, Some(delivery))
+            } else {
+                (source, None)
+            };
+        let ledger = universal_v2_visual_build_ledger(&source, &baked_geometry)
+            .map_err(|failure| candidate_pbr_capture_port_error(&failure.code, &failure.message))?;
+        let direction_id = universal_v2_direction_id(&source)
+            .map_err(|error| candidate_pbr_capture_port_error(&error.code, &error.message))?;
+        let game_delivery_projection = game_asset_delivery.as_ref().map(|delivery| {
+            json!({
+                "schema_version": delivery.readback.schema_version,
+                "delivery_glb_sha256": delivery.readback.delivery_glb_sha256,
+                "lod_triangle_counts": delivery.readback.lod.lods.iter().map(|lod| lod.triangle_count).collect::<Vec<_>>(),
+                "collision_proxy_count": delivery.readback.collision_proxies.len(),
+                "socket_count": delivery.readback.sockets.len(),
+                "effective_texel_density_pixels_per_meter": delivery.readback.texel_density.effective_texel_density_pixels_per_meter,
+                "target_texel_density_pixels_per_meter": delivery.readback.texel_density.target_texel_density_pixels_per_meter,
+                "target_met": delivery.readback.texel_density.target_met
+            })
+        });
+        let output = json!({
+            "direction_id": direction_id,
+            "topology_hash": baked_geometry.topology_hash,
+            "triangle_count": baked_geometry.readback.triangle_count,
+            "bounds_mm": baked_geometry.readback.bounds_mm,
+            "candidate_only": true,
+            "design_build_ledger": ledger,
+            "game_asset_delivery": game_delivery_projection,
+            "universal_asset_source_v2": universal_asset_source_v2_projection(&source)
+                .map_err(|failure| candidate_pbr_capture_port_error(&failure.code, &failure.message))?
+        });
+
+        let new_glb_sha256 = baked_geometry.glb_sha256.clone();
+        let mut inner = self.lock_inner()?;
+        let run = inner.runs.get_mut(execution_id).ok_or_else(|| {
+            candidate_pbr_capture_port_error(
+                "NATIVE_CANDIDATE_PBR_CAPTURE_STATE_UNAVAILABLE",
+                "Camera-fit recompilation execution disappeared before state promotion.",
+            )
+        })?;
+        let current_source_sha256 = run
+            .state
+            .universal_asset_source_v2
+            .as_ref()
+            .and_then(|value| semantic_sha256(value).ok());
+        let current_geometry_matches = run
+            .state
+            .geometry
+            .as_ref()
+            .is_some_and(|geometry| geometry.glb_sha256 == previous_geometry.glb_sha256);
+        if run.turn_id != turn_id
+            || run.project_id.as_deref() != Some(project_id)
+            || current_source_sha256.as_deref() != Some(source_sha256.as_str())
+            || !current_geometry_matches
+            || run.state.candidate_pbr_capture.is_none()
+        {
+            return Err(candidate_pbr_capture_port_error(
+                "NATIVE_CANDIDATE_PBR_CAPTURE_STATE_STALE",
+                "Camera-fit recompilation result no longer matches the live candidate state.",
+            ));
+        }
+        run.state.expanded_geometry = Some(expanded);
+        run.state.geometry = Some(baked_geometry);
+        run.state.game_asset_delivery = game_asset_delivery;
+        run.state.universal_asset_source_v2 = Some(source);
+        run.state.build = Some(output);
+        run.state.visual_build_ledger = Some(ledger);
+        run.state.evaluation = None;
+        run.state.preview = None;
+        run.state.visual_reference_comparison_input = None;
+        run.state.visual_reference_comparison_report = None;
+        run.state.rust_reference_visual_metrics = None;
+        run.state.universal_visual_comparison_authorization = None;
+        run.state.candidate_pbr_capture = None;
+        Ok(Some(new_glb_sha256))
     }
 
     /// Resumes the Rust-owned quality tail after the desktop has atomically
@@ -5461,6 +6544,55 @@ impl NativeProductToolExecutor {
         Ok(())
     }
 
+    fn bind_execution_game_asset_delivery_request_native(
+        &self,
+        execution_id: &str,
+        turn_id: &str,
+        request: GameAssetDeliveryRequest,
+    ) -> Result<(), ProductToolPortError> {
+        if !is_stable_id(execution_id) || !is_stable_id(turn_id) {
+            return Err(preview_port_error(
+                "NATIVE_GAME_ASSET_DELIVERY_BINDING_INVALID",
+                "Game asset delivery binding requires bounded execution and Turn identities.",
+            ));
+        }
+        request.validate().map_err(|error| {
+            preview_port_error(
+                "NATIVE_GAME_ASSET_DELIVERY_BINDING_INVALID",
+                error.to_string(),
+            )
+        })?;
+        let mut inner = self.lock_inner()?;
+        if let Some(run) = inner.runs.get(execution_id) {
+            if run.turn_id != turn_id
+                || run.state.game_asset_delivery_request.as_ref() != Some(&request)
+            {
+                return Err(preview_port_error(
+                    "NATIVE_GAME_ASSET_DELIVERY_BINDING_CONFLICT",
+                    "Game asset delivery intent cannot be rebound after execution begins.",
+                ));
+            }
+            return Ok(());
+        }
+        if let Some(existing) = inner.game_asset_delivery_bindings.get(execution_id) {
+            if existing.turn_id != turn_id || existing.request != request {
+                return Err(preview_port_error(
+                    "NATIVE_GAME_ASSET_DELIVERY_BINDING_CONFLICT",
+                    "An execution cannot be rebound to a different game asset delivery intent.",
+                ));
+            }
+            return Ok(());
+        }
+        inner.game_asset_delivery_bindings.insert(
+            execution_id.to_string(),
+            NativeGameAssetDeliveryBinding {
+                turn_id: turn_id.to_string(),
+                request,
+            },
+        );
+        Ok(())
+    }
+
     async fn execute_native(
         self,
         request: ProductToolExecutionRequest,
@@ -5884,6 +7016,25 @@ impl NativeProductToolExecutor {
                 Ok(binding.context)
             })
             .transpose()?;
+        let game_asset_delivery_request = inner
+            .game_asset_delivery_bindings
+            .remove(&request.execution_id)
+            .map(|binding| {
+                if binding.turn_id != request.turn_id {
+                    return Err(preview_port_error(
+                        "NATIVE_GAME_ASSET_DELIVERY_BINDING_CONFLICT",
+                        "Game asset delivery binding did not match the execution Turn.",
+                    ));
+                }
+                binding.request.validate().map_err(|error| {
+                    preview_port_error(
+                        "NATIVE_GAME_ASSET_DELIVERY_BINDING_INVALID",
+                        error.to_string(),
+                    )
+                })?;
+                Ok(binding.request)
+            })
+            .transpose()?;
         let run_cancellation = CancellationToken::new();
         if let Some(token) = inner.cancel_tombstones.get(&request.cancellation_id) {
             if token != &request.cancellation_token {
@@ -5922,6 +7073,7 @@ impl NativeProductToolExecutor {
                     generation_source,
                     multimodal_context,
                     universal_author_context,
+                    game_asset_delivery_request,
                     active_snapshot,
                     forge_visual_program,
                     ..NativeToolState::default()
@@ -6179,13 +7331,14 @@ impl NativeProductToolExecutor {
         state: &mut NativeToolState,
         run_cancellation: CancellationToken,
     ) -> Result<Value, NativeToolFailure> {
+        local_geometry_debug("stage-enter", None);
         if state.preview.is_some() || state.build.is_some() {
             return Err(NativeToolFailure::conflict(
                 "SINGLE_GENERATION_FULL_BUILD_ALREADY_USED",
                 "One UAS@2 source may enter the complete build pipeline only once.",
             ));
         }
-        let source = state
+        let mut source = state
             .universal_asset_source_v2
             .as_ref()
             .cloned()
@@ -6195,27 +7348,71 @@ impl NativeProductToolExecutor {
                     "A validated UAS@2 source is required before generic hard-surface build.",
                 )
             })?;
-        source
-            .validate()
-            .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
-        let (direction_id, procedural) = match &source.representation_source {
-            UniversalRepresentationSourceV2::Procedural(procedural) => {
-                ("direction_universal_hard_surface", procedural)
-            }
-            UniversalRepresentationSourceV2::Deformable(deformable) => (
-                "direction_universal_local_lattice",
-                &deformable.procedural_source,
-            ),
-            UniversalRepresentationSourceV2::Hybrid(hybrid) => (
-                "direction_universal_local_hybrid",
-                &hybrid.procedural_source,
-            ),
-            UniversalRepresentationSourceV2::LocalMeshPatch(_) => {
-                return Err(NativeToolFailure::unsupported(
-                    "UNIVERSAL_V2_REPRESENTATION_UNAVAILABLE",
-                    "the declared UAS@2 representation has no reviewed local geometry-worker route",
+        // Game delivery is a user-selected output contract, not a Provider
+        // claim and not a post-export guess. Derive collision parts from the
+        // exact executable source before compilation so every later artifact,
+        // receipt and delivery binding is derived from one immutable choice.
+        if let Some(request) = state.game_asset_delivery_request.clone() {
+            let procedural = source.runtime_procedural().map_err(|error| {
+                NativeToolFailure::unsupported(
+                    "GAME_ASSET_DELIVERY_REPRESENTATION_UNAVAILABLE",
+                    error.to_string(),
+                )
+            })?;
+            let collision_proxy_part_ids = procedural
+                .part_bindings
+                .iter()
+                .map(|binding| binding.subject_part_id.clone())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>();
+            let profile = request
+                .derive_profile(collision_proxy_part_ids)
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+            source = source
+                .with_game_asset_profile(profile)
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+            state.universal_asset_source_v2 = Some(source.clone());
+        }
+        // A Provider cannot override a Rust-bound delivery intent with a
+        // fabricated profile containing arbitrary part/socket IDs.
+        if let Some(profile_value) = arguments.get("game_asset_profile") {
+            if state.game_asset_delivery_request.is_some() {
+                return Err(NativeToolFailure::conflict(
+                    "GAME_ASSET_PROFILE_PROVIDER_OVERRIDE_FORBIDDEN",
+                    "Provider game asset profile cannot override the Rust-bound user delivery request.",
                 ));
             }
+            let profile =
+                serde_json::from_value::<forgecad_core::GameAssetProfile>(profile_value.clone())
+                    .map_err(|error| {
+                        NativeToolFailure::schema(
+                            "GAME_ASSET_PROFILE_INVALID",
+                            format!("GameAssetProfile@1 failed closed: {error}"),
+                        )
+                    })?;
+            profile
+                .validate()
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+            source = source
+                .with_game_asset_profile(profile)
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+            state.universal_asset_source_v2 = Some(source.clone());
+        }
+        source.validate().map_err(|error| {
+            local_geometry_debug("source-validate-error", Some(&error.to_string()));
+            NativeToolFailure::schema(error.code(), error.to_string())
+        })?;
+        local_geometry_debug("source-validated", None);
+        let direction_id = universal_v2_direction_id(&source)
+            .map_err(|error| NativeToolFailure::schema(error.code, error.message))?;
+        let procedural = match &source.representation_source {
+            UniversalRepresentationSourceV2::Procedural(procedural) => procedural,
+            UniversalRepresentationSourceV2::Deformable(deformable) => {
+                &deformable.procedural_source
+            }
+            UniversalRepresentationSourceV2::Hybrid(hybrid) => &hybrid.procedural_source,
+            UniversalRepresentationSourceV2::LocalMeshPatch(patch) => &patch.procedural_source,
         };
         if string_argument(arguments, "direction_id")? != direction_id
             || string_argument(arguments, "presentation_profile")? != "showcase"
@@ -6245,24 +7442,46 @@ impl NativeProductToolExecutor {
         // never supplies an A005/SurfaceLayer payload here: Core derives up
         // to eight bounded zones from the sealed profile, feature contract,
         // procedural material bindings and reviewed local PBR catalog.
+        let surface_layer_programs = source
+            .appearance_compilation
+            .zones
+            .iter()
+            .map(|zone| zone.surface_layer_program.clone())
+            .collect::<Vec<_>>();
+        local_geometry_debug(
+            "surface-programs-collected",
+            Some(&surface_layer_programs.len().to_string()),
+        );
         expanded = expanded
-            .with_surface_layer_programs(
-                &source
-                    .appearance_compilation
-                    .zones
-                    .iter()
-                    .map(|zone| zone.surface_layer_program.clone())
-                    .collect::<Vec<_>>(),
-            )
-            .map_err(native_failure_from_geometry)?;
-        expanded.validate().map_err(native_failure_from_geometry)?;
+            .with_surface_layer_programs(&surface_layer_programs)
+            .map_err(|error| {
+                let detail = format!("{}:{}", error.code, error.message);
+                local_geometry_debug("surface-layers-error", Some(&detail));
+                native_failure_from_geometry(error)
+            })?;
+        local_geometry_debug("surface-layers-attached", None);
+        expanded.validate().map_err(|error| {
+            let detail = format!("{}:{}", error.code, error.message);
+            local_geometry_debug("expanded-validate-error", Some(&detail));
+            native_failure_from_geometry(error)
+        })?;
+        if let Ok(bytes) = serde_json::to_vec(&expanded) {
+            local_geometry_debug("input-bytes", Some(&bytes.len().to_string()));
+            if std::env::var("FORGECAD_LOCAL_VISUAL_AUTHOR").as_deref() == Ok("1") {
+                let _ = std::fs::write("/tmp/forgecad-local-geometry-input.json", bytes);
+            }
+        }
         let work = self
             .geometry
             .build_compile_render(expanded.clone(), run_cancellation.clone());
         let geometry = race_cancellation(work, run_cancellation.clone())
             .await
             .map_err(|()| NativeToolFailure::cancelled())?
-            .map_err(native_failure_from_geometry)?;
+            .map_err(|error| {
+                let detail = format!("{}:{}", error.code, error.message);
+                local_geometry_debug("worker-error", Some(&detail));
+                native_failure_from_geometry(error)
+            })?;
         geometry
             .validate(&expanded)
             .map_err(native_failure_from_geometry)?;
@@ -6277,6 +7496,7 @@ impl NativeProductToolExecutor {
             state.universal_author_context.as_ref(),
             &final_geometry,
         )?;
+        let reference_bakes_requested = !reference_bakes.is_empty();
         if !reference_bakes.is_empty() {
             expanded.reference_uv_evidence_bakes = reference_bakes;
             expanded.validate().map_err(native_failure_from_geometry)?;
@@ -6303,6 +7523,15 @@ impl NativeProductToolExecutor {
             }
             final_geometry = baked_geometry;
         }
+        let projection_receipts =
+            Self::reference_appearance_projection_receipts_for_universal_source(
+                &source,
+                &final_geometry,
+                reference_bakes_requested,
+            )?;
+        let source = source
+            .with_reference_appearance_projection_receipts(projection_receipts)
+            .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
         let readback_sha256 = semantic_sha256(&final_geometry.readback)
             .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
         let compiled_source = source
@@ -6317,30 +7546,27 @@ impl NativeProductToolExecutor {
                 view_sha256: final_geometry.view_sha256.clone(),
             })
             .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
-        let (compiled_source, game_asset_delivery) =
-            if let Some(profile) = compiled_source.game_asset_profile.as_ref() {
-                let bindings = derive_game_asset_delivery_bindings(&compiled_source).map_err(
-                    |error| NativeToolFailure::schema(error.code(), error.to_string()),
-                )?;
-                let delivery = compile_game_asset_delivery(
-                    &final_geometry.glb_bytes,
-                    profile,
-                    &bindings,
-                )
+        let (compiled_source, game_asset_delivery) = if let Some(profile) =
+            compiled_source.game_asset_profile.as_ref()
+        {
+            let bindings = derive_game_asset_delivery_bindings(&compiled_source)
                 .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
-                if delivery.glb_bytes.len() > MAX_GLTF_BYTES {
-                    return Err(NativeToolFailure::schema(
-                        "GAME_ASSET_DELIVERY_BYTES_EXCEEDED",
-                        "The verified game delivery GLB exceeds the native preview byte budget.",
-                    ));
-                }
-                let source = compiled_source
-                    .with_game_asset_delivery(delivery.readback.clone())
+            let delivery =
+                compile_game_asset_delivery(&final_geometry.glb_bytes, profile, &bindings)
                     .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
-                (source, Some(delivery))
-            } else {
-                (compiled_source, None)
-            };
+            if delivery.glb_bytes.len() > MAX_GLTF_BYTES {
+                return Err(NativeToolFailure::schema(
+                    "GAME_ASSET_DELIVERY_BYTES_EXCEEDED",
+                    "The verified game delivery GLB exceeds the native preview byte budget.",
+                ));
+            }
+            let source = compiled_source
+                .with_game_asset_delivery(delivery.readback.clone())
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+            (source, Some(delivery))
+        } else {
+            (compiled_source, None)
+        };
         let ledger = universal_v2_visual_build_ledger(&compiled_source, &final_geometry)?;
         let game_delivery_projection = game_asset_delivery.as_ref().map(|delivery| {
             json!({
@@ -6416,6 +7642,35 @@ impl NativeProductToolExecutor {
                 .map(|millimetres| millimetres / 1_000.0),
         )
         .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+        // The first compile is deliberately geometry-only.  A default camera
+        // is not evidence and must never become a texture projection.  Wait
+        // until the exact candidate has been captured and Rust has attached a
+        // bounded silhouette fit for every bound reference image.
+        let cameras = bindings
+            .iter()
+            .map(|binding| {
+                source
+                    .appearance_evidence
+                    .camera_hypotheses
+                    .iter()
+                    .find(|camera| camera.evidence_id == binding.evidence_id)
+            })
+            .collect::<Vec<_>>();
+        if cameras.iter().any(|camera| {
+            camera.is_none_or(|camera| {
+                matches!(
+                    camera.parameter_source,
+                    CameraParameterSource::Unresolved | CameraParameterSource::DefaultHypothesis
+                ) || camera.projection_type == ReferenceProjectionType::Unknown
+                    || camera.vertical_fov_millidegrees.is_none()
+                    || camera
+                        .unresolved_fields
+                        .iter()
+                        .any(|field| !field.is_empty())
+            })
+        }) {
+            return Ok(Vec::new());
+        }
         let mut bakes = Vec::with_capacity(bindings.len());
         for binding in bindings {
             let expected_evidence = context
@@ -6454,11 +7709,24 @@ impl NativeProductToolExecutor {
                     "Reference appearance baking evidence changed after universal author validation.",
                 ));
             }
-            let camera = derive_geometry_projection_camera_binding(
-                &geometry_binding,
-                &binding.source_view_id,
-            )
-            .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+            let resolved_camera = source
+                .appearance_evidence
+                .camera_hypotheses
+                .iter()
+                .find(|camera| camera.evidence_id == binding.evidence_id)
+                .ok_or_else(|| {
+                    NativeToolFailure::conflict(
+                        "REFERENCE_APPEARANCE_CAMERA_HYPOTHESIS_MISSING",
+                        "A reference appearance binding has no sealed camera hypothesis.",
+                    )
+                })?;
+            let source_view_id = resolved_camera
+                .view_id
+                .as_deref()
+                .unwrap_or(binding.source_view_id.as_str());
+            let camera =
+                derive_geometry_projection_camera_binding(&geometry_binding, source_view_id)
+                    .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
             let bake = build_reference_camera_uv_raster_bake_from_geometry(
                 &content.evidence,
                 &content.bytes,
@@ -6471,6 +7739,85 @@ impl NativeProductToolExecutor {
             bakes.push(bake);
         }
         Ok(bakes)
+    }
+
+    fn reference_appearance_projection_receipts_for_universal_source(
+        source: &UniversalAssetSourceV2,
+        geometry: &RestrictedGeometryOutput,
+        reference_bakes_requested: bool,
+    ) -> Result<Vec<ReferenceAppearanceProjectionReceipt>, NativeToolFailure> {
+        let procedural = source
+            .runtime_procedural()
+            .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+        let receipts = geometry
+            .readback
+            .reference_appearance_projection_receipts
+            .iter()
+            .map(|readback| {
+                let receipt = ReferenceAppearanceProjectionReceipt {
+                    schema_version:
+                        forgecad_core::REFERENCE_APPEARANCE_PROJECTION_RECEIPT_SCHEMA_VERSION
+                            .into(),
+                    source_request_sha256: source.request_sha256.clone(),
+                    source_program_sha256: procedural.source_program_sha256.clone(),
+                    final_glb_sha256: geometry.glb_sha256.clone(),
+                    compile_readback_sha256: geometry.readback.compile_readback_sha256.clone(),
+                    worker_receipt_sha256: readback.worker_receipt_sha256.clone(),
+                    worker_schema_version: readback.worker_schema_version.clone(),
+                    algorithm_id: readback.algorithm_id.clone(),
+                    algorithm_version: readback.algorithm_version.clone(),
+                    projection_id: readback.projection_id.clone(),
+                    projection_sha256: readback.projection_sha256.clone(),
+                    source_evidence_id: readback.source_evidence_id.clone(),
+                    source_image_sha256: readback.source_image_sha256.clone(),
+                    camera_hypothesis_id: readback.camera_hypothesis_id.clone(),
+                    camera_provenance_sha256: readback.camera_provenance_sha256.clone(),
+                    target_material_zone_id: readback.target_material_zone_id.clone(),
+                    base_color_texture_id: readback.base_color_texture_id.clone(),
+                    base_color_sha256: readback.base_color_sha256.clone(),
+                    base_color_byte_size: readback.base_color_byte_size,
+                    unobserved_texel_mask_id: readback.unobserved_texel_mask_id.clone(),
+                    unobserved_texel_mask_sha256: readback.unobserved_texel_mask_sha256.clone(),
+                    unobserved_texel_mask_byte_size: readback.unobserved_texel_mask_byte_size,
+                    observed_texel_count: readback.observed_texel_count,
+                    unobserved_texel_count: readback.unobserved_texel_count,
+                    fusion_count: readback.fusion_count,
+                    raster_triangle_count: Some(readback.raster_triangle_count),
+                    world_to_clip_sha256: readback.world_to_clip_sha256.clone(),
+                    source_evidence_ids: readback.source_evidence_ids.clone(),
+                    source_image_sha256s: readback.source_image_sha256s.clone(),
+                    camera_hypothesis_ids: readback.camera_hypothesis_ids.clone(),
+                    camera_provenance_sha256s: readback.camera_provenance_sha256s.clone(),
+                    world_to_clip_sha256s: readback.world_to_clip_sha256s.clone(),
+                };
+                receipt
+                    .validate()
+                    .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+                if !source
+                    .appearance_evidence
+                    .references
+                    .iter()
+                    .any(|reference| reference.evidence_id == receipt.source_evidence_id)
+                    || !source
+                        .material_zones
+                        .iter()
+                        .any(|zone| zone.material_zone_id == receipt.target_material_zone_id)
+                {
+                    return Err(NativeToolFailure::conflict(
+                        "REFERENCE_APPEARANCE_PROJECTION_LINEAGE_INVALID",
+                        "Worker reference projection receipt is detached from the universal source.",
+                    ));
+                }
+                Ok(receipt)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if reference_bakes_requested && receipts.is_empty() {
+            return Err(NativeToolFailure::conflict(
+                "REFERENCE_APPEARANCE_PROJECTION_RECEIPT_MISSING",
+                "A reference-backed universal compile produced no Rust-verifiable projection receipt.",
+            ));
+        }
+        Ok(receipts)
     }
 
     async fn build_forge_visual_program(
@@ -7193,7 +8540,10 @@ fn validate_formal_preview_binding(
                 "Only a trusted V003 or category-open UAS@2 preview may use the confirmation route.",
             )
         })?;
-    if bound_project_id != project_id || artifact.turn_id != turn_id || artifact.glb_sha256 != artifact_sha256 {
+    if bound_project_id != project_id
+        || artifact.turn_id != turn_id
+        || artifact.glb_sha256 != artifact_sha256
+    {
         return Err(preview_port_error(
             "NATIVE_CONFIRMABLE_PREVIEW_IDENTITY_MISMATCH",
             "Confirmable preview Project, Turn, or GLB identity does not match.",
@@ -7277,6 +8627,15 @@ impl ProductToolExecutorPort for NativeProductToolExecutor {
         context: ValidatedUniversalAuthorContext,
     ) -> Result<(), ProductToolPortError> {
         self.bind_execution_universal_author_context_native(execution_id, turn_id, context)
+    }
+
+    fn bind_execution_game_asset_delivery_request(
+        &self,
+        execution_id: &str,
+        turn_id: &str,
+        request: GameAssetDeliveryRequest,
+    ) -> Result<(), ProductToolPortError> {
+        self.bind_execution_game_asset_delivery_request_native(execution_id, turn_id, request)
     }
 
     fn bind_execution_generation_source(
@@ -7461,6 +8820,7 @@ fn universal_visual_comparison_authorization_scope_from_state(
         &procedural.source_program,
         geometry,
         &fixed_views,
+        &workbench_pbr_visual_render_contract_from_capture(&capture.evidence)?,
     )?;
     let acceptance_policy_sha256 = semantic_sha256(&input.acceptance_policy)
         .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
@@ -7488,6 +8848,7 @@ struct NativeExecutorInner {
     source_bindings: HashMap<String, NativeSourceBinding>,
     multimodal_bindings: HashMap<String, NativeMultimodalBinding>,
     universal_author_bindings: HashMap<String, NativeUniversalAuthorBinding>,
+    game_asset_delivery_bindings: HashMap<String, NativeGameAssetDeliveryBinding>,
     cancel_tombstones: HashMap<String, String>,
     tombstone_order: VecDeque<String>,
     preview_artifacts: HashMap<String, NativePreviewArtifactRecord>,
@@ -7523,6 +8884,12 @@ struct NativeMultimodalBinding {
 struct NativeUniversalAuthorBinding {
     turn_id: String,
     context: ValidatedUniversalAuthorContext,
+}
+
+#[derive(Clone)]
+struct NativeGameAssetDeliveryBinding {
+    turn_id: String,
+    request: GameAssetDeliveryRequest,
 }
 
 impl NativeExecutorInner {
@@ -7989,6 +9356,7 @@ struct NativeToolState {
     generation_source: Option<GenerationSourceBinding>,
     multimodal_context: Option<ValidatedMultimodalActionContext>,
     universal_author_context: Option<ValidatedUniversalAuthorContext>,
+    game_asset_delivery_request: Option<GameAssetDeliveryRequest>,
     universal_author_outcome: Option<Value>,
     universal_asset_source: Option<UniversalAssetSource>,
     universal_asset_source_v2: Option<UniversalAssetSourceV2>,
@@ -8024,6 +9392,10 @@ struct NativeToolState {
     /// bytes or credentials.
     visual_reference_comparison_input: Option<VisualReferenceComparisonInput>,
     visual_reference_comparison_report: Option<VisualReferenceComparisonReport>,
+    /// Rust-owned low-dimensional reference/candidate visual metrics for the
+    /// current universal capture. This never retains image bytes and is
+    /// cleared whenever the candidate lineage changes.
+    rust_reference_visual_metrics: Option<RustReferenceVisualMetrics>,
     /// Exact same-renderer PBR pixels accepted by the one-time desktop
     /// capture session. They stay execution-local and are cleared by repair,
     /// cancellation, expiry, or preview consumption.
@@ -8140,6 +9512,19 @@ fn native_failure_from_geometry(error: RestrictedGeometryError) -> NativeToolFai
         RestrictedGeometryErrorKind::Execution => ProductToolFailureCategory::Execution,
     };
     NativeToolFailure::new(category, error.code, error.message)
+}
+
+// Temporary local bring-up diagnostics. This is gated by the explicit local
+// author flag and is removed once the packaged native path is verified.
+fn local_geometry_debug(stage: &str, detail: Option<&str>) {
+    if std::env::var("FORGECAD_LOCAL_VISUAL_AUTHOR").as_deref() != Ok("1") {
+        return;
+    }
+    let suffix = detail.unwrap_or_default();
+    let _ = std::fs::write(
+        format!("/tmp/forgecad-local-geometry-{stage}"),
+        suffix.as_bytes(),
+    );
 }
 
 async fn race_cancellation<F, T>(future: F, cancellation: CancellationToken) -> Result<T, ()>
@@ -8574,7 +9959,7 @@ fn author_universal_asset(
             "author_universal_asset requires a Rust-sealed UniversalAuthorRequest@1.",
         )
     })?;
-    let outcome_value = arguments.get("outcome").cloned().ok_or_else(|| {
+    let mut outcome_value = arguments.get("outcome").cloned().ok_or_else(|| {
         NativeToolFailure::schema(
             "UNIVERSAL_AUTHOR_OUTCOME_REQUIRED",
             "author_universal_asset requires exactly one UniversalAuthorOutcome@1.",
@@ -8598,6 +9983,37 @@ fn author_universal_asset(
             "Provider outcome did not reproduce the exact Rust-sealed request.",
         ));
     }
+    // DeepSeek often describes mirrored visual parts with the same semantic
+    // feature label (for example, one `feat_ear_shape` row for both ears).
+    // That is useful model reasoning, but SubjectProfile@1 is a closed
+    // per-row contract: every feature row and every acceptance requirement
+    // needs a stable identity. Rust can safely expand this symmetry without
+    // changing the subject, geometry, capability or evidence.  Do it before
+    // lineage hashes are bound so the normalized contracts become the one
+    // persisted truth and the Provider does not spend another turn repairing
+    // a deterministic ID collision.
+    normalize_universal_author_contract(&mut outcome_value)?;
+    // GeometryProgram@2 is also a typed contract.  A visual author can make
+    // harmless metadata mistakes (clockwise profiles, a loft cap label, or a
+    // mirrored branch sharing its source graph) while still describing the
+    // correct subject.  Canonicalize only those bounded, representation-
+    // preserving cases in Rust; unsupported geometry remains fail-closed.
+    normalize_universal_geometry_program(&mut outcome_value)?;
+    // The Provider may describe the subject and geometry, but it cannot be
+    // expected to reproduce Rust's canonical JSON hashing byte-for-byte.
+    // Once the sealed request has matched exactly, bind only these derived
+    // lineage fields on the Rust side; no Provider-authored semantic field is
+    // changed and no request rebinding is permitted.
+    bind_universal_author_lineage_hashes(&mut outcome_value, context.request())?;
+    let outcome: UniversalAuthorOutcome =
+        serde_json::from_value(outcome_value.clone()).map_err(|error| {
+            NativeToolFailure::schema(
+                "UNIVERSAL_AUTHOR_OUTCOME_INVALID",
+                format!(
+                    "UniversalAuthorOutcome@1 failed closed after Rust lineage binding: {error}"
+                ),
+            )
+        })?;
     outcome
         .validate(context.evidence())
         .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
@@ -8629,7 +10045,7 @@ fn author_universal_asset(
             ..
         } => {
             if let Some(graph) = context
-                .visual_evidence_graph_v2()
+                .visual_evidence_graph_v2_for_profile(subject_profile)
                 .map_err(|error| NativeToolFailure::schema(error.code, error.message))?
             {
                 graph
@@ -8659,10 +10075,23 @@ fn author_universal_asset(
             let local_hard_surface_hybrid = capability_ids.len() == 2
                 && capability_ids.contains(GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID)
                 && capability_ids.contains(LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID);
-            if capability_ids.len() != 1 && !local_hard_surface_hybrid {
+            let procedural_composition = capability_ids.len() > 1
+                && representation_plan.parts.iter().all(|part| {
+                    matches!(
+                        (part.representation, part.capability_id.as_str()),
+                        (
+                            forgecad_core::RepresentationKind::Procedural,
+                            GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID
+                        ) | (
+                            forgecad_core::RepresentationKind::Procedural,
+                            GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID
+                        )
+                    )
+                });
+            if capability_ids.len() != 1 && !local_hard_surface_hybrid && !procedural_composition {
                 return Err(NativeToolFailure::schema(
                     "UNIVERSAL_EXECUTABLE_CAPABILITY_MIXED",
-                    "A category-open executable candidate may mix only reviewed generic hard-surface and local lattice capabilities.",
+                    "A category-open executable candidate may mix reviewed procedural visual capabilities, or use the bounded hard-surface/lattice hybrid.",
                 ));
             }
             if local_hard_surface_hybrid {
@@ -8673,27 +10102,8 @@ fn author_universal_asset(
                     representation_plan,
                     executable_payload.clone(),
                 )
-                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
-                state.universal_asset_source_v2 = Some(source.clone());
-                state.universal_author_outcome = Some(output.clone());
-                let object = output
-                    .as_object_mut()
-                    .expect("UniversalAuthorOutcome serializes as an object");
-                object.insert("execution_route".into(), json!("build_universal_local_hybrid"));
-                object.insert(
-                    "universal_asset_source".into(),
-                    universal_asset_source_v2_projection(&source)?,
-                );
-                return Ok(output);
-            }
-            if capability_ids.contains(GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID) {
-                let source = UniversalAssetSourceV2::from_runtime_procedural(
-                    request,
-                    subject_profile,
-                    visual_feature_contract,
-                    representation_plan,
-                    executable_payload.clone(),
-                )
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?
+                .with_reference_surface_facts(context.evidence())
                 .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
                 state.universal_asset_source_v2 = Some(source.clone());
                 state.universal_author_outcome = Some(output.clone());
@@ -8702,7 +10112,42 @@ fn author_universal_asset(
                     .expect("UniversalAuthorOutcome serializes as an object");
                 object.insert(
                     "execution_route".into(),
-                    json!("build_universal_hard_surface"),
+                    json!("build_universal_local_hybrid"),
+                );
+                object.insert(
+                    "universal_asset_source".into(),
+                    universal_asset_source_v2_projection(&source)?,
+                );
+                return Ok(output);
+            }
+            if procedural_composition
+                || capability_ids.contains(GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID)
+                || capability_ids.contains(GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID)
+            {
+                let source = UniversalAssetSourceV2::from_runtime_procedural(
+                    request,
+                    subject_profile,
+                    visual_feature_contract,
+                    representation_plan,
+                    executable_payload.clone(),
+                )
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?
+                .with_reference_surface_facts(context.evidence())
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+                state.universal_asset_source_v2 = Some(source.clone());
+                state.universal_author_outcome = Some(output.clone());
+                let object = output
+                    .as_object_mut()
+                    .expect("UniversalAuthorOutcome serializes as an object");
+                object.insert(
+                    "execution_route".into(),
+                    json!(if capability_ids
+                        .contains(GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID)
+                    {
+                        "build_universal_visual_exterior"
+                    } else {
+                        "build_universal_hard_surface"
+                    }),
                 );
                 object.insert(
                     "universal_asset_source".into(),
@@ -8719,6 +10164,8 @@ fn author_universal_asset(
                     representation_plan,
                     executable_payload.clone(),
                 )
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?
+                .with_reference_surface_facts(context.evidence())
                 .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
                 state.universal_asset_source_v2 = Some(source.clone());
                 state.universal_author_outcome = Some(output.clone());
@@ -8728,6 +10175,33 @@ fn author_universal_asset(
                 object.insert(
                     "execution_route".into(),
                     json!("build_universal_local_lattice"),
+                );
+                object.insert(
+                    "universal_asset_source".into(),
+                    universal_asset_source_v2_projection(&source)?,
+                );
+                return Ok(output);
+            }
+
+            if capability_ids.contains(LOCAL_MESH_PATCH_CAPABILITY_ID) {
+                let source = UniversalAssetSourceV2::from_runtime_local_mesh_patch(
+                    request,
+                    subject_profile,
+                    visual_feature_contract,
+                    representation_plan,
+                    executable_payload.clone(),
+                )
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?
+                .with_reference_surface_facts(context.evidence())
+                .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+                state.universal_asset_source_v2 = Some(source.clone());
+                state.universal_author_outcome = Some(output.clone());
+                let object = output
+                    .as_object_mut()
+                    .expect("UniversalAuthorOutcome serializes as an object");
+                object.insert(
+                    "execution_route".into(),
+                    json!("build_universal_local_mesh_patch"),
                 );
                 object.insert(
                     "universal_asset_source".into(),
@@ -8786,6 +10260,781 @@ fn author_universal_asset(
     }
 }
 
+fn normalize_universal_author_contract(outcome: &mut Value) -> Result<(), NativeToolFailure> {
+    if outcome.get("outcome").and_then(Value::as_str) == Some("clarification_required") {
+        return Ok(());
+    }
+
+    let (feature_rows, normalized_features, changed) = {
+        let Some(profile) = outcome
+            .get_mut("subject_profile")
+            .and_then(Value::as_object_mut)
+        else {
+            return Ok(());
+        };
+        let Some(features) = profile.get_mut("features").and_then(Value::as_array_mut) else {
+            return Ok(());
+        };
+
+        // DeepSeek often gives mirrored parts one semantic feature label (for
+        // example, one `feat_ear_shape` row for both ears). SubjectProfile@1
+        // is a closed per-row contract, so keep the first ID and suffix later
+        // rows with their concrete part. This changes neither identity nor
+        // geometry; it only creates stable contract addresses.
+        let mut used_ids = BTreeSet::new();
+        let mut feature_rows = BTreeMap::<String, Vec<(String, String)>>::new();
+        let mut changed = false;
+        for feature in features.iter_mut() {
+            let Some(feature_object) = feature.as_object_mut() else {
+                continue;
+            };
+            let Some(old_id) = feature_object
+                .get("feature_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+            else {
+                continue;
+            };
+            let part_id = feature_object
+                .get("part_id")
+                .and_then(Value::as_str)
+                .unwrap_or("part")
+                .to_owned();
+            let normalized_id = if used_ids.insert(old_id.clone()) {
+                old_id.clone()
+            } else {
+                changed = true;
+                let base = format!("{old_id}__{}", normalized_feature_id_suffix(&part_id));
+                let mut candidate = base.clone();
+                let mut duplicate_index = 2_u16;
+                while used_ids.contains(&candidate) {
+                    candidate = format!("{base}_{duplicate_index}");
+                    duplicate_index = duplicate_index.saturating_add(1);
+                }
+                used_ids.insert(candidate.clone());
+                feature_object.insert("feature_id".into(), Value::String(candidate.clone()));
+                candidate
+            };
+            feature_rows
+                .entry(old_id)
+                .or_default()
+                .push((part_id, normalized_id));
+        }
+        (feature_rows, features.clone(), changed)
+    };
+
+    if !changed {
+        return Ok(());
+    }
+
+    // A Provider commonly emits one VFC requirement for a mirrored pair and
+    // lists both parts in affected_part_ids. Expand it into one requirement
+    // per normalized SubjectProfile row while preserving all visual evidence
+    // and acceptance semantics.
+    if let Some(contract) = outcome
+        .get_mut("visual_feature_contract")
+        .and_then(Value::as_object_mut)
+    {
+        if let Some(requirements) = contract.get("requirements").and_then(Value::as_array) {
+            let original_requirements = requirements.clone();
+            let mut expanded_requirements = Vec::new();
+            for requirement in original_requirements {
+                let old_id = requirement
+                    .get("feature_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                let Some(rows) = feature_rows.get(old_id) else {
+                    expanded_requirements.push(requirement);
+                    continue;
+                };
+                let affected_parts = requirement
+                    .get("affected_part_ids")
+                    .and_then(Value::as_array)
+                    .map(|parts| {
+                        parts
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .collect::<BTreeSet<_>>()
+                    })
+                    .unwrap_or_default();
+                let matching_rows = rows
+                    .iter()
+                    .filter(|(part_id, _)| affected_parts.contains(part_id.as_str()))
+                    .collect::<Vec<_>>();
+                let targets = if matching_rows.is_empty() {
+                    rows.iter().collect::<Vec<_>>()
+                } else {
+                    matching_rows
+                };
+                if targets.len() <= 1 {
+                    let mut normalized = requirement;
+                    if let Some((_, normalized_id)) = targets.first() {
+                        if let Some(object) = normalized.as_object_mut() {
+                            object.insert("feature_id".into(), json!(normalized_id));
+                        }
+                    }
+                    expanded_requirements.push(normalized);
+                } else {
+                    for (part_id, normalized_id) in targets {
+                        let mut normalized = requirement.clone();
+                        if let Some(object) = normalized.as_object_mut() {
+                            object.insert("feature_id".into(), json!(normalized_id));
+                            object.insert(
+                                "affected_part_ids".into(),
+                                json!([part_id]),
+                            );
+                        }
+                        expanded_requirements.push(normalized);
+                    }
+                }
+            }
+
+            // If the Provider compressed a mirrored feature into one VFC row
+            // and omitted the second row, synthesize only an inferred,
+            // evidence-free acceptance row. This cannot manufacture observed
+            // image evidence or create a new geometry part.
+            let mut requirement_ids = expanded_requirements
+                .iter()
+                .filter_map(|requirement| requirement.get("feature_id").and_then(Value::as_str))
+                .map(str::to_owned)
+                .collect::<BTreeSet<_>>();
+            for feature in normalized_features {
+                let Some(feature_object) = feature.as_object() else {
+                    continue;
+                };
+                let Some(feature_id) = feature_object.get("feature_id").and_then(Value::as_str)
+                else {
+                    continue;
+                };
+                if !requirement_ids.insert(feature_id.to_owned()) {
+                    continue;
+                }
+                let level = feature_object
+                    .get("level")
+                    .and_then(Value::as_str)
+                    .unwrap_or("meso");
+                let (salience_bps, channels, views) = match level {
+                    "macro" => (
+                        7_500_u16,
+                        json!(["geometry", "base_color"]),
+                        json!(["front", "iso", "side"]),
+                    ),
+                    "micro" => (
+                        4_500_u16,
+                        json!(["base_color", "normal", "roughness"]),
+                        json!(["iso"]),
+                    ),
+                    _ => (
+                        6_000_u16,
+                        json!(["geometry", "normal", "roughness"]),
+                        json!(["front", "iso"]),
+                    ),
+                };
+                expanded_requirements.push(json!({
+                    "feature_id": feature_id,
+                    "level": level,
+                    "description": feature_object
+                        .get("description")
+                        .and_then(Value::as_str)
+                        .unwrap_or("normalized visual feature"),
+                    "salience_bps": salience_bps,
+                    "evidence_status": "inferred",
+                    "evidence_regions": [],
+                    "affected_part_ids": [feature_object
+                        .get("part_id")
+                        .and_then(Value::as_str)
+                        .unwrap_or("part")],
+                    "channels": channels,
+                    "minimum_acceptance_views": views,
+                }));
+            }
+            contract.insert("requirements".into(), Value::Array(expanded_requirements));
+        }
+    }
+
+    // Bind plan references to the normalized feature belonging to the same
+    // part. A shared semantic feature therefore remains covered on both
+    // mirrored parts without creating a cross-part alias.
+    if let Some(plan) = outcome
+        .get_mut("representation_plan")
+        .and_then(Value::as_object_mut)
+    {
+        if let Some(parts) = plan.get_mut("parts").and_then(Value::as_array_mut) {
+            for part_plan in parts.iter_mut() {
+                let Some(part_object) = part_plan.as_object_mut() else {
+                    continue;
+                };
+                let part_id = part_object
+                    .get("part_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                let Some(feature_ids) = part_object
+                    .get_mut("covered_feature_ids")
+                    .and_then(Value::as_array_mut)
+                else {
+                    continue;
+                };
+                let original_ids = feature_ids.clone();
+                let mut normalized_ids = Vec::new();
+                let mut seen = BTreeSet::new();
+                for feature_id in original_ids.iter().filter_map(Value::as_str) {
+                    let normalized_id = feature_rows
+                        .get(feature_id)
+                        .and_then(|rows| {
+                            rows.iter()
+                                .find(|(candidate_part, _)| candidate_part == &part_id)
+                                .or_else(|| rows.first())
+                        })
+                        .map(|(_, normalized_id)| normalized_id.as_str())
+                        .unwrap_or(feature_id);
+                    if seen.insert(normalized_id) {
+                        normalized_ids.push(Value::String(normalized_id.to_owned()));
+                    }
+                }
+                *feature_ids = normalized_ids;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn normalized_feature_id_suffix(part_id: &str) -> String {
+    let mut suffix = part_id
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '_' | '-') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    if suffix.is_empty() {
+        suffix = "part".into();
+    }
+    suffix.truncate(96);
+    suffix
+}
+
+fn normalize_universal_geometry_program(outcome: &mut Value) -> Result<(), NativeToolFailure> {
+    if outcome.get("outcome").and_then(Value::as_str) != Some("executable") {
+        return Ok(());
+    }
+    let Some(payload) = outcome
+        .get_mut("executable_payload")
+        .and_then(Value::as_object_mut)
+    else {
+        return Ok(());
+    };
+    if payload.get("schema_version").and_then(Value::as_str)
+        != Some("ForgeVisualGeometryProgram@2")
+    {
+        return Ok(());
+    }
+
+    normalize_universal_geometry_profiles_and_sections(payload);
+    normalize_universal_geometry_mirror_branches(payload);
+    normalize_universal_geometry_budgets(payload);
+    Ok(())
+}
+
+fn normalize_universal_geometry_profiles_and_sections(payload: &mut Map<String, Value>) {
+    // A clockwise contour is the same visual contour under the VP203
+    // convention.  Reverse only when the signed area is clearly negative;
+    // degenerate and self-intersecting contours are intentionally left for
+    // the validator instead of being guessed at.
+    if let Some(profiles) = payload.get_mut("profiles").and_then(Value::as_array_mut) {
+        for profile in profiles {
+            let Some(points) = profile.get_mut("points").and_then(Value::as_array_mut) else {
+                continue;
+            };
+            let coordinates = points
+                .iter()
+                .map(|point| {
+                    let values = point.as_array()?;
+                    Some([values.first()?.as_f64()?, values.get(1)?.as_f64()?])
+                })
+                .collect::<Option<Vec<_>>>();
+            let Some(coordinates) = coordinates else {
+                continue;
+            };
+            if coordinates.len() < 3 {
+                continue;
+            }
+            let area = coordinates
+                .iter()
+                .enumerate()
+                .map(|(index, point)| {
+                    let next = coordinates[(index + 1) % coordinates.len()];
+                    point[0] * next[1] - next[0] * point[1]
+                })
+                .sum::<f64>()
+                * 0.5;
+            if area.is_finite() && area < -1e-9 {
+                points.reverse();
+            }
+        }
+    }
+
+    let profile_resamples = payload
+        .get("profiles")
+        .and_then(Value::as_array)
+        .map(|profiles| {
+            profiles
+                .iter()
+                .filter_map(|profile| {
+                    Some((
+                        profile.get("profile_id")?.as_str()?.to_owned(),
+                        u16::try_from(profile.get("resample_count")?.as_u64()?).ok()?,
+                    ))
+                })
+                .collect::<BTreeMap<_, _>>()
+        })
+        .unwrap_or_default();
+
+    let section_profile_ids = payload
+        .get("section_sets")
+        .and_then(Value::as_array)
+        .map(|section_sets| {
+            section_sets
+                .iter()
+                .flat_map(|section_set| {
+                    section_set
+                        .get("sections")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|section| section.get("profile_id").and_then(Value::as_str))
+                        .map(str::to_owned)
+                })
+                .collect::<BTreeSet<_>>()
+        })
+        .unwrap_or_default();
+
+    // One canonical count for every profile participating in a loft keeps
+    // shared profiles consistent across section sets.  The first declared
+    // valid count is retained, so the repair does not increase tessellation
+    // merely because another section used a different count.
+    let canonical_resample = section_profile_ids
+        .iter()
+        .filter_map(|profile_id| profile_resamples.get(profile_id).copied())
+        .find(|count| (8..=256).contains(count));
+    if let Some(canonical_resample) = canonical_resample {
+        if let Some(profiles) = payload.get_mut("profiles").and_then(Value::as_array_mut) {
+            for profile in profiles {
+                let Some(profile_id) = profile.get("profile_id").and_then(Value::as_str) else {
+                    continue;
+                };
+                if section_profile_ids.contains(profile_id) {
+                    profile["resample_count"] = json!(canonical_resample);
+                }
+            }
+        }
+    }
+
+    if let Some(section_sets) = payload
+        .get_mut("section_sets")
+        .and_then(Value::as_array_mut)
+    {
+        for section_set in section_sets {
+            let Some(sections) = section_set.get_mut("sections").and_then(Value::as_array_mut)
+            else {
+                continue;
+            };
+            let positions = sections
+                .iter()
+                .map(|section| section.get("position").and_then(Value::as_f64))
+                .collect::<Option<Vec<_>>>();
+            let sortable = positions.as_ref().is_some_and(|positions| {
+                let mut sorted_positions = positions.clone();
+                sorted_positions.sort_by(|left, right| {
+                    left.partial_cmp(right)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+                positions.iter().all(|position| {
+                    position.is_finite() && (-1.0..=1.0).contains(position)
+                }) && sorted_positions.windows(2).all(|pair| {
+                    (pair[1] - pair[0]).abs() > 1e-12
+                })
+            });
+            if sortable {
+                sections.sort_by(|left, right| {
+                    let left = left.get("position").and_then(Value::as_f64).unwrap_or(0.0);
+                    let right = right.get("position").and_then(Value::as_f64).unwrap_or(0.0);
+                    left.partial_cmp(&right)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+                let section_count = sections.len();
+                for (index, section) in sections.iter_mut().enumerate() {
+                    section["cap_policy"] = json!(if index == 0 {
+                        "start"
+                    } else if index + 1 == section_count {
+                        "end"
+                    } else {
+                        "none"
+                    });
+                }
+            }
+        }
+    }
+}
+
+fn universal_geometry_node_inputs(node: &Value) -> Vec<String> {
+    let mut inputs = Vec::new();
+    if let Some(input) = node.get("input_node_id").and_then(Value::as_str) {
+        inputs.push(input.to_owned());
+    }
+    if let Some(input_ids) = node.get("input_node_ids").and_then(Value::as_array) {
+        inputs.extend(input_ids.iter().filter_map(Value::as_str).map(str::to_owned));
+    }
+    inputs
+}
+
+fn universal_geometry_node_kind(node: &Value) -> Option<&str> {
+    node.get("kind").and_then(Value::as_str)
+}
+
+fn universal_geometry_clone_id(
+    source_id: &str,
+    used_ids: &BTreeSet<String>,
+    next_clone_index: &mut u32,
+) -> String {
+    loop {
+        let suffix = format!("__mirror_clone_{}", *next_clone_index);
+        *next_clone_index = (*next_clone_index).saturating_add(1);
+        let max_source_length = 96usize.saturating_sub(suffix.len());
+        let source = source_id.chars().take(max_source_length).collect::<String>();
+        let candidate = format!("{source}{suffix}");
+        if !used_ids.contains(&candidate) {
+            return candidate;
+        }
+    }
+}
+
+fn clone_universal_geometry_branch(
+    source_id: &str,
+    nodes_by_id: &BTreeMap<String, Value>,
+    used_ids: &BTreeSet<String>,
+    next_clone_index: &mut u32,
+) -> Option<(String, Vec<Value>)> {
+    fn clone_node(
+        source_id: &str,
+        nodes_by_id: &BTreeMap<String, Value>,
+        used_ids: &BTreeSet<String>,
+        next_clone_index: &mut u32,
+        cloned_ids: &mut BTreeMap<String, String>,
+        cloned_nodes: &mut Vec<Value>,
+    ) -> Option<String> {
+        if let Some(cloned_id) = cloned_ids.get(source_id) {
+            return Some(cloned_id.clone());
+        }
+        let mut node = nodes_by_id.get(source_id)?.clone();
+        // Duplicating wrappers would create duplicate Part/MaterialZone IDs
+        // and is not a safe metadata repair.  Leave such a graph to the
+        // Provider's typed recovery instead.
+        if matches!(universal_geometry_node_kind(&node), Some("part" | "material_zone")) {
+            return None;
+        }
+        let input_ids = universal_geometry_node_inputs(&node);
+        let mut cloned_inputs = Vec::with_capacity(input_ids.len());
+        for input_id in input_ids {
+            cloned_inputs.push(clone_node(
+                &input_id,
+                nodes_by_id,
+                used_ids,
+                next_clone_index,
+                cloned_ids,
+                cloned_nodes,
+            )?);
+        }
+        let cloned_id = universal_geometry_clone_id(source_id, used_ids, next_clone_index);
+        let mut input_index = 0usize;
+        if node.get("input_node_id").is_some() {
+            node["input_node_id"] = json!(cloned_inputs[input_index]);
+            input_index += 1;
+        }
+        if let Some(input_ids) = node.get_mut("input_node_ids").and_then(Value::as_array_mut) {
+            for input_id in input_ids {
+                *input_id = json!(cloned_inputs[input_index]);
+                input_index += 1;
+            }
+        }
+        node["node_id"] = json!(cloned_id);
+        cloned_ids.insert(source_id.to_owned(), cloned_id.clone());
+        cloned_nodes.push(node);
+        Some(cloned_id)
+    }
+
+    let mut cloned_ids = BTreeMap::new();
+    let mut cloned_nodes = Vec::new();
+    let cloned_root = clone_node(
+        source_id,
+        nodes_by_id,
+        used_ids,
+        next_clone_index,
+        &mut cloned_ids,
+        &mut cloned_nodes,
+    )?;
+    Some((cloned_root, cloned_nodes))
+}
+
+fn universal_geometry_reachable_nodes(
+    root_id: &str,
+    nodes_by_id: &BTreeMap<String, Value>,
+) -> BTreeSet<String> {
+    let mut reachable = BTreeSet::new();
+    let mut stack = vec![root_id.to_owned()];
+    while let Some(node_id) = stack.pop() {
+        if !reachable.insert(node_id.clone()) {
+            continue;
+        }
+        if let Some(node) = nodes_by_id.get(&node_id) {
+            stack.extend(universal_geometry_node_inputs(node));
+        }
+    }
+    reachable
+}
+
+fn normalize_universal_geometry_mirror_branches(payload: &mut Map<String, Value>) {
+    let Some(nodes) = payload.get("nodes").and_then(Value::as_array) else {
+        return;
+    };
+    let nodes_by_id = nodes
+        .iter()
+        .filter_map(|node| {
+            Some((
+                node.get("node_id")?.as_str()?.to_owned(),
+                node.clone(),
+            ))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mirror_ids = nodes
+        .iter()
+        .filter(|node| universal_geometry_node_kind(node) == Some("mirror"))
+        .filter_map(|node| node.get("node_id").and_then(Value::as_str).map(str::to_owned))
+        .collect::<Vec<_>>();
+    let output_roots = payload
+        .get("outputs")
+        .and_then(Value::as_array)
+        .map(|outputs| {
+            outputs
+                .iter()
+                .filter_map(|output| output.get("node_id").and_then(Value::as_str).map(str::to_owned))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let reachable_by_output = output_roots
+        .iter()
+        .map(|root| universal_geometry_reachable_nodes(root, &nodes_by_id))
+        .collect::<Vec<_>>();
+    let mut next_clone_index = 1u32;
+    let mut working_nodes = nodes.clone();
+
+    for mirror_id in mirror_ids {
+        let Some(mirror) = working_nodes.iter().find(|node| {
+            node.get("node_id").and_then(Value::as_str) == Some(mirror_id.as_str())
+        }) else {
+            continue;
+        };
+        let Some(source_id) = mirror.get("input_node_id").and_then(Value::as_str) else {
+            continue;
+        };
+        let source_is_used_by_another_output = reachable_by_output
+            .iter()
+            .any(|reachable| reachable.contains(source_id) && !reachable.contains(mirror_id.as_str()));
+        if !source_is_used_by_another_output {
+            continue;
+        }
+        let current_nodes_by_id = working_nodes
+            .iter()
+            .filter_map(|node| {
+                Some((
+                    node.get("node_id")?.as_str()?.to_owned(),
+                    node.clone(),
+                ))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let current_used_ids = current_nodes_by_id.keys().cloned().collect::<BTreeSet<_>>();
+        let Some((cloned_root, cloned_nodes)) = clone_universal_geometry_branch(
+            source_id,
+            &current_nodes_by_id,
+            &current_used_ids,
+            &mut next_clone_index,
+        ) else {
+            continue;
+        };
+        let Some(mirror_index) = working_nodes.iter().position(|node| {
+            node.get("node_id").and_then(Value::as_str) == Some(mirror_id.as_str())
+        }) else {
+            continue;
+        };
+        let cloned_node_count = cloned_nodes.len();
+        working_nodes.splice(mirror_index..mirror_index, cloned_nodes);
+        if let Some(mirror) = working_nodes.get_mut(mirror_index + cloned_node_count) {
+            mirror["input_node_id"] = json!(cloned_root);
+        }
+    }
+
+    let original_nodes = nodes.clone();
+    if working_nodes != original_nodes {
+        payload.insert("nodes".into(), Value::Array(working_nodes));
+    }
+}
+
+fn normalize_universal_geometry_budgets(payload: &mut Map<String, Value>) {
+    let profile_count = payload
+        .get("profiles")
+        .and_then(Value::as_array)
+        .map_or(1usize, |items| items.len().max(1));
+    let section_set_count = payload
+        .get("section_sets")
+        .and_then(Value::as_array)
+        .map_or(0usize, Vec::len);
+    let nodes = payload
+        .get("nodes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let material_count = payload
+        .get("materials")
+        .and_then(Value::as_array)
+        .map_or(0usize, Vec::len);
+    let output_count = payload
+        .get("outputs")
+        .and_then(Value::as_array)
+        .map_or(0usize, Vec::len);
+    let part_count = nodes
+        .iter()
+        .filter(|node| universal_geometry_node_kind(node) == Some("part"))
+        .count();
+    let operation_count = nodes
+        .iter()
+        .map(|node| match universal_geometry_node_kind(node) {
+            Some("extrude" | "revolve") => 2usize,
+            Some("groove") => 2usize,
+            Some("part" | "material_zone") => 0usize,
+            Some(_) => 1usize,
+            None => 0usize,
+        })
+        .sum::<usize>();
+    let Some(budgets) = payload.get_mut("budgets").and_then(Value::as_object_mut) else {
+        return;
+    };
+    let floors = [
+        ("max_profiles", profile_count, 32usize),
+        ("max_section_sets", section_set_count, 16usize),
+        ("max_nodes", nodes.len(), 256usize),
+        ("max_parts", part_count, 128usize),
+        ("max_materials", material_count, 64usize),
+        ("max_outputs", output_count, 128usize),
+        ("max_operations", operation_count, 256usize),
+    ];
+    for (key, floor, ceiling) in floors {
+        if floor > ceiling {
+            continue;
+        }
+        let current = budgets.get(key).and_then(Value::as_u64).unwrap_or(0) as usize;
+        if current < floor {
+            budgets.insert(key.into(), json!(floor));
+        }
+    }
+    // The actual triangle estimator remains authoritative in
+    // ForgeVisualGeometryProgramV2::validate.  This is only the reviewed
+    // maximum envelope, preventing an Agent's low declaration from rejecting
+    // an otherwise bounded visual composition before that estimator runs.
+    if budgets
+        .get("triangle_budget")
+        .and_then(Value::as_u64)
+        .is_some_and(|budget| budget < 100_000)
+    {
+        budgets.insert("triangle_budget".into(), json!(100_000));
+    }
+}
+
+fn bind_universal_author_lineage_hashes(
+    outcome: &mut Value,
+    request: &forgecad_core::UniversalAuthorRequest,
+) -> Result<(), NativeToolFailure> {
+    if outcome.get("outcome").and_then(Value::as_str) == Some("clarification_required") {
+        return Ok(());
+    }
+    let request_sha256 = semantic_sha256(request).map_err(|error| {
+        NativeToolFailure::schema(
+            "UNIVERSAL_AUTHOR_LINEAGE_HASH_FAILED",
+            format!("Rust could not hash UniversalAuthorRequest@1: {error}"),
+        )
+    })?;
+    let profile = outcome
+        .get_mut("subject_profile")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| {
+            NativeToolFailure::schema(
+                "UNIVERSAL_AUTHOR_LINEAGE_PROFILE_MISSING",
+                "Executable and limitation outcomes must contain a SubjectProfile@1 object.",
+            )
+        })?;
+    profile.insert("request_sha256".into(), json!(request_sha256.clone()));
+    let profile: forgecad_core::SubjectProfile =
+        serde_json::from_value(Value::Object(profile.clone())).map_err(|error| {
+            NativeToolFailure::schema(
+                "UNIVERSAL_AUTHOR_LINEAGE_PROFILE_INVALID",
+                format!("Rust could not normalize SubjectProfile@1 before hashing: {error}"),
+            )
+        })?;
+    let profile_sha256 = semantic_sha256(&profile).map_err(|error| {
+        NativeToolFailure::schema(
+            "UNIVERSAL_AUTHOR_LINEAGE_HASH_FAILED",
+            format!("Rust could not hash SubjectProfile@1: {error}"),
+        )
+    })?;
+
+    let feature_contract = outcome
+        .get_mut("visual_feature_contract")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| {
+            NativeToolFailure::schema(
+                "UNIVERSAL_AUTHOR_LINEAGE_FEATURE_CONTRACT_MISSING",
+                "Executable and limitation outcomes must contain a VisualFeatureContract@1 object.",
+            )
+        })?;
+    feature_contract.insert("request_sha256".into(), json!(request_sha256.clone()));
+    feature_contract.insert(
+        "subject_profile_sha256".into(),
+        json!(profile_sha256.clone()),
+    );
+    let feature_contract: forgecad_core::VisualFeatureContract =
+        serde_json::from_value(Value::Object(feature_contract.clone())).map_err(|error| {
+            NativeToolFailure::schema(
+                "UNIVERSAL_AUTHOR_LINEAGE_FEATURE_CONTRACT_INVALID",
+                format!("Rust could not normalize VisualFeatureContract@1 before hashing: {error}"),
+            )
+        })?;
+    let feature_contract_sha256 = semantic_sha256(&feature_contract).map_err(|error| {
+        NativeToolFailure::schema(
+            "UNIVERSAL_AUTHOR_LINEAGE_HASH_FAILED",
+            format!("Rust could not hash VisualFeatureContract@1: {error}"),
+        )
+    })?;
+
+    let representation_plan = outcome
+        .get_mut("representation_plan")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| {
+            NativeToolFailure::schema(
+                "UNIVERSAL_AUTHOR_LINEAGE_PLAN_MISSING",
+                "Executable and limitation outcomes must contain a RepresentationPlan@1 object.",
+            )
+        })?;
+    representation_plan.insert("request_sha256".into(), json!(request_sha256));
+    representation_plan.insert("subject_profile_sha256".into(), json!(profile_sha256));
+    representation_plan.insert(
+        "visual_feature_contract_sha256".into(),
+        json!(feature_contract_sha256),
+    );
+    Ok(())
+}
+
 fn universal_asset_source_projection(
     source: &UniversalAssetSource,
 ) -> Result<Value, NativeToolFailure> {
@@ -8803,6 +11052,16 @@ fn universal_asset_source_projection(
         "detail_claim_count":source.detail_claims.len(),
         "material_zone_count":source.material_zones.len(),
         "reference_count":source.appearance_evidence.references.len(),
+        "reference_projection_receipts": {
+            "count": source.appearance_evidence.projection_receipts.len(),
+            "receipts": source.appearance_evidence.projection_receipts.iter().map(|receipt| json!({
+                "projection_id": receipt.projection_id,
+                "worker_receipt_sha256": receipt.worker_receipt_sha256,
+                "final_glb_sha256": receipt.final_glb_sha256,
+                "compile_readback_sha256": receipt.compile_readback_sha256,
+                "target_material_zone_id": receipt.target_material_zone_id,
+            })).collect::<Vec<_>>(),
+        },
         "compiled":source.compiled_artifact.is_some()
     }))
 }
@@ -8832,10 +11091,11 @@ fn universal_asset_source_v2_projection(
                 hybrid.procedural_source.source_program_sha256.as_str(),
                 "hybrid",
             ),
-            _ => return Err(NativeToolFailure::unsupported(
-                "UNIVERSAL_V2_REPRESENTATION_UNAVAILABLE",
-                "Only reviewed local procedural, local lattice, and local hard-surface hybrid UAS@2 branches can be projected.",
-            )),
+            UniversalRepresentationSourceV2::LocalMeshPatch(patch) => (
+                patch.source_contract_id.as_str(),
+                patch.procedural_source.source_program_sha256.as_str(),
+                "mesh_seed",
+            ),
         };
     Ok(json!({
         "schema_version":"UniversalAssetSource@2",
@@ -9669,6 +11929,7 @@ fn patch_forge_visual_program(
         state.visual_convergence_report = None;
         state.visual_reference_comparison_input = None;
         state.visual_reference_comparison_report = None;
+        state.rust_reference_visual_metrics = None;
         state.candidate_pbr_capture = None;
         state.initial_build_identity = None;
     }
@@ -9745,25 +12006,33 @@ fn patch_universal_hard_surface_program(
     let patch = arguments.get("patch").ok_or_else(|| {
         NativeToolFailure::schema(
             "UNIVERSAL_V2_PATCH_MISSING",
-            "Generic hard-surface repair requires one ForgeVisualGeometryPatch@1 object.",
+            "Open-category visual repair requires one ForgeVisualGeometryPatch@1 object.",
         )
     })?;
-    let (procedural, execution_route) =
-        match &source.representation_source {
-            UniversalRepresentationSourceV2::Procedural(procedural) => {
-                (procedural, "build_universal_hard_surface")
-            }
-            UniversalRepresentationSourceV2::Deformable(deformable) => {
-                (&deformable.procedural_source, "build_universal_local_lattice")
-            }
-            UniversalRepresentationSourceV2::Hybrid(hybrid) => {
-                (&hybrid.procedural_source, "build_universal_local_hybrid")
-            }
-            _ => return Err(NativeToolFailure::unsupported(
-                "UNIVERSAL_V2_REPRESENTATION_UNAVAILABLE",
-                "Only reviewed local procedural, bounded lattice, or local hard-surface hybrid UAS@2 sources accept a typed geometry patch.",
-            )),
-        };
+    let (procedural, execution_route) = match &source.representation_source {
+        UniversalRepresentationSourceV2::Procedural(procedural) => {
+            let direction_id = universal_v2_direction_id(&source)
+                .map_err(|error| NativeToolFailure::schema(error.code, error.message))?;
+            (
+                procedural,
+                if direction_id == "direction_universal_visual_exterior" {
+                    "build_universal_visual_exterior"
+                } else {
+                    "build_universal_hard_surface"
+                },
+            )
+        }
+        UniversalRepresentationSourceV2::Deformable(deformable) => (
+            &deformable.procedural_source,
+            "build_universal_local_lattice",
+        ),
+        UniversalRepresentationSourceV2::Hybrid(hybrid) => {
+            (&hybrid.procedural_source, "build_universal_local_hybrid")
+        }
+        UniversalRepresentationSourceV2::LocalMeshPatch(patch) => {
+            (&patch.procedural_source, "build_universal_local_mesh_patch")
+        }
+    };
     if report.source_program_sha256 != procedural.source_program_sha256 {
         return Err(NativeToolFailure::conflict(
             "VISUAL_REPAIR_TARGET_PROJECTION_STALE",
@@ -9800,9 +12069,25 @@ fn patch_universal_hard_surface_program(
                 patched.patched_program.clone(),
             )
         }
-        _ => unreachable!("unsupported representation was rejected above"),
+        UniversalRepresentationSourceV2::LocalMeshPatch(_) => {
+            UniversalAssetSourceV2::from_runtime_local_mesh_patch(
+                &source.request,
+                &source.subject_profile,
+                &source.visual_feature_contract,
+                &source.representation_plan,
+                patched.patched_program.clone(),
+            )
+        }
     }
     .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+    let reference_evidence = state
+        .universal_author_context
+        .as_ref()
+        .map(|context| context.evidence())
+        .unwrap_or(&[]);
+    next = next
+        .with_reference_surface_facts(reference_evidence)
+        .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
     if let Some(profile) = source.game_asset_profile.clone() {
         next = next
             .with_game_asset_profile(profile)
@@ -9812,7 +12097,7 @@ fn patch_universal_hard_surface_program(
         UniversalRepresentationSourceV2::Procedural(procedural) => procedural,
         UniversalRepresentationSourceV2::Deformable(deformable) => &deformable.procedural_source,
         UniversalRepresentationSourceV2::Hybrid(hybrid) => &hybrid.procedural_source,
-        _ => unreachable!("runtime source constructor returns only executable UAS@2 branches"),
+        UniversalRepresentationSourceV2::LocalMeshPatch(patch) => &patch.procedural_source,
     };
     state.visual_repairs.push(VisualRepairEvidence {
         repair_number: (state.visual_repairs.len() + 1) as u8,
@@ -9836,6 +12121,7 @@ fn patch_universal_hard_surface_program(
     state.visual_convergence_report = None;
     state.visual_reference_comparison_input = None;
     state.visual_reference_comparison_report = None;
+    state.rust_reference_visual_metrics = None;
     state.candidate_pbr_capture = None;
     state.universal_visual_comparison_authorization = None;
     state.initial_build_identity = None;
@@ -10517,6 +12803,49 @@ async fn evaluate_universal_v2_procedural_candidate(
             "Accepted PBR capture does not match the exact UAS@2 GLB or renderer manifest.",
         ));
     }
+    let exact_reference_content_by_id = state
+        .universal_author_context
+        .as_ref()
+        .map(|context| {
+            executor
+                .read_exact_reference_contents_for_camera_fit(context)
+                .map_err(|error| {
+                    NativeToolFailure::new(
+                        ProductToolFailureCategory::Execution,
+                        error.code,
+                        error.message,
+                    )
+                })
+        })
+        .transpose()?
+        .unwrap_or_default();
+    let rust_reference_metrics =
+        rust_reference_visual_metrics(&exact_reference_content_by_id, &capture);
+    let rust_metric_summary_value =
+        serde_json::to_value(&rust_reference_metrics).map_err(|_| {
+            NativeToolFailure::new(
+                ProductToolFailureCategory::Execution,
+                "RUST_REFERENCE_VISUAL_METRICS_SERIALIZATION_FAILED",
+                "Rust reference visual metrics could not be serialized for lineage binding.",
+            )
+        })?;
+    let rust_metric_summary_sha256 =
+        sha256_hex(canonical_json(&rust_metric_summary_value).as_bytes());
+    let auxiliary_quality_by_view_id = TURN_TABLE_EIGHT_VIEW_IDS
+        .iter()
+        .filter_map(|view_id| {
+            capture
+                .auxiliary_png_by_view_id
+                .get(*view_id)
+                .and_then(|bytes| auxiliary_pbr_quality_metrics(bytes))
+                .map(|metrics| ((*view_id).to_string(), metrics))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let auxiliary_quality_passed = auxiliary_quality_by_view_id.len()
+        == TURN_TABLE_EIGHT_VIEW_IDS.len()
+        && auxiliary_quality_by_view_id
+            .values()
+            .all(|metrics| metrics.semantic_passed);
     let fixed_views = capture
         .evidence
         .views
@@ -10574,6 +12903,22 @@ async fn evaluate_universal_v2_procedural_candidate(
         cancellation,
     )
     .await?;
+    let reference_convergence = reference_comparison.as_ref().map(|(_, report)| {
+        let mut failure_codes = report.failure_codes.clone();
+        if rust_reference_metrics.availability == "available" {
+            failure_codes.extend(rust_reference_metrics.failure_codes.iter().cloned());
+        }
+        failure_codes.sort();
+        failure_codes.dedup();
+        failure_codes.truncate(32);
+        VisualReferenceConvergenceEvidence {
+            comparison_input_sha256: report.comparison_input_sha256.clone(),
+            comparison_report_sha256: report.report_sha256.clone(),
+            passed: report.passed && rust_reference_metrics.failure_codes.is_empty(),
+            failure_codes,
+            rust_metric_summary_sha256: Some(rust_metric_summary_sha256.clone()),
+        }
+    });
     let convergence_input = VisualConvergenceInput {
         schema_version: VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION.into(),
         ledger,
@@ -10593,14 +12938,7 @@ async fn evaluate_universal_v2_procedural_candidate(
         fixed_views,
         fixed_view_profile: VisualFixedViewProfile::TurntableEight,
         detail_coverage,
-        reference_comparison: reference_comparison.as_ref().map(|(_, report)| {
-            VisualReferenceConvergenceEvidence {
-                comparison_input_sha256: report.comparison_input_sha256.clone(),
-                comparison_report_sha256: report.report_sha256.clone(),
-                passed: report.passed,
-                failure_codes: report.failure_codes.clone(),
-            }
-        }),
+        reference_comparison: reference_convergence,
         repairs: state.visual_repairs.clone(),
     };
     let convergence_report = convergence_input.evaluate().map_err(|error| {
@@ -10661,6 +12999,32 @@ async fn evaluate_universal_v2_procedural_candidate(
                     )
                 },
             }];
+            checks.push(GenerationGateCheck {
+                gate_id: "gpu_auxiliary_semantics".into(),
+                outcome: if auxiliary_quality_passed {
+                    VerificationOutcome::Pass
+                } else {
+                    VerificationOutcome::Fail
+                },
+                repairable: false,
+                summary: if auxiliary_quality_passed {
+                    "The same GPU/PBR renderer emitted non-empty silhouette, normal, depth, part-ID, and material-ID evidence for all eight views.".into()
+                } else {
+                    let failed_views = TURN_TABLE_EIGHT_VIEW_IDS
+                        .iter()
+                        .filter(|view_id| {
+                            auxiliary_quality_by_view_id
+                                .get(**view_id)
+                                .is_none_or(|metrics| !metrics.semantic_passed)
+                        })
+                        .copied()
+                        .collect::<Vec<_>>();
+                    format!(
+                        "GPU auxiliary semantic evidence is incomplete for: {}.",
+                        failed_views.join(",")
+                    )
+                },
+            });
             if let Some((_, report)) = reference_comparison.as_ref() {
                 checks.push(GenerationGateCheck {
                     gate_id: "pv006c_reference_comparison".into(),
@@ -10706,6 +13070,7 @@ async fn evaluate_universal_v2_procedural_candidate(
                             "renderer_id": &geometry.renderer_id,
                             "glb_sha256": &geometry.glb_sha256,
                             "capture_sha256": &capture.evidence.capture_sha256,
+                            "auxiliary_quality": &auxiliary_quality_by_view_id,
                         }))
                         .as_bytes()
                     )[..24]
@@ -10724,11 +13089,13 @@ async fn evaluate_universal_v2_procedural_candidate(
             Ok(report)
         })
         .transpose()?;
-    let hard_gate_passed = convergence_report.passed
+    let hard_gate_passed = auxiliary_quality_passed
+        && convergence_report.passed
         && generation_report
             .as_ref()
             .is_none_or(GenerationGateReport::is_passed);
     let visual_repair_target_projection = (!hard_gate_passed
+        && auxiliary_quality_passed
         && state.visual_repairs.len() < usize::from(MAX_VISUAL_REPAIR_ATTEMPTS))
     .then(|| universal_hard_surface_repair_target_projection(&source))
     .transpose()?;
@@ -10739,6 +13106,8 @@ async fn evaluate_universal_v2_procedural_candidate(
         "visual_convergence_report": convergence_report,
         "visual_reference_comparison_input": reference_comparison.as_ref().map(|value| &value.0),
         "visual_reference_comparison_report": reference_comparison.as_ref().map(|value| &value.1),
+        "rust_reference_visual_metrics": rust_reference_metrics,
+        "gpu_auxiliary_quality": auxiliary_quality_by_view_id,
         "visual_repair_target_projection": visual_repair_target_projection,
         "evidence_source": "u004_universal_hard_surface_pbr_v1"
     });
@@ -10749,6 +13118,7 @@ async fn evaluate_universal_v2_procedural_candidate(
         reference_comparison.as_ref().map(|value| value.0.clone());
     state.visual_reference_comparison_report =
         reference_comparison.as_ref().map(|value| value.1.clone());
+    state.rust_reference_visual_metrics = Some(rust_reference_metrics);
     state.visual_repair_target_ids = None;
     state.evaluation = Some(payload.clone());
     Ok(payload)
@@ -10761,16 +13131,12 @@ async fn evaluate_universal_v2_procedural_candidate(
 fn universal_hard_surface_repair_target_projection(
     source: &UniversalAssetSourceV2,
 ) -> Result<Value, NativeToolFailure> {
-    let procedural =
-        match &source.representation_source {
-            UniversalRepresentationSourceV2::Procedural(procedural) => procedural,
-            UniversalRepresentationSourceV2::Deformable(deformable) => &deformable.procedural_source,
-            UniversalRepresentationSourceV2::Hybrid(hybrid) => &hybrid.procedural_source,
-            _ => return Err(NativeToolFailure::unsupported(
-                "UNIVERSAL_V2_REPRESENTATION_UNAVAILABLE",
-                "Only local procedural, local lattice, and local hard-surface hybrid UAS@2 sources have a typed hard-surface repair projection.",
-            )),
-        };
+    let procedural = match &source.representation_source {
+        UniversalRepresentationSourceV2::Procedural(procedural) => procedural,
+        UniversalRepresentationSourceV2::Deformable(deformable) => &deformable.procedural_source,
+        UniversalRepresentationSourceV2::Hybrid(hybrid) => &hybrid.procedural_source,
+        UniversalRepresentationSourceV2::LocalMeshPatch(patch) => &patch.procedural_source,
+    };
     let nodes = procedural
         .source_program
         .get("nodes")
@@ -11001,6 +13367,7 @@ async fn evaluate_forge_visual_candidate(
                 comparison_report_sha256: report.report_sha256.clone(),
                 passed: report.passed,
                 failure_codes: report.failure_codes.clone(),
+                rust_metric_summary_sha256: None,
             });
     let convergence_input = VisualConvergenceInput {
         schema_version: VISUAL_CONVERGENCE_INPUT_SCHEMA_VERSION.into(),
@@ -11661,6 +14028,7 @@ fn build_universal_visual_comparison_projection(
     source_program: &Value,
     geometry: &RestrictedGeometryOutput,
     fixed_views: &[VisualFixedViewEvidence],
+    render_contract: &VisualReferenceRenderContract,
 ) -> Result<(VisualReferenceComparisonInput, VisualEvidenceGraph), NativeToolFailure> {
     let UniversalAuthorOutcome::Executable {
         request,
@@ -11682,7 +14050,7 @@ fn build_universal_visual_comparison_projection(
         ));
     }
     let graph_v2 = context
-        .visual_evidence_graph_v2()
+        .visual_evidence_graph_v2_for_profile(subject_profile)
         .map_err(|error| NativeToolFailure::schema(error.code, error.message))?
         .ok_or_else(|| {
             NativeToolFailure::conflict(
@@ -11692,6 +14060,9 @@ fn build_universal_visual_comparison_projection(
         })?;
     graph_v2
         .validate_against(request, subject_profile)
+        .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
+    render_contract
+        .validate()
         .map_err(|error| NativeToolFailure::schema(error.code(), error.to_string()))?;
 
     let requirements = visual_feature_contract
@@ -11898,6 +14269,7 @@ fn build_universal_visual_comparison_projection(
             acceptance_policy: forgecad_core::VisualReferenceAcceptancePolicy::default_policy(),
             reference_sources,
             candidate_view_profile: Some(VisualReferenceCandidateViewProfile::TurntableEight),
+            candidate_render_contract: Some(render_contract.clone()),
             candidate_views,
         },
         graph,
@@ -12044,6 +14416,18 @@ async fn compare_visual_reference_candidate(
                 source_program,
                 geometry,
                 fixed_views,
+                &workbench_pbr_visual_render_contract_from_capture(
+                    &state
+                        .candidate_pbr_capture
+                        .as_ref()
+                        .ok_or_else(|| {
+                            NativeToolFailure::conflict(
+                                "UNIVERSAL_VISUAL_AUTHORIZATION_CAPTURE_REQUIRED",
+                                "Category-open visual comparison requires accepted PBR evidence.",
+                            )
+                        })?
+                        .evidence,
+                )?,
             )?;
             let authorization_id = state
                 .universal_visual_comparison_authorization
@@ -12573,40 +14957,50 @@ fn prepare_candidate_preview(
         "preview_{}",
         &sha256_hex(format!("{turn_id}:{preview_artifact_sha256}").as_bytes())[..24]
     );
-    let decision = match (
-        state.generation_attempt.as_ref(),
-        state.generation_gate_report.as_ref(),
-    ) {
-        (Some(attempt), Some(report)) => Some(
-            SingleResultDecision::passed(
-                format!(
-                    "decision_{}",
-                    &sha256_hex(format!("{}:{preview_id}", attempt.attempt_id).as_bytes())[..24]
-                ),
-                attempt,
-                report,
-                "One complete concept is ready for preview and explicit confirmation.".into(),
-                GenerationPreview {
-                    preview_id: preview_id.clone(),
-                    artifact_sha256: preview_artifact_sha256.clone(),
-                    artifact_profile_id: geometry.readback.artifact_profile_id.clone(),
-                    expires_at: None,
-                },
-            )
-            .map_err(|error| {
-                NativeToolFailure::new(
-                    ProductToolFailureCategory::Execution,
-                    error.code(),
-                    error.to_string(),
+    // UAS@2 owns category-open preview provenance and deliberately does not
+    // manufacture the legacy V003 SingleResultDecision.  The latter binds
+    // the hard-gate report to the source GLB, while a game-delivery preview
+    // intentionally renders the Rust-derived delivery GLB.  Legacy V003
+    // candidates retain the original decision path below.
+    let decision = if state.universal_asset_source_v2.is_some() {
+        None
+    } else {
+        match (
+            state.generation_attempt.as_ref(),
+            state.generation_gate_report.as_ref(),
+        ) {
+            (Some(attempt), Some(report)) => Some(
+                SingleResultDecision::passed(
+                    format!(
+                        "decision_{}",
+                        &sha256_hex(format!("{}:{preview_id}", attempt.attempt_id).as_bytes())
+                            [..24]
+                    ),
+                    attempt,
+                    report,
+                    "One complete concept is ready for preview and explicit confirmation.".into(),
+                    GenerationPreview {
+                        preview_id: preview_id.clone(),
+                        artifact_sha256: preview_artifact_sha256.clone(),
+                        artifact_profile_id: geometry.readback.artifact_profile_id.clone(),
+                        expires_at: None,
+                    },
                 )
-            })?,
-        ),
-        (None, None) => None,
-        _ => {
-            return Err(NativeToolFailure::conflict(
-                "SINGLE_GENERATION_EVIDENCE_INCOMPLETE",
-                "Native V003 preview evidence was incomplete.",
-            ))
+                .map_err(|error| {
+                    NativeToolFailure::new(
+                        ProductToolFailureCategory::Execution,
+                        error.code(),
+                        error.to_string(),
+                    )
+                })?,
+            ),
+            (None, None) => None,
+            _ => {
+                return Err(NativeToolFailure::conflict(
+                    "SINGLE_GENERATION_EVIDENCE_INCOMPLETE",
+                    "Native V003 preview evidence was incomplete.",
+                ))
+            }
         }
     };
     let payload = json!({
@@ -13498,9 +15892,12 @@ fn validate_shape_operation_args(
     profile_inputs: &BTreeSet<String>,
     parameter_ids: &BTreeSet<String>,
 ) -> Result<(), NativeToolFailure> {
-    const ALLOWED_ARGS: [&str; 27] = [
+    const ALLOWED_ARGS: [&str; 33] = [
         "size",
+        "face_size",
         "radius",
+        "thickness",
+        "depth",
         "height",
         "angle",
         "spacing",
@@ -13526,6 +15923,9 @@ fn validate_shape_operation_args(
         "part_role",
         "zone_id",
         "corner_offsets",
+        "patch_center",
+        "patch_radius",
+        "patch_offset",
     ];
     const EXTRA_ALLOWED_ARGS: [&str; 3] = ["connector_kind", "joint_kind", "material_id"];
     for key in args.keys() {
@@ -13570,7 +15970,7 @@ fn validate_shape_operation_args(
             ));
         }
     }
-    for key in ["radius", "height", "spacing", "axis_length"] {
+    for key in ["radius", "thickness", "height", "spacing", "axis_length"] {
         if let Some(value) = args.get(key) {
             let value = value
                 .as_f64()
@@ -13828,8 +16228,8 @@ fn validate_shape_operation_args(
                 "Sweep requires one reviewed profile input and a bounded path.",
             ));
         }
-        "mirror" | "array" | "radial_array" | "bevel_approx" | "surface_panel"
-        | "lattice_deform"
+        "mirror" | "array" | "radial_array" | "bevel_approx" | "surface_panel" | "shell"
+        | "lattice_deform" | "local_mesh_patch"
             if inputs.len() != 1 =>
         {
             return Err(schema_failure(
@@ -13855,8 +16255,10 @@ fn validate_shape_operation_args(
             "Boolean operations require mesh inputs; profile inputs are not geometry solids.",
         ));
     }
-    if matches!(op, "mirror" | "array" | "radial_array" | "lattice_deform")
-        && operation_kinds.get(&inputs[0]).map(String::as_str) == Some("profile")
+    if matches!(
+        op,
+        "mirror" | "array" | "radial_array" | "lattice_deform" | "local_mesh_patch"
+    ) && operation_kinds.get(&inputs[0]).map(String::as_str) == Some("profile")
     {
         return Err(schema_failure(
             format!("SHAPE_PROGRAM_{}_PROFILE_INPUT", op.to_ascii_uppercase()),
@@ -13874,6 +16276,22 @@ fn validate_shape_operation_args(
             "bevel_approx requires an earlier box or bevel_approx input.",
         ));
     }
+    if op == "bevel_approx" {
+        let radius = args
+            .get("radius")
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && *value > 0.0);
+        let segments = args
+            .get("segments")
+            .and_then(Value::as_u64)
+            .filter(|value| (1..=3).contains(value));
+        if radius.is_none() || segments.is_none() {
+            return Err(schema_failure(
+                "SHAPE_PROGRAM_BEVEL_ARGUMENTS",
+                "bevel_approx requires a positive radius and one to three segments.",
+            ));
+        }
+    }
     if op == "surface_panel"
         && !matches!(
             operation_kinds.get(&inputs[0]).map(String::as_str),
@@ -13885,11 +16303,185 @@ fn validate_shape_operation_args(
             "surface_panel requires an earlier box or bevel_approx input.",
         ));
     }
+    if op == "surface_panel" {
+        let default_axis = json!([0, 1, 0]);
+        let axis = number_tuple(
+            args.get("axis").or(Some(&default_axis)),
+            3,
+            -1.0,
+            1.0,
+            "SHAPE_PROGRAM_SURFACE_PANEL_AXIS",
+        )?;
+        let axis_matches = [
+            [1.0, 0.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, -1.0],
+        ]
+        .iter()
+        .any(|candidate| {
+            axis.iter()
+                .zip(candidate)
+                .all(|(left, right)| (left - right).abs() <= f64::EPSILON)
+        });
+        if !axis_matches {
+            return Err(schema_failure(
+                "SHAPE_PROGRAM_SURFACE_PANEL_AXIS",
+                "surface_panel axis must select one of the six local box faces.",
+            ));
+        }
+        if let Some(position) = args.get("position") {
+            let position = number_tuple(
+                Some(position),
+                3,
+                -100_000.0,
+                100_000.0,
+                "SHAPE_PROGRAM_SURFACE_PANEL_OFFSET",
+            )?;
+            let normal_index = axis
+                .iter()
+                .position(|value| value.abs() > f64::EPSILON)
+                .expect("surface_panel axis is non-zero");
+            if position[normal_index].abs() > f64::EPSILON {
+                return Err(schema_failure(
+                    "SHAPE_PROGRAM_SURFACE_PANEL_OFFSET",
+                    "surface_panel position may only offset within the selected source face.",
+                ));
+            }
+        }
+    }
+    if op == "groove"
+        && !matches!(
+            operation_kinds.get(&inputs[0]).map(String::as_str),
+            Some("box" | "bevel_approx")
+        )
+    {
+        return Err(schema_failure(
+            "SHAPE_PROGRAM_GROOVE_SOURCE",
+            "groove requires an earlier box or bevel_approx input.",
+        ));
+    }
+    if op == "groove" {
+        let face_size = number_tuple(
+            args.get("face_size"),
+            2,
+            f64::MIN_POSITIVE,
+            100_000.0,
+            "SHAPE_PROGRAM_GROOVE_FACE_SIZE",
+        )?;
+        let axis = number_tuple(
+            args.get("axis").or(Some(&json!([0, 1, 0]))),
+            3,
+            -1.0,
+            1.0,
+            "SHAPE_PROGRAM_GROOVE_AXIS",
+        )?;
+        let axis_matches = [
+            [1.0, 0.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, -1.0],
+        ]
+        .iter()
+        .any(|candidate| {
+            axis.iter()
+                .zip(candidate)
+                .all(|(left, right)| (left - right).abs() <= f64::EPSILON)
+        });
+        if !axis_matches {
+            return Err(schema_failure(
+                "SHAPE_PROGRAM_GROOVE_AXIS",
+                "groove axis must select one of the six local box faces.",
+            ));
+        }
+        let position = number_tuple(
+            args.get("position").or(Some(&json!([0, 0, 0]))),
+            3,
+            -100_000.0,
+            100_000.0,
+            "SHAPE_PROGRAM_GROOVE_OFFSET",
+        )?;
+        let depth = require_number_range(
+            args,
+            "depth",
+            f64::MIN_POSITIVE,
+            100_000.0,
+            "SHAPE_PROGRAM_GROOVE_DEPTH",
+        )?;
+        let normal_index = axis
+            .iter()
+            .position(|value| value.abs() > f64::EPSILON)
+            .expect("groove axis is non-zero");
+        if position[normal_index].abs() > f64::EPSILON {
+            return Err(schema_failure(
+                "SHAPE_PROGRAM_GROOVE_OFFSET",
+                "groove position may only offset within the selected source face.",
+            ));
+        }
+        if face_size.iter().any(|value| *value <= 0.0) {
+            return Err(schema_failure(
+                "SHAPE_PROGRAM_GROOVE_ARGUMENTS",
+                "groove must use a positive face footprint and an in-plane offset.",
+            ));
+        }
+        let _ = depth;
+    }
+    if op == "shell"
+        && !matches!(
+            operation_kinds.get(&inputs[0]).map(String::as_str),
+            Some("box" | "bevel_approx")
+        )
+    {
+        return Err(schema_failure(
+            "SHAPE_PROGRAM_SHELL_SOURCE",
+            "shell requires an earlier box or bevel_approx input.",
+        ));
+    }
+    if op == "shell" && !args.contains_key("thickness") {
+        return Err(schema_failure(
+            "SHAPE_PROGRAM_SHELL_ARGUMENTS",
+            "shell requires a positive bounded thickness.",
+        ));
+    }
     if op == "lattice_deform" && !args.contains_key("corner_offsets") {
         return Err(schema_failure(
             "SHAPE_PROGRAM_LATTICE_OFFSETS",
             "lattice_deform requires bounded corner_offsets.",
         ));
+    }
+    if op == "local_mesh_patch" {
+        let center = number_tuple(
+            args.get("patch_center"),
+            3,
+            0.0,
+            1.0,
+            "SHAPE_PROGRAM_LOCAL_PATCH_CENTER",
+        )?;
+        let radius = require_number_range(
+            args,
+            "patch_radius",
+            0.05,
+            0.4,
+            "SHAPE_PROGRAM_LOCAL_PATCH_RADIUS",
+        )?;
+        let offset = number_tuple(
+            args.get("patch_offset"),
+            3,
+            -0.2,
+            0.2,
+            "SHAPE_PROGRAM_LOCAL_PATCH_OFFSET",
+        )?;
+        if !offset.iter().any(|value| value.abs() > 1e-9) {
+            return Err(schema_failure(
+                "SHAPE_PROGRAM_LOCAL_PATCH_NO_EFFECT",
+                "local_mesh_patch must change at least one axis.",
+            ));
+        }
+        let _ = (center, radius);
     }
     if matches!(op, "mirror" | "array" | "radial_array") {
         let axis = number_tuple(
@@ -14205,11 +16797,129 @@ fn is_role_id(value: &str) -> bool {
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use forgecad_core::{build_c111_forge_visual_program_fixture, VisualReferenceClaimAssessment};
+    use forgecad_core::{
+        build_c111_forge_visual_program_fixture, ReferenceCameraHypothesis,
+        VisualReferenceClaimAssessment,
+    };
     use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 
     use super::*;
     use crate::ProviderToolCall;
+
+    #[test]
+    fn universal_author_normalizes_mirrored_feature_rows_without_new_evidence() {
+        let mut outcome = json!({
+            "outcome": "executable",
+            "subject_profile": {
+                "features": [
+                    {"feature_id":"feat_ear_shape","part_id":"part_ear_left","level":"meso","description":"左耳三角轮廓"},
+                    {"feature_id":"feat_ear_shape","part_id":"part_ear_right","level":"meso","description":"右耳三角轮廓"}
+                ]
+            },
+            "visual_feature_contract": {
+                "requirements": [{
+                    "feature_id":"feat_ear_shape",
+                    "level":"meso",
+                    "description":"双耳三角轮廓",
+                    "salience_bps":8000,
+                    "evidence_status":"inferred",
+                    "evidence_regions":[],
+                    "affected_part_ids":["part_ear_left","part_ear_right"],
+                    "channels":["geometry"],
+                    "minimum_acceptance_views":["front","iso"]
+                }]
+            },
+            "representation_plan": {
+                "parts": [
+                    {"part_id":"part_ear_left","covered_feature_ids":["feat_ear_shape"]},
+                    {"part_id":"part_ear_right","covered_feature_ids":["feat_ear_shape"]}
+                ]
+            }
+        });
+
+        normalize_universal_author_contract(&mut outcome).unwrap();
+
+        let features = outcome["subject_profile"]["features"].as_array().unwrap();
+        assert_eq!(features[0]["feature_id"], json!("feat_ear_shape"));
+        assert_eq!(
+            features[1]["feature_id"],
+            json!("feat_ear_shape__part_ear_right")
+        );
+        let requirements = outcome["visual_feature_contract"]["requirements"]
+            .as_array()
+            .unwrap();
+        assert_eq!(requirements.len(), 2);
+        assert_eq!(requirements[0]["affected_part_ids"].as_array().unwrap().len(), 1);
+        assert_eq!(requirements[1]["affected_part_ids"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            outcome["representation_plan"]["parts"][1]["covered_feature_ids"][0],
+            json!("feat_ear_shape__part_ear_right")
+        );
+        assert!(requirements
+            .iter()
+            .all(|requirement| requirement["evidence_status"] == "inferred"));
+    }
+
+    #[test]
+    fn universal_geometry_normalizer_repairs_bounded_loft_and_mirror_metadata() {
+        let mut outcome = json!({
+            "outcome": "executable",
+            "executable_payload": {
+                "schema_version":"ForgeVisualGeometryProgram@2",
+                "profiles":[
+                    {"profile_id":"profile_tail_root","points":[[0.0,0.0],[0.0,1.0],[1.0,0.0]],"resample_count":24},
+                    {"profile_id":"profile_tail_tip","points":[[0.0,0.0],[0.0,1.0],[1.0,0.0]],"resample_count":16}
+                ],
+                "section_sets":[{
+                    "section_set_id":"sectionset_tail",
+                    "sections":[
+                        {"section_id":"section_mid","position":0.0,"profile_id":"profile_tail_root","scale":1.0,"twist_degrees":0.0,"cap_policy":"none"},
+                        {"section_id":"section_root","position":-1.0,"profile_id":"profile_tail_tip","scale":1.0,"twist_degrees":0.0,"cap_policy":"none"},
+                        {"section_id":"section_end","position":1.0,"profile_id":"profile_tail_root","scale":1.0,"twist_degrees":0.0,"cap_policy":"none"}
+                    ]
+                }],
+                "nodes":[
+                    {"kind":"box","node_id":"node_ear_left","size":[2.0,2.0,2.0],"position":[0.0,0.0,0.0]},
+                    {"kind":"mirror","node_id":"node_ear_right_mirror","input_node_id":"node_ear_left","axis":"x"},
+                    {"kind":"part","node_id":"node_part_ear_left","input_node_id":"node_ear_left","part_id":"part_ear_left","role":"ear"},
+                    {"kind":"material_zone","node_id":"node_zone_ear_left","input_node_id":"node_part_ear_left","zone_id":"zone_ear_left","material_id":"mat_fur"},
+                    {"kind":"part","node_id":"node_part_ear_right","input_node_id":"node_ear_right_mirror","part_id":"part_ear_right","role":"ear"},
+                    {"kind":"material_zone","node_id":"node_zone_ear_right","input_node_id":"node_part_ear_right","zone_id":"zone_ear_right","material_id":"mat_fur"}
+                ],
+                "materials":[{"material_id":"mat_fur","base_material_id":"mat_composite"}],
+                "outputs":[
+                    {"output_id":"output_ear_left","node_id":"node_zone_ear_left"},
+                    {"output_id":"output_ear_right","node_id":"node_zone_ear_right"}
+                ],
+                "budgets":{
+                    "max_profiles":1,"max_section_sets":0,"max_nodes":2,"max_parts":1,
+                    "max_materials":1,"max_outputs":1,"max_operations":1,"triangle_budget":100
+                }
+            }
+        });
+
+        normalize_universal_geometry_program(&mut outcome).unwrap();
+
+        let payload = &outcome["executable_payload"];
+        assert_eq!(payload["profiles"][0]["points"][0], json!([1.0, 0.0]));
+        assert_eq!(payload["profiles"][1]["resample_count"], json!(24));
+        let sections = payload["section_sets"][0]["sections"].as_array().unwrap();
+        assert_eq!(sections[0]["position"], json!(-1.0));
+        assert_eq!(sections[0]["cap_policy"], json!("start"));
+        assert_eq!(sections[1]["cap_policy"], json!("none"));
+        assert_eq!(sections[2]["cap_policy"], json!("end"));
+        let nodes = payload["nodes"].as_array().unwrap();
+        let mirror = nodes
+            .iter()
+            .find(|node| node["node_id"] == json!("node_ear_right_mirror"))
+            .unwrap();
+        assert_ne!(mirror["input_node_id"], json!("node_ear_left"));
+        assert!(nodes.iter().any(|node| node["node_id"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("node_ear_left__mirror_clone_"))));
+        assert!(payload["budgets"]["max_nodes"].as_u64().unwrap() >= nodes.len() as u64);
+        assert_eq!(payload["budgets"]["triangle_budget"], json!(100000));
+    }
 
     fn u002_limitation_fixture() -> (ValidatedUniversalAuthorContext, BTreeMap<String, Value>) {
         let request: forgecad_core::UniversalAuthorRequest = serde_json::from_value(json!({
@@ -14507,6 +17217,39 @@ mod tests {
         (context, BTreeMap::from([("outcome".into(), outcome)]))
     }
 
+    fn u004_executable_generic_visual_exterior_fixture(
+    ) -> (ValidatedUniversalAuthorContext, BTreeMap<String, Value>) {
+        let (_, mut arguments) = u004_executable_generic_hard_surface_fixture();
+        let outcome = arguments.get_mut("outcome").unwrap();
+        outcome["subject_profile"]["category_tags"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!("visual_exterior"));
+        for part in outcome["subject_profile"]["parts"].as_array_mut().unwrap() {
+            part["traits"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!("visual_exterior"));
+        }
+        let profile_sha256 = semantic_sha256(&outcome["subject_profile"]).unwrap();
+        outcome["visual_feature_contract"]["subject_profile_sha256"] = json!(profile_sha256);
+        let contract_sha256 = semantic_sha256(&outcome["visual_feature_contract"]).unwrap();
+        outcome["representation_plan"]["subject_profile_sha256"] = json!(profile_sha256);
+        outcome["representation_plan"]["visual_feature_contract_sha256"] = json!(contract_sha256);
+        outcome["executable_payload"]["domain"] = json!("generic_visual_exterior");
+        for part in outcome["representation_plan"]["parts"]
+            .as_array_mut()
+            .unwrap()
+        {
+            part["capability_id"] =
+                json!(forgecad_core::GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID);
+        }
+        let request: forgecad_core::UniversalAuthorRequest =
+            serde_json::from_value(outcome["request"].clone()).unwrap();
+        let context = ValidatedUniversalAuthorContext::new(request, &[], None).unwrap();
+        (context, arguments)
+    }
+
     fn u004_executable_local_lattice_fixture(
     ) -> (ValidatedUniversalAuthorContext, BTreeMap<String, Value>) {
         let (_, mut arguments) = u004_executable_generic_hard_surface_fixture();
@@ -14598,7 +17341,9 @@ mod tests {
             .unwrap();
         trim_plan["representation"] = json!("deformable");
         trim_plan["capability_id"] = json!("deformable.local_lattice_shell_v1");
-        let nodes = outcome["executable_payload"]["nodes"].as_array_mut().unwrap();
+        let nodes = outcome["executable_payload"]["nodes"]
+            .as_array_mut()
+            .unwrap();
         let trim_part_index = nodes
             .iter()
             .position(|node| node["node_id"] == "node_trim_part")
@@ -14613,6 +17358,68 @@ mod tests {
             .iter_mut()
             .find(|node| node["node_id"] == "node_trim_part")
             .unwrap()["input_node_id"] = json!("node_trim_lattice");
+        let context = ValidatedUniversalAuthorContext::new(request, &[], None).unwrap();
+        (context, arguments)
+    }
+
+    fn u004_executable_local_mesh_patch_fixture(
+    ) -> (ValidatedUniversalAuthorContext, BTreeMap<String, Value>) {
+        let (_, mut arguments) = u004_executable_generic_hard_surface_fixture();
+        let outcome = arguments.get_mut("outcome").unwrap();
+        let request: forgecad_core::UniversalAuthorRequest =
+            serde_json::from_value(outcome["request"].clone()).unwrap();
+        let profile_sha256 = semantic_sha256(&outcome["subject_profile"]).unwrap();
+        outcome["representation_plan"]["subject_profile_sha256"] = json!(profile_sha256);
+        let contract_sha256 = semantic_sha256(&outcome["visual_feature_contract"]).unwrap();
+        outcome["representation_plan"]["visual_feature_contract_sha256"] = json!(contract_sha256);
+        for plan in outcome["representation_plan"]["parts"]
+            .as_array_mut()
+            .unwrap()
+        {
+            plan["representation"] = json!("mesh_seed");
+            plan["capability_id"] = json!("mesh_seed.local_patch_v1");
+        }
+        let nodes = outcome["executable_payload"]["nodes"]
+            .as_array_mut()
+            .unwrap();
+        let bracket_part_index = nodes
+            .iter()
+            .position(|node| node["node_id"] == "node_bracket_part")
+            .unwrap();
+        nodes.insert(
+            bracket_part_index,
+            json!({
+                "kind":"local_mesh_patch",
+                "node_id":"node_bracket_patch",
+                "input_node_id":"node_symmetric",
+                "patch_center":[0.0,0.0,0.0],
+                "patch_radius":0.2,
+                "patch_offset":[0.1,0.0,0.0]
+            }),
+        );
+        let trim_part_index = nodes
+            .iter()
+            .position(|node| node["node_id"] == "node_trim_part")
+            .unwrap();
+        nodes.insert(
+            trim_part_index,
+            json!({
+                "kind":"local_mesh_patch",
+                "node_id":"node_trim_patch",
+                "input_node_id":"node_profile_trim",
+                "patch_center":[0.0,0.0,0.0],
+                "patch_radius":0.2,
+                "patch_offset":[0.0,0.1,0.0]
+            }),
+        );
+        nodes
+            .iter_mut()
+            .find(|node| node["node_id"] == "node_bracket_part")
+            .unwrap()["input_node_id"] = json!("node_bracket_patch");
+        nodes
+            .iter_mut()
+            .find(|node| node["node_id"] == "node_trim_part")
+            .unwrap()["input_node_id"] = json!("node_trim_patch");
         let context = ValidatedUniversalAuthorContext::new(request, &[], None).unwrap();
         (context, arguments)
     }
@@ -14725,6 +17532,124 @@ mod tests {
             .unwrap()
             .iter()
             .any(|node| node["node_id"] == "node_plate"));
+    }
+
+    #[test]
+    fn u004_generic_visual_exterior_author_uses_universal_source_not_arm_fallback() {
+        let (context, mut arguments) = u004_executable_generic_hard_surface_fixture();
+        let outcome = arguments.get_mut("outcome").unwrap();
+        // A category-open exterior source must not depend on the Provider
+        // inventing a `visual_exterior` tag. Simulate the real open-category
+        // profile returned for an animal-like subject instead.
+        outcome["subject_profile"]["category_tags"] = json!(["animal", "quadruped"]);
+        for part in outcome["subject_profile"]["parts"].as_array_mut().unwrap() {
+            part["traits"] = json!(["quadruped"]);
+        }
+        let profile_sha256 = forgecad_core::semantic_sha256(&outcome["subject_profile"]).unwrap();
+        outcome["visual_feature_contract"]["subject_profile_sha256"] = json!(profile_sha256);
+        let contract_sha256 =
+            forgecad_core::semantic_sha256(&outcome["visual_feature_contract"]).unwrap();
+        outcome["representation_plan"]["subject_profile_sha256"] =
+            outcome["visual_feature_contract"]["subject_profile_sha256"].clone();
+        outcome["representation_plan"]["visual_feature_contract_sha256"] = json!(contract_sha256);
+        outcome["executable_payload"]["domain"] = json!("generic_visual_exterior");
+        for part in outcome["representation_plan"]["parts"]
+            .as_array_mut()
+            .unwrap()
+        {
+            part["capability_id"] =
+                json!(forgecad_core::GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID);
+        }
+        let mut state = NativeToolState {
+            project_id: Some("project_u004_hs".into()),
+            turn_id: "turn_u004_visual_exterior".into(),
+            universal_author_context: Some(context),
+            ..NativeToolState::default()
+        };
+        let output = author_universal_asset(&arguments, &mut state).unwrap();
+        assert_eq!(
+            output.get("execution_route").and_then(Value::as_str),
+            Some("build_universal_visual_exterior")
+        );
+        assert!(state.universal_asset_source_v2.is_some());
+        assert!(state.forge_visual_program.is_none());
+        assert!(state.universal_asset_source.is_none());
+        let source = state.universal_asset_source_v2.as_ref().unwrap();
+        assert!(matches!(
+            source.representation_source,
+            UniversalRepresentationSourceV2::Procedural(_)
+        ));
+    }
+
+    #[test]
+    fn u004_mixed_procedural_parts_keep_one_universal_source_route() {
+        let (context, mut arguments) = u004_executable_generic_hard_surface_fixture();
+        let outcome = arguments.get_mut("outcome").unwrap();
+        outcome["subject_profile"]["category_tags"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!("visual_exterior"));
+        outcome["subject_profile"]["parts"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|part| part["part_id"] == "part_profile_trim")
+            .expect("trim part")
+            .get_mut("traits")
+            .and_then(Value::as_array_mut)
+            .expect("trim traits")
+            .push(json!("visual_exterior"));
+        let profile_sha256 = forgecad_core::semantic_sha256(&outcome["subject_profile"]).unwrap();
+        outcome["visual_feature_contract"]["subject_profile_sha256"] = json!(profile_sha256);
+        let contract_sha256 =
+            forgecad_core::semantic_sha256(&outcome["visual_feature_contract"]).unwrap();
+        outcome["representation_plan"]["subject_profile_sha256"] = json!(profile_sha256);
+        outcome["representation_plan"]["visual_feature_contract_sha256"] = json!(contract_sha256);
+        outcome["representation_plan"]["parts"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|part| part["part_id"] == "part_profile_trim")
+            .expect("trim plan")
+            .as_object_mut()
+            .unwrap()
+            .insert(
+                "capability_id".into(),
+                json!(forgecad_core::GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID),
+            );
+        outcome["executable_payload"]["domain"] = json!("generic_visual_exterior");
+
+        let mut state = NativeToolState {
+            project_id: Some("project_u004_hs".into()),
+            turn_id: "turn_u004_mixed_procedural".into(),
+            universal_author_context: Some(context),
+            ..NativeToolState::default()
+        };
+        let output = author_universal_asset(&arguments, &mut state).unwrap();
+        assert_eq!(
+            output.get("execution_route").and_then(Value::as_str),
+            Some("build_universal_visual_exterior")
+        );
+        let source = state.universal_asset_source_v2.as_ref().unwrap();
+        let UniversalRepresentationSourceV2::Procedural(_procedural) =
+            &source.representation_source
+        else {
+            panic!("mixed procedural parts must stay in one procedural source");
+        };
+        let capability_ids = source
+            .representation_plan
+            .parts
+            .iter()
+            .map(|binding| binding.capability_id.as_str())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            capability_ids,
+            BTreeSet::from([
+                forgecad_core::GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID,
+                forgecad_core::GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID,
+            ])
+        );
+        assert!(state.forge_visual_program.is_none());
     }
 
     #[test]
@@ -14851,6 +17776,64 @@ mod tests {
     }
 
     #[test]
+    fn u004_local_mesh_patch_author_and_build_stay_on_the_universal_v2_route() {
+        block_on(async {
+            let (context, arguments) = u004_executable_local_mesh_patch_fixture();
+            let geometry = Arc::new(SuccessGeometryPort::default());
+            let executor =
+                executor_with(geometry.clone(), NativeProductToolExecutorConfig::default());
+            let mut state = NativeToolState {
+                project_id: Some("project_u004_hs".into()),
+                turn_id: "turn_u004_hs".into(),
+                universal_author_context: Some(context),
+                ..NativeToolState::default()
+            };
+            let output = author_universal_asset(&arguments, &mut state).unwrap();
+            assert_eq!(
+                output.get("execution_route").and_then(Value::as_str),
+                Some("build_universal_local_mesh_patch")
+            );
+            assert!(matches!(
+                state
+                    .universal_asset_source_v2
+                    .as_ref()
+                    .unwrap()
+                    .representation_source,
+                UniversalRepresentationSourceV2::LocalMeshPatch(_)
+            ));
+            let built = executor
+                .build_universal_v2_procedural(
+                    &BTreeMap::from([
+                        (
+                            "direction_id".into(),
+                            json!("direction_universal_local_mesh_patch"),
+                        ),
+                        ("presentation_profile".into(), json!("showcase")),
+                        ("variant_id".into(), Value::Null),
+                    ]),
+                    &mut state,
+                    CancellationToken::new(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(geometry.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                built.get("direction_id").and_then(Value::as_str),
+                Some("direction_universal_local_mesh_patch")
+            );
+            let error = evaluate_universal_v2_procedural_candidate(
+                &executor,
+                &mut state,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(error.code, "CANDIDATE_PBR_CAPTURE_REQUIRED");
+            assert!(state.preview.is_none());
+        });
+    }
+
+    #[test]
     fn u004_text_only_generic_candidate_never_requests_qwen_comparison_authorization() {
         let (context, arguments) = u004_executable_generic_hard_surface_fixture();
         let mut state = NativeToolState {
@@ -14859,7 +17842,11 @@ mod tests {
             universal_author_context: Some(context),
             ..NativeToolState::default()
         };
-        author_universal_asset(&arguments, &mut state).unwrap();
+        let output = author_universal_asset(&arguments, &mut state).unwrap();
+        assert_eq!(
+            output.get("execution_route").and_then(Value::as_str),
+            Some("build_universal_hard_surface")
+        );
         assert_eq!(
             universal_visual_comparison_authorization_scope_from_state(
                 &state,
@@ -14920,14 +17907,14 @@ mod tests {
                 )
                 .await
                 .unwrap();
-            assert_eq!(geometry.calls.load(Ordering::SeqCst), 2);
+            // The initial candidate is geometry-only.  Reference projection
+            // is intentionally deferred until a same-renderer capture has
+            // supplied Rust-owned silhouette evidence for camera fitting.
+            assert_eq!(geometry.calls.load(Ordering::SeqCst), 1);
+            let source = state.universal_asset_source_v2.as_ref().unwrap();
+            assert!(source.appearance_evidence.projection_receipts.is_empty());
             let captured = geometry.captured.lock().unwrap();
             assert!(captured[0].reference_uv_evidence_bakes.is_empty());
-            assert_eq!(captured[1].reference_uv_evidence_bakes.len(), 2);
-            assert!(captured[1]
-                .reference_uv_evidence_bakes
-                .iter()
-                .all(|bake| bake.texture_width == 1024 && bake.texture_height == 1024));
             drop(captured);
             let no_capture = universal_visual_comparison_authorization_scope_from_state(
                 &state,
@@ -14975,6 +17962,8 @@ mod tests {
                     candidate_glb_sha256: geometry.glb_sha256.clone(),
                     renderer_id: WORKBENCH_PBR_RENDERER_ID.into(),
                     render_manifest_sha256: workbench_pbr_render_manifest_sha256(),
+                    visual_environment_id: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into()),
+                    visual_environment_sha256: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into()),
                     capture_sha256: sha256_hex(b"u004-generic-image-capture"),
                     views,
                 },
@@ -14987,6 +17976,7 @@ mod tests {
                     .map(|view_id| ((*view_id).into(), b"fixture-auxiliary".to_vec()))
                     .collect(),
                 silhouette_bounds_per_mille_by_view_id: BTreeMap::new(),
+                silhouette_profile_per_mille_by_view_id: BTreeMap::new(),
             });
             let scope = universal_visual_comparison_authorization_scope_from_state(
                 &state,
@@ -15009,6 +17999,84 @@ mod tests {
                 scope.request_sha256,
                 semantic_sha256(&arguments["outcome"]["request"]).unwrap()
             );
+        });
+    }
+
+    #[test]
+    fn u004_reference_projection_receipt_missing_fails_closed_without_candidate_state() {
+        block_on(async {
+            let (context, arguments) = u004_executable_generic_hard_surface_image_fixture();
+            let executor = executor_with(
+                Arc::new(MissingReferenceProjectionReceiptGeometryPort),
+                NativeProductToolExecutorConfig::default(),
+            );
+            executor
+                .attach_active_snapshot_reader(Arc::new(U004ReferenceImageReader {
+                    evidence: context.evidence()[0].clone(),
+                    bytes: Arc::from(u004_reference_png_bytes()),
+                }))
+                .unwrap();
+            let mut state = NativeToolState {
+                project_id: Some("project_u004_hs".into()),
+                turn_id: "turn_u004_hs".into(),
+                universal_author_context: Some(context),
+                ..NativeToolState::default()
+            };
+            author_universal_asset(&arguments, &mut state).unwrap();
+            // This negative fixture starts after the Rust-owned camera-fit
+            // stage so that the failure is specifically a missing worker
+            // projection receipt, not an unresolved-camera deferral.
+            let source = state.universal_asset_source_v2.take().unwrap();
+            let camera = source.appearance_evidence.camera_hypotheses[0].clone();
+            state.universal_asset_source_v2 = Some(
+                source
+                    .with_fitted_camera_hypotheses(vec![ReferenceCameraHypothesis {
+                        schema_version: camera.schema_version,
+                        hypothesis_id: format!(
+                            "silhouette-fit:{}:turntable_000",
+                            camera.evidence_id
+                        ),
+                        evidence_id: camera.evidence_id,
+                        view_id: Some("turntable_000".into()),
+                        projection_type: ReferenceProjectionType::Perspective,
+                        parameter_source: CameraParameterSource::SilhouetteFit,
+                        vertical_fov_millidegrees: Some(
+                            WORKBENCH_PBR_CAPTURE_VERTICAL_FOV_MILLIDEGREES,
+                        ),
+                        reprojection_error_bps: Some(100),
+                        landmark_feature_ids: Vec::new(),
+                        confidence_bps: 8_000,
+                        unresolved_fields: Vec::new(),
+                    }])
+                    .unwrap(),
+            );
+            let error = executor
+                .build_universal_v2_procedural(
+                    &BTreeMap::from([
+                        (
+                            "direction_id".into(),
+                            json!("direction_universal_hard_surface"),
+                        ),
+                        ("presentation_profile".into(), json!("showcase")),
+                        ("variant_id".into(), Value::Null),
+                    ]),
+                    &mut state,
+                    CancellationToken::new(),
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.code,
+                "REFERENCE_APPEARANCE_PROJECTION_RECEIPT_MISSING"
+            );
+            assert!(state.geometry.is_none());
+            assert!(state.build.is_none());
+            assert!(state
+                .universal_asset_source_v2
+                .as_ref()
+                .unwrap()
+                .compiled_artifact
+                .is_none());
         });
     }
 
@@ -15091,6 +18159,69 @@ mod tests {
     }
 
     #[test]
+    fn u004_generic_visual_exterior_builds_uas_v2_then_requires_desktop_pbr_capture() {
+        block_on(async {
+            let (context, arguments) = u004_executable_generic_visual_exterior_fixture();
+            let geometry = Arc::new(SuccessGeometryPort::default());
+            let executor =
+                executor_with(geometry.clone(), NativeProductToolExecutorConfig::default());
+            let mut state = NativeToolState {
+                project_id: Some("project_u004_visual_exterior".into()),
+                turn_id: "turn_u004_visual_exterior_build".into(),
+                universal_author_context: Some(context),
+                ..NativeToolState::default()
+            };
+            let authored = author_universal_asset(&arguments, &mut state).unwrap();
+            assert_eq!(
+                authored.get("execution_route").and_then(Value::as_str),
+                Some("build_universal_visual_exterior")
+            );
+            let built = executor
+                .build_universal_v2_procedural(
+                    &BTreeMap::from([
+                        (
+                            "direction_id".into(),
+                            json!("direction_universal_visual_exterior"),
+                        ),
+                        ("presentation_profile".into(), json!("showcase")),
+                        ("variant_id".into(), Value::Null),
+                    ]),
+                    &mut state,
+                    CancellationToken::new(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(geometry.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                built
+                    .pointer("/universal_asset_source_v2/schema_version")
+                    .and_then(Value::as_str),
+                Some("UniversalAssetSource@2")
+            );
+            assert_eq!(
+                built.pointer("/direction_id").and_then(Value::as_str),
+                Some("direction_universal_visual_exterior")
+            );
+            assert!(state.forge_visual_program.is_none());
+            assert!(state
+                .universal_asset_source_v2
+                .as_ref()
+                .is_some_and(|source| source.compiled_artifact.is_some()));
+
+            let error = evaluate_universal_v2_procedural_candidate(
+                &executor,
+                &mut state,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(error.code, "CANDIDATE_PBR_CAPTURE_REQUIRED");
+            assert!(state.preview.is_none());
+            assert!(state.evaluation.is_none());
+        });
+    }
+
+    #[test]
     fn u004_compiled_universal_source_creates_confirmable_preview_without_legacy_plan() {
         block_on(async {
             let (context, arguments) = u004_executable_generic_hard_surface_fixture();
@@ -15134,7 +18265,9 @@ mod tests {
             assert_eq!(provenance.direction_id, "direction_universal_hard_surface");
             {
                 let mut inner = executor.lock_inner().unwrap();
-                inner.insert_preview(artifact.clone(), &executor.config).unwrap();
+                inner
+                    .insert_preview(artifact.clone(), &executor.config)
+                    .unwrap();
             }
             let resolved = executor
                 .formal_preview_artifact(
@@ -15145,7 +18278,10 @@ mod tests {
                 )
                 .unwrap()
                 .unwrap();
-            assert_eq!(resolved.universal_preview_provenance, artifact.universal_preview_provenance);
+            assert_eq!(
+                resolved.universal_preview_provenance,
+                artifact.universal_preview_provenance
+            );
         });
     }
 
@@ -15197,6 +18333,60 @@ mod tests {
             assert_eq!(geometry.calls.load(Ordering::SeqCst), 1);
             assert!(state.geometry.is_none());
             assert!(state.preview.is_none());
+        });
+    }
+
+    #[test]
+    fn u004_bound_game_delivery_request_rejects_provider_profile_override() {
+        block_on(async {
+            let (context, arguments) = u004_executable_generic_hard_surface_fixture();
+            let geometry = Arc::new(SuccessGeometryPort::default());
+            let executor =
+                executor_with(geometry.clone(), NativeProductToolExecutorConfig::default());
+            let mut state = NativeToolState {
+                project_id: Some("project_u004_hs".into()),
+                turn_id: "turn_u004_hs".into(),
+                universal_author_context: Some(context),
+                game_asset_delivery_request: Some(GameAssetDeliveryRequest {
+                    schema_version: "GameAssetDeliveryRequest@1".into(),
+                    profile_id: "game_prop_standard".into(),
+                    lod_triangle_budgets: [150_000, 60_000, 12_000],
+                    target_texel_density_pixels_per_meter: 1024,
+                }),
+                ..NativeToolState::default()
+            };
+            author_universal_asset(&arguments, &mut state).unwrap();
+
+            let error = executor
+                .build_universal_v2_procedural(
+                    &BTreeMap::from([
+                        (
+                            "direction_id".into(),
+                            json!("direction_universal_hard_surface"),
+                        ),
+                        ("presentation_profile".into(), json!("showcase")),
+                        ("variant_id".into(), Value::Null),
+                        (
+                            "game_asset_profile".into(),
+                            json!({
+                                "schema_version":"GameAssetProfile@1",
+                                "profile_id":"provider_fabricated",
+                                "lod_triangle_budgets":[90_000,36_000,8_000],
+                                "collision_proxy_part_ids":["provider_part"],
+                                "sockets":[],
+                                "target_texel_density_pixels_per_meter":512
+                            }),
+                        ),
+                    ]),
+                    &mut state,
+                    CancellationToken::new(),
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(error.code, "GAME_ASSET_PROFILE_PROVIDER_OVERRIDE_FORBIDDEN");
+            assert_eq!(geometry.calls.load(Ordering::SeqCst), 0);
+            assert!(state.geometry.is_none());
+            assert!(state.game_asset_delivery.is_none());
         });
     }
 
@@ -15264,12 +18454,15 @@ mod tests {
                     candidate_glb_sha256: "d".repeat(64),
                     renderer_id: WORKBENCH_PBR_RENDERER_ID.into(),
                     render_manifest_sha256: "f".repeat(64),
+                    visual_environment_id: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into()),
+                    visual_environment_sha256: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into()),
                     capture_sha256: "c".repeat(64),
                     views: Vec::new(),
                 },
                 png_by_view_id: BTreeMap::new(),
                 auxiliary_png_by_view_id: BTreeMap::new(),
                 silhouette_bounds_per_mille_by_view_id: BTreeMap::new(),
+                silhouette_profile_per_mille_by_view_id: BTreeMap::new(),
             });
             let output = patch_forge_visual_program(
                 &BTreeMap::from([(
@@ -15434,6 +18627,7 @@ mod tests {
                     .unwrap(),
                 geometry,
                 &fixed_views,
+                &workbench_pbr_visual_render_contract(),
             )
             .unwrap();
             assert_eq!(
@@ -15505,6 +18699,8 @@ mod tests {
                 candidate_glb_sha256: "a".repeat(64),
                 renderer_id: WORKBENCH_PBR_RENDERER_ID.into(),
                 render_manifest_sha256: workbench_pbr_render_manifest_sha256(),
+                visual_environment_id: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into()),
+                visual_environment_sha256: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into()),
                 capture_sha256: "b".repeat(64),
                 views: vec![CandidatePbrCapturedView {
                     view_id: "turntable_000".into(),
@@ -15529,13 +18725,16 @@ mod tests {
                 "turntable_000".into(),
                 [100, 80, 900, 950],
             )]),
+            silhouette_profile_per_mille_by_view_id: BTreeMap::new(),
         };
 
         let mut mismatch = capture.clone();
         mismatch
             .silhouette_bounds_per_mille_by_view_id
             .insert("turntable_000".into(), [0, 0, 200, 200]);
-        let unresolved = attach_bounded_silhouette_camera_fits(source.clone(), &mismatch).unwrap();
+        let unresolved =
+            attach_bounded_silhouette_camera_fits(source.clone(), &mismatch, &BTreeMap::new())
+                .unwrap();
         assert_eq!(
             unresolved.appearance_evidence.camera_hypotheses[0].parameter_source,
             forgecad_core::CameraParameterSource::Unresolved,
@@ -15545,7 +18744,8 @@ mod tests {
             .iter()
             .all(|zone| zone.projection_layers.is_empty()));
 
-        let fitted = attach_bounded_silhouette_camera_fits(source, &capture).unwrap();
+        let fitted =
+            attach_bounded_silhouette_camera_fits(source, &capture, &BTreeMap::new()).unwrap();
         let camera = fitted
             .appearance_evidence
             .camera_hypotheses
@@ -15729,12 +18929,14 @@ mod tests {
             "/../../../../../packages/concept-spec/fixtures/c111-golden-surface-robotic-arm-visual-detail-inventory.json"
         )))
         .unwrap();
-        serde_json::to_value(
+        let mut program = serde_json::to_value(
             build_c111_forge_visual_program_fixture(&candidate, &registry, &programs, &inventory)
                 .unwrap()
                 .program,
         )
-        .unwrap()
+        .unwrap();
+        program["stage"] = json!("draft");
+        program
     }
 
     #[test]
@@ -16098,6 +19300,8 @@ mod tests {
             "target_part_role": "link_armor",
             "material_zone_id": "zone_native_shell",
             "base_material": "mat_graphite",
+            "base_color_token": "silver",
+            "surface_finish_token": "brushed_metal",
             "vector_paths": [{
                 "path_id": "path_native_spine",
                 "closed": false,
@@ -16155,6 +19359,29 @@ mod tests {
                     return Err(RestrictedGeometryError::cancelled());
                 }
                 Ok(success_geometry_output(&input))
+            })
+        }
+    }
+
+    #[derive(Clone, Default)]
+    struct MissingReferenceProjectionReceiptGeometryPort;
+
+    impl RestrictedGeometryPort for MissingReferenceProjectionReceiptGeometryPort {
+        fn build_compile_render(
+            &self,
+            input: RestrictedGeometryInput,
+            cancellation: CancellationToken,
+        ) -> RestrictedGeometryFuture {
+            Box::pin(async move {
+                if cancellation.is_cancelled() {
+                    return Err(RestrictedGeometryError::cancelled());
+                }
+                let mut output = success_geometry_output(&input);
+                output
+                    .readback
+                    .reference_appearance_projection_receipts
+                    .clear();
+                Ok(output)
             })
         }
     }
@@ -16239,6 +19466,9 @@ mod tests {
                 visual_texture_set_count: 1,
                 visual_texture_map_count: 5,
                 visual_texture_provenance_verified: true,
+                reference_appearance_projection_receipts: success_reference_projection_readbacks(
+                    &input.reference_uv_evidence_bakes,
+                ),
             },
             views,
             view_sha256,
@@ -16255,6 +19485,136 @@ mod tests {
                 fragment_cache_miss_operation_ids: Vec::new(),
             },
         }
+    }
+
+    fn success_reference_projection_readbacks(
+        bakes: &[ReferenceCameraUvRasterBake],
+    ) -> Vec<ReferenceAppearanceProjectionReadback> {
+        let mut grouped = BTreeMap::<String, Vec<&ReferenceCameraUvRasterBake>>::new();
+        for bake in bakes {
+            grouped
+                .entry(bake.target_material_zone_id.clone())
+                .or_default()
+                .push(bake);
+        }
+        grouped
+            .into_values()
+            .map(|group| {
+                let first = group[0];
+                let fusion = group.len() > 1;
+                let projection_sha256 = if fusion {
+                    sha256_hex(
+                        group
+                            .iter()
+                            .map(|bake| bake.projection_id.as_str())
+                            .collect::<Vec<_>>()
+                            .join(":")
+                            .as_bytes(),
+                    )
+                } else {
+                    first.projection_id["projection_".len()..]
+                        .to_string()
+                        .chars()
+                        .chain(std::iter::repeat('0'))
+                        .take(64)
+                        .collect::<String>()
+                };
+                let projection_sha256 = if is_sha256(&projection_sha256) {
+                    projection_sha256
+                } else {
+                    sha256_hex(first.projection_id.as_bytes())
+                };
+                ReferenceAppearanceProjectionReadback {
+                    worker_schema_version: if fusion {
+                        "ReferenceCameraUvRasterFusionReceipt@3".into()
+                    } else {
+                        "ReferenceCameraUvRasterBakeReceipt@2".into()
+                    },
+                    algorithm_id: "forgecad.reference_camera_uv_raster".into(),
+                    algorithm_version: "1".into(),
+                    projection_id: if fusion {
+                        format!("fusion_{}", &projection_sha256[..24])
+                    } else {
+                        first.projection_id.clone()
+                    },
+                    projection_sha256: projection_sha256.clone(),
+                    source_evidence_id: first.source_evidence_id.clone(),
+                    source_image_sha256: first.source_image_sha256.clone(),
+                    camera_hypothesis_id: first.camera_hypothesis_id.clone(),
+                    camera_provenance_sha256: first.camera_provenance_sha256.clone(),
+                    target_material_zone_id: first.target_material_zone_id.clone(),
+                    base_color_texture_id: format!("vtex_reference_{}", &projection_sha256[..24]),
+                    base_color_sha256: sha256_hex(b"fixture-reference-base-color"),
+                    base_color_byte_size: 1,
+                    unobserved_texel_mask_id: format!(
+                        "vtexmask_reference_{}",
+                        &projection_sha256[..24]
+                    ),
+                    unobserved_texel_mask_sha256: sha256_hex(b"fixture-reference-mask"),
+                    unobserved_texel_mask_byte_size: 1,
+                    observed_texel_count: 1,
+                    unobserved_texel_count: 1,
+                    fusion_count: group.len() as u8,
+                    raster_triangle_count: 1,
+                    world_to_clip_sha256: (!fusion).then(|| {
+                        sha256_hex(
+                            serde_json::to_string(&first.world_to_clip_row_major)
+                                .expect("fixture camera matrix serializes")
+                                .as_bytes(),
+                        )
+                    }),
+                    source_evidence_ids: if fusion {
+                        group
+                            .iter()
+                            .map(|bake| bake.source_evidence_id.clone())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
+                    source_image_sha256s: if fusion {
+                        group
+                            .iter()
+                            .map(|bake| bake.source_image_sha256.clone())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
+                    camera_hypothesis_ids: if fusion {
+                        group
+                            .iter()
+                            .map(|bake| bake.camera_hypothesis_id.clone())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
+                    camera_provenance_sha256s: if fusion {
+                        group
+                            .iter()
+                            .map(|bake| bake.camera_provenance_sha256.clone())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
+                    world_to_clip_sha256s: if fusion {
+                        group
+                            .iter()
+                            .map(|bake| {
+                                sha256_hex(
+                                    serde_json::to_string(&bake.world_to_clip_row_major)
+                                        .expect("fixture camera matrix serializes")
+                                        .as_bytes(),
+                                )
+                            })
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
+                    worker_receipt_sha256: sha256_hex(
+                        format!("fixture-worker-receipt:{projection_sha256}").as_bytes(),
+                    ),
+                }
+            })
+            .collect()
     }
 
     #[derive(Clone, Default)]
@@ -16788,26 +20148,145 @@ mod tests {
     }
 
     #[test]
-    fn text_only_robotic_arm_uses_reviewed_fallback_after_invalid_provider_program() {
+    fn shape_program_shell_requires_a_bounded_box_source_and_thickness() {
+        let mut program = shape_program("box");
+        program["operations"] = json!([
+            {
+                "operation_id": "op_shell_base",
+                "op": "box",
+                "inputs": [],
+                "args": {"size": [180.0, 56.0, 34.0], "part_role": "solid"}
+            },
+            {
+                "operation_id": "op_shell",
+                "op": "shell",
+                "inputs": ["op_shell_base"],
+                "args": {"thickness": 6.0, "part_role": "shell_result"}
+            }
+        ]);
+        program["outputs"][0]["operation_id"] = json!("op_shell");
+
+        validate_shape_program_value(&program).expect("bounded shell should pass Rust validation");
+
+        program["operations"][1]["args"]["thickness"] = json!(0.0);
+        let failure = validate_shape_program_value(&program)
+            .expect_err("shell should require positive thickness");
+        assert_eq!(failure.code, "SHAPE_PROGRAM_SCHEMA_INVALID");
+    }
+
+    #[test]
+    fn shape_program_shell_accepts_a_beveled_box_source() {
+        let mut program = shape_program("box");
+        program["operations"] = json!([
+            {
+                "operation_id": "op_shell_base",
+                "op": "box",
+                "inputs": [],
+                "args": {"size": [180.0, 100.0, 80.0], "part_role": "solid"}
+            },
+            {
+                "operation_id": "op_shell_bevel",
+                "op": "bevel_approx",
+                "inputs": ["op_shell_base"],
+                "args": {"radius": 8.0, "segments": 2, "part_role": "beveled_solid"}
+            },
+            {
+                "operation_id": "op_shell",
+                "op": "shell",
+                "inputs": ["op_shell_bevel"],
+                "args": {"thickness": 12.0, "part_role": "shell_result"}
+            }
+        ]);
+        program["outputs"][0]["operation_id"] = json!("op_shell");
+
+        validate_shape_program_value(&program)
+            .expect("bounded beveled shell should pass Rust validation");
+
+        program["operations"][1]["args"]["radius"] = json!(0.0);
+        let failure = validate_shape_program_value(&program)
+            .expect_err("invalid bevel source must fail closed");
+        assert_eq!(failure.code, "SHAPE_PROGRAM_SCHEMA_INVALID");
+    }
+
+    #[test]
+    fn shape_program_surface_panel_accepts_six_faces_and_rejects_free_axes() {
+        let mut program = shape_program("box");
+        program["operations"] = json!([
+            {
+                "operation_id": "op_panel_base",
+                "op": "box",
+                "inputs": [],
+                "args": {"size": [180.0, 100.0, 80.0], "part_role": "solid"}
+            },
+            {
+                "operation_id": "op_panel",
+                "op": "surface_panel",
+                "inputs": ["op_panel_base"],
+                "args": {"size": [8.0, 40.0, 30.0], "axis": [1.0, 0.0, 0.0], "part_role": "side_panel"}
+            }
+        ]);
+        program["outputs"][0]["operation_id"] = json!("op_panel");
+
+        validate_shape_program_value(&program)
+            .expect("axis-aligned side panel should pass Rust validation");
+
+        program["operations"][1]["args"]["axis"] = json!([1.0, 1.0, 0.0]);
+        let failure = validate_shape_program_value(&program)
+            .expect_err("diagonal panel axis must fail closed");
+        assert_eq!(failure.code, "SHAPE_PROGRAM_SURFACE_PANEL_AXIS");
+
+        program["operations"][1]["args"]["axis"] = json!([0.0, 0.0, 1.0]);
+        program["operations"][1]["args"]["position"] = json!([0.0, 0.0, 1.0]);
+        let failure =
+            validate_shape_program_value(&program).expect_err("normal offset must fail closed");
+        assert_eq!(failure.code, "SHAPE_PROGRAM_SURFACE_PANEL_OFFSET");
+    }
+
+    #[test]
+    fn shape_program_groove_accepts_bounded_axial_face_and_rejects_free_axes() {
+        let mut program = shape_program("box");
+        program["operations"] = json!([
+            {
+                "operation_id": "op_groove_base",
+                "op": "box",
+                "inputs": [],
+                "args": {"size": [180.0, 100.0, 80.0], "part_role": "solid"}
+            },
+            {
+                "operation_id": "op_groove",
+                "op": "groove",
+                "inputs": ["op_groove_base"],
+                "args": {"face_size": [120.0, 40.0], "axis": [0.0, 1.0, 0.0], "depth": 12.0, "part_role": "recessed_panel"}
+            }
+        ]);
+        program["outputs"][0]["operation_id"] = json!("op_groove");
+
+        validate_shape_program_value(&program)
+            .expect("bounded axial groove should pass Rust validation");
+
+        program["operations"][1]["args"]["axis"] = json!([1.0, 1.0, 0.0]);
+        let failure = validate_shape_program_value(&program)
+            .expect_err("diagonal groove axis must fail closed");
+        assert_eq!(failure.code, "SHAPE_PROGRAM_GROOVE_AXIS");
+
+        program["operations"][1]["args"]["axis"] = json!([0.0, 1.0, 0.0]);
+        program["operations"][1]["args"]["position"] = json!([0.0, 1.0, 0.0]);
+        let failure = validate_shape_program_value(&program)
+            .expect_err("normal groove offset must fail closed");
+        assert_eq!(failure.code, "SHAPE_PROGRAM_GROOVE_OFFSET");
+    }
+
+    #[test]
+    fn invalid_provider_program_fails_closed_without_c111_fallback() {
         let mut program = forge_visual_program("Provider arm", 180.0, "mat_graphite");
         program["geometry_graph"]["operations"][0]["op"] = json!("arbitrary_script");
         let mut arguments = BTreeMap::new();
         arguments.insert("program".into(), program);
         let mut state = NativeToolState::default();
 
-        let output = author_forge_visual_program(&arguments, &mut state).unwrap();
-
-        assert_eq!(
-            output.get("program_id").and_then(Value::as_str),
-            Some("visualprog_multimodal_c111_fallback")
-        );
-        assert_eq!(
-            state
-                .forge_visual_program
-                .as_ref()
-                .map(|revision| revision.program.program_id.as_str()),
-            Some("visualprog_multimodal_c111_fallback")
-        );
+        let error = author_forge_visual_program(&arguments, &mut state).unwrap_err();
+        assert_eq!(error.code, "UNSUPPORTED_RUNTIME_OPERATION");
+        assert!(state.forge_visual_program.is_none());
         assert!(state.multimodal_program_binding.is_none());
     }
 
@@ -17448,8 +20927,9 @@ mod tests {
                 assert_eq!(
                     result.status,
                     ProductToolExecutionStatus::Completed,
-                    "{name} failed: {:?}",
-                    result.error_code
+                    "{name} failed: code={:?}, message={:?}",
+                    result.error_code,
+                    result.message
                 );
                 results.push(result.validated_output.unwrap().value);
             }
@@ -18126,6 +21606,8 @@ mod tests {
                     .get(view_id)
                     .expect("test capture session must bind every view")
                     .clone(),
+                visual_environment_id: WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into(),
+                visual_environment_sha256: WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into(),
                 // The boundary validates PNG signature/IHDR dimensions. A
                 // full PNG decode belongs to the desktop renderer port; this
                 // minimal fixture preserves the fixed capture contract.
@@ -18187,11 +21669,103 @@ mod tests {
         image::DynamicImage::ImageRgba8(image)
             .write_to(&mut encoded, image::ImageFormat::Png)
             .unwrap();
+        let bytes = encoded.into_inner();
 
         assert_eq!(
-            silhouette_bounds_from_auxiliary_pbr_contact_sheet(&encoded.into_inner()),
+            silhouette_bounds_from_auxiliary_pbr_contact_sheet(&bytes),
             Some([100, 150, 900, 850]),
         );
+        let profile = silhouette_profile_from_auxiliary_pbr_contact_sheet(&bytes)
+            .expect("the silhouette profile must be derived from the same tile");
+        assert_eq!(
+            profile.len(),
+            forgecad_core::SILHOUETTE_PROFILE_BUCKET_COUNT
+        );
+        assert_eq!(profile[0], 0);
+        assert!(profile[2] > profile[1]);
+        assert_eq!(profile[15], 0);
+    }
+
+    #[test]
+    fn rust_reference_visual_metrics_detect_contour_and_bounds_deviation() {
+        fn square_png(left: u32, top: u32, right: u32, bottom: u32) -> Vec<u8> {
+            let image = image::RgbaImage::from_fn(64, 64, |x, y| {
+                if (left..right).contains(&x) && (top..bottom).contains(&y) {
+                    image::Rgba([210, 220, 235, 255])
+                } else {
+                    image::Rgba([0, 0, 0, 255])
+                }
+            });
+            let mut encoded = std::io::Cursor::new(Vec::new());
+            image::DynamicImage::ImageRgba8(image)
+                .write_to(&mut encoded, image::ImageFormat::Png)
+                .unwrap();
+            encoded.into_inner()
+        }
+
+        let reference_bytes = square_png(16, 16, 48, 48);
+        let reference_facts = analyze_reference_image_bytes("image/png", &reference_bytes).unwrap();
+        let mut evidence = pv006c_multimodal_context().evidence()[0].clone();
+        evidence.source_media_type = "image/png".into();
+        evidence.observations.image_surface_facts = Some(reference_facts.clone());
+        let reference_id = evidence.evidence_id.clone();
+        let content = ReferenceEvidenceContent {
+            evidence,
+            bytes: Arc::from(reference_bytes.clone()),
+        };
+        let candidate_profile =
+            derive_reference_silhouette_profile("image/png", &reference_bytes).unwrap();
+        let capture = NativeCandidatePbrCaptureEvidence {
+            schema_version: NATIVE_CANDIDATE_PBR_CAPTURE_EVIDENCE_SCHEMA_VERSION.into(),
+            execution_id: "execution_metric_fixture".into(),
+            turn_id: "turn_metric_fixture".into(),
+            evidence: CandidatePbrCaptureEvidence {
+                schema_version: CANDIDATE_PBR_CAPTURE_EVIDENCE_SCHEMA_VERSION.into(),
+                session_id: "pbrcapture_metric_fixture".into(),
+                candidate_glb_sha256: "a".repeat(64),
+                renderer_id: WORKBENCH_PBR_RENDERER_ID.into(),
+                render_manifest_sha256: WORKBENCH_PBR_RENDER_MANIFEST_SHA256.into(),
+                visual_environment_id: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into()),
+                visual_environment_sha256: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into()),
+                capture_sha256: "b".repeat(64),
+                views: Vec::new(),
+            },
+            png_by_view_id: BTreeMap::from([("turntable_000".into(), reference_bytes)]),
+            auxiliary_png_by_view_id: BTreeMap::new(),
+            silhouette_bounds_per_mille_by_view_id: BTreeMap::from([(
+                "turntable_000".into(),
+                reference_facts.foreground_bbox_normalized,
+            )]),
+            silhouette_profile_per_mille_by_view_id: BTreeMap::from([(
+                "turntable_000".into(),
+                candidate_profile,
+            )]),
+        };
+        let references = BTreeMap::from([(reference_id, content)]);
+        let metrics = rust_reference_visual_metrics(&references, &capture);
+        assert_eq!(metrics.availability, "available");
+        assert!(metrics.passed);
+        assert!(metrics.references[0]
+            .selected_view
+            .as_ref()
+            .is_some_and(|view| view.score_bps.is_some_and(|score| score >= 8_000)));
+
+        let mut deviated = capture;
+        deviated.silhouette_profile_per_mille_by_view_id.insert(
+            "turntable_000".into(),
+            vec![1_000; forgecad_core::SILHOUETTE_PROFILE_BUCKET_COUNT],
+        );
+        deviated
+            .silhouette_bounds_per_mille_by_view_id
+            .insert("turntable_000".into(), [0, 0, 100, 100]);
+        let metrics = rust_reference_visual_metrics(&references, &deviated);
+        assert!(!metrics.passed);
+        assert!(metrics
+            .failure_codes
+            .contains(&"RUST_REFERENCE_SILHOUETTE_DEVIATION".into()));
+        assert!(metrics
+            .failure_codes
+            .contains(&"RUST_REFERENCE_BOUNDS_LOW_OVERLAP".into()));
     }
 
     #[test]
@@ -18214,7 +21788,48 @@ mod tests {
         image::DynamicImage::ImageRgba8(image)
             .write_to(&mut encoded, image::ImageFormat::Png)
             .unwrap();
-        assert!(valid_auxiliary_pbr_contact_sheet(&encoded.into_inner()));
+        let bytes = encoded.into_inner();
+        assert!(valid_auxiliary_pbr_contact_sheet(&bytes));
+        let metrics = auxiliary_pbr_quality_metrics(&bytes).unwrap();
+        assert_eq!(metrics.schema_version, AUXILIARY_PBR_QUALITY_SCHEMA_VERSION);
+        assert_eq!(metrics.pass_count, 5);
+        assert!(metrics.semantic_passed);
+        assert_eq!(metrics.tiles[0].foreground_occupancy_per_mille, 360);
+        assert_eq!(metrics.tiles[0].foreground_distinct_rgb_count, 1);
+        assert_eq!(metrics.tiles[0].foreground_channel_range, [0, 0, 0]);
+    }
+
+    #[test]
+    fn candidate_pbr_auxiliary_quality_reports_missing_semantic_passes() {
+        let image = image::RgbaImage::from_fn(
+            WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX,
+            WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX,
+            |x, y| {
+                if x < WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX
+                    && y < WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX
+                    && (64..256).contains(&x)
+                    && (64..256).contains(&y)
+                {
+                    image::Rgba([255, 255, 255, 255])
+                } else {
+                    image::Rgba([0, 0, 0, 255])
+                }
+            },
+        );
+        let mut encoded = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(image)
+            .write_to(&mut encoded, image::ImageFormat::Png)
+            .unwrap();
+        let bytes = encoded.into_inner();
+        let metrics = auxiliary_pbr_quality_metrics(&bytes).unwrap();
+        assert!(!metrics.semantic_passed);
+        assert!(metrics
+            .failure_codes
+            .contains(&"GPU_AUXILIARY_PASS_1_EMPTY".to_string()));
+        assert!(metrics
+            .failure_codes
+            .contains(&"GPU_AUXILIARY_PASS_4_EMPTY".to_string()));
+        assert!(!valid_auxiliary_pbr_contact_sheet(&bytes));
     }
 
     async fn prepare_preview_for_plan(
@@ -18502,7 +22117,10 @@ mod tests {
                     artifact_sha256,
                 )
                 .unwrap_err();
-            assert_eq!(mismatch.code, "NATIVE_CONFIRMABLE_PREVIEW_IDENTITY_MISMATCH");
+            assert_eq!(
+                mismatch.code,
+                "NATIVE_CONFIRMABLE_PREVIEW_IDENTITY_MISMATCH"
+            );
             assert!(executor.preview_artifact(&preview_id).unwrap().is_some());
             assert!(executor
                 .reject_formal_preview(
@@ -19763,14 +23381,14 @@ mod tests {
                 .as_array()
                 .unwrap()
                 .len(),
-            200
+            204
         );
         assert_eq!(
             golden.geometry_input.shape_program["outputs"]
                 .as_array()
                 .unwrap()
                 .len(),
-            101
+            127
         );
         assert_eq!(golden.geometry_input.surface_adornment_programs.len(), 6);
         assert!(golden
@@ -19781,7 +23399,7 @@ mod tests {
         assert!(golden.geometry_input.surface_layer_input.is_some());
         assert_eq!(
             golden.expanded_shape_program_sha256.as_deref(),
-            Some("9016b8e3982e86a4a3e897bedb222b1edf30eb72727752cd1757e2bd3971424c")
+            Some("5b799601c34cf082b338abc9269630866e945d819f5223f7b967c6f16d15bbdb")
         );
         assert!(golden.arm_geometry_binding.is_none());
         assert!(golden.semantic_proportion_binding.is_none());
@@ -21111,6 +24729,22 @@ mod tests {
         assert_eq!(
             serialized["lowering"]["retained_layers_sha256"],
             json!(sealed.lowering().retained_layers_sha256)
+        );
+        assert_eq!(
+            sealed
+                .lowering()
+                .retained_layers
+                .base_color_token
+                .as_deref(),
+            Some("silver")
+        );
+        assert_eq!(
+            sealed
+                .lowering()
+                .retained_layers
+                .surface_finish_token
+                .as_deref(),
+            Some("brushed_metal")
         );
 
         let mut forged = input.clone();

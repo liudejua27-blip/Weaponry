@@ -14,21 +14,32 @@ use serde_json::Value;
 
 use crate::{
     compiled_visual_base_material_id, lower_visual_runtime_source_v1, semantic_sha256,
-    AppearanceChannel, CoreError, CoreResult, EmissiveMask, EvidenceStatus,
+    AppearanceChannel, CoreError, CoreResult, DecalLayer, EmissiveMask, EvidenceStatus,
     ForgeVisualProgramRevision, NormalReliefLayer, RepresentationKind, RepresentationPlan,
-    RoughnessMask, SubjectProfile, SurfaceLayerProgram, SurfaceSymmetry, UniversalAuthorRequest,
-    UvFrame, VisualDetailLevel, VisualFeatureContract,
-    GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID, LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID,
+    ReferenceAppearanceBinding, ReferenceEvidence, ReferenceEvidenceKind,
+    ReferenceImageBrightnessBucket,
+    ReferenceImageColorBucket, ReferenceImageEdgeDensityBucket, ReferenceImageSurfaceFacts,
+    RoughnessMask, SubjectProfile, SurfaceLayerProgram, SurfaceSymmetry,
+    UniversalAuthorRequest,
+    UvFrame, VectorPath, VectorPathCommand, VisualDetailLevel, VisualFeatureContract,
+    GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID,
+    GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID,
+    LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID,
+    LOCAL_MESH_PATCH_CAPABILITY_ID,
 };
 
 pub const REFERENCE_CAMERA_HYPOTHESIS_SCHEMA_VERSION: &str = "ReferenceCameraHypothesis@1";
 pub const APPEARANCE_EVIDENCE_BUNDLE_SCHEMA_VERSION: &str = "AppearanceEvidenceBundle@1";
+pub const REFERENCE_APPEARANCE_PROJECTION_RECEIPT_SCHEMA_VERSION: &str =
+    "ReferenceAppearanceProjectionReceipt@1";
 pub const VISUAL_DETAIL_CLAIM_V2_SCHEMA_VERSION: &str = "VisualDetailClaim@2";
 pub const MATERIAL_ZONE_APPEARANCE_SCHEMA_VERSION: &str = "MaterialZoneAppearance@1";
 pub const UNIVERSAL_ASSET_SOURCE_SCHEMA_VERSION: &str = "UniversalAssetSource@1";
 pub const UNIVERSAL_ASSET_SOURCE_V2_SCHEMA_VERSION: &str = "UniversalAssetSource@2";
 pub const GENERIC_HARD_SURFACE_APPEARANCE_COMPILATION_SCHEMA_VERSION: &str =
     "GenericHardSurfaceAppearanceCompilation@2";
+pub const REFERENCE_SURFACE_APPEARANCE_BINDING_SCHEMA_VERSION: &str =
+    "ReferenceSurfaceAppearanceBinding@1";
 
 const MAX_TEXTURE_EDGE: u16 = 2048;
 const MAX_COMPONENTS: usize = 256;
@@ -99,6 +110,150 @@ pub struct AppearanceEvidenceArtifact {
     pub evidence_only: bool,
 }
 
+/// Rust-owned proof that a sealed reference image was rasterized into the
+/// exact PBR GLB produced by one UAS@2 compilation.  This is deliberately a
+/// receipt rather than a texture/material source: image bytes remain in the
+/// sealed evidence store and the GLB remains the only asset truth.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ReferenceAppearanceProjectionReceipt {
+    pub schema_version: String,
+    pub source_request_sha256: String,
+    pub source_program_sha256: String,
+    pub final_glb_sha256: String,
+    pub compile_readback_sha256: String,
+    pub worker_receipt_sha256: String,
+    pub worker_schema_version: String,
+    pub algorithm_id: String,
+    pub algorithm_version: String,
+    pub projection_id: String,
+    pub projection_sha256: String,
+    pub source_evidence_id: String,
+    pub source_image_sha256: String,
+    pub camera_hypothesis_id: String,
+    pub camera_provenance_sha256: String,
+    pub target_material_zone_id: String,
+    pub base_color_texture_id: String,
+    pub base_color_sha256: String,
+    pub base_color_byte_size: u64,
+    pub unobserved_texel_mask_id: String,
+    pub unobserved_texel_mask_sha256: String,
+    pub unobserved_texel_mask_byte_size: u64,
+    pub observed_texel_count: u64,
+    pub unobserved_texel_count: u64,
+    pub fusion_count: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub raster_triangle_count: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub world_to_clip_sha256: Option<String>,
+    #[serde(default)]
+    pub source_evidence_ids: Vec<String>,
+    #[serde(default)]
+    pub source_image_sha256s: Vec<String>,
+    #[serde(default)]
+    pub camera_hypothesis_ids: Vec<String>,
+    #[serde(default)]
+    pub camera_provenance_sha256s: Vec<String>,
+    #[serde(default)]
+    pub world_to_clip_sha256s: Vec<String>,
+}
+
+impl ReferenceAppearanceProjectionReceipt {
+    pub fn validate(&self) -> CoreResult<()> {
+        let valid_id = |value: &str| {
+            !value.is_empty()
+                && value.len() <= 200
+                && value
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
+        };
+        if self.schema_version != REFERENCE_APPEARANCE_PROJECTION_RECEIPT_SCHEMA_VERSION
+            || !is_sha256(&self.source_request_sha256)
+            || !is_sha256(&self.source_program_sha256)
+            || !is_sha256(&self.final_glb_sha256)
+            || !is_sha256(&self.compile_readback_sha256)
+            || !is_sha256(&self.worker_receipt_sha256)
+            || !is_sha256(&self.projection_sha256)
+            || !is_sha256(&self.source_image_sha256)
+            || !is_sha256(&self.camera_provenance_sha256)
+            || !is_sha256(&self.base_color_sha256)
+            || !is_sha256(&self.unobserved_texel_mask_sha256)
+            || !valid_id(&self.projection_id)
+            || !valid_id(&self.source_evidence_id)
+            || !valid_id(&self.camera_hypothesis_id)
+            || !valid_id(&self.target_material_zone_id)
+            || !valid_id(&self.base_color_texture_id)
+            || !valid_id(&self.unobserved_texel_mask_id)
+            || self.worker_schema_version != "ReferenceCameraUvRasterBakeReceipt@2"
+                && self.worker_schema_version != "ReferenceCameraUvRasterFusionReceipt@3"
+            || self.algorithm_id != "forgecad.reference_camera_uv_raster"
+            || self.algorithm_version != "1"
+            || self.base_color_byte_size == 0
+            || self.unobserved_texel_mask_byte_size == 0
+            || self.observed_texel_count == 0
+            || self.unobserved_texel_count == 0
+            || self.fusion_count == 0
+            || self.fusion_count > 2
+            || self.observed_texel_count.saturating_add(self.unobserved_texel_count) == 0
+        {
+            return Err(invalid(
+                "REFERENCE_APPEARANCE_PROJECTION_RECEIPT_INVALID",
+                "Reference appearance projection receipt identity or bounded raster facts are invalid.",
+            ));
+        }
+        let hashes = |values: &[String]| values.iter().all(|value| is_sha256(value));
+        let ids = |values: &[String]| values.iter().all(|value| valid_id(value));
+        if self.worker_schema_version == "ReferenceCameraUvRasterBakeReceipt@2" {
+            if self.fusion_count != 1
+                || self.raster_triangle_count.is_none()
+                || self.world_to_clip_sha256.is_none()
+                || !self.source_evidence_ids.is_empty()
+                || !self.source_image_sha256s.is_empty()
+                || !self.camera_hypothesis_ids.is_empty()
+                || !self.camera_provenance_sha256s.is_empty()
+                || !self.world_to_clip_sha256s.is_empty()
+            {
+                return Err(invalid(
+                    "REFERENCE_APPEARANCE_PROJECTION_RECEIPT_INVALID",
+                    "A single-view projection receipt must contain one camera raster fact and no fusion arrays.",
+                ));
+            }
+        } else if self.fusion_count != 2
+            || self.raster_triangle_count.is_none()
+            || self.world_to_clip_sha256.is_some()
+            || self.source_evidence_ids.len() != 2
+            || self.source_image_sha256s.len() != 2
+            || self.camera_hypothesis_ids.len() != 2
+            || self.camera_provenance_sha256s.len() != 2
+            || self.world_to_clip_sha256s.len() != 2
+            || self.source_evidence_ids[0] != self.source_evidence_id
+            || self.source_image_sha256s[0] != self.source_image_sha256
+            || self.camera_hypothesis_ids[0] != self.camera_hypothesis_id
+            || self.camera_provenance_sha256s[0] != self.camera_provenance_sha256
+            || self.source_evidence_ids[0] == self.source_evidence_ids[1]
+            || !ids(&self.source_evidence_ids)
+            || !ids(&self.camera_hypothesis_ids)
+            || !hashes(&self.source_image_sha256s)
+            || !hashes(&self.camera_provenance_sha256s)
+            || !hashes(&self.world_to_clip_sha256s)
+        {
+            return Err(invalid(
+                "REFERENCE_APPEARANCE_PROJECTION_RECEIPT_INVALID",
+                "A fused projection receipt must contain two distinct, hash-bound camera raster inputs.",
+            ));
+        }
+        if self.raster_triangle_count == Some(0)
+            || self.world_to_clip_sha256.as_ref().is_some_and(|value| !is_sha256(value))
+        {
+            return Err(invalid(
+                "REFERENCE_APPEARANCE_PROJECTION_RECEIPT_INVALID",
+                "Reference projection raster facts are outside the bounded hash/count contract.",
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct AppearanceEvidenceReference {
@@ -118,6 +273,8 @@ pub struct AppearanceEvidenceBundle {
     pub camera_hypotheses: Vec<ReferenceCameraHypothesis>,
     #[serde(default)]
     pub derived_artifacts: Vec<AppearanceEvidenceArtifact>,
+    #[serde(default)]
+    pub projection_receipts: Vec<ReferenceAppearanceProjectionReceipt>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -209,6 +366,26 @@ pub struct GenericHardSurfaceAppearanceZone {
     pub surface_layer_program_sha256: String,
 }
 
+/// Rust-derived, low-dimensional appearance evidence from an exact sealed
+/// image. It is intentionally not a texture or free RGB payload. The bounded
+/// tokens are only fallback compiler hints: explicit observed/inferred
+/// material traits remain higher priority, while the evidence/hash keeps the
+/// reference-conditioned decision reproducible and auditable.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ReferenceSurfaceAppearanceBinding {
+    pub schema_version: String,
+    pub evidence_id: String,
+    pub evidence_sha256: String,
+    pub facts: ReferenceImageSurfaceFacts,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_color_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surface_finish_token: Option<String>,
+    pub roughness_motif: String,
+    pub binding_sha256: String,
+}
+
 /// A Rust-derived, bounded multi-zone appearance plan for the first
 /// category-open executable representation. It retains at most eight
 /// independently sealed exterior zones so shells, frames, trims and emissive
@@ -222,6 +399,8 @@ pub struct GenericHardSurfaceAppearanceCompilation {
     pub compiler_id: String,
     pub source_program_sha256: String,
     pub zones: Vec<GenericHardSurfaceAppearanceZone>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reference_surface_bindings: Vec<ReferenceSurfaceAppearanceBinding>,
     pub compilation_sha256: String,
 }
 
@@ -281,6 +460,30 @@ pub struct UniversalAssetSource {
     pub compiled_artifact: Option<UniversalCompiledArtifactBinding>,
 }
 
+/// The first executable mesh-seed slice is a local patch over a reviewed
+/// ShapeProgram output. It does not carry external bytes or arbitrary vertex
+/// data; the Worker replays the typed patch operation against the sealed
+/// procedural source and proves the resulting GLB with its normal readback.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct UniversalLocalMeshPatchSourceV2 {
+    pub source_contract_id: String,
+    pub procedural_source: UniversalProceduralSourceV2,
+    pub patches: Vec<UniversalLocalMeshPatchBindingV2>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct UniversalLocalMeshPatchBindingV2 {
+    pub patch_id: String,
+    pub subject_part_id: String,
+    pub source_operation_id: String,
+    pub patch_operation_id: String,
+    pub patch_center: [f64; 3],
+    pub patch_radius: f64,
+    pub patch_offset: [f64; 3],
+}
+
 /// U004's source union.  The envelope deliberately contains data, source
 /// hashes and compiler receipts rather than executable code.  Only the
 /// procedural, local-lattice and the bounded local hard-surface hybrid
@@ -291,7 +494,7 @@ pub struct UniversalAssetSource {
 pub enum UniversalRepresentationSourceV2 {
     Procedural(UniversalProceduralSourceV2),
     Deformable(UniversalLocalLatticeDeformSourceV2),
-    LocalMeshPatch(UniversalUnavailableRepresentationSourceV2),
+    LocalMeshPatch(UniversalLocalMeshPatchSourceV2),
     Hybrid(UniversalLocalHardSurfaceHybridSourceV2),
 }
 
@@ -354,13 +557,6 @@ pub struct UniversalLatticeDeformationBindingV2 {
     pub corner_offsets: [[f64; 3]; 8],
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct UniversalUnavailableRepresentationSourceV2 {
-    pub source_contract_id: String,
-    pub reason: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct UniversalAssetSourceV2 {
@@ -401,13 +597,7 @@ impl UniversalRepresentationSourceV2 {
             Self::Procedural(source) => Ok(source),
             Self::Deformable(source) => Ok(&source.procedural_source),
             Self::Hybrid(source) => Ok(&source.procedural_source),
-            Self::LocalMeshPatch(source) => {
-                let _ = source;
-                Err(invalid(
-                    "UNIVERSAL_REPRESENTATION_SOURCE_UNAVAILABLE",
-                    "declared representation source is not executable in the local U004 capability set",
-                ))
-            }
+            Self::LocalMeshPatch(source) => Ok(&source.procedural_source),
         }
     }
 
@@ -416,15 +606,7 @@ impl UniversalRepresentationSourceV2 {
             Self::Procedural(source) => source.validate(),
             Self::Deformable(source) => source.validate(),
             Self::Hybrid(source) => source.validate(),
-            Self::LocalMeshPatch(source) => {
-                if source.source_contract_id.trim().is_empty() || source.reason.trim().is_empty() {
-                    return Err(invalid(
-                        "UNIVERSAL_REPRESENTATION_SOURCE_INVALID",
-                        "reserved representation source requires a bounded contract and reason",
-                    ));
-                }
-                Ok(())
-            }
+            Self::LocalMeshPatch(source) => source.validate(),
         }
     }
 
@@ -531,6 +713,105 @@ impl UniversalProceduralSourceV2 {
                 "UNIVERSAL_V2_PART_BINDING_INCOMPLETE",
                 "every lowered procedural output requires exactly one subject-part binding",
             ));
+        }
+        Ok(())
+    }
+}
+
+impl UniversalLocalMeshPatchSourceV2 {
+    fn validate(&self) -> CoreResult<()> {
+        if self.source_contract_id != "ForgeLocalMeshPatchSource@1" {
+            return Err(invalid(
+                "UNIVERSAL_LOCAL_MESH_PATCH_SOURCE_CONTRACT_INVALID",
+                "local mesh patch source must use ForgeLocalMeshPatchSource@1",
+            ));
+        }
+        self.procedural_source.validate()?;
+        let operations = self
+            .procedural_source
+            .shape_program
+            .get("operations")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_SOURCE_INVALID",
+                    "local mesh patch source requires lowered ShapeProgram operations",
+                )
+            })?
+            .iter()
+            .filter_map(|operation| {
+                Some((
+                    operation.get("operation_id")?.as_str()?,
+                    (
+                        operation.get("op")?.as_str()?,
+                        operation.get("inputs")?.as_array()?,
+                        operation.get("args")?.as_object()?,
+                    ),
+                ))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let expected_parts = self
+            .procedural_source
+            .part_bindings
+            .iter()
+            .map(|binding| binding.subject_part_id.as_str())
+            .collect::<BTreeSet<_>>();
+        let mut ids = BTreeSet::new();
+        let mut operation_ids = BTreeSet::new();
+        let mut part_ids = BTreeSet::new();
+        for patch in &self.patches {
+            let Some((op, inputs, args)) = operations.get(patch.patch_operation_id.as_str())
+                .map(|(op, inputs, args)| (*op, *inputs, *args)) else {
+                return Err(invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_OPERATION_INVALID",
+                    "local mesh patch binding references no lowered operation",
+                ));
+            };
+            let source_input = inputs.first().and_then(Value::as_str);
+            if !ids.insert(patch.patch_id.as_str())
+                || !operation_ids.insert(patch.patch_operation_id.as_str())
+                || !part_ids.insert(patch.subject_part_id.as_str())
+                || op != "local_mesh_patch"
+                || inputs.len() != 1
+                || source_input != Some(patch.source_operation_id.as_str())
+                || args.get("patch_center") != Some(&serde_json::json!(patch.patch_center))
+                || args.get("patch_radius") != Some(&serde_json::json!(patch.patch_radius))
+                || args.get("patch_offset") != Some(&serde_json::json!(patch.patch_offset))
+                || patch.patch_center.iter().any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+                || !patch.patch_radius.is_finite()
+                || !(0.05..=0.4).contains(&patch.patch_radius)
+                || patch.patch_offset.iter().any(|value| !value.is_finite() || value.abs() > 0.2)
+                || !patch.patch_offset.iter().any(|value| value.abs() > 1e-9)
+            {
+                return Err(invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_BINDING_INVALID",
+                    "each local mesh patch binding must exactly reproduce one bounded lowered operation",
+                ));
+            }
+        }
+        if self.patches.is_empty() || part_ids != expected_parts {
+            return Err(invalid(
+                "UNIVERSAL_LOCAL_MESH_PATCH_BINDING_INCOMPLETE",
+                "every local mesh-seed subject part requires exactly one patch binding",
+            ));
+        }
+        for part in &self.procedural_source.part_bindings {
+            let patch = self
+                .patches
+                .iter()
+                .find(|item| item.subject_part_id == part.subject_part_id)
+                .ok_or_else(|| {
+                    invalid(
+                        "UNIVERSAL_LOCAL_MESH_PATCH_BINDING_INCOMPLETE",
+                        "every procedural output requires a local mesh patch binding",
+                    )
+                })?;
+            if part.terminal_operation_id != patch.patch_operation_id {
+                return Err(invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_TERMINAL_INVALID",
+                    "local mesh patch operation must remain the exact output terminal",
+                ));
+            }
         }
         Ok(())
     }
@@ -868,6 +1149,7 @@ impl UniversalAssetSource {
                 })
                 .collect(),
             derived_artifacts: Vec::new(),
+            projection_receipts: Vec::new(),
         };
         let source = Self {
             schema_version: UNIVERSAL_ASSET_SOURCE_SCHEMA_VERSION.into(),
@@ -961,6 +1243,30 @@ impl UniversalAssetSourceV2 {
         self.representation_source.runtime_procedural()
     }
 
+    /// Recompiles only the Rust-owned appearance layer from exact sealed
+    /// image observations. Geometry, SubjectProfile, feature contract and
+    /// representation choice remain unchanged. The method is used after the
+    /// app-server has validated the evidence lineage; it is intentionally
+    /// unavailable to provider payloads.
+    pub fn with_reference_surface_facts(
+        mut self,
+        evidence: &[ReferenceEvidence],
+    ) -> CoreResult<Self> {
+        let bindings = derive_reference_surface_appearance_bindings(&self, evidence)?;
+        let scoped_bindings = crate::derive_reference_appearance_bindings(&self, evidence)?;
+        let procedural = self.runtime_procedural()?.clone();
+        self.appearance_compilation = compile_generic_hard_surface_appearance(
+            &self.subject_profile,
+            &self.visual_feature_contract,
+            &procedural,
+            &self.material_zones,
+            &bindings,
+            &scoped_bindings,
+        )?;
+        self.validate()?;
+        Ok(self)
+    }
+
     /// Rust constructs this source only after independently lowering the
     /// supplied bounded program.  The Provider cannot submit UAS@2 directly.
     pub fn from_runtime_procedural(
@@ -1017,6 +1323,26 @@ impl UniversalAssetSourceV2 {
             representation_plan,
             source_program,
             RepresentationKind::Hybrid,
+        )
+    }
+
+    /// Creates the first executable local mesh-seed source. Every declared
+    /// part must terminate in one bounded `local_mesh_patch` operation over
+    /// the reviewed local procedural output.
+    pub fn from_runtime_local_mesh_patch(
+        request: &UniversalAuthorRequest,
+        profile: &SubjectProfile,
+        feature_contract: &VisualFeatureContract,
+        representation_plan: &RepresentationPlan,
+        source_program: Value,
+    ) -> CoreResult<Self> {
+        Self::from_runtime_with_representation(
+            request,
+            profile,
+            feature_contract,
+            representation_plan,
+            source_program,
+            RepresentationKind::MeshSeed,
         )
     }
 
@@ -1256,6 +1582,8 @@ impl UniversalAssetSourceV2 {
             feature_contract,
             &procedural_source,
             &material_zones,
+            &[],
+            &[],
         )?;
         let representation_source = match representation {
             RepresentationKind::Procedural => {
@@ -1271,10 +1599,9 @@ impl UniversalAssetSourceV2 {
                 )?,
             ),
             RepresentationKind::MeshSeed => {
-                return Err(invalid(
-                    "UNIVERSAL_V2_REPRESENTATION_UNAVAILABLE",
-                    "only local procedural, bounded lattice, and bounded local hybrid sources may enter UAS@2",
-                ));
+                UniversalRepresentationSourceV2::LocalMeshPatch(
+                    build_local_mesh_patch_source(procedural_source.clone())?,
+                )
             }
         };
         let source = Self {
@@ -1396,6 +1723,49 @@ impl UniversalAssetSourceV2 {
         Ok(self)
     }
 
+    /// Reopens an already compiled source for one Rust-owned appearance
+    /// recompile.  This is intentionally narrower than a general edit: the
+    /// request, subject, feature, representation and component truth remain
+    /// identical, while stale compiled/projection receipts are removed before
+    /// a newly sealed GLB is attached.
+    pub fn reopen_for_appearance_recompile(mut self) -> CoreResult<Self> {
+        if self.state != UniversalAssetSourceState::Compiled
+            || self.compiled_artifact.is_none()
+        {
+            return Err(invalid(
+                "UNIVERSAL_V2_RECOMPILE_STATE_INVALID",
+                "Appearance recompilation requires one previously compiled UAS@2 source.",
+            ));
+        }
+        self.state = UniversalAssetSourceState::Planned;
+        self.compiled_artifact = None;
+        self.game_asset_delivery = None;
+        self.appearance_evidence.projection_receipts.clear();
+        self.validate()?;
+        Ok(self)
+    }
+
+    /// Attaches only the bounded Rust/worker receipt for reference pixels that
+    /// were actually present in the final compiled GLB. The receipt carries
+    /// no image bytes and cannot be supplied by a Provider.
+    pub fn with_reference_appearance_projection_receipts(
+        mut self,
+        receipts: Vec<ReferenceAppearanceProjectionReceipt>,
+    ) -> CoreResult<Self> {
+        if receipts.is_empty() {
+            return Ok(self);
+        }
+        if self.state != UniversalAssetSourceState::Planned {
+            return Err(invalid(
+                "REFERENCE_APPEARANCE_PROJECTION_STATE_INVALID",
+                "Reference appearance receipts must be attached before the compiled UAS artifact is sealed.",
+            ));
+        }
+        self.appearance_evidence.projection_receipts = receipts;
+        self.validate()?;
+        Ok(self)
+    }
+
     /// Promotes an already compiled UAS@2 source to its game-delivery
     /// derivative. This deliberately accepts only a receipt that still binds
     /// the exact source GLB and sealed profile; callers must retain the
@@ -1475,6 +1845,11 @@ impl UniversalAssetSourceV2 {
             let Some(camera) = by_evidence.remove(existing.evidence_id.as_str()) else {
                 continue;
             };
+            if existing.parameter_source == CameraParameterSource::SilhouetteFit
+                && existing == &camera
+            {
+                continue;
+            }
             if existing.parameter_source != CameraParameterSource::Unresolved {
                 return Err(invalid(
                     "REFERENCE_CAMERA_FIT_REPLACEMENT_INVALID",
@@ -1507,7 +1882,11 @@ fn validate_runtime_representation_plan(
     let valid = match representation {
         RepresentationKind::Procedural => representation_plan.parts.iter().all(|part| {
             part.representation == RepresentationKind::Procedural
-                && part.capability_id == GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID
+                && matches!(
+                    part.capability_id.as_str(),
+                    GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID
+                        | GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID
+                )
         }),
         RepresentationKind::Deformable => representation_plan.parts.iter().all(|part| {
             part.representation == RepresentationKind::Deformable
@@ -1529,10 +1908,10 @@ fn validate_runtime_representation_plan(
             procedural_parts > 0 && lattice_parts > 0
         }
         RepresentationKind::MeshSeed => {
-            return Err(invalid(
-                "UNIVERSAL_V2_REPRESENTATION_UNAVAILABLE",
-                "UAS@2 has no runtime constructor for the requested representation",
-            ));
+            representation_plan.parts.iter().all(|part| {
+                part.representation == RepresentationKind::MeshSeed
+                    && part.capability_id == LOCAL_MESH_PATCH_CAPABILITY_ID
+            })
         }
     };
     if !valid {
@@ -1580,6 +1959,114 @@ fn build_local_hard_surface_hybrid_source(
     };
     source.validate()?;
     validate_hybrid_representation_plan(&source, representation_plan)?;
+    Ok(source)
+}
+
+fn build_local_mesh_patch_source(
+    procedural_source: UniversalProceduralSourceV2,
+) -> CoreResult<UniversalLocalMeshPatchSourceV2> {
+    let expected_parts = procedural_source
+        .part_bindings
+        .iter()
+        .map(|part| part.subject_part_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let operations = procedural_source
+        .shape_program
+        .get("operations")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            invalid(
+                "UNIVERSAL_LOCAL_MESH_PATCH_SOURCE_INVALID",
+                "local mesh patch source requires lowered ShapeProgram operations",
+            )
+        })?;
+    let operations = operations
+        .iter()
+        .filter_map(|operation| {
+            Some((
+                operation.get("operation_id")?.as_str()?,
+                (
+                    operation.get("op")?.as_str()?,
+                    operation.get("inputs")?.as_array()?,
+                    operation.get("args")?.as_object()?,
+                ),
+            ))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut patches = Vec::with_capacity(expected_parts.len());
+    for part in &procedural_source.part_bindings {
+        let (op, inputs, args) = operations
+            .get(part.terminal_operation_id.as_str())
+            .map(|(op, inputs, args)| (*op, *inputs, *args))
+            .ok_or_else(|| {
+                invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_OPERATION_INVALID",
+                    "local mesh patch output terminal is missing from lowered ShapeProgram",
+                )
+            })?;
+        let source_operation_id = inputs
+            .first()
+            .and_then(Value::as_str)
+            .filter(|_| op == "local_mesh_patch" && inputs.len() == 1)
+            .ok_or_else(|| {
+                invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_TERMINAL_INVALID",
+                    "every mesh-seed output must terminate in one local_mesh_patch operation",
+                )
+            })?;
+        let patch_center = serde_json::from_value::<[f64; 3]>(
+            args.get("patch_center").cloned().ok_or_else(|| {
+                invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_OPERATION_INVALID",
+                    "local mesh patch output is missing its normalized patch center",
+                )
+            })?,
+        )
+        .map_err(|_| {
+            invalid(
+                "UNIVERSAL_LOCAL_MESH_PATCH_OPERATION_INVALID",
+                "local mesh patch center must be a numeric triplet",
+            )
+        })?;
+        let patch_radius = args
+            .get("patch_radius")
+            .and_then(Value::as_f64)
+            .ok_or_else(|| {
+                invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_OPERATION_INVALID",
+                    "local mesh patch output is missing its radius",
+                )
+            })?;
+        let patch_offset = serde_json::from_value::<[f64; 3]>(
+            args.get("patch_offset").cloned().ok_or_else(|| {
+                invalid(
+                    "UNIVERSAL_LOCAL_MESH_PATCH_OPERATION_INVALID",
+                    "local mesh patch output is missing its offset",
+                )
+            })?,
+        )
+        .map_err(|_| {
+            invalid(
+                "UNIVERSAL_LOCAL_MESH_PATCH_OPERATION_INVALID",
+                "local mesh patch offset must be a numeric triplet",
+            )
+        })?;
+        patches.push(UniversalLocalMeshPatchBindingV2 {
+            patch_id: format!("local_mesh_patch_{}", part.subject_part_id),
+            subject_part_id: part.subject_part_id.clone(),
+            source_operation_id: source_operation_id.to_string(),
+            patch_operation_id: part.terminal_operation_id.clone(),
+            patch_center,
+            patch_radius,
+            patch_offset,
+        });
+    }
+    let source = UniversalLocalMeshPatchSourceV2 {
+        source_contract_id: "ForgeLocalMeshPatchSource@1".into(),
+        procedural_source,
+        patches,
+    };
+    source.validate()?;
     Ok(source)
 }
 
@@ -1845,6 +2332,7 @@ impl GenericHardSurfaceAppearanceCompilation {
         source: &UniversalAssetSourceV2,
         procedural: &UniversalProceduralSourceV2,
     ) -> CoreResult<()> {
+        validate_reference_surface_bindings(&self.reference_surface_bindings, source)?;
         if self.schema_version != GENERIC_HARD_SURFACE_APPEARANCE_COMPILATION_SCHEMA_VERSION
             || self.compiler_id != "forgecad.generic_hard_surface_appearance.v2"
             || self.source_program_sha256 != procedural.source_program_sha256
@@ -1918,6 +2406,7 @@ fn generic_hard_surface_appearance_compilation_sha256(
         "compiler_id": compilation.compiler_id,
         "source_program_sha256": compilation.source_program_sha256,
         "zones": compilation.zones,
+        "reference_surface_bindings": compilation.reference_surface_bindings,
     }))
 }
 
@@ -1926,6 +2415,8 @@ fn compile_generic_hard_surface_appearance(
     feature_contract: &VisualFeatureContract,
     procedural: &UniversalProceduralSourceV2,
     material_zones: &[MaterialZoneAppearance],
+    reference_surface_bindings: &[ReferenceSurfaceAppearanceBinding],
+    reference_appearance_bindings: &[ReferenceAppearanceBinding],
 ) -> CoreResult<GenericHardSurfaceAppearanceCompilation> {
     let mut candidates = procedural
         .part_bindings
@@ -1939,23 +2430,36 @@ fn compile_generic_hard_surface_appearance(
                 zone.source_part_id == binding.subject_part_id
                     && zone.material_zone_id == binding.material_zone_id
             })?;
-            let score = feature_contract
+            // Hidden and conflicting claims may remain in the sealed contract
+            // for uncertainty/readback, but they must never choose visible
+            // geometry or PBR motifs. Inferred claims are allowed because the
+            // authoring contract explicitly distinguishes them from hidden
+            // evidence and keeps their uncertainty in the profile.
+            let feature_requirements = feature_contract
                 .requirements
                 .iter()
                 .filter(|requirement| {
-                    requirement
+                    matches!(
+                        requirement.evidence_status,
+                        EvidenceStatus::Observed | EvidenceStatus::Inferred
+                    ) && requirement
                         .affected_part_ids
                         .contains(&binding.subject_part_id)
-                        && requirement.channels.iter().any(|channel| {
-                            matches!(
-                                channel,
-                                AppearanceChannel::Normal
-                                    | AppearanceChannel::Roughness
-                                    | AppearanceChannel::Metallic
-                                    | AppearanceChannel::BaseColor
-                                    | AppearanceChannel::Emissive
-                            )
-                        })
+                })
+                .collect::<Vec<_>>();
+            let score = feature_requirements
+                .iter()
+                .filter(|requirement| {
+                    requirement.channels.iter().any(|channel| {
+                        matches!(
+                            channel,
+                            AppearanceChannel::Normal
+                                | AppearanceChannel::Roughness
+                                | AppearanceChannel::Metallic
+                                | AppearanceChannel::BaseColor
+                                | AppearanceChannel::Emissive
+                        )
+                    })
                 })
                 .map(|requirement| u32::from(requirement.salience_bps))
                 .sum::<u32>();
@@ -1966,6 +2470,37 @@ fn compile_generic_hard_surface_appearance(
                 .flat_map(|material| material.appearance_traits.iter())
                 .map(|trait_name| trait_name.to_lowercase())
                 .collect::<Vec<_>>();
+            let feature_text = feature_requirements
+                .iter()
+                .map(|requirement| requirement.description.to_lowercase())
+                .collect::<Vec<_>>()
+                .join(" ");
+            let feature_salience_bps = feature_requirements
+                .iter()
+                .map(|requirement| requirement.salience_bps)
+                .max()
+                .unwrap_or(0);
+            let feature_has_emissive_channel = feature_requirements.iter().any(|requirement| {
+                requirement
+                    .channels
+                    .contains(&AppearanceChannel::Emissive)
+            });
+            let feature_has_base_color_channel = feature_requirements.iter().any(|requirement| {
+                requirement
+                    .channels
+                    .contains(&AppearanceChannel::BaseColor)
+            });
+            let feature_has_vector_channel = feature_requirements.iter().any(|requirement| {
+                requirement.channels.iter().any(|channel| {
+                    matches!(
+                        channel,
+                        AppearanceChannel::BaseColor
+                            | AppearanceChannel::Normal
+                            | AppearanceChannel::Roughness
+                            | AppearanceChannel::Metallic
+                    )
+                })
+            });
             Some((
                 score,
                 traits.len(),
@@ -1974,6 +2509,11 @@ fn compile_generic_hard_surface_appearance(
                 binding.material_id.clone(),
                 part.semantic_role.clone(),
                 traits,
+                feature_text,
+                feature_salience_bps,
+                feature_has_emissive_channel,
+                feature_has_base_color_channel,
+                feature_has_vector_channel,
             ))
         })
         .collect::<Vec<_>>();
@@ -1993,7 +2533,23 @@ fn compile_generic_hard_surface_appearance(
     }
     let source_program_sha256 = procedural.source_program_sha256.clone();
     let mut zones = Vec::new();
-    for (index, (_, _, part_id, zone_id, material_id, part_role, traits)) in
+    for (
+        index,
+        (
+            _,
+            _,
+            part_id,
+            zone_id,
+            material_id,
+            part_role,
+            traits,
+            feature_text,
+            feature_salience_bps,
+            feature_has_emissive_channel,
+            feature_has_base_color_channel,
+            feature_has_vector_channel,
+        ),
+    ) in
         candidates.into_iter().take(8).enumerate()
     {
         let base_material_id = compiled_visual_base_material_id(&material_id)
@@ -2002,14 +2558,58 @@ fn compile_generic_hard_surface_appearance(
                     "UNIVERSAL_V2_APPEARANCE_MATERIAL_INVALID",
                     "target material has no reviewed PBR base",
                 )
-            })?
-            .to_string();
+        })?
+        .to_string();
         let seed_material = format!("{}:{}:{}", source_program_sha256, part_id, zone_id);
-        let seed = u32::from_str_radix(&semantic_sha256(&seed_material)?[..8], 16).unwrap_or(0);
+        // The retained Python PBR compiler shares the ShapeProgram signed
+        // 31-bit seed envelope. Keep room for the deterministic +1/+2 seeds
+        // used by roughness/emissive maps so a valid Rust-owned UAS source
+        // cannot be rejected only after crossing the local worker boundary.
+        let seed = u32::from_str_radix(&semantic_sha256(&seed_material)?[..8], 16)
+            .unwrap_or(0)
+            & 0x7fff_fffd;
+        let suffix = format!("{}_{}", &source_program_sha256[..16], index);
         let traits_text = traits.join(" ");
-        let is_emissive = traits_text.contains("emissive")
+        let visual_text = format!("{traits_text} {feature_text}");
+        // Whole-image surface facts are eligible only when the same sealed
+        // image is explicitly attached to an observed appearance feature
+        // affecting this exact Part/Zone. A shared SubjectProfile Part is not
+        // enough to let a dominant palette leak into sibling material zones.
+        let reference_hint = reference_appearance_bindings
+            .iter()
+            .filter(|binding| {
+                binding.target_subject_part_id == part_id
+                    && binding.target_material_zone_id == zone_id
+            })
+            .filter_map(|binding| {
+                reference_surface_bindings
+                    .iter()
+                    .find(|surface| surface.evidence_id == binding.evidence_id)
+            })
+            .next();
+        let reference_fallback_allowed = reference_surface_fallback_allowed(
+            &part_role,
+            &base_material_id,
+            &visual_text,
+        );
+        let reference_base_color_token = reference_fallback_allowed
+            .then(|| reference_hint.and_then(|binding| binding.base_color_token.as_deref()))
+            .flatten();
+        let base_color_token =
+            feature_base_color_token(&visual_text).or(reference_base_color_token);
+        let reference_surface_finish_token = reference_fallback_allowed
+            .then(|| reference_hint.and_then(|binding| binding.surface_finish_token.as_deref()))
+            .flatten();
+        let surface_finish_token = feature_surface_finish_token(&visual_text, &base_material_id)
+            .or(reference_surface_finish_token);
+        let is_emissive = (traits_text.contains("emissive")
             || traits_text.contains("luminous")
             || traits_text.contains("发光")
+            || (feature_has_emissive_channel
+                && contains_any(
+                    &visual_text,
+                    &["emissive", "luminous", "glow", "light", "发光", "光带", "能量"],
+                )))
             || base_material_id == "mat_emissive_blue";
         let is_brushed = traits_text.contains("brushed")
             || traits_text.contains("metallic")
@@ -2018,17 +2618,144 @@ fn compile_generic_hard_surface_appearance(
             || traits_text.contains("铝")
             || traits_text.contains("金属")
             || base_material_id == "mat_aluminum";
-        let (motif, coverage, roughness_motif) = if is_brushed {
-            ("parallel_groove", "full_zone", "linear_brush")
+        // The compiler deliberately consumes only the sealed visual feature
+        // description and material traits.  It does not classify the object
+        // into a domain or select a whole-object template.  This gives a
+        // single author request a different, reproducible PBR surface grammar
+        // for each part while keeping the motif vocabulary Rust/Worker-owned.
+        let angular_relief = contains_any(
+            &visual_text,
+            &[
+                "chevron",
+                "angled",
+                "angular",
+                "triangular",
+                "斜",
+                "人字",
+                "三角",
+            ],
+        );
+        let normal_motif = if angular_relief {
+            "chevron_relief"
         } else {
-            ("chevron_relief", "center_band", "edge_wear")
+            "parallel_groove"
+        };
+        let normal_coverage = if contains_any(
+            &visual_text,
+            &["edge", "rim", "border", "边缘", "边框", "轮廓"],
+        ) {
+            "edge_band"
+        } else if contains_any(
+            &visual_text,
+            &["center", "core", "chest", "center_band", "中心", "核心"],
+        ) {
+            "center_band"
+        } else {
+            "full_zone"
+        };
+        let normal_intensity = if feature_salience_bps >= 9_000 {
+            "pronounced"
+        } else if feature_salience_bps <= 5_000 {
+            "subtle"
+        } else {
+            "balanced"
+        };
+        let roughness_motif = if contains_any(
+            &visual_text,
+            &[
+                "hex",
+                "honeycomb",
+                "microgrid",
+                "grid",
+                "蜂窝",
+                "六边形",
+                "网格",
+            ],
+        ) {
+            "microgrid"
+        } else if contains_any(
+            &visual_text,
+            &["wear", "scratch", "scuff", "weather", "磨损", "划痕", "做旧"],
+        ) || contains_any(
+            &visual_text,
+            &["edge", "rim", "border", "边缘", "边框"],
+        ) {
+            "edge_wear"
+        } else if is_brushed {
+            "linear_brush"
+        } else {
+            if reference_fallback_allowed {
+                reference_hint
+                    .map(|binding| binding.roughness_motif.as_str())
+                    .unwrap_or("edge_wear")
+            } else {
+                "edge_wear"
+            }
+        };
+        let roughness_coverage = if contains_any(
+            &visual_text,
+            &["edge", "rim", "border", "边缘", "边框"],
+        ) {
+            "edge_band"
+        } else if contains_any(
+            &visual_text,
+            &["center", "core", "center_band", "中心", "核心"],
+        ) {
+            "center_band"
+        } else {
+            "full_zone"
+        };
+        let emissive_motif = if contains_any(
+            &visual_text,
+            &["indicator", "sensor", "status", "指示", "传感", "状态"],
+        ) {
+            "panel_indicator"
+        } else if contains_any(&visual_text, &["dot", "array", "点阵", "阵列"]) {
+            "dot_array"
+        } else {
+            "double_flowline"
+        };
+        let emissive_color = if contains_any(&visual_text, &["red", "signal", "红", "警示"]) {
+            "signal_red"
+        } else {
+            "accent_blue"
+        };
+        let decal_layers = feature_driven_decal(
+            &feature_text,
+            feature_has_base_color_channel,
+            feature_salience_bps,
+            seed,
+            &format!("decal_uas_{suffix}"),
+        );
+        let vector_paths = feature_driven_vector_paths(
+            &feature_text,
+            feature_has_vector_channel,
+            seed,
+            &format!("path_uas_{suffix}"),
+        );
+        let symmetry_mode = if contains_any(
+            &feature_text,
+            &["symmetric", "paired", "mirror", "对称", "双侧", "左右"],
+        ) {
+            "mirror_u"
+        } else if contains_any(&feature_text, &["radial", "ring", "环形", "径向"]) {
+            "radial_4"
+        } else {
+            "none"
         };
         let compiler_manifest_sha256 = semantic_sha256(&serde_json::json!({
             "schema_version": GENERIC_HARD_SURFACE_APPEARANCE_COMPILATION_SCHEMA_VERSION,
             "compiler_id": "forgecad.generic_hard_surface_appearance.v2",
             "base_material_id": &base_material_id,
+            "reference_surface_binding_sha256": reference_hint.map(|binding| &binding.binding_sha256),
+            "reference_appearance_binding_sha256": reference_appearance_bindings
+                .iter()
+                .find(|binding| {
+                    binding.target_subject_part_id == part_id
+                        && binding.target_material_zone_id == zone_id
+                })
+                .map(|binding| &binding.binding_sha256),
         }))?;
-        let suffix = format!("{}_{}", &source_program_sha256[..16], index);
         let program = SurfaceLayerProgram {
             schema_version: "SurfaceLayerProgram@1".into(),
             program_id: format!("surface_layer_uas_{suffix}"),
@@ -2037,28 +2764,43 @@ fn compile_generic_hard_surface_appearance(
             target_part_role: generic_hard_surface_layer_role(&part_role).into(),
             material_zone_id: zone_id.clone(),
             base_material: base_material_id.clone(),
-            vector_paths: Vec::new(),
-            decal_layers: Vec::new(),
+            base_color_token: base_color_token.map(str::to_string),
+            surface_finish_token: surface_finish_token.map(str::to_string),
+            vector_paths,
+            decal_layers,
             normal_relief_layers: vec![NormalReliefLayer {
                 layer_id: format!("relief_uas_{suffix}"),
-                motif: motif.into(),
-                intensity: "balanced".into(),
-                coverage: coverage.into(),
+                motif: normal_motif.into(),
+                intensity: normal_intensity.into(),
+                coverage: normal_coverage.into(),
                 seed,
             }],
             roughness_masks: vec![RoughnessMask {
                 mask_id: format!("rough_uas_{suffix}"),
                 motif: roughness_motif.into(),
-                coverage: coverage.into(),
-                intensity_milli: if is_brushed { 560 } else { 420 },
+                coverage: roughness_coverage.into(),
+                intensity_milli: if feature_salience_bps >= 9_000 {
+                    620
+                } else if is_brushed {
+                    560
+                } else {
+                    420
+                },
                 seed: seed.wrapping_add(1),
             }],
             emissive_masks: if is_emissive {
                 vec![EmissiveMask {
                     mask_id: format!("emissive_uas_{suffix}"),
-                    motif: "double_flowline".into(),
-                    color_token: "accent_blue".into(),
-                    coverage: "center_band".into(),
+                    motif: emissive_motif.into(),
+                    color_token: emissive_color.into(),
+                    coverage: if contains_any(
+                        &visual_text,
+                        &["edge", "rim", "border", "边缘", "边框"],
+                    ) {
+                        "edge_band".into()
+                    } else {
+                        "center_band".into()
+                    },
                     intensity_milli: 620,
                     seed: seed.wrapping_add(2),
                 }]
@@ -2066,7 +2808,7 @@ fn compile_generic_hard_surface_appearance(
                 Vec::new()
             },
             symmetry: SurfaceSymmetry {
-                mode: "none".into(),
+                mode: symmetry_mode.into(),
                 center_uv: [0.5, 0.5],
             },
             uv_frame: UvFrame {
@@ -2098,11 +2840,554 @@ fn compile_generic_hard_surface_appearance(
         compiler_id: "forgecad.generic_hard_surface_appearance.v2".into(),
         source_program_sha256,
         zones,
+        reference_surface_bindings: reference_surface_bindings.to_vec(),
         compilation_sha256: String::new(),
     };
     compilation.compilation_sha256 =
         generic_hard_surface_appearance_compilation_sha256(&compilation)?;
     Ok(compilation)
+}
+
+fn contains_any(value: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| value.contains(needle))
+}
+
+/// Reference surface facts describe the visible object as a whole, so they
+/// cannot safely recolor every material zone.  Apply them only to reviewed
+/// exterior roles with a compatible base material; explicit feature/material
+/// semantics are resolved before this fallback is consulted.  Special zones
+/// such as glass, rubber, emissive trims and signal colors must keep their
+/// own catalog identity even when the reference has a dominant palette.
+fn reference_surface_fallback_allowed(
+    semantic_role: &str,
+    base_material_id: &str,
+    visual_text: &str,
+) -> bool {
+    let normalized_role = semantic_role.to_lowercase();
+    let role = generic_hard_surface_layer_role(&normalized_role);
+    let exterior_role = matches!(
+        role,
+        "primary_shell"
+            | "secondary_shell"
+            | "armor_panel"
+            | "exterior_panel"
+            | "decorative_panel"
+            | "enclosure"
+            | "body_shell"
+            | "surface_trim"
+    );
+    let special_material_semantics = contains_any(
+        visual_text,
+        &[
+            "rubber",
+            "grip",
+            "橡胶",
+            "握把",
+            "glass",
+            "transparent",
+            "玻璃",
+            "透明",
+            "emissive",
+            "luminous",
+            "glow",
+            "发光",
+            "光带",
+            "signal",
+            "warning",
+            "警示",
+            "红色",
+            "red coating",
+        ],
+    );
+    exterior_role
+        && !special_material_semantics
+        && matches!(
+            base_material_id,
+            "mat_graphite" | "mat_aluminum" | "mat_composite" | "mat_automotive_paint"
+        )
+}
+
+/// Select only a bounded appearance tint from sealed material/feature text.
+/// This is deliberately not a free RGB channel: the token is Rust-owned,
+/// evidence-conditioned and compiled into the retained PBR bake.
+fn feature_base_color_token(value: &str) -> Option<&'static str> {
+    if contains_any(value, &["silver", "aluminum", "aluminium", "银", "白银", "铝"]) {
+        Some("silver")
+    } else if contains_any(value, &["ceramic", "porcelain", "white ceramic", "陶瓷", "白瓷"]) {
+        Some("white_ceramic")
+    } else if contains_any(
+        value,
+        &["gunmetal", "gun metal", "gray", "grey", "灰", "枪灰"],
+    ) {
+        Some("gunmetal")
+    } else if contains_any(value, &["copper", "bronze", "铜", "青铜"]) {
+        Some("copper")
+    } else if contains_any(value, &["signal red", "red coating", "红色", "红涂层", "警示红"]) {
+        Some("signal_red")
+    } else if contains_any(
+        value,
+        &[
+            "foliage", "leaf", "leaves", "greenery", "green", "叶", "叶片", "绿叶", "绿色",
+        ],
+    ) {
+        Some("foliage_green")
+    } else if contains_any(value, &["skin", "flesh", "肤色", "皮肤", "肉色"]) {
+        Some("skin_warm")
+    } else if contains_any(value, &["fur", "毛发", "毛皮", "绒毛", "毛茸茸"]) {
+        Some("fur_warm")
+    } else if contains_any(value, &["fabric", "cloth", "textile", "布料", "织物", "服装"]) {
+        Some("fabric_blue")
+    } else if contains_any(value, &["bark", "trunk", "tree", "树皮", "树干", "树"]) {
+        Some("bark_brown")
+    } else if contains_any(value, &["wood", "wooden", "木头", "木材"]) {
+        Some("wood_warm")
+    } else if contains_any(value, &["stone", "rock", "石头", "岩石"]) {
+        Some("stone_gray")
+    } else if contains_any(value, &["concrete", "cement", "混凝土", "水泥"]) {
+        Some("concrete_gray")
+    } else if contains_any(value, &["clay", "terracotta", "陶土", "赤陶"]) {
+        Some("clay_terracotta")
+    } else if contains_any(
+        value,
+        &["graphite", "black", "dark", "石墨", "黑", "深灰", "深色"],
+    ) {
+        Some("graphite")
+    } else {
+        None
+    }
+}
+
+/// Select a reviewed material response independently from base color. This
+/// keeps a silver ceramic shell, a polished metal ring and a graphite rubber
+/// grip visually distinct without exposing arbitrary metallic/roughness
+/// numbers to the Provider or worker.
+fn feature_surface_finish_token(value: &str, base_material_id: &str) -> Option<&'static str> {
+    if base_material_id == "mat_dark_glass"
+        || contains_any(value, &["glass", "transparent", "玻璃", "透明"])
+    {
+        Some("dark_glass")
+    } else if base_material_id == "mat_emissive_blue"
+        || contains_any(value, &["emissive", "luminous", "glow", "发光", "光带"])
+    {
+        Some("emissive_trim")
+    } else if base_material_id == "mat_rubber"
+        || contains_any(value, &["rubber", "grip", "橡胶", "握把"])
+    {
+        Some("rubberized")
+    } else if contains_any(value, &["bark", "trunk", "树皮", "树干"]) {
+        Some("bark_ridged")
+    } else if contains_any(value, &["leaf", "leaves", "foliage", "greenery", "叶", "叶片", "绿叶"]) {
+        Some("leaf_waxy")
+    } else if contains_any(value, &["wood", "wooden", "grain", "木头", "木材", "木纹"]) {
+        Some("wood_grain")
+    } else if contains_any(value, &["fabric", "cloth", "textile", "布料", "织物", "服装"]) {
+        Some("fabric_weave")
+    } else if contains_any(value, &["fur", "毛发", "毛皮", "绒毛", "毛茸茸"]) {
+        Some("fur_soft")
+    } else if contains_any(value, &["skin", "flesh", "肤色", "皮肤", "肉色"]) {
+        Some("skin_matte")
+    } else if contains_any(value, &["stone", "rock", "石头", "岩石"]) {
+        Some("stone_rough")
+    } else if contains_any(value, &["concrete", "cement", "混凝土", "水泥"]) {
+        Some("concrete_rough")
+    } else if contains_any(value, &["clay", "terracotta", "陶土", "赤陶"]) {
+        Some("clay_matte")
+    } else if contains_any(value, &["ceramic", "porcelain", "陶瓷", "白瓷"])
+    {
+        Some("ceramic_coat")
+    } else if contains_any(value, &["polished", "mirror", "chrome", "抛光", "镜面", "铬"])
+    {
+        Some("polished_metal")
+    } else if base_material_id == "mat_automotive_paint"
+        || contains_any(value, &["paint", "coated", "coating", "漆", "涂层", "喷涂"])
+    {
+        Some("glossy_coat")
+    } else if base_material_id == "mat_composite"
+        || contains_any(value, &["matte", "rough", "composite", "哑光", "复合"])
+    {
+        Some("matte_coat")
+    } else if base_material_id == "mat_aluminum"
+        || contains_any(value, &["brushed", "aluminum", "aluminium", "silver", "metal", "拉丝", "铝", "银", "金属"])
+    {
+        Some("brushed_metal")
+    } else {
+        None
+    }
+}
+
+fn derive_reference_surface_appearance_bindings(
+    source: &UniversalAssetSourceV2,
+    evidence: &[ReferenceEvidence],
+) -> CoreResult<Vec<ReferenceSurfaceAppearanceBinding>> {
+    let expected = source
+        .request
+        .reference_inputs
+        .iter()
+        .map(|reference| (reference.evidence_id.as_str(), reference.evidence_sha256.as_str()))
+        .collect::<BTreeMap<_, _>>();
+    let evidence_by_id = evidence
+        .iter()
+        .map(|item| (item.evidence_id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
+    if evidence_by_id.len() != evidence.len() {
+        return Err(invalid(
+            "REFERENCE_SURFACE_APPEARANCE_EVIDENCE_DUPLICATE",
+            "sealed reference evidence IDs must be unique before appearance compilation",
+        ));
+    }
+
+    let mut bindings = Vec::new();
+    for (evidence_id, expected_sha256) in expected {
+        let sealed = evidence_by_id.get(evidence_id).ok_or_else(|| {
+            invalid(
+                "REFERENCE_SURFACE_APPEARANCE_EVIDENCE_MISSING",
+                "an image reference must have its exact sealed evidence before appearance compilation",
+            )
+        })?;
+        sealed.validate()?;
+        if sealed.project_id != source.request.project_id
+            || semantic_sha256(*sealed)? != expected_sha256
+        {
+            return Err(invalid(
+                "REFERENCE_SURFACE_APPEARANCE_EVIDENCE_INVALID",
+                "appearance facts require exact same-project sealed evidence lineage",
+            ));
+        }
+        if sealed.kind != ReferenceEvidenceKind::Image {
+            continue;
+        }
+        let facts = sealed
+            .observations
+            .image_surface_facts
+            .clone()
+            .ok_or_else(|| {
+                invalid(
+                    "REFERENCE_SURFACE_APPEARANCE_FACTS_MISSING",
+                    "image evidence has no Rust-derived surface facts",
+                )
+            })?;
+        let base_color_token = reference_surface_base_color_token(&facts);
+        let surface_finish_token = reference_surface_finish_hint(&facts, base_color_token);
+        let roughness_motif = reference_surface_roughness_motif(&facts).to_string();
+        let mut binding = ReferenceSurfaceAppearanceBinding {
+            schema_version: REFERENCE_SURFACE_APPEARANCE_BINDING_SCHEMA_VERSION.into(),
+            evidence_id: evidence_id.to_string(),
+            evidence_sha256: expected_sha256.to_string(),
+            facts,
+            base_color_token: base_color_token.map(str::to_string),
+            surface_finish_token: surface_finish_token.map(str::to_string),
+            roughness_motif,
+            binding_sha256: String::new(),
+        };
+        binding.binding_sha256 = reference_surface_appearance_binding_sha256(&binding)?;
+        bindings.push(binding);
+    }
+    bindings.sort_by(|left, right| left.evidence_id.cmp(&right.evidence_id));
+    Ok(bindings)
+}
+
+fn validate_reference_surface_bindings(
+    bindings: &[ReferenceSurfaceAppearanceBinding],
+    source: &UniversalAssetSourceV2,
+) -> CoreResult<()> {
+    if bindings.len() > source.request.reference_inputs.len()
+        || bindings.len() > 8
+    {
+        return Err(invalid(
+            "REFERENCE_SURFACE_APPEARANCE_BOUNDS_INVALID",
+            "reference surface appearance bindings exceed the sealed request bound",
+        ));
+    }
+    let expected = source
+        .request
+        .reference_inputs
+        .iter()
+        .map(|reference| (reference.evidence_id.as_str(), reference.evidence_sha256.as_str()))
+        .collect::<BTreeMap<_, _>>();
+    let mut ids = BTreeSet::new();
+    for binding in bindings {
+        let valid_base_color = binding.base_color_token.as_deref().is_none_or(|token| {
+            matches!(
+                token,
+                "silver" | "white_ceramic" | "gunmetal" | "graphite" | "copper"
+                    | "signal_red" | "bark_brown" | "wood_warm" | "foliage_green"
+                    | "skin_warm" | "fur_warm" | "fabric_blue" | "stone_gray"
+                    | "concrete_gray" | "clay_terracotta"
+            )
+        });
+        let valid_surface_finish = binding
+            .surface_finish_token
+            .as_deref()
+            .is_none_or(|token| {
+                matches!(
+                    token,
+                    "brushed_metal"
+                        | "polished_metal"
+                        | "ceramic_coat"
+                        | "glossy_coat"
+                        | "matte_coat"
+                        | "rubberized"
+                        | "dark_glass"
+                        | "emissive_trim"
+                        | "wood_grain"
+                        | "bark_ridged"
+                        | "leaf_waxy"
+                        | "fabric_weave"
+                        | "fur_soft"
+                        | "skin_matte"
+                        | "stone_rough"
+                        | "concrete_rough"
+                        | "clay_matte"
+                )
+            });
+        if binding.schema_version != REFERENCE_SURFACE_APPEARANCE_BINDING_SCHEMA_VERSION
+            || !ids.insert(binding.evidence_id.as_str())
+            || !is_sha256(&binding.evidence_sha256)
+            || expected.get(binding.evidence_id.as_str()).copied()
+                != Some(binding.evidence_sha256.as_str())
+            || binding.binding_sha256 != reference_surface_appearance_binding_sha256(binding)?
+            || !matches!(
+                binding.roughness_motif.as_str(),
+                "linear_brush" | "edge_wear" | "microgrid"
+            )
+            || !valid_base_color
+            || !valid_surface_finish
+        {
+            return Err(invalid(
+                "REFERENCE_SURFACE_APPEARANCE_BINDING_INVALID",
+                "reference surface appearance binding is unbounded, detached or hash-drifted",
+            ));
+        }
+        binding.facts.validate()?;
+    }
+    Ok(())
+}
+
+fn reference_surface_appearance_binding_sha256(
+    binding: &ReferenceSurfaceAppearanceBinding,
+) -> CoreResult<String> {
+    semantic_sha256(&serde_json::json!({
+        "schema_version": binding.schema_version,
+        "evidence_id": binding.evidence_id,
+        "evidence_sha256": binding.evidence_sha256,
+        "facts": binding.facts,
+        "base_color_token": binding.base_color_token,
+        "surface_finish_token": binding.surface_finish_token,
+        "roughness_motif": binding.roughness_motif,
+    }))
+}
+
+fn reference_surface_color_buckets(
+    facts: &ReferenceImageSurfaceFacts,
+) -> &[ReferenceImageColorBucket] {
+    if facts.foreground_dominant_color_buckets.is_empty() {
+        &facts.dominant_color_buckets
+    } else {
+        &facts.foreground_dominant_color_buckets
+    }
+}
+
+fn reference_surface_base_color_token(
+    facts: &ReferenceImageSurfaceFacts,
+) -> Option<&'static str> {
+    match reference_surface_color_buckets(facts).first().copied() {
+        Some(ReferenceImageColorBucket::White) => Some("silver"),
+        Some(ReferenceImageColorBucket::Gray) => Some("gunmetal"),
+        Some(ReferenceImageColorBucket::Black) => Some("graphite"),
+        Some(ReferenceImageColorBucket::Red) => Some("signal_red"),
+        _ => None,
+    }
+}
+
+fn reference_surface_finish_hint(
+    facts: &ReferenceImageSurfaceFacts,
+    base_color_token: Option<&str>,
+) -> Option<&'static str> {
+    match (base_color_token, facts.brightness, facts.edge_density) {
+        (Some("silver"), ReferenceImageBrightnessBucket::Bright, ReferenceImageEdgeDensityBucket::Low) => {
+            Some("polished_metal")
+        }
+        (Some("silver" | "gunmetal"), _, ReferenceImageEdgeDensityBucket::High) => {
+            Some("brushed_metal")
+        }
+        (Some("graphite"), ReferenceImageBrightnessBucket::Dark, _) => Some("matte_coat"),
+        _ => None,
+    }
+}
+
+fn reference_surface_roughness_motif(facts: &ReferenceImageSurfaceFacts) -> &'static str {
+    match facts.edge_density {
+        ReferenceImageEdgeDensityBucket::High => "microgrid",
+        ReferenceImageEdgeDensityBucket::Medium => "edge_wear",
+        ReferenceImageEdgeDensityBucket::Low => "linear_brush",
+    }
+}
+
+/// Lower only observed/inferred line-like evidence into the bounded retained
+/// vector layer. The path is a 2D PBR marking; it is never a geometry edge,
+/// CAD sketch, free-form SVG, or provider-authored curve. Keeping the path
+/// deterministic gives the Worker a real visible seam/trim response while
+/// preserving the single Rust-owned source of truth.
+fn feature_driven_vector_paths(
+    feature_text: &str,
+    has_vector_channel: bool,
+    seed: u32,
+    path_id: &str,
+) -> Vec<VectorPath> {
+    if !has_vector_channel
+        || !contains_any(
+            feature_text,
+            &[
+                "seam",
+                "panel",
+                "groove",
+                "slot",
+                "trim",
+                "contour",
+                "line",
+                "strip",
+                "edge",
+                "rim",
+                "接缝",
+                "面板",
+                "凹槽",
+                "槽",
+                "饰条",
+                "轮廓",
+                "边缘",
+            ],
+        )
+    {
+        return Vec::new();
+    }
+
+    let path = if contains_any(
+        feature_text,
+        &["edge", "rim", "border", "轮廓", "边缘", "边框"],
+    ) {
+        VectorPath {
+            path_id: path_id.into(),
+            closed: true,
+            commands: vec![
+                VectorPathCommand {
+                    kind: "move".into(),
+                    points: vec![[0.16, 0.18]],
+                },
+                VectorPathCommand {
+                    kind: "line".into(),
+                    points: vec![[0.84, 0.18]],
+                },
+                VectorPathCommand {
+                    kind: "line".into(),
+                    points: vec![[0.84, 0.82]],
+                },
+                VectorPathCommand {
+                    kind: "line".into(),
+                    points: vec![[0.16, 0.82]],
+                },
+            ],
+        }
+    } else {
+        let offset = if seed & 1 == 0 { 0.0 } else { 0.04 };
+        VectorPath {
+            path_id: path_id.into(),
+            closed: false,
+            commands: vec![
+                VectorPathCommand {
+                    kind: "move".into(),
+                    points: vec![[0.18, 0.28 + offset]],
+                },
+                VectorPathCommand {
+                    kind: "line".into(),
+                    points: vec![[0.42, 0.44 + offset]],
+                },
+                VectorPathCommand {
+                    kind: "quadratic".into(),
+                    points: vec![[0.58, 0.56 + offset], [0.82, 0.72 + offset]],
+                },
+            ],
+        }
+    };
+    vec![path]
+}
+
+fn feature_driven_decal(
+    feature_text: &str,
+    has_base_color_channel: bool,
+    salience_bps: u16,
+    seed: u32,
+    decal_id: &str,
+) -> Vec<DecalLayer> {
+    if !has_base_color_channel {
+        return Vec::new();
+    }
+    let motif = if contains_any(
+        feature_text,
+        &["warning", "hazard", "caution", "stripe", "警示", "警告", "条纹"],
+    ) {
+        "warning_stripe"
+    } else if contains_any(feature_text, &["hex", "badge", "六边形", "徽章"]) {
+        "hex_badge"
+    } else if contains_any(feature_text, &["chevron", "arrow", "人字", "箭头"]) {
+        "chevron_mark"
+    } else if contains_any(
+        feature_text,
+        &[
+            "decal", "logo", "label", "mark", "marking", "serial", "insignia", "贴花",
+            "标识", "标记", "铭牌", "编号",
+        ],
+    ) {
+        "panel_label"
+    } else {
+        return Vec::new();
+    };
+    let color_token = if contains_any(
+        feature_text,
+        &["warning", "hazard", "caution", "red", "signal", "警示", "警告", "红"],
+    ) {
+        "signal_red"
+    } else if contains_any(feature_text, &["blue", "energy", "luminous", "蓝", "能量"]) {
+        "accent_blue"
+    } else if contains_any(feature_text, &["silver", "aluminum", "metal", "银", "铝", "金属"]) {
+        "aluminum"
+    } else {
+        "graphite"
+    };
+    let text_token = if motif == "warning_stripe" {
+        "CAUTION"
+    } else if contains_any(feature_text, &["serial", "编号"]) {
+        "A-01"
+    } else if motif == "panel_label" {
+        "SERVICE"
+    } else {
+        "none"
+    };
+    let anchor_uv = if contains_any(feature_text, &["edge", "rim", "border", "边缘", "边框"]) {
+        [0.16, 0.5]
+    } else if contains_any(feature_text, &["center", "core", "中心", "核心"]) {
+        [0.5, 0.5]
+    } else if seed & 1 == 0 {
+        [0.5, 0.34]
+    } else {
+        [0.5, 0.66]
+    };
+    let scale_milli = if salience_bps >= 9_000 {
+        240
+    } else if salience_bps <= 5_000 {
+        120
+    } else {
+        180
+    };
+    let opacity_milli = if salience_bps >= 9_000 { 860 } else { 700 };
+    vec![DecalLayer {
+        decal_id: decal_id.into(),
+        motif: motif.into(),
+        text_token: text_token.into(),
+        color_token: color_token.into(),
+        anchor_uv,
+        scale_milli,
+        opacity_milli,
+    }]
 }
 
 fn generic_hard_surface_layer_role(semantic_role: &str) -> &str {
@@ -2155,8 +3440,9 @@ fn default_appearance_evidence(
                 ],
             })
             .collect(),
-        derived_artifacts: Vec::new(),
-    }
+            derived_artifacts: Vec::new(),
+            projection_receipts: Vec::new(),
+        }
 }
 
 fn validate_v2_components(
@@ -2474,6 +3760,25 @@ fn validate_appearance_evidence(
             ));
         }
     }
+    if bundle.projection_receipts.len() > MAX_MATERIAL_ZONES {
+        return Err(invalid(
+            "REFERENCE_APPEARANCE_PROJECTION_RECEIPT_INVALID",
+            "Reference appearance projection receipts exceed the bounded material-zone budget.",
+        ));
+    }
+    let mut projection_ids = BTreeSet::new();
+    for receipt in &bundle.projection_receipts {
+        receipt.validate()?;
+        if receipt.source_request_sha256 != bundle.request_sha256
+            || !expected.contains_key(receipt.source_evidence_id.as_str())
+            || !projection_ids.insert(receipt.projection_id.as_str())
+        {
+            return Err(invalid(
+                "REFERENCE_APPEARANCE_PROJECTION_LINEAGE_INVALID",
+                "Reference appearance projection receipts must bind the exact request and sealed evidence.",
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -2690,6 +3995,22 @@ fn validate_material_zones(source: &UniversalAssetSource) -> CoreResult<()> {
             "MATERIAL_ZONE_APPEARANCE_INCOMPLETE",
             "Every procedural Material Zone requires one appearance contract.",
         ));
+    }
+    let known_zone_ids = source
+        .material_zones
+        .iter()
+        .map(|zone| zone.material_zone_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut receipt_zones = BTreeSet::new();
+    for receipt in &source.appearance_evidence.projection_receipts {
+        if !known_zone_ids.contains(receipt.target_material_zone_id.as_str())
+            || !receipt_zones.insert(receipt.target_material_zone_id.as_str())
+        {
+            return Err(invalid(
+                "REFERENCE_APPEARANCE_PROJECTION_ZONE_INVALID",
+                "Reference appearance projection receipt must target one unique retained Material Zone.",
+            ));
+        }
     }
     Ok(())
 }
@@ -2908,38 +4229,107 @@ fn validate_game_asset_delivery_receipt(
                     && socket.forward.iter().all(|value| value.is_finite())
             })
     });
-    if delivery.schema_version != crate::GAME_ASSET_DELIVERY_RECEIPT_SCHEMA_VERSION
-        || delivery.source_glb_sha256 != compiled.glb_sha256
-        || !is_sha256(&delivery.delivery_glb_sha256)
-        || delivery.delivery_glb_sha256 == delivery.source_glb_sha256
-        || delivery.game_asset_profile_sha256 != expected_profile_sha256
-        || delivery.bindings_sha256 != expected_bindings_sha256
-        || delivery.lod.schema_version != crate::GAME_ASSET_LOD_RECEIPT_SCHEMA_VERSION
-        || delivery.lod.source_glb_sha256 != compiled.glb_sha256
-        || delivery.lod.delivery_glb_sha256 != delivery.delivery_glb_sha256
-        || delivery.lod.game_asset_profile_sha256 != expected_profile_sha256
-        || delivery.lod.game_asset_profile_id != profile.profile_id
-        || delivery.lod.lods[0].level != 0
-        || delivery.lod.lods[0].triangle_count == 0
-        || delivery.lod.lods[1].level != 1
-        || delivery.lod.lods[2].level != 2
-        || delivery.lod.lods[1].triangle_count >= delivery.lod.lods[0].triangle_count
-        || delivery.lod.lods[2].triangle_count >= delivery.lod.lods[1].triangle_count
-        || actual_collision_parts != expected_collision_parts
-        || delivery.collision_proxies.len() != expected_collision_parts.len()
-        || !collision_bindings_match
-        || actual_socket_ids != expected_socket_ids
-        || delivery.sockets.len() != expected_socket_ids.len()
-        || !socket_bindings_match
-        || delivery.texel_density.target_texel_density_pixels_per_meter
-            != profile.target_texel_density_pixels_per_meter
-        || !delivery.texel_density.target_met
-        || !delivery.texel_density.effective_texel_density_pixels_per_meter.is_finite()
-        || delivery.texel_density.material_zones.is_empty()
-    {
-        return Err(invalid(
+    let mut failures = Vec::new();
+    macro_rules! require_delivery {
+        ($condition:expr, $label:literal) => {
+            if !$condition {
+                failures.push($label);
+            }
+        };
+    }
+    require_delivery!(
+        delivery.schema_version == crate::GAME_ASSET_DELIVERY_RECEIPT_SCHEMA_VERSION,
+        "receipt_schema"
+    );
+    require_delivery!(delivery.source_glb_sha256 == compiled.glb_sha256, "source_hash");
+    require_delivery!(is_sha256(&delivery.delivery_glb_sha256), "delivery_hash");
+    require_delivery!(
+        delivery.delivery_glb_sha256 != delivery.source_glb_sha256,
+        "delivery_distinct"
+    );
+    require_delivery!(
+        delivery.game_asset_profile_sha256 == expected_profile_sha256,
+        "profile_hash"
+    );
+    require_delivery!(
+        delivery.bindings_sha256 == expected_bindings_sha256,
+        "bindings_hash"
+    );
+    require_delivery!(
+        delivery.lod.schema_version == crate::GAME_ASSET_LOD_RECEIPT_SCHEMA_VERSION,
+        "lod_schema"
+    );
+    require_delivery!(delivery.lod.source_glb_sha256 == compiled.glb_sha256, "lod_source_hash");
+    require_delivery!(
+        is_sha256(&delivery.lod.delivery_glb_sha256),
+        "lod_delivery_hash"
+    );
+    // The LOD receipt hashes the standalone source+LOD GLB. The enclosing
+    // delivery receipt hashes that GLB after collision/socket nodes and its
+    // own receipt are added, so these are intentionally distinct artifacts.
+    require_delivery!(
+        delivery.lod.delivery_glb_sha256 != compiled.glb_sha256,
+        "lod_delivery_distinct"
+    );
+    require_delivery!(
+        delivery.lod.game_asset_profile_sha256 == expected_profile_sha256,
+        "lod_profile_hash"
+    );
+    require_delivery!(
+        delivery.lod.game_asset_profile_id == profile.profile_id,
+        "lod_profile_id"
+    );
+    require_delivery!(delivery.lod.lods[0].level == 0, "lod0_level");
+    require_delivery!(delivery.lod.lods[0].triangle_count > 0, "lod0_triangles");
+    require_delivery!(delivery.lod.lods[1].level == 1, "lod1_level");
+    require_delivery!(delivery.lod.lods[2].level == 2, "lod2_level");
+    require_delivery!(
+        delivery.lod.lods[1].triangle_count < delivery.lod.lods[0].triangle_count,
+        "lod1_not_reduced"
+    );
+    require_delivery!(
+        delivery.lod.lods[2].triangle_count < delivery.lod.lods[1].triangle_count,
+        "lod2_not_reduced"
+    );
+    require_delivery!(
+        actual_collision_parts == expected_collision_parts,
+        "collision_parts"
+    );
+    require_delivery!(
+        delivery.collision_proxies.len() == expected_collision_parts.len(),
+        "collision_count"
+    );
+    require_delivery!(collision_bindings_match, "collision_bindings");
+    require_delivery!(actual_socket_ids == expected_socket_ids, "socket_ids");
+    require_delivery!(
+        delivery.sockets.len() == expected_socket_ids.len(),
+        "socket_count"
+    );
+    require_delivery!(socket_bindings_match, "socket_bindings");
+    require_delivery!(
+        delivery.texel_density.target_texel_density_pixels_per_meter
+            == profile.target_texel_density_pixels_per_meter,
+        "texel_target"
+    );
+    require_delivery!(delivery.texel_density.target_met, "texel_target_not_met");
+    require_delivery!(
+        delivery
+            .texel_density
+            .effective_texel_density_pixels_per_meter
+            .is_finite(),
+        "texel_effective_density"
+    );
+    require_delivery!(
+        !delivery.texel_density.material_zones.is_empty(),
+        "texel_zones"
+    );
+    if !failures.is_empty() {
+        return Err(CoreError::invalid_data(
             "GAME_ASSET_DELIVERY_READBACK_INVALID",
-            "Game delivery receipt must prove exact source, LOD, collision, socket and measured texture-density lineage.",
+            &format!(
+                "Game delivery receipt must prove exact source, LOD, collision, socket and measured texture-density lineage (failed: {}).",
+                failures.join(",")
+            ),
         ));
     }
     Ok(())
@@ -2968,6 +4358,7 @@ mod tests {
         SubjectMaterial, SubjectPart, UniversalReferenceInput, VisualFeatureEvidenceRegion,
         VisualFeatureLevel, VisualFeatureRequirement,
         GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID, LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID,
+        LOCAL_MESH_PATCH_CAPABILITY_ID,
         ROBOTIC_ARM_PROCEDURAL_CAPABILITY_ID,
     };
     use serde_json::json;
@@ -3130,6 +4521,7 @@ mod tests {
                     height: 1,
                     aspect_ratio_milli: 2_000,
                     dominant_color_buckets: vec![ReferenceImageColorBucket::Gray],
+                    foreground_dominant_color_buckets: Vec::new(),
                     brightness: ReferenceImageBrightnessBucket::Balanced,
                     edge_density: ReferenceImageEdgeDensityBucket::Medium,
                     foreground_bbox_normalized: [0, 0, 1_000, 1_000],
@@ -3236,7 +4628,7 @@ mod tests {
                 material_id: "material_u004".into(),
                 label: "金属".into(),
                 part_ids: vec!["part_subject_base".into(), "part_subject_trim".into()],
-                appearance_traits: vec!["metallic".into()],
+                appearance_traits: vec!["metallic".into(), "brushed".into()],
             }],
         };
         let profile_sha256 = semantic_sha256(&profile).unwrap();
@@ -3260,6 +4652,8 @@ mod tests {
         requirements[0].affected_part_ids = vec!["part_subject_base".into()];
         requirements[1].affected_part_ids = vec!["part_subject_trim".into()];
         requirements[2].affected_part_ids = vec!["part_subject_trim".into()];
+        requirements[1].description = "angled chevron armor relief".into();
+        requirements[2].description = "silver hexagonal microgrid with edge wear and panel seam".into();
         for requirement in requirements.iter_mut().skip(1) {
             requirement.evidence_status = EvidenceStatus::Observed;
             requirement.evidence_regions = vec![VisualFeatureEvidenceRegion {
@@ -3307,6 +4701,56 @@ mod tests {
         )
         .unwrap();
         source.validate().unwrap();
+        let runtime = source.runtime_procedural().unwrap();
+        let projection_receipt = ReferenceAppearanceProjectionReceipt {
+            schema_version: REFERENCE_APPEARANCE_PROJECTION_RECEIPT_SCHEMA_VERSION.into(),
+            source_request_sha256: source.request_sha256.clone(),
+            source_program_sha256: runtime.source_program_sha256.clone(),
+            final_glb_sha256: "1".repeat(64),
+            compile_readback_sha256: "2".repeat(64),
+            worker_receipt_sha256: "3".repeat(64),
+            worker_schema_version: "ReferenceCameraUvRasterBakeReceipt@2".into(),
+            algorithm_id: "forgecad.reference_camera_uv_raster".into(),
+            algorithm_version: "1".into(),
+            projection_id: "projection_u004_core".into(),
+            projection_sha256: "4".repeat(64),
+            source_evidence_id: "refevid_u004_image".into(),
+            source_image_sha256: "5".repeat(64),
+            camera_hypothesis_id: "camera_u004_core".into(),
+            camera_provenance_sha256: "6".repeat(64),
+            target_material_zone_id: source.material_zones[0].material_zone_id.clone(),
+            base_color_texture_id: "vtex_reference_u004".into(),
+            base_color_sha256: "7".repeat(64),
+            base_color_byte_size: 1,
+            unobserved_texel_mask_id: "vtexmask_reference_u004".into(),
+            unobserved_texel_mask_sha256: "8".repeat(64),
+            unobserved_texel_mask_byte_size: 1,
+            observed_texel_count: 1,
+            unobserved_texel_count: 1,
+            fusion_count: 1,
+            raster_triangle_count: Some(1),
+            world_to_clip_sha256: Some("9".repeat(64)),
+            source_evidence_ids: Vec::new(),
+            source_image_sha256s: Vec::new(),
+            camera_hypothesis_ids: Vec::new(),
+            camera_provenance_sha256s: Vec::new(),
+            world_to_clip_sha256s: Vec::new(),
+        };
+        projection_receipt.validate().unwrap();
+        let projected = source
+            .clone()
+            .with_reference_appearance_projection_receipts(vec![projection_receipt.clone()])
+            .unwrap();
+        projected.validate().unwrap();
+        let mut drifted_projection = projected;
+        drifted_projection
+            .appearance_evidence
+            .projection_receipts[0]
+            .source_request_sha256 = "a".repeat(64);
+        assert_eq!(
+            drifted_projection.validate().unwrap_err().code(),
+            "REFERENCE_APPEARANCE_PROJECTION_LINEAGE_INVALID"
+        );
 
         let mut hybrid_plan = plan.clone();
         let trim_plan = hybrid_plan
@@ -3358,12 +4802,79 @@ mod tests {
             "UNIVERSAL_LATTICE_TERMINAL_INVALID"
         );
 
+        let mut mesh_patch_plan = plan.clone();
+        for part in &mut mesh_patch_plan.parts {
+            part.representation = RepresentationKind::MeshSeed;
+            part.capability_id = LOCAL_MESH_PATCH_CAPABILITY_ID.into();
+        }
+        let mut mesh_patch_program = program.clone();
+        mesh_patch_program["domain"] = Value::String("generic_hard_surface".into());
+        let mesh_patch_nodes = mesh_patch_program["nodes"].as_array_mut().unwrap();
+        let bracket_part_index = mesh_patch_nodes
+            .iter()
+            .position(|node| node["node_id"] == "node_bracket_part")
+            .unwrap();
+        mesh_patch_nodes.insert(bracket_part_index, json!({
+            "kind":"local_mesh_patch",
+            "node_id":"node_bracket_patch",
+            "input_node_id":"node_symmetric",
+            "patch_center":[0.0,0.0,0.0],
+            "patch_radius":0.2,
+            "patch_offset":[0.1,0.0,0.0]
+        }));
+        let trim_part_index = mesh_patch_nodes
+            .iter()
+            .position(|node| node["node_id"] == "node_trim_part")
+            .unwrap();
+        mesh_patch_nodes.insert(trim_part_index, json!({
+            "kind":"local_mesh_patch",
+            "node_id":"node_trim_patch",
+            "input_node_id":"node_profile_trim",
+            "patch_center":[0.0,0.0,0.0],
+            "patch_radius":0.2,
+            "patch_offset":[0.0,0.1,0.0]
+        }));
+        mesh_patch_nodes
+            .iter_mut()
+            .find(|node| node["node_id"] == "node_bracket_part")
+            .unwrap()["input_node_id"] = Value::String("node_bracket_patch".into());
+        mesh_patch_nodes
+            .iter_mut()
+            .find(|node| node["node_id"] == "node_trim_part")
+            .unwrap()["input_node_id"] = Value::String("node_trim_patch".into());
+        let mesh_patch_source = UniversalAssetSourceV2::from_runtime_local_mesh_patch(
+            &request,
+            &profile,
+            &contract,
+            &mesh_patch_plan,
+            mesh_patch_program,
+        )
+        .unwrap();
+        mesh_patch_source.validate().unwrap();
+        assert!(matches!(
+            mesh_patch_source.representation_source,
+            UniversalRepresentationSourceV2::LocalMeshPatch(_)
+        ));
+        assert_eq!(
+            mesh_patch_source
+                .representation_source
+                .runtime_procedural()
+                .unwrap()
+                .shape_program["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|operation| operation["op"] == "local_mesh_patch")
+                .count(),
+            2
+        );
+
         let mut lattice_plan = plan.clone();
         for part in &mut lattice_plan.parts {
             part.representation = RepresentationKind::Deformable;
             part.capability_id = LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID.into();
         }
-        let mut lattice_program = program;
+        let mut lattice_program = program.clone();
         lattice_program["domain"] = Value::String("generic_hard_surface".into());
         let nodes = lattice_program["nodes"].as_array_mut().unwrap();
         let bracket_part_index = nodes
@@ -3490,6 +5001,61 @@ mod tests {
         bindings[0]
             .validate_against(&source, &[evidence.clone()])
             .unwrap();
+        let reference_bound = source
+            .clone()
+            .with_reference_surface_facts(&[evidence.clone()])
+            .unwrap();
+        reference_bound.validate().unwrap();
+        assert_eq!(
+            reference_bound
+                .appearance_compilation
+                .reference_surface_bindings
+                .len(),
+            1
+        );
+        assert_eq!(
+            reference_bound
+                .appearance_compilation
+                .reference_surface_bindings[0]
+                .evidence_id,
+            "refevid_u004_image"
+        );
+        let base_zone = reference_bound
+            .appearance_compilation
+            .zones
+            .iter()
+            .find(|zone| zone.target_subject_part_id == "part_subject_base")
+            .expect("the fixture retains a sibling base zone");
+        assert_eq!(
+            base_zone.surface_layer_program.base_color_token, None,
+            "a whole-image color fact must not leak into a Part with no observed appearance region"
+        );
+        let trim_zone = reference_bound
+            .appearance_compilation
+            .zones
+            .iter()
+            .find(|zone| zone.target_subject_part_id == "part_subject_trim")
+            .expect("the observed trim zone is retained");
+        assert_eq!(
+            trim_zone.surface_layer_program.base_color_token.as_deref(),
+            Some("silver"),
+            "the explicitly observed trim zone keeps its feature/material color semantics"
+        );
+        assert_ne!(
+            reference_bound.appearance_compilation.compilation_sha256,
+            source.appearance_compilation.compilation_sha256,
+            "reference-conditioned appearance must change the sealed compilation hash"
+        );
+        let mut drifted_reference = reference_bound.clone();
+        drifted_reference
+            .appearance_compilation
+            .reference_surface_bindings[0]
+            .facts
+            .brightness = ReferenceImageBrightnessBucket::Bright;
+        assert_eq!(
+            drifted_reference.validate().unwrap_err().code(),
+            "REFERENCE_SURFACE_APPEARANCE_BINDING_INVALID"
+        );
         let mut cross_project = evidence;
         cross_project.project_id = "project_other".into();
         assert_eq!(
@@ -3517,6 +5083,26 @@ mod tests {
             "open SubjectProfile roles must be mapped only inside the bounded visual layer vocabulary"
         );
         assert_eq!(
+            source
+                .appearance_compilation
+                .zones[0]
+                .surface_layer_program
+                .base_color_token
+                .as_deref(),
+            Some("silver"),
+            "sealed silver material evidence should select the bounded silver PBR tint"
+        );
+        assert_eq!(
+            source
+                .appearance_compilation
+                .zones[0]
+                .surface_layer_program
+                .surface_finish_token
+                .as_deref(),
+            Some("brushed_metal"),
+            "sealed metallic/brushed evidence should select a bounded metallic finish"
+        );
+        assert_eq!(
             source.appearance_compilation.zones[0]
                 .surface_layer_program
                 .normal_relief_layers
@@ -3526,9 +5112,82 @@ mod tests {
         assert_eq!(
             source.appearance_compilation.zones[0]
                 .surface_layer_program
+                .normal_relief_layers[0]
+                .motif,
+            "chevron_relief",
+            "meso feature language should choose a bounded angular relief motif"
+        );
+        assert_eq!(
+            source.appearance_compilation.zones[0]
+                .surface_layer_program
+                .roughness_masks[0]
+                .motif,
+            "microgrid",
+            "micro feature language should choose a bounded microgrid roughness motif"
+        );
+        assert_eq!(
+            source.appearance_compilation.zones[0]
+                .surface_layer_program
                 .roughness_masks
                 .len(),
             1
+        );
+        assert_eq!(
+            source.appearance_compilation.zones[0]
+                .surface_layer_program
+                .decal_layers
+                .len(),
+            1,
+            "visible base-color feature language should compile one bounded decal layer"
+        );
+        assert_eq!(
+            source.appearance_compilation.zones[0]
+                .surface_layer_program
+                .decal_layers[0]
+                .motif,
+            "hex_badge",
+            "visible hexagonal feature language should choose a reviewed decal motif"
+        );
+        assert_eq!(
+            source.appearance_compilation.zones[0]
+                .surface_layer_program
+                .vector_paths
+                .len(),
+            1,
+            "visible panel seam evidence should compile one bounded retained vector path"
+        );
+        assert_eq!(
+            source.appearance_compilation.zones[0]
+                .surface_layer_program
+                .vector_paths[0]
+                .commands[0]
+                .kind,
+            "move"
+        );
+        let mut hidden_contract = contract.clone();
+        hidden_contract.requirements[2].evidence_status = EvidenceStatus::Hidden;
+        hidden_contract.requirements[2].evidence_regions.clear();
+        let mut hidden_plan = plan.clone();
+        hidden_plan.visual_feature_contract_sha256 = semantic_sha256(&hidden_contract).unwrap();
+        let hidden_source = UniversalAssetSourceV2::from_runtime_procedural(
+            &request,
+            &profile,
+            &hidden_contract,
+            &hidden_plan,
+            program.clone(),
+        )
+        .unwrap();
+        hidden_source.validate().unwrap();
+        assert!(
+            hidden_source
+                .appearance_compilation
+                .zones
+                .iter()
+                .all(|zone| {
+                    zone.surface_layer_program.decal_layers.is_empty()
+                        && zone.surface_layer_program.vector_paths.is_empty()
+                }),
+            "hidden visual evidence must not create visible retained surface marks"
         );
         let UniversalRepresentationSourceV2::Procedural(procedural) = &source.representation_source
         else {
@@ -3563,6 +5222,48 @@ mod tests {
             tampered.validate().unwrap_err().code(),
             "UNIVERSAL_V2_PART_BINDING_INVALID"
         );
+    }
+
+    #[test]
+    fn u004_reference_surface_fallback_is_scoped_to_compatible_exterior_zones() {
+        assert!(reference_surface_fallback_allowed(
+            "primary_shell",
+            "mat_graphite",
+            ""
+        ));
+        assert!(reference_surface_fallback_allowed(
+            "armor_panel",
+            "mat_aluminum",
+            "metallic"
+        ));
+        assert!(!reference_surface_fallback_allowed(
+            "structural_frame",
+            "mat_graphite",
+            ""
+        ));
+        assert!(!reference_surface_fallback_allowed(
+            "accent_trim",
+            "mat_graphite",
+            ""
+        ));
+        assert!(!reference_surface_fallback_allowed(
+            "primary_shell",
+            "mat_rubber",
+            ""
+        ));
+        assert!(!reference_surface_fallback_allowed(
+            "primary_shell",
+            "mat_graphite",
+            "emissive status strip"
+        ));
+        assert_eq!(feature_base_color_token("black graphite"), Some("graphite"));
+        assert_eq!(feature_base_color_token("gray metal"), Some("gunmetal"));
+        assert_eq!(feature_base_color_token("green foliage and leaves"), Some("foliage_green"));
+        assert_eq!(feature_base_color_token("warm skin and fabric"), Some("skin_warm"));
+        assert_eq!(feature_base_color_token("bark and wood grain"), Some("bark_brown"));
+        assert_eq!(feature_surface_finish_token("leaf veins", "mat_composite"), Some("leaf_waxy"));
+        assert_eq!(feature_surface_finish_token("woven fabric", "mat_composite"), Some("fabric_weave"));
+        assert_eq!(feature_surface_finish_token("rough concrete", "mat_composite"), Some("concrete_rough"));
     }
 
     #[test]
@@ -3712,6 +5413,19 @@ mod tests {
         assert_eq!(
             source.validate().unwrap_err().code(),
             "UNIVERSAL_ASSET_SOURCE_LINEAGE_INVALID"
+        );
+    }
+
+    #[test]
+    fn u004_unavailable_representation_is_not_an_asset_source() {
+        let unavailable = json!({
+            "kind": "unavailable",
+            "source_contract_id": "ForgeUnavailableRepresentation@1",
+            "reason": "representation_unavailable"
+        });
+        assert!(
+            serde_json::from_value::<UniversalRepresentationSourceV2>(unavailable).is_err(),
+            "unavailable capability outcomes must remain typed limitations and never deserialize as UAS@2"
         );
     }
 }

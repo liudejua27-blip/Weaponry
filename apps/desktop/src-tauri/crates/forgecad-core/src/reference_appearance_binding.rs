@@ -35,7 +35,9 @@ pub struct ReferenceAppearanceBinding {
 
 /// Derive every unambiguous observed image-to-zone mapping.  No candidate is
 /// returned for inferred/hidden/conflicting features, missing regions, unknown
-/// view aliases, non-PNG evidence, or zones that have competing image views.
+/// view aliases or non-PNG evidence. A material zone may use at most two
+/// distinct turntable views; the worker performs an explicit bounded fusion
+/// rather than silently choosing one image.
 pub fn derive_reference_appearance_bindings(
     source: &UniversalAssetSourceV2,
     evidence: &[ReferenceEvidence],
@@ -123,8 +125,9 @@ pub fn derive_reference_appearance_bindings(
         }
     }
 
-    // A side/painted zone may not silently choose between different photos or
-    // camera slots.  Multi-view fusion is a later explicit representation.
+    // A side/painted zone may not silently choose between an unbounded set of
+    // photos or camera slots. Two distinct views are the reviewed fusion cap;
+    // the native executor and Worker enforce the same bound.
     let mut source_by_zone = BTreeMap::<(String, String), BTreeSet<(String, String)>>::new();
     for (part, zone, evidence_id, view_id) in grouped.keys() {
         source_by_zone
@@ -132,10 +135,10 @@ pub fn derive_reference_appearance_bindings(
             .or_default()
             .insert((evidence_id.clone(), view_id.clone()));
     }
-    if source_by_zone.values().any(|sources| sources.len() > 1) {
+    if source_by_zone.values().any(|sources| sources.len() > 2) {
         return Err(invalid(
-            "REFERENCE_APPEARANCE_BINDING_MULTIVIEW_CONFLICT",
-            "one U004 raster bake zone cannot silently merge competing reference views",
+            "REFERENCE_APPEARANCE_BINDING_MULTIVIEW_LIMIT",
+            "one U004 raster bake zone may fuse at most two distinct reference views",
         ));
     }
 

@@ -7,6 +7,17 @@ import {
   normalizeC111bStageError,
   resolveC111bLinkCandidate,
 } from './packagedC111BWebglQaLogic.js'
+import {
+  WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX,
+  WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX,
+  WORKBENCH_PBR_CAPTURE_HEIGHT_PX,
+  WORKBENCH_PBR_CAPTURE_WIDTH_PX,
+  WORKBENCH_PBR_RENDER_MANIFEST_SHA256,
+  WORKBENCH_PBR_RENDERER_ID,
+  WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID,
+  WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256,
+  type WorkbenchPbrAuxiliaryPass,
+} from '../../features/cad-workbench/workbenchPbrCapture.js'
 
 const SCHEMA = 'C111BPackagedWebGL@1' as const
 const MAX_WAIT_MS = 180_000
@@ -55,6 +66,12 @@ type CaptureReceipt = {
   width: number
   height: number
   source_sha256: string
+  auxiliary_relative_path: string
+  auxiliary_sha256: string
+  auxiliary_byte_size: number
+  auxiliary_width: number
+  auxiliary_height: number
+  auxiliary_pass_ids: readonly WorkbenchPbrAuxiliaryPass[]
 }
 
 type RasterReadability = {
@@ -103,6 +120,15 @@ type Report = {
   blockout_glb_kind?: string
   render_source?: string
   light_preset?: string
+  renderer_id?: typeof WORKBENCH_PBR_RENDERER_ID
+  render_manifest_sha256?: typeof WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+  visual_environment_id?: typeof WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID
+  visual_environment_sha256?: typeof WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256
+  output_color_space?: 'srgb'
+  tone_mapping?: 'aces_filmic'
+  pbr_texture_count?: number
+  pbr_color_spaces?: 'valid'
+  pbr_sampling_valid?: 'true'
   captures?: Capture[]
   readback?: Readback
   formal_eligible?: false
@@ -144,6 +170,10 @@ type ViewportPixels = {
   height: number
   pixels: Uint8Array
   origin: 'top_left'
+  auxiliaryPixels: Uint8Array
+  auxiliaryWidth: number
+  auxiliaryHeight: number
+  auxiliaryPassIds: readonly WorkbenchPbrAuxiliaryPass[]
 }
 
 type ViewportCaptureRequest = {
@@ -430,12 +460,11 @@ function buildAgentReport(
 ): Report {
   const rendererGeneration = positiveNumber(viewport.dataset.rendererGeneration, 'C111B_AGENT_RENDERER_GENERATION_INVALID')
   const activeContexts = positiveNumber(viewport.dataset.activeWebglContexts, 'C111B_AGENT_WEBGL_CONTEXT_INVALID')
+  const pbrFacts = readPackagedPbrRendererFacts(viewport, 'C111B_AGENT_RENDERER_FACTS_INVALID')
   if (
     viewport.dataset.blockoutLoadState !== 'ready'
     || viewport.dataset.blockoutGlbKind !== 'compiled_agent_production_pbr'
     || viewport.dataset.blockoutRenderSource !== 'glb_pbr'
-    || viewport.dataset.blockoutPbrColorSpaces !== 'valid'
-    || viewport.dataset.blockoutPbrSamplingValid !== 'true'
     || Number(viewport.dataset.blockoutEmbeddedPbrMaterialCount ?? '0') < 1
     || activeContexts !== 1
     || document.querySelectorAll('canvas').length !== 1
@@ -459,6 +488,7 @@ function buildAgentReport(
     blockout_glb_kind: viewport.dataset.blockoutGlbKind,
     render_source: viewport.dataset.blockoutRenderSource,
     light_preset: viewport.dataset.lightPreset,
+    ...pbrFacts,
     captures,
     readback,
     formal_eligible: false,
@@ -484,12 +514,11 @@ function buildReport(
 ): Report {
   const rendererGeneration = positiveNumber(viewport.dataset.rendererGeneration, 'C111B_RENDERER_GENERATION_INVALID')
   const activeContexts = positiveNumber(viewport.dataset.activeWebglContexts, 'C111B_WEBGL_CONTEXT_INVALID')
+  const pbrFacts = readPackagedPbrRendererFacts(viewport, 'C111B_RENDERER_FACTS_INVALID')
   if (
     viewport.dataset.blockoutLoadState !== 'ready'
     || viewport.dataset.blockoutGlbKind !== 'external_reference'
     || viewport.dataset.blockoutRenderSource !== 'external_reference'
-    || viewport.dataset.blockoutPbrColorSpaces !== 'valid'
-    || viewport.dataset.blockoutPbrSamplingValid !== 'true'
     || Number(viewport.dataset.blockoutEmbeddedPbrMaterialCount ?? '0') < 1
     || activeContexts !== 1
     || document.querySelectorAll('canvas').length !== 1
@@ -513,12 +542,55 @@ function buildReport(
     blockout_glb_kind: viewport.dataset.blockoutGlbKind,
     render_source: viewport.dataset.blockoutRenderSource,
     light_preset: viewport.dataset.lightPreset,
+    ...pbrFacts,
     captures,
     readback,
     formal_eligible: false,
     human_benchmark_evidence: false,
     reference_comparison: false,
     restart_hydrated: restartHydrated,
+  }
+}
+
+function readPackagedPbrRendererFacts(
+  viewport: HTMLElement,
+  errorCode: string,
+): Pick<
+  Report,
+  | 'renderer_id'
+  | 'render_manifest_sha256'
+  | 'visual_environment_id'
+  | 'visual_environment_sha256'
+  | 'output_color_space'
+  | 'tone_mapping'
+  | 'pbr_texture_count'
+  | 'pbr_color_spaces'
+  | 'pbr_sampling_valid'
+> {
+  const data = viewport.dataset
+  const pbrTextureCount = Number(data.blockoutPbrTextureCount ?? '0')
+  if (
+    data.pbrRendererId !== WORKBENCH_PBR_RENDERER_ID
+    || data.pbrRenderManifestSha256 !== WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+    || data.visualEnvironmentId !== WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID
+    || data.visualEnvironmentSha256 !== WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256
+    || data.outputColorSpace !== 'srgb'
+    || data.toneMapping !== 'aces_filmic'
+    || !Number.isInteger(pbrTextureCount)
+    || pbrTextureCount < 5
+    || data.blockoutPbrColorSpaces !== 'valid'
+    || data.blockoutPbrSamplingValid !== 'true'
+  ) throw new Error(errorCode)
+  return {
+    renderer_id: WORKBENCH_PBR_RENDERER_ID,
+    render_manifest_sha256: WORKBENCH_PBR_RENDER_MANIFEST_SHA256,
+    visual_environment_id: WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID,
+    visual_environment_sha256: WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256,
+    output_color_space: 'srgb',
+    tone_mapping: 'aces_filmic',
+    pbr_texture_count: pbrTextureCount,
+    pbr_color_spaces: 'valid',
+    pbr_sampling_valid: 'true',
   }
 }
 
@@ -780,7 +852,8 @@ async function captureEightViews(viewport: HTMLElement, sourceSha256: string): P
     await setCamera(viewport, view)
     const pixels = await requestViewportPixels(viewport)
     const { blob, readability } = await pixelsToPng(pixels)
-    const receipt = await capturePng(view, blob, sourceSha256)
+    const auxiliaryBlob = await auxiliaryPixelsToPng(pixels)
+    const receipt = await capturePng(view, blob, auxiliaryBlob, sourceSha256)
     if (receipt.source_sha256 !== sourceSha256) throw new Error('C111B_CAPTURE_SOURCE_LINEAGE_INVALID')
     const readabilityFailure = rasterReadabilityFailure(view, readability)
     if (readabilityFailure) throw new Error(readabilityFailure)
@@ -832,6 +905,12 @@ async function requestViewportPixels(viewport: HTMLElement): Promise<ViewportPix
           || capture.height <= 0
           || capture.pixels.byteLength !== capture.width * capture.height * 4
           || capture.origin !== 'top_left'
+          || capture.width !== WORKBENCH_PBR_CAPTURE_WIDTH_PX
+          || capture.height !== WORKBENCH_PBR_CAPTURE_HEIGHT_PX
+          || capture.auxiliaryWidth !== WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX
+          || capture.auxiliaryHeight !== WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX
+          || capture.auxiliaryPixels.byteLength !== capture.auxiliaryWidth * capture.auxiliaryHeight * 4
+          || capture.auxiliaryPassIds.join(',') !== 'silhouette,normal,depth,part_id,material_id'
         ) {
           reject(new Error('C111B_PIXEL_CAPTURE_INVALID'))
         } else resolve(capture)
@@ -967,9 +1046,29 @@ function assertVisibleRaster(context: CanvasRenderingContext2D, width: number, h
   }
 }
 
-async function capturePng(view: FixedView, blob: Blob, sourceSha256: string): Promise<CaptureReceipt> {
+async function auxiliaryPixelsToPng(capture: ViewportPixels): Promise<Blob> {
+  const raster = document.createElement('canvas')
+  raster.width = capture.auxiliaryWidth
+  raster.height = capture.auxiliaryHeight
+  const context = raster.getContext('2d', { willReadFrequently: true })
+  if (!context) throw new Error('C111B_AUXILIARY_PNG_CONTEXT_MISSING')
+  const image = context.createImageData(capture.auxiliaryWidth, capture.auxiliaryHeight)
+  image.data.set(capture.auxiliaryPixels)
+  context.putImageData(image, 0, 0)
+  const blob = await new Promise<Blob | null>((resolve) => raster.toBlob(resolve, 'image/png'))
+  if (!blob || blob.size === 0) throw new Error('C111B_AUXILIARY_PNG_UNAVAILABLE')
+  return blob
+}
+
+async function capturePng(
+  view: FixedView,
+  blob: Blob,
+  auxiliaryBlob: Blob,
+  sourceSha256: string,
+): Promise<CaptureReceipt> {
   const { invoke } = await import('@tauri-apps/api/core')
   const bytes = new Uint8Array(await blob.arrayBuffer())
+  const auxiliaryBytes = new Uint8Array(await auxiliaryBlob.arrayBuffer())
   const receipt = await invoke<CaptureReceipt>('forgecad_c111b_webview_qa_capture', {
     capture: {
       schema_version: SCHEMA,
@@ -977,6 +1076,10 @@ async function capturePng(view: FixedView, blob: Blob, sourceSha256: string): Pr
       view_id: view,
       source_sha256: sourceSha256,
       bytes_base64: encodeBase64(bytes),
+      auxiliary_width: WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX,
+      auxiliary_height: WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX,
+      auxiliary_pass_ids: ['silhouette', 'normal', 'depth', 'part_id', 'material_id'],
+      auxiliary_bytes_base64: encodeBase64(auxiliaryBytes),
     },
   })
   if (
@@ -986,6 +1089,12 @@ async function capturePng(view: FixedView, blob: Blob, sourceSha256: string): Pr
     || receipt.byte_size !== bytes.byteLength
     || receipt.width < 320
     || receipt.height < 240
+    || receipt.auxiliary_relative_path !== `qa-artifacts/c111b-webgl/${currentPhase()}/${view}.auxiliary.png`
+    || !SHA256_PATTERN.test(receipt.auxiliary_sha256)
+    || receipt.auxiliary_byte_size !== auxiliaryBytes.byteLength
+    || receipt.auxiliary_width !== WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX
+    || receipt.auxiliary_height !== WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX
+    || receipt.auxiliary_pass_ids.join(',') !== 'silhouette,normal,depth,part_id,material_id'
   ) throw new Error('C111B_CAPTURE_RECEIPT_INVALID')
   return receipt
 }

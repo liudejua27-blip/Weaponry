@@ -17,6 +17,9 @@
     {"op": "subtract", "executor": "restricted_subtract", "output_kind": "mesh", "legacy_quality_estimate": "none"},
     {"op": "bevel_approx", "executor": "bevel_approximation", "output_kind": "mesh", "legacy_quality_estimate": "none"},
     {"op": "surface_panel", "executor": "surface_panel_attachment", "output_kind": "mesh", "legacy_quality_estimate": "none"},
-    {"op": "lattice_deform", "executor": "bounded_lattice_deform", "output_kind": "mesh", "legacy_quality_estimate": "none"}
+    {"op": "groove", "executor": "bounded_face_groove", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "shell", "executor": "bounded_box_shell", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "lattice_deform", "executor": "bounded_lattice_deform", "output_kind": "mesh", "legacy_quality_estimate": "none"},
+    {"op": "local_mesh_patch", "executor": "bounded_local_mesh_patch", "output_kind": "mesh", "legacy_quality_estimate": "none"}
   ]
 }

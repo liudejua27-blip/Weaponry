@@ -150,7 +150,10 @@
               "subtract",
               "bevel_approx",
               "surface_panel",
-              "lattice_deform"
+              "groove",
+              "shell",
+              "lattice_deform",
+              "local_mesh_patch"
             ]
           },
           "inputs": {
@@ -173,9 +176,29 @@
                   "type": "number"
                 }
               },
+              "face_size": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 100000
+                }
+              },
               "radius": {
                 "type": "number",
                 "exclusiveMinimum": 0
+              },
+              "thickness": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 25000
+              },
+              "depth": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100000
               },
               "height": {
                 "type": "number",
@@ -349,6 +372,31 @@
                     "minimum": -0.25,
                     "maximum": 0.25
                   }
+                }
+              },
+              "patch_center": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "patch_radius": {
+                "type": "number",
+                "minimum": 0.05,
+                "maximum": 0.4
+              },
+              "patch_offset": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": -0.2,
+                  "maximum": 0.2
                 }
               },
               "material_id": {

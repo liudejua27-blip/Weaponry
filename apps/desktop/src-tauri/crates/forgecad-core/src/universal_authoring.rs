@@ -28,11 +28,25 @@ pub const ROBOTIC_ARM_PROCEDURAL_CAPABILITY_ID: &str = "procedural.robotic_arm_v
 /// it is not a claim that every procedural subject is currently executable.
 pub const GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID: &str =
     "procedural.generic_hard_surface_v1";
+/// A category-open exterior visual composition route. It uses the same Rust
+/// sealed high-level geometry language as hard-surface assets, but does not
+/// claim that an organic subject is a hard-surface object. The output remains
+/// an appearance-first proxy until a category-specific deformable or neural
+/// representation is available. It is intentionally a universal exterior
+/// capability: Rust must not require the Provider to invent a
+/// `visual_exterior` category tag before any non-functional visible object can
+/// reach the honest proxy route.
+pub const GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID: &str =
+    "procedural.generic_visual_exterior_v1";
 /// A local, topology-preserving 2x2x2 cage deformation for exterior
 /// hard-surface shells. This is intentionally not a generic organic or
 /// character capability: it may only be used when every output has a bounded
 /// lattice-deform operation that Rust can re-derive and validate.
 pub const LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID: &str = "deformable.local_lattice_shell_v1";
+/// A bounded local mesh edit over a reviewed ShapeProgram output. It keeps
+/// topology and provenance intact; it is not an imported-GLB or arbitrary
+/// vertex-payload capability.
+pub const LOCAL_MESH_PATCH_CAPABILITY_ID: &str = "mesh_seed.local_patch_v1";
 
 const MAX_PARTS: usize = 256;
 const MAX_FEATURES: usize = 512;
@@ -378,10 +392,27 @@ pub fn representation_capability_manifest() -> RepresentationCapabilityManifest 
                 required_subject_traits: vec!["hard_surface".into()],
             },
             RepresentationCapability {
+                capability_id: GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID.into(),
+                representation: RepresentationKind::Procedural,
+                availability: CapabilityAvailability::Available,
+                // This is the category-open exterior fallback. Identity and
+                // visual semantics remain in SubjectProfile; requiring a
+                // Provider-authored `visual_exterior` tag here made cats,
+                // plants, buildings and other valid subjects fail before the
+                // Rust-reviewed proxy compiler could run.
+                required_subject_traits: Vec::new(),
+            },
+            RepresentationCapability {
                 capability_id: LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID.into(),
                 representation: RepresentationKind::Deformable,
                 availability: CapabilityAvailability::Available,
                 required_subject_traits: vec!["hard_surface".into(), "deformable_shell".into()],
+            },
+            RepresentationCapability {
+                capability_id: LOCAL_MESH_PATCH_CAPABILITY_ID.into(),
+                representation: RepresentationKind::MeshSeed,
+                availability: CapabilityAvailability::Available,
+                required_subject_traits: vec!["hard_surface".into()],
             },
             unavailable("procedural.generic_v1", RepresentationKind::Procedural),
             unavailable("deformable.generic_v1", RepresentationKind::Deformable),
@@ -739,20 +770,38 @@ impl RepresentationPlan {
                     "Representation plan references an unknown part.",
                 )
             })?;
-            if !planned_parts.insert(part_plan.part_id.as_str())
-                || part_plan.covered_feature_ids.iter().any(|id| {
-                    features.get(id.as_str()).is_none_or(|feature| {
-                        !feature
-                            .affected_part_ids
-                            .iter()
-                            .any(|part_id| part_id == &part_plan.part_id)
-                    })
-                })
-            {
+            if !planned_parts.insert(part_plan.part_id.as_str()) {
                 return Err(invalid(
                     "REPRESENTATION_PART_PLAN_INVALID",
-                    "Part plans and covered features must be unique and valid.",
+                    format!(
+                        "Representation plan contains duplicate part_id {}.",
+                        part_plan.part_id
+                    ),
                 ));
+            }
+            for feature_id in &part_plan.covered_feature_ids {
+                let Some(feature) = features.get(feature_id.as_str()) else {
+                    return Err(invalid(
+                        "REPRESENTATION_PART_PLAN_INVALID",
+                        format!(
+                            "Part {} covers unknown feature {}.",
+                            part_plan.part_id, feature_id
+                        ),
+                    ));
+                };
+                if !feature
+                    .affected_part_ids
+                    .iter()
+                    .any(|part_id| part_id == &part_plan.part_id)
+                {
+                    return Err(invalid(
+                        "REPRESENTATION_PART_PLAN_INVALID",
+                        format!(
+                            "Part {} covers feature {}, but that feature does not list this part in affected_part_ids.",
+                            part_plan.part_id, feature_id
+                        ),
+                    ));
+                }
             }
             let capability = capabilities
                 .get(part_plan.capability_id.as_str())
@@ -849,27 +898,60 @@ impl UniversalAuthorOutcome {
                     }
                     return Ok(());
                 }
+                let procedural_composition = capability_ids.len() > 1
+                    && representation_plan.parts.iter().all(|part| {
+                        part.representation == RepresentationKind::Procedural
+                            && matches!(
+                                part.capability_id.as_str(),
+                                GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID
+                                    | GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID
+                            )
+                    });
+                if procedural_composition {
+                    let lowering = lower_visual_runtime_source_v1(executable_payload)?;
+                    let expected_domain = if capability_ids
+                        .contains(GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID)
+                    {
+                        "generic_visual_exterior"
+                    } else {
+                        "generic_hard_surface"
+                    };
+                    if lowering.source_contract_id != "ForgeVisualGeometryProgram@2"
+                        || executable_payload.get("domain").and_then(Value::as_str)
+                            != Some(expected_domain)
+                    {
+                        return Err(invalid(
+                            "UNIVERSAL_GENERIC_HARD_SURFACE_SOURCE_INVALID",
+                            "Procedural capability composition requires a reviewed ForgeVisualGeometryProgram@2 with a matching visual domain.",
+                        ));
+                    }
+                    return Ok(());
+                }
                 if capability_ids.len() != 1 {
                     return Err(invalid(
                         "UNIVERSAL_EXECUTABLE_CAPABILITY_MIXED",
-                        "An executable candidate may mix only the reviewed generic hard-surface and local lattice capabilities.",
+                        "An executable candidate may mix only reviewed procedural visual capabilities or the bounded hard-surface/lattice hybrid.",
                     ));
                 }
                 match capability_ids.into_iter().next() {
                     Some(ROBOTIC_ARM_PROCEDURAL_CAPABILITY_ID) => {}
-                    Some(GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID) => {
+                    Some(GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID)
+                    | Some(GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID) => {
                         let lowering = lower_visual_runtime_source_v1(executable_payload)?;
                         if lowering.source_contract_id != "ForgeVisualGeometryProgram@2"
-                            || executable_payload.get("domain").and_then(Value::as_str)
-                                != Some("generic_hard_surface")
+                            || !matches!(
+                                executable_payload.get("domain").and_then(Value::as_str),
+                                Some("generic_hard_surface" | "generic_visual_exterior")
+                            )
                         {
                             return Err(invalid(
                                 "UNIVERSAL_GENERIC_HARD_SURFACE_SOURCE_INVALID",
-                                "Generic hard-surface execution requires a reviewed ForgeVisualGeometryProgram@2 with domain generic_hard_surface.",
+                                "Generic exterior execution requires a reviewed ForgeVisualGeometryProgram@2 with a code-owned visual domain.",
                             ));
                         }
                     }
-                    Some(LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID) => {
+                    Some(LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID)
+                    | Some(LOCAL_MESH_PATCH_CAPABILITY_ID) => {
                         let lowering = lower_visual_runtime_source_v1(executable_payload)?;
                         if lowering.source_contract_id != "ForgeVisualGeometryProgram@2"
                             || executable_payload.get("domain").and_then(Value::as_str)
@@ -884,7 +966,7 @@ impl UniversalAuthorOutcome {
                     _ => {
                         return Err(invalid(
                             "UNIVERSAL_EXECUTABLE_PAYLOAD_INVALID",
-                            "Only the verified robotic-arm, generic hard-surface, local lattice, and their bounded local hybrid capabilities may be executable.",
+                                "Only the verified robotic-arm, generic hard-surface, local lattice, local mesh patch, and their bounded local hybrid capabilities may be executable.",
                         ));
                     }
                 }
@@ -1217,6 +1299,34 @@ mod tests {
     }
 
     #[test]
+    fn u004_generic_visual_exterior_accepts_open_category_without_provider_trait() {
+        let request = request();
+        let profile = profile(&request, "domestic cat", vec!["quadruped".into(), "organic".into()]);
+        let contract = feature_contract(&request, &profile);
+        let plan = RepresentationPlan {
+            schema_version: REPRESENTATION_PLAN_SCHEMA_VERSION.into(),
+            plan_id: "repplan_cat_visual_exterior".into(),
+            request_sha256: semantic_sha256(&request).unwrap(),
+            subject_profile_sha256: semantic_sha256(&profile).unwrap(),
+            visual_feature_contract_sha256: semantic_sha256(&contract).unwrap(),
+            capability_manifest_sha256: request.capability_manifest_sha256.clone(),
+            parts: vec![PartRepresentationPlan {
+                part_id: "part_body".into(),
+                representation: RepresentationKind::Procedural,
+                capability_id: GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID.into(),
+                covered_feature_ids: contract
+                    .requirements
+                    .iter()
+                    .map(|item| item.feature_id.clone())
+                    .collect(),
+                rationale: "visible cat appearance can use the bounded exterior proxy while dedicated organic representation remains unavailable".into(),
+            }],
+        };
+
+        assert!(plan.validate_against(&request, &profile, &contract).unwrap());
+    }
+
+    #[test]
     fn u004_generic_hard_surface_accepts_only_the_reviewed_geometry_source() {
         let request = request();
         let profile = profile(
@@ -1270,5 +1380,79 @@ mod tests {
             outcome.validate(&[]).unwrap_err().code(),
             "UNIVERSAL_GENERIC_HARD_SURFACE_SOURCE_INVALID"
         );
+    }
+
+    #[test]
+    fn u004_distinct_procedural_visual_capabilities_can_compose_by_part() {
+        let request = request();
+        let mut profile = profile(
+            &request,
+            "fictional vehicle with an armored shell and transparent canopy",
+            vec!["hard_surface".into(), "visual_exterior".into()],
+        );
+        profile.parts.push(SubjectPart {
+            part_id: "part_canopy".into(),
+            parent_part_id: Some("part_body".into()),
+            label: "canopy".into(),
+            semantic_role: "transparent_exterior_shell".into(),
+            traits: vec!["visual_exterior".into()],
+            uncertainty_bps: 2500,
+        });
+        profile.features.push(SubjectFeature {
+            feature_id: "feature_canopy_meso".into(),
+            part_id: "part_canopy".into(),
+            level: VisualFeatureLevel::Meso,
+            description: "透明外壳与主体的分件关系".into(),
+        });
+        let mut contract = feature_contract(&request, &profile);
+        contract
+            .requirements
+            .iter_mut()
+            .find(|requirement| requirement.feature_id == "feature_canopy_meso")
+            .expect("canopy feature contract row")
+            .affected_part_ids = vec!["part_canopy".into()];
+        let plan = RepresentationPlan {
+            schema_version: REPRESENTATION_PLAN_SCHEMA_VERSION.into(),
+            plan_id: "repplan_vehicle_composed_procedural".into(),
+            request_sha256: semantic_sha256(&request).unwrap(),
+            subject_profile_sha256: semantic_sha256(&profile).unwrap(),
+            visual_feature_contract_sha256: semantic_sha256(&contract).unwrap(),
+            capability_manifest_sha256: request.capability_manifest_sha256.clone(),
+            parts: vec![
+                PartRepresentationPlan {
+                    part_id: "part_body".into(),
+                    representation: RepresentationKind::Procedural,
+                    capability_id: GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID.into(),
+                    covered_feature_ids: vec![
+                        "feature_macro".into(),
+                        "feature_meso".into(),
+                        "feature_micro".into(),
+                    ],
+                    rationale: "armored primary shell".into(),
+                },
+                PartRepresentationPlan {
+                    part_id: "part_canopy".into(),
+                    representation: RepresentationKind::Procedural,
+                    capability_id: GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID.into(),
+                    covered_feature_ids: vec!["feature_canopy_meso".into()],
+                    rationale: "distinct exterior canopy part".into(),
+                },
+            ],
+        };
+        let mut source: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../../packages/concept-spec/fixtures/forge-visual-geometry-v2-bracket.json"
+        )))
+        .unwrap();
+        source["domain"] = Value::String("generic_visual_exterior".into());
+        let outcome = UniversalAuthorOutcome::Executable {
+            schema_version: UNIVERSAL_AUTHOR_OUTCOME_SCHEMA_VERSION.into(),
+            request,
+            subject_profile: profile,
+            visual_feature_contract: contract,
+            representation_plan: plan,
+            executable_payload: source,
+        };
+        outcome.validate(&[]).unwrap();
     }
 }

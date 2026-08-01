@@ -1822,6 +1822,7 @@ pub(crate) mod tests {
                         visual_texture_set_count: 0,
                         visual_texture_map_count: 0,
                         visual_texture_provenance_verified: true,
+                        reference_appearance_projection_receipts: Vec::new(),
                     },
                     views,
                     view_sha256,

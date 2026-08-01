@@ -36,7 +36,6 @@ export type ReferenceEvidenceDrawerProps = {
       instruction: string
       request: MultimodalDesignRequest
       graph: VisualEvidenceGraph
-      visualReferenceComparisonAuthorizationId: string
     }) => Promise<void>
   }
 }

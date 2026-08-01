@@ -25,6 +25,45 @@ const MAX_NORMAL_RELIEF_LAYERS: usize = 4;
 const MAX_ROUGHNESS_MASKS: usize = 2;
 const MAX_EMISSIVE_MASKS: usize = 2;
 const MAX_TOTAL_PBR_LAYERS: usize = 8;
+const BASE_COLOR_TOKENS: &[&str] = &[
+    "silver",
+    "white_ceramic",
+    "gunmetal",
+    "graphite",
+    "copper",
+    "signal_red",
+    // Category-open appearance vocabulary. These are still closed, Rust-owned
+    // tokens: they select deterministic local PBR palettes and never carry
+    // arbitrary RGB, shader source or a texture URL.
+    "bark_brown",
+    "wood_warm",
+    "foliage_green",
+    "skin_warm",
+    "fur_warm",
+    "fabric_blue",
+    "stone_gray",
+    "concrete_gray",
+    "clay_terracotta",
+];
+const SURFACE_FINISH_TOKENS: &[&str] = &[
+    "brushed_metal",
+    "polished_metal",
+    "ceramic_coat",
+    "glossy_coat",
+    "matte_coat",
+    "rubberized",
+    "dark_glass",
+    "emissive_trim",
+    "wood_grain",
+    "bark_ridged",
+    "leaf_waxy",
+    "fabric_weave",
+    "fur_soft",
+    "skin_matte",
+    "stone_rough",
+    "concrete_rough",
+    "clay_matte",
+];
 const PART_ROLES: &[&str] = &[
     "base_form",
     "turntable",
@@ -48,6 +87,41 @@ const PART_ROLES: &[&str] = &[
     "accent_trim",
     "enclosure",
     "body_shell",
+    "primary_mass",
+    "secondary_mass",
+    "soft_mass",
+    "organic_proxy",
+    "primary_stem",
+    "canopy_mass",
+    "branch_cluster",
+    "plant_base",
+    "primary_body",
+    "head_mass",
+    "limb_set",
+    "tail_form",
+    "facial_accent",
+    "primary_torso",
+    "arm_set",
+    "leg_set",
+    "costume_accent",
+    "primary_surface",
+    "support_frame",
+    "support_legs",
+    "soft_surface",
+    "primary_machine_body",
+    "articulated_joint",
+    "link_shell",
+    "end_effector_proxy",
+    "visual_status_accent",
+    "primary_prop_body",
+    "grip_prop",
+    "visual_emitter",
+    "primary_object_mass",
+    "secondary_object_mass",
+    "appearance_detail",
+    "window_band",
+    "roof_form",
+    "entry_form",
 ];
 const COVERAGES: &[&str] = &["full_zone", "center_band", "edge_band", "symmetric_pair"];
 
@@ -139,6 +213,16 @@ pub struct SurfaceLayerProgram {
     pub target_part_role: String,
     pub material_zone_id: String,
     pub base_material: String,
+    /// A bounded visual tint selected from sealed observed/inferred material
+    /// evidence. It changes only appearance pixels; it is not a new material
+    /// source, texture path, shader or manufacturing claim.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_color_token: Option<String>,
+    /// A bounded surface response token. It selects only reviewed metallic,
+    /// roughness and coating parameters in the local PBR compiler; it never
+    /// carries shader code or arbitrary numeric material input.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surface_finish_token: Option<String>,
     pub vector_paths: Vec<VectorPath>,
     pub decal_layers: Vec<DecalLayer>,
     pub normal_relief_layers: Vec<NormalReliefLayer>,
@@ -165,6 +249,10 @@ pub struct RetainedSurfaceLayers {
     pub decal_layers: Vec<DecalLayer>,
     pub roughness_masks: Vec<RoughnessMask>,
     pub emissive_masks: Vec<EmissiveMask>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_color_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surface_finish_token: Option<String>,
     pub symmetry: SurfaceSymmetry,
     pub uv_frame: UvFrame,
     pub quality_profile: String,
@@ -194,6 +282,14 @@ impl RetainedSurfaceLayers {
                 self.quality_profile.as_str(),
                 "interactive_preview" | "production_concept"
             )
+            || self
+                .base_color_token
+                .as_deref()
+                .is_some_and(|token| !BASE_COLOR_TOKENS.contains(&token))
+            || self
+                .surface_finish_token
+                .as_deref()
+                .is_some_and(|token| !SURFACE_FINISH_TOKENS.contains(&token))
         {
             return Err(invalid());
         }
@@ -284,6 +380,14 @@ impl SurfaceLayerProgram {
             || !valid_prefixed_id(&self.material_zone_id, "zone_")
             || self.target_zone_id != self.material_zone_id
             || !MATERIAL_PRESET_IDS.contains(&self.base_material.as_str())
+            || self
+                .base_color_token
+                .as_deref()
+                .is_some_and(|token| !BASE_COLOR_TOKENS.contains(&token))
+            || self
+                .surface_finish_token
+                .as_deref()
+                .is_some_and(|token| !SURFACE_FINISH_TOKENS.contains(&token))
             || self.vector_paths.len() > MAX_VECTOR_PATHS
             || self.decal_layers.len() > MAX_DECAL_LAYERS
             || self.normal_relief_layers.len() > MAX_NORMAL_RELIEF_LAYERS
@@ -385,6 +489,8 @@ impl SurfaceLayerProgram {
             decal_layers: self.decal_layers.clone(),
             roughness_masks: self.roughness_masks.clone(),
             emissive_masks: self.emissive_masks.clone(),
+            base_color_token: self.base_color_token.clone(),
+            surface_finish_token: self.surface_finish_token.clone(),
             symmetry: self.symmetry.clone(),
             uv_frame: self.uv_frame.clone(),
             quality_profile: self.quality_profile.clone(),

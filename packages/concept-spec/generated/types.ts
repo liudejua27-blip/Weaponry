@@ -228,7 +228,7 @@ export type AgentSkillManifest = {
   "allowed_domains": Array<"pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept">
   "triggers": Array<string>
   "product_tool_ids": Array<"forgecad.domain.inference.v1" | "forgecad.reference.research.v1" | "forgecad.style.recipe_selection.v1" | "forgecad.profile.author.v1" | "forgecad.profile.validate.v1" | "forgecad.shape.author.v1" | "forgecad.shape.validate.v1" | "forgecad.plan.complete_concept.v1" | "forgecad.geometry.build.v1" | "forgecad.geometry.compile_readback.v1" | "forgecad.render.concept.v1" | "forgecad.candidate.evaluate.v1" | "forgecad.preview.prepare.v1">
-  "g819_operations": Array<"box" | "cylinder" | "capsule" | "wedge" | "profile" | "extrude" | "revolve" | "loft" | "sweep" | "mirror" | "array" | "radial_array" | "union" | "subtract" | "bevel_approx" | "surface_panel">
+  "g819_operations": Array<"box" | "cylinder" | "capsule" | "wedge" | "profile" | "extrude" | "revolve" | "loft" | "sweep" | "mirror" | "array" | "radial_array" | "union" | "subtract" | "bevel_approx" | "surface_panel" | "groove" | "shell" | "lattice_deform" | "local_mesh_patch">
   "recipe_ids": Array<string>
   "material_preset_ids": Array<"mat_aluminum" | "mat_automotive_paint" | "mat_composite" | "mat_dark_glass" | "mat_emissive_blue" | "mat_graphite" | "mat_rubber" | "mat_signal_red">
   "reference_hashes": Array<Sha256>
@@ -264,6 +264,7 @@ export type AppearanceEvidenceBundle = {
   "references": Array<Reference>
   "camera_hypotheses": Array<ReferenceCameraHypothesis>
   "derived_artifacts": Array<Artifact>
+  "projection_receipts": Array<ReferenceAppearanceProjectionReceipt>
 }
 
 export type ArmDesignIntent = {
@@ -1415,7 +1416,17 @@ export type GeometryCompileReadback = {
   "schema_version": "SurfaceLayerLowering@1"
   "source_program_sha256": Sha256
   "adornments": Array<SurfaceAdornmentProgram>
-  "retained_layers": Record<string, unknown>
+  "retained_layers": {
+  "vector_paths": Array<Record<string, unknown>>
+  "decal_layers": Array<Record<string, unknown>>
+  "roughness_masks": Array<Record<string, unknown>>
+  "emissive_masks": Array<Record<string, unknown>>
+  "base_color_token"?: "silver" | "white_ceramic" | "gunmetal" | "graphite" | "copper" | "signal_red" | "bark_brown" | "wood_warm" | "foliage_green" | "skin_warm" | "fur_warm" | "fabric_blue" | "stone_gray" | "concrete_gray" | "clay_terracotta"
+  "surface_finish_token"?: "brushed_metal" | "polished_metal" | "ceramic_coat" | "glossy_coat" | "matte_coat" | "rubberized" | "dark_glass" | "emissive_trim" | "wood_grain" | "bark_ridged" | "leaf_waxy" | "fabric_weave" | "fur_soft" | "skin_matte" | "stone_rough" | "concrete_rough" | "clay_matte"
+  "symmetry": Record<string, unknown>
+  "uv_frame": Record<string, unknown>
+  "quality_profile": "interactive_preview" | "production_concept"
+}
   "retained_layers_sha256": Sha256
 } | null
   "surface_layer_lowering_sha256"?: Sha256 | null
@@ -1872,6 +1883,41 @@ export type ProviderExecutionTrace = {
   "message": string
 }
 
+export type ReferenceAppearanceProjectionReceipt = {
+  "schema_version": "ReferenceAppearanceProjectionReceipt@1"
+  "source_request_sha256": Sha256
+  "source_program_sha256": Sha256
+  "final_glb_sha256": Sha256
+  "compile_readback_sha256": Sha256
+  "worker_receipt_sha256": Sha256
+  "worker_schema_version": "ReferenceCameraUvRasterBakeReceipt@2" | "ReferenceCameraUvRasterFusionReceipt@3"
+  "algorithm_id": "forgecad.reference_camera_uv_raster"
+  "algorithm_version": "1"
+  "projection_id": string
+  "projection_sha256": Sha256
+  "source_evidence_id": string
+  "source_image_sha256": Sha256
+  "camera_hypothesis_id": string
+  "camera_provenance_sha256": Sha256
+  "target_material_zone_id": string
+  "base_color_texture_id": string
+  "base_color_sha256": Sha256
+  "base_color_byte_size": number
+  "unobserved_texel_mask_id": string
+  "unobserved_texel_mask_sha256": Sha256
+  "unobserved_texel_mask_byte_size": number
+  "observed_texel_count": number
+  "unobserved_texel_count": number
+  "fusion_count": 1 | 2
+  "raster_triangle_count": number
+  "world_to_clip_sha256"?: Sha256
+  "source_evidence_ids": Array<string>
+  "source_image_sha256s": Array<Sha256>
+  "camera_hypothesis_ids": Array<string>
+  "camera_provenance_sha256s": Array<Sha256>
+  "world_to_clip_sha256s": Array<Sha256>
+}
+
 export type ReferenceCameraHypothesis = {
   "schema_version": "ReferenceCameraHypothesis@1"
   "hypothesis_id": string
@@ -2065,11 +2111,14 @@ export type ShapeProgram = {
 }>
   "operations": Array<{
   "operation_id": string
-  "op": "box" | "cylinder" | "capsule" | "wedge" | "profile" | "extrude" | "revolve" | "loft" | "sweep" | "mirror" | "array" | "radial_array" | "union" | "subtract" | "bevel_approx" | "surface_panel" | "lattice_deform"
+  "op": "box" | "cylinder" | "capsule" | "wedge" | "profile" | "extrude" | "revolve" | "loft" | "sweep" | "mirror" | "array" | "radial_array" | "union" | "subtract" | "bevel_approx" | "surface_panel" | "groove" | "shell" | "lattice_deform" | "local_mesh_patch"
   "inputs": Array<string>
   "args": {
   "size"?: Array<number>
+  "face_size"?: Array<number>
   "radius"?: number
+  "thickness"?: number
+  "depth"?: number
   "height"?: number
   "angle"?: number
   "spacing"?: number
@@ -2097,6 +2146,9 @@ export type ShapeProgram = {
   "connector_kind"?: string
   "joint_kind"?: "fixed" | "hinge" | "slider" | "ball" | "continuous"
   "corner_offsets"?: Array<Array<number>>
+  "patch_center"?: Array<number>
+  "patch_radius"?: number
+  "patch_offset"?: Array<number>
   "material_id"?: string
 }
 }>
@@ -2151,9 +2203,11 @@ export type SurfaceLayerProgram = {
   "program_id": string
   "target_part_id": string
   "target_zone_id": string
-  "target_part_role": "base_form" | "turntable" | "joint_housing" | "link_armor" | "cable_harness" | "end_effector_form" | "surface_trim"
+  "target_part_role": "base_form" | "turntable" | "joint_housing" | "link_armor" | "cable_harness" | "end_effector_form" | "surface_trim" | "primary_shell" | "secondary_shell" | "armor_panel" | "mechanical_core" | "sensor_housing" | "structural_frame" | "exterior_panel" | "decorative_panel" | "accent_trim" | "enclosure" | "body_shell" | "primary_mass" | "secondary_mass" | "soft_mass" | "organic_proxy" | "primary_stem" | "canopy_mass" | "branch_cluster" | "plant_base" | "primary_body" | "head_mass" | "limb_set" | "tail_form" | "facial_accent" | "primary_torso" | "arm_set" | "leg_set" | "costume_accent" | "primary_surface" | "support_frame" | "support_legs" | "soft_surface" | "primary_machine_body" | "articulated_joint" | "link_shell" | "end_effector_proxy" | "visual_status_accent" | "primary_prop_body" | "grip_prop" | "visual_emitter" | "primary_object_mass" | "secondary_object_mass" | "appearance_detail" | "window_band" | "roof_form" | "entry_form"
   "material_zone_id": string
   "base_material": "mat_aluminum" | "mat_automotive_paint" | "mat_composite" | "mat_dark_glass" | "mat_emissive_blue" | "mat_graphite" | "mat_rubber" | "mat_signal_red"
+  "base_color_token"?: "silver" | "white_ceramic" | "gunmetal" | "graphite" | "copper" | "signal_red" | "bark_brown" | "wood_warm" | "foliage_green" | "skin_warm" | "fur_warm" | "fabric_blue" | "stone_gray" | "concrete_gray" | "clay_terracotta"
+  "surface_finish_token"?: "brushed_metal" | "polished_metal" | "ceramic_coat" | "glossy_coat" | "matte_coat" | "rubberized" | "dark_glass" | "emissive_trim" | "wood_grain" | "bark_ridged" | "leaf_waxy" | "fabric_weave" | "fur_soft" | "skin_matte" | "stone_rough" | "concrete_rough" | "clay_matte"
   "vector_paths": Array<{
   "path_id": string
   "closed": boolean
@@ -2227,7 +2281,7 @@ export type UniversalAssetSourceV2 = {
   "representation_plan": RepresentationPlan
   "representation_plan_sha256": Sha256
   "capability_manifest_sha256": Sha256
-  "representation_source": ProceduralSource | LocalLatticeDeformSource | LocalHardSurfaceHybridSource | UnavailableSource
+  "representation_source": ProceduralSource | LocalLatticeDeformSource | LocalMeshPatchSource | LocalHardSurfaceHybridSource
   "component_sources": Array<ComponentSource>
   "detail_claims": Array<VisualDetailClaimV2>
   "material_zones": Array<MaterialZoneAppearance>
@@ -2454,6 +2508,15 @@ export type VisualReferenceComparisonInput = {
   "critical_not_visible_allowed": boolean
 }
   "candidate_view_profile"?: "convergence_eight" | "turntable_eight"
+  "candidate_render_contract"?: {
+  "schema_version": "VisualReferenceRenderContract@1"
+  "renderer_id": "forgecad-workbench-pbr@1"
+  "render_manifest_sha256": string
+  "visual_environment_id": "env_forgecad_room_studio_v2"
+  "visual_environment_sha256": string
+  "output_color_space": "srgb"
+  "tone_mapping": "aces_filmic"
+}
   "reference_sources": Array<{
   "evidence_id": string
   "evidence_sha256": string

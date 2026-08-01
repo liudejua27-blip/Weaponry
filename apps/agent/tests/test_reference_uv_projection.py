@@ -11,11 +11,13 @@ from forgecad_agent.application.reference_uv_projection import (
     ALGORITHM_VERSION,
     CAMERA_RASTER_ALGORITHM_ID,
     CameraUvRasterTriangle,
+    ReferenceCameraUvRasterBake,
     ReferenceUvEvidenceBakeError,
     _decode_png_rgb,
     _encode_png_rgb,
     bake_reference_camera_uv_raster,
     bake_reference_uv_evidence,
+    fuse_reference_camera_uv_raster,
 )
 
 
@@ -166,3 +168,37 @@ def test_camera_uv_raster_rejects_degenerate_camera_matrix() -> None:
             projection,
             _square_triangles("zone_shell", z=0.0),
         )
+
+
+def test_camera_uv_raster_fusion_is_bounded_deterministic_and_averages_observed_texels() -> None:
+    first_source = np.full((8, 8, 3), (220, 30, 20), dtype=np.uint8)
+    second_source = np.full((8, 8, 3), (20, 40, 230), dtype=np.uint8)
+    first = ReferenceCameraUvRasterBake.from_value(
+        _camera_projection(_encode_png_rgb(first_source))
+    )
+    second_value = _camera_projection(_encode_png_rgb(second_source))
+    second_value.update(
+        projection_id="projection_reference_side",
+        source_evidence_id="evidence_reference_side",
+        camera_hypothesis_id="camera_reference_side",
+        camera_provenance_sha256="b" * 64,
+    )
+    second = ReferenceCameraUvRasterBake.from_value(second_value)
+    base_png = _encode_png_rgb(np.full((128, 128, 3), (7, 11, 13), dtype=np.uint8))
+    triangles = _square_triangles("zone_shell", z=0.0)
+
+    result = fuse_reference_camera_uv_raster(base_png, (first, second), triangles)
+    reversed_result = fuse_reference_camera_uv_raster(base_png, (second, first), triangles)
+
+    assert result.projection_sha256 == reversed_result.projection_sha256
+    assert result.base_color_png == reversed_result.base_color_png
+    assert result.unobserved_texel_mask_png == reversed_result.unobserved_texel_mask_png
+    assert 0 < result.observed_texel_count < 128 * 128
+    assert result.observed_texel_count + result.unobserved_texel_count == 128 * 128
+    fused = _decode_png_rgb(result.base_color_png)
+    observed = _decode_png_rgb(result.unobserved_texel_mask_png)[:, :, 0] == 0
+    assert np.all(fused[observed] == (120, 35, 125))
+    assert tuple(fused[0, 0]) == (7, 11, 13)
+
+    with pytest.raises(ReferenceUvEvidenceBakeError, match="exactly two"):
+        fuse_reference_camera_uv_raster(base_png, (first,), triangles)

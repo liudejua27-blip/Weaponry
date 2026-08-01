@@ -12,9 +12,9 @@ export const COMPOSER_SURFACE_ADORNMENT_CLOSED_HINT = '请先保存设计并选�
 export const COMPOSER_SURFACE_ADORNMENT_OPEN_HINT = '在已选材质区预览，再决定是否保留。'
 export const COMPOSER_BEGINNER_PROMPT_LABEL = '新手起步'
 export const COMPOSER_BEGINNER_PROMPTS = [
-  '一台用于展示的工业机械臂，重点突出可调节夹持器。',
-  '一台适合城市巡航的未来感电动车',
-  '一台可用于科幻展示的轻型飞行器',
+  '一只用于游戏美术的写实短毛家猫，体态自然，面部、四肢和毛发层次清晰。',
+  '一套手工白瓷茶具，壶、杯、托盘分件清楚，釉面有细腻的粗糙度变化。',
+  '一座位于山谷中的现代玻璃住宅，建筑体块、露台、岩石和植被关系明确。',
 ] as const
 
 export const COMPOSER_DEFAULT_BEGINNER_PROMPT = COMPOSER_BEGINNER_PROMPTS[0]

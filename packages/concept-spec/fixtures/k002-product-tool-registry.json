@@ -238,25 +238,6 @@
       "output_schema_sha256": "8a426d5559980c293cd9a35c470c82e80e769a358895e21e293e73953d747bb0"
     },
     {
-      "approval_policy": "read_only",
-      "description": "Inspect the current Rust-owned ForgeVisualProgram draft by summary or full typed source.",
-      "tool_id": "forgecad.visual_program.inspect.v1",
-      "name": "inspect_forge_visual_program",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "view": {
-            "enum": [
-              "summary",
-              "full"
-            ]
-          }
-        },
-        "required": [
-          "view"
-        ],
-        "additionalProperties": false
-      },
       "output_schema": {
         "type": "object",
         "required": [
@@ -273,14 +254,49 @@
         ],
         "additionalProperties": true
       },
+      "description": "Inspect the current Rust-owned ForgeVisualProgram draft by summary or full typed source.",
+      "approval_policy": "read_only",
+      "name": "inspect_forge_visual_program",
+      "tool_id": "forgecad.visual_program.inspect.v1",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "enum": [
+              "summary",
+              "full"
+            ]
+          }
+        },
+        "required": [
+          "view"
+        ],
+        "additionalProperties": false
+      },
       "input_schema_sha256": "2eb21ec7d8d40f3d50c210af26186751a8fda8549c49ac94847b2704b98e5214",
       "output_schema_sha256": "85b8ae987609bccf3e674a62edb0b620ea6940e97c7aaafb0f277765861c2324"
     },
     {
-      "approval_policy": "candidate_only",
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "revision",
+          "source_program_sha256",
+          "parent_source_program_sha256",
+          "program_id",
+          "domain_pack_id",
+          "title",
+          "stage",
+          "changed_domains",
+          "program"
+        ],
+        "additionalProperties": true
+      },
       "description": "Author one draft ForgeVisualProgram@1 candidate; Rust validates all geometry, hierarchy, material, surface and detail bindings.",
-      "tool_id": "forgecad.visual_program.author.v1",
+      "approval_policy": "candidate_only",
       "name": "author_forge_visual_program",
+      "tool_id": "forgecad.visual_program.author.v1",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -329,6 +345,10 @@
         ],
         "additionalProperties": false
       },
+      "input_schema_sha256": "fa299cf58241abe7275b2a86086677531f019599f4fb5bb09575616b71d65c4e",
+      "output_schema_sha256": "85b8ae987609bccf3e674a62edb0b620ea6940e97c7aaafb0f277765861c2324"
+    },
+    {
       "output_schema": {
         "type": "object",
         "required": [
@@ -345,14 +365,10 @@
         ],
         "additionalProperties": true
       },
-      "input_schema_sha256": "fa299cf58241abe7275b2a86086677531f019599f4fb5bb09575616b71d65c4e",
-      "output_schema_sha256": "85b8ae987609bccf3e674a62edb0b620ea6940e97c7aaafb0f277765861c2324"
-    },
-    {
-      "approval_policy": "candidate_only",
       "description": "Apply one typed ForgeVisualPatch@1 against the exact current revision and source hash; stale or lock-breaking edits fail closed.",
-      "tool_id": "forgecad.visual_program.patch.v1",
+      "approval_policy": "candidate_only",
       "name": "patch_forge_visual_program",
+      "tool_id": "forgecad.visual_program.patch.v1",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -400,22 +416,6 @@
           "patch"
         ],
         "additionalProperties": false
-      },
-      "output_schema": {
-        "type": "object",
-        "required": [
-          "schema_version",
-          "revision",
-          "source_program_sha256",
-          "parent_source_program_sha256",
-          "program_id",
-          "domain_pack_id",
-          "title",
-          "stage",
-          "changed_domains",
-          "program"
-        ],
-        "additionalProperties": true
       },
       "input_schema_sha256": "5e74a0c0a01789e6ca781b6fdf4f1b7b8e292fe76390a53ff0d2f01e263f9ac0",
       "output_schema_sha256": "85b8ae987609bccf3e674a62edb0b620ea6940e97c7aaafb0f277765861c2324"
@@ -1246,6 +1246,121 @@
               "showcase"
             ]
           },
+          "game_asset_profile": {
+            "type": "object",
+            "properties": {
+              "schema_version": {
+                "const": "GameAssetProfile@1",
+                "type": "string"
+              },
+              "profile_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "lod_triangle_budgets": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                ],
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "collision_proxy_part_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "minItems": 1,
+                "maxItems": 64
+              },
+              "sockets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "socket_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "part_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "pivot_meters": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 3,
+                      "maxItems": 3
+                    },
+                    "forward": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 3,
+                      "maxItems": 3
+                    }
+                  },
+                  "required": [
+                    "socket_id",
+                    "part_id",
+                    "pivot_meters",
+                    "forward"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 64
+              },
+              "target_texel_density_pixels_per_meter": {
+                "type": "integer",
+                "minimum": 128,
+                "maximum": 2048
+              }
+            },
+            "required": [
+              "schema_version",
+              "profile_id",
+              "lod_triangle_budgets",
+              "collision_proxy_part_ids",
+              "sockets",
+              "target_texel_density_pixels_per_meter"
+            ],
+            "additionalProperties": false
+          },
           "repair": {
             "type": "object",
             "properties": {
@@ -1302,7 +1417,7 @@
         "additionalProperties": true
       },
       "approval_policy": "candidate_only",
-      "input_schema_sha256": "3f1df28ad9187cafb174157551fa73069833d97483dacf219a05c4088e6a0a2f",
+      "input_schema_sha256": "010ab5eafdce651f3f06b841cb980365dfbd141607ca990cc253a2d7a8fcfa8d",
       "output_schema_sha256": "bfe343df9e7aefbf2dd0de8998239fac8299d7929bab306f9fcd1edbfb5d6bf4"
     },
     {
@@ -1403,5 +1518,5 @@
       "output_schema_sha256": "1f442df67f97e374449034eeb4c58a58325c2ca54cce227c972984f12bb5e1ce"
     }
   ],
-  "manifest_sha256": "dedddb3281dd6109143c01373f9ee2c3de16dcaacc15d6064058f6603adf328d"
+  "manifest_sha256": "ea3141f060dc7c5e1793b747953e0a16a317badf2124ddb7a3b14e1459b89f88"
 }

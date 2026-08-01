@@ -19,6 +19,11 @@ pub const MIN_SILHOUETTE_IOU_BPS: u16 = 7_000;
 pub const MAX_SILHOUETTE_CENTER_ERROR_PER_MILLE: u16 = 160;
 /// A bounds-only fit never claims more than bounded, medium confidence.
 pub const MAX_SILHOUETTE_FIT_CONFIDENCE_BPS: u16 = 8_500;
+/// A profile is sixteen bounded foreground-occupancy samples. The profile is
+/// a stronger tie-breaker than a box, but remains deliberately coarse and
+/// cannot claim pixel-level visual similarity.
+pub const SILHOUETTE_PROFILE_BUCKET_COUNT: usize = 16;
+pub const MAX_SILHOUETTE_PROFILE_ERROR_PER_MILLE: u16 = 360;
 
 /// A reference region produced from sealed evidence after the feature was
 /// explicitly classified as observed. Coordinates are `[left, top, right,
@@ -29,6 +34,7 @@ pub struct ReferenceViewRegion {
     pub evidence_id: String,
     pub view_id: Option<String>,
     pub bounds_per_mille: [u16; 4],
+    pub silhouette_profile_per_mille: Option<Vec<u16>>,
     pub observed_feature_ids: Vec<String>,
 }
 
@@ -41,6 +47,7 @@ pub struct CandidateCameraSilhouette {
     pub projection_type: ReferenceProjectionType,
     pub vertical_fov_millidegrees: Option<u32>,
     pub bounds_per_mille: [u16; 4],
+    pub silhouette_profile_per_mille: Option<Vec<u16>>,
     pub landmark_feature_ids: Vec<String>,
 }
 
@@ -59,36 +66,48 @@ pub fn fit_reference_camera_from_view_regions(
         ));
     }
 
-    let mut best: Option<(&CandidateCameraSilhouette, u16, u16)> = None;
+    let mut best: Option<(&CandidateCameraSilhouette, u16, u16, u16)> = None;
     for candidate in candidates {
         validate_candidate(candidate)?;
         let iou_bps = bounds_iou_bps(reference.bounds_per_mille, candidate.bounds_per_mille);
         let center_error =
             bounds_center_error(reference.bounds_per_mille, candidate.bounds_per_mille);
+        let profile_error = silhouette_profile_error(
+            reference.silhouette_profile_per_mille.as_deref(),
+            candidate.silhouette_profile_per_mille.as_deref(),
+        );
         if iou_bps < MIN_SILHOUETTE_IOU_BPS || center_error > MAX_SILHOUETTE_CENTER_ERROR_PER_MILLE
+            || profile_error.is_some_and(|error| error > MAX_SILHOUETTE_PROFILE_ERROR_PER_MILLE)
         {
             continue;
         }
 
         let replace = match best {
             None => true,
-            Some((current, current_iou, current_error)) => {
+            Some((current, current_iou, current_error, current_profile_error)) => {
                 iou_bps > current_iou
                     || (iou_bps == current_iou
                         && (center_error < current_error
                             || (center_error == current_error
-                                && candidate.view_id < current.view_id)))
+                                && (profile_error.unwrap_or(u16::MAX) < current_profile_error
+                                    || (profile_error.unwrap_or(u16::MAX) == current_profile_error
+                                        && candidate.view_id < current.view_id)))))
             }
         };
         if replace {
-            best = Some((candidate, iou_bps, center_error));
+            best = Some((
+                candidate,
+                iou_bps,
+                center_error,
+                profile_error.unwrap_or(u16::MAX),
+            ));
         }
     }
 
-    let (candidate, iou_bps, center_error) = best.ok_or_else(|| {
+    let (candidate, iou_bps, center_error, _) = best.ok_or_else(|| {
         invalid(
             "REFERENCE_CAMERA_FIT_REJECTED",
-            "No reviewed candidate GPU capture view met the silhouette overlap and centre-error thresholds.",
+            "No reviewed candidate GPU capture view met the silhouette overlap, centre-error and available occupancy-profile thresholds.",
         )
     })?;
     let alignment_bps = 10_000u16.saturating_sub(center_error.saturating_mul(10));
@@ -122,6 +141,7 @@ fn validate_reference(reference: &ReferenceViewRegion) -> CoreResult<()> {
             .iter()
             .any(|feature_id| feature_id.trim().is_empty())
         || !valid_bounds(reference.bounds_per_mille)
+        || !valid_profile(reference.silhouette_profile_per_mille.as_deref())
     {
         return Err(invalid(
             "REFERENCE_CAMERA_FIT_REFERENCE_INVALID",
@@ -140,6 +160,7 @@ fn validate_candidate(candidate: &CandidateCameraSilhouette) -> CoreResult<()> {
         || candidate.projection_type == ReferenceProjectionType::Unknown
         || !perspective_fov_valid
         || !valid_bounds(candidate.bounds_per_mille)
+        || !valid_profile(candidate.silhouette_profile_per_mille.as_deref())
     {
         return Err(invalid(
             "REFERENCE_CAMERA_FIT_CANDIDATE_INVALID",
@@ -147,6 +168,32 @@ fn validate_candidate(candidate: &CandidateCameraSilhouette) -> CoreResult<()> {
         ));
     }
     Ok(())
+}
+
+fn valid_profile(profile: Option<&[u16]>) -> bool {
+    profile.map_or(true, |values| {
+        values.len() == SILHOUETTE_PROFILE_BUCKET_COUNT
+            && values.iter().all(|value| *value <= 1_000)
+    })
+}
+
+fn silhouette_profile_error(reference: Option<&[u16]>, candidate: Option<&[u16]>) -> Option<u16> {
+    let (Some(reference), Some(candidate)) = (reference, candidate) else {
+        return None;
+    };
+    if reference.len() != SILHOUETTE_PROFILE_BUCKET_COUNT
+        || candidate.len() != SILHOUETTE_PROFILE_BUCKET_COUNT
+    {
+        return None;
+    }
+    Some(
+        (reference
+            .iter()
+            .zip(candidate)
+            .map(|(left, right)| left.abs_diff(*right) as u32)
+            .sum::<u32>()
+            / SILHOUETTE_PROFILE_BUCKET_COUNT as u32) as u16,
+    )
 }
 
 fn valid_bounds(bounds: [u16; 4]) -> bool {
@@ -206,6 +253,7 @@ mod tests {
             evidence_id: "evidence-robot".to_owned(),
             view_id: Some("reference-front".to_owned()),
             bounds_per_mille,
+            silhouette_profile_per_mille: None,
             observed_feature_ids: vec!["feature-silhouette".to_owned(), "feature-visor".to_owned()],
         }
     }
@@ -216,6 +264,7 @@ mod tests {
             projection_type: ReferenceProjectionType::Perspective,
             vertical_fov_millidegrees: Some(42_000),
             bounds_per_mille,
+            silhouette_profile_per_mille: None,
             landmark_feature_ids: vec!["feature-silhouette".to_owned()],
         }
     }
@@ -275,6 +324,30 @@ mod tests {
         let error =
             fit_reference_camera_from_view_regions(&reference([180, 80, 800, 940]), &[unknown])
                 .expect_err("unknown capture projection is not a fit candidate");
+        assert_eq!(error.code(), "REFERENCE_CAMERA_FIT_CANDIDATE_INVALID");
+    }
+
+    #[test]
+    fn rejects_profile_mismatch_even_when_bounds_match() {
+        let reference = ReferenceViewRegion {
+            silhouette_profile_per_mille: Some(vec![100; SILHOUETTE_PROFILE_BUCKET_COUNT]),
+            ..reference([180, 80, 800, 940])
+        };
+        let candidate = CandidateCameraSilhouette {
+            silhouette_profile_per_mille: Some(vec![1_000; SILHOUETTE_PROFILE_BUCKET_COUNT]),
+            ..candidate("front", [180, 80, 800, 940])
+        };
+        let error = fit_reference_camera_from_view_regions(&reference, &[candidate])
+            .expect_err("a box match must not hide a silhouette profile mismatch");
+        assert_eq!(error.code(), "REFERENCE_CAMERA_FIT_REJECTED");
+    }
+
+    #[test]
+    fn profile_is_optional_for_legacy_fixtures_but_validated_when_present() {
+        let mut candidate = candidate("front", [180, 80, 800, 940]);
+        candidate.silhouette_profile_per_mille = Some(vec![100; 3]);
+        let error = fit_reference_camera_from_view_regions(&reference([180, 80, 800, 940]), &[candidate])
+            .expect_err("a malformed optional profile must fail closed");
         assert_eq!(error.code(), "REFERENCE_CAMERA_FIT_CANDIDATE_INVALID");
     }
 }

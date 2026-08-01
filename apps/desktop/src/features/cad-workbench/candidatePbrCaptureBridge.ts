@@ -1,6 +1,8 @@
 import {
   WORKBENCH_PBR_RENDERER_ID,
   WORKBENCH_PBR_RENDER_MANIFEST_SHA256,
+  WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID,
+  WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256,
   WORKBENCH_PBR_CAPTURE_HEIGHT_PX,
   WORKBENCH_PBR_CAPTURE_WIDTH_PX,
   captureWorkbenchPbrViews,
@@ -18,6 +20,8 @@ export type CandidatePbrCaptureIssue = {
   compileReadbackSha256: string
   artifactProfileId: 'interactive_preview' | 'production_concept'
   renderManifestSha256: typeof WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+  visualEnvironmentId: typeof WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID
+  visualEnvironmentSha256: typeof WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256
   expectedRendererId: typeof WORKBENCH_PBR_RENDERER_ID
   expiresAtUnixMs: number
   requiredViewIds: readonly string[]
@@ -35,6 +39,8 @@ export type CandidatePbrCaptureReceipt = {
   candidateGlbSha256: string
   rendererId: typeof WORKBENCH_PBR_RENDERER_ID
   renderManifestSha256: typeof WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+  visualEnvironmentId: typeof WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID
+  visualEnvironmentSha256: typeof WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256
   captureSha256: string
   viewIds: readonly string[]
 }
@@ -87,6 +93,8 @@ export async function captureAndSubmitCandidatePbr(input: {
   if (
     issue.expectedRendererId !== WORKBENCH_PBR_RENDERER_ID
     || issue.renderManifestSha256 !== WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+    || issue.visualEnvironmentId !== WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID
+    || issue.visualEnvironmentSha256 !== WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256
     || issue.requiredViewIds.join(',')
       !== 'turntable_000,turntable_045,turntable_090,turntable_135,turntable_180,turntable_225,turntable_270,turntable_315'
     || Date.now() > issue.expiresAtUnixMs
@@ -123,6 +131,8 @@ export async function captureAndSubmitCandidatePbr(input: {
           viewId: capture.view_id,
           cameraPoseSha256: capture.camera_pose_sha256,
           projectionCameraBindingSha256: capture.projection_camera_binding_sha256,
+          visualEnvironmentId: capture.renderer.visual_environment_id,
+          visualEnvironmentSha256: capture.renderer.visual_environment_sha256,
           pngBase64: bytesToBase64(capture.png_bytes),
           auxiliaryPngBase64: bytesToBase64(capture.auxiliary.png_bytes),
         }))),
@@ -134,6 +144,8 @@ export async function captureAndSubmitCandidatePbr(input: {
     || response.candidateGlbSha256 !== issue.candidateGlbSha256
     || response.rendererId !== WORKBENCH_PBR_RENDERER_ID
     || response.renderManifestSha256 !== WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+    || response.visualEnvironmentId !== WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID
+    || response.visualEnvironmentSha256 !== WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256
     || response.viewIds.join(',') !== issue.requiredViewIds.join(',')
   ) throw new Error('CANDIDATE_PBR_CAPTURE_RECEIPT_MISMATCH')
   return response

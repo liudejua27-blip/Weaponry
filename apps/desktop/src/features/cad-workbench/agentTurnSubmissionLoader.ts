@@ -11,7 +11,10 @@ import {
 import { readSingleResultDecisionFromAgentItems } from './singleResultDecisionPresentationState'
 import type { AgentTurnPresentation } from './agentConversationState'
 import type { SingleResultDecision, SingleResultDecisionPresentationAction } from './singleResultDecisionPresentationState'
-import type { MultimodalDesignRequest, VisualEvidenceGraph } from '../../shared/tauri/visionEvidence.js'
+import {
+  buildAgentTurnRequestPayload,
+  type UniversalAuthorTransportContext,
+} from './agentTurnRequestPayload.js'
 
 type AgentTurnSubmissionApi = Pick<
   ForgeApi,
@@ -35,10 +38,33 @@ export type AgentTurnRecordResult = {
   candidatePbrCapturePending: CandidatePbrCapturePendingPresentation | null
 }
 
-export type MultimodalAgentTurnContext = {
-  request: MultimodalDesignRequest
-  graph: VisualEvidenceGraph
-  visualReferenceComparisonAuthorizationId?: string
+export type MultimodalAgentTurnContext = UniversalAuthorTransportContext
+
+export type GameAssetDeliveryProfile = 'off' | 'game_prop_light' | 'game_prop_standard'
+export type GameAssetDeliveryRequestInput = {
+  schema_version: 'GameAssetDeliveryRequest@1'
+  profile_id: Exclude<GameAssetDeliveryProfile, 'off'>
+  lod_triangle_budgets: [number, number, number]
+  target_texel_density_pixels_per_meter: number
+}
+
+export function gameAssetDeliveryRequestForProfile(
+  profile: GameAssetDeliveryProfile,
+): GameAssetDeliveryRequestInput | undefined {
+  if (profile === 'off') return undefined
+  return profile === 'game_prop_light'
+    ? {
+        schema_version: 'GameAssetDeliveryRequest@1',
+        profile_id: profile,
+        lod_triangle_budgets: [90_000, 36_000, 8_000],
+        target_texel_density_pixels_per_meter: 512,
+      }
+    : {
+        schema_version: 'GameAssetDeliveryRequest@1',
+        profile_id: profile,
+        lod_triangle_budgets: [150_000, 60_000, 12_000],
+        target_texel_density_pixels_per_meter: 1024,
+      }
 }
 
 type AgentTurnSubmissionCallbacks = {
@@ -84,8 +110,12 @@ export type AgentTurnSubmissionInput = {
   message: string
   clarificationDomainPackId?: string
   multimodalContext?: MultimodalAgentTurnContext
+  gameAssetDelivery?: GameAssetDeliveryRequestInput
+  intent?: AgentTurnIntent
   clarificationOptions: readonly AgentClarificationOption[]
 }
+
+export type AgentTurnIntent = 'brief' | 'change'
 
 export async function recordAgentTurn(
   api: AgentTurnSubmissionApi,
@@ -124,6 +154,8 @@ export async function recordAgentTurn(
     message,
     clarificationDomainPackId,
     multimodalContext,
+    gameAssetDelivery,
+    intent = 'brief',
     clarificationOptions,
   } = input
 
@@ -161,28 +193,13 @@ export async function recordAgentTurn(
         { onEvent: eventCollector.onEvent },
         eventCollector.afterSequence,
       )
-      const turnPromise = api.startAgentTurn(threadId, {
-        client_request_id: `agent-turn-${Date.now()}`,
+      const turnPromise = api.startAgentTurn(threadId, buildAgentTurnRequestPayload({
+        clientRequestId: `agent-turn-${Date.now()}`,
         message,
-        ...(clarificationDomainPackId ? { clarification_domain_pack_id: clarificationDomainPackId } : {}),
-        author_context: multimodalContext ? {
-            references: multimodalContext.request.reference_inputs.map((reference) => ({
-              evidence_id: reference.evidence_id,
-              role: reference.role,
-              ...(reference.view_id ? { view_hint: reference.view_id } : {}),
-            })),
-            visual_evidence_graph: multimodalContext.graph,
-          } : { references: [] },
-        ...(multimodalContext ? {
-          multimodal_context: {
-            request: multimodalContext.request,
-            visual_evidence_graph: multimodalContext.graph,
-            ...(multimodalContext.visualReferenceComparisonAuthorizationId
-              ? { visual_reference_comparison_authorization_id: multimodalContext.visualReferenceComparisonAuthorizationId }
-              : {}),
-          },
-        } : {}),
-      })
+        clarificationDomainPackId,
+        multimodalContext,
+        gameAssetDelivery,
+      }))
       let turn: AgentTurn
       try {
         turn = await turnPromise
@@ -201,6 +218,7 @@ export async function recordAgentTurn(
         return { recorded: true, clarification: false, cancelled: true, failed: false, plan: null, decision: null, candidatePbrCapturePending: null }
       }
       if (presentation.clarification) {
+        dispatchSingleResultDecision({ type: 'request_cancelled', projectId, requestId })
         clearBlockoutDisplay(projectId)
         clearAgentAssetWorkspace()
         setAgentAssetChangeSet(null)
@@ -235,9 +253,11 @@ export async function recordAgentTurn(
       // AssemblyDelta-shaped plan from the same transcript; that advisory
       // field must never suppress a verified new candidate or leave the
       // previous GLB visible after a successful material/style regeneration.
-      if (presentation.plan?.assembly_delta && !decision) {
-        dispatchSingleResultDecision({ type: 'request_cancelled', projectId, requestId })
-        return { recorded: true, clarification: false, cancelled: false, failed: false, plan: presentation.plan, decision: null, candidatePbrCapturePending: null }
+      if (!decision) {
+        const missingDecisionError = 'Agent 没有返回正式的单一结果决策；这次生成没有形成可用结果，当前设计没有变化。请换一种描述后再试。'
+        dispatchSingleResultDecision({ type: 'request_failed', projectId, requestId, error: missingDecisionError })
+        setAssistantNote(missingDecisionError)
+        return { recorded: true, clarification: false, cancelled: false, failed: true, plan: null, decision: null, candidatePbrCapturePending: null }
       }
 
       if (decision) {
@@ -275,7 +295,7 @@ export async function recordAgentTurn(
         return { recorded: true, clarification: false, cancelled: false, failed: false, plan: presentation.plan, decision, candidatePbrCapturePending: null }
       }
 
-      const missingDecisionError = 'Agent 没有返回正式的单一结果决策；当前设计没有变化。'
+      const missingDecisionError = 'Agent 没有返回正式的单一结果决策；这次生成没有形成可用结果，当前设计没有变化。请换一种描述后再试。'
       dispatchSingleResultDecision({ type: 'request_failed', projectId, requestId, error: missingDecisionError })
       setAssistantNote(missingDecisionError)
       return { recorded: true, clarification: false, cancelled: false, failed: true, plan: null, decision: null, candidatePbrCapturePending: null }
@@ -333,7 +353,7 @@ export function applyBriefInstructionResult(
   if (legacyDesignReadOnly) {
     setAssistantNote(result.recorded
       ? '请先点击“让 Agent 重建可编辑资产”，并确认本地 Agent 已启动。旧版设计不会被修改。'
-      : 'Agent 没有返回可构建的单一结果；旧版数据仍保持只读且没有变化。'
+      : '这次生成暂时无法形成可编辑结果，当前设计没有变化。请补充外观或部件描述后再试。'
     )
     setChatInput('')
     return
@@ -348,6 +368,7 @@ export type ExecuteBriefInstructionRequest = {
   requestText: string
   clarificationDomainPackId?: string
   multimodalContext?: MultimodalAgentTurnContext
+  gameAssetDelivery?: GameAssetDeliveryRequestInput
   defaultBrief: string
   legacyDesignReadOnly: boolean
   setAssistantNote: (message: string) => void
@@ -356,6 +377,8 @@ export type ExecuteBriefInstructionRequest = {
     message: string,
     clarificationDomainPackId?: string,
     multimodalContext?: MultimodalAgentTurnContext,
+    gameAssetDelivery?: GameAssetDeliveryRequestInput,
+    intent?: AgentTurnIntent,
   ) => Promise<AgentTurnRecordResult>
 }
 
@@ -368,6 +391,8 @@ export async function submitBriefInstructionWithText(
     instruction,
     input.clarificationDomainPackId,
     input.multimodalContext,
+    input.gameAssetDelivery,
+    'brief',
   )
   applyBriefInstructionResult(kernelResult, {
     setAssistantNote: input.setAssistantNote,
@@ -396,7 +421,7 @@ export async function applyChangeInstructionResult(
     await previewAgentAssemblyDelta(result.plan.assembly_delta)
   } else {
     setAssistantNote(result.recorded
-      ? 'Agent 没有生成针对当前版本的受限 AssemblyDelta；当前资产没有变化，请明确描述“在当前机械臂上增加/替换/调整什么”。'
+      ? '这次修改没有找到明确的改动，当前设计没有变化。请说明要增加、替换或调整的部件。'
       : '修改意图未记录成功；当前资产没有变化。')
   }
   setChatInput('')
@@ -407,7 +432,13 @@ export type ExecuteChangeInstructionRequest = {
   legacyDesignReadOnly: boolean
   setAssistantNote: (message: string) => void
   setChatInput: (value: string) => void
-  recordAgentTurn: (message: string) => Promise<AgentTurnRecordResult>
+  recordAgentTurn: (
+    message: string,
+    clarificationDomainPackId?: string,
+    multimodalContext?: MultimodalAgentTurnContext,
+    gameAssetDelivery?: GameAssetDeliveryRequestInput,
+    intent?: AgentTurnIntent,
+  ) => Promise<AgentTurnRecordResult>
   previewAgentAssemblyDelta: (delta: AssemblyDeltaProgram) => Promise<void>
 }
 
@@ -421,7 +452,18 @@ export async function submitChangeInstruction(
   const instruction = input.requestText.trim()
   if (!instruction) return
   input.setAssistantNote(`正在规划修改：“${instruction}”`)
-  const kernelResult = await input.recordAgentTurn(instruction)
+  // `recordAgentTurn` keeps the legacy clarification slot before the intent
+  // slot for wire compatibility.  Passing "change" as the second positional
+  // argument silently serialized it as clarification_domain_pack_id, which
+  // made Rust reject every change request as a multimodal/clarification
+  // conflict before a Turn could be persisted.
+  const kernelResult = await input.recordAgentTurn(
+    instruction,
+    undefined,
+    undefined,
+    undefined,
+    'change',
+  )
   await applyChangeInstructionResult(kernelResult, {
     setAssistantNote: input.setAssistantNote,
     setChatInput: input.setChatInput,

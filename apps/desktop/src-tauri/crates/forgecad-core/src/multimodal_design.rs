@@ -307,6 +307,49 @@ impl VisualReferenceAcceptancePolicy {
 /// Hash-only comparison envelope created by Rust after the candidate GLB has
 /// been rendered. Provider image bytes remain transport-only and never enter
 /// this durable identity contract.
+pub const VISUAL_REFERENCE_RENDER_CONTRACT_SCHEMA_VERSION: &str =
+    "VisualReferenceRenderContract@1";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct VisualReferenceRenderContract {
+    pub schema_version: String,
+    pub renderer_id: String,
+    pub render_manifest_sha256: String,
+    pub visual_environment_id: String,
+    pub visual_environment_sha256: String,
+    pub output_color_space: String,
+    pub tone_mapping: String,
+}
+
+impl VisualReferenceRenderContract {
+    pub fn validate(&self) -> CoreResult<()> {
+        if self.schema_version != VISUAL_REFERENCE_RENDER_CONTRACT_SCHEMA_VERSION
+            || self.renderer_id != crate::WORKBENCH_PBR_RENDERER_ID
+            || self.render_manifest_sha256 != crate::WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+            || self.visual_environment_id != crate::WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID
+            || self.visual_environment_sha256
+                != crate::WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256
+            || self.output_color_space != "srgb"
+            || self.tone_mapping != "aces_filmic"
+        {
+            return Err(invalid(
+                "VISUAL_REFERENCE_RENDER_CONTRACT_INVALID",
+                "Universal visual comparison must bind the code-owned workbench GPU/PBR renderer, environment, color space, and tone mapping.",
+            ));
+        }
+        require_sha256(
+            "render_contract.render_manifest_sha256",
+            &self.render_manifest_sha256,
+        )?;
+        require_sha256(
+            "render_contract.visual_environment_sha256",
+            &self.visual_environment_sha256,
+        )?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct VisualReferenceComparisonInput {
@@ -320,6 +363,8 @@ pub struct VisualReferenceComparisonInput {
     pub reference_sources: Vec<VisualReferenceSourceFingerprint>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidate_view_profile: Option<VisualReferenceCandidateViewProfile>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_render_contract: Option<VisualReferenceRenderContract>,
     pub candidate_views: Vec<VisualFixedViewEvidence>,
 }
 
@@ -868,6 +913,7 @@ impl VisualReferenceComparisonInput {
             acceptance_policy,
             reference_sources,
             candidate_view_profile: None,
+            candidate_render_contract: None,
             candidate_views,
         };
         input.validate_against(request, graph, binding, evidence, program)?;
@@ -920,6 +966,7 @@ impl VisualReferenceComparisonInput {
             acceptance_policy,
             reference_sources,
             candidate_view_profile: Some(VisualReferenceCandidateViewProfile::TurntableEight),
+            candidate_render_contract: None,
             candidate_views,
         };
         input.validate_for_e005_source(request, graph, evidence, source)?;
@@ -966,6 +1013,9 @@ impl VisualReferenceComparisonInput {
     ) -> CoreResult<()> {
         require_sha256("comparison.glb_sha256", &self.glb_sha256)?;
         self.acceptance_policy.validate()?;
+        if let Some(render_contract) = &self.candidate_render_contract {
+            render_contract.validate()?;
+        }
         let expected_sources = request
             .reference_inputs
             .iter()
@@ -1066,6 +1116,9 @@ impl VisualReferenceComparisonInput {
         }
         require_sha256("comparison.glb_sha256", &self.glb_sha256)?;
         self.acceptance_policy.validate()?;
+        if let Some(render_contract) = &self.candidate_render_contract {
+            render_contract.validate()?;
+        }
 
         let expected_sources = request
             .reference_inputs
@@ -1552,6 +1605,7 @@ mod tests {
                     height: 1024,
                     aspect_ratio_milli: 1000,
                     dominant_color_buckets: vec![ReferenceImageColorBucket::Blue],
+                    foreground_dominant_color_buckets: Vec::new(),
                     brightness: ReferenceImageBrightnessBucket::Dark,
                     edge_density: ReferenceImageEdgeDensityBucket::High,
                     foreground_bbox_normalized: [100, 80, 900, 950],
@@ -2240,7 +2294,7 @@ mod tests {
         assert_eq!(policy.micro_minimum_bps, 5_000);
         assert_eq!(
             policy.source_contract_sha256.as_deref(),
-            Some("6ea15677d504d59e19d26c3d6e0f8fdc4caa96882c574608426ec731db114a87")
+            Some("8e4c5e4ddf290d019e210c5dbe1c7561e8bdadd8fef11d42ab94a780b5e91090")
         );
         let mut unrelated_program = reviewed_c111.clone();
         unrelated_program.program_id = "visual_program_unrelated".into();
@@ -2313,6 +2367,25 @@ mod tests {
                 .unwrap_err()
                 .code(),
             "VISUAL_REFERENCE_COMPARISON_REPORT_LINEAGE_INVALID"
+        );
+    }
+
+    #[test]
+    fn universal_visual_render_contract_fails_closed_for_environment_drift() {
+        let mut contract = VisualReferenceRenderContract {
+            schema_version: VISUAL_REFERENCE_RENDER_CONTRACT_SCHEMA_VERSION.into(),
+            renderer_id: crate::WORKBENCH_PBR_RENDERER_ID.into(),
+            render_manifest_sha256: crate::WORKBENCH_PBR_RENDER_MANIFEST_SHA256.into(),
+            visual_environment_id: crate::WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into(),
+            visual_environment_sha256: crate::WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into(),
+            output_color_space: "srgb".into(),
+            tone_mapping: "aces_filmic".into(),
+        };
+        contract.validate().unwrap();
+        contract.visual_environment_sha256 = "a".repeat(64);
+        assert_eq!(
+            contract.validate().unwrap_err().code(),
+            "VISUAL_REFERENCE_RENDER_CONTRACT_INVALID"
         );
     }
 }

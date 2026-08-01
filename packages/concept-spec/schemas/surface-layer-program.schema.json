@@ -11,9 +11,11 @@
     "program_id": { "type": "string", "pattern": "^surface_layer_[a-z0-9_\\-]+$" },
     "target_part_id": { "type": "string", "pattern": "^part_[a-z0-9_\\-]+$", "description": "Compatibility mapping to the current stable AssemblyGraph part." },
     "target_zone_id": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$", "description": "Compatibility mapping to the current stable Material Zone." },
-    "target_part_role": { "enum": ["base_form", "turntable", "joint_housing", "link_armor", "cable_harness", "end_effector_form", "surface_trim"] },
+    "target_part_role": { "enum": ["base_form", "turntable", "joint_housing", "link_armor", "cable_harness", "end_effector_form", "surface_trim", "primary_shell", "secondary_shell", "armor_panel", "mechanical_core", "sensor_housing", "structural_frame", "exterior_panel", "decorative_panel", "accent_trim", "enclosure", "body_shell", "primary_mass", "secondary_mass", "soft_mass", "organic_proxy", "primary_stem", "canopy_mass", "branch_cluster", "plant_base", "primary_body", "head_mass", "limb_set", "tail_form", "facial_accent", "primary_torso", "arm_set", "leg_set", "costume_accent", "primary_surface", "support_frame", "support_legs", "soft_surface", "primary_machine_body", "articulated_joint", "link_shell", "end_effector_proxy", "visual_status_accent", "primary_prop_body", "grip_prop", "visual_emitter", "primary_object_mass", "secondary_object_mass", "appearance_detail", "window_band", "roof_form", "entry_form"] },
     "material_zone_id": { "type": "string", "pattern": "^zone_[a-z0-9_\\-]+$" },
     "base_material": { "enum": ["mat_aluminum", "mat_automotive_paint", "mat_composite", "mat_dark_glass", "mat_emissive_blue", "mat_graphite", "mat_rubber", "mat_signal_red"] },
+    "base_color_token": { "enum": ["silver", "white_ceramic", "gunmetal", "graphite", "copper", "signal_red", "bark_brown", "wood_warm", "foliage_green", "skin_warm", "fur_warm", "fabric_blue", "stone_gray", "concrete_gray", "clay_terracotta"] },
+    "surface_finish_token": { "enum": ["brushed_metal", "polished_metal", "ceramic_coat", "glossy_coat", "matte_coat", "rubberized", "dark_glass", "emissive_trim", "wood_grain", "bark_ridged", "leaf_waxy", "fabric_weave", "fur_soft", "skin_matte", "stone_rough", "concrete_rough", "clay_matte"] },
     "vector_paths": {
       "type": "array",
       "minItems": 0,

@@ -344,7 +344,18 @@ class AgentAssetEditingService:
             )
             if len(glb) != readback.glb_byte_size:
                 raise ValueError("cache GLB byte size does not match readback")
-            return GeometryCompileResult(glb_bytes=glb, readback=readback)
+            # The durable production cache stores the immutable GLB and its
+            # readback, not the in-memory operation fragments.  A cache hit is
+            # still a complete compile result for export/quality/render; leave
+            # fragment reuse empty rather than reconstructing a second source
+            # of geometry truth from the persisted artifact.
+            return GeometryCompileResult(
+                glb_bytes=glb,
+                readback=readback,
+                operation_fragment_cache={},
+                fragment_cache_hit_operation_ids=(),
+                fragment_cache_miss_operation_ids=(),
+            )
         except (OSError, ValueError, ValidationError, ObjectStoreError) as exc:
             raise AgentAssetError(
                 "PRODUCTION_ARTIFACT_CACHE_INVALID",
@@ -632,7 +643,11 @@ class AgentAssetEditingService:
                 raise AgentAssetError("OBJECT_STORE_UNAVAILABLE", "本机对象存储不可用，无法导入 GLB。", status_code=503)
             if unit.concept_projects.get_active(request.project_id) is None:
                 raise AgentAssetError("PROJECT_REQUIRED", "请先打开一个项目，再导入 GLB 参考模型。", status_code=404)
-            allowed_packs = {item.pack_id for item in list_domain_packs()}
+            # GLB evidence is category-open.  ``pack_unclassified`` is a
+            # Rust-owned compatibility value for a reference whose subject
+            # has not yet been understood; it must not be forced into one of
+            # the legacy four-domain packs before the universal author turn.
+            allowed_packs = {item.pack_id for item in list_domain_packs()} | {"pack_unclassified"}
             if request.domain_pack_id not in allowed_packs:
                 raise AgentAssetError("DOMAIN_PACK_UNKNOWN", "导入模型必须归入一个已注册领域包。")
             try:

@@ -103,3 +103,40 @@ fn target_zone_compatibility_mapping_cannot_diverge() {
         "SURFACE_LAYER_PROGRAM_INVALID"
     );
 }
+
+#[test]
+fn bounded_base_color_token_is_retained_and_unknown_tokens_fail_closed() {
+    let mut program = fixture();
+    program.base_color_token = Some("silver".into());
+    program.validate().unwrap();
+    let lowering = program.lower().unwrap();
+    assert_eq!(lowering.retained_layers.base_color_token.as_deref(), Some("silver"));
+    assert_eq!(
+        lowering.retained_layers_sha256,
+        semantic_sha256(&lowering.retained_layers).unwrap()
+    );
+
+    program.base_color_token = Some("rgb(255,255,255)".into());
+    assert_eq!(
+        program.validate().unwrap_err().code(),
+        "SURFACE_LAYER_PROGRAM_INVALID"
+    );
+}
+
+#[test]
+fn bounded_surface_finish_token_is_retained_and_unknown_tokens_fail_closed() {
+    let mut program = fixture();
+    program.surface_finish_token = Some("polished_metal".into());
+    program.validate().unwrap();
+    let lowering = program.lower().unwrap();
+    assert_eq!(
+        lowering.retained_layers.surface_finish_token.as_deref(),
+        Some("polished_metal")
+    );
+
+    program.surface_finish_token = Some("freeform_finish".into());
+    assert_eq!(
+        program.validate().unwrap_err().code(),
+        "SURFACE_LAYER_PROGRAM_INVALID"
+    );
+}

@@ -32,17 +32,22 @@ export function runWorkbenchSidebarSmoke(): void {
     onSelectProject: (id) => calls.push(`project:${id}`),
     onSelectThread: (id) => calls.push(`thread:${id}`),
     onSelectPart: (id) => calls.push(`part:${id}`),
+    onTemplateSelect: (template) => calls.push(`template:${template}`),
+    onOpenSettings: () => calls.push('settings'),
+    onOpenHelp: () => calls.push('help'),
   }
   const output = WorkbenchSidebar(props)
   const rendered = text(output)
-  assert(rendered.includes('新建设计') && rendered.includes('项目') && rendered.includes('对话记录') && rendered.includes('组件库'), 'sidebar must contain F026 left-rail sections')
-  assert(rendered.includes('冰原探索车') && rendered.includes('探索车外观') && rendered.includes('车身外壳'), 'sidebar must project supplied project, thread and part facts')
+  assert(rendered.includes('我的设计') && rendered.includes('最近作品') && rendered.includes('示例') && rendered.includes('设置') && rendered.includes('帮助'), 'sidebar must contain the redesigned left rail sections')
+  assert(rendered.includes('冰原探索车') && rendered.includes('写实动物外观') && rendered.includes('游戏道具外观'), 'sidebar should expose recent projects and category-open examples')
+  assert(rendered.includes('设置') && rendered.includes('帮助'), 'sidebar should expose settings and help entry')
   const buttons = hostButtons(output)
   const click = (label: string) => {
     const button = buttons.find((item) => text(item).includes(label))
     assert(button, `missing button: ${label}`)
     ;(button.props as { onClick?: () => void }).onClick?.()
   }
-  click('新建设计'); click('冰原探索车'); click('探索车外观'); click('车身外壳')
-  assert(calls.join(',') === 'create,project:project_a,thread:thread_a,part:part_body', 'sidebar must forward each user intent through supplied callbacks')
+  click('开始设计'); click('冰原探索车')
+  click('设置'); click('帮助')
+  assert(calls.join(',') === 'create,project:project_a,settings,help', 'sidebar must forward exposed intents through supplied callbacks')
 }

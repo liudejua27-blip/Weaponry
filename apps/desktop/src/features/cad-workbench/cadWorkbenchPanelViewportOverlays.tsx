@@ -1,4 +1,4 @@
-import { ArrowsOutCardinal, Crosshair, Cube, GridFour, House } from '@phosphor-icons/react'
+import { ArrowsOutCardinal, Crosshair, Cube, GridFour } from '@phosphor-icons/react'
 import type { ComponentType, ReactElement } from 'react'
 import type { CameraView, LightPreset } from './cadWorkbenchPanelTools'
 import type { ViewportMeasurementMode } from './viewportMeasurementPresentation'
@@ -26,15 +26,17 @@ type CadWorkbenchPanelViewportOverlaysProps = {
   onCameraViewChange: (next: CameraView) => void
   onLightPresetChange: (next: LightPreset) => void
   onToggleExplode: () => void
+  quickModifyPresets?: readonly {
+    label: string
+    summary: string
+    prompt: string
+  }[]
+  canQuickModify?: boolean
+  onQuickModify?: (next: string) => void | Promise<void>
 }
 
 const MEASURE_MODE_DISTANCE_TEXT = '点到点'
 const MEASURE_MODE_ANGLE_TEXT = '法线夹角'
-const VIEWBAR_LIGHT_OPTIONS = [
-  { value: 'cad_neutral' as const, label: 'CAD 中性' },
-  { value: 'soft_studio' as const, label: '柔和棚拍' },
-  { value: 'concept_contrast' as const, label: '概念对比' },
-] as const
 
 export function CadWorkbenchPanelViewportOverlays({
   activeTool,
@@ -53,12 +55,16 @@ export function CadWorkbenchPanelViewportOverlays({
   onCameraViewChange,
   onLightPresetChange,
   onToggleExplode,
+  quickModifyPresets,
+  canQuickModify = false,
+  onQuickModify,
 }: CadWorkbenchPanelViewportOverlaysProps): ReactElement {
   const measurementLine = measurementPrompt.length > 0
     ? measurementPrompt
     : measurementReadoutText
       ? `测量：${measurementReadoutText}`
       : '单位：mm'
+  const hasQuickModifyPresets = quickModifyPresets && quickModifyPresets.length > 0
   return (
     <>
       {activeTool === 'measure' ? (
@@ -69,18 +75,20 @@ export function CadWorkbenchPanelViewportOverlays({
               type="button"
               className={measurementMode === 'distance' ? 'active' : ''}
               aria-pressed={measurementMode === 'distance'}
+              title="测量两点之间的距离"
               onClick={() => onMeasurementModeChange('distance')}
             >{MEASURE_MODE_DISTANCE_TEXT}</button>
             <button
               type="button"
               className={measurementMode === 'normal_angle' ? 'active' : ''}
               aria-pressed={measurementMode === 'normal_angle'}
+              title="测量两个面的角度"
               onClick={() => onMeasurementModeChange('normal_angle')}
             >{MEASURE_MODE_ANGLE_TEXT}</button>
           </div>
           <span>{measurementLine}</span>
-          {measurementReadoutText ? <button type="button" onClick={onPinMeasurement}>固定标注</button> : null}
-          <button type="button" onClick={onClearMeasurements}>清除</button>
+          {measurementReadoutText ? <button type="button" title="固定当前测量标注" onClick={onPinMeasurement}>固定标注</button> : null}
+          <button type="button" title="清除所有测量标注" onClick={onClearMeasurements}>清除</button>
           {measurementAnnotations.length > 0 ? (
             <div className="measurement-annotations" data-testid="measurement-annotations">
               {measurementAnnotations.map((annotation, index) => (
@@ -96,32 +104,59 @@ export function CadWorkbenchPanelViewportOverlays({
         </div>
       ) : null}
       <div className="view-cube"><Cube size={28} weight="duotone" /></div>
+      <div className="viewport-control-hints" aria-label="三维画布快捷操作">
+        <span>旋转视角：左键拖拽</span>
+        <span>平移画布：中键拖拽</span>
+        <span>放大缩小：滚轮</span>
+        <span>适应窗口：双击画布</span>
+      </div>
       <div className="viewport-viewbar">
-        <IconButton icon={House} label="等轴" active={cameraView === 'iso'} onClick={() => onCameraViewChange('iso')} />
-        <IconButton icon={Crosshair} label="正视" active={cameraView === 'front'} onClick={() => onCameraViewChange('front')} />
-        <IconButton icon={GridFour} label="顶视" active={cameraView === 'top'} onClick={() => onCameraViewChange('top')} />
-        <IconButton icon={Cube} label="右视" active={cameraView === 'right'} onClick={() => onCameraViewChange('right')} />
-        <label className="viewport-light-preset">
-          <span>灯光</span>
-          <select aria-label="灯光预设" value={lightPreset} onChange={(event) => onLightPresetChange(event.target.value as LightPreset)}>
-            {VIEWBAR_LIGHT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <IconButton icon={Crosshair} label="正视图" active={cameraView === 'front'} onClick={() => onCameraViewChange('front')} />
+        <IconButton icon={GridFour} label="侧视图" active={cameraView === 'right'} onClick={() => onCameraViewChange('right')} />
         <IconButton
           icon={ArrowsOutCardinal}
-          label="爆炸视图"
+          label="爆炸图"
+          ariaLabel="爆炸视图"
           active={explodeFactor > 0}
           onClick={onToggleExplode}
+        />
+        <IconButton
+          icon={ArrowsOutCardinal}
+          label="渲染图"
+          active={lightPreset === 'concept_contrast'}
+          onClick={() => onLightPresetChange(lightPreset === 'concept_contrast' ? 'cad_neutral' : 'concept_contrast')}
         />
       </div>
       <div className="viewport-readout">
         <span>{viewportReadoutText}</span>
         <span>{measurementLine}</span>
       </div>
+      {hasQuickModifyPresets ? (
+        <section className="viewport-quick-modify" aria-label="快速修改预设">
+          <div className="viewport-quick-modify-title">AI 快速修改</div>
+          <div className="viewport-quick-modify-actions">
+            {quickModifyPresets?.map((item) => (
+              <button
+                type="button"
+                key={item.label}
+                className="agent-quick-modify-action"
+                title={item.summary}
+                onClick={() => { void onQuickModify?.(item.prompt) }}
+                disabled={!canQuickModify}
+              >
+                <span>{item.label}</span>
+                <small>{item.summary}</small>
+              </button>
+            ))}
+          </div>
+          {!canQuickModify ? (
+            <p className="agent-quick-modify-note" role="note">
+              <strong>先完成 AI 生成</strong>
+              <small>完成第一轮生成并进入修改模式后再使用快速修改。</small>
+            </p>
+          ) : null}
+        </section>
+      ) : null}
     </>
   )
 }
@@ -133,6 +168,7 @@ function IconButton({
   onClick,
   disabled = false,
   title,
+  ariaLabel,
 }: {
   icon: ComponentType<{ size: number }>
   label: string
@@ -140,6 +176,7 @@ function IconButton({
   onClick?: () => void
   disabled?: boolean
   title?: string
+  ariaLabel?: string
 }) {
   return (
     <button
@@ -147,9 +184,10 @@ function IconButton({
       onClick={onClick}
       disabled={disabled}
       title={title ?? label}
-      aria-label={label}
+      aria-label={ariaLabel ?? label}
     >
       <Icon size={17} />
+      <span className="viewport-viewbar-label">{label}</span>
     </button>
   )
 }

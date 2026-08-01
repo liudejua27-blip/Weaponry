@@ -157,7 +157,7 @@ export type AgentAssetQualityReport = {
 export type AgentAssetRenderSet = {
   "schema_version"?: "AgentAssetRenderSet@1"
   "asset_version_id": string
-  "renderer_id"?: "forgecad-agent-software-raster@1"
+  "renderer_id"?: "forgecad-agent-software-raster@1" | "forgecad-workbench-pbr@1"
   "width": number
   "height": number
   "views": Array<AgentAssetRenderView>
@@ -174,7 +174,7 @@ export type AgentAssetRenderView = {
   "view_id": "iso" | "front" | "side" | "top" | "exploded_iso"
   "camera_view": "iso" | "front" | "side" | "top"
   "presentation_mode"?: "standard" | "exploded"
-  "background_mode"?: "transparent"
+  "background_mode"?: "transparent" | "studio"
   "part_ids"?: Array<string>
   "mime_type"?: "image/png"
   "width": number
@@ -1210,6 +1210,13 @@ export type ExportUnityRequest = {
   "include_quality_reports"?: boolean
 }
 
+export type GameAssetDeliveryRequestInput = {
+  "schema_version"?: "GameAssetDeliveryRequest@1"
+  "profile_id": string
+  "lod_triangle_budgets": Array<unknown>
+  "target_texel_density_pixels_per_meter": number
+}
+
 export type Generate3DRequest = {
   "client_request_id": string
   "source_version_id": string
@@ -2164,6 +2171,7 @@ export type StartAgentTurnRequest = {
   "clarification_domain_pack_id"?: "pack_future_weapon_prop" | "pack_vehicle_concept" | "pack_aircraft_concept" | "pack_robotic_arm_concept" | null
   "author_context"?: UniversalAuthorContextInput | null
   "multimodal_context"?: MultimodalTurnContextInput | null
+  "game_asset_delivery"?: GameAssetDeliveryRequestInput | null
 }
 
 export type TargetOptions = {

@@ -39,16 +39,14 @@ export function buildReferenceEvidenceVisionContext(
     activeAssetVersionId: input.activeAssetVersionId,
     selectedPartId: input.selectedPartId,
     selectedMaterialZoneId: input.selectedMaterialZoneId,
-    onUseEvidence: ({ instruction, request, graph, visualReferenceComparisonAuthorizationId }: {
+    onUseEvidence: ({ instruction, request, graph }: {
       instruction: string
       request: MultimodalAgentTurnContext['request']
       graph: MultimodalAgentTurnContext['graph']
-      visualReferenceComparisonAuthorizationId: string
     }) => {
       return submitAssistantInstructionWithText(instruction, undefined, {
         request,
         graph,
-        visualReferenceComparisonAuthorizationId,
       })
     },
   }

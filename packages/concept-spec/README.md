@@ -6,7 +6,7 @@ Source schemas live in `schemas/`. Generated TypeScript in `generated/types.ts` 
 
 Contracts:
 
-U002 universal author contracts and U003 `UniversalAssetSource@1`/camera/detail/appearance contracts are implemented in Schema, generated types, Rust validators/builders, and focused Gates. U004 adds `UniversalAssetSource@2` as the forward-only discriminated source contract: its procedural branch independently re-lowers a bounded VP203/author source; deformable, local mesh patch and hybrid are explicit but unavailable until their own compiler and visual gates exist. The current product executable source branch remains the validated procedural robotic-arm capability.
+U002 universal author contracts and U003 `UniversalAssetSource@1`/camera/detail/appearance contracts are implemented in Schema, generated types, Rust validators/builders, and focused Gates. U004 adds `UniversalAssetSource@2` as the forward-only discriminated source contract: its procedural branch independently re-lowers a bounded VP203/author source; deformable, local mesh patch and hybrid are explicit but capability-gated. The current product executable branches include the validated robotic-arm/hard-surface routes and the development-only Rust-owned `procedural.generic_visual_exterior_v1` lightweight exterior proxy; the latter is not a claim of photo-grade reconstruction or formal cross-category quality.
 
 - `UniversalAuthorRequest@1`
 - `SubjectProfile@1`

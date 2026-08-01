@@ -18,6 +18,7 @@ const MAX_ERROR_MESSAGE_CHARS: usize = 8_000;
 const MAX_APPROVAL_NOTE_CHARS: usize = 1_000;
 const MAX_TIMESTAMP_CHARS: usize = 64;
 const MAX_MULTIMODAL_TURN_CONTEXT_BYTES: usize = 256 * 1024;
+const GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION: &str = "GameAssetDeliveryRequest@1";
 
 fn invalid_field(field: &str, requirement: impl AsRef<str>) -> RpcError {
     RpcError::invalid_params(format!("{field} {}.", requirement.as_ref()))
@@ -493,6 +494,54 @@ impl UniversalAuthorContextInput {
     }
 }
 
+/// Bounded user intent for a game-ready export. Rust derives collision part
+/// IDs and sockets from the exact compiled source; this wire DTO contains no
+/// Provider- or WebView-authored asset bindings.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GameAssetDeliveryRequestInput {
+    pub schema_version: String,
+    pub profile_id: String,
+    pub lod_triangle_budgets: [u32; 3],
+    pub target_texel_density_pixels_per_meter: u16,
+}
+
+impl GameAssetDeliveryRequestInput {
+    pub fn validate(&self) -> Result<(), RpcError> {
+        validate_text(
+            "start_turn.game_asset_delivery.schema_version",
+            &self.schema_version,
+            GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION.len(),
+            GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION.len(),
+        )?;
+        if self.schema_version != GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION {
+            return Err(invalid_field(
+                "start_turn.game_asset_delivery.schema_version",
+                "must be GameAssetDeliveryRequest@1",
+            ));
+        }
+        validate_stable_id_with_max(
+            "start_turn.game_asset_delivery.profile_id",
+            &self.profile_id,
+            120,
+        )?;
+        let [lod0, lod1, lod2] = self.lod_triangle_budgets;
+        if lod2 == 0 || lod0 > 150_000 || lod0 < lod1 || lod1 < lod2 {
+            return Err(invalid_field(
+                "start_turn.game_asset_delivery.lod_triangle_budgets",
+                "must be descending, non-zero and bounded by 150000 triangles",
+            ));
+        }
+        if !(128..=2048).contains(&self.target_texel_density_pixels_per_meter) {
+            return Err(invalid_field(
+                "start_turn.game_asset_delivery.target_texel_density_pixels_per_meter",
+                "must be between 128 and 2048",
+            ));
+        }
+        Ok(())
+    }
+}
+
 impl MultimodalTurnContextInput {
     pub fn validate(&self) -> Result<(), RpcError> {
         if !self.request.is_object() || !self.visual_evidence_graph.is_object() {
@@ -590,6 +639,8 @@ pub struct StartAgentTurnRequest {
     pub author_context: Option<UniversalAuthorContextInput>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub multimodal_context: Option<MultimodalTurnContextInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_asset_delivery: Option<GameAssetDeliveryRequestInput>,
 }
 
 impl StartAgentTurnRequest {
@@ -610,11 +661,19 @@ impl StartAgentTurnRequest {
             self.clarification_domain_pack_id.as_deref(),
         )?;
         if self.clarification_domain_pack_id.is_some()
-            && (self.multimodal_context.is_some() || self.author_context.is_some())
+            && (self.multimodal_context.is_some()
+                || self.author_context.is_some()
+                || self.game_asset_delivery.is_some())
         {
             return Err(invalid_field(
                 "start_turn.multimodal_context",
                 "cannot be combined with a clarification answer",
+            ));
+        }
+        if self.author_context.is_some() && self.multimodal_context.is_some() {
+            return Err(invalid_field(
+                "start_turn.author_context",
+                "cannot be combined with legacy multimodal_context; submit one evidence source",
             ));
         }
         if let Some(context) = &self.author_context {
@@ -622,6 +681,9 @@ impl StartAgentTurnRequest {
         }
         if let Some(context) = &self.multimodal_context {
             context.validate()?;
+        }
+        if let Some(request) = &self.game_asset_delivery {
+            request.validate()?;
         }
         Ok(())
     }
@@ -819,6 +881,7 @@ mod tests {
             clarification_domain_pack_id: Some("vehicle".into()),
             author_context: None,
             multimodal_context: None,
+            game_asset_delivery: None,
         }
         .validate()
         .unwrap();
@@ -852,6 +915,7 @@ mod tests {
             clarification_domain_pack_id: None,
             author_context: None,
             multimodal_context: None,
+            game_asset_delivery: None,
         };
         assert!(oversized_message.validate().is_err());
 
@@ -876,6 +940,7 @@ mod tests {
             clarification_domain_pack_id: None,
             author_context: None,
             multimodal_context: Some(safe.clone()),
+            game_asset_delivery: None,
         }
         .validate()
         .unwrap();
@@ -890,6 +955,7 @@ mod tests {
                 visual_evidence_graph: json!({}),
                 visual_reference_comparison_authorization_id: None,
             }),
+            game_asset_delivery: None,
         };
         assert!(secret.validate().is_err());
 
@@ -903,6 +969,7 @@ mod tests {
                 visual_evidence_graph: json!({}),
                 visual_reference_comparison_authorization_id: None,
             }),
+            game_asset_delivery: None,
         };
         assert!(oversized.validate().is_err());
 
@@ -912,6 +979,7 @@ mod tests {
             clarification_domain_pack_id: Some("pack_robotic_arm_concept".into()),
             author_context: None,
             multimodal_context: Some(safe),
+            game_asset_delivery: None,
         };
         assert!(clarification.validate().is_err());
     }
@@ -935,10 +1003,11 @@ mod tests {
             clarification_domain_pack_id: None,
             author_context: Some(author_context.clone()),
             multimodal_context: None,
+            game_asset_delivery: None,
         }
         .validate()
         .unwrap();
-        StartAgentTurnRequest {
+        let conflicting_sources = StartAgentTurnRequest {
             client_request_id: "request_u002_conflict".into(),
             message: "生成写实家猫".into(),
             clarification_domain_pack_id: None,
@@ -948,9 +1017,42 @@ mod tests {
                 visual_evidence_graph: json!({}),
                 visual_reference_comparison_authorization_id: None,
             }),
+            game_asset_delivery: None,
+        };
+        assert!(conflicting_sources.validate().is_err());
+    }
+
+    #[test]
+    fn game_asset_delivery_request_is_bounded_and_never_accepts_provider_bindings() {
+        let valid = GameAssetDeliveryRequestInput {
+            schema_version: "GameAssetDeliveryRequest@1".into(),
+            profile_id: "game_prop_standard".into(),
+            lod_triangle_budgets: [150_000, 60_000, 12_000],
+            target_texel_density_pixels_per_meter: 1024,
+        };
+        StartAgentTurnRequest {
+            client_request_id: "request_game_delivery".into(),
+            message: "生成可用于游戏的非功能性科幻外观道具".into(),
+            clarification_domain_pack_id: None,
+            author_context: None,
+            multimodal_context: None,
+            game_asset_delivery: Some(valid.clone()),
         }
         .validate()
         .unwrap();
+
+        let mut invalid = valid;
+        invalid.lod_triangle_budgets = [12_000, 60_000, 150_000];
+        assert!(StartAgentTurnRequest {
+            client_request_id: "request_game_delivery_invalid".into(),
+            message: "生成游戏道具".into(),
+            clarification_domain_pack_id: None,
+            author_context: None,
+            multimodal_context: None,
+            game_asset_delivery: Some(invalid),
+        }
+        .validate()
+        .is_err());
     }
 
     #[test]

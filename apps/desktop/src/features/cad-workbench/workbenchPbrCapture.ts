@@ -10,6 +10,8 @@
 export const WORKBENCH_PBR_CAPTURE_SCHEMA = 'WorkbenchPbrVisualCapture@1' as const
 export const WORKBENCH_PBR_RENDERER_ID = 'forgecad-workbench-pbr@1' as const
 export const WORKBENCH_PBR_RENDER_MANIFEST_SHA256 = '024d7e8f707c75eafd12f22e9a5e9f9c5ab0fcbd1a6ce1a4de6726ace7b2451a' as const
+export const WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID = 'env_forgecad_room_studio_v2' as const
+export const WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256 = '0884e4f7b32c11ce94b4d406260f9ea89ca0c7933e0088d14e9eb89f382508a4' as const
 export const WORKBENCH_PBR_CAPTURE_WIDTH_PX = 640 as const
 export const WORKBENCH_PBR_CAPTURE_HEIGHT_PX = 640 as const
 export const WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX = 320 as const
@@ -32,6 +34,7 @@ const RESTORABLE_CAMERA_VIEWS = [
 const CAPTURE_TIMEOUT_MS = 12_000
 
 export type WorkbenchPbrCaptureView = typeof FIXED_VIEWS[number]
+export type WorkbenchPbrConceptView = 'iso' | 'front' | 'side' | 'top'
 export type WorkbenchPbrAuxiliaryPass = 'silhouette' | 'normal' | 'depth' | 'part_id' | 'material_id'
 type WorkbenchPbrCameraView = typeof RESTORABLE_CAMERA_VIEWS[number]
 export type WorkbenchPbrLightPreset = 'cad_neutral' | 'soft_studio' | 'concept_contrast'
@@ -84,6 +87,23 @@ export type WorkbenchPbrCapture = {
   }
 }
 
+/**
+ * Four user-facing concept images captured from the same mounted PBR canvas.
+ * Unlike the Rust candidate receipt, this is a transient local presentation
+ * value: it never creates a version, quality report, or export record.
+ */
+export type WorkbenchPbrConceptCapture = {
+  schema_version: typeof WORKBENCH_PBR_CAPTURE_SCHEMA
+  renderer: WorkbenchPbrViewportIdentity
+  view_id: WorkbenchPbrConceptView
+  width: number
+  height: number
+  pixel_encoding: 'display_srgb'
+  camera_pose_sha256: string
+  png_sha256: string
+  png_bytes: Uint8Array
+}
+
 type ViewportPixels = {
   width: number
   height: number
@@ -131,11 +151,19 @@ export function readWorkbenchPbrViewportIdentity(
   }
   const data = viewport.dataset
   const visualEnvironmentSha256 = data.visualEnvironmentSha256
+  const embeddedPbrMaterialCount = Number(data.blockoutEmbeddedPbrMaterialCount ?? 0)
+  const pbrTextureCount = Number(data.blockoutPbrTextureCount ?? 0)
   if (
     data.pbrRendererId !== WORKBENCH_PBR_RENDERER_ID
     || data.blockoutLoadState !== 'ready'
     || data.blockoutRenderSource !== 'glb_pbr'
     || !data.blockoutGlbKind?.startsWith('compiled_agent_')
+    || !Number.isInteger(embeddedPbrMaterialCount)
+    || embeddedPbrMaterialCount < 1
+    || !Number.isInteger(pbrTextureCount)
+    || pbrTextureCount < 5
+    || data.blockoutPbrColorSpaces !== 'valid'
+    || data.blockoutPbrSamplingValid !== 'true'
     || data.blockoutGlbSha256?.toLowerCase() !== expectedSourceGlbSha256.toLowerCase()
     || data.outputColorSpace !== 'srgb'
     || data.toneMapping !== 'aces_filmic'
@@ -206,6 +234,50 @@ export async function captureWorkbenchPbrViews(input: {
           png_sha256: await sha256Hex(auxiliaryPngBytes),
           png_bytes: auxiliaryPngBytes,
         },
+      })
+    }
+    return captures
+  } finally {
+    if (isWorkbenchPbrLightPreset(priorLight)) await setLight(input.viewport, priorLight).catch(() => undefined)
+    if (isWorkbenchPbrCameraView(priorCamera)) await setCamera(input.viewport, priorCamera).catch(() => undefined)
+  }
+}
+
+/**
+ * Captures the four persistent-Agent concept views from the exact canvas the
+ * user is looking at. This is intentionally separate from the eight-view
+ * Rust candidate receipt: committed-asset presentation has no pending Turn,
+ * so it must remain a read-only browser artifact while still using the real
+ * GPU/PBR renderer rather than the Python diagnostic rasterizer.
+ */
+export async function captureWorkbenchPbrConceptViews(input: {
+  viewport: HTMLElement
+  sourceGlbSha256: string
+  lightPreset?: WorkbenchPbrLightPreset
+}): Promise<WorkbenchPbrConceptCapture[]> {
+  const identity = readWorkbenchPbrViewportIdentity(input.viewport, input.sourceGlbSha256)
+  const views: readonly WorkbenchPbrConceptView[] = ['iso', 'front', 'side', 'top']
+  const priorCamera = input.viewport.dataset.cameraView
+  const priorLight = input.viewport.dataset.lightPreset
+  const captures: WorkbenchPbrConceptCapture[] = []
+  try {
+    await setLight(input.viewport, input.lightPreset ?? 'soft_studio')
+    for (const view of views) {
+      // The legacy Agent presentation names the lateral image "side", while
+      // the one workbench camera registry exposes that pose as "right".
+      await setCamera(input.viewport, view === 'side' ? 'right' : view)
+      const pixels = await requestViewportPixels(input.viewport)
+      const pngBytes = await encodeDisplaySrgbPng(pixels)
+      captures.push({
+        schema_version: WORKBENCH_PBR_CAPTURE_SCHEMA,
+        renderer: identity,
+        view_id: view,
+        width: pixels.width,
+        height: pixels.height,
+        pixel_encoding: 'display_srgb',
+        camera_pose_sha256: pixels.cameraPoseSha256,
+        png_sha256: await sha256Hex(pngBytes),
+        png_bytes: pngBytes,
       })
     }
     return captures

@@ -107,6 +107,14 @@ struct ChangeSetPreviewSeal {
     interactive_readback: serde_json::Value,
     interactive_glb_sha256: String,
     interactive_glb_byte_size: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    visual_source_lod0_glb_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    visual_source_lod0_glb_byte_size: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    game_delivery_glb_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    game_delivery_glb_byte_size: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -121,6 +129,14 @@ struct ChangeSetConfirmSeal {
     production_glb_sha256: String,
     production_glb_byte_size: u64,
     quality_report_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    visual_source_lod0_glb_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    visual_source_lod0_glb_byte_size: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    game_delivery_glb_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    game_delivery_glb_byte_size: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3978,6 +3994,53 @@ impl CoreRepository {
         expected: SnapshotEtag,
         updated_at: &str,
     ) -> CoreResult<ChangeSetPreviewBundleReadback> {
+        self.preview_change_set_bundle_with_game_delivery(
+            change_set_id,
+            sealed_preview,
+            interactive_glb,
+            interactive_readback,
+            None,
+            expected,
+            updated_at,
+        )
+    }
+
+    /// Same transaction as `preview_change_set_bundle`, with the additional
+    /// source/delivery pair required by a game-ready UAS@2 asset. The pair is
+    /// optional only for ordinary assets; a sealed game profile cannot fall
+    /// back to the two-GLB legacy shape.
+    pub fn preview_change_set_game_delivery_bundle(
+        &self,
+        change_set_id: &str,
+        sealed_preview: &AgentAssetVersion,
+        interactive_glb: &[u8],
+        interactive_readback: &serde_json::Value,
+        visual_source_lod0_glb: &[u8],
+        game_delivery_glb: &[u8],
+        expected: SnapshotEtag,
+        updated_at: &str,
+    ) -> CoreResult<ChangeSetPreviewBundleReadback> {
+        self.preview_change_set_bundle_with_game_delivery(
+            change_set_id,
+            sealed_preview,
+            interactive_glb,
+            interactive_readback,
+            Some((visual_source_lod0_glb, game_delivery_glb)),
+            expected,
+            updated_at,
+        )
+    }
+
+    fn preview_change_set_bundle_with_game_delivery(
+        &self,
+        change_set_id: &str,
+        sealed_preview: &AgentAssetVersion,
+        interactive_glb: &[u8],
+        interactive_readback: &serde_json::Value,
+        game_delivery: Option<(&[u8], &[u8])>,
+        expected: SnapshotEtag,
+        updated_at: &str,
+    ) -> CoreResult<ChangeSetPreviewBundleReadback> {
         let normalized_shape_program =
             crate::normalize_persisted_shape_program(&sealed_preview.shape_program)?;
         if normalized_shape_program != sealed_preview.shape_program {
@@ -3988,20 +4051,81 @@ impl CoreRepository {
         }
         let sealed_preview = sealed_preview.clone();
         sealed_preview.validate()?;
+        let sealed_game_delivery = version_has_game_delivery(&sealed_preview);
+        if sealed_game_delivery != game_delivery.is_some() {
+            return Err(CoreError::conflict(
+                "GAME_DELIVERY_CHANGE_SET_BUNDLE_REQUIRED",
+                "A game-ready ChangeSet preview must persist its exact visual-source and delivery GLBs together.",
+            ));
+        }
         let verified = crate::verify_forgecad_glb(interactive_glb, Some("interactive_preview"))?;
         validate_interactive_readback(interactive_readback, &sealed_preview, &verified)?;
+        if let Some((source_bytes, delivery_bytes)) = game_delivery {
+            validate_glb_container(source_bytes)?;
+            validate_glb_container(delivery_bytes)?;
+            let source = game_delivery_source_from_version(&sealed_preview)?;
+            let profile = source.game_asset_profile.as_ref().ok_or_else(|| {
+                CoreError::conflict(
+                    "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+                    "Game-delivery ChangeSet preview has no sealed game profile.",
+                )
+            })?;
+            let bindings = crate::derive_game_asset_delivery_bindings(&source)?;
+            let _ = crate::verify_game_asset_delivery_glb(
+                source_bytes,
+                delivery_bytes,
+                profile,
+                &bindings,
+            )?;
+            if source_bytes.is_empty() || delivery_bytes.is_empty() {
+                return Err(CoreError::invalid_data(
+                    "GAME_DELIVERY_BUNDLE_OBJECT_INVALID",
+                    "Game-delivery ChangeSet preview requires non-empty GLB objects.",
+                ));
+            }
+        }
 
         // Detect incomplete persisted state before staging so missing CAS
         // bytes cannot be silently repaired into a successful replay.
         let _ = self.read_change_set_preview_bundle(change_set_id)?;
         let mut promoted = self.object_store.stage(interactive_glb, "glb")?.promote()?;
         let stored = promoted.metadata().clone();
+        let game_promoted = if let Some((source_bytes, delivery_bytes)) = game_delivery {
+            let mut source = match self.object_store.stage(source_bytes, "glb").and_then(|value| value.promote()) {
+                Ok(value) => value,
+                Err(error) => {
+                    promoted.cleanup_after_rollback();
+                    return Err(error);
+                }
+            };
+            let delivery = match self.object_store.stage(delivery_bytes, "glb").and_then(|value| value.promote()) {
+                Ok(value) => value,
+                Err(error) => {
+                    source.cleanup_after_rollback();
+                    promoted.cleanup_after_rollback();
+                    return Err(error);
+                }
+            };
+            Some((source, delivery))
+        } else {
+            None
+        };
+        let visual_source_stored = game_promoted
+            .as_ref()
+            .map(|(source, _)| source.metadata().clone());
+        let game_delivery_stored = game_promoted
+            .as_ref()
+            .map(|(_, delivery)| delivery.metadata().clone());
         let seal = ChangeSetPreviewSeal {
             schema_version: CHANGE_SET_PREVIEW_SEAL_SCHEMA.into(),
             sealed_preview: sealed_preview.clone(),
             interactive_readback: interactive_readback.clone(),
             interactive_glb_sha256: stored.sha256.clone(),
             interactive_glb_byte_size: stored.byte_size,
+            visual_source_lod0_glb_sha256: visual_source_stored.as_ref().map(|value| value.sha256.clone()),
+            visual_source_lod0_glb_byte_size: visual_source_stored.as_ref().map(|value| value.byte_size),
+            game_delivery_glb_sha256: game_delivery_stored.as_ref().map(|value| value.sha256.clone()),
+            game_delivery_glb_byte_size: game_delivery_stored.as_ref().map(|value| value.byte_size),
         };
         let result = self.write(|transaction| {
             if let Some(existing) =
@@ -4011,6 +4135,8 @@ impl CoreRepository {
                     &existing,
                     &seal,
                     &stored,
+                    visual_source_stored.as_ref(),
+                    game_delivery_stored.as_ref(),
                     change_set_id,
                 )?;
                 return Ok(existing);
@@ -4050,10 +4176,28 @@ impl CoreRepository {
             validate_change_set_operations(transaction, &active_base, &snapshot, &change_set)?;
 
             insert_object_metadata(transaction, &stored, updated_at)?;
+            if let Some(source) = visual_source_stored.as_ref() {
+                insert_object_metadata(transaction, source, updated_at)?;
+            }
+            if let Some(delivery) = game_delivery_stored.as_ref() {
+                insert_object_metadata(transaction, delivery, updated_at)?;
+            }
             transaction.execute(
                 "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('preview', ?, 'interactive_preview_glb', ?, ?)",
                 params![change_set_id, stored.sha256, updated_at],
             )?;
+            if let Some(source) = visual_source_stored.as_ref() {
+                transaction.execute(
+                    "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('preview', ?, 'visual_source_lod0_glb', ?, ?)",
+                    params![change_set_id, source.sha256, updated_at],
+                )?;
+            }
+            if let Some(delivery) = game_delivery_stored.as_ref() {
+                transaction.execute(
+                    "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('preview', ?, 'game_delivery_glb', ?, ?)",
+                    params![change_set_id, delivery.sha256, updated_at],
+                )?;
+            }
             transaction.execute(
                 "UPDATE agent_asset_change_sets SET preview_json=?, status='previewed', resulting_asset_version_id=NULL, updated_at=? WHERE change_set_id=? AND status='proposed'",
                 params![json_text(&seal)?, updated_at, change_set_id],
@@ -4108,11 +4252,20 @@ impl CoreRepository {
                 if promoted.finalize_commit().is_err() {
                     self.recover_object_store()?;
                 }
+                if let Some((mut source, mut delivery)) = game_promoted {
+                    if source.finalize_commit().is_err() || delivery.finalize_commit().is_err() {
+                        self.recover_object_store()?;
+                    }
+                }
                 self.validate_change_set_preview_bundle_objects(&bundle)?;
                 Ok(bundle)
             }
             Err(error) => {
                 promoted.cleanup_after_rollback();
+                if let Some((mut source, mut delivery)) = game_promoted {
+                    source.cleanup_after_rollback();
+                    delivery.cleanup_after_rollback();
+                }
                 Err(error)
             }
         }
@@ -4151,7 +4304,48 @@ impl CoreRepository {
                 preview_bundle_ids(&bundle.change_set.change_set_id),
                 vec!["interactive_readback_metadata"],
             )
-        })
+        })?;
+        match (
+            bundle.visual_source_lod0_glb.as_ref(),
+            bundle.game_delivery_glb.as_ref(),
+        ) {
+            (None, None) if !version_has_game_delivery(&bundle.sealed_preview) => Ok(()),
+            (Some(source), Some(delivery)) if version_has_game_delivery(&bundle.sealed_preview) => {
+                let source_bytes = self.object_store.read(&stored_from_record(source)).map_err(|_| {
+                    change_set_bundle_incomplete(
+                        "CHANGE_SET_PREVIEW_BUNDLE_INCOMPLETE",
+                        preview_bundle_ids(&bundle.change_set.change_set_id),
+                        vec!["visual_source_lod0_glb_bytes"],
+                    )
+                })?;
+                let delivery_bytes = self.object_store.read(&stored_from_record(delivery)).map_err(|_| {
+                    change_set_bundle_incomplete(
+                        "CHANGE_SET_PREVIEW_BUNDLE_INCOMPLETE",
+                        preview_bundle_ids(&bundle.change_set.change_set_id),
+                        vec!["game_delivery_glb_bytes"],
+                    )
+                })?;
+                validate_game_delivery_bundle_input(
+                    &bundle.sealed_preview,
+                    &source_bytes,
+                    &delivery_bytes,
+                    &stored_from_record(source),
+                    &stored_from_record(delivery),
+                )
+                .map_err(|_| {
+                    change_set_bundle_incomplete(
+                        "CHANGE_SET_PREVIEW_BUNDLE_INCOMPLETE",
+                        preview_bundle_ids(&bundle.change_set.change_set_id),
+                        vec!["game_delivery_readback"],
+                    )
+                })
+            }
+            _ => Err(change_set_bundle_incomplete(
+                "CHANGE_SET_PREVIEW_BUNDLE_INCOMPLETE",
+                preview_bundle_ids(&bundle.change_set.change_set_id),
+                vec!["game_delivery_roles"],
+            )),
+        }
     }
 
     /// Stores a compiled preview and binds it to the same Snapshot revision in
@@ -4375,6 +4569,54 @@ impl CoreRepository {
         quality: &QualityReport,
         expected: SnapshotEtag,
     ) -> CoreResult<ChangeSetConfirmBundleReadback> {
+        self.confirm_change_set_bundle_with_game_delivery(
+            change_set_id,
+            sealed_preview,
+            resulting,
+            interactive_glb,
+            production_glb,
+            None,
+            quality,
+            expected,
+        )
+    }
+
+    /// Confirms a game-ready ChangeSet while retaining both the editable
+    /// visual source LOD0 and the separately derived delivery GLB.
+    pub fn confirm_change_set_game_delivery_bundle(
+        &self,
+        change_set_id: &str,
+        sealed_preview: &AgentAssetVersion,
+        resulting: &AgentAssetVersion,
+        interactive_glb: &[u8],
+        visual_source_lod0_glb: &[u8],
+        game_delivery_glb: &[u8],
+        quality: &QualityReport,
+        expected: SnapshotEtag,
+    ) -> CoreResult<ChangeSetConfirmBundleReadback> {
+        self.confirm_change_set_bundle_with_game_delivery(
+            change_set_id,
+            sealed_preview,
+            resulting,
+            interactive_glb,
+            visual_source_lod0_glb,
+            Some((visual_source_lod0_glb, game_delivery_glb)),
+            quality,
+            expected,
+        )
+    }
+
+    fn confirm_change_set_bundle_with_game_delivery(
+        &self,
+        change_set_id: &str,
+        sealed_preview: &AgentAssetVersion,
+        resulting: &AgentAssetVersion,
+        interactive_glb: &[u8],
+        production_glb: &[u8],
+        game_delivery: Option<(&[u8], &[u8])>,
+        quality: &QualityReport,
+        expected: SnapshotEtag,
+    ) -> CoreResult<ChangeSetConfirmBundleReadback> {
         ensure_canonical_shape_program(
             &sealed_preview.shape_program,
             "CHANGE_SET_CONFIRM_NON_CANONICAL_SHAPE_PROGRAM",
@@ -4386,6 +4628,15 @@ impl CoreRepository {
         sealed_preview.validate()?;
         resulting.validate()?;
         quality.validate()?;
+        let sealed_game_delivery = version_has_game_delivery(sealed_preview);
+        if sealed_game_delivery != game_delivery.is_some()
+            || version_has_game_delivery(sealed_preview) != version_has_game_delivery(resulting)
+        {
+            return Err(CoreError::conflict(
+                "GAME_DELIVERY_CHANGE_SET_BUNDLE_REQUIRED",
+                "A game-ready ChangeSet confirmation must retain the exact source and delivery GLBs.",
+            ));
+        }
         if resulting.status != AssetVersionStatus::Committed
             || !same_preview_semantics(sealed_preview, resulting)?
         {
@@ -4399,6 +4650,29 @@ impl CoreRepository {
         let production_verified =
             crate::verify_forgecad_glb(production_glb, Some("production_concept"))?;
         validate_production_quality_readback(quality, resulting, &production_verified)?;
+        if let Some((source_bytes, delivery_bytes)) = game_delivery {
+            if source_bytes != production_glb {
+                return Err(CoreError::conflict(
+                    "GAME_DELIVERY_SOURCE_MISMATCH",
+                    "Game-ready ChangeSet production input must be the exact visual-source LOD0 bytes.",
+                ));
+            }
+            validate_glb_container(delivery_bytes)?;
+            let source = game_delivery_source_from_version(sealed_preview)?;
+            let profile = source.game_asset_profile.as_ref().ok_or_else(|| {
+                CoreError::conflict(
+                    "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+                    "Game-delivery ChangeSet confirmation has no sealed game profile.",
+                )
+            })?;
+            let bindings = crate::derive_game_asset_delivery_bindings(&source)?;
+            let _ = crate::verify_game_asset_delivery_glb(
+                source_bytes,
+                delivery_bytes,
+                profile,
+                &bindings,
+            )?;
+        }
 
         let existing_confirm = self.read_change_set_confirm_bundle(
             change_set_id,
@@ -4455,6 +4729,34 @@ impl CoreRepository {
         };
         let production_stored = production.metadata().clone();
         let interactive_stored = interactive.metadata().clone();
+        let game_promoted = if let Some((source_bytes, delivery_bytes)) = game_delivery {
+            let mut source = match self.object_store.stage(source_bytes, "glb").and_then(|value| value.promote()) {
+                Ok(value) => value,
+                Err(error) => {
+                    interactive.cleanup_after_rollback();
+                    production.cleanup_after_rollback();
+                    return Err(error);
+                }
+            };
+            let delivery = match self.object_store.stage(delivery_bytes, "glb").and_then(|value| value.promote()) {
+                Ok(value) => value,
+                Err(error) => {
+                    source.cleanup_after_rollback();
+                    interactive.cleanup_after_rollback();
+                    production.cleanup_after_rollback();
+                    return Err(error);
+                }
+            };
+            Some((source, delivery))
+        } else {
+            None
+        };
+        let visual_source_stored = game_promoted
+            .as_ref()
+            .map(|(source, _)| source.metadata().clone());
+        let game_delivery_stored = game_promoted
+            .as_ref()
+            .map(|(_, delivery)| delivery.metadata().clone());
         let result = self.write(|transaction| {
             if let Some(existing) = change_set_confirm_bundle_from_connection(
                 transaction,
@@ -4469,6 +4771,8 @@ impl CoreRepository {
                     quality,
                     &production_stored,
                     &interactive_stored,
+                    visual_source_stored.as_ref(),
+                    game_delivery_stored.as_ref(),
                 )?;
                 return Ok(existing);
             }
@@ -4488,6 +4792,10 @@ impl CoreRepository {
                 || preview_bundle.interactive_preview_glb.sha256 != interactive_stored.sha256
                 || preview_bundle.interactive_preview_glb.byte_size
                     != interactive_stored.byte_size
+                || preview_bundle.visual_source_lod0_glb.as_ref().map(|value| value.sha256.clone())
+                    != visual_source_stored.as_ref().map(|value| value.sha256.clone())
+                || preview_bundle.game_delivery_glb.as_ref().map(|value| value.sha256.clone())
+                    != game_delivery_stored.as_ref().map(|value| value.sha256.clone())
             {
                 return Err(CoreError::conflict(
                     "CHANGE_SET_PREVIEW_DRIFT",
@@ -4525,6 +4833,12 @@ impl CoreRepository {
 
             insert_object_metadata(transaction, &interactive_stored, &resulting.created_at)?;
             insert_object_metadata(transaction, &production_stored, &resulting.created_at)?;
+            if let Some(source) = visual_source_stored.as_ref() {
+                insert_object_metadata(transaction, source, &resulting.created_at)?;
+            }
+            if let Some(delivery) = game_delivery_stored.as_ref() {
+                insert_object_metadata(transaction, delivery, &resulting.created_at)?;
+            }
             insert_version(transaction, resulting)?;
             transaction.execute(
                 "UPDATE agent_asset_versions SET status='superseded' WHERE asset_version_id=? AND status='committed'",
@@ -4544,6 +4858,18 @@ impl CoreRepository {
                 "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('asset_version', ?, 'production_glb', ?, ?)",
                 params![resulting.asset_version_id, production_stored.sha256, resulting.created_at],
             )?;
+            if let Some(source) = visual_source_stored.as_ref() {
+                transaction.execute(
+                    "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('asset_version', ?, 'visual_source_lod0_glb', ?, ?)",
+                    params![resulting.asset_version_id, source.sha256, resulting.created_at],
+                )?;
+            }
+            if let Some(delivery) = game_delivery_stored.as_ref() {
+                transaction.execute(
+                    "INSERT INTO forgecad_core_object_references(reference_kind, owner_id, role, sha256, created_at) VALUES ('asset_version', ?, 'game_delivery_glb', ?, ?)",
+                    params![resulting.asset_version_id, delivery.sha256, resulting.created_at],
+                )?;
+            }
             transaction.execute(
                 "INSERT INTO agent_asset_quality_reports(quality_report_id, project_id, asset_version_id, report_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                 params![
@@ -4588,6 +4914,10 @@ impl CoreRepository {
                 production_glb_sha256: production_stored.sha256.clone(),
                 production_glb_byte_size: production_stored.byte_size,
                 quality_report_id: quality.quality_report_id.clone(),
+                visual_source_lod0_glb_sha256: visual_source_stored.as_ref().map(|value| value.sha256.clone()),
+                visual_source_lod0_glb_byte_size: visual_source_stored.as_ref().map(|value| value.byte_size),
+                game_delivery_glb_sha256: game_delivery_stored.as_ref().map(|value| value.sha256.clone()),
+                game_delivery_glb_byte_size: game_delivery_stored.as_ref().map(|value| value.byte_size),
             };
             transaction.execute(
                 "UPDATE agent_asset_change_sets SET preview_json=?, status='confirmed', resulting_asset_version_id=?, updated_at=? WHERE change_set_id=? AND status='previewed'",
@@ -4607,6 +4937,10 @@ impl CoreRepository {
             )?;
             transaction.execute(
                 "DELETE FROM forgecad_core_object_references WHERE reference_kind='preview' AND owner_id=? AND role='interactive_preview_glb'",
+                [change_set_id],
+            )?;
+            transaction.execute(
+                "DELETE FROM forgecad_core_object_references WHERE reference_kind='preview' AND owner_id=? AND role IN ('visual_source_lod0_glb', 'game_delivery_glb')",
                 [change_set_id],
             )?;
             change_set_confirm_bundle_from_connection(
@@ -4631,7 +4965,13 @@ impl CoreRepository {
             Ok(bundle) => {
                 let production_finalize = production.finalize_commit();
                 let interactive_finalize = interactive.finalize_commit();
-                if production_finalize.is_err() || interactive_finalize.is_err() {
+                let game_finalize = game_promoted.map(|(mut source, mut delivery)| {
+                    (source.finalize_commit(), delivery.finalize_commit())
+                });
+                if production_finalize.is_err()
+                    || interactive_finalize.is_err()
+                    || game_finalize.is_some_and(|(source, delivery)| source.is_err() || delivery.is_err())
+                {
                     self.recover_object_store()?;
                 }
                 self.validate_change_set_confirm_bundle_objects(&bundle)?;
@@ -4640,6 +4980,10 @@ impl CoreRepository {
             Err(error) => {
                 interactive.cleanup_after_rollback();
                 production.cleanup_after_rollback();
+                if let Some((mut source, mut delivery)) = game_promoted {
+                    source.cleanup_after_rollback();
+                    delivery.cleanup_after_rollback();
+                }
                 Err(error)
             }
         }
@@ -4717,10 +5061,51 @@ impl CoreRepository {
         .map_err(|_| {
             change_set_bundle_incomplete(
                 "CHANGE_SET_CONFIRM_BUNDLE_INCOMPLETE",
-                details,
+                details.clone(),
                 vec!["interactive_readback_metadata"],
             )
-        })
+        })?;
+        if version_has_game_delivery(&bundle.version) {
+            let (Some(source), Some(delivery)) = (
+                bundle.visual_source_lod0_glb.as_ref(),
+                bundle.game_delivery_glb.as_ref(),
+            ) else {
+                return Err(change_set_bundle_incomplete(
+                    "CHANGE_SET_CONFIRM_BUNDLE_INCOMPLETE",
+                    details,
+                    vec!["game_delivery_roles"],
+                ));
+            };
+            let source_bytes = self.object_store.read(&stored_from_record(source)).map_err(|_| {
+                change_set_bundle_incomplete(
+                    "CHANGE_SET_CONFIRM_BUNDLE_INCOMPLETE",
+                    details.clone(),
+                    vec!["visual_source_lod0_glb_bytes"],
+                )
+            })?;
+            let delivery_bytes = self.object_store.read(&stored_from_record(delivery)).map_err(|_| {
+                change_set_bundle_incomplete(
+                    "CHANGE_SET_CONFIRM_BUNDLE_INCOMPLETE",
+                    details.clone(),
+                    vec!["game_delivery_glb_bytes"],
+                )
+            })?;
+            validate_game_delivery_bundle_input(
+                &bundle.version,
+                &source_bytes,
+                &delivery_bytes,
+                &stored_from_record(source),
+                &stored_from_record(delivery),
+            )
+            .map_err(|_| {
+                change_set_bundle_incomplete(
+                    "CHANGE_SET_CONFIRM_BUNDLE_INCOMPLETE",
+                    details,
+                    vec!["game_delivery_readback"],
+                )
+            })?;
+        }
+        Ok(())
     }
 
     pub fn reject_change_set(
@@ -8943,6 +9328,10 @@ fn validate_material_operation(
 
 fn domain_for_pack(pack_id: &str) -> Option<&'static str> {
     match pack_id {
+        // U002 category-open assets may intentionally have no knowledge pack.
+        // Keep the visual material allowlist bounded, but do not make a
+        // legacy four-domain discriminator a prerequisite for editing them.
+        "pack_unclassified" => Some("generic_visual"),
         "pack_future_weapon_prop" | "pack_future_prop" => Some("future_weapon_prop"),
         "pack_vehicle_concept" => Some("vehicle_concept"),
         "pack_aircraft_concept" => Some("aircraft_concept"),
@@ -8953,6 +9342,7 @@ fn domain_for_pack(pack_id: &str) -> Option<&'static str> {
 
 pub(crate) fn material_allowed_domains(material_id: &str) -> Option<&'static [&'static str]> {
     const ALL: &[&str] = &[
+        "generic_visual",
         "future_weapon_prop",
         "vehicle_concept",
         "aircraft_concept",
@@ -10029,6 +10419,18 @@ fn change_set_preview_bundle_from_connection(
         change_set_id,
         "interactive_preview_glb",
     )?;
+    let visual_source_lod0_glb = object_for_reference_from_connection(
+        connection,
+        "preview",
+        change_set_id,
+        "visual_source_lod0_glb",
+    )?;
+    let game_delivery_glb = object_for_reference_from_connection(
+        connection,
+        "preview",
+        change_set_id,
+        "game_delivery_glb",
+    )?;
     let Some(change_set) = change_set_from_connection(connection, change_set_id)? else {
         return if preview_object.is_some() {
             Err(change_set_bundle_incomplete(
@@ -10049,7 +10451,12 @@ fn change_set_preview_bundle_from_connection(
     });
     match change_set.status {
         ChangeSetStatus::Proposed => {
-            if change_set.preview.is_some() || preview_object.is_some() || snapshot_names_preview {
+            if change_set.preview.is_some()
+                || preview_object.is_some()
+                || visual_source_lod0_glb.is_some()
+                || game_delivery_glb.is_some()
+                || snapshot_names_preview
+            {
                 return Err(change_set_bundle_incomplete(
                     "CHANGE_SET_PREVIEW_BUNDLE_INCOMPLETE",
                     preview_bundle_ids(change_set_id),
@@ -10059,7 +10466,11 @@ fn change_set_preview_bundle_from_connection(
             return Ok(None);
         }
         ChangeSetStatus::Confirmed => {
-            if preview_object.is_some() || snapshot_names_preview {
+            if preview_object.is_some()
+                || visual_source_lod0_glb.is_some()
+                || game_delivery_glb.is_some()
+                || snapshot_names_preview
+            {
                 return Err(change_set_bundle_incomplete(
                     "CHANGE_SET_PREVIEW_BUNDLE_INCOMPLETE",
                     preview_bundle_ids(change_set_id),
@@ -10069,7 +10480,12 @@ fn change_set_preview_bundle_from_connection(
             return Ok(None);
         }
         ChangeSetStatus::Rejected | ChangeSetStatus::Stale => {
-            if change_set.preview.is_some() || preview_object.is_some() || snapshot_names_preview {
+            if change_set.preview.is_some()
+                || preview_object.is_some()
+                || visual_source_lod0_glb.is_some()
+                || game_delivery_glb.is_some()
+                || snapshot_names_preview
+            {
                 return Err(change_set_bundle_incomplete(
                     "CHANGE_SET_PREVIEW_BUNDLE_INCOMPLETE",
                     preview_bundle_ids(change_set_id),
@@ -10087,6 +10503,21 @@ fn change_set_preview_bundle_from_connection(
     }
     if preview_object.is_none() {
         missing.push("interactive_preview_glb");
+    }
+    let sealed_game_delivery = change_set
+        .preview
+        .as_ref()
+        .and_then(|value| parse_change_set_preview_seal(value).ok())
+        .is_some_and(|seal| version_has_game_delivery(&seal.sealed_preview));
+    if sealed_game_delivery {
+        if visual_source_lod0_glb.is_none() {
+            missing.push("visual_source_lod0_glb");
+        }
+        if game_delivery_glb.is_none() {
+            missing.push("game_delivery_glb");
+        }
+    } else if visual_source_lod0_glb.is_some() || game_delivery_glb.is_some() {
+        missing.push("unexpected_game_delivery_roles");
     }
     if snapshot.is_none() || !snapshot_names_preview {
         missing.push("snapshot_preview");
@@ -10112,6 +10543,8 @@ fn change_set_preview_bundle_from_connection(
         snapshot: snapshot.expect("checked"),
         interactive_preview_glb: preview_object.expect("checked"),
         interactive_readback: seal.interactive_readback,
+        visual_source_lod0_glb,
+        game_delivery_glb,
     };
     let head: String = connection
         .query_row(
@@ -10156,6 +10589,18 @@ fn change_set_confirm_bundle_from_connection(
         resulting_asset_version_id,
         "interactive_preview_glb",
     )?;
+    let visual_source_lod0_glb = object_for_reference_from_connection(
+        connection,
+        "asset_version",
+        resulting_asset_version_id,
+        "visual_source_lod0_glb",
+    )?;
+    let game_delivery_glb = object_for_reference_from_connection(
+        connection,
+        "asset_version",
+        resulting_asset_version_id,
+        "game_delivery_glb",
+    )?;
     let preview_reference = object_for_reference_from_connection(
         connection,
         "preview",
@@ -10166,6 +10611,8 @@ fn change_set_confirm_bundle_from_connection(
         || quality.is_some()
         || production.is_some()
         || interactive.is_some()
+        || visual_source_lod0_glb.is_some()
+        || game_delivery_glb.is_some()
         || change_set.as_ref().is_some_and(|value| {
             value.status == ChangeSetStatus::Confirmed || value.resulting_asset_version_id.is_some()
         });
@@ -10255,6 +10702,21 @@ fn change_set_confirm_bundle_from_connection(
     if interactive.is_none() {
         missing.push("interactive_preview_glb");
     }
+    let confirmed_game_delivery = change_set
+        .preview
+        .as_ref()
+        .and_then(|value| parse_change_set_confirm_seal(value).ok())
+        .is_some_and(|seal| seal.game_delivery_glb_sha256.is_some());
+    if confirmed_game_delivery {
+        if visual_source_lod0_glb.is_none() {
+            missing.push("visual_source_lod0_glb");
+        }
+        if game_delivery_glb.is_none() {
+            missing.push("game_delivery_glb");
+        }
+    } else if visual_source_lod0_glb.is_some() || game_delivery_glb.is_some() {
+        missing.push("unexpected_game_delivery_roles");
+    }
     if snapshot.is_none() {
         missing.push("snapshot");
     }
@@ -10281,6 +10743,8 @@ fn change_set_confirm_bundle_from_connection(
         quality: quality.expect("checked"),
         production_glb: production.expect("checked"),
         interactive_preview_glb: interactive.expect("checked"),
+        visual_source_lod0_glb,
+        game_delivery_glb,
     };
     if let Err(error) = validate_change_set_confirm_readback(&bundle, head.as_deref()) {
         let mut details =
@@ -10361,6 +10825,14 @@ fn validate_change_set_preview_readback(
         || seal.interactive_readback != bundle.interactive_readback
         || seal.interactive_glb_sha256 != bundle.interactive_preview_glb.sha256
         || seal.interactive_glb_byte_size != bundle.interactive_preview_glb.byte_size
+        || seal.visual_source_lod0_glb_sha256
+            != bundle.visual_source_lod0_glb.as_ref().map(|value| value.sha256.clone())
+        || seal.visual_source_lod0_glb_byte_size
+            != bundle.visual_source_lod0_glb.as_ref().map(|value| value.byte_size)
+        || seal.game_delivery_glb_sha256
+            != bundle.game_delivery_glb.as_ref().map(|value| value.sha256.clone())
+        || seal.game_delivery_glb_byte_size
+            != bundle.game_delivery_glb.as_ref().map(|value| value.byte_size)
     {
         return Err(CoreError::conflict(
             "CHANGE_SET_PREVIEW_BUNDLE_INVALID",
@@ -10417,6 +10889,14 @@ fn validate_change_set_confirm_readback(
         || seal.production_glb_byte_size != bundle.production_glb.byte_size
         || seal.interactive_glb_sha256 != bundle.interactive_preview_glb.sha256
         || seal.interactive_glb_byte_size != bundle.interactive_preview_glb.byte_size
+        || seal.visual_source_lod0_glb_sha256
+            != bundle.visual_source_lod0_glb.as_ref().map(|value| value.sha256.clone())
+        || seal.visual_source_lod0_glb_byte_size
+            != bundle.visual_source_lod0_glb.as_ref().map(|value| value.byte_size)
+        || seal.game_delivery_glb_sha256
+            != bundle.game_delivery_glb.as_ref().map(|value| value.sha256.clone())
+        || seal.game_delivery_glb_byte_size
+            != bundle.game_delivery_glb.as_ref().map(|value| value.byte_size)
     {
         return Err(CoreError::conflict(
             "CHANGE_SET_CONFIRM_BUNDLE_INVALID",
@@ -10434,7 +10914,31 @@ fn validate_change_set_confirm_readback(
         &seal.sealed_preview,
         &bundle.interactive_preview_glb.sha256,
         bundle.interactive_preview_glb.byte_size,
-    )
+    )?;
+    if version_has_game_delivery(&bundle.version) {
+        let (Some(source), Some(delivery)) = (
+            bundle.visual_source_lod0_glb.as_ref(),
+            bundle.game_delivery_glb.as_ref(),
+        ) else {
+            return Err(CoreError::conflict(
+                "CHANGE_SET_CONFIRM_BUNDLE_INVALID",
+                "Game-ready ChangeSet confirmation is missing its source/delivery object roles.",
+            ));
+        };
+        if source.sha256 != bundle.production_glb.sha256
+            || source.byte_size != bundle.production_glb.byte_size
+            || source.extension != "glb"
+            || delivery.extension != "glb"
+            || source.ref_count < 1
+            || delivery.ref_count < 1
+        {
+            return Err(CoreError::conflict(
+                "CHANGE_SET_CONFIRM_BUNDLE_INVALID",
+                "Game-ready ChangeSet source/delivery object identities are inconsistent.",
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn parse_change_set_preview_seal(value: &serde_json::Value) -> CoreResult<ChangeSetPreviewSeal> {
@@ -10667,12 +11171,18 @@ fn validate_change_set_preview_replay(
     existing: &ChangeSetPreviewBundleReadback,
     requested: &ChangeSetPreviewSeal,
     stored: &StoredObject,
+    visual_source: Option<&StoredObject>,
+    game_delivery: Option<&StoredObject>,
     change_set_id: &str,
 ) -> CoreResult<()> {
     if existing.sealed_preview != requested.sealed_preview
         || existing.interactive_readback != requested.interactive_readback
         || existing.interactive_preview_glb.sha256 != stored.sha256
         || existing.interactive_preview_glb.byte_size != stored.byte_size
+        || existing.visual_source_lod0_glb.as_ref().map(|value| value.sha256.as_str())
+            != visual_source.map(|value| value.sha256.as_str())
+        || existing.game_delivery_glb.as_ref().map(|value| value.sha256.as_str())
+            != game_delivery.map(|value| value.sha256.as_str())
     {
         return Err(CoreError::conflict_with_details(
             "CHANGE_SET_PREVIEW_BUNDLE_IDEMPOTENCY_CONFLICT",
@@ -10690,6 +11200,8 @@ fn validate_change_set_confirm_replay(
     quality: &QualityReport,
     production: &StoredObject,
     interactive: &StoredObject,
+    visual_source: Option<&StoredObject>,
+    game_delivery: Option<&StoredObject>,
 ) -> CoreResult<()> {
     let seal = existing
         .change_set
@@ -10709,6 +11221,10 @@ fn validate_change_set_confirm_replay(
         || existing.production_glb.byte_size != production.byte_size
         || existing.interactive_preview_glb.sha256 != interactive.sha256
         || existing.interactive_preview_glb.byte_size != interactive.byte_size
+        || existing.visual_source_lod0_glb.as_ref().map(|value| value.sha256.as_str())
+            != visual_source.map(|value| value.sha256.as_str())
+        || existing.game_delivery_glb.as_ref().map(|value| value.sha256.as_str())
+            != game_delivery.map(|value| value.sha256.as_str())
     {
         return Err(CoreError::conflict_with_details(
             "CHANGE_SET_CONFIRM_BUNDLE_IDEMPOTENCY_CONFLICT",
@@ -11149,6 +11665,14 @@ fn game_delivery_source_from_version(version: &AgentAssetVersion) -> CoreResult<
         ));
     }
     Ok(source)
+}
+
+fn version_has_game_delivery(version: &AgentAssetVersion) -> bool {
+    version
+        .assembly_graph
+        .get("universal_asset_source_v2")
+        .and_then(|value| value.get("game_asset_delivery"))
+        .is_some_and(|value| !value.is_null())
 }
 
 fn validate_game_delivery_bundle_input(
@@ -12050,6 +12574,7 @@ mod tests {
             acceptance_policy: crate::VisualReferenceAcceptancePolicy::default_policy(),
             reference_sources: Vec::new(),
             candidate_view_profile: None,
+            candidate_render_contract: None,
             candidate_views: Vec::new(),
         }
     }

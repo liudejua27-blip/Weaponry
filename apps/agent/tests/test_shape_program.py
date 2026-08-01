@@ -56,6 +56,44 @@ def test_non_finite_values_are_rejected():
         validate_shape_program(candidate)
 
 
+@pytest.mark.parametrize("axis", [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]])
+def test_surface_panel_accepts_each_axis_aligned_source_face(axis):
+    candidate = {
+        **VALID_PROGRAM,
+        "operations": [
+            {**VALID_PROGRAM["operations"][0], "args": {"size": [100, 80, 60], "part_role": "body_shell"}},
+            {
+                **VALID_PROGRAM["operations"][1],
+                "args": {"size": [8, 30, 20], "axis": axis, "position": [0, 0, 0], "part_role": "body_shell"},
+            },
+        ],
+    }
+
+    validate_shape_program(candidate)
+
+
+def test_surface_panel_rejects_diagonal_axis_and_normal_offset():
+    diagonal = {
+        **VALID_PROGRAM,
+        "operations": [
+            VALID_PROGRAM["operations"][0],
+            {**VALID_PROGRAM["operations"][1], "args": {"axis": [1, 1, 0], "part_role": "body_shell"}},
+        ],
+    }
+    with pytest.raises(ShapeProgramValidationError, match="SHAPE_PROGRAM_SURFACE_PANEL_AXIS"):
+        validate_shape_program(diagonal)
+
+    offset = {
+        **VALID_PROGRAM,
+        "operations": [
+            VALID_PROGRAM["operations"][0],
+            {**VALID_PROGRAM["operations"][1], "args": {"axis": [1, 0, 0], "position": [1, 0, 0], "part_role": "body_shell"}},
+        ],
+    }
+    with pytest.raises(ShapeProgramValidationError, match="SHAPE_PROGRAM_SURFACE_PANEL_OFFSET"):
+        validate_shape_program(offset)
+
+
 @pytest.mark.parametrize("operation_name", ["union", "subtract"])
 def test_boolean_operations_accept_two_to_eight_ordered_inputs(operation_name):
     sources = [

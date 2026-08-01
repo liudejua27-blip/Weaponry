@@ -119,6 +119,40 @@ def test_surface_panel_offset_and_bevel_inherit_the_source_static_frame() -> Non
     assert bounds == pytest.approx([120.0, 200.0, 180.0], abs=0.02)
 
 
+@pytest.mark.parametrize(
+    ("axis", "panel_size"),
+    [
+        ([1, 0, 0], [10, 80, 60]),
+        ([-1, 0, 0], [10, 80, 60]),
+        ([0, 1, 0], [80, 10, 60]),
+        ([0, -1, 0], [80, 10, 60]),
+        ([0, 0, 1], [80, 60, 10]),
+        ([0, 0, -1], [80, 60, 10]),
+    ],
+)
+def test_surface_panel_compiles_against_all_six_local_faces(axis: list[int], panel_size: list[float]) -> None:
+    program = _program(
+        [
+            {
+                "operation_id": "op_source",
+                "op": "box",
+                "inputs": [],
+                "args": {"size": [220, 120, 180], "part_role": "source", "zone_id": "zone_source"},
+            },
+            {
+                "operation_id": "op_panel",
+                "op": "surface_panel",
+                "inputs": ["op_source"],
+                "args": {"size": panel_size, "axis": axis, "part_role": "panel", "zone_id": "zone_panel"},
+            },
+        ],
+        [_output("op_panel", "panel")],
+    )
+
+    result = compile_shape_program(program, artifact_profile_id="production_concept")
+    assert result.readback.triangle_count == 24
+
+
 def test_static_rotation_bakes_profile_extrude_and_revolve() -> None:
     rotation = [0.35, -0.45, 0.7]
     operations = [

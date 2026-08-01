@@ -66,6 +66,37 @@ fn finite(values: impl IntoIterator<Item = f64>) -> bool {
     values.into_iter().all(f64::is_finite)
 }
 
+fn zero_rotation() -> [f64; 3] {
+    [0.0, 0.0, 0.0]
+}
+
+fn is_zero_rotation(value: &[f64; 3]) -> bool {
+    value.iter().all(|item| item.abs() <= 1e-12)
+}
+
+fn validate_rotation(value: &[f64; 3]) -> CoreResult<()> {
+    if !finite(value.iter().copied())
+        || value
+            .iter()
+            .any(|item| item.abs() > std::f64::consts::PI + 1e-9)
+    {
+        return Err(invalid(
+            "FORGE_VISUAL_VP203_ROTATION_INVALID",
+            "static Euler rotation must be finite and remain within one bounded turn",
+        ));
+    }
+    Ok(())
+}
+
+fn insert_rotation(operation: &mut Value, rotation: [f64; 3]) {
+    if is_zero_rotation(&rotation) {
+        return;
+    }
+    if let Some(args) = operation.get_mut("args").and_then(Value::as_object_mut) {
+        args.insert("rotation".into(), json!(rotation));
+    }
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum GeometryAxisV2 {
@@ -101,21 +132,45 @@ pub enum GeometryCapPolicyV2 {
 }
 
 /// `surface_panel` is intentionally more constrained than a general transform.
-/// The restricted worker only supports local top/bottom panel attachments, so
-/// source programs cannot claim arbitrary side-face projection that the
-/// executor cannot reproduce.
+/// The restricted worker supports only one of the six axis-aligned local faces;
+/// source programs cannot claim arbitrary face projection or a free transform
+/// that the executor cannot reproduce.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SurfacePanelAxisV2 {
+    PositiveX,
+    NegativeX,
     PositiveY,
     NegativeY,
+    PositiveZ,
+    NegativeZ,
 }
 
 impl SurfacePanelAxisV2 {
     fn vector(self) -> [f64; 3] {
         match self {
+            Self::PositiveX => [1.0, 0.0, 0.0],
+            Self::NegativeX => [-1.0, 0.0, 0.0],
             Self::PositiveY => [0.0, 1.0, 0.0],
             Self::NegativeY => [0.0, -1.0, 0.0],
+            Self::PositiveZ => [0.0, 0.0, 1.0],
+            Self::NegativeZ => [0.0, 0.0, -1.0],
+        }
+    }
+
+    fn normal_index(self) -> usize {
+        match self {
+            Self::PositiveX | Self::NegativeX => 0,
+            Self::PositiveY | Self::NegativeY => 1,
+            Self::PositiveZ | Self::NegativeZ => 2,
+        }
+    }
+
+    fn face_indices(self) -> [usize; 2] {
+        match self {
+            Self::PositiveX | Self::NegativeX => [1, 2],
+            Self::PositiveY | Self::NegativeY => [0, 2],
+            Self::PositiveZ | Self::NegativeZ => [0, 1],
         }
     }
 }
@@ -164,6 +219,8 @@ pub enum HighLevelGeometryNodeV2 {
         node_id: String,
         size: [f64; 3],
         position: [f64; 3],
+        #[serde(default = "zero_rotation", skip_serializing_if = "is_zero_rotation")]
+        rotation: [f64; 3],
     },
     Cylinder {
         node_id: String,
@@ -171,6 +228,8 @@ pub enum HighLevelGeometryNodeV2 {
         height: f64,
         axis: GeometryAxisV2,
         position: [f64; 3],
+        #[serde(default = "zero_rotation", skip_serializing_if = "is_zero_rotation")]
+        rotation: [f64; 3],
     },
     Capsule {
         node_id: String,
@@ -178,11 +237,15 @@ pub enum HighLevelGeometryNodeV2 {
         height: f64,
         axis: GeometryAxisV2,
         position: [f64; 3],
+        #[serde(default = "zero_rotation", skip_serializing_if = "is_zero_rotation")]
+        rotation: [f64; 3],
     },
     Wedge {
         node_id: String,
         size: [f64; 3],
         position: [f64; 3],
+        #[serde(default = "zero_rotation", skip_serializing_if = "is_zero_rotation")]
+        rotation: [f64; 3],
     },
     Extrude {
         node_id: String,
@@ -192,6 +255,8 @@ pub enum HighLevelGeometryNodeV2 {
         position: [f64; 3],
         cap_start: bool,
         cap_end: bool,
+        #[serde(default = "zero_rotation", skip_serializing_if = "is_zero_rotation")]
+        rotation: [f64; 3],
     },
     Revolve {
         node_id: String,
@@ -200,6 +265,8 @@ pub enum HighLevelGeometryNodeV2 {
         angle: f64,
         radial_segments: u16,
         position: [f64; 3],
+        #[serde(default = "zero_rotation", skip_serializing_if = "is_zero_rotation")]
+        rotation: [f64; 3],
     },
     Loft {
         node_id: String,
@@ -207,6 +274,8 @@ pub enum HighLevelGeometryNodeV2 {
         cross_section_scale: [f64; 2],
         axis_length: f64,
         position: [f64; 3],
+        #[serde(default = "zero_rotation", skip_serializing_if = "is_zero_rotation")]
+        rotation: [f64; 3],
     },
     Sweep {
         node_id: String,
@@ -218,6 +287,8 @@ pub enum HighLevelGeometryNodeV2 {
         cap_start: bool,
         cap_end: bool,
         position: [f64; 3],
+        #[serde(default = "zero_rotation", skip_serializing_if = "is_zero_rotation")]
+        rotation: [f64; 3],
     },
     Mirror {
         node_id: String,
@@ -252,12 +323,41 @@ pub enum HighLevelGeometryNodeV2 {
         position: [f64; 3],
         axis: SurfacePanelAxisV2,
     },
+    /// A bounded shallow recess on one axis-aligned source face.  Lowering
+    /// expands this ergonomic node to one sealed cutter box plus one
+    /// `subtract`; it is not an arbitrary boolean or provider-authored mesh.
+    Groove {
+        node_id: String,
+        input_node_id: String,
+        face_size: [f64; 2],
+        position: [f64; 3],
+        axis: SurfacePanelAxisV2,
+        depth: f64,
+    },
+    /// A bounded closed shell produced from one box or bevelled box by a local
+    /// CSG subtraction. It is intentionally narrower than a general CAD
+    /// shell/offset feature.
+    Shell {
+        node_id: String,
+        input_node_id: String,
+        thickness: f64,
+    },
     /// A fixed 2x2x2 trilinear cage.  Offsets are relative to the source
     /// AABB, bounded to retain a local, topology-preserving deformation.
     LatticeDeform {
         node_id: String,
         input_node_id: String,
         corner_offsets: [[f64; 3]; 8],
+    },
+    /// A bounded normalized local patch over an earlier mesh. The worker
+    /// preserves topology and provenance while applying a smooth local
+    /// displacement; no imported mesh bytes are accepted here.
+    LocalMeshPatch {
+        node_id: String,
+        input_node_id: String,
+        patch_center: [f64; 3],
+        patch_radius: f64,
+        patch_offset: [f64; 3],
     },
     Union {
         node_id: String,
@@ -297,7 +397,10 @@ impl HighLevelGeometryNodeV2 {
             | Self::RadialArray { node_id, .. }
             | Self::BevelApprox { node_id, .. }
             | Self::SurfacePanel { node_id, .. }
+            | Self::Groove { node_id, .. }
+            | Self::Shell { node_id, .. }
             | Self::LatticeDeform { node_id, .. }
+            | Self::LocalMeshPatch { node_id, .. }
             | Self::Union { node_id, .. }
             | Self::Subtract { node_id, .. }
             | Self::Part { node_id, .. }
@@ -312,7 +415,10 @@ impl HighLevelGeometryNodeV2 {
             | Self::RadialArray { input_node_id, .. }
             | Self::BevelApprox { input_node_id, .. }
             | Self::SurfacePanel { input_node_id, .. }
+            | Self::Groove { input_node_id, .. }
+            | Self::Shell { input_node_id, .. }
             | Self::LatticeDeform { input_node_id, .. }
+            | Self::LocalMeshPatch { input_node_id, .. }
             | Self::Part { input_node_id, .. }
             | Self::MaterialZone { input_node_id, .. } => vec![input_node_id],
             Self::Union { input_node_ids, .. } | Self::Subtract { input_node_ids, .. } => {
@@ -325,6 +431,20 @@ impl HighLevelGeometryNodeV2 {
     fn is_geometry(&self) -> bool {
         !matches!(self, Self::Part { .. } | Self::MaterialZone { .. })
     }
+
+    fn rotation(&self) -> Option<[f64; 3]> {
+        match self {
+            Self::Box { rotation, .. }
+            | Self::Cylinder { rotation, .. }
+            | Self::Capsule { rotation, .. }
+            | Self::Wedge { rotation, .. }
+            | Self::Extrude { rotation, .. }
+            | Self::Revolve { rotation, .. }
+            | Self::Loft { rotation, .. }
+            | Self::Sweep { rotation, .. } => Some(*rotation),
+            _ => None,
+        }
+    }
 }
 
 fn detail_source_size(
@@ -335,6 +455,26 @@ fn detail_source_size(
         HighLevelGeometryNodeV2::Box { size, .. } => Some(*size),
         HighLevelGeometryNodeV2::BevelApprox { input_node_id, .. } => {
             detail_source_size(input_node_id, nodes)
+        }
+        HighLevelGeometryNodeV2::Shell { input_node_id, .. } => {
+            detail_source_size(input_node_id, nodes)
+        }
+        HighLevelGeometryNodeV2::Groove { input_node_id, .. } => {
+            detail_source_size(input_node_id, nodes)
+        }
+        _ => None,
+    }
+}
+
+fn detail_source_position(
+    node_id: &str,
+    nodes: &BTreeMap<&str, &HighLevelGeometryNodeV2>,
+) -> Option<[f64; 3]> {
+    match nodes.get(node_id)? {
+        HighLevelGeometryNodeV2::Box { position, .. } => Some(*position),
+        HighLevelGeometryNodeV2::BevelApprox { input_node_id, .. }
+        | HighLevelGeometryNodeV2::Groove { input_node_id, .. } => {
+            detail_source_position(input_node_id, nodes)
         }
         _ => None,
     }
@@ -782,6 +922,9 @@ impl ForgeVisualGeometryProgramV2 {
                     ));
                 }
             }
+            if let Some(rotation) = node.rotation() {
+                validate_rotation(&rotation)?;
+            }
             match node {
                 HighLevelGeometryNodeV2::Part { input_node_id, .. }
                     if !nodes[input_node_id.as_str()].is_geometry() =>
@@ -807,6 +950,8 @@ impl ForgeVisualGeometryProgramV2 {
                 | HighLevelGeometryNodeV2::RadialArray { input_node_id, .. }
                 | HighLevelGeometryNodeV2::BevelApprox { input_node_id, .. }
                 | HighLevelGeometryNodeV2::SurfacePanel { input_node_id, .. }
+                | HighLevelGeometryNodeV2::Groove { input_node_id, .. }
+                | HighLevelGeometryNodeV2::Shell { input_node_id, .. }
                 | HighLevelGeometryNodeV2::LatticeDeform { input_node_id, .. }
                     if !nodes[input_node_id.as_str()].is_geometry() =>
                 {
@@ -1132,7 +1277,7 @@ impl ForgeVisualGeometryProgramV2 {
                     if !radius.is_finite()
                         || !(*radius > 0.0
                             && *radius
-                                < source_size.iter().copied().fold(f64::INFINITY, f64::min) / 2.0)
+                                <= source_size[0].min(source_size[2]) * 0.25)
                         || !(1..=3).contains(segments)
                     {
                         return Err(invalid(
@@ -1154,6 +1299,7 @@ impl ForgeVisualGeometryProgramV2 {
                     input_node_id,
                     size,
                     position,
+                    axis,
                     ..
                 } => {
                     let source_size =
@@ -1163,19 +1309,139 @@ impl ForgeVisualGeometryProgramV2 {
                                 "surface_panel requires an earlier box or bevel_approx source",
                             )
                         })?;
+                    let normal_index = axis.normal_index();
+                    let face_indices = axis.face_indices();
                     if !finite(size.iter().copied().chain(position.iter().copied()))
                         || size.iter().any(|value| *value <= 0.0 || *value > 100_000.0)
-                        || position[1].abs() > 1e-9
-                        || position[0].abs() + size[0] / 2.0 > source_size[0] / 2.0
-                        || position[2].abs() + size[2] / 2.0 > source_size[2] / 2.0
+                        || position[normal_index].abs() > 1e-9
+                        || face_indices.iter().any(|index| {
+                            position[*index].abs() + size[*index] / 2.0
+                                > source_size[*index] / 2.0
+                        })
                     {
                         return Err(invalid(
                             "FORGE_VISUAL_VP203_SURFACE_PANEL_INVALID",
-                            "surface panel must remain within its source top/bottom face",
+                            "surface panel must remain within its selected source face",
                         ));
                     }
                     operation_count += 1;
                     checked_add(triangles[input_node_id.as_str()], 12)?
+                }
+                HighLevelGeometryNodeV2::Groove {
+                    input_node_id,
+                    face_size,
+                    position,
+                    axis,
+                    depth,
+                    ..
+                } => {
+                    if !matches!(
+                        nodes[input_node_id.as_str()],
+                        HighLevelGeometryNodeV2::Box { .. }
+                            | HighLevelGeometryNodeV2::BevelApprox { .. }
+                    ) {
+                        return Err(invalid(
+                            "FORGE_VISUAL_VP203_GROOVE_SOURCE_INVALID",
+                            "groove requires a direct box or bevel_approx source",
+                        ));
+                    }
+                    let source_size = detail_source_size(input_node_id, &nodes).ok_or_else(|| {
+                        invalid(
+                            "FORGE_VISUAL_VP203_DETAIL_SOURCE_INVALID",
+                            "groove requires an earlier box or bevel_approx source",
+                        )
+                    })?;
+                    let source_position = detail_source_position(input_node_id, &nodes).ok_or_else(|| {
+                        invalid(
+                            "FORGE_VISUAL_VP203_DETAIL_SOURCE_INVALID",
+                            "groove source position could not be resolved",
+                        )
+                    })?;
+                    let normal_index = axis.normal_index();
+                    let face_indices = axis.face_indices();
+                    if !finite(
+                        face_size
+                            .iter()
+                            .copied()
+                            .chain(position.iter().copied())
+                            .chain(std::iter::once(*depth)),
+                    )
+                        || face_size.iter().any(|value| *value <= 0.0 || *value > 100_000.0)
+                        || !(*depth > 0.0 && *depth <= source_size[normal_index] * 0.25)
+                        || position[normal_index].abs() > 1e-9
+                        || face_indices.iter().enumerate().any(|(index, source_index)| {
+                            position[*source_index].abs() + face_size[index] / 2.0
+                                > source_size[*source_index] / 2.0
+                        })
+                        || !finite(source_position)
+                    {
+                        return Err(invalid(
+                            "FORGE_VISUAL_VP203_GROOVE_INVALID",
+                            "groove must remain within one axis-aligned source face with bounded depth",
+                        ));
+                    }
+                    operation_count = operation_count.checked_add(2).ok_or_else(|| {
+                        invalid(
+                            "FORGE_VISUAL_VP203_BUDGET_EXCEEDED",
+                            "groove operation estimate overflowed",
+                        )
+                    })?;
+                    checked_add(triangles[input_node_id.as_str()], 12)?
+                }
+                HighLevelGeometryNodeV2::Shell {
+                    input_node_id,
+                    thickness,
+                    ..
+                } => {
+                    if !matches!(
+                        nodes[input_node_id.as_str()],
+                        HighLevelGeometryNodeV2::Box { .. }
+                            | HighLevelGeometryNodeV2::BevelApprox { .. }
+                    ) {
+                        return Err(invalid(
+                            "FORGE_VISUAL_VP203_SHELL_SOURCE_INVALID",
+                            "shell requires a direct box or bevel_approx source",
+                        ));
+                    }
+                    let source_size = detail_source_size(input_node_id, &nodes).ok_or_else(|| {
+                        invalid(
+                            "FORGE_VISUAL_VP203_DETAIL_SOURCE_INVALID",
+                            "shell requires an earlier box source",
+                        )
+                    })?;
+                    let min_extent = source_size.iter().copied().fold(f64::INFINITY, f64::min);
+                    if !thickness.is_finite()
+                        || !(*thickness > 0.0 && *thickness <= min_extent * 0.25)
+                        || *thickness * 2.0 >= min_extent
+                    {
+                        return Err(invalid(
+                            "FORGE_VISUAL_VP203_SHELL_INVALID",
+                            "shell thickness must be positive, bounded and leave an inner volume",
+                        ));
+                    }
+                    if let HighLevelGeometryNodeV2::BevelApprox { radius, .. } =
+                        nodes[input_node_id.as_str()]
+                    {
+                        let inner_min_extent = source_size
+                            .iter()
+                            .map(|value| *value - thickness * 2.0)
+                            .fold(f64::INFINITY, f64::min);
+                        if *radius * 2.0 >= inner_min_extent {
+                            return Err(invalid(
+                                "FORGE_VISUAL_VP203_SHELL_BEVEL_INVALID",
+                                "shell thickness leaves insufficient inner room for the source bevel",
+                            ));
+                        }
+                    }
+                    operation_count += 1;
+                    triangles[input_node_id.as_str()]
+                        .checked_mul(4)
+                        .ok_or_else(|| {
+                            invalid(
+                                "FORGE_VISUAL_VP203_BUDGET_EXCEEDED",
+                                "shell estimate overflowed",
+                            )
+                        })?
                 }
                 HighLevelGeometryNodeV2::LatticeDeform {
                     input_node_id,
@@ -1195,6 +1461,33 @@ impl ForgeVisualGeometryProgramV2 {
                         return Err(invalid(
                             "FORGE_VISUAL_VP203_LATTICE_INVALID",
                             "lattice corner offsets must be finite, bounded and non-zero",
+                        ));
+                    }
+                    operation_count += 1;
+                    triangles[input_node_id.as_str()]
+                }
+                HighLevelGeometryNodeV2::LocalMeshPatch {
+                    input_node_id,
+                    patch_center,
+                    patch_radius,
+                    patch_offset,
+                    ..
+                } => {
+                    if !finite(
+                        patch_center
+                            .iter()
+                            .copied()
+                            .chain(std::iter::once(*patch_radius))
+                            .chain(patch_offset.iter().copied()),
+                    )
+                        || patch_center.iter().any(|value| !(0.0..=1.0).contains(value))
+                        || !(*patch_radius >= 0.05 && *patch_radius <= 0.4)
+                        || patch_offset.iter().any(|value| value.abs() > 0.2)
+                        || !patch_offset.iter().any(|value| value.abs() > 1e-9)
+                    {
+                        return Err(invalid(
+                            "FORGE_VISUAL_VP203_LOCAL_MESH_PATCH_INVALID",
+                            "local mesh patch center, radius and offset must remain within the normalized local bounds",
                         ));
                     }
                     operation_count += 1;
@@ -1262,7 +1555,9 @@ impl ForgeVisualGeometryProgramV2 {
                 .unwrap_or(0);
             let csg_depth = if matches!(
                 node,
-                HighLevelGeometryNodeV2::Union { .. } | HighLevelGeometryNodeV2::Subtract { .. }
+                HighLevelGeometryNodeV2::Union { .. }
+                    | HighLevelGeometryNodeV2::Subtract { .. }
+                    | HighLevelGeometryNodeV2::Groove { .. }
             ) {
                 input_csg_depth.saturating_add(1)
             } else {
@@ -1491,34 +1786,50 @@ pub fn lower_forge_visual_geometry_program_v2(
         let node_id = node.node_id();
         let terminal = operation_id(node_id);
         let (operation, ids) = match node {
-            HighLevelGeometryNodeV2::Box { size, position, .. } => (
-                json!({"operation_id": terminal, "op": "box", "inputs": [], "args": {"size": size, "position": position}}),
-                vec![terminal.clone()],
-            ),
+            HighLevelGeometryNodeV2::Box {
+                size,
+                position,
+                rotation,
+                ..
+            } => {
+                let mut operation = json!({"operation_id": terminal, "op": "box", "inputs": [], "args": {"size": size, "position": position}});
+                insert_rotation(&mut operation, *rotation);
+                (operation, vec![terminal.clone()])
+            }
             HighLevelGeometryNodeV2::Cylinder {
                 radius,
                 height,
                 axis,
                 position,
+                rotation,
                 ..
-            } => (
-                json!({"operation_id": terminal, "op": "cylinder", "inputs": [], "args": {"radius": radius, "height": height, "axis": axis.vector(), "position": position}}),
-                vec![terminal.clone()],
-            ),
+            } => {
+                let mut operation = json!({"operation_id": terminal, "op": "cylinder", "inputs": [], "args": {"radius": radius, "height": height, "axis": axis.vector(), "position": position}});
+                insert_rotation(&mut operation, *rotation);
+                (operation, vec![terminal.clone()])
+            }
             HighLevelGeometryNodeV2::Capsule {
                 radius,
                 height,
                 axis,
                 position,
+                rotation,
                 ..
-            } => (
-                json!({"operation_id": terminal, "op": "capsule", "inputs": [], "args": {"radius": radius, "height": height, "axis": axis.vector(), "position": position}}),
-                vec![terminal.clone()],
-            ),
-            HighLevelGeometryNodeV2::Wedge { size, position, .. } => (
-                json!({"operation_id": terminal, "op": "wedge", "inputs": [], "args": {"size": size, "position": position}}),
-                vec![terminal.clone()],
-            ),
+            } => {
+                let mut operation = json!({"operation_id": terminal, "op": "capsule", "inputs": [], "args": {"radius": radius, "height": height, "axis": axis.vector(), "position": position}});
+                insert_rotation(&mut operation, *rotation);
+                (operation, vec![terminal.clone()])
+            }
+            HighLevelGeometryNodeV2::Wedge {
+                size,
+                position,
+                rotation,
+                ..
+            } => {
+                let mut operation = json!({"operation_id": terminal, "op": "wedge", "inputs": [], "args": {"size": size, "position": position}});
+                insert_rotation(&mut operation, *rotation);
+                (operation, vec![terminal.clone()])
+            }
             HighLevelGeometryNodeV2::Extrude {
                 profile_id,
                 profile_scale,
@@ -1526,14 +1837,14 @@ pub fn lower_forge_visual_geometry_program_v2(
                 position,
                 cap_start,
                 cap_end,
+                rotation,
                 ..
             } => {
                 let profile_op = format!("{terminal}_profile");
                 operations.push(json!({"operation_id": profile_op, "op": "profile", "inputs": [], "args": {"profile_input_id": profile_input_id(profile_id), "profile_scale": profile_scale}}));
-                (
-                    json!({"operation_id": terminal, "op": "extrude", "inputs": [profile_op], "args": {"height": height, "position": position, "cap_start": cap_start, "cap_end": cap_end}}),
-                    vec![profile_op, terminal.clone()],
-                )
+                let mut operation = json!({"operation_id": terminal, "op": "extrude", "inputs": [profile_op], "args": {"height": height, "position": position, "cap_start": cap_start, "cap_end": cap_end}});
+                insert_rotation(&mut operation, *rotation);
+                (operation, vec![profile_op, terminal.clone()])
             }
             HighLevelGeometryNodeV2::Revolve {
                 profile_id,
@@ -1541,25 +1852,27 @@ pub fn lower_forge_visual_geometry_program_v2(
                 angle,
                 radial_segments,
                 position,
+                rotation,
                 ..
             } => {
                 let profile_op = format!("{terminal}_profile");
                 operations.push(json!({"operation_id": profile_op, "op": "profile", "inputs": [], "args": {"profile_input_id": profile_input_id(profile_id), "profile_scale": profile_scale}}));
-                (
-                    json!({"operation_id": terminal, "op": "revolve", "inputs": [profile_op], "args": {"angle": angle, "radial_segments": radial_segments, "position": position}}),
-                    vec![profile_op, terminal.clone()],
-                )
+                let mut operation = json!({"operation_id": terminal, "op": "revolve", "inputs": [profile_op], "args": {"angle": angle, "radial_segments": radial_segments, "position": position}});
+                insert_rotation(&mut operation, *rotation);
+                (operation, vec![profile_op, terminal.clone()])
             }
             HighLevelGeometryNodeV2::Loft {
                 section_set_id,
                 cross_section_scale,
                 axis_length,
                 position,
+                rotation,
                 ..
-            } => (
-                json!({"operation_id": terminal, "op": "loft", "inputs": [], "args": {"section_set_input_id": format!("profileinput_{}", section_set_id.strip_prefix("sectionset_").unwrap()), "cross_section_scale": cross_section_scale, "axis_length": axis_length, "continuity": "linear", "position": position}}),
-                vec![terminal.clone()],
-            ),
+            } => {
+                let mut operation = json!({"operation_id": terminal, "op": "loft", "inputs": [], "args": {"section_set_input_id": format!("profileinput_{}", section_set_id.strip_prefix("sectionset_").unwrap()), "cross_section_scale": cross_section_scale, "axis_length": axis_length, "continuity": "linear", "position": position}});
+                insert_rotation(&mut operation, *rotation);
+                (operation, vec![terminal.clone()])
+            }
             HighLevelGeometryNodeV2::Sweep {
                 profile_id,
                 profile_scale,
@@ -1569,11 +1882,13 @@ pub fn lower_forge_visual_geometry_program_v2(
                 cap_start,
                 cap_end,
                 position,
+                rotation,
                 ..
-            } => (
-                json!({"operation_id": terminal, "op": "sweep", "inputs": [], "args": {"profile_input_id": profile_input_id(profile_id), "profile_scale": profile_scale, "path_points": path_points, "path_closed": path_closed, "path_twist_degrees": path_twist_degrees, "cap_start": cap_start, "cap_end": cap_end, "position": position}}),
-                vec![terminal.clone()],
-            ),
+            } => {
+                let mut operation = json!({"operation_id": terminal, "op": "sweep", "inputs": [], "args": {"profile_input_id": profile_input_id(profile_id), "profile_scale": profile_scale, "path_points": path_points, "path_closed": path_closed, "path_twist_degrees": path_twist_degrees, "cap_start": cap_start, "cap_end": cap_end, "position": position}});
+                insert_rotation(&mut operation, *rotation);
+                (operation, vec![terminal.clone()])
+            }
             HighLevelGeometryNodeV2::Mirror {
                 input_node_id,
                 axis,
@@ -1622,12 +1937,75 @@ pub fn lower_forge_visual_geometry_program_v2(
                 json!({"operation_id": terminal, "op": "surface_panel", "inputs": [operation_id(input_node_id)], "args": {"size": size, "position": position, "axis": axis.vector()}}),
                 vec![terminal.clone()],
             ),
+            HighLevelGeometryNodeV2::Groove {
+                input_node_id,
+                face_size,
+                position,
+                axis,
+                depth,
+                ..
+            } => {
+                let source_id = operation_id(input_node_id);
+                let cutter_id = format!("{terminal}_cutter");
+                let source_size = detail_source_size(input_node_id, &nodes).ok_or_else(|| {
+                    invalid(
+                        "FORGE_VISUAL_VP203_DETAIL_SOURCE_INVALID",
+                        "groove source size could not be resolved during lowering",
+                    )
+                })?;
+                let source_position = detail_source_position(input_node_id, &nodes).ok_or_else(|| {
+                    invalid(
+                        "FORGE_VISUAL_VP203_DETAIL_SOURCE_INVALID",
+                        "groove source position could not be resolved during lowering",
+                    )
+                })?;
+                let normal_index = axis.normal_index();
+                let face_indices = axis.face_indices();
+                let sign = axis.vector()[normal_index];
+                let mut cutter_size = [0.0_f64; 3];
+                cutter_size[normal_index] = *depth + 0.2;
+                cutter_size[face_indices[0]] = face_size[0];
+                cutter_size[face_indices[1]] = face_size[1];
+                let mut cutter_position = source_position;
+                cutter_position[face_indices[0]] += position[face_indices[0]];
+                cutter_position[face_indices[1]] += position[face_indices[1]];
+                cutter_position[normal_index] +=
+                    sign * (source_size[normal_index] / 2.0 - depth / 2.0 + 0.1);
+                operations.push(json!({
+                    "operation_id": cutter_id,
+                    "op": "box",
+                    "inputs": [],
+                    "args": {"size": cutter_size, "position": cutter_position}
+                }));
+                (
+                    json!({"operation_id": terminal, "op": "subtract", "inputs": [source_id, cutter_id], "args": {}}),
+                    vec![cutter_id, terminal.clone()],
+                )
+            }
+            HighLevelGeometryNodeV2::Shell {
+                input_node_id,
+                thickness,
+                ..
+            } => (
+                json!({"operation_id": terminal, "op": "shell", "inputs": [operation_id(input_node_id)], "args": {"thickness": thickness}}),
+                vec![terminal.clone()],
+            ),
             HighLevelGeometryNodeV2::LatticeDeform {
                 input_node_id,
                 corner_offsets,
                 ..
             } => (
                 json!({"operation_id": terminal, "op": "lattice_deform", "inputs": [operation_id(input_node_id)], "args": {"corner_offsets": corner_offsets}}),
+                vec![terminal.clone()],
+            ),
+            HighLevelGeometryNodeV2::LocalMeshPatch {
+                input_node_id,
+                patch_center,
+                patch_radius,
+                patch_offset,
+                ..
+            } => (
+                json!({"operation_id": terminal, "op": "local_mesh_patch", "inputs": [operation_id(input_node_id)], "args": {"patch_center": patch_center, "patch_radius": patch_radius, "patch_offset": patch_offset}}),
                 vec![terminal.clone()],
             ),
             HighLevelGeometryNodeV2::Union { input_node_ids, .. } => (
@@ -1814,6 +2192,46 @@ mod tests {
     }
 
     #[test]
+    fn vp203_exposes_bounded_static_rotation_without_changing_zero_rotation_identity() {
+        let mut source = json!({
+            "schema_version": "ForgeVisualGeometryProgram@2",
+            "program_id": "visual_rotation_contract",
+            "domain": "generic_hard_surface",
+            "units": "millimeter",
+            "seed": 23,
+            "materials": [{"material_id":"mat_shell","base_material_id":"mat_aluminum"}],
+            "profiles": [],
+            "section_sets": [],
+            "nodes": [
+                {"kind":"box","node_id":"node_box","size":[120.0,60.0,80.0],"position":[0.0,0.0,0.0]},
+                {"kind":"part","node_id":"node_part","input_node_id":"node_box","part_id":"part_shell","role":"armor_shell"},
+                {"kind":"material_zone","node_id":"node_zone","input_node_id":"node_part","zone_id":"zone_shell","material_id":"mat_shell"}
+            ],
+            "outputs": [{"output_id":"output_shell","node_id":"node_zone"}],
+            "budgets": {"schema_version":"GeometryProgramBudget@1","max_profiles":1,"max_section_sets":1,"max_nodes":8,"max_parts":2,"max_materials":2,"max_outputs":2,"max_operations":8,"triangle_budget":1000}
+        });
+
+        let zero_rotation = lower_forge_visual_geometry_program_v2(&source).unwrap();
+        let zero_args = &zero_rotation.shape_program["operations"][0]["args"];
+        assert!(zero_args.get("rotation").is_none());
+
+        source["nodes"][0]["rotation"] = json!([0.25, -0.5, 0.75]);
+        let rotated = lower_forge_visual_geometry_program_v2(&source).unwrap();
+        assert_eq!(
+            rotated.shape_program["operations"][0]["args"]["rotation"],
+            json!([0.25, -0.5, 0.75])
+        );
+
+        source["nodes"][0]["rotation"] = json!([std::f64::consts::PI + 0.01, 0.0, 0.0]);
+        assert_eq!(
+            lower_forge_visual_geometry_program_v2(&source)
+                .unwrap_err()
+                .code(),
+            "FORGE_VISUAL_VP203_ROTATION_INVALID"
+        );
+    }
+
+    #[test]
     fn vp203_lowers_the_reviewed_worker_primitives_and_detail_operations() {
         let source = json!({
             "schema_version": "ForgeVisualGeometryProgram@2",
@@ -1877,6 +2295,75 @@ mod tests {
     }
 
     #[test]
+    fn vp203_lowers_a_bounded_face_groove_to_a_sealed_cutter_and_subtract() {
+        let source = json!({
+            "schema_version": "ForgeVisualGeometryProgram@2",
+            "program_id": "visual_face_groove",
+            "domain": "generic_hard_surface",
+            "units": "millimeter",
+            "seed": 19,
+            "materials": [{"material_id":"mat_shell","base_material_id":"mat_aluminum"}],
+            "profiles": [],
+            "section_sets": [],
+            "nodes": [
+                {"kind":"box","node_id":"node_shell","size":[200.0,100.0,80.0],"position":[10.0,20.0,30.0]},
+                {"kind":"groove","node_id":"node_groove","input_node_id":"node_shell","face_size":[120.0,30.0],"position":[8.0,0.0,-6.0],"axis":"positive_y","depth":8.0},
+                {"kind":"part","node_id":"node_part","input_node_id":"node_groove","part_id":"part_shell","role":"armor_shell"},
+                {"kind":"material_zone","node_id":"node_zone","input_node_id":"node_part","zone_id":"zone_shell","material_id":"mat_shell"}
+            ],
+            "outputs": [{"output_id":"output_shell","node_id":"node_zone"}],
+            "budgets": {"schema_version":"GeometryProgramBudget@1","max_profiles":1,"max_section_sets":0,"max_nodes":8,"max_parts":2,"max_materials":2,"max_outputs":2,"max_operations":8,"triangle_budget":2000}
+        });
+        let lowering = lower_forge_visual_geometry_program_v2(&source).unwrap();
+        let operations = lowering.shape_program["operations"].as_array().unwrap();
+        let cutter = operations
+            .iter()
+            .find(|operation| operation["operation_id"] == "op_groove_cutter")
+            .expect("groove must lower a deterministic cutter");
+        assert_eq!(cutter["op"], "box");
+        assert_eq!(cutter["args"]["size"], json!([120.0, 8.2, 30.0]));
+        assert_eq!(cutter["args"]["position"], json!([18.0, 66.1, 24.0]));
+        assert_eq!(
+            operations
+                .iter()
+                .find(|operation| operation["operation_id"] == "op_groove")
+                .unwrap()["op"],
+            "subtract"
+        );
+
+        let mut invalid_source = source.clone();
+        invalid_source["nodes"][1]["position"] = json!([8.0, 1.0, -6.0]);
+        assert_eq!(
+            lower_forge_visual_geometry_program_v2(&invalid_source)
+                .unwrap_err()
+                .code(),
+            "FORGE_VISUAL_VP203_GROOVE_INVALID"
+        );
+
+        let mut invalid_depth = source.clone();
+        invalid_depth["nodes"][1]["depth"] = json!(26.0);
+        assert_eq!(
+            lower_forge_visual_geometry_program_v2(&invalid_depth)
+                .unwrap_err()
+                .code(),
+            "FORGE_VISUAL_VP203_GROOVE_INVALID"
+        );
+
+        let mut invalid_source_kind = source;
+        invalid_source_kind["nodes"][0]["kind"] = json!("cylinder");
+        invalid_source_kind["nodes"][0].as_object_mut().unwrap().remove("size");
+        invalid_source_kind["nodes"][0]["radius"] = json!(50.0);
+        invalid_source_kind["nodes"][0]["height"] = json!(80.0);
+        invalid_source_kind["nodes"][0]["axis"] = json!("y");
+        assert_eq!(
+            lower_forge_visual_geometry_program_v2(&invalid_source_kind)
+                .unwrap_err()
+                .code(),
+            "FORGE_VISUAL_VP203_GROOVE_SOURCE_INVALID"
+        );
+    }
+
+    #[test]
     fn vp203_lowers_bounded_lattice_deform_without_changing_triangle_budget() {
         let source = json!({
             "schema_version": "ForgeVisualGeometryProgram@2",
@@ -1909,6 +2396,101 @@ mod tests {
                 .estimated_triangle_upper_bound,
             12
         );
+    }
+
+    #[test]
+    fn vp203_lowers_bounded_local_mesh_patch_without_changing_triangle_budget() {
+        let source = json!({
+            "schema_version": "ForgeVisualGeometryProgram@2",
+            "program_id": "visual_local_mesh_patch",
+            "domain": "generic_hard_surface",
+            "units": "millimeter",
+            "seed": 42,
+            "materials": [{"material_id": "mat_shell", "base_material_id": "mat_aluminum"}],
+            "profiles": [],
+            "section_sets": [],
+            "nodes": [
+                {"kind":"box","node_id":"node_shell","size":[240.0,120.0,80.0],"position":[0.0,0.0,0.0]},
+                {"kind":"local_mesh_patch","node_id":"node_shell_patch","input_node_id":"node_shell","patch_center":[0.0,0.0,0.0],"patch_radius":0.2,"patch_offset":[0.1,0.0,0.0]},
+                {"kind":"part","node_id":"node_shell_part","input_node_id":"node_shell_patch","part_id":"part_shell","role":"armor_shell"},
+                {"kind":"material_zone","node_id":"node_shell_zone","input_node_id":"node_shell_part","zone_id":"zone_shell","material_id":"mat_shell"}
+            ],
+            "outputs": [{"output_id":"output_shell","node_id":"node_shell_zone"}],
+            "budgets": {"schema_version":"GeometryProgramBudget@1","max_profiles":1,"max_section_sets":1,"max_nodes":8,"max_parts":2,"max_materials":2,"max_outputs":2,"max_operations":8,"triangle_budget":1000}
+        });
+        let lowering = lower_forge_visual_geometry_program_v2(&source).unwrap();
+        let operations = lowering.shape_program["operations"].as_array().unwrap();
+        let patch = operations
+            .iter()
+            .find(|operation| operation["op"] == "local_mesh_patch")
+            .expect("local mesh patch must lower to the restricted worker operation");
+        assert_eq!(patch["args"]["patch_radius"], json!(0.2));
+        assert_eq!(
+            lowering
+                .expanded_dag
+                .budget_evidence
+                .estimated_triangle_upper_bound,
+            12
+        );
+    }
+
+    #[test]
+    fn vp203_lowers_bounded_closed_shell_without_aliasing_boolean_or_template_geometry() {
+        let source = json!({
+            "schema_version": "ForgeVisualGeometryProgram@2",
+            "program_id": "visual_closed_shell",
+            "domain": "generic_hard_surface",
+            "units": "millimeter",
+            "seed": 43,
+            "materials": [{"material_id": "mat_shell", "base_material_id": "mat_aluminum"}],
+            "profiles": [],
+            "section_sets": [],
+            "nodes": [
+                {"kind":"box","node_id":"node_shell_base","size":[240.0,120.0,80.0],"position":[0.0,0.0,0.0]},
+                {"kind":"shell","node_id":"node_shell","input_node_id":"node_shell_base","thickness":20.0},
+                {"kind":"part","node_id":"node_shell_part","input_node_id":"node_shell","part_id":"part_shell","role":"armor_shell"},
+                {"kind":"material_zone","node_id":"node_shell_zone","input_node_id":"node_shell_part","zone_id":"zone_shell","material_id":"mat_shell"}
+            ],
+            "outputs": [{"output_id":"output_shell","node_id":"node_shell_zone"}],
+            "budgets": {"schema_version":"GeometryProgramBudget@1","max_profiles":1,"max_section_sets":1,"max_nodes":8,"max_parts":2,"max_materials":2,"max_outputs":2,"max_operations":8,"triangle_budget":1000}
+        });
+        let lowering = lower_forge_visual_geometry_program_v2(&source).unwrap();
+        let operations = lowering.shape_program["operations"].as_array().unwrap();
+        assert!(operations.iter().any(|operation| operation["op"] == "shell"));
+        assert_eq!(
+            lowering
+                .expanded_dag
+                .budget_evidence
+                .estimated_triangle_upper_bound,
+            48
+        );
+    }
+
+    #[test]
+    fn vp203_lowers_a_bounded_shell_from_a_beveled_box() {
+        let source = json!({
+            "schema_version": "ForgeVisualGeometryProgram@2",
+            "program_id": "visual_beveled_shell",
+            "domain": "generic_hard_surface",
+            "units": "millimeter",
+            "seed": 44,
+            "materials": [{"material_id": "mat_shell", "base_material_id": "mat_aluminum"}],
+            "profiles": [],
+            "section_sets": [],
+            "nodes": [
+                {"kind":"box","node_id":"node_shell_base","size":[240.0,120.0,80.0],"position":[0.0,0.0,0.0]},
+                {"kind":"bevel_approx","node_id":"node_shell_bevel","input_node_id":"node_shell_base","radius":8.0,"segments":2},
+                {"kind":"shell","node_id":"node_shell","input_node_id":"node_shell_bevel","thickness":12.0},
+                {"kind":"part","node_id":"node_shell_part","input_node_id":"node_shell","part_id":"part_shell","role":"armor_shell"},
+                {"kind":"material_zone","node_id":"node_shell_zone","input_node_id":"node_shell_part","zone_id":"zone_shell","material_id":"mat_shell"}
+            ],
+            "outputs": [{"output_id":"output_shell","node_id":"node_shell_zone"}],
+            "budgets": {"schema_version":"GeometryProgramBudget@1","max_profiles":1,"max_section_sets":1,"max_nodes":8,"max_parts":2,"max_materials":2,"max_outputs":2,"max_operations":8,"triangle_budget":2000}
+        });
+        let lowering = lower_forge_visual_geometry_program_v2(&source).unwrap();
+        let operations = lowering.shape_program["operations"].as_array().unwrap();
+        assert!(operations.iter().any(|operation| operation["op"] == "bevel_approx"));
+        assert!(operations.iter().any(|operation| operation["op"] == "shell"));
     }
 
     #[test]

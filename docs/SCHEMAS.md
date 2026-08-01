@@ -361,3 +361,7 @@ Module material slots → Material Zone + Binding
 - Python、TypeScript、OpenAPI 和 JSON Schema 必须由同一权威源生成；
 - unknown field、非法引用和越权字段必须成为自动门；
 - 文档草案不能进入“当前已实现”列表，直到迁移、API、UI 和回读测试同时通过。
+
+2026-07-31 U004 P2.15 新增 `ReferenceSurfaceAppearanceBinding@1`（嵌入 `GenericHardSurfaceAppearanceCompilation@2` 的可选数组），并扩展 `ReferenceImageSurfaceFacts` 的可选 `foreground_dominant_color_buckets`。两者都只表达 Rust 派生低维事实和 hash，不承载图片 bytes、路径、自由 RGB、Provider 自报材质或第二资产真值；`contracts:types:generate` 与 `contracts:types:check` 必须同步执行。
+2026-07-31 U004 P2.16 不新增 Schema 字段或版本：仅收紧 Rust Appearance Compiler 对 `ReferenceSurfaceAppearanceBinding@1` fallback 的 semantic role/base-material 作用域；显式材质语义优先，特殊材质区不得继承整图 reference hint。Schema/生成类型合同保持兼容，仍需通过 Core validator 和 `git diff --check`。
+2026-07-31 U004 P2.17 不新增 Schema 字段或版本：Appearance Compiler 复用既有 `ReferenceAppearanceBinding@1` 的 observed feature→evidence/view→Part/Material Zone 精确绑定，只有命中该绑定的 zone 才能消费 `ReferenceSurfaceAppearanceBinding@1` 低维 fallback；无证据 sibling zone 不继承整图事实。公共合同、生成类型和 OpenAPI 保持兼容。

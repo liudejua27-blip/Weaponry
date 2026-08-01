@@ -32,12 +32,19 @@ EXPANDED_GATE_SCHEMA["properties"]["expanded_program"] = {}
 EXPANDED_VALIDATOR = Draft202012Validator(EXPANDED_GATE_SCHEMA)
 
 
+def validate_source_fixture(fixture_id: str, fixture: dict[str, Any]) -> None:
+    errors = sorted(SOURCE_VALIDATOR.iter_errors(fixture), key=lambda item: list(item.path))
+    if errors:
+        path = ".".join(str(item) for item in errors[0].path)
+        raise AssertionError(
+            f"VP203_SOURCE_SCHEMA_INVALID:{fixture_id}:{path}:{errors[0].message}"
+        )
+
+
 def rust_results() -> list[dict[str, Any]]:
     for name in ("bracket", "rotor", "duct"):
         fixture = json.loads((FIXTURE_ROOT / f"forge-visual-geometry-v2-{name}.json").read_text())
-        errors = sorted(SOURCE_VALIDATOR.iter_errors(fixture), key=lambda item: list(item.path))
-        if errors:
-            raise AssertionError(f"VP203_SOURCE_SCHEMA_INVALID:{name}:{errors[0].message}")
+        validate_source_fixture(name, fixture)
     result = subprocess.run(
         [
             str(ROOT / "script" / "with_rust_toolchain.sh"),
@@ -152,6 +159,10 @@ def compile_fixture(fixture_id: str, lowering: dict[str, Any]) -> dict[str, Any]
 
 
 def main() -> int:
+    coverage_fixture = json.loads(
+        (FIXTURE_ROOT / "forge-visual-geometry-v2-operation-coverage.json").read_text()
+    )
+    validate_source_fixture("operation_coverage", coverage_fixture)
     fingerprints = [compile_fixture(item["fixture_id"], item["lowering"]) for item in rust_results()]
     if len({item["operations"] for item in fingerprints}) != 3:
         raise AssertionError("VP203_TOPOLOGY_FINGERPRINTS_NOT_DISTINCT")

@@ -5,6 +5,62 @@ use serde::{Deserialize, Serialize};
 use crate::{CoreError, CoreResult};
 
 pub const GAME_ASSET_PROFILE_SCHEMA_VERSION: &str = "GameAssetProfile@1";
+pub const GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION: &str = "GameAssetDeliveryRequest@1";
+
+/// User intent for a game-ready delivery.  It deliberately excludes part IDs
+/// and sockets: those are derived by Rust from the exact executable source so
+/// a Provider or WebView cannot fabricate bindings for a future asset.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct GameAssetDeliveryRequest {
+    pub schema_version: String,
+    pub profile_id: String,
+    pub lod_triangle_budgets: [u32; 3],
+    pub target_texel_density_pixels_per_meter: u16,
+}
+
+impl GameAssetDeliveryRequest {
+    pub fn validate(&self) -> CoreResult<()> {
+        let profile_id_valid = !self.profile_id.is_empty()
+            && self.profile_id.len() <= 120
+            && self.profile_id.is_ascii()
+            && self
+                .profile_id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'));
+        if self.schema_version != GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION
+            || !profile_id_valid
+            || self.lod_triangle_budgets[2] == 0
+            || self.lod_triangle_budgets[0] > 150_000
+            || self.lod_triangle_budgets[0] < self.lod_triangle_budgets[1]
+            || self.lod_triangle_budgets[1] < self.lod_triangle_budgets[2]
+            || !(128..=2048).contains(&self.target_texel_density_pixels_per_meter)
+        {
+            return Err(CoreError::invalid_data(
+                "GAME_ASSET_DELIVERY_REQUEST_INVALID",
+                "Game asset delivery intent requires bounded LODs and texel density.",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Convert user intent into a complete profile only after executable
+    /// source part IDs have been derived by Rust. Sockets intentionally start
+    /// empty and can be added later through an exact asset edit.
+    pub fn derive_profile(&self, collision_proxy_part_ids: Vec<String>) -> CoreResult<GameAssetProfile> {
+        self.validate()?;
+        let profile = GameAssetProfile {
+            schema_version: GAME_ASSET_PROFILE_SCHEMA_VERSION.into(),
+            profile_id: self.profile_id.clone(),
+            lod_triangle_budgets: self.lod_triangle_budgets,
+            collision_proxy_part_ids,
+            sockets: Vec::new(),
+            target_texel_density_pixels_per_meter: self.target_texel_density_pixels_per_meter,
+        };
+        profile.validate()?;
+        Ok(profile)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -81,6 +137,35 @@ impl GameAssetSocket {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delivery_request_derives_only_code_owned_collision_bindings() {
+        let request = GameAssetDeliveryRequest {
+            schema_version: GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION.into(),
+            profile_id: "game_prop_standard".into(),
+            lod_triangle_budgets: [150_000, 60_000, 12_000],
+            target_texel_density_pixels_per_meter: 1024,
+        };
+        let profile = request
+            .derive_profile(vec!["part_body".into()])
+            .expect("bounded request should derive a profile");
+        assert_eq!(profile.collision_proxy_part_ids, vec!["part_body"]);
+        assert!(profile.sockets.is_empty());
+    }
+
+    #[test]
+    fn delivery_request_rejects_unbounded_profile_identity() {
+        let request = GameAssetDeliveryRequest {
+            schema_version: GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION.into(),
+            profile_id: "game prop standard".into(),
+            lod_triangle_budgets: [150_000, 60_000, 12_000],
+            target_texel_density_pixels_per_meter: 1024,
+        };
+        assert_eq!(
+            request.validate().unwrap_err().code(),
+            "GAME_ASSET_DELIVERY_REQUEST_INVALID"
+        );
+    }
 
     #[test]
     fn game_asset_profile_rejects_non_directional_socket() {

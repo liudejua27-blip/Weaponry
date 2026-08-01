@@ -50,11 +50,31 @@ export type CandidatePbrCapturePendingPresentation = {
   executionId: string
   projectId: string
   turnId: string
-  route: 'forge_visual_program' | 'universal_hard_surface'
+  route:
+    | 'forge_visual_program'
+    | 'universal_hard_surface'
+    | 'universal_visual_exterior'
+    | 'universal_local_lattice'
+    | 'universal_local_hybrid'
 }
+
+const CANDIDATE_PBR_CAPTURE_ROUTES = new Set<CandidatePbrCapturePendingPresentation['route']>([
+  'forge_visual_program',
+  'universal_hard_surface',
+  'universal_visual_exterior',
+  'universal_local_lattice',
+  'universal_local_hybrid',
+])
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null
+}
+
+export function hasAgentToolInvocation(items: readonly AgentItem[], toolName: string): boolean {
+  return items.some((item) => (
+    (item.item_type === 'tool_call' || item.item_type === 'tool_result')
+      && item.payload.tool_name === toolName
+  ))
 }
 
 export function parseUniversalAuthorPresentation(items: readonly AgentItem[]): UniversalAuthorPresentation | null {
@@ -105,14 +125,17 @@ export function parseCandidatePbrCapturePending(
       && typeof pending.execution_id === 'string'
       && typeof pending.project_id === 'string'
       && typeof pending.turn_id === 'string'
-      && (pending.route === 'forge_visual_program' || pending.route === 'universal_hard_surface')
+      && typeof pending.route === 'string'
+      && CANDIDATE_PBR_CAPTURE_ROUTES.has(
+        pending.route as CandidatePbrCapturePendingPresentation['route'],
+      )
     ) {
       return {
         schemaVersion: 'CandidatePbrCapturePending@1',
         executionId: pending.execution_id,
         projectId: pending.project_id,
         turnId: pending.turn_id,
-        route: pending.route,
+        route: pending.route as CandidatePbrCapturePendingPresentation['route'],
       }
     }
   }
@@ -247,15 +270,15 @@ export function parseAgentTurnPresentation(items: readonly AgentItem[], requestT
         && typeof (option as { prompt?: unknown }).prompt === 'string'
       ))
       : []
-    if (
-      typeof payload.question === 'string'
-      && payload.kind === 'scope'
-      && payload.status === 'unsupported'
-      && options.length === 0
-    ) {
+    const status = payload.status === 'unsupported' || payload.status === 'ambiguous'
+      ? payload.status
+      : null
+    const isScopeStop = payload.kind === 'scope' && status === 'unsupported' && options.length === 0
+    const isDomainClarification = payload.kind === 'domain' && status === 'ambiguous' && options.length > 0
+    if (typeof payload.question === 'string' && (isScopeStop || isDomainClarification)) {
       return {
         clarification: {
-          status: payload.status,
+          status,
           kind: payload.kind === 'scope' ? 'scope' : 'domain',
           question: payload.question,
           options,

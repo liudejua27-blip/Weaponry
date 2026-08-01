@@ -1,7 +1,6 @@
 import type { ForgeApi } from '../../shared/api/forgeApi'
 import type { AgentAssetChangeSet } from '../../shared/types'
 import { arrayBufferToBase64 } from './cadWorkbenchPanelFileUtils'
-import { inferImportDomainPack } from './cadWorkbenchPanelLogic.js'
 import type { AgentBlockoutGlbPayload } from './agentBlockoutDisplayState'
 
 type AgentGlbImportApi = Pick<ForgeApi, 'importAgentGlb'>
@@ -68,7 +67,10 @@ export async function importAgentGlbReference(
   const response = await api.importAgentGlb({
     client_request_id: `agent-glb-import-${Date.now()}`,
     project_id: projectId,
-    domain_pack_id: domainPackId ?? inferImportDomainPack(fileName),
+    // GLB evidence is category-open. Rust binds the real evidence lineage and
+    // the later universal author turn chooses a representation capability;
+    // never classify the object from a filename.
+    domain_pack_id: domainPackId ?? 'pack_unclassified',
     file_name: fileName,
     glb_base64: payload,
     summary: `导入参考模型：${fileName}`,

@@ -503,7 +503,29 @@ def _validate_restricted_health(payload: object) -> None:
         "snapshot_write": False,
         "persistent_state_writer": False,
     }
-    _assert(payload == expected, "packaged sidecar is not the restricted geometry executor")
+    _assert(
+        all(payload.get(key) == value for key, value in expected.items()),
+        "packaged sidecar is not the restricted geometry executor",
+    )
+    _assert(
+        set(payload) == set(expected) | {
+            "supervisor_session_id",
+            "supervisor_process_group_id",
+        },
+        "restricted geometry health exposed an unreviewed field",
+    )
+    supervisor_session_id = payload.get("supervisor_session_id")
+    _assert(
+        isinstance(supervisor_session_id, str)
+        and len(supervisor_session_id) == 32
+        and all(character in "0123456789abcdef" for character in supervisor_session_id),
+        "restricted geometry health omitted its supervisor session identity",
+    )
+    _assert(
+        isinstance(payload.get("supervisor_process_group_id"), int)
+        and payload["supervisor_process_group_id"] > 0,
+        "restricted geometry health omitted its process-group identity",
+    )
 
 
 def _assert_k003_ready_log(path: Path, minimum_count: int) -> None:
@@ -1101,6 +1123,8 @@ def _run_self_test() -> dict[str, object]:
             "provider_access": False,
             "snapshot_write": False,
             "persistent_state_writer": False,
+            "supervisor_session_id": "a" * 32,
+            "supervisor_process_group_id": 1,
         }
     )
     _validate_restricted_ownership(

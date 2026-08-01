@@ -70,7 +70,7 @@ try {
     await module[exportName]()
   }
 
-  const [panel, conversation, selection, previewPresentation, composer, adornment, referenceEvidence, visionEvidence, visionEvidenceTransport, dockState, forgeApi, packagedArmQa, viewport, conceptWorkbench, referenceViewportPresentation, resultCards, agentTurnSubmission, viewportOverlays, referenceEvidenceAdapterLoader] = await Promise.all([
+  const [panel, conversation, selection, previewPresentation, composer, adornment, referenceEvidence, visionEvidence, visionEvidenceTransport, dockState, forgeApi, packagedArmQa, viewport, conceptWorkbench, referenceViewportPresentation, resultCards, agentTurnSubmission, agentTurnPayload, viewportOverlays, referenceEvidenceAdapterLoader] = await Promise.all([
     readFile(join(WORKBENCH_SOURCE, 'CadWorkbenchPanel.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'AgentConversation.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'AgentSelectionCard.tsx'), 'utf8'),
@@ -88,6 +88,7 @@ try {
     readFile(join(WORKBENCH_SOURCE, 'referenceViewportPresentation.ts'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'CadWorkbenchPanelResultCards.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'agentTurnSubmissionLoader.ts'), 'utf8'),
+    readFile(join(WORKBENCH_SOURCE, 'agentTurnRequestPayload.ts'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'cadWorkbenchPanelViewportOverlays.tsx'), 'utf8'),
     readFile(join(WORKBENCH_SOURCE, 'referenceEvidenceAdapterLoader.ts'), 'utf8'),
   ])
@@ -119,7 +120,7 @@ try {
   assert(
     conceptWorkbench.includes("AGENT_FIRST_WORKBENCH_SELECTION_SCHEMA = 'agent-first-v1'")
       && conceptWorkbench.includes('localStorage.removeItem(ACTIVE_PROJECT_KEY)')
-      && conceptWorkbench.includes('直接描述你想生成的机械概念'),
+      && conceptWorkbench.includes('直接描述你想生成的对象'),
     'F026 first launch must not automatically reopen a pre-Agent legacy project and make the current app look stale',
   )
   assert(!panel.includes('const presentationDirection = kernelResult.plan?.directions[0]'), 'a missing V003 decision must not fall back to the legacy planner first direction')
@@ -206,14 +207,17 @@ try {
   assert(
     visionEvidence.includes('授权比较并生成 3D')
       && visionEvidence.includes('setAnalyzedRequest(next.request)')
-      && visionEvidence.includes('authorizeVisualReferenceComparison(')
+      && (visionEvidence.includes('authorizeVisualReferenceComparison(')
+        || panel.includes('authorizeCapturedCandidateVisualComparison'))
       && visionEvidenceTransport.includes('maximum_variable_cost_microusd: 100000')
       && visionEvidenceTransport.includes('maximum_calls: 3')
-      && agentTurnSubmission.includes('author_context: multimodalContext ?')
-      && agentTurnSubmission.includes('evidence_id: reference.evidence_id')
-      && agentTurnSubmission.includes('visual_evidence_graph: multimodalContext.graph')
-      && agentTurnSubmission.includes('visual_reference_comparison_authorization_id'),
-    'PV006C/U002 must send lightweight evidence selectors while preserving the exact graph and Rust budget authorization for compatibility normalization',
+      && agentTurnSubmission.includes('buildAgentTurnRequestPayload')
+      && agentTurnPayload.includes('author_context: multimodalContext')
+      && agentTurnPayload.includes('evidence_id: reference.evidence_id')
+      && agentTurnPayload.includes('visual_evidence_graph: multimodalContext.graph')
+      && agentTurnPayload.includes('must not also carry the legacy multimodal envelope')
+      && !agentTurnPayload.includes('multimodal_context: {'),
+    'PV006C/U002 must send one lightweight universal evidence source; comparison authorization is issued later against Rust-owned capture scope',
   )
   assert(!referenceEvidence.includes('相似度分数') || referenceEvidence.includes('不显示相似度分数'), 'R007B must not present a similarity score')
   assert(

@@ -30,10 +30,13 @@ export function runWorkbenchComposerSmoke(): void {
     referenceImportCapability: 'reference_guided_rebuild',
     onOpenSurfaceAdornment: () => calls.push('adornment'),
     surfaceAdornmentDisabled: false,
+    gameAssetDeliveryProfile: 'game_prop_standard',
+    onGameAssetDeliveryProfileChange: (profile) => calls.push(`delivery:${profile}`),
   }
   const output = WorkbenchComposer(props)
   assert(text(output).includes('换外观') && text(output).includes('换材质') && text(output).includes('添加参考') && text(output).includes('加局部装饰'), 'plus menu must contain implemented F026 attachment actions')
   assert(text(output).includes('参考图与 GLB 可用于引导重建。'), 'reference entry must disclose the implemented R007 boundary')
+  assert(text(output).includes('游戏资产输出') && text(output).includes('标准游戏道具'), 'composer must expose the bounded game delivery choice')
   const textarea = find(output, (element) => element.type === 'textarea')
   const textareaProps = textarea?.props as { 'aria-label'?: string; placeholder?: string; onChange?: (event: { target: { value: string } }) => void; onKeyDown?: (event: { key: string; shiftKey: boolean; preventDefault: () => void }) => void } | undefined
   assert(textareaProps?.placeholder === '描述你想设计的 3D 概念模型…', 'composer must expose the natural-language input')
@@ -41,6 +44,10 @@ export function runWorkbenchComposerSmoke(): void {
   assert(textareaProps?.['aria-label'] === '设计需求', 'composer must expose an accessible input label')
   textareaProps.onKeyDown?.({ key: 'Enter', shiftKey: false, preventDefault: () => calls.push('prevent') })
   assert(calls.join(',') === 'change:修改后的描述,prevent,send', 'Enter must send the non-empty request')
+  const deliverySelect = find(output, (element) => element.type === 'select' && (element.props as { 'aria-label'?: string })['aria-label'] === '游戏资产输出规格')
+  assert(deliverySelect, 'composer must expose an accessible game delivery selector')
+  ;(deliverySelect?.props as { onChange?: (event: { target: { value: string } }) => void }).onChange?.({ target: { value: 'game_prop_light' } })
+  assert(calls.includes('delivery:game_prop_light'), 'game delivery selector must forward the bounded user choice')
   const shiftCalls = [...calls]
   textareaProps.onKeyDown?.({ key: 'Enter', shiftKey: true, preventDefault: () => calls.push('unexpected') })
   assert(calls.join(',') === shiftCalls.join(','), 'Shift+Enter must preserve textarea newline behavior')
@@ -62,7 +69,7 @@ export function runWorkbenchComposerSmoke(): void {
     }) => void }).onClick?.({ currentTarget: { closest: () => null, dataset: {} } })
   }
   clickMenuItem('换外观'); clickMenuItem('换材质'); clickMenuItem('添加参考'); clickMenuItem('加局部装饰')
-  assert(calls.join(',') === 'change:修改后的描述,prevent,send,style,material,reference,adornment', 'composer must forward input, send, and plus-menu actions')
+  assert(calls.join(',') === 'change:修改后的描述,prevent,send,delivery:game_prop_light,style,material,reference,adornment', 'composer must forward input, send, and plus-menu actions')
   const starterOutput = WorkbenchComposer({
     ...props,
     value: '',

@@ -197,7 +197,7 @@ export function runWorkbenchDrawersSmoke(): void {
   assert(componentText.includes('核心外壳示例') && componentText.includes('预览替换'), 'component drawer must render asset details and replace action')
   assert(materialText.includes('磨砂金属') && materialText.includes('材质只描述外观'), 'material drawer must render visual-only boundary')
   assert(qualityText.includes('模型检查') && qualityText.includes('通过'), 'quality drawer must render current result')
-  assert(exportText.includes('下载当前设计') && exportText.includes('当前没有可导出的 Agent 资产'), 'export drawer must reject non-Agent export state')
+  assert(exportText.includes('下载当前设计') && exportText.includes('当前没有可导出的设计'), 'export drawer must reject an empty export state')
   assert(!exportText.includes('展示设计') && !exportText.includes('OBJ 模型') && !exportText.includes('概念源包'), 'export drawer must never expose legacy export choices')
   const agentExportText = collectText(ExportDrawer({
     ...exportProps,

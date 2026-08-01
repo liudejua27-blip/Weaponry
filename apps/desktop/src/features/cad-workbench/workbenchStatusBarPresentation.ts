@@ -38,19 +38,19 @@ export function buildWorkbenchStatusBarPresentation(input: {
     agentQualityStatus,
   } = input
 
-  const assistantStateText = conceptLoading ? 'Agent 正在处理' : '设计就绪'
+  const assistantStateText = conceptLoading ? 'AI 正在处理中' : 'AI 助手就绪'
   const agentAssetSource = activeDesignSnapshot?.active_design.source === 'agent_asset'
 
   const assetStateText = activeAgentAssetVersionVersionNo !== null
-    ? 'Agent 资产可编辑'
+    ? 'AI 版本可编辑'
     : conceptLegacyDetailsEnabled
-      ? '旧版信息只读'
-      : '等待 Agent 资产'
+      ? '历史版本只读'
+      : '尚未创建 AI 版本'
 
   const versionText = agentAssetSource
-    ? `Agent v${activeAgentAssetVersionVersionNo ?? '同步中'}`
+    ? `AI 版本 v${activeAgentAssetVersionVersionNo ?? '同步中'}`
     : activeDesignSnapshot
-      ? '旧版只读设计'
+      ? '历史版本'
       : activeVersionSummary
         ? `v${activeVersionSummary.version_no}`
         : '草稿'

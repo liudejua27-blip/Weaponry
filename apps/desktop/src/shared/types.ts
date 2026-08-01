@@ -153,6 +153,12 @@ export type StartAgentTurnRequest = {
     visual_evidence_graph: unknown
     visual_reference_comparison_authorization_id?: string
   }
+  game_asset_delivery?: {
+    schema_version: 'GameAssetDeliveryRequest@1'
+    profile_id: string
+    lod_triangle_budgets: [number, number, number]
+    target_texel_density_pixels_per_meter: number
+  }
 }
 export type CreateAgentApprovalRequest = {
   client_request_id: string

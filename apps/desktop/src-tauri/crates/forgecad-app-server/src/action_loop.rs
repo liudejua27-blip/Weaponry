@@ -37,6 +37,15 @@ const MAX_ACTION_LOOP_WALL_TIME_MS: u64 = 900_000;
 const MAX_ACTION_LOOP_TOTAL_TOKENS: u64 = 1_000_000;
 const MAX_ACTION_LOOP_COST_MICROUSD: u64 = 100_000_000;
 const MAX_ACTION_LOOP_OUTPUT_TOKENS_PER_REQUEST: u64 = 100_000;
+// UniversalAuthorOutcome@1 contains three linked contracts.  A 4K ceiling
+// truncates a legitimate part/feature plan before Rust can validate it, while
+// A 24K allowance keeps the complete linked contract and geometry payload from
+// being truncated by a thinking Provider. The loop still permits only one
+// schema repair and one universal-contract recovery.
+// The compact author projection asks for 12-24 parts and 3-24 visual
+// features; 16K is enough for that bounded contract and keeps the first
+// author/recovery cycle finite without weakening Rust's quality validation.
+const UNIVERSAL_AUTHOR_OUTPUT_TOKENS: u64 = 24_576;
 const MAX_PROVIDER_SCHEMA_REPAIR_ATTEMPTS: u8 = 1;
 const MAX_PRODUCT_TOOL_RECOVERY_ATTEMPTS: u8 = 2;
 const MAX_VISUAL_PROGRAM_BUILD_REPAIR_ATTEMPTS: u8 = 1;
@@ -183,6 +192,7 @@ pub enum ActionLoopContinuation {
 pub enum CandidatePbrCaptureRoute {
     ForgeVisualProgram,
     UniversalHardSurface,
+    UniversalVisualExterior,
     UniversalLocalLattice,
     UniversalLocalHybrid,
 }
@@ -574,9 +584,14 @@ impl ActionLoop {
             resumed_capture_route,
             Some(
                 CandidatePbrCaptureRoute::UniversalHardSurface
+                    | CandidatePbrCaptureRoute::UniversalVisualExterior
                     | CandidatePbrCaptureRoute::UniversalLocalLattice
                     | CandidatePbrCaptureRoute::UniversalLocalHybrid
             )
+        );
+        let mut universal_visual_exterior_route = matches!(
+            resumed_capture_route,
+            Some(CandidatePbrCaptureRoute::UniversalVisualExterior)
         );
         let universal_author_route = input.universal_author_context.is_some();
         let visual_program_edit = !universal_author_route
@@ -669,7 +684,10 @@ impl ActionLoop {
                 None => {
                     visual_program_ready = true;
                     visual_repair_pending = true;
-                    provider_tools = vec![if universal_v2_route {
+                    provider_tools = vec![if universal_visual_exterior_route {
+                        self.registry
+                            .universal_visual_exterior_repair_provider_definition()
+                    } else if universal_v2_route {
                         self.registry
                             .universal_hard_surface_repair_provider_definition()
                     } else {
@@ -750,6 +768,11 @@ impl ActionLoop {
                 ));
             }
 
+            let configured_output_tokens = if universal_author_route && !visual_program_ready {
+                UNIVERSAL_AUTHOR_OUTPUT_TOKENS
+            } else {
+                self.config.max_output_tokens_per_request
+            };
             let mut provider_request = ProviderRequest {
                 provider_id: provider_preflight.provider_id.clone(),
                 // Credential metadata may change while the desktop app remains
@@ -771,10 +794,7 @@ impl ActionLoop {
                     && (!visual_program_ready
                         || visual_program_patch_pending
                         || visual_repair_pending),
-                max_output_tokens: self
-                    .config
-                    .max_output_tokens_per_request
-                    .min(remaining_tokens),
+                max_output_tokens: configured_output_tokens.min(remaining_tokens),
             };
             let request_budget = match self
                 .provider
@@ -1241,11 +1261,13 @@ impl ActionLoop {
                                             Some("PRODUCT_TOOL_SCHEMA_REPAIR_REQUESTED".into());
                                         repair.network_call_made = network_call_made;
                                         trace.push(repair);
+                                        let diagnostic =
+                                            error.message.chars().take(480).collect::<String>();
                                         messages.push(ProviderMessage {
                                             role: ProviderRole::Tool,
                                             content: serde_json::to_string(&json!({
                                                 "error_code": error.code,
-                                                "message": recovery_message
+                                                "message": format!("{recovery_message} Rust validation detail: {diagnostic}")
                                             }))
                                             .expect("fixed Product Tool schema repair serializes"),
                                             tool_call_id: Some(call.call_id),
@@ -1530,9 +1552,13 @@ impl ActionLoop {
                                     universal_v2_route = matches!(
                                         output_value.get("execution_route").and_then(Value::as_str),
                                         Some("build_universal_hard_surface")
+                                            | Some("build_universal_visual_exterior")
                                             | Some("build_universal_local_lattice")
                                             | Some("build_universal_local_hybrid")
                                     );
+                                    universal_visual_exterior_route =
+                                        output_value.get("execution_route").and_then(Value::as_str)
+                                            == Some("build_universal_visual_exterior");
                                     if output_value.get("execution_route").and_then(Value::as_str)
                                         == Some("inspect_then_typed_patch")
                                     {
@@ -1725,7 +1751,10 @@ impl ActionLoop {
                                     // local patch. Rust performs the rebuild,
                                     // readback, render and evaluation chain.
                                     visual_repair_pending = true;
-                                    provider_tools = vec![if universal_v2_route {
+                                    provider_tools = vec![if universal_visual_exterior_route {
+                                        self.registry
+                                            .universal_visual_exterior_repair_provider_definition()
+                                    } else if universal_v2_route {
                                         self.registry
                                             .universal_hard_surface_repair_provider_definition()
                                     } else {
@@ -2026,7 +2055,7 @@ impl ActionLoop {
                             "error_code":"RESTRICTED_GEOMETRY_INPUT_INVALID",
                             "source_revision":visual_program_output.get("revision"),
                             "source_program_sha256":visual_program_output.get("source_program_sha256"),
-                            "required_next_action":"Rust rejected the authored visual program during restricted geometry validation. Reuse the exact operation IDs in your immediately preceding author/patch call and call patch_forge_visual_program directly; do not call inspect or author. Apply ForgeVisualPatch@1 using the supplied source_revision as expected_revision and source_program_sha256 as expected_source_sha256. Primitive inputs must be empty; mirror/array/radial_array/bevel_approx/surface_panel require exactly one earlier mesh input; union/subtract require at least two earlier mesh inputs; cylinder/capsule require radius and height. If replacing geometry_graph, include the complete ShapeProgram@1 object with schema_version, operations, outputs and non_functional_only=true. At most one build-repair patch is accepted."
+                            "required_next_action":"Rust rejected the authored visual program during restricted geometry validation. Reuse the exact operation IDs in your immediately preceding author/patch call and call patch_forge_visual_program directly; do not call inspect or author. Apply ForgeVisualPatch@1 using the supplied source_revision as expected_revision and source_program_sha256 as expected_source_sha256. Primitive inputs must be empty; mirror/array/radial_array/bevel_approx/surface_panel/groove require exactly one earlier mesh input; groove requires an axial face, bounded face_size, in-plane position and bounded depth; shell requires exactly one earlier box input and bounded positive thickness; union/subtract require at least two earlier mesh inputs; cylinder/capsule require radius and height. If replacing geometry_graph, include the complete ShapeProgram@1 object with schema_version, operations, outputs and non_functional_only=true. At most one build-repair patch is accepted."
                         }))
                         .expect("bounded visual build repair message serializes"),
                         tool_call_id: None,
@@ -2131,6 +2160,10 @@ fn pending_candidate_pbr_capture(
             && visual_program_output
                 .get("execution_route")
                 .and_then(Value::as_str)
+                != Some("build_universal_visual_exterior")
+            && visual_program_output
+                .get("execution_route")
+                .and_then(Value::as_str)
                 != Some("build_universal_local_lattice")
             && visual_program_output
                 .get("execution_route")
@@ -2145,6 +2178,9 @@ fn pending_candidate_pbr_capture(
         .and_then(Value::as_str)
     {
         Some("build_universal_hard_surface") => CandidatePbrCaptureRoute::UniversalHardSurface,
+        Some("build_universal_visual_exterior") => {
+            CandidatePbrCaptureRoute::UniversalVisualExterior
+        }
         Some("build_universal_local_lattice") => CandidatePbrCaptureRoute::UniversalLocalLattice,
         Some("build_universal_local_hybrid") => CandidatePbrCaptureRoute::UniversalLocalHybrid,
         Some("build_current_program") => CandidatePbrCaptureRoute::ForgeVisualProgram,
@@ -2424,6 +2460,7 @@ fn rust_owned_visual_program_completion_steps(
     ) && matches!(
         output.get("execution_route").and_then(Value::as_str),
         Some("build_universal_hard_surface")
+            | Some("build_universal_visual_exterior")
             | Some("build_universal_local_lattice")
             | Some("build_universal_local_hybrid")
     ) && output
@@ -2468,6 +2505,9 @@ fn rust_owned_visual_program_completion_steps(
                         } else if output.get("execution_route").and_then(Value::as_str)
                             == Some("build_universal_local_hybrid") {
                             "direction_universal_local_hybrid"
+                        } else if output.get("execution_route").and_then(Value::as_str)
+                            == Some("build_universal_visual_exterior") {
+                            "direction_universal_visual_exterior"
                         } else {
                             "direction_universal_hard_surface"
                         }
@@ -2541,6 +2581,37 @@ fn product_tool_recovery_message(
         );
     }
     if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("REPRESENTATION_PART_PLAN_INVALID")
+    {
+        return Some(
+            "Rust rejected a part-to-feature mapping. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. For every RepresentationPlan.parts[] row, each covered_feature_ids entry must reference a VisualFeatureContract requirement whose affected_part_ids includes that exact part_id; remove any feature from a part that does not affect it, or move the part_id into the requirement only when the feature visibly belongs to that part. Keep all declared part IDs, capability IDs and subject identity consistent; do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("VISUAL_FEATURE_REQUIREMENTS_INCOMPLETE")
+    {
+        return Some(
+            "Rust rejected an incomplete VisualFeatureContract. Retry author_universal_asset exactly once with the same sealed request and hashes. Treat SubjectProfile.features as the exact closed feature set: VisualFeatureContract.requirements must contain exactly one row for every feature_id, with the same feature_id and level, no extras and no omissions. Each requirement must use only declared SubjectProfile.parts in affected_part_ids. Do not invent feature IDs or inner parts; use inferred/hidden for unsupported unseen details. Keep the real subject and never substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && matches!(
+            result.error_code.as_deref(),
+            Some("VISUAL_FEATURE_PART_INVALID" | "REPRESENTATION_PART_UNKNOWN")
+        )
+    {
+        return Some(
+            "Rust rejected a reference to an undeclared part. Retry author_universal_asset exactly once with the same sealed request and subject identity. SubjectProfile.parts is the only allowed part set; copy those part_id values byte-for-byte into VisualFeatureContract.affected_part_ids and RepresentationPlan.parts. Attach inner, hidden or uncertain visual detail to an existing visible parent part instead of inventing a new ID, or mark it inferred/hidden. Never substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("REPRESENTATION_PARTS_INCOMPLETE")
+    {
+        return Some(
+            "Rust rejected an incomplete RepresentationPlan. Retry author_universal_asset exactly once with the same sealed request/profile/feature hashes. Treat SubjectProfile.parts as the exact closed part set: RepresentationPlan.parts must contain exactly one row for every declared part_id, no extras and no omissions. Copy each part_id byte-for-byte; use one visible primary feature or an empty covered_feature_ids list when a part has no dedicated acceptance feature. Every covered feature must be declared and must list that part in affected_part_ids. Keep capability IDs and subject identity unchanged; never substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
         && result.error_code.as_deref().is_some_and(|code| {
             code.starts_with("UNIVERSAL_")
                 || code.starts_with("SUBJECT_")
@@ -2548,14 +2619,151 @@ fn product_tool_recovery_message(
                 || code.starts_with("REPRESENTATION_")
         })
     {
+        if result.error_code.as_deref() == Some("UNIVERSAL_EXECUTABLE_CAPABILITY_MIXED") {
+            return Some(
+                "Rust rejected an unsupported executable capability mix. Retry author_universal_asset once with the same sealed request/profile/feature hashes. Distinct procedural parts may use procedural.generic_hard_surface_v1 and procedural.generic_visual_exterior_v1 in one ForgeVisualGeometryProgram@2; when mixed, set executable_payload.domain to generic_visual_exterior. The bounded hard-surface/lattice hybrid remains the only other mixed route. Never use a robotic-arm or C111 template for a different subject.",
+            );
+        }
+        if result.error_code.as_deref() == Some("SUBJECT_FEATURE_LEVELS_INCOMPLETE") {
+            return Some(
+                "Rust rejected the subject profile because its features do not cover all three appearance levels. Retry author_universal_asset once with the same sealed request and hashes, and include at least one distinct SubjectProfile.features row with level=macro, one with level=meso, and one with level=micro. Use these rows in the VisualFeatureContract and keep their part_id/feature_id references exact. Also set executable_payload.budgets.max_profiles to 1 or more even when profiles=[]; every other budget maximum must be positive. Do not substitute a robotic arm or C111 template.",
+            );
+        }
+        if result.error_code.as_deref() == Some("SUBJECT_FEATURE_INVALID") {
+            return Some(
+                "Rust rejected SubjectProfile.features. Retry author_universal_asset exactly once with the same sealed request and hashes. Treat SubjectProfile.parts as the only closed part set: every features[] row must have a unique feature_id, a non-empty description, and feature.part_id copied byte-for-byte from one declared parts[].part_id; do not put VFC affected_part_ids or invented inner-part IDs into SubjectProfile. Mirrored rows must use distinct stable IDs such as feat_ear_shape__part_ear_left and feat_ear_shape__part_ear_right; do not reuse one feature_id for paired parts. Keep at least one macro, meso and micro feature and use inferred/hidden for unsupported details. Never substitute an arm or C111 template.",
+            );
+        }
+        if result.error_code.as_deref() == Some("VISUAL_FEATURE_EVIDENCE_INVALID") {
+            return Some(
+                "Rust rejected a visual evidence region because its evidence_id is not one of the exact IDs in the sealed request. Retry author_universal_asset once: copy request.reference_inputs[].evidence_id byte-for-byte into every observed evidence_regions entry; use the attached reference_evidence_ledger, never image_1/reference_1 aliases. If a feature is hidden or inferred, set that status and keep evidence_regions empty. Keep all other contracts and hashes unchanged.",
+            );
+        }
+        if result.error_code.as_deref() == Some("VISUAL_FEATURE_OBSERVED_UNSUPPORTED") {
+            return Some(
+                "Rust rejected an observed feature without visible evidence. Retry author_universal_asset once: every requirement with evidence_status=observed must include at least one evidence_regions entry using an exact request.reference_inputs[].evidence_id copied from the reference_evidence_ledger, with a valid region when known. Any rear, occluded, inferred or otherwise unproven detail must use inferred, hidden or conflicting instead and keep evidence_regions empty. Do not change the sealed request or hashes.",
+            );
+        }
         return Some(
             "Rust rejected the universal contracts without changing geometry. Retry author_universal_asset exactly once: reproduce the sealed request verbatim, keep all request/profile/feature/capability hashes consistent, reference only declared parts/features and use limitation for every unavailable representation. Never substitute C111 or a robotic-arm template for another subject.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("FORGE_VISUAL_VP203_ID_INVALID")
+    {
+        return Some(
+            "Rust rejected a geometry identifier. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. Set executable_payload.program_id to a lowercase ID beginning with visual_ (for example visual_coastal_building_v01); keep every node_id beginning node_, material_id/base_material_id beginning mat_, part_id beginning part_, zone_id beginning zone_ and output_id beginning output_. Do not substitute an arm or C111 template and do not change the subject contracts.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("FORGE_VISUAL_VP203_SURFACE_PANEL_INVALID")
+    {
+        return Some(
+            "Rust rejected a surface_panel placement. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. A surface_panel axis must be one of positive_x, negative_x, positive_y, negative_y, positive_z or negative_z; its position is local to the selected source box/bevel/shell, the coordinate along the axis must be exactly 0, and the other two coordinates plus half the panel size must remain inside the corresponding source half-size. Use compact local coordinates (often position [0,0,0]) and a three-number size. If this detail is not needed, remove surface_panel and groove nodes and express the facade with bounded box nodes instead. Do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("FORGE_VISUAL_VP203_GRAPH_FANOUT_UNSUPPORTED")
+    {
+        return Some(
+            "Rust rejected a shared geometry node because each node may belong to exactly one output graph. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. Every executable_payload.outputs[] tree must be disjoint: do not reuse one node, union, part or material_zone as an ancestor of two outputs. If a visual subassembly belongs both to the building body and to a named facade part, duplicate the bounded primitive/union nodes with fresh node_ IDs under each output, or keep it in only one output. Ensure every node is still reachable from exactly one output and do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("FORGE_VISUAL_VP203_BUDGET_INVALID")
+    {
+        return Some(
+            "Rust rejected the declared geometry budget. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. Keep budgets strictly to GeometryProgramBudget@1 and set max_profiles, max_nodes, max_parts, max_materials, max_outputs and max_operations to positive integers within the reviewed ceilings; max_profiles must be at least 1 even when profiles=[] and max_section_sets may be 0 when section_sets=[]; triangle_budget must be 100..100000. Do not set any maximum field to 0, and do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("FORGE_VISUAL_VP203_BOOLEAN_INVALID")
+    {
+        return Some(
+            "Rust rejected a boolean node. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. Every union/subtract must have 2..=8 unique input_node_ids, and every operand must be an earlier geometry node. For more than 8 elements, create multiple intermediate union nodes (for example union_a with the first 6 and union_b with the remainder, then a final union with union_a and union_b); keep each node in exactly one output graph. Do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("FORGE_VISUAL_VP203_SECTION_RESAMPLE_MISMATCH")
+    {
+        return Some(
+            "Rust rejected a loft section-set resample contract before geometry ran. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. For every section_sets[] row, collect the exact profiles[].profile_id values referenced by its sections and set every one of those profiles to the same resample_count (choose 16 or 24); do not mix counts across that set. The Rust-derived resample_policy must therefore use that same count. Keep positions strictly increasing and cap_policy start/none/end; if the loft is not essential, remove the section_set and its loft node and use capsule, box or cylinder nodes instead. Do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && matches!(
+            result.error_code.as_deref(),
+            Some("FORGE_VISUAL_VP203_SECTION_SET_INVALID" | "FORGE_VISUAL_VP203_SECTION_CAP_INVALID")
+        )
+    {
+        return Some(
+            "Rust rejected a loft section set before geometry ran. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. For every section_sets[] row use 2..=12 unique sections with unique section_id values, profile_id values copied from profiles[], positions strictly increasing within -1..=1, scale in 0.25..=4 and twist_degrees in -45..=45. All sections in one set must use profiles with the same resample_count; cap_policy must be start on the first section, none on every interior section and end on the last. If the loft is unnecessary, remove the section_set and use capsule, box or cylinder nodes. Do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && matches!(
+            result.error_code.as_deref(),
+            Some("FORGE_VISUAL_VP203_REFERENCE_MISSING")
+        )
+    {
+        return Some(
+            "Rust rejected a geometry reference. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. Every profile_id in section_sets[].sections must copy an existing profiles[].profile_id byte-for-byte, every node input must reference an earlier declared node_id, and every output must reference a declared node_id. Remove unused section sets instead of inventing IDs. Do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && matches!(
+            result.error_code.as_deref(),
+            Some(
+                "FORGE_VISUAL_VP203_PROFILE_BOUNDS"
+                    | "FORGE_VISUAL_VP203_PROFILE_SELF_INTERSECTION"
+                    | "FORGE_VISUAL_VP203_PROFILE_WINDING_OR_DEGENERATE"
+            )
+        )
+    {
+        return Some(
+            "Rust rejected a profile contour before geometry ran. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes. Every profiles[].points polygon is implicitly closed: use 3..=32 finite points in -1..=1, no duplicate or zero-length edges, no self-intersection, and a simple counter-clockwise contour with positive shoelace area; reverse the point order when the contour is clockwise. Prefer a rounded capsule, box or cylinder when a profile is not necessary, and keep generic_visual_exterior for non-hard-surface subjects. Do not substitute an arm or C111 template.",
+        );
+    }
+    if tool_name == "author_universal_asset"
+        && result.error_code.as_deref() == Some("FORGE_VISUAL_VP203_PARSE_FAILED")
+    {
+        if result.message.as_deref().is_some_and(|message| {
+            message.contains("unknown variant")
+                || message.contains("sphere")
+                || message.contains("ellipsoid")
+                || message.contains("torus")
+        }) {
+            return Some(
+                "Rust rejected an unsupported geometry kind. Retry author_universal_asset exactly once with the same contracts and hashes. The only geometry kinds are box, cylinder, capsule, wedge, extrude, revolve, loft, sweep, mirror, array, radial_array, bevel_approx, surface_panel, groove, shell, lattice_deform, local_mesh_patch, union, subtract, part and material_zone. Do not use sphere, ellipsoid, torus, mesh, script or arbitrary kinds; express rounded organic masses with capsule or revolve and keep domain generic_visual_exterior. Do not substitute an arm or C111 template.",
+            );
+        }
+        if result
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("invalid type: sequence"))
+        {
+            return Some(
+                "Rust rejected a geometry field with the wrong JSON type. Retry author_universal_asset exactly once with the same contracts and hashes. Geometry node arrays are numeric: box/wedge size and position are three numbers, surface_panel size is three numbers, groove face_size is two numbers, and all positions are three numbers. Primitive axis is a string x/y/z; surface_panel and groove axis are one face string positive_x, negative_x, positive_y, negative_y, positive_z or negative_z, never a numeric vector. Keep kind, node_ IDs, mat_ IDs and generic_visual_exterior unchanged.",
+            );
+        }
+        if result
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("missing field `kind`"))
+        {
+            return Some(
+                "Rust rejected a geometry node without its discriminator. Retry author_universal_asset exactly once with the same subject contracts and hashes. Every executable_payload.nodes[] object must use kind (never type), a node_id beginning with node_, and the exact reviewed node fields; every outputs[] row must use output_id beginning with output_ and a node_ reference. Materials must use mat_ IDs and base_material_id from the advertised reviewed vocabulary. Keep executable_payload.domain generic_visual_exterior and keep every plan capability procedural.generic_visual_exterior_v1 for this architecture; do not substitute an arm or C111 template.",
+            );
+        }
+        return Some(
+            "Rust rejected the ForgeVisualGeometryProgram@2 payload. Retry author_universal_asset exactly once with the same sealed request/profile/feature/plan hashes and the same subject parts. Keep materials strictly to {material_id,base_material_id}; keep budgets strictly to {schema_version:'GeometryProgramBudget@1',max_profiles,max_section_sets,max_nodes,max_parts,max_materials,max_outputs,max_operations,triangle_budget}; remove max_texture_resolution, target_triangle_count, base_color, roughness, metallic, opacity and emissive fields. Use generic_visual_exterior for non-hard-surface subjects and generic_hard_surface only for hard-surface subjects. Do not substitute a robotic arm or C111 template.",
         );
     }
     let visual_program_authoring_error = matches!(
         result.error_code.as_deref(),
         Some(
             "FORGE_VISUAL_PROGRAM_INVALID"
+                | "FORGE_VISUAL_VP203_PARSE_FAILED"
                 | "SHAPE_PROGRAM_SCHEMA_INVALID"
                 | "SHAPE_PROGRAM_OPERATION_INPUT_INVALID"
                 | "SHAPE_PROGRAM_PRIMITIVE_INVALID"
@@ -2629,8 +2837,13 @@ fn product_tool_schema_recovery_message(
     match error_code {
         "PRODUCT_TOOL_ARGUMENTS_NOT_OBJECT" | "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID" => {
             if tool_name == "author_universal_asset" {
+                if error_code == "PRODUCT_TOOL_ARGUMENT_SCHEMA_INVALID" {
+                    return Some(
+                    "Return exactly {\"outcome\": <one outcome object>} and no other root fields. The outcome object must be one of: executable with outcome, schema_version, request, subject_profile, visual_feature_contract, representation_plan, executable_payload; limitation with those five contract fields plus limitation; or clarification_required with outcome, schema_version, request, reason, questions. Do not flatten contracts. Do not include legacy_evidence_dispositions anywhere; universal author binds visual evidence internally. capability_manifest_sha256 is allowed only inside the sealed request and representation_plan, never at the outcome root. Reproduce the sealed request verbatim and do not add unknown fields.",
+                    );
+                }
                 return Some(
-                    "Rust rejected the universal author envelope. Retry exactly once with only {\"outcome\": <one UniversalAuthorOutcome@1 object>} and optional legacy_evidence_dispositions when advertised. The outcome must reproduce the sealed request and contain linked SubjectProfile@1, VisualFeatureContract@1 and RepresentationPlan@1 contracts.",
+                    "Rust rejected the universal author envelope. Retry exactly once with only {\"outcome\": <one UniversalAuthorOutcome@1 object>}. Do not include legacy_evidence_dispositions; that field belongs only to the legacy visual-program author tool. The outcome must reproduce the sealed request and contain linked SubjectProfile@1, VisualFeatureContract@1 and RepresentationPlan@1 contracts.",
                 );
             }
             if tool_name == "author_forge_visual_program" {
@@ -4371,6 +4584,181 @@ mod tests {
     }
 
     #[test]
+    fn universal_author_recovery_requires_all_feature_levels() {
+        let result = forgecad_app_server_protocol::ProductToolExecutionResult {
+            schema_version:
+                forgecad_app_server_protocol::PRODUCT_TOOL_EXECUTION_RESULT_SCHEMA_VERSION.into(),
+            execution_id: "execution_feature_levels".into(),
+            turn_id: "turn_feature_levels".into(),
+            call_id: "call_feature_levels".into(),
+            tool_id: "forgecad.universal_asset.author.v1".into(),
+            cancellation_id: "cancel_feature_levels".into(),
+            status: forgecad_app_server_protocol::ProductToolExecutionStatus::Failed,
+            failure_category: Some(
+                forgecad_app_server_protocol::ProductToolFailureCategory::Schema,
+            ),
+            error_code: Some("SUBJECT_FEATURE_LEVELS_INCOMPLETE".into()),
+            message: Some("redacted".into()),
+            validated_output: None,
+            duration_ms: 1,
+            permanent_side_effects: 0,
+        };
+        let message = product_tool_recovery_message("author_universal_asset", &result)
+            .expect("missing feature levels receive one bounded author repair");
+        assert!(message.contains("level=macro"));
+        assert!(message.contains("level=meso"));
+        assert!(message.contains("level=micro"));
+    }
+
+    #[test]
+    fn universal_author_recovery_covers_online_geometry_contract_failures() {
+        let failed_result = |code: &str| forgecad_app_server_protocol::ProductToolExecutionResult {
+            schema_version:
+                forgecad_app_server_protocol::PRODUCT_TOOL_EXECUTION_RESULT_SCHEMA_VERSION.into(),
+            execution_id: format!("execution_{code}"),
+            turn_id: "turn_online_geometry_recovery".into(),
+            call_id: format!("call_{code}"),
+            tool_id: "forgecad.universal_asset.author.v1".into(),
+            cancellation_id: format!("cancel_{code}"),
+            status: forgecad_app_server_protocol::ProductToolExecutionStatus::Failed,
+            failure_category: Some(
+                forgecad_app_server_protocol::ProductToolFailureCategory::Schema,
+            ),
+            error_code: Some(code.into()),
+            message: Some("redacted".into()),
+            validated_output: None,
+            duration_ms: 1,
+            permanent_side_effects: 0,
+        };
+
+        let cases = [
+            ("FORGE_VISUAL_VP203_ID_INVALID", "program_id", "visual_"),
+            (
+                "FORGE_VISUAL_VP203_SURFACE_PANEL_INVALID",
+                "surface_panel",
+                "local",
+            ),
+            (
+                "FORGE_VISUAL_VP203_GRAPH_FANOUT_UNSUPPORTED",
+                "disjoint",
+                "one output",
+            ),
+            (
+                "FORGE_VISUAL_VP203_BUDGET_INVALID",
+                "max_profiles",
+                "positive",
+            ),
+            (
+                "FORGE_VISUAL_VP203_BOOLEAN_INVALID",
+                "2..=8",
+                "intermediate union",
+            ),
+            (
+                "REPRESENTATION_PART_PLAN_INVALID",
+                "covered_feature_ids",
+                "affected_part_ids",
+            ),
+            (
+                "VISUAL_FEATURE_REQUIREMENTS_INCOMPLETE",
+                "exact closed feature set",
+                "no extras",
+            ),
+            (
+                "VISUAL_FEATURE_PART_INVALID",
+                "only allowed part set",
+                "undeclared part",
+            ),
+            (
+                "REPRESENTATION_PART_UNKNOWN",
+                "only allowed part set",
+                "undeclared part",
+            ),
+            (
+                "REPRESENTATION_PARTS_INCOMPLETE",
+                "exact closed part set",
+                "one row for every",
+            ),
+            (
+                "FORGE_VISUAL_VP203_PROFILE_BOUNDS",
+                "implicitly closed",
+                "shoelace",
+            ),
+            (
+                "FORGE_VISUAL_VP203_PROFILE_SELF_INTERSECTION",
+                "no self-intersection",
+                "counter-clockwise",
+            ),
+            (
+                "FORGE_VISUAL_VP203_PROFILE_WINDING_OR_DEGENERATE",
+                "positive shoelace area",
+                "capsule",
+            ),
+            (
+                "FORGE_VISUAL_VP203_SECTION_SET_INVALID",
+                "section_sets",
+                "strictly increasing",
+            ),
+            (
+                "FORGE_VISUAL_VP203_SECTION_RESAMPLE_MISMATCH",
+                "same resample_count",
+                "cap_policy",
+            ),
+            (
+                "FORGE_VISUAL_VP203_SECTION_CAP_INVALID",
+                "start",
+                "last",
+            ),
+            (
+                "FORGE_VISUAL_VP203_REFERENCE_MISSING",
+                "profile_id",
+                "byte-for-byte",
+            ),
+            (
+                "SUBJECT_FEATURE_INVALID",
+                "unique feature_id",
+                "declared parts",
+            ),
+        ];
+
+        for (code, expected, additional) in cases {
+            let message =
+                product_tool_recovery_message("author_universal_asset", &failed_result(code))
+                    .unwrap_or_else(|| panic!("missing recovery message for {code}"));
+            assert!(message.contains(expected), "{code}: {message}");
+            assert!(message.contains(additional), "{code}: {message}");
+            assert!(!message.contains("robotic arm template"));
+        }
+    }
+
+    #[test]
+    fn universal_author_recovery_rejects_unsupported_round_geometry_kind() {
+        let result = forgecad_app_server_protocol::ProductToolExecutionResult {
+            schema_version:
+                forgecad_app_server_protocol::PRODUCT_TOOL_EXECUTION_RESULT_SCHEMA_VERSION.into(),
+            execution_id: "execution_round_geometry".into(),
+            turn_id: "turn_round_geometry".into(),
+            call_id: "call_round_geometry".into(),
+            tool_id: "forgecad.universal_asset.author.v1".into(),
+            cancellation_id: "cancel_round_geometry".into(),
+            status: forgecad_app_server_protocol::ProductToolExecutionStatus::Failed,
+            failure_category: Some(
+                forgecad_app_server_protocol::ProductToolFailureCategory::Schema,
+            ),
+            error_code: Some("FORGE_VISUAL_VP203_PARSE_FAILED".into()),
+            message: Some("unknown variant `sphere`, expected one of the reviewed kinds".into()),
+            validated_output: None,
+            duration_ms: 1,
+            permanent_side_effects: 0,
+        };
+        let message = product_tool_recovery_message("author_universal_asset", &result)
+            .expect("unsupported round geometry receives one bounded author repair");
+        assert!(message.contains("capsule"));
+        assert!(message.contains("revolve"));
+        assert!(message.contains("Do not use sphere"));
+        assert!(message.contains("generic_visual_exterior"));
+    }
+
+    #[test]
     fn visual_author_recovery_repairs_invalid_boolean_dependencies_once() {
         let result = forgecad_app_server_protocol::ProductToolExecutionResult {
             schema_version:
@@ -5304,6 +5692,61 @@ mod tests {
     }
 
     #[test]
+    fn generic_visual_exterior_capture_resume_keeps_visual_repair_route() {
+        block_on(async {
+            let registry = ProductToolRegistry::default();
+            let names = [
+                "evaluate_candidate",
+                "patch_forge_visual_program",
+                "build_candidate_geometry",
+                "compile_readback_candidate",
+                "render_candidate_views",
+                "evaluate_candidate",
+                "prepare_candidate_preview",
+            ];
+            let executor = StatefulChainExecutor::new_visual_repair_auto(&registry, &names);
+            let visual_definition = registry.universal_visual_exterior_repair_provider_definition();
+            let provider = FakeDeepSeekClient::scripted(
+                "deepseek-chat",
+                true,
+                true,
+                vec![Ok(named_tool_response(
+                    "call_visual_exterior_pbr_capture_patch",
+                    "patch_forge_visual_program",
+                    universal_hard_surface_patch_arguments(),
+                ))],
+            );
+            let records = provider.clone();
+            let mut action_input = input();
+            action_input.multimodal_context = Some(validated_multimodal_context());
+            action_input.continuation = Some(ActionLoopContinuation::CandidatePbrCapture {
+                route: CandidatePbrCaptureRoute::UniversalVisualExterior,
+            });
+            let result = ActionLoop::new(
+                Arc::new(provider),
+                Arc::new(executor),
+                registry,
+                ActionLoopConfig::default(),
+            )
+            .unwrap()
+            .run(action_input, CancellationToken::new())
+            .await
+            .unwrap();
+
+            assert!(result.candidate_pbr_capture_pending.is_none());
+            let requests = records.records();
+            assert_eq!(requests.len(), 1);
+            assert_eq!(requests[0].tool_names, vec!["patch_forge_visual_program"]);
+            assert!(visual_definition
+                .description
+                .contains("open-category visual exterior"));
+            assert!(visual_definition
+                .description
+                .contains("Do not turn the subject into a robotic arm"));
+        });
+    }
+
+    #[test]
     fn pv006c_repair_rejects_provider_inspection_and_forces_one_local_patch() {
         block_on(async {
             let registry = ProductToolRegistry::default();
@@ -5840,6 +6283,10 @@ mod tests {
                 "direction_universal_hard_surface",
             ),
             (
+                "build_universal_visual_exterior",
+                "direction_universal_visual_exterior",
+            ),
+            (
                 "build_universal_local_lattice",
                 "direction_universal_local_lattice",
             ),
@@ -5865,6 +6312,61 @@ mod tests {
                 assert_eq!(steps[1].0, "compile_readback_candidate");
                 assert_eq!(steps[2].0, "render_candidate_views");
             }
+        }
+    }
+
+    #[test]
+    fn u004_category_open_capture_pending_keeps_rust_project_turn_context() {
+        let request = forgecad_core::UniversalAuthorRequest {
+            schema_version: "UniversalAuthorRequest@1".into(),
+            request_id: "u004_action_loop_capture_request".into(),
+            project_id: "project_u004_action_loop_capture".into(),
+            turn_id: "turn_u004_action_loop_capture".into(),
+            instruction: "生成一个银白色科幻硬表面概念道具".into(),
+            input_mode: forgecad_core::UniversalInputMode::Text,
+            reference_inputs: Vec::new(),
+            active_asset: None,
+            selection: Default::default(),
+            locks: Default::default(),
+            capability_manifest_sha256: forgecad_core::representation_capability_manifest_sha256()
+                .unwrap(),
+        };
+        let context = crate::ValidatedUniversalAuthorContext::new(request, &[], None).unwrap();
+
+        for (execution_route, expected_route) in [
+            (
+                "build_universal_hard_surface",
+                CandidatePbrCaptureRoute::UniversalHardSurface,
+            ),
+            (
+                "build_universal_visual_exterior",
+                CandidatePbrCaptureRoute::UniversalVisualExterior,
+            ),
+            (
+                "build_universal_local_lattice",
+                CandidatePbrCaptureRoute::UniversalLocalLattice,
+            ),
+            (
+                "build_universal_local_hybrid",
+                CandidatePbrCaptureRoute::UniversalLocalHybrid,
+            ),
+        ] {
+            let mut input = input();
+            input.execution_id = format!("execution_{execution_route}");
+            input.turn_id = "turn_u004_action_loop_capture".into();
+            input.universal_author_context = Some(context.clone());
+            let pending = pending_candidate_pbr_capture(
+                &input,
+                &json!({
+                    "outcome":"executable",
+                    "execution_route":execution_route
+                }),
+            )
+            .expect("category-open executable routes must pause before preview");
+            assert_eq!(pending.route, expected_route);
+            assert_eq!(pending.project_id, "project_u004_action_loop_capture");
+            assert_eq!(pending.execution_id, input.execution_id);
+            assert_eq!(pending.turn_id, input.turn_id);
         }
     }
 

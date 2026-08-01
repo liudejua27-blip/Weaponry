@@ -98,9 +98,9 @@ K003 后，生产桌面统一使用 Rust native `thread/list`、`thread/read`、
 
 ### 3.1 多轮 Provider 上下文
 
-Native `turn/start` 使用版本化请求体和稳定 business idempotency key。U002 的轻量 `author_context` 只允许 evidence ID、角色、视图提示和视觉证据图；前端不能提交 Project、Snapshot、活动版本、选择、锁定、readback 或 capability hash。Rust 重读真实 Turn/Project/Snapshot 与 sealed evidence，构造并 hash-seal `UniversalAuthorRequest@1`。旧 `multimodal_context` 暂作兼容输入并归一化/并行绑定，不能覆盖上述真值。
+Native `turn/start` 使用版本化请求体和稳定 business idempotency key。U002 的轻量 `author_context` 只允许 evidence ID、角色、视图提示和视觉证据图；前端不能提交 Project、Snapshot、活动版本、选择、锁定、readback 或 capability hash。Rust 重读真实 Turn/Project/Snapshot 与 sealed evidence，构造并 hash-seal `UniversalAuthorRequest@1`。旧 `multimodal_context` 暂作兼容输入，但只能在没有 `author_context` 时单独使用；两者同时出现会在协议层 fail-closed，避免 Universal 与 Legacy 形成两个竞争的比较源。
 
-新项目 Action Loop 首轮只广告 `author_universal_asset`。Provider 一次提交 `SubjectProfile + VisualFeatureContract + RepresentationPlan + UniversalAuthorOutcome`；Rust 校验 request/profile/feature/plan/capability 的全部 hash 和证据状态。只有验证后的机械臂计划可携带 `ForgeVisualAuthoringIntent@1` 进入现有 lowering；limitation/clarification 正常完成 Turn 但不调用 worker或创建版本/Snapshot/Quality/Export。活动资产先走同一表示计划，再进入 inspect→最多一次 typed patch。每个 Thread 同时只允许一个 `queued/running` Provider Turn。
+新项目 Action Loop 首轮只广告 `author_universal_asset`。Provider 一次提交 `SubjectProfile + VisualFeatureContract + RepresentationPlan + UniversalAuthorOutcome`；Rust 校验 request/profile/feature/plan/capability 的全部 hash 和证据状态。机械臂计划可携带 `ForgeVisualAuthoringIntent@1`，generic hard-surface 与 generic visual exterior 计划携带受限 `ForgeVisualGeometryProgram@2`；后者是类别开放的可见外观代理，不要求 Provider 自报 `visual_exterior`，但不等同专用有机表示。只有 typed limitation/clarification 才正常完成 Turn 且不调用 worker或创建版本/Snapshot/Quality/Export。活动资产先走同一表示计划，再进入 inspect→最多一次 typed patch。每个 Thread 同时只允许一个 `queued/running` Provider Turn。
 
 Turn 的 `usage` 可返回 `latency_ms`、`prompt_tokens`、`completion_tokens`、`total_tokens`、`prompt_cache_hit_tokens`、`prompt_cache_miss_tokens`、`estimated_cost_cny`、`budget_reservation_cny`、`routing_mode`、`context_hash`、`prompt_contract_version`、`network_call_made`、`provider_phase`、`provider_attempt` 和 `fallback_used=false`。它不返回 Key、Base URL、请求头、完整 Prompt、完整 Response 或 `reasoning_content`。动态工具、重复 call ID、Schema/G819 非法参数、Provider 自报 executable、越权审批、shell/URL/路径与超预算请求都稳定拒绝；universal schema 错误最多一次零几何修正。
 

@@ -226,7 +226,7 @@ export function useCadWorkbenchPanelAgentAssetLifecycleActions({
       setAssistantNote('当前项目已切换；不会确认先前项目的临时结果。')
       return
     }
-    setAssistantNote('正在把正式单一结果保存为可编辑资产…')
+    setAssistantNote('正在把这次设计保存为可编辑资产…')
     await confirmSingleResultPreviewRequest(
       api,
       {

@@ -27,6 +27,7 @@ use crate::{
     canonical::{canonical_json, sha256_hex},
     CancellationToken, ProviderToolCall, ProviderToolDefinition,
 };
+use forgecad_core::GameAssetDeliveryRequest;
 
 pub const MAX_PRODUCT_TOOL_CALLS: u32 = 20;
 /// Exact size of the reviewed ForgeCAD v1 Product Tool manifest.
@@ -184,6 +185,17 @@ pub trait ProductToolExecutorPort: Send + Sync + 'static {
         _execution_id: &str,
         _turn_id: &str,
         _context: crate::ValidatedUniversalAuthorContext,
+    ) -> Result<(), ProductToolPortError> {
+        Ok(())
+    }
+
+    /// Binds explicit user delivery intent. The request has no part/socket
+    /// IDs; the native executor derives those from the exact compiled source.
+    fn bind_execution_game_asset_delivery_request(
+        &self,
+        _execution_id: &str,
+        _turn_id: &str,
+        _request: GameAssetDeliveryRequest,
     ) -> Result<(), ProductToolPortError> {
         Ok(())
     }
@@ -378,7 +390,7 @@ impl ProductToolRegistry {
             .map(|definition| ProviderToolDefinition {
                 name: definition.name.clone(),
                 description: match definition.name.as_str() {
-                    "author_universal_asset" => "Understand the actual requested subject without a category allowlist. Return exactly one UniversalAuthorOutcome@1 containing the Rust-sealed request, SubjectProfile@1, VisualFeatureContract@1 and RepresentationPlan@1. Use executable only for a code-owned available capability; otherwise return a typed limitation with no geometry. For procedural.generic_hard_surface_v1, executable_payload must be one ForgeVisualGeometryProgram@2 with domain generic_hard_surface, one output per declared subject part, and no mechanical-arm/C111 fallback.".into(),
+                    "author_universal_asset" => "UniversalAuthorOutcome@1 any subject. IDs: robotic-arm, procedural.generic_visual_exterior_v1, procedural.generic_hard_surface_v1. Use generic_visual_exterior for organic/soft exteriors; no deformable is not quality_limited. Parts, requirements and plan rows use exact matching IDs; one plan row/part; include macro, meso, micro. Geometry excludes sphere/mesh/script; use ForgeVisualGeometryProgram@2, visual_ program_id, one output/part. Never arm/C111 for another subject.".into(),
                     "author_forge_visual_program" => "Author one compact ForgeVisualAuthoringIntent@1. Choose the robotic-arm visual architecture, silhouette language, materials, surface motifs, detail density and pose; Rust derives every ShapeProgram operation, Part, Material Zone, Surface Program and Detail binding.".into(),
                     "patch_forge_visual_program" => "Patch only the current ForgeVisualProgram revision. A replace_geometry_graph operation must carry a complete ShapeProgram@1, including schema_version, program_id, units, seed, triangle_budget, parameters, operations, outputs, and non_functional_only. Reuse earlier operation IDs for non-primitive inputs; radial_array is never inputs=[].".into(),
                     _ => definition.description.clone(),
@@ -391,6 +403,7 @@ impl ProductToolRegistry {
                 // `build_execution_request` still validates the exact full
                 // registry schema before any Product Tool runs.
                 input_schema: match (definition.name.as_str(), input_mode) {
+                    ("author_universal_asset", _) => compact_universal_author_input_schema(),
                     ("author_forge_visual_program", _) => {
                         compact_forge_visual_program_author_schema()
                     }
@@ -433,6 +446,23 @@ impl ProductToolRegistry {
             .expect("code-owned registry must expose the visual patch tool");
         definition.input_schema = compact_universal_hard_surface_repair_patch_schema();
         definition.description = "Repair the current UAS@2 generic hard-surface source with exactly one bounded ForgeVisualGeometryPatch@1. Use only the Rust-projected source hash and stable node/material IDs. Do not author a new object, replace a graph, call an arm tool, or add code, paths, URLs, dimensions, or unknown fields.".into();
+        definition
+    }
+
+    /// The open-category exterior route uses the same bounded VP204 patch
+    /// language, but it must not be described to the Provider as a hard-
+    /// surface repair. Keeping the projection separate prevents a failed
+    /// visual comparison for a vehicle, building, furniture or other subject
+    /// from nudging the next author turn back toward the hard-surface/robotic
+    /// vocabulary.
+    pub fn universal_visual_exterior_repair_provider_definition(&self) -> ProviderToolDefinition {
+        let mut definition = self
+            .provider_definitions_for_mode(ProviderToolInputMode::InitialSynthesis)
+            .into_iter()
+            .find(|definition| definition.name == "patch_forge_visual_program")
+            .expect("code-owned registry must expose the visual patch tool");
+        definition.input_schema = compact_universal_hard_surface_repair_patch_schema();
+        definition.description = "Repair the current UAS@2 open-category visual exterior source with exactly one bounded ForgeVisualGeometryPatch@1. Preserve the identified subject, silhouette and part semantics; use only the Rust-projected source hash and stable node/material IDs. Do not turn the subject into a robotic arm, author a new object, replace a graph, call an arm tool, or add code, paths, URLs, dimensions, or unknown fields.".into();
         definition
     }
 
@@ -796,35 +826,14 @@ fn compact_shape_program_provider_schema() -> Value {
     shape_object.insert(
         "description".into(),
         Value::String(
-            "Complete ShapeProgram@1. box/wedge/cylinder/capsule/profile/loft/sweep use inputs=[]; extrude/revolve require one earlier profile; mirror requires one earlier mesh and non-zero axis; array requires one earlier mesh, count>=2, spacing>0 and non-zero axis; radial_array requires one earlier mesh, count>=2, radius>0, 0<angle<=2*pi and non-zero axis; bevel_approx/surface_panel require one earlier box or bevel_approx; lattice_deform requires one earlier mesh plus exactly eight non-zero bounded 2x2x2 corner offsets; union/subtract require 2-8 earlier non-profile meshes and boolean depth is at most 8.".into(),
+                    "Complete ShapeProgram@1. box/wedge/cylinder/capsule/profile/loft/sweep use inputs=[]; extrude/revolve require one earlier profile; mirror requires one earlier mesh and non-zero axis; array requires one earlier mesh, count>=2, spacing>0 and non-zero axis; radial_array requires one earlier mesh, count>=2, radius>0, 0<angle<=2*pi and non-zero axis; bevel_approx/surface_panel/groove require one earlier box or bevel_approx; groove uses one axial face, bounded face_size, in-plane position and depth<=25% of its source normal extent; shell requires one earlier box and bounded positive thickness; lattice_deform requires one earlier mesh plus exactly eight non-zero bounded 2x2x2 corner offsets; local_mesh_patch requires one earlier mesh, normalized patch_center/radius and non-zero bounded patch_offset; union/subtract require 2-8 earlier non-profile meshes and boolean depth is at most 8.".into(),
         ),
     );
     shape_program
 }
 
 fn universal_author_tool_definition() -> ProductToolDefinition {
-    let input_schema = json!({
-        "type": "object",
-        "properties": {
-            "outcome": {"type": "object"},
-            "legacy_evidence_dispositions": {
-                "type": "array",
-                "maxItems": 256,
-                "items": {
-                    "type": "object",
-                    "required": ["claim_id", "disposition", "reason"],
-                    "properties": {
-                        "claim_id": {"type": "string"},
-                        "disposition": {"enum": ["bound", "unresolved", "evaluation_only"]},
-                        "reason": {"type": "string"}
-                    },
-                    "additionalProperties": false
-                }
-            }
-        },
-        "required": ["outcome"],
-        "additionalProperties": false
-    });
+    let input_schema = universal_author_input_schema();
     let output_schema = json!({
         "type": "object",
         "required": ["schema_version", "outcome"],
@@ -844,6 +853,742 @@ fn universal_author_tool_definition() -> ProductToolDefinition {
         input_schema,
         output_schema,
     }
+}
+
+/// Build the Provider-facing universal author schema from the same checked-in
+/// contract documents used by the TypeScript registry.  The native executor
+/// still performs the authoritative Rust deserialization and semantic
+/// validation; this projection only prevents a model from having to guess
+/// the required SubjectProfile/FeatureContract/RepresentationPlan envelope.
+///
+/// The public documents use external `$ref` and `oneOf`, while the compact
+/// Product Tool schema validator intentionally accepts only local refs and
+/// `anyOf`.  Inline the small contract graph once at startup and normalize
+/// those two transport details without creating a second contract.
+fn universal_author_input_schema() -> Value {
+    let document = concept_schema_document("universal-author-outcome.schema.json");
+    let mut outcome = inline_concept_schema(&document, Some(&document));
+    // The sealed request is Rust-owned and the native executor binds these
+    // derived lineage values after the Provider's subject/feature/plan has
+    // been parsed.  Requiring a model to reproduce Rust's canonical JSON
+    // hashes at this earlier transport boundary rejects an otherwise valid
+    // author result before the executor can perform that binding.  Keep the
+    // checked-in contract strict; relax only this request-envelope projection
+    // and let UniversalAuthorOutcome::validate remain authoritative later.
+    relax_universal_author_lineage_fields(&mut outcome);
+    json!({
+        "type": "object",
+        "properties": {
+            "outcome": outcome,
+            "legacy_evidence_dispositions": {
+                "type": "array",
+                "maxItems": 256,
+                "items": {
+                    "type": "object",
+                    "required": ["claim_id", "disposition", "reason"],
+                    "properties": {
+                        "claim_id": {"type": "string"},
+                        "disposition": {"enum": ["bound", "unresolved", "evaluation_only"]},
+                        "reason": {"type": "string"}
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "required": ["outcome"],
+        "additionalProperties": false
+    })
+}
+
+fn relax_universal_author_lineage_fields(schema: &mut Value) {
+    const DERIVED_LINEAGE_FIELDS: [&str; 4] = [
+        "request_sha256",
+        "subject_profile_sha256",
+        "visual_feature_contract_sha256",
+        "capability_manifest_sha256",
+    ];
+
+    let Some(schema_object) = schema.as_object_mut() else {
+        return;
+    };
+
+    if let Some(properties) = schema_object
+        .get_mut("properties")
+        .and_then(Value::as_object_mut)
+    {
+        for (name, child) in properties.iter_mut() {
+            if DERIVED_LINEAGE_FIELDS.contains(&name.as_str()) {
+                *child = json!({
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Rust binds this lineage hash after exact request reproduction; do not rely on Provider-supplied value for identity."
+                });
+            } else {
+                relax_universal_author_lineage_fields(child);
+            }
+        }
+    }
+
+    if let Some(branches) = schema_object
+        .get_mut("anyOf")
+        .and_then(Value::as_array_mut)
+    {
+        for branch in branches {
+            relax_universal_author_lineage_fields(branch);
+        }
+    }
+
+    if let Some(items) = schema_object.get_mut("items") {
+        relax_universal_author_lineage_fields(items);
+    }
+}
+
+/// The checked-in UniversalAuthorOutcome schema is intentionally complete and
+/// remains the Rust execution contract.  Its external references expand into
+/// three repeated contract trees when converted to a provider tool schema,
+/// however.  That made a single image author request consume almost the whole
+/// model context before DeepSeek could emit the required result.  This
+/// provider projection keeps every field and cross-contract identity visible,
+/// but removes repeated annotations and schema-only constraints; the native
+/// executor still validates the exact shared schema and semantic hashes after
+/// the call.  It is therefore a transport projection, not a second product
+/// contract.
+fn compact_universal_author_input_schema() -> Value {
+    let sha256 = || json!({
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$",
+        "maxLength": 64
+    });
+    // Rust derives these contract-lineage values after the sealed request is
+    // reproduced.  Keep the Provider projection permissive here because the
+    // model cannot be expected to reproduce Rust's canonical JSON hash.
+    let derived_lineage = || json!({
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+    });
+    let id = |max_length: u64| json!({
+        "type": "string",
+        "minLength": 1,
+        "maxLength": max_length
+    });
+    let text = |max_length: u64| json!({
+        "type": "string",
+        "minLength": 1,
+        "maxLength": max_length
+    });
+
+    let reference_input = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_id", "evidence_sha256", "role"],
+        "properties": {
+            "evidence_id": id(160),
+            "evidence_sha256": sha256(),
+            "role": text(80),
+            "view_hint": {"type": ["string", "null"], "maxLength": 80}
+        }
+    });
+    let active_asset = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["asset_version_id", "snapshot_revision", "source_sha256", "readback_sha256"],
+        "properties": {
+            "asset_version_id": id(160),
+            "snapshot_revision": {"type": "integer", "minimum": 0},
+            "source_sha256": sha256(),
+            "readback_sha256": sha256()
+        }
+    });
+    let selection = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["part_ids", "material_zone_ids"],
+        "properties": {
+            "part_ids": {"type": "array", "maxItems": 256, "items": id(160)},
+            "material_zone_ids": {"type": "array", "maxItems": 256, "items": id(160)}
+        }
+    });
+    let locks = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["preserve_geometry", "preserve_material_surface", "locked_part_ids", "locked_material_zone_ids"],
+        "properties": {
+            "preserve_geometry": {"type": "boolean"},
+            "preserve_material_surface": {"type": "boolean"},
+            "locked_part_ids": {"type": "array", "maxItems": 256, "items": id(160)},
+            "locked_material_zone_ids": {"type": "array", "maxItems": 256, "items": id(160)}
+        }
+    });
+    let request = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "request_id", "project_id", "turn_id", "instruction", "input_mode", "reference_inputs", "selection", "locks", "capability_manifest_sha256"],
+        "properties": {
+            "schema_version": {"const": "UniversalAuthorRequest@1"},
+            "request_id": id(160),
+            "project_id": id(160),
+            "turn_id": id(160),
+            "instruction": text(200000),
+            "input_mode": {"enum": ["text", "single_image", "multiview", "active_asset", "mixed"]},
+            "reference_inputs": {"type": "array", "maxItems": 12, "items": reference_input},
+            "active_asset": {"anyOf": [{"type": "null"}, active_asset]},
+            "selection": selection,
+            "locks": locks,
+            "capability_manifest_sha256": sha256()
+        }
+    });
+
+    let part = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["part_id", "label", "semantic_role", "traits", "uncertainty_bps"],
+        "properties": {
+            "part_id": id(160),
+            "parent_part_id": {"type": ["string", "null"], "maxLength": 160},
+            "label": text(240),
+            "semantic_role": text(160),
+            "traits": {"type": "array", "maxItems": 64, "items": text(120)},
+            "uncertainty_bps": {"type": "integer", "minimum": 0, "maximum": 10000}
+        }
+    });
+    let subject_feature = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["feature_id", "part_id", "level", "description"],
+        "properties": {
+            "feature_id": id(160),
+            "part_id": id(160),
+            "level": {"enum": ["macro", "meso", "micro"]},
+            "description": text(1200)
+        }
+    });
+    let material = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["material_id", "label", "part_ids", "appearance_traits"],
+        "properties": {
+            "material_id": id(160),
+            "label": text(240),
+            "part_ids": {"type": "array", "maxItems": 256, "items": id(160)},
+            "appearance_traits": {"type": "array", "maxItems": 64, "items": text(120)}
+        }
+    });
+    let subject_profile = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "profile_id", "request_sha256", "identity_label", "category", "category_tags", "silhouette", "negative_space", "pose", "visible_views", "occlusions", "uncertainties", "parts", "features", "materials"],
+        "properties": {
+            "schema_version": {"const": "SubjectProfile@1"},
+            "profile_id": id(160),
+            "request_sha256": derived_lineage(),
+            "identity_label": text(240),
+            "category": text(240),
+            "category_tags": {"type": "array", "maxItems": 64, "items": text(120)},
+            "silhouette": text(1200),
+            "negative_space": text(1200),
+            "pose": text(1200),
+            "visible_views": {"type": "array", "maxItems": 32, "items": text(80)},
+            "occlusions": {"type": "array", "maxItems": 64, "items": text(320)},
+            "uncertainties": {"type": "array", "maxItems": 64, "items": text(320)},
+            "parts": {"type": "array", "minItems": 1, "maxItems": 256, "items": part},
+            "features": {"type": "array", "minItems": 3, "maxItems": 512, "items": subject_feature},
+            "materials": {"type": "array", "maxItems": 128, "items": material}
+        }
+    });
+
+    let mut evidence_id = id(160);
+    evidence_id["description"] = json!(
+        "Copy byte-for-byte from request.reference_inputs[].evidence_id or the reference_evidence_ledger; never invent image_1/reference_1."
+    );
+    let region = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_id"],
+        "properties": {
+            "evidence_id": evidence_id,
+            "view_id": {"type": ["string", "null"], "maxLength": 80},
+            "region_per_mille": {"type": ["array", "null"], "minItems": 4, "maxItems": 4, "items": {"type": "integer", "minimum": 0, "maximum": 1000}}
+        }
+    });
+    let requirement = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["feature_id", "level", "description", "salience_bps", "evidence_status", "evidence_regions", "affected_part_ids", "channels", "minimum_acceptance_views"],
+        "properties": {
+            "feature_id": id(160),
+            "level": {"enum": ["macro", "meso", "micro"]},
+            "description": text(1200),
+            "salience_bps": {"type": "integer", "minimum": 0, "maximum": 10000},
+            "evidence_status": {
+                "enum": ["observed", "inferred", "hidden", "conflicting"],
+                "description": "observed requires at least one evidence_regions entry; use inferred/hidden/conflicting when the reference does not visibly prove the feature."
+            },
+            "evidence_regions": {
+                "type": "array",
+                "maxItems": 32,
+                "items": region,
+                "description": "Required for observed features and must use exact sealed evidence IDs. Keep empty for inferred, hidden or conflicting details."
+            },
+            "affected_part_ids": {"type": "array", "minItems": 1, "maxItems": 256, "items": id(160)},
+            "channels": {"type": "array", "minItems": 1, "maxItems": 7, "items": {"enum": ["geometry", "normal", "base_color", "roughness", "metallic", "emissive", "opacity"]}},
+            "minimum_acceptance_views": {"type": "array", "minItems": 1, "maxItems": 16, "items": text(80)}
+        }
+    });
+    let visual_feature_contract = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_id", "request_sha256", "subject_profile_sha256", "requirements"],
+        "properties": {
+            "schema_version": {"const": "VisualFeatureContract@1"},
+            "contract_id": id(160),
+            "request_sha256": derived_lineage(),
+            "subject_profile_sha256": derived_lineage(),
+            "requirements": {"type": "array", "minItems": 1, "maxItems": 512, "items": requirement}
+        }
+    });
+
+    let plan_part = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["part_id", "representation", "capability_id", "covered_feature_ids", "rationale"],
+        "properties": {
+            "part_id": id(160),
+            "representation": {"enum": ["procedural", "deformable", "mesh_seed", "hybrid"]},
+            "capability_id": id(160),
+            "covered_feature_ids": {
+                "type": "array",
+                "maxItems": 512,
+                "items": id(160),
+                "description": "Use only feature IDs declared in VisualFeatureContract, and only when that feature's affected_part_ids contains this exact part_id. Empty is allowed."
+            },
+            "rationale": text(1200)
+        }
+    });
+    let representation_plan = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "plan_id", "request_sha256", "subject_profile_sha256", "visual_feature_contract_sha256", "capability_manifest_sha256", "parts"],
+        "properties": {
+            "schema_version": {"const": "RepresentationPlan@1"},
+            "plan_id": id(160),
+            "request_sha256": derived_lineage(),
+            "subject_profile_sha256": derived_lineage(),
+            "visual_feature_contract_sha256": derived_lineage(),
+            "capability_manifest_sha256": sha256(),
+            "parts": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 256,
+                "items": plan_part,
+                "description": "Exactly one plan row per SubjectProfile part_id; never duplicate a part_id."
+            }
+        }
+    });
+    let limitation = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "code", "message", "affected_part_ids", "missing_capability_ids", "suggested_views", "retryable"],
+        "properties": {
+            "schema_version": {"const": "RepresentationLimitation@1"},
+            "code": {"enum": ["needs_more_views", "representation_unavailable", "quality_limited", "provider_unavailable"]},
+            "message": text(1200),
+            "affected_part_ids": {"type": "array", "maxItems": 256, "items": id(160)},
+            "missing_capability_ids": {"type": "array", "maxItems": 64, "items": id(160)},
+            "suggested_views": {"type": "array", "maxItems": 16, "items": text(80)},
+            "retryable": {"type": "boolean"}
+        }
+    });
+
+    let base = |outcome: &str| {
+        json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["outcome", "schema_version", "request", "subject_profile", "visual_feature_contract", "representation_plan"],
+            "properties": {
+                "outcome": {"const": outcome},
+                "schema_version": {"const": "UniversalAuthorOutcome@1"},
+                "request": request.clone(),
+                "subject_profile": subject_profile.clone(),
+                "visual_feature_contract": visual_feature_contract.clone(),
+                "representation_plan": representation_plan.clone()
+            }
+        })
+    };
+    // Do not advertise executable_payload as an arbitrary object.  The native
+    // lowering boundary accepts either the reviewed generic geometry source
+    // or the legacy robotic-arm authoring intent; an open object projection
+    // made DeepSeek invent a `parts` wrapper that could never reach lowering.
+    let geometry_material = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["material_id", "base_material_id"],
+        "properties": {
+            "material_id": {"type": "string", "pattern": "^mat_[a-z0-9_-]+$", "maxLength": 160},
+            "base_material_id": {"enum": [
+                "mat_graphite", "mat_aluminum", "mat_composite", "mat_dark_glass",
+                "mat_clear_glass", "mat_emissive_blue", "mat_rubber", "mat_automotive_paint"
+            ]}
+        }
+    });
+    let geometry_budget = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "max_profiles", "max_section_sets", "max_nodes", "max_parts", "max_materials", "max_outputs", "max_operations", "triangle_budget"],
+        "properties": {
+            "schema_version": {"const": "GeometryProgramBudget@1"},
+            "max_profiles": {"type": "integer", "minimum": 1, "maximum": 32},
+            "max_section_sets": {"type": "integer", "minimum": 0, "maximum": 16},
+            "max_nodes": {"type": "integer", "minimum": 1, "maximum": 256},
+            "max_parts": {"type": "integer", "minimum": 1, "maximum": 128},
+            "max_materials": {"type": "integer", "minimum": 1, "maximum": 64},
+            "max_outputs": {"type": "integer", "minimum": 1, "maximum": 128},
+            "max_operations": {"type": "integer", "minimum": 1, "maximum": 256},
+            "triangle_budget": {"type": "integer", "minimum": 100, "maximum": 100000}
+        }
+    });
+    let geometry_node_id = json!({
+        "type": "string",
+        "pattern": "^node_[a-z0-9_-]+$",
+        "maxLength": 160
+    });
+    let point2 = json!({
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {"type": "number", "minimum": -1, "maximum": 1}
+    });
+    let point3 = json!({
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": {"type": "number", "minimum": -100000, "maximum": 100000}
+    });
+    let rotation3 = json!({
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": {"type": "number", "minimum": -4, "maximum": 4}
+    });
+    let positive = json!({
+        "type": "number",
+        "minimum": 0.000001,
+        "maximum": 100000
+    });
+    let size3 = json!({
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": positive.clone()
+    });
+    let scale2 = json!({
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": positive.clone()
+    });
+    let axis = json!({"enum": ["x", "y", "z"]});
+    let face_axis = json!({"enum": [
+        "positive_x", "negative_x", "positive_y", "negative_y", "positive_z", "negative_z"
+    ]});
+    let profile = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["profile_id", "points", "resample_count"],
+        "properties": {
+            "profile_id": {"type": "string", "pattern": "^profile_[a-z0-9_-]+$", "maxLength": 160},
+            "points": {"type": "array", "minItems": 3, "maxItems": 32, "items": point2},
+            "resample_count": {"type": "integer", "minimum": 8, "maximum": 256}
+        }
+    });
+    let section = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["section_id", "position", "profile_id", "scale", "twist_degrees", "cap_policy"],
+        "properties": {
+            "section_id": {"type": "string", "pattern": "^section_[a-z0-9_-]+$", "maxLength": 160},
+            "position": {"type": "number", "minimum": -1, "maximum": 1},
+            "profile_id": {"type": "string", "pattern": "^profile_[a-z0-9_-]+$", "maxLength": 160},
+            "scale": {"type": "number", "minimum": 0.25, "maximum": 4},
+            "twist_degrees": {"type": "number", "minimum": -45, "maximum": 45},
+            "cap_policy": {"enum": ["none", "start", "end"]}
+        }
+    });
+    let section_set = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["section_set_id", "main_axis", "sections"],
+        "properties": {
+            "section_set_id": {"type": "string", "pattern": "^sectionset_[a-z0-9_-]+$", "maxLength": 160},
+            "main_axis": axis.clone(),
+            "sections": {"type": "array", "minItems": 2, "maxItems": 12, "items": section}
+        }
+    });
+    // Keep this projection compact, but expose every reviewed VP203 operation.
+    // The native Rust validator remains authoritative for references, graph
+    // fan-out, geometry semantics and budgets.
+    let node_properties = |kind: &str, fields: Value| {
+        let mut properties = fields.as_object().cloned().unwrap_or_default();
+        properties.insert("kind".into(), json!({"const": kind}));
+        properties.insert("node_id".into(), geometry_node_id.clone());
+        json!({
+            "type": "object",
+            "required": fields.get("_required").cloned().unwrap_or_else(|| json!(["kind", "node_id"])),
+            "properties": properties
+        })
+    };
+    // `_required` is schema-construction metadata and must never be accepted
+    // in a Provider payload. Remove it after constructing each branch.
+    let branch = |kind: &str, required: &[&str], fields: Value| {
+        let mut schema = node_properties(kind, fields);
+        schema["required"] = json!(required);
+        schema
+    };
+    let node_branch = |kind: &str, required: &[&str]| {
+        json!({
+            "type": "object",
+            "required": required,
+            "properties": {
+                "kind": {"const": kind},
+                "node_id": geometry_node_id.clone()
+            }
+        })
+    };
+    let mut node_branches = vec![
+        node_branch("box", &["kind", "node_id", "size", "position"]),
+        node_branch("cylinder", &["kind", "node_id", "radius", "height", "axis", "position"]),
+        node_branch("capsule", &["kind", "node_id", "radius", "height", "axis", "position"]),
+        node_branch("wedge", &["kind", "node_id", "size", "position"]),
+        branch("extrude", &["kind", "node_id", "profile_id", "profile_scale", "height", "position", "cap_start", "cap_end"], json!({
+            "profile_id": {"type": "string", "pattern": "^profile_[a-z0-9_-]+$"},
+            "profile_scale": scale2.clone(), "height": positive.clone(), "position": point3.clone(),
+            "rotation": rotation3.clone(), "cap_start": {"type": "boolean"}, "cap_end": {"type": "boolean"}
+        })),
+        branch("revolve", &["kind", "node_id", "profile_id", "profile_scale", "angle", "radial_segments", "position"], json!({
+            "profile_id": {"type": "string", "pattern": "^profile_[a-z0-9_-]+$"},
+            "profile_scale": scale2.clone(), "angle": {"type": "number", "minimum": 0.000001, "maximum": 6.283185307179586},
+            "radial_segments": {"type": "integer", "minimum": 8, "maximum": 64}, "position": point3.clone(), "rotation": rotation3.clone()
+        })),
+        branch("loft", &["kind", "node_id", "section_set_id", "cross_section_scale", "axis_length", "position"], json!({
+            "section_set_id": {"type": "string", "pattern": "^sectionset_[a-z0-9_-]+$"},
+            "cross_section_scale": scale2.clone(), "axis_length": positive.clone(), "position": point3.clone(), "rotation": rotation3.clone()
+        })),
+        branch("sweep", &["kind", "node_id", "profile_id", "profile_scale", "path_points", "path_closed", "path_twist_degrees", "cap_start", "cap_end", "position"], json!({
+            "profile_id": {"type": "string", "pattern": "^profile_[a-z0-9_-]+$"}, "profile_scale": scale2.clone(),
+            "path_points": {"type": "array", "minItems": 2, "maxItems": 32, "items": point3.clone()},
+            "path_closed": {"type": "boolean"}, "path_twist_degrees": {"type": "number", "minimum": -90, "maximum": 90},
+            "cap_start": {"type": "boolean"}, "cap_end": {"type": "boolean"}, "position": point3.clone(), "rotation": rotation3.clone()
+        })),
+        branch("mirror", &["kind", "node_id", "input_node_id", "axis"], json!({"input_node_id": geometry_node_id.clone(), "axis": axis.clone()})),
+        branch("array", &["kind", "node_id", "input_node_id", "axis", "count", "spacing"], json!({
+            "input_node_id": geometry_node_id.clone(), "axis": axis.clone(), "count": {"type": "integer", "minimum": 2, "maximum": 64}, "spacing": positive.clone()
+        })),
+        branch("radial_array", &["kind", "node_id", "input_node_id", "axis", "count", "radius", "angle"], json!({
+            "input_node_id": geometry_node_id.clone(), "axis": axis.clone(), "count": {"type": "integer", "minimum": 2, "maximum": 64},
+            "radius": positive.clone(), "angle": {"type": "number", "minimum": 0.000001, "maximum": 6.283185307179586}
+        })),
+        branch("bevel_approx", &["kind", "node_id", "input_node_id", "radius", "segments"], json!({"input_node_id": geometry_node_id.clone(), "radius": positive.clone(), "segments": {"type": "integer", "minimum": 1, "maximum": 3}})),
+        branch("surface_panel", &["kind", "node_id", "input_node_id", "size", "position", "axis"], json!({"input_node_id": geometry_node_id.clone(), "size": size3.clone(), "position": point3.clone(), "axis": face_axis.clone()})),
+        branch("groove", &["kind", "node_id", "input_node_id", "face_size", "position", "axis", "depth"], json!({"input_node_id": geometry_node_id.clone(), "face_size": {"type": "array", "minItems": 2, "maxItems": 2, "items": positive.clone()}, "position": point3.clone(), "axis": face_axis.clone(), "depth": positive.clone()})),
+        branch("shell", &["kind", "node_id", "input_node_id", "thickness"], json!({"input_node_id": geometry_node_id.clone(), "thickness": positive.clone()})),
+        branch("lattice_deform", &["kind", "node_id", "input_node_id", "corner_offsets"], json!({"input_node_id": geometry_node_id.clone(), "corner_offsets": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -0.25, "maximum": 0.25}}}})),
+        branch("local_mesh_patch", &["kind", "node_id", "input_node_id", "patch_center", "patch_radius", "patch_offset"], json!({"input_node_id": geometry_node_id.clone(), "patch_center": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": 0, "maximum": 1}}, "patch_radius": {"type": "number", "minimum": 0.05, "maximum": 0.4}, "patch_offset": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -0.2, "maximum": 0.2}}})),
+    ];
+    node_branches.extend([
+        node_branch("union", &["kind", "node_id", "input_node_ids"]),
+        node_branch("subtract", &["kind", "node_id", "input_node_ids"]),
+        node_branch("part", &["kind", "node_id", "input_node_id", "part_id", "role"]),
+        node_branch("material_zone", &["kind", "node_id", "input_node_id", "zone_id", "material_id"]),
+    ]);
+    let geometry_node = json!({
+        "type": "object",
+        "required": ["kind", "node_id"],
+        "properties": {
+            "kind": {"enum": [
+                "box", "cylinder", "capsule", "wedge", "extrude", "revolve", "loft", "sweep",
+                "mirror", "array", "radial_array", "bevel_approx", "surface_panel", "groove",
+                "shell", "lattice_deform", "local_mesh_patch", "union", "subtract", "part", "material_zone"
+            ]},
+            "node_id": geometry_node_id
+        },
+        "anyOf": node_branches,
+            "description": "Use exact kind-specific fields and compose freely within the reviewed budget. Profiles use profile_id=profile_, points=[[x,y],...], resample_count; section_sets use sectionset_, main_axis and 2-12 sections. box/wedge use size=[x,y,z],position=[x,y,z]; cylinder/capsule use radius,height,axis='x'|'y'|'z',position; extrude uses profile_id,profile_scale,height,position,cap_start,cap_end; revolve uses profile_id,profile_scale,angle,radial_segments,position; loft uses section_set_id,cross_section_scale,axis_length,position; sweep uses profile_id,profile_scale,path_points,path_closed,path_twist_degrees,position,cap_start,cap_end. mirror uses input_node_id,axis; array uses input_node_id,axis,count,spacing; radial_array uses input_node_id,axis,count,radius,angle. bevel_approx uses input_node_id,radius,segments; surface_panel uses input_node_id,size=[x,y,z],position=[x,y,z],axis face; groove uses input_node_id,face_size=[x,y],position,axis face,depth; shell uses input_node_id,thickness; lattice_deform uses input_node_id and exactly eight corner_offsets; local_mesh_patch uses input_node_id, normalized patch_center,patch_radius,patch_offset. part uses input_node_id,part_id,role; material_zone uses input_node_id,zone_id,material_id; union/subtract use 2-8 input_node_ids. All references use node_ IDs and every output graph must be disjoint."
+    });
+    let geometry_output = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["output_id", "node_id"],
+        "properties": {
+            "output_id": {"type": "string", "pattern": "^output_[a-z0-9_-]+$", "maxLength": 160},
+            "node_id": {"type": "string", "pattern": "^node_[a-z0-9_-]+$", "maxLength": 160}
+        }
+    });
+    let geometry_payload = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "program_id", "domain", "units", "seed", "materials", "profiles", "section_sets", "nodes", "outputs", "budgets"],
+        "properties": {
+            "schema_version": {"const": "ForgeVisualGeometryProgram@2"},
+            "program_id": {"type": "string", "pattern": "^visual_[a-z0-9_-]+$", "maxLength": 96},
+            "domain": text(96),
+            "units": {"const": "millimeter"},
+            "seed": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+            "materials": {"type": "array", "minItems": 1, "maxItems": 64, "items": geometry_material},
+            "profiles": {"type": "array", "maxItems": 32, "items": profile},
+            "section_sets": {"type": "array", "maxItems": 16, "items": section_set},
+            "nodes": {"type": "array", "minItems": 1, "maxItems": 256, "items": geometry_node},
+            "outputs": {"type": "array", "minItems": 1, "maxItems": 128, "items": geometry_output},
+            "budgets": geometry_budget
+        }
+    });
+    let arm_authoring_payload = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "authoring_id", "title", "arm_design_intent"],
+        "properties": {
+            "schema_version": {"const": "ForgeVisualAuthoringIntent@1"},
+            "authoring_id": text(96),
+            "title": text(160),
+            "arm_design_intent": {"type": "object"}
+        }
+    });
+    let mut executable = base("executable");
+    executable["required"] = json!(["outcome", "schema_version", "request", "subject_profile", "visual_feature_contract", "representation_plan", "executable_payload"]);
+    executable["properties"]["executable_payload"] = json!({"anyOf": [geometry_payload, arm_authoring_payload]});
+    let mut limited = base("limitation");
+    limited["required"] = json!(["outcome", "schema_version", "request", "subject_profile", "visual_feature_contract", "representation_plan", "limitation"]);
+    limited["properties"]["limitation"] = limitation;
+    let clarification = json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["outcome", "schema_version", "request", "reason", "questions"],
+        "properties": {
+            "outcome": {"const": "clarification_required"},
+            "schema_version": {"const": "UniversalAuthorOutcome@1"},
+            "request": request,
+            "reason": text(1200),
+            "questions": {"type": "array", "minItems": 1, "maxItems": 3, "items": text(320)}
+        }
+    });
+    json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["outcome"],
+        "properties": {
+            // Evidence dispositions belong to the legacy visual-program
+            // author tool.  Advertising them on the universal author
+            // projection caused the model to place them inside the nested
+            // outcome object, where every UniversalAuthorOutcome variant
+            // correctly rejects unknown fields.
+            "outcome": {"anyOf": [executable, limited, clarification]}
+        }
+    })
+}
+
+fn concept_schema_document(file_name: &str) -> Value {
+    let source = match file_name {
+        "common.schema.json" => include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../../packages/concept-spec/schemas/common.schema.json"
+        )),
+        "universal-author-outcome.schema.json" => include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../../packages/concept-spec/schemas/universal-author-outcome.schema.json"
+        )),
+        "universal-author-request.schema.json" => include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../../packages/concept-spec/schemas/universal-author-request.schema.json"
+        )),
+        "subject-profile.schema.json" => include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../../packages/concept-spec/schemas/subject-profile.schema.json"
+        )),
+        "visual-feature-contract.schema.json" => include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../../packages/concept-spec/schemas/visual-feature-contract.schema.json"
+        )),
+        "representation-plan.schema.json" => include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../../packages/concept-spec/schemas/representation-plan.schema.json"
+        )),
+        "representation-limitation.schema.json" => include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../../packages/concept-spec/schemas/representation-limitation.schema.json"
+        )),
+        _ => panic!("unsupported universal author schema document: {file_name}"),
+    };
+    serde_json::from_str(source).expect("checked-in concept schema must be valid JSON")
+}
+
+fn inline_concept_schema(node: &Value, scope: Option<&Value>) -> Value {
+    let Some(object) = node.as_object() else {
+        return node.clone();
+    };
+    if let Some(reference) = object.get("$ref").and_then(Value::as_str) {
+        let target = if let Some(name) = reference.strip_prefix("#/$defs/") {
+            scope
+                .and_then(|root| root.get("$defs"))
+                .and_then(Value::as_object)
+                .and_then(|definitions| definitions.get(name))
+                .unwrap_or_else(|| panic!("missing local concept schema definition: {reference}"))
+                .clone()
+        } else {
+            let (file_name, fragment) = reference
+                .split_once('#')
+                .unwrap_or((reference, ""));
+            let document = concept_schema_document(file_name);
+            if fragment.is_empty() {
+                document.clone()
+            } else if let Some(name) = fragment.strip_prefix("/$defs/") {
+                document
+                    .get("$defs")
+                    .and_then(Value::as_object)
+                    .and_then(|definitions| definitions.get(name))
+                    .unwrap_or_else(|| panic!("missing external concept schema definition: {reference}"))
+                    .clone()
+            } else {
+                panic!("unsupported concept schema reference: {reference}");
+            }
+        };
+        let target_scope = if reference.starts_with("#/") {
+            scope
+        } else {
+            let (file_name, _) = reference.split_once('#').unwrap_or((reference, ""));
+            let document = concept_schema_document(file_name);
+            // The external document owns the local `$defs` namespace used by
+            // its inlined target and all descendants.
+            return inline_concept_schema(&target, Some(&document));
+        };
+        return inline_concept_schema(&target, target_scope);
+    }
+
+    let mut result = Map::new();
+    for (key, value) in object {
+        // These annotations/negative constraints are useful in the public
+        // documents but are intentionally outside the small runtime schema
+        // validator used for Product Tool envelopes. Rust's typed outcome
+        // validation remains authoritative after the call.
+        if matches!(key.as_str(), "$schema" | "$id" | "title" | "format" | "not") {
+            continue;
+        }
+        if key == "oneOf" {
+            result.insert(
+                "anyOf".into(),
+                Value::Array(
+                    value
+                        .as_array()
+                        .expect("concept schema oneOf must be an array")
+                        .iter()
+                        .map(|branch| inline_concept_schema(branch, scope))
+                        .collect(),
+                ),
+            );
+        } else {
+            result.insert(key.clone(), inline_concept_schema(value, scope));
+        }
+    }
+    Value::Object(result)
 }
 
 fn compact_forge_visual_program_author_schema() -> Value {
@@ -1456,8 +2201,12 @@ fn validate_schema_definition(schema: &Value) -> Result<(), String> {
         && !object.contains_key("enum")
         && !object.contains_key("$ref")
         && !object.contains_key("anyOf")
+        && !object.contains_key("const")
     {
-        return Err("Code-owned schema must declare type, enum, anyOf, or a local ref.".into());
+        return Err(format!(
+            "Code-owned schema must declare type, enum, anyOf, const, or a local ref (keys: {}).",
+            object.keys().cloned().collect::<Vec<_>>().join(",")
+        ));
     }
     if let Some(types) = object.get("type") {
         let valid = types.as_str().map_or(false, is_supported_type)
@@ -1518,10 +2267,15 @@ fn is_supported_type(kind: &str) -> bool {
 }
 
 fn validate_json_schema(schema: &Value, value: &Value) -> Result<(), String> {
-    validate_json_schema_inner(schema, value, schema)
+    validate_json_schema_inner_at(schema, value, schema, "$")
 }
 
-fn validate_json_schema_inner(schema: &Value, value: &Value, root: &Value) -> Result<(), String> {
+fn validate_json_schema_inner_at(
+    schema: &Value,
+    value: &Value,
+    root: &Value,
+    path: &str,
+) -> Result<(), String> {
     let schema = schema
         .as_object()
         .ok_or_else(|| "Code-owned schema must be a JSON object.".to_string())?;
@@ -1534,19 +2288,28 @@ fn validate_json_schema_inner(schema: &Value, value: &Value, root: &Value) -> Re
             .and_then(Value::as_object)
             .and_then(|definitions| definitions.get(name))
             .ok_or_else(|| "Code-owned local schema reference is missing.".to_string())?;
-        return validate_json_schema_inner(target, value, root);
+        return validate_json_schema_inner_at(target, value, root, path);
     }
     if let Some(branches) = schema.get("anyOf").and_then(Value::as_array) {
-        if !branches
-            .iter()
-            .any(|branch| validate_json_schema_inner(branch, value, root).is_ok())
-        {
-            return Err("Value does not match any code-owned anyOf branch.".into());
+        let mut branch_errors = Vec::new();
+        if !branches.iter().enumerate().any(|(index, branch)| {
+            match validate_json_schema_inner_at(branch, value, root, path) {
+                Ok(()) => true,
+                Err(error) => {
+                    branch_errors.push(format!("{index}: {error}"));
+                    false
+                }
+            }
+        }) {
+            return Err(format!(
+                "Value does not match any code-owned anyOf branch at {path}: {}.",
+                branch_errors.join(" | ")
+            ));
         }
     }
     if let Some(expected) = schema.get("const") {
         if expected != value {
-            return Err("Value does not match the code-owned constant.".into());
+            return Err(format!("Value does not match the code-owned constant at {path}."));
         }
     }
     if let Some(expected) = schema.get("type") {
@@ -1569,7 +2332,7 @@ fn validate_json_schema_inner(schema: &Value, value: &Value, root: &Value) -> Re
             .any(|expected| value_matches_type(value, expected))
         {
             return Err(format!(
-                "Value must have one of the code-owned JSON types: {}.",
+                "Value at {path} must have one of the code-owned JSON types: {}.",
                 expected_types.join(", ")
             ));
         }
@@ -1577,7 +2340,7 @@ fn validate_json_schema_inner(schema: &Value, value: &Value, root: &Value) -> Re
     if let Some(allowed) = schema.get("enum").and_then(Value::as_array) {
         if !allowed.contains(value) {
             return Err(format!(
-                "Value is outside the code-owned enum {}.",
+                "Value at {path} is outside the code-owned enum {}.",
                 serde_json::to_string(allowed)
                     .unwrap_or_else(|_| "<invalid-code-owned-enum>".into())
             ));
@@ -1594,12 +2357,12 @@ fn validate_json_schema_inner(schema: &Value, value: &Value, root: &Value) -> Re
                 .and_then(Value::as_u64)
                 .is_some_and(|maximum| count > maximum)
         {
-            return Err("String violates code-owned length bounds.".into());
+            return Err(format!("String at {path} violates code-owned length bounds."));
         }
         if let Some(pattern) = schema.get("pattern").and_then(Value::as_str) {
             if !matches_known_pattern(pattern, text) {
                 return Err(format!(
-                    "String violates the code-owned stable pattern {pattern}."
+                    "String at {path} violates the code-owned stable pattern {pattern}."
                 ));
             }
         }
@@ -1614,7 +2377,7 @@ fn validate_json_schema_inner(schema: &Value, value: &Value, root: &Value) -> Re
                 .and_then(Value::as_f64)
                 .is_some_and(|maximum| number > maximum)
         {
-            return Err("Number violates code-owned bounds.".into());
+            return Err(format!("Number at {path} violates code-owned bounds."));
         }
     }
     if let Some(object) = value.as_object() {
@@ -1626,20 +2389,21 @@ fn validate_json_schema_inner(schema: &Value, value: &Value, root: &Value) -> Re
         if let Some(required) = schema.get("required").and_then(Value::as_array) {
             for key in required.iter().filter_map(Value::as_str) {
                 if !object.contains_key(key) {
-                    return Err(format!("Required property {key} is missing."));
+                    return Err(format!("Required property {key} is missing at {path}."));
                 }
             }
         }
         if schema.get("additionalProperties").and_then(Value::as_bool) == Some(false) {
             for key in object.keys() {
                 if !properties.contains_key(key) {
-                    return Err(format!("Property {key} is not allowed."));
+                    return Err(format!("Property {key} is not allowed at {path}."));
                 }
             }
         }
         for (key, child) in object {
             if let Some(child_schema) = properties.get(key) {
-                validate_json_schema_inner(child_schema, child, root)?;
+                let child_path = format!("{path}.{key}");
+                validate_json_schema_inner_at(child_schema, child, root, &child_path)?;
             }
         }
     }
@@ -1653,11 +2417,17 @@ fn validate_json_schema_inner(schema: &Value, value: &Value, root: &Value) -> Re
                 .and_then(Value::as_u64)
                 .is_some_and(|maximum| array.len() > maximum as usize)
         {
-            return Err("Array violates code-owned item bounds.".into());
+            let minimum = schema.get("minItems").and_then(Value::as_u64);
+            let maximum = schema.get("maxItems").and_then(Value::as_u64);
+            return Err(format!(
+                "Array at {path} violates code-owned item bounds (actual={}, min={minimum:?}, max={maximum:?}).",
+                array.len()
+            ));
         }
         if let Some(items) = schema.get("items") {
-            for child in array {
-                validate_json_schema_inner(items, child, root)?;
+            for (index, child) in array.iter().enumerate() {
+                let child_path = format!("{path}[{index}]");
+                validate_json_schema_inner_at(items, child, root, &child_path)?;
             }
         }
     }
@@ -1678,6 +2448,12 @@ fn value_matches_type(value: &Value, expected: &str) -> bool {
 }
 
 fn matches_known_pattern(pattern: &str, value: &str) -> bool {
+    if pattern == "^[a-f0-9]{64}$" {
+        return value.len() == 64
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
+    }
     if pattern == "^[A-Za-z0-9_.:-]+$" {
         return !value.is_empty()
             && value.bytes().all(|byte| {
@@ -1853,6 +2629,122 @@ mod tests {
                 "token_provider_schema"
             )
             .is_ok());
+    }
+
+    #[test]
+    fn universal_author_provider_schema_exposes_the_three_typed_contracts() {
+        let registry = ProductToolRegistry::default();
+        let provider = registry
+            .provider_definitions()
+            .into_iter()
+            .find(|definition| definition.name == "author_universal_asset")
+            .unwrap();
+        let outcome = provider
+            .input_schema
+            .pointer("/properties/outcome")
+            .expect("universal author must expose its outcome schema");
+        assert_eq!(outcome.get("anyOf").and_then(Value::as_array).map(Vec::len), Some(3));
+        for path in [
+            "/properties/outcome/anyOf/0/properties/request",
+            "/properties/outcome/anyOf/0/properties/subject_profile",
+            "/properties/outcome/anyOf/0/properties/visual_feature_contract",
+            "/properties/outcome/anyOf/0/properties/representation_plan",
+        ] {
+            assert!(provider.input_schema.pointer(path).is_some(), "missing {path}");
+        }
+        let serialized = serde_json::to_string(&provider.input_schema).unwrap();
+        assert!(!serialized.contains("universal-author-request.schema.json"));
+        assert!(!serialized.contains("\"oneOf\""));
+        assert!(provider
+            .input_schema
+            .pointer("/properties/legacy_evidence_dispositions")
+            .is_none());
+        assert!(serialized.contains("SubjectProfile@1"));
+        assert!(serialized.contains("VisualFeatureContract@1"));
+        assert!(serialized.contains("RepresentationPlan@1"));
+        assert!(serialized.len() < 40_000, "provider schema grew too large: {} bytes", serialized.len());
+    }
+
+    #[test]
+    fn universal_author_provider_description_stays_inside_deepseek_bound() {
+        let registry = ProductToolRegistry::default();
+        let provider = registry
+            .provider_definitions()
+            .into_iter()
+            .find(|definition| definition.name == "author_universal_asset")
+            .unwrap();
+        assert!(provider.description.len() <= 500);
+        assert!(provider.description.contains("generic_visual_exterior"));
+        assert!(provider.description.contains("macro, meso, micro"));
+    }
+
+    #[test]
+    fn universal_author_provider_schema_exposes_profile_driven_geometry_operations() {
+        let registry = ProductToolRegistry::default();
+        let provider = registry
+            .provider_definitions()
+            .into_iter()
+            .find(|definition| definition.name == "author_universal_asset")
+            .unwrap();
+        let geometry = provider
+            .input_schema
+            .pointer("/properties/outcome/anyOf/0/properties/executable_payload/anyOf/0")
+            .expect("executable universal author must expose geometry payload");
+
+        for kind in [
+            "extrude",
+            "revolve",
+            "loft",
+            "sweep",
+            "mirror",
+            "array",
+            "radial_array",
+            "lattice_deform",
+            "local_mesh_patch",
+        ] {
+            assert!(
+                geometry.to_string().contains(&format!("\"const\":\"{kind}\"")),
+                "provider schema must advertise the {kind} operation"
+            );
+        }
+        assert!(geometry
+            .pointer("/properties/profiles/items/properties/profile_id")
+            .is_some());
+        assert!(geometry
+            .pointer("/properties/section_sets/items/properties/section_set_id")
+            .is_some());
+    }
+
+    #[test]
+    fn universal_author_transport_schema_defers_derived_lineage_hashes_to_rust() {
+        let registry = ProductToolRegistry::default();
+        let schema = &registry.definition("author_universal_asset").unwrap().input_schema;
+        for path in [
+            "/properties/outcome/anyOf/0/properties/subject_profile/properties/request_sha256",
+            "/properties/outcome/anyOf/0/properties/visual_feature_contract/properties/request_sha256",
+            "/properties/outcome/anyOf/0/properties/representation_plan/properties/request_sha256",
+            "/properties/outcome/anyOf/0/properties/representation_plan/properties/capability_manifest_sha256",
+        ] {
+            let field = schema.pointer(path).expect("lineage field must remain in schema");
+            assert!(
+                field.get("pattern").is_none(),
+                "transport schema must not require Provider to reproduce {path}"
+            );
+            assert_eq!(field.get("type").and_then(Value::as_str), Some("string"));
+            assert_eq!(field.get("minLength").and_then(Value::as_u64), Some(1));
+        }
+    }
+
+    #[test]
+    fn provider_schema_validator_accepts_only_lowercase_sha256_values() {
+        let valid = "0123456789abcdef".repeat(4);
+        let invalid_length = valid[..63].to_owned();
+        let invalid_upper = format!("{}A", &valid[..63]);
+        let invalid_non_hex = format!("{}G", &valid[..63]);
+        assert!(matches_known_pattern("^[a-f0-9]{64}$", &valid));
+        assert!(!matches_known_pattern("^[a-f0-9]{64}$", &invalid_length));
+        assert!(!matches_known_pattern("^[a-f0-9]{64}$", &invalid_non_hex));
+        assert!(!matches_known_pattern("^[a-f0-9]{64}$", &invalid_upper));
     }
 
     #[test]
@@ -2471,7 +3363,7 @@ mod tests {
             ),
             (
                 "build_candidate_geometry",
-                "3f1df28ad9187cafb174157551fa73069833d97483dacf219a05c4088e6a0a2f",
+                "010ab5eafdce651f3f06b841cb980365dfbd141607ca990cc253a2d7a8fcfa8d",
                 "bfe343df9e7aefbf2dd0de8998239fac8299d7929bab306f9fcd1edbfb5d6bf4",
             ),
             (

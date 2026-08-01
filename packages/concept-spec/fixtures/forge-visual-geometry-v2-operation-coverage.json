@@ -1,0 +1,51 @@
+{
+  "schema_version": "ForgeVisualGeometryProgram@2",
+  "program_id": "visual_operation_coverage",
+  "domain": "generic_hard_surface",
+  "units": "millimeter",
+  "seed": 73,
+  "materials": [
+    {"material_id": "mat_shell", "base_material_id": "mat_aluminum"}
+  ],
+  "profiles": [
+    {
+      "profile_id": "profile_round",
+      "points": [[-0.8, -0.5], [0.8, -0.5], [0.8, 0.5], [-0.8, 0.5]],
+      "resample_count": 8
+    }
+  ],
+  "section_sets": [
+    {
+      "section_set_id": "sectionset_shell",
+      "main_axis": "y",
+      "sections": [
+        {"section_id": "section_start", "position": -1.0, "profile_id": "profile_round", "scale": 1.0, "twist_degrees": 0.0, "cap_policy": "start"},
+        {"section_id": "section_end", "position": 1.0, "profile_id": "profile_round", "scale": 0.8, "twist_degrees": 12.0, "cap_policy": "end"}
+      ]
+    }
+  ],
+  "nodes": [
+    {"kind": "box", "node_id": "node_box", "size": [240.0, 120.0, 80.0], "position": [0.0, 0.0, 0.0], "rotation": [0.15, -0.2, 0.25]},
+    {"kind": "cylinder", "node_id": "node_cylinder", "radius": 24.0, "height": 90.0, "axis": "z", "position": [20.0, 0.0, 0.0]},
+    {"kind": "capsule", "node_id": "node_capsule", "radius": 18.0, "height": 100.0, "axis": "x", "position": [40.0, 0.0, 0.0]},
+    {"kind": "wedge", "node_id": "node_wedge", "size": [100.0, 60.0, 140.0], "position": [60.0, 0.0, 0.0]},
+    {"kind": "extrude", "node_id": "node_extrude", "profile_id": "profile_round", "profile_scale": [80.0, 40.0], "height": 120.0, "position": [80.0, 0.0, 0.0], "cap_start": true, "cap_end": true, "rotation": [0.0, 0.25, 0.0]},
+    {"kind": "revolve", "node_id": "node_revolve", "profile_id": "profile_round", "profile_scale": [50.0, 30.0], "angle": 6.0, "radial_segments": 12, "position": [100.0, 0.0, 0.0]},
+    {"kind": "loft", "node_id": "node_loft", "section_set_id": "sectionset_shell", "cross_section_scale": [60.0, 40.0], "axis_length": 180.0, "position": [120.0, 0.0, 0.0]},
+    {"kind": "sweep", "node_id": "node_sweep", "profile_id": "profile_round", "profile_scale": [20.0, 12.0], "path_points": [[0.0, 0.0, 0.0], [80.0, 20.0, 0.0], [160.0, 20.0, 30.0]], "path_closed": false, "path_twist_degrees": 10.0, "cap_start": true, "cap_end": true, "position": [140.0, 0.0, 0.0]},
+    {"kind": "mirror", "node_id": "node_mirror", "input_node_id": "node_box", "axis": "x"},
+    {"kind": "array", "node_id": "node_array", "input_node_id": "node_cylinder", "axis": "x", "count": 3, "spacing": 90.0},
+    {"kind": "radial_array", "node_id": "node_radial", "input_node_id": "node_capsule", "axis": "z", "count": 6, "radius": 120.0, "angle": 6.283185307179586},
+    {"kind": "bevel_approx", "node_id": "node_bevel", "input_node_id": "node_box", "radius": 12.0, "segments": 2},
+    {"kind": "surface_panel", "node_id": "node_panel", "input_node_id": "node_bevel", "size": [140.0, 8.0, 40.0], "position": [0.0, 0.0, 0.0], "axis": "positive_y"},
+    {"kind": "groove", "node_id": "node_groove", "input_node_id": "node_bevel", "face_size": [100.0, 30.0], "position": [0.0, 0.0, 0.0], "axis": "positive_y", "depth": 8.0},
+    {"kind": "shell", "node_id": "node_shell", "input_node_id": "node_bevel", "thickness": 10.0},
+    {"kind": "lattice_deform", "node_id": "node_lattice", "input_node_id": "node_box", "corner_offsets": [[0.0, 0.0, 0.0], [0.05, 0.0, 0.0], [0.0, 0.04, 0.0], [0.05, 0.04, 0.0], [0.0, 0.0, -0.06], [0.05, 0.0, -0.06], [0.0, 0.04, -0.06], [0.05, 0.04, -0.06]]},
+    {"kind": "union", "node_id": "node_union", "input_node_ids": ["node_box", "node_cylinder"]},
+    {"kind": "subtract", "node_id": "node_subtract", "input_node_ids": ["node_box", "node_cylinder"]},
+    {"kind": "part", "node_id": "node_part", "input_node_id": "node_groove", "part_id": "part_shell", "role": "armor_shell"},
+    {"kind": "material_zone", "node_id": "node_zone", "input_node_id": "node_part", "zone_id": "zone_shell", "material_id": "mat_shell"}
+  ],
+  "outputs": [{"output_id": "output_shell", "node_id": "node_zone"}],
+  "budgets": {"schema_version": "GeometryProgramBudget@1", "max_profiles": 4, "max_section_sets": 2, "max_nodes": 32, "max_parts": 4, "max_materials": 2, "max_outputs": 4, "max_operations": 64, "triangle_budget": 20000}
+}

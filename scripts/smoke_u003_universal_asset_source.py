@@ -77,6 +77,7 @@ def main() -> None:
         "references": [{"evidence_id": "evidence_front", "evidence_sha256": "b" * 64}],
         "camera_hypotheses": [camera],
         "derived_artifacts": [],
+        "projection_receipts": [],
     }
     validator("appearance-evidence-bundle.schema.json").validate(bundle)
 

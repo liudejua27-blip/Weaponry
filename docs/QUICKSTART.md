@@ -3,7 +3,7 @@
 版本：2026-07-13
 目标：在开发机上启动当前本机 Alpha 并验证最小 Agent 闭环
 
-Forge Studio 的目标是轻量、类别开放的通用参考条件 3D Agent。U002 已让当前软件接受开放对象描述和 sealed 参考并形成对象理解/表示计划；U003 已让当前程序化结果进入统一 source、外观证据和 GLB/readback/固定视图谱系。只有验证后的机械臂程序化 capability 可执行，其他类别会显示 typed limitation。U004–U005 尚未实现，因此本 Quickstart 只验证当前程序化闭环，不证明角色、生物、植物、环境或任意图片生成。默认不需要安装本地神经 3D 模型、CUDA、ComfyUI 或 Blender。
+Forge Studio 的目标是轻量、类别开放的通用参考条件 3D Agent。U002 已让当前软件接受开放对象描述和 sealed 参考并形成对象理解/表示计划；U003/U004 已让验证后的机械臂、generic hard-surface 与开发期 generic visual exterior 进入统一 source、外观证据和 GLB/readback/固定视图谱系。缺少专用 deformable、mesh-seed 或其他表示能力的部件仍会显示 typed limitation；generic visual exterior 只是轻量可见外观代理，不等同照片级重建。U004–U005 的正式跨类别质量、真实千问比较和真人门尚未完成，因此本 Quickstart 只验证当前受限程序化闭环，不证明任意图片已经能生成高保真 3D。默认不需要安装本地神经 3D 模型、CUDA、ComfyUI 或 Blender。
 
 ## 1. 安装开发依赖
 

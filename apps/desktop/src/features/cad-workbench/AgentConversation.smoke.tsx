@@ -224,6 +224,7 @@ export function runAgentConversationSmoke(): void {
   assert(text.includes('完整外观预览已准备好') && text.includes('确认保存为可编辑模型'), 'conversation must render the shared preview presentation')
   assert(text.includes('本机离线规划') && text.includes('不能代表真实模型质量'), 'conversation must describe the actual plan source without provider internals')
   assert(text.includes('外观生成质量') && text.includes('快速草图') && text.includes('展示模型'), 'conversation must present the two beginner-facing visual quality choices')
+  assert(text.includes('增加部件') && !text.includes('增加机械臂'), 'quick modification must stay category-open instead of steering every object toward an arm template')
   assert(hasAriaLabel(output, '外观生成质量'), 'conversation must expose an accessible visual quality control')
   const configuredText = collectText(AgentConversation({
     ...baseProps,

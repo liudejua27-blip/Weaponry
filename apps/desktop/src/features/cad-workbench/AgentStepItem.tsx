@@ -29,6 +29,7 @@ type RecordValue = Record<string, unknown>
 
 export type AgentProcessStep = {
   key: string
+  itemType: AgentItemType
   stage: string
   tool: string | null
   status: AgentItem['status']
@@ -72,6 +73,7 @@ export function agentProcessSteps(items: readonly AgentItem[]): AgentProcessStep
       const tool = safeString(item.payload.tool_name) ?? safeString(call?.payload.tool_name)
       steps.push({
         key: item.item_id,
+        itemType: item.item_type,
         stage: tool ? (TOOL_STAGE_LABELS[tool] ?? '执行受限工具') : '完成受限工具步骤',
         tool,
         status: item.status,
@@ -86,6 +88,7 @@ export function agentProcessSteps(items: readonly AgentItem[]): AgentProcessStep
     if (item.item_type !== 'tool_call') {
       steps.push({
         key: item.item_id,
+        itemType: item.item_type,
         stage: agentItemTypeLabel(item.item_type),
         tool: null,
         status: item.status,
@@ -104,6 +107,7 @@ export function agentProcessSteps(items: readonly AgentItem[]): AgentProcessStep
     const tool = safeString(call.payload.tool_name)
     steps.push({
       key: call.item_id,
+      itemType: call.item_type,
       stage: tool ? (TOOL_STAGE_LABELS[tool] ?? '执行受限工具') : '执行受限工具步骤',
       tool,
       status: call.status,
@@ -201,7 +205,12 @@ export function AgentStepItem({ step }: { step: AgentProcessStep }) {
         ? '已取消'
         : '失败'
   return (
-    <div className={`agent-kernel-event status-${step.status}`} data-agent-stage={step.stage}>
+    <div
+      className={`agent-kernel-event status-${step.status}`}
+      data-agent-stage={step.stage}
+      data-agent-item-type={step.itemType}
+    >
+      <span className="visually-hidden">{ITEM_TYPE_LABELS[step.itemType]} {step.itemType}</span>
       <div className="agent-kernel-event-heading">
         <strong>{step.stage}</strong>
         <span>{statusLabel}</span>

@@ -478,6 +478,84 @@ def bake_reference_camera_uv_raster(
     )
 
 
+def fuse_reference_camera_uv_raster(
+    base_color_png: bytes,
+    projections: Sequence[ReferenceCameraUvRasterBake],
+    triangles: Sequence[CameraUvRasterTriangle],
+) -> ReferenceCameraUvRasterBakeResult:
+    """Fuse at most two reviewed camera rasters into one retained UV map.
+
+    Each view is rasterized independently against the same immutable triangle
+    set. Observed texels are averaged with equal weight; unobserved texels keep
+    the generated PBR base and the output mask is the union of both inverse
+    masks. The function accepts no arbitrary confidence, priority, image
+    path, or camera value, so a second photo cannot silently overwrite the
+    first one or claim coverage for an unseen surface.
+    """
+
+    if len(projections) != 2:
+        raise ReferenceUvEvidenceBakeError("reference UV fusion requires exactly two camera raster views")
+    ordered = tuple(sorted(projections, key=lambda item: item.canonical_sha256()))
+    base = _decode_png_rgb(base_color_png)
+    if base.shape[:2] != (ordered[0].texture_height, ordered[0].texture_width):
+        raise ReferenceUvEvidenceBakeError("reference UV fusion base dimensions are invalid")
+    sums = np.zeros_like(base, dtype=np.uint64)
+    counts = np.zeros(base.shape[:2], dtype=np.uint32)
+    visible_target_pixels = 0
+    projection_hashes: list[str] = []
+    source_width = source_height = 0
+    for projection in ordered:
+        if (
+            projection.texture_width != ordered[0].texture_width
+            or projection.texture_height != ordered[0].texture_height
+        ):
+            raise ReferenceUvEvidenceBakeError("reference UV fusion profiles must match")
+        result = bake_reference_camera_uv_raster(
+            base_color_png,
+            projection,
+            triangles,
+        )
+        projected = _decode_png_rgb(result.base_color_png)
+        observed = _decode_png_rgb(result.unobserved_texel_mask_png)[:, :, 0] == 0
+        sums[observed] += projected[observed].astype(np.uint64)
+        counts[observed] += 1
+        visible_target_pixels += result.visible_target_source_pixel_count
+        projection_hashes.append(projection.canonical_sha256())
+        source_width = result.raster_source_width
+        source_height = result.raster_source_height
+    observed = counts > 0
+    output = base.copy()
+    output[observed] = (sums[observed] // counts[observed, None]).astype(np.uint8)
+    mask = np.repeat((~observed).astype(np.uint8)[:, :, None] * 255, 3, axis=2)
+    output_png = _encode_png_rgb(output)
+    mask_png = _encode_png_rgb(mask)
+    projection_sha256 = hashlib.sha256(
+        json.dumps(
+            {
+                "schema_version": "ReferenceCameraUvRasterFusion@1",
+                "algorithm_id": CAMERA_RASTER_ALGORITHM_ID,
+                "algorithm_version": CAMERA_RASTER_ALGORITHM_VERSION,
+                "projection_sha256s": projection_hashes,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    observed_count = int(np.count_nonzero(observed))
+    return ReferenceCameraUvRasterBakeResult(
+        base_color_png=output_png,
+        unobserved_texel_mask_png=mask_png,
+        projection_sha256=projection_sha256,
+        base_color_sha256=hashlib.sha256(output_png).hexdigest(),
+        unobserved_texel_mask_sha256=hashlib.sha256(mask_png).hexdigest(),
+        observed_texel_count=observed_count,
+        unobserved_texel_count=(ordered[0].texture_width * ordered[0].texture_height) - observed_count,
+        visible_target_source_pixel_count=visible_target_pixels,
+        raster_source_width=source_width,
+        raster_source_height=source_height,
+    )
+
+
 def _bounded_raster_source(source: np.ndarray) -> np.ndarray:
     """Downsample only when a sealed source exceeds the reviewed work budget."""
 

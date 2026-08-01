@@ -147,6 +147,66 @@ def forgecad_product_tool_registry() -> ProductToolRegistry:
                     "direction_id": {"type": "string", "pattern": "^direction_[a-z0-9_\\-]+$"},
                     "variant_id": {"type": ["string", "null"], "maxLength": 120},
                     "presentation_profile": {"enum": ["quick_sketch", "showcase"]},
+                    "game_asset_profile": _closed(
+                        {
+                            "schema_version": {"const": "GameAssetProfile@1", "type": "string"},
+                            "profile_id": {"type": "string", "minLength": 1, "maxLength": 160},
+                            "lod_triangle_budgets": {
+                                "type": "array",
+                                "prefixItems": [
+                                    {"type": "integer", "minimum": 1},
+                                    {"type": "integer", "minimum": 1},
+                                    {"type": "integer", "minimum": 1},
+                                ],
+                                "minItems": 3,
+                                "maxItems": 3,
+                            },
+                            "collision_proxy_part_ids": {
+                                "type": "array",
+                                "items": {"type": "string", "minLength": 1, "maxLength": 160},
+                                "minItems": 1,
+                                "maxItems": 64,
+                            },
+                            "sockets": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "socket_id": {"type": "string", "minLength": 1, "maxLength": 160},
+                                        "part_id": {"type": "string", "minLength": 1, "maxLength": 160},
+                                        "pivot_meters": {
+                                            "type": "array",
+                                            "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}],
+                                            "minItems": 3,
+                                            "maxItems": 3,
+                                        },
+                                        "forward": {
+                                            "type": "array",
+                                            "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}],
+                                            "minItems": 3,
+                                            "maxItems": 3,
+                                        },
+                                    },
+                                    "required": ["socket_id", "part_id", "pivot_meters", "forward"],
+                                    "additionalProperties": False,
+                                },
+                                "maxItems": 64,
+                            },
+                            "target_texel_density_pixels_per_meter": {
+                                "type": "integer",
+                                "minimum": 128,
+                                "maximum": 2048,
+                            },
+                        },
+                        [
+                            "schema_version",
+                            "profile_id",
+                            "lod_triangle_budgets",
+                            "collision_proxy_part_ids",
+                            "sockets",
+                            "target_texel_density_pixels_per_meter",
+                        ],
+                    ),
                     "repair": _closed(
                         {
                             "schema_version": {

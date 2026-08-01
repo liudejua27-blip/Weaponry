@@ -91,7 +91,9 @@ pub use candidate_pbr_capture::{
     MAX_CAPTURE_VIEW_BYTES, TURN_TABLE_EIGHT_VIEW_IDS, WORKBENCH_PBR_AUXILIARY_CAPTURE_HEIGHT_PX,
     WORKBENCH_PBR_AUXILIARY_CAPTURE_WIDTH_PX, WORKBENCH_PBR_AUXILIARY_PASS_HEIGHT_PX,
     WORKBENCH_PBR_AUXILIARY_PASS_WIDTH_PX, WORKBENCH_PBR_CAPTURE_HEIGHT_PX,
-    WORKBENCH_PBR_CAPTURE_WIDTH_PX, WORKBENCH_PBR_RENDERER_ID,
+    WORKBENCH_PBR_CAPTURE_WIDTH_PX, WORKBENCH_PBR_RENDER_MANIFEST_SHA256,
+    WORKBENCH_PBR_RENDERER_ID, WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID,
+    WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256,
 };
 pub use canonical::{canonical_json, semantic_sha256};
 pub use component_recipes::{
@@ -183,7 +185,8 @@ pub use game_asset_lod::{
     GameAssetLodVertex, GAME_ASSET_LOD_TARGET_ERROR,
 };
 pub use game_asset_profile::{
-    GameAssetProfile, GameAssetSocket, GAME_ASSET_PROFILE_SCHEMA_VERSION,
+    GameAssetDeliveryRequest, GameAssetProfile, GameAssetSocket,
+    GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION, GAME_ASSET_PROFILE_SCHEMA_VERSION,
 };
 pub use generation_gate_profile::{
     evaluate_native_v003_gate_profile_v2, native_v003_gate_profile_sha256,
@@ -233,11 +236,13 @@ pub use multimodal_design::{
     VisualClaimStatus, VisualClaimTarget, VisualEvidenceClaim, VisualEvidenceGraph,
     VisualReferenceAcceptancePolicy, VisualReferenceCandidateViewProfile,
     VisualReferenceClaimAssessment, VisualReferenceComparisonInput,
-    VisualReferenceComparisonReport, VisualReferenceMatchOutcome, VisualReferenceSourceFingerprint,
+    VisualReferenceComparisonReport, VisualReferenceMatchOutcome, VisualReferenceRenderContract,
+    VisualReferenceSourceFingerprint,
     MULTIMODAL_DESIGN_REQUEST_SCHEMA_VERSION, MULTIMODAL_PROGRAM_EVIDENCE_BINDING_SCHEMA_VERSION,
     VISUAL_EVIDENCE_GRAPH_SCHEMA_VERSION, VISUAL_REFERENCE_ACCEPTANCE_POLICY_SCHEMA_VERSION,
     VISUAL_REFERENCE_COMPARISON_INPUT_SCHEMA_VERSION,
     VISUAL_REFERENCE_COMPARISON_REPORT_SCHEMA_VERSION,
+    VISUAL_REFERENCE_RENDER_CONTRACT_SCHEMA_VERSION,
 };
 pub use neural_visual_generation::{
     inspect_concept_png, inspect_neural_visual_glb, ConceptImageBackend,
@@ -274,7 +279,8 @@ pub use reference_appearance_binding::{
 pub use reference_camera_fit::{
     fit_reference_camera_from_view_regions, CandidateCameraSilhouette, ReferenceViewRegion,
     MAX_SILHOUETTE_CENTER_ERROR_PER_MILLE, MAX_SILHOUETTE_FIT_CONFIDENCE_BPS,
-    MIN_SILHOUETTE_IOU_BPS,
+    MAX_SILHOUETTE_PROFILE_ERROR_PER_MILLE, MIN_SILHOUETTE_IOU_BPS,
+    SILHOUETTE_PROFILE_BUCKET_COUNT,
 };
 pub use reference_camera_uv_bake::{
     build_reference_camera_uv_raster_bake, build_reference_camera_uv_raster_bake_from_geometry,
@@ -283,7 +289,8 @@ pub use reference_camera_uv_bake::{
     REFERENCE_CAMERA_UV_RASTER_ALGORITHM_VERSION, REFERENCE_CAMERA_UV_RASTER_BAKE_SCHEMA_VERSION,
 };
 pub use reference_evidence::{
-    analyze_reference_image_bytes, reference_rebuild_plan_id_for_change_set,
+    analyze_reference_image_bytes, derive_reference_silhouette_profile,
+    reference_rebuild_plan_id_for_change_set,
     validate_reference_surface_analysis_for_plan, CreateReferenceEvidenceRequest, ReferenceClass,
     ReferenceEvidence, ReferenceEvidenceKind, ReferenceEvidenceObservations,
     ReferenceGuidedRebuildPlan, ReferenceGuidedRebuildPlanStatus, ReferenceImageBrightnessBucket,
@@ -325,14 +332,20 @@ pub use universal_asset_source::{
     AppearanceEvidenceArtifact, AppearanceEvidenceArtifactKind, AppearanceEvidenceBundle,
     AppearanceEvidenceReference, AppearanceProjectionLayer, CameraParameterSource,
     MaterialZoneAppearance, PbrTextureChannel, ReferenceCameraHypothesis, ReferenceProjectionType,
+    ReferenceAppearanceProjectionReceipt,
     UniversalAssetSource, UniversalAssetSourceState, UniversalAssetSourceV2,
     UniversalCompiledArtifactBinding, UniversalComponentSource, UniversalDetailBinding,
     UniversalDetailBindingKind, UniversalLatticeDeformationBindingV2,
     UniversalLocalHardSurfaceHybridSourceV2, UniversalLocalLatticeDeformSourceV2,
+    UniversalLocalMeshPatchBindingV2, UniversalLocalMeshPatchSourceV2,
     UniversalProceduralPartBindingV2,
     UniversalProceduralSourceV2, UniversalRepresentationSourceV2,
-    UniversalUnavailableRepresentationSourceV2, VisualDetailClaimV2,
+    VisualDetailClaimV2,
+    GenericHardSurfaceAppearanceCompilation, GenericHardSurfaceAppearanceZone,
+    ReferenceSurfaceAppearanceBinding,
     APPEARANCE_EVIDENCE_BUNDLE_SCHEMA_VERSION, MATERIAL_ZONE_APPEARANCE_SCHEMA_VERSION,
+    REFERENCE_SURFACE_APPEARANCE_BINDING_SCHEMA_VERSION,
+    REFERENCE_APPEARANCE_PROJECTION_RECEIPT_SCHEMA_VERSION,
     REFERENCE_CAMERA_HYPOTHESIS_SCHEMA_VERSION, UNIVERSAL_ASSET_SOURCE_SCHEMA_VERSION,
     UNIVERSAL_ASSET_SOURCE_V2_SCHEMA_VERSION, VISUAL_DETAIL_CLAIM_V2_SCHEMA_VERSION,
 };
@@ -346,7 +359,9 @@ pub use universal_authoring::{
     UniversalInputMode, UniversalReferenceInput, UniversalSelectionScope, VisualEvidenceGraphV2,
     VisualFeatureContract, VisualFeatureEvidenceRegion, VisualFeatureLevel,
     VisualFeatureRequirement, GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID,
-    LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID, REPRESENTATION_CAPABILITY_MANIFEST_SCHEMA_VERSION,
+    GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID,
+    LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID, LOCAL_MESH_PATCH_CAPABILITY_ID,
+    REPRESENTATION_CAPABILITY_MANIFEST_SCHEMA_VERSION,
     REPRESENTATION_LIMITATION_SCHEMA_VERSION, REPRESENTATION_PLAN_SCHEMA_VERSION,
     ROBOTIC_ARM_PROCEDURAL_CAPABILITY_ID, SUBJECT_PROFILE_SCHEMA_VERSION,
     UNIVERSAL_AUTHOR_OUTCOME_SCHEMA_VERSION, UNIVERSAL_AUTHOR_REQUEST_SCHEMA_VERSION,

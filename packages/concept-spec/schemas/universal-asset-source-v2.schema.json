@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://forgecad.local/schemas/concept/universal-asset-source-v2.schema.json",
   "title": "UniversalAssetSourceV2",
-  "description": "Rust-derived U004 source envelope. A representation source is a sealed discriminated union. Reviewed local procedural, bounded local lattice-deform, and their per-part local hard-surface hybrid are executable; all other branches remain explicit unavailable contracts.",
+  "description": "Rust-derived U004 source envelope. A representation source is a sealed discriminated union of executable branches only: reviewed local procedural, bounded local lattice-deform, local mesh patch, and their per-part local hard-surface hybrid. An unavailable representation is a typed UniversalAuthorOutcome limitation and never creates a UniversalAssetSource.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "source_id", "state", "request", "request_sha256", "subject_profile", "subject_profile_sha256", "visual_feature_contract", "visual_feature_contract_sha256", "representation_plan", "representation_plan_sha256", "capability_manifest_sha256", "representation_source", "component_sources", "detail_claims", "material_zones", "appearance_compilation", "appearance_evidence"],
@@ -19,7 +19,7 @@
     "representation_plan": {"$ref": "representation-plan.schema.json"},
     "representation_plan_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
     "capability_manifest_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
-    "representation_source": {"oneOf": [{"$ref": "#/$defs/procedural_source"}, {"$ref": "#/$defs/local_lattice_deform_source"}, {"$ref": "#/$defs/local_hard_surface_hybrid_source"}, {"$ref": "#/$defs/unavailable_source"}]},
+    "representation_source": {"oneOf": [{"$ref": "#/$defs/procedural_source"}, {"$ref": "#/$defs/local_lattice_deform_source"}, {"$ref": "#/$defs/local_mesh_patch_source"}, {"$ref": "#/$defs/local_hard_surface_hybrid_source"}]},
     "component_sources": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "universal-asset-source.schema.json#/$defs/component_source"}},
     "detail_claims": {"type": "array", "minItems": 1, "maxItems": 512, "items": {"$ref": "visual-detail-claim-v2.schema.json"}},
     "material_zones": {"type": "array", "maxItems": 128, "items": {"$ref": "material-zone-appearance.schema.json"}},
@@ -163,6 +163,16 @@
         "deformations": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/lattice_deformation_binding"}}
       }
     },
+    "local_mesh_patch_source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "source_contract_id", "procedural_source", "patches"],
+      "properties": {
+        "kind": {"const": "local_mesh_patch"},
+        "source_contract_id": {"const": "ForgeLocalMeshPatchSource@1"},
+        "procedural_source": {"$ref": "#/$defs/runtime_procedural_payload"},
+        "patches": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/local_mesh_patch_binding"}}
+      }
+    },
     "local_hard_surface_hybrid_source": {
       "type": "object", "additionalProperties": false,
       "required": ["kind", "source_contract_id", "procedural_source", "deformations"],
@@ -187,6 +197,19 @@
         }
       }
     },
+    "local_mesh_patch_binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["patch_id", "subject_part_id", "source_operation_id", "patch_operation_id", "patch_center", "patch_radius", "patch_offset"],
+      "properties": {
+        "patch_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "subject_part_id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "source_operation_id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "patch_operation_id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "patch_center": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": 0, "maximum": 1}},
+        "patch_radius": {"type": "number", "minimum": 0.05, "maximum": 0.4},
+        "patch_offset": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -0.2, "maximum": 0.2}}
+      }
+    },
     "appearance_compilation": {
       "type": "object", "additionalProperties": false,
       "required": ["schema_version", "compiler_id", "source_program_sha256", "zones", "compilation_sha256"],
@@ -195,6 +218,7 @@
         "compiler_id": {"const": "forgecad.generic_hard_surface_appearance.v2"},
         "source_program_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
         "zones": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/appearance_zone"}},
+        "reference_surface_bindings": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/reference_surface_binding"}},
         "compilation_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
       }
     },
@@ -209,13 +233,33 @@
         "surface_layer_program_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
       }
     },
-    "unavailable_source": {
+    "reference_surface_binding": {
       "type": "object", "additionalProperties": false,
-      "required": ["kind", "source_contract_id", "reason"],
+      "required": ["schema_version", "evidence_id", "evidence_sha256", "facts", "roughness_motif", "binding_sha256"],
       "properties": {
-        "kind": {"const": "local_mesh_patch"},
-        "source_contract_id": {"type": "string", "minLength": 1, "maxLength": 160},
-        "reason": {"type": "string", "minLength": 1, "maxLength": 500}
+        "schema_version": {"const": "ReferenceSurfaceAppearanceBinding@1"},
+        "evidence_id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "evidence_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "facts": {
+          "type": "object", "additionalProperties": false,
+          "required": ["width", "height", "aspect_ratio_milli", "dominant_color_buckets", "brightness", "edge_density", "foreground_bbox_normalized", "foreground_confidence"],
+          "properties": {
+            "width": {"type": "integer", "minimum": 1, "maximum": 4096},
+            "height": {"type": "integer", "minimum": 1, "maximum": 4096},
+            "aspect_ratio_milli": {"type": "integer", "minimum": 1, "maximum": 64000},
+            "dominant_color_buckets": {"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["black", "gray", "white", "blue", "cyan", "red", "yellow", "green", "violet"]}},
+            "foreground_dominant_color_buckets": {"type": "array", "maxItems": 4, "uniqueItems": true, "items": {"enum": ["black", "gray", "white", "blue", "cyan", "red", "yellow", "green", "violet"]}},
+            "brightness": {"enum": ["dark", "balanced", "bright"]},
+            "edge_density": {"enum": ["low", "medium", "high"]},
+            "foreground_bbox_normalized": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "integer", "minimum": 0, "maximum": 1000}},
+            "contact_sheet_layout_evidence": {"type": "boolean"},
+            "foreground_confidence": {"enum": ["low", "medium"]}
+          }
+        },
+        "base_color_token": {"enum": ["silver", "white_ceramic", "gunmetal", "graphite", "copper", "signal_red", "bark_brown", "wood_warm", "foliage_green", "skin_warm", "fur_warm", "fabric_blue", "stone_gray", "concrete_gray", "clay_terracotta"]},
+        "surface_finish_token": {"enum": ["brushed_metal", "polished_metal", "ceramic_coat", "glossy_coat", "matte_coat", "rubberized", "dark_glass", "emissive_trim", "wood_grain", "bark_ridged", "leaf_waxy", "fabric_weave", "fur_soft", "skin_matte", "stone_rough", "concrete_rough", "clay_matte"]},
+        "roughness_motif": {"enum": ["linear_brush", "edge_wear", "microgrid"]},
+        "binding_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
       }
     }
   }

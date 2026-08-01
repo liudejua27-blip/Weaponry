@@ -186,20 +186,23 @@ export function AgentSelectionCard({
               >添加外观细节</button>
             )}
           </div>
-          <AgentParameterControls
-            agentAssetVersion={agentAssetVersion}
-            selectedPart={selectedPart}
-            isLocked={isSelectedPartLocked}
-            hasPendingChange={persistedActionsDisabled}
-            onPreviewEdit={onPreviewEdit}
-          />
-          <AgentSemanticProportionControls
-            semanticProportions={semanticProportions}
-            isLocked={isSelectedPartLocked}
-            hasPendingChange={persistedActionsDisabled}
-            loading={editAssistLoading}
-            onPreviewEdit={onPreviewEdit}
-          />
+          <details className="agent-advanced-panel agent-component-advanced-panel" open>
+            <summary className="agent-conversation-section-title agent-advanced-panel-summary">展开专业参数</summary>
+            <AgentParameterControls
+              agentAssetVersion={agentAssetVersion}
+              selectedPart={selectedPart}
+              isLocked={isSelectedPartLocked}
+              hasPendingChange={persistedActionsDisabled}
+              onPreviewEdit={onPreviewEdit}
+            />
+            <AgentSemanticProportionControls
+              semanticProportions={semanticProportions}
+              isLocked={isSelectedPartLocked}
+              hasPendingChange={persistedActionsDisabled}
+              loading={editAssistLoading}
+              onPreviewEdit={onPreviewEdit}
+            />
+          </details>
           {isJointPartRole(selectedPart.role) && (
             <div className="agent-part-action-row">
               <button

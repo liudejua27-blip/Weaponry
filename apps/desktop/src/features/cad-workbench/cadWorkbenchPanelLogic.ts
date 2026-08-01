@@ -9,9 +9,6 @@ const COVERAGE_BY_DRAFT: Record<SurfaceAdornmentDraft['coverage'], 'center_band'
   symmetric: 'symmetric_pair',
 }
 
-const PACK_VEHICLE_RE = /(car|vehicle|truck|auto|汽车|车辆|载具)/
-const PACK_AIRCRAFT_RE = /(plane|aircraft|drone|jet|飞机|飞行|无人机)/
-const PACK_ARM_RE = /(arm|robot|joint|机械臂|机器人|关节)/
 const OPERATION_ID_SANITIZE_RE = /[^A-Za-z0-9_-]/g
 
 export function buildAgentPartEditOperations(delta: AssemblyDeltaProgram): AgentPartEditOperation[] {
@@ -82,12 +79,17 @@ export function referenceRebuildFailureMessage(error: unknown): string {
   return error instanceof Error ? error.message : '参考引导重建预览失败；当前设计没有变化。'
 }
 
-export function inferImportDomainPack(fileName: string): 'pack_future_weapon_prop' | 'pack_vehicle_concept' | 'pack_aircraft_concept' | 'pack_robotic_arm_concept' {
-  const value = fileName.toLowerCase()
-  if (PACK_VEHICLE_RE.test(value)) return 'pack_vehicle_concept'
-  if (PACK_AIRCRAFT_RE.test(value)) return 'pack_aircraft_concept'
-  if (PACK_ARM_RE.test(value)) return 'pack_robotic_arm_concept'
-  return 'pack_future_weapon_prop'
+/**
+ * A reference import is evidence, not a domain classification decision.
+ *
+ * The old filename keyword router made an arbitrary GLB such as `cat.glb`
+ * enter a future-prop path and made `robot.glb` look like a capability claim.
+ * Universal authoring derives identity from the sealed evidence and the
+ * user's description; an unclassified compatibility value is the only safe
+ * default until that authoring turn has produced a SubjectProfile.
+ */
+export function inferImportDomainPack(_fileName: string): 'pack_unclassified' {
+  return 'pack_unclassified'
 }
 
 export function errorText(caught: unknown): string {

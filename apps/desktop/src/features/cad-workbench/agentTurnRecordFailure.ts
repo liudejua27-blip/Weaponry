@@ -37,16 +37,6 @@ const FAILED_REQUEST_REJECTED: AgentTurnRecordFailureResult = {
   candidatePbrCapturePending: null,
 }
 
-const CANCELED_BY_USER: AgentTurnRecordFailureResult = {
-  recorded: false,
-  clarification: false,
-  cancelled: false,
-  failed: false,
-  plan: null,
-  decision: null,
-  candidatePbrCapturePending: null,
-}
-
 export function resolveAgentTurnRecordFailure(options: ResolveAgentTurnFailureOptions): AgentTurnRecordFailureResult {
   const {
     caught,
@@ -119,12 +109,27 @@ export function resolveAgentTurnRecordFailure(options: ResolveAgentTurnFailureOp
     }
   }
 
-  // The compatibility planner remains usable when the new kernel is not
-  // available yet (for example while an older local Agent is running).
+  // Do not turn an unexpected native/protocol failure into a silent
+  // "kernel unavailable" cancellation.  That made the composer clear its
+  // input while no Turn was persisted, which looked like a successful empty
+  // generation from the workbench.  Preserve the compatibility marker for
+  // callers that still use it, but surface the actual boundary error and keep
+  // the Turn visibly failed.
   if (!markKernelUnavailable(projectId, requestId)) {
     return FAILED_REQUEST_REJECTED
   }
 
-  dispatchSingleResultDecision({ type: 'request_cancelled', projectId, requestId })
-  return CANCELED_BY_USER
+  const detail = caught instanceof Error ? caught.message : String(caught)
+  const messageText = detail.trim() || '未知原生协议错误'
+  setAssistantNote(`Agent 请求未完成：${messageText}。没有创建模型或版本，请修复连接后重试。`)
+  dispatchSingleResultDecision({ type: 'request_failed', projectId, requestId, error: messageText })
+  return {
+    recorded: false,
+    clarification: false,
+    cancelled: false,
+    failed: true,
+    plan: null,
+    decision: null,
+    candidatePbrCapturePending: null,
+  }
 }

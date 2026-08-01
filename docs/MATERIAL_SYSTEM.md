@@ -56,6 +56,12 @@ npm run agent:g6-material-catalog-smoke
 
 G818 的展示模型还会在生成时使用受限的 GLB/视口内部映射：石墨、复合外观、金属外观，以及仅用于灯带点缀的 `mat_emissive_blue`。其中后者不是第 13 个用户可选 `MaterialPreset`，不进入材质目录，也不代表发光部件或电气设计；它只是受控外观层的 PBR 颜色/自发光参数。
 
+## 3.1 类别开放外观 token（U004 开发期）
+
+类别开放代理不再把所有非机械对象送入金属/橡胶/发光材质。Rust 代码所有的 `SurfaceLayerProgram@1` 增加了受检的自然与软表面 token：`bark_brown`、`wood_warm`、`foliage_green`、`skin_warm`、`fur_warm`、`fabric_blue`、`stone_gray`、`concrete_gray`、`clay_terracotta`，以及对应的 `bark_ridged`、`wood_grain`、`leaf_waxy`、`skin_matte`、`fur_soft`、`fabric_weave`、`stone_rough`、`concrete_rough`、`clay_matte`。这些是视觉编译 token，不是工程材料牌号，也不会向用户开放任意 shader、RGB、路径或纹理下载。
+
+本机开发作者按部件语义绑定这些 token：植物的树干/冠层/基座、动物的身体/头部/四肢、角色的皮肤/服装、家具的木质/软垫、建筑的混凝土/石材分别保持不同的颜色、粗糙度和微表面；车辆的玻璃、轮胎和发光区仍优先使用其专用 reviewed material。Python PBR 编译器把 finish token 同时写入受限 base-color、metallic-roughness 和 normal 细节，旧 token 返回原有零细节分支，因此历史八材质槽与既有机械臂 GLB 哈希不变。该能力是轻量外观代理与类别开放入口的质量修复，不代表照片纹理投影、背面重建、角色/生物拓扑或正式跨类别视觉评分。
+
 以下目录是目标扩展，不是当前已注册 ID。
 
 ### 金属外观
@@ -182,3 +188,15 @@ showcase 外观层按四领域独立的 primary-role 白名单生成；找不到
 ## 7. 工程边界
 
 P0 不保存或推断屈服强度、密度、疲劳、耐热、成本、供应商牌号、加工方法或结构适用性。以后 Engineering Pack 可以增加独立 `EngineeringMaterialProfile`，但不能用视觉 `MaterialPreset` 自动生成工程结论。
+
+### 7.1 U004 P2.15 参考表面事实绑定
+
+通用图片请求现在可将 Rust 从封存图片摘要出的 `ReferenceImageSurfaceFacts` 绑定到 `GenericHardSurfaceAppearanceCompilation@2`。绑定合同保存 evidence semantic hash、前景颜色桶、亮度、边缘密度及受限 token；不保存原始像素、路径或自由 RGB。已有 profile/feature/material 语义优先，参考事实只在语义缺失时提供颜色、finish 和粗糙度 motif 的 bounded fallback。该能力属于可审计的参考条件 PBR 计划，不是照片纹理投影、真实材质测量或视觉质量结论。
+
+### 7.2 U004 P2.16 参考 fallback 作用域
+
+由于 `ReferenceImageSurfaceFacts` 是整图低维摘要，它不能直接覆盖每个 Material Zone。编译器仅对外壳、装甲、外部面板等兼容 reviewed base material 提供 fallback；结构框架、装饰 trim、橡胶、玻璃、发光和警示色区保持自身语义。显式 feature/material 文字仍优先，黑色/灰色文字先映射到受限 `graphite`/`gunmetal` token。该规则改善多区模型的材质分离，不是逐区照片材质测量。
+
+### 7.3 U004 P2.17 观察区域到材质区的精确绑定
+
+兼容材质语义仍不足以证明某个 zone 在参考图中实际出现。重编译时必须同时命中 `ReferenceAppearanceBinding@1`：feature 必须是 `Observed`、声明至少一个 appearance channel、拥有合法 sealed evidence/view region，并且 affected Subject Part 与目标 Material Zone 完全一致。没有该绑定的 sibling zone 保留自身 reviewed catalog PBR，不消费整图颜色、finish 或 roughness facts。这个规则提升多区外观可信度，但不是逐区照片纹理、背面材质或真实材质测量。

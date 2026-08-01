@@ -14,6 +14,14 @@ use crate::{semantic_sha256, CoreError, CoreResult};
 pub const CANDIDATE_PBR_CAPTURE_SESSION_SCHEMA_VERSION: &str = "CandidatePbrCaptureSession@1";
 pub const CANDIDATE_PBR_CAPTURE_EVIDENCE_SCHEMA_VERSION: &str = "CandidatePbrCaptureEvidence@1";
 pub const WORKBENCH_PBR_RENDERER_ID: &str = "forgecad-workbench-pbr@1";
+/// The current desktop workbench environment is a code-owned review input.
+/// A WebView may report the environment it actually used, but it cannot mint
+/// a different environment and still pass the candidate evidence gate.
+pub const WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID: &str = "env_forgecad_room_studio_v2";
+pub const WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256: &str =
+    "0884e4f7b32c11ce94b4d406260f9ea89ca0c7933e0088d14e9eb89f382508a4";
+pub const WORKBENCH_PBR_RENDER_MANIFEST_SHA256: &str =
+    "024d7e8f707c75eafd12f22e9a5e9f9c5ab0fcbd1a6ce1a4de6726ace7b2451a";
 pub const CANDIDATE_PBR_RENDERER_ID: &str = "forgecad-candidate-pbr-runner@1";
 pub const TURN_TABLE_EIGHT_VIEW_IDS: [&str; 8] = [
     "turntable_000",
@@ -58,6 +66,10 @@ pub struct CandidatePbrCaptureSession {
     pub compile_readback_sha256: String,
     pub artifact_profile_id: String,
     pub render_manifest_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_environment_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_environment_sha256: Option<String>,
     pub expected_renderer_id: String,
     pub capture_nonce: String,
     pub issued_at_unix_ms: u64,
@@ -101,6 +113,10 @@ pub struct CandidatePbrCaptureSubmission {
     pub candidate_glb_sha256: String,
     pub renderer_id: String,
     pub render_manifest_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_environment_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_environment_sha256: Option<String>,
     pub views: Vec<CandidatePbrCapturedView>,
 }
 
@@ -112,6 +128,10 @@ pub struct CandidatePbrCaptureEvidence {
     pub candidate_glb_sha256: String,
     pub renderer_id: String,
     pub render_manifest_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_environment_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_environment_sha256: Option<String>,
     pub capture_sha256: String,
     pub views: Vec<CandidatePbrCapturedView>,
 }
@@ -152,6 +172,35 @@ impl CandidatePbrCaptureSession {
             ("render_manifest_sha256", &self.render_manifest_sha256),
         ] {
             require_sha256(field, value)?;
+        }
+        if self.expected_renderer_id == WORKBENCH_PBR_RENDERER_ID {
+            if self.visual_environment_id.as_deref() != Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID)
+                || self.visual_environment_sha256.as_deref()
+                    != Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256)
+                || self.render_manifest_sha256 != WORKBENCH_PBR_RENDER_MANIFEST_SHA256
+            {
+                return Err(invalid(
+                    "CANDIDATE_PBR_CAPTURE_SESSION_INVALID",
+                    "Workbench PBR capture must bind the code-owned visual environment and render manifest.",
+                ));
+            }
+        }
+        if let (Some(environment_id), Some(environment_sha256)) = (
+            self.visual_environment_id.as_deref(),
+            self.visual_environment_sha256.as_deref(),
+        ) {
+            if !stable_id(environment_id) {
+                return Err(invalid(
+                    "CANDIDATE_PBR_CAPTURE_ENVIRONMENT_INVALID",
+                    "Visual environment identity is not a bounded stable ID.",
+                ));
+            }
+            require_sha256("visual_environment_sha256", environment_sha256)?;
+        } else if self.visual_environment_id.is_some() || self.visual_environment_sha256.is_some() {
+            return Err(invalid(
+                "CANDIDATE_PBR_CAPTURE_ENVIRONMENT_INVALID",
+                "Visual environment ID and hash must be supplied together.",
+            ));
         }
         if self.required_view_ids.len() != TURN_TABLE_EIGHT_VIEW_IDS.len()
             || self
@@ -210,6 +259,8 @@ impl CandidatePbrCaptureSession {
             || submission.candidate_glb_sha256 != self.candidate_glb_sha256
             || submission.renderer_id != self.expected_renderer_id
             || submission.render_manifest_sha256 != self.render_manifest_sha256
+            || submission.visual_environment_id != self.visual_environment_id
+            || submission.visual_environment_sha256 != self.visual_environment_sha256
         {
             return Err(invalid(
                 "CANDIDATE_PBR_CAPTURE_SUBMISSION_INVALID",
@@ -299,6 +350,8 @@ impl CandidatePbrCaptureSession {
             candidate_glb_sha256: self.candidate_glb_sha256.clone(),
             renderer_id: self.expected_renderer_id.clone(),
             render_manifest_sha256: self.render_manifest_sha256.clone(),
+            visual_environment_id: self.visual_environment_id.clone(),
+            visual_environment_sha256: self.visual_environment_sha256.clone(),
             capture_sha256: String::new(),
             views,
         };
@@ -354,7 +407,9 @@ mod tests {
             shape_program_sha256: hash('b'),
             compile_readback_sha256: hash('c'),
             artifact_profile_id: "interactive_preview".into(),
-            render_manifest_sha256: hash('d'),
+            render_manifest_sha256: WORKBENCH_PBR_RENDER_MANIFEST_SHA256.into(),
+            visual_environment_id: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into()),
+            visual_environment_sha256: Some(WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into()),
             expected_renderer_id: WORKBENCH_PBR_RENDERER_ID.into(),
             capture_nonce: "nonce_0123456789abcdef".into(),
             issued_at_unix_ms: 1000,
@@ -383,6 +438,8 @@ mod tests {
             candidate_glb_sha256: session.candidate_glb_sha256.clone(),
             renderer_id: session.expected_renderer_id.clone(),
             render_manifest_sha256: session.render_manifest_sha256.clone(),
+            visual_environment_id: session.visual_environment_id.clone(),
+            visual_environment_sha256: session.visual_environment_sha256.clone(),
             views: TURN_TABLE_EIGHT_VIEW_IDS
                 .iter()
                 .enumerate()
@@ -474,6 +531,24 @@ mod tests {
                 .accept(wrong_auxiliary_dimensions, 10_000)
                 .unwrap_err()
                 .code(),
+            "CANDIDATE_PBR_CAPTURE_SUBMISSION_INVALID"
+        );
+    }
+
+    #[test]
+    fn candidate_pbr_capture_fails_closed_for_visual_environment_drift() {
+        let mut drifted_session = session();
+        drifted_session.visual_environment_sha256 = Some("a".repeat(64));
+        assert_eq!(
+            drifted_session.validate().unwrap_err().code(),
+            "CANDIDATE_PBR_CAPTURE_SESSION_INVALID"
+        );
+
+        let session = session();
+        let mut submission = submission(&session);
+        submission.visual_environment_id = Some("env_other_renderer".into());
+        assert_eq!(
+            session.accept(submission, 10_000).unwrap_err().code(),
             "CANDIDATE_PBR_CAPTURE_SUBMISSION_INVALID"
         );
     }

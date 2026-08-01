@@ -159,6 +159,11 @@ pub struct ReferenceImageSurfaceFacts {
     pub height: u32,
     pub aspect_ratio_milli: u32,
     pub dominant_color_buckets: Vec<ReferenceImageColorBucket>,
+    /// Dominant buckets among pixels that Rust classifies as foreground
+    /// against the locally sampled background. This keeps a dark studio
+    /// background from being mistaken for the asset's material palette.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub foreground_dominant_color_buckets: Vec<ReferenceImageColorBucket>,
     pub brightness: ReferenceImageBrightnessBucket,
     pub edge_density: ReferenceImageEdgeDensityBucket,
     pub foreground_bbox_normalized: [u16; 4],
@@ -168,7 +173,7 @@ pub struct ReferenceImageSurfaceFacts {
 }
 
 impl ReferenceImageSurfaceFacts {
-    fn validate(&self) -> CoreResult<()> {
+    pub(crate) fn validate(&self) -> CoreResult<()> {
         if self.width == 0
             || self.height == 0
             || self.width > MAX_REFERENCE_IMAGE_DIMENSION
@@ -178,6 +183,7 @@ impl ReferenceImageSurfaceFacts {
             || self.aspect_ratio_milli == 0
             || self.dominant_color_buckets.is_empty()
             || self.dominant_color_buckets.len() > 4
+            || self.foreground_dominant_color_buckets.len() > 4
         {
             return Err(CoreError::invalid_data(
                 "REFERENCE_IMAGE_SURFACE_FACTS_INVALID",
@@ -1332,6 +1338,27 @@ pub fn analyze_reference_image_bytes(
     media_type: &str,
     bytes: &[u8],
 ) -> CoreResult<ReferenceImageSurfaceFacts> {
+    let (width, height, pixels) = decode_bounded_reference_rgba(media_type, bytes)?;
+    summarize_rgba_surface(width, height, &pixels)
+}
+
+/// Derives a compact, Rust-owned silhouette occupancy profile from the same
+/// sealed image bytes used for `ReferenceImageSurfaceFacts`. The profile is
+/// intentionally low-dimensional: it is not a mask, texture, or image
+/// reconstruction, only sixteen horizontal occupancy samples used to reject
+/// a poor discrete camera fit when the full sealed source is available.
+pub fn derive_reference_silhouette_profile(
+    media_type: &str,
+    bytes: &[u8],
+) -> CoreResult<Vec<u16>> {
+    let (width, height, pixels) = decode_bounded_reference_rgba(media_type, bytes)?;
+    Ok(foreground_column_occupancy_profile(width, height, &pixels))
+}
+
+fn decode_bounded_reference_rgba(
+    media_type: &str,
+    bytes: &[u8],
+) -> CoreResult<(u32, u32, Vec<u8>)> {
     if bytes.is_empty() || bytes.len() > MAX_REFERENCE_IMAGE_BYTES {
         return Err(CoreError::invalid_data(
             "REFERENCE_IMAGE_SIZE_INVALID",
@@ -1415,7 +1442,7 @@ pub fn analyze_reference_image_bytes(
             "Reference image decode did not produce the declared bounded RGBA surface.",
         ));
     }
-    summarize_rgba_surface(header_width, header_height, rgba.as_raw())
+    Ok((header_width, header_height, rgba.into_raw()))
 }
 
 fn validate_image_dimensions(width: u32, height: u32) -> CoreResult<()> {
@@ -1683,6 +1710,8 @@ fn summarize_rgba_surface(
         [0, 0, 0]
     };
     let mut buckets = std::collections::BTreeMap::<ReferenceImageColorBucket, u64>::new();
+    let mut foreground_buckets =
+        std::collections::BTreeMap::<ReferenceImageColorBucket, u64>::new();
     let mut brightness_total = 0u64;
     let mut visible_pixels = 0u64;
     let mut foreground_count = 0u64;
@@ -1712,6 +1741,9 @@ fn summarize_rgba_surface(
                 + (i32::from(rgba[1]) - background[1]).unsigned_abs()
                 + (i32::from(rgba[2]) - background[2]).unsigned_abs();
             if alpha >= 48 && distance >= 84 {
+                *foreground_buckets
+                    .entry(color_bucket(rgba[0], rgba[1], rgba[2]))
+                    .or_default() += alpha;
                 foreground_count += 1;
                 min_x = min_x.min(x);
                 min_y = min_y.min(y);
@@ -1772,6 +1804,19 @@ fn summarize_rgba_surface(
         .take(4)
         .map(|(bucket, _)| bucket)
         .collect();
+    let mut ordered_foreground_buckets = foreground_buckets.into_iter().collect::<Vec<_>>();
+    ordered_foreground_buckets.sort_by(
+        |(left_bucket, left_weight), (right_bucket, right_weight)| {
+            right_weight
+                .cmp(left_weight)
+                .then_with(|| left_bucket.cmp(right_bucket))
+        },
+    );
+    let foreground_dominant_color_buckets = ordered_foreground_buckets
+        .into_iter()
+        .take(4)
+        .map(|(bucket, _)| bucket)
+        .collect();
     let average_luma = brightness_total / visible_pixels;
     let brightness = if average_luma < 85 {
         ReferenceImageBrightnessBucket::Dark
@@ -1794,6 +1839,7 @@ fn summarize_rgba_surface(
         height,
         aspect_ratio_milli: (u64::from(width) * 1_000 / u64::from(height)) as u32,
         dominant_color_buckets,
+        foreground_dominant_color_buckets,
         brightness,
         edge_density,
         foreground_bbox_normalized: [left, top, right, bottom],
@@ -1804,6 +1850,68 @@ fn summarize_rgba_surface(
     };
     facts.validate()?;
     Ok(facts)
+}
+
+fn foreground_column_occupancy_profile(width: u32, height: u32, pixels: &[u8]) -> Vec<u16> {
+    const BUCKETS: usize = 16;
+    let mut foreground = [0_u32; BUCKETS];
+    let mut totals = [0_u32; BUCKETS];
+    let background = corner_background_rgb(width, height, pixels);
+    for y in 0..height {
+        for x in 0..width {
+            let index = ((y * width + x) * 4) as usize;
+            let bucket = ((x as usize * BUCKETS) / width as usize).min(BUCKETS - 1);
+            totals[bucket] = totals[bucket].saturating_add(1);
+            let rgba = &pixels[index..index + 4];
+            let distance = (i32::from(rgba[0]) - background[0]).unsigned_abs()
+                + (i32::from(rgba[1]) - background[1]).unsigned_abs()
+                + (i32::from(rgba[2]) - background[2]).unsigned_abs();
+            if rgba[3] >= 48 && distance >= 84 {
+                foreground[bucket] = foreground[bucket].saturating_add(1);
+            }
+        }
+    }
+    foreground
+        .into_iter()
+        .zip(totals)
+        .map(|(count, total)| {
+            if total == 0 {
+                0
+            } else {
+                ((u64::from(count) * 1_000) / u64::from(total)).min(1_000) as u16
+            }
+        })
+        .collect()
+}
+
+fn corner_background_rgb(width: u32, height: u32, pixels: &[u8]) -> [i32; 3] {
+    let corner_points = [
+        (0, 0),
+        (width.saturating_sub(1), 0),
+        (0, height.saturating_sub(1)),
+        (width.saturating_sub(1), height.saturating_sub(1)),
+    ];
+    let mut background = [0_u64; 3];
+    let mut corners = 0_u64;
+    for (x, y) in corner_points {
+        let index = ((y * width + x) * 4) as usize;
+        let alpha = u64::from(pixels[index + 3]);
+        if alpha > 0 {
+            for channel in 0..3 {
+                background[channel] += u64::from(pixels[index + channel]) * alpha;
+            }
+            corners += alpha;
+        }
+    }
+    if corners > 0 {
+        [
+            (background[0] / corners) as i32,
+            (background[1] / corners) as i32,
+            (background[2] / corners) as i32,
+        ]
+    } else {
+        [0, 0, 0]
+    }
 }
 
 /// A contact sheet needs an entire divider row/column with visible content on

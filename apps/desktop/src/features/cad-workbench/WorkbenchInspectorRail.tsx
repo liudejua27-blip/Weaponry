@@ -18,6 +18,7 @@ export type WorkbenchInspectorRailProps = {
   selectedAgentPartId: string | null
   selectedAgentPart: AgentAssetVersion['parts'][number] | null
   materialEditor: ReactNode
+  className?: string
   legacyDetailsOpen: boolean
   legacyVersion: ConceptVersionDetail | null
   legacyGraph: ModuleGraphRecord | null
@@ -38,6 +39,7 @@ export function WorkbenchInspectorRail({
   selectedAgentPartId,
   selectedAgentPart,
   materialEditor,
+  className = '',
   legacyDetailsOpen,
   legacyVersion,
   legacyGraph,
@@ -46,11 +48,12 @@ export function WorkbenchInspectorRail({
   onCloseLegacyDetails,
   onSelectLegacyNode,
 }: WorkbenchInspectorRailProps) {
+  const railClassName = className ? `cad-right-rail ${className}` : 'cad-right-rail'
   if (mode === 'agent') {
     const selectedPart = selectedAgentPart
       ?? (agentAssetVersion?.parts.find((part) => part.part_id === selectedAgentPartId) ?? null)
     return (
-      <aside className="cad-right-rail" data-testid="agent-asset-inspector">
+      <aside className={railClassName} data-testid="agent-asset-inspector">
         <section className="cad-panel properties-panel">
           <div className="cad-panel-title"><span><SlidersHorizontal size={16} /> 当前 Agent 资产</span></div>
           <div className="agent-inspector-summary">
@@ -67,7 +70,7 @@ export function WorkbenchInspectorRail({
   if (mode === 'legacy') {
     if (!legacyDetailsOpen) return null
     return (
-      <aside className="cad-right-rail" data-testid="legacy-readonly-boundary">
+      <aside className={railClassName} data-testid="legacy-readonly-boundary">
         <section className="cad-panel properties-panel">
           <div className="cad-panel-title"><span><Cube size={16} /> 旧版只读兼容</span></div>
           <div className="legacy-readonly-surface" aria-label="旧版只读 Graph Inspector">
@@ -111,7 +114,7 @@ export function WorkbenchInspectorRail({
   }
 
   return (
-    <aside className="cad-right-rail" data-testid="empty-agent-inspector">
+    <aside className={railClassName} data-testid="empty-agent-inspector">
       <section className="cad-panel properties-panel">
         <div className="cad-panel-title"><span><SlidersHorizontal size={16} /> 当前设计</span></div>
         <div className="agent-inspector-summary">

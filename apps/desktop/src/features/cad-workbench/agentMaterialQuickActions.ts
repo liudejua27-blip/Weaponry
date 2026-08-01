@@ -7,7 +7,7 @@ export function compatibleQuickMaterialPresets(
 ): AgentMaterialPreset[] {
   if (!activeDomain) return []
   return presets
-    .filter((preset) => preset.allowed_domains.includes(activeDomain))
+    .filter((preset) => preset.allowed_domains.includes('*') || preset.allowed_domains.includes(activeDomain))
     .slice(0, limit)
 }
 

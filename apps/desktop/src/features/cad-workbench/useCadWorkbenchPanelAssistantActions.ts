@@ -1,6 +1,11 @@
 import type { AssemblyDeltaProgram, MechanicalConceptPlan } from '../../shared/types'
 import { useCallback } from 'react'
-import type { AgentTurnRecordResult, MultimodalAgentTurnContext } from './agentTurnSubmissionLoader'
+import type {
+  AgentTurnRecordResult,
+  GameAssetDeliveryRequestInput,
+  MultimodalAgentTurnContext,
+  AgentTurnIntent,
+} from './agentTurnSubmissionLoader'
 import {
   submitBriefInstructionWithText,
   submitChangeInstruction,
@@ -18,6 +23,8 @@ type RecordAgentTurn = (
   message: string,
   clarificationDomainPackId?: string,
   multimodalContext?: MultimodalAgentTurnContext,
+  gameAssetDelivery?: GameAssetDeliveryRequestInput,
+  intent?: AgentTurnIntent,
 ) => Promise<AgentTurnRecordResult>
 
 type PresentationProfile = 'quick_sketch' | 'showcase'
@@ -38,6 +45,7 @@ type UseCadWorkbenchPanelAssistantActionsInput = {
     planOverride?: MechanicalConceptPlan,
   ) => void | Promise<unknown>
   recordAgentTurn: RecordAgentTurn
+  gameAssetDelivery?: GameAssetDeliveryRequestInput
   previewAgentAssemblyDelta: (delta: AssemblyDeltaProgram) => Promise<void>
 }
 
@@ -46,7 +54,9 @@ type UseCadWorkbenchPanelAssistantActionsResult = {
     requestedText: string,
     clarificationDomainPackId?: string,
     multimodalContext?: MultimodalAgentTurnContext,
+    gameAssetDelivery?: GameAssetDeliveryRequestInput,
   ) => Promise<void>
+  submitAssistantChangeInstructionWithText: (requestedText: string) => Promise<void>
   runAssistantAction: () => Promise<void>
   retryCandidatePreview: () => void
   focusComposerInput: () => void
@@ -63,6 +73,7 @@ export function useCadWorkbenchPanelAssistantActions({
   agentPlan,
   previewAgentDirection,
   recordAgentTurn,
+  gameAssetDelivery,
   previewAgentAssemblyDelta,
 }: UseCadWorkbenchPanelAssistantActionsInput): UseCadWorkbenchPanelAssistantActionsResult {
   const submitAssistantInstructionWithText = useCallback(async (
@@ -79,13 +90,38 @@ export function useCadWorkbenchPanelAssistantActions({
       requestText: instruction,
       clarificationDomainPackId,
       multimodalContext,
+      gameAssetDelivery,
       defaultBrief: DEFAULT_CONCEPT_BRIEF,
       legacyDesignReadOnly,
       setAssistantNote,
       setChatInput,
       recordAgentTurn,
     })
-  }, [legacyDesignReadOnly, recordAgentTurn, setAssistantNote, setChatInput])
+  }, [gameAssetDelivery, legacyDesignReadOnly, recordAgentTurn, setAssistantNote, setChatInput])
+
+  const submitAssistantChangeInstructionWithText = useCallback(async (requestedText: string) => {
+    const instruction = trimAssistantInstruction(requestedText)
+    if (!instruction) {
+      setAssistantNote(ASSISTANT_EMPTY_INSTRUCTION_NOTICE)
+      return
+    }
+    setAssistantMode('change')
+    await submitChangeInstruction({
+      requestText: instruction,
+      legacyDesignReadOnly,
+      setAssistantNote,
+      setChatInput,
+      recordAgentTurn,
+      previewAgentAssemblyDelta,
+    })
+  }, [
+    legacyDesignReadOnly,
+    previewAgentAssemblyDelta,
+    recordAgentTurn,
+    setAssistantMode,
+    setAssistantNote,
+    setChatInput,
+  ])
 
   const submitAssistantInstruction = useCallback(async () => {
     const instruction = trimAssistantInstruction(chatInput)
@@ -138,6 +174,7 @@ export function useCadWorkbenchPanelAssistantActions({
 
   return {
     submitAssistantInstructionWithText,
+    submitAssistantChangeInstructionWithText,
     runAssistantAction,
     retryCandidatePreview,
     focusComposerInput,

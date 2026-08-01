@@ -65,7 +65,7 @@ export function useCadWorkbenchPanelMaterialOptionsPresentation(
 ): CadWorkbenchPanelMaterialOptionsPresentation | null {
   return useMemo(
     () => (
-      input.showComposerAdvancedActions
+      (input.showComposerAdvancedActions || input.materialOptionsOpen || input.hasAgentAssetVersion)
         ? {
           open: input.materialOptionsOpen,
           hasShapeProgram: Boolean(input.agentBlockoutShapeProgram),

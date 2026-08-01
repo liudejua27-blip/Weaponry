@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   analyzeVisualEvidence,
-  authorizeVisualReferenceComparison,
   cancelVisualEvidenceAnalysis,
   clearVisionEvidenceProviderConfig,
   getVisionEvidenceProviderConfig,
@@ -98,7 +97,6 @@ export type VisionEvidencePanelProps = {
     instruction: string
     request: MultimodalDesignRequest
     graph: VisualEvidenceGraph
-    visualReferenceComparisonAuthorizationId: string
   }) => Promise<void>
 }
 
@@ -166,6 +164,8 @@ export function VisionEvidencePanel({
   const [graph, setGraph] = useState<VisualEvidenceGraph | null>(null)
   const [analyzedRequest, setAnalyzedRequest] = useState<MultimodalDesignRequest | null>(null)
   const activeRequestRef = useRef<string | null>(null)
+  const instructionSourceRef = useRef(initialInstruction)
+  const instructionDirtyRef = useRef(false)
   const analysisEpochRef = useRef(0)
   const selectedIdsSet = useMemo(() => new Set(selectedIds), [selectedIds])
   const selectedEvidences = useMemo(
@@ -195,7 +195,15 @@ export function VisionEvidencePanel({
   }, [imageEvidences, preferredEvidenceId])
 
   useEffect(() => {
-    if (!instruction.trim() && initialInstruction.trim()) setInstruction(initialInstruction)
+    const previousSource = instructionSourceRef.current
+    const parentChanged = initialInstruction !== previousSource
+    if (parentChanged && (!instructionDirtyRef.current || instruction === previousSource)) {
+      setInstruction(initialInstruction)
+      setGraph(null)
+      setAnalyzedRequest(null)
+      instructionDirtyRef.current = false
+    }
+    instructionSourceRef.current = initialInstruction
   }, [initialInstruction, instruction])
 
   useEffect(() => {
@@ -333,22 +341,15 @@ export function VisionEvidencePanel({
   const useEvidence = async () => {
     if (!onUseEvidence || !graph || !analyzedRequest || analysisBusy || generationBusy) return
     setGenerationBusy(true)
-    setDetail('正在由 Rust 封存短期视觉比较授权与费用上限…')
+    setDetail('正在由 Rust 封存通用 author 请求与视觉证据；候选生成后再单独请求比较授权…')
     try {
-      const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
-      const authorization = await authorizeVisualReferenceComparison(
-        `vision_compare_auth_${suffix}`,
-        analyzedRequest,
-        graph,
-      )
-      setDetail('授权已绑定当前项目、请求、证据图与验收政策；正在启动同一个 Rust Agent Turn…')
+      setDetail('证据已绑定当前项目与请求；正在启动同一个 Rust 通用 Agent Turn…')
       await onUseEvidence({
         instruction: analyzedRequest.instruction,
         request: analyzedRequest,
         graph,
-        visualReferenceComparisonAuthorizationId: authorization.authorizationId,
       })
-      setDetail('证据已交给 Agent；只有生成、GLB 回读和质量门通过才会出现唯一预览。')
+      setDetail('证据已交给通用 Agent；只有生成、GLB 回读、同源 PBR 验收和明确授权后才会出现唯一预览。')
     } catch (caught) {
       setDetail(visibleErrorMessage(caught, '多模态 Agent Turn 启动失败；当前模型没有变化。'))
     } finally {
@@ -382,7 +383,7 @@ export function VisionEvidencePanel({
 
       <label className="reference-evidence-field">
         <span>这组参考如何影响设计</span>
-        <textarea value={instruction} onChange={(event) => { setInstruction(event.target.value); setGraph(null); setAnalyzedRequest(null) }} disabled={analysisBusy || generationBusy} rows={3} placeholder="例如：保持机械臂结构，只借鉴蓝黑材质、装甲分割和发光流线。" />
+        <textarea value={instruction} onChange={(event) => { instructionDirtyRef.current = true; setInstruction(event.target.value); setGraph(null); setAnalyzedRequest(null) }} disabled={analysisBusy || generationBusy} rows={3} placeholder="例如：保持参考对象的身份和轮廓，只借鉴材质、分件和表面细节。" />
       </label>
 
       <fieldset className="reference-evidence-views" disabled={analysisBusy || generationBusy}>

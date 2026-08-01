@@ -53,7 +53,7 @@ export function GenerationResultCard(props: GenerationResultCardProps) {
     return (
       <section className="f026-generation-result" data-generation-state="processing" aria-live="polite" aria-label="正在处理设计请求">
         <F026Icon name="loading" className="f026-generation-result-icon f026-spin" />
-        <div><strong>正在处理本次设计</strong><p>{props.detail ?? '正在等待模型服务或受限 3D 构建的下一步结果。'}</p></div>
+        <div><strong>正在处理本次设计</strong><p>{props.detail ?? '正在整理你的设计，请稍候。'}</p></div>
       </section>
     )
   }

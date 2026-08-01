@@ -40,13 +40,15 @@ VP201–VP204 已完成的 procedural typed-program 底座
 → U002 SubjectProfile + VisualFeatureContract + RepresentationPlan
 → U003 UniversalAssetSource + component/detail/material/projection
 → U004A DeepSeek/千问唯一 AI Provider（已完成）
-→ U004 procedural + deformable + local hybrid 统一执行/readback
+→ U004 procedural + deformable + local hybrid + bounded local mesh patch 统一执行/readback
 → U005 跨类别真实未见集 + 1+1 时间/成本 + 独立真人门
 → 付费设计伙伴验证
 → 打包、质量驱动的算子/Provider 扩展和交付优化
 ```
 
-同一时刻只领取 `CODEX_TASK_INDEX.md` 中一个任务。VP201–VP204、U001、U001A、U002、U003 和 U004A 已完成；U004 当前为唯一 `in_progress`。U002 已建立 Rust-sealed 通用 author request、开放对象理解、视觉验收和逐部件表示规划，并切断未知对象到 C111/机械臂的默认回退；U003 已建立 Rust 派生的统一资产源、外观证据合同及当前程序化结果的 GLB/readback/固定视图 exact-lineage。U004A 已删除 Fal/Hunyuan 远程生成运行时，并用代码 Gate 把 AI Provider 固定为 DeepSeek 与千问。U004 接下来扩展本地 procedural/deformable/local-hybrid 和 Appearance Compiler；兼容 `mesh_seed.generic_v1` 保持 unavailable。E005 保留为 hard-surface regression substrate。C111B 的工程、时间和显示可读性 Gate 保留为回归；其 reference comparison 与真人门仍未通过，不得改写为完成。
+同一时刻只领取 `CODEX_TASK_INDEX.md` 中一个任务。VP201–VP204、U001、U001A、U002、U003 和 U004A 已完成；U004 当前为唯一 `in_progress`。U002 已建立 Rust-sealed 通用 author request、开放对象理解、视觉验收和逐部件表示规划，并切断未知对象到 C111/机械臂的默认回退；U003 已建立 Rust 派生的统一资产源、外观证据合同及当前程序化结果的 GLB/readback/固定视图 exact-lineage。U004A 已删除 Fal/Hunyuan 远程生成运行时，并用代码 Gate 把 AI Provider 固定为 DeepSeek 与千问。U004 接下来扩展本地 procedural/deformable/local-hybrid 和 Appearance Compiler；当前 `mesh_seed.local_patch_v1` 只允许对已审查 procedural mesh 做 bounded local patch，通用 `mesh_seed.generic_v1` 及任意导入网格仍保持 unavailable。E005 保留为 hard-surface regression substrate。C111B 的工程、时间和显示可读性 Gate 保留为回归；其 reference comparison 与真人门仍未通过，不得改写为完成。
+
+2026-07-30 U004 P4.1 local hard-surface Hybrid 图片闭环：新增 sealed-image bridge E2E，验证同一 UAS@2 资产由程序化主壳和受限 lattice 饰条组成，并通过 Rust Part/Material Zone/source contract/readback、同 renderer 八视图/五 pass capture、Qwen-compatible authorization、evaluate、preview、confirm、版本化、导出和确认幂等。测试不联网、不调用真实 DeepSeek/千问/Fal；其余任意 mesh、角色/生物/布料、packaged GPU、真实 Provider 质量和 U005 真人门仍未完成。
 
 ## 4. 冻结回归：C111B 黄金视觉资产
 
@@ -160,6 +162,21 @@ U004 必须优先补齐：
 - 千问 observed/inferred/unknown 证据到 geometry/PBR channel 的可审计映射；
 - GLB/readback、Part/Zone、固定多视图、最多一次 typed patch、版本和导出 exact-lineage。
 
+2026-07-30 P2.7 已补齐参考外观回执的跨层闭合：桌面 Rust bridge 从 Worker 原始 GLB readback 提取受限 projection receipt，UAS@2 将 request/program/final GLB/compile-readback/worker receipt 封存到同一 AppearanceEvidenceBundle。缺失回执或任何 source/camera/zone/texture/fusion 漂移都在 candidate 前 fail-closed。该证据只证明参考像素进入被接受的 PBR artifact，不把 lineage 当作视觉相似度。
+2026-07-31 P2.12 final GLB pixel truth：Rust bridge 新增独立 GLB parser，沿 `material → baseColorTexture → image → bufferView` 读取最终 artifact 的真实 PNG，重新计算 base-color 与 unobserved mask 的 hash、字节数和尺寸；核心 readback 仅放行 base-color 的 `imported_reference/unknown`，其余四个 PBR 通道仍需 builtin contract。U004 sealed-image fake geometry fixture 同步嵌入真实、尺寸匹配的 base-color/mask PNG，`u004_universal_image_valid_glb_preview_confirm_and_export_round_trip` 通过，避免“Worker 回执声称投影、GLB 仍是底图”的假阳性。该切片不扩大几何类别，也不证明真实千问、照片级相似度、packaged GPU 或跨类别质量。
+
+2026-07-31 U004 P2.13 Rust-owned contour profile fit：参考 sealed image bytes 与同一 GPU auxiliary silhouette tile 各自派生 16 个水平前景占用采样；相机拟合在既有包围盒 IoU/中心误差之外，若两侧 profile 都可用则还必须通过 bounded profile error。profile 只作为低维轮廓证据，不保存 mask/像素、不生成视觉分数；缺失 sealed content 的历史 fixture 兼容包围盒拟合，错误 profile 和显著冲突 fail-closed。该切片只降低离散相机误选并改善后续 UV/PBR 编译输入，真实千问、packaged GPU、未见输入和跨类别视觉质量仍未运行。
+2026-07-31 U004 P2.14 Rust-owned reference/candidate visual metrics：对 exact sealed reference 与同一 GPU/PBR capture 计算确定性的 silhouette profile error、foreground bounds IoU、颜色桶重叠、亮度和边缘密度一致性；摘要以 `RustReferenceVisualMetrics@1` transient DTO 和 hash 进入 `VisualReferenceConvergenceEvidence`，可解码的明显偏差合并为收敛 failure code，旧最小 PNG 只报告 `not_available`。通过 app-server metric focused test 与 cargo check；该指标不替代千问语义比较、真人评分或照片级/跨类别质量。
+2026-07-30 P2.8 Provider 合同投影：通用 author 工具现在从同一套 checked-in 合同生成完整 Provider-facing typed schema，并把 Rust capability manifest/hash 和 available/unavailable 分支作为只读上下文提供给 DeepSeek。此修复解决 Provider 不知道当前表示能力、误选 unavailable capability 或漏填三份合同的问题；最终 request/profile/feature/plan hash、部件引用、能力可执行性和 limitation 仍由 Rust 校验。Product Tool validator 同步支持公开合同的 64 位小写 SHA-256 模式。通过 product_tools 103 项、app-server 266 项、U004 candidate PBR contract Gate、contracts types generate/check；没有联网或收费 Provider。P2.8 只减少合同返工，不扩大几何能力，也不改变照片级相似度、角色/生物表示或正式跨类别质量结论。
+
+2026-07-31 P2.9 工作台 universal image author transport：将桌面 `author_context` 组装提取为唯一 `buildAgentTurnRequestPayload`，工作台只发送 sealed evidence ID、角色、view hint 和完整视觉图；不允许客户端自报 evidence hash、Project、Turn 或 capability。Universal Turn 不再同时发送旧 `multimodal_context`；旧字段仅供历史调用单独兼容，Rust 协议对双来源请求 fail-closed。`desktop:u002-universal-author-workbench-smoke`、F026 单视口回归、desktop typecheck、protocol 42 tests 和 diff check 通过。该切片关闭图片未进入 universal author Turn 的桌面传输缺口；完整用户像素投影结果、真实 Provider、packaged GPU、照片级质量、未见输入和跨类别质量仍未完成。
+
+2026-07-30 P0.2 通用图片 bridge 闭环：Rust desktop bridge 新增 hermetic `desktop:u004-universal-image-bridge-e2e`，用真实 CAS sealed PNG 和 `pack_unclassified` evidence 生成 UAS@2 generic hard-surface candidate，提交同一 renderer 的八视图及五个 GPU auxiliary pass，绑定一次性 Qwen-compatible authorization 后完成 evaluate、universal preview、compat confirm、版本化和 export；确认重放保持同一 head，并断言没有 legacy `ForgeVisualProgram`/C111 fallback。第二个 focused test 验证 unavailable `mesh_seed.generic_v1` limitation 不调用 worker，也不创建 preview、Snapshot、version 或 export。该 fixture 的 comparison provider 标记 `network_call_made=false`，不调用真实千问、DeepSeek 或付费服务；真实 Qwen 相似度、packaged GPU、照片级质量、未见输入和跨类别质量仍未完成。
+2026-07-30 P0.3 通用图片主路径协议闭合：工作台参考图现在只提交 Rust-sealed `author_context`，不再将旧 `multimodal_context` 与 Universal candidate 同时交给比较源；`ValidatedUniversalAuthorContext` 在 SubjectProfile 产生后将旧只读 `VisualEvidenceGraph@1` 投影为绑定 request/profile 的 `VisualEvidenceGraph@2`，同级无证据特征保持 hidden/conflicting。候选完成同一 renderer 八视图后才显示一次千问授权卡，授权前不联网、不创建 preview/version。通过 app-server 3 项 context tests、`cargo check -p forgecad-app-server`、desktop typecheck 和 diff check；真实 Provider、packaged GPU、未见输入、照片级和跨类别质量仍未完成。
+2026-07-31 P0.3 GPU render provenance seal：在同一 renderer 八视图/五 pass capture 的基础上，Rust session 现在封存 code-owned visual environment ID/hash 与固定 render manifest；Tauri issue/submit 与 Core submission/evidence 对每张 capture 逐项重验，Universal comparison input 追加 `VisualReferenceRenderContract@1`，把 renderer、环境、manifest、sRGB 和 ACES Filmic 绑定在同一验收 hash 上。修复 legacy adapter fixture 的可选字段初始化后，bridge E2E、真实浏览器 GPU/PBR Playwright、完整 candidate capture Gate、contracts、desktop typecheck 和发布静态 Gate 均通过。仍不能宣称真实千问相似度、packaged GPU、未见输入或跨类别外观质量完成。
+2026-07-31 P0.4 native concept-render entry seal：macOS/Tauri 的用户概念图入口现在先检查工作台视口声明的 `forgecad-workbench-pbr@1`、`glb_pbr` ready 和精确 GLB hash，再调用同一 GPU/PBR renderer；旧软件光栅、ShapeProgram fallback 和加载中视口在入口直接拒绝。新增 loader smoke 覆盖 legacy renderer 早拒绝，U004 PBR smoke 与 desktop typecheck 通过。浏览器兼容软件光栅保留为显式诊断路径；仍不能宣称真实千问、packaged GPU、照片级或跨类别外观质量完成。
+2026-07-31 P0.5 packaged GPU/PBR evidence contract：将现有真实 macOS packaged C111B Agent WebView QA 收紧为同一工作台 GPU/PBR renderer 的可审计证据，报告并由 Rust 校验 renderer ID、render manifest、visual environment ID/hash、sRGB/ACES、嵌入 PBR texture count；每个固定八视图的 `960×640` 五类 auxiliary PNG 与 beauty PNG 一起进入受限 Rust capture command，由 Rust 读取 IHDR、重新计算 hash、写固定 QA 工件并重验 dimensions/pass IDs/字节/hash，不新建第二 renderer、不把 C111B 当通用产品入口。`desktop:build`、`desktop:tauri-build-app`、logic smoke、Rust cargo check/focused test、U004 PBR smoke、typecheck/contracts 通过；真实 packaged LaunchServices 运行因当前 macOS 锁屏安全前置检查返回 `C111B_PACKAGED_SCREEN_LOCKED`，待解锁后重跑，故 packaged GPU、真实千问、未见输入和跨类别质量仍未退出。
+
 兼容 schema 中的 `mesh_seed` 继续 unavailable。若某类对象缺少受检本地表示，返回 typed limitation；不得恢复远程 Mesh API，也不得以三角形数量、Provider 成功或渲染特效代替视觉相似度和真人门。
 
 ## 10. 90 天小团队验证窗口
@@ -213,3 +230,23 @@ legacy 删除必须按 M0–M6 迁移顺序完成。启动、发布 Gate、旧�
 - 封闭试用没有至少 5 家付费伙伴，或第 4 周核心闭环周留存低于 50%。
 
 此时应在 UI 中按表示能力诚实降级，优先接入可替换的按量 Provider 或收窄商业承诺；不得把对象静默替换成已支持模板，也不得用“通用”掩盖失败类别。
+
+2026-07-31 U004 P1.8 bounded appearance color semantics：Appearance Compiler 现在将 sealed 视觉/材质文字映射到六个 Rust-owned `base_color_token`，并贯通 `SurfaceLayerProgram@1`、retained five-channel PBR bake、GLB/readback 与 schema/generated types。该能力只改变 reviewed base material 的受限色彩表达，保持旧 JSON 兼容与未知 token fail-closed；下一步仍应优先完成 packaged loader、真实千问比较、未见输入和 U005 真人视觉门，不得用颜色 token 代替质量验收。
+
+2026-07-31 U004 P1.9 bounded surface finish semantics：Appearance Compiler 现在还将 sealed 视觉/材质文字映射到八个 Rust-owned `surface_finish_token`，贯通 retained five-channel PBR 的 metallic/roughness 输出和 GLB/readback lineage。它补齐了颜色之外的金属、涂层、陶瓷、橡胶、玻璃和发光区差异；仍保持无任意 shader/scalar，下一步继续优先 packaged loader、真实千问比较、未见输入和正式视觉质量门。
+
+2026-07-31 U004 P2.10 相机拟合门控：将参考外观投影从“首次候选默认相机烘焙”改为“首次几何候选→同源 GPU 轮廓拟合→Rust 二次 UV/PBR 编译→新候选重新采集”。任何 unresolved/default camera 都不能进入参考 bake；拟合失败停止在 typed capture failure，不能生成错误投影、Qwen scope、preview 或版本。该切片只关闭相机/GLB/readback lineage 漂移，下一阶段仍是完整 ActionLoop、真实千问、packaged GPU 和视觉质量证据。
+
+2026-07-31 U004 P2.11 两阶段实际桥接与 PBR 材质完整性门：valid sealed-image bridge 通过真实 `AppServerBridge::resume_candidate_pbr_capture` 完成 `capture_required → 重新采集 → authorization_required`，再进入授权/比较；前端同源 capture 现在要求真实完整五通道材质、嵌入纹理数量、色彩空间和采样均合法。该切片把二阶段行为从内部 executor 测试提升到桌面桥接边界，并阻断低质量 PBR 候选进入验收；仍不等同真实千问、packaged GPU、照片级相似度或真人质量。
+
+2026-07-31 U004 P2.15：完成 reference surface facts → Rust Appearance Compiler 的低维绑定切片。新增 `ReferenceSurfaceAppearanceBinding@1` 与 `foreground_dominant_color_buckets`；同 Project/semantic hash 的 sealed image 才能进入绑定，显式 profile/feature 语义优先，事实仅作为 bounded fallback。generic procedural、local lattice、Hybrid、local mesh patch 和 typed patch 共用同一重编译方法，避免第二套资产真值。退出证据：Core UAS focused、app-server U004 14 项、contracts generation/type check、schema drift/negative tests；不退出真实 Qwen、packaged GPU、照片材质恢复、未见输入或 U005 真人门。
+2026-07-31 U004 P2.16：收紧 reference fallback 的材质区作用域。参考图低维事实仅可补充外壳、装甲、外部面板等兼容 reviewed base material；内部结构、accent trim、橡胶、玻璃、发光和警示色不会被全局 hint 覆盖，显式 feature/material 语义与 black/gray 词映射优先。退出证据：Core UAS 7 项 focused tests、`git diff --check`；无 Schema 版本变化，不退出真实 Qwen、packaged GPU、照片材质恢复、未见输入或 U005 真人门。
+2026-07-31 U004 P2.17：将 reference fallback 从“兼容材质区”再收紧到“兼容材质区 + exact observed feature region”。重编译时 Rust 复用 `ReferenceAppearanceBinding@1` 的同一 evidence、view、feature、Subject Part/Material Zone 绑定；只有命中 observed 且声明 appearance channel 的区域才可消费 `ReferenceSurfaceAppearanceBinding@1`，无证据 sibling zone 保持 reviewed catalog 语义。退出证据：Core UAS 7 项 focused tests、`git diff --check`；无 Schema 版本变化，不退出真实 Qwen、packaged GPU、照片材质恢复、未见输入或 U005 真人门。
+
+2026-08-01 U004 native visual-exterior route closure：新增通用外观 fixture 的真实 native compile/readback 回归。author route 现在由 Rust 选择 `direction_universal_visual_exterior`，通过 UAS@2 和受限 geometry 编译出 GLB/readback；route 在同一阶段明确返回 `CANDIDATE_PBR_CAPTURE_REQUIRED`，不越过工作台 renderer，也不创建 preview/version。capture resume 只广告 open-category visual repair provider，并保持一次 typed patch 上限。app-server 全量 281 passed / 0 failed；仍不退出真实 DeepSeek 桌面端到端、真实千问、packaged GPU、照片级/跨类别质量、未见输入或 U005 真人门。
+
+2026-08-01 U004 category-open eligibility correction：`procedural.generic_visual_exterior_v1` 不再要求 Provider 自报 `visual_exterior` trait；animal/quadruped、植物、建筑等合法开放类别可直接进入 Rust-reviewed exterior proxy，而其身份与未知部分仍由 SubjectProfile/VisualFeatureContract 记录。Core/native focused regressions pass；这只修复 author 准入误拒，不解锁专用 organic/deformable/neural 表示或真实视觉质量。
+
+2026-08-01 U004 runtime prompt correction：主 Rust system prompt 与 capability manifest 已同步。`generic_visual_exterior` 现在明确作为任意对象可见非功能外观代理向在线 Provider 广告，不再把角色、生物、植物、家具、建筑和环境一概要求为 limitation；对象身份仍由 SubjectProfile 保留，deformable/mesh-seed 等未实现表示继续 typed limitation。native runtime policy regression 与 app-server 281/281 通过；真实 DeepSeek→GLB、真实千问、packaged GPU 和跨类别质量仍是未完成 Gate。
+
+2026-07-31 FGC-P002 本机 packaged Alpha 重建：重新生成 macOS arm64 frozen sidecar，完成 P008 结构 readiness、真实 sidecar `/api/health`、首次初始化、受限几何归属、重启恢复和 Rust ownership 静态 Gate；随后真实 LaunchServices Tauri `.app`、K002 和 K003 原生双启动均通过，K003 还验证 Rust-owned K001/K002/K003 状态、GLB/readback/render package 与重启语义 hash。期间修复 K003 smoke 对 supervisor 动态归属字段的过时完全相等断言，保留严格基础字段、字段集合和格式校验。该切片只收紧本机 packaged 证据，不改变 U004 的视觉质量边界；生产发布仍受签名、公证、安装、跨平台 sidecar 和真实视觉证据阻断。

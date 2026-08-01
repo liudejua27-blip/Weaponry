@@ -186,8 +186,14 @@ def _assert_semantics(program: Mapping[str, Any]) -> None:
             _assert_bevel_reference(operation, operation_by_id)
         elif op_name == "surface_panel":
             _assert_surface_panel_reference(operation, operation_by_id)
+        elif op_name == "groove":
+            _assert_groove_reference(operation, operation_by_id)
+        elif op_name == "shell":
+            _assert_shell_reference(operation, operation_by_id)
         elif op_name == "lattice_deform":
             _assert_lattice_deform_reference(operation, operation_by_id)
+        elif op_name == "local_mesh_patch":
+            _assert_local_mesh_patch_reference(operation, operation_by_id)
         elif op_name in {"union", "subtract"}:
             _assert_boolean_references(operation, operation_by_id, op_name.upper())
             depth = 1 + max(csg_depth_by_id.get(input_id, 0) for input_id in operation["inputs"])
@@ -494,11 +500,103 @@ def _assert_surface_panel_reference(operation: Mapping[str, Any], operation_by_i
     if size is not None and (not isinstance(size, list) or len(size) != 3 or any(float(value) <= 0 for value in size)):
         raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SURFACE_PANEL_SIZE: {operation['operation_id']}")
     axis = operation["args"].get("axis", [0, 1, 0])
-    if axis not in ([0, 1, 0], [0, -1, 0]):
+    allowed_axes = ([1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1])
+    if axis not in allowed_axes:
         raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SURFACE_PANEL_AXIS: {operation['operation_id']}")
     position = operation["args"].get("position")
-    if position is not None and abs(float(position[1])) > 1e-9:
-        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SURFACE_PANEL_OFFSET: {operation['operation_id']}")
+    if position is not None:
+        if not isinstance(position, list) or len(position) != 3:
+            raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SURFACE_PANEL_OFFSET: {operation['operation_id']}")
+        normal_index = next(index for index, value in enumerate(axis) if value != 0)
+        if abs(float(position[normal_index])) > 1e-9:
+                raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SURFACE_PANEL_OFFSET: {operation['operation_id']}")
+
+
+def _assert_groove_reference(operation: Mapping[str, Any], operation_by_id: Mapping[str, Mapping[str, Any]]) -> None:
+    """Validate one bounded axial face recess before it reaches Manifold."""
+
+    if len(operation["inputs"]) != 1 or operation["inputs"][0] not in operation_by_id:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_GROOVE_INPUT: {operation['operation_id']}")
+    source = operation_by_id[operation["inputs"][0]]
+    if source["op"] not in {"box", "bevel_approx"}:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_GROOVE_SOURCE: {operation['operation_id']}")
+    if source["op"] == "bevel_approx":
+        _assert_bevel_reference(source, operation_by_id)
+        source = operation_by_id[source["inputs"][0]]
+    size = source["args"].get("size")
+    if not isinstance(size, list) or len(size) != 3:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_GROOVE_SOURCE_SIZE: {operation['operation_id']}")
+    try:
+        extents = [float(value) for value in size]
+        face_size = [float(value) for value in operation["args"].get("face_size", [])]
+        position = [float(value) for value in operation["args"].get("position", [0, 0, 0])]
+        depth = float(operation["args"].get("depth", 0))
+    except (TypeError, ValueError) as exc:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_GROOVE_ARGUMENTS: {operation['operation_id']}") from exc
+    axis = operation["args"].get("axis", [0, 1, 0])
+    face_axes = {
+        (1, 0, 0): (0, 1, 2, 1),
+        (-1, 0, 0): (0, 1, 2, -1),
+        (0, 1, 0): (1, 0, 2, 1),
+        (0, -1, 0): (1, 0, 2, -1),
+        (0, 0, 1): (2, 0, 1, 1),
+        (0, 0, -1): (2, 0, 1, -1),
+    }
+    try:
+        normal_index, face_a, face_b, _sign = face_axes[tuple(int(value) for value in axis)]
+    except (KeyError, TypeError, ValueError):
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_GROOVE_AXIS: {operation['operation_id']}") from None
+    if (
+        len(face_size) != 2
+        or len(position) != 3
+        or any(not math.isfinite(value) or value <= 0 for value in face_size)
+        or any(not math.isfinite(value) for value in position)
+        or any(not math.isfinite(value) or value <= 0 for value in extents)
+        or not math.isfinite(depth)
+        or depth <= 0
+        or depth > extents[normal_index] * 0.25
+        or abs(position[normal_index]) > 1e-9
+        or face_size[0] > extents[face_a]
+        or face_size[1] > extents[face_b]
+        or abs(position[face_a]) + face_size[0] / 2 > extents[face_a] / 2
+        or abs(position[face_b]) + face_size[1] / 2 > extents[face_b] / 2
+    ):
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_GROOVE_ARGUMENTS: {operation['operation_id']}")
+
+
+def _assert_shell_reference(operation: Mapping[str, Any], operation_by_id: Mapping[str, Mapping[str, Any]]) -> None:
+    """Validate a bounded closed box/bevel shell before it enters the CSG worker."""
+
+    if len(operation["inputs"]) != 1 or operation["inputs"][0] not in operation_by_id:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SHELL_INPUT: {operation['operation_id']}")
+    source = operation_by_id[operation["inputs"][0]]
+    if source["op"] not in {"box", "bevel_approx"}:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SHELL_SOURCE: {operation['operation_id']}")
+    if source["op"] == "bevel_approx":
+        _assert_bevel_reference(source, operation_by_id)
+        bevel_source = operation_by_id[source["inputs"][0]]
+        size = bevel_source["args"].get("size")
+        bevel_radius = float(source["args"].get("radius", 0))
+    else:
+        size = source["args"].get("size")
+        bevel_radius = 0.0
+    if not isinstance(size, list) or len(size) != 3:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SHELL_SOURCE_SIZE: {operation['operation_id']}")
+    try:
+        extents = [float(value) for value in size]
+        thickness = float(operation["args"].get("thickness", 0))
+    except (TypeError, ValueError) as exc:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SHELL_ARGUMENTS: {operation['operation_id']}") from exc
+    min_extent = min(extents)
+    if (
+        any(not math.isfinite(value) or value <= 0 for value in extents)
+        or not math.isfinite(thickness)
+        or thickness <= 0
+        or thickness * 2 >= min_extent
+        or thickness / min_extent > 0.25
+        or bevel_radius * 2 >= min_extent - thickness * 2
+    ):
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_SHELL_ARGUMENTS: {operation['operation_id']}")
 
 
 def _assert_lattice_deform_reference(
@@ -534,3 +632,33 @@ def _assert_lattice_deform_reference(
         flattened.extend(values)
     if not any(abs(value) > 1e-9 for value in flattened):
         raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LATTICE_NO_EFFECT: {operation['operation_id']}")
+
+
+def _assert_local_mesh_patch_reference(
+    operation: Mapping[str, Any], operation_by_id: Mapping[str, Mapping[str, Any]]
+) -> None:
+    """Validate one bounded local patch over an earlier mesh operation."""
+
+    if len(operation["inputs"]) != 1 or operation["inputs"][0] not in operation_by_id:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LOCAL_PATCH_INPUT: {operation['operation_id']}")
+    if operation_by_id[operation["inputs"][0]]["op"] == "profile":
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LOCAL_PATCH_PROFILE_INPUT: {operation['operation_id']}")
+    args = operation["args"]
+    center = args.get("patch_center")
+    offset = args.get("patch_offset")
+    try:
+        center_values = [float(value) for value in center]
+        radius = float(args.get("patch_radius"))
+        offset_values = [float(value) for value in offset]
+    except (TypeError, ValueError) as exc:
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LOCAL_PATCH_ARGUMENTS: {operation['operation_id']}") from exc
+    if (
+        len(center_values) != 3
+        or len(offset_values) != 3
+        or any(not math.isfinite(value) or not 0.0 <= value <= 1.0 for value in center_values)
+        or not math.isfinite(radius)
+        or not 0.05 <= radius <= 0.4
+        or any(not math.isfinite(value) or abs(value) > 0.2 for value in offset_values)
+        or not any(abs(value) > 1e-9 for value in offset_values)
+    ):
+        raise ShapeProgramValidationError(f"SHAPE_PROGRAM_LOCAL_PATCH_BOUNDS: {operation['operation_id']}")

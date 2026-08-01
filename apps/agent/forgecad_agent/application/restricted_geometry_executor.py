@@ -328,8 +328,25 @@ class RestrictedGeometryExecutionRequest(RestrictedGeometryApiModel):
             bake_zones = [item["target_material_zone_id"] for item in reference_bakes]
             if any(zone not in sealed_zones for zone in bake_zones):
                 raise ValueError("reference UV evidence must target an exact sealed retained surface layer")
-            if len(bake_zones) != len(set(bake_zones)):
-                raise ValueError("reference UV evidence cannot target the same material zone twice")
+            bakes_by_zone: dict[str, list[dict[str, Any]]] = {}
+            for bake in reference_bakes:
+                bakes_by_zone.setdefault(str(bake["target_material_zone_id"]), []).append(bake)
+            for zone, zone_bakes in bakes_by_zone.items():
+                if len(zone_bakes) > 2:
+                    raise ValueError("reference UV fusion accepts at most two views per material zone")
+                identities = {
+                    (str(item["source_evidence_id"]), str(item["camera_hypothesis_id"]))
+                    for item in zone_bakes
+                }
+                if len(identities) != len(zone_bakes):
+                    raise ValueError("reference UV fusion cannot repeat one sealed evidence/camera identity")
+                if len(zone_bakes) > 1 and any(
+                    item.get("schema_version") != "ReferenceCameraUvRasterBake@2"
+                    for item in zone_bakes
+                ):
+                    raise ValueError(
+                        "only camera-space ReferenceCameraUvRasterBake@2 may fuse multiple views"
+                    )
         else:
             if (
                 self.artifact_handle is None

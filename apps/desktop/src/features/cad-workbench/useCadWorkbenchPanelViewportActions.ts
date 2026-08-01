@@ -1,10 +1,12 @@
 import { useCallback } from 'react'
+import type { RefObject } from 'react'
 import type { ForgeApi } from '../../shared/api/forgeApi'
 import { isNativeDesktopRuntime } from '../../shared/api/appServerTransport'
 import type { AgentAssetRenderSet, AgentAssetRenderView } from '../../shared/types'
 import { downloadBase64File, downloadBlobFile, downloadUrlFile } from './cadWorkbenchPanelFileUtils'
 import {
   readRenderViewFilename,
+  readAgentAssetGpuPbrSourceGlbSha256,
   renderAgentViews,
   downloadAgentRenderPackage,
 } from './agentRenderPresentationLoader'
@@ -21,6 +23,7 @@ type UseCadWorkbenchPanelViewportActionsInput = {
   api: ForgeApi
   conceptProjectId: string | null
   activeAgentAssetVersion: AgentRenderAssetVersion | null
+  pbrCaptureViewportRef: RefObject<HTMLDivElement | null>
   renderSet: AgentAssetRenderSet | null
   openDrawer: (drawer: DrawerType) => void
   closeAgentRenderPresentation: () => void
@@ -58,6 +61,7 @@ export function useCadWorkbenchPanelViewportActions({
   api,
   conceptProjectId,
   activeAgentAssetVersion,
+  pbrCaptureViewportRef,
   renderSet,
   openDrawer,
   closeAgentRenderPresentation,
@@ -107,6 +111,27 @@ export function useCadWorkbenchPanelViewportActions({
   const handleRenderAgentViews = useCallback(async () => {
     const projectId = conceptProjectId
     if (!activeAgentAssetVersion || !projectId) return
+    if (isNativeDesktopRuntime()) {
+      const pbrCaptureViewport = pbrCaptureViewportRef.current
+      const sourceGlbSha256 = readAgentAssetGpuPbrSourceGlbSha256(pbrCaptureViewport)
+      if (!pbrCaptureViewport || !sourceGlbSha256) {
+        setAssistantNote('当前 Agent 资产尚未完成同源 GPU/PBR 视口加载，未使用软件光栅回退；请稍后重试。')
+        return
+      }
+      await renderAgentViews(
+        api,
+        {
+          startAgentRenderRequest,
+          receiveAgentRenderSet,
+          failAgentRenderRequest,
+          setAssistantNote,
+        },
+        projectId,
+        activeAgentAssetVersion.asset_version_id,
+        { viewport: pbrCaptureViewport, sourceGlbSha256 },
+      )
+      return
+    }
     await renderAgentViews(
       api,
       {
@@ -123,6 +148,7 @@ export function useCadWorkbenchPanelViewportActions({
     api,
     conceptProjectId,
     failAgentRenderRequest,
+    pbrCaptureViewportRef,
     receiveAgentRenderSet,
     setAssistantNote,
     startAgentRenderRequest,

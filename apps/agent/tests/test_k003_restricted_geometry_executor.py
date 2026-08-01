@@ -185,6 +185,7 @@ def _surface_layer_lowering() -> dict[str, Any]:
             "intensity_milli": 220,
             "seed": 19,
         }],
+        "surface_finish_token": "brushed_metal",
         "symmetry": {"mode": "none", "center_uv": [0.5, 0.5]},
         "uv_frame": {
             "frame_id": "uvframe_k003_surface",
@@ -259,18 +260,23 @@ def _reference_uv_evidence_bake(*, zone_id: str = "zone_body_shell") -> dict[str
     }
 
 
-def _reference_camera_uv_raster_bake(*, zone_id: str = "zone_body_shell") -> dict[str, Any]:
+def _reference_camera_uv_raster_bake(
+    *,
+    zone_id: str = "zone_body_shell",
+    suffix: str = "front",
+    color: tuple[int, int, int] = (210, 214, 220),
+) -> dict[str, Any]:
     source = np.zeros((8, 8, 3), dtype=np.uint8)
-    source[:, :, :] = (210, 214, 220)
+    source[:, :, :] = color
     source_png = _encode_png_rgb(source)
     return {
         "schema_version": "ReferenceCameraUvRasterBake@2",
-        "projection_id": "projection_k003_camera_front",
-        "source_evidence_id": "evidence_k003_camera_front",
+        "projection_id": f"projection_k003_camera_{suffix}",
+        "source_evidence_id": f"evidence_k003_camera_{suffix}",
         "source_image_sha256": hashlib.sha256(source_png).hexdigest(),
         "source_png_base64": base64.b64encode(source_png).decode("ascii"),
-        "camera_hypothesis_id": "camera_k003_camera_front",
-        "camera_provenance_sha256": "c" * 64,
+        "camera_hypothesis_id": f"camera_k003_camera_{suffix}",
+        "camera_provenance_sha256": ("c" if suffix == "front" else "d") * 64,
         "target_material_zone_id": zone_id,
         "texture_width": 128,
         "texture_height": 128,
@@ -420,6 +426,7 @@ def test_surface_layer_input_is_exactly_sealed_and_binds_retained_pbr_to_the_fin
     assert retained["material_zone_ids"] == ["zone_body_shell"]
     assert retained["surface_layer_lowering"] == lowering
     assert retained["surface_layer_lowering_sha256"] == sealed["lowering_sha256"]
+    assert retained["surface_layer_lowering"]["retained_layers"]["surface_finish_token"] == "brushed_metal"
     assert retained["surface_layer_retained_layers_sha256"] == lowering["retained_layers_sha256"]
     assert {item["texture_role"] for item in retained["maps"]} == {
         "base_color", "metallic_roughness", "normal", "occlusion", "emissive"
@@ -494,6 +501,48 @@ def test_camera_uv_raster_bake_is_depth_filtered_and_read_back_from_the_final_gl
     assert receipt["raster_triangle_count"] > 0
     assert receipt["observed_texel_count"] > 0
     assert receipt["observed_texel_count"] + receipt["unobserved_texel_count"] == 128 * 128
+
+
+def test_two_camera_uv_rasters_fuse_into_one_retained_zone_receipt() -> None:
+    payload = _execution_payload(execution_id="exec_reference_camera_fusion")
+    sealed = _sealed_surface_layer_input()
+    payload["surface_layer_input"] = sealed
+    payload["surface_adornment_programs"] = sealed["lowering"]["adornments"]
+    first = _reference_camera_uv_raster_bake(color=(220, 30, 20))
+    second = _reference_camera_uv_raster_bake(
+        suffix="side",
+        color=(20, 40, 230),
+    )
+    payload["reference_uv_evidence_bakes"] = [first, second]
+
+    executor = RestrictedGeometryExecutor(
+        environment={RESTRICTED_GEOMETRY_CAPABILITY_TOKEN_ENV: CAPABILITY}
+    )
+    result = executor.execute(RestrictedGeometryExecutionRequest.model_validate(payload))
+    assert result.readback is not None
+    retained = next(
+        item
+        for item in result.readback["visual_texture_sets"]
+        if item.get("surface_layer_lowering") is not None
+    )
+    receipt = retained["reference_uv_evidence"]
+    assert receipt["schema_version"] == "ReferenceCameraUvRasterFusionReceipt@3"
+    assert receipt["fusion_count"] == 2
+    assert len(receipt["source_evidence_ids"]) == 2
+    assert len(receipt["world_to_clip_sha256s"]) == 2
+    assert receipt["observed_texel_count"] > 0
+    assert receipt["observed_texel_count"] + receipt["unobserved_texel_count"] == 128 * 128
+
+    too_many = copy.deepcopy(payload)
+    third = _reference_camera_uv_raster_bake(suffix="top", color=(30, 220, 40))
+    too_many["reference_uv_evidence_bakes"].append(third)
+    with pytest.raises(ValueError, match="at most two"):
+        RestrictedGeometryExecutionRequest.model_validate(too_many)
+
+    legacy_mix = copy.deepcopy(payload)
+    legacy_mix["reference_uv_evidence_bakes"][1] = _reference_uv_evidence_bake()
+    with pytest.raises(ValueError, match="only camera-space"):
+        RestrictedGeometryExecutionRequest.model_validate(legacy_mix)
 
 
 def test_multi_zone_surface_layer_inputs_bake_distinct_retained_pbr_materials() -> None:

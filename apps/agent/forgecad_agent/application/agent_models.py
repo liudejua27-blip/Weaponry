@@ -66,17 +66,36 @@ class MultimodalTurnContextInput(StrictApiModel):
     visual_reference_comparison_authorization_id: Optional[str] = Field(default=None, max_length=160)
 
 
+class GameAssetDeliveryRequestInput(StrictApiModel):
+    """User-selected game delivery intent; Rust derives part bindings."""
+
+    schema_version: Literal["GameAssetDeliveryRequest@1"] = "GameAssetDeliveryRequest@1"
+    profile_id: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9_.:-]+$")
+    lod_triangle_budgets: tuple[int, int, int]
+    target_texel_density_pixels_per_meter: int = Field(ge=128, le=2048)
+
+    @model_validator(mode="after")
+    def validate_budgets(self) -> "GameAssetDeliveryRequestInput":
+        lod0, lod1, lod2 = self.lod_triangle_budgets
+        if lod2 <= 0 or lod0 > 150_000 or lod0 < lod1 or lod1 < lod2:
+            raise ValueError("lod_triangle_budgets must descend and stay within 150000 triangles")
+        return self
+
+
 class StartAgentTurnRequest(StrictApiModel):
     client_request_id: str = Field(min_length=1, max_length=120)
     message: str = Field(min_length=1, max_length=200_000)
     clarification_domain_pack_id: Optional[DomainPackId] = None
     author_context: Optional[UniversalAuthorContextInput] = None
     multimodal_context: Optional[MultimodalTurnContextInput] = None
+    game_asset_delivery: Optional[GameAssetDeliveryRequestInput] = None
 
     @model_validator(mode="after")
     def validate_author_context_boundary(self) -> "StartAgentTurnRequest":
         if self.clarification_domain_pack_id is not None and (
-            self.author_context is not None or self.multimodal_context is not None
+            self.author_context is not None
+            or self.multimodal_context is not None
+            or self.game_asset_delivery is not None
         ):
             raise ValueError("clarification cannot carry author or multimodal context")
         return self
@@ -960,7 +979,7 @@ class AgentAssetRenderView(StrictApiModel):
     view_id: Literal["iso", "front", "side", "top", "exploded_iso"]
     camera_view: Literal["iso", "front", "side", "top"]
     presentation_mode: Literal["standard", "exploded"] = "standard"
-    background_mode: Literal["transparent"] = "transparent"
+    background_mode: Literal["transparent", "studio"] = "transparent"
     # Only the exploded candidate declares the stable parts whose visual
     # spacing was derived from the current AssemblyGraph.
     part_ids: List[str] = Field(default_factory=list)
@@ -976,7 +995,9 @@ class AgentAssetRenderView(StrictApiModel):
 class AgentAssetRenderSet(StrictApiModel):
     schema_version: Literal["AgentAssetRenderSet@1"] = "AgentAssetRenderSet@1"
     asset_version_id: str = Field(pattern=r"^assetver_[a-z0-9_\-]+$")
-    renderer_id: Literal["forgecad-agent-software-raster@1"] = "forgecad-agent-software-raster@1"
+    renderer_id: Literal[
+        "forgecad-agent-software-raster@1", "forgecad-workbench-pbr@1"
+    ] = "forgecad-agent-software-raster@1"
     width: int = Field(ge=64, le=2048)
     height: int = Field(ge=64, le=2048)
     views: List[AgentAssetRenderView] = Field(min_length=4, max_length=5)

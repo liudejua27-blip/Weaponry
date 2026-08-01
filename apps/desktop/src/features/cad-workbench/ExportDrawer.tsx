@@ -40,11 +40,11 @@ export function ExportDrawer({
   return (
     <div className="workbench-overlay" role="presentation" onMouseDown={onClose}>
       <section ref={drawerRef} className="workbench-drawer export-drawer" role="dialog" aria-modal="true" aria-labelledby="forgecad-export-drawer-title" data-forgecad-drawer="export" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-        <div className="drawer-heading"><div><span id="forgecad-export-drawer-title">下载当前设计</span><strong>选择你现在需要的内容</strong><small>只使用当前 Agent Snapshot</small></div><button type="button" data-dialog-initial-focus="true" onClick={onClose} aria-label="关闭导出">×</button></div>
+        <div className="drawer-heading"><div><span id="forgecad-export-drawer-title">下载当前设计</span><strong>选择你现在需要的内容</strong><small>只使用当前已保存版本</small></div><button type="button" data-dialog-initial-focus="true" onClick={onClose} aria-label="关闭导出">×</button></div>
         {activeAgentAssetVersion ? (
           <>
-            <div className="agent-export-summary" aria-label="Agent 可用下载">
-              <strong>当前 Agent 设计 v{activeAgentAssetVersion.version_no}</strong>
+            <div className="agent-export-summary" aria-label="当前设计可用下载">
+              <strong>当前设计 v{activeAgentAssetVersion.version_no}</strong>
               <span>这是用于展示和继续编辑的概念级模型，不提供制造、性能或工程结论。</span>
             </div>
             <button type="button" className="drawer-primary-action" onClick={onDownloadAgentGlb} disabled={!activeAgentAssetVersion || !activeDesignIdle}>
@@ -53,14 +53,21 @@ export function ExportDrawer({
           </>
         ) : (
           <div className="export-ready-summary" data-testid="agent-export-unavailable">
-            <span><strong>当前没有可导出的 Agent 资产</strong></span>
-            <small>旧版格式不会进入 Agent 下载流程；请先创建或打开可编辑资产。</small>
+            <span><strong>当前没有可导出的设计</strong></span>
+            <small>旧版格式暂不支持下载；请先创建或打开可编辑设计。</small>
           </div>
         )}
         {activeAgentAssetVersion && (
           <div className="agent-concept-views" aria-label="概念视图">
             <div className="agent-concept-views-heading">
-              <div><strong>概念视图</strong><small>用于确认外观方向；透明背景与爆炸图均不会创建或修改模型版本。</small></div>
+              <div>
+                <strong>概念视图</strong>
+                <small>
+                  {renderSet?.renderer_id === 'forgecad-workbench-pbr@1'
+                    ? '来自当前工作台 GPU/PBR 渲染器，与用户看到的模型同源；不会创建或修改模型版本。'
+                    : '用于确认外观方向；旧兼容视图不会创建或修改模型版本。'}
+                </small>
+              </div>
               <button type="button" className="drawer-secondary-action" onClick={onRenderViews} disabled={!activeAgentAssetVersion || !activeDesignIdle || renderLoading}>
                 {renderLoading ? '生成中…' : renderSet ? '重新生成' : '生成概念图'}
               </button>
@@ -79,10 +86,13 @@ export function ExportDrawer({
             {renderSet && !renderSet.exploded_view_available && (
               <p className="agent-exploded-view-note">该模型没有可安全一一对应的部件几何组，因此未生成爆炸概念图。</p>
             )}
-            {renderSet && (
+            {renderSet?.renderer_id !== 'forgecad-workbench-pbr@1' && renderSet && (
               <button type="button" className="drawer-secondary-action agent-render-package-action" onClick={onDownloadRenderPackage} disabled={renderPackageLoading || renderLoading}>
                 {renderPackageLoading ? '正在准备概念图包…' : '下载概念图包'}
               </button>
+            )}
+            {renderSet?.renderer_id === 'forgecad-workbench-pbr@1' && (
+              <p className="agent-exploded-view-note">当前 GPU/PBR 结果支持逐张下载；概念图包仍保留给旧兼容渲染路径。</p>
             )}
           </div>
         )}

@@ -148,6 +148,15 @@ def _programs_covering_every_manifest_operation() -> dict[str, dict]:
         "subtract": _program([box, {"operation_id": "op_tool", "op": "box", "inputs": [], "args": {"position": [0, 100, 0], "size": [100, 200, 200], "part_role": "g819_part"}}, {"operation_id": "op_subtract", "op": "subtract", "inputs": ["op_box", "op_tool"], "args": {"part_role": "g819_part"}}], "op_subtract", "subtract"),
         "bevel_approx": _program([box, {"operation_id": "op_bevel", "op": "bevel_approx", "inputs": ["op_box"], "args": {"radius": 20, "segments": 1, "part_role": "g819_part"}}], "op_bevel", "bevel"),
         "surface_panel": _program([box, {"operation_id": "op_panel", "op": "surface_panel", "inputs": ["op_box"], "args": {"part_role": "g819_part"}}], "op_panel", "surface_panel"),
+        "groove": _program([box, {"operation_id": "op_groove", "op": "groove", "inputs": ["op_box"], "args": {"face_size": [100, 80], "position": [0, 0, 0], "axis": [0, 1, 0], "depth": 20, "part_role": "g819_part"}}], "op_groove", "groove"),
+        "shell": _program([box, {"operation_id": "op_shell", "op": "shell", "inputs": ["op_box"], "args": {"thickness": 20, "part_role": "g819_part"}}], "op_shell", "shell"),
+        "lattice_deform": _program([box, {"operation_id": "op_lattice", "op": "lattice_deform", "inputs": ["op_box"], "args": {"corner_offsets": [
+            [0.0, 0.0, 0.0], [0.08, 0.0, 0.0], [0.0, 0.04, 0.0], [0.08, 0.04, 0.0],
+            [0.0, 0.0, -0.10], [0.08, 0.0, -0.10], [0.0, 0.04, -0.10], [0.08, 0.04, -0.10],
+        ], "part_role": "g819_part"}}], "op_lattice", "lattice_deform"),
+        "local_mesh_patch": _program([box, {"operation_id": "op_patch", "op": "local_mesh_patch", "inputs": ["op_box"], "args": {
+            "patch_center": [0.0, 0.0, 0.0], "patch_radius": 0.2, "patch_offset": [0.08, 0.0, 0.0], "part_role": "g819_part"
+        }}], "op_patch", "local_mesh_patch"),
     }
 
 

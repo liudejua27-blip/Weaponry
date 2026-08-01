@@ -142,7 +142,10 @@ fn node_inputs(node: &HighLevelGeometryNodeV2) -> Vec<&str> {
         | HighLevelGeometryNodeV2::RadialArray { input_node_id, .. }
         | HighLevelGeometryNodeV2::BevelApprox { input_node_id, .. }
         | HighLevelGeometryNodeV2::SurfacePanel { input_node_id, .. }
+        | HighLevelGeometryNodeV2::Groove { input_node_id, .. }
+        | HighLevelGeometryNodeV2::Shell { input_node_id, .. }
         | HighLevelGeometryNodeV2::LatticeDeform { input_node_id, .. }
+        | HighLevelGeometryNodeV2::LocalMeshPatch { input_node_id, .. }
         | HighLevelGeometryNodeV2::Part { input_node_id, .. }
         | HighLevelGeometryNodeV2::MaterialZone { input_node_id, .. } => vec![input_node_id],
         HighLevelGeometryNodeV2::Union { input_node_ids, .. }
@@ -168,7 +171,10 @@ fn node_id(node: &HighLevelGeometryNodeV2) -> &str {
         | HighLevelGeometryNodeV2::RadialArray { node_id, .. }
         | HighLevelGeometryNodeV2::BevelApprox { node_id, .. }
         | HighLevelGeometryNodeV2::SurfacePanel { node_id, .. }
+        | HighLevelGeometryNodeV2::Groove { node_id, .. }
+        | HighLevelGeometryNodeV2::Shell { node_id, .. }
         | HighLevelGeometryNodeV2::LatticeDeform { node_id, .. }
+        | HighLevelGeometryNodeV2::LocalMeshPatch { node_id, .. }
         | HighLevelGeometryNodeV2::Union { node_id, .. }
         | HighLevelGeometryNodeV2::Subtract { node_id, .. }
         | HighLevelGeometryNodeV2::Part { node_id, .. }

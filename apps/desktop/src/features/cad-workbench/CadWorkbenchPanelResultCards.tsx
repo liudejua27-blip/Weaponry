@@ -16,6 +16,7 @@ type CadWorkbenchPanelResultCardsProps = {
   showCompatibilityResultCard: boolean
   compatibilitySummary: string
   compatibilityVersionLabel: string
+  decisionContractFailure: boolean
   onSaveCompatibility: (() => void | Promise<void>) | null
 }
 
@@ -33,6 +34,7 @@ export const CadWorkbenchPanelResultCards = memo(function CadWorkbenchPanelResul
   showCompatibilityResultCard,
   compatibilitySummary,
   compatibilityVersionLabel,
+  decisionContractFailure,
   onSaveCompatibility,
 }: CadWorkbenchPanelResultCardsProps) {
   if (singleResultDecisionPresentation.state === 'processing') {
@@ -43,9 +45,12 @@ export const CadWorkbenchPanelResultCards = memo(function CadWorkbenchPanelResul
   }
 
   if (singleResultDecisionPresentation.state === 'failed') {
+    const error = decisionContractFailure && !singleResultDecisionPresentation.error.includes('正式的单一结果决策')
+      ? `${singleResultDecisionPresentation.error}\nAgent 没有返回正式的单一结果决策；这次生成没有形成可用结果，当前设计没有变化。`
+      : singleResultDecisionPresentation.error
     return <GenerationResultCard
       state="failed"
-      error={singleResultDecisionPresentation.error}
+      error={error}
       onRetry={onRetrySingleResult}
     />
   }

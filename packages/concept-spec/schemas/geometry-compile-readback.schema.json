@@ -250,7 +250,26 @@
                   "schema_version": { "const": "SurfaceLayerLowering@1" },
                   "source_program_sha256": { "$ref": "common.schema.json#/$defs/sha256" },
                   "adornments": { "type": "array", "maxItems": 8, "items": { "$ref": "surface-adornment-program.schema.json" } },
-                  "retained_layers": { "type": "object" },
+                  "retained_layers": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["vector_paths", "decal_layers", "roughness_masks", "emissive_masks", "symmetry", "uv_frame", "quality_profile"],
+                    "properties": {
+                      "vector_paths": { "type": "array", "maxItems": 8, "items": { "type": "object" } },
+                      "decal_layers": { "type": "array", "maxItems": 4, "items": { "type": "object" } },
+                      "roughness_masks": { "type": "array", "maxItems": 2, "items": { "type": "object" } },
+                      "emissive_masks": { "type": "array", "maxItems": 2, "items": { "type": "object" } },
+                      "base_color_token": {
+                        "enum": ["silver", "white_ceramic", "gunmetal", "graphite", "copper", "signal_red", "bark_brown", "wood_warm", "foliage_green", "skin_warm", "fur_warm", "fabric_blue", "stone_gray", "concrete_gray", "clay_terracotta"]
+                      },
+                      "surface_finish_token": {
+                        "enum": ["brushed_metal", "polished_metal", "ceramic_coat", "glossy_coat", "matte_coat", "rubberized", "dark_glass", "emissive_trim", "wood_grain", "bark_ridged", "leaf_waxy", "fabric_weave", "fur_soft", "skin_matte", "stone_rough", "concrete_rough", "clay_matte"]
+                      },
+                      "symmetry": { "type": "object" },
+                      "uv_frame": { "type": "object" },
+                      "quality_profile": { "enum": ["interactive_preview", "production_concept"] }
+                    }
+                  },
                   "retained_layers_sha256": { "$ref": "common.schema.json#/$defs/sha256" }
                 }
               },

@@ -29,11 +29,16 @@ use forgecad_app_server::{
     ProviderToolCall, RecipePreviewOutputContract, RequestHandler, RestrictedGeometryError,
     RestrictedGeometryErrorKind, RestrictedGeometryFuture, RestrictedGeometryInput,
     RestrictedGeometryOutput, RestrictedGeometryPort, RestrictedGeometryReadback,
+    ReferenceAppearanceProjectionReadback,
     RestrictedQualityProfile, RestrictedRenderViewProfile, RestrictedSurfaceLayerInput,
     SystemRuntimeIdentityClock, VisualReferenceComparisonProviderPort,
 };
 #[cfg(test)]
-use forgecad_app_server::{E005OfflineHarnessRequest, E005RunStatus};
+use forgecad_app_server::{
+    BudgetedVisualReferenceComparisonProvider, E005OfflineHarnessRequest, E005RunStatus,
+    ValidatedUniversalAuthorContext, VisualReferenceComparisonProviderFuture,
+    VisualReferenceComparisonProviderOutput,
+};
 use forgecad_app_server_protocol::{
     valid_stable_id, AppServerCursor, CompatHttpRequest, CompatHttpResponse, CursorPhase,
     LifecyclePersistenceCommand, LifecyclePersistenceResult, ProductToolExecutionRequest,
@@ -50,14 +55,18 @@ use sha2::{Digest, Sha256};
 use tauri::{http, AppHandle, Emitter, State};
 
 #[cfg(test)]
-use forgecad_core::SurfaceLayerProgram;
+use forgecad_core::{
+    SurfaceLayerProgram, VisualReferenceClaimAssessment, VisualReferenceMatchOutcome,
+};
 use forgecad_core::{
     canonical_json as core_canonical_json, materialize_assembly_delta,
     normalize_persisted_shape_program, semantic_sha256, verify_forgecad_glb, AgentAssetChangeSet,
     AgentAssetVersion, AgentComponentRecord, AgentStructureSuggestion, AssetStage,
     AssetVersionStatus, BlockoutCandidate, CandidateStatus, ChangeSetStatus, CoreError,
     ExpandedComponentCandidate, ForgeCadGlbReadback, ObjectReference, QualityReport, QualityStatus,
-    SurfaceAdornmentProgram,
+    SurfaceAdornmentProgram, UniversalAssetSourceV2, UniversalCompiledArtifactBinding,
+    UniversalRepresentationSourceV2,
+    ReferenceCameraUvRasterBake,
 };
 
 use crate::asset_render_compat::{
@@ -69,6 +78,15 @@ use crate::rust_core_runtime::{RustCoreActiveDesignSnapshotReader, RustCoreRunti
 
 const PROTOCOL_EVENT: &str = "forgecad://app-server/message";
 const RESOURCE_SCHEME_HOST: &str = "localhost";
+
+fn local_candidate_pbr_debug(stage: &str, detail: &str) {
+    if env::var("FORGECAD_LOCAL_VISUAL_AUTHOR").as_deref() == Ok("1") {
+        let _ = std::fs::write(
+            format!("/tmp/forgecad-local-pbr-{stage}"),
+            detail,
+        );
+    }
+}
 const MAX_SSE_EVENT_BYTES: usize = 1024 * 1024;
 const MAX_K002_INTERNAL_JSON_BYTES: usize = 1024 * 1024;
 const K002_INTERNAL_CAPABILITY_HEADER: &str = "X-ForgeCAD-K002-Internal-Capability";
@@ -624,6 +642,24 @@ impl AppServerBridge {
         let executor = self.inner.native_product_tools.as_ref().ok_or_else(|| {
             "Native Product Tool PBR capture is unavailable in this bridge.".to_string()
         })?;
+        if let Some(candidate_glb_sha256) = executor
+            .recompile_candidate_after_camera_fit(execution_id, project_id, turn_id)
+            .await
+            .map_err(|error| error.message)?
+        {
+            return Ok(forgecad_app_server::NativeCandidatePbrCaptureResume {
+                schema_version: "NativeCandidatePbrCaptureResume@1".into(),
+                execution_id: execution_id.into(),
+                project_id: project_id.into(),
+                turn_id: turn_id.into(),
+                candidate_glb_sha256,
+                status: "capture_required".into(),
+                hard_gate_passed: false,
+                preview_id: None,
+                single_result_decision: None,
+                visual_repair_target_projection: None,
+            });
+        }
         if executor
             .universal_visual_comparison_authorization_scope(execution_id, project_id, turn_id)
             .map_err(|error| error.message)?
@@ -1150,6 +1186,8 @@ pub struct ForgecadCandidatePbrCaptureIssueResult {
     pub compile_readback_sha256: String,
     pub artifact_profile_id: String,
     pub render_manifest_sha256: String,
+    pub visual_environment_id: String,
+    pub visual_environment_sha256: String,
     pub expected_renderer_id: String,
     pub expires_at_unix_ms: u64,
     pub required_view_ids: Vec<String>,
@@ -1175,6 +1213,8 @@ pub struct ForgecadCandidatePbrCaptureView {
     pub view_id: String,
     pub camera_pose_sha256: String,
     pub projection_camera_binding_sha256: String,
+    pub visual_environment_id: String,
+    pub visual_environment_sha256: String,
     pub png_base64: String,
     pub auxiliary_png_base64: String,
 }
@@ -1187,6 +1227,8 @@ pub struct ForgecadCandidatePbrCaptureSubmitResult {
     pub candidate_glb_sha256: String,
     pub renderer_id: String,
     pub render_manifest_sha256: String,
+    pub visual_environment_id: String,
+    pub visual_environment_sha256: String,
     pub capture_sha256: String,
     pub view_ids: Vec<String>,
 }
@@ -1219,21 +1261,29 @@ pub fn forgecad_candidate_pbr_capture_issue(
     request: ForgecadCandidatePbrCaptureIssueRequest,
     state: State<'_, AppServerBridge>,
 ) -> Result<ForgecadCandidatePbrCaptureIssueResult, String> {
+    local_candidate_pbr_debug("issue-start", &request.turn_id);
     let session = state.issue_candidate_pbr_capture(
         &request.execution_id,
         &request.project_id,
         &request.turn_id,
-    )?;
+    ).map_err(|error| {
+        local_candidate_pbr_debug("issue-error", &error);
+        error
+    })?;
+    local_candidate_pbr_debug("issue-session", &session.session_id);
     let glb_bytes = state.candidate_pbr_capture_glb(
         &session.session_id,
         &request.project_id,
         &request.turn_id,
     )?;
+    local_candidate_pbr_debug("issue-glb", &glb_bytes.len().to_string());
     let projection_camera_bindings = state.candidate_pbr_capture_projection_camera_bindings(
         &session.session_id,
         &request.project_id,
         &request.turn_id,
     )?;
+    local_candidate_pbr_debug("issue-camera", &projection_camera_bindings.len().to_string());
+    local_candidate_pbr_debug("issue-complete", "1");
     Ok(ForgecadCandidatePbrCaptureIssueResult {
         schema_version: session.schema_version,
         session_id: session.session_id,
@@ -1244,6 +1294,12 @@ pub fn forgecad_candidate_pbr_capture_issue(
         compile_readback_sha256: session.compile_readback_sha256,
         artifact_profile_id: session.artifact_profile_id,
         render_manifest_sha256: session.render_manifest_sha256,
+        visual_environment_id: session
+            .visual_environment_id
+            .ok_or_else(|| "Workbench PBR capture session has no visual environment ID.".to_string())?,
+        visual_environment_sha256: session
+            .visual_environment_sha256
+            .ok_or_else(|| "Workbench PBR capture session has no visual environment hash.".to_string())?,
         expected_renderer_id: session.expected_renderer_id,
         expires_at_unix_ms: session.expires_at_unix_ms,
         required_view_ids: session.required_view_ids,
@@ -1261,6 +1317,7 @@ pub fn forgecad_candidate_pbr_capture_submit(
     request: ForgecadCandidatePbrCaptureSubmitRequest,
     state: State<'_, AppServerBridge>,
 ) -> Result<ForgecadCandidatePbrCaptureSubmitResult, String> {
+    local_candidate_pbr_debug("submit-start", &request.session_id);
     if request.captures.len() > 8
         || request
             .captures
@@ -1293,6 +1350,8 @@ pub fn forgecad_candidate_pbr_capture_submit(
                     view_id: capture.view_id,
                     camera_pose_sha256: capture.camera_pose_sha256,
                     projection_camera_binding_sha256: capture.projection_camera_binding_sha256,
+                    visual_environment_id: capture.visual_environment_id,
+                    visual_environment_sha256: capture.visual_environment_sha256,
                     png_bytes,
                     auxiliary_png_bytes,
                 })
@@ -1306,6 +1365,14 @@ pub fn forgecad_candidate_pbr_capture_submit(
         candidate_glb_sha256: evidence.evidence.candidate_glb_sha256,
         renderer_id: evidence.evidence.renderer_id,
         render_manifest_sha256: evidence.evidence.render_manifest_sha256,
+        visual_environment_id: evidence
+            .evidence
+            .visual_environment_id
+            .ok_or_else(|| "Accepted PBR evidence has no visual environment ID.".to_string())?,
+        visual_environment_sha256: evidence
+            .evidence
+            .visual_environment_sha256
+            .ok_or_else(|| "Accepted PBR evidence has no visual environment hash.".to_string())?,
         capture_sha256: evidence.evidence.capture_sha256,
         view_ids: evidence
             .evidence
@@ -1321,9 +1388,14 @@ pub async fn forgecad_candidate_pbr_capture_resume(
     request: ForgecadCandidatePbrCaptureResumeRequest,
     state: State<'_, AppServerBridge>,
 ) -> Result<ForgecadCandidatePbrCaptureResumeResult, String> {
+    local_candidate_pbr_debug("resume-start", &request.turn_id);
     let resumed = state
         .resume_candidate_pbr_capture(&request.execution_id, &request.project_id, &request.turn_id)
-        .await?;
+        .await
+        .map_err(|error| {
+            local_candidate_pbr_debug("resume-error", &error);
+            error
+        })?;
     Ok(ForgecadCandidatePbrCaptureResumeResult {
         schema_version: resumed.schema_version,
         execution_id: resumed.execution_id,
@@ -2816,6 +2888,219 @@ impl LoopbackHttpPort {
             .map_err(native_blockout_restricted_geometry_error)
     }
 
+    /// Rebuilds the Rust-owned game-delivery derivative from the exact
+    /// production source generated for a ChangeSet preview/confirmation.
+    /// Provider data and old delivery receipts are never reused: the source
+    /// graph is re-sealed with the new GLB/readback, then Core derives the
+    /// delivery bytes and receipt from that new source.
+    fn native_change_set_game_delivery(
+        &self,
+        sealed_preview: &mut AgentAssetVersion,
+        change_set: &AgentAssetChangeSet,
+        production: &RestrictedGeometryOutput,
+    ) -> Result<Option<(Vec<u8>, Vec<u8>)>, NativeBlockoutCompatError> {
+        let Some(value) = sealed_preview
+            .assembly_graph
+            .get("universal_asset_source_v2")
+            .cloned()
+        else {
+            return Ok(None);
+        };
+        let mut source: UniversalAssetSourceV2 = serde_json::from_value(value).map_err(|_| {
+            NativeBlockoutCompatError::conflict(
+                "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+                "Game-ready ChangeSet source provenance cannot be decoded.",
+            )
+        })?;
+        source.validate().map_err(native_blockout_core_error)?;
+        let Some(profile) = source.game_asset_profile.clone() else {
+            return Ok(None);
+        };
+        let procedural = match &mut source.representation_source {
+            UniversalRepresentationSourceV2::Procedural(value) => value,
+            UniversalRepresentationSourceV2::Deformable(value) => &mut value.procedural_source,
+            UniversalRepresentationSourceV2::Hybrid(value) => &mut value.procedural_source,
+            UniversalRepresentationSourceV2::LocalMeshPatch(value) => &mut value.procedural_source,
+        };
+        let mut changed_material_zones = BTreeMap::<String, String>::new();
+        for operation in &change_set.operations {
+            if operation.get("op").and_then(Value::as_str) != Some("apply_material_preset") {
+                continue;
+            }
+            let zone_id = operation
+                .get("material_zone_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::invalid(
+                        "MATERIAL_ZONE_REQUIRED",
+                        "Game-delivery material edits require one Material Zone.",
+                    )
+                })?;
+            let material_id = operation
+                .get("material_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::invalid(
+                        "MATERIAL_REQUIRED",
+                        "Game-delivery material edits require one reviewed material.",
+                    )
+                })?;
+            changed_material_zones.insert(zone_id.to_string(), material_id.to_string());
+        }
+        if !changed_material_zones.is_empty() {
+            let nodes = procedural
+                .source_program
+                .get_mut("nodes")
+                .and_then(Value::as_array_mut)
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "GAME_DELIVERY_SOURCE_REBIND_INVALID",
+                        "Game-delivery material edit source has no bounded node list.",
+                    )
+                })?;
+            for node in nodes {
+                let Some(zone_id) = node.get("zone_id").and_then(Value::as_str) else {
+                    continue;
+                };
+                let Some(material_id) = changed_material_zones.get(zone_id) else {
+                    continue;
+                };
+                if node.get("kind").and_then(Value::as_str) != Some("material_zone") {
+                    continue;
+                }
+                node.as_object_mut()
+                    .expect("validated source node must be an object")
+                    .insert("material_id".into(), Value::String(material_id.clone()));
+            }
+            let materials = procedural
+                .source_program
+                .get_mut("materials")
+                .and_then(Value::as_array_mut)
+                .ok_or_else(|| {
+                    NativeBlockoutCompatError::conflict(
+                        "GAME_DELIVERY_SOURCE_REBIND_INVALID",
+                        "Game-delivery material edit source has no bounded material list.",
+                    )
+                })?;
+            for material_id in changed_material_zones.values() {
+                if !materials.iter().any(|material| {
+                    material.get("material_id").and_then(Value::as_str) == Some(material_id)
+                }) {
+                    materials.push(json!({
+                        "material_id": material_id,
+                        "base_material_id": material_id
+                    }));
+                }
+            }
+            let lowering = forgecad_core::lower_visual_runtime_source_v1(&procedural.source_program)
+                .map_err(native_blockout_core_error)?;
+            procedural.source_program_sha256 = lowering.source_program_sha256.clone();
+            procedural.shape_program_sha256 = lowering.shape_program_sha256.clone();
+            procedural.shape_program = lowering.shape_program;
+            for binding in &mut procedural.part_bindings {
+                if let Some(material_id) = changed_material_zones.get(&binding.material_zone_id) {
+                    binding.material_id = material_id.clone();
+                }
+            }
+            for material_zone in &mut source.material_zones {
+                if let Some(material_id) = changed_material_zones.get(&material_zone.material_zone_id)
+                {
+                    material_zone.base_material_id = material_id.clone();
+                }
+            }
+            for appearance_zone in &mut source.appearance_compilation.zones {
+                let Some(material_id) = changed_material_zones
+                    .get(&appearance_zone.target_material_zone_id)
+                else {
+                    continue;
+                };
+                let base_material = forgecad_core::compiled_visual_base_material_id(material_id)
+                    .ok_or_else(|| {
+                        NativeBlockoutCompatError::conflict(
+                            "GAME_DELIVERY_SOURCE_REBIND_INVALID",
+                            "Game-delivery material edit has no reviewed appearance base.",
+                        )
+                    })?
+                    .to_string();
+                appearance_zone.base_material_id = base_material.clone();
+                appearance_zone.surface_layer_program.base_material = base_material.clone();
+                appearance_zone.surface_layer_program.skill_sha256 = semantic_sha256(&json!({
+                    "schema_version": "GenericHardSurfaceAppearanceCompilation@2",
+                    "compiler_id": "forgecad.generic_hard_surface_appearance.v2",
+                    "base_material_id": base_material,
+                }))
+                .map_err(native_blockout_core_error)?;
+                appearance_zone.surface_layer_program_sha256 = appearance_zone
+                    .surface_layer_program
+                    .canonical_sha256()
+                    .map_err(native_blockout_core_error)?;
+            }
+            for component in &mut source.component_sources {
+                component.source_program_sha256 = procedural.source_program_sha256.clone();
+            }
+            source.appearance_compilation.source_program_sha256 =
+                procedural.source_program_sha256.clone();
+            source.appearance_compilation.compilation_sha256 = semantic_sha256(&json!({
+                "schema_version": source.appearance_compilation.schema_version,
+                "compiler_id": source.appearance_compilation.compiler_id,
+                "source_program_sha256": source.appearance_compilation.source_program_sha256,
+                "zones": source.appearance_compilation.zones,
+            }))
+            .map_err(native_blockout_core_error)?;
+        }
+        let readback_sha256 = semantic_sha256(&production.readback)
+            .map_err(native_blockout_core_error)?;
+        let binding = UniversalCompiledArtifactBinding {
+            source_program_sha256: procedural.source_program_sha256.clone(),
+            shape_program_sha256: production.readback.shape_program_sha256.clone(),
+            glb_sha256: production.glb_sha256.clone(),
+            readback_sha256,
+            compile_readback_sha256: production.readback.compile_readback_sha256.clone(),
+            artifact_profile_id: production.readback.artifact_profile_id.clone(),
+            renderer_id: production.renderer_id.clone(),
+            view_sha256: production.view_sha256.clone(),
+        };
+        source = source
+            .with_compiled_artifact(binding)
+            .map_err(native_blockout_core_error)?;
+        let bindings = forgecad_core::derive_game_asset_delivery_bindings(&source)
+            .map_err(native_blockout_core_error)?;
+        let delivery = forgecad_core::compile_game_asset_delivery(
+            &production.glb_bytes,
+            &profile,
+            &bindings,
+        )
+        .map_err(native_blockout_core_error)?;
+        source = source
+            .with_game_asset_delivery(delivery.readback.clone())
+            .map_err(native_blockout_core_error)?;
+        source.validate().map_err(native_blockout_core_error)?;
+        let source_value = serde_json::to_value(&source).map_err(|_| {
+            NativeBlockoutCompatError::conflict(
+                "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+                "Game-ready ChangeSet source provenance cannot be persisted.",
+            )
+        })?;
+        let graph = sealed_preview.assembly_graph.as_object_mut().ok_or_else(|| {
+            NativeBlockoutCompatError::conflict(
+                "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+                "Game-ready ChangeSet AssemblyGraph must be an object.",
+            )
+        })?;
+        graph.insert("universal_asset_source_v2".into(), source_value);
+        graph.insert(
+            "universal_asset_source_v2_sha256".into(),
+            Value::String(semantic_sha256(&source).map_err(native_blockout_core_error)?),
+        );
+        sealed_preview
+            .validate()
+            .map_err(native_blockout_core_error)?;
+        Ok(Some((
+            production.glb_bytes.clone(),
+            delivery.glb_bytes,
+        )))
+    }
+
     async fn native_preview_change_set(
         &self,
         change_set_id: &str,
@@ -2902,6 +3187,23 @@ impl LoopbackHttpPort {
         sealed_preview.shape_program =
             normalize_persisted_shape_program(&sealed_preview.shape_program)
                 .map_err(native_blockout_core_error)?;
+        let game_delivery_requested = sealed_preview
+            .assembly_graph
+            .get("universal_asset_source_v2")
+            .and_then(|value| value.get("game_asset_delivery"))
+            .is_some_and(|value| !value.is_null());
+        let game_delivery = if game_delivery_requested {
+            let production = self
+                .native_compile_change_set_geometry(
+                    &sealed_preview,
+                    "production_concept",
+                    cancellation.clone(),
+                )
+                .await?;
+            Some(self.native_change_set_game_delivery(&mut sealed_preview, &change_set, &production)?)
+        } else {
+            None
+        };
         let interactive = self
             .native_compile_change_set_geometry(
                 &sealed_preview,
@@ -2930,16 +3232,36 @@ impl LoopbackHttpPort {
         if cancellation.is_cancelled() {
             return Err(native_blockout_cancelled());
         }
-        let bundle = repository
-            .preview_change_set_bundle(
-                change_set_id,
-                &sealed_preview,
-                &interactive.glb_bytes,
-                &interactive_readback,
-                snapshot.etag(),
-                &change_set.created_at,
-            )
-            .map_err(native_blockout_core_error)?;
+        let bundle = match game_delivery {
+            Some(Some((source, delivery))) => repository
+                .preview_change_set_game_delivery_bundle(
+                    change_set_id,
+                    &sealed_preview,
+                    &interactive.glb_bytes,
+                    &interactive_readback,
+                    &source,
+                    &delivery,
+                    snapshot.etag(),
+                    &change_set.created_at,
+                )
+                .map_err(native_blockout_core_error)?,
+            Some(None) => {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "GAME_DELIVERY_SOURCE_PROVENANCE_INVALID",
+                    "Game-ready ChangeSet preview did not produce a verified source/delivery pair.",
+                ));
+            }
+            None => repository
+                .preview_change_set_bundle(
+                    change_set_id,
+                    &sealed_preview,
+                    &interactive.glb_bytes,
+                    &interactive_readback,
+                    snapshot.etag(),
+                    &change_set.created_at,
+                )
+                .map_err(native_blockout_core_error)?,
+        };
         native_change_set_payload(&bundle.change_set)
     }
 
@@ -3096,6 +3418,33 @@ impl LoopbackHttpPort {
                 "Canonical production GLB identity differs from restricted geometry output.",
             ));
         }
+        let game_delivery = match (
+            preview_bundle.visual_source_lod0_glb.as_ref(),
+            preview_bundle.game_delivery_glb.as_ref(),
+        ) {
+            (None, None) => None,
+            (Some(source), Some(delivery)) => {
+                let source_bytes = repository
+                    .read_object(&source.sha256)
+                    .map_err(native_blockout_core_error)?;
+                let delivery_bytes = repository
+                    .read_object(&delivery.sha256)
+                    .map_err(native_blockout_core_error)?;
+                if sha256_hex(&source_bytes) != production_verified.glb_sha256 {
+                    return Err(NativeBlockoutCompatError::conflict(
+                        "GAME_DELIVERY_CHANGE_SET_SOURCE_DRIFT",
+                        "Game-ready ChangeSet production rebuild differs from its sealed visual-source LOD0.",
+                    ));
+                }
+                Some((source_bytes, delivery_bytes))
+            }
+            _ => {
+                return Err(NativeBlockoutCompatError::conflict(
+                    "GAME_DELIVERY_CHANGE_SET_BUNDLE_INCOMPLETE",
+                    "Game-ready ChangeSet preview is missing one source/delivery object role.",
+                ));
+            }
+        };
         let quality = native_geometry_quality_report(
             &resulting.project_id,
             &resulting.asset_version_id,
@@ -3117,17 +3466,31 @@ impl LoopbackHttpPort {
                 hook();
             }
         }
-        let confirmed = repository
-            .confirm_change_set_bundle(
-                change_set_id,
-                &preview_bundle.sealed_preview,
-                &resulting,
-                &interactive_bytes,
-                &production.glb_bytes,
-                &quality,
-                preview_bundle.snapshot.etag(),
-            )
-            .map_err(native_blockout_core_error)?;
+        let confirmed = match game_delivery {
+            Some((source, delivery)) => repository
+                .confirm_change_set_game_delivery_bundle(
+                    change_set_id,
+                    &preview_bundle.sealed_preview,
+                    &resulting,
+                    &interactive_bytes,
+                    &source,
+                    &delivery,
+                    &quality,
+                    preview_bundle.snapshot.etag(),
+                )
+                .map_err(native_blockout_core_error)?,
+            None => repository
+                .confirm_change_set_bundle(
+                    change_set_id,
+                    &preview_bundle.sealed_preview,
+                    &resulting,
+                    &interactive_bytes,
+                    &production.glb_bytes,
+                    &quality,
+                    preview_bundle.snapshot.etag(),
+                )
+                .map_err(native_blockout_core_error)?,
+        };
         native_change_set_confirm_payload(&confirmed.change_set, &confirmed.version)
     }
 
@@ -4220,16 +4583,30 @@ impl LoopbackHttpPort {
                         "Visual-program interactive readback could not be sealed.",
                     )
                 })?;
-            let preview_bundle = repository
-                .preview_change_set_bundle(
-                    &visual_change_set_id,
-                    &sealed_preview,
-                    &interactive_preview.glb_bytes,
-                    &interactive_readback,
-                    snapshot.etag(),
-                    &timestamp,
-                )
-                .map_err(native_blockout_core_error)?;
+            let preview_bundle = match game_visual_source_glb.as_deref() {
+                Some(source) => repository
+                    .preview_change_set_game_delivery_bundle(
+                        &visual_change_set_id,
+                        &sealed_preview,
+                        &interactive_preview.glb_bytes,
+                        &interactive_readback,
+                        source,
+                        &preview.glb_bytes,
+                        snapshot.etag(),
+                        &timestamp,
+                    )
+                    .map_err(native_blockout_core_error)?,
+                None => repository
+                    .preview_change_set_bundle(
+                        &visual_change_set_id,
+                        &sealed_preview,
+                        &interactive_preview.glb_bytes,
+                        &interactive_readback,
+                        snapshot.etag(),
+                        &timestamp,
+                    )
+                    .map_err(native_blockout_core_error)?,
+            };
             let mut resulting = sealed_preview.clone();
             resulting.asset_version_id = visual_result_id.clone();
             let quality = native_geometry_quality_report(
@@ -4241,17 +4618,31 @@ impl LoopbackHttpPort {
                 &production_verified,
                 &timestamp,
             )?;
-            let confirmed = repository
-                .confirm_change_set_bundle(
-                    &visual_change_set_id,
-                    &preview_bundle.sealed_preview,
-                    &resulting,
-                    &interactive_preview.glb_bytes,
-                    &production_preview.glb_bytes,
-                    &quality,
-                    preview_bundle.snapshot.etag(),
-                )
-                .map_err(native_blockout_core_error)?;
+            let confirmed = match game_visual_source_glb.as_deref() {
+                Some(source) => repository
+                    .confirm_change_set_game_delivery_bundle(
+                        &visual_change_set_id,
+                        &preview_bundle.sealed_preview,
+                        &resulting,
+                        &interactive_preview.glb_bytes,
+                        source,
+                        &preview.glb_bytes,
+                        &quality,
+                        preview_bundle.snapshot.etag(),
+                    )
+                    .map_err(native_blockout_core_error)?,
+                None => repository
+                    .confirm_change_set_bundle(
+                        &visual_change_set_id,
+                        &preview_bundle.sealed_preview,
+                        &resulting,
+                        &interactive_preview.glb_bytes,
+                        &production_preview.glb_bytes,
+                        &quality,
+                        preview_bundle.snapshot.etag(),
+                    )
+                    .map_err(native_blockout_core_error)?,
+            };
             self.best_effort_cleanup_committed_blockout(&executor, &candidate);
             return native_blockout_asset_version_payload(&confirmed.version);
         }
@@ -5200,6 +5591,7 @@ fn validate_restricted_geometry_compile_response(
     {
         return Err(restricted_geometry_invalid_response());
     }
+    local_geometry_bridge_debug("envelope-ok");
     let encoded_glb = response
         .glb_base64
         .as_ref()
@@ -5212,6 +5604,10 @@ fn validate_restricted_geometry_compile_response(
     {
         return Err(restricted_geometry_invalid_response());
     }
+    if std::env::var("FORGECAD_LOCAL_VISUAL_AUTHOR").as_deref() == Ok("1") {
+        let _ = std::fs::write("/tmp/forgecad-local-geometry.glb", &glb_bytes);
+    }
+    local_geometry_bridge_debug("glb-ok");
 
     let readback = response
         .readback
@@ -5253,6 +5649,7 @@ fn validate_restricted_geometry_compile_response(
     {
         return Err(restricted_geometry_invalid_response());
     }
+    local_geometry_bridge_debug("fragments-ok");
     let artifact_profile = readback
         .get("artifact_profile")
         .and_then(Value::as_object)
@@ -5265,7 +5662,14 @@ fn validate_restricted_geometry_compile_response(
         visual_texture_set_count,
         visual_texture_map_count,
         visual_texture_provenance_verified,
-    ) = readback_visual_material_summary(readback)?;
+        reference_appearance_projection_receipts,
+    ) = readback_visual_material_summary(readback, &input.reference_uv_evidence_bakes, &glb_bytes)
+        .map_err(|error| {
+            let detail = format!("{error:?}");
+            local_geometry_bridge_debug_detail("materials-error", &detail);
+            error
+        })?;
+    local_geometry_bridge_debug("materials-ok");
     let surface_provenance = readback
         .get("surface_provenance")
         .and_then(Value::as_array)
@@ -5289,6 +5693,7 @@ fn validate_restricted_geometry_compile_response(
         .get("surface_provenance_present")
         .and_then(Value::as_bool)
         .ok_or_else(restricted_geometry_invalid_response)?;
+    local_geometry_bridge_debug("provenance-ok");
     if readback.get("schema_version").and_then(Value::as_str) != Some("GeometryCompileReadback@2")
         || readback
             .get("runtime_manifest_version")
@@ -5314,6 +5719,7 @@ fn validate_restricted_geometry_compile_response(
     {
         return Err(restricted_geometry_invalid_response());
     }
+    local_geometry_bridge_debug("identity-ok");
     Ok(CompiledRestrictedGeometry {
         artifact_handle: response.artifact_handle,
         artifact_profile_id: response.artifact_profile_id,
@@ -5341,6 +5747,7 @@ fn validate_restricted_geometry_compile_response(
             visual_texture_set_count,
             visual_texture_map_count,
             visual_texture_provenance_verified,
+            reference_appearance_projection_receipts,
         },
         fragment_cache_hit_operation_ids: response.fragment_cache_hit_operation_ids,
         fragment_cache_miss_operation_ids: response.fragment_cache_miss_operation_ids,
@@ -5352,16 +5759,43 @@ fn validate_restricted_geometry_compile_response(
 /// arbitrary texture metadata into Product Tool state.
 fn readback_visual_material_summary(
     readback: &serde_json::Map<String, Value>,
-) -> Result<(u32, u32, u32, bool), RestrictedGeometryError> {
+    expected_reference_bakes: &[ReferenceCameraUvRasterBake],
+    glb_bytes: &[u8],
+) -> Result<(u32, u32, u32, bool, Vec<ReferenceAppearanceProjectionReadback>), RestrictedGeometryError> {
+    let parsed_glb = if glb_bytes.is_empty() {
+        local_geometry_bridge_debug("materials-glb-empty");
+        None
+    } else {
+        match parse_embedded_glb(glb_bytes) {
+            Ok(parsed) => {
+                local_geometry_bridge_debug("materials-glb-parsed");
+                Some(parsed)
+            }
+            Err(error) => {
+                local_geometry_bridge_debug_detail("materials-glb-error", &format!("{error:?}"));
+                return Err(error);
+            }
+        }
+    };
     let zones = readback
         .get("material_zone_faces")
         .and_then(Value::as_array)
-        .ok_or_else(restricted_geometry_invalid_response)?;
+        .ok_or_else(|| {
+            local_geometry_bridge_debug("materials-zones-missing");
+            restricted_geometry_invalid_response()
+        })?;
     let texture_sets = readback
         .get("visual_texture_sets")
         .and_then(Value::as_array)
-        .ok_or_else(restricted_geometry_invalid_response)?;
+        .ok_or_else(|| {
+            local_geometry_bridge_debug("materials-texture-sets-missing");
+            restricted_geometry_invalid_response()
+        })?;
     if zones.is_empty() || texture_sets.is_empty() || zones.len() > 512 || texture_sets.len() > 64 {
+        local_geometry_bridge_debug_detail(
+            "materials-count-error",
+            &format!("zones={},texture_sets={}", zones.len(), texture_sets.len()),
+        );
         return Err(restricted_geometry_invalid_response());
     }
 
@@ -5374,7 +5808,19 @@ fn readback_visual_material_summary(
     ]);
     let mut texture_zone_materials = BTreeSet::new();
     let mut map_count = 0_u32;
-    for set in texture_sets {
+    let mut projection_receipts = Vec::new();
+    let mut receipt_zones = BTreeSet::new();
+    let expected_by_zone = expected_reference_bakes
+        .iter()
+        .fold(BTreeMap::<&str, Vec<&ReferenceCameraUvRasterBake>>::new(), |mut grouped, bake| {
+            grouped
+                .entry(bake.target_material_zone_id.as_str())
+                .or_default()
+                .push(bake);
+            grouped
+        });
+    for (set_index, set) in texture_sets.iter().enumerate() {
+        local_geometry_bridge_debug_detail("materials-set-start", &set_index.to_string());
         let object = set
             .as_object()
             .ok_or_else(restricted_geometry_invalid_response)?;
@@ -5382,34 +5828,74 @@ fn readback_visual_material_summary(
             .get("material_id")
             .and_then(Value::as_str)
             .ok_or_else(restricted_geometry_invalid_response)?;
+        local_geometry_bridge_debug_detail("materials-set-id", material_id);
         let map_roles = object
             .get("maps")
             .and_then(Value::as_array)
             .ok_or_else(restricted_geometry_invalid_response)?;
+        local_geometry_bridge_debug_detail(
+            "materials-set-map-count",
+            &map_roles.len().to_string(),
+        );
         if map_roles.len() != required_roles.len() {
+            local_geometry_bridge_debug_detail(
+                "materials-set-map-count-error",
+                &map_roles.len().to_string(),
+            );
             return Err(restricted_geometry_invalid_response());
         }
-        let roles = map_roles
-            .iter()
-            .map(|map| {
+        let mut imported_reference_base_color: Option<(&str, &str, u64, u64, u64)> = None;
+        let roles = map_roles.iter().map(|map| {
                 let map = map
                     .as_object()
                     .ok_or_else(restricted_geometry_invalid_response)?;
-                if map.get("source").and_then(Value::as_str) != Some("forgecad_builtin")
-                    || map.get("license").and_then(Value::as_str) != Some("not_applicable")
-                    || !map
-                        .get("sha256")
-                        .and_then(Value::as_str)
-                        .is_some_and(is_sha256)
+                let source = map.get("source").and_then(Value::as_str);
+                let license = map.get("license").and_then(Value::as_str);
+                let role = map
+                    .get("texture_role")
+                    .and_then(Value::as_str)
+                    .ok_or_else(restricted_geometry_invalid_response)?;
+                let sha = map
+                    .get("sha256")
+                    .and_then(Value::as_str)
+                    .filter(|value| is_sha256(value))
+                    .ok_or_else(restricted_geometry_invalid_response)?;
+                if source == Some("imported_reference") {
+                    if role != "base_color"
+                        || license != Some("unknown")
+                        || imported_reference_base_color.is_some()
+                    {
+                        return Err(restricted_geometry_invalid_response());
+                    }
+                    imported_reference_base_color = Some((
+                        map.get("texture_id")
+                            .and_then(Value::as_str)
+                            .ok_or_else(restricted_geometry_invalid_response)?,
+                        sha,
+                        map.get("byte_size")
+                            .and_then(Value::as_u64)
+                            .ok_or_else(restricted_geometry_invalid_response)?,
+                        map.get("width")
+                            .and_then(Value::as_u64)
+                            .ok_or_else(restricted_geometry_invalid_response)?,
+                        map.get("height")
+                            .and_then(Value::as_u64)
+                            .ok_or_else(restricted_geometry_invalid_response)?,
+                    ));
+                } else if source != Some("forgecad_builtin")
+                    || license != Some("not_applicable")
                 {
                     return Err(restricted_geometry_invalid_response());
                 }
-                map.get("texture_role")
-                    .and_then(Value::as_str)
-                    .ok_or_else(restricted_geometry_invalid_response)
+                Ok(role)
             })
             .collect::<Result<BTreeSet<_>, _>>()?;
+        local_geometry_bridge_debug("materials-set-roles-parsed");
         if roles != required_roles {
+            local_geometry_bridge_debug_detail(
+                "materials-set-roles-error",
+                &format!("{roles:?}"),
+            );
             return Err(restricted_geometry_invalid_response());
         }
         map_count = map_count
@@ -5423,8 +5909,16 @@ fn readback_visual_material_summary(
             .and_then(Value::as_array)
             .ok_or_else(restricted_geometry_invalid_response)?;
         if zone_ids.is_empty() || zone_ids.len() > 512 {
+            local_geometry_bridge_debug_detail(
+                "materials-set-zone-count-error",
+                &zone_ids.len().to_string(),
+            );
             return Err(restricted_geometry_invalid_response());
         }
+        local_geometry_bridge_debug_detail(
+            "materials-set-zones-parsed",
+            &zone_ids.len().to_string(),
+        );
         for zone_id in zone_ids {
             let zone_id = zone_id
                 .as_str()
@@ -5434,8 +5928,129 @@ fn readback_visual_material_summary(
             }
             texture_zone_materials.insert((zone_id.to_string(), material_id.to_string()));
         }
+        let reference_receipt = object
+            .get("reference_uv_evidence")
+            .filter(|value| !value.is_null());
+        if let Some(receipt_value) = reference_receipt {
+            let receipt: &serde_json::Map<String, Value> = receipt_value
+                .as_object()
+                .ok_or_else(restricted_geometry_invalid_response)?;
+            let mut typed: ReferenceAppearanceProjectionReadback =
+                serde_json::from_value(Value::Object(receipt.clone()))
+                    .map_err(|_| restricted_geometry_invalid_response())?;
+            typed.worker_receipt_sha256 = sha256_hex(canonical_json(receipt_value).as_bytes());
+            typed.validate()?;
+            let imported = imported_reference_base_color
+                .ok_or_else(restricted_geometry_invalid_response)?;
+            if typed.target_material_zone_id.is_empty()
+                || !zone_ids.iter().any(|zone| {
+                    zone.as_str() == Some(typed.target_material_zone_id.as_str())
+                })
+                || imported.0 != typed.base_color_texture_id
+                || imported.1 != typed.base_color_sha256
+                || imported.2 != typed.base_color_byte_size
+                || typed
+                    .observed_texel_count
+                    .saturating_add(typed.unobserved_texel_count)
+                    != imported.3.saturating_mul(imported.4)
+                || !receipt_zones.insert(typed.target_material_zone_id.clone())
+            {
+                return Err(restricted_geometry_invalid_response());
+            }
+            if let Some((glb_document, glb_binary)) = parsed_glb.as_ref() {
+                let actual_base_color = glb_material_base_color_png(
+                    glb_document,
+                    glb_binary,
+                    material_id,
+                    imported.0,
+                )
+                .ok_or_else(restricted_geometry_invalid_response)?;
+                if sha256_hex(actual_base_color) != typed.base_color_sha256
+                    || actual_base_color.len() as u64 != typed.base_color_byte_size
+                    || png_dimensions(actual_base_color)
+                        != Some((
+                            u32::try_from(imported.3)
+                                .map_err(|_| restricted_geometry_invalid_response())?,
+                            u32::try_from(imported.4)
+                                .map_err(|_| restricted_geometry_invalid_response())?,
+                        ))
+                {
+                    return Err(restricted_geometry_invalid_response());
+                }
+                let actual_mask = glb_named_image_png(
+                    glb_document,
+                    glb_binary,
+                    &typed.unobserved_texel_mask_id,
+                )
+                .ok_or_else(restricted_geometry_invalid_response)?;
+                if sha256_hex(actual_mask) != typed.unobserved_texel_mask_sha256
+                    || actual_mask.len() as u64 != typed.unobserved_texel_mask_byte_size
+                    || png_dimensions(actual_mask)
+                        != Some((
+                            u32::try_from(imported.3)
+                                .map_err(|_| restricted_geometry_invalid_response())?,
+                            u32::try_from(imported.4)
+                                .map_err(|_| restricted_geometry_invalid_response())?,
+                        ))
+                {
+                    return Err(restricted_geometry_invalid_response());
+                }
+            }
+            let expected = match expected_by_zone.get(typed.target_material_zone_id.as_str()) {
+                Some(expected) => expected,
+                None => return Err(restricted_geometry_invalid_response()),
+            };
+            if typed.worker_schema_version == "ReferenceCameraUvRasterBakeReceipt@2" {
+                if expected.len() != 1
+                    || typed.source_evidence_id != expected[0].source_evidence_id
+                    || typed.source_image_sha256 != expected[0].source_image_sha256
+                    || typed.camera_hypothesis_id != expected[0].camera_hypothesis_id
+                    || typed.camera_provenance_sha256 != expected[0].camera_provenance_sha256
+                    || typed.world_to_clip_sha256.as_deref()
+                        != Some(
+                            sha256_hex(
+                                canonical_json(&json!(expected[0].world_to_clip_row_major))
+                                    .as_bytes(),
+                            )
+                            .as_str(),
+                        )
+                {
+                    return Err(restricted_geometry_invalid_response());
+                }
+            } else if expected.len() != 2
+                || typed.source_evidence_ids
+                    != expected.iter().map(|bake| bake.source_evidence_id.clone()).collect::<Vec<_>>()
+                || typed.source_image_sha256s
+                    != expected.iter().map(|bake| bake.source_image_sha256.clone()).collect::<Vec<_>>()
+                || typed.camera_hypothesis_ids
+                    != expected.iter().map(|bake| bake.camera_hypothesis_id.clone()).collect::<Vec<_>>()
+                || typed.camera_provenance_sha256s
+                    != expected.iter().map(|bake| bake.camera_provenance_sha256.clone()).collect::<Vec<_>>()
+                || typed.world_to_clip_sha256s
+                    != expected
+                        .iter()
+                        .map(|bake| {
+                            sha256_hex(canonical_json(&json!(bake.world_to_clip_row_major)).as_bytes())
+                        })
+                        .collect::<Vec<_>>()
+            {
+                return Err(restricted_geometry_invalid_response());
+            }
+            projection_receipts.push(typed);
+        } else if imported_reference_base_color.is_some() {
+            return Err(restricted_geometry_invalid_response());
+        }
+        local_geometry_bridge_debug("materials-set-complete");
     }
 
+    if expected_by_zone.keys().any(|zone| !receipt_zones.contains(*zone))
+        || (!expected_by_zone.is_empty() && projection_receipts.is_empty())
+    {
+        local_geometry_bridge_debug("materials-receipt-error");
+        return Err(restricted_geometry_invalid_response());
+    }
+
+    local_geometry_bridge_debug("materials-zones-validation-start");
     for zone in zones {
         let object = zone
             .as_object()
@@ -5451,16 +6066,155 @@ fn readback_visual_material_summary(
         if object.get("texture_ready").and_then(Value::as_bool) != Some(true)
             || !texture_zone_materials.contains(&(zone_id.to_string(), material_id.to_string()))
         {
+            local_geometry_bridge_debug_detail(
+                "materials-zone-error",
+                &format!("{zone_id}:{material_id}"),
+            );
             return Err(restricted_geometry_invalid_response());
         }
     }
+    local_geometry_bridge_debug("materials-zones-validation-complete");
 
     Ok((
         u32::try_from(zones.len()).map_err(|_| restricted_geometry_invalid_response())?,
         u32::try_from(texture_sets.len()).map_err(|_| restricted_geometry_invalid_response())?,
         map_count,
         true,
+        projection_receipts,
     ))
+}
+
+/// Parse the two chunks of a GLB without trusting Worker readback metadata.
+/// The returned binary slice is borrowed from the exact bytes whose SHA-256
+/// was already checked against the compile response.
+fn parse_embedded_glb(glb: &[u8]) -> Result<(Value, &[u8]), RestrictedGeometryError> {
+    if glb.len() < 20
+        || &glb[..4] != b"glTF"
+        || u32::from_le_bytes(glb[4..8].try_into().unwrap()) != 2
+        || u32::from_le_bytes(glb[8..12].try_into().unwrap()) as usize != glb.len()
+    {
+        return Err(restricted_geometry_invalid_response());
+    }
+    let json_length = u32::from_le_bytes(glb[12..16].try_into().unwrap()) as usize;
+    let json_type = u32::from_le_bytes(glb[16..20].try_into().unwrap());
+    if json_type != 0x4e4f534a || json_length == 0 || 20 + json_length + 8 > glb.len() {
+        return Err(restricted_geometry_invalid_response());
+    }
+    let json_end = 20 + json_length;
+    let document = serde_json::from_slice::<Value>(&glb[20..json_end])
+        .map_err(|_| restricted_geometry_invalid_response())?;
+    let binary_length = u32::from_le_bytes(glb[json_end..json_end + 4].try_into().unwrap()) as usize;
+    let binary_type = u32::from_le_bytes(glb[json_end + 4..json_end + 8].try_into().unwrap());
+    let binary_start = json_end + 8;
+    if binary_type != 0x004e4942
+        || binary_start.checked_add(binary_length) != Some(glb.len())
+    {
+        return Err(restricted_geometry_invalid_response());
+    }
+    let binary = &glb[binary_start..];
+    let buffer_length = document
+        .get("buffers")
+        .and_then(Value::as_array)
+        .and_then(|buffers| buffers.first())
+        .and_then(|buffer| buffer.get("byteLength"))
+        .and_then(Value::as_u64)
+        .ok_or_else(restricted_geometry_invalid_response)?;
+    // The GLB BIN chunk is 4-byte padded, while the buffer's declared
+    // byteLength is the unpadded payload length.  The worker intentionally
+    // keeps those values distinct; accepting only equality rejects valid GLB
+    // files as soon as the last accessor is not already 4-byte aligned.
+    let padding_length = (binary_length as u64).saturating_sub(buffer_length);
+    if buffer_length > binary_length as u64
+        || padding_length > 3
+        || binary[buffer_length as usize..]
+            .iter()
+            .any(|byte| *byte != 0)
+    {
+        return Err(restricted_geometry_invalid_response());
+    }
+    Ok((document, binary))
+}
+
+fn glb_material_base_color_png<'a>(
+    document: &Value,
+    binary: &'a [u8],
+    material_id: &str,
+    texture_id: &str,
+) -> Option<&'a [u8]> {
+    let material = document
+        .get("materials")
+        .and_then(Value::as_array)?
+        .iter()
+        .find(|material| {
+            material
+                .get("extras")
+                .and_then(|extras| extras.get("forgecad_texture_material_id"))
+                .and_then(Value::as_str)
+                == Some(material_id)
+        })?;
+    let texture_index = material
+        .get("pbrMetallicRoughness")
+        .and_then(|pbr| pbr.get("baseColorTexture"))
+        .and_then(|texture| texture.get("index"))
+        .and_then(Value::as_u64)? as usize;
+    let texture = document.get("textures")?.as_array()?.get(texture_index)?;
+    if texture.get("name").and_then(Value::as_str) != Some(texture_id) {
+        return None;
+    }
+    let image_index = texture.get("source").and_then(Value::as_u64)? as usize;
+    glb_image_png(document, binary, image_index, texture_id)
+}
+
+fn glb_named_image_png<'a>(
+    document: &Value,
+    binary: &'a [u8],
+    image_name: &str,
+) -> Option<&'a [u8]> {
+    let images = document.get("images")?.as_array()?;
+    let (image_index, _) = images
+        .iter()
+        .enumerate()
+        .find(|(_, image)| image.get("name").and_then(Value::as_str) == Some(image_name))?;
+    glb_image_png(document, binary, image_index, image_name)
+}
+
+fn glb_image_png<'a>(
+    document: &Value,
+    binary: &'a [u8],
+    image_index: usize,
+    expected_name: &str,
+) -> Option<&'a [u8]> {
+    let image = document.get("images")?.as_array()?.get(image_index)?;
+    if image.get("name").and_then(Value::as_str) != Some(expected_name)
+        || image.get("mimeType").and_then(Value::as_str) != Some("image/png")
+        || image.get("uri").is_some()
+    {
+        return None;
+    }
+    let view_index = image.get("bufferView").and_then(Value::as_u64)? as usize;
+    let view = document.get("bufferViews")?.as_array()?.get(view_index)?;
+    if view.get("buffer").and_then(Value::as_u64) != Some(0) || view.get("byteStride").is_some() {
+        return None;
+    }
+    let offset = view.get("byteOffset").and_then(Value::as_u64).unwrap_or(0) as usize;
+    let length = view.get("byteLength").and_then(Value::as_u64)? as usize;
+    if offset % 4 != 0 || length == 0 || offset.checked_add(length)? > binary.len() {
+        return None;
+    }
+    let payload = &binary[offset..offset + length];
+    (png_dimensions(payload).is_some()).then_some(payload)
+}
+
+fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if bytes.len() < 24
+        || &bytes[..8] != b"\x89PNG\r\n\x1a\n"
+        || &bytes[12..16] != b"IHDR"
+    {
+        return None;
+    }
+    let width = u32::from_be_bytes(bytes[16..20].try_into().ok()?);
+    let height = u32::from_be_bytes(bytes[20..24].try_into().ok()?);
+    (width > 0 && height > 0 && width <= 4096 && height <= 4096).then_some((width, height))
 }
 
 fn validate_restricted_geometry_render_response(
@@ -5668,6 +6422,21 @@ fn restricted_geometry_invalid_response() -> RestrictedGeometryError {
         "RESTRICTED_GEOMETRY_RESPONSE_INVALID",
         "Restricted geometry returned bytes or readback outside the frozen contract.",
     )
+}
+
+// Temporary local bring-up diagnostics. This is gated by the explicit local
+// author flag and removed after the packaged native path is verified.
+fn local_geometry_bridge_debug(stage: &str) {
+    local_geometry_bridge_debug_detail(stage, "");
+}
+
+fn local_geometry_bridge_debug_detail(stage: &str, detail: &str) {
+    if std::env::var("FORGECAD_LOCAL_VISUAL_AUTHOR").as_deref() == Ok("1") {
+        let _ = std::fs::write(
+            format!("/tmp/forgecad-local-geometry-bridge-{stage}"),
+            detail.as_bytes(),
+        );
+    }
 }
 
 fn restricted_geometry_port_error(error: RestrictedGeometryCallError) -> RestrictedGeometryError {
@@ -11067,6 +11836,98 @@ mod tests {
     const TEST_GEOMETRY_CAPABILITY: &str =
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
+    #[test]
+    fn u004_reference_readback_bridge_requires_and_extracts_projection_receipt() {
+        let matrix = [
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0,
+        ];
+        let world_to_clip_sha256 = sha256_hex(canonical_json(&json!(matrix)).as_bytes());
+        let bake = ReferenceCameraUvRasterBake {
+            schema_version: "ReferenceCameraUvRasterBake@2".into(),
+            projection_id: "projection_body".into(),
+            source_evidence_id: "evidence_body".into(),
+            source_image_sha256: "5".repeat(64),
+            source_png_base64: "AA==".into(),
+            camera_hypothesis_id: "camera_body".into(),
+            camera_provenance_sha256: "6".repeat(64),
+            target_material_zone_id: "zone_body".into(),
+            texture_width: 128,
+            texture_height: 128,
+            world_to_clip_row_major: matrix,
+        };
+        let map = |role: &str, source: &str, license: &str, texture_id: &str, sha: &str| {
+            json!({
+                "texture_id": texture_id,
+                "texture_role": role,
+                "source": source,
+                "license": license,
+                "sha256": sha,
+                "byte_size": 1,
+                "width": 1,
+                "height": 2
+            })
+        };
+        let readback = |receipt: Option<Value>| {
+            let mut texture_set = json!({
+                "material_id": "mat_aluminum",
+                "material_zone_ids": ["zone_body"],
+                "maps": [
+                    map("base_color", "imported_reference", "unknown", "vtex_reference_444444444444444444444444", &"b".repeat(64)),
+                    map("metallic_roughness", "forgecad_builtin", "not_applicable", "vtex_metallic", &"a".repeat(64)),
+                    map("normal", "forgecad_builtin", "not_applicable", "vtex_normal", &"a".repeat(64)),
+                    map("occlusion", "forgecad_builtin", "not_applicable", "vtex_occlusion", &"a".repeat(64)),
+                    map("emissive", "forgecad_builtin", "not_applicable", "vtex_emissive", &"a".repeat(64))
+                ]
+            });
+            if let Some(receipt) = receipt {
+                texture_set["reference_uv_evidence"] = receipt;
+            }
+            json!({
+                "material_zone_faces": [{"material_zone_id":"zone_body", "material_id":"mat_aluminum", "texture_ready":true}],
+                "visual_texture_sets": [texture_set]
+            })
+            .as_object()
+            .cloned()
+            .unwrap()
+        };
+        // This focused unit test exercises the bounded readback DTO parser
+        // with a synthetic payload. The production bridge call always passes
+        // the exact non-empty GLB bytes and therefore also verifies embedded
+        // base-color/mask PNGs independently of this DTO.
+        let missing = readback_visual_material_summary(&readback(None), &[bake.clone()], &[]);
+        assert!(missing.is_err(), "imported reference pixels without a receipt must fail closed");
+        let receipt = json!({
+            "schema_version": "ReferenceCameraUvRasterBakeReceipt@2",
+            "algorithm_id": "forgecad.reference_camera_uv_raster",
+            "algorithm_version": "1",
+            "projection_id": "projection_body",
+            "projection_sha256": "4".repeat(64),
+            "source_evidence_id": "evidence_body",
+            "source_image_sha256": "5".repeat(64),
+            "camera_hypothesis_id": "camera_body",
+            "camera_provenance_sha256": "6".repeat(64),
+            "target_material_zone_id": "zone_body",
+            "base_color_texture_id": "vtex_reference_444444444444444444444444",
+            "base_color_sha256": "b".repeat(64),
+            "base_color_byte_size": 1,
+            "unobserved_texel_mask_id": "vtexmask_reference_444444444444444444444444",
+            "unobserved_texel_mask_sha256": "c".repeat(64),
+            "unobserved_texel_mask_byte_size": 1,
+            "observed_texel_count": 1,
+            "unobserved_texel_count": 1,
+            "world_to_clip_sha256": world_to_clip_sha256,
+            "raster_triangle_count": 1,
+            "fusion_count": 1
+        });
+        let extracted = readback_visual_material_summary(&readback(Some(receipt)), &[bake], &[])
+            .unwrap()
+            .4;
+        assert_eq!(extracted.len(), 1);
+        assert_eq!(extracted[0].target_material_zone_id, "zone_body");
+        assert!(is_sha256(&extracted[0].worker_receipt_sha256));
+    }
+
     fn first_json_difference(before: &Value, after: &Value, path: &str) -> Option<String> {
         fn kind(value: &Value) -> &'static str {
             match value {
@@ -11344,6 +12205,411 @@ mod tests {
             cursor = data_start + size;
         }
         entries
+    }
+
+    fn u004_game_delivery_author_fixture(
+        project_id: &str,
+        turn_id: &str,
+    ) -> (ValidatedUniversalAuthorContext, Value) {
+        let request: forgecad_core::UniversalAuthorRequest = serde_json::from_value(json!({
+            "schema_version":"UniversalAuthorRequest@1",
+            "request_id":format!("uareq_game_delivery_{turn_id}"),
+            "project_id":project_id,
+            "turn_id":turn_id,
+            "instruction":"生成一个银白色科幻游戏机械外壳，并准备游戏资产交付",
+            "input_mode":"text",
+            "reference_inputs":[],
+            "selection":{"part_ids":[],"material_zone_ids":[]},
+            "locks":{"preserve_geometry":false,"preserve_material_surface":false,"locked_part_ids":[],"locked_material_zone_ids":[]},
+            "capability_manifest_sha256":forgecad_core::representation_capability_manifest_sha256().unwrap()
+        }))
+        .unwrap();
+        let request_sha256 = forgecad_core::semantic_sha256(&request).unwrap();
+        let profile = json!({
+            "schema_version":"SubjectProfile@1",
+            "profile_id":format!("subject_game_delivery_{turn_id}"),
+            "request_sha256":request_sha256,
+            "identity_label":"银白色科幻游戏机械外壳",
+            "category":"fictional hard-surface game prop",
+            "category_tags":["mechanical","hard_surface","fictional","game_asset"],
+            "silhouette":"完整的单体装甲外壳轮廓",
+            "negative_space":"外壳边缘的浅槽",
+            "pose":"static",
+            "visible_views":[],
+            "occlusions":[],
+            "uncertainties":[],
+            "parts":[{
+                "part_id":"part_shell",
+                "label":"装甲外壳",
+                "semantic_role":"primary_shell",
+                "traits":["hard_surface","game_ready"],
+                "uncertainty_bps":500
+            }],
+            "features":[
+                {"feature_id":"feature_shell_macro","part_id":"part_shell","level":"macro","description":"完整主轮廓"},
+                {"feature_id":"feature_shell_meso","part_id":"part_shell","level":"meso","description":"边缘槽和分件线"},
+                {"feature_id":"feature_shell_micro","part_id":"part_shell","level":"micro","description":"银白涂层与精细表面"}
+            ],
+            "materials":[{
+                "material_id":"mat_primary",
+                "label":"银白装甲",
+                "part_ids":["part_shell"],
+                "appearance_traits":["metallic","silver","painted"]
+            }]
+        });
+        let profile_sha256 = forgecad_core::semantic_sha256(&profile).unwrap();
+        let requirements = profile["features"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|feature| {
+                json!({
+                    "feature_id":feature["feature_id"],
+                    "level":feature["level"],
+                    "description":feature["description"],
+                    "salience_bps":8000,
+                    "evidence_status":"inferred",
+                    "evidence_regions":[],
+                    "affected_part_ids":[feature["part_id"]],
+                    "channels":["geometry","normal","roughness"],
+                    "minimum_acceptance_views":["front","iso"]
+                })
+            })
+            .collect::<Vec<_>>();
+        let feature_contract = json!({
+            "schema_version":"VisualFeatureContract@1",
+            "contract_id":format!("vfcontract_game_delivery_{turn_id}"),
+            "request_sha256":request_sha256,
+            "subject_profile_sha256":profile_sha256,
+            "requirements":requirements
+        });
+        let feature_contract_sha256 = forgecad_core::semantic_sha256(&feature_contract).unwrap();
+        let representation_plan = json!({
+            "schema_version":"RepresentationPlan@1",
+            "plan_id":format!("repplan_game_delivery_{turn_id}"),
+            "request_sha256":request_sha256,
+            "subject_profile_sha256":profile_sha256,
+            "visual_feature_contract_sha256":feature_contract_sha256,
+            "capability_manifest_sha256":request.capability_manifest_sha256,
+            "parts":[{
+                "part_id":"part_shell",
+                "representation":"procedural",
+                "capability_id":"procedural.generic_hard_surface_v1",
+                "covered_feature_ids":["feature_shell_macro","feature_shell_meso","feature_shell_micro"],
+                "rationale":"Rust reviewed bounded hard-surface representation."
+            }]
+        });
+        let source = json!({
+            "schema_version":"ForgeVisualGeometryProgram@2",
+            "program_id":format!("visual_game_delivery_{turn_id}"),
+            "domain":"generic_hard_surface",
+            "units":"millimeter",
+            "seed":20401,
+            "materials":[{"material_id":"mat_primary","base_material_id":"mat_primary"}],
+            "profiles":[],
+            "section_sets":[],
+            "nodes":[
+                {"kind":"box","node_id":"node_shell","size":[720.0,120.0,480.0],"position":[0.0,0.0,0.0]},
+                {"kind":"part","node_id":"node_shell_part","input_node_id":"node_shell","part_id":"part_shell","role":"primary_shell"},
+                {"kind":"material_zone","node_id":"node_shell_zone","input_node_id":"node_shell_part","zone_id":"zone_shell","material_id":"mat_primary"}
+            ],
+            "outputs":[{"output_id":"output_shell","node_id":"node_shell_zone"}],
+            "budgets":{"schema_version":"GeometryProgramBudget@1","max_profiles":8,"max_section_sets":2,"max_nodes":8,"max_parts":1,"max_materials":2,"max_outputs":1,"max_operations":8,"triangle_budget":100000}
+        });
+        let outcome = json!({
+            "outcome":"executable",
+            "schema_version":"UniversalAuthorOutcome@1",
+            "request":request,
+            "subject_profile":profile,
+            "visual_feature_contract":feature_contract,
+            "representation_plan":representation_plan,
+            "executable_payload":source
+        });
+        let context = ValidatedUniversalAuthorContext::new(request, &[], None).unwrap();
+        (context, outcome)
+    }
+
+    fn u004_universal_image_author_fixture(
+        project_id: &str,
+        turn_id: &str,
+        evidence: &forgecad_core::ReferenceEvidence,
+    ) -> (ValidatedUniversalAuthorContext, Value) {
+        let (_, mut arguments) = u004_game_delivery_author_fixture(project_id, turn_id);
+        let evidence_sha256 = semantic_sha256(evidence).unwrap();
+        let evidence_id = evidence.evidence_id.clone();
+        let outcome = &mut arguments;
+        outcome["request"]["input_mode"] = json!("single_image");
+        outcome["request"]["reference_inputs"] = json!([{
+            "evidence_id":evidence_id.clone(),
+            "evidence_sha256":evidence_sha256,
+            "role":"primary_appearance",
+            "view_hint":"front"
+        }]);
+        let request: forgecad_core::UniversalAuthorRequest =
+            serde_json::from_value(outcome["request"].clone()).unwrap();
+        let request_sha256 = semantic_sha256(&request).unwrap();
+        outcome["subject_profile"]["request_sha256"] = json!(request_sha256);
+        let profile_sha256 = semantic_sha256(&outcome["subject_profile"]).unwrap();
+        outcome["visual_feature_contract"]["request_sha256"] = json!(request_sha256);
+        outcome["visual_feature_contract"]["subject_profile_sha256"] = json!(profile_sha256);
+        for requirement in outcome["visual_feature_contract"]["requirements"]
+            .as_array_mut()
+            .unwrap()
+        {
+            requirement["evidence_status"] = json!("observed");
+            requirement["evidence_regions"] = json!([{
+                "evidence_id":evidence_id.clone(),
+                "view_id":"front",
+                "region_per_mille":[0,0,1000,1000]
+            }]);
+        }
+        let feature_contract_sha256 =
+            semantic_sha256(&outcome["visual_feature_contract"]).unwrap();
+        outcome["representation_plan"]["request_sha256"] = json!(request_sha256);
+        outcome["representation_plan"]["subject_profile_sha256"] = json!(profile_sha256);
+        outcome["representation_plan"]["visual_feature_contract_sha256"] =
+            json!(feature_contract_sha256);
+        let graph = json!({
+            "schema_version":"VisualEvidenceGraph@2",
+            "graph_id":format!("universal_graph_u004_image_{turn_id}"),
+            "universal_request_sha256":request_sha256,
+            "subject_profile_sha256":profile_sha256,
+            "claims":[
+                {
+                    "claim_id":"claim_universal_image_macro",
+                    "feature_id":"feature_shell_macro",
+                    "status":"observed",
+                    "evidence_regions":[{
+                        "evidence_id":evidence_id.clone(),
+                        "view_id":"front",
+                        "region_per_mille":[0,0,1000,1000]
+                    }],
+                    "description":"visible silver shell silhouette"
+                },
+                {
+                    "claim_id":"claim_universal_image_meso",
+                    "feature_id":"feature_shell_meso",
+                    "status":"observed",
+                    "evidence_regions":[{
+                        "evidence_id":evidence_id.clone(),
+                        "view_id":"front",
+                        "region_per_mille":[0,0,1000,1000]
+                    }],
+                    "description":"visible layered panel seams and trim"
+                },
+                {
+                    "claim_id":"claim_universal_image_micro",
+                    "feature_id":"feature_shell_micro",
+                    "status":"observed",
+                    "evidence_regions":[{
+                        "evidence_id":evidence_id,
+                        "view_id":"front",
+                        "region_per_mille":[0,0,1000,1000]
+                    }],
+                    "description":"visible silver painted metallic surface"
+                }
+            ]
+        });
+        let context = ValidatedUniversalAuthorContext::new(
+            request,
+            &[evidence.clone()],
+            Some(graph),
+        )
+        .unwrap();
+        (context, arguments)
+    }
+
+    fn u004_universal_image_local_hybrid_author_fixture(
+        project_id: &str,
+        turn_id: &str,
+        evidence: &forgecad_core::ReferenceEvidence,
+    ) -> (ValidatedUniversalAuthorContext, Value) {
+        let (_, mut arguments) = u004_universal_image_author_fixture(project_id, turn_id, evidence);
+        let outcome = &mut arguments;
+        outcome["subject_profile"]["category_tags"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!("deformable_shell"));
+        outcome["subject_profile"]["parts"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "part_id":"part_trim",
+                "label":"形变装甲饰条",
+                "semantic_role":"deformable_trim",
+                "traits":["hard_surface","deformable_shell"],
+                "uncertainty_bps":700
+            }));
+        outcome["subject_profile"]["features"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "feature_id":"feature_trim_micro",
+                "part_id":"part_trim",
+                "level":"meso",
+                "description":"饰条的局部可形变轮廓"
+            }));
+        outcome["subject_profile"]["materials"][0]["part_ids"] =
+            json!(["part_shell", "part_trim"]);
+        outcome["visual_feature_contract"]["requirements"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "feature_id":"feature_trim_micro",
+                "level":"meso",
+                "description":"饰条的局部可形变轮廓",
+                "salience_bps":7000,
+                "evidence_status":"inferred",
+                "evidence_regions":[],
+                "affected_part_ids":["part_trim"],
+                "channels":["geometry","normal"],
+                "minimum_acceptance_views":["front","iso"]
+            }));
+        let profile_sha256 = semantic_sha256(&outcome["subject_profile"]).unwrap();
+        outcome["visual_feature_contract"]["subject_profile_sha256"] = json!(profile_sha256);
+        let feature_contract_sha256 =
+            semantic_sha256(&outcome["visual_feature_contract"]).unwrap();
+        outcome["representation_plan"]["subject_profile_sha256"] = json!(profile_sha256);
+        outcome["representation_plan"]["visual_feature_contract_sha256"] =
+            json!(feature_contract_sha256);
+        outcome["representation_plan"]["parts"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "part_id":"part_trim",
+                "representation":"deformable",
+                "capability_id":"deformable.local_lattice_shell_v1",
+                "covered_feature_ids":["feature_trim_micro"],
+                "rationale":"Rust reviewed local 2x2x2 lattice deformation for a selected trim part."
+            }));
+        let source = &mut outcome["executable_payload"];
+        source["budgets"]["max_nodes"] = json!(8);
+        source["budgets"]["max_parts"] = json!(2);
+        source["budgets"]["max_outputs"] = json!(2);
+        source["nodes"].as_array_mut().unwrap().extend([
+            json!({
+                "kind":"box",
+                "node_id":"node_trim",
+                "size":[480.0,36.0,72.0],
+                "position":[0.0,80.0,0.0]
+            }),
+            json!({
+                "kind":"lattice_deform",
+                "node_id":"node_trim_lattice",
+                "input_node_id":"node_trim",
+                "corner_offsets":[[0.0,0.0,0.0],[0.04,0.0,0.0],[0.0,0.03,0.0],[0.04,0.03,0.0],[0.0,0.0,-0.05],[0.04,0.0,-0.05],[0.0,0.03,-0.05],[0.04,0.03,-0.05]]
+            }),
+            json!({
+                "kind":"part",
+                "node_id":"node_trim_part",
+                "input_node_id":"node_trim_lattice",
+                "part_id":"part_trim",
+                "role":"deformable_trim"
+            }),
+            json!({
+                "kind":"material_zone",
+                "node_id":"node_trim_zone",
+                "input_node_id":"node_trim_part",
+                "zone_id":"zone_trim",
+                "material_id":"mat_primary"
+            }),
+        ]);
+        source["outputs"].as_array_mut().unwrap().push(json!({
+            "output_id":"output_trim",
+            "node_id":"node_trim_zone"
+        }));
+
+        let request: forgecad_core::UniversalAuthorRequest =
+            serde_json::from_value(outcome["request"].clone()).unwrap();
+        let request_sha256 = semantic_sha256(&request).unwrap();
+        let graph = json!({
+            "schema_version":"VisualEvidenceGraph@2",
+            "graph_id":format!("universal_graph_u004_hybrid_image_{turn_id}"),
+            "universal_request_sha256":request_sha256,
+            "subject_profile_sha256":profile_sha256,
+            "claims":[
+                {
+                    "claim_id":"claim_universal_hybrid_macro",
+                    "feature_id":"feature_shell_macro",
+                    "status":"observed",
+                    "evidence_regions":[{"evidence_id":evidence.evidence_id,"view_id":"front","region_per_mille":[100,80,900,950]}],
+                    "description":"visible silver shell silhouette"
+                },
+                {
+                    "claim_id":"claim_universal_hybrid_meso",
+                    "feature_id":"feature_shell_meso",
+                    "status":"observed",
+                    "evidence_regions":[{"evidence_id":evidence.evidence_id,"view_id":"front","region_per_mille":[100,80,900,950]}],
+                    "description":"visible layered panel seams and trim"
+                },
+                {
+                    "claim_id":"claim_universal_hybrid_micro",
+                    "feature_id":"feature_shell_micro",
+                    "status":"observed",
+                    "evidence_regions":[{"evidence_id":evidence.evidence_id,"view_id":"front","region_per_mille":[100,80,900,950]}],
+                    "description":"visible silver painted metallic surface"
+                },
+                {
+                    "claim_id":"claim_universal_hybrid_trim",
+                    "feature_id":"feature_trim_micro",
+                    "status":"hidden",
+                    "evidence_regions":[],
+                    "description":"局部形变细节未从单图直接观测"
+                }
+            ]
+        });
+        let context = ValidatedUniversalAuthorContext::new(
+            request,
+            &[evidence.clone()],
+            Some(graph),
+        )
+        .unwrap();
+        (context, arguments)
+    }
+
+    #[derive(Clone, Copy, Default)]
+    struct FakeQwenReferenceComparison;
+
+    impl VisualReferenceComparisonProviderPort for FakeQwenReferenceComparison {
+        fn compare(
+            &self,
+            request: forgecad_app_server::VisualReferenceComparisonProviderRequest,
+            _cancellation: CancellationToken,
+        ) -> VisualReferenceComparisonProviderFuture {
+            Box::pin(async move {
+                let candidate_view_ids = request
+                    .input
+                    .candidate_views
+                    .iter()
+                    .map(|view| view.view_id.clone())
+                    .collect::<Vec<_>>();
+                let assessments = request
+                    .graph
+                    .claims
+                    .iter()
+                    .filter(|claim| !claim.source_evidence_ids.is_empty())
+                    .map(|claim| VisualReferenceClaimAssessment {
+                        claim_id: claim.claim_id.clone(),
+                        outcome: VisualReferenceMatchOutcome::Matched,
+                        similarity_bps: 9_000,
+                        confidence_bps: 9_000,
+                        source_evidence_ids: claim.source_evidence_ids.clone(),
+                        candidate_view_ids: candidate_view_ids.clone(),
+                        reason: "Deterministic Qwen-compatible comparison fixture.".into(),
+                    })
+                    .collect();
+                Ok(VisualReferenceComparisonProviderOutput {
+                    provider_id: "qwen_fixture".into(),
+                    model_id: "qwen3-vl-plus".into(),
+                    provider_response_sha256: sha256_hex(b"u004-qwen-reference-comparison"),
+                    analyzed_at: "2026-07-30T00:00:00Z".into(),
+                    assessments,
+                    network_call_made: false,
+                    budget_evidence: None,
+                    e005_visual_patch_proposal: None,
+                })
+            })
+        }
     }
 
     fn pv005_visual_program() -> Value {
@@ -11814,6 +13080,7 @@ mod tests {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum FakeGeometryScenario {
         Success,
+        GameDelivery,
         TamperedGlbHash,
         ErrorEnvelope,
         BlockUntilCancelled,
@@ -11981,6 +13248,7 @@ mod tests {
                 let response = fake_geometry_compile_response(
                     &body,
                     scenario == FakeGeometryScenario::TamperedGlbHash,
+                    scenario == FakeGeometryScenario::GameDelivery,
                     &state,
                 );
                 let _ = write_fake_json_response(&mut stream, 200, &response);
@@ -12028,6 +13296,20 @@ mod tests {
         profile_height_scale: f32,
         material_id: &str,
     ) -> Vec<u8> {
+        fake_forgecad_profile_glb_with_profile_height_and_density(
+            profile_id,
+            profile_height_scale,
+            material_id,
+            false,
+        )
+    }
+
+    fn fake_forgecad_profile_glb_with_profile_height_and_density(
+        profile_id: &str,
+        profile_height_scale: f32,
+        material_id: &str,
+        dense_mesh: bool,
+    ) -> Vec<u8> {
         let production = profile_id == "production_concept";
         assert!(production || profile_id == "interactive_preview");
         let mut profile = json!({
@@ -12047,26 +13329,98 @@ mod tests {
         profile["profile_sha256"] = Value::String(semantic_sha256(&profile).unwrap());
         let dimension = if production { 1024_u32 } else { 128_u32 };
         let texture_version = if production { "v4" } else { "v3" };
-        let indices = [0_u16, 1, 2, 0, 3, 1, 0, 2, 3, 1, 3, 2];
-        let positions = [
-            0_f32,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            profile_height_scale,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-        ];
-        let normals = [0_f32, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
-        let tangents = [
-            1_f32, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
-        ];
-        let uvs = [0_f32, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let (indices, positions, normals, tangents, uvs, source_triangle_count) = if dense_mesh {
+            // The ordinary bridge fixture is intentionally tiny for fast V003
+            // tests.  P4 needs a genuinely reducible closed surface, so this
+            // branch builds a six-sided subdivided cube with 432 triangles.
+            // It remains deterministic, local, and carries the same
+            // production/PBR/provenance contract as the small fixture.
+            let resolution = 6_usize;
+            let mut indices = Vec::new();
+            let mut positions = Vec::new();
+            let mut normals = Vec::new();
+            let mut tangents = Vec::new();
+            let mut uvs = Vec::new();
+            let mut append_face = |origin: [f32; 3], u: [f32; 3], v: [f32; 3], normal: [f32; 3]| {
+                let base = (positions.len() / 3) as u32;
+                for y in 0..=resolution {
+                    for x in 0..=resolution {
+                        let xf = x as f32 / resolution as f32;
+                        let yf = y as f32 / resolution as f32;
+                        let snap = |value: f32| (value * 1_000_000.0).round() / 1_000_000.0;
+                        positions.extend_from_slice(&[
+                            snap(origin[0] + u[0] * xf + v[0] * yf),
+                            snap(origin[1] + u[1] * xf + v[1] * yf),
+                            snap(origin[2] + u[2] * xf + v[2] * yf),
+                        ]);
+                        normals.extend_from_slice(&normal);
+                        tangents.extend_from_slice(&[u[0], u[1], u[2], 1.0]);
+                        uvs.extend_from_slice(&[xf, yf]);
+                    }
+                }
+                let row = (resolution + 1) as u32;
+                for y in 0..resolution as u32 {
+                    for x in 0..resolution as u32 {
+                        let a = base + y * row + x;
+                        let b = a + 1;
+                        let c = a + row;
+                        let d = c + 1;
+                        indices.extend_from_slice(&[
+                            a as u16,
+                            b as u16,
+                            d as u16,
+                            a as u16,
+                            d as u16,
+                            c as u16,
+                        ]);
+                    }
+                }
+            };
+            for (origin, u, v, normal) in [
+                ([0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]),
+                ([1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, -1.0]),
+                ([0.0, 1.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]),
+                ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]),
+                ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]),
+                ([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]),
+            ] {
+                append_face(origin, u, v, normal);
+            }
+            let source_triangle_count = indices.len() / 3;
+            (
+                indices,
+                positions,
+                normals,
+                tangents,
+                uvs,
+                source_triangle_count,
+            )
+        } else {
+            (
+                vec![0_u16, 1, 2, 0, 3, 1, 0, 2, 3, 1, 3, 2],
+                vec![
+                    0_f32,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    profile_height_scale,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                ],
+                vec![0_f32, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+                vec![
+                    1_f32, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
+                    1.0, 0.0, 0.0, 1.0,
+                ],
+                vec![0_f32, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+                4,
+            )
+        };
         let mut binary = Vec::new();
         let mut views = Vec::<Value>::new();
         let mut append_view = |payload: &[u8], target: Option<u64>| {
@@ -12194,8 +13548,8 @@ mod tests {
                 "extras": {
                     "forgecad_feature_node_id": "op_shell",
                     "forgecad_material_zone_id": "zone_shell",
-                    "forgecad_surface_ranges": [{"surface_role":"surface","first_triangle":0,"triangle_count":4}],
-                    "forgecad_source_face_ids": [0,1,2,3]
+                "forgecad_surface_ranges": [{"surface_role":"surface","first_triangle":0,"triangle_count":source_triangle_count}],
+                    "forgecad_source_face_ids": (0..source_triangle_count).collect::<Vec<_>>()
                 }
             }]}],
             "materials": [{
@@ -12221,11 +13575,11 @@ mod tests {
             "buffers": [{"byteLength": binary.len()}],
             "bufferViews": views,
             "accessors": [
-                {"bufferView":index_view,"componentType":5123,"count":12,"type":"SCALAR"},
-                {"bufferView":position_view,"componentType":5126,"count":4,"type":"VEC3","min":[0,0,0],"max":[1,profile_height_scale,1]},
-                {"bufferView":normal_view,"componentType":5126,"count":4,"type":"VEC3"},
-                {"bufferView":tangent_view,"componentType":5126,"count":4,"type":"VEC4"},
-                {"bufferView":uv_view,"componentType":5126,"count":4,"type":"VEC2"}
+                {"bufferView":index_view,"componentType":5123,"count":indices.len(),"type":"SCALAR"},
+                {"bufferView":position_view,"componentType":5126,"count":positions.len() / 3,"type":"VEC3","min":[0,0,0],"max":[1,profile_height_scale.max(1.0),1]},
+                {"bufferView":normal_view,"componentType":5126,"count":normals.len() / 3,"type":"VEC3"},
+                {"bufferView":tangent_view,"componentType":5126,"count":tangents.len() / 4,"type":"VEC4"},
+                {"bufferView":uv_view,"componentType":5126,"count":uvs.len() / 2,"type":"VEC2"}
             ],
             "extras": {
                 "forgecad_geometry_artifact_profile": profile,
@@ -12263,9 +13617,125 @@ mod tests {
             .expect("embedded production 1024 fixture PNG is valid base64")
     }
 
+    fn fake_reference_png(width: u32, height: u32, seed: u8) -> Vec<u8> {
+        let image = image::RgbaImage::from_fn(width, height, |x, y| {
+            let variation = ((x / 32 + y / 32 + u32::from(seed)) % 64) as u8;
+            image::Rgba([
+                seed.saturating_add(variation),
+                48_u8.saturating_add(variation),
+                96_u8.saturating_add(variation / 2),
+                255,
+            ])
+        });
+        let mut encoded = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(image)
+            .write_to(&mut encoded, image::ImageFormat::Png)
+            .expect("reference fixture PNG must encode");
+        encoded.into_inner()
+    }
+
+    fn fake_glb_with_reference_images(
+        base_glb: &[u8],
+        material_id: &str,
+        base_color_texture_id: &str,
+        base_color_png: &[u8],
+        unobserved_texel_mask_id: &str,
+        unobserved_texel_mask_png: &[u8],
+    ) -> Vec<u8> {
+        let (mut document, binary_slice) = parse_embedded_glb(base_glb).unwrap();
+        let mut binary = binary_slice.to_vec();
+        let material_index = document["materials"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|material| {
+                material["extras"]["forgecad_texture_material_id"]
+                    .as_str()
+                    == Some(material_id)
+            })
+            .expect("reference fixture material must exist");
+        let texture_index = document["materials"][material_index]["pbrMetallicRoughness"]
+            ["baseColorTexture"]["index"]
+            .as_u64()
+            .unwrap() as usize;
+        let image_index = document["textures"][texture_index]["source"]
+            .as_u64()
+            .unwrap() as usize;
+        let mut append_image_view = |payload: &[u8]| {
+            let offset = binary.len();
+            binary.extend_from_slice(payload);
+            while binary.len() % 4 != 0 {
+                binary.push(0);
+            }
+            let views = document["bufferViews"].as_array_mut().unwrap();
+            let view_index = views.len();
+            views.push(json!({
+                "buffer": 0,
+                "byteOffset": offset,
+                "byteLength": payload.len()
+            }));
+            view_index
+        };
+        let base_view_index = append_image_view(base_color_png);
+        let mask_view_index = append_image_view(unobserved_texel_mask_png);
+        drop(append_image_view);
+        document["textures"][texture_index]["name"] = json!(base_color_texture_id);
+        document["images"][image_index] = json!({
+            "name": base_color_texture_id,
+            "bufferView": base_view_index,
+            "mimeType": "image/png",
+            "extras": {"forgecad_visual_texture": {
+                "texture_id": base_color_texture_id,
+                "texture_role": "base_color",
+                "mime_type": "image/png",
+                "byte_size": base_color_png.len(),
+                "sha256": sha256_hex(base_color_png),
+                "color_space": "srgb",
+                "width": png_dimensions(base_color_png).unwrap().0,
+                "height": png_dimensions(base_color_png).unwrap().1,
+                "source": "imported_reference",
+                "license": "unknown",
+                "fallback": "none",
+                "visual_only": true
+            }}
+        });
+        document["images"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "name": unobserved_texel_mask_id,
+                "bufferView": mask_view_index,
+                "mimeType": "image/png",
+                "extras": {"forgecad_reference_uv_evidence_mask": {
+                    "sha256": sha256_hex(unobserved_texel_mask_png),
+                    "byte_size": unobserved_texel_mask_png.len(),
+                    "width": png_dimensions(unobserved_texel_mask_png).unwrap().0,
+                    "height": png_dimensions(unobserved_texel_mask_png).unwrap().1
+                }}
+            }));
+        document["buffers"][0]["byteLength"] = json!(binary.len());
+        let mut json_chunk = serde_json::to_vec(&document).unwrap();
+        while json_chunk.len() % 4 != 0 {
+            json_chunk.push(b' ');
+        }
+        let total_length = 12 + 8 + json_chunk.len() + 8 + binary.len();
+        let mut glb = Vec::with_capacity(total_length);
+        glb.extend_from_slice(b"glTF");
+        glb.extend_from_slice(&2_u32.to_le_bytes());
+        glb.extend_from_slice(&(total_length as u32).to_le_bytes());
+        glb.extend_from_slice(&(json_chunk.len() as u32).to_le_bytes());
+        glb.extend_from_slice(&0x4e4f534a_u32.to_le_bytes());
+        glb.extend_from_slice(&json_chunk);
+        glb.extend_from_slice(&(binary.len() as u32).to_le_bytes());
+        glb.extend_from_slice(&0x004e4942_u32.to_le_bytes());
+        glb.extend_from_slice(&binary);
+        glb
+    }
+
     fn fake_geometry_compile_response(
         request: &Value,
         tamper_hash: bool,
+        dense_mesh: bool,
         state: &Arc<Mutex<FakeGeometryState>>,
     ) -> Value {
         let sealed_shape_program = request["shape_program_canonical_json"]
@@ -12325,21 +13795,233 @@ mod tests {
             .and_then(|operation| operation["args"]["material_id"].as_str())
             .unwrap_or("mat_graphite")
             .to_string();
-        let glb = fake_forgecad_profile_glb_with_profile_height(
+        let base_glb = fake_forgecad_profile_glb_with_profile_height_and_density(
             &profile_id,
             profile_height_scale,
             &material_id,
+            dense_mesh,
         );
-        let canonical = verify_forgecad_glb(&glb, Some(&profile_id)).unwrap();
+        let canonical = verify_forgecad_glb(&base_glb, Some(&profile_id)).unwrap();
         let profile_sha256 = canonical.artifact_profile_sha256.clone();
         let bounds_mm: [f64; 3] = canonical.bounds_mm.clone().try_into().unwrap();
         let triangle_count = u32::try_from(canonical.triangle_count).unwrap();
+        let reference_bakes = request
+            .get("reference_uv_evidence_bakes")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let reference_receipt = reference_bakes.first().map(|first| {
+            let source_evidence_id = first["source_evidence_id"].as_str().unwrap();
+            let source_image_sha256 = first["source_image_sha256"].as_str().unwrap();
+            let camera_hypothesis_id = first["camera_hypothesis_id"].as_str().unwrap();
+            let camera_provenance_sha256 = first["camera_provenance_sha256"].as_str().unwrap();
+            let target_material_zone_id = first["target_material_zone_id"].as_str().unwrap();
+            let projection_ids = reference_bakes
+                .iter()
+                .map(|bake| bake["projection_id"].as_str().unwrap())
+                .collect::<Vec<_>>();
+            let projection_sha256 = sha256_hex(projection_ids.join(":").as_bytes());
+            let fusion = reference_bakes.len() > 1;
+            let texture_width = first["texture_width"].as_u64().unwrap();
+            let texture_height = first["texture_height"].as_u64().unwrap();
+            let base_color_png = fake_reference_png(
+                u32::try_from(texture_width).unwrap(),
+                u32::try_from(texture_height).unwrap(),
+                17,
+            );
+            let unobserved_texel_mask_png = fake_reference_png(
+                u32::try_from(texture_width).unwrap(),
+                u32::try_from(texture_height).unwrap(),
+                231,
+            );
+            let texel_count = texture_width * texture_height;
+            let receipt = json!({
+                "worker_schema_version": if fusion {
+                    "ReferenceCameraUvRasterFusionReceipt@3"
+                } else {
+                    "ReferenceCameraUvRasterBakeReceipt@2"
+                },
+                "algorithm_id":"forgecad.reference_camera_uv_raster",
+                "algorithm_version":"1",
+                "projection_id":if fusion {
+                    format!("fusion_{}", &projection_sha256[..24])
+                } else {
+                    first["projection_id"].as_str().unwrap().to_string()
+                },
+                "projection_sha256":projection_sha256,
+                "source_evidence_id":source_evidence_id,
+                "source_image_sha256":source_image_sha256,
+                "camera_hypothesis_id":camera_hypothesis_id,
+                "camera_provenance_sha256":camera_provenance_sha256,
+                "target_material_zone_id":target_material_zone_id,
+                "base_color_texture_id":format!("vtex_reference_{}", &projection_sha256[..24]),
+                "base_color_sha256":sha256_hex(&base_color_png),
+                "base_color_byte_size":base_color_png.len(),
+                "unobserved_texel_mask_id":format!("vtexmask_reference_{}", &projection_sha256[..24]),
+                "unobserved_texel_mask_sha256":sha256_hex(&unobserved_texel_mask_png),
+                "unobserved_texel_mask_byte_size":unobserved_texel_mask_png.len(),
+                "observed_texel_count":texel_count / 2,
+                "unobserved_texel_count":texel_count - texel_count / 2,
+                "fusion_count":reference_bakes.len(),
+                "raster_triangle_count":1,
+                "world_to_clip_sha256":(!fusion).then(|| {
+                    sha256_hex(
+                        serde_json::to_string(&first["world_to_clip_row_major"])
+                            .unwrap()
+                            .as_bytes()
+                    )
+                }),
+                "source_evidence_ids":if fusion {
+                    reference_bakes
+                        .iter()
+                        .map(|bake| bake["source_evidence_id"].as_str().unwrap())
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                },
+                "source_image_sha256s":if fusion {
+                    reference_bakes
+                        .iter()
+                        .map(|bake| bake["source_image_sha256"].as_str().unwrap())
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                },
+                "camera_hypothesis_ids":if fusion {
+                    reference_bakes
+                        .iter()
+                        .map(|bake| bake["camera_hypothesis_id"].as_str().unwrap())
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                },
+                "camera_provenance_sha256s":if fusion {
+                    reference_bakes
+                        .iter()
+                        .map(|bake| bake["camera_provenance_sha256"].as_str().unwrap())
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                },
+                "world_to_clip_sha256s":if fusion {
+                    reference_bakes
+                        .iter()
+                        .map(|bake| {
+                            sha256_hex(
+                                serde_json::to_string(&bake["world_to_clip_row_major"])
+                                    .unwrap()
+                                    .as_bytes()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                }
+            });
+            (
+                receipt,
+                base_color_png,
+                unobserved_texel_mask_png,
+                texture_width,
+                texture_height,
+            )
+        });
+        let glb = if let Some((receipt, base_color_png, mask_png, _, _)) = &reference_receipt {
+            fake_glb_with_reference_images(
+                &base_glb,
+                &material_id,
+                receipt["base_color_texture_id"].as_str().unwrap(),
+                base_color_png,
+                receipt["unobserved_texel_mask_id"].as_str().unwrap(),
+                mask_png,
+            )
+        } else {
+            base_glb
+        };
         let actual_glb_sha256 = sha256_hex(&glb);
         let claimed_glb_sha256 = if tamper_hash {
             "f".repeat(64)
         } else {
             actual_glb_sha256.clone()
         };
+        let mut visual_texture_set = json!({
+            "material_id":material_id,
+            "material_zone_ids":[material_zone_id],
+            "maps":[
+                {"texture_role":"base_color","source":"forgecad_builtin","license":"not_applicable","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                {"texture_role":"metallic_roughness","source":"forgecad_builtin","license":"not_applicable","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+                {"texture_role":"normal","source":"forgecad_builtin","license":"not_applicable","sha256":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+                {"texture_role":"occlusion","source":"forgecad_builtin","license":"not_applicable","sha256":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+                {"texture_role":"emissive","source":"forgecad_builtin","license":"not_applicable","sha256":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}
+            ]
+        });
+        if let Some((receipt, base_color_png, _mask_png, texture_width, texture_height)) = &reference_receipt {
+            let base_color_texture_id = receipt["base_color_texture_id"].clone();
+            let base_color_sha256 = receipt["base_color_sha256"].clone();
+            visual_texture_set["maps"][0] = json!({
+                "texture_role":"base_color",
+                "source":"imported_reference",
+                "license":"unknown",
+                "texture_id":base_color_texture_id,
+                "sha256":base_color_sha256,
+                "byte_size":base_color_png.len(),
+                "width":texture_width,
+                "height":texture_height
+            });
+            visual_texture_set["reference_uv_evidence"] = receipt.clone();
+        }
+        // The bridge fixture normally has one material zone, but U004's
+        // local-hard-surface Hybrid deliberately exercises multiple outputs.
+        // Keep the fixture readback honest for every declared output without
+        // changing the compact GLB geometry used by unrelated bridge tests.
+        let mut visual_texture_sets = vec![visual_texture_set];
+        if let Some(outputs) = request["shape_program"]["outputs"].as_array() {
+            for output in outputs.iter().skip(1) {
+                let operation_id = output["operation_id"].as_str().unwrap();
+                let operation = request["shape_program"]["operations"]
+                    .as_array()
+                    .and_then(|operations| {
+                        operations.iter().find(|operation| {
+                            operation["operation_id"].as_str() == Some(operation_id)
+                        })
+                    })
+                    .unwrap();
+                let zone_id = operation["args"]["zone_id"].as_str().unwrap();
+                let material_id = operation["args"]["material_id"].as_str().unwrap();
+                let mut additional = visual_texture_sets[0].clone();
+                additional["material_id"] = json!(material_id);
+                additional["material_zone_ids"] = json!([zone_id]);
+                additional
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("reference_uv_evidence");
+                let maps = additional["maps"].as_array_mut().unwrap();
+                maps[0]["source"] = json!("forgecad_builtin");
+                maps[0]["license"] = json!("not_applicable");
+                maps[0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("texture_id");
+                visual_texture_sets.push(additional);
+            }
+        }
+        let material_zone_faces = visual_texture_sets
+            .iter()
+            .flat_map(|texture_set| {
+                let material_id = texture_set["material_id"].as_str().unwrap();
+                texture_set["material_zone_ids"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(move |zone_id| {
+                        json!({
+                            "material_zone_id":zone_id.as_str().unwrap(),
+                            "material_id":material_id,
+                            "texture_ready":true
+                        })
+                    })
+            })
+            .collect::<Vec<_>>();
         let artifact = FakeGeometryArtifact {
             handle: artifact_handle.clone(),
             profile_id: profile_id.clone(),
@@ -12389,22 +14071,8 @@ mod tests {
                 // frozen V003 compiler contract: production validation reads
                 // bounded Material Zone and five-map PBR provenance rather
                 // than trusting an untyped visual claim from the harness.
-                "material_zone_faces": [{
-                    "material_zone_id": material_zone_id,
-                    "material_id": material_id,
-                    "texture_ready": true
-                }],
-                "visual_texture_sets": [{
-                    "material_id": material_id,
-                    "material_zone_ids": [material_zone_id],
-                    "maps": [
-                        {"texture_role": "base_color", "source": "forgecad_builtin", "license": "not_applicable", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
-                        {"texture_role": "metallic_roughness", "source": "forgecad_builtin", "license": "not_applicable", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
-                        {"texture_role": "normal", "source": "forgecad_builtin", "license": "not_applicable", "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
-                        {"texture_role": "occlusion", "source": "forgecad_builtin", "license": "not_applicable", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
-                        {"texture_role": "emissive", "source": "forgecad_builtin", "license": "not_applicable", "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}
-                    ]
-                }],
+                "material_zone_faces": material_zone_faces,
+                "visual_texture_sets": visual_texture_sets,
                 "surface_provenance": [{
                     "closed": true,
                     "boundary_edge_count": 0,
@@ -12779,7 +14447,7 @@ mod tests {
 
     #[test]
     fn restricted_geometry_port_compiles_then_renders_with_capability_and_real_bytes() {
-        let backend = FakeGeometryBackend::start(FakeGeometryScenario::Success);
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::GameDelivery);
         let port = restricted_geometry_test_port(&backend.endpoint);
         let input = restricted_geometry_test_input();
         let output = tokio::runtime::Builder::new_current_thread()
@@ -13448,6 +15116,1479 @@ mod tests {
             ":preview.glb"
         ))
         .is_none());
+    }
+
+    #[test]
+    fn u004_game_delivery_valid_glb_preview_confirm_export_and_package_round_trip() {
+        fn capture_uploads(
+            session: &forgecad_core::CandidatePbrCaptureSession,
+        ) -> Vec<NativeCandidatePbrCaptureUpload> {
+            fn png(width: u32, height: u32, seed: u8) -> Vec<u8> {
+                let image = image::RgbaImage::from_fn(width, height, |x, y| {
+                    let variation = ((x / 16 + y / 16 + u32::from(seed)) % 180) as u8;
+                    image::Rgba([
+                        24_u8.saturating_add(variation),
+                        72_u8.saturating_add(variation / 2),
+                        128_u8.saturating_add(variation / 3),
+                        255,
+                    ])
+                });
+                let mut encoded = std::io::Cursor::new(Vec::new());
+                image::DynamicImage::ImageRgba8(image)
+                    .write_to(&mut encoded, image::ImageFormat::Png)
+                    .unwrap();
+                encoded.into_inner()
+            }
+
+            fn auxiliary(seed: u8) -> Vec<u8> {
+                let image = image::RgbaImage::from_fn(960, 640, |x, y| {
+                    let tile = (x / 320) + (y / 320) * 3;
+                    if tile >= 5 {
+                        return image::Rgba([0, 0, 0, 255]);
+                    }
+                    let variation =
+                        ((x / 16 + y / 16 + u32::from(seed) + tile * 17) % 160) as u8;
+                    image::Rgba([
+                        32_u8.saturating_add(variation),
+                        48_u8.saturating_add(variation / 2),
+                        64_u8.saturating_add(variation / 3),
+                        255,
+                    ])
+                });
+                let mut encoded = std::io::Cursor::new(Vec::new());
+                image::DynamicImage::ImageRgba8(image)
+                    .write_to(&mut encoded, image::ImageFormat::Png)
+                    .unwrap();
+                encoded.into_inner()
+            }
+
+            session
+                .required_view_ids
+                .iter()
+                .enumerate()
+                .map(|(index, view_id)| NativeCandidatePbrCaptureUpload {
+                    schema_version: "NativeCandidatePbrCaptureUpload@1".into(),
+                    view_id: view_id.clone(),
+                    camera_pose_sha256: format!("{index:064x}"),
+                    projection_camera_binding_sha256: session
+                        .projection_camera_binding_sha256_by_view_id
+                        .get(view_id)
+                        .unwrap()
+                        .clone(),
+                    visual_environment_id: forgecad_core::WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into(),
+                    visual_environment_sha256: forgecad_core::WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into(),
+                    png_bytes: png(640, 640, index as u8),
+                    auxiliary_png_bytes: auxiliary(index as u8),
+                })
+                .collect()
+        }
+
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::GameDelivery);
+        let serial = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let library_root = std::env::temp_dir().join(format!(
+            "forgecad-u004-game-delivery-e2e-{}-{serial}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&library_root).unwrap();
+        let rust_core = Arc::new(
+            RustCoreRuntime::open(&library_root, format!("u004-game-delivery-e2e-{serial}"))
+                .unwrap(),
+        );
+        let project_id = "project_u004_game_delivery";
+        let turn_id = "turn_u004_game_delivery";
+        rust_core
+            .repository()
+            .create_project(&forgecad_core::Project {
+                project_id: project_id.into(),
+                profile_id: "profile_weapon_concept_v1".into(),
+                // The current Project migration keeps the legacy storage
+                // discriminator bounded to weapon_concept; UAS@2 identity
+                // remains the authoritative category-open source below.
+                domain_type: "weapon_concept".into(),
+                name: "U004 game delivery E2E".into(),
+                status: forgecad_core::ProjectStatus::Active,
+                current_version_id: None,
+                created_at: "2026-07-30T00:00:00Z".into(),
+                updated_at: "2026-07-30T00:00:00Z".into(),
+            })
+            .unwrap();
+        let provider: Arc<dyn ProviderClient> = Arc::new(FakeDeepSeekClient::scripted(
+            "deepseek-chat",
+            false,
+            false,
+            Vec::new(),
+        ));
+        let bridge = AppServerBridge::new_production(
+            &backend.endpoint,
+            TEST_GEOMETRY_CAPABILITY.to_string(),
+            provider,
+            Arc::clone(&rust_core),
+        )
+        .unwrap();
+        let executor = bridge.inner.native_product_tools.as_ref().unwrap();
+        let registry = ProductToolRegistry::default();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let execution_id = "execution_u004_game_delivery";
+        let cancellation_id = "cancel_u004_game_delivery";
+        let cancellation_token = "token_u004_game_delivery";
+        let (context, outcome) = u004_game_delivery_author_fixture(project_id, turn_id);
+        executor
+            .bind_execution_project(execution_id, turn_id, Some(project_id))
+            .unwrap();
+        executor
+            .bind_execution_universal_author_context(execution_id, turn_id, context)
+            .unwrap();
+        executor
+            .bind_execution_game_asset_delivery_request(
+                execution_id,
+                turn_id,
+                forgecad_core::GameAssetDeliveryRequest {
+                    schema_version: forgecad_core::GAME_ASSET_DELIVERY_REQUEST_SCHEMA_VERSION
+                        .into(),
+                    profile_id: "game_delivery_profile_u004".into(),
+                    lod_triangle_budgets: [1000, 400, 350],
+                    target_texel_density_pixels_per_meter: 128,
+                },
+            )
+            .unwrap();
+
+        let run_tool = |name: &str, arguments: Value, call_index: usize| -> Value {
+            let request = registry
+                .build_execution_request(
+                    turn_id,
+                    &ProviderToolCall {
+                        call_id: format!("call_u004_game_delivery_{call_index}"),
+                        name: name.into(),
+                        arguments,
+                    },
+                    execution_id,
+                    cancellation_id,
+                    cancellation_token,
+                )
+                .unwrap();
+            let result = runtime
+                .block_on(executor.execute(request, CancellationToken::new()))
+                .unwrap();
+            assert_eq!(
+                result.status,
+                ProductToolExecutionStatus::Completed,
+                "U004 game-delivery tool {name} failed: code={:?} message={:?}",
+                result.error_code,
+                result.message
+            );
+            serde_json::to_value(result.validated_output.unwrap().value).unwrap()
+        };
+
+        let authored = run_tool("author_universal_asset", json!({"outcome":outcome}), 0);
+        assert_eq!(authored["execution_route"], "build_universal_hard_surface");
+        let built = run_tool(
+            "build_candidate_geometry",
+            json!({
+                "direction_id":"direction_universal_hard_surface",
+                "variant_id":null,
+                "presentation_profile":"showcase"
+            }),
+            1,
+        );
+        assert_eq!(built["game_asset_delivery"]["target_met"], true);
+        assert_ne!(
+            built["game_asset_delivery"]["delivery_glb_sha256"],
+            Value::Null
+        );
+        run_tool("compile_readback_candidate", json!({}), 2);
+        run_tool("render_candidate_views", json!({}), 3);
+
+        let session = bridge
+            .issue_candidate_pbr_capture(execution_id, project_id, turn_id)
+            .unwrap();
+        let source_capture_glb = bridge
+            .candidate_pbr_capture_glb(&session.session_id, project_id, turn_id)
+            .unwrap();
+        assert_eq!(
+            sha256_hex(&source_capture_glb),
+            session.candidate_glb_sha256,
+            "capture must use the exact valid source LOD0 GLB"
+        );
+        bridge
+            .submit_candidate_pbr_capture(
+                &session.session_id,
+                capture_uploads(&session),
+            )
+            .unwrap();
+        let evaluated = run_tool("evaluate_candidate", json!({}), 4);
+        assert_eq!(evaluated["hard_gate_passed"], true);
+        let prepared = run_tool("prepare_candidate_preview", json!({}), 5);
+        assert!(prepared["single_result_decision"].is_null());
+        let preview_id = prepared["preview_id"].as_str().unwrap().to_string();
+        let preview = executor
+            .preview_artifact(&preview_id)
+            .unwrap()
+            .expect("U004 game delivery preview must be retained");
+        let delivery_sha = preview.glb_sha256.clone();
+        let artifact_id = native_single_result_artifact_id(
+            project_id,
+            turn_id,
+            &preview_id,
+            &delivery_sha,
+        );
+        let source_sha = preview
+            .universal_asset_source_v2
+            .as_ref()
+            .unwrap()
+            .compiled_artifact
+            .as_ref()
+            .unwrap()
+            .glb_sha256
+            .clone();
+        assert_ne!(source_sha, delivery_sha);
+        assert_eq!(preview.readback.glb_sha256, source_sha);
+        assert_eq!(sha256_hex(preview.visual_source_glb_bytes.as_ref().unwrap()), source_sha);
+
+        let endpoint = LocalAgentEndpoint::parse(&backend.endpoint).unwrap();
+        let client_request_id = "confirm_u004_game_delivery";
+        let confirm_request = || PreparedCompatHttpRequest {
+            endpoint: endpoint.clone(),
+            method: AllowedHttpMethod::Post,
+            path: format!(
+                "/api/v1/agent/projects/{project_id}/turns/{turn_id}/single-results/{preview_id}:confirm"
+            ),
+            headers: vec![
+                ("Content-Type".into(), "application/json".into()),
+                ("Idempotency-Key".into(), client_request_id.into()),
+                ("If-Match".into(), format!("\"sha256:{delivery_sha}\"")),
+            ],
+            body: ProtocolHttpBody::Utf8 {
+                data: json!({
+                    "client_request_id":client_request_id,
+                    "expected_artifact_sha256":delivery_sha,
+                    "summary":"Confirm U004 game delivery candidate"
+                })
+                .to_string(),
+            },
+        };
+        let confirmed = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                confirm_request(),
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(confirmed.status, 201, "{:?}", confirmed.body);
+        let head = rust_core.repository().head(project_id).unwrap().unwrap();
+        let version = rust_core.repository().version(&head).unwrap().unwrap();
+        let source: forgecad_core::UniversalAssetSourceV2 = serde_json::from_value(
+            version.assembly_graph["universal_asset_source_v2"].clone(),
+        )
+        .unwrap();
+        let receipt = source.game_asset_delivery.clone().unwrap();
+        let profile = source.game_asset_profile.clone().unwrap();
+        let source_object = rust_core
+            .repository()
+            .object_for_reference(&ObjectReference {
+                reference_kind: "asset_version".into(),
+                owner_id: head.clone(),
+                role: "visual_source_lod0_glb".into(),
+            })
+            .unwrap()
+            .unwrap();
+        let delivery_object = rust_core
+            .repository()
+            .object_for_reference(&ObjectReference {
+                reference_kind: "asset_version".into(),
+                owner_id: head.clone(),
+                role: "game_delivery_glb".into(),
+            })
+            .unwrap()
+            .unwrap();
+        let source_bytes = rust_core
+            .repository()
+            .read_object(&source_object.sha256)
+            .unwrap();
+        let delivery_bytes = rust_core
+            .repository()
+            .read_object(&delivery_object.sha256)
+            .unwrap();
+        verify_forgecad_glb(&source_bytes, Some("production_concept")).unwrap();
+        let bindings = forgecad_core::derive_game_asset_delivery_bindings(&source).unwrap();
+        let verified_delivery = forgecad_core::verify_game_asset_delivery_glb(
+            &source_bytes,
+            &delivery_bytes,
+            &profile,
+            &bindings,
+        )
+        .unwrap();
+        assert_eq!(verified_delivery, receipt);
+        let receipt_marker = b"receipt_sha256\":\"";
+        let receipt_hash_offset = delivery_bytes
+            .windows(receipt_marker.len())
+            .position(|window| window == receipt_marker)
+            .expect("delivery GLB must contain its sealed receipt hash")
+            + receipt_marker.len();
+        let mut tampered_delivery = delivery_bytes.clone();
+        tampered_delivery[receipt_hash_offset] = if tampered_delivery[receipt_hash_offset] == b'a' {
+            b'b'
+        } else {
+            b'a'
+        };
+        assert!(
+            forgecad_core::verify_game_asset_delivery_glb(
+                &source_bytes,
+                &tampered_delivery,
+                &profile,
+                &bindings,
+            )
+            .is_err(),
+            "tampered delivery receipt must fail closed"
+        );
+        assert_eq!(source_object.sha256, source_sha);
+        assert_eq!(delivery_object.sha256, delivery_sha);
+
+        let exported = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/agent/asset-versions/{head}:export"),
+                    headers: vec![("Content-Type".into(), "application/json".into())],
+                    body: ProtocolHttpBody::Utf8 {
+                        data: json!({"client_request_id":"export_u004_game_delivery"})
+                            .to_string(),
+                    },
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(exported.status, 200, "{:?}", exported.body);
+        let export_json = compat_json(&exported);
+        let exported_bytes = BASE64
+            .decode(export_json["glb_base64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(sha256_hex(&exported_bytes), delivery_sha);
+        assert_eq!(export_json["visual_source_lod0_glb_sha256"], source_sha);
+        assert_eq!(export_json["game_asset_delivery"], serde_json::to_value(&receipt).unwrap());
+
+        let packaged = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Get,
+                    path: format!(
+                        "/api/v1/agent/asset-versions/{head}:asset-package?width=128&height=128"
+                    ),
+                    headers: Vec::new(),
+                    body: ProtocolHttpBody::Empty,
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(packaged.status, 200, "{:?}", packaged.body);
+        assert!(packaged.headers.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("x-forgecad-artifact-profile") && value == "game_delivery"
+        }));
+        let ProtocolHttpBody::Base64 { data } = packaged.body else {
+            panic!("game delivery package must be a ZIP transport");
+        };
+        let entries = stored_zip_entries(&BASE64.decode(data).unwrap());
+        assert_eq!(entries["asset.glb"], delivery_bytes);
+        let manifest: Value = serde_json::from_slice(&entries["manifest.json"]).unwrap();
+        assert_eq!(manifest["schema_version"], "ForgeAssetPackageManifest@2");
+        assert_eq!(manifest["source_artifact_sha256"], source_sha);
+        assert_eq!(manifest["artifact_glb_sha256"], delivery_sha);
+        assert_eq!(manifest["game_asset_delivery"], serde_json::to_value(&receipt).unwrap());
+
+        let replay = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                confirm_request(),
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(replay.status, 201, "replaying confirmation must be idempotent");
+        assert_eq!(rust_core.repository().head(project_id).unwrap(), Some(head.clone()));
+
+        let quality_report_id = rust_core
+            .repository()
+            .snapshot(project_id)
+            .unwrap()
+            .unwrap()
+            .quality
+            .unwrap()
+            .quality_report_id;
+        let tamper_and_assert_rejected = |object_path: &str| {
+            let path = library_root
+                .join("objects")
+                .join("sha256")
+                .join(object_path);
+            let original = fs::read(&path).unwrap();
+            let mut tampered = original.clone();
+            tampered[0] ^= 0x01;
+            fs::write(&path, &tampered).unwrap();
+            let direct_error = rust_core
+                .repository()
+                .read_object(if object_path == source_object.object_path.as_str() {
+                    &source_object.sha256
+                } else {
+                    &delivery_object.sha256
+                })
+                .unwrap_err();
+            assert_eq!(direct_error.code(), "CONTENT_OBJECT_CORRUPT");
+            let error = rust_core
+                .repository()
+                .read_game_delivery_candidate_bundle(&
+                    &artifact_id,
+                    &head,
+                    &quality_report_id,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                error.code(),
+                "CONTENT_OBJECT_CORRUPT" | "CANDIDATE_BUNDLE_INCOMPLETE"
+            ));
+            fs::write(&path, original).unwrap();
+        };
+        tamper_and_assert_rejected(&source_object.object_path);
+        tamper_and_assert_rejected(&delivery_object.object_path);
+        assert!(rust_core
+            .repository()
+            .read_game_delivery_candidate_bundle(
+                &artifact_id,
+                &head,
+                &quality_report_id,
+            )
+            .unwrap()
+            .is_some());
+
+        // A confirmed game asset must remain editable without collapsing its
+        // source/delivery pair back to the ordinary two-GLB ChangeSet shape.
+        let editable_part_id = version
+            .parts
+            .iter()
+            .find(|part| part.get("locked").and_then(Value::as_bool) != Some(true))
+            .and_then(|part| part.get("part_id"))
+            .and_then(Value::as_str)
+            .expect("fixture must expose one editable game part")
+            .to_string();
+        let editable_zone_id = version
+            .parts
+            .iter()
+            .find(|part| part.get("part_id").and_then(Value::as_str) == Some(editable_part_id.as_str()))
+            .and_then(|part| part.get("material_zone_ids"))
+            .and_then(Value::as_array)
+            .and_then(|zones| zones.first())
+            .and_then(Value::as_str)
+            .expect("fixture editable game part must expose one material zone")
+            .to_string();
+        let game_change_set_id = "changeset_u004_game_delivery_edit";
+        rust_core
+            .repository()
+            .create_change_set(&AgentAssetChangeSet {
+                change_set_id: game_change_set_id.into(),
+                project_id: project_id.into(),
+                base_asset_version_id: head.clone(),
+                summary: "Edit confirmed game delivery asset".into(),
+                operations: vec![json!({
+                    "operation_id": "operation_u004_game_delivery_edit",
+                    "op": "apply_material_preset",
+                    "part_id": editable_part_id,
+                    "material_zone_id": editable_zone_id,
+                    "material_id": "mat_graphite"
+                })],
+                protected_part_ids: Vec::new(),
+                preview: None,
+                status: ChangeSetStatus::Proposed,
+                resulting_asset_version_id: None,
+                created_at: "2026-07-31T00:00:00Z".into(),
+                updated_at: "2026-07-31T00:00:00Z".into(),
+            })
+            .unwrap();
+        // Exercise the complete app-server compatibility route rather than
+        // calling the Core dual-artifact transaction directly. This proves
+        // that the native preview/confirm path recompiles and retains both
+        // visual-source LOD0 and game-delivery roles.
+        let edit_preview_response = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/agent/change-sets/{game_change_set_id}:preview"),
+                    headers: vec![("Idempotency-Key".into(), "preview_u004_game_delivery_edit".into())],
+                    body: ProtocolHttpBody::Empty,
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(edit_preview_response.status, 200, "{:?}", edit_preview_response.body);
+        let edit_preview_bundle = rust_core
+            .repository()
+            .read_change_set_preview_bundle(game_change_set_id)
+            .unwrap()
+            .expect("app-server game ChangeSet preview must seal a bundle");
+        assert!(edit_preview_bundle.visual_source_lod0_glb.is_some());
+        assert!(edit_preview_bundle.game_delivery_glb.is_some());
+        let edit_preview_glb = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Get,
+                    path: format!("/api/v1/agent/change-sets/{game_change_set_id}:preview.glb"),
+                    headers: Vec::new(),
+                    body: ProtocolHttpBody::Empty,
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(edit_preview_glb.status, 200, "{:?}", edit_preview_glb.body);
+        let edit_preview_bytes = match edit_preview_glb.body {
+            ProtocolHttpBody::Base64 { data } => BASE64.decode(data).unwrap(),
+            other => panic!("game ChangeSet preview GLB must be binary: {other:?}"),
+        };
+        assert_eq!(
+            sha256_hex(&edit_preview_bytes),
+            edit_preview_bundle.interactive_preview_glb.sha256
+        );
+        let edit_confirmed = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/agent/change-sets/{game_change_set_id}:confirm"),
+                    headers: vec![("Idempotency-Key".into(), "confirm_u004_game_delivery_edit".into())],
+                    body: ProtocolHttpBody::Empty,
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(edit_confirmed.status, 200, "{:?}", edit_confirmed.body);
+        let edit_confirmed_json = compat_json(&edit_confirmed);
+        let edit_result_id = edit_confirmed_json["asset_version"]["asset_version_id"]
+            .as_str()
+            .expect("game ChangeSet confirm must return an asset version")
+            .to_string();
+        let edit_confirmed_bundle = rust_core
+            .repository()
+            .read_change_set_confirm_bundle(
+                game_change_set_id,
+                &edit_result_id,
+                &native_blockout_quality_report_id(&edit_result_id),
+            )
+            .unwrap()
+            .expect("app-server game ChangeSet confirm must seal a bundle");
+        assert_eq!(
+            edit_confirmed_bundle
+                .visual_source_lod0_glb
+                .as_ref()
+                .map(|value| value.sha256.as_str()),
+            edit_preview_bundle
+                .visual_source_lod0_glb
+                .as_ref()
+                .map(|value| value.sha256.as_str())
+        );
+        assert_eq!(
+            edit_confirmed_bundle
+                .game_delivery_glb
+                .as_ref()
+                .map(|value| value.sha256.as_str()),
+            edit_preview_bundle
+                .game_delivery_glb
+                .as_ref()
+                .map(|value| value.sha256.as_str())
+        );
+        assert_ne!(
+            edit_confirmed_bundle
+                .visual_source_lod0_glb
+                .as_ref()
+                .map(|value| value.sha256.as_str()),
+            Some(source_sha.as_str()),
+            "the material ChangeSet must produce a new source artifact"
+        );
+        assert_eq!(
+            rust_core.repository().head(project_id).unwrap(),
+            Some(edit_result_id)
+        );
+
+        drop(bridge);
+        drop(rust_core);
+        drop(backend);
+        fs::remove_dir_all(library_root).unwrap();
+    }
+
+    #[test]
+    fn u004_universal_image_valid_glb_preview_confirm_and_export_round_trip() {
+        fn capture_uploads(
+            session: &forgecad_core::CandidatePbrCaptureSession,
+        ) -> Vec<NativeCandidatePbrCaptureUpload> {
+            fn png(width: u32, height: u32, seed: u8) -> Vec<u8> {
+                let image = image::RgbaImage::from_fn(width, height, |x, y| {
+                    let variation = ((x / 16 + y / 16 + u32::from(seed)) % 180) as u8;
+                    image::Rgba([
+                        24_u8.saturating_add(variation),
+                        72_u8.saturating_add(variation / 2),
+                        128_u8.saturating_add(variation / 3),
+                        255,
+                    ])
+                });
+                let mut encoded = std::io::Cursor::new(Vec::new());
+                image::DynamicImage::ImageRgba8(image)
+                    .write_to(&mut encoded, image::ImageFormat::Png)
+                    .unwrap();
+                encoded.into_inner()
+            }
+
+            fn auxiliary(seed: u8) -> Vec<u8> {
+                let image = image::RgbaImage::from_fn(960, 640, |x, y| {
+                    let tile = (x / 320) + (y / 320) * 3;
+                    if tile >= 5 {
+                        return image::Rgba([0, 0, 0, 255]);
+                    }
+                    let variation =
+                        ((x / 16 + y / 16 + u32::from(seed) + tile * 17) % 160) as u8;
+                    image::Rgba([
+                        32_u8.saturating_add(variation),
+                        48_u8.saturating_add(variation / 2),
+                        64_u8.saturating_add(variation / 3),
+                        255,
+                    ])
+                });
+                let mut encoded = std::io::Cursor::new(Vec::new());
+                image::DynamicImage::ImageRgba8(image)
+                    .write_to(&mut encoded, image::ImageFormat::Png)
+                    .unwrap();
+                encoded.into_inner()
+            }
+
+            session
+                .required_view_ids
+                .iter()
+                .enumerate()
+                .map(|(index, view_id)| NativeCandidatePbrCaptureUpload {
+                    schema_version: "NativeCandidatePbrCaptureUpload@1".into(),
+                    view_id: view_id.clone(),
+                    camera_pose_sha256: format!("{index:064x}"),
+                    projection_camera_binding_sha256: session
+                        .projection_camera_binding_sha256_by_view_id
+                        .get(view_id)
+                        .unwrap()
+                        .clone(),
+                    visual_environment_id: forgecad_core::WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into(),
+                    visual_environment_sha256: forgecad_core::WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into(),
+                    png_bytes: png(640, 640, index as u8),
+                    auxiliary_png_bytes: auxiliary(index as u8),
+                })
+                .collect()
+        }
+
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::GameDelivery);
+        let serial = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let library_root = std::env::temp_dir().join(format!(
+            "forgecad-u004-universal-image-round-trip-{}-{serial}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&library_root).unwrap();
+        let rust_core = Arc::new(
+            RustCoreRuntime::open(
+                &library_root,
+                format!("u004-universal-image-round-trip-{serial}"),
+            )
+            .unwrap(),
+        );
+        let project_id = "project_u004_universal_image";
+        let turn_id = "turn_u004_universal_image";
+        rust_core
+            .repository()
+            .create_project(&forgecad_core::Project {
+                project_id: project_id.into(),
+                profile_id: "profile_weapon_concept_v1".into(),
+                domain_type: "weapon_concept".into(),
+                name: "U004 universal image round trip".into(),
+                status: forgecad_core::ProjectStatus::Active,
+                current_version_id: None,
+                created_at: "2026-07-30T00:00:00Z".into(),
+                updated_at: "2026-07-30T00:00:00Z".into(),
+            })
+            .unwrap();
+
+        let reference_png_base64 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGPQjVnwHx9mGBkKANXiigEwD3bkAAAAAElFTkSuQmCC";
+        let evidence_request: forgecad_core::CreateReferenceEvidenceRequest =
+            serde_json::from_value(json!({
+                "schema_version":"ReferenceEvidenceCreateRequest@1",
+                "client_request_id":"create_u004_universal_image_reference",
+                "project_id":project_id,
+                "kind":"image",
+                "reference_class":"single_image",
+                "file_name":"silver-hard-surface-reference.png",
+                "media_type":"image/png",
+                "content_base64":reference_png_base64,
+                "source_statement":"Hermetic U004 sealed image fixture.",
+                "license_statement":"Fixture content is local and test-only.",
+                "missing_views":["rear","top"],
+                "user_notes":"Visible silver shell, layered panel seams and bright trim.",
+                "domain_pack_id":"pack_unclassified"
+            }))
+            .unwrap();
+        let evidence = rust_core
+            .repository()
+            .create_reference_evidence(&evidence_request, "2026-07-30T00:00:00Z")
+            .unwrap();
+        let (context, outcome) =
+            u004_universal_image_author_fixture(project_id, turn_id, &evidence);
+
+        let provider: Arc<dyn ProviderClient> = Arc::new(FakeDeepSeekClient::scripted(
+            "deepseek-chat",
+            false,
+            false,
+            Vec::new(),
+        ));
+        let bridge = AppServerBridge::new_production(
+            &backend.endpoint,
+            TEST_GEOMETRY_CAPABILITY.to_string(),
+            provider,
+            Arc::clone(&rust_core),
+        )
+        .unwrap();
+        bridge
+            .attach_visual_reference_comparison_provider(Arc::new(
+                BudgetedVisualReferenceComparisonProvider::new(
+                    Arc::new(FakeQwenReferenceComparison),
+                    Arc::new(rust_core.repository().clone()),
+                ),
+            ))
+            .unwrap();
+
+        let executor = bridge.inner.native_product_tools.as_ref().unwrap();
+        let registry = ProductToolRegistry::default();
+        let execution_id = "execution_u004_universal_image";
+        let cancellation_id = "cancel_u004_universal_image";
+        let cancellation_token = "token_u004_universal_image";
+        executor
+            .bind_execution_project(execution_id, turn_id, Some(project_id))
+            .unwrap();
+        executor
+            .bind_execution_universal_author_context(execution_id, turn_id, context)
+            .unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let run_tool = |name: &str, arguments: Value, call_index: usize| -> Value {
+            let request = registry
+                .build_execution_request(
+                    turn_id,
+                    &ProviderToolCall {
+                        call_id: format!("call_u004_universal_image_{call_index}"),
+                        name: name.into(),
+                        arguments,
+                    },
+                    execution_id,
+                    cancellation_id,
+                    cancellation_token,
+                )
+                .unwrap();
+            let result = runtime
+                .block_on(executor.execute(request, CancellationToken::new()))
+                .unwrap();
+            assert_eq!(
+                result.status,
+                ProductToolExecutionStatus::Completed,
+                "U004 universal image tool {name} failed: code={:?} message={:?} result={:?}",
+                result.error_code,
+                result.message,
+                result
+            );
+            serde_json::to_value(result.validated_output.unwrap().value).unwrap()
+        };
+
+        let authored = run_tool("author_universal_asset", json!({"outcome":outcome}), 0);
+        assert_eq!(authored["execution_route"], "build_universal_hard_surface");
+        assert_eq!(
+            authored.pointer("/universal_asset_source/schema_version"),
+            Some(&json!("UniversalAssetSource@2"))
+        );
+        assert!(authored.get("forge_visual_program").is_none());
+        run_tool(
+            "build_candidate_geometry",
+            json!({
+                "direction_id":"direction_universal_hard_surface",
+                "variant_id":null,
+                "presentation_profile":"showcase"
+            }),
+            1,
+        );
+        run_tool("compile_readback_candidate", json!({}), 2);
+        run_tool("render_candidate_views", json!({}), 3);
+
+        let session = bridge
+            .issue_candidate_pbr_capture(execution_id, project_id, turn_id)
+            .unwrap();
+        let transient_glb = bridge
+            .candidate_pbr_capture_glb(&session.session_id, project_id, turn_id)
+            .unwrap();
+        assert_eq!(sha256_hex(&transient_glb), session.candidate_glb_sha256);
+        bridge
+            .submit_candidate_pbr_capture(&session.session_id, capture_uploads(&session))
+            .unwrap();
+
+        // The first capture only supplies Rust-owned silhouette evidence.  A
+        // reference-backed candidate must be recompiled with the fitted
+        // camera before it can expose the Qwen comparison scope.
+        let first_resume = runtime
+            .block_on(bridge.resume_candidate_pbr_capture(
+                execution_id,
+                project_id,
+                turn_id,
+            ))
+            .unwrap();
+        assert_eq!(first_resume.status, "capture_required");
+        let rebaked_glb_sha256 = first_resume.candidate_glb_sha256.clone();
+        let rebaked_session = bridge
+            .issue_candidate_pbr_capture(execution_id, project_id, turn_id)
+            .unwrap();
+        assert_eq!(rebaked_session.candidate_glb_sha256, rebaked_glb_sha256);
+        bridge
+            .submit_candidate_pbr_capture(
+                &rebaked_session.session_id,
+                capture_uploads(&rebaked_session),
+            )
+            .unwrap();
+        let second_resume = runtime
+            .block_on(bridge.resume_candidate_pbr_capture(
+                execution_id,
+                project_id,
+                turn_id,
+            ))
+            .unwrap();
+        assert_eq!(second_resume.status, "authorization_required");
+
+        let scope = bridge
+            .pending_universal_visual_comparison_authorization(
+                execution_id,
+                project_id,
+                turn_id,
+            )
+            .unwrap()
+            .expect("sealed image candidate must expose one Qwen authorization scope");
+        let now = crate::current_unix_ms();
+        let authorization = rust_core
+            .repository()
+            .issue_visual_reference_comparison_authorization(
+                "visauth_u004_universal_image",
+                "authorize_u004_universal_image",
+                project_id,
+                &scope.request_sha256,
+                &scope.evidence_graph_sha256,
+                &scope.acceptance_policy_sha256,
+                now,
+                now + 60_000,
+            )
+            .unwrap();
+        assert_eq!(
+            bridge
+                .bind_universal_visual_comparison_authorization(
+                    execution_id,
+                    project_id,
+                    turn_id,
+                    &authorization.authorization_id,
+                    &authorization.authorization_binding_sha256,
+                )
+                .unwrap(),
+            scope
+        );
+
+        let evaluated = run_tool("evaluate_candidate", json!({}), 4);
+        assert_eq!(evaluated["hard_gate_passed"], true);
+        assert_eq!(
+            evaluated.pointer(
+                "/visual_reference_comparison_report/provider/model_id"
+            ),
+            Some(&json!("qwen3-vl-plus"))
+        );
+        let prepared = run_tool("prepare_candidate_preview", json!({}), 5);
+        let preview_id = prepared["preview_id"].as_str().unwrap().to_string();
+        let preview = bridge
+            .preview_artifact(&preview_id)
+            .unwrap()
+            .expect("U004 universal image preview must be retained");
+        assert_eq!(
+            preview
+                .universal_asset_source_v2
+                .as_ref()
+                .map(|source| source.schema_version.as_str()),
+            Some("UniversalAssetSource@2")
+        );
+        let preview_sha = preview.glb_sha256.clone();
+        let endpoint = LocalAgentEndpoint::parse(&backend.endpoint).unwrap();
+        let confirm_request = || PreparedCompatHttpRequest {
+            endpoint: endpoint.clone(),
+            method: AllowedHttpMethod::Post,
+            path: format!(
+                "/api/v1/agent/projects/{project_id}/turns/{turn_id}/single-results/{preview_id}:confirm"
+            ),
+            headers: vec![
+                ("Content-Type".into(), "application/json".into()),
+                (
+                    "Idempotency-Key".into(),
+                    "confirm_u004_universal_image".into(),
+                ),
+                ("If-Match".into(), format!("\"sha256:{preview_sha}\"")),
+            ],
+            body: ProtocolHttpBody::Utf8 {
+                data: json!({
+                    "client_request_id":"confirm_u004_universal_image",
+                    "expected_artifact_sha256":preview_sha,
+                    "summary":"Confirm universal sealed-image candidate"
+                })
+                .to_string(),
+            },
+        };
+        let confirmed = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                confirm_request(),
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(confirmed.status, 201, "{:?}", confirmed.body);
+        let head = rust_core.repository().head(project_id).unwrap().unwrap();
+        let version = rust_core.repository().version(&head).unwrap().unwrap();
+        let persisted_source: forgecad_core::UniversalAssetSourceV2 =
+            serde_json::from_value(version.assembly_graph["universal_asset_source_v2"].clone())
+                .unwrap();
+        assert_eq!(
+            persisted_source.subject_profile.category,
+            "fictional hard-surface game prop"
+        );
+        assert!(!persisted_source.appearance_evidence.projection_receipts.is_empty());
+        assert!(version
+            .assembly_graph
+            .get("forge_visual_program_revision")
+            .is_none());
+
+        let exported = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/agent/asset-versions/{head}:export"),
+                    headers: vec![("Content-Type".into(), "application/json".into())],
+                    body: ProtocolHttpBody::Utf8 {
+                        data: json!({
+                            "client_request_id":"export_u004_universal_image"
+                        })
+                        .to_string(),
+                    },
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(exported.status, 200, "{:?}", exported.body);
+        let export_json = compat_json(&exported);
+        let exported_bytes = BASE64
+            .decode(export_json["glb_base64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(sha256_hex(&exported_bytes), preview_sha);
+        assert_eq!(export_json["artifact_profile_id"], "production_concept");
+
+        let replay = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                confirm_request(),
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(replay.status, 201);
+        assert_eq!(rust_core.repository().head(project_id).unwrap(), Some(head));
+
+        drop(bridge);
+        drop(rust_core);
+        drop(backend);
+        fs::remove_dir_all(library_root).unwrap();
+    }
+
+    #[test]
+    fn u004_universal_image_local_hybrid_preview_confirm_and_export_round_trip() {
+        fn capture_uploads(
+            session: &forgecad_core::CandidatePbrCaptureSession,
+        ) -> Vec<NativeCandidatePbrCaptureUpload> {
+            fn png(width: u32, height: u32, seed: u8) -> Vec<u8> {
+                let image = image::RgbaImage::from_fn(width, height, |x, y| {
+                    let variation = ((x / 16 + y / 16 + u32::from(seed)) % 180) as u8;
+                    image::Rgba([
+                        24_u8.saturating_add(variation),
+                        72_u8.saturating_add(variation / 2),
+                        128_u8.saturating_add(variation / 3),
+                        255,
+                    ])
+                });
+                let mut encoded = std::io::Cursor::new(Vec::new());
+                image::DynamicImage::ImageRgba8(image)
+                    .write_to(&mut encoded, image::ImageFormat::Png)
+                    .unwrap();
+                encoded.into_inner()
+            }
+
+            fn auxiliary(seed: u8) -> Vec<u8> {
+                let image = image::RgbaImage::from_fn(960, 640, |x, y| {
+                    let tile = (x / 320) + (y / 320) * 3;
+                    if tile >= 5 {
+                        return image::Rgba([0, 0, 0, 255]);
+                    }
+                    let variation =
+                        ((x / 16 + y / 16 + u32::from(seed) + tile * 17) % 160) as u8;
+                    image::Rgba([
+                        32_u8.saturating_add(variation),
+                        48_u8.saturating_add(variation / 2),
+                        64_u8.saturating_add(variation / 3),
+                        255,
+                    ])
+                });
+                let mut encoded = std::io::Cursor::new(Vec::new());
+                image::DynamicImage::ImageRgba8(image)
+                    .write_to(&mut encoded, image::ImageFormat::Png)
+                    .unwrap();
+                encoded.into_inner()
+            }
+
+            session
+                .required_view_ids
+                .iter()
+                .enumerate()
+                .map(|(index, view_id)| NativeCandidatePbrCaptureUpload {
+                    schema_version: "NativeCandidatePbrCaptureUpload@1".into(),
+                    view_id: view_id.clone(),
+                    camera_pose_sha256: format!("{index:064x}"),
+                    projection_camera_binding_sha256: session
+                        .projection_camera_binding_sha256_by_view_id
+                        .get(view_id)
+                        .unwrap()
+                        .clone(),
+                    visual_environment_id: forgecad_core::WORKBENCH_PBR_VISUAL_ENVIRONMENT_ID.into(),
+                    visual_environment_sha256: forgecad_core::WORKBENCH_PBR_VISUAL_ENVIRONMENT_SHA256.into(),
+                    png_bytes: png(640, 640, index as u8),
+                    auxiliary_png_bytes: auxiliary(index as u8),
+                })
+                .collect()
+        }
+
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::GameDelivery);
+        let serial = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let library_root = std::env::temp_dir().join(format!(
+            "forgecad-u004-universal-hybrid-round-trip-{}-{serial}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&library_root).unwrap();
+        let rust_core = Arc::new(
+            RustCoreRuntime::open(
+                &library_root,
+                format!("u004-universal-hybrid-round-trip-{serial}"),
+            )
+            .unwrap(),
+        );
+        let project_id = "project_u004_universal_hybrid";
+        let turn_id = "turn_u004_universal_hybrid";
+        rust_core
+            .repository()
+            .create_project(&forgecad_core::Project {
+                project_id: project_id.into(),
+                profile_id: "profile_weapon_concept_v1".into(),
+                domain_type: "weapon_concept".into(),
+                name: "U004 universal local hybrid round trip".into(),
+                status: forgecad_core::ProjectStatus::Active,
+                current_version_id: None,
+                created_at: "2026-07-30T00:00:00Z".into(),
+                updated_at: "2026-07-30T00:00:00Z".into(),
+            })
+            .unwrap();
+
+        let reference_png_base64 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGPQjVnwHx9mGBkKANXiigEwD3bkAAAAAElFTkSuQmCC";
+        let evidence_request: forgecad_core::CreateReferenceEvidenceRequest =
+            serde_json::from_value(json!({
+                "schema_version":"ReferenceEvidenceCreateRequest@1",
+                "client_request_id":"create_u004_universal_hybrid_reference",
+                "project_id":project_id,
+                "kind":"image",
+                "reference_class":"single_image",
+                "file_name":"silver-hybrid-reference.png",
+                "media_type":"image/png",
+                "content_base64":reference_png_base64,
+                "source_statement":"Hermetic U004 local hybrid sealed image fixture.",
+                "license_statement":"Fixture content is local and test-only.",
+                "missing_views":["rear","top"],
+                "user_notes":"Visible silver shell with a flexible trim segment.",
+                "domain_pack_id":"pack_unclassified"
+            }))
+            .unwrap();
+        let evidence = rust_core
+            .repository()
+            .create_reference_evidence(&evidence_request, "2026-07-30T00:00:00Z")
+            .unwrap();
+        let (context, outcome) =
+            u004_universal_image_local_hybrid_author_fixture(project_id, turn_id, &evidence);
+
+        let provider: Arc<dyn ProviderClient> = Arc::new(FakeDeepSeekClient::scripted(
+            "deepseek-chat",
+            false,
+            false,
+            Vec::new(),
+        ));
+        let bridge = AppServerBridge::new_production(
+            &backend.endpoint,
+            TEST_GEOMETRY_CAPABILITY.to_string(),
+            provider,
+            Arc::clone(&rust_core),
+        )
+        .unwrap();
+        bridge
+            .attach_visual_reference_comparison_provider(Arc::new(
+                BudgetedVisualReferenceComparisonProvider::new(
+                    Arc::new(FakeQwenReferenceComparison),
+                    Arc::new(rust_core.repository().clone()),
+                ),
+            ))
+            .unwrap();
+
+        let executor = bridge.inner.native_product_tools.as_ref().unwrap();
+        let registry = ProductToolRegistry::default();
+        let execution_id = "execution_u004_universal_hybrid";
+        let cancellation_id = "cancel_u004_universal_hybrid";
+        let cancellation_token = "token_u004_universal_hybrid";
+        executor
+            .bind_execution_project(execution_id, turn_id, Some(project_id))
+            .unwrap();
+        executor
+            .bind_execution_universal_author_context(execution_id, turn_id, context)
+            .unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let run_tool = |name: &str, arguments: Value, call_index: usize| -> Value {
+            let request = registry
+                .build_execution_request(
+                    turn_id,
+                    &ProviderToolCall {
+                        call_id: format!("call_u004_universal_hybrid_{call_index}"),
+                        name: name.into(),
+                        arguments,
+                    },
+                    execution_id,
+                    cancellation_id,
+                    cancellation_token,
+                )
+                .unwrap();
+            let result = runtime
+                .block_on(executor.execute(request, CancellationToken::new()))
+                .unwrap();
+            assert_eq!(
+                result.status,
+                ProductToolExecutionStatus::Completed,
+                "U004 local hybrid tool {name} failed: code={:?} message={:?} result={:?}",
+                result.error_code,
+                result.message,
+                result
+            );
+            serde_json::to_value(result.validated_output.unwrap().value).unwrap()
+        };
+
+        let authored = run_tool("author_universal_asset", json!({"outcome":outcome}), 0);
+        assert_eq!(authored["execution_route"], "build_universal_local_hybrid");
+        assert_eq!(
+            authored["universal_asset_source"]["representation"],
+            "hybrid"
+        );
+        assert!(authored.get("forge_visual_program").is_none());
+        run_tool(
+            "build_candidate_geometry",
+            json!({
+                "direction_id":"direction_universal_local_hybrid",
+                "variant_id":null,
+                "presentation_profile":"showcase"
+            }),
+            1,
+        );
+        run_tool("compile_readback_candidate", json!({}), 2);
+        run_tool("render_candidate_views", json!({}), 3);
+
+        let session = bridge
+            .issue_candidate_pbr_capture(execution_id, project_id, turn_id)
+            .unwrap();
+        let transient_glb = bridge
+            .candidate_pbr_capture_glb(&session.session_id, project_id, turn_id)
+            .unwrap();
+        assert_eq!(sha256_hex(&transient_glb), session.candidate_glb_sha256);
+        bridge
+            .submit_candidate_pbr_capture(&session.session_id, capture_uploads(&session))
+            .unwrap();
+        let scope = bridge
+            .pending_universal_visual_comparison_authorization(
+                execution_id,
+                project_id,
+                turn_id,
+            )
+            .unwrap()
+            .expect("sealed local hybrid image must expose one Qwen authorization scope");
+        let now = crate::current_unix_ms();
+        let authorization = rust_core
+            .repository()
+            .issue_visual_reference_comparison_authorization(
+                "visauth_u004_universal_hybrid",
+                "authorize_u004_universal_hybrid",
+                project_id,
+                &scope.request_sha256,
+                &scope.evidence_graph_sha256,
+                &scope.acceptance_policy_sha256,
+                now,
+                now + 60_000,
+            )
+            .unwrap();
+        bridge
+            .bind_universal_visual_comparison_authorization(
+                execution_id,
+                project_id,
+                turn_id,
+                &authorization.authorization_id,
+                &authorization.authorization_binding_sha256,
+            )
+            .unwrap();
+
+        let evaluated = run_tool("evaluate_candidate", json!({}), 4);
+        assert_eq!(evaluated["hard_gate_passed"], true);
+        assert_eq!(
+            evaluated.pointer("/visual_reference_comparison_report/provider/model_id"),
+            Some(&json!("qwen3-vl-plus"))
+        );
+        let prepared = run_tool("prepare_candidate_preview", json!({}), 5);
+        let preview_id = prepared["preview_id"].as_str().unwrap().to_string();
+        let preview = bridge
+            .preview_artifact(&preview_id)
+            .unwrap()
+            .expect("U004 local hybrid preview must be retained");
+        let preview_source = preview
+            .universal_asset_source_v2
+            .as_ref()
+            .expect("local hybrid preview must retain UAS@2");
+        assert!(matches!(
+            preview_source.representation_source,
+            forgecad_core::UniversalRepresentationSourceV2::Hybrid(_)
+        ));
+        let preview_sha = preview.glb_sha256.clone();
+        let endpoint = LocalAgentEndpoint::parse(&backend.endpoint).unwrap();
+        let confirm_request = || PreparedCompatHttpRequest {
+            endpoint: endpoint.clone(),
+            method: AllowedHttpMethod::Post,
+            path: format!(
+                "/api/v1/agent/projects/{project_id}/turns/{turn_id}/single-results/{preview_id}:confirm"
+            ),
+            headers: vec![
+                ("Content-Type".into(), "application/json".into()),
+                (
+                    "Idempotency-Key".into(),
+                    "confirm_u004_universal_hybrid".into(),
+                ),
+                ("If-Match".into(), format!("\"sha256:{preview_sha}\"")),
+            ],
+            body: ProtocolHttpBody::Utf8 {
+                data: json!({
+                    "client_request_id":"confirm_u004_universal_hybrid",
+                    "expected_artifact_sha256":preview_sha,
+                    "summary":"Confirm universal local hard-surface hybrid candidate"
+                })
+                .to_string(),
+            },
+        };
+        let confirmed = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                confirm_request(),
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(confirmed.status, 201, "{:?}", confirmed.body);
+        let head = rust_core.repository().head(project_id).unwrap().unwrap();
+        let version = rust_core.repository().version(&head).unwrap().unwrap();
+        let persisted_source: forgecad_core::UniversalAssetSourceV2 =
+            serde_json::from_value(version.assembly_graph["universal_asset_source_v2"].clone())
+                .unwrap();
+        assert!(matches!(
+            persisted_source.representation_source,
+            forgecad_core::UniversalRepresentationSourceV2::Hybrid(_)
+        ));
+        assert!(version
+            .assembly_graph
+            .get("forge_visual_program_revision")
+            .is_none());
+
+        let exported = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                PreparedCompatHttpRequest {
+                    endpoint: endpoint.clone(),
+                    method: AllowedHttpMethod::Post,
+                    path: format!("/api/v1/agent/asset-versions/{head}:export"),
+                    headers: vec![("Content-Type".into(), "application/json".into())],
+                    body: ProtocolHttpBody::Utf8 {
+                        data: json!({
+                            "client_request_id":"export_u004_universal_hybrid"
+                        })
+                        .to_string(),
+                    },
+                },
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(exported.status, 200, "{:?}", exported.body);
+        let export_json = compat_json(&exported);
+        let exported_bytes = BASE64
+            .decode(export_json["glb_base64"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(sha256_hex(&exported_bytes), preview_sha);
+        assert_eq!(export_json["artifact_profile_id"], "production_concept");
+
+        let replay = runtime
+            .block_on(CompatibilityHttpPort::execute(
+                bridge.inner.port.as_ref(),
+                confirm_request(),
+                CancellationToken::new(),
+            ))
+            .unwrap();
+        assert_eq!(replay.status, 201);
+        assert_eq!(rust_core.repository().head(project_id).unwrap(), Some(head));
+
+        drop(bridge);
+        drop(rust_core);
+        drop(backend);
+        fs::remove_dir_all(library_root).unwrap();
+    }
+
+    #[test]
+    fn u004_universal_limitation_bridge_has_zero_geometry_or_version_side_effects() {
+        let backend = FakeGeometryBackend::start(FakeGeometryScenario::Success);
+        let serial = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let library_root = std::env::temp_dir().join(format!(
+            "forgecad-u004-universal-limitation-{}-{serial}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&library_root).unwrap();
+        let rust_core = Arc::new(
+            RustCoreRuntime::open(
+                &library_root,
+                format!("u004-universal-limitation-{serial}"),
+            )
+            .unwrap(),
+        );
+        let project_id = "project_u004_universal_limitation";
+        let turn_id = "turn_u004_universal_limitation";
+        rust_core
+            .repository()
+            .create_project(&forgecad_core::Project {
+                project_id: project_id.into(),
+                profile_id: "profile_weapon_concept_v1".into(),
+                domain_type: "weapon_concept".into(),
+                name: "U004 universal limitation".into(),
+                status: forgecad_core::ProjectStatus::Active,
+                current_version_id: None,
+                created_at: "2026-07-30T00:00:00Z".into(),
+                updated_at: "2026-07-30T00:00:00Z".into(),
+            })
+            .unwrap();
+        let (context, mut outcome) = u004_game_delivery_author_fixture(project_id, turn_id);
+        outcome["outcome"] = json!("limitation");
+        outcome
+            .as_object_mut()
+            .unwrap()
+            .remove("executable_payload");
+        outcome["representation_plan"]["parts"][0]["representation"] = json!("mesh_seed");
+        outcome["representation_plan"]["parts"][0]["capability_id"] =
+            json!("mesh_seed.generic_v1");
+        outcome["limitation"] = json!({
+            "schema_version":"RepresentationLimitation@1",
+            "code":"representation_unavailable",
+            "message":"当前尚无通用 mesh seed 执行能力；没有生成错误模板。",
+            "affected_part_ids":["part_shell"],
+            "missing_capability_ids":["mesh_seed.generic_v1"],
+            "suggested_views":["front","side","rear"],
+            "retryable":true
+        });
+        let provider: Arc<dyn ProviderClient> = Arc::new(FakeDeepSeekClient::scripted(
+            "deepseek-chat",
+            false,
+            false,
+            Vec::new(),
+        ));
+        let bridge = AppServerBridge::new_production(
+            &backend.endpoint,
+            TEST_GEOMETRY_CAPABILITY.to_string(),
+            provider,
+            Arc::clone(&rust_core),
+        )
+        .unwrap();
+        let executor = bridge.inner.native_product_tools.as_ref().unwrap();
+        executor
+            .bind_execution_project("execution_u004_limitation", turn_id, Some(project_id))
+            .unwrap();
+        executor
+            .bind_execution_universal_author_context("execution_u004_limitation", turn_id, context)
+            .unwrap();
+        let registry = ProductToolRegistry::default();
+        let request = registry
+            .build_execution_request(
+                turn_id,
+                &ProviderToolCall {
+                    call_id: "call_u004_limitation".into(),
+                    name: "author_universal_asset".into(),
+                    arguments: json!({"outcome":outcome}),
+                },
+                "execution_u004_limitation",
+                "cancel_u004_limitation",
+                "token_u004_limitation",
+            )
+            .unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let result = runtime
+            .block_on(executor.execute(request, CancellationToken::new()))
+            .unwrap();
+        assert_eq!(result.status, ProductToolExecutionStatus::Completed);
+        let output = serde_json::to_value(result.validated_output.unwrap().value).unwrap();
+        assert_eq!(output["outcome"], "limitation");
+        assert_eq!(output["permanent_side_effects"], 0);
+        assert_eq!(
+            backend.state.lock().unwrap().requested_paths.len(),
+            0,
+            "typed limitation must not invoke the restricted geometry worker"
+        );
+        assert!(bridge.preview_artifact("preview_u004_limitation").unwrap().is_none());
+        assert_eq!(rust_core.repository().head(project_id).unwrap(), None);
+        assert_eq!(rust_core.repository().snapshot(project_id).unwrap(), None);
+        drop(bridge);
+        drop(rust_core);
+        drop(backend);
+        fs::remove_dir_all(library_root).unwrap();
     }
 
     #[test]

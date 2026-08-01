@@ -17,6 +17,7 @@ import { legacyLifecycleTestOracleEnvironment } from './workbench_agent_blockout
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const TIMEOUT = 25_000
+const RUST_FIXTURE_TIMEOUT = Number.parseInt(process.env.FORGECAD_V003_RUST_TIMEOUT_MS ?? '120000', 10)
 // Optional, deliberately explicit evidence output. The default gate remains
 // hermetic; a reviewer can opt into a screenshot plus redacted browser/proxy
 // telemetry without turning the test's temporary worktree into a source of
@@ -301,7 +302,8 @@ async function forwardToPython(input, pythonBase) {
 }
 
 async function produceRustFixture(path, projectId) {
-  const result = spawnSync('script/with_rust_toolchain.sh', ['cargo', 'test', '--manifest-path', 'apps/desktop/src-tauri/Cargo.toml', '-p', 'wushen-forge-desktop', 'app_server_bridge::tests::formal_single_result_preview_get_and_confirm_create_one_atomic_asset', '--offline', '--', '--exact'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, FORGECAD_V003_RUST_E2E_FIXTURE_PATH: path, FORGECAD_V003_RUST_E2E_PROJECT_ID: projectId } })
+  const result = spawnSync('script/with_rust_toolchain.sh', ['cargo', 'test', '--manifest-path', 'apps/desktop/src-tauri/Cargo.toml', '-p', 'wushen-forge-desktop', 'app_server_bridge::tests::formal_single_result_preview_get_and_confirm_create_one_atomic_asset', '--offline', '--', '--exact'], { cwd: ROOT, encoding: 'utf8', timeout: RUST_FIXTURE_TIMEOUT, killSignal: 'SIGTERM', env: { ...process.env, FORGECAD_V003_RUST_E2E_FIXTURE_PATH: path, FORGECAD_V003_RUST_E2E_PROJECT_ID: projectId } })
+  if (result.error?.code === 'ETIMEDOUT') throw new Error(`Rust fixture producer timed out after ${RUST_FIXTURE_TIMEOUT}ms`)
   if (result.status !== 0) throw new Error(`Rust fixture producer failed:\n${result.stdout}\n${result.stderr}`)
   return deepFreeze(JSON.parse(await readFile(path, 'utf8')))
 }

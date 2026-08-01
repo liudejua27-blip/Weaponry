@@ -156,6 +156,13 @@ pub struct VisualReferenceConvergenceEvidence {
     pub comparison_report_sha256: String,
     pub passed: bool,
     pub failure_codes: Vec<String>,
+    /// Hash of the optional Rust-owned low-dimensional reference/candidate
+    /// visual metric summary. The summary contains no pixels; it is retained
+    /// as a transient diagnostic beside the Provider comparison. A missing
+    /// summary is allowed for frozen fixtures whose image bytes cannot be
+    /// decoded, but an attached hash must always be a real SHA-256.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rust_metric_summary_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -353,6 +360,10 @@ impl VisualConvergenceInput {
         };
         if !is_sha256(&reference.comparison_input_sha256)
             || !is_sha256(&reference.comparison_report_sha256)
+            || reference
+                .rust_metric_summary_sha256
+                .as_deref()
+                .is_some_and(|value| !is_sha256(value))
             || reference.failure_codes.len() > 32
             || reference
                 .failure_codes
@@ -528,6 +539,7 @@ mod tests {
             comparison_report_sha256: hash('9'),
             passed: false,
             failure_codes: vec!["REFERENCE_MACRO_MISMATCH".into()],
+            rust_metric_summary_sha256: None,
         });
         let report = input.evaluate().unwrap();
         assert!(!report.passed);
@@ -547,6 +559,7 @@ mod tests {
             comparison_report_sha256: hash('9'),
             passed: true,
             failure_codes: vec!["REFERENCE_MESO_MISMATCH".into()],
+            rust_metric_summary_sha256: None,
         });
         let report = input.evaluate().unwrap();
         assert!(!report.passed);

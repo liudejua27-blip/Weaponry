@@ -34,6 +34,11 @@ export function useWorkbenchLifecycle() {
     initialActiveDesignMachineState,
   )
   const latestRequestIdRef = useRef(0)
+  // `openProject` and the first refresh can be dispatched in the same React
+  // event. Keep the project identity synchronously available so that the
+  // request-start action is not rejected against the previous render's
+  // null project state.
+  const projectIdRef = useRef<string | null>(null)
   const [drawerState, dispatchDrawer] = useReducer(
     workbenchDrawerReducer,
     initialWorkbenchDrawerState,
@@ -50,11 +55,13 @@ export function useWorkbenchLifecycle() {
   }, [])
 
   const openProject = useCallback((projectId: string) => {
+    projectIdRef.current = projectId
     invalidateActiveDesignRequests()
     dispatchActiveDesign({ type: 'open_project', projectId })
   }, [invalidateActiveDesignRequests])
 
   const startActiveDesignRequest = useCallback((operation: Exclude<ActiveDesignOperation, 'idle'>) => {
+    if (!projectIdRef.current) return 0
     const requestId = latestRequestIdRef.current + 1
     latestRequestIdRef.current = requestId
     dispatchActiveDesign({ type: 'request_started', requestId, operation })

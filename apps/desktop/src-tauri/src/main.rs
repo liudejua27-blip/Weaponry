@@ -6,6 +6,7 @@ mod deepseek_forge_visual_acceptance_probe;
 mod deepseek_mvp_acceptance_probe;
 mod deepseek_provider;
 mod k003_packaged_probe;
+mod local_universal_provider;
 mod mvp_arm_packaged_probe;
 mod mvp_arm_provider;
 mod provider_credentials;
@@ -63,6 +64,9 @@ use deepseek_provider::{
 };
 use forgecad_app_server::ProviderClient;
 use mvp_arm_provider::{LocalRoboticArmMvpProvider, MVP_MODEL};
+use local_universal_provider::{
+    LocalUniversalVisualAuthorProvider, LOCAL_UNIVERSAL_ENV, LOCAL_UNIVERSAL_MODEL,
+};
 use provider_credentials::{
     validate_provider_config_input, ProviderConfigMetadata, ProviderCredentialStore,
 };
@@ -108,7 +112,14 @@ const C111B_PACKAGED_WEBGL_MATERIALS: u64 = 12;
 // production hash above.
 const C111B_PACKAGED_WEBGL_AGENT_V2_MATERIALS: u64 = 14;
 const C111B_PACKAGED_WEBGL_AGENT_V2_COMPLETE_PBR_MATERIALS: u64 = 12;
+const C111B_PACKAGED_WEBGL_PBR_RENDERER_ID: &str = "forgecad-workbench-pbr@1";
+const C111B_PACKAGED_WEBGL_PBR_RENDER_MANIFEST_SHA256: &str =
+    "024d7e8f707c75eafd12f22e9a5e9f9c5ab0fcbd1a6ce1a4de6726ace7b2451a";
+const C111B_PACKAGED_WEBGL_PBR_VISUAL_ENVIRONMENT_ID: &str = "env_forgecad_room_studio_v2";
+const C111B_PACKAGED_WEBGL_PBR_VISUAL_ENVIRONMENT_SHA256: &str =
+    "0884e4f7b32c11ce94b4d406260f9ea89ca0c7933e0088d14e9eb89f382508a4";
 const C111B_PACKAGED_WEBGL_CAPTURE_MAX_PNG_BYTES: usize = 8 * 1024 * 1024;
+const C111B_PACKAGED_WEBGL_AUXILIARY_MAX_PNG_BYTES: usize = 8 * 1024 * 1024;
 const C111B_PACKAGED_WEBGL_SOURCE_MAX_BYTES: usize = 48 * 1024 * 1024;
 const RESTRICTED_GEOMETRY_CAPABILITY_HEADER: &str = "X-ForgeCAD-Restricted-Geometry-Capability";
 const RESTRICTED_GEOMETRY_OWNERSHIP_PATH: &str = "/api/v1/internal/geometry/capability/ownership";
@@ -294,6 +305,14 @@ where
 fn build_native_provider_client(
     credentials: Arc<ProviderCredentialStore>,
 ) -> Result<NativeProviderClientBundle, String> {
+    if local_universal_author_enabled() {
+        let provider = Arc::new(LocalUniversalVisualAuthorProvider::new());
+        let client: Arc<dyn ProviderClient> = provider;
+        return Ok(NativeProviderClientBundle {
+            client,
+            local_mvp_provider: None,
+        });
+    }
     if mvp_offline_arm_enabled() {
         let local_mvp_provider = Arc::new(LocalRoboticArmMvpProvider::new());
         let client: Arc<dyn ProviderClient> = local_mvp_provider.clone();
@@ -316,6 +335,19 @@ fn build_native_provider_client(
         client: Arc::new(client),
         local_mvp_provider: None,
     })
+}
+
+fn local_universal_author_enabled() -> bool {
+    let enabled = env::var(LOCAL_UNIVERSAL_ENV).as_deref() == Ok("1");
+    if enabled {
+        // Temporary local bring-up marker; removed after the packaged path is
+        // verified so the runtime does not retain diagnostic filesystem I/O.
+        let _ = fs::write(
+            "/tmp/forgecad-local-provider-selected",
+            LOCAL_UNIVERSAL_MODEL.as_bytes(),
+        );
+    }
+    enabled
 }
 
 fn mvp_offline_arm_enabled() -> bool {
@@ -642,6 +674,10 @@ struct C111bPackagedWebglQaCaptureRequest {
     view_id: String,
     source_sha256: String,
     bytes_base64: String,
+    auxiliary_width: u32,
+    auxiliary_height: u32,
+    auxiliary_pass_ids: Vec<String>,
+    auxiliary_bytes_base64: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -669,6 +705,18 @@ struct C111bPackagedWebglQaCapture {
     source_sha256: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     readability: Option<C111bPackagedWebglQaRasterReadability>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auxiliary_width: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auxiliary_height: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auxiliary_pass_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auxiliary_byte_size: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auxiliary_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auxiliary_relative_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -732,6 +780,24 @@ struct C111bPackagedWebglQaReport {
     render_source: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     light_preset: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    renderer_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    render_manifest_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    visual_environment_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    visual_environment_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    output_color_space: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tone_mapping: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pbr_texture_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pbr_color_spaces: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pbr_sampling_valid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     captures: Option<Vec<C111bPackagedWebglQaCapture>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1145,6 +1211,13 @@ fn forgecad_c111b_webview_qa_capture(
     ) {
         return Err("C111B packaged WebGL QA view is not in the frozen eight-view set.".into());
     }
+    if capture.auxiliary_width != 960
+        || capture.auxiliary_height != 640
+        || capture.auxiliary_pass_ids.iter().map(String::as_str).collect::<Vec<_>>()
+            != ["silhouette", "normal", "depth", "part_id", "material_id"]
+    {
+        return Err("C111B packaged WebGL QA auxiliary pass contract is invalid.".into());
+    }
     if capture.bytes_base64.len()
         > (C111B_PACKAGED_WEBGL_CAPTURE_MAX_PNG_BYTES.saturating_add(2) / 3).saturating_mul(4)
     {
@@ -1157,8 +1230,31 @@ fn forgecad_c111b_webview_qa_capture(
         return Err("C111B packaged WebGL QA screenshot byte length is invalid.".into());
     }
     let (width, height) = arm_webview_qa_png_dimensions(&bytes)?;
+    if capture.auxiliary_bytes_base64.len()
+        > (C111B_PACKAGED_WEBGL_AUXILIARY_MAX_PNG_BYTES.saturating_add(2) / 3).saturating_mul(4)
+    {
+        return Err("C111B packaged WebGL QA auxiliary screenshot is too large.".into());
+    }
+    let auxiliary_bytes = BASE64_STANDARD
+        .decode(capture.auxiliary_bytes_base64.as_bytes())
+        .map_err(|_| {
+            "C111B packaged WebGL QA auxiliary screenshot is not valid Base64.".to_string()
+        })?;
+    if auxiliary_bytes.is_empty()
+        || auxiliary_bytes.len() > C111B_PACKAGED_WEBGL_AUXILIARY_MAX_PNG_BYTES
+    {
+        return Err("C111B packaged WebGL QA auxiliary screenshot byte length is invalid.".into());
+    }
+    let (auxiliary_width, auxiliary_height) = arm_webview_qa_png_dimensions(&auxiliary_bytes)?;
+    if auxiliary_width != capture.auxiliary_width || auxiliary_height != capture.auxiliary_height {
+        return Err("C111B packaged WebGL QA auxiliary screenshot dimensions are invalid.".into());
+    }
     let relative_path = format!(
         "qa-artifacts/c111b-webgl/{}/{}.png",
+        config.phase, capture.view_id
+    );
+    let auxiliary_relative_path = format!(
+        "qa-artifacts/c111b-webgl/{}/{}.auxiliary.png",
         config.phase, capture.view_id
     );
     let root = sidecar_log_path()
@@ -1166,14 +1262,19 @@ fn forgecad_c111b_webview_qa_capture(
         .ok_or_else(|| "C111B packaged WebGL QA artifact root is unavailable.".to_string())?
         .to_path_buf();
     let path = root.join(&relative_path);
+    let auxiliary_path = root.join(&auxiliary_relative_path);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|_| {
             "C111B packaged WebGL QA artifact directory could not be created.".to_string()
         })?;
     }
     let sha256 = format!("{:x}", Sha256::digest(&bytes));
+    let auxiliary_sha256 = format!("{:x}", Sha256::digest(&auxiliary_bytes));
     fs::write(&path, &bytes)
         .map_err(|_| "C111B packaged WebGL QA screenshot could not be written.".to_string())?;
+    fs::write(&auxiliary_path, &auxiliary_bytes).map_err(|_| {
+        "C111B packaged WebGL QA auxiliary screenshot could not be written.".to_string()
+    })?;
     Ok(C111bPackagedWebglQaCapture {
         view_id: capture.view_id,
         relative_path,
@@ -1183,6 +1284,12 @@ fn forgecad_c111b_webview_qa_capture(
         height,
         source_sha256: capture.source_sha256,
         readability: None,
+        auxiliary_width: Some(auxiliary_width),
+        auxiliary_height: Some(auxiliary_height),
+        auxiliary_pass_ids: Some(capture.auxiliary_pass_ids),
+        auxiliary_byte_size: Some(auxiliary_bytes.len() as u64),
+        auxiliary_sha256: Some(auxiliary_sha256),
+        auxiliary_relative_path: Some(auxiliary_relative_path),
     })
 }
 
@@ -2406,6 +2513,18 @@ fn validate_c111b_packaged_webgl_success(
                 "external_reference"
             })
         || report.light_preset.as_deref() != Some("soft_studio")
+        || report.renderer_id.as_deref() != Some(C111B_PACKAGED_WEBGL_PBR_RENDERER_ID)
+        || report.render_manifest_sha256.as_deref()
+            != Some(C111B_PACKAGED_WEBGL_PBR_RENDER_MANIFEST_SHA256)
+        || report.visual_environment_id.as_deref()
+            != Some(C111B_PACKAGED_WEBGL_PBR_VISUAL_ENVIRONMENT_ID)
+        || report.visual_environment_sha256.as_deref()
+            != Some(C111B_PACKAGED_WEBGL_PBR_VISUAL_ENVIRONMENT_SHA256)
+        || report.output_color_space.as_deref() != Some("srgb")
+        || report.tone_mapping.as_deref() != Some("aces_filmic")
+        || report.pbr_texture_count.is_none_or(|value| value < 5)
+        || report.pbr_color_spaces.as_deref() != Some("valid")
+        || report.pbr_sampling_valid.as_deref() != Some("true")
         || report.formal_eligible != Some(false)
         || report.human_benchmark_evidence != Some(false)
         || report.reference_comparison != Some(false)
@@ -2526,6 +2645,24 @@ fn validate_c111b_packaged_webgl_success(
             || capture.byte_size == 0
             || capture.width < 320
             || capture.height < 240
+            || capture.auxiliary_relative_path.as_deref() != Some(
+                format!(
+                    "qa-artifacts/c111b-webgl/{}/{}.auxiliary.png",
+                    config.phase, capture.view_id
+                )
+                .as_str(),
+            )
+            || capture.auxiliary_width != Some(960)
+            || capture.auxiliary_height != Some(640)
+            || capture.auxiliary_pass_ids.as_ref().is_none_or(|ids| {
+                ids.iter().map(String::as_str).collect::<Vec<_>>()
+                    != ["silhouette", "normal", "depth", "part_id", "material_id"]
+            })
+            || capture.auxiliary_byte_size != Some(960 * 640 * 4)
+            || capture
+                .auxiliary_sha256
+                .as_deref()
+                .is_none_or(|value| validate_k001_probe_sha(value).is_err())
         {
             return Err("C111B packaged WebGL QA screenshot receipt is invalid.".into());
         }
@@ -3526,6 +3663,11 @@ fn k002_probe_u64_env(name: &str, minimum: u64, maximum: u64) -> Result<u64, Str
 fn get_provider_config(
     state: State<'_, AgentProcessState>,
 ) -> Result<ProviderConfigMetadata, String> {
+    if local_universal_author_enabled() {
+        return Ok(local_universal_provider_config_with_runtime_status(
+            &state.internal_capability_token,
+        ));
+    }
     if mvp_offline_arm_enabled() {
         return Ok(mvp_provider_config_with_runtime_status(
             &state.internal_capability_token,
@@ -3537,11 +3679,40 @@ fn get_provider_config(
     ))
 }
 
+fn local_universal_provider_config_with_runtime_status(
+    internal_capability_token: &str,
+) -> ProviderConfigMetadata {
+    let supervisor_status = match probe_agent(internal_capability_token) {
+        AgentProbe::Healthy => "running",
+        AgentProbe::WrongService(_) | AgentProbe::CapabilityMismatch(_) => "mismatch",
+        AgentProbe::Offline => "unavailable",
+    };
+    ProviderConfigMetadata {
+        base_url: "local://forgecad-universal-visual-author".into(),
+        model: LOCAL_UNIVERSAL_MODEL.into(),
+        configured: true,
+        storage: "rust-offline-deterministic".into(),
+        credential_id: None,
+        metadata_status: "ready".into(),
+        secret_status: "not_required".into(),
+        supervisor_status: supervisor_status.into(),
+        capability_status: if supervisor_status == "running" {
+            "ready".into()
+        } else {
+            supervisor_status.into()
+        },
+        failure_code: None,
+    }
+}
+
 #[tauri::command]
 fn save_provider_config(
     mut request: SaveProviderConfigRequest,
     state: State<'_, AgentProcessState>,
 ) -> Result<ProviderConfigMetadata, String> {
+    if local_universal_author_enabled() {
+        return Err("本机通用视觉作者不读取或保存 Provider Key。".into());
+    }
     if mvp_offline_arm_enabled() {
         return Err("本机机械臂 MVP 不读取或保存 Provider Key。".into());
     }
@@ -3559,6 +3730,9 @@ fn save_provider_config(
 fn clear_provider_config(
     state: State<'_, AgentProcessState>,
 ) -> Result<ProviderConfigMetadata, String> {
+    if local_universal_author_enabled() {
+        return Err("本机通用视觉作者不读取或清除 Provider Key。".into());
+    }
     if mvp_offline_arm_enabled() {
         return Err("本机机械臂 MVP 不读取或清除 Provider Key。".into());
     }

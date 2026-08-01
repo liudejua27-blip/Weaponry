@@ -986,8 +986,11 @@
             "type": "string"
           },
           "renderer_id": {
-            "const": "forgecad-agent-software-raster@1",
             "default": "forgecad-agent-software-raster@1",
+            "enum": [
+              "forgecad-agent-software-raster@1",
+              "forgecad-workbench-pbr@1"
+            ],
             "title": "Renderer Id",
             "type": "string"
           },
@@ -1034,8 +1037,11 @@
             "type": "string"
           },
           "background_mode": {
-            "const": "transparent",
             "default": "transparent",
+            "enum": [
+              "transparent",
+              "studio"
+            ],
             "title": "Background Mode",
             "type": "string"
           },
@@ -7596,6 +7602,55 @@
         "title": "ExportUnityRequest",
         "type": "object"
       },
+      "GameAssetDeliveryRequestInput": {
+        "additionalProperties": false,
+        "description": "User-selected game delivery intent; Rust derives part bindings.",
+        "properties": {
+          "lod_triangle_budgets": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Lod Triangle Budgets",
+            "type": "array"
+          },
+          "profile_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "GameAssetDeliveryRequest@1",
+            "default": "GameAssetDeliveryRequest@1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "target_texel_density_pixels_per_meter": {
+            "maximum": 2048.0,
+            "minimum": 128.0,
+            "title": "Target Texel Density Pixels Per Meter",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "lod_triangle_budgets",
+          "target_texel_density_pixels_per_meter"
+        ],
+        "title": "GameAssetDeliveryRequestInput",
+        "type": "object"
+      },
       "Generate3DRequest": {
         "properties": {
           "build_unity_export": {
@@ -13558,6 +13613,16 @@
             "minLength": 1,
             "title": "Client Request Id",
             "type": "string"
+          },
+          "game_asset_delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameAssetDeliveryRequestInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "message": {
             "maxLength": 200000,

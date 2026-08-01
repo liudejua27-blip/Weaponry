@@ -1628,6 +1628,13 @@ pub struct ChangeSetPreviewBundleReadback {
     pub snapshot: ActiveDesignSnapshot,
     pub interactive_preview_glb: ObjectRecord,
     pub interactive_readback: Value,
+    /// Game-ready ChangeSets retain the exact visual-source LOD0 and the
+    /// separately derived delivery GLB while the preview is still pending.
+    /// Ordinary ChangeSets leave both fields absent for legacy compatibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_source_lod0_glb: Option<ObjectRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_delivery_glb: Option<ObjectRecord>,
 }
 
 /// Complete authoritative readback after a ChangeSet preview is confirmed as
@@ -1641,6 +1648,13 @@ pub struct ChangeSetConfirmBundleReadback {
     pub quality: QualityReport,
     pub production_glb: ObjectRecord,
     pub interactive_preview_glb: ObjectRecord,
+    /// Present only for a confirmed game-ready ChangeSet. `production_glb`
+    /// remains the visual source for existing consumers; these explicit roles
+    /// prevent a delivery GLB from replacing the editable/PBR source truth.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_source_lod0_glb: Option<ObjectRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_delivery_glb: Option<ObjectRecord>,
 }
 
 fn require_id(field: &str, value: &str) -> CoreResult<()> {

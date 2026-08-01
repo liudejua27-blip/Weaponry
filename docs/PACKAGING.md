@@ -12,7 +12,7 @@ The target packaged product is a category-open desktop Agent for non-functional 
 mode=local-dev-python
 ```
 
-P002 已在本机构建 `aarch64-apple-darwin` frozen sidecar。K001/K002 的 packaged 历史链验证 Rust-owned 协议与 Agent 生命周期；K003 的真实双启动进一步验证 Rust core 单一拥有 Project/Snapshot/ChangeSet/Quality/Export、SQLite/WAL、CAS 和对象库，Python product/lifecycle route 返回 410，sidecar 环境没有数据库/对象库/Provider 路径，重启语义 hash 一致且 `provider_calls=0`。当前 sidecar 与 `.app` executable 的精确 SHA-256 只读取 `output/k003-layered-gate-final-source-20260718/manifest.json`，不在说明文档复制易失效 hash。原生 smoke 还验证 sidecar 为实际 `.app` 的受管后代和正常关闭回收 listener；当前仍不是可分发安装包。
+P002 本轮已重新构建 `aarch64-apple-darwin` frozen sidecar，并通过独立 sidecar alpha、P008 readiness、Rust ownership 静态 Gate、真实 LaunchServices `.app` runtime、K002 和 K003 原生双启动；真实 sidecar 的健康检查、临时 Library、受限几何归属、Rust-owned 产品状态、GLB/readback/render package、重启恢复和 `provider_calls=0` 已有本轮证据。K003 smoke 的健康校验已严格兼容 Rust supervisor 合法返回的动态 session/process-group 归属字段。当前仍不是可分发安装包：签名、公证、全新机安装/升级、跨平台 sidecar 和正式发布证据未完成。
 
 生产构建必须启动 bundled Agent sidecar 并报告：
 
@@ -42,7 +42,7 @@ npm run desktop:k003-packaged-native-smoke
 npm run k003:layered-gate
 ```
 
-第一条只在构建机冻结当前 macOS arm64 runtime；后续命令分别执行真实 sidecar、通过 LaunchServices 启动的实际 Tauri bundle、K002/K003 原生双启动和五层最终聚合。它们均使用临时 Rust-owned Library、清空/最小化 Python sidecar 环境、不读取 Keychain、不会自动调用模型 Provider。原生命令当前只适用于 macOS；其程序化证明不等于用户点击下载、安装器、签名、公证或外部发布。
+第一条只在构建机冻结当前 macOS arm64 runtime；后续命令分别执行真实 sidecar、通过 LaunchServices 启动的实际 Tauri bundle、K002/K003 原生双启动和五层最终聚合。它们均使用临时 Rust-owned Library、清空/最小化 Python sidecar 环境、不读取 Keychain、不会自动调用模型 Provider。原生命令当前只适用于 macOS；其程序化证明不等于用户点击下载、安装器、签名、公证或外部发布。若已有同路径桌面进程占用 8000，先由操作者正常关闭该应用，再重跑 `desktop:packaged-tauri-alpha-smoke`；不得通过杀死未知进程绕过前置条件。
 
 ## Required Production Shape
 

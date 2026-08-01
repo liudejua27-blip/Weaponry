@@ -813,12 +813,18 @@ fn validate_texture_image(
                 "Embedded PBR image is missing its visual texture manifest.",
             )
         })?;
+    let source = manifest.get("source").and_then(Value::as_str);
+    let license = manifest.get("license").and_then(Value::as_str);
+    let is_imported_reference_base_color = expected_role == "base_color"
+        && source == Some("imported_reference")
+        && license == Some("unknown");
+    let is_builtin_texture = source == Some("forgecad_builtin")
+        && license == Some("not_applicable");
     if manifest.get("texture_role").and_then(Value::as_str) != Some(expected_role)
         || manifest.get("mime_type").and_then(Value::as_str) != Some("image/png")
         || manifest.get("width").and_then(Value::as_u64) != Some(expected_dimension as u64)
         || manifest.get("height").and_then(Value::as_u64) != Some(expected_dimension as u64)
-        || manifest.get("source").and_then(Value::as_str) != Some("forgecad_builtin")
-        || manifest.get("license").and_then(Value::as_str) != Some("not_applicable")
+        || (!is_builtin_texture && !is_imported_reference_base_color)
         || manifest.get("fallback").and_then(Value::as_str) != Some("none")
         || manifest.get("visual_only").and_then(Value::as_bool) != Some(true)
     {

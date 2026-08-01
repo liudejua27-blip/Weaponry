@@ -17,9 +17,9 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "agent-component.schema.json": "af210593ce284882f1f21fd4fc9aecee06734581be4c21423132ffc9a8b5e909",
   "agent-skill-activation.schema.json": "bbe7456f57150564ecf85c67d636b646e0e06990c526c8f3cc37723cdd0746e9",
   "agent-skill-eval-report.schema.json": "33f4bff52ab4406c62bffb7ff8d0e101e0989f7f350ef617840d46fdfeb87f6f",
-  "agent-skill-manifest.schema.json": "ae55828cb3bd9cf4f8d0633fb9e7799df0f48c0f42d48508e4d00034f15c6bf3",
+  "agent-skill-manifest.schema.json": "256b3d196dfc18a4de372f99715bb7ccde292143f7c51e32fa82a95d8795d0aa",
   "agent-structure-suggestion.schema.json": "33fe0fc96901378c48916e415ad2606401ed6d20cca171c73e25b35cba6bff91",
-  "appearance-evidence-bundle.schema.json": "a02888a6ba2be4236b7d93dd6e114cba2909c6938715bff991c11e734dfc32ec",
+  "appearance-evidence-bundle.schema.json": "6dd6582c510858e74f0f6049511bb6463f0670686a97571bb870b20546bc9c54",
   "arm-design-intent.schema.json": "6fe730de845a5f3887da4e354ea9cbfeba9a932332483ea8f06047f2bcff4ce2",
   "assembly-delta-program.schema.json": "c513fa47ca80ccbec3737bc81bb9b5608c528254f00ba8a1d7908e9f58e61256",
   "assembly-graph.schema.json": "627ce9eeaaefcf7e6553d86b38a2d55a2cd7723fb47954dd8da4df2c43721bd2",
@@ -60,14 +60,14 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "forge-visual-authoring-intent.schema.json": "a8fd7704b3087c2a4b3ff4cb38a666601ef27c9d2107ae87a822edc90f2f9372",
   "forge-visual-composition-v2.schema.json": "d7d57402d142c52177c9a828e36708ad51a39535315f21805914ccab24ffe3a8",
   "forge-visual-geometry-patch-v1.schema.json": "542f8b6f06e9875c8d1fa6831600c7ffebffa9d3bba9ca7a635c181fcfaf0539",
-  "forge-visual-geometry-program-v2.schema.json": "8ea0f719d5c5ff53f34a84d1ff3796c795dc727727352ccfafeb37b4e463b229",
+  "forge-visual-geometry-program-v2.schema.json": "70c03586d8b7c13b2aecd357ce5a0b7d05a4e9c9b39b70cbcf905b407f2264ba",
   "forge-visual-patch.schema.json": "a1a5e6cfbbc76c6a167f1f7c49b13c0d0a747004c4b8eabbd4e959a899dd5ea0",
   "forge-visual-program-revision.schema.json": "1095df3d57afbd3efe82304ce266587be6b8526a371fe3112cc4b039287a1b72",
   "forge-visual-program-v2.schema.json": "48815c4fc630a98c0bfba6773f0205b8f59719dad44d04f1af48e1ad6a7552d5",
   "forge-visual-program.schema.json": "0d17bdbc0e210ee8abe33d0e084bb2e754657de97124d58f3bf3de2d87724db8",
   "formal-module-review.schema.json": "c0007192dc6cd0c73f63a5be1dd9a3b4a382b5c51375148dd88ec2ad15ce9ad4",
   "geometry-artifact-profile.schema.json": "b3be346633d5f67afd25367221ded860b34d40a9c3872ff20d775869aa1d5295",
-  "geometry-compile-readback.schema.json": "2b746d63f5aa6c67ff6ff6ae8f4861ca79c4ea58a1d35ac876397fe9e7d9a00a",
+  "geometry-compile-readback.schema.json": "c72f9b3579713596c3836e35e370401f190d0285a0935f45a4df9ed012014752",
   "geometry-incremental-plan-v1.schema.json": "be209566ec4738604cb5c9c5b0c41757a5dcbefc3660dabd603e4e6b4e3ebe4b",
   "job-event-v2.schema.json": "b10ff0a57943722b90b34143c18979261d0d0a8faf9016697144b3e99b8cb665",
   "material-preset.schema.json": "aca950252a78e30f2221a0a7ab3ed7153de8d4fcc1f59339f5c6aa288adcea0b",
@@ -86,9 +86,10 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "profile-sketch.schema.json": "a9a9a22ceecaaf0b51e109e1c41858dfd56bfec631a511220e5fa53dca730c4a",
   "provider-connection-state.schema.json": "b3e683f4d2ec694fe1a8b35c3662c7123883eb68da25459194d22031fdcb2c8a",
   "provider-execution-trace.schema.json": "be119b3631dd5588b6f2cdeea2c44211ea4ad8a8434745a6a178a19806f08b6c",
+  "reference-appearance-projection-receipt.schema.json": "b82e3801c2616945d1a67aa91c8995dda6f07867ab8b57858d163df3a83436a8",
   "reference-camera-hypothesis.schema.json": "a3c17acf48ddbeaa544b207e6be77671ae7547c5a5ed8394d97ea1897284ab13",
   "reference-evidence-create-request.schema.json": "f006e624d9fd5fb85c33a5150f78d36ae5f11ea65b204985fb221feebc05ea59",
-  "reference-evidence.schema.json": "b531c67b62d98e01221282c2383b1e57b25fd61a527e4aa54de9bdaab5d5f1c8",
+  "reference-evidence.schema.json": "def36b96f4d5f1d81d695acb347e221d611b7483d2e82f3448d355e4b8737a01",
   "reference-guided-rebuild-plan.schema.json": "d6aca3453f8043b52642cf0174db8721c7a30676dedce75316e87f9a4fd7eb85",
   "reference-guided-rebuild-preview-request.schema.json": "bf8f359c36febbffcfbb1fdaf2b0efb47d835214c7a5b6e3887fa70931bac787",
   "reference-surface-analysis.schema.json": "a55516503d79441ac81a14a7b723f3732d9fd18930d1f67526243db014eb5794",
@@ -96,11 +97,11 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "representation-plan.schema.json": "556374b712a256907a183904a5e7b12ae1170fa64b0f89c0f002c03ea78471aa",
   "resolved-semantic-proportion-options.schema.json": "6193de9ae55e579af39b2d8b3a5fb0f70989c2fb438462e5c6c6df4e6e39c2f7",
   "restricted-geometry-execution-evidence-v1.schema.json": "fbae0d1973cfee4e149b6885895d69dd2c46918474f405838dfde4688b17747f",
-  "shape-program.schema.json": "7634f8bc6d2473a659ad2e2f92a2e638fe5d61342da8104599d86a3e28878f53",
+  "shape-program.schema.json": "ee63673164888e195d6225339d5a8769820b76afb664e92ec5163b928d7a1af8",
   "subject-profile.schema.json": "698f7489cf70e2cc56081c190eddb53ab2a64c37eab391cd37ad1c6e7fad4f4a",
   "surface-adornment-program.schema.json": "c91ceb6919e11bc5cc6114a36e26b833e32906dfc84f00e19ec3499833446e83",
-  "surface-layer-program.schema.json": "be291936de86b757f3be98ec7773d5ed379f82a7708c633ebb8eb9e8574e162b",
-  "universal-asset-source-v2.schema.json": "e1bd40402ebcadee467cde58997ff5bf064a40e40a4263c270e953721bbcd73c",
+  "surface-layer-program.schema.json": "3a49068404a8fe877af121fc5fd950c3018007f69b04c64d1c6b3b808beeaba8",
+  "universal-asset-source-v2.schema.json": "5c274328cc38da142b880b460c9ed4dde7e20758b85d142cc1c383f63975d66e",
   "universal-asset-source.schema.json": "223f73dd8c553778ccfce2a3b12876b28fda70894947dcb3127a9dd18c21bb8e",
   "universal-author-outcome.schema.json": "20f90c527dcce42b2ec6c5afe285fbc23dd4b1300659cdaa8b56e79609dba312",
   "universal-author-request.schema.json": "c3da2ae64cb606fdf2f038fba2ac8e19cb843740797c6d4ffc90fe0e8668f1d3",
@@ -116,7 +117,7 @@ SCHEMA_HASHES: Dict[str, str] = json.loads(r'''
   "visual-program-authoring-session-v1.schema.json": "ee6fc7bff26b98bf435544f0bbd0baa4149fd6d39f63e32136a5c55bb1f0ff7b",
   "visual-program-execution-receipt-v1.schema.json": "9a19a305a97cd20feee7184ea7b461d3b5198fe291a8c1e755ab7b7cd24075ba",
   "visual-program-gate-outcome-v1.schema.json": "825e8f153e472bbadf75bba77ceb56eeff3c98dc663d121d60adc8a5b97035c7",
-  "visual-reference-comparison-input.schema.json": "2475e096aa116322a91e3c2e57c5e4a5f8252028be38b84cd1e9709a0b3c989b",
+  "visual-reference-comparison-input.schema.json": "f98f0e489b9f07940d7f60c5c8bfaaa44f63f486229736c8a6a6ee598b38b9f9",
   "visual-reference-comparison-report.schema.json": "0de217f4922d12ffa67fe9d76cf77b70362a44564eb560f799626e7347c49d4e",
   "visual-texture-set.schema.json": "2ec8dbcab9ab07510fd8b619100f5b4b84dca41533d044b223dafc00983b9c52",
   "weapon-concept-spec.schema.json": "fe01246b817ede28244b07681a0b55c05d683cf9de6a9a211f5136d2ae185704"
@@ -1777,11 +1778,15 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "union",
             "subtract",
             "bevel_approx",
-            "surface_panel"
+            "surface_panel",
+            "groove",
+            "shell",
+            "lattice_deform",
+            "local_mesh_patch"
           ],
           "type": "string"
         },
-        "maxItems": 16,
+        "maxItems": 20,
         "type": "array",
         "uniqueItems": true
       },
@@ -2117,6 +2122,13 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "maxItems": 256,
         "type": "array"
       },
+      "projection_receipts": {
+        "items": {
+          "$ref": "reference-appearance-projection-receipt.schema.json"
+        },
+        "maxItems": 128,
+        "type": "array"
+      },
       "references": {
         "items": {
           "$ref": "#/$defs/reference"
@@ -2137,7 +2149,8 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
       "request_sha256",
       "references",
       "camera_hypotheses",
-      "derived_artifacts"
+      "derived_artifacts",
+      "projection_receipts"
     ],
     "title": "AppearanceEvidenceBundle",
     "type": "object"
@@ -11544,6 +11557,38 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         ],
         "type": "object"
       },
+      "corner_offsets8": {
+        "items": {
+          "$ref": "#/$defs/offset3"
+        },
+        "maxItems": 8,
+        "minItems": 8,
+        "type": "array"
+      },
+      "face_axis": {
+        "enum": [
+          "positive_x",
+          "negative_x",
+          "positive_y",
+          "negative_y",
+          "positive_z",
+          "negative_z"
+        ]
+      },
+      "face_size2": {
+        "items": false,
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/positive"
+          },
+          {
+            "$ref": "#/$defs/positive"
+          }
+        ],
+        "type": "array"
+      },
       "id": {
         "maxLength": 96,
         "pattern": "^[a-z][a-z0-9_-]+$",
@@ -11581,6 +11626,109 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               },
               "position": {
                 "$ref": "#/$defs/point3"
+              },
+              "rotation": {
+                "$ref": "#/$defs/rotation3"
+              },
+              "size": {
+                "$ref": "#/$defs/size3"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "size",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "axis": {
+                "$ref": "#/$defs/axis"
+              },
+              "height": {
+                "$ref": "#/$defs/positive"
+              },
+              "kind": {
+                "const": "cylinder"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "radius": {
+                "$ref": "#/$defs/positive"
+              },
+              "rotation": {
+                "$ref": "#/$defs/rotation3"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "radius",
+              "height",
+              "axis",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "axis": {
+                "$ref": "#/$defs/axis"
+              },
+              "height": {
+                "$ref": "#/$defs/positive"
+              },
+              "kind": {
+                "const": "capsule"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "radius": {
+                "$ref": "#/$defs/positive"
+              },
+              "rotation": {
+                "$ref": "#/$defs/rotation3"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "radius",
+              "height",
+              "axis",
+              "position"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "wedge"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "rotation": {
+                "$ref": "#/$defs/rotation3"
               },
               "size": {
                 "$ref": "#/$defs/size3"
@@ -11622,6 +11770,9 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               },
               "profile_scale": {
                 "$ref": "#/$defs/scale2"
+              },
+              "rotation": {
+                "$ref": "#/$defs/rotation3"
               }
             },
             "required": [
@@ -11665,6 +11816,9 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                 "maximum": 64,
                 "minimum": 8,
                 "type": "integer"
+              },
+              "rotation": {
+                "$ref": "#/$defs/rotation3"
               }
             },
             "required": [
@@ -11696,6 +11850,9 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               },
               "position": {
                 "$ref": "#/$defs/point3"
+              },
+              "rotation": {
+                "$ref": "#/$defs/rotation3"
               },
               "section_set_id": {
                 "pattern": "^sectionset_[a-z0-9_-]+$",
@@ -11753,6 +11910,9 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               },
               "profile_scale": {
                 "$ref": "#/$defs/scale2"
+              },
+              "rotation": {
+                "$ref": "#/$defs/rotation3"
               }
             },
             "required": [
@@ -11828,6 +11988,240 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
               "axis",
               "count",
               "spacing"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "angle": {
+                "exclusiveMinimum": 0,
+                "maximum": 6.283185307179586,
+                "type": "number"
+              },
+              "axis": {
+                "$ref": "#/$defs/axis"
+              },
+              "count": {
+                "maximum": 64,
+                "minimum": 2,
+                "type": "integer"
+              },
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "radial_array"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "radius": {
+                "$ref": "#/$defs/positive"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "axis",
+              "count",
+              "radius",
+              "angle"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "bevel_approx"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "radius": {
+                "$ref": "#/$defs/positive"
+              },
+              "segments": {
+                "maximum": 3,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "radius",
+              "segments"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "axis": {
+                "$ref": "#/$defs/face_axis"
+              },
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "surface_panel"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              },
+              "size": {
+                "$ref": "#/$defs/size3"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "size",
+              "position",
+              "axis"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "axis": {
+                "$ref": "#/$defs/face_axis"
+              },
+              "depth": {
+                "$ref": "#/$defs/positive"
+              },
+              "face_size": {
+                "$ref": "#/$defs/face_size2"
+              },
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "groove"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/$defs/point3"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "face_size",
+              "position",
+              "axis",
+              "depth"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "shell"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "thickness": {
+                "$ref": "#/$defs/positive"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "thickness"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "corner_offsets": {
+                "$ref": "#/$defs/corner_offsets8"
+              },
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "lattice_deform"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "corner_offsets"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "input_node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "local_mesh_patch"
+              },
+              "node_id": {
+                "pattern": "^node_[a-z0-9_-]+$",
+                "type": "string"
+              },
+              "patch_center": {
+                "$ref": "#/$defs/patch_center3"
+              },
+              "patch_offset": {
+                "$ref": "#/$defs/patch_offset3"
+              },
+              "patch_radius": {
+                "maximum": 0.4,
+                "minimum": 0.05,
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "node_id",
+              "input_node_id",
+              "patch_center",
+              "patch_radius",
+              "patch_offset"
             ],
             "type": "object"
           },
@@ -11942,6 +12336,29 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         ],
         "type": "object"
       },
+      "offset3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "maximum": 0.25,
+            "minimum": -0.25,
+            "type": "number"
+          },
+          {
+            "maximum": 0.25,
+            "minimum": -0.25,
+            "type": "number"
+          },
+          {
+            "maximum": 0.25,
+            "minimum": -0.25,
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
       "output": {
         "additionalProperties": false,
         "properties": {
@@ -11959,6 +12376,52 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "node_id"
         ],
         "type": "object"
+      },
+      "patch_center3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "patch_offset3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "maximum": 0.2,
+            "minimum": -0.2,
+            "type": "number"
+          },
+          {
+            "maximum": 0.2,
+            "minimum": -0.2,
+            "type": "number"
+          },
+          {
+            "maximum": 0.2,
+            "minimum": -0.2,
+            "type": "number"
+          }
+        ],
+        "type": "array"
       },
       "point2": {
         "items": false,
@@ -12027,6 +12490,29 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "resample_count"
         ],
         "type": "object"
+      },
+      "rotation3": {
+        "items": false,
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "maximum": 3.141592653589793,
+            "minimum": -3.141592653589793,
+            "type": "number"
+          },
+          {
+            "maximum": 3.141592653589793,
+            "minimum": -3.141592653589793,
+            "type": "number"
+          },
+          {
+            "maximum": 3.141592653589793,
+            "minimum": -3.141592653589793,
+            "type": "number"
+          }
+        ],
+        "type": "array"
       },
       "scale2": {
         "items": false,
@@ -12171,7 +12657,7 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "$ref": "#/$defs/profile"
         },
         "maxItems": 32,
-        "minItems": 1,
+        "minItems": 0,
         "type": "array"
       },
       "program_id": {
@@ -14918,6 +15404,98 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                       "type": "array"
                     },
                     "retained_layers": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "base_color_token": {
+                          "enum": [
+                            "silver",
+                            "white_ceramic",
+                            "gunmetal",
+                            "graphite",
+                            "copper",
+                            "signal_red",
+                            "bark_brown",
+                            "wood_warm",
+                            "foliage_green",
+                            "skin_warm",
+                            "fur_warm",
+                            "fabric_blue",
+                            "stone_gray",
+                            "concrete_gray",
+                            "clay_terracotta"
+                          ]
+                        },
+                        "decal_layers": {
+                          "items": {
+                            "type": "object"
+                          },
+                          "maxItems": 4,
+                          "type": "array"
+                        },
+                        "emissive_masks": {
+                          "items": {
+                            "type": "object"
+                          },
+                          "maxItems": 2,
+                          "type": "array"
+                        },
+                        "quality_profile": {
+                          "enum": [
+                            "interactive_preview",
+                            "production_concept"
+                          ]
+                        },
+                        "roughness_masks": {
+                          "items": {
+                            "type": "object"
+                          },
+                          "maxItems": 2,
+                          "type": "array"
+                        },
+                        "surface_finish_token": {
+                          "enum": [
+                            "brushed_metal",
+                            "polished_metal",
+                            "ceramic_coat",
+                            "glossy_coat",
+                            "matte_coat",
+                            "rubberized",
+                            "dark_glass",
+                            "emissive_trim",
+                            "wood_grain",
+                            "bark_ridged",
+                            "leaf_waxy",
+                            "fabric_weave",
+                            "fur_soft",
+                            "skin_matte",
+                            "stone_rough",
+                            "concrete_rough",
+                            "clay_matte"
+                          ]
+                        },
+                        "symmetry": {
+                          "type": "object"
+                        },
+                        "uv_frame": {
+                          "type": "object"
+                        },
+                        "vector_paths": {
+                          "items": {
+                            "type": "object"
+                          },
+                          "maxItems": 8,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "vector_paths",
+                        "decal_layers",
+                        "roughness_masks",
+                        "emissive_masks",
+                        "symmetry",
+                        "uv_frame",
+                        "quality_profile"
+                      ],
                       "type": "object"
                     },
                     "retained_layers_sha256": {
@@ -17735,6 +18313,193 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "title": "ProviderExecutionTrace",
     "type": "object"
   },
+  "reference-appearance-projection-receipt.schema.json": {
+    "$id": "https://forgecad.local/schemas/concept/reference-appearance-projection-receipt.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Hash-only Rust-owned proof that sealed reference pixels were rasterized into one final UAS@2 PBR GLB.",
+    "properties": {
+      "algorithm_id": {
+        "const": "forgecad.reference_camera_uv_raster"
+      },
+      "algorithm_version": {
+        "const": "1"
+      },
+      "base_color_byte_size": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "base_color_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "base_color_texture_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "camera_hypothesis_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "camera_hypothesis_ids": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 2,
+        "type": "array"
+      },
+      "camera_provenance_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "camera_provenance_sha256s": {
+        "items": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "maxItems": 2,
+        "type": "array"
+      },
+      "compile_readback_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "final_glb_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "fusion_count": {
+        "enum": [
+          1,
+          2
+        ],
+        "type": "integer"
+      },
+      "observed_texel_count": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "projection_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "projection_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "raster_triangle_count": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": "ReferenceAppearanceProjectionReceipt@1"
+      },
+      "source_evidence_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "source_evidence_ids": {
+        "items": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 2,
+        "type": "array"
+      },
+      "source_image_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "source_image_sha256s": {
+        "items": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "maxItems": 2,
+        "type": "array"
+      },
+      "source_program_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "source_request_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "target_material_zone_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "unobserved_texel_count": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "unobserved_texel_mask_byte_size": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "unobserved_texel_mask_id": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "unobserved_texel_mask_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "worker_receipt_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "worker_schema_version": {
+        "enum": [
+          "ReferenceCameraUvRasterBakeReceipt@2",
+          "ReferenceCameraUvRasterFusionReceipt@3"
+        ]
+      },
+      "world_to_clip_sha256": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      },
+      "world_to_clip_sha256s": {
+        "items": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "maxItems": 2,
+        "type": "array"
+      }
+    },
+    "required": [
+      "schema_version",
+      "source_request_sha256",
+      "source_program_sha256",
+      "final_glb_sha256",
+      "compile_readback_sha256",
+      "worker_receipt_sha256",
+      "worker_schema_version",
+      "algorithm_id",
+      "algorithm_version",
+      "projection_id",
+      "projection_sha256",
+      "source_evidence_id",
+      "source_image_sha256",
+      "camera_hypothesis_id",
+      "camera_provenance_sha256",
+      "target_material_zone_id",
+      "base_color_texture_id",
+      "base_color_sha256",
+      "base_color_byte_size",
+      "unobserved_texel_mask_id",
+      "unobserved_texel_mask_sha256",
+      "unobserved_texel_mask_byte_size",
+      "observed_texel_count",
+      "unobserved_texel_count",
+      "fusion_count",
+      "raster_triangle_count",
+      "source_evidence_ids",
+      "source_image_sha256s",
+      "camera_hypothesis_ids",
+      "camera_provenance_sha256s",
+      "world_to_clip_sha256s"
+    ],
+    "title": "ReferenceAppearanceProjectionReceipt",
+    "type": "object"
+  },
   "reference-camera-hypothesis.schema.json": {
     "$id": "https://forgecad.local/schemas/concept/reference-camera-hypothesis.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -18301,6 +19066,24 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                   "low",
                   "medium"
                 ]
+              },
+              "foreground_dominant_color_buckets": {
+                "items": {
+                  "enum": [
+                    "black",
+                    "gray",
+                    "white",
+                    "blue",
+                    "cyan",
+                    "red",
+                    "yellow",
+                    "green",
+                    "violet"
+                  ]
+                },
+                "maxItems": 4,
+                "type": "array",
+                "uniqueItems": true
               },
               "height": {
                 "maximum": 4096,
@@ -19305,6 +20088,21 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                   "minItems": 2,
                   "type": "array"
                 },
+                "depth": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 100000,
+                  "type": "number"
+                },
+                "face_size": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000,
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
                 "height": {
                   "exclusiveMinimum": 0,
                   "type": "number"
@@ -19330,6 +20128,31 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                 "part_role": {
                   "pattern": "^[a-z][a-z0-9_\\-]{1,63}$",
                   "type": "string"
+                },
+                "patch_center": {
+                  "items": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                "patch_offset": {
+                  "items": {
+                    "maximum": 0.2,
+                    "minimum": -0.2,
+                    "type": "number"
+                  },
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                "patch_radius": {
+                  "maximum": 0.4,
+                  "minimum": 0.05,
+                  "type": "number"
                 },
                 "path_closed": {
                   "type": "boolean"
@@ -19427,6 +20250,11 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                   "exclusiveMinimum": 0,
                   "type": "number"
                 },
+                "thickness": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 25000,
+                  "type": "number"
+                },
                 "zone_id": {
                   "pattern": "^zone_[a-z0-9_\\-]+$",
                   "type": "string"
@@ -19460,7 +20288,10 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
                 "subtract",
                 "bevel_approx",
                 "surface_panel",
-                "lattice_deform"
+                "groove",
+                "shell",
+                "lattice_deform",
+                "local_mesh_patch"
               ],
               "type": "string"
             },
@@ -20074,6 +20905,25 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
     "additionalProperties": false,
     "description": "A bounded 2D Design Surface language. It carries normalized vector paths, built-in decal and PBR mask tokens, symmetry and UV framing. It never embeds SVG strings, scripts, URLs, file paths, geometry operations or executable content. Exact normal-relief semantics lower to A005 and retained layers are compiled by the reviewed deterministic five-channel PBR path.",
     "properties": {
+      "base_color_token": {
+        "enum": [
+          "silver",
+          "white_ceramic",
+          "gunmetal",
+          "graphite",
+          "copper",
+          "signal_red",
+          "bark_brown",
+          "wood_warm",
+          "foliage_green",
+          "skin_warm",
+          "fur_warm",
+          "fabric_blue",
+          "stone_gray",
+          "concrete_gray",
+          "clay_terracotta"
+        ]
+      },
       "base_material": {
         "enum": [
           "mat_aluminum",
@@ -20341,6 +21191,27 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         "minimum": 1,
         "type": "integer"
       },
+      "surface_finish_token": {
+        "enum": [
+          "brushed_metal",
+          "polished_metal",
+          "ceramic_coat",
+          "glossy_coat",
+          "matte_coat",
+          "rubberized",
+          "dark_glass",
+          "emissive_trim",
+          "wood_grain",
+          "bark_ridged",
+          "leaf_waxy",
+          "fabric_weave",
+          "fur_soft",
+          "skin_matte",
+          "stone_rough",
+          "concrete_rough",
+          "clay_matte"
+        ]
+      },
       "symmetry": {
         "additionalProperties": false,
         "properties": {
@@ -20383,7 +21254,53 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "link_armor",
           "cable_harness",
           "end_effector_form",
-          "surface_trim"
+          "surface_trim",
+          "primary_shell",
+          "secondary_shell",
+          "armor_panel",
+          "mechanical_core",
+          "sensor_housing",
+          "structural_frame",
+          "exterior_panel",
+          "decorative_panel",
+          "accent_trim",
+          "enclosure",
+          "body_shell",
+          "primary_mass",
+          "secondary_mass",
+          "soft_mass",
+          "organic_proxy",
+          "primary_stem",
+          "canopy_mass",
+          "branch_cluster",
+          "plant_base",
+          "primary_body",
+          "head_mass",
+          "limb_set",
+          "tail_form",
+          "facial_accent",
+          "primary_torso",
+          "arm_set",
+          "leg_set",
+          "costume_accent",
+          "primary_surface",
+          "support_frame",
+          "support_legs",
+          "soft_surface",
+          "primary_machine_body",
+          "articulated_joint",
+          "link_shell",
+          "end_effector_proxy",
+          "visual_status_accent",
+          "primary_prop_body",
+          "grip_prop",
+          "visual_emitter",
+          "primary_object_mass",
+          "secondary_object_mass",
+          "appearance_detail",
+          "window_band",
+          "roof_form",
+          "entry_form"
         ]
       },
       "target_zone_id": {
@@ -20588,6 +21505,13 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           },
           "compiler_id": {
             "const": "forgecad.generic_hard_surface_appearance.v2"
+          },
+          "reference_surface_bindings": {
+            "items": {
+              "$ref": "#/$defs/reference_surface_binding"
+            },
+            "maxItems": 8,
+            "type": "array"
           },
           "schema_version": {
             "const": "GenericHardSurfaceAppearanceCompilation@2"
@@ -21128,6 +22052,95 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         ],
         "type": "object"
       },
+      "local_mesh_patch_binding": {
+        "additionalProperties": false,
+        "properties": {
+          "patch_center": {
+            "items": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "patch_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "patch_offset": {
+            "items": {
+              "maximum": 0.2,
+              "minimum": -0.2,
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "patch_operation_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "patch_radius": {
+            "maximum": 0.4,
+            "minimum": 0.05,
+            "type": "number"
+          },
+          "source_operation_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "subject_part_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "patch_id",
+          "subject_part_id",
+          "source_operation_id",
+          "patch_operation_id",
+          "patch_center",
+          "patch_radius",
+          "patch_offset"
+        ],
+        "type": "object"
+      },
+      "local_mesh_patch_source": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "local_mesh_patch"
+          },
+          "patches": {
+            "items": {
+              "$ref": "#/$defs/local_mesh_patch_binding"
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          },
+          "procedural_source": {
+            "$ref": "#/$defs/runtime_procedural_payload"
+          },
+          "source_contract_id": {
+            "const": "ForgeLocalMeshPatchSource@1"
+          }
+        },
+        "required": [
+          "kind",
+          "source_contract_id",
+          "procedural_source",
+          "patches"
+        ],
+        "type": "object"
+      },
       "part_binding": {
         "additionalProperties": false,
         "properties": {
@@ -21222,6 +22235,182 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
         ],
         "type": "object"
       },
+      "reference_surface_binding": {
+        "additionalProperties": false,
+        "properties": {
+          "base_color_token": {
+            "enum": [
+              "silver",
+              "white_ceramic",
+              "gunmetal",
+              "graphite",
+              "copper",
+              "signal_red",
+              "bark_brown",
+              "wood_warm",
+              "foliage_green",
+              "skin_warm",
+              "fur_warm",
+              "fabric_blue",
+              "stone_gray",
+              "concrete_gray",
+              "clay_terracotta"
+            ]
+          },
+          "binding_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "evidence_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "evidence_sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "facts": {
+            "additionalProperties": false,
+            "properties": {
+              "aspect_ratio_milli": {
+                "maximum": 64000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "brightness": {
+                "enum": [
+                  "dark",
+                  "balanced",
+                  "bright"
+                ]
+              },
+              "contact_sheet_layout_evidence": {
+                "type": "boolean"
+              },
+              "dominant_color_buckets": {
+                "items": {
+                  "enum": [
+                    "black",
+                    "gray",
+                    "white",
+                    "blue",
+                    "cyan",
+                    "red",
+                    "yellow",
+                    "green",
+                    "violet"
+                  ]
+                },
+                "maxItems": 4,
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "edge_density": {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "foreground_bbox_normalized": {
+                "items": {
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "foreground_confidence": {
+                "enum": [
+                  "low",
+                  "medium"
+                ]
+              },
+              "foreground_dominant_color_buckets": {
+                "items": {
+                  "enum": [
+                    "black",
+                    "gray",
+                    "white",
+                    "blue",
+                    "cyan",
+                    "red",
+                    "yellow",
+                    "green",
+                    "violet"
+                  ]
+                },
+                "maxItems": 4,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "height": {
+                "maximum": 4096,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "width": {
+                "maximum": 4096,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "width",
+              "height",
+              "aspect_ratio_milli",
+              "dominant_color_buckets",
+              "brightness",
+              "edge_density",
+              "foreground_bbox_normalized",
+              "foreground_confidence"
+            ],
+            "type": "object"
+          },
+          "roughness_motif": {
+            "enum": [
+              "linear_brush",
+              "edge_wear",
+              "microgrid"
+            ]
+          },
+          "schema_version": {
+            "const": "ReferenceSurfaceAppearanceBinding@1"
+          },
+          "surface_finish_token": {
+            "enum": [
+              "brushed_metal",
+              "polished_metal",
+              "ceramic_coat",
+              "glossy_coat",
+              "matte_coat",
+              "rubberized",
+              "dark_glass",
+              "emissive_trim",
+              "wood_grain",
+              "bark_ridged",
+              "leaf_waxy",
+              "fabric_weave",
+              "fur_soft",
+              "skin_matte",
+              "stone_rough",
+              "concrete_rough",
+              "clay_matte"
+            ]
+          }
+        },
+        "required": [
+          "schema_version",
+          "evidence_id",
+          "evidence_sha256",
+          "facts",
+          "roughness_motif",
+          "binding_sha256"
+        ],
+        "type": "object"
+      },
       "runtime_procedural_payload": {
         "additionalProperties": false,
         "properties": {
@@ -21273,36 +22462,12 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "part_bindings"
         ],
         "type": "object"
-      },
-      "unavailable_source": {
-        "additionalProperties": false,
-        "properties": {
-          "kind": {
-            "const": "local_mesh_patch"
-          },
-          "reason": {
-            "maxLength": 500,
-            "minLength": 1,
-            "type": "string"
-          },
-          "source_contract_id": {
-            "maxLength": 160,
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "source_contract_id",
-          "reason"
-        ],
-        "type": "object"
       }
     },
     "$id": "https://forgecad.local/schemas/concept/universal-asset-source-v2.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
-    "description": "Rust-derived U004 source envelope. A representation source is a sealed discriminated union. Reviewed local procedural, bounded local lattice-deform, and their per-part local hard-surface hybrid are executable; all other branches remain explicit unavailable contracts.",
+    "description": "Rust-derived U004 source envelope. A representation source is a sealed discriminated union of executable branches only: reviewed local procedural, bounded local lattice-deform, local mesh patch, and their per-part local hard-surface hybrid. An unavailable representation is a typed UniversalAuthorOutcome limitation and never creates a UniversalAssetSource.",
     "properties": {
       "appearance_compilation": {
         "$ref": "#/$defs/appearance_compilation"
@@ -21381,10 +22546,10 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
             "$ref": "#/$defs/local_lattice_deform_source"
           },
           {
-            "$ref": "#/$defs/local_hard_surface_hybrid_source"
+            "$ref": "#/$defs/local_mesh_patch_source"
           },
           {
-            "$ref": "#/$defs/unavailable_source"
+            "$ref": "#/$defs/local_hard_surface_hybrid_source"
           }
         ]
       },
@@ -23818,6 +24983,44 @@ SCHEMAS: Dict[str, Dict[str, Any]] = json.loads(r'''
           "micro_minimum_bps",
           "critical_requires_matched",
           "critical_not_visible_allowed"
+        ],
+        "type": "object"
+      },
+      "candidate_render_contract": {
+        "additionalProperties": false,
+        "properties": {
+          "output_color_space": {
+            "const": "srgb"
+          },
+          "render_manifest_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "renderer_id": {
+            "const": "forgecad-workbench-pbr@1"
+          },
+          "schema_version": {
+            "const": "VisualReferenceRenderContract@1"
+          },
+          "tone_mapping": {
+            "const": "aces_filmic"
+          },
+          "visual_environment_id": {
+            "const": "env_forgecad_room_studio_v2"
+          },
+          "visual_environment_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "renderer_id",
+          "render_manifest_sha256",
+          "visual_environment_id",
+          "visual_environment_sha256",
+          "output_color_space",
+          "tone_mapping"
         ],
         "type": "object"
       },

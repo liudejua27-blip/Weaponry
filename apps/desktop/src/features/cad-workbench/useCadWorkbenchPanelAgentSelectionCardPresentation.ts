@@ -38,12 +38,24 @@ export function useCadWorkbenchPanelAgentSelectionCardPresentation(
     surfaceAdornmentDisabled,
     surfaceAdornmentDetail,
   } = input
+  const visibleAgentAssetVersion = agentAssetVersion ?? activeAgentAssetVersion
+  // A restart restores the Rust-owned active asset/Snapshot before it restores
+  // the transient blockout response. Project the persisted parts back into the
+  // selection surface so the UI does not hide durable editing affordances.
+  const visibleSegmentation = agentBlockoutSegmentation ?? (visibleAgentAssetVersion ? {
+    artifact_id: visibleAgentAssetVersion.artifact_id,
+    plan_id: visibleAgentAssetVersion.plan_id,
+    direction_id: visibleAgentAssetVersion.direction_id,
+    domain_pack_id: visibleAgentAssetVersion.domain_pack_id,
+    parts: visibleAgentAssetVersion.parts,
+    assembly_graph: visibleAgentAssetVersion.assembly_graph,
+  } : null)
 
   return useMemo(
-    () => agentBlockoutSegmentation
+    () => visibleSegmentation
       ? {
-        segmentation: agentBlockoutSegmentation,
-        agentAssetVersion,
+        segmentation: visibleSegmentation,
+        agentAssetVersion: visibleAgentAssetVersion,
         activeAgentAssetVersion,
         selectedPart,
         selectedPartId,
@@ -73,8 +85,8 @@ export function useCadWorkbenchPanelAgentSelectionCardPresentation(
       }
       : null,
     [
-      agentBlockoutSegmentation,
-      agentAssetVersion,
+      visibleSegmentation,
+      visibleAgentAssetVersion,
       activeAgentAssetVersion,
       selectedPart,
       selectedPartId,

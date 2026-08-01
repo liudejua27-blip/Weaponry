@@ -2,12 +2,14 @@ import type { AgentItem, MechanicalConceptPlan } from '../../shared/types.js'
 import {
   agentConversationReducer,
   claimAgentTurnSubmission,
+  hasAgentToolInvocation,
   initialAgentConversationState,
   parseAgentTurnPresentation,
   parseCandidatePbrCapturePending,
   parseUniversalAuthorPresentation,
   releaseAgentTurnSubmission,
 } from './agentConversationState.js'
+import type { CandidatePbrCapturePendingPresentation } from './agentConversationState.js'
 
 const plan: MechanicalConceptPlan = {
   schema_version: 'MechanicalConceptPlan@1',
@@ -132,6 +134,21 @@ const pendingCandidatePbrCaptureItems: AgentItem[] = [{
   created_at: '2026-07-30T00:00:00Z',
 }]
 
+function pendingCaptureItemsForRoute(
+  route: CandidatePbrCapturePendingPresentation['route'],
+): AgentItem[] {
+  return pendingCandidatePbrCaptureItems.map((item) => ({
+    ...item,
+    payload: {
+      ...item.payload,
+      candidate_pbr_capture_pending: {
+        ...(item.payload.candidate_pbr_capture_pending as Record<string, unknown>),
+        route,
+      },
+    },
+  }))
+}
+
 export function runAgentConversationStateSmoke(): void {
   const submissionGuard = { current: false }
   assert(claimAgentTurnSubmission(submissionGuard), 'first Agent turn submission must claim the shared workbench boundary')
@@ -160,10 +177,16 @@ export function runAgentConversationStateSmoke(): void {
   assert(universalLimitation?.outcome === 'limitation', 'U002 limitation must be a normal readable author outcome')
   assert(universalLimitation.identityLabel === '写实家猫', 'U002 must show the understood subject rather than a fallback template')
   assert(universalLimitation.suggestedViews.length === 3, 'U002 must expose bounded additional-view guidance')
+  assert(hasAgentToolInvocation(universalLimitationItems, 'author_universal_asset'), 'universal author failures and limitations must remain distinguishable from legacy planner evidence')
+  assert(!hasAgentToolInvocation(universalLimitationItems, 'plan_complete_concept'), 'universal author evidence must not be labelled as legacy planner evidence')
   const pendingCapture = parseCandidatePbrCapturePending(pendingCandidatePbrCaptureItems)
   assert(pendingCapture?.executionId === 'execution_u004', 'U004 pending capture must retain the native execution identity')
   assert(pendingCapture?.projectId === 'project_u004' && pendingCapture.turnId === 'turn_u004', 'U004 pending capture must remain bound to one Project and Turn')
   assert(pendingCapture?.route === 'universal_hard_surface', 'U004 pending capture must retain its Rust-owned representation route')
+  for (const route of ['universal_visual_exterior', 'universal_local_lattice', 'universal_local_hybrid'] as const) {
+    const parsed = parseCandidatePbrCapturePending(pendingCaptureItemsForRoute(route))
+    assert(parsed?.route === route, `U004 pending capture must retain the ${route} route`)
+  }
 
   state = agentConversationReducer(state, { type: 'open_project', projectId: 'project-b' })
   assert(state.chatInput === '', 'project switch must atomically clear the input draft')

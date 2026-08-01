@@ -180,6 +180,9 @@ type ModuleGraphViewportProps = {
   onMeasurePoint: (point: ViewportMeasurementPoint) => void
   /** Exposes the one existing renderer host for bounded PBR evidence capture. */
   onPbrCaptureViewportChange?: (viewport: HTMLDivElement | null) => void
+  /** A keyboard-driven focus request for the currently selected Agent part. */
+  focusAgentPartId?: string | null
+  focusAgentPartRequest?: number
 }
 
 type ViewportRuntime = {
@@ -1218,7 +1221,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       }
       const host = runtime.renderer.domElement.parentElement
       if (host instanceof HTMLElement) host.dataset.blockoutGlbSha256 = sourceGlbSha256 ?? ''
-      refreshActiveBlockoutFrame(runtime, propsRef.current.cameraView)
+      refreshActiveBlockoutFrame(runtime, propsRef.current.cameraView, propsRef.current.focusAgentPartId)
       setBlockoutLoadState('ready')
       setBlockoutLoadMessage(message)
       runtime.scheduleRender()
@@ -1484,7 +1487,7 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       return
     }
     runtime.scheduleRender()
-  }, [props.cameraView, props.focusNodeId, props.qualityHighlightNodeIds, graphHash])
+  }, [props.cameraView, props.focusNodeId, props.focusAgentPartId, props.focusAgentPartRequest, props.qualityHighlightNodeIds, graphHash])
 
   return (
     <div className="weapon-viewport-shell">
@@ -1524,13 +1527,13 @@ export function ModuleGraphViewport(props: ModuleGraphViewportProps) {
       />
       {referenceImageLoadState === 'empty' && loadState !== 'ready' && blockoutLoadState !== 'ready' && (
         <div className={`viewport-data-state ${loadState}`} role="status">
-          <strong>{loadState === 'loading' ? '加载 3D 资产' : loadState === 'failed' ? 'GLB 无法显示' : '等待 Agent 生成'}</strong>
+          <strong>{loadState === 'loading' ? '加载 3D 资产' : loadState === 'failed' ? 'GLB 无法显示' : '等待生成'}</strong>
           <span>{loadMessage}</span>
         </div>
       )}
       {(props.blockoutGlbBase64 || props.blockoutShapeProgram) && blockoutLoadState !== 'ready' && (
         <div className={`viewport-data-state blockout-${blockoutLoadState}`} role="status">
-          <strong>{blockoutLoadState === 'loading' ? '加载 Agent 候选' : 'Agent 候选无法显示'}</strong>
+          <strong>{blockoutLoadState === 'loading' ? '加载候选模型' : '候选模型无法显示'}</strong>
           <span>{blockoutLoadMessage}</span>
         </div>
       )}
@@ -1665,7 +1668,7 @@ function loadModuleSource(
 
 function applyVisualState(runtime: ViewportRuntime, props: ModuleGraphViewportProps) {
   applyLightPreset(runtime, props.lightPreset)
-  runtime.grid.visible = props.showGrid && runtime.moduleRoot.visible
+  runtime.grid.visible = props.showGrid && Boolean(props.graphRecord) && runtime.moduleRoot.visible
   runtime.sectionPlane.constant = props.sectionOffset
   runtime.sectionHelper.visible = props.sectionEnabled
   runtime.renderer.clippingPlanes = props.sectionEnabled ? [runtime.sectionPlane] : []
@@ -1829,12 +1832,15 @@ type BlockoutFrameNdcFacts = {
   cameraDistanceMm: number
 }
 
-function refreshActiveBlockoutFrame(runtime: ViewportRuntime, view: CameraView): void {
+function refreshActiveBlockoutFrame(runtime: ViewportRuntime, view: CameraView, focusAgentPartId?: string | null): void {
   const active = runtime.activeBlockoutPreview
   if (!active) return
   active.source.updateMatrixWorld(true)
   runtime.blockoutRoot.updateMatrixWorld(true)
-  const bounds = new THREE.Box3().setFromObject(active.source)
+  const focusedBounds = focusAgentPartId ? blockoutAgentPartBounds(active.source, focusAgentPartId) : null
+  const bounds = focusedBounds && !focusedBounds.isEmpty()
+    ? focusedBounds
+    : new THREE.Box3().setFromObject(active.source)
   if (bounds.isEmpty()) throw new Error('导入模型没有可显示的网格输出')
   const frameNdc = frameBlockoutCameraToBounds(runtime, view, bounds)
   recordBlockoutRuntimeFacts(runtime, active.source, {
@@ -1846,6 +1852,21 @@ function refreshActiveBlockoutFrame(runtime: ViewportRuntime, view: CameraView):
   const host = runtime.renderer.domElement.parentElement
   if (host instanceof HTMLElement) host.dataset.presentationSource = 'blockout'
   recordPresentationRuntimeFacts(runtime)
+}
+
+function blockoutAgentPartBounds(source: THREE.Object3D, partId: string): THREE.Box3 {
+  const bounds = new THREE.Box3()
+  source.traverse((child) => {
+    if (!isMeshObject(child)) return
+    const partRole = typeof child.userData.forgecad_part_role === 'string'
+      ? child.userData.forgecad_part_role
+      : typeof child.userData.partRole === 'string'
+        ? child.userData.partRole
+        : ''
+    if (!partRole || !partId.endsWith(`_${partRole}`)) return
+    bounds.union(new THREE.Box3().setFromObject(child))
+  })
+  return bounds
 }
 
 function isQaCameraView(value: unknown): value is QaCameraView {

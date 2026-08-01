@@ -39,6 +39,7 @@ from .reference_uv_projection import (
     ReferenceCameraUvRasterBake,
     ReferenceUvEvidenceBake,
     bake_reference_camera_uv_raster,
+    fuse_reference_camera_uv_raster,
     bake_reference_uv_evidence,
 )
 from .visual_intent import visual_intent_for_direction
@@ -202,6 +203,7 @@ MAX_CSG_DEPTH = 8
 MAX_EDGE_FINISH_RADIUS_RATIO = 0.25
 MAX_EDGE_FINISH_SUBDIVISIONS = 3
 MAX_LATTICE_CORNER_OFFSET_RATIO = 0.25
+MAX_SHELL_THICKNESS_RATIO = 0.25
 VISUAL_UV_REPEAT_MM = 320.0
 # Keep bounded primitives lightweight while avoiding the visibly faceted
 # 16-sided silhouette that dominated wheels, rotors, joints and capsule shells
@@ -230,7 +232,10 @@ _WORKER_EXECUTOR_IDS = frozenset({
     "restricted_subtract",
     "bevel_approximation",
     "surface_panel_attachment",
+    "bounded_face_groove",
+    "bounded_box_shell",
     "bounded_lattice_deform",
+    "bounded_local_mesh_patch",
 })
 
 
@@ -511,6 +516,7 @@ def _surface_layers_by_zone(
 
 
 ReferenceUvEvidenceBakeRequest = ReferenceUvEvidenceBake | ReferenceCameraUvRasterBake
+ReferenceUvEvidenceBakeGroup = tuple[ReferenceUvEvidenceBakeRequest, ...]
 
 
 def _reference_uv_evidence_by_zone(
@@ -518,7 +524,7 @@ def _reference_uv_evidence_by_zone(
     *,
     surface_layers_by_zone: Mapping[str, Mapping[str, object]],
     artifact_profile_id: GeometryArtifactProfileId,
-) -> dict[str, ReferenceUvEvidenceBakeRequest]:
+) -> dict[str, ReferenceUvEvidenceBakeGroup]:
     """Permit reference pixels only on an already-retained Design Surface.
 
     The generic author cannot use a reference image to introduce an arbitrary
@@ -533,16 +539,28 @@ def _reference_uv_evidence_by_zone(
         int(expected_profile["texture_width"]),
         int(expected_profile["texture_height"]),
     )
-    resolved: dict[str, ReferenceUvEvidenceBakeRequest] = {}
+    grouped: dict[str, list[ReferenceUvEvidenceBakeRequest]] = {}
     for bake in bakes:
         if (bake.texture_width, bake.texture_height) != expected_dimensions:
             raise ValueError("reference UV evidence dimensions do not match the artifact profile")
         if bake.target_material_zone_id not in surface_layers_by_zone:
             raise ValueError("reference UV evidence requires an exact retained Design Surface material zone")
-        if bake.target_material_zone_id in resolved:
-            raise ValueError("reference UV evidence cannot target the same material zone twice")
-        resolved[bake.target_material_zone_id] = bake
-    return resolved
+        zone_bakes = grouped.setdefault(bake.target_material_zone_id, [])
+        if len(zone_bakes) >= 2:
+            raise ValueError("reference UV fusion accepts at most two views per material zone")
+        identity = (bake.source_evidence_id, bake.camera_hypothesis_id)
+        if any((item.source_evidence_id, item.camera_hypothesis_id) == identity for item in zone_bakes):
+            raise ValueError("reference UV fusion cannot repeat one sealed evidence/camera identity")
+        if zone_bakes and (
+            not isinstance(bake, ReferenceCameraUvRasterBake)
+            or not all(isinstance(item, ReferenceCameraUvRasterBake) for item in zone_bakes)
+        ):
+            raise ValueError("only camera-space ReferenceCameraUvRasterBake@2 may fuse multiple views")
+        zone_bakes.append(bake)
+    return {
+        zone_id: tuple(sorted(zone_bakes, key=lambda item: item.canonical_sha256()))
+        for zone_id, zone_bakes in grouped.items()
+    }
 
 
 def compile_shape_program(
@@ -655,7 +673,7 @@ def compile_shape_program(
             fragment_cache_hit_operation_ids.append(operation_id)
             continue
         fragment_cache_miss_operation_ids.append(operation_id)
-        if op in {"mirror", "array", "radial_array", "union", "subtract", "lattice_deform"} and any(
+        if op in {"mirror", "array", "radial_array", "union", "subtract", "lattice_deform", "local_mesh_patch"} and any(
             _primitive_has_static_rotation(item)
             for input_id in operation.get("inputs", [])
             for item in resolved.get(str(input_id), [])
@@ -875,15 +893,34 @@ def compile_shape_program(
             if panel_size_tuple[0] > base.size_mm[0] or panel_size_tuple[2] > base.size_mm[2]:
                 raise ValueError("surface_panel must fit within the source X/Z face")
             axis = args.get("axis", [0, 1, 0])
-            sign = 1.0 if axis == [0, 1, 0] else -1.0
+            face_axes = {
+                (1, 0, 0): (0, 1, 2, 1),
+                (-1, 0, 0): (0, 1, 2, -1),
+                (0, 1, 0): (1, 0, 2, 1),
+                (0, -1, 0): (1, 0, 2, -1),
+                (0, 0, 1): (2, 0, 1, 1),
+                (0, 0, -1): (2, 0, 1, -1),
+            }
+            try:
+                normal_index, face_a, face_b, sign = face_axes[tuple(int(value) for value in axis)]
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("surface_panel axis must select one of the six local box faces") from None
             offset = position
-            panel_center = (
-                base.center_mm[0] + float(offset[0]),
-                base.center_mm[1] + sign * (base.size_mm[1] / 2 + panel_size_tuple[1] / 2),
-                base.center_mm[2] + float(offset[2]),
+            if len(offset) != 3 or abs(float(offset[normal_index])) > 1e-9:
+                raise ValueError("surface_panel position may only offset within the selected source face")
+            if (
+                panel_size_tuple[face_a] > base.size_mm[face_a]
+                or panel_size_tuple[face_b] > base.size_mm[face_b]
+                or abs(float(offset[face_a])) + panel_size_tuple[face_a] / 2 > base.size_mm[face_a] / 2
+                or abs(float(offset[face_b])) + panel_size_tuple[face_b] / 2 > base.size_mm[face_b] / 2
+            ):
+                raise ValueError("surface_panel must fit within the selected source face")
+            panel_center_values = [base.center_mm[index] + float(offset[index]) for index in range(3)]
+            panel_center_values[normal_index] = (
+                base.center_mm[normal_index]
+                + sign * (base.size_mm[normal_index] / 2 + panel_size_tuple[normal_index] / 2)
             )
-            if abs(float(offset[0])) + panel_size_tuple[0] / 2 > base.size_mm[0] / 2 or abs(float(offset[2])) + panel_size_tuple[2] / 2 > base.size_mm[2] / 2:
-                raise ValueError("surface_panel offset places the panel outside the source X/Z face")
+            panel_center = tuple(panel_center_values)
             panel = BoxPrimitive(
                 str(args.get("part_role") or "surface_panel"),
                 panel_center,
@@ -895,6 +932,121 @@ def compile_shape_program(
                 rotation_origin_mm=base.rotation_origin_mm or base.center_mm,
             )
             resolved[operation_id] = [*source, panel]
+        elif op == "groove":
+            inputs = operation.get("inputs", [])
+            source = resolved.get(inputs[0], []) if inputs else []
+            if len(source) != 1 or source[0].primitive_kind not in {"box", "bevel_box"}:
+                raise ValueError("groove only supports one box or bevel_approx source")
+            base = source[0]
+            face_size = args.get("face_size")
+            if not isinstance(face_size, list) or len(face_size) != 2:
+                raise ValueError("groove requires a positive two-number face_size")
+            face_size_values = [float(value) for value in face_size]
+            depth = float(args.get("depth", 0))
+            if any(not math.isfinite(value) or value <= 0 for value in face_size_values):
+                raise ValueError("groove face_size must contain positive finite values")
+            if not math.isfinite(depth) or depth <= 0:
+                raise ValueError("groove depth must be positive and finite")
+            axis = args.get("axis", [0, 1, 0])
+            face_axes = {
+                (1, 0, 0): (0, 1, 2, 1),
+                (-1, 0, 0): (0, 1, 2, -1),
+                (0, 1, 0): (1, 0, 2, 1),
+                (0, -1, 0): (1, 0, 2, -1),
+                (0, 0, 1): (2, 0, 1, 1),
+                (0, 0, -1): (2, 0, 1, -1),
+            }
+            try:
+                normal_index, face_a, face_b, sign = face_axes[tuple(int(value) for value in axis)]
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("groove axis must select one of the six local box faces") from None
+            offset = args.get("position", [0, 0, 0])
+            if not isinstance(offset, list) or len(offset) != 3:
+                raise ValueError("groove position must be a three-number face offset")
+            offset_values = [float(value) for value in offset]
+            if (
+                any(not math.isfinite(value) for value in offset_values)
+                or abs(offset_values[normal_index]) > 1e-9
+                or depth > base.size_mm[normal_index] * 0.25
+                or face_size_values[0] > base.size_mm[face_a]
+                or face_size_values[1] > base.size_mm[face_b]
+                or abs(offset_values[face_a]) + face_size_values[0] / 2 > base.size_mm[face_a] / 2
+                or abs(offset_values[face_b]) + face_size_values[1] / 2 > base.size_mm[face_b] / 2
+            ):
+                raise ValueError("groove must remain within one bounded axis-aligned source face")
+            cutter_size = [0.0, 0.0, 0.0]
+            cutter_size[normal_index] = depth + 0.2
+            cutter_size[face_a] = face_size_values[0]
+            cutter_size[face_b] = face_size_values[1]
+            cutter_center = [base.center_mm[index] + offset_values[index] for index in range(3)]
+            cutter_center[normal_index] = (
+                base.center_mm[normal_index]
+                + sign * (base.size_mm[normal_index] / 2 - depth / 2 + 0.1)
+            )
+            cutter = BoxPrimitive(
+                part_role="groove_cutter",
+                center_mm=tuple(cutter_center),
+                size_mm=tuple(cutter_size),
+                material_index=base.material_index,
+                material_id=base.material_id,
+                material_zone_id=base.material_zone_id,
+                source_operation_id=f"{operation_id}_cutter",
+            )
+            triangles = execute_manifold_boolean(
+                node_id=operation_id,
+                operation="subtract",
+                left_solids=[_primitive_csg_solid(base)],
+                right_solids=[_primitive_csg_solid(cutter)],
+                triangle_budget=effective_triangle_budget,
+                cancel_check=cancel_check,
+                timeout_seconds=csg_timeout_seconds,
+            )
+            resolved[operation_id] = [
+                CsgMeshPrimitive(
+                    part_role=str(args.get("part_role") or base.part_role),
+                    feature_node_id=operation_id,
+                    triangles=tuple(triangles),
+                )
+            ]
+        elif op == "shell":
+            inputs = operation.get("inputs", [])
+            source = resolved.get(inputs[0], []) if inputs else []
+            if len(source) != 1 or source[0].primitive_kind not in {"box", "bevel_box"}:
+                raise ValueError("shell only supports one box or bevel_approx source")
+            base = source[0]
+            thickness = float(args.get("thickness", 0))
+            min_extent = min(base.size_mm)
+            if not math.isfinite(thickness) or thickness <= 0 or thickness * 2 >= min_extent:
+                raise ValueError("shell thickness must leave a positive inner volume")
+            thickness_ratio = thickness / min_extent
+            if thickness_ratio > MAX_SHELL_THICKNESS_RATIO:
+                raise ValueError(
+                    "SHELL_THICKNESS_RATIO_EXCEEDED: shell thickness ratio "
+                    f"{thickness_ratio:.6f} exceeds {MAX_SHELL_THICKNESS_RATIO}"
+                )
+            if base.primitive_kind == "bevel_box" and base.bevel_radius_mm * 2 >= min_extent - thickness * 2:
+                raise ValueError("SHELL_BEVEL_CLEARANCE_INVALID: shell thickness leaves insufficient bevel clearance")
+            inner = replace(
+                base,
+                size_mm=tuple(float(value) - thickness * 2 for value in base.size_mm),
+                source_operation_id=f"{operation_id}_inner",
+            )
+            triangles = execute_manifold_boolean(
+                node_id=operation_id,
+                operation="subtract",
+                left_solids=[_primitive_csg_solid(base)],
+                right_solids=[_primitive_csg_solid(inner)],
+                triangle_budget=effective_triangle_budget,
+                cancel_check=cancel_check,
+                timeout_seconds=csg_timeout_seconds,
+            )
+            resolved[operation_id] = [
+                CsgMeshPrimitive(
+                    part_role=str(args.get("part_role") or base.part_role),
+                    feature_node_id=operation_id,
+                    triangles=tuple(triangles),
+                )
+            ]
         elif op == "lattice_deform":
             inputs = operation.get("inputs", [])
             source = resolved.get(inputs[0], []) if inputs else []
@@ -903,6 +1055,19 @@ def compile_shape_program(
             resolved[operation_id] = [_apply_bounded_lattice_deform(
                 source,
                 corner_offsets=args.get("corner_offsets"),
+                operation_id=operation_id,
+                part_role=role,
+            )]
+        elif op == "local_mesh_patch":
+            inputs = operation.get("inputs", [])
+            source = resolved.get(inputs[0], []) if inputs else []
+            if not source:
+                raise _runtime_operation_error(operation_id, op, "local_mesh_patch requires one exportable mesh input")
+            resolved[operation_id] = [_apply_bounded_local_mesh_patch(
+                source,
+                patch_center=args.get("patch_center"),
+                patch_radius=args.get("patch_radius"),
+                patch_offset=args.get("patch_offset"),
                 operation_id=operation_id,
                 part_role=role,
             )]
@@ -2046,15 +2211,24 @@ def _validate_reference_uv_evidence_receipt(
     camera_raster_required = common_required | {
         "world_to_clip_sha256", "raster_triangle_count",
     }
+    fusion_required = common_required | {
+        "source_evidence_ids", "source_image_sha256s", "camera_hypothesis_ids",
+        "camera_provenance_sha256s", "world_to_clip_sha256s",
+        "raster_triangle_count", "fusion_count",
+    }
     if not isinstance(receipt, dict) or set(receipt) not in {
         frozenset(legacy_required),
         frozenset(camera_raster_required),
+        frozenset(fusion_required),
     }:
         raise ValueError("GLB reference UV evidence receipt has an invalid shape")
-    is_camera_raster = set(receipt) == camera_raster_required
+    is_fusion = set(receipt) == fusion_required
+    is_camera_raster = is_fusion or set(receipt) == camera_raster_required
     if (
         receipt.get("schema_version") != (
-            "ReferenceCameraUvRasterBakeReceipt@2"
+            "ReferenceCameraUvRasterFusionReceipt@3"
+            if is_fusion
+            else "ReferenceCameraUvRasterBakeReceipt@2"
             if is_camera_raster
             else "ReferenceUvEvidenceBakeReceipt@1"
         )
@@ -2089,6 +2263,12 @@ def _validate_reference_uv_evidence_receipt(
     ]
     if is_camera_raster:
         hashes.append("world_to_clip_sha256")
+    if is_fusion:
+        hashes = [
+            item
+            for item in hashes
+            if item != "world_to_clip_sha256"
+        ]
     if any(
         not isinstance(receipt.get(field), str)
         or len(receipt[field]) != 64
@@ -2096,6 +2276,43 @@ def _validate_reference_uv_evidence_receipt(
         for field in hashes
     ):
         raise ValueError("GLB reference UV evidence receipt hashes are invalid")
+    if is_fusion:
+        if type(receipt.get("fusion_count")) is not int or receipt["fusion_count"] != 2:
+            raise ValueError("GLB reference UV fusion receipt must contain exactly two views")
+        array_hash_fields = ("source_image_sha256s", "camera_provenance_sha256s", "world_to_clip_sha256s")
+        if any(
+            not isinstance(receipt.get(field), list)
+            or len(receipt[field]) != receipt["fusion_count"]
+            for field in (
+                "source_evidence_ids", "source_image_sha256s", "camera_hypothesis_ids",
+                "camera_provenance_sha256s", "world_to_clip_sha256s",
+            )
+        ):
+            raise ValueError("GLB reference UV fusion receipt arrays are invalid")
+        if any(
+            not isinstance(item, str)
+            or not item
+            or len(item) > 128
+            or any(not (character.isascii() and (character.isalnum() or character in "_-")) for character in item)
+            for field in ("source_evidence_ids", "camera_hypothesis_ids")
+            for item in receipt[field]
+        ) or len(set(receipt["source_evidence_ids"])) != receipt["fusion_count"]:
+            raise ValueError("GLB reference UV fusion source identities are invalid")
+        if any(
+            not isinstance(item, str)
+            or len(item) != 64
+            or any(character not in "0123456789abcdef" for character in item)
+            for field in array_hash_fields
+            for item in receipt[field]
+        ):
+            raise ValueError("GLB reference UV fusion hashes are invalid")
+        if (
+            receipt["source_evidence_ids"][0] != receipt["source_evidence_id"]
+            or receipt["source_image_sha256s"][0] != receipt["source_image_sha256"]
+            or receipt["camera_hypothesis_ids"][0] != receipt["camera_hypothesis_id"]
+            or receipt["camera_provenance_sha256s"][0] != receipt["camera_provenance_sha256"]
+        ):
+            raise ValueError("GLB reference UV fusion receipt first-view lineage is inconsistent")
     if is_camera_raster:
         if (
             type(receipt.get("raster_triangle_count")) is not int
@@ -5071,6 +5288,82 @@ def _apply_bounded_lattice_deform(
     return CsgMeshPrimitive(part_role=part_role, feature_node_id=operation_id, triangles=tuple(triangles))
 
 
+def _apply_bounded_local_mesh_patch(
+    source: Sequence[GeometryPrimitive],
+    *,
+    patch_center: Any,
+    patch_radius: Any,
+    patch_offset: Any,
+    operation_id: str,
+    part_role: str,
+) -> CsgMeshPrimitive:
+    """Apply one bounded, topology-preserving local patch to an earlier mesh.
+
+    The patch is expressed in normalized source-AABB coordinates: the center
+    is in [0, 1]^3, the radius is at most 0.4, and the offset is a fraction of
+    the source extent. This edits only geometry already produced by the
+    restricted worker; it cannot import vertices, open a path, or run user
+    code. Vertices inside the spherical region receive a smoothstep
+    displacement and all material/part provenance is retained.
+    """
+
+    try:
+        center = tuple(float(value) for value in patch_center)
+        radius = float(patch_radius)
+        offset = tuple(float(value) for value in patch_offset)
+    except (TypeError, ValueError) as exc:
+        raise _runtime_operation_error(operation_id, "local_mesh_patch", "patch arguments must be numeric") from exc
+    if (
+        len(center) != 3
+        or len(offset) != 3
+        or any(not math.isfinite(value) or not 0.0 <= value <= 1.0 for value in center)
+        or not math.isfinite(radius)
+        or not 0.05 <= radius <= 0.4
+        or any(not math.isfinite(value) or abs(value) > 0.2 for value in offset)
+        or not any(abs(value) > 1e-9 for value in offset)
+    ):
+        raise _runtime_operation_error(operation_id, "local_mesh_patch", "patch bounds or effect are outside the reviewed local contract")
+
+    triangles = [dict(triangle) for primitive in source for triangle in _primitive_csg_solid(primitive)["triangles"]]
+    vertices = [tuple(float(value) for value in vertex) for triangle in triangles for vertex in triangle["vertices_mm"]]
+    if not vertices:
+        raise _runtime_operation_error(operation_id, "local_mesh_patch", "source mesh has no vertices")
+    lower = tuple(min(vertex[axis] for vertex in vertices) for axis in range(3))
+    upper = tuple(max(vertex[axis] for vertex in vertices) for axis in range(3))
+    extent = tuple(upper[axis] - lower[axis] for axis in range(3))
+    if any(value <= 1e-6 or not math.isfinite(value) for value in extent):
+        raise _runtime_operation_error(operation_id, "local_mesh_patch", "source mesh has a degenerate patch bounds")
+
+    changed_vertices = 0
+
+    def patch(vertex: tuple[float, float, float]) -> list[float]:
+        nonlocal changed_vertices
+        unit = tuple(min(1.0, max(0.0, (vertex[axis] - lower[axis]) / extent[axis])) for axis in range(3))
+        distance = math.sqrt(sum((unit[axis] - center[axis]) ** 2 for axis in range(3)))
+        if distance >= radius:
+            return list(vertex)
+        influence = 1.0 - distance / radius
+        influence = influence * influence * (3.0 - 2.0 * influence)
+        changed_vertices += 1
+        return [vertex[axis] + offset[axis] * extent[axis] * influence for axis in range(3)]
+
+    for triangle in triangles:
+        deformed = [patch(tuple(float(value) for value in vertex)) for vertex in triangle["vertices_mm"]]
+        edge_a = [deformed[1][axis] - deformed[0][axis] for axis in range(3)]
+        edge_b = [deformed[2][axis] - deformed[0][axis] for axis in range(3)]
+        cross = (
+            edge_a[1] * edge_b[2] - edge_a[2] * edge_b[1],
+            edge_a[2] * edge_b[0] - edge_a[0] * edge_b[2],
+            edge_a[0] * edge_b[1] - edge_a[1] * edge_b[0],
+        )
+        if not all(math.isfinite(value) for vertex in deformed for value in vertex) or sum(value * value for value in cross) <= 1e-12:
+            raise _runtime_operation_error(operation_id, "local_mesh_patch", "patch would create a degenerate triangle")
+        triangle["vertices_mm"] = deformed
+    if changed_vertices == 0:
+        raise _runtime_operation_error(operation_id, "local_mesh_patch", "patch region does not intersect the source mesh")
+    return CsgMeshPrimitive(part_role=part_role, feature_node_id=operation_id, triangles=tuple(triangles))
+
+
 def _solid_is_closed(solid: Mapping[str, Any]) -> bool:
     edges: Dict[Tuple[Tuple[float, float, float], Tuple[float, float, float]], int] = {}
     for triangle in solid.get("triangles", []):
@@ -5192,7 +5485,7 @@ def _feature_node_readback(
     operation_id = str(operation["operation_id"])
     op = str(operation["op"])
     parameters_sha256 = hashlib.sha256(_canonical_json(operation.get("args", {})).encode()).hexdigest()
-    kernel_id = MANIFOLD_KERNEL_ID if op in {"union", "subtract"} else "forgecad_builtin"
+    kernel_id = MANIFOLD_KERNEL_ID if op in {"union", "subtract", "groove"} else "forgecad_builtin"
     kernel_version = MANIFOLD_KERNEL_VERSION if kernel_id == MANIFOLD_KERNEL_ID else "ShapeProgramRuntimeManifest@1"
     node_input = {
         "node_id": operation_id,
@@ -5572,7 +5865,7 @@ def _build_glb(
     artifact_profile_id: GeometryArtifactProfileId,
     surface_adornments_by_zone: Mapping[str, Mapping[str, object]],
     surface_layers_by_zone: Mapping[str, Mapping[str, object]],
-    reference_uv_evidence_by_zone: Mapping[str, ReferenceUvEvidenceBakeRequest],
+    reference_uv_evidence_by_zone: Mapping[str, ReferenceUvEvidenceBakeGroup],
 ) -> Tuple[bytes, List[float]]:
     binary = bytearray()
     views: List[Dict[str, Any]] = []
@@ -5735,7 +6028,7 @@ def _append_visual_pbr_resources(
     used_material_indices: set[int],
     surface_adornments: Sequence[Mapping[str, object]],
     surface_layers: Sequence[Mapping[str, object]],
-    reference_uv_evidence_by_zone: Mapping[str, ReferenceUvEvidenceBakeRequest],
+    reference_uv_evidence_by_zone: Mapping[str, ReferenceUvEvidenceBakeGroup],
     camera_raster_triangles: Sequence[CameraUvRasterTriangle],
 ) -> Dict[str, Any]:
     """Embed complete visual-only PBR maps in the same GLB as geometry.
@@ -5920,7 +6213,7 @@ def _append_visual_pbr_resources(
             continue
         normalized_layer = normalize_surface_layer_lowering(lowering)
         target_zone_id = str(normalized_layer["adornments"][0]["target_zone_id"])
-        reference_evidence = reference_uv_evidence_by_zone.get(target_zone_id)
+        reference_evidence_group = reference_uv_evidence_by_zone.get(target_zone_id)
         texture_set = surface_layer_visual_texture_set(
             normalized_layer,
             artifact_profile_id=artifact_profile_id,
@@ -5937,16 +6230,35 @@ def _append_visual_pbr_resources(
                 texture_role=texture_map.texture_role,
             )
             texture_metadata = texture_map.model_dump(mode="json")
-            if reference_evidence is not None and texture_map.texture_role == "base_color":
-                reference_result = (
-                    bake_reference_camera_uv_raster(
+            if reference_evidence_group is not None and texture_map.texture_role == "base_color":
+                if len(reference_evidence_group) == 1:
+                    reference_evidence = reference_evidence_group[0]
+                    reference_result = (
+                        bake_reference_camera_uv_raster(
+                            payload,
+                            reference_evidence,
+                            camera_raster_triangles,
+                        )
+                        if isinstance(reference_evidence, ReferenceCameraUvRasterBake)
+                        else bake_reference_uv_evidence(payload, reference_evidence)
+                    )
+                else:
+                    if not all(
+                        isinstance(item, ReferenceCameraUvRasterBake)
+                        for item in reference_evidence_group
+                    ):
+                        raise ValueError(
+                            "multi-view reference fusion requires camera-space raster inputs"
+                        )
+                    reference_result = fuse_reference_camera_uv_raster(
                         payload,
-                        reference_evidence,
+                        tuple(
+                            item
+                            for item in reference_evidence_group
+                            if isinstance(item, ReferenceCameraUvRasterBake)
+                        ),
                         camera_raster_triangles,
                     )
-                    if isinstance(reference_evidence, ReferenceCameraUvRasterBake)
-                    else bake_reference_uv_evidence(payload, reference_evidence)
-                )
                 payload = reference_result.base_color_png
                 texture_metadata = {
                     **texture_metadata,
@@ -5970,7 +6282,7 @@ def _append_visual_pbr_resources(
             textures.append({"name": texture_metadata["texture_id"], "source": image_index})
             texture_by_role[texture_map.texture_role] = texture_index
         reference_receipt: dict[str, object] | None = None
-        if reference_evidence is not None:
+        if reference_evidence_group is not None:
             if reference_result is None:
                 raise ValueError("reference UV evidence did not produce the required base-colour receipt")
             mask_id = f"vtexmask_reference_{reference_result.projection_sha256[:24]}"
@@ -5989,10 +6301,18 @@ def _append_visual_pbr_resources(
                     "byte_size": len(reference_result.unobserved_texel_mask_png),
                 }},
             })
-            is_camera_raster = isinstance(reference_evidence, ReferenceCameraUvRasterBake)
+            is_camera_raster = all(
+                isinstance(item, ReferenceCameraUvRasterBake)
+                for item in reference_evidence_group
+            )
+            is_fusion = len(reference_evidence_group) > 1
+            if is_fusion and not is_camera_raster:
+                raise ValueError("multi-view reference receipt requires camera-space raster inputs")
             reference_receipt = {
                 "schema_version": (
-                    "ReferenceCameraUvRasterBakeReceipt@2"
+                    "ReferenceCameraUvRasterFusionReceipt@3"
+                    if is_fusion
+                    else "ReferenceCameraUvRasterBakeReceipt@2"
                     if is_camera_raster
                     else "ReferenceUvEvidenceBakeReceipt@1"
                 ),
@@ -6006,12 +6326,16 @@ def _append_visual_pbr_resources(
                     if is_camera_raster
                     else REFERENCE_UV_EVIDENCE_ALGORITHM_VERSION
                 ),
-                "projection_id": reference_evidence.projection_id,
+                "projection_id": (
+                    f"fusion_{reference_result.projection_sha256[:24]}"
+                    if is_fusion
+                    else reference_evidence_group[0].projection_id
+                ),
                 "projection_sha256": reference_result.projection_sha256,
-                "source_evidence_id": reference_evidence.source_evidence_id,
-                "source_image_sha256": reference_evidence.source_image_sha256,
-                "camera_hypothesis_id": reference_evidence.camera_hypothesis_id,
-                "camera_provenance_sha256": reference_evidence.camera_provenance_sha256,
+                "source_evidence_id": reference_evidence_group[0].source_evidence_id,
+                "source_image_sha256": reference_evidence_group[0].source_image_sha256,
+                "camera_hypothesis_id": reference_evidence_group[0].camera_hypothesis_id,
+                "camera_provenance_sha256": reference_evidence_group[0].camera_provenance_sha256,
                 "target_material_zone_id": target_zone_id,
                 "base_color_texture_id": f"vtex_reference_{reference_result.projection_sha256[:24]}",
                 "base_color_sha256": reference_result.base_color_sha256,
@@ -6022,17 +6346,35 @@ def _append_visual_pbr_resources(
                 "observed_texel_count": reference_result.observed_texel_count,
                 "unobserved_texel_count": reference_result.unobserved_texel_count,
             }
-            if is_camera_raster:
+            if is_fusion:
+                reference_receipt.update({
+                    "source_evidence_ids": [item.source_evidence_id for item in reference_evidence_group],
+                    "source_image_sha256s": [item.source_image_sha256 for item in reference_evidence_group],
+                    "camera_hypothesis_ids": [item.camera_hypothesis_id for item in reference_evidence_group],
+                    "camera_provenance_sha256s": [item.camera_provenance_sha256 for item in reference_evidence_group],
+                    "world_to_clip_sha256s": [
+                        hashlib.sha256(
+                            json.dumps(
+                                list(item.world_to_clip_row_major),
+                                separators=(",", ":"),
+                            ).encode("utf-8")
+                        ).hexdigest()
+                        for item in reference_evidence_group
+                    ],
+                    "raster_triangle_count": len(camera_raster_triangles),
+                    "fusion_count": len(reference_evidence_group),
+                })
+            elif is_camera_raster:
                 reference_receipt["world_to_clip_sha256"] = hashlib.sha256(
                     json.dumps(
-                        list(reference_evidence.world_to_clip_row_major),
+                        list(reference_evidence_group[0].world_to_clip_row_major),
                         separators=(",", ":"),
                     ).encode("utf-8")
                 ).hexdigest()
                 reference_receipt["raster_triangle_count"] = len(camera_raster_triangles)
             else:
                 reference_receipt["observed_uv_rect_bps"] = list(
-                    reference_evidence.observed_uv_rect_bps
+                    reference_evidence_group[0].observed_uv_rect_bps
                 )
         pbr: Dict[str, Any] = {
             "baseColorFactor": [1, 1, 1, float(properties["alpha"])],

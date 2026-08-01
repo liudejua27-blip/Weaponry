@@ -1083,7 +1083,29 @@ class AgentKernelService:
 
     def _plan_items(self, plan: MechanicalConceptPlan, scope_decision: ConceptScopeDecision) -> list[tuple[str, Mapping[str, Any]]]:
         plan_payload = plan.model_dump(mode="json")
+        tool_call_id = f"concept_plan_{plan.plan_id}"
         return [
+            (
+                "tool_call",
+                {
+                    "tool_name": "plan_complete_concept",
+                    "call_id": tool_call_id,
+                    "arguments": {
+                        "domain_pack_id": plan.domain_pack_id,
+                        "brief_sha256": hashlib.sha256(plan.brief.encode("utf-8")).hexdigest(),
+                    },
+                    "message": "正在整理完整外观规划。",
+                },
+            ),
+            (
+                "tool_result",
+                {
+                    "tool_name": "plan_complete_concept",
+                    "call_id": tool_call_id,
+                    "result": {"plan": plan_payload},
+                    "message": "完整外观规划已返回，等待正式结果决策。",
+                },
+            ),
             (
                 "plan",
                 {

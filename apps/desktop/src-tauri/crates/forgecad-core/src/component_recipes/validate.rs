@@ -26,6 +26,7 @@ const RUNTIME_OPERATIONS: &[&str] = &[
     "subtract",
     "bevel_approx",
     "surface_panel",
+    "shell",
     "lattice_deform",
 ];
 const DOMAINS: &[&str] = &[

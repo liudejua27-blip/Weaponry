@@ -54,6 +54,7 @@ _RETAINED_FIELDS = frozenset({
     "uv_frame",
     "quality_profile",
 })
+_OPTIONAL_RETAINED_FIELDS = frozenset({"base_color_token", "surface_finish_token"})
 _HEX = frozenset("0123456789abcdef")
 _COVERAGES = frozenset({"full_zone", "center_band", "edge_band", "symmetric_pair"})
 _SYMMETRIES = frozenset({"none", "mirror_u", "mirror_v", "radial_2", "radial_4"})
@@ -62,6 +63,45 @@ _COLOR_TOKENS = {
     "signal_red": (224, 66, 48),
     "graphite": (65, 76, 88),
     "aluminum": (196, 205, 214),
+}
+_BASE_COLOR_TOKENS = {
+    "silver": (214, 222, 231),
+    "white_ceramic": (224, 228, 232),
+    "gunmetal": (76, 88, 101),
+    "graphite": (30, 38, 48),
+    "copper": (156, 88, 56),
+    "signal_red": (178, 42, 36),
+    # Category-open, non-mechanical appearance tokens. They remain a small
+    # reviewed palette so the worker can compile them deterministically
+    # without accepting arbitrary RGB or external textures.
+    "bark_brown": (104, 62, 38),
+    "wood_warm": (146, 86, 42),
+    "foliage_green": (61, 123, 52),
+    "skin_warm": (190, 128, 99),
+    "fur_warm": (132, 83, 51),
+    "fabric_blue": (58, 86, 126),
+    "stone_gray": (130, 132, 126),
+    "concrete_gray": (153, 151, 143),
+    "clay_terracotta": (178, 94, 63),
+}
+_SURFACE_FINISH_TOKENS = {
+    "brushed_metal": (78, 235),
+    "polished_metal": (28, 245),
+    "ceramic_coat": (72, 8),
+    "glossy_coat": (58, 32),
+    "matte_coat": (156, 18),
+    "rubberized": (220, 0),
+    "dark_glass": (42, 6),
+    "emissive_trim": (60, 72),
+    "wood_grain": (188, 0),
+    "bark_ridged": (230, 0),
+    "leaf_waxy": (118, 0),
+    "fabric_weave": (218, 0),
+    "fur_soft": (238, 0),
+    "skin_matte": (178, 0),
+    "stone_rough": (232, 0),
+    "concrete_rough": (220, 0),
+    "clay_matte": (210, 0),
 }
 
 
@@ -97,7 +137,11 @@ def _bounded_int(value: object, *, minimum: int, maximum: int) -> bool:
 
 
 def _normalise_retained_layers(value: object) -> dict[str, object]:
-    if not isinstance(value, Mapping) or set(value) != _RETAINED_FIELDS:
+    if (
+        not isinstance(value, Mapping)
+        or not _RETAINED_FIELDS.issubset(set(value))
+        or set(value) - _RETAINED_FIELDS - _OPTIONAL_RETAINED_FIELDS
+    ):
         raise ValueError("retained surface layers must contain exactly the reviewed fields")
     vector_paths = value.get("vector_paths")
     decals = value.get("decal_layers")
@@ -106,6 +150,8 @@ def _normalise_retained_layers(value: object) -> dict[str, object]:
     symmetry = value.get("symmetry")
     uv_frame = value.get("uv_frame")
     quality_profile = value.get("quality_profile")
+    base_color_token = value.get("base_color_token")
+    surface_finish_token = value.get("surface_finish_token")
     if not isinstance(vector_paths, list) or len(vector_paths) > 8:
         raise ValueError("retained vector path count is outside the reviewed bound")
     if not isinstance(decals, list) or len(decals) > 4:
@@ -116,6 +162,10 @@ def _normalise_retained_layers(value: object) -> dict[str, object]:
         raise ValueError("retained emissive mask count is outside the reviewed bound")
     if quality_profile not in {"interactive_preview", "production_concept"}:
         raise ValueError("retained surface quality profile is invalid")
+    if base_color_token is not None and base_color_token not in _BASE_COLOR_TOKENS:
+        raise ValueError("retained base color token is outside the reviewed vocabulary")
+    if surface_finish_token is not None and surface_finish_token not in _SURFACE_FINISH_TOKENS:
+        raise ValueError("retained surface finish token is outside the reviewed vocabulary")
     if not isinstance(symmetry, Mapping) or set(symmetry) != {"mode", "center_uv"}:
         raise ValueError("retained surface symmetry is invalid")
     if symmetry.get("mode") not in _SYMMETRIES or _uv(symmetry.get("center_uv")) is None:
@@ -269,6 +319,82 @@ def _png_rgb(rows: Sequence[bytes], *, width: int, height: int) -> bytes:
 
 def _clamp(value: float) -> int:
     return max(0, min(255, round(value)))
+
+
+def _resolved_base_color(material: Mapping[str, object], token: object) -> tuple[int, int, int]:
+    base = tuple(int(value) for value in material["base"])
+    if token is None:
+        return base
+    tint = _BASE_COLOR_TOKENS[str(token)]
+    # Keep the reviewed material's identity while allowing a sealed visual
+    # token to express the reference's local finish (for example silver
+    # armour over the aluminum or graphite substrate).
+    return tuple(_clamp(base[channel] * 0.18 + tint[channel] * 0.82) for channel in range(3))
+
+
+def _resolved_pbr_scalars(material: Mapping[str, object], token: object) -> tuple[int, int]:
+    base_roughness = int(material["roughness"])
+    base_metallic = int(material["metallic"])
+    if token is None:
+        return base_roughness, base_metallic
+    target_roughness, target_metallic = _SURFACE_FINISH_TOKENS[str(token)]
+    # Keep the catalog material as the substrate while letting the sealed
+    # finish token control the visible response. No arbitrary scalar can enter
+    # this function from a Provider or a texture payload.
+    return (
+        _clamp(base_roughness * 0.25 + target_roughness * 0.75),
+        _clamp(base_metallic * 0.25 + target_metallic * 0.75),
+    )
+
+
+def _surface_finish_detail(token: object, u: float, v: float) -> tuple[float, float, float]:
+    """Return bounded albedo, roughness and bump variation for natural finishes.
+
+    The generic exterior path previously reduced every unrecognised surface to
+    the same hard-surface substrate. These deterministic fields provide a
+    visibly different meso/micro response for fabric, fur, wood, bark, leaf,
+    stone, concrete, clay and skin while keeping the input a closed token. The
+    values are deliberately small: silhouette and geometry remain authored by
+    ShapeProgram, and this function never becomes a hidden texture or shader
+    language.
+    """
+
+    if token == "wood_grain":
+        grain = math.sin(math.tau * (7.0 * u + 0.45 * math.sin(math.tau * 1.7 * v)))
+        return grain * 14.0, (1.0 - abs(grain)) * 18.0, grain * 4.0
+    if token == "bark_ridged":
+        ridge = math.sin(math.tau * (18.0 * u + 0.7 * v))
+        micro = math.sin(math.tau * (31.0 * v + 0.35 * u))
+        return ridge * 18.0 + micro * 5.0, (1.0 - abs(ridge)) * 26.0, ridge * 6.0
+    if token == "leaf_waxy":
+        vein = math.sin(math.tau * (4.0 * u + 1.3 * v))
+        pores = math.sin(math.tau * (21.0 * u - 8.0 * v))
+        return vein * 7.0 + pores * 2.0, (1.0 - abs(vein)) * 20.0, vein * 3.0
+    if token == "fabric_weave":
+        warp = math.sin(math.tau * 27.0 * u)
+        weft = math.sin(math.tau * 23.0 * v)
+        weave = warp * weft
+        return weave * 6.0, (1.0 - abs(weave)) * 18.0, weave * 2.4
+    if token == "fur_soft":
+        fibers = math.sin(math.tau * (34.0 * u + 4.0 * v))
+        clumps = math.sin(math.tau * (6.0 * u + 2.0 * v))
+        return fibers * 5.0 + clumps * 4.0, (1.0 - abs(fibers)) * 16.0, fibers * 2.2
+    if token == "skin_matte":
+        variation = math.sin(math.tau * (5.0 * u + 4.0 * v))
+        pores = math.sin(math.tau * (19.0 * u - 17.0 * v))
+        return variation * 2.5 + pores * 1.2, (1.0 - abs(pores)) * 8.0, variation * 1.4
+    if token == "stone_rough":
+        coarse = math.sin(math.tau * (3.0 * u + 2.0 * v))
+        chips = math.sin(math.tau * (13.0 * u + 17.0 * v))
+        return coarse * 10.0 + chips * 7.0, (1.0 - abs(chips)) * 30.0, chips * 4.5
+    if token == "concrete_rough":
+        coarse = math.sin(math.tau * (5.0 * u - 3.0 * v))
+        pores = math.sin(math.tau * (29.0 * u + 23.0 * v))
+        return coarse * 6.0 + pores * 4.0, (1.0 - abs(pores)) * 24.0, pores * 3.0
+    if token == "clay_matte":
+        variation = math.sin(math.tau * (4.0 * u + 3.0 * v))
+        return variation * 5.0, (1.0 - abs(variation)) * 14.0, variation * 2.0
+    return 0.0, 0.0, 0.0
 
 
 def _coverage(coverage: str, u: float, v: float) -> float:
@@ -426,8 +552,11 @@ def _render_bytes_scalar(lowering: Mapping[str, object], *, artifact_profile_id:
     height = PRODUCTION_TEXTURE_HEIGHT if artifact_profile_id == "production_concept" else TEXTURE_HEIGHT
     paths = _path_segments(retained["vector_paths"])
     rows = {role: [] for role in SUPPORTED_PBR_ROLES}
-    base = tuple(int(value) for value in material["base"])
-    base_roughness, base_metallic = int(material["roughness"]), int(material["metallic"])
+    base = _resolved_base_color(material, retained.get("base_color_token"))
+    base_roughness, base_metallic = _resolved_pbr_scalars(
+        material,
+        retained.get("surface_finish_token"),
+    )
     for y in range(height):
         encoded = {role: bytearray() for role in SUPPORTED_PBR_ROLES}
         for x in range(width):
@@ -444,15 +573,18 @@ def _render_bytes_scalar(lowering: Mapping[str, object], *, artifact_profile_id:
                 color = _COLOR_TOKENS[str(decal["color_token"])]
                 for channel in range(3):
                     accent[channel] += (color[channel] - base[channel]) * amount
-            colour_shift = relief * 0.42 + vector * 18
+            finish_colour, finish_roughness, finish_bump = _surface_finish_detail(
+                retained.get("surface_finish_token"), u, v
+            )
+            colour_shift = relief * 0.42 + vector * 18 + finish_colour
             encoded["base_color"].extend(_clamp(base[channel] + accent[channel] + colour_shift) for channel in range(3))
-            encoded["metallic_roughness"].extend((255, _clamp(base_roughness - roughness * 65 + relief * 1.5), _clamp(base_metallic + vector * 5)))
+            encoded["metallic_roughness"].extend((255, _clamp(base_roughness - roughness * 65 + relief * 1.5 + finish_roughness), _clamp(base_metallic + vector * 5)))
             # A scalar field yields a valid tangent-space normal without arbitrary shaders.
             # The scalar field is expressed in normalized UV space, so its
             # derivative is independent of output resolution.  Do not scale
             # it down by a texel step: doing so makes the production map look
             # flat even though its 128 px preview has readable relief.
-            encoded["normal"].extend((_clamp(128 - math.cos(math.tau * 14 * u) * relief * 3.2), _clamp(128 + math.cos(math.tau * 11 * v) * relief * 2.6), 254))
+            encoded["normal"].extend((_clamp(128 - math.cos(math.tau * 14 * u) * relief * 3.2 + finish_bump), _clamp(128 + math.cos(math.tau * 11 * v) * relief * 2.6 + finish_bump), 254))
             occlusion = _clamp(252 - max(0, -relief) * 1.2 - vector * 20)
             encoded["occlusion"].extend((occlusion, occlusion, occlusion))
             emission = [0.0, 0.0, 0.0]
@@ -505,6 +637,53 @@ def _coverage_grid(
         )
     )
     return np.minimum(1.0, pair)
+
+
+def _surface_finish_detail_grid(
+    token: object,
+    u: np.ndarray,
+    v: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Vectorized counterpart of :func:`_surface_finish_detail`."""
+
+    shape = np.broadcast_shapes(u.shape, v.shape)
+    zeros = np.zeros(shape, dtype=np.float64)
+    if token == "wood_grain":
+        grain = np.sin(math.tau * (7.0 * u + 0.45 * np.sin(math.tau * 1.7 * v)))
+        return grain * 14.0, (1.0 - np.abs(grain)) * 18.0, grain * 4.0
+    if token == "bark_ridged":
+        ridge = np.sin(math.tau * (18.0 * u + 0.7 * v))
+        micro = np.sin(math.tau * (31.0 * v + 0.35 * u))
+        return ridge * 18.0 + micro * 5.0, (1.0 - np.abs(ridge)) * 26.0, ridge * 6.0
+    if token == "leaf_waxy":
+        vein = np.sin(math.tau * (4.0 * u + 1.3 * v))
+        pores = np.sin(math.tau * (21.0 * u - 8.0 * v))
+        return vein * 7.0 + pores * 2.0, (1.0 - np.abs(vein)) * 20.0, vein * 3.0
+    if token == "fabric_weave":
+        warp = np.sin(math.tau * 27.0 * u)
+        weft = np.sin(math.tau * 23.0 * v)
+        weave = warp * weft
+        return weave * 6.0, (1.0 - np.abs(weave)) * 18.0, weave * 2.4
+    if token == "fur_soft":
+        fibers = np.sin(math.tau * (34.0 * u + 4.0 * v))
+        clumps = np.sin(math.tau * (6.0 * u + 2.0 * v))
+        return fibers * 5.0 + clumps * 4.0, (1.0 - np.abs(fibers)) * 16.0, fibers * 2.2
+    if token == "skin_matte":
+        variation = np.sin(math.tau * (5.0 * u + 4.0 * v))
+        pores = np.sin(math.tau * (19.0 * u - 17.0 * v))
+        return variation * 2.5 + pores * 1.2, (1.0 - np.abs(pores)) * 8.0, variation * 1.4
+    if token == "stone_rough":
+        coarse = np.sin(math.tau * (3.0 * u + 2.0 * v))
+        chips = np.sin(math.tau * (13.0 * u + 17.0 * v))
+        return coarse * 10.0 + chips * 7.0, (1.0 - np.abs(chips)) * 30.0, chips * 4.5
+    if token == "concrete_rough":
+        coarse = np.sin(math.tau * (5.0 * u - 3.0 * v))
+        pores = np.sin(math.tau * (29.0 * u + 23.0 * v))
+        return coarse * 6.0 + pores * 4.0, (1.0 - np.abs(pores)) * 24.0, pores * 3.0
+    if token == "clay_matte":
+        variation = np.sin(math.tau * (4.0 * u + 3.0 * v))
+        return variation * 5.0, (1.0 - np.abs(variation)) * 14.0, variation * 2.0
+    return zeros, zeros, zeros
 
 
 def _apply_frame_grid(
@@ -745,14 +924,22 @@ def _render_bytes_vectorized(
         (mask, _emissive_mask_grid(mask, u, v))
         for mask in retained["emissive_masks"]
     ]
-    base = np.asarray(material["base"], dtype=np.float64)
-    base_roughness = int(material["roughness"])
-    base_metallic = int(material["metallic"])
+    base = np.asarray(
+        _resolved_base_color(material, retained.get("base_color_token")),
+        dtype=np.float64,
+    )
+    base_roughness, base_metallic = _resolved_pbr_scalars(
+        material,
+        retained.get("surface_finish_token"),
+    )
+    finish_colour, finish_roughness, finish_bump = _surface_finish_detail_grid(
+        retained.get("surface_finish_token"), u, v
+    )
     accent = np.zeros((height, width, 3), dtype=np.float64)
     for decal, amount in decals:
         color = np.asarray(_COLOR_TOKENS[str(decal["color_token"])], dtype=np.float64)
         accent += (color - base)[None, None, :] * amount[:, :, None]
-    colour_shift = relief * 0.42 + vector * 18
+    colour_shift = relief * 0.42 + vector * 18 + finish_colour
     base_color = np.stack(
         [
             _uint8_channel(
@@ -765,15 +952,15 @@ def _render_bytes_vectorized(
     metallic_roughness = np.stack(
         (
             np.full((height, width), 255, dtype=np.uint8),
-            _uint8_channel(base_roughness - roughness * 65 + relief * 1.5),
+            _uint8_channel(base_roughness - roughness * 65 + relief * 1.5 + finish_roughness),
             _uint8_channel(base_metallic + vector * 5),
         ),
         axis=-1,
     )
     normal = np.stack(
         (
-            _uint8_channel(128 - np.cos(math.tau * 14 * u) * relief * 3.2),
-            _uint8_channel(128 + np.cos(math.tau * 11 * v) * relief * 2.6),
+            _uint8_channel(128 - np.cos(math.tau * 14 * u) * relief * 3.2 + finish_bump),
+            _uint8_channel(128 + np.cos(math.tau * 11 * v) * relief * 2.6 + finish_bump),
             np.full((height, width), 254, dtype=np.uint8),
         ),
         axis=-1,
