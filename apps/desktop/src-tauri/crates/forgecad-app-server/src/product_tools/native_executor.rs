@@ -10072,9 +10072,19 @@ fn author_universal_asset(
                 .iter()
                 .map(|part| part.capability_id.as_str())
                 .collect::<BTreeSet<_>>();
-            let local_hard_surface_hybrid = capability_ids.len() == 2
-                && capability_ids.contains(GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID)
-                && capability_ids.contains(LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID);
+            let local_hybrid = capability_ids.contains(LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID)
+                && representation_plan.parts.iter().any(|part| {
+                    part.representation == forgecad_core::RepresentationKind::Procedural
+                        && matches!(
+                            part.capability_id.as_str(),
+                            GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID
+                                | GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID
+                        )
+                })
+                && representation_plan.parts.iter().any(|part| {
+                    part.representation == forgecad_core::RepresentationKind::Deformable
+                        && part.capability_id == LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID
+                });
             let procedural_composition = capability_ids.len() > 1
                 && representation_plan.parts.iter().all(|part| {
                     matches!(
@@ -10088,13 +10098,13 @@ fn author_universal_asset(
                         )
                     )
                 });
-            if capability_ids.len() != 1 && !local_hard_surface_hybrid && !procedural_composition {
+            if capability_ids.len() != 1 && !local_hybrid && !procedural_composition {
                 return Err(NativeToolFailure::schema(
                     "UNIVERSAL_EXECUTABLE_CAPABILITY_MIXED",
-                    "A category-open executable candidate may mix reviewed procedural visual capabilities, or use the bounded hard-surface/lattice hybrid.",
+                    "A category-open executable candidate may mix reviewed procedural visual capabilities, or use the bounded procedural/lattice hybrid.",
                 ));
             }
-            if local_hard_surface_hybrid {
+            if local_hybrid {
                 let source = UniversalAssetSourceV2::from_runtime_local_hybrid(
                     request,
                     subject_profile,
@@ -17362,6 +17372,46 @@ mod tests {
         (context, arguments)
     }
 
+    fn u004_executable_visual_exterior_local_hybrid_fixture(
+    ) -> (ValidatedUniversalAuthorContext, BTreeMap<String, Value>) {
+        let (context, mut arguments) = u004_executable_local_hybrid_fixture();
+        let outcome = arguments.get_mut("outcome").unwrap();
+        outcome["subject_profile"]["category_tags"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!("visual_exterior"));
+        outcome["subject_profile"]["parts"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|part| part["part_id"] == "part_bracket")
+            .expect("procedural bracket part")
+            .get_mut("traits")
+            .and_then(Value::as_array_mut)
+            .expect("bracket traits")
+            .push(json!("visual_exterior"));
+        let profile_sha256 = forgecad_core::semantic_sha256(&outcome["subject_profile"]).unwrap();
+        outcome["visual_feature_contract"]["subject_profile_sha256"] = json!(profile_sha256);
+        let contract_sha256 =
+            forgecad_core::semantic_sha256(&outcome["visual_feature_contract"]).unwrap();
+        outcome["representation_plan"]["subject_profile_sha256"] = json!(profile_sha256);
+        outcome["representation_plan"]["visual_feature_contract_sha256"] = json!(contract_sha256);
+        outcome["representation_plan"]["parts"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|part| part["part_id"] == "part_bracket")
+            .expect("procedural bracket plan")
+            .as_object_mut()
+            .unwrap()
+            .insert(
+                "capability_id".into(),
+                json!(forgecad_core::GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID),
+            );
+        outcome["executable_payload"]["domain"] = json!("generic_visual_exterior");
+        (context, arguments)
+    }
+
     fn u004_executable_local_mesh_patch_fixture(
     ) -> (ValidatedUniversalAuthorContext, BTreeMap<String, Value>) {
         let (_, mut arguments) = u004_executable_generic_hard_surface_fixture();
@@ -17772,6 +17822,71 @@ mod tests {
             .unwrap_err();
             assert_eq!(error.code, "CANDIDATE_PBR_CAPTURE_REQUIRED");
             assert!(state.preview.is_none());
+        });
+    }
+
+    #[test]
+    fn u004_visual_exterior_and_lattice_hybrid_keeps_distinct_representation_lineage() {
+        block_on(async {
+            let (context, arguments) = u004_executable_visual_exterior_local_hybrid_fixture();
+            let geometry = Arc::new(SuccessGeometryPort::default());
+            let executor =
+                executor_with(geometry.clone(), NativeProductToolExecutorConfig::default());
+            let mut state = NativeToolState {
+                project_id: Some("project_u004_hs".into()),
+                turn_id: "turn_u004_visual_hybrid".into(),
+                universal_author_context: Some(context),
+                ..NativeToolState::default()
+            };
+            let output = author_universal_asset(&arguments, &mut state).unwrap();
+            assert_eq!(
+                output.get("execution_route").and_then(Value::as_str),
+                Some("build_universal_local_hybrid")
+            );
+            let source = state.universal_asset_source_v2.as_ref().unwrap();
+            assert!(matches!(
+                source.representation_source,
+                UniversalRepresentationSourceV2::Hybrid(_)
+            ));
+            assert!(source
+                .representation_plan
+                .parts
+                .iter()
+                .any(|part| part.capability_id
+                    == forgecad_core::GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID));
+            assert!(source
+                .representation_plan
+                .parts
+                .iter()
+                .any(|part| part.capability_id
+                    == forgecad_core::LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID));
+
+            let built = executor
+                .build_universal_v2_procedural(
+                    &BTreeMap::from([
+                        (
+                            "direction_id".into(),
+                            json!("direction_universal_local_hybrid"),
+                        ),
+                        ("presentation_profile".into(), json!("showcase")),
+                        ("variant_id".into(), Value::Null),
+                    ]),
+                    &mut state,
+                    CancellationToken::new(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(geometry.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                built.get("direction_id").and_then(Value::as_str),
+                Some("direction_universal_local_hybrid")
+            );
+            assert!(state
+                .universal_asset_source_v2
+                .as_ref()
+                .unwrap()
+                .compiled_artifact
+                .is_some());
         });
     }
 
