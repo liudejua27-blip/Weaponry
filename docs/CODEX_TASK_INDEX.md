@@ -47,9 +47,9 @@ Next unblocked task IDs:
 
 ```text
 FGC-U004 (in_progress parent)
-FGC-U004-W1 (integrated; known harness limit)
-FGC-U004-W2 (integrated; known harness limits)
-FGC-U004-W3 (integrated; known harness limits)
+FGC-U004-W1 (done)
+FGC-U004-W2 (done)
+FGC-U004-W3 (done)
 FGC-U004-W4 (done; parent remains in_progress)
 ```
 
@@ -116,12 +116,12 @@ FGC-U004-W4 (done; parent remains in_progress)
 
 | Workstream | Status | Owner scope | Dependency |
 | --- | --- | --- | --- |
-| FGC-U004-W1 | integrated (known harness limit) | DeepSeek 会话、上下文、memory、缓存回执 | U004A |
-| FGC-U004-W2 | integrated (known harness limits) | 通用表示、Appearance Compiler、GLB/PBR readback | U003/U004A |
-| FGC-U004-W3 | integrated (known harness limits) | 工作台 shell、状态显示、单视口和响应式 | F026/K003 |
+| FGC-U004-W1 | done | DeepSeek 会话、上下文、memory、缓存回执 | U004A |
+| FGC-U004-W2 | done | 通用表示、Appearance Compiler、GLB/PBR readback | U003/U004A |
+| FGC-U004-W3 | done | 工作台 shell、状态显示、单视口和响应式 | F026/K003 |
 | FGC-U004-W4 | done | 合并、跨轨 E2E、证据、任务状态和 handoff | W1/W2/W3 commits |
 
-W1–W3 可由四个 Luna 中的前三个同时执行，但不得改同一文件；W4 已按 `W1 → W2 → W3 → W4` 合并并生成证据 manifest。W1–W3 的 Rust/等价 Python 核心证据已记录，但聚合 Gate 仍受集成 worktree 缺少 `.venv`、`tsc`、`playwright-core` 以及现有 Node 26 smoke 流写入错误影响；任何 workstream 的局部 PASS 都不能把父任务 U004 标为 `done`。
+W1–W3 可由四个 Luna 中的前三个同时执行，但不得改同一文件；W4 已按 `W1 → W2 → W3 → W4` 合并并生成证据 manifest。W3 修复链已完成 F025、T002、typecheck/build/F026/F006；W2 的 PBR smoke/rendered Playwright 和 W4 原先三个 bridge tests 通过。主任务 U004 仍因真实 Provider、packaged、未见输入和真人门缺失而不能标为 `done`。
 
 U004A 完成证据：删除 Fal/Hunyuan 远程生成 adapter、Tauri command、凭据、恢复 probe、TypeScript transport 和工作台入口；DeepSeek 配置只接受官方 `api.deepseek.com + deepseek-*`，千问视觉配置只接受官方 `aliyuncs.com + qwen*`；`release:ai-provider-policy`、反向 Rust tests、desktop typecheck/build 和 F026 单视口 smoke 通过。旧 remote-job schema/migration 只作兼容读取，`mesh_seed.generic_v1` 保持 unavailable。
 

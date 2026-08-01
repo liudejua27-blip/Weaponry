@@ -5,7 +5,7 @@
 
 ## 0.1 2026-08-01 W4 集成验证
 
-W3 工作台 shell 已从 `d602eb9` 按顺序合并到 W4 集成 HEAD `28373ed`；`CadWorkbenchPanel` 的 source-level F025 responsibility assertion 已通过，Tauri Rust `cargo check` 也通过。当前 worktree 的桌面 `typecheck/build` 不能作为 PASS：缺少 `tsc`；F026/F006 的现有 smoke 在 Node 26 对 undefined 流写入失败，浏览器场景因缺少 `playwright-core` 未运行。前端结构与工作台单 renderer 约束仍以当前代码和这些明确的 Gate 结果为准，不能把本地静态或 fixture 证据写成真实 Provider/视觉质量验收。
+W3 工作台 shell 已从 `d602eb9` 合并，并由 `48e72cf → 9f94911 → 8af0abd` 完成类别开放 smoke/CSS 修复。主环境后续 F025、T002 14/14、desktop typecheck/build、F026、F006 均 PASS；这些结果证明工作台结构和回归场景，不证明真实 Provider 或通用视觉质量。此前隔离 worktree 缺少 `tsc`/`playwright-core` 的失败仅作为 harness 历史记录保留。
 
 ## 1. 唯一产品入口
 

@@ -2,7 +2,7 @@
 
 更新时间：2026-08-01
 分支：集成 worktree detached HEAD（未切换或修改 `main`）
-状态：W1–W3 合并后的 `28373ed` 已完成 W4 文档/证据提交；当前 worktree 应保持 clean；未 push
+状态：W3 修复链已 fast-forward 至 `8af0abd`；W4 收尾文档/证据修改待创建最终提交；未 push
 
 ## 0.1 2026-07-31 实时联网验证记录
 
@@ -13,19 +13,23 @@
 
 ## 0.2 2026-08-01 FGC-U004-W4 集成验收
 
-本轮严格按 `W1 → W2 → W3 → W4` 集成，未发生冲突，也未使用 `ours/theirs` 整文件覆盖：
+本轮严格按 `W1 → W2 → W3 → W4` 集成，未发生冲突，也未使用 `ours/theirs` 整文件覆盖；在既有 W4 `addfdc1` 后，先以 `git merge --ff-only` 前进到 W3 修复链 `8af0abd`：
 
 ```text
 7758a01 baseline
   └─ 96ea067 W1 source → 5ec59ed W1 merge
       └─ 65d3d8e W2 source → 0aab030 W2 merge
           └─ d602eb9 W3 source → 28373ed W3 merge
-              └─ final W4 docs/evidence commit (本交接提交)
+              └─ addfdc1 W4 evidence
+                  └─ 48e72cf → 9f94911 → 8af0abd W3 fix chain
+                      └─ final W4 closeout docs/evidence commit (本交接提交)
 ```
 
-W1 context/deepseek Rust tests、W2 VP203/U003/VisualConvergence/PBR/bridge Rust tests、W2 等价 Python checks、W3 source-level F025 assertion、Tauri `cargo check`、U004 bridge 三个 exact round-trip tests、repository integrity、等价 docs/safety/secrets/provider-policy/contracts、Agent compile 和 `git diff --check` 通过。聚合脚本结果必须按 harness 事实解释：worktree 没有 `.venv/bin/python`、`tsc` 或 `playwright-core`；`smoke_u004_workbench_pbr_capture.mjs`、F026/F006/C111B logic 在当前 Node 26 对 undefined 流写入并退出。完整命令和退出码见 [W4 evidence manifest](evidence/U004_W4_INTEGRATION_EVIDENCE_MANIFEST.md)。
+W3 修复链逐提交只修改 W3 所有权：`48e72cf` 改两个 workbench characterization/E2E smoke，`9f94911` 改 workbench E2E 可见文案，`8af0abd` 改 `cad-workbench.css` 和同一 smoke。主环境后续结果为 F025 完整聚合 PASS、T002 14/14 PASS、desktop typecheck/build/F026/F006 PASS；主环境 U004 PBR smoke 与 rendered Playwright PASS。W4 原先三个 U004 bridge exact tests 继续记为 PASS。
 
-真实证据状态：真实 DeepSeek 标记 `FAIL`（历史真实 author 请求到达 Rust/Provider 边界，但未形成候选 GLB/readback/capture；本轮未把历史失败写成成功）；真实千问 `NOT RUN`；packaged app `KNOWN FAIL`（集成 worktree 没有可用 `.app`，等价 packaged QA 先因缺少 app 退出，既有 macOS 锁屏前置也未解除）；未见输入 `NOT RUN`；真人评分 `NOT RUN`。fixture、离线 Rust/Python、确定性本地代理、开发 build 和截图均不计入真实 Provider 或通用高质量成功。
+主环境 docs walkthrough、repository integrity、safety、secrets、Provider policy、schema、OpenAPI 和 diff 复验 PASS。主环境桥接重跑曾因 `rustc` 长时间无进展被中止，不能写成新的 main PASS；它不覆盖 W4 原先三个 bridge 测试的 PASS。完整状态与 harness 限制见 [W4 evidence manifest](evidence/U004_W4_INTEGRATION_EVIDENCE_MANIFEST.md)。
+
+真实证据状态保持不变：真实 DeepSeek `FAIL`（实际 author 请求未形成候选 GLB/readback/capture）；真实千问 `NOT RUN`；packaged app `KNOWN FAIL`（`.app` 仍被阻断）；未见输入 `NOT RUN`；真人评分 `NOT RUN`。fixture、离线 Rust/Python、确定性本地代理、开发 build 和截图均不计入真实 Provider 或通用高质量成功。
 
 U004 父任务保持 `in_progress`，U005 保持 `blocked`。本轮只更新 W4 所有权内的状态、证据和交接文档；没有修改 W1–W3 运行时源文件，没有 push，也没有移动 `main`。
 
