@@ -882,18 +882,35 @@ impl UniversalAuthorOutcome {
                     .iter()
                     .map(|part| part.capability_id.as_str())
                     .collect::<BTreeSet<_>>();
-                let local_hard_surface_hybrid = capability_ids.len() == 2
-                    && capability_ids.contains(GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID)
-                    && capability_ids.contains(LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID);
-                if local_hard_surface_hybrid {
+                let local_hybrid = capability_ids.contains(LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID)
+                    && representation_plan.parts.iter().any(|part| {
+                        part.representation == RepresentationKind::Procedural
+                            && matches!(
+                                part.capability_id.as_str(),
+                                GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID
+                                    | GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID
+                            )
+                    })
+                    && representation_plan.parts.iter().any(|part| {
+                        part.representation == RepresentationKind::Deformable
+                            && part.capability_id == LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID
+                    });
+                if local_hybrid {
                     let lowering = lower_visual_runtime_source_v1(executable_payload)?;
+                    let expected_domain = if capability_ids
+                        .contains(GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID)
+                    {
+                        "generic_visual_exterior"
+                    } else {
+                        "generic_hard_surface"
+                    };
                     if lowering.source_contract_id != "ForgeVisualGeometryProgram@2"
                         || executable_payload.get("domain").and_then(Value::as_str)
-                            != Some("generic_hard_surface")
+                            != Some(expected_domain)
                     {
                         return Err(invalid(
                             "UNIVERSAL_LOCAL_HYBRID_SOURCE_INVALID",
-                            "Local hard-surface hybrid execution requires a reviewed generic-hard-surface ForgeVisualGeometryProgram@2 source.",
+                            "Local hybrid execution requires a reviewed generic visual ForgeVisualGeometryProgram@2 source with a matching visual domain.",
                         ));
                     }
                     return Ok(());
@@ -930,7 +947,7 @@ impl UniversalAuthorOutcome {
                 if capability_ids.len() != 1 {
                     return Err(invalid(
                         "UNIVERSAL_EXECUTABLE_CAPABILITY_MIXED",
-                        "An executable candidate may mix only reviewed procedural visual capabilities or the bounded hard-surface/lattice hybrid.",
+                        "An executable candidate may mix only reviewed procedural visual capabilities or the bounded procedural/lattice hybrid.",
                     ));
                 }
                 match capability_ids.into_iter().next() {

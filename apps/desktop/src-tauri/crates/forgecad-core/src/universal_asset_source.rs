@@ -1897,11 +1897,15 @@ fn validate_runtime_representation_plan(
             let mut lattice_parts = 0usize;
             for part in &representation_plan.parts {
                 match (part.representation, part.capability_id.as_str()) {
-                    (RepresentationKind::Procedural, GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID) => procedural_parts += 1,
+                    (
+                        RepresentationKind::Procedural,
+                        GENERIC_HARD_SURFACE_PROCEDURAL_CAPABILITY_ID
+                        | GENERIC_VISUAL_EXTERIOR_PROCEDURAL_CAPABILITY_ID,
+                    ) => procedural_parts += 1,
                     (RepresentationKind::Deformable, LOCAL_LATTICE_DEFORMABLE_CAPABILITY_ID) => lattice_parts += 1,
                     _ => return Err(invalid(
                         "UNIVERSAL_LOCAL_HYBRID_PLAN_INVALID",
-                        "local hard-surface hybrid may contain only reviewed procedural and lattice-deformable part capabilities",
+                        "local hybrid may contain only reviewed procedural visual-exterior/hard-surface and lattice-deformable part capabilities",
                     )),
                 }
             }
