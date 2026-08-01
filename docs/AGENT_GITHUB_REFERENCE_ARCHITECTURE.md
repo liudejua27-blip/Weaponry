@@ -1,6 +1,6 @@
 # ForgeCAD Agent：GitHub 参考、采用边界与目标架构
 
-版本：2026-07-30
+版本：2026-08-01
 状态：参考决策；不是依赖清单
 
 2026-07-14 已再次用 GitHub connector 核验 `openai/codex` 的 app-server/skill loader、`KittyCAD/modeling-app` 的场景/状态结构、`KhronosGroup/glTF` 的材质扩展以及 `donmccurdy/glTF-Transform` 的 inspect/validate/优化入口；同时阅读 DeepSeek 与 Claude Code 官方文档。ADR-0014 把长期目标改为 Rust-first ForgeCAD app-server。K001–K003 已依次落地 Codex 式 initialize/JSON-RPC/通知/取消/背压/cursor replay、Rust-owned Agent/Provider/Product Tool 生命周期，以及 Rust-owned Project/Version/Snapshot/ChangeSet/Quality/Export/SQLite/CAS/对象库。Python 现在只执行受限几何，不拥有产品状态或持久化权限。该采用不 fork、不整套复制，也不等同于许可证、release、安全公告或二进制来源审计。
@@ -29,6 +29,22 @@
 | [img2threejs](https://github.com/img2threejs/img2threejs) commit [`9a8ecf129a58c1b557a1f03f7727f6295672cd51`](https://github.com/img2threejs/img2threejs/commit/9a8ecf129a58c1b557a1f03f7727f6295672cd51)（2026-07-30 逐文件复核） | 当前是安装到 Claude Code/Codex/OpenCode 的 Skill 加确定性 Python 脚本，不是自带 Provider、浏览器执行器或安全沙箱的独立图片→3D 产品。宿主 Agent 负责读图、填 `ObjectSculptSpec`、修改 TypeScript 和浏览器截图；生成器仍以有限 `geometry_for()` 分支输出一个 `THREE.Group` factory，遇到 schema 已允许但尚未实现的 primitive 会显式报错。其真正成熟的资产是图片准入、部件/`detailInventory`、八个 build pass、固定相机二维比较、PBR 纹理约束和 bounded correction-loop；人物路径会替换为固定 humanoid component tree，角色、生物、环境、多物体场景、glTF exporter 和 Web UI 仍不是已完成的通用重建能力。更关键的是，`solve_camera_pose.py` 自述为启发式默认相机，`bake_projected_texture.py` 自述只输出 descriptor、不会采样、投影或 UV 栅格化像素；二者不能作为已完成照片投影的证据。README 标称的 token/cycle 是设计预算，不能当未见质量的实测保证；部分 showcase 仍是手工程序化重建。 | 采用开放读图准入、对象/部件分解、macro/meso/micro inventory、topology class、silhouette-first、fixed-camera comparison、de-light/投影/PBR、廉价二维诊断和平台期/振荡/预算停止策略；将多阶段质量意图压缩进一次高信息密度 author、本地编译和最多一次真实视觉 patch。 | 不执行宿主 Agent 任意 TypeScript，不复制 5–8 次模型串行写码，不把 humanoid template、手写 showcase 或截图/SSIM/pHash 当通用几何真值，不让 VLM 自报分数推进版本。 | ADR-0022 的核心开放视觉过程参考，当前无运行时依赖；ForgeCAD 的升级价值是受限可编辑 IR、单一资产真值、真实 GLB/PBR/readback、版本/恢复与按 capability 诚实限流，而不是声称上游已经完成通用重建。 |
 
 观察事实来自表中注明的核验版本或当日默认分支；“借鉴/不套用/决策”是 ForgeCAD 的产品推断，不是上游项目承诺。快速变化的上游必须在采用前重新锁定 commit 和测试快照。
+
+### 1.1 2026-08-01 工作台与通用 3D 专项核验
+
+本轮用 GitHub connector 读取了项目 README，并用 Hugging Face 官方模型卡核对模型/许可证边界。它们只形成设计参考，没有 clone、安装、打包或成为运行时依赖：
+
+| 项目 | 可采用模式 | 明确拒绝 | U004 落点 |
+| --- | --- | --- | --- |
+| [Open WebUI](https://github.com/open-webui/open-webui) | 持久会话、运行中排队消息、步骤/状态可见、附件上下文 | 多 Provider、插件市场、通用知识库平台 | Rust-owned conversation memory 和 queued/terminal 状态 |
+| [Cherry Studio](https://github.com/CherryHQ/cherry-studio) | 桌面会话、附件、模型状态和紧凑诊断 | 多助手/多模型路由、MCP 市场 | 右侧 AI 助手信息层级，不成为 runtime |
+| [Claude Code](https://github.com/anthropics/claude-code) | 单任务连续事件、工具动作可检查、用户随时纠偏 | 终端 shell、开发仓库权限、任意工具 | workbench turn state、取消和技术详情 |
+| [Hunyuan3D-2](https://github.com/Tencent-Hunyuan/Hunyuan3D-2) | shape→texture 两阶段与材质分离 | 重 GPU、第三个 AI Provider、默认产品依赖 | Appearance Compiler 研究基线 |
+| [TripoSR](https://github.com/VAST-AI-Research/TripoSR) | 单图快速粗几何和 MIT 实现参考 | 把粗网格/可选纹理当高质量资产真值 | 离线 benchmark 候选 |
+| [Stable Fast 3D](https://github.com/Stability-AI/stable-fast-3d) | UV-unwrapped textured mesh、delight、材质参数 | gated 权重、许可证/设备约束、默认下载 | UV/PBR 质量研究基线 |
+| [TRELLIS](https://github.com/microsoft/TRELLIS) | 结构化 latent 和多种 3D 表示的研究方向 | 大权重/GPU 主线、第二资产真值 | 后续离线 representation research |
+
+Open WebUI/Cherry Studio 只能影响 GUI 和会话投影，DeepSeek 官方 API 才决定请求合同；神经 3D 项目只能影响离线研究和 Appearance Compiler 指标，不能绕过 ADR-0023 或替代 Rust `UniversalAssetSource`。
 
 `img2threejs` 本次核验的一手入口：[README 的宿主 Agent/当前输出边界](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/README.md#L57-L70)、[ROADMAP 的场景/导出/Web 路线](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/ROADMAP.md#L63-L71)、[受限 primitive 生成器](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/forge/stage3_build/generate_threejs_factory.py#L14-L49)、[固定相机捕获协议](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/grimoire/feedback/render_capture.md#L1-L27)、[确定性二维比较](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/forge/stage4_review/divine_eye.py#L1-L23) 和 [correction-loop 停止条件](https://github.com/img2threejs/img2threejs/blob/8b53125081c3798cf95bd517b64be024515a1c8d/forge/stage4_review/correction_loop.py#L27-L118)。
 
@@ -59,11 +75,12 @@
 ```text
 Tauri + React CAD Workbench
 ├── 单一 Agent 会话与步骤
-├── 左侧项目/对话记录与组件库
-├── 右侧 docked / 中央 focus 共用单一 Three.js canvas
-├── 底部固定输入与 Style/材质/参考“+”菜单
+├── 左侧项目/最近作品
+├── 中央常驻 / focus 共用单一 Three.js canvas
+├── 右侧阶段式 AI 助手与固定输入
+├── 结果存在后才显示的底部修改历史
 ├── 当前选择的简单编辑卡
-└── 预览/确认/检查/导出抽屉
+└── 预览/确认/检查/兼容导出抽屉
           │ Tauri bridge / bounded JSON-RPC
           ▼
 Rust ForgeCAD app-server
@@ -99,6 +116,8 @@ Codex 的重要模式是生命周期和可检查动作，不是界面外观复�
 - JSON Output 要求 `response_format=json_object`，prompt 明确要求 JSON 并给出输出示例；官方说明仍可能出现空 `content`，必须作为独立错误处理；
 - thinking 模式可配合 Tool Calls，但后续工具子请求必须续传对应 `reasoning_content`，否则会 400；
 - 400/401/402/422/429/500/503 必须分别映射，不能全部显示“暂时无法连接”。
+
+U004 的实现重点不是再造一个聊天客户端，而是将上述无状态合同固化为 `ProviderConversationEnvelope@2`：system policy、工具 Schema 和 capability manifest 形成字节稳定前缀；结构化 project memory、最近 turn、当前 evidence/snapshot delta 形成后缀；窗口按 token 预算确定性压缩。`PromptPrefixReceipt@1` 记录 prefix/tool/model/memory hash 以及 Provider 报告的 hit/miss token。缓存命中只代表成本/延迟复用，不代表输出一致或质量通过。完整任务见 [U004 第一阶段高质量工作台总图](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md)。
 
 官方入口：[DeepSeek API 文档](https://api-docs.deepseek.com/zh-cn/)、[JSON Output](https://api-docs.deepseek.com/zh-cn/guides/json_mode)、[工具调用](https://api-docs.deepseek.com/zh-cn/guides/tool_calls)、[思考模式](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode)、[错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes)。
 

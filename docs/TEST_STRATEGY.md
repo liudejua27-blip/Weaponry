@@ -84,7 +84,7 @@ npm run desktop:s5-active-design-machine-smoke
 
 `FGC-R002` 已验证同一 Snapshot/AgentAssetVersion 生成 iso（3/4）、front、side、top 四张 PNG：每张图片都有来源 `asset_version_id`、宽高、PNG signature/IHDR readback、字节数和 SHA-256；相同输入重复生成的 render-set fingerprint 一致。`FGC-R003` 在同一 Gate 上验证：部件 primitive 组和稳定 Part ID 一一对应时生成条件式 `exploded_iso`，其透明 alpha、`part_ids`、模式和 fingerprint 可重复；映射数量不足时明确不生成候选。`FGC-R004` 验证必须携带该 fingerprint 的 ZIP 仅包含固定 `manifest.json`/PNG member、manifest hash/readback/模式/Part ID、固定 ZIP 元数据与重复下载字节一致；缺 fingerprint 或旧 fingerprint 必须拒绝。命令为 `npm run agent:r002-render-views-smoke`、`npm run agent:r003-exploded-views-smoke`、`npm run agent:r004-render-package-smoke`，桌面接线运行 `npm run desktop:typecheck`、`npm run desktop:f004-workbench-drawers-smoke` 与 `npm run desktop:t002-workbench-e2e-scenarios`。它们是软件栅格化概念图，不是工程渲染、装配说明或照片级材质证明。
 
-`FGC-R006` 验证未保存方向的 `AgentBlockoutConceptPreview@1`：`npm run agent:r006-blockout-concept-preview-smoke` 覆盖四领域、固定 320×240 PNG、重复 hash、与同 plan/direction/variation 的 build `variant_id`/`topology_hash` 同源，以及预览调用不会写入幂等、候选、资产、Snapshot、质量或导出表。`npm run desktop:r006-direction-concept-preview-state-smoke` 覆盖三方向 loading、迟到响应拒绝、选择/换一版 clear、项目切换 clear 和状态不拥有持久化真值；T002-04b 则在浏览器中验证三张图片、选择后丢弃、无版本写入与单一 canvas。它不是下载图、真实渲染、工程图或 Provider 质量评测。
+`FGC-R006` 的后端 `AgentBlockoutConceptPreview@1` 继续作为 legacy 回归：`npm run agent:r006-blockout-concept-preview-smoke` 覆盖四领域、固定 320×240 PNG、重复 hash、与同 plan/direction/variation 的 build `variant_id`/`topology_hash` 同源，以及预览调用不会写入幂等、候选、资产、Snapshot、质量或导出表。F026 已从产品前端移除三方向 UI；2026-08-01 又删除了无运行时引用的 `agentDirectionConceptPreviewState`、hook 和独立 desktop smoke。T002 中历史三方向场景只能作为 legacy fixture 读取，不能要求恢复产品 UI。后端 smoke 不是下载图、真实渲染、工程图或 Provider 质量评测。
 
 `FGC-P008` 使用 `npm run release:packaged-sidecar-preflight-smoke` 验证 `ForgeCADPackagedSidecarInput@1`：空占位 sidecar 必须得到可读的 `blocked_missing_sidecar`，预检绝不读取 Provider secret、联网或执行 sidecar；临时正确的 Mach-O arm64 输入必须得到 `ready_for_local_alpha`，错误 CPU 架构和 secret-like 合同值必须拒绝。该状态只证明 P002 输入结构已准备好，P002 仍必须真实启动 sidecar、探测 `/api/health` 并验证首次初始化与重启恢复。
 
@@ -190,11 +190,9 @@ npm run desktop:f008-agent-conversation-state-smoke
 npm run desktop:f009-agent-blockout-display-state-smoke
 npm run desktop:f010-agent-asset-workspace-state-smoke
 npm run desktop:f011-legacy-compatibility-display-smoke
-npm run desktop:f012-component-library-preferences-smoke
 npm run desktop:f013-viewport-display-preferences-smoke
 npm run desktop:f014-legacy-module-graph-workspace-smoke
 npm run desktop:f023-agent-blockout-preview-presentation-smoke
-npm run desktop:r006-direction-concept-preview-state-smoke
 npm run desktop:f024-agent-plan-source-presentation-smoke
 npm run desktop:f025-legacy-isolation-smoke
 npm run desktop:d005-semantic-proportions-smoke
@@ -215,7 +213,7 @@ npm run desktop:r3-concept-workbench-smoke
 
 `desktop:f001-workbench-characterization` 是前端拆分的行为基线，覆盖首次项目、legacy 显式转换、澄清写入屏障、方向预览、Agent 资产提交、Snapshot/导出对齐和重启后的单 canvas。2026-07-13 已在本机 Chrome 通过并登记到 CI；F005 在不改变这些断言和 F002/F003/F004 组件 smoke 的前提下完成抽屉组合层收敛；F006 已新增可访问性断言且保持版本/选择语义不变。
 
-F005 没有独立的后端 smoke：`WorkbenchDrawerStack` 只负责四类抽屉的组合和 props/callback 转发，因此以 `desktop:f004-workbench-drawers-smoke`、`desktop:typecheck`、`desktop:build`、`desktop:f001-workbench-characterization` 和 `desktop:r3-concept-workbench-smoke` 作为组合层回归证据。F006 增加 `desktop:f006-accessibility-smoke`，检查最小尺寸、focus-visible、aria-live/label、dialog 初始焦点和 Escape/触发控件焦点返回；r3 负责浏览器级焦点行为。F007–F019 分别验证生命周期、会话、blockout display、已提交资产工作区投影、legacy 只读兼容显示、组件库本机偏好、本机视口显示偏好、legacy ModuleGraph 工作区会话、legacy 图临时叠层、Agent 概念图展示、编辑辅助读取、视觉材质目录与筛选读取：F019 覆盖筛选组合、context 切换清空和状态不持有 selected material/Material Zone/Snapshot/版本/质量/ChangeSet/导出/renderer；R002–R004/T002/r3 继续验证图像来源、PNG/manifest 包、版本链与单 canvas。若后续把状态或副作用移出父层，必须先增加针对 Snapshot/ETag/ChangeSet 的行为断言。
+F005 没有独立的后端 smoke：`WorkbenchDrawerStack` 只负责四类抽屉的组合和 props/callback 转发，因此以 `desktop:f004-workbench-drawers-smoke`、`desktop:typecheck`、`desktop:build`、`desktop:f001-workbench-characterization` 和 `desktop:r3-concept-workbench-smoke` 作为组合层回归证据。F006 增加 `desktop:f006-accessibility-smoke`，检查最小尺寸、focus-visible、aria-live/label、dialog 初始焦点和 Escape/触发控件焦点返回；r3 负责浏览器级焦点行为。F007–F019 的仍在用切片分别验证生命周期、会话、blockout display、已提交资产工作区投影、legacy 只读兼容显示、本机视口显示偏好、legacy ModuleGraph 工作区会话、legacy 图临时叠层、Agent 概念图展示、编辑辅助读取、视觉材质目录与筛选读取。旧 F012 组件库偏好 state/hook 从未进入运行时，已在 2026-08-01 连同孤立 smoke 清理；组件目录真实展示继续由 `componentCatalogPresentationState` 与现有抽屉 Gate 覆盖。F019 覆盖筛选组合、context 切换清空和状态不持有 selected material/Material Zone/Snapshot/版本/质量/ChangeSet/导出/renderer；R002–R004/T002/r3 继续验证图像来源、PNG/manifest 包、版本链与单 canvas。若后续把状态或副作用移出父层，必须先增加针对 Snapshot/ETag/ChangeSet 的行为断言。
 
 当前核心 Agent-first 门已通过，不能替代以下独立场景的完整回归：
 

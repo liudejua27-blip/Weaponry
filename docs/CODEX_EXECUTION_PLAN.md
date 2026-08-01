@@ -40,13 +40,15 @@ VP201–VP204 已完成的 procedural typed-program 底座
 → U002 SubjectProfile + VisualFeatureContract + RepresentationPlan
 → U003 UniversalAssetSource + component/detail/material/projection
 → U004A DeepSeek/千问唯一 AI Provider（已完成）
-→ U004 procedural + deformable + local hybrid + bounded local mesh patch 统一执行/readback
+→ U004 第一阶段：会话/缓存 + procedural/deformable/local-hybrid + Appearance Compiler + 高质量工作台
 → U005 跨类别真实未见集 + 1+1 时间/成本 + 独立真人门
 → 付费设计伙伴验证
 → 打包、质量驱动的算子/Provider 扩展和交付优化
 ```
 
-同一时刻只领取 `CODEX_TASK_INDEX.md` 中一个任务。VP201–VP204、U001、U001A、U002、U003 和 U004A 已完成；U004 当前为唯一 `in_progress`。U002 已建立 Rust-sealed 通用 author request、开放对象理解、视觉验收和逐部件表示规划，并切断未知对象到 C111/机械臂的默认回退；U003 已建立 Rust 派生的统一资产源、外观证据合同及当前程序化结果的 GLB/readback/固定视图 exact-lineage。U004A 已删除 Fal/Hunyuan 远程生成运行时，并用代码 Gate 把 AI Provider 固定为 DeepSeek 与千问。U004 接下来扩展本地 procedural/deformable/local-hybrid 和 Appearance Compiler；当前 `mesh_seed.local_patch_v1` 只允许对已审查 procedural mesh 做 bounded local patch，通用 `mesh_seed.generic_v1` 及任意导入网格仍保持 unavailable。E005 保留为 hard-surface regression substrate。C111B 的工程、时间和显示可读性 Gate 保留为回归；其 reference comparison 与真人门仍未通过，不得改写为完成。
+同一时刻只有 `FGC-U004` 一个产品任务为 `in_progress`。用户在 2026-08-01 明确要求四个 Luna 并行，因此 U004 内部按 [第一阶段高质量工作台总图](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md) 划分 W1 Provider 会话/缓存、W2 表示/Appearance Compiler、W3 工作台、W4 集成证据四个互斥 workstream；它们使用独立 worktree/branch 和文件所有权，不创建四个产品真值，只有 W4 更新共享状态。VP201–VP204、U001、U001A、U002、U003 和 U004A 已完成；U002/U003/U004A 的现有合同继续有效。当前 `mesh_seed.local_patch_v1` 只允许对已审查 procedural mesh 做 bounded local patch，通用 `mesh_seed.generic_v1` 及任意导入网格仍保持 unavailable。E005/C111B 只保留为 hard-surface regression；其 reference comparison 与真人门仍未通过。
+
+第一阶段把“唯一工作台展示高质量 3D 结果”置于导出之前：现有导出真值链保留但降级为兼容能力，不进入 U004-W1–W3 完成定义。完整 DeepSeek author→本地编译/readback→同一 renderer capture→千问比较→最多一次 typed patch→唯一结果属于 W4 集成门；没有真实 Provider、packaged app 和真人评分时仍只能标为部分实现。
 
 2026-07-30 U004 P4.1 local hard-surface Hybrid 图片闭环：新增 sealed-image bridge E2E，验证同一 UAS@2 资产由程序化主壳和受限 lattice 饰条组成，并通过 Rust Part/Material Zone/source contract/readback、同 renderer 八视图/五 pass capture、Qwen-compatible authorization、evaluate、preview、confirm、版本化、导出和确认幂等。测试不联网、不调用真实 DeepSeek/千问/Fal；其余任意 mesh、角色/生物/布料、packaged GPU、真实 Provider 质量和 U005 真人门仍未完成。
 

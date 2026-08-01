@@ -1,6 +1,6 @@
 # ForgeCAD 插件与 Skill 操作设计
 
-版本：2026-07-29
+版本：2026-08-01
 目标：零基础用户不安装插件；开发者按任务选择 Codex 插件/Skill；产品内 Skill 由 Agent 自动调用
 
 ## 1. 三层概念不能混用
@@ -25,6 +25,7 @@
 | React 性能与结构 | `build-web-apps:react-best-practices` | 拆分工作台、状态订阅、bundle 和渲染优化 | 不借机改成 Next.js 或重做技术栈 |
 | 前端测试调试 | `build-web-apps:frontend-testing-debugging`、`playwright` | 修复工作台 E2E、浏览器回归 | 浏览器 smoke 不能替代 Tauri 原生测试 |
 | Web 3D 资产 | `game-studio:web-3d-asset-pipeline` | GLB 规范化、纹理、网格预算和运行时检查 | 不切换到 React Three Fiber；不增加第二 renderer |
+| Hugging Face 模型研究 | `@hugging-face` / `hugging-face:hf-cli` | 读取官方 model card、license、参数量、设备和推理限制 | 不自动下载权重；CLI 缺失时记录 `NOT RUN`，不得静默安装大模型 |
 | macOS 构建与发布 | `build-macos-apps:build-run-debug`、`packaging-notarization`、`signing-entitlements` | 原生启动、打包、公证和签名阶段 | 本机未签名测试不等于可外部分发 |
 | Agent 生命周期 | `openai-developers:agents-sdk` | 仅当实现 OpenAI 专属可选适配或核验 Agent 模式 | 当前 Provider 兼容层不强制依赖 OpenAI Agents SDK |
 
@@ -43,7 +44,18 @@
 → 更新任务状态、能力矩阵与 handoff
 ```
 
-默认不使用多个 Agent、不安装第三方 Skill、不复制整个 GitHub 项目。只有用户明确要求或任务确实需要时才扩展工具面。
+默认不使用多个 Agent、不安装第三方 Skill、不复制整个 GitHub 项目。2026-08-01 用户已明确要求四个 Luna 执行 U004，故允许按 [U004 第一阶段高质量工作台总图](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md) 的四个独立 workstream 扩展；它是一次明确例外，不允许 Luna 自行再派生更多 Agent 或跨文件所有权工作。
+
+### 3.1 U004 四 Luna 插件/Skill 分配
+
+| Luna | 唯一工作 | 必须使用 | 可以使用 | 不得使用/修改 |
+| --- | --- | --- | --- | --- |
+| W1 Provider/context | DeepSeek 多轮、stable prefix、memory、token compaction、cache receipt | `@github` + `github:github` 查 Open WebUI/Cherry Studio/Claude Code；`browser:control-in-app-browser` 查 DeepSeek 官方文档 | Rust focused test | Hugging Face、前端 CSS/组件、几何 Worker |
+| W2 representation/appearance | typed representation、局部 hybrid、UV/tangent/PBR/detail、GLB readback | `@github` + `github:github`；`@hugging-face` + `hugging-face:hf-cli` 只读 model card/license | 既有 Python/Rust Gate | 工作台、Provider 会话、下载模型权重、第三方远程 Mesh API |
+| W3 workbench | 三栏 shell、正确初始状态、中央唯一视口、无遮挡和响应式 | Product Design 的 `user-context`→`audit`→`image-to-code`；`build-web-apps:react-best-practices`；`browser:control-in-app-browser` | 现有 Lucide、CSS token、前端 smoke | Rust Provider、Schema、第二 renderer、假 3D/CSS 资产 |
+| W4 integration/evidence | 按序合并、跨轨 E2E、目标图对比、文档/状态/证据 | `browser:control-in-app-browser`、`build-web-apps:react-best-practices`、必要时 `github:github` 核验引用 | repo Gate、packaged QA | 代替 W1/W2 大改功能、整文件 ours/theirs、伪造真实 Provider/真人 PASS |
+
+每个 Luna 启动前必须完整读取对应 Skill 的 `SKILL.md`。Product Design 使用用户已给定的目标图，不再运行 ideate 生成三套方向；实现后必须在相同 viewport/state 把目标图和工作台截图一起比较。Hugging Face CLI 若当前环境不可用，只能把该步标为 `NOT RUN` 并用官方 model card 做只读证据，不得为了研究任务改变产品安装体积。
 
 ### 外部参考的最小操作
 

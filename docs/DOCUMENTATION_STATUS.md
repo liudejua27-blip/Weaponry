@@ -9,6 +9,8 @@ ForgeCAD 是具有类别开放理解入口和统一资产源谱系的本机 Alph
 
 ## 2. 当前任务
 
+- `2026-08-01 U004 第一阶段重排与工作台审查`：`FGC-U004` 仍是唯一 `in_progress` 父任务，现按 [U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md) 分为 W1 DeepSeek 会话/缓存、W2 通用表示/Appearance Compiler、W3 工作台、W4 集成证据四个互斥 workstream。第一阶段优先在工作台展示唯一高质量 3D 结果，现有导出链保留但不是退出条件。1280×720 实机审查确认首屏会误报失败、CSS 7,106 行存在多层覆盖、`CadWorkbenchPanel` 2,632 行超过既有责任预算、`ModuleGraphViewport` 2,744 行、右栏/底部裁切及快速修改重复。无运行时引用的三方向前端 state/hook、组件库偏好 state/hook、两个孤立 smoke 和未采用的 pnpm lock 已清理。文档、integrity、安全/密钥、agent/provider、contracts、typecheck、build、F026、F006 与 R3 通过；F025 因父组件超过 `<2200` 行责任预算失败，属于 W3 的已确认当前阻断。这轮不增加 3D 生成质量，不能标成 U004 完成。
+
 - `2026-08-01 在线 universal-author 合同失败修复`：已确认真实 DeepSeek 请求没有回退到 `plan_complete_concept` 或机械臂；工作台旧兼容卡是条件过宽造成的展示错误。针对真实失败中的 VFC feature 集合缺失、RepresentationPlan part 集合缺失、part↔feature 关系错绑和未登记 `sphere` 几何，已补齐只读合同 checklist、一次性 typed recovery 和 legacy evidence 的精确 UI 条件。Rust validator 仍 fail-closed，不自动修补 Provider 语义、不生成替代模板。app-server 282 tests、U002 contract Gate、desktop smoke/build、Tauri bundle 和发布基线通过；真实联网 DeepSeek→GLB/readback 复测因当前 macOS 锁屏 `Mac is locked` 尚未运行。该项不改变真实千问、照片级质量、未见输入和跨类别真人 4/5 的阻断状态。
 
 - `2026-08-01 类别开放语义外观修复`：通用外观代理的 Rust `SurfaceLayerProgram@1` 与 Python 五通道 PBR 编译器新增受检的 bark/wood/foliage/skin/fur/fabric/stone/concrete/clay base-color 与 finish token；本机 deterministic provider 按 Plant/Animal/Character/Furniture/Building 的部件语义选择 reviewed PBR，而不是把未知对象统一映射为 painted steel、rubber 或 emissive blue。旧八材质槽、历史 GLB 字节和机械臂回归不变；新增 `local_open_category_materials_do_not_collapse_into_robotic_surfaces` 及自然 finish 通道回归，PBR 相关测试通过。该修复解决非机器人对象的外观语义塌缩并保留类别自由度，当前仍是受限轻量外观代理，不是专用角色/生物重建、照片级材质恢复或真实在线 Provider 质量证据。

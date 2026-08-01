@@ -1,6 +1,6 @@
 # ForgeCAD CAD 工作台前端
 
-版本：2026-07-29
+版本：2026-08-01
 状态：当前实现、已知问题与目标约束
 
 ## 1. 唯一产品入口
@@ -30,8 +30,6 @@ apps/desktop/src/features/cad-workbench/
 ├── useAgentAssetWorkspace.ts
 ├── legacyCompatibilityDisplay.ts
 ├── LegacyCompatibilityNotice.tsx
-├── componentLibraryPreferencesState.ts
-├── useComponentLibraryPreferences.ts
 ├── viewportDisplayPreferencesState.ts
 ├── useViewportDisplayPreferences.ts
 ├── legacyModuleGraphWorkspaceState.ts
@@ -70,11 +68,23 @@ M108A 当前工作区已把显示工件拆成两档：交互和 ChangeSet 先加
 
 ## 3. 当前结构问题
 
-- F025 已将 `CadWorkbenchPanel.tsx` 从 3,032 行降至 Gate 记录的 1,872 行，并把 Agent inspector 与显式 legacy 只读边界提取为 `WorkbenchInspectorRail`；父层仍包含 Agent blockout 候选状态和 Snapshot/API 副作用，尚未缩减为最终页面组合层；
+2026-08-01 对本地 Vite 工作台做了 1280×720 首屏实机检查，并与用户提供的目标图对照。详细测量、目标 token 和四 Luna 实施边界见 [U004 第一阶段高质量工作台总图](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md)。当前最重要的事实不是“换一套皮肤”，而是页面状态与布局责任已经漂移：
+
+- 首次进入、没有发送任何 Turn 时，右侧助手已经显示“需要重试”，流程区显示“生成失败，请重试”，属于错误初始状态；初始 presentation 必须固定为 `idle`；
+- `CadWorkbenchPanel.tsx` 当前 2,632 行，已经超过 F025 `<2200` 行的责任预算；`ModuleGraphViewport.tsx` 2,744 行，渲染生命周期与大量 overlay/展示职责仍耦合；
+- `cad-workbench.css` 当前 7,106 行；`.f026-layout`、`.f026-right-rail`、`.f026-conversation-stage` 等核心选择器被多个历史段和 media query 后置覆盖，fixed、bottom offset、overflow 和 z-index 互相叠加，是遮挡和裁切的主要根因；
+- 1280×720 下右侧助手内部滚动，底部历史被视窗裁切，中央视口同时受左右栏和固定底栏挤压；高质量 3D 没有成为最大视觉区域；
+- “快速修改”同时出现在视口覆盖层和右侧助手；需求、AI 分析、候选、结果、输入又在同一栏常驻，操作来源和当前阶段不清；
+- 空项目仍突出导出、四段历史和失败恢复，和“第一阶段先稳定展示高质量模型”的任务冲突；
+- 品牌图标与 `ForgeCAD` 文本在当前首屏发生视觉碰撞，说明顶栏仍依赖位置补丁而不是稳定的 flex slot；
+- 已确认无运行时 import 的三方向概念预览前端 state/hook 和组件库偏好 state/hook 已在 2026-08-01 清理；后端 `AgentBlockoutConceptPreview@1`、legacy fixture 和现有 Export/Snapshot 真值链继续保留。
+
+仍有效的当前结构事实：
+
 - A003 已让 Provider 配置读取失败保持可见，并将 metadata、Keychain、supervisor restart 和 Agent capability 组合成启用门；只有四项就绪才允许“测试连接（会联网）”。连接测试与普通 Turn 均显示真实 `network_call_made`/稳定错误，提供取消入口，Provider 失败会中止当前 Agent 路径而不会继续调用 legacy Planner。真实四领域质量评测仍未执行；
 - Agent 对话、Kernel 步骤、分件选择卡和抽屉已由 F002–F005 提取为独立组件；F025 后 Agent 抽屉栈只组合质量与导出，legacy Graph/参数/旧格式只在用户显式打开的只读表面加载；
 - Agent 选择、质量和 GLB 导出已读 Snapshot；遗留 Concept 兼容出口不属于 Agent 产品能力；
-- F005 已将抽屉渲染组合收敛到 `WorkbenchDrawerStack`；F007–F024 的展示层保持既有边界；F019 再将当前 project/domain/source 的材质关键词、分类与适配筛选提取到 `useAgentMaterialFilterPresentation`，F022 将方向、三项族轮换位置、请求中和可恢复预览错误提取到 `useAgentBlockoutDisplay`，F023 只将该状态转换为普通语言提示，F024 只翻译已返回的 plan 来源。R006 的方向概念预览仍是短暂显示缓冲。F025 进一步删除 Agent Turn/修改意图对 legacy Planner 的回退，Agent 导出/质量抽屉不再接收旧版本、旧质量或旧格式 props；`useConceptWorkbench` 只有在显式入口打开后才读取旧版本、ChangeSet、审计和 ModuleGraph，并以 request guard 拒绝迟到响应。上述本机层均不拥有 selected material、Material Zone、asset head、Snapshot revision、ETag、转换授权、ChangeSet、质量写入或导出身份；相机/灯光仍由 Snapshot CAS 拥有；
+- F005 已将抽屉渲染组合收敛到 `WorkbenchDrawerStack`；F007–F024 的仍在用展示层继续保持只读 projection；F019 将当前 project/domain/source 的材质关键词、分类与适配筛选提取到 `useAgentMaterialFilterPresentation`，F022/F023/F024 保留单结果兼容展示和 plan 来源。F025 进一步删除 Agent Turn/修改意图对 legacy Planner 的回退，Agent 导出/质量抽屉不再接收旧版本、旧质量或旧格式 props；`useConceptWorkbench` 只有在显式入口打开后才读取旧版本、ChangeSet、审计和 ModuleGraph，并以 request guard 拒绝迟到响应。上述本机层均不拥有 selected material、Material Zone、asset head、Snapshot revision、ETag、转换授权、ChangeSet、质量写入或导出身份；相机/灯光仍由 Snapshot CAS 拥有；
 - F006 已消除工作台用户界面中低于 11px 的辅助文字，补齐 32/40px 控件基线、可见焦点、中文 aria 标签、状态播报以及抽屉 Escape/焦点返回；完整屏幕阅读器人工验收仍未完成。
 
 ## 4. 下一阶段状态架构
@@ -84,9 +94,12 @@ M108A 当前工作区已把显示工件拆成两档：交互和 ChangeSet 先加
 ```text
 CadWorkbenchMachine
 ├── snapshot
-├── agentConversation
+├── providerConversationEnvelope
+├── projectConversationMemory
+├── agentTurnState（idle → authoring → compiling → evaluating → ready/failed）
 ├── providerConnection
 ├── generationResultPresentation
+├── appearanceCompilationPresentation
 ├── changePreview
 ├── drawers
 ├── viewportDock（docked | focus）
@@ -95,51 +108,51 @@ CadWorkbenchMachine
 
 Project、AgentAssetVersion、Selection、Quality 和 Export 不再由不同 hook 分别推断“当前”。localStorage 只保存抽屉高度、筛选等无害 UI 偏好。
 
-S004 已完成 `ForgeApiClient` 的 Snapshot GET/select/legacy-rebuild hand-off 调用、ETag 读取和可恢复错误映射；S005 已完成独立 `activeDesignMachine` reducer 与乱序响应 smoke。S006 已把 Agent 资产恢复、分件列表选择、视口高亮、质量检查和 GLB 导出接入 Snapshot；S007 已将 legacy Concept 收紧为只读并要求显式重建授权。S008 已持久化 preview/quality，引入服务端导航 frame，并在顶部提供撤销/重做；R001 已把相机视图和灯光预设通过 CAS 绑定 Snapshot，R002–R004 已将四视图 PNG、条件式爆炸图和 fingerprint 受限的 PNG/manifest 图包接入下载抽屉且只产生只读派生结果；R005 再将 Agent GLB 下载与概念图下载分成不依赖旧用途选择的明确动作。F007–F017 已分别收敛生命周期、会话、blockout 候选显示、已提交资产读取投影、legacy 兼容显示、组件库本机偏好、项目隔离的视口显示偏好、legacy ModuleGraph 工作区会话、legacy 纯展示叠层、Agent 概念图请求/展示和当前 Part 的编辑辅助读取状态；API、下载、转换授权和业务 hydration 仍由父层拥有。每次永久操作创建新版本，不覆盖历史，且 preview/quality/selection/render-preset 竞争均被 CAS smoke 覆盖。D003/F001 已完成领域澄清与工作台行为基线；F002–F006 已提取 AgentConversation、AgentStepItem、AgentSelectionCard、四类抽屉、组合层并完成可访问性收敛；T002 已完成 14 个独立 E2E 场景，T003 已通过单 WebGL、抽屉/重载资源、内存和 bundle 预算；本机 UI 偏好和概念图/编辑辅助读取缓存不以任何形式替代资产或 Snapshot 真值。
+S004 已完成 `ForgeApiClient` 的 Snapshot GET/select/legacy-rebuild hand-off 调用、ETag 读取和可恢复错误映射；S005 已完成独立 `activeDesignMachine` reducer 与乱序响应 smoke。S006 已把 Agent 资产恢复、分件列表选择、视口高亮、质量检查和 GLB 导出接入 Snapshot；S007 已将 legacy Concept 收紧为只读并要求显式重建授权。S008 已持久化 preview/quality，引入服务端导航 frame，并在顶部提供撤销/重做；R001 已把相机视图和灯光预设通过 CAS 绑定 Snapshot。仍在用的本机 UI 偏好和概念图/编辑辅助读取缓存不以任何形式替代资产或 Snapshot 真值。下一步必须把 Provider conversation、结构化 project memory、token-budget compaction 和 stable-prefix/cache receipt 接入 Rust 状态，再让前端只消费可显示的阶段事件；前端不得自行拼接历史或把刷新失败映射为生成失败。
 
 ## 5. 目标布局
 
 ```text
 Tauri Desktop
 └── CAD Workbench
-    ├── 顶栏：项目、保存状态、Provider 状态、撤销、检查、导出
-    ├── 左侧：项目/对话记录与组件库
-    ├── 中央：唯一 Agent 会话、连续步骤和结果状态槽
-    ├── 右侧：持续可见的唯一 Three.js docked viewport
-    ├── 3D focus：点击 docked viewport 后把同一 canvas 移到中央，关闭后返回右侧
-    ├── 浮层：当前选中部件的 3–5 个简单动作
-    ├── 底部：固定输入框；“+”打开 Style Token、视觉材质和参考入口
-    └── 按需抽屉：材质详情、检查、导出
+    ├── 顶栏 72px：品牌、项目、自动保存、AI 生成、修改、展示；导出进入更多菜单
+    ├── 左侧 264px：新建设计、最近作品；模板为次要入口
+    ├── 中央：持续可见且面积最大的唯一 Three.js 视口
+    ├── 右侧 360px：AI 助手、当前步骤、折叠历史和固定输入框
+    ├── 3D focus：隐藏两侧栏并扩大同一 canvas，关闭后恢复
+    ├── 浮层：只在选中部件时出现 3–5 个上下文动作
+    ├── 底部 112px：只有存在结果/版本时显示修改历史
+    └── 按需抽屉：材质详情、检查、兼容导出
 ```
 
 F005 只改变组件边界，不改变运行时真值：`WorkbenchDrawerStack` 是无状态的组合层，`CadWorkbenchPanel` 继续通过 props 提供数据和回调，Snapshot/ETag/ChangeSet/下载副作用仍只能由父层或服务端拥有。F006 已处理可访问性与主流程的可读性；F007 已让 `useWorkbenchLifecycle` 独占生命周期请求和抽屉焦点的短暂状态，F008 已让 `useAgentConversationPresentation` 独占会话展示与 project/request 过期屏障；二者都没有新增版本真值或领域能力。完整状态机拆分仍未完成。
 
 目标布局不等于当前已经全部实现。
 
-### 5.1 Codex 式信息层级
+### 5.1 目标图式信息层级
 
-“像 Codex”只采用一个任务、连续状态、可检查动作和固定输入区：
+目标图提供的是空间和层级参考，不是可直接使用的 3D 资产。ForgeCAD 保留 Codex 的一个任务、连续状态和可检查动作，但把真实 3D 视口放在中央：
 
 ```text
-左列（固定）             中央（弹性）                       右列（3D）
-┌──────────────────┐    ┌──────────────────────────────┐   ┌──────────────────┐
-│ 项目 / 对话记录   │    │ Agent 会话                   │   │ 唯一 3D viewport │
-│ 组件库            │    │ 正在理解…                    │   │ 点击进入 focus   │
-│ 当前结果摘要      │    │ 正在生成模型…                │   │                  │
-│ Provider 状态     │    │ 正在检查或原位修复…          │   │                  │
-│                  │    │ [结果状态摘要 + 查看 3D]     │   │                  │
-└──────────────────┘    ├──────────────────────────────┤   └──────────────────┘
-                        │ [+] 描述创意或继续修改…  发送 │
-                        └──────────────────────────────┘
+左列（264）             中央（弹性，最大）                右列（360）
+┌──────────────────┐   ┌──────────────────────────────┐  ┌──────────────────┐
+│ + 新建设计        │   │ 视角 / 爆炸 / 渲染模式        │  │ AI 助手          │
+│ 最近作品          │   │                              │  │ 当前步骤展开      │
+│                  │   │     唯一 3D viewport         │  │ 已完成步骤折叠    │
+│ 模板（次要）      │   │     完整主体与材质细节        │  │ 快速修改（唯一）  │
+│                  │   │                              │  ├──────────────────┤
+│ 设置 / 帮助       │   │ 选中部件时才出现局部动作      │  │ 描述或继续修改…   │
+└──────────────────┘   └──────────────────────────────┘  └──────────────────┘
+                       结果存在后：版本/修改历史 112px
 ```
 
-右侧只常驻 3D，不常驻属性面板。选中部件后动作卡贴近结果或视口出现；组件库常驻左侧，材质详情、检查和导出按需打开。内部候选、评分表、Skill 名、工具 JSON、Provider model ID 和 ShapeProgram 不进入默认界面。
+中间只常驻 3D，不常驻第二个会话或属性面板。右侧只展开当前阶段，已完成步骤折叠为摘要；同一组快速修改不能同时出现在视口和助手。内部候选、评分表、Skill 名、工具 JSON、Provider model ID、缓存 hash 和 ShapeProgram 不进入默认界面。
 
-### 5.2 单 renderer 的 docked / focus 切换
+### 5.2 单 renderer 的 standard / focus 切换
 
-新增纯 UI 状态 `ViewportDockState = docked | focus`。切换时只能移动同一个 canvas host 或改变同一 host 的布局，不能 mount 第二个 `ModuleGraphViewport`。场景、相机、选择、高亮、材质、资源缓存和 `ActiveDesignSnapshot.render_preset` 保持不变；切换不创建版本、质量、导出或 Snapshot revision。
+为兼容现有合同仍保留纯 UI 状态名 `ViewportDockState = docked | focus`，但 `docked` 从现在起表示中央标准三栏位，不再表示右侧迷你视口。切换时只能扩大同一个 canvas host 并隐藏两侧栏，不能 mount 第二个 `ModuleGraphViewport`。场景、相机、选择、高亮、材质、资源缓存和 `ActiveDesignSnapshot.render_preset` 保持不变；切换不创建版本、质量、导出或 Snapshot revision。
 
-验收至少覆盖：快速连续点击、Escape/关闭、窗口缩放、项目切换、抽屉打开、模型重载、选中/隐藏/隔离、renderer/context 计数始终为 1、geometry/material/texture 无重复分配和焦点返回右侧 docked viewport 按钮。
+验收至少覆盖：快速连续点击、Escape/关闭、窗口缩放、项目切换、抽屉打开、模型重载、选中/隐藏/隔离、renderer/context 计数始终为 1、geometry/material/texture 无重复分配和焦点返回中央标准视口按钮。
 
 ### 5.3 结果状态槽与单次唯一结果
 
@@ -175,7 +188,7 @@ C107 的表面抽屉以真实 SVG 显示受限二维预览和当前 Material Zon
 
 ### 5.7 GSAP 动画边界
 
-GSAP 只用于状态已确定后的展示过渡：右侧 docked 视口移到中央 focus、Agent Item 进入、抽屉/确认条、相机和爆炸图。Timeline 必须可暂停、反向和取消，优先动画 `x/y/scale/rotation/autoAlpha`；使用 `gsap.matchMedia()` 提供 `prefers-reduced-motion` 分支。
+GSAP 只用于状态已确定后的展示过渡：中央标准视口扩展为 focus、Agent Item 进入、抽屉/确认条、相机和爆炸图。Timeline 必须可暂停、反向和取消，优先动画 `x/y/scale/rotation/autoAlpha`；使用 `gsap.matchMedia()` 提供 `prefers-reduced-motion` 分支。
 
 动画不得生成网格、执行布尔、产生 UV、创建版本、写 Snapshot 或决定质量。状态机是动画输入；动画中断后 UI 必须落到明确的 `docked | focus`、open/closed 或 preview/confirmed 状态，不能留下第三种视觉真值。
 

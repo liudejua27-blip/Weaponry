@@ -106,7 +106,7 @@ UI Component + Props
 
 ### 3.1 docked 与 focus
 
-3D 默认持续显示在工作台右侧的 docked viewport。点击后，同一个 canvas/renderer 移到中央 focus；关闭或按 Escape 后返回右侧。
+3D 默认持续显示在工作台中央的标准 viewport。点击 focus 后，同一个 canvas/renderer 扩大并隐藏两侧栏；关闭或按 Escape 后返回中央三栏位。
 
 切换过程中必须保持同一场景、相机、选择、材质、纹理缓存和 `ActiveDesignSnapshot.render_preset`，不得创建第二个 WebGL context，也不得因为视口移动创建资产版本。
 
@@ -258,7 +258,7 @@ proposed
 
 GSAP 只用于提高操作连续性：
 
-- mini 3D 移到中央 focus；
+- 中央标准 3D 扩大为 focus；
 - Agent 步骤依次出现；
 - 抽屉和确认条；
 - 相机平滑过渡；
@@ -277,7 +277,7 @@ GSAP 只用于提高操作连续性：
 | 布尔 | 单一 Manifold Python 受限 union/subtract 已实现，无自由 UI | Recipe 内受限采用并保留 feature/source provenance |
 | 材质/工件 | M108A 已完成 preview 128 v3 与 production 512 v4、多区、UV/tangent、真实 readback/CAS；固定 showcase 仍不是 M108B 视觉完成证据 | M108B Recipe-backed 真人视觉 4/5 |
 | 组件 | C102 项目内受限替换；C105 已实现 8 项、四领域、Rust-owned 的 Recipe Registry/展开/版本生命周期，但 416 triangles 只是机制证据 | 扩展为生产级 Recipe 目录，并经 M108B 验收完整外观 |
-| 视口 | 当前大视口 | 右侧 docked，点击同一 canvas 中央 focus |
+| 视口 | 当前大视口 | 中央 standard，点击后同一 canvas 扩大为 focus |
 | Provider | A003 preflight、stream、cancel、usage 和稳定错误已实现；K001–K003 已由 Rust app-server/core 单一拥有 Provider/Tool、产品状态和持久化，Python 只执行受限几何；本机仍可能未配置 Provider | Rust-first 边界维持，后续只在受限 Tool/审批合同内扩展 |
 | 产品范围 | 四个首批领域 | 逐包晋级生活机械，不使用万能 fallback |
 

@@ -293,7 +293,7 @@ export_project
 2. 修复领域推断，未知或含糊输入进入单问题澄清，澄清前不创建方向或版本；
 3. 扩充版本、选择、ChangeSet、质量、撤销/回退和导出源的一致性 E2E；
 4. 拆分工作台 E2E，并把 G1–G7 加入 CI；
-5. 将 2,611 行 `CadWorkbenchPanel` 拆分为状态机、Agent、视口、选择卡和抽屉模块；
+5. 该历史条目记录的 `CadWorkbenchPanel` 曾为 2,611 行；2026-08-01 当前为 2,632 行，新的拆分、会话状态和目标布局以 [U004 第一阶段高质量工作台总图](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md) 为准；
 6. 扩展轻量 ShapeProgram/Geometry Worker；优先 profile/extrude/revolve/mirror/array/受限 boolean，不增加本地神经 3D 模型；
 7. 增加 Python/Rust 单元测试、依赖审计、性能和可访问性门；
 8. 完成真实 Provider 四领域 truth set；

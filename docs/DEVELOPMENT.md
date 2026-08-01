@@ -87,7 +87,6 @@ npm run desktop:f008-agent-conversation-state-smoke
 npm run desktop:f009-agent-blockout-display-state-smoke
 npm run desktop:f010-agent-asset-workspace-state-smoke
 npm run desktop:f011-legacy-compatibility-display-smoke
-npm run desktop:f012-component-library-preferences-smoke
 npm run desktop:f013-viewport-display-preferences-smoke
 npm run desktop:f014-legacy-module-graph-workspace-smoke
 npm run desktop:f015-legacy-module-graph-overlay-smoke

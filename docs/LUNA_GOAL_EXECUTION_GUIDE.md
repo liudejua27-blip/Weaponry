@@ -1,6 +1,6 @@
 # ForgeCAD Luna Goal 模式持续执行指南
 
-版本：2026-07-29
+版本：2026-08-01
 状态：开发执行合同；不属于当前用户功能，不证明任何运行时能力
 适用对象：使用 Luna 或其他长程开发模型持续推进 ForgeCAD 的维护者
 
@@ -21,11 +21,11 @@ Luna 是开发执行者，不是 ForgeCAD 产品中的 Provider、Skill、几何
 
 建议在 Goal 模式中使用下面这一个总目标，不要同时建立多个竞争 Goal：
 
-> 在小团队预算内，把 Forge Studio 收敛为轻量、类别开放、高自由度、外观优先、可编辑、可审计的通用参考条件 3D Agent：按 `U002 → U003 → U004 → U005` 建立通用对象理解、统一资产源、混合表示和跨类别质量门；始终保持 Rust 单一产品真值、受限执行、真实 GLB/PBR readback、唯一结果、用户确认和可恢复版本链。
+> 在小团队预算内，把 Forge Studio 收敛为轻量、类别开放、高自由度、参考图条件化、外观优先、可编辑的通用 3D Agent：当前先完成 U004 的 DeepSeek 会话/缓存、通用表示、Appearance Compiler 和无遮挡高质量工作台，稳定展示唯一 3D 结果；之后再进入 U005 跨类别真实输入、时间/成本和真人质量门。
 
-2026-07-29 路线覆盖：必须先完整阅读 ADR-0022，再读 ADR-0021/0020 中仍有效的 typed program、1+1 和成本边界。U001、U001A、U002 与 U003 已完成；当前没有 `in_progress`，唯一 `ready` 任务为 U004。C111B/E005 已冻结为 procedural hard-surface 回归，其未完成 reference/human 事实不变；下文任何把 E005、C111B 或机械硬表面写成通用入口前置门的内容均由 ADR-0022/任务索引取代。
+2026-08-01 路线覆盖：必须先完整阅读 ADR-0022，再读 ADR-0021/0020 中仍有效的 typed program、1+1 和成本边界。U001、U001A、U002、U003 与 U004A 已完成；`FGC-U004` 是唯一 `in_progress` 父任务，详细第一阶段合同位于 [U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md)。C111B/E005 已冻结为 procedural hard-surface 回归，其未完成 reference/human 事实不变；任何把它们写成通用质量通过的内容都错误。
 
-Goal 是持续方向，不是完成状态。只有 `CODEX_TASK_INDEX.md` 中当前原子任务退出，才可以推进下一任务。任何一轮只允许一个任务为 `in_progress`。
+Goal 是持续方向，不是完成状态。只有 `CODEX_TASK_INDEX.md` 中当前父任务退出，才可以推进 U005。父任务层面，任何一轮只允许一个任务为 `in_progress`。用户已明确要求四个 Luna 执行 U004；允许 W1–W3 在独立 worktree、互斥文件范围内并行，W4 单一集成，但父任务仍只有 U004 一个 `in_progress`。
 
 ## 3. 每次续跑的强制启动协议
 
@@ -50,6 +50,8 @@ git rev-parse --short HEAD
 9. `docs/DESIGN.md`；
 10. 当前任务卡列出的合同、Schema、fixture、实现和测试。
 
+U004 四 Luna 还必须把 `docs/U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md` 放在第 7 项之后完整阅读；每个 Luna 只执行其中自己的 W1/W2/W3/W4 卡。
+
 续跑时不得从聊天摘要直接推断仓库现状。若文档与代码冲突，先用只读命令确定事实，再修复权威文档；不得选择更乐观的说法。
 
 ### 脏工作区规则
@@ -59,6 +61,15 @@ git rev-parse --short HEAD
 - 先用 `git diff -- <path>` 判断重叠，再做最小补丁；
 - 与当前任务无关的失败记录为 `KNOWN FAIL`，不得借机重构；
 - 需要覆盖同一文件的并行大改时，停止并报告精确冲突，而不是猜测合并意图。
+
+### 四个 Luna 的 worktree 协议
+
+- 四个 Luna 从同一 baseline commit 建立 `codex/u004-provider-context`、`codex/u004-appearance-quality`、`codex/u004-workbench-shell`、`codex/u004-integration-gates`；
+- W1 只拥有 Provider/context，W2 只拥有表示/外观编译，W3 只拥有工作台前端，W4 只拥有共享文档、package/lock、跨轨 Gate 与最终证据；
+- W1–W3 不修改任务状态和 handoff，不相互 cherry-pick；
+- W4 只合并已有 focused PASS 的 commit，按 W1→W2→W3 顺序运行回归，不能用 `ours/theirs` 覆盖整文件；
+- 某条轨道失败时只退回该 Luna，其他轨道可继续，但 U004 不得标 `done`；
+- 第一阶段不以导出作为目标，但不得删除或破坏现有 Snapshot/Export 真值链。
 
 ## 4. 产品方向护栏
 

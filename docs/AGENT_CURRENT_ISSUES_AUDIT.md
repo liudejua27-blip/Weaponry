@@ -1,6 +1,6 @@
 # ForgeCAD 项目收敛、img2threejs 对比与方向审计
 
-版本：2026-07-30
+版本：2026-08-01
 状态：当前产品/架构收敛结论；外部项目事实为当日核验快照，不是 ForgeCAD 已实现能力
 
 ## 1. 结论先行
@@ -224,7 +224,7 @@ DeepSeek/千问输出只能作为受检程序或证据，必须经过分件、lo
 4. **壁垒从模型转向系统**：垂直 benchmark、typed editable IR、exact-lineage、局部修复、版本/恢复/导出和真实用户工作流共同构成产品价值；
 5. **商业验证早于横向扩张**：先用 5–10 家付费设计伙伴证明重复创建→修改→导出，再根据质量、成本和四周留存决定领域晋级。
 
-当前最高产品/架构决定见 [ADR-0022](ADR/0022-universal-reference-conditioned-3d-agent.md)；ADR-0020 的成本纪律和 ADR-0021 的 typed program/1+1 纪律继续有效。U001/U002 已完成类别开放理解与表示规划，U003 已完成当前程序化切片的通用资产源与 exact-lineage，唯一下一项 `ready` 为 U004；VP201–VP204 工程链已完成，C111B/E005 保留为 procedural regression；新表示、真实投影、跨类别正式 run、真人质量和生产发布仍未完成。
+当前最高产品/架构决定见 [ADR-0022](ADR/0022-universal-reference-conditioned-3d-agent.md)；ADR-0020 的成本纪律和 ADR-0021 的 typed program/1+1 纪律继续有效。U001/U002 已完成类别开放理解与表示规划，U003 已完成当前程序化切片的通用资产源与 exact-lineage，U004 现为唯一 `in_progress` 父任务；VP201–VP204 工程链已完成，C111B/E005 保留为 procedural regression；新表示、真实投影、跨类别正式 run、真人质量和生产发布仍未完成。
 
 ## 13. 2026-07-30 上游代码复核与当前代码清理顺序
 
@@ -269,3 +269,11 @@ React/Tauri Workbench (一个 renderer、输入/证据/预览/确认)
 3. 把 **VP204 geometry DSL** 从 fixture 接到 generic hard-surface capability，并按“轮廓、主结构、连接/负空间、材质区、微细节”一次 author；DeepSeek 只能写 typed IR，Rust 只执行当前 worker 已实现的操作。
 4. 在用户明确逐次授权后，用同一 renderer 的八视图让千问比较 reference/candidate；只允许一次 typed patch，并由失败分类决定补图、限流或停止。不要重新引入上游式 5–8 次自由写码循环。
 5. 冻结未见的科幻装甲、机器人、工业设备与虚构非功能游戏道具基准；先以盲测与真人外观评分证明硬表面路线，再为角色/生物单独引入 deformable/hybrid，而不是用硬表面 DSL 冒充全部类别。
+
+## 14. 2026-08-01 第一阶段工作台与会话专项审查
+
+用户提供的目标图确认了新的优先级：先让中央工作台稳定展示完整、高质量、材质可信的唯一 3D 结果，导出暂时降级。1280×720 实机检查暴露了比视觉皮肤更早的结构问题：首屏无 Turn 即显示失败、右栏内部滚动与底部历史裁切、中央视口受挤压、快速修改重复、品牌 slot 碰撞，以及 7,106 行 CSS 的同选择器覆盖链。`CadWorkbenchPanel` 当前 2,632 行并让 F025 `<2200` 责任门失败；`ModuleGraphViewport` 2,744 行，渲染生命周期仍与大量 overlay 混合。
+
+DeepSeek adapter 本身已经处理 thinking、Tool Calls、`reasoning_content` 和 cache token 回执；更大的缺口在 ForgeCAD 自己的会话构造：最近消息只按数量截断、thread summary 没有形成稳定更新链、动态 snapshot/evidence 会改变前缀、缓存命中缺少可检查 prefix receipt。下一步不是增加聊天按钮，而是建立 Rust-owned stable prefix、结构化 project memory、token-budget compaction 和 `PromptPrefixReceipt@1`。
+
+清理已按“无运行时引用 + 无 schema/migration/fixture 责任 + 有替代 Gate”执行：三方向前端 state/hook 和组件库偏好 state/hook 连同孤立 smoke 已删除；后端 R006、legacy migration、C111/E005 fixture、Snapshot/Export 和 test-only compatibility reader 保留。四 Luna 的文件所有权、插件/Skill、Gate 与合并顺序见 [U004 第一阶段高质量工作台总图](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md)。

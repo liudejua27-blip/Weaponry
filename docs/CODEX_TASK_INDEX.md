@@ -5,7 +5,8 @@
 
 ## 1. 使用规则
 
-- 一次领取一个任务；同一时刻最多一个 `in_progress`；
+- 默认一次领取一个任务（产品父任务）；同一时刻最多一个父任务为 `in_progress`；
+- 2026-08-01 用户明确批准 U004 内四个 Luna 并行；W1–W4 是同一父任务的互斥 workstream，不是四套产品状态，必须遵守独立 worktree、文件所有权和 W4 单一集成规则；
 - `ready` 的全部依赖必须为 `done`；
 - `blocked/external` 必须写清缺失证据；
 - `superseded` 只表示由新任务接续，不表示原目标通过；
@@ -35,7 +36,7 @@
 | FGC-U002 | done | U001A | `SubjectProfile/VisualFeatureContract/RepresentationPlan`、统一 multimodal request、删除模板回退 |
 | FGC-U003 | done | U002 | `UniversalAssetSource`、component/detail/material/projection 与统一 lineage |
 | FGC-U004A | done | U003 | DeepSeek/千问唯一 AI Provider；删除 Fal/远程 Mesh 运行时入口并建立 fail-closed Gate |
-| FGC-U004 | in_progress | U004A | procedural/deformable/local-hybrid 能力、Appearance Compiler、真实 GPU/PBR capture provenance 与 readback |
+| FGC-U004 | in_progress | U004A | 会话/缓存、procedural/deformable/local-hybrid、Appearance Compiler、真实 GPU/PBR provenance 与高质量工作台；详见 U004 第一阶段总图 |
 | FGC-U005 | blocked | U004 | 八类真实输入、1+1 时间成本和独立真人盲评 |
 | FGC-E005 | superseded | VP204 | 只保留 mechanical procedural regression，不阻塞 U002 |
 | FGC-C111B | superseded | V003, A005 | 工程/时间/显示回归保留；reference/human 未通过 |
@@ -45,7 +46,11 @@
 Next unblocked task IDs:
 
 ```text
-FGC-U004 (in_progress)
+FGC-U004 (in_progress parent)
+FGC-U004-W1 (ready workstream)
+FGC-U004-W2 (ready workstream)
+FGC-U004-W3 (ready workstream)
+FGC-U004-W4 (waiting for W1/W2/W3 commits)
 ```
 
 ## 3. FGC-U001A 文档清理任务卡
@@ -104,6 +109,19 @@ FGC-U004 (in_progress)
 状态：`in_progress`（2026-07-29）；Provider 主权前置切片 `FGC-U004A` 已完成，未调用真实收费 Provider。
 
 范围：由千问读取 sealed 参考形成视觉证据，DeepSeek 编写受限设计源，将 procedural/deformable/local-hybrid 按已声明 capability 接入同一 `UniversalAssetSource`、严格 readback、Part/Zone、版本与导出真值；不依赖第三方远程 Mesh API，不因类别入口开放而提前开放 capability。
+
+### 6.1 2026-08-01 第一阶段 workstream
+
+完整任务卡、文件所有权、插件/Skill、Gate、合并顺序和退出条件统一位于 [U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md](U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md)。索引只记录状态：
+
+| Workstream | Status | Owner scope | Dependency |
+| --- | --- | --- | --- |
+| FGC-U004-W1 | ready | DeepSeek 会话、上下文、memory、缓存回执 | U004A |
+| FGC-U004-W2 | ready | 通用表示、Appearance Compiler、GLB/PBR readback | U003/U004A |
+| FGC-U004-W3 | ready | 工作台 shell、状态显示、单视口和响应式 | F026/K003 |
+| FGC-U004-W4 | waiting | 合并、跨轨 E2E、证据、任务状态和 handoff | W1/W2/W3 commits |
+
+W1–W3 可由四个 Luna 中的前三个同时执行，但不得改同一文件；W4 在三轨产生可验收 commit 后按 `W1 → W2 → W3 → W4` 合并。任何 workstream 的局部 PASS 都不能把父任务 U004 标为 `done`。
 
 U004A 完成证据：删除 Fal/Hunyuan 远程生成 adapter、Tauri command、凭据、恢复 probe、TypeScript transport 和工作台入口；DeepSeek 配置只接受官方 `api.deepseek.com + deepseek-*`，千问视觉配置只接受官方 `aliyuncs.com + qwen*`；`release:ai-provider-policy`、反向 Rust tests、desktop typecheck/build 和 F026 单视口 smoke 通过。旧 remote-job schema/migration 只作兼容读取，`mesh_seed.generic_v1` 保持 unavailable。
 

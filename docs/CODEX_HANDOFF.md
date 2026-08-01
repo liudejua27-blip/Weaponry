@@ -2,7 +2,7 @@
 
 更新时间：2026-08-01
 分支：`main`
-状态：工作区有大量用户/并行未提交修改；FGC-U004A Provider 主权切片、U004 受限本地形变/Hybrid 与游戏交付用户意图接线已原位实现，通用本地高质量表示继续进行；未 commit、未 merge、未 push
+状态：本轮基线为 clean `main` / `5ef64d5`；当前未提交修改只来自 2026-08-01 U004 架构梳理、死代码清理与第一阶段文档任务，尚未 commit/merge/push
 
 ## 0.1 2026-07-31 实时联网验证记录
 
@@ -21,7 +21,7 @@ git diff --check
 git rev-parse --short HEAD
 ```
 
-不得 reset、checkout 或覆盖 `CadWorkbenchPanel.tsx`、`WorkbenchComposer*`、`cad-workbench.css`、Rust Provider/执行器和其他并行改动。CI 绿色只证明对应 commit，不证明当前脏工作区。
+不得 reset、checkout 或覆盖用户后续加入的修改。当前本轮没有修改 `CadWorkbenchPanel.tsx`、`WorkbenchComposer*`、`cad-workbench.css` 或 Rust Provider/执行器；它们只在计划中分配给后续 W1–W3。CI 绿色只证明对应 commit，不证明当前脏工作区。
 
 ## 2. 当前产品真值
 
@@ -252,3 +252,5 @@ git diff --check
 2026-08-01 U004 当前验证记录：canonicalization 后 `cargo check -p forgecad-app-server`、app-server 全量 `284 passed / 0 failed`、workspace cargo check、U002 contract Gate、contracts、docs walkthrough、repository integrity、safety scope、secrets、provider policy、desktop typecheck/build、F026、U002 workbench smoke、最新 Tauri `.app` bundle 和 `git diff --check` 均通过。`desktop:r3-concept-workbench-smoke` 最新重跑在“safe GLB reference import”阶段等待 `分件候选/导入参考模型 v1` 超时，页面仍为空；该红灯已单独记录，不能计为通过，也不能据此判断 universal author 路由失败。`desktop:u004-universal-image-bridge-e2e` 本轮因首次重链 Tauri test binary 超过 4 分钟无输出且 CPU 为 0，已手动终止，未计为通过；此前同一桥接 Gate 的通过记录仍保留，但不替代本轮重跑。macOS 仍锁屏，未启动新的真实 DeepSeek/千问请求，没有 Fal、Hunyuan 或第三方 Mesh 调用；未 commit、merge、push。
 
 2026-08-01 U004 兼容导入边界修复与 R3 恢复：R3 失败的实际原因是 Python test oracle 仍把 `pack_unclassified` 当成未知 Domain Pack，导致 category-open GLB reference import 返回 400；现已允许该值作为“尚未理解对象”的只读证据进入，不绑定四领域模板，也不允许直接编辑。同步把 R3 smoke 的 GLB 导入改为等待真实 HTTP 响应并报告错误体。通过：`desktop:r3-concept-workbench-smoke`（导入、Agent-first、重启恢复、导出边界）、`agent:check`、Python `agent:unit`（183 passed）、docs/integrity/safety/secrets/contracts/diff Gate。U004 bridge 重链本轮仍未计为通过；macOS 仍锁屏，未启动新的真实 DeepSeek/千问请求，无 Fal/Hunyuan/第三方 Mesh、未 commit/merge/push。
+
+2026-08-01 U004 第一阶段架构/清理/文档交接：本轮从 clean `main` / `5ef64d5` 开始，没有修改运行时能力。新增 `docs/U004_STAGE1_HIGH_QUALITY_WORKBENCH_PLAN.md`，将阶段一固定为 DeepSeek 会话/缓存、通用表示/Appearance Compiler、中央唯一高质量视口和四 Luna 集成证据；导出保留但不作为本阶段退出项。对 1280×720 本地工作台实机审查确认首屏无请求即误报失败、右栏/底部裁切、快速修改重复、Logo 碰撞，以及 `CadWorkbenchPanel.tsx` 2,632 行、`ModuleGraphViewport.tsx` 2,744 行、`cad-workbench.css` 7,106 行的责任/覆盖风险。清理了无运行时 import 的 `useAgentDirectionConceptPreviews`/`agentDirectionConceptPreviewState`、`useComponentLibraryPreferences`/`componentLibraryPreferencesState` 及四个关联 smoke 文件/两个脚本，同时删除未被 npm/CI/docs 采用的 `pnpm-lock.yaml` 和两个 package command；后端 R006 fixture、migration、Export/Snapshot 真值链未删除。权威文档已同步任务索引、执行计划、Luna 协议、前端、测试、插件/Skill 和 GitHub/Hugging Face 研究边界。通过：docs walkthrough、repository integrity、safety scope、secrets、agent/provider policy、contracts、desktop typecheck/build、F026、F006、R3 与 `git diff --check`；build 只报告既有 chunk-size/dynamic import warning。失败：`desktop:f025-legacy-isolation-smoke` 在静态责任门直接报 `CadWorkbenchPanel must remain below the F025 responsibility budget`，确认父组件 2,632 行超过 `<2200` 预算，后续链因 `&&` 未运行；该红灯已分配给 W3。真实 DeepSeek→GLB、真实千问、packaged 工作台和真人质量均未在本轮运行，不能把本轮写成 3D 质量提升。
