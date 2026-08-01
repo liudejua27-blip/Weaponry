@@ -3,6 +3,10 @@
 版本：2026-07-29
 状态：生产级测试目标与当前差距
 
+## 0.1 2026-08-01 W4 集成回归记录
+
+W1/W2/W3 已在 `7758a01` 基线上按顺序合并。当前集成回归的 PASS、FAIL、KNOWN FAIL 和 NOT RUN 由 [U004 W4 evidence manifest](evidence/U004_W4_INTEGRATION_EVIDENCE_MANIFEST.md) 统一登记。特别是：Rust 与等价 Python 合同证据不等于桌面 UI 通过；worktree 缺少 `.venv/bin/python`、`tsc`、`playwright-core` 会阻断对应聚合脚本；Node 26 undefined-stream 错误属于当前 smoke harness 失败。真实 DeepSeek、真实千问、packaged app、未见输入和真人评分必须单独登记，不能由 fixture、离线构建、截图或自动评分替代。
+
 ## 1. 测试原则
 
 1. 测试证明当前能力，不证明文档中的未来目标；

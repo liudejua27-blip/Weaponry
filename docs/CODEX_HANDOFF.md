@@ -1,8 +1,8 @@
 # ForgeCAD 当前交接
 
 更新时间：2026-08-01
-分支：`main`
-状态：本轮基线为 clean `main` / `5ef64d5`；当前未提交修改只来自 2026-08-01 U004 架构梳理、死代码清理与第一阶段文档任务，尚未 commit/merge/push
+分支：集成 worktree detached HEAD（未切换或修改 `main`）
+状态：W1–W3 合并后的 `28373ed` 已完成 W4 文档/证据提交；当前 worktree 应保持 clean；未 push
 
 ## 0.1 2026-07-31 实时联网验证记录
 
@@ -10,6 +10,24 @@
 - DeepSeek 已真实返回“临海现代建筑”而不是机械臂/机器人模板，并产出开放类别的 SubjectProfile、宏/中/微特征、RepresentationPlan 和建筑几何图。连续回合曾通过 `visual_` program ID、节点类型/字段、surface-panel 局部坐标、单输出图拓扑和预算前置校验；当前在线请求记录包括 `turn_913e0bd186c44aca900153ddf9c06fe0`、`turn_e912cfb82740142f1a0d3ce9e0e02c4e`、`turn_6c2bbb45a99a35a65735d6de63878d25`、`turn_23c0a6d3051180ebeef340258defc77a`、`turn_10d1d8df75ebac35c0fcaceabf5a657c` 和 `turn_4a80a74d8c4f8899154e7b5214dfea1a`，均标记 `network_call_made=true`；失败均发生在 Rust 合同/图/预算/部件一致性边界，尚未产生候选 GLB、preview、version、Snapshot、Quality 或 Export 副作用。
 - 本轮已补齐一次性修复提示和 focused test，覆盖 `FORGE_VISUAL_VP203_ID_INVALID`、`...SURFACE_PANEL_INVALID`、`...GRAPH_FANOUT_UNSUPPORTED`、`...BUDGET_INVALID`、`...BOOLEAN_INVALID` 与 `REPRESENTATION_PART_PLAN_INVALID`；`universal_author_recovery_covers_online_geometry_contract_failures`、`universal_author_recovery_requires_all_feature_levels` 均通过。桌面 App 已重新构建，但最终一次在线重试前 macOS 进入锁屏（`CGSessionScreenIsLocked=Yes`），因此不能把本轮写成在线 GLB 成功。
 - 解锁后应直接启动最新 packaged App，复用建筑提示完成一次在线重试；验收顺序仍是 DeepSeek author → Rust lowering → candidate GLB/readback → 同一 renderer 八视图 capture。只有数据库出现 `waiting_for_capture` 或完成的 candidate artifact，才可宣称“生成了 3D 模型”。
+
+## 0.2 2026-08-01 FGC-U004-W4 集成验收
+
+本轮严格按 `W1 → W2 → W3 → W4` 集成，未发生冲突，也未使用 `ours/theirs` 整文件覆盖：
+
+```text
+7758a01 baseline
+  └─ 96ea067 W1 source → 5ec59ed W1 merge
+      └─ 65d3d8e W2 source → 0aab030 W2 merge
+          └─ d602eb9 W3 source → 28373ed W3 merge
+              └─ final W4 docs/evidence commit (本交接提交)
+```
+
+W1 context/deepseek Rust tests、W2 VP203/U003/VisualConvergence/PBR/bridge Rust tests、W2 等价 Python checks、W3 source-level F025 assertion、Tauri `cargo check`、U004 bridge 三个 exact round-trip tests、repository integrity、等价 docs/safety/secrets/provider-policy/contracts、Agent compile 和 `git diff --check` 通过。聚合脚本结果必须按 harness 事实解释：worktree 没有 `.venv/bin/python`、`tsc` 或 `playwright-core`；`smoke_u004_workbench_pbr_capture.mjs`、F026/F006/C111B logic 在当前 Node 26 对 undefined 流写入并退出。完整命令和退出码见 [W4 evidence manifest](evidence/U004_W4_INTEGRATION_EVIDENCE_MANIFEST.md)。
+
+真实证据状态：真实 DeepSeek 标记 `FAIL`（历史真实 author 请求到达 Rust/Provider 边界，但未形成候选 GLB/readback/capture；本轮未把历史失败写成成功）；真实千问 `NOT RUN`；packaged app `KNOWN FAIL`（集成 worktree 没有可用 `.app`，等价 packaged QA 先因缺少 app 退出，既有 macOS 锁屏前置也未解除）；未见输入 `NOT RUN`；真人评分 `NOT RUN`。fixture、离线 Rust/Python、确定性本地代理、开发 build 和截图均不计入真实 Provider 或通用高质量成功。
+
+U004 父任务保持 `in_progress`，U005 保持 `blocked`。本轮只更新 W4 所有权内的状态、证据和交接文档；没有修改 W1–W3 运行时源文件，没有 push，也没有移动 `main`。
 
 ## 1. 接手原则
 

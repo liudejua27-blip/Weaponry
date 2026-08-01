@@ -3,6 +3,10 @@
 版本：2026-08-01
 状态：当前实现、已知问题与目标约束
 
+## 0.1 2026-08-01 W4 集成验证
+
+W3 工作台 shell 已从 `d602eb9` 按顺序合并到 W4 集成 HEAD `28373ed`；`CadWorkbenchPanel` 的 source-level F025 responsibility assertion 已通过，Tauri Rust `cargo check` 也通过。当前 worktree 的桌面 `typecheck/build` 不能作为 PASS：缺少 `tsc`；F026/F006 的现有 smoke 在 Node 26 对 undefined 流写入失败，浏览器场景因缺少 `playwright-core` 未运行。前端结构与工作台单 renderer 约束仍以当前代码和这些明确的 Gate 结果为准，不能把本地静态或 fixture 证据写成真实 Provider/视觉质量验收。
+
 ## 1. 唯一产品入口
 
 桌面应用只保留 CAD 工作台。旧武神首页、任务中心、独立资产库、Mode、Patch、Forge 和独立设置页不得重新成为产品导航。
