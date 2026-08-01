@@ -112,7 +112,7 @@ async function main() {
         assert((await page.locator('.f026-agent-timeline').innerText()).includes('同时接近多个方向'), 'clarification must explain ambiguity')
         await clarification.getByRole('button', { name: '汽车与地面载具', exact: true }).click()
         await assertCompatibilityV003Rejection(page, agentBaseUrl, projectId, snapshot, 'T002 clarification continuation')
-        return evidence(projectId, snapshot, ['one_question', 'zero_asset_write', 'choice_rejects_legacy_planner', 'compatibility_v003_contract_failure'])
+        return evidence(projectId, snapshot, ['one_question', 'zero_asset_write', 'choice_keeps_compatibility_write_barrier', 'compatibility_v003_contract_failure'])
       } finally { await page.close() }
     })
 
@@ -629,9 +629,21 @@ async function selectAdjustablePart(page, projectId) {
 
 async function assertCompatibilityV003Rejection(page, baseUrl, projectId, beforeSnapshot, label) {
   const failure = page.locator('[data-generation-state="failed"][aria-label="生成失败"]')
-  await failure.waitFor({ timeout: TIMEOUT_MS })
-  const text = await failure.innerText()
-  assert(text.includes('Agent 没有返回正式的单一结果决策'), `${label} must expose the V003 decision-contract rejection`)
+  const continuedClarification = page.getByLabel('需要确认设计类别')
+  const continuation = await Promise.race([
+    failure.waitFor({ timeout: TIMEOUT_MS }).then(() => 'failure'),
+    continuedClarification.waitFor({ timeout: TIMEOUT_MS }).then(() => 'clarification'),
+  ])
+  if (continuation === 'failure') {
+    const text = await failure.innerText()
+    assert(text.includes('Agent 没有返回正式的单一结果决策'), `${label} must expose the V003 decision-contract rejection`)
+  } else {
+    // The universal workbench does not serialize a legacy clarification
+    // selector. When the compatibility oracle receives the original
+    // ambiguous message plus a historical choice, it may ask the same
+    // write-barrier question again instead of producing a terminal result.
+    assert((await continuedClarification.innerText()).includes('先确认设计对象'), `${label} must keep the clarification write barrier`)
+  }
   assert(await page.getByLabel('当前临时结果').count() === 0, `${label} must not present a legacy Planner result as a V003 result`)
   assert(await page.getByLabel('Agent 完整外观方向').count() === 0, `${label} must not restore direction selection`)
   assert(await page.locator('.weapon-viewport canvas').count() === 1, `${label} must retain one WebGL canvas`)

@@ -94,7 +94,46 @@ async function main() {
     if (await page.locator('.weapon-viewport canvas').count() !== 1) {
       throw new Error('characterization requires exactly one WebGL canvas')
     }
-    await assertText(page.locator('.f026-agent-timeline'), ['设计助手', '汽车', '飞机', '机械臂'])
+    const idleAssistant = page.locator('.f026-agent-timeline')
+    await assertText(idleAssistant, ['设计助手', '准备就绪'])
+
+    // ADR-0022 retired the old four-way mechanical admission copy. The idle
+    // surface may expose concrete object suggestions in the advanced panel or
+    // beginner-friendly open-category examples in the sidebar/create drawer;
+    // either path must remain discoverable without restoring a domain allowlist.
+    const discoverySurfaces = []
+    const advancedToggle = page.getByLabel('打开进阶模式', { exact: true })
+    if (await advancedToggle.count() === 1) {
+      await advancedToggle.click()
+      const advancedPanel = page.locator('details[aria-label="专业参数"]')
+      if (await advancedPanel.count() === 1) {
+        await advancedPanel.locator('summary').click()
+        discoverySurfaces.push(await advancedPanel.innerText())
+      }
+      const beginnerToggle = page.getByRole('button', { name: '回到新手模式', exact: true })
+      if (await beginnerToggle.count() === 1) await beginnerToggle.click()
+    }
+    const sidebarExamples = page.locator('.f026-sidebar summary').filter({ hasText: '示例' })
+    if (await sidebarExamples.count() === 1) {
+      await sidebarExamples.click()
+      discoverySurfaces.push(await page.locator('.f026-sidebar').innerText())
+    }
+    discoverySurfaces.push(...await page.locator('.f026-create-setup-panel').allInnerTexts())
+    const discoveryText = discoverySurfaces.join('\n')
+    const objectSuggestions = ['写实家猫', '玻璃山谷住宅', '陶瓷茶具', '游戏道具']
+    const openCategoryExamples = ['写实动物外观', '角色与生物', '家具与产品', '建筑与环境', '游戏道具外观', '混合对象']
+    const visibleObjectSuggestions = objectSuggestions.filter((label) => discoveryText.includes(label))
+    const visibleCategoryExamples = openCategoryExamples.filter((label) => discoveryText.includes(label))
+    if (visibleObjectSuggestions.length < 4 && visibleCategoryExamples.length < 4) {
+      throw new Error(
+        `category-open idle discovery is not visible in beginner/advanced surfaces: ${discoveryText.slice(0, 2000)}`,
+      )
+    }
+    for (const legacyLabel of ['汽车', '飞机', '机械臂']) {
+      if (discoveryText.includes(legacyLabel)) {
+        throw new Error(`idle discovery restored retired mechanical admission label: ${legacyLabel}`)
+      }
+    }
 
     const projectId = await waitForProjectId(agentBaseUrl)
     const initialProject = await jsonRequest(agentBaseUrl, `/api/v1/projects/${projectId}`)
@@ -102,7 +141,7 @@ async function main() {
     if (!isLegacyOrMissingSnapshot(initialActiveDesign)) {
       throw new Error(`new characterization project has an unexpected Snapshot state: ${initialActiveDesign.status} ${JSON.stringify(initialActiveDesign.body)}`)
     }
-    if (initialActiveDesign.status === 404) {
+    if (initialActiveDesign.status === 404 && !initialProject.current_version_id) {
       const emptyProject = page.getByTestId('agent-empty-project')
       try {
         await emptyProject.waitFor({ timeout: 20_000 })
@@ -116,6 +155,13 @@ async function main() {
       await assertText(emptyProject, ['空项目已就绪', '生成第一个 3D 资产'])
       if (await page.getByRole('button', { name: '准备展示组件', exact: true }).count() !== 0) {
         throw new Error('empty Project still exposed the legacy workbench initializer')
+      }
+    } else if (initialActiveDesign.status === 404 && initialProject.current_version_id) {
+      // A starter project can carry a legacy current_version without an
+      // ActiveDesignSnapshot. That is a compatibility surface, not an empty
+      // Agent project; do not require the empty-project copy or initialize it.
+      if (await page.getByRole('button', { name: '准备展示组件', exact: true }).count() !== 0) {
+        throw new Error('legacy current_version still exposed the retired workbench initializer')
       }
     }
     if (legacyWorkbenchInitializations !== 0) {
@@ -212,10 +258,24 @@ async function main() {
     }
     await clickWithRetry(aircraftChoice, 'aircraft clarification choice')
     const failure = page.locator('[data-generation-state="failed"][aria-label="生成失败"]')
-    await failure.waitFor({ timeout: 60_000 })
-    const failureText = await failure.innerText()
-    if (!failureText.includes('Agent 没有返回正式的单一结果决策')) {
-      throw new Error(`compatibility Planner was not rejected by the V003 decision contract: ${failureText}`)
+    const continuedClarification = page.getByLabel('需要确认设计类别')
+    const continuation = await Promise.race([
+      failure.waitFor({ timeout: 60_000 }).then(() => 'failure'),
+      continuedClarification.waitFor({ timeout: 60_000 }).then(() => 'clarification'),
+    ])
+    if (continuation === 'failure') {
+      const failureText = await failure.innerText()
+      if (!failureText.includes('Agent 没有返回正式的单一结果决策')) {
+        throw new Error(`compatibility Planner was not rejected by the V003 decision contract: ${failureText}`)
+      }
+    } else {
+      // The category-open workbench deliberately omits the legacy
+      // clarification_domain_pack_id from its universal Turn payload. The
+      // compatibility oracle can therefore ask again when the original
+      // ambiguous message and its historical choice still score equally.
+      // Either outcome is a valid no-write barrier; the smoke keeps the
+      // Snapshot, Agent-only, and single-canvas guarantees common to both.
+      await assertText(continuedClarification, ['先确认设计对象'])
     }
     if (await page.getByLabel('当前临时结果').count() !== 0) {
       throw new Error('F001 rendered a legacy Planner payload as a formal V003 result')
@@ -226,10 +286,10 @@ async function main() {
     if (await page.locator('.weapon-viewport canvas').count() !== 1) {
       throw new Error('workbench created a second WebGL canvas after V003 rejection')
     }
-    const afterRejectionSnapshot = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
-    if (stableSnapshot(afterClarificationSnapshot) !== stableSnapshot(afterRejectionSnapshot)) {
+    const afterContinuationSnapshot = await requestStatus(agentBaseUrl, `/api/v1/projects/${projectId}/active-design`)
+    if (stableSnapshot(afterClarificationSnapshot) !== stableSnapshot(afterContinuationSnapshot)) {
       throw new Error(
-        `V003 compatibility rejection changed ActiveDesignSnapshot: before=${stableSnapshot(afterClarificationSnapshot)} after=${stableSnapshot(afterRejectionSnapshot)}`,
+        `compatibility continuation changed ActiveDesignSnapshot: before=${stableSnapshot(afterClarificationSnapshot)} after=${stableSnapshot(afterContinuationSnapshot)}`,
       )
     }
     if (legacyDetailReads.length !== legacyDetailReadCountAfterExplicitClose) {
@@ -244,7 +304,7 @@ async function main() {
       assertions: [
         'single_canvas',
         'ambiguous_clarification_write_barrier',
-        'v003_rejects_legacy_planner_without_snapshot_write',
+        'compatibility_continuation_keeps_no_write_barrier',
         'legacy_details_require_explicit_entry',
         'legacy_surface_is_read_only',
         'agent_flow_makes_no_legacy_mutation_calls',
