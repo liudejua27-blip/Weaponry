@@ -32,9 +32,9 @@ ForgeCAD 单独启动时只显示 Viewer 和连接诊断，不提供“生成”
 
 “Codex-only”是发布、配置和测试范围，不是可伪造 client name 的安全判断。
 
-MCP003 的本地证据在 `docs/evidence/mcp003/`：协议适配器、resources/read、只读工具和版本不兼容 fail-closed 已通过；认证 Codex CLI 真实回合已完成 `capabilities_get`、`selection_get`，并在 `2026-07-28` 环境下明确拒绝且不降级；Desktop/IDE discovery/connection 本轮为 `BLOCKED`，read-only E2E 为 `NOT_RUN`，不能把单宿主证据写成三宿主完成。
+MCP003 的本地证据在 `docs/evidence/mcp003/`：协议适配器、resources/read、只读工具和版本不兼容 fail-closed 已通过；认证 Codex CLI 真实回合已完成 `capabilities_get`、`selection_get`，并在 `2026-07-28` 环境下明确拒绝且不降级；用户提供的 Desktop 截图/transcript 已证明完整只读工具/资源回合无写事务，但 initialize.protocolVersion 未记录、Desktop host mismatch 未运行，IDE 仍未完成，不能把单宿主证据写成三宿主完成。
 
-2026-08-08 宿主验收记录：Computer Use 对 `com.openai.codex` 的只读状态请求被主机安全边界拒绝；Codex in-app Browser 连接成功但没有当前或用户标签页。未点击、输入、上传、改配置或发起宿主 MCP 调用，故 Desktop/IDE 的 discovery/connection 记为 `BLOCKED`，read-only E2E 记为 `NOT_RUN`，而不是 PASS。
+2026-08-08 宿主验收记录：Computer Use 对 `com.openai.codex` 的只读状态请求被主机安全边界拒绝；Codex in-app Browser 连接成功但没有当前或用户标签页。用户随后提供了 Desktop 截图和 transcript，证明 forgecad 的只读工具/资源调用成功且无写事务；自动化 UI 仍为 BLOCKED，IDE 尚未运行，Desktop 初始化协议与 host mismatch 证据仍待补齐。
 
 ### 2.1 MCP003 宿主验收 Runbook
 

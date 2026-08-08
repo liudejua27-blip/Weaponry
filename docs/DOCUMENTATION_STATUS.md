@@ -20,7 +20,7 @@
 | CAS | 已实现（MCP002 范围） | SHA-256、临时文件+fsync+原子 rename、容量/缺失/篡改/metadata mismatch、备份恢复通过；GC/reachability policy 待 MCP011 |
 | Runtime 单写者 | 已实现（MCP002 范围） | SQLite lease、heartbeat、TTL recovery、并发双 writer Gate 通过；packaged kill-9/升级恢复待 MCP011/013 |
 | authenticated local IPC | 已实现（MCP002 范围） | Unix socket 0600、每次启动生成且仅进程内持有的 token、常量时间比较、错误 token fail closed、Runtime dispatch smoke 通过；三宿主 packaged wiring 待 MCP013 |
-| MCP stdio/resources | 部分实现 | MCP `2025-11-25` canonical + Codex `2025-06-18` compatibility initialize、14 个只读 tools、resources/list/read/templates、annotations、URI/contract fail closed、原始 stdio probe、官方 SDK stdio probe 和认证 Codex CLI 只读回合已通过；官方 conformance、Desktop/IDE E2E 未运行 |
+| MCP stdio/resources | 部分实现 | MCP `2025-11-25` canonical + Codex `2025-06-18` compatibility initialize、14 个只读 tools、resources/list/read/templates、annotations、URI/contract fail closed、原始 stdio probe、官方 SDK stdio probe、认证 Codex CLI 和用户提供的 Desktop 只读工具/资源回合已通过；Desktop initialize/version-mismatch 证据、IDE E2E 与官方 conformance 仍未完成 |
 | Runtime Viewer | 已实现（诊断级） | `apps/desktop/src/features/runtime-viewer` typecheck/build 通过；无模型展示能力 |
 | Geometry/Render workers | 部分实现 | stdin/stdout typed unavailable skeleton；受限编译器待 MCP007/009 |
 | Skill Bundle | 目标设计 | 标准已写；签名、SBOM、Registry、Benchmark 待 MCP006 |
@@ -32,7 +32,7 @@
 ## 明确未运行/阻断
 
 - Rust workspace、core/store/runtime IPC tests、worker checks、MCP003 protocol/host baseline、Viewer typecheck/build 和独立临时 Cargo target 检查已有 PASS；本轮 `npm run release:mcp003` 的默认 Tauri 增量检查因旧 target 长时间无输出被安全中断（exit 130），所以不能把聚合 release Gate 写成 PASS；
-- `docs/evidence/mcp003/host-matrix.json` 中本地 protocol adapter、原始 stdio probe、官方 SDK stdio probe、Codex CLI 配置发现、认证只读模型回合和现代协议不兼容 smoke 为 PASS；本轮 Computer Use 访问 `com.openai.codex` 被安全边界拒绝，Codex in-app Browser 无可控标签页，因此 Desktop/IDE discovery/connection 记为 BLOCKED、read-only E2E 为 NOT_RUN，未执行任何 UI、配置、上传或 MCP 宿主操作；
+- `docs/evidence/mcp003/host-matrix.json` 中本地 protocol adapter、原始 stdio probe、官方 SDK stdio probe、Codex CLI 配置发现/只读回合和现代协议不兼容 smoke 为 PASS；用户提供的 Desktop 截图/transcript 证明只读工具与资源回合 PASS，但 initialize.protocolVersion 未记录且 host version mismatch 未运行；Computer Use 自动化仍被安全边界拒绝，IDE discovery/connection 仍为 BLOCKED；
 - 尚未证明 Codex Desktop/CLI/IDE 能把图片字节传给本地 MCP；
 - 尚未进行 packaged Runtime/Viewer、真实 Codex 附件、完整 kill-9/磁盘配额注入、视觉相似度和真人评分；
 - 不得将旧 U004/C/E/K/F 测试、旧 GLB 或旧截图当作新产品证据。

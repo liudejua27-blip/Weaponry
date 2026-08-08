@@ -14,11 +14,15 @@
     "evidence": "forgecad-mcp Rust unit tests, protocol snapshot, probe_mcp003_stdio.py and an official @modelcontextprotocol/sdk StdioClientTransport probe; the raw probe now covers canonical 2025-11-25 and Codex 2025-06-18 compatibility; none of these rows alone claim a Codex host connection"
   },
   "codex_desktop": {
-    "discovery": "BLOCKED",
-    "connection": "BLOCKED",
-    "read_only_e2e": "NOT_RUN",
-    "observed_version": "NOT_OBTAINED (Computer Use denied UI access)",
-    "reason": "2026-08-08 acceptance attempt: Computer Use state access for com.openai.codex was denied by the host safety boundary, so Desktop discovery/connection was blocked before initialize. No Desktop UI state, configuration, or MCP call was performed; read_only_e2e remains NOT_RUN until the user runs the sequence in an unlocked Codex Desktop session."
+    "discovery": "PASS",
+    "connection": "PASS",
+    "read_only_e2e": "PASS",
+    "checked_at": "2026-08-08",
+    "observed_version": "0.1.0 (Runtime; MCP server version not separately shown)",
+    "initialize_protocol_version": "NOT_RECORDED",
+    "version_mismatch": "NOT_RUN",
+    "evidence": "User-provided Codex Desktop screenshot at 10:58 showed source forgecad and successful capabilities_get/project_list with no project or file mutation. The subsequent user-provided transcript completed resources/list, resources/read forgecad://capabilities, selection_get and version_list; all returned structured read-only results and reported no write transaction. The host wrapper exposed list_mcp_resources/read_mcp_resource/mcp__forgecad__selection_get/mcp__forgecad__version_list; no upload, 3D generation or write tool was used.",
+    "reason": "Desktop discovery, connection and required read-only tool/resource calls passed from user-supplied screenshot/transcript. Raw initialize.protocolVersion is not included in the transcript and the 2026-07-28 host mismatch run is still NOT_RUN; those remain required before MCP003 can close."
   },
   "codex_cli": {
     "discovery": "PASS",
@@ -44,8 +48,8 @@
     "ide_discovery": "NOT_EXPOSED",
     "browser_state": "IAB_CONNECTED_NO_TABS",
     "actions_performed": false,
-    "evidence": "At the 2026-08-08 acceptance attempt, a read-only Computer Use state request for com.openai.codex was denied by the host safety boundary. App discovery showed ChatGPT/com.openai.codex running, but did not grant a controllable UI. The Codex in-app Browser connected successfully and both current-tab and user-tab listings were empty. No click, typing, upload, configuration change, or host-side MCP action was performed.",
-    "reason": "Final Desktop/IDE acceptance must be performed by the user in an unlocked, user-owned host session; repository automation and an empty Browser tab list must not be used to infer host PASS."
+    "evidence": "At the 2026-08-08 acceptance attempt, a read-only Computer Use state request for com.openai.codex was denied by the host safety boundary. App discovery showed ChatGPT/com.openai.codex running, but did not grant a controllable UI. The Codex in-app Browser connected successfully and both current-tab and user-tab listings were empty. Independently, the user supplied a Desktop screenshot and transcript proving the read-only MCP calls; no automated UI click, typing, upload, configuration change, or host-side write action was performed by this tool.",
+    "reason": "Computer Use remains blocked as an automation surface, but user-supplied Desktop evidence is now recorded separately. Do not infer initialize protocol or IDE PASS from the screenshot/transcript."
   },
   "security_boundary": {
     "client_name_is_authentication": false,
