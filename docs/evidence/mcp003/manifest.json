@@ -1,8 +1,10 @@
 {
   "task_id": "FGC-MCP003",
   "status": "in_progress",
-  "branch": "codex/forgecad-mcp-reset",
-  "worktree_policy": "staged, not committed or pushed; preserve reset archive and WushenForgeLibrary",
+  "branch": "main",
+  "commit": "226b437c253e0cd85d5539f99c25ebef1cab71a2",
+  "checked_at": "2026-08-08",
+  "worktree_policy": "clean committed baseline; preserve reset archive and WushenForgeLibrary",
   "implementation": [
     "MCP 2025-11-25 canonical + Codex 2025-06-18 compatibility stdio initialize negotiation with fail-closed protocol and Runtime contract checks",
     "read-only tools/list and tools/call with MCP annotations and typed unavailable results",
@@ -20,7 +22,7 @@
     "codex_app_server_protocol_diagnostic": {"status": "PASS", "command": "temporary CODEX_HOME codex app-server --stdio + thread/start + mcpServerStatus/list + mcpServer/tool/call", "evidence": "Codex Desktop/0.147.0-alpha.6.5 initialized and started an ephemeral read-only thread; the bounded diagnostic first captured downstream MCP requested protocolVersion 2025-06-18 and the pre-fix fail-closed response, then after the compatibility fix reached startup ready, listed 14 tools plus one resource, and called selection_get with structuredContent available=false. No model turn, user config, token or project data was used."},
     "codex_cli_real_e2e": {"status": "PASS", "command": "codex exec --ephemeral --ignore-user-config --sandbox read-only with an isolated MCP command override", "evidence": "A real authenticated Codex CLI thread/turn completed exactly capabilities_get and selection_get against forgecad. Both returned structured read-only results; no project, Runtime or user configuration write occurred. See docs/evidence/mcp003/codex-cli-e2e.json."},
     "codex_cli_version_mismatch": {"status": "PASS", "command": "CODEX_MCP_PROTOCOL_VERSION=2026-07-28 codex exec --ephemeral --ignore-user-config --sandbox read-only with the same isolated MCP command override", "evidence": "Authenticated Codex returned the expected unsupported-protocol response, made no ForgeCAD tool call and did not silently downgrade to the 2025 lifecycle; see the version_mismatch_smoke object in docs/evidence/mcp003/codex-cli-e2e.json."},
-    "codex_ui_host_probe": {"status": "BLOCKED", "command": "read-only Computer Use app-state/discovery probe", "evidence": "The host safety boundary denied state access to com.openai.codex; a subsequent app discovery reported the Mac locked and unable to unlock automatically. No UI action or configuration mutation occurred; Desktop/IDE rows remain NOT_RUN."},
+    "codex_ui_host_probe": {"status": "BLOCKED", "command": "read-only Computer Use app-state/discovery probe plus Codex in-app Browser tab inspection", "evidence": "Computer Use state access for com.openai.codex was denied by the host safety boundary. The in-app Browser connected but had no current or user tabs. No UI action, upload, configuration mutation, or host-side MCP call occurred; Desktop/IDE discovery/connection are BLOCKED and read-only E2E remains NOT_RUN."},
     "official_conformance": {"status": "NOT_RUN", "checked_at": "2026-08-08", "evidence": "The official conformance repository documents server mode as `server --url http://...`; it does not provide a local-stdio server runner for this P0 contract. No temporary HTTP proxy was introduced or counted as stdio evidence. Source: https://github.com/modelcontextprotocol/conformance."},
     "codex_three_host_e2e": {"status": "NOT_RUN", "evidence": "Requires user-facing Codex Desktop, CLI and IDE sessions."}
   },
@@ -30,7 +32,9 @@
     "apps/desktop/src-tauri/crates/forgecad-runtime/src/ipc.rs": "42f5e9373ec036a7d9992c9f56e46ea2dbacf38e4ca3d30ddf44b644dbaa2aaf",
     "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs": "a826ffd19f49b60ef4d756583ef24f05bcf502217f888a4e4724c6afb5c48819",
     "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs": "08a75bedef82e24c23429d158f6239201bead5a959c398fbfaa12690f97abeba",
-    "docs/CODEX_INTEGRATION.md": "94e3163dd89d0a2cc9f47bea9d989fb9b089c82fb99937932016123a40291689",
+    "docs/CODEX_INTEGRATION.md": "3e03d88c0926b5bdcbeee6542f64a33eeb159f59acacab12e60e6f157f11c730",
+    "docs/CODEX_HANDOFF.md": "1ae1d40e53056cfe196cf16f520944bf375f875c08695a9b805698380962411b",
+    "docs/DOCUMENTATION_STATUS.md": "4525882f8ec3fab80aaa4ad38e9df3cd013097c94f20049151075006f9d78b2c",
     "packages/forgecad-contracts/manifest.json": "584edc39df7599ac694b16be2a66fcb42344f1536295e1ec49a3064d67ba797b",
     "packages/forgecad-contracts/schemas/runtime-capabilities.schema.json": "14fb333f2b378006ee419edad83c6b229dd321c62cdcd97246a773ccffab12ee",
     "packages/forgecad-contracts/schemas/runtime-resource.schema.json": "01cc2ab97eb3b9db0fd651d9f6bac39ed7e47c656ddc2802d179f0ffa55ea76b",
@@ -43,7 +47,7 @@
     "config/codex/cli.toml": "d275de101df00c1ece61c89754a2cef2a71da9656fab1bb2befdbe8f4bbd8c69",
     "config/codex/ide.toml": "ad0f3fbe3c14275beb67f70431cb50e1827a4b31f5736eb3eec4b9632266bcb9",
     "docs/evidence/mcp003/protocol-snapshot.json": "c0823b0e9119ea997db4c2bd980cd91d968be859d8dbefad4099e21fe062dd27",
-    "docs/evidence/mcp003/host-matrix.json": "210f069b6ce6217ebbcc2530e6efdab3ffb8b4640555a3b18a5be14bfaf5a335",
+    "docs/evidence/mcp003/host-matrix.json": "ed584fcc280075ec0d55bd16340d31cbc57e25bf3570d32970096b244766aa07",
     "docs/evidence/mcp003/codex-cli-e2e.json": "b8b80e6ff0a7fa6e0281da78ba0a88601889a1480f180e98700718a659097027",
     "package.json": "7ef9b1990647e973c145a806a4385b362f2066c7c5d4fe0b5681948379bdca6a"
   },

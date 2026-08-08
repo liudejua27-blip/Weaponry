@@ -1,6 +1,6 @@
 # ForgeCAD 当前状态账本
 
-版本：2026-08-08 · 分支：`codex/forgecad-mcp-reset` · 任务：`FGC-MCP003 in_progress`
+版本：2026-08-08 · 分支：`main` · 任务：`FGC-MCP003 in_progress`
 
 ## 当前事实
 
@@ -31,8 +31,8 @@
 
 ## 明确未运行/阻断
 
-- Rust workspace、core/store/runtime IPC tests、worker checks、MCP003 protocol/host baseline、Viewer typecheck/build 和前置 release gates 已通过（使用独立临时 Cargo target，避免旧 ignored target 的 65k 构建文件）；
-- `docs/evidence/mcp003/host-matrix.json` 中本地 protocol adapter、原始 stdio probe、官方 SDK stdio probe、Codex CLI 配置发现、认证只读模型回合和现代协议不兼容 smoke 为 PASS；Desktop/IDE 真实行仍是 NOT_RUN，UI 探测因安全边界/锁屏而 BLOCKED（未执行任何 UI 操作）；
+- Rust workspace、core/store/runtime IPC tests、worker checks、MCP003 protocol/host baseline、Viewer typecheck/build 和独立临时 Cargo target 检查已有 PASS；本轮 `npm run release:mcp003` 的默认 Tauri 增量检查因旧 target 长时间无输出被安全中断（exit 130），所以不能把聚合 release Gate 写成 PASS；
+- `docs/evidence/mcp003/host-matrix.json` 中本地 protocol adapter、原始 stdio probe、官方 SDK stdio probe、Codex CLI 配置发现、认证只读模型回合和现代协议不兼容 smoke 为 PASS；本轮 Computer Use 访问 `com.openai.codex` 被安全边界拒绝，Codex in-app Browser 无可控标签页，因此 Desktop/IDE discovery/connection 记为 BLOCKED、read-only E2E 为 NOT_RUN，未执行任何 UI、配置、上传或 MCP 宿主操作；
 - 尚未证明 Codex Desktop/CLI/IDE 能把图片字节传给本地 MCP；
 - 尚未进行 packaged Runtime/Viewer、真实 Codex 附件、完整 kill-9/磁盘配额注入、视觉相似度和真人评分；
 - 不得将旧 U004/C/E/K/F 测试、旧 GLB 或旧截图当作新产品证据。
