@@ -23,6 +23,7 @@
     "codex_cli_real_e2e": {"status": "PASS", "command": "codex exec --ephemeral --ignore-user-config --sandbox read-only with an isolated MCP command override", "evidence": "A real authenticated Codex CLI thread/turn completed exactly capabilities_get and selection_get against forgecad. Both returned structured read-only results; no project, Runtime or user configuration write occurred. See docs/evidence/mcp003/codex-cli-e2e.json."},
     "codex_cli_version_mismatch": {"status": "PASS", "command": "CODEX_MCP_PROTOCOL_VERSION=2026-07-28 codex exec --ephemeral --ignore-user-config --sandbox read-only with the same isolated MCP command override", "evidence": "Authenticated Codex returned the expected unsupported-protocol response, made no ForgeCAD tool call and did not silently downgrade to the 2025 lifecycle; see the version_mismatch_smoke object in docs/evidence/mcp003/codex-cli-e2e.json."},
     "codex_desktop_user_e2e": {"status": "PASS", "command": "User-provided Codex Desktop screenshot and read-only transcript", "evidence": "Desktop discovered forgecad and completed capabilities_get, project_list, resources/list, resources/read forgecad://capabilities, selection_get and version_list with no write transaction. Runtime 0.1.0 and alpha-mcp003 were visible; raw initialize.protocolVersion was not recorded and the host version-mismatch run remains NOT_RUN."},
+    "codex_current_session_readonly": {"status": "PASS", "command": "Current Codex app MCP bridge read-only sequence", "evidence": "The current session repeated capabilities_get, project_list, resources/list, resources/read forgecad://capabilities, selection_get and version_list. All responses were structured and read-only; no write transaction occurred. The automatic initialize response and host version-mismatch result remain unavailable; see docs/evidence/mcp003/codex-current-session-readonly.json."},
     "codex_ui_host_probe": {"status": "BLOCKED", "command": "read-only Computer Use app-state/discovery probe plus Codex in-app Browser tab inspection", "evidence": "Computer Use state access for com.openai.codex was denied by the host safety boundary. The in-app Browser connected but had no current or user tabs. No automated UI action, upload, configuration mutation, or host-side MCP call occurred; user-provided Desktop evidence is recorded separately and IDE remains unrun."},
     "official_conformance": {"status": "NOT_RUN", "checked_at": "2026-08-08", "evidence": "The official conformance repository documents server mode as `server --url http://...`; it does not provide a local-stdio server runner for this P0 contract. No temporary HTTP proxy was introduced or counted as stdio evidence. Source: https://github.com/modelcontextprotocol/conformance."},
     "codex_three_host_e2e": {"status": "NOT_RUN", "evidence": "Requires user-facing Codex Desktop, CLI and IDE sessions."}
@@ -34,7 +35,7 @@
     "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs": "a826ffd19f49b60ef4d756583ef24f05bcf502217f888a4e4724c6afb5c48819",
     "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs": "08a75bedef82e24c23429d158f6239201bead5a959c398fbfaa12690f97abeba",
     "docs/CODEX_INTEGRATION.md": "8c36b54672f0761f909f64bf4ac076a9f3ee8b2516f2479279907309707f7cda",
-    "docs/CODEX_HANDOFF.md": "7bbb34e5afa1e928bc703efb9bac6a6a316fe88e176e99516478971aadf92b16",
+    "docs/CODEX_HANDOFF.md": "0b164d694c8275e7bb563996523983af8a82a59fd3980d5568f6cd18394794cf",
     "docs/DOCUMENTATION_STATUS.md": "6ad637b22525669fa257e71d088a7a90229e1b39eb1a49c7339ffedfed7ef612",
     "packages/forgecad-contracts/manifest.json": "584edc39df7599ac694b16be2a66fcb42344f1536295e1ec49a3064d67ba797b",
     "packages/forgecad-contracts/schemas/runtime-capabilities.schema.json": "14fb333f2b378006ee419edad83c6b229dd321c62cdcd97246a773ccffab12ee",
@@ -48,7 +49,8 @@
     "config/codex/cli.toml": "d275de101df00c1ece61c89754a2cef2a71da9656fab1bb2befdbe8f4bbd8c69",
     "config/codex/ide.toml": "ad0f3fbe3c14275beb67f70431cb50e1827a4b31f5736eb3eec4b9632266bcb9",
     "docs/evidence/mcp003/protocol-snapshot.json": "c0823b0e9119ea997db4c2bd980cd91d968be859d8dbefad4099e21fe062dd27",
-    "docs/evidence/mcp003/host-matrix.json": "24a47ebfb7e1fae8fa2922dfb05d1bcfc68cc6e6207bda31f151a6b58d733cc8",
+    "docs/evidence/mcp003/host-matrix.json": "4e7b89addd867d0f5ada0ed12f0497c42d436d0f2a8436507b9c7cbef33554ae",
+    "docs/evidence/mcp003/codex-current-session-readonly.json": "f83b2951e30f9a139296731234d06e16db4e8e360bc4a9e12dbcf6e2043e3225",
     "docs/evidence/mcp003/codex-cli-e2e.json": "b8b80e6ff0a7fa6e0281da78ba0a88601889a1480f180e98700718a659097027",
     "package.json": "7ef9b1990647e973c145a806a4385b362f2066c7c5d4fe0b5681948379bdca6a"
   },

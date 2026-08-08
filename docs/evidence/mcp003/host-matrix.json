@@ -21,7 +21,7 @@
     "observed_version": "0.1.0 (Runtime; MCP server version not separately shown)",
     "initialize_protocol_version": "NOT_RECORDED",
     "version_mismatch": "NOT_RUN",
-    "evidence": "User-provided Codex Desktop screenshot at 10:58 showed source forgecad and successful capabilities_get/project_list with no project or file mutation. The subsequent user-provided transcript completed resources/list, resources/read forgecad://capabilities, selection_get and version_list; all returned structured read-only results and reported no write transaction. The host wrapper exposed list_mcp_resources/read_mcp_resource/mcp__forgecad__selection_get/mcp__forgecad__version_list; no upload, 3D generation or write tool was used.",
+    "evidence": "User-provided Codex Desktop screenshot at 10:58 showed source forgecad and successful capabilities_get/project_list with no project or file mutation. The subsequent user-provided transcript completed resources/list, resources/read forgecad://capabilities, selection_get and version_list; all returned structured read-only results and reported no write transaction. A fresh structured read-only run in the current Codex app session repeated the same sequence; see docs/evidence/mcp003/codex-current-session-readonly.json. The host wrapper exposed list_mcp_resources/read_mcp_resource/mcp__forgecad__selection_get/mcp__forgecad__version_list; no upload, 3D generation or write tool was used.",
     "reason": "Desktop discovery, connection and required read-only tool/resource calls passed from user-supplied screenshot/transcript. Raw initialize.protocolVersion is not included in the transcript and the 2026-07-28 host mismatch run is still NOT_RUN; those remain required before MCP003 can close."
   },
   "codex_cli": {

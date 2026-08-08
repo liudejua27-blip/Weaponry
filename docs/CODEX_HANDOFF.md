@@ -41,6 +41,7 @@ MCP001 owned：`apps/desktop/src/**`、`apps/desktop/src-tauri/**` 新 workspace
 | Codex CLI modern protocol mismatch | PASS：设置 `CODEX_MCP_PROTOCOL_VERSION=2026-07-28` 后返回明确 unsupported-protocol 响应；无 MCP 工具调用、无静默降级、无副作用，见同一证据文件 |
 | Codex CLI repeatable probe | PASS：`scripts/probe_mcp003_codex_cli.py` 的显式 `--execute` 只读模式和版本不兼容模式均已运行；只读工具完成顺序不作为合同，输出为脱敏 JSON receipt；脚本默认不启动 Codex且不加入发布 Gate |
 | Codex Desktop user-provided transcript | PASS（只读调用）：截图和 transcript 证明 Desktop 完成 capabilities/project/resources/selection/version 读取且无写事务；initialize.protocolVersion 未记录，host version mismatch 未运行 |
+| Current Codex app MCP read-only receipt | PASS：本轮重新完成 capabilities_get、project_list、resources/list、resources/read、selection_get、version_list；无写事务；自动 initialize 响应与版本不兼容结果仍未暴露，见 `docs/evidence/mcp003/codex-current-session-readonly.json` |
 | Codex Desktop/IDE UI probe | BLOCKED：本轮 Computer Use 访问 `com.openai.codex` 被主机安全边界拒绝；Codex in-app Browser 连接成功但没有可控标签页。用户手动证据已单独记录，IDE 仍未运行，见 `host-matrix.json` 的 `computer_use_host_probe` |
 | Codex Desktop/IDE、官方 conformance、附件、packaged Viewer、视觉门 | 未运行；CLI 真实回合已在上方 PASS |
 

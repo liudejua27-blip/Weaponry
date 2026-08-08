@@ -1,0 +1,58 @@
+{
+  "task_id": "FGC-MCP003",
+  "status": "PASS",
+  "checked_at": "2026-08-08",
+  "host_label": "codex_app_current_mcp_session",
+  "transport": "Codex app MCP bridge",
+  "initialize_protocol_version": "NOT_RECORDED",
+  "calls": [
+    {
+      "tool": "capabilities_get",
+      "status": "PASS",
+      "result": {
+        "contract_set": "forgecad-runtime-contracts@1",
+        "mcp_protocol_versions": ["2025-11-25", "2025-06-18"],
+        "runtime_version": "0.1.0",
+        "status": "alpha-mcp003",
+        "supports_geometry_execution": false,
+        "supports_reference_import": false,
+        "supports_render_execution": false
+      }
+    },
+    {
+      "tool": "project_list",
+      "status": "PASS",
+      "result": []
+    },
+    {
+      "tool": "resources/list",
+      "status": "PASS",
+      "resource_uris": ["forgecad://capabilities"],
+      "read_only": true
+    },
+    {
+      "tool": "resources/read",
+      "status": "PASS",
+      "uri": "forgecad://capabilities",
+      "mime_type": "application/json",
+      "runtime_status": "alpha-mcp003"
+    },
+    {
+      "tool": "selection_get",
+      "status": "PASS",
+      "result": {
+        "available": false,
+        "limitation": "Viewer selection is not connected to the MCP read model until MCP010.",
+        "schema_version": "Selection@1"
+      }
+    },
+    {
+      "tool": "version_list",
+      "status": "PASS",
+      "result": []
+    }
+  ],
+  "write_transactions": false,
+  "version_mismatch": "NOT_RUN",
+  "notes": "This receipt records structured read-only calls from the current Codex app MCP session. The automatic initialize response is not exposed and this receipt does not replace separate Desktop, CLI or IDE host gates."
+}
