@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/runtime-tool.schema.json",
+  "title": "ForgeCAD Runtime Tool",
+  "type": "object",
+  "required": ["name", "description", "input_schema", "mutates", "requires_confirmation"],
+  "properties": {
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]{2,63}$"},
+    "description": {"type": "string"},
+    "input_schema": {"type": "object"},
+    "mutates": {"type": "boolean"},
+    "requires_confirmation": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

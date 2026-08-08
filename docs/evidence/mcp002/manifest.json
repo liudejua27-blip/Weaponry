@@ -1,0 +1,98 @@
+{
+  "task_id": "FGC-MCP002",
+  "status": "done",
+  "branch": "codex/forgecad-mcp-reset",
+  "base_commit": "b9693cd1c9b6341d14f4566263d8814eb76d063",
+  "worktree_policy": "staged, not committed or pushed; preserve reset archive and WushenForgeLibrary",
+  "owned_paths": [
+    "apps/desktop/src-tauri/crates/forgecad-contracts",
+    "apps/desktop/src-tauri/crates/forgecad-core",
+    "apps/desktop/src-tauri/crates/forgecad-store",
+    "apps/desktop/src-tauri/crates/forgecad-runtime",
+    "apps/desktop/src-tauri/crates/forgecad-mcp",
+    "migrations-runtime-v1",
+    "packages/forgecad-contracts",
+    "docs/evidence/mcp002"
+  ],
+  "implementation": [
+    "canonical JSON serialization and SHA-256 byte/hash helpers",
+    "Project/Candidate/Version/Snapshot/Job/Event/Audit/CAS Rust records",
+    "Runtime V1 transactional migration with schema marker and legacy database rejection",
+    "SQLite WAL/foreign keys/busy timeout repository and single writer lease with heartbeat/TTL recovery",
+    "content-addressed store with fsync, atomic rename, capacity/hash/corruption checks and backup/restore",
+    "authenticated Unix local IPC with 0600 socket, per-launch token hash and constant-time comparison",
+    "MCP backend selection for authenticated Runtime IPC with diagnostic ephemeral fallback"
+  ],
+  "commands": {
+    "contracts_check": {
+      "status": "PASS",
+      "command": "python3 scripts/check_forgecad_contracts.py",
+      "evidence": "13 JSON Schemas parsed; manifest and directory agree"
+    },
+    "mcp002_layout": {
+      "status": "PASS",
+      "command": "python3 scripts/check_mcp002_runtime.py",
+      "evidence": "Runtime V1, CAS, lease and IPC ownership boundary present"
+    },
+    "agent_layout": {
+      "status": "PASS",
+      "command": "npm run agent:check",
+      "evidence": "new Runtime/Viewer/worker layout has no legacy entry points"
+    },
+    "rust_workspace_tests": {
+      "status": "PASS",
+      "command": "npm run runtime:mcp002",
+      "evidence": "3 forgecad-core hash tests, 1 authenticated IPC test, 10 forgecad-store/CAS tests"
+    },
+    "worker_check": {
+      "status": "PASS",
+      "command": "npm run worker:check",
+      "evidence": "geometry-worker and render-worker cargo check passed"
+    },
+    "mcp_stdio_smoke": {
+      "status": "PASS",
+      "command": "manual forgecad-mcp stdin JSON-RPC smoke: initialize, tools/list, tools/call capabilities_get, tools/call project_list",
+      "evidence": "valid MCP initialize, tool listing and read-only runtime responses"
+    },
+    "desktop_typecheck": {
+      "status": "PASS",
+      "command": "npm run desktop:typecheck",
+      "evidence": "TypeScript project references passed"
+    },
+    "desktop_build": {
+      "status": "PASS",
+      "command": "npm run desktop:build",
+      "evidence": "Vite production build passed"
+    },
+    "tauri_workspace_check": {
+      "status": "PASS",
+      "command": "npm run desktop:tauri-check",
+      "evidence": "Tauri Rust workspace cargo check passed offline"
+    },
+    "release_gates": {
+      "status": "PASS",
+      "command": "npm run release:mcp002",
+      "evidence": "docs, integrity, safety, secrets, license, contracts, runtime, workers, desktop and Tauri gates passed"
+    },
+    "git_diff_check": {
+      "status": "PASS",
+      "command": "git diff --check && git diff --cached --check",
+      "evidence": "no whitespace errors"
+    }
+  },
+  "artifacts": {
+    "migrations-runtime-v1/0001_runtime.sql": "d69a0e19c78f1e7db10e2a15217410512bc56df64f5753db332bd11dc9344b1d",
+    "packages/forgecad-contracts/manifest.json": "9a81cfb0f9fd864f4dd77d5d6b88dc89e6053ba4714a8f576cd65f4f8f5dbd78",
+    "packages/forgecad-contracts/schemas/runtime-capabilities.schema.json": "3f039d4fdbe70ae45336ace1e074c7234d2d40be08590158e7fd964ca9a0c67b",
+    "apps/desktop/src-tauri/Cargo.lock": "c425ca4220f31a8cf6751bf6a66a809034b2546babcdcb010ab93ca64ddbc073",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/ipc.rs": "7fd4de99f36a0e7ec721781b5fb200245d7a52c9a18f0e43c2ace0e9cb20b315",
+    "apps/desktop/src-tauri/crates/forgecad-store/src/cas.rs": "d901c355324e6a7b5628b1e6c0f800aa11b339f6935042aef67fe54bb3b2e288",
+    "scripts/check_mcp002_runtime.py": "90fa9476c4f150335691d32a722542e77916bbdfea0ca90f87830869cf8396ec"
+  },
+  "limitations": [
+    "MCP002 does not enable geometry, appearance, render, reference import, Skill execution or permanent version confirmation.",
+    "Codex Desktop/CLI/IDE protocol and attachment-byte E2E is deferred to MCP003/MCP005.",
+    "The current IPC server is a local one-connection testable primitive; packaged Runtime lifecycle and multi-client conformance are deferred to MCP003/MCP013.",
+    "Disk-full behavior is covered by deterministic CAS capacity injection; physical filesystem exhaustion and kill-9 matrix remain MCP011/013."
+  ]
+}

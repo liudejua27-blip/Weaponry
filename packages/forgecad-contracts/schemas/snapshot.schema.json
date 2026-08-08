@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/snapshot.schema.json",
+  "title": "ForgeCAD Active Design Snapshot",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "project_id", "revision", "status", "manifest_hash", "canonical_sha256", "created_at"],
+  "properties": {
+    "schema_version": {"const": "ActiveDesignSnapshot@1"},
+    "snapshot_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "parent_snapshot_id": {"type": ["string", "null"]},
+    "candidate_id": {"type": ["string", "null"]},
+    "revision": {"type": "integer", "minimum": 0},
+    "status": {"enum": ["draft", "preview", "confirmed", "reverted"]},
+    "manifest_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

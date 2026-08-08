@@ -1,1 +1,0 @@
-"""ForgeCAD domain models."""

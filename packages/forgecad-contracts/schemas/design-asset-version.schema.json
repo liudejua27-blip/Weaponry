@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-asset-version.schema.json",
+  "title": "ForgeCAD Immutable Design Asset Version",
+  "type": "object",
+  "required": ["schema_version", "version_id", "project_id", "candidate_id", "manifest_hash", "canonical_sha256", "created_at"],
+  "properties": {
+    "schema_version": {"const": "DesignAssetVersion@1"},
+    "version_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "parent_version_id": {"type": ["string", "null"]},
+    "candidate_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "manifest_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

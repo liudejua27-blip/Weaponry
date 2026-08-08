@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/runtime-resource.schema.json",
+  "title": "ForgeCAD Runtime Resource",
+  "type": "object",
+  "required": ["schema_version", "uri", "mime_type", "text", "size_bytes"],
+  "properties": {
+    "schema_version": {"const": "RuntimeResourceContents@1"},
+    "uri": {"type": "string", "pattern": "^forgecad://"},
+    "mime_type": {"type": "string", "minLength": 1},
+    "text": {"type": "string"},
+    "size_bytes": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": false
+}

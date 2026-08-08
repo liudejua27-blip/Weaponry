@@ -1,0 +1,65 @@
+{
+  "task_id": "FGC-MCP003",
+  "status": "in_progress",
+  "checked_at": "2026-08-08",
+  "protocol_adapter": {
+    "discovery": "PASS",
+    "initialize": "PASS",
+    "stdio_probe": "PASS",
+    "official_sdk_stdio": "PASS",
+    "read_only_tools": "PASS",
+    "resources_list_read": "PASS",
+    "version_mismatch_fail_closed": "PASS",
+    "codex_legacy_compatibility": "PASS",
+    "evidence": "forgecad-mcp Rust unit tests, protocol snapshot, probe_mcp003_stdio.py and an official @modelcontextprotocol/sdk StdioClientTransport probe; the raw probe now covers canonical 2025-11-25 and Codex 2025-06-18 compatibility; none of these rows alone claim a Codex host connection"
+  },
+  "codex_desktop": {
+    "discovery": "NOT_RUN",
+    "connection": "NOT_RUN",
+    "read_only_e2e": "NOT_RUN",
+    "reason": "Desktop host is controlled by the Codex app and cannot be invoked by this repository-only Gate."
+  },
+  "codex_cli": {
+    "discovery": "PASS",
+    "connection": "PASS",
+    "read_only_e2e": "PASS",
+    "version_mismatch": "PASS",
+    "checked_at": "2026-08-08",
+    "evidence": "codex mcp get forgecad with an ephemeral config override parsed the forgecad stdio command, args, env var names and writes approval policy without modifying user config. A real authenticated codex exec invocation then started an isolated read-only thread and completed exactly capabilities_get and selection_get against forgecad; both returned structured read-only results and no project, Runtime or user configuration write occurred. A second authenticated run with CODEX_MCP_PROTOCOL_VERSION=2026-07-28 returned the expected unsupported-protocol response with no MCP call or downgrade. See docs/evidence/mcp003/codex-cli-e2e.json.",
+    "reason": "Authenticated CLI read-only E2E passed; a separate no-auth probe was a prior diagnostic 401 and is not the acceptance result."
+  },
+  "codex_ide": {
+    "discovery": "NOT_RUN",
+    "connection": "NOT_RUN",
+    "read_only_e2e": "NOT_RUN",
+    "reason": "IDE extension restart and MCP inspection require the user-facing Codex IDE host."
+  },
+  "computer_use_host_probe": {
+    "status": "BLOCKED",
+    "checked_at": "2026-08-08",
+    "desktop_state": "SAFETY_DENIED",
+    "ide_discovery": "MAC_LOCKED",
+    "actions_performed": false,
+    "evidence": "A read-only Computer Use state request for com.openai.codex was denied by the host safety boundary. A subsequent app discovery request reported that the Mac was locked and automatic unlock was unavailable. No UI click, typing, upload, configuration change or host-side MCP action was performed.",
+    "reason": "Final Desktop/IDE acceptance must be performed by the user in an unlocked, user-owned host session; repository automation must not bypass this boundary."
+  },
+  "security_boundary": {
+    "client_name_is_authentication": false,
+    "runtime_contract_mismatch": "fail_closed",
+    "secrets_in_config": false,
+    "absolute_paths_in_config": false
+  },
+  "codex_app_server_diagnostic": {
+    "status": "PASS",
+    "checked_at": "2026-08-08",
+    "protocol_version_observed": "2025-06-18",
+    "initialize": "PASS",
+    "thread_start": "PASS",
+    "mcp_startup_before_compat_fix": "BLOCKED",
+    "mcp_startup_after_compat_fix": "PASS",
+    "tools_discovered": 14,
+    "resources_discovered": 1,
+    "read_only_tool_call": "PASS",
+    "evidence": "Temporary CODEX_HOME, no model turn, no user config mutation: Codex Desktop/0.147.0-alpha.6.5 app-server started an ephemeral read-only thread, first reproduced the 2025-06-18 mismatch, then after the explicit compatibility implementation emitted startup ready, mcpServerStatus/list with 14 tools and one resource, and mcpServer/tool/call selection_get returned structuredContent with available=false. This is a bounded app-server host diagnostic, not final Desktop UI/CLI/IDE acceptance."
+  }
+}

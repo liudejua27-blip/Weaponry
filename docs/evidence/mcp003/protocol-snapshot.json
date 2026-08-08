@@ -1,0 +1,68 @@
+{
+  "task_id": "FGC-MCP003",
+  "status": "in_progress",
+  "protocol_version": "2025-11-25",
+  "compatible_protocol_versions": ["2025-06-18", "2025-11-25"],
+  "server_name": "forgecad",
+  "server_instructions_max_bytes": 512,
+  "source_urls": [
+    "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+    "https://modelcontextprotocol.io/specification/2025-11-25/server/resources",
+    "https://modelcontextprotocol.io/specification/2025-11-25/server/tools",
+    "https://developers.openai.com/codex/mcp/",
+    "https://github.com/openai/codex/blob/main/codex-rs/codex-mcp/src/connection_manager.rs"
+  ],
+  "initialize": {
+    "required_params": ["protocolVersion", "capabilities", "clientInfo"],
+    "response_capabilities": ["resources", "tools"],
+    "initialized_notification": "notifications/initialized"
+  },
+  "methods": [
+    "initialize",
+    "notifications/initialized",
+    "ping",
+    "tools/list",
+    "tools/call",
+    "resources/list",
+    "resources/read",
+    "resources/templates/list"
+  ],
+  "tools": [
+    "artifact_readback_get",
+    "candidate_get",
+    "capabilities_get",
+    "job_events_read",
+    "job_get",
+    "project_get",
+    "project_list",
+    "quality_get",
+    "selection_get",
+    "skill_get",
+    "skill_list",
+    "snapshot_get",
+    "version_diff",
+    "version_list"
+  ],
+  "required_tool_annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  },
+  "resource_templates": [
+    "forgecad://projects/{project_id}/snapshot",
+    "forgecad://projects/{project_id}/selection",
+    "forgecad://candidates/{candidate_id}",
+    "forgecad://jobs/{job_id}",
+    "forgecad://versions/{version_id}",
+    "forgecad://renders/{render_set_id}/{pass}",
+    "forgecad://skills/{skill_id}/{version}",
+    "forgecad://artifacts/{artifact_id}"
+  ],
+  "resource_read_policy": {
+    "scheme_allowlist": ["forgecad"],
+    "absolute_paths": false,
+    "inline_binary": false,
+    "max_response_bytes": 1048576
+  }
+}

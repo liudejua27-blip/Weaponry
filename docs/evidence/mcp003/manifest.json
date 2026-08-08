@@ -1,0 +1,56 @@
+{
+  "task_id": "FGC-MCP003",
+  "status": "in_progress",
+  "branch": "codex/forgecad-mcp-reset",
+  "worktree_policy": "staged, not committed or pushed; preserve reset archive and WushenForgeLibrary",
+  "implementation": [
+    "MCP 2025-11-25 canonical + Codex 2025-06-18 compatibility stdio initialize negotiation with fail-closed protocol and Runtime contract checks",
+    "read-only tools/list and tools/call with MCP annotations and typed unavailable results",
+    "resources/list, resources/read and resources/templates/list with ForgeCAD URI allowlist",
+    "Runtime resource projections for capabilities, project snapshots, selection limitation, candidates, jobs and versions",
+    "Codex Desktop/CLI/IDE configuration baselines without secrets or absolute paths"
+  ],
+  "commands": {
+    "mcp_rust_tests": {"status": "PASS", "command": "CARGO_TARGET_DIR=/tmp/forgecad-mcp003-cargo-target script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --offline", "evidence": "10 forgecad-mcp tests plus the MCP002 workspace tests passed, including Codex 2025-06-18 compatibility, modern 2026-07-28 discovery fail-closed, malformed handshake, duplicate initialize, unknown tool and invalid URI paths."},
+    "protocol_snapshot": {"status": "PASS", "command": "python3 scripts/check_mcp003_protocol.py"},
+    "host_matrix": {"status": "PARTIAL", "command": "python3 scripts/check_mcp003_hosts.py", "evidence": "protocol adapter and Codex CLI discovery/connection/read-only E2E pass; Desktop and IDE rows remain NOT_RUN, so the three-host exit gate is still open"},
+    "stdio_probe": {"status": "PASS", "command": "FORGECAD_MCP_COMMAND=/path/to/forgecad-mcp npm run mcp003:stdio", "evidence": "Raw stdio probe completed canonical 2025-11-25 with four responses and a second 2025-06-18 compatibility process with 14 read-only tools; capabilities resource and CONTRACT_VERSION_UNSUPPORTED on a mismatched initialize; it does not claim a Codex host connection."},
+    "official_sdk_stdio_probe": {"status": "PASS", "command": "@modelcontextprotocol/sdk Client + StdioClientTransport against the built forgecad-mcp binary", "evidence": "An official MCP SDK client connected over stdio, listed 14 tools, listed one resource and read forgecad://capabilities as application/json; this is protocol-level evidence, not Codex host E2E or official conformance."},
+    "codex_cli_config_discovery": {"status": "PASS", "command": "codex mcp get forgecad with an ephemeral config override", "evidence": "CLI parsed the stdio command, args, env var names and writes approval policy without changing user config."},
+    "codex_app_server_protocol_diagnostic": {"status": "PASS", "command": "temporary CODEX_HOME codex app-server --stdio + thread/start + mcpServerStatus/list + mcpServer/tool/call", "evidence": "Codex Desktop/0.147.0-alpha.6.5 initialized and started an ephemeral read-only thread; the bounded diagnostic first captured downstream MCP requested protocolVersion 2025-06-18 and the pre-fix fail-closed response, then after the compatibility fix reached startup ready, listed 14 tools plus one resource, and called selection_get with structuredContent available=false. No model turn, user config, token or project data was used."},
+    "codex_cli_real_e2e": {"status": "PASS", "command": "codex exec --ephemeral --ignore-user-config --sandbox read-only with an isolated MCP command override", "evidence": "A real authenticated Codex CLI thread/turn completed exactly capabilities_get and selection_get against forgecad. Both returned structured read-only results; no project, Runtime or user configuration write occurred. See docs/evidence/mcp003/codex-cli-e2e.json."},
+    "codex_cli_version_mismatch": {"status": "PASS", "command": "CODEX_MCP_PROTOCOL_VERSION=2026-07-28 codex exec --ephemeral --ignore-user-config --sandbox read-only with the same isolated MCP command override", "evidence": "Authenticated Codex returned the expected unsupported-protocol response, made no ForgeCAD tool call and did not silently downgrade to the 2025 lifecycle; see the version_mismatch_smoke object in docs/evidence/mcp003/codex-cli-e2e.json."},
+    "codex_ui_host_probe": {"status": "BLOCKED", "command": "read-only Computer Use app-state/discovery probe", "evidence": "The host safety boundary denied state access to com.openai.codex; a subsequent app discovery reported the Mac locked and unable to unlock automatically. No UI action or configuration mutation occurred; Desktop/IDE rows remain NOT_RUN."},
+    "official_conformance": {"status": "NOT_RUN", "checked_at": "2026-08-08", "evidence": "The official conformance repository documents server mode as `server --url http://...`; it does not provide a local-stdio server runner for this P0 contract. No temporary HTTP proxy was introduced or counted as stdio evidence. Source: https://github.com/modelcontextprotocol/conformance."},
+    "codex_three_host_e2e": {"status": "NOT_RUN", "evidence": "Requires user-facing Codex Desktop, CLI and IDE sessions."}
+  },
+  "artifacts": {
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs": "5d240bdb4f9d86c1491c396411a4eb50be1bb99c72070b60c3fc1ffdfff1fcee",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs": "29a2c3d18cab2d9af8b5b1e9717f63faf884f3ca2faef888ac003197c56db72f",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/ipc.rs": "42f5e9373ec036a7d9992c9f56e46ea2dbacf38e4ca3d30ddf44b644dbaa2aaf",
+    "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs": "a826ffd19f49b60ef4d756583ef24f05bcf502217f888a4e4724c6afb5c48819",
+    "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs": "08a75bedef82e24c23429d158f6239201bead5a959c398fbfaa12690f97abeba",
+    "docs/CODEX_INTEGRATION.md": "94e3163dd89d0a2cc9f47bea9d989fb9b089c82fb99937932016123a40291689",
+    "packages/forgecad-contracts/manifest.json": "584edc39df7599ac694b16be2a66fcb42344f1536295e1ec49a3064d67ba797b",
+    "packages/forgecad-contracts/schemas/runtime-capabilities.schema.json": "14fb333f2b378006ee419edad83c6b229dd321c62cdcd97246a773ccffab12ee",
+    "packages/forgecad-contracts/schemas/runtime-resource.schema.json": "01cc2ab97eb3b9db0fd651d9f6bac39ed7e47c656ddc2802d179f0ffa55ea76b",
+    "packages/forgecad-contracts/schemas/runtime-selection.schema.json": "8a9481aa000f5c4c36530a251a70950a51540d843e68d878304af8ccf2b5f572",
+    "scripts/check_mcp003_protocol.py": "4e87395a12df62d1e2ef530a3936a26f5d13cbf3fcf62d17221c12be7f428e23",
+    "scripts/check_mcp003_hosts.py": "3fb8ae88daed3219c84ff100e391716ef404783a42fd97483a158a46d514eeee",
+    "scripts/probe_mcp003_stdio.py": "b94b57688ab55464359c092355e70504627594fdfa45f50891015bdc75585662",
+    "scripts/probe_mcp003_codex_cli.py": "20bf6e606d9098c78414a67b364735385ff41f1584d0b990e77c3ec1c185d0c2",
+    "config/codex/desktop.toml": "d7c4d902366c1ea84c60a434334424b9b6fd3042cf3c2ca643dca568ce23e94a",
+    "config/codex/cli.toml": "d275de101df00c1ece61c89754a2cef2a71da9656fab1bb2befdbe8f4bbd8c69",
+    "config/codex/ide.toml": "ad0f3fbe3c14275beb67f70431cb50e1827a4b31f5736eb3eec4b9632266bcb9",
+    "docs/evidence/mcp003/protocol-snapshot.json": "c0823b0e9119ea997db4c2bd980cd91d968be859d8dbefad4099e21fe062dd27",
+    "docs/evidence/mcp003/host-matrix.json": "210f069b6ce6217ebbcc2530e6efdab3ffb8b4640555a3b18a5be14bfaf5a335",
+    "docs/evidence/mcp003/codex-cli-e2e.json": "b8b80e6ff0a7fa6e0281da78ba0a88601889a1480f180e98700718a659097027",
+    "package.json": "7ef9b1990647e973c145a806a4385b362f2066c7c5d4fe0b5681948379bdca6a"
+  },
+  "limitations": [
+    "MCP003 remains read-only; candidate mutation, reference bytes, Skill Registry, quality compiler and permanent version confirmation are MCP004+.",
+    "The protocol adapter and configuration baselines are verified locally; an authenticated Codex CLI read-only model turn passed, while Desktop/IDE host rows and official conformance remain unrun.",
+    "MCP resource contents are bounded JSON projections; binary CAS/resource links and render passes remain later capability gates.",
+    "MCP 2026-07-28 modern stateless discovery is explicitly unsupported in MCP003; it requires a separate adapter and must not be silently downgraded."
+  ]
+}

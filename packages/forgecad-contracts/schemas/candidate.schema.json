@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/candidate.schema.json",
+  "title": "ForgeCAD Candidate",
+  "type": "object",
+  "required": ["schema_version", "candidate_id", "project_id", "state", "request_sha256", "canonical_sha256", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": {"const": "Candidate@1"},
+    "candidate_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "base_version_id": {"type": ["string", "null"]},
+    "state": {"enum": ["prepared", "compiling", "evaluating", "reviewable", "confirmed", "rejected", "failed", "expired"]},
+    "request_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "manifest_hash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "error_code": {"type": ["string", "null"]},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/runtime-project.schema.json",
+  "title": "ForgeCAD Project Summary",
+  "type": "object",
+  "required": ["project_id", "name", "updated_at"],
+  "properties": {
+    "project_id": {"type": "string"},
+    "name": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "head_snapshot_id": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/runtime-snapshot.schema.json",
+  "title": "ForgeCAD Immutable Snapshot Summary",
+  "type": "object",
+  "required": ["snapshot_id", "project_id", "status", "manifest_hash", "created_at"],
+  "properties": {
+    "snapshot_id": {"type": "string"},
+    "project_id": {"type": "string"},
+    "parent_snapshot_id": {"type": ["string", "null"]},
+    "status": {"enum": ["draft", "preview", "confirmed", "reverted"]},
+    "manifest_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

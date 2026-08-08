@@ -1,4 +1,4 @@
-name: Repository Integrity
+name: ForgeCAD Runtime Integrity
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  integrity:
+  contracts-and-boundaries:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,9 +20,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
-      - run: python -m venv .venv
-      - run: .venv/bin/python -m pip install --upgrade pip
-      - run: .venv/bin/pip install -e 'apps/agent[dev]'
-      - run: npm run repository:integrity
-      - run: npm run contracts:types:check
+      - run: python3 scripts/check_forgecad_contracts.py
+      - run: python3 scripts/check_runtime_layout.py
+      - run: python3 scripts/check_repository_integrity.py
+      - run: python3 scripts/check_release_docs_walkthrough.py
+      - run: python3 scripts/check_release_safety_scope.py
+      - run: python3 scripts/check_release_secrets_files.py
+      - run: python3 scripts/check_release_license_sbom.py
+      - run: npm run desktop:typecheck
+      - run: npm run desktop:build
+      - run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --locked
+      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-core -p forgecad-store --locked
+
+  workers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check --manifest-path apps/geometry-worker/Cargo.toml --locked
+      - run: cargo check --manifest-path apps/render-worker/Cargo.toml --locked

@@ -1,0 +1,25 @@
+{
+  "contract_set": "forgecad-runtime-contracts@1",
+  "status": "alpha-mcp003",
+  "model_calls": false,
+  "external_agent": "codex-only",
+  "mcp_transport": "stdio-json-rpc",
+  "sbom_status": "tracked-before-adoption",
+  "schemas": [
+    "audit-event.schema.json",
+    "candidate.schema.json",
+    "cas-object.schema.json",
+    "design-asset-version.schema.json",
+    "job-event.schema.json",
+    "project.schema.json",
+    "runtime-capabilities.schema.json",
+    "runtime-tool.schema.json",
+    "runtime-project.schema.json",
+    "runtime-snapshot.schema.json",
+    "runtime-job.schema.json",
+    "runtime-error.schema.json",
+    "runtime-resource.schema.json",
+    "runtime-selection.schema.json",
+    "snapshot.schema.json"
+  ]
+}

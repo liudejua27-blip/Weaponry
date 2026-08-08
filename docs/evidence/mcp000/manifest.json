@@ -1,0 +1,73 @@
+{
+  "schema_version": "ForgeDocumentationEvidence@1",
+  "task_id": "FGC-MCP000",
+  "status": "PASS",
+  "recorded_at": "2026-08-07T20:28:29+08:00",
+  "branch": "main",
+  "base_commit": "b9693cdc1c9b6341d14f4566263d8814eb76d063",
+  "workspace_state": "dirty_user_workspace_preserved",
+  "scope": {
+    "product_code_modified": false,
+    "legacy_code_deleted": false,
+    "documents_rewritten": true,
+    "docs_gate_updated": true,
+    "commit_created": false,
+    "push_performed": false
+  },
+  "commands": [
+    {
+      "command": "npm run release:docs-walkthrough",
+      "exit_code": 0,
+      "status": "PASS_INITIAL"
+    },
+    {
+      "command": "npm run repository:integrity",
+      "exit_code": 0,
+      "status": "PASS_LEGACY_TREE_BASELINE_ONLY"
+    },
+    {
+      "command": "npm run release:safety-scope",
+      "exit_code": 0,
+      "status": "PASS_LEGACY_MOCK_BASELINE_ONLY"
+    },
+    {
+      "command": "npm run release:secrets-files",
+      "exit_code": 0,
+      "status": "PASS",
+      "summary": "1240 files scanned; 0 secret literal matches"
+    },
+    {
+      "command": "npm run release:license-sbom",
+      "exit_code": 1,
+      "status": "FAIL_INITIAL",
+      "summary": "new ledger initially omitted eight legacy dependency families"
+    },
+    {
+      "command": "npm run release:license-sbom",
+      "exit_code": 0,
+      "status": "PASS_AFTER_LEDGER_FIX"
+    },
+    {
+      "command": "npm run release:docs-walkthrough",
+      "exit_code": 1,
+      "status": "FAIL_AFTER_TASK_STATUS_TRANSITION",
+      "summary": "checker still expected the pre-completion status heading"
+    },
+    {
+      "command": "npm run release:docs-walkthrough",
+      "exit_code": 0,
+      "status": "PASS_FINAL_AFTER_CHECKER_FIX"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "status": "PASS"
+    }
+  ],
+  "limitations": [
+    "No forgecad-runtime, forgecad-mcp, Runtime Viewer, Runtime V1 database or Skill Bundle V2 implementation exists yet.",
+    "Codex attachment bytes have not been proven to reach an MCP server.",
+    "Legacy Provider, workbench, App Server and Python Agent remain until FGC-MCP001.",
+    "FGC-MCP001 is blocked on explicit user authorization for a reset branch and recoverable snapshot."
+  ]
+}

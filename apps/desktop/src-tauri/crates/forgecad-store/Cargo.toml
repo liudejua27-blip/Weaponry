@@ -1,0 +1,12 @@
+[package]
+name = "forgecad-store"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgecad-core = { path = "../forgecad-core" }
+forgecad-contracts = { path = "../forgecad-contracts" }
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }

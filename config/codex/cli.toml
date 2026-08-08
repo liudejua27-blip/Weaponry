@@ -1,0 +1,9 @@
+# MCP003 baseline for Codex CLI. No secret values or machine paths are checked in.
+[mcp_servers.forgecad]
+command = "forgecad-mcp"
+args = ["serve", "--stdio"]
+env_vars = ["FORGECAD_RUNTIME_SOCKET", "FORGECAD_RUNTIME_TOKEN"]
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+required = true
+default_tools_approval_mode = "writes"

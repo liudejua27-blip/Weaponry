@@ -1,19 +1,19 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "CAD 工作台",
+  "productName": "ForgeCAD Runtime",
   "version": "0.1.0",
-  "identifier": "local.wushen.forge",
+  "identifier": "local.forgecad.runtime",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "npm --workspace apps/desktop run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm --workspace apps/desktop run build",
     "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "CAD 工作台",
+        "title": "ForgeCAD Runtime Viewer",
         "width": 1440,
         "height": 920,
         "minWidth": 1180,
@@ -32,9 +32,6 @@
       "icons/128x128.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "externalBin": [
-      "binaries/wushen-agent"
     ]
   }
 }

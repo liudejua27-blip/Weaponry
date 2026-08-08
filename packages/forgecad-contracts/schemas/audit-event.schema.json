@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/audit-event.schema.json",
+  "title": "ForgeCAD Audit Event",
+  "type": "object",
+  "required": ["schema_version", "audit_id", "kind", "payload", "created_at"],
+  "properties": {
+    "schema_version": {"const": "AuditEvent@1"},
+    "audit_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "project_id": {"type": ["string", "null"]},
+    "kind": {"type": "string", "minLength": 1, "maxLength": 100},
+    "object_id": {"type": ["string", "null"]},
+    "request_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "payload": {"type": "object"},
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

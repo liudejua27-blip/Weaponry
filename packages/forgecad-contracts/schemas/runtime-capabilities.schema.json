@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/runtime-capabilities.schema.json",
+  "title": "ForgeCAD Runtime Capabilities",
+  "type": "object",
+  "required": ["contract_set", "runtime_version", "status", "mcp_transport", "ipc_transport", "write_model", "contract_versions", "mcp_protocol_versions", "resource_uris", "limitations"],
+  "properties": {
+    "contract_set": {"type": "string"},
+    "runtime_version": {"type": "string"},
+    "status": {"type": "string"},
+    "mcp_transport": {"const": "stdio-json-rpc"},
+    "ipc_transport": {"const": "authenticated-local"},
+    "write_model": {"const": "single-writer-preview-confirm"},
+    "supports_reference_import": {"type": "boolean"},
+    "supports_snapshot_read": {"type": "boolean"},
+    "supports_job_read": {"type": "boolean"},
+    "supports_cas": {"type": "boolean"},
+    "supports_authenticated_ipc": {"type": "boolean"},
+    "supports_resource_read": {"type": "boolean"},
+    "supports_geometry_execution": {"type": "boolean"},
+    "supports_render_execution": {"type": "boolean"},
+    "contract_versions": {"type": "array", "items": {"type": "string"}},
+    "mcp_protocol_versions": {"type": "array", "items": {"type": "string"}},
+    "resource_uris": {"type": "array", "items": {"type": "string"}},
+    "tool_manifest_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,38 @@
+{
+  "task_id": "FGC-MCP001",
+  "status": "done",
+  "branch": "codex/forgecad-mcp-reset",
+  "base_commit": "b9693cd1c9b6341d14f4566263d8814eb76d063",
+  "reset_scope": "old product source/docs deleted; new runtime skeleton added",
+  "recovery": {
+    "archive_label": "forgecad-mcp001-20260807",
+    "tracked_diff_sha256": "7b1829410aba86787f1277501b5a7f7f7d3bdf543a51ead2495ef3556ed659ed",
+    "untracked_archive_sha256": "20e17cf7b1af305fb5a3d017e434263b6d3f7150305f4014787d086393bc4310",
+    "library_archive_sha256": "0eae7618f162e3f706a1673cf98ddc1624a64de439196b8fa27c8f94ebb352f2",
+    "git_bundle_sha256": "53f1966c997ea42ab701c08bdb2805f449f902b0efd4a484c072bd14f70d3a5a",
+    "restore_check": "PASS: reverse diff, archive extraction, library.db read and CAS directory presence"
+  },
+  "commands": {
+    "contracts_check": "PASS",
+    "runtime_layout_check": "PASS",
+    "desktop_typecheck": "PASS",
+    "desktop_build": "PASS",
+    "rust_workspace_check": "PASS (offline, isolated CARGO_TARGET_DIR)",
+    "rust_core_store_tests": "PASS (3 tests)",
+    "rust_format_check": "PASS",
+    "worker_check": "PASS",
+    "mcp_handshake_smoke": "PASS (initialize/tools/list/capabilities_get)",
+    "geometry_worker_smoke": "PASS (typed CAPABILITY_UNAVAILABLE)",
+    "release_gates": "PASS (release:mcp001)",
+    "git_diff_check": "PASS"
+  },
+  "user_data": {
+    "WushenForgeLibrary": "not modified",
+    "old_database": "not opened by new runtime"
+  },
+  "limitations": [
+    "No geometry, appearance, render, reference import or permanent-write tool is enabled in MCP001.",
+    "Codex Desktop/CLI/IDE attachment byte transfer is not proven yet.",
+    "No packaged or human visual quality evidence exists."
+  ]
+}

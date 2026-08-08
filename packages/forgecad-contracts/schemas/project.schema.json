@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/project.schema.json",
+  "title": "ForgeCAD Project",
+  "type": "object",
+  "required": ["schema_version", "project_id", "name", "policy", "created_at", "updated_at", "active_snapshot_revision", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "Project@1"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "name": {"type": "string", "minLength": 1, "maxLength": 200},
+    "policy": {"type": "object"},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "active_snapshot_revision": {"type": "integer", "minimum": 0},
+    "head_snapshot_id": {"type": ["string", "null"]},
+    "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

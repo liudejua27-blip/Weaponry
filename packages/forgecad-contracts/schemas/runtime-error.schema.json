@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/runtime-error.schema.json",
+  "title": "ForgeCAD Runtime Error",
+  "type": "object",
+  "required": ["code", "message", "retryable", "next_action", "evidence_ids"],
+  "properties": {
+    "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,63}$"},
+    "message": {"type": "string", "minLength": 1, "maxLength": 500},
+    "retryable": {"type": "boolean"},
+    "next_action": {"type": "string", "minLength": 1, "maxLength": 500},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"}}
+  },
+  "additionalProperties": false
+}

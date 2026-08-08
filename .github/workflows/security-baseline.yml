@@ -1,4 +1,4 @@
-name: Security Baseline
+name: ForgeCAD Runtime Security
 
 on:
   pull_request:
@@ -10,27 +10,14 @@ permissions:
   contents: read
 
 jobs:
-  secrets-and-boundaries:
+  boundaries:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m venv .venv
-      - run: .venv/bin/python -m pip install --upgrade pip
-      - run: .venv/bin/pip install -e 'apps/agent[dev]'
-      - run: npm run release:secrets-files
-
-  release-license-audit:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: python -m venv .venv
-      - run: .venv/bin/python -m pip install --upgrade pip
-      - run: .venv/bin/pip install -e 'apps/agent[dev]'
-      - run: npm run release:license-sbom
+      - run: python3 scripts/check_release_secrets_files.py
+      - run: python3 scripts/check_release_safety_scope.py
+      - run: python3 scripts/check_repository_integrity.py
+      - run: python3 scripts/check_release_license_sbom.py

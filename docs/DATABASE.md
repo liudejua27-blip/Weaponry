@@ -1,144 +1,66 @@
-# ForgeCAD 当前数据与持久化
+# ForgeCAD Runtime V1 数据库
 
-版本：2026-07-29
-状态：当前 Agent 表、legacy 共存和已知恢复边界
+版本：2026-08-08
+状态：部分实现；MCP002 Runtime V1 Store/CAS/lease/backup Gate 与 MCP003 只读 projections 已通过，候选确认与长期 Job 在后续任务
 
-ForgeCAD 使用 SQLite 保存元数据和版本关系，使用内容寻址对象目录保存大文件。当前 Agent 数据与旧 Weapon/Concept 数据共存在同一个 Library；不得把两套版本号合并解释。
+## 1. 断代策略
 
-ADR-0022 的 `SubjectProfile/RepresentationPlan/UniversalAssetSource` 不建立独立生产表或第二版本头。U002 outcome 保留在 Rust-owned Turn/Item；U003 完整 source 随临时候选/preview 流转，用户确认后以 source 对象和 semantic hash 写入同一 `AgentAssetVersion` 的 AssemblyGraph provenance，并继续由现有 Version/Snapshot 指向活动真值。U004 应优先复用 CAS source object 与该 provenance，而不是为每种表示创建第二套 Project/head/version 表。任何迁移都不得把参考像素、Provider 原文、密钥或任意文件路径写入 SQLite。
+新 Runtime 使用独立 `migrations-runtime-v1/0001_runtime.sql`，不在旧 migration 上继续叠加。MCP002 Store 创建 schema marker、writer lease、Project/Snapshot/Candidate/DesignAssetVersion/Job/Event/Checkpoint/Object/Artifact/Approval/Audit 表，并在事务中校验版本。已有数据库若没有 `schema_meta` 会直接拒绝，避免误打开旧 Library。旧 `WushenForgeLibrary`、SQLite 和 CAS 只读备份；新 Runtime 不自动打开、迁移或写入它们。
 
-## 1. Library 结构
+一次性离线导出器可在后续任务读取旧库、校验工件并生成中立 manifest；用户显式选择后再导入新项目。失败不得修改任一数据库。删除旧用户数据需要单独明确授权。
+
+## 2. V1 表域
 
 ```text
-WushenForgeLibrary/
-├── library.db
-├── objects/
-└── backups/        恢复 provenance；正式备份必须位于 Library 外部
+projects
+active_design_snapshots
+reference_evidence
+candidates
+semantic_change_sets
+design_asset_versions
+approval_receipts
+runtime_jobs
+runtime_job_events
+runtime_job_checkpoints
+objects
+artifact_manifests
+material_graphs
+texture_sets
+uv_layouts
+render_sets
+quality_reports
+skill_bundles
+skill_execution_receipts
+export_manifests
+audit_events
 ```
 
-Provider API Key、Keychain、secret file、缓存、WAL/SHM 和临时输出不属于项目数据。
+不创建 threads、turns、items、conversations、Provider registry/budget/snapshot、coding/search/vision/remote-3D jobs、legacy concept/module/weapon 表。
 
-## 2. Agent Kernel 表
+## 3. 单写者与事务
 
-迁移 `0019_agent_kernel.sql`：
+只有 `forgecad-runtime` 取得 writer lease。MCP、Viewer、Workers 不持有 DB handle。SQLite 使用 WAL、foreign keys、busy timeout、明确 transaction boundary 和 schema version。Lease 保存 owner、token hash、acquired/heartbeat 时间；活动租约拒绝第二 writer，TTL 过期后才允许 crash recovery，Runtime Drop 会释放正常退出的租约。
 
-| 表 | 作用 |
-| --- | --- |
-| `agent_threads` | 项目内 Agent 会话和最后 Turn |
-| `agent_turns` | 一次用户请求、状态、错误和 usage |
-| `agent_items` | 追加的消息、计划、工具、预览、批准和工件 |
-| `agent_approvals` | 永久副作用批准状态 |
+永久 confirm 在一笔事务中：验证 base/candidate/quality/approval/idempotency/CAS → 写 immutable version → 更新 snapshot → 写 audit。事务失败无部分版本。
 
-约束：Turn 和 Item 随 Thread 级联删除；Item sequence 在 Thread 内唯一；API Key 和原始 Authorization 不得进入 payload。
+## 4. CAS
 
-迁移 `0032_agent_provider_conversations.sql` 为 `agent_turns` 增加脱敏的 context/fingerprint 合同字段，并新增 `agent_thread_memory_summaries`。后者只保存已覆盖的 sequence、最多 4,000 字符的确定性摘要、领域/快照指纹和合同版本；它可以删除或重建，绝不是 Project、AgentAssetVersion、Selection、Quality、Export 或 Snapshot 真值。Provider HTTP 不在其 SQLite 事务中执行。
+对象按 SHA-256 寻址，DB 保存 `sha256`、size、MIME、kind、created_at、reachability class。`object_path` 只在 Store 内部派生，不保存用户路径。写入采用临时文件、fsync、hash recheck、原子 rename；同 hash 不同字节、容量超限、缺失或篡改均 fail closed。MCP002 已通过 CAS roundtrip、capacity、hash mismatch、corruption 和 backup/restore tests；GC/reachability policy 留给 MCP011。
 
-迁移 `0033_agent_provider_budget.sql` 增加按 UTC 日期和 Provider 汇总的本机预算账本，只保存预算、已结算/预留微元与未计量次数；不保存 API Key、完整 prompt、模型输出、思维链或远端账单。DeepSeek usage 缺失会保留可审计的未计量状态并停止同日后续联网调用。
+事件和日志不存大内容。GC 先计算 reachability，再 quarantine，经过 grace period 和 manifest 复验后删除；confirmed version、audit、approval、export 和旧库备份不可 GC。
 
-迁移 `0044_visual_reference_comparison_budget.sql` 单独保存 C111B 参考图视觉比较的短期授权和逐调用预留。`visual_reference_comparison_authorizations` 将授权绑定到一个活动 Project、`MultimodalDesignRequest` SHA、`VisualEvidenceGraph` SHA、Rust 验收政策 SHA、最多 3 次调用和 `100000 microusd` 总上限；第一次预留再绑定 app-server 实际 Turn。`visual_reference_comparison_reservations` 在网络调用前以 `BEGIN IMMEDIATE` 原子预留保守费用上限，并把完成、Provider 失败、取消或超时结算为 `accounted | released`。表中不保存 Key、prompt、图片字节、URL、Provider 原文或远端账单；`accounted_cost_ceiling_microusd` 是硬停用的保守上限，不冒充实际账单。
+## 5. 路径与隐私
 
-迁移 `0045_e005_provider_budget.sql` 为 E005 正式 30 条未见分布建立独立批次账本。`e005_provider_run_authorizations` 保存 canonical `E005ProviderRunAuthorization@1`、Provider/model、policy/pricing/disclosure hash、30 author/30 patch/60 total、输入/输出 token、成本和 deadline 上限；`e005_provider_authorized_tasks` 固定正式 task-set 的 30 个 task payload hash；`e005_provider_call_reservations` 保存逐 task/kind/request 的 reserve→dispatching→accounted/released 状态和首次 canonical settlement evidence/hash。复合外键、aggregate/time/state CHECK 与 Rust readback 同时防止 SQL 列和 canonical JSON 分叉；settlement evidence 还逐字段绑定 output source/gate hash，Patch 在资格判断前重验该不可变证据。Patch 只接受同任务 repairable author 的精确 source/gate hash。同一 reservation 仅允许一次 dispatch；持久化 dispatching 后的超时、取消、传输失败或崩溃恢复均按预留上限 accounted；启动恢复将遗留 reserved 释放。表中不保存 Key、prompt、图片、Provider 原文或实际账单，且该迁移本身不构成联网授权。
+数据库不保存原 Codex attachment path、用户名、HOME、workspace absolute path、secret、prompt 或图片原始字节。导出包保证 `no export package contains absolute local paths`，只包含相对逻辑路径和 CAS/manifest hash。
 
-迁移 `0046_e005_formal_batch_checkpoint.sql` 只保存正式批次编排检查点，不扩大 Provider 权限。`e005_formal_batches` 将一个 batch 唯一绑定一个 0045 authorization；`e005_formal_batch_tasks` 固定 30 个 task/hash/ordinal，并只允许 `pending | running | receipt_sealed | reconciliation_required`。Core 每次只 claim 一个 task；正式 receipt 以 canonical JSON/hash 原子封存，exact replay 幂等、冲突 replay 拒绝。启动时必须先完成 0045 Provider reservation recovery，再恢复 batch：未产生 network-attempted reservation 的 running task 可回 pending；任何 dispatching/accounted 或网络不确定 task 都进入 `reconciliation_required`，不得自动 retry。该迁移不保存图片、GLB、Key、Prompt 或 Provider 原文；R1–R3 质量前置门通过前不接 main/startup 付费命令。
+## 6. 迁移、备份、恢复
 
-迁移 `0047_e005_visual_review_checkpoint.sql` 保存 Author 已 accounted 到唯一 visual `Patch` 调用之间的恢复真值。表中只有通过 Rust lowering 的紧凑 Author source、0045 账本重验过的 canonical evidence/hash、实际 token/成本 usage 与最终 visual evidence hash；不保存图片字节、GLB bytes、Key、Prompt 或 Provider 原文。恢复顺序固定为 0045→0047→0046：没有尝试 visual 时任务可回 pending 且协调器必须跳过 Author；只要 visual reservation 进入 dispatching/accounted/未知，检查点与 batch 就进入 `reconciliation_required`，绝不自动重发。
+- migration 单向、事务化、可在副本测试；
+- 升级前 consistent DB snapshot + CAS manifest；
+- 恢复先在隔离 Library 验证 integrity/reachability/version，再原子切换；
+- migration 失败保持旧版本可读，不能半升级；
+- 灾难恢复定期证明全量和增量备份，见 `DISASTER_RECOVERY.md`。
 
-迁移 `0048_agent_turn_waiting_for_capture.sql` 扩展 `agent_turns.status` 为 `waiting_for_capture`。它重建 SQLite CHECK 约束并保留所有 Turn、Item、Approval 以及 `0032` 的脱敏 Provider-context 字段。该状态只表示当前进程仍持有一个已封存的同工作台 PBR capture continuation；捕获证据本身、图像字节、nonce 和 Provider 请求不落库。重启恢复会把任何非终态 Turn 显式标为 `AGENT_RUNTIME_RESTARTED`，不会从文本或旧截图猜测续跑。
+## 7. Gate
 
-## 3. Agent 资产表
-
-迁移 `0020_agent_asset_editing.sql`：
-
-| 表 | 作用 |
-| --- | --- |
-| `agent_blockout_candidates` | 确认前 blockout、ShapeProgram、AssemblyGraph 和预览 GLB |
-| `agent_asset_versions` | 不可变 Agent 资产快照和父版本 |
-| `agent_asset_heads` | 每个 Project 当前 Agent 资产头 |
-| `agent_asset_change_sets` | proposed/previewed/confirmed/rejected/stale 修改 |
-
-`agent_asset_versions` 在 Project 内使用独立 `version_no`。该编号不等于旧 `project_versions.version_no`。
-
-迁移 `0021_agent_component_registry.sql` 增加 `agent_components`，保存从已确认 Agent 资产部件生成的项目内不可变组件快照。
-
-迁移 `0022_agent_external_glb_import.sql` 增加 `agent_imported_glbs`，保存只读 GLB 的对象路径、SHA-256、大小、三角形和边界摘要。
-
-迁移 `0023_active_design_snapshots.sql` 增加 `active_design_snapshots`，每个 Project 最多一行：
-
-| 字段组 | 作用 |
-| --- | --- |
-| `source` + active Agent / legacy 引用 | `agent_asset` 与 `legacy_concept_read_only` 互斥，不能同时拥有两个活动版本 |
-| selection / preview / quality | 只允许绑定当前 Agent asset；legacy source 强制为空 |
-| export source/version | 强制与当前 source/version 同链，不按格式切换另一套版本 |
-| `revision` | compare-and-swap 防止旧客户端或并发事务覆盖较新的活动设计 |
-
-迁移 `0024_legacy_agent_conversion_intents.sql` 增加每项目一行的 `legacy_agent_conversion_intents`。它记录用户明确发起转换时的 legacy source 与 Snapshot revision；下一次 Agent 资产确认在同一事务中提升 Snapshot 并删除 intent。该表不复制或修改旧 Concept 数据。
-
-迁移 `0025_agent_asset_quality_reports.sql` 增加不可变 `agent_asset_quality_reports`。质量检查只对 Snapshot 当前 Agent asset 运行；公开 API 必须以当前 Snapshot revision 和 Idempotency-Key 写入，报告写入后，Snapshot 在同一事务中指向 `quality_report_id`。相同请求键重放原报告，旧 revision 不写新报告。新 Agent 资产版本会清除旧质量引用，避免把父版本结论误展示给子版本。
-
-迁移 `0026_agent_asset_navigation_frames.sql` 增加 `agent_asset_navigation_frames`。它只保存一个新导航版本可继续撤销或重做的目标；撤销/重做本身始终复制目标内容到新 `AgentAssetVersion`，不修改历史版本和内容对象。
-
-迁移 `0027_agent_clarification_items.sql` 扩展 `agent_turns.status` 的 `waiting_for_clarification` 和 `agent_items.item_type` 的 `clarification`。迁移通过临时表重建 CHECK 约束并保留既有 Turn、Item、Approval 和序列；澄清分支只写会话记录，不写 Plan、Blockout、Version 或 Asset。
-
-迁移 `0028_active_design_render_presets.sql` 为 `active_design_snapshots` 增加可选 `render_preset_json`。Agent Snapshot 初始化和 Agent 资产版本切换写入 `ActiveDesignRenderPreset@1` 的 `iso/cad_neutral` 默认值；legacy Snapshot 保持 NULL。该列只保存主视口相机/灯光状态，不保存渲染文件、纹理或工程结论。
-
-迁移 `0030_active_design_selected_material_zone.sql` 为 `active_design_snapshots` 增加可选 `selected_material_zone_id`。它只能指向当前 `selected_part_id` 的真实视觉材质区；legacy 和外部 GLB 保持 NULL。Material Zone 选择通过 `active-design:select` 的 revision/ETag/CAS 写入，版本切换、重启和 undo/redo 在部件仍存在时保留该选择，否则安全回退到首个真实 zone 或 NULL。
-
-## 4. 当前状态真值缺口
-
-数据库现在有 `agent_asset_heads` 和服务端 `active_design_snapshots`，后者实现 [ActiveDesignSnapshot](AUTHORITATIVE_STATE.md) 的持久化部分。确认 blockout、导入 GLB 和确认 Agent ChangeSet 在同一事务中更新 head/Snapshot；Snapshot revision 通过 CAS 拒绝旧写入，part 与 material zone selection 会校验属于当前 AssemblyGraph/Part。
-
-S003/S007 已提供 Snapshot GET、Agent part selection、legacy Agent-rebuild 授权和受控提升，并用 `revision` / `ETag` 与 Idempotency-Key 拒绝旧写。S008 已提供 undo/redo navigation frame、同事务 head/Snapshot 切换及浏览器回归。Q002 冻结 GET bootstrap 为只从有效 Agent head 或 legacy current version创建一行的兼容行为，空项目不创建行；GET 与 navigation 都以 `Cache-Control: no-store` 明确读缓存边界。Agent 工作台路径已接入；legacy 兼容 UI 已只读。核心 CAS 竞争已有验证，广泛多客户端压力矩阵仍待补齐：
-
-- 不允许用同一个 `vN` 表示两套版本；
-- 导出前必须显式核对 AgentAssetVersion；
-- localStorage 不能作为生产级版本真值；
-- 旧 Concept 只能按 [兼容迁移计划](COMPATIBILITY_MIGRATION.md) 进入只读/转换路径。
-
-## 5. 事务与不变量
-
-- 永久修改在事务内创建子版本并更新 head；
-- Agent head 和 Snapshot 在同一事务内更新；Snapshot `revision` 旧写入必须失败；
-- selection 必须属于 Snapshot 当前 AssemblyGraph；Agent ChangeSet preview、quality/export 必须同活动 Agent asset version；确认子版本会清除 selection/preview/quality；
-- 父版本 `ON DELETE RESTRICT`；
-- ChangeSet 记录 base/result version；
-- stale base 不得确认；
-- JSON 列写入前通过 Pydantic/Schema 和 SQLite `json_valid`；
-- Project、Version、Component 和 Import 不能跨项目隐式引用；
-- 对象路径必须留在允许 Library 根目录内。
-- 发布不变量：`no export package contains absolute local paths`；导出只能包含逻辑路径、相对路径或内容哈希。
-
-当前服务 smoke 已覆盖最小候选→版本→ChangeSet→子版本链；S002 已覆盖 Snapshot CAS、旧库升级、空库初始化、selection/preview/quality/export 引用和 head/Snapshot 同事务；S003 已覆盖 API bootstrap、Idempotency-Key、revision/ETag、跨项目 Part 拒绝和 legacy 原数据 hash 不变；S007 已覆盖未授权拒绝、显式 intent、原子提升、intent 清理和 legacy hash 不变；S008 已覆盖 HTTP undo、redo、不可变新版本、Snapshot CAS、幂等 replay、历史 frame 和关键竞争场景。多客户端压力 E2E 仍待补齐。
-
-## 6. 备份现状
-
-`scripts/library_backup.py` 使用 SQLite Backup API 创建一致快照，并复制 `asset_files` 与 `concept_assets` 引用的内容寻址对象。
-
-备份对象枚举已包含 `agent_imported_glbs.object_path`，会复制外部导入 GLB 对象并在 manifest 中记录来源表、SHA-256、大小和引用计数。恢复仍应保留独立原文件作为额外保全副本；未引用对象候选不会进入备份。未运行当前 `library:backup` 流程的旧备份不能保证复制外部导入 GLB 对象，升级后必须重新生成并验证备份。
-
-命令和事故流程见 [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)。
-
-## 7. 迁移规则
-
-1. migration 只追加，不重写历史 JSON；
-2. 每个版本只执行一次并写入 `schema_migrations`；`0017` 已补齐缺失的账本记录，旧库会安全重放一次后稳定；
-3. 新表先在旧库副本和空库验证；
-4. 迁移前创建并验证备份；
-5. 旧 `WeaponConceptSpec/ModuleGraph` 通过显式 adapter 转换；
-6. 转换记录 source schema、source ID/hash 和 adapter version；
-7. 删除 legacy 代码前保留只读迁移工具。
-
-### Snapshot 回滚
-
-`0023` 只新增表和索引，不修改 Concept、Agent asset、head 或对象内容。迁移脚本处于 SQLite 事务中，失败时自动 rollback；若需要回退应用版本，旧应用会忽略新表，Snapshot 行保持不动。生产环境不得通过删除 `active_design_snapshots` 回滚；应先验证备份，再使用兼容应用只读打开旧数据。
-
-旧 Weapon/Concept 表的维护、映射和退出顺序见 [兼容迁移计划](COMPATIBILITY_MIGRATION.md)；字段级历史以 migrations、生成 OpenAPI 和 Git 为准。
-
-## 8. 发布前数据门
-
-- SQLite integrity 和 foreign key 检查；
-- Schema/生成类型无漂移；
-- Agent head、父版本和 ChangeSet 关系一致；
-- 所有对象引用存在且 hash 匹配；
-- 备份覆盖所有当前 Agent 对象表；
-- 从备份恢复到新目录后可读取、检查和导出活动 Agent 资产；
-- 密钥和本机私有配置不进入备份。
+并发双 writer、kill -9、磁盘满、CAS missing/corrupt、WAL recovery、duplicate idempotency、stale base、migration failure、backup/restore、GC race 和路径泄露均必须自动测试。

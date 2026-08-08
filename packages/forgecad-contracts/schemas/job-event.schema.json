@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/job-event.schema.json",
+  "title": "ForgeCAD Runtime Job Event",
+  "type": "object",
+  "required": ["schema_version", "job_id", "sequence", "kind", "payload", "created_at"],
+  "properties": {
+    "schema_version": {"const": "RuntimeJobEvent@1"},
+    "job_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "kind": {"type": "string", "minLength": 1, "maxLength": 100},
+    "payload": {"type": "object"},
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}

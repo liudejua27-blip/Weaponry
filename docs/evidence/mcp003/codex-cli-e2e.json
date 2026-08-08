@@ -1,0 +1,33 @@
+{
+  "task_id": "FGC-MCP003",
+  "status": "PASS",
+  "checked_at": "2026-08-08",
+  "codex_version": "0.147.0-alpha.6.5",
+  "mode": "ephemeral read-only isolated project with current user Codex authentication",
+  "model_turn": "PASS",
+  "mcp_tool_calls": [
+    {
+      "server": "forgecad",
+      "tool": "capabilities_get",
+      "status": "completed",
+      "read_only": true
+    },
+    {
+      "server": "forgecad",
+      "tool": "selection_get",
+      "status": "completed",
+      "read_only": true
+    }
+  ],
+  "side_effects": false,
+  "evidence": "A real codex exec invocation started an isolated thread and turn with a temporary MCP command override, read-only sandbox and an explicit prompt allowing only capabilities_get and selection_get. The completed model turn called exactly those two forgecad tools; both returned structured read-only results, capabilities_get reported alpha-mcp003 and selection_get returned available=false. The command exited successfully, with no user config mutation, project write or other MCP tool call. A separate no-auth CODEX_HOME probe remains recorded as a prior non-authoritative 401 attempt and was not used for this PASS result.",
+  "reason": "No pending CLI blocker for this authenticated read-only run; Desktop/IDE and official conformance remain separate MCP003 gates.",
+  "version_mismatch_smoke": {
+    "status": "PASS",
+    "requested_protocol": "2026-07-28",
+    "mcp_tool_calls": [],
+    "side_effects": false,
+    "model_response": "ForgeCAD MCP server is unavailable because the negotiated MCP protocol is unsupported.",
+    "evidence": "A second authenticated codex exec invocation set CODEX_MCP_PROTOCOL_VERSION=2026-07-28 in an ephemeral read-only environment. The model reported the server as unavailable because the negotiated protocol was unsupported; no ForgeCAD tool call occurred and no retry or downgrade to the 2025 lifecycle was observed."
+  }
+}

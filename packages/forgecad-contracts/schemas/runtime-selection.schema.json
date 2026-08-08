@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/runtime-selection.schema.json",
+  "title": "ForgeCAD Runtime Viewer Selection",
+  "type": "object",
+  "required": ["schema_version", "available", "part_ids"],
+  "properties": {
+    "schema_version": {"const": "Selection@1"},
+    "available": {"type": "boolean"},
+    "project_id": {"type": ["string", "null"]},
+    "snapshot_id": {"type": ["string", "null"]},
+    "version_id": {"type": ["string", "null"]},
+    "part_ids": {"type": "array", "items": {"type": "string"}},
+    "limitation": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}

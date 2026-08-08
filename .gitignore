@@ -32,6 +32,8 @@ output/m108-workbench-renderer/
 WushenForgeLibrary/
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/target/
+apps/geometry-worker/target/
+apps/render-worker/target/
 .wushen-agent.log
 .wushen-desktop.log
 .wushen-tauri.log

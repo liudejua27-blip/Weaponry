@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/cas-object.schema.json",
+  "title": "ForgeCAD CAS Object",
+  "type": "object",
+  "required": ["schema_version", "sha256", "size_bytes", "mime", "kind", "reachability", "created_at"],
+  "properties": {
+    "schema_version": {"const": "CasObject@1"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "size_bytes": {"type": "integer", "minimum": 0},
+    "mime": {"type": "string", "minLength": 1, "maxLength": 200},
+    "kind": {"type": "string", "minLength": 1, "maxLength": 100},
+    "reachability": {"enum": ["temporary", "reachable", "quarantined"]},
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}
