@@ -1,8 +1,8 @@
 # ForgeCAD 当前交接
 
 更新时间：2026-08-09
-分支：`codex/mcp010a-legacy-cleanup`；工作树 dirty，必须保留
-任务状态：`FGC-MCP005–FGC-MCP009 done（MVP host golden path）`；`FGC-MCP010A in_progress`，`MCP010B–F blocked`
+分支：`main`；工作树 clean
+任务状态：`FGC-MCP005–FGC-MCP010A done（MVP host golden path + Dev activation）`；`MCP010B–F blocked`
 
 ## 1. 本次范围决策
 
@@ -23,7 +23,7 @@
 - MCP002：Project/Candidate/Version/Snapshot/Job/Audit/CAS contracts、SQLite V1、atomic CAS、backup/restore、OS writer lock、authenticated Unix IPC；
 - MCP003：MCP 2025-era stdio/resources/read-only tools，Codex `2025-06-18` compatibility，Desktop/CLI required read-only evidence，CLI modern mismatch fail closed；
 - MCP004：candidate prepare、Job/audit、quality/approval/idempotent confirm/reject、restore-as-new-version、path-free diagnostic export、authenticated IPC、显式 opt-in MCP writes；
-- `forgecad-mcp` 拥有 stdio并异步启动/连接同一数据根的共享 Runtime；短时 launcher flock 只做启动选主，Runtime 持有的 `runtime.writer.lock` 才是最终唯一写者。正常适配器退出不终止已经 Ready 的 Runtime，显式 shutdown/update 才停止；缺失/失败/ready 后 crash 时 stdio 存活，依赖调用返回 `RUNTIME_UNAVAILABLE`，最多一次 restart。最终源码的 MCP 26/26 与 shared lifecycle Gate 已 PASS；同 cohort Dev.app 也已重建并隔离验证，当前只等待第二次 Desktop 完整重启；
+- `forgecad-mcp` 拥有 stdio并异步启动/连接同一数据根的共享 Runtime；短时 launcher flock 只做启动选主，Runtime 持有的 `runtime.writer.lock` 才是最终唯一写者。正常适配器退出不终止已经 Ready 的 Runtime，显式 shutdown/update 才停止；缺失/失败/ready 后 crash 时 stdio 存活，依赖调用返回 `RUNTIME_UNAVAILABLE`，最多一次 restart。最终源码的 MCP 26/26 与 shared lifecycle Gate 已 PASS；同 cohort Dev.app 已重建、隔离验证，并通过第二次 Desktop live Gate；
 - 真实 Codex CLI 完成 diagnostic project/create/confirm/restore/export；Viewer 通过 authenticated IPC 读回同一项目/版本；
 - MCP005 已完成 PNG/JPEG admission、ReferenceEvidence/CAS readback、authorized-root/symlink/path/hash/MIME negative tests 和真实 Codex CLI image-attachment E2E；证据位于 `docs/evidence/mcp005/`；原图路径/字节未进入仓库或 receipt；
 - MCP006 已完成：44 个合同、十项 first-party registry、十个独立 `bundles/<skill_id>/0.1.0`、`skill_list/get`、Skill resource、trust hash、安全 allowlist、Recipe canonical hash、DAG/单位/finite/预算 validator、合成正/负 fixture、每 Bundle benchmark receipt、LICENSE/NOTICE、SPDX SBOM 和 provenance 已落地；`uv-pbr` 已标记为 product-owned bounded geometry consumer；`scripts/materialize_mcp006_bundles.py`、`scripts/check_mcp006_skills.py` 与 Runtime/MCP focused tests 已通过；正式 distribution signature 仍延后到 MCP012–013；
@@ -56,14 +56,14 @@
 | Viewer authenticated read model + GLB canvas | PASS focused | 项目/候选/GLB bytes/版本投影；Three.js scene 只读、无 Runtime 写入 |
 | `npm run release:mcp004` | PASS | 当前基座 aggregate；不等于 MVP |
 | Reference attachment | PASS（CLI）/ NOT_RUN（Desktop bridge） | MCP005 evidence；Desktop 不能证明 attachment bytes |
-| Geometry | PASS focused + real Codex CLI | MCP007 worker/Runtime/MCP/Viewer focused PASS；real CLI 14-part/516-triangle receipt PASS；Desktop write仍未运行 |
+| Geometry | PASS focused + real Codex CLI | MCP007 worker/Runtime/MCP/Viewer focused PASS；real CLI 14-part/516-triangle receipt PASS；完整 Desktop 3D write 仍未运行 |
 | Appearance/Render | PASS focused + real Codex CLI | MCP008 bounded UV/tangent/PBR + four fixed passes；MCP009 receipt含真实 appearance/readback |
 | Quality/Change/Version/Export | PASS MVP host golden path | MCP009 limited quality + approval/version + CAS-backed mvp-glb；pixel similarity/human gate NOT_RUN |
-| MCP010A authority/dev activation | IN_PROGRESS / DESKTOP ATTEMPT 1 FAIL / ATTEMPT 2 NOT_RUN | 第一次完整重启只见 17 个只读工具，`project_create` 不可见，Runtime 实际不可用且未创建项目；失败 receipt 保留。共享 Runtime/IPC 修复、current aggregate、cohort `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064` 重建安装、包验证与隔离探针均 PASS；第二次完整重启待用户执行 |
+| MCP010A authority/dev activation | DONE / DESKTOP ATTEMPT 1 FAIL RETAINED / ATTEMPT 2 PASS | 第一次完整重启只见 17 个只读工具，失败 receipt 保留；修复后第二次完整重启观察到 30 个工具、Runtime `Ready`、`doctor` ready、临时 `project_create`/readback 和相同 build cohort，成功 receipt 已保存 |
 | signed/notarized packaged Desktop | BLOCKED / NOT_RUN | MCP013；历史 codesign 为 `errSecInternalComponent` |
 | IDE/其他 MCP Client/official transport conformance | OPTIONAL_NOT_IN_SCOPE | 不阻塞个人 MVP |
 
-## 5. 当前任务：FGC-MCP010A（in_progress）
+## 5. 当前任务：FGC-MCP010A（done）
 
 用户已批准 `MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`。本轮只能完成 010A，不要并行修改 010B–F 的合同/Worker/Viewer，也不要重新实现 MCP008/009：
 
@@ -72,10 +72,10 @@
 3. 用户 Codex 配置已备份、继续指向 Dev.app 内的 `forgecad-mcp`，并改为显式 server environment write opt-in；仓库配置仍保持通用命令，无 token、fixture data dir 或用户绝对路径；
 4. 共享 Runtime 修复已完成：多个 MCP 适配器通过 launcher flock 做短时启动选主，`runtime.writer.lock` 保持最终唯一写者；已经 Ready 的 Runtime 不随某个适配器退出而停止；stale handoff 和未认证/坏客户端不能阻塞恢复。最终源码 `script/test_mcp004.sh`、MCP 26/26、Runtime 30/30 与 `release:mvp` 均 PASS；
 5. 同一源码 revision 的 MCP、Runtime、Geometry Worker 和 Viewer 已重建并安装。当前 cohort 为 `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064`，ad-hoc deep-strict、`package:verify` 与隔离探针 PASS；探针协商 `2025-06-18`、观察到 `Ready` 和 cohort match、完成隔离 `project_create`，未触碰持久用户数据。先前 cohort `e5fd7da79576fd022894838c5ab9b0532b7aef735abc42b86f3283e43532ea91` 只描述 attempt 1 的旧开发包；Worker 虽会打包，Runtime 在 010D 前仍不宣称独立进程已激活；
-6. 现在请用户第二次完整重启 Codex Desktop；只有 live `capabilities_get`、`project_list`、临时 `project_create`、Runtime `Ready`、30 个工具和 MCP/Runtime 相同 build cohort 均成功，010A 才能 done；
-7. 第二次成功 receipt 形成前，010A 保持 `in_progress`，010B–F 保持 `blocked`。当前仍是 44 Schema、17 read + 13 write tools 和 Skill `0.1.0`。
+6. 第二次完整重启已完成：live `capabilities_get`、`project_list`、临时 `project_create`、Runtime `Ready`、30 个工具和 MCP/Runtime 相同 build cohort 均成功，receipt 位于 `docs/evidence/mcp010a/codex-desktop-post-restart-success.json`；
+7. `FGC-MCP010A` 现为 `done`；`MCP010B–F` 继续保持 `blocked`，必须由后续独立 Goal 显式领取。当前仍是 44 Schema、17 read + 13 write tools 和 Skill `0.1.0`。
 
-本次文档校正已运行 `release:docs-walkthrough`、`repository:integrity`、`release:safety-scope`、`release:secrets-files`、`release:license-sbom` 和 `git diff --check`，均 PASS；这些只证明文档/仓库边界一致，不替代 Desktop attempt 2。
+本次文档校正已运行 `release:docs-walkthrough`、`repository:integrity`、`release:safety-scope`、`release:secrets-files`、`release:license-sbom` 和 `git diff --check`，均 PASS；这些证明当前文档/仓库边界一致，不替代 MCP010B–F 的视觉质量、360°覆盖或正式发布 Gate。
 
 详细的 A–F owned paths、目标合同、质量阈值和 011–013 分界见 `docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`。当前单张参考最多支持 `PARTIAL_VISIBLE_VIEW_PASS`；补齐 front/back/left/right/rear-three-quarter 全身参考前，`HQ_360_PASS=BLOCKED_REFERENCE_COVERAGE`。
 

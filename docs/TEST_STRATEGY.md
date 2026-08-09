@@ -1,7 +1,7 @@
 # ForgeCAD 测试策略
 
 版本：2026-08-09
-状态：MCP001–009 focused Gates 已建立；FGC-MCP010A in_progress；MCP010B–F visual/human Gates 尚未运行
+状态：MCP001–009 focused Gates 已建立；FGC-MCP010A done；MCP010B–F visual/human Gates 尚未运行
 
 ## 1. 证据层级
 

@@ -1,7 +1,7 @@
 # ForgeCAD 用户指南
 
 版本：2026-08-09
-当前状态：MCP005–MCP009 MVP host golden path 已完成；像素级相似度、真人视觉评分、Desktop write 和 packaged release 仍未运行
+当前状态：MCP005–MCP009 MVP host golden path 已完成；MCP010A Dev.app 已通过第二次 Desktop 激活 Gate；像素级相似度、真人视觉评分、完整 Desktop 3D write 和 packaged release 仍未运行
 
 ## 1. 现在能做什么
 

@@ -2,7 +2,7 @@
 
 版本：2026-08-09
 状态：Luna 强制执行协议；MVP host golden path 已收口；MCP010 质量轨道已批准
-当前任务：`FGC-MCP010A in_progress`；`FGC-MCP010B–FGC-MCP010F blocked`
+当前任务：`FGC-MCP010A done`；`FGC-MCP010B–FGC-MCP010F blocked`（等待后续独立 Goal）
 
 ## 1. Goal 目标
 
@@ -31,10 +31,10 @@ Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或�
 
 ## 3. Goal 建议文本
 
-用户已批准以下 Goal；Luna 仍须按 A–F 串行执行：
+用户已批准以下 Goal；010A 已完成，Luna 仍须按 A–F 串行执行：
 
 ```text
-按照 AGENTS.md、docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md、docs/CODEX_TASK_INDEX.md 和本指南，保护 dirty worktree，一次只执行一个原子任务。当前领取 FGC-MCP010A：完成权威重排、同 revision 用户级开发 App 激活和真实 Codex capability/build-hash Gate；在用户重启后的 capabilities_get、临时 project_create、Runtime Ready 和相同 build hash 被观察前保持 in_progress，MCP010B–F 保持 blocked。后续严格按 B 合同真值 → C 固定渲染/参考比较 → D 高细节 Operator → E 离线 AssetPack/UV/PBR → F Viewer/真实机器人/人工门执行。当前单图只允许 PARTIAL_VISIBLE_VIEW_PASS；补齐五张全身视图前 HQ_360_PASS=BLOCKED_REFERENCE_COVERAGE。禁止旧 Provider、付费 API、远程 image-to-3D、任意 Python/BlenderMCP、手工 GLB、heartbeat 或插件市场。
+按照 AGENTS.md、docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md、docs/CODEX_TASK_INDEX.md 和本指南，保护 dirty worktree，一次只执行一个原子任务。FGC-MCP010A 已完成权威重排、同 revision 用户级开发 App 激活和真实 Codex capability/build-hash Gate；证据包含第二次重启后的 30 个工具、Runtime Ready、临时 project_create/readback 和相同 build hash。MCP010B–F 保持 blocked，后续严格按 B 合同真值 → C 固定渲染/参考比较 → D 高细节 Operator → E 离线 AssetPack/UV/PBR → F Viewer/真实机器人/人工门执行。当前单图只允许 PARTIAL_VISIBLE_VIEW_PASS；补齐五张全身视图前 HQ_360_PASS=BLOCKED_REFERENCE_COVERAGE。禁止旧 Provider、付费 API、远程 image-to-3D、任意 Python/BlenderMCP、手工 GLB、heartbeat 或插件市场。
 ```
 
 真实 host 证据按下面的顺序运行；`<AUTHORIZED_REFERENCE>` 必须是用户明确授权的本地 PNG/JPEG，命令输出不得写入 Git、日志或 receipt：
@@ -80,9 +80,9 @@ Destructive actions / user approval:
 
 ### 4.1 MCP010 当前领取规则
 
-- 当前 010A 已由用户批准并标为 `in_progress`；
-- 010A 文档完成不等于退出，必须等待用户重启后的真实 Codex capability/build-hash receipt；
-- 010A 未 done 前不得开始 B 的 Schema/代码；之后每次只将直接后继改为 ready/in_progress；
+- 当前 010A 已由用户批准并完成真实 Desktop Gate，标为 `done`；
+- 成功 receipt 必须保留，第一次失败 receipt 也不得改写；
+- 010A 已 done，未经后续独立 Goal 不得开始 B 的 Schema/代码；之后每次只将直接后继改为 ready/in_progress；
 - 当前事实仍是 44 Schema、17 read + 13 write、十个 Skill `0.1.0`；目标能力只写 planned/unavailable。
 
 ## 5. FGC-MCP005 已完成记录

@@ -29,7 +29,7 @@ Codex ──stdio── forgecad-mcp ──local authenticated IPC── forgeca
 - Worker 只接受受限内部协议，不接受 Codex 生成的 Python、JavaScript、shell、URL 或绝对文件路径；
 - 工具失败时返回 typed error，不回退 legacy HTTP、Provider 或第二状态写者。
 
-MCP010A 第一次真实 Desktop 重启暴露了 stale handoff、多适配器监督和单客户端 IPC 阻塞问题；失败 receipt 保持原样。共享 Runtime/IPC 修复的 focused/aggregate tests、同 cohort Dev.app 重建、package verify 与隔离 probe 已 PASS，但第二次真实 Desktop 重启仍为 `NOT_RUN`；本节是当前合同和实现 Gate PASS，不是 live Desktop PASS 声明。
+MCP010A 第一次真实 Desktop 重启暴露了 stale handoff、多适配器监督和单客户端 IPC 阻塞问题；失败 receipt 保持原样。共享 Runtime/IPC 修复的 focused/aggregate tests、同 cohort Dev.app 重建、package verify、隔离 probe 与第二次真实 Desktop 重启后的 30 工具/Ready/cohort/project readback Gate 均已 PASS；成功 receipt 为 `docs/evidence/mcp010a/codex-desktop-post-restart-success.json`。本节仍不宣称 MCP010B–F 的视觉质量能力。
 
 ## 3. Server 信息与能力协商
 
@@ -127,7 +127,7 @@ MCP005 已满足上述条件：Runtime `supports_reference_import=true`，`refer
 
 MCP006 已完成 development-only Bundle Gate：Runtime 已加载十项 first-party registry，`supports_skill_registry=true`，并通过 `skill_list`、`skill_get` 与 Skill resource 只读暴露 manifest。十个独立 Bundle 目录均包含本地合同 schema、Recipe、operator/validator allowlist、合成正/负 fixture、benchmark receipt、许可证、SBOM、provenance 和 development trust manifest；`scripts/check_mcp006_skills.py` 校验 DAG、单位、finite、预算、canonical hash、路径/脚本/网络 capability，并 fail closed。它们不是“已签名安装包”，不执行代码，不替代 Geometry/Render 结果；distribution signing/revocation 延后 MCP012–013。
 
-MCP007 已完成 geometry Gate：`geometry_prepare` 只接受 canonical `GeometryProgram@1`，当前 allowlist 为 product-owned box/cylinder/sphere primitive；Runtime 写入 geometry GLB CAS，创建 reviewable candidate/quality report，返回 `GeometryPrepareResult@1` 与 strict `ArtifactReadback@1`。MCP008 已在其上完成 bounded Appearance/Render；MCP009 已完成 limited quality/change/version/export functional core。真实 Codex CLI geometry/readback slice 已 PASS（14 parts/516 triangles，见 `docs/evidence/mcp007/codex-cli-geometry.json`）；`docs/evidence/mcp009/codex-cli-appearance-export.json` 另记录真实图片附件到 appearance、quality、confirm、version 和 CAS-only GLB export 的十二调用 host golden path。Desktop write、packaged、像素/视觉 gates 仍保持 `BLOCKED/NOT_RUN`，不得把有限主链路扩展成通用质量结论。
+MCP007 已完成 geometry Gate：`geometry_prepare` 只接受 canonical `GeometryProgram@1`，当前 allowlist 为 product-owned box/cylinder/sphere primitive；Runtime 写入 geometry GLB CAS，创建 reviewable candidate/quality report，返回 `GeometryPrepareResult@1` 与 strict `ArtifactReadback@1`。MCP008 已在其上完成 bounded Appearance/Render；MCP009 已完成 limited quality/change/version/export functional core。真实 Codex CLI geometry/readback slice 已 PASS（14 parts/516 triangles，见 `docs/evidence/mcp007/codex-cli-geometry.json`）；`docs/evidence/mcp009/codex-cli-appearance-export.json` 另记录真实图片附件到 appearance、quality、confirm、version 和 CAS-only GLB export 的十二调用 host golden path。MCP010A 已通过最小 Desktop activation write probe；完整 Desktop 3D write、packaged、像素/视觉 gates 仍保持 `BLOCKED/NOT_RUN`，不得把有限主链路扩展成通用质量结论。
 
 ### 5.5 永久写工具
 

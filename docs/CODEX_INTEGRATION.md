@@ -91,13 +91,13 @@ Desktop 的 forced mismatch 不得通过代理或请求重写伪造：`launchctl
 }
 ```
 
-`FGC-MCP003` required protocol adapter、Codex Desktop 和 Codex CLI 均有真实 PASS。`FGC-MCP004` 已按单用户事务基座范围标为 done；`FGC-MCP005` 已按 PNG/JPEG reference admission、CAS readback 和真实 Codex CLI image-attachment 范围标为 done，Desktop bridge 仍为 `NOT_RUN / unavailable`；`FGC-MCP006` 已按 typed contracts、十个独立 declarative Bundle、Recipe/validator/fixture/license/SBOM/provenance Gate 范围标为 done；`FGC-MCP007` 已按有界多 Part geometry、确定性 GLB 和严格 readback 范围标为 done；`FGC-MCP008` 已按 bounded UV/tangent/PBR/fixed render/Viewer focused 范围标为 done；`FGC-MCP009` 已按 limited quality/stable-Part change/immutable version/restore/CAS export 和真实 Codex CLI 十二调用 host 范围标为 done。pixel similarity、human score 和 signed packaged Desktop write 仍是 `BLOCKED/NOT_RUN`；IDE、其他 MCP Client 和当前 transport 不匹配的官方 conformance 继续为未来/非阻塞状态。
+`FGC-MCP003` required protocol adapter、Codex Desktop 和 Codex CLI 均有真实 PASS。`FGC-MCP004` 已按单用户事务基座范围标为 done；`FGC-MCP005` 已按 PNG/JPEG reference admission、CAS readback 和真实 Codex CLI image-attachment 范围标为 done，Desktop bridge 仍为 `NOT_RUN / unavailable`；`FGC-MCP006` 已按 typed contracts、十个独立 declarative Bundle、Recipe/validator/fixture/license/SBOM/provenance Gate 范围标为 done；`FGC-MCP007` 已按有界多 Part geometry、确定性 GLB 和严格 readback 范围标为 done；`FGC-MCP008` 已按 bounded UV/tangent/PBR/fixed render/Viewer focused 范围标为 done；`FGC-MCP009` 已按 limited quality/stable-Part change/immutable version/restore/CAS export 和真实 Codex CLI 十二调用 host 范围标为 done；`FGC-MCP010A` 已按真实 Desktop 30-tool/Ready/cohort/project readback 激活范围标为 done。pixel similarity、human score、完整 Desktop 3D write 和 signed packaged Desktop write 仍是 `BLOCKED/NOT_RUN`；IDE、其他 MCP Client 和当前 transport 不匹配的官方 conformance 继续为未来/非阻塞状态。
 
 ### 2.2 MCP004 Runtime/IPC 事务 Runbook
 
 当前只验证无图片、无几何执行的 typed transaction：Codex 先调用 `project_create`，再以 `request.typed=diagnostic` 调用 `candidate_prepare`；Runtime 自己生成 CAS 合同对象和 contract-only quality report，Codex/MCP 不能伪造 quality pass；最后通过 authenticated IPC 调用 `candidate_confirm` 或 `candidate_reject`。Restore 先从 project 内 confirmed 历史 version 调用 `restore_prepare`，再批准创建当前 head 的新子版本；diagnostic export 调用 `export_prepare` 生成 path-free manifest，再由 `export_confirm` 绑定审批和 idempotency。每次 confirm 必须检查 project/base/candidate/prepared object/hash/quality/approval/expiry/idempotency，并核对版本、snapshot、candidate、audit 和重启 readback 的 hash/lineage。
 
-已通过 focused negative cases：hash mismatch、stale base、quality hard fail、approval expiry、不同 request 复用同一 idempotency key、重复 confirm、reject、restore source/stale mismatch、diagnostic export mismatch 和 cancelled Job；失败路径不得写 immutable version、移动历史 head 或生成已确认 export。MCP004 adapter 还通过默认只读、写工具确认标记、disabled typed error 和 authenticated IPC opt-in prepare 测试。Codex CLI diagnostic write E2E 已 PASS；当前 Codex Desktop write E2E、reference attachment、Geometry/Render/Quality、生产文件/GLB export 和 packaged Viewer 仍不能填写为 PASS。
+已通过 focused negative cases：hash mismatch、stale base、quality hard fail、approval expiry、不同 request 复用同一 idempotency key、重复 confirm、reject、restore source/stale mismatch、diagnostic export mismatch 和 cancelled Job；失败路径不得写 immutable version、移动历史 head 或生成已确认 export。MCP004 adapter 还通过默认只读、写工具确认标记、disabled typed error 和 authenticated IPC opt-in prepare 测试。Codex CLI diagnostic write E2E 与 MCP010A Desktop 最小 activation write probe 已 PASS；完整 Codex Desktop 3D write、reference attachment、Geometry/Render/Quality、生产文件/GLB export 和 packaged Viewer 仍不能填写为 PASS。
 
 ### 2.3 MCP004 内置 Runtime supervisor、Tauri resource bundle 与 Codex CLI diagnostic write E2E
 
@@ -120,7 +120,7 @@ python3 scripts/probe_mcp004_codex_cli.py --execute \
 
 内置 supervisor 的新本地回归结果为 PASS：Runtime 缺失时 initialize 仍成功；Runtime ready 后 child crash 时 stdio 仍响应，状态经过一次 bounded restart 后为 `Degraded`，依赖调用返回 `RUNTIME_UNAVAILABLE`；17 个只读工具和 MCP004/MCP005 写工具的 approval metadata 保持。旧 Host probe 仅作为历史记录保留，不作为本次 MVP 运行结果。
 
-macOS Tauri resource probe 当前仍是 `NOT_RUN`：standalone Host 已移除，旧 bundle 记录仅作为 `SUPERSEDED` 历史证据保留；需要重新构建只含 `forgecad-runtime` 与 `forgecad-mcp` 的 bundle 后再验证 `Contents/Resources/forgecad-mcp` 的 sibling Runtime 解析，当前记录见 `docs/evidence/mcp004/packaged-mcp-resource.json`。这不是签名证据：本机虽可见 1 个有效 codesigning certificate，但以名称和 SHA-1 选择身份的只读签名探针均返回 `errSecInternalComponent`，keychain settings 读取还返回 passphrase error，且没有修改 keychain；因此 signed/notarized package、重启后的 Codex Desktop write E2E 和生产安装路径继续是 `BLOCKED`/`NOT_RUN`，详细证据见 `docs/evidence/mcp004/macos-signing-diagnostic.json`。禁止通过代理或请求重写制造 Desktop mismatch 或 write PASS。
+旧 standalone Host bundle 记录仅作为 `SUPERSEDED` 历史证据保留；当前 MCP010A Dev.app 已重建并通过 ad-hoc deep-strict、package verify、隔离 probe 和第二次 Desktop activation Gate。该 Gate 只证明 30 工具、Runtime Ready、cohort 与临时项目写回，不是签名证据或完整 3D write；signed/notarized package、生产安装路径和 packaged Desktop 3D E2E 继续是 `BLOCKED`/`NOT_RUN`，详细历史签名证据见 `docs/evidence/mcp004/macos-signing-diagnostic.json`。禁止通过代理或请求重写制造 Desktop mismatch 或 write PASS。
 
 ## 3. Codex instructions
 

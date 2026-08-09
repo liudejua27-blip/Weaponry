@@ -22,7 +22,7 @@ Runtime 是唯一常驻产品状态写者。MCP 由 Codex 按需以 stdio 启动
 7. 开放 authenticated local IPC 并发布可认证 handoff；launcher flock 此时已释放，最终写者仍由 `runtime.writer.lock` 判定；
 8. Viewer/MCP 分别连接并读取 capabilities。
 
-本地回归使用 `script/test_mcp004.sh`：除原有 Runtime 缺失、ready 后 crash、一次有界 restart、stdio 存活、只读无副作用和 write approval metadata 外，共享生命周期还必须覆盖 stale handoff、多个 MCP 会话、启动者 idle、passive takeover、适配器关闭后 Runtime 仍可用、未认证 idle/坏 JSON/断开客户端不阻塞合法请求，以及第二 Runtime `RUNTIME_BUSY`。正常 MCP 适配器结束不清理已经 Ready 的共享 Runtime；测试和运维通过 authenticated 显式 shutdown 清理，update 流程也可显式停止。Runtime 存活不等于未完成 Job 有 checkpoint 保证。最终源码的该回归、current `release:mvp`、同 cohort 重建、package verify 与隔离 probe 已 PASS；第二次 Desktop 重启仍为 `NOT_RUN`，不得写为 live Desktop PASS。
+本地回归使用 `script/test_mcp004.sh`：除原有 Runtime 缺失、ready 后 crash、一次有界 restart、stdio 存活、只读无副作用和 write approval metadata 外，共享生命周期还必须覆盖 stale handoff、多个 MCP 会话、启动者 idle、passive takeover、适配器关闭后 Runtime 仍可用、未认证 idle/坏 JSON/断开客户端不阻塞合法请求，以及第二 Runtime `RUNTIME_BUSY`。正常 MCP 适配器结束不清理已经 Ready 的共享 Runtime；测试和运维通过 authenticated 显式 shutdown 清理，update 流程也可显式停止。Runtime 存活不等于未完成 Job 有 checkpoint 保证。最终源码的该回归、current `release:mvp`、同 cohort 重建、package verify、隔离 probe 与第二次 Desktop 重启后的真实工具 Gate 已 PASS；第一次失败 receipt 保留，第二次已完成并写入成功 receipt。
 
 任一步失败，写路径保持关闭；不得启动 legacy sidecar 或打开旧 DB 回退。
 

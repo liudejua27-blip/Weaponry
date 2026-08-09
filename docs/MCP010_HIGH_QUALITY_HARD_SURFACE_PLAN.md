@@ -1,7 +1,7 @@
 # FGC-MCP010 高质量硬表面参考闭环计划
 
 版本：2026-08-09
-状态：`FGC-MCP010A in_progress`；`FGC-MCP010B`–`FGC-MCP010F blocked`
+状态：`FGC-MCP010A done`；`FGC-MCP010B`–`FGC-MCP010F blocked`
 依赖：`FGC-MCP009 done（MVP host golden path）`
 
 本文是 MCP010A–F 的唯一详细执行合同。它不改写 MCP005–009 的历史 evidence，也不把目标 Schema、工具、Skill、库或素材写成当前能力。
@@ -50,15 +50,15 @@ Owned：权威文档、文档 checker、用户级开发 App 构建/激活、原�
 
 必须：
 
-1. 把任务索引重排为 010A–F；同一时刻只保留 010A `in_progress`；
+1. 把任务索引重排为 010A–F；同一时刻只允许一个原子任务处于 `in_progress`；
 2. 从同一源码 revision 构建 `forgecad-mcp`、`forgecad-runtime`、Worker 和 Viewer；
 3. 安装到 `~/Applications/ForgeCAD Runtime Dev.app`，开发期只允许本机 ad-hoc 签名；
 4. Codex 用户配置指向 App Resources 中的 `forgecad-mcp`，不再引用 `forgecad-mcp-host`；仓库配置不写 token、fixture data dir、用户名或用户绝对路径；
 5. 原始 MCP/CLI Gate 通过后，由用户重启 Codex；真实调用证明 `capabilities_get`、临时 `project_create`、Runtime `Ready` 和 MCP/Runtime 相同 build hash。
 
-退出：用户重启后的真实证据未观察到前保持 `in_progress`；不得领取 010B。ad-hoc 开发 App 不是 MCP013 的签名安装包。
+退出：用户重启后的真实证据必须证明工具、Runtime Ready、能力 cohort 和临时项目读回；本次已满足并将 010A 标记 `done`。不得自动领取 010B。ad-hoc 开发 App 不是 MCP013 的签名安装包。
 
-当前进度：证据见 `docs/evidence/mcp010a/`。用户 Codex 配置已切换，第一次 Desktop 重启后的 live Gate 已实际运行并 `FAIL`，不是 `NOT_RUN`：仅发现 17 个只读工具、无 `project_create`，Runtime 实际不可用且没有项目写入；该历史 receipt 保持原样。显式 server environment write opt-in 已配置。共享 Runtime supervisor/IPC 修复已通过最终源码的 `script/test_mcp004.sh`（MCP 26/26 + lifecycle）和 `release:mvp`（Runtime 30/30、MCP 26/26、44 contracts、MCP005–009、Viewer/Tauri、docs/security）。短时 launcher flock 只用于启动选主，Runtime `runtime.writer.lock` 才是最终唯一写者；正常适配器退出不停止已经 Ready 的共享 Runtime，显式 shutdown/update 才停止。最终同 revision/cohort Dev.app 已按 `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064` 重建安装；ad-hoc deep-strict、`package:verify` 与隔离 package probe PASS。隔离 probe 协商 `2025-06-18`、观察到 `Ready` 与 build cohort match、完成隔离 `project_create`，且未触碰持久用户数据。Geometry Worker 与 MCP/Runtime/Viewer 同 cohort 打包，但尚未被 Runtime 作为独立子进程调用，不属于 010A 完成声明。用户第二次完整 Desktop 重启仍为 `NOT_RUN`，因此 010A 保持 `in_progress`，B–F 保持 `blocked`。
+当前进度：证据见 `docs/evidence/mcp010a/`。用户 Codex 配置已切换，第一次 Desktop 重启后的 live Gate 已实际运行并 `FAIL`，不是 `NOT_RUN`：仅发现 17 个只读工具、无 `project_create`，Runtime 实际不可用且没有项目写入；该历史 receipt 保持原样。显式 server environment write opt-in 已配置。共享 Runtime supervisor/IPC 修复已通过最终源码的 `script/test_mcp004.sh`（MCP 26/26 + lifecycle）和 `release:mvp`（Runtime 30/30、MCP 26/26、44 contracts、MCP005–009、Viewer/Tauri、docs/security）。短时 launcher flock 只用于启动选主，Runtime `runtime.writer.lock` 才是最终唯一写者；正常适配器退出不停止已经 Ready 的共享 Runtime，显式 shutdown/update 才停止。最终同 revision/cohort Dev.app 已按 `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064` 重建安装；ad-hoc deep-strict、`package:verify` 与隔离 package probe PASS。隔离 probe 协商 `2025-06-18`、观察到 `Ready` 与 build cohort match、完成隔离 `project_create`，且未触碰持久用户数据。第二次完整 Desktop 重启已真实观察到 30 个工具、Runtime `Ready`、`doctor` 通过、MCP/Runtime cohort match、临时 `project_create` 和 `project_get` readback；成功 receipt 为 `docs/evidence/mcp010a/codex-desktop-post-restart-success.json`。Geometry Worker 与 MCP/Runtime/Viewer 同 cohort 打包，但尚未被 Runtime 作为独立子进程调用，不属于 010A 完成声明。010A 已完成，B–F 保持 `blocked`。
 
 ### 3.2 FGC-MCP010B — V2 合同与几何真值
 

@@ -1,7 +1,7 @@
 # ForgeCAD 单用户 MVP 交付计划
 
 版本：2026-08-09
-状态：权威执行合同；MCP005–MCP009 单用户 MVP host golden path 已完成；FGC-MCP010A in_progress
+状态：权威执行合同；MCP005–MCP009 单用户 MVP host golden path 已完成；FGC-MCP010A done
 当前起点：`FGC-MCP005`–`FGC-MCP009` focused Gate 和真实 Codex CLI 十二调用 reference→CAS GLB receipt 已通过；MCP010B–F 的 V2 几何、像素相似度、真人视觉门和离线材质仍为 `目标设计/NOT_RUN`
 
 ## 1. MVP 要交付什么

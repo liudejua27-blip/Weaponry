@@ -2,7 +2,7 @@
 
 版本：2026-08-09
 MVP 结论：**功能核心 PASS；参考图真人验收/packaged release BLOCKED 或 NOT_RUN**
-MCP010 结论：**FGC-MCP010A in_progress；MCP010B–F BLOCKED**
+MCP010 结论：**FGC-MCP010A done；MCP010B–F BLOCKED**
 生产发布结论：**BLOCKED，不可外部分发**
 
 ## 1. 已完成基座

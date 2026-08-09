@@ -38,7 +38,7 @@ APPLE_SIGNING_IDENTITY="<approved signing identity>" \
   npm run desktop:tauri-package:macos
 ```
 
-该命令会先构建 release `forgecad-runtime` 与 `forgecad-mcp`，再运行 Tauri app bundle。仓库内 `npm run desktop:tauri-build` 通过 `script/with_rust_toolchain.sh` 固定 Cargo 查找；签名失败、notarization 未运行或 Desktop 未重启验收时，状态必须分别记录为 BLOCKED/NOT_RUN。
+该命令会先构建 release `forgecad-runtime` 与 `forgecad-mcp`，再运行 Tauri app bundle。仓库内 `npm run desktop:tauri-build` 通过 `script/with_rust_toolchain.sh` 固定 Cargo 查找；签名失败、notarization 未运行或 packaged Desktop 3D E2E 未验收时，状态必须分别记录为 BLOCKED/NOT_RUN。MCP010A 的开发 App 激活证据不替代 MCP013 正式发布门。
 
 ## 4. 可选 Blender worker
 

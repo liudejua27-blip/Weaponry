@@ -4,13 +4,13 @@ ForgeCAD 正在从“内置模型与聊天的 3D Agent 工作台”硬切为“C
 
 ## 当前状态
 
-2026-08-09：**MCP001–MCP009 的单用户 MVP host golden path 已完成**：真实授权参考 admission、typed Skill/geometry/appearance、bounded GLB、固定 render、只读 Viewer、limited quality、审批/版本和 CAS-backed MVP GLB receipt 已通过 focused Gate；真实 Codex CLI 已完成带图片附件的十二调用 reference→CAS GLB 主链路。像素级参考相似度、真人视觉门、Desktop write 和 packaged release 仍分别标记 `NOT_RUN/BLOCKED`。
+2026-08-09：**MCP001–MCP009 的单用户 MVP host golden path 已完成，MCP010A Desktop 激活已完成**：真实授权参考 admission、typed Skill/geometry/appearance、bounded GLB、固定 render、只读 Viewer、limited quality、审批/版本和 CAS-backed MVP GLB receipt 已通过 focused Gate；真实 Codex CLI 已完成带图片附件的十二调用 reference→CAS GLB 主链路，修复后的 Codex Desktop 已通过 30 工具/Runtime Ready/临时项目 readback 激活 Gate。像素级参考相似度、真人视觉门、完整 Desktop 3D write 和 packaged release 仍分别标记 `NOT_RUN/BLOCKED`。
 
 - 新方向已由 [ADR-0025](docs/ADR/0025-codex-only-mcp-3d-runtime.md) 接受；
 - 旧 Provider、聊天工作台、App Server、Python Agent、旧合同和旧脚本已从当前树删除；
 - 新 `forgecad-runtime`、`forgecad-mcp`、Runtime Viewer、worker protocol、Runtime V1 migration、首批 contracts、CAS、单写者和 authenticated local IPC 已通过本地 focused Gate；
 - 当前版本可以进行开发构建上的本地 3D 功能评估，但不能宣称“通用高质量 3D”或已完成真实 Codex 视觉验收；
-- [FGC-MCP004](docs/CODEX_TASK_INDEX.md) 已按 MVP 基座范围收口，且 `FGC-MCP005–009` 已完成各自功能核心：Runtime/authenticated IPC 候选、审批、restore-as-new-version、path-free diagnostic export、`forgecad-mcp` 内置轻量 supervisor、真实 Codex CLI diagnostic/reference write、PNG/JPEG ReferenceEvidence/CAS、有界 typed 多 Part mesh/GLB、bounded UV/tangent/PBR、fixed render、limited quality、stable-Part change 和 CAS `mvp-glb` receipt 已有 evidence；真实 Codex CLI 十二调用 host golden path 也已 PASS。像素级参考相似度、人评、Desktop write 和 filesystem/package export 仍未验收；
+- [FGC-MCP004](docs/CODEX_TASK_INDEX.md) 已按 MVP 基座范围收口，且 `FGC-MCP005–009` 已完成各自功能核心：Runtime/authenticated IPC 候选、审批、restore-as-new-version、path-free diagnostic export、`forgecad-mcp` 内置轻量 supervisor、真实 Codex CLI diagnostic/reference write、PNG/JPEG ReferenceEvidence/CAS、有界 typed 多 Part mesh/GLB、bounded UV/tangent/PBR、fixed render、limited quality、stable-Part change 和 CAS `mvp-glb` receipt 已有 evidence；真实 Codex CLI 十二调用 host golden path 也已 PASS，MCP010A 已通过第二次 Desktop 激活 Gate。像素级参考相似度、人评、完整 Desktop 3D write 和 filesystem/package export 仍未验收；
 - `FGC-MCP005–009 done` 的边界、命令和未运行项见 [MVP 交付计划](docs/MVP_DELIVERY_PLAN.md) 与 [证据清单](docs/evidence/)。`npm run mcp008:test` 和 `npm run mcp009:test` 分别覆盖 Appearance/Render/Viewer 与 Quality/Change/Version/Export functional core；签名公证和 packaged release 在 MCP013。真实 host receipt 见 `docs/evidence/mcp007/` 和 `docs/evidence/mcp009/`。
 
 reset 前的未提交成果已归档并验证可恢复；归档不属于仓库，也不改变旧产品已经从当前树退役的决定。

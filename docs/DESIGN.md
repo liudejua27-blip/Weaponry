@@ -163,7 +163,7 @@ MVP 的外部库必须 pin、LICENSE/NOTICE、SBOM、adoption receipt 和 benchm
 | Skill 撤销 | 禁止新执行；历史 receipt 可读 |
 | renderer 不可用 | render/quality 能力 degraded；不得确认需要视觉门的候选 |
 
-MCP010A 第一次 Desktop live Gate 已 `FAIL`，历史 receipt 保持原样。共享 Runtime/IPC 修复 tests、current `release:mvp`、cohort `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064` 重建安装、package verify 与隔离 probe 均已 PASS；第二次 Desktop 重启仍为 `NOT_RUN`，因此只能声明实现 Gate PASS，不能写成 live Desktop PASS。
+MCP010A 第一次 Desktop live Gate 已 `FAIL`，历史 receipt 保持原样。共享 Runtime/IPC 修复 tests、current `release:mvp`、cohort `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064` 重建安装、package verify、隔离 probe 与第二次 Desktop live Gate 均已 PASS；成功 receipt 为 `docs/evidence/mcp010a/codex-desktop-post-restart-success.json`。因此 010A 激活已完成，但不能把它写成视觉质量或正式发布 PASS。
 
 ## 12. 性能与预算
 

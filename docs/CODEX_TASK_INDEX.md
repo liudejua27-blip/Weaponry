@@ -1,7 +1,7 @@
 # ForgeCAD 当前原子任务索引
 
 版本：2026-08-09
-状态：唯一任务状态表；MVP host golden path 已收口；FGC-MCP010A in_progress，MCP010B–F blocked
+状态：唯一任务状态表；MVP host golden path 与 FGC-MCP010A 已收口；MCP010B–F blocked
 
 ## 1. 状态规则
 
@@ -23,7 +23,7 @@
 | FGC-MCP007 | done | MCP006 | 有界多 Part 硬表面机器人几何、Assembly/Part/source-map、GLB readback、Viewer read model |
 | FGC-MCP008 | done | MCP007 | bounded UV/tangent/PBR、固定 beauty/silhouette/normal/part-ID、真实 GLB Viewer |
 | FGC-MCP009 | done | MCP008 | limited quality projection、stable-Part `change_prepare`、拒绝/批准/版本/restore、CAS-backed MVP GLB export；功能核心收口 |
-| FGC-MCP010A | in_progress | MCP009 | 权威重排、可恢复旧代码清理、同 revision 用户级开发 App 激活、真实 Codex capability/build-hash Gate；Desktop attempt 1 FAIL，修复/重建/隔离 probe PASS，attempt 2 NOT_RUN |
+| FGC-MCP010A | done | MCP009 | 权威重排、可恢复旧代码清理、同 revision 用户级开发 App 激活、真实 Codex capability/build-hash Gate；Desktop attempt 1 FAIL 保留，attempt 2 PASS（30 工具、Ready、cohort match、临时项目 readback） |
 | FGC-MCP010B | blocked | MCP010A | `GeometryProgram@2`、`OperatorCatalog@1`、`ArtifactReadback@2` 与真实 GLB/拓扑真值 |
 | FGC-MCP010C | blocked | MCP010B | 固定 perspective/z-buffer renderer、九 AOV、参考比较和 typed visual/human review |
 | FGC-MCP010D | blocked | MCP010C | 受限高细节 Operator、first-party Skill 0.2 及 Manifold 隔离采用 |
@@ -36,10 +36,10 @@
 当前可领取任务：
 
 ```text
-FGC-MCP010A in_progress（用户已批准质量升级计划；010B–F 不得并行领取）
+无 `in_progress` 任务；FGC-MCP010A 已完成，010B–F 仍 blocked，须由后续 Goal 显式领取。
 ```
 
-010A 的旧代码清理与恢复 Gate 已 PASS：旧 Provider/Agent/standalone Host 入口、旧评估和孤儿运行残留已移除或隔离，两份 Host receipt 仅作为 `SUPERSEDED` 历史归档，用户 `output/`、`WushenForgeLibrary`、Runtime V1 与 Codex 历史均保留。第一次用户重启后的真实 Desktop Gate 已运行并 `FAIL`：仅 17 个只读工具，`project_create` 不可见，`capabilities_get`/`project_list` 为 `RUNTIME_UNAVAILABLE`，没有活 Runtime 或项目写入；该 receipt 保持原样。共享 Runtime 启动/IPC 生命周期修复已完成：launcher flock 是短时选主锁，Runtime `runtime.writer.lock` 是最终单写者；正常 MCP 适配器退出不停止 Ready Runtime，显式 shutdown/update 才停止。最终源码 `script/test_mcp004.sh` PASS（MCP 26/26 + lifecycle），`release:mvp` exit 0（Runtime 30/30、MCP 26/26、44 contracts、MCP005–009、Viewer/Tauri、docs/security）；cohort `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064` 的 Dev.app 已重建安装，并通过 ad-hoc deep-strict、package verify 与隔离 probe。第二次完整 Desktop 重启仍 `NOT_RUN`；只有 attempt 2 的 30 tools、真实 `Ready`、`capabilities_get`/`project_list`、临时 `project_create` 和 MCP/Runtime 相同 build hash 全部形成 PASS receipt，010A 才能 `done`；此前保持 `in_progress`，不得把 010B 改为 `ready`。
+010A 的旧代码清理与恢复 Gate 已 PASS：旧 Provider/Agent/standalone Host 入口、旧评估和孤儿运行残留已移除或隔离，两份 Host receipt 仅作为 `SUPERSEDED` 历史归档，用户 `output/`、`WushenForgeLibrary`、Runtime V1 与 Codex 历史均保留。第一次用户重启后的真实 Desktop Gate 已运行并 `FAIL`，仅 17 个只读工具；该 receipt 保持原样。共享 Runtime 启动/IPC 生命周期修复已完成：launcher flock 是短时选主锁，Runtime `runtime.writer.lock` 是最终单写者；正常 MCP 适配器退出不停止 Ready Runtime，显式 shutdown/update 才停止。最终源码 `script/test_mcp004.sh`、`release:mvp`、同 cohort Dev.app、包验证和隔离 probe 均 PASS；第二次完整 Desktop 重启已 PASS，观察到 30 个工具、真实 `Ready`、`capabilities_get`/`project_list`、临时 `project_create` readback 和 MCP/Runtime 相同 build hash，成功 receipt 位于 `docs/evidence/mcp010a/codex-desktop-post-restart-success.json`。010A 现为 `done`，不得把 010B 改为 `ready`，须由后续 Goal 显式领取。
 
 ## 3. MCP004 为什么现在可以 done
 

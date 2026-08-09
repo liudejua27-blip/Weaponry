@@ -1,7 +1,7 @@
 # ForgeCAD Codex-only MVP 执行计划
 
 版本：2026-08-09
-状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A in_progress，MCP010B–F blocked
+状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done，MCP010B–F blocked
 
 ## 1. 产品策略
 

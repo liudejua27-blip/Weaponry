@@ -55,7 +55,7 @@ runtime.writer.lock
 8. Runtime 意外退出时，仍存活的 MCP supervisor 最多进行一次简单重启；选主锁避免并发启动风暴，失败则进入 Degraded。
 9. Runtime 可跨适配器会话存活不等于 Job 已有 checkpoint 保证；MVP 仍不承诺 Codex 断线或 Runtime 崩溃后继续未完成 Job。
 
-这只是单用户本地进程复用，不是常驻 daemon、后台 broker 或多客户端服务治理。MCP010A 的共享生命周期 focused/aggregate tests、同 cohort Dev.app 重建、package verify 与隔离 probe 已 PASS；第二次 Desktop 重启仍为 `NOT_RUN`，所以 010A 继续 `in_progress`。
+这只是单用户本地进程复用，不是常驻 daemon、后台 broker 或多客户端服务治理。MCP010A 的共享生命周期 focused/aggregate tests、同 cohort Dev.app 重建、package verify、隔离 probe 和第二次 Desktop 重启后的真实工具 Gate 均已 PASS；010A 已完成，B–F 仍按依赖阻断。
 
 ## 写入流程
 
@@ -89,7 +89,7 @@ Geometry/Render/Quality 并未延期到 MVP 之后：它们由 MCP007–009 以�
 
 - 基座验收：新鲜 target 同时构建 forgecad-mcp 和 forgecad-runtime；
 - 无 Runtime 时 initialize 成功；
-- Runtime ready 后崩溃，MCP stdio 仍存活并完成一次有界重启；共享 Runtime 的 idle owner/passive takeover 与异常未认证客户端隔离回归已在 MCP010A 最终源码 PASS，真实 Desktop attempt 2 仍独立 `NOT_RUN`；
+- Runtime ready 后崩溃，MCP stdio 仍存活并完成一次有界重启；共享 Runtime 的 idle owner/passive takeover 与异常未认证客户端隔离回归已在 MCP010A 最终源码 PASS，真实 Desktop attempt 2 也已 PASS；
 - 第二个 Runtime 返回 RUNTIME_BUSY；
 - 真实 Codex CLI 诊断回合已完成 project_create → candidate_prepare → confirm → restore → diagnostic export，并在同一临时 Runtime 上由 Tauri Viewer 读回 1 个项目、2 个版本；该 candidate 是 contract-only 非视觉对象，不代表图片、几何、生产 GLB 或签名包已完成；
 - Viewer 已通过 authenticated IPC 读取项目、候选、GLB readback/bytes、版本和当前快照投影（不启动 Runtime、不打开 SQLite）；Three.js GLB/PBR canvas 已在 MCP008 完成，仍是临时只读 scene；

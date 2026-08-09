@@ -1,7 +1,7 @@
 # ForgeCAD 3D 编译器与质量管线
 
 版本：2026-08-09
-状态：MVP bounded compiler 已完成；FGC-MCP010A in_progress；MCP010B–E 的 V2 compiler 仍为目标设计
+状态：MVP bounded compiler 已完成；FGC-MCP010A done；MCP010B–E 的 V2 compiler 仍为目标设计
 
 ## 1. 核心原则
 

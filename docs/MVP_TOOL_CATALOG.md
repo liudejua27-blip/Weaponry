@@ -163,6 +163,6 @@ Skill metadata 的 operator ID 不等于当前全部 operator 已实现。当前
 ## 7. 当前 MVP 状态和下一步
 
 - `MCP005–MCP009 functional core`：focused tests/evidence PASS；可运行 `npm run mvp:functional-core`（包含 MCP005 本地 admission 回归；真实 Codex attachment probe 仍单独记录）。
-- 真实 Codex MVP host golden path（参考附件 → geometry → appearance → quality → confirm → version → CAS export）：已由用户授权图片的 Codex CLI receipt 证明。`reject → change → restore`、Viewer 同 hash、重启恢复和 packaged write 仍 `NOT_RUN/BLOCKED`，不能用 fixture 冒充。
+- 真实 Codex MVP host golden path（参考附件 → geometry → appearance → quality → confirm → version → CAS export）：已由用户授权图片的 Codex CLI receipt 证明；MCP010A 另有第二次 Desktop 激活 Gate PASS。`reject → change → restore`、完整 Desktop 3D write、Viewer 同 hash、重启后的模型恢复和 packaged write 仍 `NOT_RUN/BLOCKED`，不能用 fixture 冒充。
 - glTF Validator、像素级 silhouette/landmark/region、独立真人视觉评分、packaged Viewer、Developer ID/notarization：当前 `NOT_RUN/BLOCKED`，不属于本地 functional-core 命令的隐含 PASS。
-- 用户已继续产品化 Goal；当前只领取 `FGC-MCP010A`。用户重启后的真实 Codex capability/build-hash Gate 未观察到前，010A 保持 in_progress，010B–F blocked；不先建设 heartbeat、broker、通用 pack installer 或插件市场。
+- 用户已继续产品化 Goal；`FGC-MCP010A` 已完成真实 Desktop capability/build-hash Gate，`010B–F` 仍 blocked，必须由后续独立 Goal 领取；不先建设 heartbeat、broker、通用 pack installer 或插件市场。

@@ -1,7 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
 版本：2026-08-09
-状态：MCP005–009 functional truth 已实现；FGC-MCP010A in_progress；MCP010 V2 geometry/reference/material/viewer truth 仍是目标设计
+状态：MCP005–009 functional truth 已实现；FGC-MCP010A done；MCP010 V2 geometry/reference/material/viewer truth 仍是目标设计
 
 ## 1. 真值层级
 

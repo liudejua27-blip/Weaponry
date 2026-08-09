@@ -4,7 +4,7 @@
 
 ## 普通用户
 
-当前 MCP001–009 已完成单用户事务、真实 Codex image attachment/PNG/JPEG reference admission、first-party Skill Bundle、有界 geometry/GLB、UV/tangent/PBR、固定 render、GLB Viewer、limited quality、stable-Part change、immutable version/restore 和 CAS-backed mvp-glb receipt；真实 Codex CLI 十二调用 host golden path 已 PASS。工具、Skill 和 GitHub 候选的当前清单见 `MVP_TOOL_CATALOG.md`。像素级参考比较、真人评分、Desktop write 和 packaged release 仍单独标记。正式可用条件见 `MVP_DELIVERY_PLAN.md`、`USER_GUIDE.md` 和 `DOCUMENTATION_STATUS.md`。
+当前 MCP001–009 已完成单用户事务、真实 Codex image attachment/PNG/JPEG reference admission、first-party Skill Bundle、有界 geometry/GLB、UV/tangent/PBR、固定 render、GLB Viewer、limited quality、stable-Part change、immutable version/restore 和 CAS-backed mvp-glb receipt；真实 Codex CLI 十二调用 host golden path 已 PASS，MCP010A Dev.app 已通过第二次 Desktop 激活 Gate。工具、Skill 和 GitHub 候选的当前清单见 `MVP_TOOL_CATALOG.md`。像素级参考比较、真人评分、完整 Desktop 3D write 和 packaged release 仍单独标记。正式可用条件见 `MVP_DELIVERY_PLAN.md`、`USER_GUIDE.md` 和 `DOCUMENTATION_STATUS.md`。
 
 ## Luna / 开发者
 

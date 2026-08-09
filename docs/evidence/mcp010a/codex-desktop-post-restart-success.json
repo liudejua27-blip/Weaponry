@@ -1,0 +1,51 @@
+{
+  "schema_version": "ForgeCADMCP010ACodexDesktopLiveGate@1",
+  "task_id": "FGC-MCP010A",
+  "attempt": 2,
+  "status": "PASS",
+  "host": "Codex Desktop",
+  "observed": {
+    "forgecad_tool_count": 30,
+    "read_tools_visible": true,
+    "write_tools_visible": true,
+    "runtime_status": {
+      "state_observed": "Ready",
+      "retryable": false,
+      "source": "authenticated_ready_handoff"
+    },
+    "doctor_state": "Ready",
+    "doctor_checks": {
+      "mcp_protocol": "pass",
+      "stdio_lifecycle": "pass",
+      "runtime_supervisor": "ready",
+      "runtime_endpoint": "ready"
+    },
+    "capabilities_get": "PASS",
+    "project_list_before": [],
+    "project_create": {
+      "status": "PASS",
+      "project_id": "project-9e2cc17e34e643baaa35a63ab4c82913",
+      "canonical_sha256": "185e88a71eb1dae699bbd9440d0e2c95a94931085827bde93fa1caec5efa5354"
+    },
+    "project_get_after_create": "PASS",
+    "project_list_after": [
+      {
+        "project_id": "project-9e2cc17e34e643baaa35a63ab4c82913",
+        "name": "MCP010A Desktop activation probe"
+      }
+    ]
+  },
+  "build_cohort": {
+    "installed_dev_app": "7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064",
+    "mcp_build_cohort_sha256": "7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064",
+    "runtime_build_cohort_sha256": "7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064",
+    "build_cohort_match": true
+  },
+  "side_effects": {
+    "temporary_activation_project_created": true,
+    "existing_projects_modified": false,
+    "versions_created": false,
+    "reference_or_model_written": false
+  },
+  "claim_boundary": "This receipt proves the MCP010A development activation and Runtime capability gate. It does not prove pixel-level visual similarity, a complete 360-degree reference gate, formal signing/notarization, or general-purpose image-to-3D quality."
+}

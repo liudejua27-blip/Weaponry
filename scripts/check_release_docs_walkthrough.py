@@ -85,7 +85,7 @@ def main() -> int:
     ):
         raise SystemExit("MVP task handoff must preserve MCP004-009 done")
     required_mcp010_rows = (
-        "FGC-MCP010A | in_progress | MCP009",
+        "FGC-MCP010A | done | MCP009",
         "FGC-MCP010B | blocked | MCP010A",
         "FGC-MCP010C | blocked | MCP010B",
         "FGC-MCP010D | blocked | MCP010C",

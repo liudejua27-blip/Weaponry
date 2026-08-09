@@ -39,7 +39,7 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 
 ## 3. 强制实施顺序
 
-实施顺序固定为 `FGC-MCP000 → MCP001 → ... → MCP009 → MCP010A → ... → MCP010F → MCP011 → MCP012 → MCP013`，详见任务索引。同一时刻只领取一个原子任务。MVP functional core 主线 `MCP005 → MCP006 → MCP007 → MCP008 → MCP009` 已完成；当前只允许 `MCP010A` 为 `in_progress`，`MCP010B`–`MCP010F` 必须按依赖保持 `blocked`。
+实施顺序固定为 `FGC-MCP000 → MCP001 → ... → MCP009 → MCP010A → ... → MCP010F → MCP011 → MCP012 → MCP013`，详见任务索引。同一时刻只领取一个原子任务。MVP functional core 主线 `MCP005 → MCP006 → MCP007 → MCP008 → MCP009` 已完成；`MCP010A` 已完成真实 Codex Desktop 激活 Gate，`MCP010B`–`MCP010F` 必须按依赖保持 `blocked`，后续只能由独立 Goal 显式领取。
 
 `FGC-MCP001`–`FGC-MCP009` 已完成当前功能核心定义；`MCP010A`–`MCP010F` 是首个硬表面参考质量产品化轨道，`MCP011`–`MCP013` 保留可靠性、分发和正式发布职责：
 
@@ -50,7 +50,7 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 5. MCP007 已完成 product-owned bounded box/cylinder/sphere compiler、14 部件机器人 fixture、GLB lineage/readback、Runtime/MCP/Viewer authenticated IPC focused Gate；真实 Codex CLI 已用用户授权 PNG 完成 geometry/readback slice（14 parts/516 triangles/validator passed），MCP009 证据另含 appearance/quality/confirm/export 主链路；不得把有限主链路扩展成像素相似度或通用质量结论；
 6. IDE/其他 Client 和 transport-specific official conformance 保持未来/非阻塞状态，不得伪造 PASS。
 7. MCP008 的 bounded Appearance/Render/Viewer focused Gate 已通过；MCP009 的 Runtime golden-path/change/export focused Gate 已通过。MCP010 不能改写这些历史 receipt，只能新增 V2 合同、质量和真实视觉证据；真实 Codex、真人和 packaged gates 必须继续单独标记，不能用本地 fixture 代替。
-8. MCP010A 只做权威重排、同 revision 开发构建/用户级激活和真实 Codex capability Gate；用户重启后的真实调用未观察到前不得标记 `done`，也不得领取 MCP010B。
+8. MCP010A 只做权威重排、同 revision 开发构建/用户级激活和真实 Codex capability Gate；第二次完整重启已证明真实工具、Runtime Ready、能力 cohort 和临时项目读回，故 010A 可标记 `done`。在后续独立 Goal 领取前不得开始 MCP010B。
 
 不得在当前脏 `main` 上直接删除。不得跳过 MCP001 继续扩展旧工作台或修 Provider。
 

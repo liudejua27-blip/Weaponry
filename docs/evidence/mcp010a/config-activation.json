@@ -1,7 +1,7 @@
 {
   "schema_version": "ForgeCADMCP010AConfigActivationReceipt@1",
   "task_id": "FGC-MCP010A",
-  "status": "PASS_EXPLICIT_ENV_PENDING_SECOND_RESTART",
+  "status": "PASS",
   "command": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app/Contents/Resources/forgecad-mcp",
   "args": ["serve", "--stdio"],
   "enabled": true,
@@ -19,5 +19,5 @@
   "legacy_orphan_processes_remaining": 0,
   "installed_build_cohort_sha256": "7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064",
   "codex_desktop_restart_attempt_1": "FAIL_RETAINED_RECEIPT",
-  "codex_desktop_restart_attempt_2": "NOT_RUN"
+  "codex_desktop_restart_attempt_2": "PASS"
 }
