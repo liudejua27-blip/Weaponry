@@ -7,11 +7,13 @@
   "properties": {
     "contract_set": {"type": "string"},
     "runtime_version": {"type": "string"},
+    "build_cohort_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
     "status": {"type": "string"},
     "mcp_transport": {"const": "stdio-json-rpc"},
     "ipc_transport": {"const": "authenticated-local"},
     "write_model": {"const": "single-writer-preview-confirm"},
     "supports_reference_import": {"type": "boolean"},
+    "supports_skill_registry": {"type": "boolean"},
     "supports_snapshot_read": {"type": "boolean"},
     "supports_job_read": {"type": "boolean"},
     "supports_cas": {"type": "boolean"},
@@ -23,6 +25,10 @@
     "mcp_protocol_versions": {"type": "array", "items": {"type": "string"}},
     "resource_uris": {"type": "array", "items": {"type": "string"}},
     "tool_manifest_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "mcp_build_cohort_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "build_cohort_match": {"type": "boolean"},
+    "mcp_write_tools_enabled": {"type": "boolean"},
+    "mcp_write_tool_names": {"type": "array", "items": {"type": "string"}},
     "limitations": {"type": "array", "items": {"type": "string"}}
   },
   "additionalProperties": false

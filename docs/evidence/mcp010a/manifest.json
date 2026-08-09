@@ -1,0 +1,39 @@
+{
+  "schema_version": "ForgeCADEvidenceManifest@1",
+  "task_id": "FGC-MCP010A",
+  "status": "in_progress",
+  "build_cohort_sha256": "7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064",
+  "gates": {
+    "authority_reordering": "PASS",
+    "offline_same_cohort_build": "PASS",
+    "ad_hoc_dev_app_install": "PASS",
+    "package_layout_and_codesign": "PASS",
+    "sibling_runtime_ready": "PASS",
+    "raw_capabilities_and_project_create": "PASS",
+    "real_codex_cli_isolated_write": "PASS",
+    "legacy_cleanup_and_recovery": "PASS",
+    "shared_runtime_lifecycle_remediation": "PASS",
+    "release_mvp_current_source": "PASS",
+    "package_verify": "PASS",
+    "rebuilt_isolated_dev_package_probe": "PASS",
+    "codex_user_config_activation": "PASS_EXPLICIT_ENV_PENDING_SECOND_RESTART",
+    "codex_desktop_restart_and_live_tools": "FAIL_ATTEMPT_1_ATTEMPT_2_NOT_RUN"
+  },
+  "evidence": [
+    "docs/evidence/mcp010a/dev-app-install.json",
+    "docs/evidence/mcp010a/dev-app-probe.json",
+    "docs/evidence/mcp010a/codex-cli-pre-restart.json",
+    "docs/evidence/mcp010a/config-activation.json",
+    "docs/evidence/mcp010a/codex-desktop-post-restart-failed.json",
+    "docs/evidence/mcp010a/legacy-cleanup.json"
+  ],
+  "limitations": [
+    "The first post-restart Codex Desktop Gate failed and is retained as evidence. The remediated same-cohort development app is rebuilt, installed, ad-hoc deep-strict signed, package-verified and isolated-probed, but the second full Codex Desktop restart remains NOT_RUN.",
+    "The current isolated package probe negotiated MCP 2025-06-18, observed Runtime Ready, matched build cohort 7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064, created an isolated project, and did not touch persistent user data.",
+    "MCP010A cannot become done until the second full Codex Desktop restart proves 30 tools, Ready, capabilities_get, project_list, a temporary project_create, and the same MCP/Runtime build cohort in a new live receipt.",
+    "The real Codex CLI isolated-write receipt predates the remediation cohort and remains historical PASS evidence; it is not represented as a live Desktop attempt-2 result.",
+    "A same-cohort geometry worker executable is packaged, while Runtime still uses the linked product-owned crate; independent worker-process execution is not claimed in MCP010A.",
+    "Developer ID, Gatekeeper assessment and notarization remain MCP013 NOT_RUN.",
+    "MCP010B through MCP010F remain blocked."
+  ]
+}

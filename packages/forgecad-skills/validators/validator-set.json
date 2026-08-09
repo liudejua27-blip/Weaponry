@@ -1,0 +1,27 @@
+{
+  "schema_version":"SkillValidatorSet@1",
+  "validators":[
+    {"id":"reference_hash_binding@1","builtin":"reference_id_and_sha256"},
+    {"id":"reference_claim_bounds@1","builtin":"claim_count_confidence_and_unknowns"},
+    {"id":"subject_profile_bounds@1","builtin":"class_units_and_claim_bounds"},
+    {"id":"assembly_acyclic@1","builtin":"part_parent_dag"},
+    {"id":"stable_part_ids@1","builtin":"opaque_stable_ids"},
+    {"id":"operator_allowlist@1","builtin":"registered_operator_lock"},
+    {"id":"finite_parameters@1","builtin":"finite_numbers_and_units"},
+    {"id":"geometry_budget@1","builtin":"node_triangle_time_budget"},
+    {"id":"finite_mesh@1","builtin":"mesh_finite_readback"},
+    {"id":"indices_in_bounds@1","builtin":"mesh_index_bounds"},
+    {"id":"no_degenerate_triangles@1","builtin":"mesh_degenerate_triangles"},
+    {"id":"manifold_policy@1","builtin":"bounded_manifold_policy"},
+    {"id":"uv_bounds@1","builtin":"uv_range_and_overlap"},
+    {"id":"pbr_ranges@1","builtin":"gltf_pbr_ranges"},
+    {"id":"material_zone_binding@1","builtin":"part_material_lineage"},
+    {"id":"render_determinism@1","builtin":"fixed_camera_renderer_hash"},
+    {"id":"render_hash_binding@1","builtin":"candidate_render_lineage"},
+    {"id":"quality_evidence_binding@1","builtin":"reference_render_region_binding"},
+    {"id":"approval_hash_binding@1","builtin":"approval_version_hash_binding"},
+    {"id":"export_readback@1","builtin":"glb_manifest_readback"}
+  ],
+  "network":false,
+  "dynamic_code":false
+}

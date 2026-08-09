@@ -1,0 +1,26 @@
+# MCP006 development operator lock. These identifiers map to product-owned
+# implementations; no executable operator is supplied by this package.
+forgecad.reference.validate@1 = forgecad-runtime-builtin
+forgecad.reference.inventory@1 = forgecad-runtime-builtin
+forgecad.reference.profile@1 = forgecad-runtime-builtin
+forgecad.assembly.part@1 = forgecad-runtime-builtin
+forgecad.assembly.symmetry@1 = forgecad-runtime-builtin
+forgecad.geometry.primitive@1 = forgecad-runtime-builtin
+forgecad.geometry.transform@1 = forgecad-runtime-builtin
+forgecad.geometry.mirror@1 = forgecad-runtime-builtin
+forgecad.geometry.bevel@1 = forgecad-runtime-builtin
+forgecad.geometry.panel@1 = forgecad-runtime-builtin
+forgecad.geometry.vent@1 = forgecad-runtime-builtin
+forgecad.geometry.joint@1 = forgecad-runtime-builtin
+forgecad.geometry.readback@1 = forgecad-runtime-builtin
+forgecad.appearance.uv@1 = forgecad-runtime-builtin
+forgecad.appearance.material-zone@1 = forgecad-runtime-builtin
+forgecad.appearance.tangent@1 = forgecad-runtime-builtin
+forgecad.render.fixed-camera@1 = forgecad-runtime-builtin
+forgecad.render.aov@1 = forgecad-runtime-builtin
+forgecad.quality.silhouette@1 = forgecad-runtime-builtin
+forgecad.quality.proportion@1 = forgecad-runtime-builtin
+forgecad.quality.region@1 = forgecad-runtime-builtin
+forgecad.change.prepare@1 = forgecad-runtime-builtin
+forgecad.export.glb@1 = forgecad-runtime-builtin
+forgecad.export.manifest@1 = forgecad-runtime-builtin

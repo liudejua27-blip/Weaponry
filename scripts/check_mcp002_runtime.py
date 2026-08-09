@@ -20,7 +20,6 @@ def main() -> int:
     migration = read("migrations-runtime-v1/0001_runtime.sql")
     required_tables = (
         "schema_meta",
-        "writer_lease",
         "projects",
         "snapshots",
         "candidates",

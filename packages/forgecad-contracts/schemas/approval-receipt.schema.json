@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/approval-receipt.schema.json",
+  "title": "ForgeCAD Approval Receipt",
+  "type": "object",
+  "required": ["schema_version", "approval_receipt_id", "project_id", "tool", "prepared_object_id", "prepared_object_sha256", "summary_sha256", "decision", "expires_at", "session_id", "created_at"],
+  "properties": {
+    "schema_version": {"const": "ApprovalReceipt@1"},
+    "approval_receipt_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "tool": {"type": "string", "enum": ["candidate_confirm", "candidate_reject", "restore_confirm", "export_confirm"]},
+    "base_version_id": {"type": ["string", "null"]},
+    "prepared_object_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "prepared_object_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "quality_report_id": {"type": ["string", "null"]},
+    "summary_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "decision": {"type": "string", "enum": ["approved", "rejected", "expired"]},
+    "expires_at": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "created_at": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

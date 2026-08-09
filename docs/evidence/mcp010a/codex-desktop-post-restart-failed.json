@@ -1,0 +1,45 @@
+{
+  "schema_version": "ForgeCADMCP010ACodexDesktopLiveGate@1",
+  "task_id": "FGC-MCP010A",
+  "attempt": 1,
+  "status": "FAIL",
+  "host": "Codex Desktop",
+  "observed": {
+    "forgecad_tool_count": 17,
+    "read_tools_visible": true,
+    "project_create_visible": false,
+    "runtime_status": {
+      "state_observed": "Ready",
+      "last_exit_code": 1,
+      "restart_count": 1
+    },
+    "doctor_state": "Degraded",
+    "capabilities_get": "RUNTIME_UNAVAILABLE",
+    "project_list": "RUNTIME_UNAVAILABLE",
+    "live_runtime_process": false,
+    "temporary_project_created": false
+  },
+  "build_cohort": {
+    "installed_dev_app": "e5fd7da79576fd022894838c5ab9b0532b7aef735abc42b86f3283e43532ea91",
+    "stale_handoff_claimed_same_cohort": true,
+    "live_runtime_cohort_verified": false
+  },
+  "root_causes": [
+    "The Codex Desktop process did not inherit the ambient write-tool opt-in, so only read tools were exposed.",
+    "A stale ready handoff was treated as live and prevented Runtime recovery.",
+    "Multiple MCP adapter connections could compete to supervise and remove the same Runtime handoff.",
+    "A retained existing-handoff IPC connection could monopolize the Runtime single-client server."
+  ],
+  "remediation": {
+    "explicit_server_environment_configured": true,
+    "shared_runtime_supervisor_fix": "in_progress",
+    "same_cohort_rebuild_required": true,
+    "second_full_codex_restart_required": true
+  },
+  "side_effects": {
+    "project_or_version_written": false,
+    "reference_or_model_written": false,
+    "user_runtime_database_file_hash_unchanged": "NOT_VERIFIED"
+  },
+  "claim_boundary": "This failed attempt proves only that Codex Desktop loaded the development MCP adapter. It does not prove a Ready Runtime, write-tool activation, project creation, or MCP010A completion."
+}

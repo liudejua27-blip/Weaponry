@@ -1,0 +1,14 @@
+schema_version: ForgeCADSkillRegistry@1
+registry_id: forgecad-mvp-skill-registry
+version: 0.1.0
+status: development-only
+publisher: forgecad-first-party
+manifest: registry.json
+trust_manifest: trust/manifest.sha256
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+signature: deferred-to-mcp012-013

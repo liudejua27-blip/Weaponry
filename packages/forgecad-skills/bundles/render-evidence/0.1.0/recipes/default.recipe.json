@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 32
+  },
+  "canonical_sha256": "84986af081242a0165a3f109227de4be46ec93fc92ca33b4f0cc36acfbdf63b1",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "render"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "AppearanceProgram@1",
+      "node_id": "render",
+      "operator_id": "forgecad.render.fixed-camera@1",
+      "output_schema": "RenderSet@1"
+    }
+  ],
+  "recipe_id": "render-evidence",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "render-evidence",
+  "units": "meter"
+}

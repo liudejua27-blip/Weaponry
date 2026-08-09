@@ -1,0 +1,25 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/change-prepare-result.schema.json",
+  "title":"ForgeCAD Change Prepare Result",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","candidate","job","artifact","render_set","change_set"],
+  "properties":{
+    "schema_version":{"const":"ChangePrepareResult@1"},
+    "candidate":{"type":"object"},
+    "job":{"type":"object"},
+    "artifact":{"$ref":"https://forgecad.local/contracts/artifact-readback.schema.json"},
+    "render_set":{"$ref":"https://forgecad.local/contracts/render-set.schema.json"},
+    "change_set":{
+      "type":"object",
+      "additionalProperties":false,
+      "required":["part_id","operation","parameters"],
+      "properties":{
+        "part_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+        "operation":{"enum":["transform","material_update","replace_geometry"]},
+        "parameters":{"type":"object","maxProperties":16}
+      }
+    }
+  }
+}

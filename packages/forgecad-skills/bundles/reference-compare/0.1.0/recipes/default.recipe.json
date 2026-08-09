@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 64
+  },
+  "canonical_sha256": "32a1346962beca0724dcdcaf2c7e804077781079416a790e2b472b51d41ee1d6",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "compare"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "RenderSet@1",
+      "node_id": "compare",
+      "operator_id": "forgecad.quality.silhouette@1",
+      "output_schema": "QualityReport@1"
+    }
+  ],
+  "recipe_id": "reference-compare",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "reference-compare",
+  "units": "meter"
+}

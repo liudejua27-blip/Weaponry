@@ -1,8 +1,29 @@
 {
   "task_id": "FGC-MCP003",
-  "status": "in_progress",
+  "status": "PASS",
   "checked_at": "2026-08-08",
+  "required_p0_scope": [
+    "codex_desktop",
+    "codex_cli",
+    "protocol_adapter"
+  ],
+  "non_blocking_scope": [
+    "codex_ide",
+    "other_mcp_clients",
+    "official_conformance"
+  ],
+  "required_gate": {
+    "status": "PASS",
+    "required_hosts": [
+      "codex_desktop",
+      "codex_cli"
+    ],
+    "protocol_adapter": "PASS",
+    "release_blockers": [],
+    "note": "MCP003 closes on the required Codex Desktop + Codex CLI host gates and the local/raw protocol adapter gates. Codex IDE, other MCP clients and transport-specific official conformance remain future or separately scoped work."
+  },
   "protocol_adapter": {
+    "scope": "REQUIRED",
     "discovery": "PASS",
     "initialize": "PASS",
     "stdio_probe": "PASS",
@@ -11,35 +32,85 @@
     "resources_list_read": "PASS",
     "version_mismatch_fail_closed": "PASS",
     "codex_legacy_compatibility": "PASS",
-    "evidence": "forgecad-mcp Rust unit tests, protocol snapshot, probe_mcp003_stdio.py and an official @modelcontextprotocol/sdk StdioClientTransport probe; the raw probe now covers canonical 2025-11-25 and Codex 2025-06-18 compatibility; none of these rows alone claim a Codex host connection"
+    "silent_downgrade": false,
+    "mismatch_tool_calls": 0,
+    "mismatch_side_effects": false,
+    "evidence": [
+      "forgecad-mcp Rust focused tests",
+      "docs/evidence/mcp003/protocol-snapshot.json",
+      "scripts/probe_mcp003_stdio.py",
+      "@modelcontextprotocol/sdk StdioClientTransport probe"
+    ],
+    "reason": "The raw ForgeCAD stdio probe covers canonical 2025-11-25, Codex 2025-06-18 compatibility and explicit unsupported-protocol fail-closed behavior; this direct probe used no proxy. The separate Desktop handshake capture used only a transparent pass-through observer and did not rewrite or synthesize messages."
   },
   "codex_desktop": {
+    "scope": "REQUIRED",
     "discovery": "PASS",
     "connection": "PASS",
     "read_only_e2e": "PASS",
     "checked_at": "2026-08-08",
-    "observed_version": "0.1.0 (Runtime; MCP server version not separately shown)",
-    "initialize_protocol_version": "NOT_RECORDED",
-    "version_mismatch": "NOT_RUN",
-    "evidence": "User-provided Codex Desktop screenshot at 10:58 showed source forgecad and successful capabilities_get/project_list with no project or file mutation. The subsequent user-provided transcript completed resources/list, resources/read forgecad://capabilities, selection_get and version_list; all returned structured read-only results and reported no write transaction. A fresh structured read-only run in the current Codex app session repeated the same sequence; see docs/evidence/mcp003/codex-current-session-readonly.json. The host wrapper exposed list_mcp_resources/read_mcp_resource/mcp__forgecad__selection_get/mcp__forgecad__version_list; no upload, 3D generation or write tool was used.",
-    "reason": "Desktop discovery, connection and required read-only tool/resource calls passed from user-supplied screenshot/transcript. Raw initialize.protocolVersion is not included in the transcript and the 2026-07-28 host mismatch run is still NOT_RUN; those remain required before MCP003 can close."
+    "host_version": "0.147.0-alpha.6.5",
+    "server_version": "0.1.0",
+    "initialize_protocol_version": "2025-06-18",
+    "protocol_negotiation": "PASS",
+    "version_mismatch": "NOT_APPLICABLE",
+    "host_override_result": "HOST_OVERRIDE_IGNORED",
+    "forced_mismatch": "HOST_OVERRIDE_IGNORED / NOT_APPLICABLE",
+    "write_transactions": false,
+    "side_effects": false,
+    "capture_observer": {
+      "mode": "transparent_passthrough_logger",
+      "request_rewriting": false,
+      "synthetic_messages": false,
+      "write_e2e_claim": false
+    },
+    "evidence": [
+      "docs/evidence/mcp003/codex-desktop-handshake.jsonl",
+      "docs/evidence/mcp003/host-handshake.jsonl",
+      "docs/evidence/mcp003/codex-current-session-readonly.json",
+      "docs/evidence/mcp003/codex-desktop-mismatch-override-ignored.jsonl",
+      "docs/evidence/mcp003/codex-desktop-mismatch-attempt.json"
+    ],
+    "reason": "The captured Codex Desktop initialize request used protocolVersion 2025-06-18 and ForgeCAD returned the same value. The user-provided Desktop read-only transcript and current Codex app receipt completed discovery, connection, capabilities/project/resources/selection/version reads with no ForgeCAD project, Job, model or version write. launchctl CODEX_MCP_PROTOCOL_VERSION=2026-07-28 was ignored by Desktop; every captured request still used 2025-06-18, so Desktop forced mismatch is not applicable."
   },
   "codex_cli": {
+    "scope": "REQUIRED",
     "discovery": "PASS",
     "connection": "PASS",
     "read_only_e2e": "PASS",
     "version_mismatch": "PASS",
     "checked_at": "2026-08-08",
-    "observed_version": "0.147.0-alpha.6.5",
-    "evidence": "codex mcp get forgecad with an ephemeral config override parsed the forgecad stdio command, args, env var names and writes approval policy without modifying user config. A real authenticated codex exec invocation then started an isolated read-only thread and completed exactly capabilities_get and selection_get against forgecad; both returned structured read-only results and no project, Runtime or user configuration write occurred. A second authenticated run with CODEX_MCP_PROTOCOL_VERSION=2026-07-28 returned the expected unsupported-protocol response with no MCP call or downgrade. See docs/evidence/mcp003/codex-cli-e2e.json.",
-    "reason": "Authenticated CLI read-only E2E passed; a separate no-auth probe was a prior diagnostic 401 and is not the acceptance result."
+    "host_version": "0.147.0-alpha.6.5",
+    "write_transactions": false,
+    "side_effects": false,
+    "silent_downgrade": false,
+    "mismatch_tool_calls": 0,
+    "mismatch_side_effects": false,
+    "evidence": [
+      "docs/evidence/mcp003/codex-cli-e2e.json",
+      "scripts/probe_mcp003_codex_cli.py"
+    ],
+    "reason": "An authenticated real codex exec read-only turn completed capabilities_get and selection_get with no project, Runtime or user-config writes. A separate authenticated run requesting 2026-07-28 returned unsupported-protocol, made no ForgeCAD tool call, produced no side effect and did not silently downgrade."
   },
   "codex_ide": {
-    "discovery": "BLOCKED",
-    "connection": "BLOCKED",
+    "scope": "OPTIONAL_NOT_IN_SCOPE",
+    "acceptance_status": "OPTIONAL_NOT_IN_SCOPE",
+    "discovery": "NOT_RUN",
+    "connection": "NOT_RUN",
     "read_only_e2e": "NOT_RUN",
-    "observed_version": "NOT_OBTAINED (no user-facing IDE session exposed)",
-    "reason": "2026-08-08 acceptance attempt: no user-facing Codex IDE session was exposed to the approved Computer Use surface, and the in-app Browser had no open tabs. IDE discovery/connection was blocked before initialize; no IDE configuration, restart, or MCP call was performed, and read_only_e2e remains NOT_RUN until the user runs the sequence in an unlocked Codex IDE session."
+    "observed_version": "NOT_OBTAINED",
+    "automation_probe": "BLOCKED",
+    "reason": "Codex IDE / VS Code / Cursor / Windsurf is retained as future compatibility, but is not a current P0 product entry point, is not installed for this acceptance, and is not an MCP003 or MCP004 release blocker. The separate Computer Use attempt was blocked before initialize and remains accurately recorded as an automation-surface result."
+  },
+  "other_mcp_clients": {
+    "scope": "FUTURE_NOT_IN_SCOPE",
+    "status": "NOT_RUN",
+    "reason": "Future compatibility target; no current P0 acceptance."
+  },
+  "official_conformance": {
+    "scope": "NON_BLOCKING_FUTURE",
+    "status": "NOT_RUN",
+    "reason": "The available official runner is documented for Streamable HTTP, while MCP003 product scope is local stdio. No HTTP proxy was introduced or counted as stdio evidence. This remains future transport-specific validation, not a current P0 host blocker."
   },
   "computer_use_host_probe": {
     "status": "BLOCKED",
@@ -48,8 +119,8 @@
     "ide_discovery": "NOT_EXPOSED",
     "browser_state": "IAB_CONNECTED_NO_TABS",
     "actions_performed": false,
-    "evidence": "At the 2026-08-08 acceptance attempt, a read-only Computer Use state request for com.openai.codex was denied by the host safety boundary. App discovery showed ChatGPT/com.openai.codex running, but did not grant a controllable UI. The Codex in-app Browser connected successfully and both current-tab and user-tab listings were empty. Independently, the user supplied a Desktop screenshot and transcript proving the read-only MCP calls; no automated UI click, typing, upload, configuration change, or host-side write action was performed by this tool.",
-    "reason": "Computer Use remains blocked as an automation surface, but user-supplied Desktop evidence is now recorded separately. Do not infer initialize protocol or IDE PASS from the screenshot/transcript."
+    "evidence": "At the 2026-08-08 acceptance attempt, a read-only Computer Use state request for com.openai.codex was denied by the host safety boundary. App discovery showed ChatGPT/com.openai.codex running, but did not grant a controllable UI. The Codex in-app Browser connected successfully and both current-tab and user-tab listings were empty. No automated UI click, typing, upload, configuration change, or host-side write action was performed.",
+    "reason": "This is an automation-surface result only. It does not override the separately captured Desktop handshake/read-only evidence and does not create an IDE P0 blocker."
   },
   "security_boundary": {
     "client_name_is_authentication": false,
@@ -58,6 +129,7 @@
     "absolute_paths_in_config": false
   },
   "codex_app_server_diagnostic": {
+    "scope": "SUPPORTING_EVIDENCE",
     "status": "PASS",
     "checked_at": "2026-08-08",
     "protocol_version_observed": "2025-06-18",
@@ -68,6 +140,6 @@
     "tools_discovered": 14,
     "resources_discovered": 1,
     "read_only_tool_call": "PASS",
-    "evidence": "Temporary CODEX_HOME, no model turn, no user config mutation: Codex Desktop/0.147.0-alpha.6.5 app-server started an ephemeral read-only thread, first reproduced the 2025-06-18 mismatch, then after the explicit compatibility implementation emitted startup ready, mcpServerStatus/list with 14 tools and one resource, and mcpServer/tool/call selection_get returned structuredContent with available=false. This is a bounded app-server host diagnostic, not final Desktop UI/CLI/IDE acceptance."
+    "evidence": "Temporary CODEX_HOME, no model turn, no user config mutation: Codex Desktop/0.147.0-alpha.6.5 app-server started an ephemeral read-only thread, emitted startup ready after the explicit compatibility implementation, listed 14 tools plus one resource, and called selection_get with structuredContent available=false. This supports the host diagnosis but is not the sole Desktop acceptance evidence."
   }
 }

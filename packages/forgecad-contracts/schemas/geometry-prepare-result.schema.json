@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/geometry-prepare-result.schema.json",
+  "title":"GeometryPrepareResult",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","candidate","job","artifact"],
+  "properties":{
+    "schema_version":{"const":"GeometryPrepareResult@1"},
+    "candidate":{"type":"object"},
+    "job":{"type":"object"},
+    "artifact":{"$ref":"https://forgecad.local/contracts/artifact-readback.schema.json"}
+  }
+}

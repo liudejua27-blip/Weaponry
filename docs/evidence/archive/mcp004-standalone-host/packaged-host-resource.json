@@ -1,0 +1,32 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "SUPERSEDED",
+  "scope": "historical unsigned local macOS Tauri resource probe for the removed standalone Host",
+  "command": "tauri build --bundles app --no-sign; invoke Contents/Resources/forgecad-mcp-host serve --stdio",
+  "bundle_resources": [
+    "forgecad-runtime",
+    "forgecad-mcp",
+    "forgecad-mcp-host"
+  ],
+  "host_resolution": {
+    "sibling_runtime_found": true,
+    "sibling_mcp_found": true,
+    "initialize_protocol_version": "2025-11-25",
+    "tool_count": 22,
+    "mcp004_write_tool_count": 8,
+    "diagnostic_project_count": 1,
+    "runtime_ready_stderr_only": true,
+    "host_exit_code": 0
+  },
+  "safety": {
+    "image_upload": false,
+    "three_d_generation": false,
+    "production_export": false,
+    "user_data_modified": false,
+    "proxy_or_request_rewrite": false
+  },
+  "limitations": [
+    "The local bundle was built with --no-sign after Tauri signing returned errSecInternalComponent.",
+    "This receipt proves resource placement and sibling resolution only; it is not signed/notarized package or Codex Desktop E2E evidence."
+  ]
+}

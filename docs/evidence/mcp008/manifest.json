@@ -1,0 +1,34 @@
+{
+  "schema_version": "ForgeCADEvidenceManifest@1",
+  "task_id": "FGC-MCP008",
+  "recorded_at": "2026-08-09T00:00:00+08:00",
+  "status": "functional-core-pass",
+  "scope": "bounded AppearanceProgram lowering, fixed software render passes, and read-only GLB Viewer",
+  "commands": {
+    "mcp008_test": {"status":"PASS","command":"npm run mcp008:test","evidence":"Geometry worker, Runtime appearance evidence, MCP adapter focused test, deterministic worker fixture, and Runtime/MCP binaries completed."},
+    "contracts": {"status":"PASS","command":"npm run contracts:check","evidence":"44 JSON contracts parse and manifest matches the schema directory."},
+    "viewer_typecheck": {"status":"PASS","command":"npm run desktop:typecheck","evidence":"Tauri Viewer compiles its read-only Three.js GLB canvas integration."},
+    "release_mvp_aggregate": {"status":"PASS","command":"npm run release:mvp","evidence":"Documentation, integrity, safety, secrets, license/SBOM, MCP005–009 functional core, desktop build and offline Tauri check completed on 2026-08-09; real Codex and human gates remain separately open."},
+    "real_codex_appearance": {"status":"PASS","evidence":"docs/evidence/mcp009/codex-cli-appearance-export.json","reason":"The MCP009 real Codex golden-path receipt includes reference attachment, geometry, appearance_prepare, strict appearance readback, quality_get and the subsequent approval/export chain. This is host evidence for the bounded MCP008 appearance slice, not a pixel-similarity or human-quality score."},
+    "packaged_viewer": {"status":"NOT_RUN","reason":"Unsigned/development packaging is not the MCP008 exit gate; packaged E2E remains MCP013."},
+    "human_visual_score": {"status":"NOT_RUN","reason":"The renderer is deterministic evidence, not a human acceptance score."}
+  },
+  "artifact_fixture": {
+    "artifact_sha256":"b1c88dba9eb3231bfa9a12bda7951da7ebb0016ee4f0e2595960953f4f551e5b",
+    "size_bytes":9836,
+    "part_ids":["shell","core","light"],
+    "triangle_count":88,
+    "uv_status":"passed",
+    "tangent_status":"passed",
+    "fixed_render_passes":["beauty","silhouette","normal","part-id"],
+    "negative_geometry_binding":"PASS",
+    "repeatability":"same input produced the same worker result"
+  },
+  "viewer_boundary": "Viewer reads candidate/artifact metadata and bounded GLB bytes through authenticated local IPC; it never opens SQLite/CAS directly and never writes Runtime state.",
+  "quality_boundary": "MCP008 proves typed UV/tangent/PBR lowering and fixed render evidence; the real Codex chain is PASS through MCP009 evidence. It does not prove reference silhouette similarity, semantic landmark accuracy, or a finished high-quality robot.",
+  "third_party": {
+    "installed":[],
+    "approved_for_evaluation":["xatlas","mikktspace","Khronos glTF-Validator","glTF-Transform"],
+    "adoption_rule":"No external repository was downloaded or executed in this task; candidates remain reference/adoption records until revision, license, SBOM, determinism and removal gates pass."
+  }
+}

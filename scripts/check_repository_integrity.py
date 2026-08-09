@@ -13,6 +13,7 @@ SOURCE_ROOTS = [
     ROOT / "apps" / "geometry-worker",
     ROOT / "apps" / "render-worker",
     ROOT / "packages" / "forgecad-contracts",
+    ROOT / "script",
 ]
 BANNED = ("deepseek", "qwen", "dashscope", "providerregistry", "provider registry", "api_first", "api-first", "forgecad-app-server", "fastapi", ":8000")
 
@@ -24,7 +25,17 @@ def main() -> int:
         ROOT / "apps" / "desktop" / "src-tauri" / "crates" / "forgecad-app-server",
         ROOT / "apps" / "desktop" / "src-tauri" / "crates" / "forgecad-app-server-protocol",
         ROOT / "packages" / "concept-spec",
+        ROOT / "packages" / "weapon-spec",
         ROOT / "packages" / "agent-skills",
+        ROOT / "evaluations" / "agent-provider-v1",
+        ROOT / "evaluations" / "r4",
+        ROOT / "evaluations" / "csg-g824",
+        ROOT / "evaluations" / "csg-g824a",
+        ROOT / "evaluations" / "csg-g824b",
+        ROOT / "evaluations" / "csg-g824c",
+        ROOT / "evaluations" / "csg-g824d",
+        ROOT / "script" / "build_packaged_agent_sidecar.sh",
+        ROOT / "smoke-gate07.env.example",
     ]
     present = [str(path.relative_to(ROOT)) for path in forbidden_paths if path.exists()]
     if present:

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/export-prepare-result.schema.json",
+  "title": "ForgeCAD Export Prepare Result",
+  "type": "object",
+  "required": ["schema_version", "manifest", "job"],
+  "properties": {
+    "schema_version": {"const": "ExportPrepareResult@1"},
+    "manifest": {"$ref": "https://forgecad.local/contracts/export-manifest.schema.json"},
+    "job": {"$ref": "https://forgecad.local/contracts/runtime-job.schema.json"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,71 @@
+{
+  "schema_version": "ForgeCADEvidenceManifest@1",
+  "task_id": "FGC-MCP007",
+  "status": "completed",
+  "scope": "bounded multi-part hard-surface geometry and strict GLB readback",
+  "worktree": "dirty-user-worktree",
+  "implementation": {
+    "geometry_worker": "apps/geometry-worker/src/lib.rs",
+    "runtime_geometry_orchestration": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+    "mcp_adapter": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
+    "viewer_read_model": "apps/desktop/src-tauri/src/viewer.rs",
+    "contracts": [
+      "packages/forgecad-contracts/schemas/geometry-program.schema.json",
+      "packages/forgecad-contracts/schemas/geometry-prepare-result.schema.json",
+      "packages/forgecad-contracts/schemas/artifact-readback.schema.json"
+    ]
+  },
+  "focused": {
+    "status": "PASS",
+    "command": "npm run mcp007:test",
+    "exit_code": 0,
+    "worker_fixture": "docs/evidence/mcp007/worker-fixture.json",
+    "runtime_geometry_tests": 2,
+    "mcp_authenticated_ipc_geometry_test": "PASS",
+    "viewer_authenticated_ipc_glb_readback_test": "PASS"
+  },
+  "artifact": {
+    "status": "PASS",
+    "worker_fixture_glb_sha256": "dd1415360672d658aa9225272173efccfaad0592c4894788a2c0b7bb4f61a353",
+    "worker_fixture_program_sha256": "bfdc374754a966c198640de5859252c4f3c2433a842c8930c5ebd42c93510e47",
+    "worker_fixture_part_count": 3,
+    "worker_fixture_triangle_count": 332,
+    "runtime_and_mcp_robot_fixture": "14 semantic parts; 516 triangles; GLB artifact hash recorded in focused runtime/MCP output"
+  },
+  "negative": {
+    "status": "PASS",
+    "unknown_operator": "GEOMETRY_REJECTED",
+    "non_canonical_program": "GEOMETRY_REJECTED",
+    "budget_overflow": "GEOMETRY_REJECTED",
+    "invalid_glb_readback": "fail_closed",
+    "no_immutable_version_on_prepare_failure": "PASS"
+  },
+  "real_codex_cli": {
+    "status": "PASS",
+    "command": "scripts/probe_mcp007_codex_cli.py --execute --reference <authorized-reference>",
+    "observed": "The isolated local Codex CLI received the authorized image attachment and completed project_create, reference_import, geometry_prepare and artifact_readback_get against the authenticated ForgeCAD MCP server across two short turns.",
+    "reason": null,
+    "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+    "source_size_bytes": 2165094,
+    "artifact_id": "c225a4df79a9df3b1696c6952e07ff59c45a6f6257961f2d4001851eda23f98b",
+    "candidate_id": "candidate-18ee62cf4ba84b2286d2d3209d859d92",
+    "part_count": 14,
+    "triangle_count": 516,
+    "validator_status": "passed",
+    "reference_path_recorded": false,
+    "prompt_recorded": false,
+    "recheck_boundary": "Two later local rechecks were BLOCKED (one incomplete readback arguments, one no MCP tools from an ephemeral host session); the earlier clean PASS receipt remains the only promoted real-Codex evidence."
+  },
+  "not_run": [
+    "UV/tangent/PBR",
+    "fixed render passes",
+    "reference similarity metrics",
+    "production GLB export",
+    "packaged Desktop/CLI E2E"
+  ],
+  "third_party": {
+    "status": "reference-only",
+    "installed": [],
+    "note": "No GitHub geometry plugin, remote image-to-3D provider, Blender MCP or executable Skill payload was installed. img2threejs/img2css remain design references only."
+  }
+}

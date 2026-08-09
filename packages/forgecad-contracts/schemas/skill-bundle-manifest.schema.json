@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/skill-bundle-manifest.schema.json",
+  "title": "SkillBundleManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version","skill_id","version","status","publisher","contract_range","input_schema","output_schema","recipe","operator_ids","validator_ids","capabilities","budgets","benchmark_suite","canonical_sha256","trust_profile","signature"],
+  "properties": {
+    "schema_version": {"const":"SkillBundleManifest@1"},
+    "skill_id": {"type":"string","pattern":"^[a-z0-9][a-z0-9-]{0,63}$"},
+    "version": {"type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "status": {"enum":["development-only","accepted","disabled"]},
+    "publisher": {"const":"forgecad-first-party"},
+    "contract_range": {"const":"forgecad-runtime-contracts@1"},
+    "input_schema": {"type":"string","pattern":"^[a-zA-Z0-9_./-]{1,256}$"},
+    "output_schema": {"type":"string","pattern":"^[a-zA-Z0-9_./-]{1,256}$"},
+    "recipe": {"type":"string","pattern":"^[a-zA-Z0-9_./-]{1,256}$"},
+    "operator_ids": {"type":"array","minItems":1,"maxItems":32,"items":{"type":"string","pattern":"^forgecad\\.[a-z0-9_.-]+@[0-9]+$"}},
+    "validator_ids": {"type":"array","minItems":1,"maxItems":32,"items":{"type":"string","pattern":"^[a-z0-9_.-]+@[0-9]+$"}},
+    "capabilities": {"type":"object","additionalProperties":false,"required":["network","filesystem_read","filesystem_write","dynamic_code","model_calls","geometry_execution","render_execution"],"properties":{"network":{"const":false},"filesystem_read":{"const":false},"filesystem_write":{"const":false},"dynamic_code":{"const":false},"model_calls":{"const":false},"geometry_execution":{"type":"boolean"},"render_execution":{"type":"boolean"}}},
+    "budgets": {"type":"object","additionalProperties":true},
+    "benchmark_suite": {"type":"string","pattern":"^[a-zA-Z0-9_./-]{1,256}$"},
+    "canonical_sha256": {"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "trust_profile": {"enum":["development-root","distribution-root"]},
+    "signature": {"enum":["development-only","signed"]}
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "benchmark_suite": "semantic-assembly-smoke",
+  "budgets": {
+    "max_depth": 16,
+    "max_parts": 64
+  },
+  "canonical_sha256": "6bf588b0deec6770ecce8ba386e2d155e5b62197041967ffb277e0fe7fdd0d7b",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": false,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/subject-profile.schema.json",
+  "operator_ids": [
+    "forgecad.assembly.part@1",
+    "forgecad.assembly.symmetry@1"
+  ],
+  "output_schema": "schemas/assembly-graph.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "semantic-assembly",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "assembly_acyclic@1",
+    "stable_part_ids@1"
+  ],
+  "version": "0.1.0"
+}

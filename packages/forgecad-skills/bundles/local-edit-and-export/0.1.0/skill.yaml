@@ -1,0 +1,34 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: local-edit-and-export
+version: 0.1.0
+status: development-only
+publisher: forgecad-first-party
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/assembly-graph.schema.json
+output_schema: schemas/export-manifest.schema.json
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: false
+  render_execution: false
+operator_ids:
+  - forgecad.change.prepare@1
+  - forgecad.export.glb@1
+  - forgecad.export.manifest@1
+validator_ids:
+  - stable_part_ids@1
+  - approval_hash_binding@1
+  - export_readback@1
+budgets:
+  max_changed_parts: 8
+  max_export_bytes: 134217728
+benchmark_suite: local-edit-and-export-smoke
+known_limitations:
+  - Declarative safety receipt does not claim geometry, render or visual quality.
+  - Distribution signature and third-party installation are deferred to MCP012-013.

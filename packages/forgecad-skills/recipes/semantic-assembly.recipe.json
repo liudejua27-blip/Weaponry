@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 32
+  },
+  "canonical_sha256": "83a3127d2844d9aa7e1ebd79c03e568477e9915513e8a4b55f4b5e56417a922d",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "parts"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "SubjectProfile@1",
+      "node_id": "parts",
+      "operator_id": "forgecad.assembly.part@1",
+      "output_schema": "AssemblyGraph@1"
+    }
+  ],
+  "recipe_id": "semantic-assembly",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "semantic-assembly",
+  "units": "meter"
+}

@@ -1,0 +1,25 @@
+{
+  "task_id": "FGC-MCP003",
+  "host": "Codex Desktop",
+  "checked_at": "2026-08-08T03:30:21.364112+00:00",
+  "codex_version": "0.147.0-alpha.6.5",
+  "requested_override": "2026-07-28",
+  "observed_initialize_protocol_version": "2025-06-18",
+  "result": "HOST_OVERRIDE_IGNORED",
+  "acceptance_status": "NOT_APPLICABLE",
+  "forced_mismatch": "HOST_OVERRIDE_IGNORED / NOT_APPLICABLE",
+  "prior_acceptance_status": "BLOCKED",
+  "write_transactions": false,
+  "silent_downgrade_claim": false,
+  "capture_observer": {
+    "mode": "transparent_passthrough_logger",
+    "observed_messages_forwarded": true,
+    "request_rewriting": false,
+    "synthetic_messages": false,
+    "used_to_claim_write_e2e": false
+  },
+  "reason": "The Desktop process was launched after launchctl setenv CODEX_MCP_PROTOCOL_VERSION=2026-07-28, but every captured MCP initialize request still used protocolVersion=2025-06-18. Therefore this mechanism cannot produce a genuine Desktop protocol-mismatch test and is not applicable to the Desktop host gate. The prior BLOCKED assessment is retained as historical context; the current classification is HOST_OVERRIDE_IGNORED / NOT_APPLICABLE. Capture used only a transparent pass-through observer; no request rewriting or synthetic message was used to produce the result.",
+  "evidence": [
+    "codex-desktop-mismatch-override-ignored.jsonl"
+  ]
+}

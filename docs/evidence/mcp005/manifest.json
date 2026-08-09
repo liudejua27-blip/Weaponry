@@ -1,0 +1,41 @@
+{
+  "schema_version": "ForgeCADEvidenceManifest@1",
+  "task": "FGC-MCP005",
+  "status": "done",
+  "scope": "ReferenceEvidence admission only; geometry/appearance/render/quality/GLB remain out of scope",
+  "worktree": "dirty-user-worktree",
+  "contracts": [
+    "ReferenceEvidence@1",
+    "ReferenceImportRequest@1",
+    "ReferenceImportResult@1",
+    "ReferenceGetResult@1"
+  ],
+  "focused": {
+    "runtime_reference_unit_tests": "PASS",
+    "mcp_authenticated_reference_test": "PASS",
+    "png_jpeg_and_negative_admission": "PASS (3 Runtime unit tests)",
+    "path_symlink_root_boundary": "PASS (authorized-root, outside-root and symlink Runtime unit test)",
+    "absolute_path_redaction": "PASS_BY_RECEIPT_REVIEW"
+  },
+  "real_codex": {
+    "desktop": "NOT_RUN / unavailable in current bridge",
+    "cli": "PASS",
+    "evidence": "codex-cli-reference-e2e.json"
+  },
+  "source_hashes": {
+    "authorized_png": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd"
+  },
+  "third_party_research": {
+    "img2threejs": "d6673386f89673a58736f8d398dd16ece67874f5",
+    "img2css": "5dce10537589422c254a01a1d71aa805697d2c7f"
+  },
+  "not_claimed": [
+    "reference similarity",
+    "3D geometry",
+    "PBR materials",
+    "fixed renders",
+    "quality score",
+    "GLB export",
+    "packaged Desktop attachment E2E"
+  ]
+}

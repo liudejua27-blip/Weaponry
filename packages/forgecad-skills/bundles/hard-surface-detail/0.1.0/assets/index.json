@@ -1,0 +1,7 @@
+{
+  "assets": [],
+  "network": false,
+  "note": "No external asset payload is included in the MCP006 declarative bundle.",
+  "schema_version": "SkillAssetIndex@1",
+  "skill_id": "hard-surface-detail"
+}

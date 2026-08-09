@@ -1,0 +1,14 @@
+{
+  "fixture_sha256": "529fb57759641b87fa5c5b3497a0d935523d10021df9063f1993ac9686de12f6",
+  "metrics": {
+    "declarative_plan_validation": 1,
+    "fixtures": 2,
+    "forbidden_capabilities": 0
+  },
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "reference-intake",
+  "status": "passed",
+  "suite_id": "reference-intake-smoke",
+  "version": "0.1.0"
+}

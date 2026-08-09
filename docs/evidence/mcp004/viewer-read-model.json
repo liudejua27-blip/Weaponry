@@ -1,0 +1,30 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "PASS",
+  "checked_at": "2026-08-08",
+  "scope": "optional Tauri Viewer read-only projection",
+  "implementation": {
+    "command": "viewer_read_model",
+    "transport": "authenticated local IPC via ready.json",
+    "writes": false,
+    "sqlite_or_cas_direct_access": false,
+    "runtime_start": false,
+    "projection": ["project", "versions", "head_snapshot"]
+  },
+  "commands": [
+    {
+      "command": "CARGO_TARGET_DIR=/tmp/forgecad-viewer-test-target script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-desktop --offline",
+      "status": "PASS",
+      "evidence": "Viewer read-model test starts a real Runtime and authenticated IPC server, reads a project and empty version list through the same helper used by the Tauri command, then shuts Runtime down through IPC. Unavailable state is retryable and empty."
+    },
+    {
+      "command": "npm run desktop:typecheck && npm run desktop:build && npm run desktop:tauri-check",
+      "status": "PASS",
+      "evidence": "Frontend invoke integration, Tauri command registration and workspace compile pass."
+    }
+  ],
+  "limitations": [
+    "The viewport remains a placeholder; no geometry/render/GLB asset is displayed.",
+    "Packaged signed Viewer and same-hash production E2E remain separate release gates."
+  ]
+}

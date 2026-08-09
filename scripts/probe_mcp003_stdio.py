@@ -108,7 +108,7 @@ def main() -> int:
     require(len(responses) == 4, f"expected 4 responses, got {len(responses)}")
     require(responses[0].get("result", {}).get("protocolVersion") == PROTOCOL_VERSION, "initialize protocol mismatch")
     tools = responses[1].get("result", {}).get("tools", [])
-    require(len(tools) == 14, f"expected 14 tools, got {len(tools)}")
+    require(len(tools) == 17, f"expected 17 tools, got {len(tools)}")
     require(
         all(tool.get("annotations", {}).get("readOnlyHint") is True for tool in tools),
         "a discovered tool is not read-only",
@@ -144,8 +144,8 @@ def main() -> int:
         "Codex 2025-06-18 compatibility negotiation failed",
     )
     require(
-        len(compatibility[1].get("result", {}).get("tools", [])) == 14,
-        "Codex compatibility tools/list did not expose 14 tools",
+        len(compatibility[1].get("result", {}).get("tools", [])) == 17,
+        "Codex compatibility tools/list did not expose 17 tools",
     )
 
     mismatch = run_probe(

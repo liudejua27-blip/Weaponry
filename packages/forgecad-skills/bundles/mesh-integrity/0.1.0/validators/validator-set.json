@@ -1,0 +1,23 @@
+{
+  "dynamic_code": false,
+  "network": false,
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {
+      "builtin": "mesh_finite_readback",
+      "id": "finite_mesh@1"
+    },
+    {
+      "builtin": "mesh_index_bounds",
+      "id": "indices_in_bounds@1"
+    },
+    {
+      "builtin": "mesh_degenerate_triangles",
+      "id": "no_degenerate_triangles@1"
+    },
+    {
+      "builtin": "bounded_manifold_policy",
+      "id": "manifold_policy@1"
+    }
+  ]
+}

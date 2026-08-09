@@ -12,11 +12,20 @@
       "result": {
         "contract_set": "forgecad-runtime-contracts@1",
         "mcp_protocol_versions": ["2025-11-25", "2025-06-18"],
+        "mcp_transport": "stdio-json-rpc",
+        "ipc_transport": "authenticated-local",
         "runtime_version": "0.1.0",
         "status": "alpha-mcp003",
+        "supports_authenticated_ipc": true,
         "supports_geometry_execution": false,
         "supports_reference_import": false,
-        "supports_render_execution": false
+        "supports_render_execution": false,
+        "tool_manifest_hash": "2ec5a67770c1644ded1440b305b22b6a245a8006216bb468ea5aa3037c6fd28f",
+        "limitations": [
+          "MCP003 exposes read-only resources and tools; mutation tools remain disabled until MCP004.",
+          "Codex is the only supported external agent entry; no model SDK is bundled.",
+          "Reference images, geometry and render workers remain capability-gated until their validators ship."
+        ]
       }
     },
     {
@@ -54,5 +63,5 @@
   ],
   "write_transactions": false,
   "version_mismatch": "NOT_RUN",
-  "notes": "This receipt records structured read-only calls from the current Codex app MCP session. The automatic initialize response is not exposed and this receipt does not replace separate Desktop, CLI or IDE host gates."
+  "notes": "This receipt records structured read-only calls from the current Codex app MCP session. The live connector exposed the default 14-tool read-only surface; MCP004 write fields were not present and no write tool was enabled. The automatic initialize response is not exposed and this receipt does not replace separate Desktop, CLI or IDE host gates."
 }

@@ -1,0 +1,4 @@
+# Product-owned operator lock; this bundle contains no executable operator.
+forgecad.appearance.uv@1 = forgecad-runtime-builtin
+forgecad.appearance.material-zone@1 = forgecad-runtime-builtin
+forgecad.appearance.tangent@1 = forgecad-runtime-builtin

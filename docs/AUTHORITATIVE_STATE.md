@@ -1,7 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
-版本：2026-08-07
-状态：目标合同；旧 `ConceptVersion/AgentAssetVersion` 不再是新 Runtime 真值
+版本：2026-08-09
+状态：MCP005–009 functional truth 已实现；FGC-MCP010A in_progress；MCP010 V2 geometry/reference/material/viewer truth 仍是目标设计
 
 ## 1. 真值层级
 
@@ -14,6 +14,14 @@
 7. **Codex 对话/自然语言**：意图与解释，不是产品状态。
 
 GLB、图片、`.blend`、Three.js scene、prompt、Skill 文档和 Codex 评价都不能单独成为版本头。
+
+MVP 具体规则：Reference truth 是 CAS 原始字节 + `ReferenceEvidence`，不是本机路径；Geometry truth 是 canonical `GeometryProgram` + worker receipt + mesh/GLB readback，不是 `.blend` 或 Viewer scene；Appearance truth 是 typed MaterialZone/AppearanceProgram；Render/Quality 只证明同一 candidate hash；导出是 confirmed version 的派生物，不反向成为版本头。
+
+### 1.1 MCP010 目标真值（尚未实现）
+
+MCP010B–F 计划增加 `GeometryProgram@2`、`ArtifactReadback@2`、`AppearanceProgram@2`、`RenderSet@2`、参考比较、Visual/Human review 和 first-party AssetPack。它们仍遵守同一层级：Schema/program/asset manifest 是声明，只有 Runtime-owned producer、CAS artifact、严格 readback、固定 render、QualityReport 和版本 lineage 共同成立时才成为候选证据。010A 文档重排不创建这些对象，也不改变当前 44 Schema、17 read + 13 write tools 或 Skill `0.1.0` 事实。
+
+目标 `HumanVisualReviewReceipt` 只证明用户评分绑定到特定 reference/camera/render/candidate hash，不证明模型身份，也不能覆盖 Geometry/UV/PBR 硬门。当前单张参考只能产生 `PARTIAL_VISIBLE_VIEW_PASS`；`HQ_360_PASS` 在多视图完整前固定 blocked。
 
 ## 2. 核心对象
 
@@ -63,7 +71,7 @@ Snapshot 不复制完整模型，不合并两套 `vN`，不按导出格式切换
 
 ## 3. 写入不变量
 
-- 只有 Runtime 进程持有 DB writer lease；
+- 只有 Runtime 进程持有 SQLite/CAS 写权限；启动时先取得 OS 独占 writer 文件锁，第二实例返回 `RUNTIME_BUSY`；
 - `prepare` 不移动 confirmed head；
 - `confirm` 在单一 SQLite 事务中校验 base/hash/quality/approval/idempotency、写版本、更新 snapshot、追加 audit；
 - 同一 idempotency key + request hash 返回同一结果；同 key 不同 hash 拒绝；
@@ -94,7 +102,7 @@ Viewer selection 只是提示；prepare 时必须重新绑定当前 snapshot/par
 
 ## 7. 导出
 
-`export_prepare` 生成 manifest 与候选文件，绑定 confirmed version、format/profile、artifact hashes、validator/readback、license/provenance 和 toolchain。用户批准后 `export_confirm` 原子写入授权目标，并返回最终文件 hash；导出目录不得成为版本真值。
+`export_prepare` 生成 manifest 与 CAS-backed artifact reference，绑定 confirmed version、format/profile、artifact hashes、validator/readback、license/provenance 和 toolchain。MVP `glb/mvp-glb` 的 `export_confirm` 原子确认 receipt 并返回 `output_sha256`，不写任意本机路径；filesystem/package target 属 MCP013。导出目录不得成为版本真值。
 
 如果 Viewer、candidate、quality、export 的 version/hash 不一致，导出 fail closed。导出包不包含绝对本机路径、secret、prompt、原始 Codex attachment path 或未授权资产。
 
@@ -106,4 +114,4 @@ Viewer selection 只是提示；prepare 时必须重新绑定当前 snapshot/par
 
 ## 9. 重启与灾难恢复
 
-重启时 Runtime：验证 DB migration/version → CAS reachability → writer lease → 非终态 Job checkpoint → snapshot/version hashes → Skill revocation。无法安全恢复的 Job 转为 typed failure；不得以猜测状态续跑。已确认版本必须在 MCP/Viewer 不可用时仍可离线备份和校验。
+重启时 Runtime：取得 OS writer 文件锁 → 验证 DB migration/version → CAS reachability → snapshot/version hashes。MVP 不使用 TTL lease、heartbeat 或 stale takeover；未完成 Job 的跨 MCP 会话恢复暂不承诺，无法安全恢复的 Job 转为 typed failure。已确认版本必须在 MCP/Viewer 不可用时仍可离线备份和校验。

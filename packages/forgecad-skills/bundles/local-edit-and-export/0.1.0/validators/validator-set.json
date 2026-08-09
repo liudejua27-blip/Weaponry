@@ -1,0 +1,19 @@
+{
+  "dynamic_code": false,
+  "network": false,
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {
+      "builtin": "opaque_stable_ids",
+      "id": "stable_part_ids@1"
+    },
+    {
+      "builtin": "approval_version_hash_binding",
+      "id": "approval_hash_binding@1"
+    },
+    {
+      "builtin": "glb_manifest_readback",
+      "id": "export_readback@1"
+    }
+  ]
+}

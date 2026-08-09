@@ -1,10 +1,11 @@
-# MCP003 baseline for the ChatGPT/Codex desktop app.
-# The signed installer supplies the two Runtime environment variables at launch.
+# Codex Desktop baseline for the single-user ForgeCAD MVP.
+# forgecad-mcp owns stdio and starts one local Runtime child asynchronously.
 [mcp_servers.forgecad]
 command = "forgecad-mcp"
 args = ["serve", "--stdio"]
-env_vars = ["FORGECAD_RUNTIME_SOCKET", "FORGECAD_RUNTIME_TOKEN"]
+env_vars = ["FORGECAD_MCP_ENABLE_MCP004_WRITES"]
+enabled = true
 startup_timeout_sec = 20
 tool_timeout_sec = 60
-required = true
+required = false
 default_tools_approval_mode = "writes"

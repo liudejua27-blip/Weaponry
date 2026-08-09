@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 64
+  },
+  "canonical_sha256": "e1fa5055e253aa061cb1dc2be7f7e8d1f5cd969111e814c22550e9f1da450a40",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "materials"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "GeometryProgram@1",
+      "node_id": "materials",
+      "operator_id": "forgecad.appearance.material-zone@1",
+      "output_schema": "AppearanceProgram@1"
+    }
+  ],
+  "recipe_id": "uv-pbr",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "uv-pbr",
+  "units": "meter"
+}

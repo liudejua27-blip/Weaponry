@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-import-request.schema.json",
+  "title": "ReferenceImportRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "source", "authorization"],
+  "properties": {
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "mime", "content_base64"],
+          "properties": {
+            "kind": {"const": "inline_content"},
+            "mime": {"enum": ["image/png", "image/jpeg"]},
+            "content_base64": {"type": "string", "minLength": 1, "maxLength": 12582912}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path"],
+          "properties": {
+            "kind": {"const": "codex_local_file"},
+            "path": {"type": "string", "minLength": 1, "maxLength": 4096}
+          }
+        }
+      ]
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_authorized", "declaration"],
+      "properties": {
+        "user_authorized": {"const": true},
+        "declaration": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "expected_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

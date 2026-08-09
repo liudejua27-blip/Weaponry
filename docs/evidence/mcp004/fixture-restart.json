@@ -1,0 +1,33 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "PASS",
+  "checked_at": "2026-08-08",
+  "scope": "development forgecad-mcp initialize after repeated isolated startup",
+  "data_root": "isolated temporary copy; user Runtime data was not modified",
+  "environment": {
+    "FORGECAD_MCP_ENABLE_MCP004_WRITES": "1",
+    "FORGECAD_RUNTIME_DATA_DIR": "isolated temporary directory",
+    "protocol_version": "2025-06-18"
+  },
+  "first_startup": {
+    "status": "PASS",
+    "exit_code": 0,
+    "initialize_response": true
+  },
+  "second_startup_same_data_root": {
+    "status": "PASS",
+    "exit_code": 0,
+    "initialize_response": true
+  },
+  "regressions_covered": [
+    "fixture-local approval and idempotency identifiers",
+    "MCP child cleanup without a separate Host executable",
+    "OS writer file lock can be reacquired immediately after Runtime exit"
+  ],
+  "image_upload": false,
+  "three_d_generation": false,
+  "production_file_export": false,
+  "limitations": [
+    "This proves local MCP startup/restart and initialize only; it is not packaged Codex Desktop write E2E or production signing/notarization evidence."
+  ]
+}

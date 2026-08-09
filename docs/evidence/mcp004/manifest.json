@@ -1,0 +1,217 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "in_progress",
+  "base_commit": "03e714a4e34e19b474794844ca10c69d66718cbb",
+  "checked_at": "2026-08-08",
+  "worktree_policy": "dirty uncommitted worktree preserved; no reset/clean/commit/push; prior MCP003 evidence remains in place",
+  "scope": "Runtime, authenticated IPC and explicit opt-in MCP wire candidate/approval/restore transaction core plus manifest-only diagnostic export; no 3D generation or image upload",
+  "host_scope": {
+    "required_p0": ["codex_desktop", "codex_cli", "protocol_adapter"],
+    "ide": "OPTIONAL_NOT_IN_SCOPE",
+    "other_mcp_clients": "FUTURE_NOT_IN_SCOPE"
+  },
+  "implementation": [
+    "Candidate@1 now binds prepared object ID/hash and quality hard-gate state.",
+    "candidate_prepare creates a hash-bound candidate, durable RuntimeJob and audit event in one transaction.",
+        "candidate_confirm validates project scope, candidate state, base, object/hash, quality, approval expiry and idempotency before one atomic immutable version plus snapshot commit.",
+        "Runtime mints the durable receipt ID inside confirm/reject/export transactions; the caller-supplied approval_receipt_id is retained only as approval context and is not used as the persisted receipt identity.",
+    "candidate_reject persists an explicit approval decision without changing the confirmed head.",
+    "restore_prepare binds a historical confirmed source version to a new candidate based on the current head; restore_confirm creates a new child version and never moves the historical pointer.",
+    "export_prepare creates a path-free manifest-json diagnostic object in CAS; export_confirm binds approval, version, artifact hashes and idempotency without creating a filesystem path or claiming GLB export.",
+    "Authenticated local IPC dispatches candidate, restore and diagnostic export transactions plus job_cancel; the MCP003 stdio tool manifest remains read-only.",
+    "forgecad-mcp now exposes the MCP004 write tools only when the backend is authenticated or dynamic Runtime IPC and FORGECAD_MCP_ENABLE_MCP004_WRITES=1; the default connection remains a 16-tool read-only surface and initialize does not call Runtime. The opt-in surface includes project_create and the bounded non-visual typed=diagnostic candidate path.",
+    "A development forgecad-runtime serve launcher creates a protected authenticated Unix IPC handoff and an explicit no-image/no-geometry diagnostic fixture; it is not a signed release launcher.",
+    "forgecad-mcp owns stdio, starts the same-package Runtime asynchronously through bounded Starting/Ready/Degraded/Restarting states, reconnects through ready/status handoff, and keeps the Runtime token out of the parent environment.",
+    "A real authenticated Codex CLI diagnostic turn completed the bounded candidate/restore/export write sequence and read back the resulting project/version state.",
+    "Legacy Runtime V1 databases receive additive columns for the new candidate and approval bindings without opening the old Library.",
+    "Diagnostic fixture approval and idempotency identifiers are scoped to each fixture project, so repeated host startup cannot collide with prior diagnostic records.",
+        "The MVP Runtime process owns an OS writer file lock; normal process exit releases it and a second Runtime reports RUNTIME_BUSY while the first is alive.",
+        "The optional Tauri Viewer reads project, version and head-snapshot projections through authenticated local IPC; it does not start Runtime or open SQLite/CAS.",
+        "Normal serve --stdio never enables the diagnostic fixture; fixture, signing and notarization remain independent test/release gates."
+  ],
+  "required_gates": {
+    "candidate_prepare": "PASS",
+    "job_durability": "PASS",
+    "confirm_atomicity": "PASS",
+    "reject_atomicity": "PASS",
+    "idempotency": "PASS",
+    "negative_paths": "PASS",
+    "restore_atomicity": "PASS",
+    "export_atomicity": "PASS: manifest-json diagnostic profile only",
+    "mcp_wire_adapter": "PASS",
+    "authenticated_ipc": "PASS",
+    "development_runtime_launcher": "PASS",
+    "host_supervisor": "PASS",
+    "host_lifecycle_regression": "PASS",
+    "runtime_graceful_shutdown": "PASS",
+    "diagnostic_fixture_repeat_startup": "PASS",
+        "codex_cli_diagnostic_write_e2e": "PASS",
+        "viewer_read_model": "PASS"
+  },
+  "negative_paths": {
+    "candidate_hash_mismatch": "PASS: no version written",
+    "stale_base_version": "PASS: head unchanged",
+    "quality_hard_gate_failed": "PASS: no version written",
+    "approval_expired": "PASS: approval may be recorded as expired, no version written",
+    "idempotency_key_reuse": "PASS: different request rejected",
+    "cancelled_job": "PASS: terminal cancelled job event, no version side effect",
+    "restart_readback": "PASS: confirmed candidate/version/snapshot lineage survives Runtime reopen"
+  },
+  "commands": {
+    "runtime_tests": {
+      "status": "PASS",
+      "command": "npm run mcp004:runtime",
+            "evidence": "11 forgecad-runtime library tests (including authenticated shutdown lock release, generated receipt IDs, restore child lineage and diagnostic export replay), 1 launcher fixture-repeat test, 8 forgecad-store tests, 15 MCP tests (including authenticated MCP004 prepare and default fail-closed gating), 3 core hash tests, 2 Viewer read-model tests and authenticated IPC restore/export calls pass"
+    },
+    "contracts_check": {
+      "status": "PASS",
+      "command": "npm run contracts:check",
+      "evidence": "23 JSON Schemas parsed and contract manifest matches directory"
+    },
+    "live_connected_default_surface": {
+      "status": "PASS",
+      "command": "Current Codex app MCP bridge capabilities_get + project_list",
+      "evidence": "The connected session returned status alpha-mcp003; its live limitation states mutation tools remain disabled, the exposed ForgeCAD surface is the default 14-tool read-only set, and project_list returned an empty list. The new MCP004 enable fields were not present in this old live response. See docs/evidence/mcp003/codex-current-session-readonly.json."
+    },
+    "aggregate_release_gate": {
+      "status": "PASS",
+      "command": "npm run release:mcp004",
+      "evidence": "docs/integrity/safety/secrets/license/contracts/MCP003 protocol+host/MCP004 Runtime/Worker/Viewer/Tauri/diff gates all passed"
+    },
+    "mcp_wire_adapter": {
+        "status": "PASS",
+        "command": "CARGO_TARGET_DIR=/tmp/forgecad-mcp004-cargo-target script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp --offline",
+            "evidence": "15 adapter tests pass: default tools remain a 16-tool read-only surface, disabled write calls return MCP004_WRITE_TOOLS_DISABLED, and an authenticated IPC fixture with explicit opt-in completes candidate_prepare without enabling writes for in-process Runtime."
+    },
+    "development_runtime_launcher": {
+      "status": "PASS",
+      "command": "CARGO_TARGET_DIR=/tmp/forgecad-mcp004-launcher-target script/with_rust_toolchain.sh cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --bin forgecad-runtime -p forgecad-mcp --offline; development Runtime/IPC probe",
+      "evidence": "The development launcher published a private ready handoff, exposed the explicit alpha-mcp004 opt-in surface, completed authenticated candidate/restore/export calls, read back 1 project and 3 versions, and reconnected a second MCP process. See docs/evidence/mcp004/launcher-ipc.json."
+    },
+    "mcp_builtin_supervisor": {
+      "status": "PASS",
+      "command": "Build forgecad-runtime and forgecad-mcp in one temporary target; forgecad-mcp stdio lifecycle probe",
+      "evidence": "The built-in supervisor started Runtime asynchronously, consumed the stable protected ready handoff, allowed a second MCP process to connect to the running Runtime, and the direct second Runtime probe returned RUNTIME_BUSY; it also kept stdio alive while Runtime was unavailable and performed one bounded restart after a ready child crash. See docs/evidence/mcp004/host-lifecycle-regression.json."
+    },
+    "host_lifecycle_regression": {
+      "status": "PASS",
+      "command": "script/test_mcp004.sh",
+      "evidence": "Local unit/integration regression passed with process-local env and trap-cleaned tempdir: initialize succeeds without Runtime, Runtime start failure and ready-after-start child crash keep stdio alive, one bounded restart settles at Degraded, dependent calls return retryable RUNTIME_UNAVAILABLE, runtime_status/doctor work, read-only calls do not change project/version state, and MCP004 write approval metadata remains present. See docs/evidence/mcp004/host-lifecycle-regression.json."
+    },
+    "runtime_process_lock_release": {
+      "status": "PASS",
+      "command": "Runtime process shutdown followed by immediate Runtime reopen",
+      "evidence": "The Runtime process exited and the OS released its writer file lock; an immediate second open succeeded. See docs/evidence/mcp004/runtime-shutdown.json."
+    },
+    "diagnostic_fixture_repeat_startup": {
+      "status": "PASS",
+      "command": "Two forgecad-mcp lifecycle starts against the same isolated diagnostic data root",
+      "evidence": "Both MCP initialize calls returned successfully; the second run no longer depends on a stale database lease or fixed Host executable. See docs/evidence/mcp004/fixture-restart.json."
+    },
+    "packaged_mcp_resource_probe": {
+      "status": "NOT_RUN",
+      "command": "tauri build --bundles app --no-sign; launch Contents/Resources/forgecad-mcp",
+      "evidence": "Not rerun after removing the standalone Host. The previous packaged Host probe is historical and cannot be used as current MVP evidence."
+    },
+    "packaged_signing": {
+      "status": "BLOCKED",
+      "command": "APPLE_SIGNING_IDENTITY=<local signing identity> npm run desktop:tauri-package:macos",
+      "evidence": "Tauri reached app code signing but macOS codesign returned errSecInternalComponent. No signed, notarized or installed package is claimed."
+    },
+    "macos_signing_diagnostic": {
+      "status": "BLOCKED",
+      "command": "Read-only security/codesign diagnostic with identity name and SHA-1 forms",
+      "evidence": "One valid codesigning certificate is visible, but both identity forms return errSecInternalComponent; a fresh temporary-copy probe with the SHA-1 identity and --timestamp=none also returns errSecInternalComponent. Keychain settings cannot be read without the passphrase, and no keychain mutation was attempted. See docs/evidence/mcp004/macos-signing-diagnostic.json."
+    },
+        "codex_cli_diagnostic_write_e2e": {
+      "status": "PASS",
+      "command": "python3 scripts/probe_mcp004_codex_cli.py --execute --runtime-command <development-launcher> --mcp-command <development-mcp>",
+      "evidence": "Real Codex CLI 0.147.0-alpha.6.5 completed project_create, candidate_prepare, candidate_confirm, restore_prepare, restore_confirm, export_prepare and export_confirm, then project_list/version_list; the same empty temporary Runtime was read by the Tauri Viewer helper and returned Ready with 1 project and 2 versions; no unrelated side effect or visual/production operation occurred. See docs/evidence/mcp004/codex-cli-write-e2e.json."
+        },
+        "viewer_read_model": {
+            "status": "PASS",
+            "command": "CARGO_TARGET_DIR=/tmp/forgecad-viewer-test-target script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-desktop --offline",
+            "evidence": "The Tauri Viewer helper reads a real Runtime project and version projection over authenticated local IPC, returns a retryable empty model when Runtime is unavailable, and never opens SQLite/CAS or starts Runtime. See docs/evidence/mcp004/viewer-read-model.json."
+        },
+        "live_connected_host_write_audit": {
+        "status": "NOT_RUN",
+        "command": "Current Codex app MCP bridge capabilities_get + project_list + connected tool-surface audit",
+        "evidence": "The currently connected Codex app/Desktop process reports alpha-mcp003 and exposes 14 read-only tools. A live process audit records a transparent forgecad-mcp-proxy observer (SHA-256 98b915a8…) forwarding to the pre-MCP004 forgecad-mcp adapter (SHA-256 093af60b4…), with no MCP004 host supervisor and no write request. The separate Codex CLI diagnostic PASS is recorded in codex-cli-write-e2e.json. See docs/evidence/mcp004/host-write-e2e-not-run.json."
+    }
+  },
+  "artifacts": {
+    "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs": "6023b27a1bb59425b193f594a23fb518ed8c6a0ba097e6489537bf4bb7618a36",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs": "394948087873ae54bf2931f995b1470310d1bc11b6bcb17830cc8fd3388f96ed",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/supervisor.rs": "fa676f4caabacaafc16de32ba073234323ab0f8cdb41ba0c4f89881952d41a90",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs": "0ce3eccb86be464886ebc8e989b19e93ac60855e79fccccceafbebe141d159ee",
+        "apps/desktop/src-tauri/crates/forgecad-runtime/src/ipc.rs": "28576abf8367bf5351fee275475a45f36fef0193a0e078a36d6875bdf5940d25",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/bin/forgecad-runtime.rs": "39e7d64adf55d844096c872bca5a855cc0ceeecad387b7b089dcaac5c9fad845",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/process_lock.rs": "8207f6d3a610a73cdce02225e35f8e7a0c2420aec5cc12a3fff91cc41ef93a64",
+    "package.json": "03ec2517dddfc4e44fcdd4751ad66a9d14f8a085ad45cdd5105850c27f399cc3",
+        "config/codex/desktop.toml": "20bbde740bcb830e7807c66cf07e4bca65c80cfd8dc703a7960505786d3038eb",
+        "config/codex/cli.toml": "64ca527c64b445be4ece6d8dd8ca0e8a571627cb020f6be26137091205d7e280",
+        "config/codex/ide.toml": "7f08674df25fffe6c7ae6277808c54bc8de1faba0b9889c5801b3e80edf3ac7b",
+        "apps/desktop/src-tauri/tauri.conf.json": "8a6272b19cc4f1e95478617e01016cb907177a8b561eb49dc706871f8f95ab6f",
+        "apps/desktop/src-tauri/Cargo.toml": "16ec5e8d2f38870771bb9010795617bb4f172d5570267a45d35279b873798141",
+        "apps/desktop/src-tauri/Cargo.lock": "155800f2025663f57ada25d3fa00391b71a38f6403ec5ae833e362927b29008e",
+        "apps/desktop/src-tauri/src/main.rs": "699e653136bfffc4f07401bfc910f8e23b2cd9e01b822c6546fb4bf23b7c507b",
+        "apps/desktop/src-tauri/src/viewer.rs": "5884b1c19d51c35bc26caf65d5568ed1ec32a71af7d1dee011460d560851d751",
+        "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx": "504f46a681b74edb770dd19effe6301a6a5a32f53596de3e3845d0e3d7cf778a",
+    "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs": "eaa7b3eb81eb8632f799e0a4435cc090707573dd17582216770f951d6ac8a436",
+        "migrations-runtime-v1/0001_runtime.sql": "b45d6c97096d0e84ed25dc148f465a4a9cee62f419214a8671a9c79269ba1721",
+    "packages/forgecad-contracts/manifest.json": "51f56d4bb28438c2f2a1c10dc5ea4ef7b60a5700125562d7c453ddeece684678",
+    "packages/forgecad-contracts/schemas/approval-receipt.schema.json": "30f5f3d55e490922d5ac8e44e834cd674593a48f48ae0cc94388867a42e7eefb",
+    "packages/forgecad-contracts/schemas/candidate.schema.json": "5179ccf57c44cca0f6cecdab0418fd0edcfdfc46dda668cc324ecac0e04647e5",
+    "packages/forgecad-contracts/schemas/candidate-confirm-result.schema.json": "c1d7e1696128a13d345185639442b6557fe98860a9db612215c52ea76b952180",
+    "packages/forgecad-contracts/schemas/candidate-reject-result.schema.json": "606c8ced6ed88ba4ce7a17354c734193aba17b6b1191eaf7aa06fefe30154ba5",
+    "packages/forgecad-contracts/schemas/restore-prepare-result.schema.json": "534dbc7754f7713ab9ab17ea39f0d5f1f3a4e3ff8d94ba82530b15ba41aef226",
+    "packages/forgecad-contracts/schemas/restore-confirm-result.schema.json": "d82c681bf3fd799fec3022af4edc8fdd017b358330ec50653de1cc86d31edb49",
+    "packages/forgecad-contracts/schemas/export-manifest.schema.json": "4dacdc2f46f11262def547e286044e9975fd2cc435d952f246b498076112e376",
+    "packages/forgecad-contracts/schemas/export-prepare-result.schema.json": "c3d139784c65fa2eb2e67729f84258430e759d1c4ce4ff0ae05a7c2e5d2dc3da",
+    "packages/forgecad-contracts/schemas/export-confirm-result.schema.json": "c0b2c629b0536e05a067c9e14a0c78eba992abe0390c993c3e503b69cc6d9930",
+        "scripts/check_mcp003_hosts.py": "d8790e507a745fb28cd9d7be758c51acef22ad05297f7085ffb5d00ff776dd76",
+    "scripts/probe_mcp003_stdio.py": "69ce77d546d3646b1a2485323c131c996e93446690a200ae9568e9f931ce7ecf",
+    "scripts/check_mcp004_runtime.py": "1aad211f3fe62a59b2ca311e244d44f944e9088e7a2d1f910496f927567d5f24",
+    "script/build_and_run.sh": "9841726b9ba99127620e0ac3c829f97853dd11f76ca89a498e6b172b214876c9",
+    "script/test_mcp004.sh": "4cbef823cf21573847136397be51ad54c3c6096eab6e933451a86e9d017a6083",
+        "script/verify_package.sh": "5cccf8597ad3025dd2c9a49c859f0b6ad0998bf6bb670e920d2c02622efa939c",
+    "scripts/probe_mcp004_codex_cli.py": "22cc14d0bb714534b74ad910773444b25a4a37460fa2e6cfcbcc019aba69200f",
+        "docs/CODEX_TASK_INDEX.md": "9eca5c3e3fc708c677eb157ac8f38345629c1c5f0231e6a3d7ccc31bd47a9e3d",
+    "docs/CODEX_HANDOFF.md": "6c173538b3f123fbdfcda7a2d600280162c6dc7fdbef2c5600ebe0a6fb01d551",
+        "docs/DOCUMENTATION_STATUS.md": "71a718eedeffba1798c2b4fadaebcf55d85d555d1a19da6b048cda59ed1fe58b",
+    "docs/MVP_ARCHITECTURE.md": "839e4388b16ba209745baba21137ba53af2dd02f2f97b830b86f91a594251433",
+    "docs/CODEX_INTEGRATION.md": "079d4540d944317831926ecb1194bfdbdeedd42e78d085e6d3afd977f8cfcea8",
+    "docs/OPERATIONS.md": "330792a54806cdd5a70c6c36378e06bf0821051d1ee198f5cf245192c5845dc8",
+    "docs/TEST_STRATEGY.md": "3891ce9a6db62dcd1dedcdfd7252c2468c19318ed1f33bcd1778e8e0913a7434",
+    "docs/PACKAGING.md": "7cf2652637857b3d33baa160b0b49655df5b1fc7fc224a087d3138a8d0e88def",
+    "docs/MCP_RUNTIME_CONTRACT.md": "b0661cd19aeb2ff0c6a5c3602e7edf07a3c17c273aa8aed62c01a138754c9efc",
+    "docs/evidence/CAPABILITY_GATE_MATRIX.md": "c4c706b76bdab3966589abc769c4efecaf24d2c289181217541342ba4ebfc9b1",
+    "docs/evidence/mcp004/host-lifecycle-regression.json": "bf9f5581fc567c45e24b65561a5eb595a84a91f758da566d9febc187b1ebec81",
+    "docs/evidence/mcp004/host-write-e2e-not-run.json": "e369dbbe6d8849500b494a654f7b3453e6e2fd64d0da15410fd5afabcfa679e2",
+    "docs/evidence/mcp004/launcher-ipc.json": "91275dd5ade9e2a552717853a1ca9efaa64dc572dbe816956da0645cf25daea1",
+    "docs/evidence/mcp004/codex-cli-write-e2e.json": "ddb50ea7169688f542c0cd8b89f7e43aa35eb90afbeb934c8d71eed975d6bb2f",
+    "docs/evidence/mcp004/packaged-mcp-resource.json": "aa7f919010a388dc3c95dbba3da58659d39e82bbfe1eab754a890739670b071b",
+    "docs/evidence/mcp004/macos-signing-diagnostic.json": "50d106463234d3fb2dd18e446b198fb2f6b15f5410cfb5541eeefc84f0e291f3",
+    "docs/evidence/mcp004/fixture-restart.json": "e63d8131c2f631b0687967af308c9828d9dd99959afa3cbb6210a91384b66069",
+        "docs/evidence/mcp004/runtime-shutdown.json": "9a3c9d97f9af3607d5e981010e71cc0170503a40eb1c5164348b6b0e9b0808a5",
+        "docs/evidence/mcp004/viewer-read-model.json": "c7844557525bd3640fd558e39c416789c21c5a16d2699bffa06207260823693b"
+  },
+  "operational_blockers": [
+    "The currently connected Codex process still runs the pre-MCP004 forgecad-mcp binary (observed SHA-256 093af60ba4bd7ad03a86b05bebe4a5225604fd7d848fdf22758ea1723af48da4).",
+    "A development Runtime launcher and an unsigned local Tauri resource bundle are available, but one visible valid codesigning certificate still returns errSecInternalComponent for both identity forms; no signed/notarized packaged launcher is available for a restarted Desktop host. The read-only signing diagnostic did not mutate the keychain.",
+    "No proxy or request rewriting may be used to manufacture a host write PASS."
+  ],
+  "not_run": [
+    "reference_import and Codex Desktop/CLI attachment-byte E2E",
+    "geometry, render and Quality Compiler execution",
+    "real Codex Desktop MCP004 write E2E against a signed packaged launcher; the current connected Desktop audit is recorded as NOT_RUN in docs/evidence/mcp004/host-write-e2e-not-run.json because it remains the pre-MCP004 14-tool alpha-mcp003 adapter; Codex CLI diagnostic write E2E is separately PASS",
+    "filesystem/authorized-target export, GLB/mesh exporter and production license/provenance validation",
+    "packaged multi-turn write E2E and Viewer same-hash acceptance",
+    "Codex IDE/VS Code/Cursor/Windsurf host validation"
+  ],
+  "safety": [
+    "No image was uploaded and no 3D generation was started.",
+    "No old Library or user data was opened or modified.",
+    "No request-rewriting proxy or synthetic host message was used. Any transparent Desktop handshake observer is separately declared and cannot be used as MCP004 write evidence."
+  ]
+}

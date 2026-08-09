@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/render-set.schema.json",
+  "title":"RenderSet",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","render_set_id","candidate_id","passes","camera_hash","renderer_hash","canonical_sha256"],
+  "properties":{"schema_version":{"const":"RenderSet@1"},"render_set_id":{"type":"string"},"candidate_id":{"type":"string"},"passes":{"type":"array","minItems":1,"maxItems":8,"items":{"enum":["beauty","silhouette","normal","part-id","material-id","depth","ao","wireframe"]}},"camera_hash":{"type":"string","pattern":"^[0-9a-f]{64}$"},"renderer_hash":{"type":"string","pattern":"^[0-9a-f]{64}$"},"canonical_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

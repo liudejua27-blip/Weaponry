@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/restore-confirm-result.schema.json",
+  "title": "ForgeCAD Restore Confirm Result",
+  "type": "object",
+  "required": ["schema_version", "candidate_id", "project_id", "source_version_id", "version_id", "snapshot_id", "approval_receipt_id", "request_sha256", "replayed"],
+  "properties": {
+    "schema_version": {"const": "RestoreConfirmResult@1"},
+    "candidate_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "source_version_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "version_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "snapshot_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "approval_receipt_id": {"type": "string", "pattern": "^receipt-[A-Za-z0-9]{32}$"},
+    "request_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "replayed": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

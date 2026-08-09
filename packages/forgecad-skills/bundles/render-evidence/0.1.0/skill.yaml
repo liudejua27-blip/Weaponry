@@ -1,0 +1,32 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: render-evidence
+version: 0.1.0
+status: development-only
+publisher: forgecad-first-party
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/appearance-program.schema.json
+output_schema: schemas/render-set.schema.json
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: false
+  render_execution: true
+operator_ids:
+  - forgecad.render.fixed-camera@1
+  - forgecad.render.aov@1
+validator_ids:
+  - render_determinism@1
+  - render_hash_binding@1
+budgets:
+  max_resolution: 4096
+  max_passes: 8
+benchmark_suite: render-evidence-smoke
+known_limitations:
+  - Declarative safety receipt does not claim geometry, render or visual quality.
+  - Distribution signature and third-party installation are deferred to MCP012-013.

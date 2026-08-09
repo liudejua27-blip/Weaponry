@@ -1,0 +1,18 @@
+{
+  "coordinate_system": "right-handed-y-up",
+  "expected": {
+    "dag": "acyclic",
+    "finite": true,
+    "operator_allowlist": "pass"
+  },
+  "fixture_id": "reference-compare-declarative-valid",
+  "recipe_id": "reference-compare",
+  "schema_version": "SkillBenchmarkFixture@1",
+  "skill_id": "reference-compare",
+  "units": "meter",
+  "values": {
+    "confidence": 0.8,
+    "max_parts": 16,
+    "scale": 1.0
+  }
+}

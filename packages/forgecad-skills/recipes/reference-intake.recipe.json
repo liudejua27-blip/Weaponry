@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 12
+  },
+  "canonical_sha256": "6705b0294c5d8215e05d72ae1631d7feefc0ca2baca59ae1b85ec68389ce2567",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "admit"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "ReferenceEvidence@1",
+      "node_id": "admit",
+      "operator_id": "forgecad.reference.validate@1",
+      "output_schema": "AdmittedReference@1"
+    }
+  ],
+  "recipe_id": "reference-intake",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "reference-intake",
+  "units": "meter"
+}

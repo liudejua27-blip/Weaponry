@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/export-manifest.schema.json",
+  "title": "ForgeCAD Export Manifest",
+  "type": "object",
+  "required": ["schema_version", "export_id", "project_id", "version_id", "format", "profile", "manifest_sha256", "artifact_hashes", "state", "approval_receipt_id", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": {"const": "ExportManifest@1"},
+    "export_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "version_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "format": {"enum": ["manifest-json", "glb"]},
+    "profile": {"enum": ["diagnostic", "mvp-glb"]},
+    "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "artifact_hashes": {"type": "array", "items": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "minItems": 1, "uniqueItems": true},
+    "state": {"enum": ["prepared", "confirmed", "rejected", "failed"]},
+    "approval_receipt_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "created_at": {"type": "string", "minLength": 1},
+    "updated_at": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

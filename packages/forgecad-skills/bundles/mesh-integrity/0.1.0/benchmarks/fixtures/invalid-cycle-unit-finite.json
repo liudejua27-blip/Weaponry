@@ -1,0 +1,26 @@
+{
+  "coordinate_system": "left-handed-z-up",
+  "edges": [
+    {
+      "from": "a",
+      "to": "b"
+    },
+    {
+      "from": "b",
+      "to": "a"
+    }
+  ],
+  "expected": {
+    "dag": "reject",
+    "finite": "reject",
+    "units": "reject"
+  },
+  "fixture_id": "mesh-integrity-declarative-invalid-cycle",
+  "recipe_id": "mesh-integrity",
+  "schema_version": "SkillBenchmarkFixture@1",
+  "skill_id": "mesh-integrity",
+  "units": "millimeter",
+  "values": {
+    "scale": "NaN"
+  }
+}

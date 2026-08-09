@@ -1,0 +1,33 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: reference-compare
+version: 0.1.0
+status: development-only
+publisher: forgecad-first-party
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/render-set.schema.json
+output_schema: schemas/quality-report.schema.json
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: false
+  render_execution: false
+operator_ids:
+  - forgecad.quality.silhouette@1
+  - forgecad.quality.proportion@1
+  - forgecad.quality.region@1
+validator_ids:
+  - reference_hash_binding@1
+  - quality_evidence_binding@1
+budgets:
+  max_regions: 64
+  max_landmarks: 64
+benchmark_suite: reference-compare-smoke
+known_limitations:
+  - Declarative safety receipt does not claim geometry, render or visual quality.
+  - Distribution signature and third-party installation are deferred to MCP012-013.

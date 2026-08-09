@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/export-confirm-result.schema.json",
+  "title": "ForgeCAD Export Confirm Result",
+  "type": "object",
+  "required": ["schema_version", "export_id", "project_id", "version_id", "manifest_sha256", "output_sha256", "approval_receipt_id", "request_sha256", "replayed"],
+  "properties": {
+    "schema_version": {"const": "ExportConfirmResult@1"},
+    "export_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "version_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "approval_receipt_id": {"type": "string", "pattern": "^receipt-[A-Za-z0-9]{32}$"},
+    "request_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "replayed": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

@@ -48,7 +48,7 @@ def config_override(command: str) -> str:
         "mcp_servers.forgecad={"
         f"command={command_literal},"
         'args=["serve","--stdio"],'
-        "required=true,"
+        "enabled=true,required=true,"
         "startup_timeout_sec=10,"
         "tool_timeout_sec=10,"
         'default_tools_approval_mode="writes"'

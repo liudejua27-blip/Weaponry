@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/restore-prepare-result.schema.json",
+  "title": "ForgeCAD Restore Prepare Result",
+  "type": "object",
+  "required": ["schema_version", "candidate", "job", "source_version_id"],
+  "properties": {
+    "schema_version": {"const": "RestorePrepareResult@1"},
+    "candidate": {"$ref": "https://forgecad.local/contracts/candidate.schema.json"},
+    "job": {"$ref": "https://forgecad.local/contracts/runtime-job.schema.json"},
+    "source_version_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"}
+  },
+  "additionalProperties": false
+}

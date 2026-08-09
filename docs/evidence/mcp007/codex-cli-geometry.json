@@ -1,0 +1,39 @@
+{
+  "schema_version": "ForgeCADCodexEvidence@1",
+  "task_id": "FGC-MCP007",
+  "status": "PASS",
+  "checked_at": "2026-08-09",
+  "mode": "codex-cli-mcp007-geometry-multiturn-with-image",
+  "expected_sequence": ["project_create", "reference_import", "geometry_prepare", "artifact_readback_get"],
+  "observed_sequences": [
+    ["project_create", "reference_import", "geometry_prepare", "artifact_readback_get"]
+  ],
+  "geometry_result": "PASS",
+  "codex_exit_code": 0,
+  "artifact": {
+    "artifact_id": "c225a4df79a9df3b1696c6952e07ff59c45a6f6257961f2d4001851eda23f98b",
+    "candidate_id": "candidate-18ee62cf4ba84b2286d2d3209d859d92",
+    "part_ids": ["head-shell", "visor", "neck", "chest-shell", "chest-core", "pelvis-shell", "arm-left", "arm-right", "hand-left", "hand-right", "thigh-left", "thigh-right", "shin-left", "shin-right"],
+    "triangle_count": 516,
+    "validator_status": "passed",
+    "mime": "model/gltf-binary",
+    "size_bytes": 49752
+  },
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "reference_path_recorded": false,
+  "image_bytes_recorded": false,
+  "reason": null,
+  "rechecks": [
+    {
+      "status": "BLOCKED",
+      "observed_sequence": ["project_create", "reference_import", "geometry_prepare", "artifact_readback_get"],
+      "reason": "A later probe recheck generated the same 14-part/516-triangle artifact, but Codex supplied incomplete artifact_readback_get arguments; Runtime correctly returned INVALID_INPUT. This recheck was not promoted to PASS and does not replace the earlier clean receipt."
+    },
+    {
+      "status": "BLOCKED",
+      "observed_sequence": [],
+      "reason": "A subsequent ephemeral Codex session returned no ForgeCAD tool calls before the setup turn completed; this is an external host/session availability failure, not a Runtime acceptance result."
+    }
+  ]
+}

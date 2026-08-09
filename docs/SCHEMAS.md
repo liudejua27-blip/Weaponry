@@ -1,11 +1,11 @@
 # ForgeCAD Runtime Schema 规范
 
-版本：2026-08-08
-状态：部分实现；MCP003 已落地首批 Runtime/Project/Candidate/Version/Snapshot/Job/Event/Audit/CAS、resource/selection Schema 和 Rust records
+版本：2026-08-09
+状态：MCP005–MCP009 functional core 已落地；当前仍为 44 个 JSON Schema；MCP010 V2 合同为 planned/unavailable
 
 ## 1. 唯一来源
 
-新合同源位于 `packages/forgecad-contracts/schemas/**`。MCP003 已验证 15 个 JSON Schema 可解析、带 draft/id、contract manifest 为 `forgecad-runtime-contracts@1` 且声明 `model_calls=false`，manifest 与目录无漂移。Rust records 由 `forgecad-contracts` 维护；完整生成器、TypeScript 生成和跨宿主 conformance 仍未完成。旧 Concept/Weapon/Provider/Agent Schema 已删除。
+新合同源位于 `packages/forgecad-contracts/schemas/**`。MCP003 已验证首批 15 个 JSON Schema；MCP004 增加审批、候选、restore 和 diagnostic export records；MCP005 增加 reference admission/get records；MCP006–009 已落地 `SubjectProfile@1`、`RepresentationPlan@1`、`AssemblyGraph@1`、`GeometryProgram@1`、`AppearanceProgram@1`、`RecipePlan@1`、`ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`ChangePrepareResult@1`、GLB export profiles 和 Skill manifest/list/get/receipt/eval records，当前共 44 个 JSON Schema，均须可解析、带 draft/id、contract manifest 为 `forgecad-runtime-contracts@1` 且声明 `model_calls=false`，manifest 与目录无漂移。Rust records 由 `forgecad-contracts` 维护；完整生成器、TypeScript 生成和额外 transport/未来宿主 conformance 仍未完成。旧 Concept/Weapon/Provider/Agent Schema 已删除。
 
 ## 2. 首批 Schema
 
@@ -17,13 +17,35 @@
 
 `Project@1`、`ActiveDesignSnapshot@1`、`Candidate@1`、`DesignAssetVersion@1`、`CasObject@1`、`AuditEvent@1`、`SemanticChangeSet@1`、`ApprovalReceipt@1`、`ExportManifest@1`。
 
-### Design/Geometry/Appearance
+### Reference/Design/Geometry/Appearance（分阶段落地）
 
-`ReferenceEvidence@1`、`SubjectProfile@1`、`RepresentationPlan@1`、`AssemblyGraph@1`、`GeometryProgram@1`、`VisualProgram@1`、`AppearanceProgram@1`、`MaterialGraph@1`、`TextureSet@1`、`UvLayout@1`、`BakeRecipe@1`、`ExplodedViewPlan@1`。
+MCP005 已落地 `ReferenceEvidence@1` 和四个 reference import/get request/result 合同；MCP006 已落地 `SubjectProfile@1`、`RepresentationPlan@1`、`AssemblyGraph@1`、`GeometryProgram@1`、`AppearanceProgram@1` 和 `RecipePlan@1`；`VisualProgram@1`、`MaterialGraph@1`、`TextureSet@1`、`UvLayout@1`、`BakeRecipe@1`、`ExplodedViewPlan@1` 仍由 MCP007–010 分阶段落地。
 
-### Evidence/Skill
+### Evidence/Skill（MCP006–009 已落地合同，执行证据仍分层）
 
-`ArtifactReadback@1`、`RuntimeJobEvent@1`、`RuntimeError@1`、`RenderRecipe@1`、`RenderSet@1`、`QualityReport@1`、`VisualReviewReport@1`、`SkillBundleManifest@1`、`SkillExecutionPlan@1`、`SkillExecutionReceipt@1`、`SkillEvalReport@1`。
+MCP006 已加入 `ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`SkillBundleManifest@1`、`SkillListResult@1`、`SkillGetResult@1`、`SkillExecutionReceipt@1`、`SkillEvalReport@1`，MCP009 加入 `ChangePrepareResult@1`、GLB export profile 和 limited quality projection；`RecipePlan@1` 的单位/坐标/确定性顺序/max_edges 是显式合同。像素级 `VisualReviewReport@1`、landmark/region metric 和完整生产 export 仍是后续质量/发布工作，不得用空 Schema 代替。
+
+## 2.1 MVP 落地顺序
+
+| Task | 新增合同 |
+|---|---|
+| MCP005 | `ReferenceEvidence@1`、`ReferenceImportRequest/Result@1`、`ReferenceGetResult@1`（已完成） |
+| MCP006 | `SubjectProfile@1`、`RepresentationPlan@1`、`AssemblyGraph@1`、`GeometryProgram@1`、`AppearanceProgram@1`、`RecipePlan@1`、MVP Skill manifest/receipt |
+| MCP007 | `GeometryProgram@1`、`GeometryPrepareResult@1`、`ArtifactReadback@1`、Part/source map、worker compile request/result |
+| MCP008 | `AppearancePrepareResult@1`、`RenderSet@1`、GLB UV/tangent/PBR readback |
+| MCP009 | `QualityReport@1`、`ChangePrepareResult@1`、`VersionDiff@1` projection、`ExportManifest@1` `mvp-glb` profile |
+
+不能一次加入全部空 Schema 再宣称能力存在；每项必须与 validator、negative tests 和实际 producer/consumer 同任务落地。
+
+## 2.2 MCP010 目标合同（当前未计入 44）
+
+| Task | 目标合同 | 激活条件 |
+|---|---|---|
+| MCP010B | `GeometryProgram@2`、`OperatorCatalog@1`、`ArtifactReadback@2` | V2 producer/consumer、真实 GLB readback、损坏输入负向 Gate |
+| MCP010C | `ReferenceViewSpec@1`、`CameraCalibration@1`、`RenderSet@2`、`ReferenceComparisonReport@1`、`VisualReviewReport@1`、`HumanVisualReviewReceipt@1`、`QualityReport@2` | perspective/z-buffer renderer、九 AOV、metric/review persistence、tool E2E |
+| MCP010E | `MaterialPackManifest@1`、`MaterialDefinition@1`、`TextureSet@1`、`TextureBuildReceipt@1`、`AppearanceProgram@2` | AssetPack/UV/tangent/PBR producer、逐资产 provenance、GLB readback |
+
+工具 request/result Schema 随各自 producer 同任务增加；实际 manifest 数量只能从目录和 contract manifest 计算，不能把上表简单相加后提前写成当前总数。`@1` 历史版本继续只读，破坏性变化不得回填旧对象。
 
 ## 3. 通用字段
 

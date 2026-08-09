@@ -1,0 +1,39 @@
+{
+  "benchmark_suite": "hard-surface-detail-smoke",
+  "budgets": {
+    "max_nodes": 192,
+    "max_triangles": 500000
+  },
+  "canonical_sha256": "d8b39ed229df1a462d74bd82eda15717948924522ca34b3954ba8e39fa8bc27a",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": true,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/geometry-program.schema.json",
+  "operator_ids": [
+    "forgecad.geometry.bevel@1",
+    "forgecad.geometry.panel@1",
+    "forgecad.geometry.vent@1",
+    "forgecad.geometry.joint@1"
+  ],
+  "output_schema": "schemas/geometry-program.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "hard-surface-detail",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "geometry_budget@1",
+    "finite_parameters@1",
+    "operator_allowlist@1"
+  ],
+  "version": "0.1.0"
+}

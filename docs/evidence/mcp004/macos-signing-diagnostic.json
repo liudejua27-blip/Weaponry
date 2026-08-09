@@ -1,0 +1,31 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "BLOCKED",
+  "scope": "local macOS code-signing prerequisite diagnosis",
+  "certificate_identity_visible": true,
+  "valid_codesigning_identity_count": 1,
+  "codesign_by_identity_name": {
+    "exit_code": 1,
+    "error": "errSecInternalComponent"
+  },
+  "codesign_by_identity_sha1": {
+    "exit_code": 1,
+    "error": "errSecInternalComponent"
+  },
+  "latest_recheck": {
+    "checked_at": "2026-08-08",
+    "temporary_copy_probe": {
+      "target": "ephemeral /tmp copy",
+      "timestamp": "none",
+      "exit_code": 1,
+      "error": "errSecInternalComponent"
+    },
+    "keychain_mutated": false
+  },
+  "keychain_settings_read": "FAILED_PASSPHRASE_ERROR",
+  "signed_package": false,
+  "notarization": "NOT_RUN",
+  "user_configuration_mutated": false,
+  "keychain_mutated": false,
+  "interpretation": "A valid certificate is visible, but a usable signing operation was not proven. Obtain or unlock the approved signing key, then rerun the package command; do not treat certificate visibility as signed-package evidence."
+}

@@ -1,11 +1,11 @@
 # ForgeCAD 用户指南
 
-版本：2026-08-08
-当前状态：MCP003 诊断版 Viewer；生成流程尚不可用
+版本：2026-08-09
+当前状态：MCP005–MCP009 MVP host golden path 已完成；像素级相似度、真人视觉评分、Desktop write 和 packaged release 仍未运行
 
 ## 1. 现在能做什么
 
-当前仓库已完成 MCP001 硬切、MCP002 Runtime 基础层和 MCP003 本地只读 MCP 适配器，并提供诊断版 `forgecad-mcp`/Runtime Viewer；真实 Codex 宿主连接、附件、参考图转 3D、质量和写入闭环尚未实现，因此普通用户现在不应把本开发版本当作可用的参考图转 3D 产品。
+当前仓库已完成 MCP001–004 的单用户事务基座，并完成 MCP005：Runtime/IPC、candidate/approval/immutable version/restore/diagnostic export、轻量启动监督、真实 Codex CLI diagnostic write、PNG/JPEG ReferenceEvidence/CAS admission 和 Viewer read model；MCP006 完成十个 development-only first-party Skill Bundle；MCP007 完成有界 typed GeometryProgram → 多 Part GLB → strict ArtifactReadback；MCP008 增加 hash-bound UV/tangent/PBR、四个固定 render pass 和 Three.js GLB canvas；MCP009 增加 limited quality、稳定 Part `change_prepare`、reject/confirm/restore 和 CAS-backed `mvp-glb` receipt。真实 Codex CLI 已完成授权图片→geometry/appearance→quality→approval/version→CAS-only GLB 的十二调用 host receipt。普通用户可以进行开发构建上的本地 MVP 评估，但仍不能把 limited evidence 宣称为像素级“高质量 3D”。Codex IDE/VS Code/Cursor/Windsurf 仍是未来兼容范围。
 
 旧界面、内置模型和旧工作台已从当前树删除；不要寻找旧入口或配置任何模型 API Key，也不要把 reset 归档中的旧结果当作新方向的项目证据。
 
@@ -13,18 +13,20 @@
 
 - 保留并备份旧 Library、数据库、CAS、导入和导出；
 - 阅读新产品文档和查看迁移状态；
-- 当前可打开 Runtime Viewer 查看迁移状态；生成、编辑、回退和导出要等对应任务完成。
+- 当前可打开 Runtime Viewer 查看 Runtime 项目、候选、GLB bytes、UV/tangent/PBR metadata 和固定 render lineage；可通过带授权 image attachment 的真实 Codex CLI 导入 PNG/JPEG、生成 14/15-part bounded robot、读回 Appearance/Quality 并确认 CAS-only MVP GLB；可通过只读 `skill_list/skill_get` 查看十个 development-only Bundle。视觉比较和用户评分仍按 evidence 记录，不得把本地 fixture 或 limited aspect 当作相似度。
 
-## 2. 未来正式流程（目标设计）
+## 2. MVP 目标流程
 
-1. 安装 ForgeCAD 和受支持的 Codex Desktop/CLI/IDE；
+1. 安装 ForgeCAD 和当前 P0 支持的 Codex Desktop 或 Codex CLI；
 2. 安装器为 Codex 配置本地 `forgecad` MCP Server；
 3. 在 Codex 对话中描述对象并上传有权使用的图片；
-4. Codex 调用 ForgeCAD 导入参考、生成候选、编译几何/UV/PBR/纹理/材质并运行质量检查；
-5. 打开 ForgeCAD Viewer 查看 3D、部件、参考对比、固定视图和质量问题；
-6. 可在 Viewer 选择局部，再回到 Codex 描述修改；
+4. Codex 调用 ForgeCAD 导入参考、生成候选、编译 bounded 几何/UV/tangent/PBR MaterialZone 并运行质量检查；当前没有纹理烘焙或 UDIM 交付；
+5. 打开 ForgeCAD Viewer 查看 3D、部件、固定视图和质量 metadata；
+6. 在 Codex 提供一个稳定 Part ID 的 `change_set`，调用 `change_prepare` 描述局部修改；当前 Viewer selection 仍是只读临时状态；
 7. Codex 显示准备写入的版本摘要，用户批准后才保存；
-8. 可让 Codex准备回退、爆炸图或导出，同样先预览再批准。
+8. 可让 Codex 准备 restore 或 `mvp-glb` CAS 导出 receipt，同样先预览再批准。完整爆炸图是 post-MVP；当前不接受任意本机导出路径。
+
+首个 MVP host golden path 只针对一张硬表面机器人参考做 vertical slice，不承诺所有图片或类别。真实 host receipt 已通过；“参考基准质量通过”仍要有像素/轮廓指标和真人评分，完成状态以 `MVP_DELIVERY_PLAN.md` 与 `docs/evidence/mcp008|mcp009/` 为准。
 
 ForgeCAD 内不会有聊天、图片上传、模型选择、Provider 设置或 API Key。用户只和 Codex 对话。
 
@@ -34,7 +36,7 @@ ForgeCAD 内不会有聊天、图片上传、模型选择、Provider 设置或 A
 - 批准后创建不可变子版本；
 - “回退”会从旧内容创建新版本，不删除历史；
 - Viewer 里的相机、隐藏、隔离和临时爆炸距离默认不保存；
-- 导出必须绑定已确认版本和质量/许可证清单；
+- `mvp-glb` 导出必须绑定已确认版本和质量/许可证清单，当前返回 CAS `output_sha256`，filesystem/package export 是后续发布门；
 - 图片和资产必须由你拥有或获授权使用。
 
 ## 4. 如何判断结果可信

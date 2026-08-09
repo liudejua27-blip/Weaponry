@@ -1,11 +1,11 @@
 # ForgeCAD 产品定义
 
-版本：2026-08-07
-状态：目标产品；代码迁移中
+版本：2026-08-09
+状态：单用户 MVP host golden path 已完成；MCP005–009 geometry/appearance/render/limited-quality/change/version/export 可用，真实 Codex CLI 主链已通过，像素/真人质量门仍未运行
 
 ## 1. 一句话
 
-ForgeCAD 是 Codex 可自由调用的本地 3D Runtime：把用户的合法参考和要求编译成高质量、可检查、可局部修改、可回退、可爆炸查看和可导出的 3D 资产。
+ForgeCAD 是 Codex 可自由调用的本地 3D Runtime：把用户的合法参考和要求编译成可检查、可局部修改、可回退和可导出的 3D 资产。MVP 只提供 bounded hard-surface functional core；“高质量/相似度”必须由真实参考指标和真人门证明，不能由工具存在或单张截图推出。
 
 Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent 对话。
 
@@ -21,7 +21,7 @@ Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent �
 
 1. 在 Codex 中描述对象、上传一张或多张授权图片；
 2. 让 Codex 调用 ForgeCAD 建立几何、轮廓、比例和语义部件；
-3. 生成 UV、PBR、纹理、材质和局部细节；
+3. 生成 bounded UV/tangent、PBR MaterialZone 和局部细节；纹理烘焙/UDIM 属后续能力；
 4. 通过固定视图、AOV、参考比较和视觉评审暴露差异；
 5. 在 Viewer 选择局部，在 Codex 中反复提出 typed 修改；
 6. 用户批准后创建不可变版本；
@@ -49,18 +49,22 @@ Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent �
 
 质量包括完整主体、身份轮廓、比例、结构层级、中观/局部细节、UV、PBR、纹理、材质、固定视图相似度和交付 readback。时间和资源有上限，但不靠跳过必要证据换取“看起来很快”。
 
-## 5. P0 范围
+## 5. 单用户 MVP 范围
 
 - 本地 macOS Alpha；
-- Codex Desktop、CLI、IDE；
+- Codex Desktop、Codex CLI；
 - MCP stdio；
-- 图片 evidence 导入；
-- typed procedural/surface/deform/read-only mesh hybrid；
-- GLB/PBR、固定视图、参考比较和质量报告；
-- first-party signed declarative Skills；
+- 一张 PNG/JPEG evidence 导入；
+- Codex 生成的 typed hard-surface procedural mesh；
+- 首个机器人基准的 GLB/PBR、固定视图和 limited quality report；像素级参考比较和真人评分仍是验收证据，不是当前代码承诺；
+- first-party canonical-hash declarative Skills；
 - Runtime Viewer；
-- 候选、用户批准、不可变版本、局部修改、回退、爆炸图和导出；
+- 候选、用户批准、不可变版本、一次局部修改、回退和 GLB 导出；
 - 默认无模型 API 网络调用、无常驻大模型或 3D 神经权重。
+
+Codex IDE / VS Code / Cursor / Windsurf 保留为未来兼容目标，不安装、不作为当前 P0 产品入口或发布 Gate。若未来正式建设 Skill SDK、插件开发生态或第三方开发者模式，再单独升级其支持级别。
+
+MVP 不包含爆炸图完整 UX、后台 Job checkpoint、第三方插件市场、Developer ID/notarization、跨类别通用质量。这些是 MCP010–013 的产品化范围。
 
 ## 6. 明确不做
 
@@ -71,7 +75,8 @@ Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent �
 - 自动训练/下载基础 3D 模型、CUDA 大权重或常驻 GPU 服务；
 - 工程 B-Rep、制造、公差、结构、适航、医疗或认证；
 - 未经用户批准创建永久版本；
-- 未经许可证/SBOM/签名/Benchmark 审核的 GitHub 项目或资产。
+- 未经 adoption receipt、许可证/SBOM/Benchmark 审核的 GitHub 项目或资产；
+- BlenderMCP、FreeCAD MCP、任意 Python CAD MCP 或远程 image-to-3D Provider。
 
 ## 7. 安全与内容范围
 
@@ -79,16 +84,17 @@ Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent �
 
 汽车、飞机、建筑、角色、医疗器械和机械设备只作为视觉资产；结果不提供安全、结构、适航、医疗、动力学或认证结论。用户必须拥有参考图和外部资产的使用权，ForgeCAD 保存 provenance 并在导出时生成清单。
 
-## 8. 成功标准
+## 8. MVP 成功标准
 
-迁移完成至少需要：
+首个硬表面 MVP 至少需要：
 
 - 产品代码中无内置模型/Provider/聊天和端口 8000；
-- Codex 三宿主能真实传入参考字节并调用 MCP；
+- Codex Desktop/CLI 能真实传入参考字节并调用 MCP；IDE 兼容不属于当前 P0 成功标准；
+- 真实 Codex CLI 将用户授权参考字节送入 CAS；
+- Codex typed program 编译为真实多 Part GLB，并在 Viewer/headless render 使用同一 hash；
 - Viewer 关闭时 Runtime 仍能完成 compile/render/evaluate；
 - 用户拒绝不写版本，批准只写一个幂等版本；
-- 局部选择/修改、回退、爆炸图和导出在重启后仍一致；
-- 跨类别 Benchmark 与独立真人门达标；
-- 安装包内 Runtime/MCP/workers/Viewer/Skills 合同和签名一致。
+- 一次 stable-Part `change_prepare`、回退和 CAS-backed GLB receipt 在 focused Runtime tests 中一致；真实 host/restart 仍需证据；
+- 几何/GLB/PBR 硬门已有 evidence；参考指标、Codex typed review 和用户评分尚未运行时，不得写“参考基准已验收”。
 
-在这些条件完成前，任何演示都只能按其真实证据标为 prototype、部分实现或目标设计。
+这些条件通过后只能声明“首个硬表面参考基准 MVP”。通用高质量和外部分发仍要求跨类别真人门以及 Runtime/MCP/workers/Viewer/Skills 的签名安装包一致性。

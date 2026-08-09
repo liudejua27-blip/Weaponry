@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "mode": "codex-cli-mcp006-skill-registry",
+  "codex_exit_code": 0,
+  "mcp_tool_calls": [
+    {"server":"forgecad","tool":"capabilities_get","status":"completed"},
+    {"server":"forgecad","tool":"skill_list","status":"completed"},
+    {"server":"forgecad","tool":"skill_get","status":"completed"}
+  ],
+  "expected_sequence": ["capabilities_get","skill_list","skill_get"],
+  "reference_path_recorded": false,
+  "prompt_recorded": false,
+  "geometry": "NOT_RUN",
+  "render": "NOT_RUN",
+  "notes": "Real Codex CLI read the first-party development registry through MCP. The receipt intentionally omits prompt text and local paths; this is registry metadata evidence, not geometry or quality evidence."
+}

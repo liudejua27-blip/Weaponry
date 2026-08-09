@@ -1,0 +1,4 @@
+# Product-owned operator lock; this bundle contains no executable operator.
+forgecad.geometry.primitive@1 = forgecad-runtime-builtin
+forgecad.geometry.transform@1 = forgecad-runtime-builtin
+forgecad.geometry.mirror@1 = forgecad-runtime-builtin

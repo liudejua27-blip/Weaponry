@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-import-result.schema.json",
+  "title": "ReferenceImportResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "reference"],
+  "properties": {
+    "schema_version": {"const": "ReferenceImportResult@1"},
+    "reference": {"$ref": "https://forgecad.local/contracts/reference-evidence.schema.json"}
+  }
+}

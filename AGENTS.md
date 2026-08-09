@@ -6,7 +6,7 @@
 
 ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不是内置大模型的独立 Agent 应用。
 
-- 用户在 Codex Desktop、Codex CLI 或 Codex IDE 中对话和上传授权参考；
+- P0 用户在 Codex Desktop 或 Codex CLI 中对话和上传授权参考；Codex IDE/VS Code/Cursor/Windsurf 只保留未来兼容能力，不是当前 ForgeCAD P0 入口；
 - Codex 是外部大脑，负责理解、规划、视觉推理和工具编排；
 - ForgeCAD 是身体，负责 typed 几何、UV、PBR、纹理、材质、渲染、质量、Skill、版本、局部修改、爆炸图和导出；
 - ForgeCAD Desktop 只查看项目、候选、部件、参考、固定视图、质量、Job 和版本，不提供聊天、图片上传、模型选择、Provider 配置或 API Key；
@@ -15,7 +15,7 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 
 “Codex-only”指支持范围，不是模型身份认证。不得用 `client_name == codex` 作为安全边界。图片附件必须通过真实 Codex 客户端证明字节进入 ForgeCAD CAS；没有证据时标为 unavailable。
 
-当前是破坏性重构后的迁移期，不是可用的新产品。MCP002 contracts/Store/Runtime/IPC 基础层与 MCP003 本地只读 MCP adapter 已通过 Gate；官方 conformance、真实三宿主连接和 packaged E2E 未完成前，不得宣称“Codex 已可生成高质量 3D”。
+当前是单用户 MVP host golden path 已收口的开发阶段，不是通用高质量产品。MCP002–MCP009 的 Runtime/MCP/Worker/Viewer/事务能力已有 focused evidence；真实 Codex CLI 已用用户授权图片完成 reference→geometry→appearance→quality→confirm→CAS GLB 十二调用主链路。silhouette/landmark/region 相似度、真人视觉评分、签名打包仍是 `NOT_RUN/BLOCKED`，不能宣称“Codex 已生成通用高质量 3D”。
 
 ## 2. 唯一权威阅读顺序
 
@@ -28,23 +28,29 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 5. `docs/RESET_MIGRATION_PLAN.md`
 6. `docs/CODEX_EXECUTION_PLAN.md`
 7. `docs/CODEX_TASK_INDEX.md`
-8. `docs/AUTHORITATIVE_STATE.md`
-9. `docs/LUNA_GOAL_EXECUTION_GUIDE.md`（Luna/Goal 执行时必读）
-10. 与任务直接相关的合同：MCP、Codex、Compiler、Viewer、Skill、Schema、测试或打包文档。
+8. `docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`（MCP010A–F 执行时必读）
+9. `docs/AUTHORITATIVE_STATE.md`
+10. `docs/MVP_DELIVERY_PLAN.md`
+11. `docs/MVP_TOOL_CATALOG.md`
+12. `docs/LUNA_GOAL_EXECUTION_GUIDE.md`（Luna/Goal 执行时必读）
+13. 与任务直接相关的合同：MCP、Codex、Compiler、Viewer、Skill、Schema、测试或打包文档。
 
 旧 ADR、U004 总图、Provider、Domain、Mechanical、Module 和 Compatibility 文档已从当前树删除，没有执行权威。不得从 Git 历史恢复旧产品路径来让测试通过。
 
 ## 3. 强制实施顺序
 
-实施顺序固定为 `FGC-MCP000 → MCP001 → ... → MCP013`，详见任务索引。同一时刻只领取一个原子任务。
+实施顺序固定为 `FGC-MCP000 → MCP001 → ... → MCP009 → MCP010A → ... → MCP010F → MCP011 → MCP012 → MCP013`，详见任务索引。同一时刻只领取一个原子任务。MVP functional core 主线 `MCP005 → MCP006 → MCP007 → MCP008 → MCP009` 已完成；当前只允许 `MCP010A` 为 `in_progress`，`MCP010B`–`MCP010F` 必须按依赖保持 `blocked`。
 
-`FGC-MCP001` 和 `FGC-MCP002` 已在 reset 分支完成；当前第一项代码任务是 `FGC-MCP003`：
+`FGC-MCP001`–`FGC-MCP009` 已完成当前功能核心定义；`MCP010A`–`MCP010F` 是首个硬表面参考质量产品化轨道，`MCP011`–`MCP013` 保留可靠性、分发和正式发布职责：
 
-1. 完整阅读 MCP001/MCP002 evidence 和当前工作树；
-2. 实现 MCP stdio 的 resources/list、resources/read、只读工具、annotations、合同/版本协商和 fail-closed 错误；
-3. 为 Codex Desktop、CLI、IDE 生成不含 secret/绝对路径的配置基线；
-4. 运行官方协议快照，并在可用的 Codex Desktop/CLI/IDE 主机中执行连接/断开/版本不兼容 Gate；当前仓库只记录本地 adapter PASS 与真实主机 NOT_RUN；
-5. 更新状态、能力矩阵、handoff 和 MCP003 evidence。
+1. MCP004 已提供 candidate/Job/approval/confirm/reject/restore/diagnostic-export 事务、OS 文件锁、MCP 内置轻量 Runtime supervisor、真实 Codex CLI diagnostic write 和 Viewer read model；
+2. distribution signing、notarization、Desktop packaged write 和通用多客户端治理移到 MCP013，开发期不得让它们阻塞参考导入与几何能力；
+3. MCP005 已完成真实 PNG/JPEG 附件字节 → CAS → `ReferenceEvidence`，不得把它扩写成几何完成或引入任意脚本插件；
+4. MCP006 已完成 44 个 typed contracts、十个独立 first-party declarative Bundle、Registry 只读暴露、DAG/单位/finite/预算/hash/license/SBOM/provenance 负向 Gate；它不把 Skill metadata 冒充几何结果；
+5. MCP007 已完成 product-owned bounded box/cylinder/sphere compiler、14 部件机器人 fixture、GLB lineage/readback、Runtime/MCP/Viewer authenticated IPC focused Gate；真实 Codex CLI 已用用户授权 PNG 完成 geometry/readback slice（14 parts/516 triangles/validator passed），MCP009 证据另含 appearance/quality/confirm/export 主链路；不得把有限主链路扩展成像素相似度或通用质量结论；
+6. IDE/其他 Client 和 transport-specific official conformance 保持未来/非阻塞状态，不得伪造 PASS。
+7. MCP008 的 bounded Appearance/Render/Viewer focused Gate 已通过；MCP009 的 Runtime golden-path/change/export focused Gate 已通过。MCP010 不能改写这些历史 receipt，只能新增 V2 合同、质量和真实视觉证据；真实 Codex、真人和 packaged gates 必须继续单独标记，不能用本地 fixture 代替。
+8. MCP010A 只做权威重排、同 revision 开发构建/用户级激活和真实 Codex capability Gate；用户重启后的真实调用未观察到前不得标记 `done`，也不得领取 MCP010B。
 
 不得在当前脏 `main` 上直接删除。不得跳过 MCP001 继续扩展旧工作台或修 Provider。
 
@@ -54,7 +60,7 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 - `forgecad-mcp` 是无数据库的薄 `stdio` 适配器；
 - Viewer 只有 read model 和临时 camera/selection/isolation/explosion 状态；
 - Worker 只接受受限 typed 内部协议，不监听网络，不执行任意脚本；
-- 同一候选的 Geometry/Appearance/Render/Quality/Export 共享 ID、hash 和 lineage；
+- 同一候选的 Geometry/Appearance/Render/Quality/Export 共享 ID、hash 和 lineage；`change_prepare` 记录 stable Part intent，但不宣称通用 mesh delta；
 - `ActiveDesignSnapshot` 是当前项目的单一状态投影；
 - 所有永久修改先 prepare，后编译/回读/质量，再由用户在 Codex 批准，最后 confirm；
 - 确认创建不可变子版本；restore 创建新版本，不改写历史；
@@ -65,11 +71,11 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 
 ## 5. Skill 约束
 
-Skill 必须同时包含：
+正式分发 Skill 必须同时包含：
 
 `知识 + typed Schema + Recipe DAG + 受限 Operator + Validator + 材质/资产 + Benchmark + LICENSE/NOTICE/SBOM + provenance + signature`
 
-P0 Bundle 只含声明式内容；可执行 Operator 必须是产品预注册实现。签名不等于安全或质量，仍须通过合同、权限、预算、许可证、恶意输入和 Benchmark Gate。GitHub 仓库不能直接安装为 Skill。
+MVP first-party Bundle 只含声明式内容；可执行 Operator 必须是产品预注册实现。开发阶段可使用仓库 first-party trust root + canonical hash，但 Schema、Recipe、operator lock、Validator、Benchmark、LICENSE/NOTICE、SBOM 和 provenance 不能省略；分发级签名/撤销在 MCP012/013 完成。GitHub 仓库不能直接安装为 Skill。
 
 ## 6. 高质量定义
 
@@ -89,7 +95,7 @@ Skill 安装、材质包、单张截图、GLB 可打开、本地 smoke 或 Codex
 
 可以学习 Blender 的 data-block、Modifier/Geometry Nodes、Principled PBR、UV/UDIM/Bake、AOV、OCIO、Asset Browser 和 Outliner；不能把 `.blend`、任意 Blender Python 或 Blender 内部状态变成产品真值。
 
-外部项目按 Library、isolated Worker、Asset 或 Reference-only 分离采用。必须固定 commit、审许可证和例外、生成 SBOM、运行恶意输入/资源/确定性/跨平台 Benchmark，并保留退出方案。未经批准不得下载权重、执行安装脚本或整仓复制。
+外部项目按 Library、isolated Worker、Asset 或 Reference-only 分离采用。`MVP_DELIVERY_PLAN.md` 中 `approved-for-evaluation` 只授权隔离评估，不等于采用；写入 lockfile/安装包前必须固定 commit/tag、审许可证和例外、生成 SBOM、运行恶意输入/资源/确定性 Benchmark并保留退出方案。未经批准不得下载权重、执行安装脚本或整仓复制。MCP010E 可由 Codex 在实施期把计划中点名的免费 CC0 文件一次性下载到本机 adoption cache，经逐资产 hash/license/SBOM/provenance 验证后编入 first-party 离线 AssetPack；Runtime、安装器和 Viewer 仍不得联网或调用素材 API。BlenderMCP、FreeCAD MCP 等任意脚本型插件不得接入 Runtime。
 
 ## 8. 安全范围
 
@@ -132,4 +138,4 @@ git diff --check
 
 ## 11. 完成定义
 
-只有 `FGC-MCP001`–`FGC-MCP013` 全部完成，且真实 packaged Codex → MCP → 参考字节 → candidate → Viewer → 局部修改 → 用户批准 → 不可变版本 → 回退 → 爆炸图 → 导出闭环通过，产品迁移才完成。此前用户指南只描述当前可用的诊断或 Viewer 能力。
+MVP 功能核心在 `FGC-MCP005`–`FGC-MCP009` 已完成；`FGC-MCP010A`–`FGC-MCP010F` 负责把它升级为“首个硬表面可见视图质量闭环已验收”。当前单张三分之四参考最多产生 `PARTIAL_VISIBLE_VIEW_PASS`；用户补充 front/back/left/right/rear-three-quarter 全身参考之前，`HQ_360_PASS` 必须为 `BLOCKED_REFERENCE_COVERAGE`。正式分发仍要求 MCP011 的可靠性、MCP012 的通用第三方生命周期，以及 MCP013 的 Developer ID/notarization、升级回滚、packaged E2E 和跨类别真人门。

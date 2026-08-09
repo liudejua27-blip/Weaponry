@@ -1,0 +1,27 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "PASS",
+  "checked_at": "2026-08-08",
+  "scope": "development Runtime launcher plus authenticated local IPC and a fresh forgecad-mcp stdio process",
+  "runtime_status": "alpha-mcp004",
+  "mcp_tool_count": 22,
+  "write_opt_in": true,
+  "authenticated_ipc": true,
+  "reconnected_with_second_mcp_process": true,
+  "post_runtime_state": {
+    "project_count": 1,
+    "version_count": 3,
+    "export_profile": "manifest-json/diagnostic"
+  },
+  "private_handoff_permissions": {
+    "endpoint_directory_mode": "0700",
+    "ready_file_mode": "0600"
+  },
+  "image_upload": false,
+  "three_d_generation": false,
+  "production_file_export": false,
+  "limitations": [
+    "This is a development diagnostic launcher and is not a signed/notarized release package.",
+    "The fixture contains opaque diagnostic CAS objects only; it does not exercise reference bytes, geometry, render or Quality Compiler execution."
+  ]
+}

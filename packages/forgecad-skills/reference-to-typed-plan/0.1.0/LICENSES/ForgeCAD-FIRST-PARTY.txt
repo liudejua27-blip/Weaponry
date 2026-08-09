@@ -1,0 +1,3 @@
+ForgeCAD first-party development bundle. No third-party source or asset is
+vendored in this directory. Inspiration repositories and their licenses are
+recorded in skill.yaml and docs/evidence/mcp005/github-skills-audit.md.

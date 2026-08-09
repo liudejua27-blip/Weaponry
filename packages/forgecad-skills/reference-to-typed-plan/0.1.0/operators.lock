@@ -1,0 +1,3 @@
+reference.validate_evidence@1 = forgecad-runtime-builtin
+reference.detail_inventory@1 = forgecad-runtime-builtin
+reference.typed_plan@1 = forgecad-runtime-builtin

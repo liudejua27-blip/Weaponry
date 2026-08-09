@@ -1,0 +1,15 @@
+{
+  "dynamic_code": false,
+  "network": false,
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {
+      "builtin": "part_parent_dag",
+      "id": "assembly_acyclic@1"
+    },
+    {
+      "builtin": "opaque_stable_ids",
+      "id": "stable_part_ids@1"
+    }
+  ]
+}

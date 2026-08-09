@@ -1,0 +1,125 @@
+{
+  "schema_version": "ForgeCADCodexEvidence@1",
+  "task_id": "FGC-MCP009",
+  "status": "PASS",
+  "checked_at": "2026-08-09",
+  "mode": "codex-cli-mcp009-appearance-export-with-image",
+  "expected_sequence": [
+    "project_create",
+    "reference_import",
+    "geometry_prepare",
+    "artifact_readback_get",
+    "appearance_prepare",
+    "artifact_readback_get",
+    "quality_get",
+    "candidate_confirm",
+    "version_list",
+    "export_prepare",
+    "export_confirm",
+    "version_list"
+  ],
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "latest_pass": {
+    "status": "PASS",
+    "codex_exit_code": 0,
+    "observed_sequence": [
+      "project_create",
+      "reference_import",
+      "geometry_prepare",
+      "artifact_readback_get",
+      "appearance_prepare",
+      "artifact_readback_get",
+      "quality_get",
+      "candidate_confirm",
+      "version_list",
+      "export_prepare",
+      "export_confirm",
+      "version_list"
+    ],
+    "geometry_artifact_sha256": "59b90ccfca7b0efe2bae91f1f2b78b987480271e8f3f2305c2aec39261f6bc9e",
+    "appearance_artifact_sha256": "13b76cb3e6e452f2cfb2012a1083a2c4224c2794bbe72a8f21683b3483e7da05",
+    "part_count": 15,
+    "triangle_count": 580,
+    "geometry_validator_status": "passed",
+    "appearance_validator_status": "passed",
+    "quality_hard_gate": "passed",
+    "fixed_render": "passed",
+    "mvp_glb_cas_export": "PASS",
+    "image_attachment": "PASS",
+    "reference_path_recorded": false,
+    "image_bytes_recorded": false
+  },
+  "attempts": [
+    {
+      "status": "BLOCKED",
+      "observed_prefix": ["project_create", "reference_import", "geometry_prepare", "artifact_readback_get"],
+      "reason": "The first probe exposed a numeric canonical-hash mismatch in the probe-generated GeometryProgram; the product Runtime returned the typed rejection and no version was written. The probe was corrected before the next attempt."
+    },
+    {
+      "status": "BLOCKED",
+      "observed_prefix": ["project_create", "reference_import", "geometry_prepare", "artifact_readback_get", "appearance_prepare"],
+      "reason": "A later local run produced real geometry and appearance candidates, fixed render evidence, a confirmed version and CAS GLB output, but Codex initially called artifact_readback_get/export_confirm with incomplete arguments and later issued recovery calls. It therefore did not satisfy the exact no-retry host receipt.",
+      "recovery_only_artifacts": {
+        "geometry_artifact_sha256": "59b90ccfca7b0efe2bae91f1f2b78b987480271e8f3f2305c2aec39261f6bc9e",
+        "appearance_artifact_sha256": "13b76cb3e6e452f2cfb2012a1083a2c4224c2794bbe72a8f21683b3483e7da05",
+        "confirmed_version_id": "version-22c8d4efc9524842a91a1f38cc50438c",
+        "export_output_sha256": "13b76cb3e6e452f2cfb2012a1083a2c4224c2794bbe72a8f21683b3483e7da05"
+      },
+      "promoted_to_pass": false
+    },
+    {
+      "status": "BLOCKED",
+      "observed_prefix": [],
+      "reason": "A clean repeat later timed out or reported no ForgeCAD tools in the ephemeral Codex session; OAuth/session state was external to the Runtime."
+    },
+    {
+      "status": "BLOCKED",
+      "observed_prefix": [
+        "project_create",
+        "reference_import",
+        "geometry_prepare",
+        "artifact_readback_get",
+        "appearance_prepare",
+        "artifact_readback_get",
+        "quality_get",
+        "candidate_confirm",
+        "version_list"
+      ],
+      "reason": "A fresh authenticated Codex CLI run produced real geometry (15 parts/580 triangles), appearance/PBR artifact, quality report, approval-bound candidate confirmation and version list. Codex exited cleanly before export_prepare/export_confirm, so the exact full golden path is still not a PASS.",
+      "geometry_artifact_sha256": "59b90ccfca7b0efe2bae91f1f2b78b987480271e8f3f2305c2aec39261f6bc9e",
+      "appearance_artifact_sha256": "13b76cb3e6e452f2cfb2012a1083a2c4224c2794bbe72a8f21683b3483e7da05",
+      "appearance_candidate_id_recorded": true,
+      "version_created": true,
+      "export_attempted": false
+    },
+    {
+      "status": "BLOCKED",
+      "observed_prefix": [
+        "project_create",
+        "reference_import",
+        "geometry_prepare",
+        "artifact_readback_get",
+        "appearance_prepare",
+        "artifact_readback_get",
+        "quality_get",
+        "candidate_confirm",
+        "version_list"
+      ],
+      "reason": "The stricter probe prompt was repeated in a fresh temporary Runtime. Codex again completed the same nine-call prefix and exited with code 0 before export_prepare; this confirms the local Runtime path is usable but does not create a twelve-call full-chain receipt.",
+      "geometry_artifact_sha256": "59b90ccfca7b0efe2bae91f1f2b78b987480271e8f3f2305c2aec39261f6bc9e",
+      "appearance_artifact_sha256": "13b76cb3e6e452f2cfb2012a1083a2c4224c2794bbe72a8f21683b3483e7da05",
+      "version_created": true,
+      "export_attempted": false,
+      "probe_prompt_revision": "forced-complete-v2"
+    }
+  ],
+  "reference_path_recorded": false,
+  "image_bytes_recorded": false,
+  "visual_similarity": "NOT_RUN",
+  "human_review": "NOT_RUN",
+  "packaged_signing": "NOT_RUN",
+  "production_export": "NOT_RUN",
+  "mvp_glb_cas_export": "PASS",
+  "reason": "The exact twelve-call Codex CLI sequence completed against an isolated Runtime with the authorized image attachment. Pixel similarity, human visual acceptance, filesystem/package export and signing remain separate gates."
+}

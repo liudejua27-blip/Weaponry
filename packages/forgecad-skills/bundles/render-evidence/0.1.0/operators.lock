@@ -1,0 +1,3 @@
+# Product-owned operator lock; this bundle contains no executable operator.
+forgecad.render.fixed-camera@1 = forgecad-runtime-builtin
+forgecad.render.aov@1 = forgecad-runtime-builtin

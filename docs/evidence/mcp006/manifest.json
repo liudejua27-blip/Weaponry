@@ -1,0 +1,81 @@
+{
+  "schema_version": "ForgeCADTaskEvidence@1",
+  "task": "FGC-MCP006",
+  "status": "completed",
+  "scope": "typed contracts and ten independently materialized first-party declarative Skill Bundles",
+  "worktree": "main (dirty user worktree; no commit)",
+  "contracts": {
+    "schema_count": 41,
+    "current_schema_count": 44,
+    "manifest_check": "PASS",
+    "new_records": [
+      "SubjectProfile@1",
+      "RepresentationPlan@1",
+      "AssemblyGraph@1",
+      "GeometryProgram@1",
+      "AppearanceProgram@1",
+      "RecipePlan@1",
+      "ArtifactReadback@1",
+      "RenderSet@1",
+      "QualityReport@1",
+      "SkillBundleManifest@1",
+      "SkillListResult@1",
+      "SkillGetResult@1",
+      "SkillExecutionReceipt@1",
+      "SkillEvalReport@1"
+    ]
+  },
+  "skill_registry": {
+    "registry_sha256": "5c859929d009bc1627a3cb81f0ba8752737b35fff410ecc6ad016bad5d1eee79",
+    "current_registry_sha256": "f171d06d857fad96eccf1c3c278b47f3666cb303ae9f5b56b0a2484571f2e0376",
+    "skill_count": 10,
+    "bundle_count": 10,
+    "bundle_root": "packages/forgecad-skills/bundles/<skill_id>/0.1.0",
+    "first_party_only": true,
+    "network": false,
+    "dynamic_code": false,
+    "model_calls": false,
+    "trust_manifest": "PASS",
+    "recipe_metadata": "PASS",
+    "bundle_materialization": "PASS; see bundle-summary.json",
+    "bundle_signature": "development-only; distribution deferred to MCP012-013"
+  },
+  "focused_gates": {
+    "python_scripts/check_mcp006_skills.py": "PASS",
+    "python_scripts/materialize_mcp006_bundles.py": "PASS (10 independently materialized bundles; --check is deterministic)",
+    "registry_safety_benchmark": "PASS (10 entries; forbidden capability count 0; cycle/unit/non-finite/budget/hash probes fail closed)",
+    "bundle_fixture_receipts": "PASS (10 synthetic declarative valid/invalid fixture pairs; each receipt is fixture-hash bound)",
+    "runtime_skill_registry_tests": "PASS (2 tests)",
+    "mcp_skill_resource_test": "PASS",
+    "rust_cargo_check_runtime_mcp": "PASS",
+    "rust_workspace_tests": "PASS (all workspace tests; Runtime 19, MCP 15, Store 8, Viewer 2; historical MCP006 run)",
+    "desktop_typecheck_build_tauri_check": "PASS",
+    "release_docs_integrity_safety_secrets_license": "PASS",
+    "git_diff_check": "PASS",
+    "real_codex_cli_skill_list_get": "PASS; see codex-cli-skill-registry-e2e.json",
+    "mcp003_stdio_readonly_17_tools": "PASS"
+  },
+  "not_run": {
+    "licensed_geometry_fixtures": "NOT_RUN; geometry fixtures belong to MCP007 and carry their own license receipts",
+    "real_codex_typed_geometry": "NOT_RUN",
+    "geometry_render_quality": "NOT_RUN",
+    "distribution_signature": "NOT_RUN"
+  },
+  "external_references": {
+    "img2threejs": {
+      "revision": "d6673386f89673a58736f8d398dd16ece67874f5",
+      "license": "Apache-2.0",
+      "decision": "first-party reimplementation of staged/detail/compare ideas only"
+    },
+    "img2css": {
+      "revision": "5dce10537589422c254a01a1d71aa805697d2c7f",
+      "license": "BSD-3-Clause",
+      "decision": "reference-only bounded color/region preview ideas"
+    }
+  },
+  "notes": [
+    "Registry exposure is read-only metadata and does not enable Geometry Worker execution; MCP007–009 consume only their implemented bounded subsets.",
+    "This historical receipt retains the 41-schema and prior registry hashes; current 44-schema validation and registry hash are recorded above and in current status docs.",
+    "This evidence proves the Skill contract layer, not a generated 3D model or reference-quality acceptance."
+  ]
+}

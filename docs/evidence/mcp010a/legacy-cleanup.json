@@ -1,0 +1,74 @@
+{
+  "schema_version": "ForgeCADMCP010ALegacyCleanupReceipt@1",
+  "task_id": "FGC-MCP010A",
+  "status": "PASS",
+  "branch": "codex/mcp010a-legacy-cleanup",
+  "base_revision": "03e714a4e34e19b474794844ca10c69d66718cbb",
+  "recovery": {
+    "backup_id": "20260809-mcp010a-legacy-cleanup",
+    "git_bundle_verified": true,
+    "tracked_archive_verified": true,
+    "local_artifact_archive_verified": true,
+    "worktree_patch_saved": true,
+    "sha256_manifest_verified": true,
+    "quarantine_reversible": true
+  },
+  "removed_tracked_paths": [
+    "script/build_packaged_agent_sidecar.sh",
+    "smoke-gate07.env.example",
+    "evaluations/agent-provider-v1",
+    "evaluations/r4",
+    "evaluations/csg-g824",
+    "evaluations/csg-g824a",
+    "evaluations/csg-g824b",
+    "evaluations/csg-g824c",
+    "evaluations/csg-g824d"
+  ],
+  "removed_inactive_runtime_artifacts": {
+    "orphan_python_agent_processes_terminated": 5,
+    "orphan_listener_ports_released": 5,
+    "legacy_python_virtual_environment_quarantined": true,
+    "legacy_local_mcp_and_proxy_quarantined": true,
+    "obsolete_host_bundle_quarantined": true,
+    "stale_private_host_endpoint_directories_quarantined": 7,
+    "legacy_logs_and_caches_quarantined": true
+  },
+  "code_cleanup": [
+    "unused core and contract constants/helpers removed",
+    "unused Store snapshot/event insertion APIs and validator removed",
+    "unused Geometry Worker direct serde dependency removed",
+    "unused process-lock path field removed",
+    "obsolete Tauri resource protocols removed from CSP",
+    "development and layout command names made Runtime-specific"
+  ],
+  "historical_evidence": {
+    "standalone_host_receipts_archived_as_superseded": true,
+    "current_mcp_evidence_preserved": true
+  },
+  "preserved_user_data": {
+    "WushenForgeLibrary": "not modified",
+    "ignored_output_tree": "not modified; 2.5 GiB of possible user GLB/PNG history kept",
+    "codex_attachments_and_task_history": "not modified",
+    "runtime_v1_data": "not modified"
+  },
+  "gates": {
+    "legacy_process_and_listener_absence": "PASS",
+    "runtime_layout": "PASS",
+    "repository_integrity": "PASS",
+    "release_docs_walkthrough": "PASS",
+    "release_mvp": "PASS",
+    "offline_rust_workspace_all_targets": "PASS",
+    "offline_geometry_worker_all_targets": "PASS",
+    "same_cohort_dev_app_rebuild": "PASS",
+    "package_layout_and_codesign": "PASS",
+    "sibling_runtime_ready": "PASS",
+    "real_codex_cli_isolated_write": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "build_cohort_sha256": "e5fd7da79576fd022894838c5ab9b0532b7aef735abc42b86f3283e43532ea91",
+  "limitations": [
+    "The retained ignored output tree was not deleted because it may contain user-authored model and render artifacts.",
+    "Diagnostic fixture code remains until its test-only replacement is implemented; Render Worker and @1 compatibility contracts remain required current/future surfaces.",
+    "Codex Desktop still requires a user restart before MCP010A live-host completion."
+  ]
+}

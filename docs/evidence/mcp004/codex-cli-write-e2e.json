@@ -1,0 +1,52 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "PASS",
+  "checked_at": "2026-08-08",
+  "host": "codex_cli",
+  "codex_version": "0.147.0-alpha.6.5",
+  "scope": "real authenticated Codex CLI exec turn against an empty temporary Runtime",
+  "mode": "diagnostic-only; explicit authenticated IPC and MCP004 write opt-in; isolated temporary workspace; user Codex configuration ignored",
+  "runtime_status": "alpha-mcp004",
+  "mcp_tool_calls": [
+    {"server": "forgecad", "tool": "project_create", "status": "completed"},
+    {"server": "forgecad", "tool": "candidate_prepare", "status": "completed"},
+    {"server": "forgecad", "tool": "candidate_confirm", "status": "completed"},
+    {"server": "forgecad", "tool": "restore_prepare", "status": "completed"},
+    {"server": "forgecad", "tool": "restore_confirm", "status": "completed"},
+    {"server": "forgecad", "tool": "export_prepare", "status": "completed"},
+    {"server": "forgecad", "tool": "export_confirm", "status": "completed"},
+    {"server": "forgecad", "tool": "project_list", "status": "completed"},
+    {"server": "forgecad", "tool": "version_list", "status": "completed"}
+  ],
+  "write_sequence": [
+    "project_create",
+    "candidate_prepare",
+    "candidate_confirm",
+    "restore_prepare",
+    "restore_confirm",
+    "export_prepare",
+    "export_confirm"
+  ],
+  "post_runtime_state": {
+    "project_count": 1,
+    "version_count": 2
+  },
+  "viewer_read_model": {
+    "status": "PASS",
+    "viewer_status": "Ready",
+    "project_count": 1,
+    "version_count": 2,
+    "same_temporary_runtime": true,
+    "transport": "Tauri Viewer viewer_read_model over authenticated local IPC"
+  },
+  "unrelated_side_effects": false,
+  "user_data_modified": false,
+  "production_file_export": false,
+  "image_upload": false,
+  "three_d_generation": false,
+  "limitations": [
+    "The candidate is the bounded Runtime-owned typed=diagnostic contract object with contract-only quality checks; it is not a reference image, mesh or high-quality 3D result.",
+    "The export is path-free manifest-json/diagnostic CAS evidence, not a production file or GLB export.",
+    "This proves the Codex CLI create/prepare/confirm/restore diagnostic path against the development launcher and the same Runtime's Tauri Viewer read model; it does not prove a restarted Codex Desktop session or a signed packaged E2E."
+  ]
+}

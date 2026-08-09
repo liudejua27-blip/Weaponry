@@ -1,0 +1,36 @@
+{
+  "benchmark_suite": "reference-intake-smoke",
+  "budgets": {
+    "max_claims": 128,
+    "max_regions": 64
+  },
+  "canonical_sha256": "5d74879fd35566947ecb6f789239dfb78cfe920bc5dc39a6da01cf64ea74e798",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": false,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/reference-evidence.schema.json",
+  "operator_ids": [
+    "forgecad.reference.validate@1",
+    "forgecad.reference.inventory@1"
+  ],
+  "output_schema": "schemas/subject-profile.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "reference-intake",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "reference_hash_binding@1",
+    "reference_claim_bounds@1"
+  ],
+  "version": "0.1.0"
+}

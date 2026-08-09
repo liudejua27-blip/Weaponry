@@ -1,0 +1,15 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/appearance-prepare-result.schema.json",
+  "title":"AppearancePrepareResult",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","candidate","job","artifact","render_set"],
+  "properties":{
+    "schema_version":{"const":"AppearancePrepareResult@1"},
+    "candidate":{"type":"object"},
+    "job":{"type":"object"},
+    "artifact":{"$ref":"https://forgecad.local/contracts/artifact-readback.schema.json"},
+    "render_set":{"$ref":"https://forgecad.local/contracts/render-set.schema.json"}
+  }
+}

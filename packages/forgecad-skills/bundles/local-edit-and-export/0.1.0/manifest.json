@@ -1,0 +1,38 @@
+{
+  "benchmark_suite": "local-edit-and-export-smoke",
+  "budgets": {
+    "max_changed_parts": 8,
+    "max_export_bytes": 134217728
+  },
+  "canonical_sha256": "54f295972b275274f2f6a5d8a1731163eeb019aba33b6cbfe98bcb009f1a5e4d",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": false,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/assembly-graph.schema.json",
+  "operator_ids": [
+    "forgecad.change.prepare@1",
+    "forgecad.export.glb@1",
+    "forgecad.export.manifest@1"
+  ],
+  "output_schema": "schemas/export-manifest.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "local-edit-and-export",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "stable_part_ids@1",
+    "approval_hash_binding@1",
+    "export_readback@1"
+  ],
+  "version": "0.1.0"
+}

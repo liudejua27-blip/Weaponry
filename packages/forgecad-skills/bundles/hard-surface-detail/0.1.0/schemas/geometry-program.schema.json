@@ -1,0 +1,15 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/geometry-program.schema.json",
+  "title":"GeometryProgram",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","project_id","representation_plan_sha256","nodes","budgets","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"GeometryProgram@1"},
+    "project_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "nodes":{"type":"array","maxItems":512,"items":{"type":"object","additionalProperties":false,"required":["node_id","operator_id","part_id","parameters"],"properties":{"node_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"operator_id":{"type":"string","pattern":"^forgecad\\.[a-z0-9_.-]+@[0-9]+$"},"part_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"inputs":{"type":"array","maxItems":16,"items":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"}},"parameters":{"type":"object","additionalProperties":true}}}},
+    "budgets":{"type":"object","additionalProperties":false,"required":["max_nodes","max_triangles","max_runtime_ms"],"properties":{"max_nodes":{"type":"integer","minimum":1,"maximum":512},"max_triangles":{"type":"integer","minimum":1,"maximum":1000000},"max_runtime_ms":{"type":"integer","minimum":1,"maximum":120000}}},
+    "canonical_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+  }
+}

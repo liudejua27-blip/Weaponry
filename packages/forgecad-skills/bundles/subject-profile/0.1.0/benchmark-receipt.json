@@ -1,0 +1,14 @@
+{
+  "fixture_sha256": "9148c097f8c54a1d8bf4bac8bdb50489caa22895859ccb03f64169e098d84426",
+  "metrics": {
+    "declarative_plan_validation": 1,
+    "fixtures": 2,
+    "forbidden_capabilities": 0
+  },
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "subject-profile",
+  "status": "passed",
+  "suite_id": "subject-profile-smoke",
+  "version": "0.1.0"
+}

@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 64
+  },
+  "canonical_sha256": "886acaf0a8ae763afbfdf9cc46cbdc44c6d7aa05c16e45c28296a4b779e70e69",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "export"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "AssemblyGraph@1",
+      "node_id": "export",
+      "operator_id": "forgecad.export.manifest@1",
+      "output_schema": "ExportManifest@1"
+    }
+  ],
+  "recipe_id": "local-edit-and-export",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "local-edit-and-export",
+  "units": "meter"
+}

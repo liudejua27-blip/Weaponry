@@ -1,0 +1,1 @@
+{"_type": "https://in-toto.io/Statement/v1", "subject": [{"name": "forgecad-skill-uv-pbr", "digest": {"sha256": "1f028a6168762be6b42a1428dac7caded3ae4ebb023ca68d3388a4961dd2924d"}}], "predicateType": "https://slsa.dev/provenance/v1", "predicate": {"buildType": "forgecad/first-party-declarative", "materials": [{"uri": "local-worktree", "digest": {"sha256": "development-root"}}]}}

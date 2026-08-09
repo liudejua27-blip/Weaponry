@@ -1,0 +1,18 @@
+{
+  "coordinate_system": "right-handed-y-up",
+  "expected": {
+    "dag": "acyclic",
+    "finite": true,
+    "operator_allowlist": "pass"
+  },
+  "fixture_id": "reference-intake-declarative-valid",
+  "recipe_id": "reference-intake",
+  "schema_version": "SkillBenchmarkFixture@1",
+  "skill_id": "reference-intake",
+  "units": "meter",
+  "values": {
+    "confidence": 0.8,
+    "max_parts": 16,
+    "scale": 1.0
+  }
+}

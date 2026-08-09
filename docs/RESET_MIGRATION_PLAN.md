@@ -1,7 +1,7 @@
 # ForgeCAD 硬切重置与迁移清单
 
-版本：2026-08-07
-状态：当前执行清单
+版本：2026-08-09
+状态：历史硬切已完成；后续 MVP 执行以 `MVP_DELIVERY_PLAN.md` 为准
 决策依据：[ADR-0025](ADR/0025-codex-only-mcp-3d-runtime.md)
 
 本文是 Luna 执行“先拆断旧工作台，再建设 Codex-only MCP Runtime”的唯一删除清单。没有列入“保留/迁移”的旧代码，不能因为测试依赖而恢复成产品路径。
@@ -243,10 +243,10 @@ apps/
   desktop/                  read-oriented Runtime Viewer
   geometry-worker/          restricted typed geometry compiler
   render-worker/            deterministic headless evidence
-  blender-worker/           optional signed recipes only
+  blender-worker/           post-MVP optional fixed recipes only
 packages/
   forgecad-contracts/       JSON Schema source of truth
-  forgecad-skills/          signed first-party bundles
+  forgecad-skills/          first-party declarative bundles
 ```
 
 依赖只允许向下：Viewer/MCP → Runtime → Core/Store → Contracts；Worker → Contracts/Core algorithm subset。Store、Worker、Viewer 和 MCP 均不能绕过 Runtime 写产品状态。
@@ -269,7 +269,7 @@ packages/
 | Quality Compiler | 结构门与视觉门分散 | 几何、轮廓比例、UV/PBR、纹理、细节、参考比较、Codex 评审分层 |
 | Versioning | 两套版本/legacy 投影 | 不可变版本、typed delta、局部恢复、stale-base 冲突 |
 | Exploded View | 当前不可用 | stable Part↔primitive、ExplodedViewPlan、碰撞/可读性验证 |
-| Skill Registry | 旧 manifest + Operator | 完整 Bundle、Benchmark、SBOM、provenance、签名和撤销 |
+| Skill Registry | 旧 manifest + Operator | MVP canonical hash/Bundle/Benchmark/SBOM/provenance；分发签名/撤销后置 |
 | Packaging | 旧 `wushen-agent` sidecar | Runtime、MCP、workers、Viewer 同版本签名打包 |
 
 ## 6. 硬切执行顺序
@@ -278,20 +278,27 @@ packages/
 2. `FGC-MCP001`：可恢复快照后，一次删除旧 UI/Provider/App Server/Agent/合同，并放入最小可编译 Viewer + Runtime skeleton；
 3. `FGC-MCP002`：新合同、数据库、CAS、单写者；
 4. `FGC-MCP003`：Codex-only MCP stdio 只读能力；
-5. `FGC-MCP004`：候选 prepare/compile/render/evaluate/confirm/reject；
-6. `FGC-MCP005`：Codex 文本/图片 → evidence → typed design → Viewer → immutable version；
-7. `FGC-MCP006`：Skill Bundle、Registry、签名、许可证/SBOM、Benchmark；
-8. `FGC-MCP007`：几何、轮廓比例、语义 Part、稳定 ID、局部修改；
-9. `FGC-MCP008`：UV、切线、PBR、纹理、材质、Appearance Compiler；
-10. `FGC-MCP009`：固定视图、AOV、参考比较、视觉评审、质量证据；
-11. `FGC-MCP010`：版本、回退、局部 undo、爆炸图；
-12. `FGC-MCP011`：Job、事件、取消、崩溃恢复、并发和性能；
-13. `FGC-MCP012`：外部项目治理和首批内置 Skills；
-14. `FGC-MCP013`：打包 Codex E2E、导出、跨类别真人质量门。
+5. `FGC-MCP004`：单用户候选/审批/版本/restore/diagnostic-export 事务基座（done）；
+6. `FGC-MCP005`：真实 Codex PNG/JPEG → CAS → ReferenceEvidence；
+7. `FGC-MCP006`：typed design/geometry/appearance 合同和 MVP first-party Skills；
+8. `FGC-MCP007`：硬表面机器人几何、语义 Part、稳定 ID、GLB readback；
+9. `FGC-MCP008`：UV、切线、PBR、Viewer 真实 GLB、固定渲染；
+10. `FGC-MCP009`：参考比较、局部修改、拒绝/批准、版本/restore、GLB export，关闭 MVP；
+11. `FGC-MCP010A`：权威重排、用户级开发 App 激活和真实 Codex capability Gate；
+12. `FGC-MCP010B`：V2 几何合同、真实 GLB/拓扑回读；
+13. `FGC-MCP010C`：固定 perspective renderer、九 AOV、参考比较和 typed review；
+14. `FGC-MCP010D`：受限高细节 Operator 和 first-party Skill 0.2；
+15. `FGC-MCP010E`：first-party 离线硬表面 AssetPack、UV/PBR/纹理；
+16. `FGC-MCP010F`：Viewer compare/selection/explosion、真实机器人闭环和人工门；
+17. `FGC-MCP011`：Job、事件、取消、崩溃恢复、并发、GC 和性能；
+18. `FGC-MCP012`：通用第三方 Skill/AssetPack 分发治理和签名撤销；
+19. `FGC-MCP013`：Developer ID/notarized 打包、Codex packaged E2E、升级回滚、跨类别真人质量门。
+
+MCP010A–F 的现行细节由 `MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md` 取代原来“010 只做 Viewer”的窄描述；这不改变本文件对 MCP001–009 硬切历史的记录。
 
 ### MCP002 已交付边界
 
-当前工作树已实现首批 13 个 Runtime Schema/Rust records、canonical JSON/hash、独立 V1 migration、旧库拒绝、SQLite WAL/foreign-key/busy-timeout、writer lease/heartbeat/TTL recovery、CAS 原子写入和备份恢复、authenticated Unix IPC，以及 MCP 的 Runtime IPC backend。MCP002 仍不开放几何、Appearance、Render、参考导入、Skill 执行或永久确认；这些能力必须在依赖任务完成后逐项启用。
+当前工作树已实现首批 13 个 Runtime Schema/Rust records、canonical JSON/hash、独立 V1 migration、旧库拒绝、SQLite WAL/foreign-key/busy-timeout、OS writer 文件锁、崩溃后锁释放、CAS 原子写入和备份恢复、authenticated Unix IPC，以及 MCP 的 Runtime IPC backend。MCP002 仍不开放几何、Appearance、Render、参考导入、Skill 执行或永久确认；这些能力必须在依赖任务完成后逐项启用。
 
 ## 7. 硬切退出 Gate
 

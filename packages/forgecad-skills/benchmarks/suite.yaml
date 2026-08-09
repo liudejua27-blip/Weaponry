@@ -1,0 +1,17 @@
+schema_version: SkillBenchmarkSuite@1
+suite_id: mcp006-registry-safety
+status: passed
+fixtures:
+  - synthetic-registry-metadata
+metrics:
+  - name: skill_count
+    threshold: 10
+  - name: forbidden_capabilities
+    threshold: 0
+  - name: deterministic_manifest_hash
+    threshold: 1
+  - name: recipe_cycles
+    threshold: 0
+notes:
+  - This suite validates declarative registry safety only.
+  - Geometry, render, similarity and human quality benchmarks are MCP007-009.

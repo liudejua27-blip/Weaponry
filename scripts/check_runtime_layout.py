@@ -33,7 +33,17 @@ def main() -> int:
         "apps/desktop/src-tauri/crates/forgecad-app-server-protocol",
         "apps/desktop/src-tauri/crates/forgecad-core/src/api_first_provider.rs",
         "packages/concept-spec",
+        "packages/weapon-spec",
         "packages/agent-skills",
+        "evaluations/agent-provider-v1",
+        "evaluations/r4",
+        "evaluations/csg-g824",
+        "evaluations/csg-g824a",
+        "evaluations/csg-g824b",
+        "evaluations/csg-g824c",
+        "evaluations/csg-g824d",
+        "script/build_packaged_agent_sidecar.sh",
+        "smoke-gate07.env.example",
     ]
     present = [path for path in forbidden if (ROOT / path).exists()]
     if present:

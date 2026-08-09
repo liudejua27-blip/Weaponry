@@ -1,0 +1,14 @@
+{
+  "fixture_sha256": "7d1c65bd5de02550764c5e1f51e78381f4fb1b78517f57961bf415e7587c4ffa",
+  "metrics": {
+    "declarative_plan_validation": 1,
+    "fixtures": 2,
+    "forbidden_capabilities": 0
+  },
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "render-evidence",
+  "status": "passed",
+  "suite_id": "render-evidence-smoke",
+  "version": "0.1.0"
+}

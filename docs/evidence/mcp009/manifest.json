@@ -1,0 +1,23 @@
+{
+  "schema_version":"ForgeCADEvidenceManifest@1",
+  "task_id":"FGC-MCP009",
+  "recorded_at":"2026-08-09T00:00:00+08:00",
+  "status":"PASS-mvp-host-golden-path-with-visual-and-packaging-gates-open",
+  "scope":"quality projection, stable-Part change prepare, approval/version/restore and CAS-backed MVP GLB export",
+  "commands":{
+    "mcp009_test":{"status":"PASS","command":"npm run mcp009:test","evidence":"24 Runtime library tests, 16 MCP adapter tests, contract check and development binaries passed."},
+    "release_mvp_aggregate":{"status":"PASS","command":"npm run release:mvp","evidence":"Unified MVP functional-core release command passed on 2026-08-09, including docs/integrity/safety/license, MCP005–009, desktop build and offline Tauri check."},
+    "runtime_golden_path":{"status":"PASS","evidence":"Appearance candidate was prepared, confirmed once, diffed, and exported as a GLB receipt; a stable-Part change was prepared against the confirmed head and remained reviewable without creating a version."},
+    "reject_restore_regression":{"status":"PASS","evidence":"Existing Runtime tests cover idempotent reject, immutable confirm, restore-as-new-version and diagnostic export regression."},
+    "real_codex_full_golden_path":{"status":"PASS","evidence":"docs/evidence/mcp009/codex-cli-appearance-export.json","reason":"A clean Codex CLI run with the authorized image attachment completed the exact twelve-call reference → geometry → appearance → quality → confirm → version → CAS-backed MVP GLB export sequence. Earlier blocked attempts remain historical and are not used as the PASS receipt."},
+    "reference_similarity":{"status":"LIMITED","evidence":"quality_get supports an explicitly limited aspect-ratio comparison only; pixel silhouette/landmark/region inference from one image remains unimplemented."},
+    "human_visual_acceptance":{"status":"NOT_RUN","reason":"No user visual score or independent human gate was recorded."},
+    "packaged_export":{"status":"NOT_RUN","reason":"Developer ID/notarization and packaged Desktop/CLI E2E belong to MCP013."}
+  },
+  "transaction_evidence":{
+    "permanent_writes":"prepare/change_prepare never create versions; confirm creates one immutable child after Runtime rechecks candidate hash, quality and idempotency.",
+    "change_prepare":"Requires base_version_id, one allowlisted operation (transform/material_update/replace_geometry), a stable Part ID present in the new typed GeometryProgram, and bounded parameters.",
+    "export":"mvp-glb is restricted to a confirmed quality-passing version whose CAS object is a Runtime GLB; confirm returns output_sha256 and a hash-bound receipt. Filesystem export targets are deliberately deferred."
+  },
+  "mvp_claim_boundary":"The single-user reference-to-CAS-GLB host golden path is complete for this bounded hard-surface robot MVP. Do not claim pixel-level similarity, independent human visual acceptance, filesystem/package export, signing or general image-to-3D coverage."
+}

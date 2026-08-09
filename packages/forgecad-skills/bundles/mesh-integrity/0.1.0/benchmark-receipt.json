@@ -1,0 +1,14 @@
+{
+  "fixture_sha256": "85f00d419b7f4902fbca6fc39c5a97809dd6eeefba7db41e79f387d8992c6596",
+  "metrics": {
+    "declarative_plan_validation": 1,
+    "fixtures": 2,
+    "forbidden_capabilities": 0
+  },
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "mesh-integrity",
+  "status": "passed",
+  "suite_id": "mesh-integrity-smoke",
+  "version": "0.1.0"
+}

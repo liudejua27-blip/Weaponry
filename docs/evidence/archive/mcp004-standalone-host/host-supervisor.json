@@ -1,0 +1,40 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "SUPERSEDED",
+  "scope": "historical standalone Host process handoff and MCP readback only; not current MVP evidence",
+  "command": "Build forgecad-runtime, forgecad-mcp and forgecad-mcp-host in one temporary target; run forgecad-mcp-host serve --stdio with an isolated diagnostic Runtime data root",
+  "entrypoint": "forgecad-mcp-host serve --stdio",
+  "runtime": {
+    "started_by_host": true,
+    "ready_handoff": "PASS",
+    "authenticated_ipc": "PASS",
+    "runtime_status": "alpha-mcp004",
+    "endpoint_directory_mode": "0700",
+    "ready_file_mode": "0600"
+  },
+  "mcp": {
+    "initialize_protocol_version": "2025-11-25",
+    "server_name": "forgecad",
+    "tool_count": 22,
+    "mcp004_write_tool_count": 8,
+    "diagnostic_project_count": 1,
+    "diagnostic_version_count": 1
+  },
+  "lifecycle": {
+    "parent_socket_token_absent": true,
+    "runtime_ready_stderr_only": true,
+    "host_exit_code": 0,
+    "private_endpoint_dirs_after_exit": 0
+  },
+  "safety": {
+    "image_upload": false,
+    "three_d_generation": false,
+    "production_export": false,
+    "user_data_modified": false,
+    "proxy_or_request_rewrite": false
+  },
+  "limitations": [
+    "This is a development-binary supervisor receipt, not signed/notarized package evidence.",
+    "It does not prove a restarted Codex Desktop write E2E or a production export."
+  ]
+}

@@ -1,0 +1,4 @@
+# Product-owned operator lock; this bundle contains no executable operator.
+forgecad.change.prepare@1 = forgecad-runtime-builtin
+forgecad.export.glb@1 = forgecad-runtime-builtin
+forgecad.export.manifest@1 = forgecad-runtime-builtin

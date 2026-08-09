@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/skills/reference-to-typed-plan/0.1.0/claims.schema.json",
+  "title": "ReferenceTypedPlanClaim",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claim_id","source_region","confidence","basis"],
+  "properties": {
+    "claim_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "source_region":{"type":"string","minLength":1,"maxLength":128},
+    "confidence":{"type":"number","minimum":0,"maximum":1},
+    "basis":{"enum":["observed","inferred","unknown"]},
+    "limitation":{"type":["string","null"],"maxLength":512}
+  }
+}

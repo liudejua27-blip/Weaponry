@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 12
+  },
+  "canonical_sha256": "e6389559e72bc83139914e9324a08fc04bdfa25dd625389121b84389c43fbf59",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "profile"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "ReferenceEvidence@1",
+      "node_id": "profile",
+      "operator_id": "forgecad.reference.profile@1",
+      "output_schema": "SubjectProfile@1"
+    }
+  ],
+  "recipe_id": "subject-profile",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "subject-profile",
+  "units": "meter"
+}

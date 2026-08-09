@@ -1,0 +1,37 @@
+{
+  "benchmark_suite": "reference-compare-smoke",
+  "budgets": {
+    "max_landmarks": 64,
+    "max_regions": 64
+  },
+  "canonical_sha256": "01f3625343882616e337aa4ddd08c20dca3a12ed9cc22dd77654b72205ba6b1d",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": false,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/render-set.schema.json",
+  "operator_ids": [
+    "forgecad.quality.silhouette@1",
+    "forgecad.quality.proportion@1",
+    "forgecad.quality.region@1"
+  ],
+  "output_schema": "schemas/quality-report.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "reference-compare",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "reference_hash_binding@1",
+    "quality_evidence_binding@1"
+  ],
+  "version": "0.1.0"
+}

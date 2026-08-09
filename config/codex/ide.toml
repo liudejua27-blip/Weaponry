@@ -1,10 +1,11 @@
-# MCP003 baseline for the Codex IDE extension. The extension shares this shape
-# with Desktop and CLI; packaging resolves forgecad-mcp from the signed install.
+# Future compatibility baseline for the Codex IDE extension. It uses the same
+# single-user forgecad-mcp entrypoint; this file is not a current P0 Gate.
 [mcp_servers.forgecad]
 command = "forgecad-mcp"
 args = ["serve", "--stdio"]
-env_vars = ["FORGECAD_RUNTIME_SOCKET", "FORGECAD_RUNTIME_TOKEN"]
+env_vars = ["FORGECAD_MCP_ENABLE_MCP004_WRITES"]
+enabled = true
 startup_timeout_sec = 20
 tool_timeout_sec = 60
-required = true
+required = false
 default_tools_approval_mode = "writes"

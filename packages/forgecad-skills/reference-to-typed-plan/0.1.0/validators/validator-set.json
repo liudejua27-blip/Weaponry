@@ -1,0 +1,10 @@
+{
+  "schema_version":"SkillValidatorSet@1",
+  "validators":[
+    {"id":"reference_hash_binding@1","scope":"input","builtin":"sha256_and_reference_id"},
+    {"id":"reference_claim_bounds@1","scope":"output","builtin":"claim_count_confidence_and_unknowns"},
+    {"id":"typed_plan_dag@1","scope":"recipe","builtin":"acyclic_typed_dag_and_operator_allowlist"}
+  ],
+  "network":false,
+  "dynamic_code":false
+}

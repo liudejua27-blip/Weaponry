@@ -1,7 +1,7 @@
 # Codex 与 ForgeCAD 集成
 
-版本：2026-08-08
-状态：部分实现；MCP003 只读适配器、配置基线和认证 CLI 只读回合已通过，2026-08-08 Computer Use/Browser 宿主探测未获得可操作 Desktop/IDE，附件与打包 E2E 未实现
+版本：2026-08-09
+状态：MCP005–MCP009 MVP host golden path 已完成；当前 P0 连接为 Codex Desktop/CLI；视觉质量、Desktop write 和签名 packaged E2E 仍分层记录，签名发布移到 MCP013
 
 ## 1. 用户体验
 
@@ -22,19 +22,21 @@ ForgeCAD 单独启动时只显示 Viewer 和连接诊断，不提供“生成”
 
 ## 2. P0 支持矩阵
 
-| Codex 宿主 | 对话 | MCP | 本地附件 | 写审批 | P0 发布要求 |
-|---|---:|---:|---:|---:|---|
-| Codex Desktop | 目标 | 适配器已实现；宿主未运行 | MCP005 必须实测 | MCP004+ 必须实测 | 必过 |
-| Codex CLI | 目标 | 适配器与认证只读回合 PASS | MCP005 必须实测 | MCP004+ 必须实测 | 必过 |
-| Codex IDE | 目标 | 适配器已实现；宿主未运行 | MCP005 必须实测 | MCP004+ 必须实测 | 必过 |
-| ChatGPT Web | 不承诺 | 不承诺 | 不承诺 | 不承诺 | 不在 P0 |
-| 其他 MCP Client | 不支持 | 不验收 | 不验收 | 不验收 | 未来 ADR |
+| Codex 宿主 | 当前范围 | discovery | connection | initialize.protocolVersion | read-only E2E | 协议 mismatch | 无副作用 | P0 发布要求 |
+|---|---|---:|---:|---|---:|---|---:|---|
+| Codex Desktop | REQUIRED | PASS | PASS | `2025-06-18`（真实握手） | PASS | `HOST_OVERRIDE_IGNORED / NOT_APPLICABLE` | PASS | 必过 |
+| Codex CLI | REQUIRED | PASS | PASS | 由当前 Codex stdio 兼容路径协商 | PASS | PASS：`2026-07-28` fail-closed | PASS | 必过 |
+| Codex IDE / VS Code / Cursor / Windsurf | OPTIONAL_NOT_IN_SCOPE | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | 不适用 | 未要求 | 不阻塞 MCP003/MCP004 |
+| ChatGPT Web | 未来/不承诺 | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | 不适用 | 未要求 | 不在 P0 |
+| 其他 MCP Client | FUTURE_NOT_IN_SCOPE | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | 不适用 | 未要求 | 未来兼容目标 |
 
-“Codex-only”是发布、配置和测试范围，不是可伪造 client name 的安全判断。
+“Codex-only”是发布、配置和测试范围，不是可伪造 client name 的安全判断。MCP003 的 REQUIRED 发布范围只有 Codex Desktop、Codex CLI 和 ForgeCAD protocol adapter；IDE 兼容代码和配置基线保留，但不安装 VS Code、不作为当前产品入口，也不作为发布 Gate。
 
-MCP003 的本地证据在 `docs/evidence/mcp003/`：协议适配器、resources/read、只读工具和版本不兼容 fail-closed 已通过；认证 Codex CLI 真实回合已完成 `capabilities_get`、`selection_get`，并在 `2026-07-28` 环境下明确拒绝且不降级；用户提供的 Desktop 截图/transcript 已证明完整只读工具/资源回合无写事务，但 initialize.protocolVersion 未记录、Desktop host mismatch 未运行，IDE 仍未完成，不能把单宿主证据写成三宿主完成。
+MCP003 的真实证据在 `docs/evidence/mcp003/`：原始/SDK protocol adapter、resources/read、只读工具和版本不兼容 fail-closed 已通过；认证 Codex CLI 真实回合已完成 `capabilities_get`、`selection_get`，并在 `2026-07-28` 环境下明确拒绝、无工具调用、无静默降级和无副作用；`codex-desktop-handshake.jsonl` 和 `host-handshake.jsonl` 记录 Desktop 实际 `initialize.protocolVersion=2025-06-18` 且 ForgeCAD 返回相同值，Desktop 只读证据证明无 ForgeCAD 项目、Job、模型或版本写入；`launchctl` override 被 Desktop 忽略，因此 Desktop forced mismatch 记录为 `HOST_OVERRIDE_IGNORED / NOT_APPLICABLE`。其中 `host-handshake.jsonl` 的观测器只做透明原样转发和记录，不改写/合成请求，也不作为写入证据。IDE 未运行是已知的非 P0 范围，不是 MCP003/MCP004 阻断。
 
-2026-08-08 宿主验收记录：Computer Use 对 `com.openai.codex` 的只读状态请求被主机安全边界拒绝；Codex in-app Browser 连接成功但没有当前或用户标签页。用户随后提供了 Desktop 截图和 transcript，证明 forgecad 的只读工具/资源调用成功且无写事务；自动化 UI 仍为 BLOCKED，IDE 尚未运行，Desktop 初始化协议与 host mismatch 证据仍待补齐。
+MCP004 当前在 Runtime/authenticated IPC 提供 typed `project_create`、`candidate_prepare`、`candidate_confirm`、`candidate_reject`、`restore_prepare`、`restore_confirm`、`export_prepare`、`export_confirm` 和 `job_cancel` 事务核心；MCP005 新增 `reference_import`/`reference_get`，MCP007/008/009 新增 geometry/appearance/change/quality/version/export。`forgecad-mcp` 的写工具只有 authenticated IPC/dynamic Runtime handoff 与显式 opt-in 同时满足时才暴露，默认连接为 17 个只读工具；opt-in manifest 为 30 个工具（17 read + 13 write）。真实 Codex CLI 已完成带 `--image` 的 reference→geometry→appearance→quality→confirm→CAS GLB host receipt；Desktop attachment bridge、pixel similarity、production filesystem target 和签名 packaged host E2E 仍是 `NOT_RUN/BLOCKED`。
+
+2026-08-08 宿主验收记录：Computer Use 对 `com.openai.codex` 的只读状态请求被主机安全边界拒绝；Codex in-app Browser 连接成功但没有当前或用户标签页。该自动化 surface 仍单独记录为 BLOCKED，但不覆盖用户提供的 Desktop 握手/只读证据，也不把 IDE 变成 P0 要求。
 
 ### 2.1 MCP003 宿主验收 Runbook
 
@@ -45,7 +47,7 @@ MCP003 的本地证据在 `docs/evidence/mcp003/`：协议适配器、resources/
 1. 使用当前分支构建 MCP 二进制到临时目录，不覆盖用户安装：
    `CARGO_TARGET_DIR=/tmp/forgecad-mcp003-cargo-target script/with_rust_toolchain.sh cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp --offline`
 2. 先运行 `FORGECAD_MCP_COMMAND=/tmp/forgecad-mcp003-cargo-target/debug/forgecad-mcp npm run mcp003:stdio`；失败时先修复 MCP003，不得进入宿主判定。
-3. 使用 `config/codex/desktop.toml`、`cli.toml` 或 `ide.toml` 的字段。配置只放 `forgecad-mcp`、`serve --stdio` 和两个环境变量名；不复制 token、API key、绝对路径或真实用户附件。
+3. 使用 `config/codex/desktop.toml`、`cli.toml` 或 `ide.toml` 的字段。MVP 安装路径直接使用 `forgecad-mcp`；它先完成 stdio initialize，再异步启动同版本 Runtime，并通过受保护 handoff 连接 authenticated IPC。原始 protocol probe 也直接使用 `forgecad-mcp` 和 Runtime socket/token 变量名。配置不复制 token、API key、绝对路径或真实用户附件。
 
 认证 CLI 的可重复探测（仅在用户明确执行时运行）：
 
@@ -56,9 +58,9 @@ FORGECAD_MCP_COMMAND=/tmp/forgecad-mcp003-cargo-target/debug/forgecad-mcp \
   python3 scripts/probe_mcp003_codex_cli.py --execute --mode version-mismatch
 ```
 
-脚本使用隔离临时目录、`--ephemeral`、`--ignore-user-config` 和只读沙箱；默认不启动 Codex、不联网、不写入。只读模式要求两个工具各成功一次（完成顺序不作为合同），版本模式要求无工具调用且宿主报告 fail-closed；它是验收辅助，不替代 Desktop/IDE 或官方 conformance，也不加入发布 Gate。
+脚本使用隔离临时目录、`--ephemeral`、`--ignore-user-config` 和只读沙箱；默认不启动 Codex、不联网、不写入。只读模式要求两个工具各成功一次（完成顺序不作为合同），版本模式要求无工具调用且宿主报告 fail-closed；它是验收辅助，不替代 required Desktop/CLI 宿主证据，也不把 IDE 或官方 conformance 变成当前 P0 Gate。
 
-每个宿主都必须按以下只读序列执行：
+每个 REQUIRED 宿主都必须按以下只读序列执行：
 
 1. 发现 `forgecad` Server，并记录 Server 名称和版本；
 2. `initialize` 使用宿主实际发送的 `protocolVersion`：当前 Codex stdio 默认观测为 `2025-06-18`，官方 2025-era 客户端可使用 `2025-11-25`；两者都必须在响应中原样协商；空 `capabilities` 和非空 `clientInfo` 仍是必需字段；
@@ -67,15 +69,15 @@ FORGECAD_MCP_COMMAND=/tmp/forgecad-mcp003-cargo-target/debug/forgecad-mcp \
 5. `tools/call` 调用 `selection_get` 和 `version_list`，确认没有创建项目、Job 或版本；
 6. 记录宿主 transcript 或截图、工具结果、Runtime 日志中的 request/response hash；不得记录 token、附件绝对路径或模型私有内容。
 
-预期结果：初始化成功；工具数量为 14 且全部 `readOnlyHint=true`；至少发现 `forgecad://capabilities`；capabilities MIME 为 `application/json`；`selection_get.available=false`；没有写事务。任何异常都记为 `connection=BLOCKED` 或 `read_only_e2e=BLOCKED`，不能降级为 PASS。
+预期结果：初始化成功；默认工具数量为 17 且全部 `readOnlyHint=true`；至少发现 `forgecad://capabilities`；capabilities MIME 为 `application/json`；`selection_get.available=false`；没有 ForgeCAD 项目、Job、模型或版本写入。任何异常都记为 `connection=BLOCKED` 或 `read_only_e2e=BLOCKED`，不能降级为 PASS。
 
 宿主专用动作：
 
 - Desktop：在 Codex MCP 设置中加载 ForgeCAD Server，重启/重新打开新线程后执行上述序列；不要用本仓库自动化读取 Codex Desktop UI。
 - CLI：用临时 `-c` 覆盖或用户明确配置加载 `config/codex/cli.toml`，在新的 Codex CLI 会话中执行上述序列；`codex mcp get` 只证明配置发现，不证明连接。
-- IDE：在 Codex IDE 的 MCP 配置中加载 `config/codex/ide.toml`，重启扩展/窗口后执行上述序列；记录扩展版本和宿主日志。
+- IDE：保留 `config/codex/ide.toml` 作为未来兼容基线；本轮不安装 VS Code、不启动 Codex IDE，也不执行 IDE 连接或 read-only E2E。未来建设 Skill SDK、插件开发生态或第三方开发者模式时，再单独把 IDE 升级为 REQUIRED。
 
-版本不兼容测试由 `mcp003:stdio` 单独执行：发送 `protocolVersion=0.0.0`，必须返回 `CONTRACT_VERSION_UNSUPPORTED` 并锁定会话；配置 `CODEX_MCP_PROTOCOL_VERSION=2026-07-28` 也必须明确报告现代协议尚未支持，不能静默降级。宿主不能为了通过测试而伪造客户端名称；`clientInfo.name` 不是认证。
+Desktop 的 forced mismatch 不得通过代理或请求重写伪造：`launchctl setenv CODEX_MCP_PROTOCOL_VERSION=2026-07-28` 后真实 Desktop 仍发送 `2025-06-18`，因此只记录 `HOST_OVERRIDE_IGNORED / NOT_APPLICABLE`。协议负面测试由 ForgeCAD stdio/raw probe 和真实 Codex CLI `2026-07-28` 回合共同承担：必须明确 `CONTRACT_VERSION_UNSUPPORTED`/unsupported-protocol、无工具调用、无静默降级、无副作用；宿主不能为了通过测试而伪造客户端名称，`clientInfo.name` 不是认证。
 
 完成后只把真实证据回填到 `docs/evidence/mcp003/host-matrix.json`，每行必须包含：
 
@@ -89,7 +91,36 @@ FORGECAD_MCP_COMMAND=/tmp/forgecad-mcp003-cargo-target/debug/forgecad-mcp \
 }
 ```
 
-在三行宿主都通过前，`FGC-MCP003` 保持 `in_progress`，`FGC-MCP004` 保持 `blocked`。
+`FGC-MCP003` required protocol adapter、Codex Desktop 和 Codex CLI 均有真实 PASS。`FGC-MCP004` 已按单用户事务基座范围标为 done；`FGC-MCP005` 已按 PNG/JPEG reference admission、CAS readback 和真实 Codex CLI image-attachment 范围标为 done，Desktop bridge 仍为 `NOT_RUN / unavailable`；`FGC-MCP006` 已按 typed contracts、十个独立 declarative Bundle、Recipe/validator/fixture/license/SBOM/provenance Gate 范围标为 done；`FGC-MCP007` 已按有界多 Part geometry、确定性 GLB 和严格 readback 范围标为 done；`FGC-MCP008` 已按 bounded UV/tangent/PBR/fixed render/Viewer focused 范围标为 done；`FGC-MCP009` 已按 limited quality/stable-Part change/immutable version/restore/CAS export 和真实 Codex CLI 十二调用 host 范围标为 done。pixel similarity、human score 和 signed packaged Desktop write 仍是 `BLOCKED/NOT_RUN`；IDE、其他 MCP Client 和当前 transport 不匹配的官方 conformance 继续为未来/非阻塞状态。
+
+### 2.2 MCP004 Runtime/IPC 事务 Runbook
+
+当前只验证无图片、无几何执行的 typed transaction：Codex 先调用 `project_create`，再以 `request.typed=diagnostic` 调用 `candidate_prepare`；Runtime 自己生成 CAS 合同对象和 contract-only quality report，Codex/MCP 不能伪造 quality pass；最后通过 authenticated IPC 调用 `candidate_confirm` 或 `candidate_reject`。Restore 先从 project 内 confirmed 历史 version 调用 `restore_prepare`，再批准创建当前 head 的新子版本；diagnostic export 调用 `export_prepare` 生成 path-free manifest，再由 `export_confirm` 绑定审批和 idempotency。每次 confirm 必须检查 project/base/candidate/prepared object/hash/quality/approval/expiry/idempotency，并核对版本、snapshot、candidate、audit 和重启 readback 的 hash/lineage。
+
+已通过 focused negative cases：hash mismatch、stale base、quality hard fail、approval expiry、不同 request 复用同一 idempotency key、重复 confirm、reject、restore source/stale mismatch、diagnostic export mismatch 和 cancelled Job；失败路径不得写 immutable version、移动历史 head 或生成已确认 export。MCP004 adapter 还通过默认只读、写工具确认标记、disabled typed error 和 authenticated IPC opt-in prepare 测试。Codex CLI diagnostic write E2E 已 PASS；当前 Codex Desktop write E2E、reference attachment、Geometry/Render/Quality、生产文件/GLB export 和 packaged Viewer 仍不能填写为 PASS。
+
+### 2.3 MCP004 内置 Runtime supervisor、Tauri resource bundle 与 Codex CLI diagnostic write E2E
+
+仓库现在提供两个受控入口。`forgecad-runtime serve` 用于独立诊断；正常配置直接使用 `forgecad-mcp`。MCP 先启动不依赖 Runtime 的 stdio，再通过受保护的 `ready.json`/status handoff 动态连接 Runtime；Runtime 进入 Starting/Ready/Degraded/Restarting 时，MCP stdio 不退出，依赖调用返回结构化 `RUNTIME_UNAVAILABLE`。MCP 不打开 SQLite/CAS，也不成为第二个 Runtime writer；最多一次有界重启带 100ms backoff。诊断 fixture、confirm、签名、deep codesign、spctl 和 notarization 只在独立测试/发布 Gate 中运行，正常 `serve --stdio` 不读取 fixture 环境。
+
+```bash
+CARGO_TARGET_DIR=/tmp/forgecad-mcp004-launcher-target \
+  script/with_rust_toolchain.sh cargo build \
+  --manifest-path apps/desktop/src-tauri/Cargo.toml \
+  -p forgecad-runtime --bin forgecad-runtime -p forgecad-mcp --offline
+
+script/test_mcp004.sh
+
+python3 scripts/probe_mcp004_codex_cli.py --execute \
+  --runtime-command /tmp/forgecad-mcp004-launcher-target/debug/forgecad-runtime \
+  --mcp-command /tmp/forgecad-mcp004-launcher-target/debug/forgecad-mcp
+```
+
+2026-08-08 的真实 Codex CLI 结果为 PASS：`project_create → candidate_prepare → candidate_confirm → restore_prepare → restore_confirm → export_prepare → export_confirm` 全部 completed，随后同一临时 Runtime 的 Tauri Viewer read model 读回 1 个项目、2 个版本，MCP 也读回相同状态；无无关副作用、无用户数据修改、无图片上传、无 3D 生成、无生产文件导出。原始调用参数不进入证据，脱敏 receipt 为 `docs/evidence/mcp004/codex-cli-write-e2e.json`；开发 launcher/IPC 过程证据为 `docs/evidence/mcp004/launcher-ipc.json`。
+
+内置 supervisor 的新本地回归结果为 PASS：Runtime 缺失时 initialize 仍成功；Runtime ready 后 child crash 时 stdio 仍响应，状态经过一次 bounded restart 后为 `Degraded`，依赖调用返回 `RUNTIME_UNAVAILABLE`；17 个只读工具和 MCP004/MCP005 写工具的 approval metadata 保持。旧 Host probe 仅作为历史记录保留，不作为本次 MVP 运行结果。
+
+macOS Tauri resource probe 当前仍是 `NOT_RUN`：standalone Host 已移除，旧 bundle 记录仅作为 `SUPERSEDED` 历史证据保留；需要重新构建只含 `forgecad-runtime` 与 `forgecad-mcp` 的 bundle 后再验证 `Contents/Resources/forgecad-mcp` 的 sibling Runtime 解析，当前记录见 `docs/evidence/mcp004/packaged-mcp-resource.json`。这不是签名证据：本机虽可见 1 个有效 codesigning certificate，但以名称和 SHA-1 选择身份的只读签名探针均返回 `errSecInternalComponent`，keychain settings 读取还返回 passphrase error，且没有修改 keychain；因此 signed/notarized package、重启后的 Codex Desktop write E2E 和生产安装路径继续是 `BLOCKED`/`NOT_RUN`，详细证据见 `docs/evidence/mcp004/macos-signing-diagnostic.json`。禁止通过代理或请求重写制造 Desktop mismatch 或 write PASS。
 
 ## 3. Codex instructions
 
@@ -107,19 +138,19 @@ FORGECAD_MCP_COMMAND=/tmp/forgecad-mcp003-cargo-target/debug/forgecad-mcp \
 
 ## 4. Viewer 联动
 
-Viewer 的相机、选择、隔离和临时爆炸距离是 ephemeral UI state。MCP003 的 `selection_get` 和 selection resource 会诚实返回 `available=false`，直到 MCP010 把 Viewer 选择接入单一版本真值；不能把空选择投影成稳定 Part ID。Viewer 不直接发送 prompt，也不拥有会话。
+Viewer 的相机、选择、隔离和临时爆炸距离是 ephemeral UI state。MCP003 的 `selection_get` 和 selection resource 会诚实返回 `available=false`；MCP009 的 `change_prepare` 可由 Codex 直接提交稳定 Part ID，但当前 Viewer selection UI 尚未接入，不把空选择投影成稳定 Part ID。Viewer 不直接发送 prompt，也不拥有会话。
 
 候选完成时 Runtime 发布本地事件，Viewer 刷新 read model；Codex 无需保证 Viewer 打开。Viewer 关闭时所有 compile/render/evaluate、版本和导出语义保持不变。
 
 ## 5. 安装与更新
 
-安装器交付同版本、同签名的 Runtime、MCP、Viewer 和 workers，并为用户生成 Codex MCP 配置。更新流程先验证签名、合同兼容和数据库备份，再原子切换；失败回滚整套二进制，不能混用不同合同版本。
+安装器交付同版本、同签名的 Runtime、MCP、Viewer 和 workers，并为用户生成 Codex MCP 配置。更新流程先验证签名、合同兼容和数据库备份，再原子切换；失败回滚整套二进制，不能混用不同合同版本。当前仅完成 unsigned resource placement，签名链路未通过。
 
 不在配置中保存 OpenAI API Key。Codex 的身份、订阅和模型调用由 Codex 自身管理，ForgeCAD 不读取或复制这些凭据。
 
 ## 6. 真实验收脚本
 
-最终 packaged Gate 必须由普通用户路径完成：
+MVP Gate 先在开发构建和真实 Codex CLI 完成步骤 2–9 的首个硬表面 vertical slice；最终 packaged Gate 在 MCP013 用普通用户安装路径重跑：
 
 1. 新安装且无开发环境变量；
 2. 在 Codex 上传单图和多视图参考；

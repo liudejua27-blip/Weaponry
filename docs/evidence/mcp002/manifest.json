@@ -18,7 +18,7 @@
     "canonical JSON serialization and SHA-256 byte/hash helpers",
     "Project/Candidate/Version/Snapshot/Job/Event/Audit/CAS Rust records",
     "Runtime V1 transactional migration with schema marker and legacy database rejection",
-    "SQLite WAL/foreign keys/busy timeout repository and single writer lease with heartbeat/TTL recovery",
+    "SQLite WAL/foreign keys/busy timeout repository and single Runtime writer guarded by an OS process lock",
     "content-addressed store with fsync, atomic rename, capacity/hash/corruption checks and backup/restore",
     "authenticated Unix local IPC with 0600 socket, per-launch token hash and constant-time comparison",
     "MCP backend selection for authenticated Runtime IPC with diagnostic ephemeral fallback"

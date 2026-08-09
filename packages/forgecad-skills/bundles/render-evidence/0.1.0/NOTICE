@@ -1,0 +1,5 @@
+ForgeCAD first-party MVP Skill registry. No third-party source, executable,
+model weight, texture or remote asset is bundled. GitHub inspiration and
+license decisions are recorded in docs/evidence/mcp005/github-skills-audit.md.
+
+Bundle: render-evidence@0.1.0

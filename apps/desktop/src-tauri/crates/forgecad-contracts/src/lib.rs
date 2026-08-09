@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub const CONTRACT_SET: &str = "forgecad-runtime-contracts@1";
-pub const SCHEMA_VERSION: &str = "@1";
 pub const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
 /// The canonical MCP revision for ForgeCAD. Codex currently opens configured
 /// stdio servers with the 2025-06-18 legacy revision, so that revision is an
@@ -21,6 +20,16 @@ pub fn is_sha256(value: &str) -> bool {
             .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
 }
 
+/// Identifies one local development build cohort without exposing a path,
+/// username, source file or secret. Release and ordinary test builds may omit
+/// it; the MCP010A development packager always supplies a canonical SHA-256 to
+/// every Rust component in the same build invocation.
+pub fn build_cohort_sha256() -> Option<String> {
+    option_env!("FORGECAD_BUILD_COHORT_SHA256")
+        .filter(|value| is_sha256(value))
+        .map(str::to_owned)
+}
+
 pub fn is_opaque_id(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 128
@@ -33,11 +42,13 @@ pub fn is_opaque_id(value: &str) -> bool {
 pub struct RuntimeCapabilities {
     pub contract_set: String,
     pub runtime_version: String,
+    pub build_cohort_sha256: Option<String>,
     pub status: String,
     pub mcp_transport: String,
     pub ipc_transport: String,
     pub write_model: String,
     pub supports_reference_import: bool,
+    pub supports_skill_registry: bool,
     pub supports_snapshot_read: bool,
     pub supports_job_read: bool,
     pub supports_cas: bool,
@@ -57,11 +68,13 @@ impl Default for RuntimeCapabilities {
         Self {
             contract_set: CONTRACT_SET.to_owned(),
             runtime_version: env!("CARGO_PKG_VERSION").to_owned(),
-            status: "alpha-mcp003".to_owned(),
+            build_cohort_sha256: build_cohort_sha256(),
+            status: "alpha-mcp004".to_owned(),
             mcp_transport: "stdio-json-rpc".to_owned(),
             ipc_transport: "authenticated-local".to_owned(),
             write_model: "single-writer-preview-confirm".to_owned(),
             supports_reference_import: false,
+            supports_skill_registry: false,
             supports_snapshot_read: true,
             supports_job_read: true,
             supports_cas: true,
@@ -84,7 +97,7 @@ impl Default for RuntimeCapabilities {
             ],
             tool_manifest_hash: None,
             limitations: vec![
-                "MCP003 exposes read-only resources and tools; mutation tools remain disabled until MCP004.".to_owned(),
+                "MCP003 stdio remains read-only; MCP004 candidate, restore and path-free diagnostic export transactions are restricted to authenticated Runtime IPC until reference, geometry, render and quality adapters are enabled.".to_owned(),
                 "Codex is the only supported external agent entry; no model SDK is bundled.".to_owned(),
                 "Reference images, geometry and render workers remain capability-gated until their validators ship.".to_owned(),
             ],
@@ -143,9 +156,14 @@ pub struct CandidateRecord {
     pub candidate_id: String,
     pub project_id: String,
     pub base_version_id: Option<String>,
+    pub source_version_id: Option<String>,
+    pub prepared_object_id: Option<String>,
+    pub prepared_object_sha256: Option<String>,
     pub state: String,
     pub request_sha256: String,
     pub manifest_hash: Option<String>,
+    pub quality_report_id: Option<String>,
+    pub quality_hard_gate_passed: bool,
     pub canonical_sha256: String,
     pub error_code: Option<String>,
     pub created_at: String,
@@ -177,6 +195,21 @@ pub struct JobSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobRecord {
+    pub schema_version: String,
+    pub job_id: String,
+    pub project_id: String,
+    pub kind: String,
+    pub status: String,
+    pub progress: u8,
+    pub request_sha256: String,
+    pub checkpoint_sha256: Option<String>,
+    pub error_code: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobEventRecord {
     pub schema_version: String,
     pub job_id: String,
@@ -198,6 +231,121 @@ pub struct CasObjectRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferenceAuthorization {
+    pub user_authorized: bool,
+    pub declaration: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReferenceImportSource {
+    InlineContent {
+        mime: String,
+        content_base64: String,
+    },
+    CodexLocalFile {
+        path: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferenceImportRequest {
+    pub project_id: String,
+    pub source: ReferenceImportSource,
+    pub authorization: ReferenceAuthorization,
+    pub expected_sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferenceEvidenceRecord {
+    pub schema_version: String,
+    pub reference_id: String,
+    pub project_id: String,
+    pub object_sha256: String,
+    pub mime: String,
+    pub size_bytes: u64,
+    pub width: u32,
+    pub height: u32,
+    pub frame_count: u32,
+    pub import_mode: String,
+    pub authorization: ReferenceAuthorization,
+    pub derived_object_sha256: Option<String>,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferenceImportResult {
+    pub schema_version: String,
+    pub reference: ReferenceEvidenceRecord,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferenceGetResult {
+    pub schema_version: String,
+    pub reference: ReferenceEvidenceRecord,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SkillBundleManifestRecord {
+    pub schema_version: String,
+    pub skill_id: String,
+    pub version: String,
+    pub status: String,
+    pub publisher: String,
+    pub contract_range: String,
+    pub input_schema: String,
+    pub output_schema: String,
+    pub recipe: String,
+    pub operator_ids: Vec<String>,
+    pub validator_ids: Vec<String>,
+    pub capabilities: Value,
+    pub budgets: Value,
+    pub benchmark_suite: String,
+    pub canonical_sha256: String,
+    pub trust_profile: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillListResult {
+    pub schema_version: String,
+    pub skills: Vec<SkillBundleManifestRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillGetResult {
+    pub schema_version: String,
+    pub skill: SkillBundleManifestRecord,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillExecutionReceiptRecord {
+    pub schema_version: String,
+    pub receipt_id: String,
+    pub skill_id: String,
+    pub skill_version: String,
+    pub input_sha256: String,
+    pub output_sha256: Option<String>,
+    pub status: String,
+    pub validator_ids: Vec<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillEvalReportRecord {
+    pub schema_version: String,
+    pub report_id: String,
+    pub skill_id: String,
+    pub skill_version: String,
+    pub suite_id: String,
+    pub status: String,
+    pub metrics: Value,
+    pub evidence_sha256: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditEventRecord {
     pub schema_version: String,
     pub audit_id: String,
@@ -207,6 +355,183 @@ pub struct AuditEventRecord {
     pub request_sha256: Option<String>,
     pub payload: Value,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApprovalReceiptRecord {
+    pub schema_version: String,
+    pub approval_receipt_id: String,
+    pub project_id: String,
+    pub tool: String,
+    pub base_version_id: Option<String>,
+    pub prepared_object_id: String,
+    pub prepared_object_sha256: String,
+    pub quality_report_id: Option<String>,
+    pub summary_sha256: String,
+    pub decision: String,
+    pub expires_at: String,
+    pub session_id: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateConfirmRequest {
+    pub project_id: String,
+    pub candidate_id: String,
+    pub base_version_id: Option<String>,
+    pub prepared_object_id: String,
+    pub prepared_object_sha256: String,
+    pub quality_report_id: String,
+    pub approval_receipt_id: String,
+    pub approval_summary: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateRejectRequest {
+    pub project_id: String,
+    pub candidate_id: String,
+    pub approval_receipt_id: String,
+    pub approval_summary: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidatePrepareResult {
+    pub schema_version: String,
+    pub candidate: CandidateRecord,
+    pub job: JobSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateConfirmResult {
+    pub schema_version: String,
+    pub candidate_id: String,
+    pub project_id: String,
+    pub version_id: String,
+    pub snapshot_id: String,
+    pub approval_receipt_id: String,
+    pub request_sha256: String,
+    pub replayed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateRejectResult {
+    pub schema_version: String,
+    pub candidate_id: String,
+    pub project_id: String,
+    pub state: String,
+    pub approval_receipt_id: String,
+    pub request_sha256: String,
+    pub replayed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RestorePrepareRequest {
+    pub project_id: String,
+    pub base_version_id: Option<String>,
+    pub source_version_id: String,
+    pub request: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RestorePrepareResult {
+    pub schema_version: String,
+    pub candidate: CandidateRecord,
+    pub job: JobSummary,
+    pub source_version_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RestoreConfirmRequest {
+    pub project_id: String,
+    pub candidate_id: String,
+    pub source_version_id: String,
+    pub base_version_id: Option<String>,
+    pub prepared_object_id: String,
+    pub prepared_object_sha256: String,
+    pub quality_report_id: String,
+    pub approval_receipt_id: String,
+    pub approval_summary: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RestoreConfirmResult {
+    pub schema_version: String,
+    pub candidate_id: String,
+    pub project_id: String,
+    pub source_version_id: String,
+    pub version_id: String,
+    pub snapshot_id: String,
+    pub approval_receipt_id: String,
+    pub request_sha256: String,
+    pub replayed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportManifestRecord {
+    pub schema_version: String,
+    pub export_id: String,
+    pub project_id: String,
+    pub version_id: String,
+    pub format: String,
+    pub profile: String,
+    pub manifest_sha256: String,
+    pub artifact_hashes: Vec<String>,
+    pub state: String,
+    pub approval_receipt_id: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportPrepareRequest {
+    pub project_id: String,
+    pub version_id: String,
+    pub format: String,
+    pub profile: String,
+    pub request: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportPrepareResult {
+    pub schema_version: String,
+    pub manifest: ExportManifestRecord,
+    pub job: JobSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportConfirmRequest {
+    pub project_id: String,
+    pub export_id: String,
+    pub version_id: String,
+    pub format: String,
+    pub profile: String,
+    pub approval_receipt_id: String,
+    pub approval_summary: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportConfirmResult {
+    pub schema_version: String,
+    pub export_id: String,
+    pub project_id: String,
+    pub version_id: String,
+    pub manifest_sha256: String,
+    pub output_sha256: String,
+    pub approval_receipt_id: String,
+    pub request_sha256: String,
+    pub replayed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

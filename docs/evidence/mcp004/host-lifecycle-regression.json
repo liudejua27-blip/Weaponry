@@ -1,0 +1,31 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "PASS",
+  "checked_at": "2026-08-08",
+  "command": "script/test_mcp004.sh",
+  "scope": "local forgecad-mcp/Runtime unit and integration only; no ChatGPT/Codex Desktop restart, signing, spctl, notarization, or fixture production startup",
+  "tests": {
+    "runtime_absent_initialize": "PASS",
+    "runtime_start_failure_mcp_survival": "PASS",
+    "second_mcp_connects_to_running_runtime": "PASS",
+    "second_runtime_returns_busy": "PASS",
+    "runtime_child_crash_stdio_survival": "PASS",
+    "bounded_restart": "PASS: restart_count=1 then Degraded",
+    "runtime_status_and_doctor": "PASS",
+    "runtime_unavailable_retryable_error": "PASS",
+    "read_only_project_version_side_effects": "PASS",
+    "mcp004_write_approval_metadata": "PASS",
+    "normal_environment_does_not_need_diagnostic_confirm": "PASS"
+  },
+  "environment": {
+    "fixture": "test child-local env only",
+    "data_dir": "temporary test directory with trap cleanup",
+    "launchctl_mutation": false,
+    "production_codex_fixture_env": false
+  },
+  "manual_follow_up": {
+    "desktop_restart": "NOT_RUN: final manual/external-supervisor acceptance only",
+    "distribution_signing": "NOT_RUN",
+    "notarization": "NOT_RUN"
+  }
+}

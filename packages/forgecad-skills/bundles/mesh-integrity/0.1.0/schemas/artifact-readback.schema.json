@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/artifact-readback.schema.json",
+  "title":"ArtifactReadback",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","artifact_id","candidate_id","object_sha256","mime","size_bytes","part_ids","validator_status","canonical_sha256"],
+  "properties":{"schema_version":{"const":"ArtifactReadback@1"},"artifact_id":{"type":"string"},"candidate_id":{"type":"string"},"object_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"mime":{"type":"string"},"size_bytes":{"type":"integer","minimum":1},"part_ids":{"type":"array","items":{"type":"string"},"maxItems":64},"validator_status":{"enum":["passed","failed","not-run"]},"canonical_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"triangle_count":{"type":"integer","minimum":1},"program_sha256":{"type":"string"},"uv_status":{"enum":["passed","failed","not-run","unknown"]},"tangent_status":{"enum":["passed","failed","not-run","unknown"]},"material_zone_ids":{"type":"array","items":{"type":"string"},"maxItems":32}}
+}

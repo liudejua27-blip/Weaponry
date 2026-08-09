@@ -1,10 +1,10 @@
-# ForgeCAD 重置期快速开始
+# ForgeCAD MVP 开发快速开始
 
-版本：2026-08-07
+版本：2026-08-09
 
 ## 普通用户
 
-当前是 MCP003 诊断版，不提供生成和生产安装快速开始。Viewer 可以构建；参考导入、几何、材质和版本写入尚未开放。Runtime 的 contracts、SQLite/CAS、单写者、认证 IPC 与 MCP 只读 resources 已有本地证据，但不代表 Codex 三宿主、官方 conformance 或生产打包可用。正式可用条件见 `USER_GUIDE.md` 和 `DOCUMENTATION_STATUS.md`。
+当前 MCP001–009 已完成单用户事务、真实 Codex image attachment/PNG/JPEG reference admission、first-party Skill Bundle、有界 geometry/GLB、UV/tangent/PBR、固定 render、GLB Viewer、limited quality、stable-Part change、immutable version/restore 和 CAS-backed mvp-glb receipt；真实 Codex CLI 十二调用 host golden path 已 PASS。工具、Skill 和 GitHub 候选的当前清单见 `MVP_TOOL_CATALOG.md`。像素级参考比较、真人评分、Desktop write 和 packaged release 仍单独标记。正式可用条件见 `MVP_DELIVERY_PLAN.md`、`USER_GUIDE.md` 和 `DOCUMENTATION_STATUS.md`。
 
 ## Luna / 开发者
 
@@ -21,14 +21,19 @@ npm run repository:integrity
 npm run release:safety-scope
 npm run release:secrets-files
 npm run release:license-sbom
+npm run mvp:functional-core
+npm run desktop:typecheck
+npm run desktop:build
+npm run desktop:tauri-check
 ```
 
-5. 从 `CODEX_TASK_INDEX.md` 领取唯一可执行任务；
-6. 当前唯一任务是 `FGC-MCP003`；不要再清理未跟踪新文件；
-7. 任何新的破坏性操作都必须建立新的恢复门，且不得删除 `WushenForgeLibrary`。
+5. 阅读 `MVP_DELIVERY_PLAN.md`、`MVP_TOOL_CATALOG.md` 和 `LUNA_GOAL_EXECUTION_GUIDE.md`；
+6. 如果要继续产品化，按任务索引领取 `FGC-MCP010`；如果要复核模型链路，运行带 `--image` 的真实 Codex host probe，不重新实现 MCP008/009；
+7. 不清理未跟踪文件，不安装 BlenderMCP/Python CAD/远程 Provider，不引入 heartbeat；
+8. 任何新的破坏性操作都必须建立恢复门，且不得删除 `WushenForgeLibrary`。
 
-## MCP002 当前收尾
+## 当前开发起点
 
-严格按 `CODEX_TASK_INDEX.md`：先验证 MCP002 contracts/Store/Runtime focused tests，再更新 `docs/evidence/mcp002/manifest.json` 和 handoff；不得跳到几何、材质或旧 Provider。
+严格按 `CODEX_TASK_INDEX.md`：MCP005 → MCP006 → MCP007 → MCP008 → MCP009 已是 MVP host golden path 完成线；visual/human/packaged gates 继续单独记录，MCP010–013 是可选产品化/发布线。
 
 不要启动旧 Provider、端口 8000、FastAPI Agent 或旧工作台来验证新方向。

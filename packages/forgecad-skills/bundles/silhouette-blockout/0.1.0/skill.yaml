@@ -1,0 +1,34 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: silhouette-blockout
+version: 0.1.0
+status: development-only
+publisher: forgecad-first-party
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/representation-plan.schema.json
+output_schema: schemas/geometry-program.schema.json
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: true
+  render_execution: false
+operator_ids:
+  - forgecad.geometry.primitive@1
+  - forgecad.geometry.transform@1
+  - forgecad.geometry.mirror@1
+validator_ids:
+  - geometry_budget@1
+  - finite_parameters@1
+  - operator_allowlist@1
+budgets:
+  max_nodes: 128
+  max_triangles: 250000
+benchmark_suite: silhouette-blockout-smoke
+known_limitations:
+  - Declarative safety receipt does not claim geometry, render or visual quality.
+  - Distribution signature and third-party installation are deferred to MCP012-013.

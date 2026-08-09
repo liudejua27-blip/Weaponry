@@ -1,0 +1,15 @@
+{
+  "dynamic_code": false,
+  "network": false,
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {
+      "builtin": "reference_id_and_sha256",
+      "id": "reference_hash_binding@1"
+    },
+    {
+      "builtin": "class_units_and_claim_bounds",
+      "id": "subject_profile_bounds@1"
+    }
+  ]
+}

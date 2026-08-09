@@ -1,0 +1,9 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/skill-get-result.schema.json",
+  "title":"SkillGetResult",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","skill"],
+  "properties":{"schema_version":{"const":"SkillGetResult@1"},"skill":{"$ref":"https://forgecad.local/contracts/skill-bundle-manifest.schema.json"}}
+}

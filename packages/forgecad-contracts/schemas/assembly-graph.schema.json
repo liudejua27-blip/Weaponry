@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/assembly-graph.schema.json",
+  "title":"AssemblyGraph",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","project_id","parts","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"AssemblyGraph@1"},
+    "project_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "parts":{"type":"array","minItems":1,"maxItems":64,"items":{"type":"object","additionalProperties":false,"required":["part_id","parent_id","role","symmetry","material_zone_ids"],"properties":{"part_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"parent_id":{"type":["string","null"]},"role":{"type":"string","minLength":1,"maxLength":128},"symmetry":{"enum":["left-right","centered","none","unknown"]},"material_zone_ids":{"type":"array","maxItems":16,"items":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"}}}}},
+    "canonical_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+  }
+}

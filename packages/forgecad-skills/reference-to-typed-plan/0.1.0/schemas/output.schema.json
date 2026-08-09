@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/skills/reference-to-typed-plan/0.1.0/output.schema.json",
+  "title": "ReferenceToTypedPlanOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version","reference_id","reference_sha256","subject_class","observations","parts","material_zones","open_questions","unseen_regions"],
+  "properties": {
+    "schema_version":{"const":"ReferenceTypedPlan@1"},
+    "reference_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "reference_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "subject_class":{"enum":["hard-surface-object","humanoid-mechanical"]},
+    "observations":{"type":"array","maxItems":128},
+    "parts":{"type":"array","maxItems":64,"items":{"type":"object","additionalProperties":false,"required":["part_id","parent_id","role","symmetry"],"properties":{
+      "part_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"parent_id":{"type":["string","null"]},"role":{"type":"string","minLength":1,"maxLength":128},"symmetry":{"enum":["left-right","centered","none","unknown"]}
+    }}},
+    "material_zones":{"type":"array","maxItems":32,"items":{"type":"object","additionalProperties":false,"required":["zone_id","part_id","finish","source"],"properties":{
+      "zone_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"part_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"finish":{"type":"string","minLength":1,"maxLength":128},"source":{"enum":["sampled-reference","inferred","unknown"]}
+    }}},
+    "open_questions":{"type":"array","maxItems":32,"items":{"type":"string","minLength":1,"maxLength":256}},
+    "unseen_regions":{"type":"array","maxItems":32,"items":{"type":"string","minLength":1,"maxLength":128}}
+  }
+}

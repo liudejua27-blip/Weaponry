@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 128
+  },
+  "canonical_sha256": "b78dd22171794742218c82774cc190b5f75af0e1e1f95d61aefcef05493b77d3",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "blockout"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "RepresentationPlan@1",
+      "node_id": "blockout",
+      "operator_id": "forgecad.geometry.primitive@1",
+      "output_schema": "GeometryProgram@1"
+    }
+  ],
+  "recipe_id": "silhouette-blockout",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "silhouette-blockout",
+  "units": "meter"
+}

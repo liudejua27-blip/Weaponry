@@ -1,0 +1,26 @@
+{
+  "schema_version": "ForgeCADMCP010ACodexCliPreRestartReceipt@1",
+  "task_id": "FGC-MCP010A",
+  "status": "PASS",
+  "build_cohort_sha256": "e5fd7da79576fd022894838c5ab9b0532b7aef735abc42b86f3283e43532ea91",
+  "mode": "real-codex-cli-ephemeral-isolated-runtime",
+  "codex_exit_code": 0,
+  "observed_write_sequence": [
+    "project_create",
+    "candidate_prepare",
+    "candidate_confirm",
+    "restore_prepare",
+    "restore_confirm",
+    "export_prepare",
+    "export_confirm"
+  ],
+  "all_expected_calls_completed": true,
+  "unrelated_side_effects": false,
+  "viewer_read_model": "Ready",
+  "post_runtime_project_count": 1,
+  "post_runtime_version_count": 2,
+  "image_upload": false,
+  "three_d_generation": false,
+  "production_file_export": false,
+  "persistent_user_data_touched": false
+}

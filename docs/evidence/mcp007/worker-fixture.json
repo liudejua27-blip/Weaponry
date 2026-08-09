@@ -1,0 +1,13 @@
+{
+  "schema_version": "ForgeCADGeometryWorkerFixture@1",
+  "status": "PASS",
+  "worker_protocol": "forgecad-worker-protocol@1",
+  "artifact_sha256": "dd1415360672d658aa9225272173efccfaad0592c4894788a2c0b7bb4f61a353",
+  "program_sha256": "bfdc374754a966c198640de5859252c4f3c2433a842c8930c5ebd42c93510e47",
+  "size_bytes": 18728,
+  "part_ids": ["torso", "core", "head"],
+  "triangle_count": 332,
+  "deterministic_repeat": "PASS",
+  "glb_header_json_lineage_readback": "PASS",
+  "unknown_operator_negative": "PASS"
+}

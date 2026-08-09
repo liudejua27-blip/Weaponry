@@ -1,0 +1,51 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: reference-to-typed-plan
+version: 0.1.0
+status: superseded
+contract_range: forgecad-runtime-contracts@1
+publisher: forgecad-first-party
+description: >-
+  Turn an admitted ReferenceEvidence record into a bounded, reviewable typed
+  planning bundle for a single hard-surface reference. This bundle never
+  executes code, renders, downloads assets, or invents hidden geometry.
+source_inspiration:
+  - repository: https://github.com/img2threejs/img2threejs
+    revision: d6673386f89673a58736f8d398dd16ece67874f5
+    license: Apache-2.0
+    use: staged passes, detail inventory, per-region confidence, comparison gates
+  - repository: https://github.com/javierbyte/img2css
+    revision: 5dce10537589422c254a01a1d71aa805697d2c7f
+    license: BSD-3-Clause
+    use: bounded color/region preview only
+input_schema: schemas/input.schema.json
+output_schema: schemas/output.schema.json
+claims_schema: schemas/claims.schema.json
+recipe: recipes/default.recipe.json
+operators_lock: operators.lock
+validators: validators/validator-set.json
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: false
+  render_execution: false
+budgets:
+  max_nodes: 12
+  max_parts: 64
+  max_material_zones: 32
+  max_claims: 128
+  max_unseen_confidence: 0.35
+supported_representations: [typed-reference-plan]
+supported_categories: [hard-surface-object, humanoid-mechanical]
+known_limitations:
+  - A single image cannot prove hidden-side geometry, scale, or physical function.
+  - Color and silhouette observations are evidence, not measured dimensions.
+  - Generated JavaScript, TypeScript, CSS, HTML, Python, URLs, paths, and secrets are rejected.
+  - This historical scaffold is retained for provenance only and is not enabled in MCP tools; use the ten MCP006 bundles instead.
+benchmark:
+  suite: benchmarks/suite.yaml
+  threshold: superseded
+trust_profile: development-root
+signature: deferred-to-mcp012-013

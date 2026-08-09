@@ -1,0 +1,10 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/recipe-plan.schema.json",
+  "title":"RecipePlan",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","recipe_id","skill_id","nodes","edges","budgets","units","coordinate_system","deterministic_order","max_edges","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"RecipePlan@1"},"recipe_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"skill_id":{"type":"string","pattern":"^[a-z0-9][a-z0-9-]{0,63}$"},"nodes":{"type":"array","minItems":1,"maxItems":64,"items":{"type":"object","additionalProperties":false,"required":["node_id","operator_id","input_schema","output_schema"],"properties":{"node_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"operator_id":{"type":"string","pattern":"^forgecad\\.[a-z0-9_.-]+@[0-9]+$"},"input_schema":{"type":"string","maxLength":256},"output_schema":{"type":"string","maxLength":256}}}},"edges":{"type":"array","maxItems":128,"items":{"type":"object","additionalProperties":false,"required":["from","to"],"properties":{"from":{"type":"string"},"to":{"type":"string"}}}},"budgets":{"type":"object","additionalProperties":true},"units":{"const":"meter"},"coordinate_system":{"const":"right-handed-y-up"},"deterministic_order":{"type":"array","minItems":1,"maxItems":64,"items":{"type":"string"}},"max_edges":{"type":"integer","minimum":0,"maximum":128},"canonical_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+  }
+}

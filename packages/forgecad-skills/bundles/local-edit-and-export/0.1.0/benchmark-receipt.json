@@ -1,0 +1,14 @@
+{
+  "fixture_sha256": "0914a2cd34da10b546ef62322ee36cbaea47db10d9d60ff7b44ba0aeea3c390d",
+  "metrics": {
+    "declarative_plan_validation": 1,
+    "fixtures": 2,
+    "forbidden_capabilities": 0
+  },
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "local-edit-and-export",
+  "status": "passed",
+  "suite_id": "local-edit-and-export-smoke",
+  "version": "0.1.0"
+}

@@ -1,0 +1,24 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "annotations": [
+    {
+      "annotationDate": "2026-08-09T00:00:00Z",
+      "annotationType": "OTHER",
+      "annotator": "Tool: forgecad-mcp006",
+      "comment": "Declarative metadata only; no executable or external asset payload."
+    }
+  ],
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://forgecad.local/sbom/skill/mesh-integrity/0.1.0",
+  "name": "forgecad-skill-mesh-integrity",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "name": "forgecad-skill-mesh-integrity",
+      "versionInfo": "0.1.0"
+    }
+  ],
+  "spdxVersion": "SPDX-2.3"
+}

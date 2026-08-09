@@ -1,7 +1,7 @@
 # ForgeCAD Runtime Viewer
 
-版本：2026-08-07
-状态：目标设计；旧 `cad-workbench` 将整目录删除
+版本：2026-08-09
+状态：MCP008–009 已实现只读 GLB canvas；MCP010F compare/selection/explosion/a11y 为 planned/unavailable，packaged WebView 仍属 MCP013
 
 ## 1. 产品角色
 
@@ -47,16 +47,26 @@ Viewer 只消费 Runtime read model：`RuntimeConnection`、`ProjectSummary`、`
 
 每个屏幕必须显示 project ID、version/candidate ID 和 connection freshness。Runtime 断开、Schema 不兼容或版本漂移时进入明确只读诊断状态；不能展示可以点击却会走 legacy 路径的按钮。
 
-## 5. 最小硬切 Viewer Shell
+## 5. 当前 Viewer 与 MVP 增量
 
-`FGC-MCP001` 同一提交内必须提供可编译的最小 Shell：
+`FGC-MCP001` 已提供可编译最小 Shell，MCP004 已用 authenticated IPC 读取项目/版本/当前快照；MCP007 读取 prepared candidate、artifact SHA、GLB MIME/size、Part IDs、triangle count 和 validator status；MCP008 的 `viewer_artifact_bytes` 通过 authenticated IPC 读取受限 GLB bytes，Three.js 只建立临时 canvas scene，不写 SQLite/CAS 或第二份产品状态。
 
-- 启动、窗口、单 canvas placeholder、Runtime 连接状态；
-- 明确“ForgeCAD 正在迁移到 Codex MCP Runtime，当前不可生成”；
-- 不含旧功能入口或兼容路由；
-- Desktop typecheck/build/Tauri check 和单 renderer test 通过。
+MCP007–009 已按顺序增加：
 
-这一步允许产品功能暂时不可用，但不允许仓库故意不可编译，也不允许把 placeholder 标为 Viewer 已完成。
+- MCP007：Runtime candidate/artifact readback、Part IDs、candidate/version/hash metadata；
+- MCP008：hash-bound PBR metadata、真实 GLB canvas、固定 beauty/silhouette/normal/part-ID render evidence；
+- MCP009：`quality_get`/`version_diff`、stable-ID `change_prepare` handoff、immutable version/restore 和 CAS export receipts。
+
+Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI 不实现真正的 Part selection/isolate、reference overlay 或 full issue editing；不能把能显示 GLB 写成 reference similarity PASS。
+
+### 5.1 MCP010F 目标增量（当前未实现）
+
+- reference/render split、透明 overlay、flicker、diff heatmap；
+- beauty/silhouette/depth/normal/AO/part-ID/material-ID/wireframe/UV-stretch 九 AOV；
+- camera lock、Part/MaterialZone selection、isolate/hide、临时 explosion；
+- candidate undo/redo、issue 定位、键盘和 reduced-motion 行为。
+
+这些 UI 必须只消费 Runtime 的 `RenderSet@2`、QualityReport 和 selection projection。屏幕图像、Three.js scene 或本地交互状态不能回写质量 PASS。源码 browser/a11y Gate 属 MCP010F；Developer ID、clean install、packaged WebView/GPU 和 packaged Codex E2E 仍属 MCP013。
 
 ## 6. 可访问性与性能
 
@@ -74,4 +84,4 @@ Viewer 只消费 Runtime read model：`RuntimeConnection`、`ProjectSummary`、`
 - Viewer 关闭时完整 Runtime/MCP 流程仍成功；
 - candidate、quality、selection、version 和 export 的 ID/hash 与 Runtime 一致；
 - 重启恢复不依赖 localStorage；
-- 浏览器 smoke、packaged WebView、GPU fallback、屏幕尺寸、键盘和 screen reader Gate 均有证据。
+- 当前已有 `npm run desktop:typecheck` 和 focused GLB read model evidence；源码 browser/尺寸/键盘/screen reader Gate 属 MCP010F，packaged WebView/GPU/签名安装环境属于 MCP013，当前均为 `NOT_RUN`。

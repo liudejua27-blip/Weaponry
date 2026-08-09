@@ -1,13 +1,13 @@
 # ForgeCAD Codex-only MCP Runtime 设计
 
-版本：2026-08-08
-状态：目标架构；MCP001 已硬切，MCP002 已实现 Store/CAS/lease/IPC 基础层
+版本：2026-08-09
+状态：单用户 MVP 架构；MCP001–009 Runtime/MCP/Worker/Viewer functional core 已实现，真实 Codex/视觉/packaged gates 单独保留
 
 ## 1. 系统上下文
 
 ```mermaid
 flowchart LR
-  U["用户"] --> C["Codex Desktop / CLI / IDE"]
+  U["用户"] --> C["Codex Desktop / CLI"]
   C -->|"MCP stdio: typed tools/resources"| M["forgecad-mcp"]
   M -->|"authenticated local IPC"| R["forgecad-runtime"]
   V["ForgeCAD Runtime Viewer"] -->|"read model + ephemeral selection"| R
@@ -15,11 +15,13 @@ flowchart LR
   R --> K["forgecad-core"]
   R --> G["restricted geometry worker"]
   R --> E["headless render evidence worker"]
-  R --> B["optional signed Blender worker"]
-  R --> SK["signed Skill Registry"]
+  R -. post-MVP .-> B["optional fixed Blender worker"]
+  R --> SK["first-party declarative Skills"]
 ```
 
 Codex 拥有对话、推理、图片理解和编排；ForgeCAD 拥有产品状态、确定性工具、工件和质量证据。两者通过公开 typed MCP 合同连接，不共享模型凭据或内部会话。
+
+Codex IDE/VS Code/Cursor/Windsurf 的 MCP 兼容代码可以保留为未来宿主适配，但不是当前 P0 产品链路、安装要求或 MCP003/MCP004 发布阻断。
 
 ## 2. 模块与所有权
 
@@ -75,7 +77,7 @@ sequenceDiagram
   participant V as Viewer
 
   U->>C: 描述 + 参考/修改要求
-  C->>M: reference_import / design_prepare
+  C->>M: reference_import / geometry_prepare / appearance_prepare
   M->>R: validated typed request
   R->>W: compile + readback + render
   W-->>R: CAS artifacts + receipts
@@ -95,7 +97,10 @@ sequenceDiagram
 
 ## 5. 版本和并发
 
-- 每个项目一个 Runtime lease 和数据库写者；
+- 同一数据根只有一个持有 `runtime.writer.lock` 的 Runtime writer；它在 migration 前取得该锁，是最终唯一写者；
+- 多个 MCP 适配器只用短时 launcher flock 做启动选主和 stale handoff 复核；Runtime spawn 成功后立即释放 launcher flock，不能用它代替 writer lock 或存活租约；
+- Ready Runtime 是同一用户/数据根的共享本地进程，普通 MCP 适配器退出不主动终止它；显式 authenticated shutdown/update 才停止；
+- 该复用不引入 daemon、broker、TTL lease、heartbeat 或多客户端状态治理；Runtime 存活也不代表未完成 Job 已有 checkpoint 保证；
 - prepare 绑定 `base_version_id` 和 snapshot revision；
 - confirm 校验 base、candidate hash、quality report、approval receipt 和 idempotency；
 - 并发候选可以存在，但只有基于当前头且审批有效者可确认；
@@ -143,20 +148,22 @@ P0 MCP 是本地 stdio。预计超过 10 秒的调用在 2 秒内返回 `Runtime
 
 ### 供应链
 
-二进制、workers、Skills、资产和外部库均 pin、SBOM、NOTICE、签名和撤销。安装/更新在原子切换前备份数据库并验证合同兼容；任一组件签名或版本不匹配即拒绝启动写路径。
+MVP 的外部库必须 pin、LICENSE/NOTICE、SBOM、adoption receipt 和 benchmark；first-party Skill 以 canonical hash + 开发 trust root 验证。分发二进制/worker/Skill 的签名、撤销和安装更新一致性是 MCP012/013 发布门，不阻塞本地 vertical slice。
 
 ## 11. 故障模型
 
 | 故障 | 行为 |
 |---|---|
-| MCP 崩溃 | Runtime/Job 继续；重连后按 ID 读取 |
+| MCP 崩溃/退出 | 已确认 SQLite/CAS 不变；已经 Ready 的共享 Runtime 继续存活并供其他适配器重连，只有显式 shutdown/update 才主动停止。未完成 Job 是否可恢复仍取决于 Runtime/checkpoint，MVP 不作后台续跑承诺 |
 | Viewer 崩溃 | 产品状态不变；重新投影 |
 | Worker 超时/崩溃 | Job fail/cancel；无版本写入；临时目录隔离清理 |
-| Runtime 崩溃 | SQLite 事务回滚；按 checkpoint 恢复或明确失败 |
+| Runtime 崩溃 | SQLite 事务回滚；MVP 允许 MCP 一次重启，非终态 Job 明确失败；checkpoint 是 post-MVP |
 | 磁盘满 | 写前配额；事务失败；已确认版本/CAS 不删除 |
 | base 漂移 | `STALE_BASE_VERSION`，不自动覆盖 |
 | Skill 撤销 | 禁止新执行；历史 receipt 可读 |
 | renderer 不可用 | render/quality 能力 degraded；不得确认需要视觉门的候选 |
+
+MCP010A 第一次 Desktop live Gate 已 `FAIL`，历史 receipt 保持原样。共享 Runtime/IPC 修复 tests、current `release:mvp`、cohort `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064` 重建安装、package verify 与隔离 probe 均已 PASS；第二次 Desktop 重启仍为 `NOT_RUN`，因此只能声明实现 Gate PASS，不能写成 live Desktop PASS。
 
 ## 12. 性能与预算
 
@@ -164,4 +171,4 @@ P0 MCP 是本地 stdio。预计超过 10 秒的调用在 2 秒内返回 `Runtime
 
 ## 13. 迁移
 
-旧 UI、Provider、App Server、Agent、Schema 和数据库不在新架构中渐进兼容。`FGC-MCP001` 硬切代码，`MCP002` 建新 V1 Store/CAS/lease/IPC；旧 Library 只读归档，后续离线工具显式导出可迁移资产。详见 `RESET_MIGRATION_PLAN.md`。
+旧 UI、Provider、App Server、Agent、Schema 和数据库不在新架构中渐进兼容。`FGC-MCP001` 已硬切，MCP002 已建新 V1 Store/CAS/process-lock/IPC；旧 Library 只读归档，后续离线工具显式导出可迁移资产。详见 `RESET_MIGRATION_PLAN.md`。

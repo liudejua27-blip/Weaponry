@@ -1,0 +1,14 @@
+{
+  "schema_version": "SkillRecipeDAG@1",
+  "recipe_id": "reference-to-typed-plan-default",
+  "nodes": [
+    {"node_id":"admission","operator_id":"reference.validate_evidence@1","input":"ReferenceEvidence@1","output":"AdmittedReference@1"},
+    {"node_id":"inventory","operator_id":"reference.detail_inventory@1","input":"AdmittedReference@1","output":"DetailInventory@1"},
+    {"node_id":"plan","operator_id":"reference.typed_plan@1","input":"DetailInventory@1","output":"ReferenceTypedPlan@1"}
+  ],
+  "edges":[{"from":"admission","to":"inventory"},{"from":"inventory","to":"plan"}],
+  "budgets":{"max_nodes":12,"max_parts":64,"max_material_zones":32,"max_claims":128},
+  "deterministic_order":["admission","inventory","plan"],
+  "network":false,
+  "dynamic_code":false
+}

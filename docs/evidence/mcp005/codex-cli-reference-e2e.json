@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "mode": "codex-cli-mcp005-reference",
+  "codex_exit_code": 0,
+  "mcp_tool_calls": [
+    {"server":"forgecad","tool":"project_create","status":"completed"},
+    {"server":"forgecad","tool":"reference_import","status":"completed"},
+    {"server":"forgecad","tool":"reference_get","status":"completed"}
+  ],
+  "expected_sequence": ["project_create","reference_import","reference_get"],
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "reference_path_recorded": false,
+  "image_bytes_recorded": false,
+  "geometry": "NOT_RUN",
+  "render": "NOT_RUN",
+  "unrelated_side_effects": false,
+  "notes": "User-authorized local PNG attachment entered Runtime CAS and was read back as ReferenceEvidence. The receipt intentionally omits the original path, username, and image bytes."
+}

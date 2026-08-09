@@ -1,0 +1,9 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/skill-list-result.schema.json",
+  "title":"SkillListResult",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","skills"],
+  "properties":{"schema_version":{"const":"SkillListResult@1"},"skills":{"type":"array","items":{"$ref":"https://forgecad.local/contracts/skill-bundle-manifest.schema.json"},"maxItems":64}}
+}

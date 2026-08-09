@@ -1,0 +1,12 @@
+schema_version: SkillBenchmarkSuite@1
+suite_id: reference-to-typed-plan-smoke
+status: not-run
+fixtures: []
+metrics:
+  - name: reference_hash_binding
+    threshold: 1.0
+  - name: unknown_regions_explicit
+    threshold: 1.0
+  - name: recipe_dag_valid
+    threshold: 1.0
+note: MCP006 must add licensed reference fixtures and an independent receipt before enabling this bundle.

@@ -1,0 +1,2 @@
+ForgeCAD first-party declarative Skill metadata. Copyright ForgeCAD
+Contributors. No third-party source or asset is vendored in this directory.

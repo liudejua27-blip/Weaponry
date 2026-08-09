@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 16
+  },
+  "canonical_sha256": "dbe5e7a686c5b66c33fa6105ec33ba9bc6294e52722908d81d04913d01192344",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "readback"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "GeometryProgram@1",
+      "node_id": "readback",
+      "operator_id": "forgecad.geometry.readback@1",
+      "output_schema": "ArtifactReadback@1"
+    }
+  ],
+  "recipe_id": "mesh-integrity",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "mesh-integrity",
+  "units": "meter"
+}

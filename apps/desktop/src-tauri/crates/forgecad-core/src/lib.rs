@@ -1,7 +1,5 @@
 use sha2::{Digest, Sha256};
 
-pub const CORE_VERSION: &str = "forgecad-core@1";
-
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
     #[error("invalid JSON payload: {0}")]
@@ -65,10 +63,6 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 
 pub fn canonical_json_hash(value: &serde_json::Value) -> String {
     sha256_hex(&canonical_json_bytes(value).expect("JSON values are serializable"))
-}
-
-pub fn parse_json(input: &str) -> Result<serde_json::Value, CoreError> {
-    Ok(serde_json::from_str(input)?)
 }
 
 #[cfg(test)]

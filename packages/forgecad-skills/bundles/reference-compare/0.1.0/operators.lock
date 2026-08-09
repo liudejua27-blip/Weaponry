@@ -1,0 +1,4 @@
+# Product-owned operator lock; this bundle contains no executable operator.
+forgecad.quality.silhouette@1 = forgecad-runtime-builtin
+forgecad.quality.proportion@1 = forgecad-runtime-builtin
+forgecad.quality.region@1 = forgecad-runtime-builtin

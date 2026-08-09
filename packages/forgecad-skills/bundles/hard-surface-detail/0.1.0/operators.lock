@@ -1,0 +1,5 @@
+# Product-owned operator lock; this bundle contains no executable operator.
+forgecad.geometry.bevel@1 = forgecad-runtime-builtin
+forgecad.geometry.panel@1 = forgecad-runtime-builtin
+forgecad.geometry.vent@1 = forgecad-runtime-builtin
+forgecad.geometry.joint@1 = forgecad-runtime-builtin

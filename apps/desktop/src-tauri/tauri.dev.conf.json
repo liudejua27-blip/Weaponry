@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ForgeCAD Runtime Dev",
+  "identifier": "local.forgecad.runtime.dev",
+  "bundle": {
+    "macOS": {
+      "files": {
+        "Resources/forgecad-geometry-worker": "target/release/forgecad-geometry-worker"
+      }
+    }
+  }
+}

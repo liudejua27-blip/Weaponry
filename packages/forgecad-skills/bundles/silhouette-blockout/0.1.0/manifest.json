@@ -1,0 +1,38 @@
+{
+  "benchmark_suite": "silhouette-blockout-smoke",
+  "budgets": {
+    "max_nodes": 128,
+    "max_triangles": 250000
+  },
+  "canonical_sha256": "8a0d545ce20d9b3b1ef5de2678f85fe2324845b6af1fcc46f05f1a7029e1f040",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": true,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/representation-plan.schema.json",
+  "operator_ids": [
+    "forgecad.geometry.primitive@1",
+    "forgecad.geometry.transform@1",
+    "forgecad.geometry.mirror@1"
+  ],
+  "output_schema": "schemas/geometry-program.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "silhouette-blockout",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "geometry_budget@1",
+    "finite_parameters@1",
+    "operator_allowlist@1"
+  ],
+  "version": "0.1.0"
+}

@@ -1,0 +1,15 @@
+{
+  "dynamic_code": false,
+  "network": false,
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {
+      "builtin": "fixed_camera_renderer_hash",
+      "id": "render_determinism@1"
+    },
+    {
+      "builtin": "candidate_render_lineage",
+      "id": "render_hash_binding@1"
+    }
+  ]
+}

@@ -5,14 +5,6 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 
 INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('runtime_schema_version', '1');
 
-CREATE TABLE IF NOT EXISTS writer_lease (
-    lease_id INTEGER PRIMARY KEY CHECK (lease_id = 1),
-    owner TEXT NOT NULL,
-    lease_token_hash TEXT NOT NULL,
-    acquired_at INTEGER NOT NULL,
-    heartbeat_at INTEGER NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS projects (
     project_id TEXT PRIMARY KEY,
     name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
@@ -40,9 +32,14 @@ CREATE TABLE IF NOT EXISTS candidates (
     candidate_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(project_id),
     base_version_id TEXT,
+    source_version_id TEXT,
+    prepared_object_id TEXT,
+    prepared_object_sha256 TEXT,
     state TEXT NOT NULL CHECK (state IN ('prepared', 'compiling', 'evaluating', 'reviewable', 'confirmed', 'rejected', 'failed', 'expired')),
     request_sha256 TEXT NOT NULL,
     manifest_hash TEXT,
+    quality_report_id TEXT,
+    quality_hard_gate_passed INTEGER NOT NULL DEFAULT 0 CHECK (quality_hard_gate_passed IN (0, 1)),
     canonical_sha256 TEXT NOT NULL,
     error_code TEXT,
     created_at TEXT NOT NULL,
@@ -98,6 +95,22 @@ CREATE TABLE IF NOT EXISTS objects (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS reference_evidence (
+    reference_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+    mime TEXT NOT NULL CHECK (mime IN ('image/png', 'image/jpeg')),
+    size_bytes INTEGER NOT NULL CHECK (size_bytes > 0),
+    width INTEGER NOT NULL CHECK (width > 0),
+    height INTEGER NOT NULL CHECK (height > 0),
+    frame_count INTEGER NOT NULL CHECK (frame_count = 1),
+    import_mode TEXT NOT NULL CHECK (import_mode IN ('inline_content', 'codex_local_file')),
+    authorization_json TEXT NOT NULL,
+    derived_object_sha256 TEXT REFERENCES objects(sha256),
+    canonical_sha256 TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS artifact_manifests (
     manifest_hash TEXT PRIMARY KEY,
     project_id TEXT REFERENCES projects(project_id),
@@ -109,11 +122,38 @@ CREATE TABLE IF NOT EXISTS artifact_manifests (
 CREATE TABLE IF NOT EXISTS approval_receipts (
     approval_receipt_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(project_id),
+    tool TEXT NOT NULL CHECK (tool IN ('candidate_confirm', 'candidate_reject', 'restore_confirm', 'export_confirm')),
+    base_version_id TEXT,
     prepared_object_id TEXT NOT NULL,
     prepared_object_sha256 TEXT NOT NULL,
     quality_report_id TEXT,
+    summary_sha256 TEXT NOT NULL,
     decision TEXT NOT NULL CHECK (decision IN ('approved', 'rejected', 'expired')),
     expires_at TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS export_manifests (
+    export_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    version_id TEXT NOT NULL REFERENCES design_asset_versions(version_id),
+    format TEXT NOT NULL,
+    profile TEXT NOT NULL,
+    manifest_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+    artifact_hashes_json TEXT NOT NULL,
+    state TEXT NOT NULL CHECK (state IN ('prepared', 'confirmed', 'rejected', 'failed')),
+    approval_receipt_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS write_idempotency (
+    idempotency_key TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    tool TEXT NOT NULL,
+    request_sha256 TEXT NOT NULL,
+    response_json TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 
@@ -133,4 +173,7 @@ CREATE INDEX IF NOT EXISTS versions_project_idx ON design_asset_versions(project
 CREATE INDEX IF NOT EXISTS jobs_project_idx ON runtime_jobs(project_id, updated_at DESC, job_id ASC);
 CREATE INDEX IF NOT EXISTS job_events_cursor_idx ON runtime_job_events(job_id, sequence ASC);
 CREATE INDEX IF NOT EXISTS objects_reachability_idx ON objects(reachability, created_at ASC);
+CREATE INDEX IF NOT EXISTS reference_evidence_project_idx ON reference_evidence(project_id, created_at DESC, reference_id ASC);
 CREATE INDEX IF NOT EXISTS audit_project_idx ON audit_events(project_id, created_at ASC, audit_id ASC);
+CREATE INDEX IF NOT EXISTS idempotency_project_idx ON write_idempotency(project_id, created_at ASC, idempotency_key ASC);
+CREATE INDEX IF NOT EXISTS export_manifests_project_idx ON export_manifests(project_id, created_at DESC, export_id ASC);

@@ -1,29 +1,34 @@
 # ForgeCAD Runtime 运维
 
-版本：2026-08-08
-状态：目标运维合同；MCP003 已提供只读 MCP resources/tools 与 Store/CAS/lease/IPC 诊断能力
+版本：2026-08-09
+状态：单用户 MVP 运维基座；MCP004 生命周期、MCP005 reference、MCP007–009 workers/GLB 已启用，distribution release 在 MCP013
 
 ## 1. 进程
 
-发布包只包含同版本签名的：`forgecad-runtime`、`forgecad-mcp`、ForgeCAD Viewer、geometry worker、render worker、first-party Skills，以及可选经审查的 Blender worker。
+开发 MVP 运行集合是：`forgecad-runtime`、`forgecad-mcp`、ForgeCAD Viewer，以及 bounded geometry/appearance software worker（MCP008 的 fixed render 在同一受限 worker library 中执行）。first-party Skills 在 MCP006 加载；Blender worker 不属于 MVP。
 
 Runtime 是唯一常驻产品状态写者。MCP 由 Codex 按需以 stdio 启动或连接本地 Runtime；Workers 由 Runtime 按 Job 启动。无端口 8000、FastAPI、Provider 守护进程、模型服务或常驻外部 3D API 轮询器。
 
+开发诊断可使用 `forgecad-runtime serve`，fixture 只能由独立测试子进程局部注入；正常 `forgecad-mcp serve --stdio` 不依赖 fixture。MCP 先保持 stdio，对同一数据根的现有 `ready.json` handoff 做 authenticated probe；没有可用实例时，以短时 launcher flock 选出一个启动者，其他 MCP 会话等待并复用胜出的共享 Runtime。Runtime 失败时状态为 `Degraded`，依赖调用返回 `RUNTIME_UNAVAILABLE`，最多自动重启一次。launcher flock 只负责启动选主；Runtime 在 migration 前持有的 `runtime.writer.lock` 才是最终唯一写者。正常 MCP 适配器退出不停止已经 Ready 的 Runtime，显式 shutdown/update 才停止。正常 Runtime data dir 为 macOS `~/Library/Application Support/ForgeCAD Runtime/runtime-data`；测试才使用临时目录。MVP 不使用 TTL lease/heartbeat、daemon 或 broker。
+
 ## 2. 启动顺序
 
-1. 验证安装 manifest、签名和组件合同版本；
-2. 获取单实例 Runtime writer lease；
-3. 验证 Runtime V1 migration、SQLite integrity 和 CAS reachability；
-4. 加载 first-party Skill registry，验证签名/撤销；
-5. 恢复 Job checkpoint 或转 typed failure；
-6. 开放 authenticated local IPC；
-7. Viewer/MCP 分别连接并读取 capabilities。
+1. 开发 MVP 验证组件合同/version/hash；正式包额外验证签名；
+2. 没有可认证的 Ready handoff 时，MCP 仅用短时 launcher flock 完成复核、stale handoff 清理和启动选主；spawn 成功后立即释放 launcher flock；
+3. Runtime 在 migration 前获取 OS 独占 `runtime.writer.lock`；第二实例返回 `RUNTIME_BUSY`；
+4. 验证 Runtime V1 migration、SQLite integrity 和 CAS reachability；
+5. MCP006 已加载十个 first-party development Skill Bundle，MVP 已验证 canonical hash/trust root、Recipe DAG/单位/finite/预算、fixture receipt；MCP007 已启用 bounded geometry compiler 和 GLB readback；MCP008 已启用 appearance/fixed render；MCP009 已启用 limited quality/change/version/export；Bundle 仍只提供声明式 metadata；
+6. 非终态 Job 在 MVP 重启时转 typed failure；checkpoint 属于 MCP011；
+7. 开放 authenticated local IPC 并发布可认证 handoff；launcher flock 此时已释放，最终写者仍由 `runtime.writer.lock` 判定；
+8. Viewer/MCP 分别连接并读取 capabilities。
+
+本地回归使用 `script/test_mcp004.sh`：除原有 Runtime 缺失、ready 后 crash、一次有界 restart、stdio 存活、只读无副作用和 write approval metadata 外，共享生命周期还必须覆盖 stale handoff、多个 MCP 会话、启动者 idle、passive takeover、适配器关闭后 Runtime 仍可用、未认证 idle/坏 JSON/断开客户端不阻塞合法请求，以及第二 Runtime `RUNTIME_BUSY`。正常 MCP 适配器结束不清理已经 Ready 的共享 Runtime；测试和运维通过 authenticated 显式 shutdown 清理，update 流程也可显式停止。Runtime 存活不等于未完成 Job 有 checkpoint 保证。最终源码的该回归、current `release:mvp`、同 cohort 重建、package verify 与隔离 probe 已 PASS；第二次 Desktop 重启仍为 `NOT_RUN`，不得写为 live Desktop PASS。
 
 任一步失败，写路径保持关闭；不得启动 legacy sidecar 或打开旧 DB 回退。
 
 ## 3. 健康状态
 
-Runtime 提供本地只读 health/capability 投影：版本、DB/CAS、writer lease、磁盘配额、worker availability、renderer、Skill registry、Job queue、contract compatibility。不得包含 secret、绝对路径、图片、prompt 或用户内容。
+Runtime 提供本地只读 health/capability 投影：版本、DB/CAS、process-lock 状态、磁盘配额、worker availability、renderer、Skill registry、Job queue、contract compatibility。不得包含 secret、绝对路径、图片、prompt 或用户内容。
 
 状态：`healthy | degraded | read_only_recovery | incompatible | unavailable`。Viewer 和 MCP 必须显示同一状态和 digest。
 
@@ -49,7 +54,7 @@ Audit 记录永久事务、Skill 安装/撤销、恢复和导出；Job event 与
 
 - DB/CAS 不一致：进入 read-only recovery，先导出诊断和备份；
 - 磁盘不足：拒绝新 Job/导入，不 GC confirmed objects；
-- Skill 签名/撤销失败：禁用新执行，历史仍可读；
+- Skill hash/trust/合同失败：禁用新执行，历史仍可读；分发签名/撤销按 MCP012/013；
 - Worker crash：隔离临时目录、终止/恢复 Job，不写版本；
 - MCP/Viewer crash：Runtime 状态不变，重连重建投影；
 - renderer unavailable：几何可诊断，但需要视觉门的 candidate 不可 confirm。

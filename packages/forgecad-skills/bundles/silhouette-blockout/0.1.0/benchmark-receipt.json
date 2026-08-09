@@ -1,0 +1,14 @@
+{
+  "fixture_sha256": "0f1c0d8fd0e4f0237b779a9e1db04a20148509e02981061fc0e47f7dc93e8f0b",
+  "metrics": {
+    "declarative_plan_validation": 1,
+    "fixtures": 2,
+    "forbidden_capabilities": 0
+  },
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "silhouette-blockout",
+  "status": "passed",
+  "suite_id": "silhouette-blockout-smoke",
+  "version": "0.1.0"
+}

@@ -1,0 +1,14 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "NOT_RUN",
+  "checked_at": "2026-08-08",
+  "scope": "packaged macOS resource probe after standalone forgecad-mcp-host removal",
+  "command": "tauri build --bundles app --no-sign; launch Contents/Resources/forgecad-mcp",
+  "reason": "The prior unsigned probe exercised the removed forgecad-mcp-host executable. It is retained only as historical evidence and was not reused as current MVP evidence.",
+  "required_follow_up": "Rebuild the bundle with forgecad-runtime and forgecad-mcp only, then run a fresh stdio initialize and Runtime handoff probe.",
+  "safety": {
+    "image_upload": false,
+    "three_d_generation": false,
+    "user_data_modified": false
+  }
+}

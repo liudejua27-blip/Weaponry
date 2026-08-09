@@ -1,0 +1,22 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "PASS",
+  "checked_at": "2026-08-08",
+  "scope": "Runtime process exit and OS writer file-lock release",
+  "test": "process_exit_releases_os_writer_lock",
+  "result": {
+    "shutdown_method": "authenticated_runtime_shutdown_then_process_exit",
+    "authenticated": true,
+    "shutdown_response": {"shutting_down": true},
+    "immediate_reopen": true,
+    "process_lock_reacquired": true
+  },
+  "safety": {
+    "image_upload": false,
+    "three_d_generation": false,
+    "user_data_modified": false
+  },
+  "limitations": [
+    "Crash/kill-9 recovery and upgrade recovery remain later MCP011/MCP013 gates; host fallback termination remains fail-closed."
+  ]
+}

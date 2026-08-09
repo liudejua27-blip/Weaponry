@@ -1,0 +1,3 @@
+# Product-owned operator lock; this bundle contains no executable operator.
+forgecad.assembly.part@1 = forgecad-runtime-builtin
+forgecad.assembly.symmetry@1 = forgecad-runtime-builtin

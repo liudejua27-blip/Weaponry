@@ -1,152 +1,162 @@
-# ForgeCAD Codex-only MCP Runtime 执行计划
+# ForgeCAD Codex-only MVP 执行计划
 
-版本：2026-08-07
-状态：当前唯一实施顺序
+版本：2026-08-09
+状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A in_progress，MCP010B–F blocked
 
-## 1. 总原则
+## 1. 产品策略
 
-这是产品断代，不是对 U004 或 Provider Registry 的增量升级。实施先删旧产品，再建设新 Runtime；但删除与最小可编译骨架必须在同一个原子任务完成。
+ForgeCAD 是 Codex 控制的本地 3D Runtime。MVP 优先证明一张真实参考图可以变成一个真实、可编辑、可验证、可回退的硬表面 GLB，而不是先建设生产级后台治理或插件市场。
 
-任何阶段都不得：
+固定架构：
 
-- 继续修 DeepSeek、千问、API-first Provider、旧聊天工作台或端口 8000；
-- 为了保留旧测试而恢复已删除架构；
-- 把确定性算法迁移等同于产品能力已通过；
-- 在脏 `main` 直接执行大规模删除；
-- 用 mock/fixture 替代真实 Codex、附件、packaged Viewer 或真人质量门。
+```text
+Codex Desktop/CLI
+  → forgecad-mcp (stdio + lightweight Runtime start/connect)
+  → forgecad-runtime (唯一 writer + SQLite/CAS)
+  → typed geometry/render worker
+  → optional read-only Viewer
+```
 
-## 2. 阶段图
+MVP 使用 OS 文件锁，不使用 TTL lease/heartbeat；MCP initialize 不等待 Runtime；Runtime 崩溃最多一次简单重启；不保证 Codex 断线后未完成 Job 继续。
+
+## 2. 两条完成线
+
+### MVP 完成线
+
+`MCP005 → MCP006 → MCP007 → MCP008 → MCP009`
+
+- 真实参考字节进入 CAS；
+- Codex 输出 typed 建模程序；
+- Worker 生成真实多 Part mesh/GLB；
+- UV/PBR/固定视图和明确 limited 质量投影有 evidence；像素级参考比较仍未运行；
+- 一次局部修改、拒绝、批准、不可变版本、restore 和 GLB export 成功。
+
+### 正式发布线
+
+`MCP010A → MCP010B → MCP010C → MCP010D → MCP010E → MCP010F → MCP011 → MCP012 → MCP013`
+
+- 首个硬表面参考的 V2 真值、固定参考比较、高细节几何、离线材质和完整 Viewer/爆炸图/无障碍；
+- Job checkpoint/性能/GC/灾难恢复；
+- 第三方 Skill/外部项目分发治理；
+- Developer ID/notarization、clean install、升级回滚、packaged Desktop/CLI、跨类别真人门。
+
+签名和公证是发布硬门，不是开发 3D vertical slice 的前置条件。
+
+## 3. 阶段图
 
 ```mermaid
 flowchart LR
-  A["MCP000 文档重置"] --> B["MCP001 安全硬切"]
-  B --> C["MCP002 Runtime 单写者"]
-  C --> D["MCP003 Codex MCP 只读"]
-  D --> E["MCP004 候选事务"]
-  E --> F["MCP005 参考图真实 E2E"]
-  F --> G["MCP006 Skill Bundle V2"]
-  G --> H["MCP007 几何与局部修改"]
-  H --> I["MCP008 Appearance Compiler"]
-  I --> J["MCP009 Render/Quality Compiler"]
-  J --> K["MCP010 版本/回退/爆炸图"]
-  K --> L["MCP011 Job/恢复/性能"]
-  L --> M["MCP012 外部项目与内置 Skills"]
-  M --> N["MCP013 打包与真人门"]
+  A["MCP000-004 基座 done"] --> B["MCP005 Reference intake"]
+  B --> C["MCP006 Typed contracts + Skills"]
+  C --> D["MCP007 Geometry vertical slice"]
+  D --> E["MCP008 PBR + Render + Viewer"]
+  E --> F["MCP009 Quality + Edit + Export = MVP"]
+  F --> G["MCP010A-F First hard-surface quality track"]
+  G --> H["MCP011-013 Reliability + Distribution + Release"]
 ```
 
-同一时刻只允许一个原子任务 `in_progress`。并行研究可以只读进行，不能并行修改共享合同、数据库和状态文档。
+同一时刻只允许一个任务 `in_progress`。只读研究可以提前进行，但不能提前改共享合同、lockfile 或能力状态。
 
-## 3. 阶段定义
+## 4. 已完成基座
 
-### FGC-MCP000：文档权威重置
+- MCP000：文档权威和迁移路线；
+- MCP001：可恢复硬切，新架构骨架；
+- MCP002：contracts、SQLite/CAS、OS 文件锁单写者、authenticated IPC；
+- MCP003：MCP stdio/resources/read-only tools，Codex Desktop/CLI P0 只读验收；
+- MCP004：candidate/approval/version/restore/diagnostic export 事务、MCP 内置 Runtime supervisor、真实 Codex CLI diagnostic write、Viewer read model。
 
-目标：接受 ADR-0025，建立删除/重写/升级清单、MCP/Viewer/Compiler/Skill 合同和 Luna 原子任务链。
+MCP004 原始 evidence 中的 signing、attachment、Geometry、GLB `BLOCKED/NOT_RUN` 保持不变；它们不是被“通过”，而是分配给后续正确任务。
 
-退出：新权威链没有冲突；旧路线明确 superseded；用户指南不虚构新能力；docs/integrity/safety/secrets/license/diff Gate 通过。
+## 5. MVP 实施顺序
 
-### FGC-MCP001：安全硬切与最小骨架
+### MCP005 — Reference
 
-前置：已完成用户授权、`codex/forgecad-mcp-reset` 分支、tracked/untracked/Library/DB/CAS 备份和恢复试验。
+先完成真实字节和安全边界，不做视觉理解算法。P0 仅 PNG/JPEG；CAS 保存原始授权字节，ReferenceEvidence 保存 hash/尺寸/授权和派生引用，不保存路径。真实 Codex CLI receipt 是硬门。
 
-同一任务完成：
+### MCP006 — Typed design + first-party Skills（done）
 
-1. 删除 `RESET_MIGRATION_PLAN.md` 指定的旧 UI、Provider、App Server/Protocol、Python Agent、旧 contracts/fixtures/scripts/CI/docs；
-2. 创建 `crates/forgecad-contracts|core|store|runtime|mcp|worker-protocol` 和 `apps/geometry-worker|render-worker` 骨架；
-3. 从零创建 `runtime-viewer` 最小 Shell；
-4. 新建 Runtime V1 migration 根，不打开旧 DB；
-5. 重写 root scripts、integrity、docs 和 CI；
-6. build/check/test 绿色，产品明确显示迁移中且无伪入口。
+Codex 是唯一视觉大脑；ForgeCAD 不调用模型。Codex 把参考理解成 `SubjectProfile`、`RepresentationPlan`、`AssemblyGraph`、`GeometryProgram` 和 `AppearanceProgram`。Skills 是声明式知识/Recipe/Validator，不是 prompt 插件或脚本。
 
-退出：源码搜索旧模型/Provider/工作台/端口 8000 为零；新骨架、MCP/worker smoke 和 release gates 通过；旧 Library 未修改；恢复包可用。
+MVP 已交付 10 个组合能力的声明式 Bundle profile，不建市场：reference intake、subject profile、semantic assembly、silhouette blockout、hard-surface detail、mesh integrity、UV/PBR、render evidence、reference compare、local edit/export。它们仍不包含执行代码；MCP007 已实现独立 product-owned bounded Geometry Operator consumer。
 
-### FGC-MCP002：Contracts、Store 与 Runtime 单写者
+### MCP007 — Geometry（done）
 
-实现首批公开 Schema、canonical hash、CAS、SQLite V1、writer lease、Project/Candidate/Version/Snapshot/Job/Audit repository 和 authenticated local IPC。
+已把 MVP fixture 做成 14 个稳定语义 Part 的程序化硬表面资产；当前实现收口为 box/cylinder/sphere、有限 budget/finite/index/lineage 和 deterministic glTF 2.0 GLB/readback。profile/extrude/revolve、sweep/loft、boolean/bevel 等扩展不在本轮假装完成；每个输出保留 Part/source lineage，严格 GLB readback，focused evidence 见 `docs/evidence/mcp007/`。
 
-退出：两个写者并发、crash transaction、disk full、CAS mismatch、migration/restart、backup/restore Gate 通过；MCP/Viewer 无 DB 权限。
+### MCP008 — Appearance/Render/Viewer（done）
 
-当前证据：`docs/evidence/mcp002/manifest.json`；10 个 Store/CAS tests、Runtime IPC auth test、3 个 Core hash tests、workspace tests 和 release:mcp002。physical filesystem exhaustion、kill-9 packaged recovery、Codex 三宿主和完整 conformance 不属于 MCP002，保持后续任务阻断。
+完成白色涂层金属、黑色机械内构和橙色 emissive 的 typed MaterialZone；实现 hash-bound UV/tangent/glTF metallic-roughness；Viewer 显示 Runtime 真实 GLB canvas；headless renderer 输出固定 beauty/silhouette/normal/part-ID。`npm run mcp008:test` 与证据 manifest PASS；真实 Codex appearance/readback 已在 MCP009 receipt 中 PASS；glTF-Validator 和真人评分仍未运行。
 
-### FGC-MCP003：Codex-only MCP 只读入口
+### MCP009 — Quality/Edit/Version/Export（MVP host golden path done）
 
-实现 `forgecad-mcp` stdio、capabilities、project/snapshot/selection/job/version/skill/artifact resources 和只读 tools；生成 Codex Desktop/CLI/IDE 配置。
+`quality_get` 绑定 candidate/GLB/fixed-render checks，参考比较仅返回明确 limited aspect ratio；`change_prepare` 执行一次 stable Part ID 有界重编；拒绝不写、批准一次写一个版本；restore-as-new-version；`mvp-glb` 返回 CAS GLB + manifest/output hash receipt。`npm run mcp009:test` 的 24 Runtime + 16 MCP tests PASS；真实 Codex CLI 十二调用 full chain 已 PASS。pixel metrics、Viewer 同 hash、change/restore host 和人评仍是 open acceptance gates，不被 CAS receipt 替代。
 
-退出：官方 conformance、tools/resources Schema/annotation snapshot、三种 Codex 宿主发现/连接/只读 E2E；无 client-name 安全判断；Server/Runtime 版本不匹配 fail closed。
+## 6. 外部工具实施规则
 
-### FGC-MCP004：候选与审批事务
+`EXTERNAL_PROJECT_ADOPTION.md` 是唯一清单。MVP 优先评估 `image-rs/image`、`gltf-rs/gltf`、Manifold、xatlas、mikktspace、glTF-Validator；glTF-Transform 只作构建/测试工具。每项先建 adoption receipt，再改依赖。
 
-实现 project/reference/design/candidate/change/render/evaluate/confirm/reject/restore/export prepare/confirm 合同，长任务返回 RuntimeJob，永久写入绑定用户 approval。
+不安装 BlenderMCP、FreeCAD MCP、CadQuery/build123d MCP、远程 image-to-3D Provider。它们暴露任意脚本/文件/网络或引入第二状态真值；可学习 API 粒度，不能成为 MVP 插件。
 
-退出：重复请求、stale base、hash mismatch、approval reject/expire、quality hard fail、cancel/restart 均不写版本；批准只创建一个不可变版本。
+## 6.1 MCP010A–F 固定顺序
 
-### FGC-MCP005：真实 Codex 文本/图片闭环
+- 010A：只重排权威、构建/激活同 revision 用户级开发 App，并等待用户重启后的真实 Codex capability/build-hash Gate；
+- 010B：先让 Schema、GeometryProgram/OperatorCatalog/GLB readback 和失败路径成为真实真值；
+- 010C：再实现 perspective/z-buffer 固定 renderer、九 AOV、参考比较和 typed visual/human review；
+- 010D：在 C 的指标闭环上扩展受限高细节 Operator，Manifold 只有 adoption receipt accepted 后才进入 Worker；
+- 010E：离线 AssetPack、UV/tangent/PBR/纹理及逐资产 provenance；不建设网络 API 或通用安装器；
+- 010F：Viewer compare/selection/explosion、undo/redo 和真实机器人闭环。单图只允许 `PARTIAL_VISIBLE_VIEW_PASS`，补齐五张全身参考前 360 固定 blocked。
 
-实现受限 `reference_import`，用真实 Codex Desktop/CLI/IDE 证明附件字节进入 CAS；实现 ReferenceEvidence → typed design → candidate → Viewer → confirm。
+010D/E 的单操作资源预算不替代 MCP011 的 Job checkpoint/GC/全局性能；first-party 固定 AssetPack 不替代 MCP012 的通用第三方生命周期；ad-hoc 开发 App 不替代 MCP013 的正式签名、安装和 packaged E2E。
 
-退出：单图、多图、错误 MIME、超限、symlink、未授权路径、图片解压炸弹和路径泄露测试；三宿主真实附件与 packaged Viewer 同 candidate/hash。
+## 7. 质量证据顺序
 
-### FGC-MCP006：Skill Bundle V2 与 Registry
+1. reference bytes/hash/license；
+2. typed contract、预算和 canonical program；
+3. mesh integrity、Part/source map、strict GLB readback；
+4. UV/tangent/PBR/material zones；
+5. fixed beauty/silhouette/normal/part-ID；
+6. reference metrics + Codex typed review；
+7. 用户接受 + version/restore/export hash 一致。
 
-实现 `skill.yaml`、Schema/Recipe DAG/Operator lock/Validator/assets/Benchmark/LICENSE/NOTICE/SPDX SBOM/provenance/signature/revocation，P0 声明式 execution plan。
+任何材质包、单张 beauty、GLB 能打开、Skill 已安装或 Codex 自评都不能跳过前一层。
 
-退出：篡改、未知 Operator、循环 DAG、预算溢出、许可证缺失、SBOM 漂移、签名失效、撤销和 Benchmark 不兼容全部 fail closed；历史 receipt 可读。
+## 8. Gate 顺序
 
-### FGC-MCP007：几何、轮廓、比例和局部修改
+每任务：
 
-从旧 Core/Worker 只迁移经审查的确定性算法，统一通用 GeometryProgram、Assembly/Part/source-map、曲线/profile/loft/sweep/surface/CSG/deform、SemanticChangeSet。
+```text
+dirty baseline
+→ Schema/negative tests
+→ Core/Runtime
+→ MCP/Worker/Viewer
+→ focused
+→ aggregate
+→ real Codex / visual / user evidence
+→ docs + capability matrix + handoff
+```
 
-退出：跨类别 fixtures、严格 readback、stable ID、局部失效、non-manifold/self-intersection、预算/取消/重启；无机械模板回退和任意 mesh patch。
+共同命令：
 
-### FGC-MCP008：UV、PBR、纹理和材质
+```bash
+npm run release:docs-walkthrough
+npm run repository:integrity
+npm run release:safety-scope
+npm run release:secrets-files
+npm run release:license-sbom
+npm run contracts:check
+npm run mvp:functional-core
+npm run desktop:typecheck
+npm run desktop:build
+npm run desktop:tauri-check
+git diff --check
+```
 
-实现 UvLayout、tangent、MaterialGraph、TextureSet、BakeRecipe、MaterialZone、色彩空间、preview/production profiles 和 GLB lowering。
+禁止为绿色恢复旧 Provider/U004/端口 8000，禁止 mock 附件、图片平面、手工成品 GLB、任意 Blender Python 或篡改 QualityReport。
 
-退出：UV overlap/padding/stretch/density、MikkTSpace、通道语义、normal orientation、seam、bake、PBR readback、asset provenance 和引擎 roundtrip Gate。
+## 9. 声明边界
 
-### FGC-MCP009：Render Evidence 与 Quality Compiler
-
-实现 Viewer 无关的 headless fixed views/AOV、参考相机绑定、轮廓比例指标、纹理/材质/局部细节检查、Codex typed visual review 和统一 QualityReport。
-
-退出：同一 candidate hash 的 beauty/depth/normal/AO/IDs/wireframe/UV/silhouette，固定相机可复现；硬门不可被 Codex 评价覆盖；盲测基线诚实记录。
-
-### FGC-MCP010：版本、回退、局部 undo 和爆炸图
-
-实现候选 undo/redo、immutable version DAG、restore-as-new-version、version diff、ExplodedViewPlan、Viewer selection/explosion 和 export binding。
-
-退出：拒绝无写入、restore 不改历史、Part lineage 稳定、爆炸碰撞/遮挡/标签检查、重启/导出一致；不支持任意 mesh 三方合并。
-
-### FGC-MCP011：Job、事件、崩溃恢复与性能
-
-实现 queue、bounded concurrency、monotonic events、pagination/replay、checkpoint、cancel、timeouts、quotas、GC 和故障注入。
-
-退出：MCP/Viewer/Worker/Runtime 分别崩溃、磁盘满、进程被杀、重复启动、晚到结果、取消竞态、长任务超出 Codex tool timeout 均有 deterministic 结果和无双写。
-
-### FGC-MCP012：外部项目治理和 first-party Skills
-
-按采用清单逐项 pin/审计/benchmark；先交付 reference intake、subject profile、silhouette blockout、semantic assembly、mesh integrity、UV/PBR/render/reference compare/local edit/exploded view 等 first-party Bundles。
-
-退出：每项有 revision、LICENSE/NOTICE、SBOM、provenance、签名、恶意输入/资源/性能/质量 Benchmark、平台打包和退出方案；无整仓复制/自动下载权重/任意脚本。
-
-### FGC-MCP013：生产打包与跨类别质量门
-
-打包同版本签名 Runtime/MCP/workers/Viewer/Skills，生成 Codex 配置，执行普通用户完整路径、升级/回滚和跨类别独立真人盲评。
-
-退出：真实安装、无开发环境变量；Codex 附件 → MCP → 高质量候选 → Viewer → 局部修改 → 拒绝/批准 → 重启 → 回退 → 爆炸图 → 导出；安全、许可证、性能、灾难恢复和真人质量全部通过。
-
-## 4. 质量门顺序
-
-质量建设顺序固定：
-
-1. reference/lineage 硬证据；
-2. Assembly/Part/stable ID 和几何完整性；
-3. 轮廓、比例和局部修改；
-4. UV/tangent/PBR/texture/material；
-5. fixed view/AOV/reference compare；
-6. Codex visual review 与独立真人门；
-7. compression/LOD/collision/asset packs 和可选 Blender worker。
-
-不得先用大量材质/纹理包掩盖几何主体、轮廓或比例不合格。
-
-## 5. 发布红线
-
-任一情况存在即不发布：内置模型网络调用；旧 Provider/8000/Agent fallback；多数据库写者；Codex 附件未实测；Viewer/导出 hash 漂移；未批准写版本；hard gate 可绕过；Skill 无签名/SBOM/license；绝对路径/secret 泄露；旧用户 Library 被自动修改；跨类别真人门未完成却宣称高质量通用产品。
+- MCP004 done：事务基座完成，不表示 3D 完成；
+- MCP005 done：真实图片入 CAS，不表示建模完成；
+- MCP007 done：真实几何 vertical slice，不表示 PBR/相似度完成；
+- MCP009 host golden path done：可以声明“单用户 MVP 真实 Codex host 路径完成”；像素级相似度、Viewer/restore host 和真人评分通过后，才可声明“首个硬表面参考基准质量闭环完成”；
+- MCP013 done 且跨类别真人门通过后，才可声明可分发、通用高质量产品。

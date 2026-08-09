@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 192
+  },
+  "canonical_sha256": "f5d94921a500c565d7f6c124b6dd79570509419881811f9f3bd5f3efc6aa212b",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "detail"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "GeometryProgram@1",
+      "node_id": "detail",
+      "operator_id": "forgecad.geometry.panel@1",
+      "output_schema": "GeometryProgram@1"
+    }
+  ],
+  "recipe_id": "hard-surface-detail",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "hard-surface-detail",
+  "units": "meter"
+}

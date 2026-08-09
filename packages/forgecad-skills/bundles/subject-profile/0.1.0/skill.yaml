@@ -1,0 +1,31 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: subject-profile
+version: 0.1.0
+status: development-only
+publisher: forgecad-first-party
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/reference-evidence.schema.json
+output_schema: schemas/subject-profile.schema.json
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: false
+  render_execution: false
+operator_ids:
+  - forgecad.reference.profile@1
+validator_ids:
+  - subject_profile_bounds@1
+  - reference_hash_binding@1
+budgets:
+  max_claims: 128
+  max_unknowns: 32
+benchmark_suite: subject-profile-smoke
+known_limitations:
+  - Declarative safety receipt does not claim geometry, render or visual quality.
+  - Distribution signature and third-party installation are deferred to MCP012-013.

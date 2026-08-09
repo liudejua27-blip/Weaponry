@@ -1,0 +1,11 @@
+{
+  "schema_version":"AppearanceWorkerFixture@1",
+  "task_id":"FGC-MCP008",
+  "status":"PASS",
+  "source":"scripts/check_mcp008_appearance.py",
+  "programs":"canonical GeometryProgram@1 + hash-bound AppearanceProgram@1",
+  "materials":["zone-white-shell","zone-black-mechanical","zone-amber-emissive"],
+  "passes":["beauty","silhouette","normal","part-id"],
+  "negative":"Appearance geometry_program_sha256 mismatch returns GEOMETRY_REJECTED",
+  "note":"Synthetic bounded fixture; not the user-provided image and not a visual similarity score."
+}

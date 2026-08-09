@@ -1,9 +1,11 @@
-# MCP003 baseline for Codex CLI. No secret values or machine paths are checked in.
+# Codex CLI baseline for the single-user ForgeCAD MVP. No secret values or
+# machine paths are checked in; forgecad-mcp starts the local Runtime child.
 [mcp_servers.forgecad]
 command = "forgecad-mcp"
 args = ["serve", "--stdio"]
-env_vars = ["FORGECAD_RUNTIME_SOCKET", "FORGECAD_RUNTIME_TOKEN"]
+env_vars = ["FORGECAD_MCP_ENABLE_MCP004_WRITES"]
+enabled = true
 startup_timeout_sec = 20
 tool_timeout_sec = 60
-required = true
+required = false
 default_tools_approval_mode = "writes"

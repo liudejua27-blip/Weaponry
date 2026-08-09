@@ -1,0 +1,36 @@
+{
+  "benchmark_suite": "render-evidence-smoke",
+  "budgets": {
+    "max_passes": 8,
+    "max_resolution": 4096
+  },
+  "canonical_sha256": "2eeff379ca93804bb44f010d5b756409d71266296c174313dd99ea72258ed94e",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": false,
+    "model_calls": false,
+    "network": false,
+    "render_execution": true
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/appearance-program.schema.json",
+  "operator_ids": [
+    "forgecad.render.fixed-camera@1",
+    "forgecad.render.aov@1"
+  ],
+  "output_schema": "schemas/render-set.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "render-evidence",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "render_determinism@1",
+    "render_hash_binding@1"
+  ],
+  "version": "0.1.0"
+}

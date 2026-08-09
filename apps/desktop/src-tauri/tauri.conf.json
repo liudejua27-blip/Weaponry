@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "identifier": "local.forgecad.runtime",
   "build": {
-    "beforeDevCommand": "npm --workspace apps/desktop run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm --workspace apps/desktop run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "title": "ForgeCAD Runtime Viewer",
@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: asset: http://asset.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' customprotocol: asset: http://asset.localhost forgecad-resource: http://forgecad-resource.localhost data: blob:; media-src 'self' forgecad-resource: http://forgecad-resource.localhost blob:; connect-src 'self' forgecad-resource: http://forgecad-resource.localhost blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
     }
   },
   "bundle": {
@@ -32,6 +32,13 @@
       "icons/128x128.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "hardenedRuntime": true,
+      "files": {
+        "Resources/forgecad-runtime": "target/release/forgecad-runtime",
+        "Resources/forgecad-mcp": "target/release/forgecad-mcp"
+      }
+    }
   }
 }

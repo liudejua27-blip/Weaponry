@@ -1,0 +1,9 @@
+{
+  "spdxVersion":"SPDX-2.3",
+  "dataLicense":"CC0-1.0",
+  "SPDXID":"SPDXRef-DOCUMENT",
+  "name":"forgecad-mvp-skill-registry",
+  "documentNamespace":"https://forgecad.local/sbom/mvp-skill-registry/0.1.0",
+  "packages":[{"SPDXID":"SPDXRef-Package","name":"forgecad-mvp-skill-registry","versionInfo":"0.1.0","licenseConcluded":"NOASSERTION","downloadLocation":"NOASSERTION"}],
+  "annotations":[{"annotationType":"OTHER","annotator":"Tool: forgecad-mcp006","annotationDate":"2026-08-09T00:00:00Z","comment":"Declarative metadata only; no executable, model, texture or external asset payload."}]
+}

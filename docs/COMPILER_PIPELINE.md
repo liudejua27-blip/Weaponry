@@ -1,7 +1,7 @@
 # ForgeCAD 3D 编译器与质量管线
 
-版本：2026-08-07
-状态：目标设计；现有确定性算法需迁移后重新验收
+版本：2026-08-09
+状态：MVP bounded compiler 已完成；FGC-MCP010A in_progress；MCP010B–E 的 V2 compiler 仍为目标设计
 
 ## 1. 核心原则
 
@@ -24,6 +24,18 @@ ReferenceEvidence
 
 ## 2. 编译层
 
+### 2.0 MVP profile
+
+MVP 不实现通用图生 3D 模型。Codex 已能看参考图，由 Codex 提交 typed `SubjectProfile/AssemblyGraph/GeometryProgram/AppearanceProgram`；ForgeCAD 只做确定性验证和编译。当前实际 Runtime allowlist 仅包含 product-owned `box`、`cylinder`、`sphere` primitive 与有限 transform/appearance lowering；profile/extrude/revolve、sweep/loft、bounded boolean/bevel 和 panel/vent/joint macros 仍是声明式 Skill 的后续 consumer，不得在能力快照中伪装成已实现。
+
+MCP007 先产生真实多 Part mesh/GLB；MCP008 加 bounded UV/PBR 和 beauty/silhouette/normal/part-ID；MCP009 加 limited reference aspect evidence、稳定 Part `change_prepare`、immutable version/restore 和 CAS-backed `mvp-glb` receipt。像素级 silhouette/landmark/region compare、surface network、deformable、有机角色、UDIM、完整 AOV、Blender worker 和跨类别 benchmark 均是 post-MVP。
+
+### 2.0.1 MCP010 V2 顺序（当前 unavailable）
+
+MCP010 必须依次完成：B 的封闭 `GeometryProgram@2`/真实 DAG/GLB readback → C 的 perspective/z-buffer renderer、九 AOV 和 reference metrics → D 的 profile/revolve/sweep/loft/mirror/array/macros 与有条件 boolean → E 的离线 AssetPack、UV/tangent/PBR/texture。不能先装材质或 Skill metadata 再把缺失的 producer 写成 active。
+
+目标九 pass 固定为 beauty、silhouette、depth、normal、AO、part-ID、material-ID、wireframe、UV-stretch，全部绑定同一 candidate/camera/material/renderer hash。快速 Viewer renderer 可以不同，但不能生成第二套模型、材质或质量真值。
+
 ### 2.1 Design Compiler
 
 输入：参考证据、目标用途、尺寸/风格/预算、已安装 Skill 能力。
@@ -33,18 +45,18 @@ ReferenceEvidence
 
 ### 2.2 Geometry Compiler
 
-输入：`GeometryProgram`、Part scope、预算。
-能力：曲线、profile、loft、sweep、surface network、solidify、受限 field/CSG、局部 lattice/deform、read-only mesh admission。
+输入：`GeometryProgram@1`、Part scope、预算。
+能力（当前 MVP）：bounded box/cylinder/sphere primitives、稳定 Part/source-map、finite/index/triangle/byte budget、确定性 GLB lowering、strict readback。曲线、profile、loft、sweep、surface network、solidify、field/CSG、局部 deform 和 read-only mesh admission 必须等对应 Operator 被实现、审计并加入 capability manifest 后才可使用。
 输出：规范化 geometry IR、primitive、stable source map、LOD/collision candidates 和 readback。
 
 每个 Operator 都有固定 Schema、单位、坐标系、数值范围、复杂度、三角/内存/时间上限和 deterministic hash。禁止动态 import、反射调用、任意参数路径和未签名脚本。
 
 ### 2.3 Appearance Compiler
 
-输入：`MaterialGraph`、`TextureSet`、`UvLayout`、`BakeRecipe`、MaterialZone binding。
+输入：`AppearanceProgram@1`、MaterialZone binding。
 输出：经过验证的 UV、切线、PBR 通道、预览与交付纹理、材质表和 provenance。
 
-P0 材质遵循 Principled 金属/粗糙度工作流：BaseColor、Metallic、Roughness、Normal、AO，按需 Emissive/Opacity。BaseColor/Emissive 为颜色数据，Metallic/Roughness/Normal/AO 为 non-color 数据。Authoring 可使用 UDIM，GLB 交付必须显式 bake/downconvert 到受支持的 0–1 UV 和纹理集，不能隐式丢 tile。
+P0 材质遵循 Principled 金属/粗糙度工作流：BaseColor、Metallic、Roughness、Normal、AO，按需 Emissive。MVP 使用 bounded procedural values 和 0–1 UV；纹理烘焙、UDIM、Opacity 和完整色彩管理尚未实现，不得把声明式 `TextureSet/BakeRecipe` metadata 当作已生成纹理。
 
 ### 2.4 Render Evidence Compiler
 
@@ -88,13 +100,13 @@ Codex `VisualReviewReport` 必须引用具体 render/pass/region/claim，使用 
 | Asset Browser | CAS 资产目录、预览、license/provenance | 无许可证的素材拖入 |
 | Outliner/Collections | Assembly/Part 层级、隔离、爆炸图 | legacy ModuleGraph |
 
-Blender 可作为受签名的 headless worker，用于产品内固定的导入、烘焙或渲染 Recipe；Codex 和 Skill 均不能提交任意 Blender Python。是否随产品分发 Blender、GPL 边界和 worker 隔离须在 `FGC-MCP012` 单独通过许可证审查。
+Blender 不属于 MVP。未来可作为受签名的 headless worker，用于产品内固定的导入、烘焙或渲染 Recipe；Codex 和 Skill 均不能提交任意 Blender Python。是否分发 Blender、GPL 边界和 worker 隔离须在 `FGC-MCP012` 单独通过许可证审查。
 
 参考：[Blender Geometry Nodes modifier](https://docs.blender.org/manual/en/dev/modeling/modifiers/generate/geometry_nodes.html)、[Blender Color Management/OCIO](https://docs.blender.org/manual/en/latest/render/color_management.html)、[Blender GPL 说明](https://developer.blender.org/docs/license)。这些链接用于学习能力模型，不授权复制文档、源码或资产。
 
 ## 4. 局部修改与回退
 
-局部修改不直接编辑三角形数组。Codex 提交 `SemanticChangeSet`，引用稳定 Part/MaterialZone/source-map 和限定 operation。Runtime 在 base version 上准备候选；未受影响的 hash 尽量复用，受影响的 downstream DAG 显式失效。
+局部修改不直接编辑三角形数组。Codex 提交 `SemanticChangeSet`/`change_set`，引用稳定 Part/MaterialZone/source-map 和限定 operation；MVP `change_prepare` 要求完整新 Geometry/Appearance programs，并由 Runtime 在 base version 上重新编译候选，不宣称未受影响 DAG 已做增量复用。
 
 候选内 undo/redo 只操作未确认 change stack。历史回退使用 `restore_prepare` 生成以旧版本为内容来源、以当前版本为父的新候选；批准后创建新版本，不改写历史头。任意 mesh 三方合并不在 P0。
 

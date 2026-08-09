@@ -1,0 +1,42 @@
+{
+  "task_id": "FGC-MCP004",
+  "status": "NOT_RUN",
+  "checked_at": "2026-08-08",
+  "scope": ["current_connected_codex_app_session", "codex_desktop"],
+  "current_connected_session": {
+    "transport": "Codex app MCP bridge",
+    "runtime_status": "alpha-mcp003",
+    "runtime_version": "0.1.0",
+    "exposed_tool_count": 14,
+    "exposed_write_tools": [],
+    "project_list": [],
+    "observed_server_binary_sha256": "093af60ba4bd7ad03a86b05bebe4a5225604fd7d848fdf22758ea1723af48da4",
+    "write_transactions": false,
+    "side_effects": false
+  },
+  "live_process_audit": {
+    "observed_parent_chain": [
+      "Codex app-server",
+      "transparent forgecad-mcp-proxy observer",
+      "pre-MCP004 forgecad-mcp adapter"
+    ],
+    "observer_sha256": "98b915a82724c592d77c1321adaf3b7572f91d4a5c247ba30222360e465252d2",
+    "adapter_sha256": "093af60ba4bd7ad03a86b05bebe4a5225604fd7d848fdf22758ea1723af48da4",
+    "observer_behavior": "captures initialize/server-discover and transparently forwards stdio; no request rewriting or synthetic messages",
+    "mcp004_host_supervisor": false,
+    "write_request_sent": false
+  },
+  "host_write_e2e": {
+    "codex_desktop": "NOT_RUN",
+    "codex_cli": "PASS_SEPARATE_DIAGNOSTIC_RECEIPT",
+    "reason": "This receipt remains the current connected Codex app/Desktop audit: that process still uses the pre-MCP004 forgecad-mcp binary and exposes only the alpha-mcp003 read-only surface, so no write request was sent there. A separate fresh authenticated Codex CLI diagnostic write turn passed against the development launcher; see codex-cli-write-e2e.json."
+  },
+  "security": {
+    "proxy_request_rewriting": false,
+    "desktop_handshake_observer": "transparent_passthrough_logger_only; not used for write evidence",
+    "image_upload": false,
+    "three_d_generation": false,
+    "user_data_modified": false
+  },
+  "next_action": "Restart Codex Desktop against the signed MCP004 adapter and an authenticated Runtime IPC endpoint before recording Desktop write evidence; a transparent observer may capture raw traffic only if declared, but no request rewriting or synthetic message is allowed."
+}
