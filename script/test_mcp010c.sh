@@ -6,6 +6,7 @@ TEMP_ROOT="$(mktemp -d /tmp/forgecad-mcp010c.XXXXXX)"
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 TARGET_DIR="$TEMP_ROOT/cargo-target"
 DATA_ROOT="$TEMP_ROOT/runtime-data"
+EXPORT_DATA_ROOT="$TEMP_ROOT/export-restart-runtime-data"
 
 python3 "$PROJECT_ROOT/scripts/check_forgecad_contracts.py"
 python3 -m py_compile "$PROJECT_ROOT/scripts/probe_mcp010c_raw_stdio.py"
@@ -46,5 +47,12 @@ python3 "$PROJECT_ROOT/scripts/probe_mcp010c_raw_stdio.py" \
   --runtime "$TARGET_DIR/debug/forgecad-runtime" \
   --data-root "$DATA_ROOT" \
   --determinism-repeats 5
+
+python3 "$PROJECT_ROOT/scripts/probe_mcp010c_raw_stdio.py" \
+  --mcp "$TARGET_DIR/debug/forgecad-mcp" \
+  --runtime "$TARGET_DIR/debug/forgecad-runtime" \
+  --data-root "$EXPORT_DATA_ROOT" \
+  --export-restart \
+  --determinism-repeats 2
 
 printf '%s\n' "MCP010C fixed renderer, nine-AOV, comparison and review gate PASS"

@@ -2311,7 +2311,87 @@ impl Runtime {
             &request.prepared_object_sha256,
         )?;
         self.revalidate_candidate_for_confirmation(&candidate, &request.prepared_object_sha256)?;
+        self.revalidate_visual_evidence_for_confirmation(&candidate)?;
         Ok(self.store.confirm_candidate(request, &now_string())?)
+    }
+
+    /// If a candidate has entered the MCP010C visual-review path, confirmation
+    /// must consume the same candidate-bound QualityReport@2 rather than
+    /// falling back to the older geometry-only quality flag.  A failed visual
+    /// target may remain reviewable for Codex revision, but it must not mint an
+    /// immutable version.  Human evidence is optional for the MVP approval
+    /// boundary; when present, an explicit `approved:false` is authoritative.
+    fn revalidate_visual_evidence_for_confirmation(
+        &self,
+        candidate: &CandidateRecord,
+    ) -> Result<(), RuntimeError> {
+        let Some(evidence) = self.store.get_visual_evidence(&candidate.candidate_id)? else {
+            return Ok(());
+        };
+        if evidence.project_id != candidate.project_id {
+            return Err(RuntimeError::InvalidInput(
+                "QUALITY_HARD_GATE_FAILED: visual evidence project binding drifted".to_owned(),
+            ));
+        }
+        let quality: Value = serde_json::from_slice(&self.cas_read(
+            &evidence.quality_report_object_sha256,
+        )?)
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "QUALITY_HARD_GATE_FAILED: visual quality report is invalid: {error}"
+            ))
+        })?;
+        validate_quality_report_v2_output(&quality)?;
+        if quality.get("candidate_id").and_then(Value::as_str)
+            != Some(candidate.candidate_id.as_str())
+            || quality.get("artifact_sha256").and_then(Value::as_str)
+                != candidate.prepared_object_sha256.as_deref()
+            || quality.get("render_set_hash").and_then(Value::as_str)
+                != Some(evidence.render_set_object_sha256.as_str())
+            || quality.get("comparison_report_hash").and_then(Value::as_str)
+                != evidence.comparison_report_object_sha256.as_deref()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "QUALITY_HARD_GATE_FAILED: visual quality report is not candidate-bound"
+                    .to_owned(),
+            ));
+        }
+        if quality.get("hard_gate_passed").and_then(Value::as_bool) != Some(true) {
+            return Err(RuntimeError::InvalidInput(
+                "QUALITY_TARGET_NOT_MET: candidate-bound visual quality gate has not passed"
+                    .to_owned(),
+            ));
+        }
+        if let Some(human_sha256) = evidence.human_receipt_object_sha256.as_deref() {
+            let receipt: Value = serde_json::from_slice(&self.cas_read(human_sha256)?).map_err(
+                |error| {
+                    RuntimeError::InvalidInput(format!(
+                        "HUMAN_REVIEW_INVALID: receipt is not valid JSON: {error}"
+                    ))
+                },
+            )?;
+            validate_human_review_receipt(&receipt)?;
+            if receipt.get("candidate_id").and_then(Value::as_str)
+                != Some(candidate.candidate_id.as_str())
+                || receipt.get("reference_id").and_then(Value::as_str)
+                    != Some(evidence.reference_id.as_str())
+                || receipt.get("render_set_hash").and_then(Value::as_str)
+                    != Some(evidence.render_set_object_sha256.as_str())
+                || receipt.get("comparison_report_hash").and_then(Value::as_str)
+                    != evidence.comparison_report_object_sha256.as_deref()
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "HUMAN_REVIEW_BINDING_MISMATCH: receipt is not candidate-bound".to_owned(),
+                ));
+            }
+            if receipt.get("approved").and_then(Value::as_bool) != Some(true) {
+                return Err(RuntimeError::InvalidInput(
+                    "HUMAN_REVIEW_NOT_APPROVED: candidate requires an approved visual review"
+                        .to_owned(),
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// Re-read the immutable CAS object and, for V2 GLBs, the complete
@@ -6124,6 +6204,182 @@ mod tests {
             viewer_evidence["comparison_report"]["schema_version"],
             "ReferenceComparisonReport@1"
         );
+        let candidate_record = runtime
+            .candidate(&candidate_id)
+            .expect("candidate query")
+            .expect("candidate record");
+        let visual_failure = runtime
+            .confirm_candidate(&CandidateConfirmRequest {
+                project_id: project.project_id.clone(),
+                candidate_id: candidate_id.clone(),
+                base_version_id: None,
+                prepared_object_id: candidate_record
+                    .prepared_object_id
+                    .clone()
+                    .expect("prepared object ID"),
+                prepared_object_sha256: candidate_record
+                    .prepared_object_sha256
+                    .clone()
+                    .expect("prepared object hash"),
+                quality_report_id: candidate_record
+                    .quality_report_id
+                    .clone()
+                    .expect("quality report ID"),
+                approval_receipt_id: "mcp010c-visual-failure-approval".to_owned(),
+                approval_summary: "Attempt to confirm a visual target failure".to_owned(),
+                approval_session_id: "mcp010c-visual-failure-session".to_owned(),
+                approval_expires_at: "9999999999".to_owned(),
+                idempotency_key: "mcp010c-visual-failure-confirm".to_owned(),
+            })
+            .expect_err("QUALITY_TARGET_NOT_MET must not create a version");
+        assert!(visual_failure
+            .to_string()
+            .contains("QUALITY_TARGET_NOT_MET"));
+        assert!(runtime
+            .versions(Some(&project.project_id))
+            .expect("versions after visual gate")
+            .is_empty());
+
+        // A self-rendered silhouette is a deterministic structural fixture for
+        // the positive confirmation/export path.  It is not evidence that the
+        // user robot reference passed likeness; that separate run remains
+        // QUALITY_TARGET_NOT_MET.
+        let silhouette_base64 = runtime
+            .render_pass_get(render_set_hash, "silhouette")
+            .expect("silhouette pass")
+            .get("png_base64")
+            .and_then(Value::as_str)
+            .expect("silhouette bytes")
+            .to_owned();
+        let silhouette_bytes = base64::engine::general_purpose::STANDARD
+            .decode(silhouette_base64)
+            .expect("silhouette base64");
+        let mut silhouette_image = image::load_from_memory(&silhouette_bytes)
+            .expect("silhouette PNG")
+            .to_rgba8();
+        // Keep the thresholded RGB mask identical while changing the CAS
+        // bytes, because the original render pass already occupies the same
+        // content hash with a different immutable object kind.
+        for pixel in silhouette_image.pixels_mut() {
+            pixel.0[3] = 254;
+        }
+        let mut matched_reference_bytes = Vec::new();
+        image::DynamicImage::ImageRgba8(silhouette_image)
+            .write_to(
+                &mut Cursor::new(&mut matched_reference_bytes),
+                ImageFormat::Png,
+            )
+            .expect("matched reference PNG");
+        let matched_reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: base64::engine::general_purpose::STANDARD
+                        .encode(matched_reference_bytes),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "MCP010C deterministic renderer fixture reference".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("matched reference import")
+            .reference;
+        let mut matched_view_spec = json!({
+            "schema_version":"ReferenceViewSpec@1",
+            "reference_id":matched_reference.reference_id,
+            "reference_sha256":matched_reference.object_sha256,
+            "view_id":"renderer-self-match",
+            "source_view":"three-quarter",
+            "image":{"width":512,"height":512,"rotation_degrees":0.0,"crop":{"x":0.0,"y":0.0,"width":1.0,"height":1.0}},
+            "landmarks":[{"landmark_id":"fixture-center","x":0.5,"y":0.5,"visibility":"observed","confidence":1.0}],
+            "regions":[{"region_id":"fixture-core","x":0.40234375,"y":0.466796875,"width":0.197265625,"height":0.248046875,"visibility":"observed","confidence":1.0}],
+            "canonical_sha256":""
+        });
+        matched_view_spec["canonical_sha256"] =
+            Value::String(canonical_json_hash(&matched_view_spec));
+        let matched = runtime
+            .prepare_reference_comparison(
+                &project.project_id,
+                json!({"candidate_id":candidate_id,"reference_id":matched_reference.reference_id,"view_spec":matched_view_spec}),
+            )
+            .expect("self-rendered reference comparison");
+        assert_eq!(
+            matched["quality_report"]["visual_status"],
+            "PARTIAL_VISIBLE_VIEW_PASS"
+        );
+        let matched_render_set_hash = matched["render_set_object_sha256"]
+            .as_str()
+            .expect("matched RenderSet hash")
+            .to_owned();
+        let matched_comparison_hash = matched["comparison_report_object_sha256"]
+            .as_str()
+            .expect("matched comparison hash")
+            .to_owned();
+        let approved_human = runtime
+            .submit_human_visual_review(json!({
+                "candidate_id":candidate_id,
+                "reference_id":matched_reference.reference_id,
+                "render_set_hash":matched_render_set_hash,
+                "comparison_report_hash":matched_comparison_hash,
+                "scores":{"likeness":5,"geometry_detail":5,"material_fidelity":5,"editability":5},
+                "approved":true
+            }))
+            .expect("approved human fixture review");
+        assert_eq!(approved_human["receipt"]["approved"], true);
+        let confirmed_candidate = runtime
+            .candidate(&candidate_id)
+            .expect("candidate after matched review")
+            .expect("candidate after matched review record");
+        let confirmed = runtime
+            .confirm_candidate(&CandidateConfirmRequest {
+                project_id: project.project_id.clone(),
+                candidate_id: candidate_id.clone(),
+                base_version_id: None,
+                prepared_object_id: confirmed_candidate
+                    .prepared_object_id
+                    .clone()
+                    .expect("confirmed prepared object ID"),
+                prepared_object_sha256: confirmed_candidate
+                    .prepared_object_sha256
+                    .clone()
+                    .expect("confirmed prepared object hash"),
+                quality_report_id: confirmed_candidate
+                    .quality_report_id
+                    .clone()
+                    .expect("confirmed quality report ID"),
+                approval_receipt_id: "mcp010c-positive-approval".to_owned(),
+                approval_summary: "Approve the deterministic visual fixture".to_owned(),
+                approval_session_id: "mcp010c-positive-session".to_owned(),
+                approval_expires_at: "9999999999".to_owned(),
+                idempotency_key: "mcp010c-positive-confirm".to_owned(),
+            })
+            .expect("visual hard gate should allow confirmation");
+        let export = runtime
+            .prepare_export(&ExportPrepareRequest {
+                project_id: project.project_id.clone(),
+                version_id: confirmed.version_id.clone(),
+                format: "glb".to_owned(),
+                profile: "mvp-glb".to_owned(),
+                request: json!({"reason":"MCP010C export hash fixture"}),
+            })
+            .expect("C export prepare");
+        let exported = runtime
+            .confirm_export(&ExportConfirmRequest {
+                project_id: project.project_id.clone(),
+                export_id: export.manifest.export_id.clone(),
+                version_id: confirmed.version_id,
+                format: "glb".to_owned(),
+                profile: "mvp-glb".to_owned(),
+                approval_receipt_id: "mcp010c-export-approval".to_owned(),
+                approval_summary: "Approve C structural export".to_owned(),
+                approval_session_id: "mcp010c-positive-session".to_owned(),
+                approval_expires_at: "9999999999".to_owned(),
+                idempotency_key: "mcp010c-export-once".to_owned(),
+            })
+            .expect("C export confirm");
+        assert_eq!(exported.output_sha256, export.manifest.artifact_hashes[0]);
     }
 
     #[test]
@@ -7452,6 +7708,165 @@ mod tests {
             project_id
         );
         assert_eq!(reopened.versions(Some(&project_id)).unwrap().len(), 1);
+        drop(reopened);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn c_visual_evidence_export_and_restart_keep_hashes_stable() {
+        let root = std::env::temp_dir().join(format!("forgecad-mcp010c-restart-{}", Uuid::new_v4()));
+        fs::create_dir_all(&root).expect("root");
+        let database = root.join("runtime.sqlite");
+        let cas = root.join("cas");
+        let (candidate_id, version_id, artifact_sha256, reference_id, reference_sha256, render_set_sha256, comparison_sha256, quality_sha256, export_request, export_output_sha256) = {
+            let runtime = Runtime::open_with_cas(&database, &cas).expect("runtime");
+            let project = runtime
+                .create_project("MCP010C restart evidence", json!({"profile":"mvp"}))
+                .expect("project");
+            let mut program = json!({
+                "schema_version":"GeometryProgram@2",
+                "project_id":project.project_id,
+                "representation_plan_sha256":"f".repeat(64),
+                "operator_catalog_sha256":operator_catalog_sha256(),
+                "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                "budgets":{"max_nodes":1,"max_triangles":1000,"max_glb_bytes":1048576,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                "nodes":[{"node_id":"shell","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.2,0.5],"position_m":[0.0,1.0,0.0],"rotation_rad":[0.0,0.0,0.0]}}],
+                "part_outputs":[{"part_id":"shell","input_node_ids":["shell"],"material_zone_id":"zone-white-shell","solid":true}]
+            });
+            program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
+            let prepared = runtime
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({"typed":"geometry","geometry_program":program}),
+                )
+                .expect("geometry prepare");
+            let candidate = prepared["candidate"].clone();
+            let candidate_id = candidate["candidate_id"].as_str().unwrap().to_owned();
+            let artifact_sha256 = candidate["prepared_object_sha256"].as_str().unwrap().to_owned();
+            let confirmed = runtime
+                .confirm_candidate(&CandidateConfirmRequest {
+                    project_id: project.project_id.clone(),
+                    candidate_id: candidate_id.clone(),
+                    base_version_id: None,
+                    prepared_object_id: candidate["prepared_object_id"].as_str().unwrap().to_owned(),
+                    prepared_object_sha256: artifact_sha256.clone(),
+                    quality_report_id: candidate["quality_report_id"].as_str().unwrap().to_owned(),
+                    approval_receipt_id: "mcp010c-restart-confirm".to_owned(),
+                    approval_summary: "Confirm structural restart fixture".to_owned(),
+                    approval_session_id: "mcp010c-restart-session".to_owned(),
+                    approval_expires_at: "9999999999".to_owned(),
+                    idempotency_key: "mcp010c-restart-confirm-once".to_owned(),
+                })
+                .expect("confirm structural fixture");
+            let reference = runtime
+                .import_reference(&ReferenceImportRequest {
+                    project_id: project.project_id.clone(),
+                    source: ReferenceImportSource::InlineContent {
+                        mime: "image/png".to_owned(),
+                        content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                    },
+                    authorization: ReferenceAuthorization {
+                        user_authorized: true,
+                        declaration: "MCP010C restart hash fixture reference".to_owned(),
+                    },
+                    expected_sha256: None,
+                })
+                .expect("reference import")
+                .reference;
+            let mut view_spec = json!({
+                "schema_version":"ReferenceViewSpec@1",
+                "reference_id":reference.reference_id,
+                "reference_sha256":reference.object_sha256,
+                "view_id":"restart-hash-fixture",
+                "source_view":"three-quarter",
+                "image":{"width":1,"height":1,"rotation_degrees":0.0,"crop":{"x":0.0,"y":0.0,"width":1.0,"height":1.0}},
+                "landmarks":[],
+                "regions":[],
+                "canonical_sha256":""
+            });
+            view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+            let visual = runtime
+                .prepare_reference_comparison(
+                    &project.project_id,
+                    json!({"candidate_id":candidate_id,"reference_id":reference.reference_id,"view_spec":view_spec}),
+                )
+                .expect("reference comparison");
+            let render_set_sha256 = visual["render_set_object_sha256"].as_str().unwrap().to_owned();
+            let comparison_sha256 = visual["comparison_report_object_sha256"].as_str().unwrap().to_owned();
+            let quality_sha256 = visual["quality_report_object_sha256"].as_str().unwrap().to_owned();
+            let export = runtime
+                .prepare_export(&ExportPrepareRequest {
+                    project_id: project.project_id.clone(),
+                    version_id: confirmed.version_id.clone(),
+                    format: "glb".to_owned(),
+                    profile: "mvp-glb".to_owned(),
+                    request: json!({"reason":"MCP010C restart hash fixture"}),
+                })
+                .expect("export prepare");
+            let export_request = ExportConfirmRequest {
+                project_id: project.project_id.clone(),
+                export_id: export.manifest.export_id.clone(),
+                version_id: confirmed.version_id.clone(),
+                format: "glb".to_owned(),
+                profile: "mvp-glb".to_owned(),
+                approval_receipt_id: "mcp010c-restart-export".to_owned(),
+                approval_summary: "Approve structural restart export".to_owned(),
+                approval_session_id: "mcp010c-restart-session".to_owned(),
+                approval_expires_at: "9999999999".to_owned(),
+                idempotency_key: "mcp010c-restart-export-once".to_owned(),
+            };
+            let exported = runtime
+                .confirm_export(&export_request)
+                .expect("export confirm");
+            (
+                candidate_id,
+                confirmed.version_id,
+                artifact_sha256,
+                reference.reference_id,
+                reference.object_sha256,
+                render_set_sha256,
+                comparison_sha256,
+                quality_sha256,
+                export_request,
+                exported.output_sha256,
+            )
+        };
+
+        let reopened = Runtime::open_with_cas(&database, &cas).expect("reopen");
+        let candidate = reopened
+            .candidate(&candidate_id)
+            .expect("candidate query")
+            .expect("candidate after restart");
+        assert_eq!(candidate.prepared_object_sha256.as_deref(), Some(artifact_sha256.as_str()));
+        let version = reopened
+            .version(&version_id)
+            .expect("version query")
+            .expect("version after restart");
+        assert_eq!(version.manifest_hash, artifact_sha256);
+        let evidence = reopened
+            .visual_evidence(&candidate_id)
+            .expect("visual evidence after restart");
+        assert_eq!(evidence["reference_id"], reference_id);
+        assert_eq!(evidence["render_set_hash"], render_set_sha256);
+        assert_eq!(evidence["comparison_report_hash"], comparison_sha256);
+        assert_eq!(evidence["quality_report_hash"], quality_sha256);
+        let quality = reopened
+            .quality(&candidate_id, Some(&reference_id))
+            .expect("quality after restart");
+        assert_eq!(quality["artifact_sha256"], artifact_sha256);
+        assert_eq!(quality["render_set_hash"], render_set_sha256);
+        assert_eq!(quality["comparison_report_hash"], comparison_sha256);
+        assert_eq!(reopened.reference(&reference_id).unwrap().unwrap().object_sha256, reference_sha256);
+        let pass = reopened
+            .render_pass_get(&render_set_sha256, "beauty")
+            .expect("render pass after restart");
+        assert_eq!(pass["render_set_hash"], render_set_sha256);
+        let replay = reopened
+            .confirm_export(&export_request)
+            .expect("export replay after restart");
+        assert!(replay.replayed);
+        assert_eq!(replay.output_sha256, export_output_sha256);
         drop(reopened);
         let _ = fs::remove_dir_all(root);
     }

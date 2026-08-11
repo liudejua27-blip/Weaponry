@@ -147,6 +147,11 @@ def parse_args() -> Any:
         default=1,
         help="Repeat the same candidate-bound comparison this many times and require identical hashes (1-5).",
     )
+    parser.add_argument(
+        "--export-restart",
+        action="store_true",
+        help="Synthetic structural-only check: confirm before visual comparison, export, restart Runtime, and replay the export without hash drift.",
+    )
     parser.add_argument("--timeout", type=float, default=30.0)
     return parser.parse_args()
 
@@ -155,6 +160,10 @@ def main() -> int:
     args = parse_args()
     require(args.mcp.is_file() and args.runtime.is_file(), "source MCP010C binaries were unavailable")
     require(1 <= args.determinism_repeats <= 5, "determinism-repeats must be between 1 and 5")
+    require(
+        not args.export_restart or args.reference is None,
+        "export-restart is limited to the synthetic structural fixture; do not confirm a real user reference here",
+    )
     if args.expected_build_cohort:
         require(re.fullmatch(r"[0-9a-f]{64}", args.expected_build_cohort) is not None, "invalid build cohort")
         mcp_identity = build_identity(args.mcp)
@@ -187,25 +196,29 @@ def main() -> int:
         reference_mime = "image/png"
         reference_declaration = "User authorized the supplied robot reference for ForgeCAD modeling"
     ready_path = data_root / "ipc" / "ready.json"
-    runtime = subprocess.Popen(
-        [
-            str(args.runtime),
-            "serve",
-            "--database",
-            str(data_root / "runtime.sqlite"),
-            "--cas-root",
-            str(data_root / "cas"),
-            "--endpoint-dir",
-            str(data_root / "ipc"),
-            "--ready-file",
-            str(ready_path),
-        ],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-    )
+
+    def start_runtime() -> subprocess.Popen[str]:
+        return subprocess.Popen(
+            [
+                str(args.runtime),
+                "serve",
+                "--database",
+                str(data_root / "runtime.sqlite"),
+                "--cas-root",
+                str(data_root / "cas"),
+                "--endpoint-dir",
+                str(data_root / "ipc"),
+                "--ready-file",
+                str(ready_path),
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+        )
+
+    runtime = start_runtime()
     client: McpClient | None = None
     ready: dict[str, Any] | None = None
     try:
@@ -216,8 +229,15 @@ def main() -> int:
         environment = os.environ.copy()
         for key in ("FORGECAD_RUNTIME_COMMAND", "FORGECAD_RUNTIME_DATA_DIR", "FORGECAD_RUNTIME_READY_FILE", "FORGECAD_RUNTIME_STATUS_FILE"):
             environment.pop(key, None)
-        environment["FORGECAD_RUNTIME_SOCKET"] = socket_path
-        environment["FORGECAD_RUNTIME_TOKEN"] = token
+        environment.pop("FORGECAD_RUNTIME_SOCKET", None)
+        environment.pop("FORGECAD_RUNTIME_TOKEN", None)
+        if args.export_restart:
+            # Keep the adapter on the ready-file backend so a restarted
+            # Runtime may publish a fresh authenticated token and socket.
+            environment["FORGECAD_RUNTIME_READY_FILE"] = str(ready_path)
+        else:
+            environment["FORGECAD_RUNTIME_SOCKET"] = socket_path
+            environment["FORGECAD_RUNTIME_TOKEN"] = token
         environment["FORGECAD_MCP_ENABLE_MCP004_WRITES"] = "1"
         client = McpClient(args.mcp, environment, args.timeout)
         initialized = client.request(
@@ -264,6 +284,26 @@ def main() -> int:
         require(isinstance(candidate, dict), "geometry_prepare omitted candidate")
         candidate_id = candidate.get("candidate_id")
         require(isinstance(candidate_id, str), "geometry candidate id unavailable")
+        version_id: str | None = None
+        if args.export_restart:
+            confirmed = client.tool(
+                "candidate_confirm",
+                {
+                    "project_id": project_id,
+                    "candidate_id": candidate_id,
+                    "base_version_id": None,
+                    "prepared_object_id": candidate.get("prepared_object_id"),
+                    "prepared_object_sha256": candidate.get("prepared_object_sha256"),
+                    "quality_report_id": candidate.get("quality_report_id"),
+                    "approval_receipt_id": "mcp010c-export-restart-confirm",
+                    "approval_summary": "Confirm synthetic structural export/restart fixture",
+                    "approval_session_id": "mcp010c-export-restart-session",
+                    "approval_expires_at": "9999999999",
+                    "idempotency_key": "mcp010c-export-restart-confirm-once",
+                },
+            )
+            version_id = confirmed.get("version_id") if isinstance(confirmed, dict) else None
+            require(isinstance(version_id, str) and version_id, "export-restart confirmation omitted version_id")
 
         view_spec: dict[str, Any] = {
             "schema_version": "ReferenceViewSpec@1",
@@ -284,7 +324,13 @@ def main() -> int:
         require(render_set.get("passes") == ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"], "RenderSet did not contain the fixed nine AOV order")
         render_set_hash = comparison.get("render_set_object_sha256")
         comparison_hash = comparison.get("comparison_report_object_sha256")
-        require(isinstance(render_set_hash, str) and isinstance(comparison_hash, str), "visual evidence CAS hashes were omitted")
+        quality_report_object_sha256 = comparison.get("quality_report_object_sha256")
+        require(
+            isinstance(render_set_hash, str)
+            and isinstance(comparison_hash, str)
+            and isinstance(quality_report_object_sha256, str),
+            "visual evidence CAS hashes were omitted",
+        )
         baseline_pass_artifacts = render_set.get("pass_artifacts")
         require(isinstance(baseline_pass_artifacts, dict), "RenderSet pass artifacts were omitted")
         for repeat_index in range(1, args.determinism_repeats):
@@ -336,6 +382,92 @@ def main() -> int:
         wrong = client.tool_error("render_pass_get", {"render_set_hash": "0" * 64, "pass": "beauty"})
         require(wrong.get("schema_version") == "RuntimeError@1", "wrong RenderSet hash did not fail closed")
 
+        export_restart_receipt: dict[str, Any] | None = None
+        if args.export_restart:
+            require(isinstance(version_id, str), "export-restart version was unavailable")
+            export_prepared = client.tool(
+                "export_prepare",
+                {
+                    "project_id": project_id,
+                    "version_id": version_id,
+                    "format": "glb",
+                    "profile": "mvp-glb",
+                    "request": {"reason": "MCP010C source export/restart hash fixture"},
+                },
+            )
+            export_manifest = export_prepared.get("manifest") if isinstance(export_prepared, dict) else None
+            require(isinstance(export_manifest, dict), "export_prepare omitted manifest")
+            export_request = {
+                "project_id": project_id,
+                "export_id": export_manifest.get("export_id"),
+                "version_id": version_id,
+                "format": "glb",
+                "profile": "mvp-glb",
+                "approval_receipt_id": "mcp010c-source-export-approval",
+                "approval_summary": "Approve synthetic structural export/restart fixture",
+                "approval_session_id": "mcp010c-export-restart-session",
+                "approval_expires_at": "9999999999",
+                "idempotency_key": "mcp010c-source-export-once",
+            }
+            exported = client.tool("export_confirm", export_request)
+            export_output_sha256 = exported.get("output_sha256") if isinstance(exported, dict) else None
+            require(isinstance(export_output_sha256, str) and len(export_output_sha256) == 64, "export_confirm omitted output hash")
+            export_manifest_sha256 = exported.get("manifest_sha256") if isinstance(exported, dict) else None
+            require(isinstance(export_manifest_sha256, str) and len(export_manifest_sha256) == 64, "export_confirm omitted manifest hash")
+
+            # Close only the Runtime; keep the MCP stdio session alive. The
+            # ready-file backend must discover the fresh token/socket on the
+            # next call, proving that visual evidence and export remain usable
+            # after a real process restart.
+            shutdown_runtime(ready, ready_path, runtime)
+            ready = None
+            runtime = start_runtime()
+            ready = wait_for_ready(ready_path, runtime, args.timeout)
+            restarted_status = client.tool("runtime_status", {})
+            require(restarted_status.get("state") == "Ready", "Runtime was not Ready after restart")
+            quality_after_restart = client.tool("quality_get", {"candidate_id": candidate_id, "reference_id": reference_id})
+            require(
+                quality_after_restart.get("artifact_sha256") == quality.get("artifact_sha256")
+                and quality_after_restart.get("render_set_hash") == render_set_hash
+                and quality_after_restart.get("comparison_report_hash") == comparison_hash,
+                "quality hashes drifted after Runtime restart",
+            )
+            restarted_pass = client.request(
+                "tools/call",
+                {"name": "render_pass_get", "arguments": {"render_set_hash": render_set_hash, "pass": "beauty"}},
+            )
+            restarted_result = restarted_pass.get("result") if isinstance(restarted_pass, dict) else None
+            restarted_structured = restarted_result.get("structuredContent") if isinstance(restarted_result, dict) else None
+            require(
+                isinstance(restarted_structured, dict)
+                and restarted_structured.get("sha256") == baseline_pass_artifacts.get("beauty", {}).get("sha256"),
+                "beauty pass hash drifted after Runtime restart",
+            )
+            export_replay = client.tool("export_confirm", export_request)
+            require(
+                export_replay.get("replayed") is True
+                and export_replay.get("output_sha256") == export_output_sha256
+                and export_replay.get("manifest_sha256") == export_manifest_sha256,
+                "export hash drifted after Runtime restart",
+            )
+            export_restart_receipt = {
+                "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+                "version_id": version_id,
+                "candidate_id": candidate_id,
+                "artifact_sha256": quality.get("artifact_sha256"),
+                "reference_sha256": reference_sha,
+                "render_set_sha256": render_set_hash,
+                "comparison_report_sha256": comparison_hash,
+                "quality_report_sha256": quality_report_object_sha256,
+                "export_manifest_sha256": export_manifest_sha256,
+                "export_output_sha256": export_output_sha256,
+                "restart_runtime_status": restarted_status.get("state"),
+                "beauty_pass_sha256": baseline_pass_artifacts.get("beauty", {}).get("sha256"),
+                "quality_visual_status": quality.get("visual_status"),
+                "persistent_user_data_touched": False,
+                "structural_visual_claim": "NOT_CLAIMED",
+            }
+
         receipt = {
             "schema_version": "ForgeCADMCP010CRawStdioProbe@1",
             "task_id": "FGC-MCP010C",
@@ -378,6 +510,8 @@ def main() -> int:
             "runtime_build_cohort_sha256": runtime_identity.get("build_cohort_sha256") if runtime_identity else None,
             "persistent_user_data_touched": False,
         }
+        if export_restart_receipt is not None:
+            receipt["export_restart_hash_evidence"] = export_restart_receipt
     finally:
         cleanup_error: BaseException | None = None
         if client is not None:
