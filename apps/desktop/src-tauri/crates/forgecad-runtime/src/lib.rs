@@ -4395,6 +4395,20 @@ fn decode_binary_mask(bytes: &[u8]) -> Result<Vec<bool>, RuntimeError> {
         .collect())
 }
 
+/// Quantize persisted visual metrics before hashing them. `serde_json::Value`
+/// stores renderer measurements as binary `f64`; without a bounded decimal
+/// representation, serializing and reading a report can turn values such as
+/// `0.24176079827981134` into `0.24176079827981137`, invalidating the report's
+/// own canonical hash. Twelve fractional digits are well below the C quality
+/// thresholds and make the JSON/CAS round trip deterministic.
+fn stable_visual_metric(value: f64) -> f64 {
+    if value.is_finite() {
+        (value * 1_000_000_000_000.0).round() / 1_000_000_000_000.0
+    } else {
+        value
+    }
+}
+
 fn compare_masks(reference: &[bool], model: &[bool], view_spec: &Value) -> Value {
     let mut intersection = 0usize;
     let mut union = 0usize;
@@ -4426,7 +4440,16 @@ fn compare_masks(reference: &[bool], model: &[bool], view_spec: &Value) -> Value
         sorted[sorted.len() / 2]
     };
     let critical = region_scores.iter().copied().fold(1.0, f64::min);
-    json!({"silhouette_iou":silhouette_iou,"boundary_f1_4px":boundary_f1,"bbox_edge_error":bbox_edge_error,"centroid_error":centroid_error,"landmark_coverage":landmark_coverage,"landmark_nme":landmark_nme,"region_median_iou":region_median,"critical_region_min_iou":critical})
+    json!({
+        "silhouette_iou":stable_visual_metric(silhouette_iou),
+        "boundary_f1_4px":stable_visual_metric(boundary_f1),
+        "bbox_edge_error":stable_visual_metric(bbox_edge_error),
+        "centroid_error":stable_visual_metric(centroid_error),
+        "landmark_coverage":stable_visual_metric(landmark_coverage),
+        "landmark_nme":stable_visual_metric(landmark_nme),
+        "region_median_iou":stable_visual_metric(region_median),
+        "critical_region_min_iou":stable_visual_metric(critical)
+    })
 }
 
 fn bbox(mask: &[bool]) -> Option<(usize, usize, usize, usize)> {
@@ -5756,6 +5779,29 @@ mod tests {
     }
 
     #[test]
+    fn comparison_metrics_keep_a_stable_canonical_hash_after_cas_round_trip() {
+        let mut reference = vec![false; 512 * 512];
+        let mut model = vec![false; 512 * 512];
+        for y in 96..416 {
+            for x in 128..320 {
+                reference[y * 512 + x] = true;
+            }
+        }
+        for y in 101..411 {
+            for x in 136..328 {
+                model[y * 512 + x] = true;
+            }
+        }
+        let metrics = compare_masks(&reference, &model, &json!({"landmarks":[],"regions":[]}));
+        let bytes = canonical_json_bytes(&metrics).expect("metrics canonical bytes");
+        let round_tripped: Value = serde_json::from_slice(&bytes).expect("metrics JSON round trip");
+        assert_eq!(
+            canonical_json_hash(&metrics),
+            canonical_json_hash(&round_tripped)
+        );
+    }
+
+    #[test]
     fn c_fixed_renderer_persists_nine_aovs_and_review_chain() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
@@ -5841,7 +5887,7 @@ mod tests {
                 "comparison_report_hash":comparison_hash,
                 "round":1,
                 "stage":"silhouette",
-                "issues":[],
+                "issues":[{"issue_id":"primitive-blockout","pass":"silhouette","region_id":"whole-body","claim":"Primitive-only candidate is a structural blockout and does not yet reproduce the panel, vent, cable and joint detail visible in the reference.","confidence":0.98,"visibility":"observed","action":"Keep this candidate as comparison evidence; activate supported hard-surface detail operators in a later MCP010D goal before claiming likeness."}],
                 "status":"needs_revision"
             }))
             .expect("Codex visual review");

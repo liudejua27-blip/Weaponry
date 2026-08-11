@@ -37,6 +37,8 @@
     "runtime_nested_contract_output_validation": "PASS",
     "mcp_tools_and_image_block": "PASS",
     "reference_mask_and_metric_path": "PASS",
+    "default_camera_auto_fit": "PASS",
+    "metric_cas_round_trip": "PASS",
     "viewer_compare_source_read_only": "PASS",
     "raw_stdio_reference_compare_review": "PASS",
     "deterministic_render_bytes": "PASS",
@@ -52,6 +54,7 @@
   "evidence": [
     "docs/evidence/mcp010c/raw-stdio.json",
     "docs/evidence/mcp010c/real-reference-robot.json",
+    "docs/evidence/mcp010c/real-reference-robot-camera-autofit.json",
     "docs/evidence/mcp010c/real-codex-cli-c-attempt13.json",
     "docs/evidence/mcp010c/dev-app-install.json",
     "docs/evidence/mcp010c/dev-app-package-verify.json",
@@ -61,12 +64,29 @@
     "script/test_mcp010c.sh"
   ],
   "limitations": [
-    "The synthetic source gate proves contract/transport/persistence behavior. An isolated run with the user's authorized robot PNG completed the real comparison and nine-AOV path, but failed the likeness thresholds: silhouette IoU 0.5132, boundary F1 0.1441, bbox edge error 0.1074 and centroid error 0.0169; landmark and region coverage were not supplied by the primitive blockout.",
+    "The synthetic source gate proves contract/transport/persistence behavior. The first isolated run with the user's authorized robot PNG is retained as a historical fixed-camera baseline: silhouette IoU 0.5132, boundary F1 0.1441, bbox edge error 0.1074 and centroid error 0.0169. The latest raw source run uses default camera auto-fit and stable metric quantization across the CAS round trip: silhouette IoU 0.6623, boundary F1 0.2418, bbox edge error 0.0566 and centroid error 0.0135; it still fails the likeness thresholds.",
     "The real robot run is a primitive structural blockout only. Its typed visual review requests revision, quality_get returns QUALITY_TARGET_NOT_MET, no candidate was confirmed, and no human score was fabricated.",
     "A real Codex CLI source-built run completed six short turns and 32 ForgeCAD MCP calls, including V2 discovery/hash/prepare, candidate-bound comparison, all nine render_pass_get calls, visual_review_submit and quality_get. The only non-MCP events were two recorded read-only Skill.md lookups; no file change, network call or user-persistent write was observed.",
     "The current renderer is product-owned software output; no remote segmentation, paid generation API, Blender state or plugin is used.",
     "A single three-quarter reference can only produce PARTIAL_VISIBLE_VIEW_PASS; HQ_360_PASS remains blocked until front/back/left/right/rear-three-quarter references include legs and feet.",
     "The Viewer reference/AOV compare source implementation and local IPC/build tests pass. The current Dev.app package, isolated C probe, and packaged Codex CLI renderer/compare/review transport also pass structurally, while the robot likeness gate remains QUALITY_TARGET_NOT_MET. Packaged Viewer UI E2E, Part/MaterialZone selection, explosion/heatmap, PBR V2 textures/material packs and export/restart hash checks remain NOT_RUN for later C substeps or MCP010E/F."
   ],
+  "latest_real_reference_run": {
+    "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+    "evidence": "docs/evidence/mcp010c/real-reference-robot-camera-autofit.json",
+    "previous_evidence": "docs/evidence/mcp010c/real-reference-robot.json",
+    "camera_mode": "default_auto_fit",
+    "metric_cas_round_trip": "PASS",
+    "metrics": {
+      "silhouette_iou": 0.662282347453,
+      "boundary_f1_4px": 0.24176079828,
+      "bbox_edge_error": 0.056640625,
+      "centroid_error": 0.013471252369,
+      "landmark_coverage": 0.0,
+      "landmark_nme": 1.0,
+      "region_median_iou": 0.0,
+      "critical_region_min_iou": 1.0
+    }
+  },
   "persistent_user_data_touched": false
 }

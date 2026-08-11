@@ -8,6 +8,8 @@
     "runtime": "candidate-bound RenderSet@2, local reference mask, comparison report, visual review and human receipt persist through CAS/evidence",
     "runtime_nested_contract_output_validation": "mutated visual/human receipts and nested fields fail closed",
     "mcp": "20 read tools + 16 opt-in writes; render_pass_get returns a single MCP image block without duplicating base64 in structuredContent",
+    "default_camera_auto_fit": "PASS: omitted camera calibrates distance from reference/model silhouette bounds; explicit camera remains authoritative",
+    "metric_cas_round_trip": "PASS: persisted comparison metrics remain canonically hashable after CAS JSON round trip",
     "viewer_compare_source_read_only": "PASS: Runtime visual_evidence_get/reference_bytes_get, Tauri read-only commands, Viewer AOV/compare source; Rust tests, cargo check, TypeScript typecheck and Vite build passed",
     "packaged_dev_app_c": "PASS_WITH_QUALITY_TARGET_NOT_MET: current Dev.app install/package/isolated probe, nine-AOV raw renderer path, and packaged Codex CLI compare/review transport share the recorded cohort; no human likeness claim",
     "raw_stdio": "isolated Runtime/MCP completed reference_import → V2 hash/prepare → reference_compare_prepare → render_pass_get → visual_review_submit → human_visual_review_submit → quality_get",
@@ -34,6 +36,7 @@
   "evidence": [
     "docs/evidence/mcp010c/raw-stdio.json",
     "docs/evidence/mcp010c/real-reference-robot.json",
+    "docs/evidence/mcp010c/real-reference-robot-camera-autofit.json",
     "docs/evidence/mcp010c/real-codex-cli-c-attempt13.json",
     "docs/evidence/mcp010c/dev-app-install.json",
     "docs/evidence/mcp010c/dev-app-package-verify.json",
@@ -65,5 +68,22 @@
     },
     "evidence": "docs/evidence/mcp010c/real-reference-robot.json",
     "codex_cli_evidence": "docs/evidence/mcp010c/real-codex-cli-c-attempt13.json"
+  },
+  "latest_real_reference_run": {
+    "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+    "evidence": "docs/evidence/mcp010c/real-reference-robot-camera-autofit.json",
+    "previous_evidence": "docs/evidence/mcp010c/real-reference-robot.json",
+    "camera_mode": "default_auto_fit",
+    "metric_cas_round_trip": "PASS",
+    "metrics": {
+      "silhouette_iou": 0.662282347453,
+      "boundary_f1_4px": 0.24176079828,
+      "bbox_edge_error": 0.056640625,
+      "centroid_error": 0.013471252369,
+      "landmark_coverage": 0.0,
+      "landmark_nme": 1.0,
+      "region_median_iou": 0.0,
+      "critical_region_min_iou": 1.0
+    }
   }
 }

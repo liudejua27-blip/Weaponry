@@ -15,7 +15,7 @@
 
 - 23-Part 和 51-Part 单图 V2 演练只证明 typed geometry/readback；增加 primitive 数量不是相似度优化；
 - V1 三材质区演练只证明材质 plumbing、UV/tangent 和 GLB 回读；不能证明 PBR 纹理或参考相似度；
-- C source Gate 的 IoU/boundary/bbox/centroid/landmark/region 计算已可回读。真实机器人运行的指标为 silhouette IoU `0.5132`、boundary F1 `0.1441`、bbox edge error `0.1074`、centroid error `0.0169`，仍低于当前门槛；landmark coverage `0`、region median IoU `0` 反映当前候选没有提交可验证的局部标注；局部梯度 flood-fill 已避免原先的棚拍背景污染，但不等于语义分割。
+- C source Gate 的 IoU/boundary/bbox/centroid/landmark/region 计算已可回读。早期固定相机的历史 receipt 为 silhouette IoU `0.5132`、boundary F1 `0.1441`、bbox edge error `0.1074`；本轮增加默认相机的参考轮廓自动取景并修复 CAS 浮点指标往返后，最新真实 PNG raw receipt 达到 silhouette IoU `0.6623`、boundary F1 `0.2418`、bbox edge error `0.0566`、centroid error `0.0135`，仍低于当前 likeness 门槛。landmark coverage `0`、region median IoU `0` 反映当前 primitive blockout 没有提交可验证的局部标注；局部梯度 flood-fill 已避免原先的棚拍背景污染，但不等于语义分割。
 - 单张三分之四参考最多允许 `PARTIAL_VISIBLE_VIEW_PASS`；没有 front/back/left/right/rear-three-quarter 全身参考，`HQ_360_PASS` 必须保持 `BLOCKED_REFERENCE_COVERAGE`。
 
 ## 2. 当前实现证据
@@ -53,17 +53,23 @@ Runtime 还以 `VisualEvidenceRecord` 保存 RenderSet/comparison/review/human/q
 
 C 当前已新增严格 JSON Schema，并实现 Runtime producer/consumer 的顶层与嵌套输出校验；unknown field、缺失字段、越界数值和视觉评审条目变更会 fail closed。只添加 schema、更新 `MVP_TOOL_CATALOG.md` 或把空工具列入 `tools/list` 都不算实现。
 
-### 2.4 首次真实机器人参考运行 — `PASS_WITH_QUALITY_TARGET_NOT_MET`
+### 2.4 首次真实机器人参考运行（历史固定相机 baseline） — `PASS_WITH_QUALITY_TARGET_NOT_MET`
 
 使用用户授权的 `/Downloads` PNG（字节 SHA-256 `b9cb687e…c1cadd`，1254×1254）在全新临时 Runtime/CAS 中运行：`reference_import → operator_catalog_get → geometry_program_hash → geometry_prepare → reference_compare_prepare → render_pass_get`（九个 PNG）`→ visual_review_submit → quality_get`。Runtime 没有写入用户持久数据，也没有确认 candidate、创建 version 或伪造 human receipt。
 
-该运行证明真实图片字节、candidate、RenderSet、comparison、review 和 QualityReport 的绑定链可用；局部梯度边界 flood-fill 让 bbox/centroid 指标比初版更稳定，但当前 primitive-only 机器人草图仍只是结构 blockout。生成的 beauty/silhouette 预览见临时输出目录，脱敏 receipt 见 `docs/evidence/mcp010c/real-reference-robot.json`。当前结论是 `QUALITY_TARGET_NOT_MET`，不是 `PARTIAL_VISIBLE_VIEW_PASS`。
+该运行证明真实图片字节、candidate、RenderSet、comparison、review 和 QualityReport 的绑定链可用；局部梯度边界 flood-fill 让 bbox/centroid 指标比初版更稳定，但当前 primitive-only 机器人草图仍只是结构 blockout。生成的 beauty/silhouette 预览见临时输出目录，脱敏 receipt 见 `docs/evidence/mcp010c/real-reference-robot.json`。该 receipt 保留为历史 baseline，结论是 `QUALITY_TARGET_NOT_MET`，不是 `PARTIAL_VISIBLE_VIEW_PASS`。
+
+### 2.4.1 默认相机取景与指标 CAS 往返修复 — `PASS_WITH_QUALITY_TARGET_NOT_MET`
+
+当 `reference_compare_prepare` 未提供显式 `CameraCalibration@1` 时，Runtime 现在先用默认相机渲染一次，再依据参考 mask 与模型 silhouette 的包围盒高度沿既有 view ray 调整相机距离；显式 camera 仍完全由调用方控制，不改变模型或隐藏几何。真实用户 PNG 的隔离 raw 回归由 `docs/evidence/mcp010c/real-reference-robot-camera-autofit.json` 记录：IoU `0.6623`、boundary F1 `0.2418`、bbox edge error `0.0566`、centroid error `0.0135`，九个 AOV、typed review 和 `quality_get` 均成功，视觉状态仍为 `QUALITY_TARGET_NOT_MET`。
+
+同一回归暴露并修复了一个数据真值问题：高精度 `f64` 视觉指标在写入/读回 CAS 后可能改变最后几位，导致 `visual_review_submit` 错误拒绝合法 comparison report。Runtime 现在在持久化前将视觉指标量化到 12 位小数，并用 CAS round-trip 回归证明 canonical hash 稳定；这不是放宽质量门。
 
 ### 2.5 真实 Codex CLI C 运行 — `PASS_WITH_QUALITY_TARGET_NOT_MET`
 
 同一 source-built MCP/Runtime/geometry Worker cohort 的真实 Codex CLI 已完成六个短 turn：setup 创建/导入与 `reference_get` 回读、V2 capability/catalog/skill/hash/geometry prepare、candidate-bound readback/compare、九个 `render_pass_get`、`visual_review_submit` 和 `quality_get`。共 32 个 ForgeCAD MCP 调用全部 completed，生成 27 个语义 Part、4100 triangles 和 validator-passed GLB；九个 AOV 顺序与 candidate/render/comparison/review hash 绑定一致。脱敏 receipt 为 `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json`。
 
-Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读查阅，已保留事件类型与 SHA-256 摘要；没有文件变更、网络调用或用户持久数据写入。该运行仍返回 `QUALITY_TARGET_NOT_MET`（silhouette IoU `0.5132`、boundary F1 `0.1441`），所以它证明的是“Codex 能真实调用 C 工具链”，不是高质量 likeness。
+Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读查阅，已保留事件类型与 SHA-256 摘要；没有文件变更、网络调用或用户持久数据写入。该 receipt 保留了自动取景修复前的 `QUALITY_TARGET_NOT_MET`（silhouette IoU `0.5132`、boundary F1 `0.1441`），所以它证明的是“Codex 能真实调用 C 工具链”，不是高质量 likeness；最新相机/指标修复目前只有 raw source receipt，尚未重跑完整 Codex CLI receipt。
 
 ### 2.6 Viewer 只读比较面 — `source implementation PASS / packaged C transport PASS / Viewer UI E2E NOT_RUN`
 
@@ -103,6 +109,7 @@ Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读�
 4. `visual_review_submit` 只保存绑定具体 pass/region/candidate hash 的 typed issue 和建议；Codex review 不能修改硬门结果；
 5. 每个 candidate 最多五轮：`silhouette → structure → form → material/surface → final`；任何一轮未达到目标都返回 `QUALITY_TARGET_NOT_MET`，不能偷偷 confirm 低质量 candidate。
 6. 首次真实机器人运行已完成一轮 `silhouette` review，Codex typed issue 要求补充 panel/vent/cable/joint detail；它没有改变硬门结果，candidate 保持未确认。
+7. 默认 camera auto-fit 与浮点指标 CAS round-trip 已加入当前 Runtime；最新真实 PNG raw receipt 提升了轮廓指标但仍未达到 likeness 门槛，不能确认或导出。
 
 ### C4：工具和返回面 — `PASS`（raw stdio + source/packaged real Codex CLI；Viewer UI 仍未运行）
 
@@ -149,7 +156,7 @@ Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读�
 
 用户已显式领取 MCP010C；Luna 后续只能继续本原子 Goal，并保持 C–F 的顺序。当前已完成：
 
-1. 59-contract checker、Worker renderer、Runtime review chain、嵌套 receipt validator、raw stdio receipt 和真实 Codex CLI C receipt 已建立；
+1. 59-contract checker、Worker renderer、Runtime review chain、嵌套 receipt validator、raw stdio receipt 和真实 Codex CLI C receipt 已建立；当前还新增了默认 camera auto-fit 与 fractional-metric CAS round-trip receipt；
 2. MCP010B 的 V2 graph、Worker isolation 和 closed GLB Gate 未被覆盖；
 3. synthetic source Gate 和首次真实机器人参考运行均已记录；真实运行只写入隔离临时 CAS，quality target 未通过，未改变用户持久数据；
 4. Viewer compare/read-only UI 的 source implementation 已完成并通过本地构建/IPC 测试；还需完成同 cohort packaged C/Viewer probe、五次 render/metrics/report determinism 和 export/restart hash；人评仍必须由用户实际提交，不能由脚本代填。

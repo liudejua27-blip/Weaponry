@@ -96,7 +96,7 @@ geometry_prepare(project_id, reference_id)
 
 当前真实单图演练的停止点是：23 个 semantic Parts、9,964 triangles、1,592,884-byte GLB 的 strict readback 通过，但 limited aspect proxy 为 `0.5466 < 0.55`，所以候选保持未确认、未创建 version/export。这是正确的 fail-closed 行为。
 
-MCP010C 首次真实机器人参考运行已经完成固定渲染/比较/typed review：1254×1254 用户授权 PNG 进入隔离 CAS，生成九个 512×512 AOV，使用 `mask-2` 的本地梯度 border flood-fill，silhouette IoU `0.5132`、boundary F1 `0.1441`、bbox edge error `0.1074`、centroid error `0.0169`，`quality_visual_status=QUALITY_TARGET_NOT_MET`。该次候选未确认、未创建 version/export，human receipt 为 `NOT_RUN`；脱敏证据见 `docs/evidence/mcp010c/real-reference-robot.json`。这说明调用路线真实可用，也明确说明当前 primitive blockout 尚未接近参考图。
+MCP010C 首次真实机器人参考运行已经完成固定渲染/比较/typed review：1254×1254 用户授权 PNG 进入隔离 CAS，生成九个 512×512 AOV，使用 `mask-2` 的本地梯度 border flood-fill；该固定相机历史 baseline 的 silhouette IoU `0.5132`、boundary F1 `0.1441`、bbox edge error `0.1074`、centroid error `0.0169` 保留在 `docs/evidence/mcp010c/real-reference-robot.json`。当前 Runtime 已在未提供显式 camera 时自动按参考/模型 silhouette 包围盒取景，并将视觉指标量化后再写入 CAS；最新 raw receipt `docs/evidence/mcp010c/real-reference-robot-camera-autofit.json` 达到 IoU `0.6623`、boundary F1 `0.2418`、bbox edge error `0.0566`、centroid error `0.0135`，但仍为 `QUALITY_TARGET_NOT_MET`。两次候选均未确认、未创建 version/export，human receipt 为 `NOT_RUN`；这说明调用路线和数据往返真实可用，也明确说明当前 primitive blockout 尚未达到参考 likeness。
 
 随后按稳定 Part intake brief 运行的当前候选为 12 个 semantic Parts、13 个 source nodes、896 triangles、161104-byte GLB；strict ArtifactReadback@2 的 integrity counters 全为 0，Part/source/material coverage 均为 `1.0`，bounded aspect proxy 为 `0.65517`。该报告仍明确标记 `limited`，候选保持 `reviewable`、未确认、未创建 version/export；它是当前 primitive-only 路线的结构证据，不是 silhouette、PBR 或真人视觉通过。
 
@@ -118,7 +118,7 @@ project_create → reference_import → reference_get
 
 探针默认使用 Codex 的 MCP 自动审批工作区，并把非 MCP 事件脱敏分类；只读 `.codex/.../SKILL.md` 查阅可以记录为 `codex_skill_read_only`，任何文件变更、网络命令或未知命令都必须使 receipt 保持 `BLOCKED`。若只测试 read-only 边界，可显式传 `--sandbox read-only`，但该模式不能完成需要写入 Candidate/RenderSet/Review 的完整 C 路线。
 
-2026-08-11 的真实 CLI C receipt `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json` 已完成六个短 turn、32 个 ForgeCAD MCP 调用、27 个 semantic Parts、4100 triangles 和九 AOV；它证明“Codex 能真实调用 C 工具链”，但同一用户机器人参考的 silhouette IoU `0.5132`、boundary F1 `0.1441` 仍低于视觉门槛，因此不能称为高质量模型，也不能自动确认或导出 candidate。
+2026-08-11 的真实 CLI C receipt `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json` 已完成六个短 turn、32 个 ForgeCAD MCP 调用、27 个 semantic Parts、4100 triangles 和九 AOV；它保留了 camera auto-fit/指标 CAS 修复前的 silhouette IoU `0.5132`、boundary F1 `0.1441`。最新 raw source receipt 已验证修复后的 IoU `0.6623` 与 review/quality 读回，但尚未重跑完整 CLI turn，因此两者都不能称为高质量模型，也不能自动确认或导出 candidate。
 
 ### 5.3 Viewer 只读比较路线
 
