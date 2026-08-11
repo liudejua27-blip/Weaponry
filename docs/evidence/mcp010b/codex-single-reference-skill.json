@@ -1,0 +1,54 @@
+{
+  "schema_version": "ForgeCADCodexSkillReceipt@1",
+  "task_id": "FGC-MCP010B",
+  "recorded_on": "2026-08-10",
+  "skill_id": "forgecad-single-reference-quality-loop",
+  "skill_kind": "Codex-local-orchestration",
+  "runtime_skill_bundle": false,
+  "runtime_operator_or_catalog_changes": false,
+  "network_or_plugin_install": false,
+  "skill_contract": {
+    "frontmatter_and_body": "PASS",
+    "agents_openai_yaml": "PASS",
+    "official_quick_validate": "NOT_RUN",
+    "official_quick_validate_reason": "The provided Python validator imports PyYAML, which is absent from the configured offline Python runtimes; Ruby YAML parsing and equivalent frontmatter/length/no-TODO checks passed.",
+    "body_lines": 61,
+    "skill_sha256": "9eae3bbfd3f1b9e419b8df14175308fa450b157151260b9eb7a377b1e2708f64",
+    "hard_surface_skill_sha256": "0df6f7dbfce63f5cdb68f34c44f5a60f5b911d4a1b9035cccd207ad7f8605bb5",
+    "orchestration_yaml_sha256": "221a72f142a9380fa64837baa03ef962f0797450483e722aa49797f9287acf8c",
+    "reference_files": [
+      "references/forgecad-call-contracts.md",
+      "references/material-zone-recipe.md",
+      "references/three-quarter-robot-intake-template.md",
+      "references/primitive-v2-robot-template.md"
+    ]
+  },
+  "live_runtime_binding": {
+    "build_cohort_sha256": "5143ac3ba3518593106d19f3302d21af9e2d04b2912840a90b49b7c2b9776e61",
+    "operator_catalog_sha256": "e69035a19c3f1379925919d9ed3511cb849648358fb2e46e888d8f51341e275a",
+    "active_operator_ids": ["forgecad.geometry.primitive@2"],
+    "runtime_skill_registry_status": "development-only declarative manifests; primitive-blockout@0.2.0 active, remaining historical bundles unavailable/partial as reported by skill_list",
+    "discovery_smoke": {
+      "sequence": ["capabilities_get", "runtime_status", "doctor", "operator_catalog_get", "skill_list"],
+      "status": "PASS",
+      "runtime_state": "Ready",
+      "doctor_state": "Ready",
+      "catalog_operator_ids": ["forgecad.geometry.primitive@2"],
+      "catalog_operator_status": "active",
+      "catalog_digest_matches_capabilities": true,
+      "primitive_blockout_skill": "active",
+      "skill_registry_count": 11,
+      "writes_or_persistence": false
+    }
+  },
+  "workflow_scope": [
+    "user-authorized single PNG/JPEG intake",
+    "three-quarter robot stable-Part and observed/inferred/unknown intake template",
+    "catalog → hash → geometry_prepare → strict readback",
+    "explicit V1 material fallback boundary",
+    "quality-driven one-Part correction and fail-closed confirmation",
+    "separate structural-MVP confirmation from visual-quality confirmation",
+    "observed/inferred/unknown reference coverage"
+  ],
+  "interpretation": "This Skill improves Codex tool orchestration and evidence discipline. It now exposes separate visual-quality and explicitly user-approved structural-MVP decision paths. It is not a Runtime executable Skill, material pack, plugin, renderer, image-to-3D model or visual-quality receipt."
+}

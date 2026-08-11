@@ -33,7 +33,10 @@ fn main() {
         return;
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![viewer_read_model, viewer_artifact_bytes])
+        .invoke_handler(tauri::generate_handler![
+            viewer_read_model,
+            viewer_artifact_bytes
+        ])
         .run(tauri::generate_context!())
         .expect("failed to run ForgeCAD Runtime Viewer");
 }

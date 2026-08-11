@@ -1,7 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
-版本：2026-08-09
-状态：MCP005–009 functional truth 已实现；FGC-MCP010A done；MCP010 V2 geometry/reference/material/viewer truth 仍是目标设计
+版本：2026-08-10
+状态：MCP005–009 functional truth 已实现；FGC-MCP010A done；MCP010B structural truth source Gate 已通过但 Darwin OS memory hard cap deferred/NOT_RUN；MCP010C source-focused renderer/compare/review Gate 已通过，首次真实机器人 compare/review transport 已运行但 likeness threshold `FAIL_QUALITY_TARGET_NOT_MET`，Viewer/package/人评门仍 NOT_RUN/BLOCKED；MCP010D–F blocked
 
 ## 1. 真值层级
 
@@ -17,9 +17,13 @@ GLB、图片、`.blend`、Three.js scene、prompt、Skill 文档和 Codex 评价
 
 MVP 具体规则：Reference truth 是 CAS 原始字节 + `ReferenceEvidence`，不是本机路径；Geometry truth 是 canonical `GeometryProgram` + worker receipt + mesh/GLB readback，不是 `.blend` 或 Viewer scene；Appearance truth 是 typed MaterialZone/AppearanceProgram；Render/Quality 只证明同一 candidate hash；导出是 confirmed version 的派生物，不反向成为版本头。
 
-### 1.1 MCP010 目标真值（尚未实现）
+### 1.1 MCP010 当前与目标真值
 
-MCP010B–F 计划增加 `GeometryProgram@2`、`ArtifactReadback@2`、`AppearanceProgram@2`、`RenderSet@2`、参考比较、Visual/Human review 和 first-party AssetPack。它们仍遵守同一层级：Schema/program/asset manifest 是声明，只有 Runtime-owned producer、CAS artifact、严格 readback、固定 render、QualityReport 和版本 lineage 共同成立时才成为候选证据。010A 文档重排不创建这些对象，也不改变当前 44 Schema、17 read + 13 write tools 或 Skill `0.1.0` 事实。
+MCP010B 当前源码增加 8 个合同，MCP010C 再增加 7 个合同，当前共 59 个 JSON Schema（MCP006 历史为 44）。B 的 `GeometryProgram@2`/strict readback/restore evidence source Gate 已通过；Darwin 512 MiB OS memory hard cap 仍 deferred/NOT_RUN。C 的 `ReferenceViewSpec@1`、`CameraCalibration@1`、`RenderSet@2`、`ReferenceComparisonReport@1`、`VisualReviewReport@1`、`HumanVisualReviewReceipt@1`、`QualityReport@2` 已由 Runtime/MCP producer/consumer 使用；固定 512×512 perspective/z-buffer renderer、九 AOV、local mask/metrics、MCP image block 和 Codex/human review 的 source raw Gate 已通过。首次真实机器人 PNG 运行也完成九 AOV/compare/review transport，但 primitive blockout 的 likeness threshold 未通过；脱敏证据见 `docs/evidence/mcp010c/real-reference-robot.json`。MCP010A/010B 的历史 Dev.app receipts仍原样保留，不能替代 C packaged/live/Viewer evidence。C synthetic/raw 和本次真实 transport receipt 都不证明用户机器人 likeness、PBR、独立人评或 360°。
+
+`AppearanceProgram@2`、PBR V2/纹理、Viewer compare/selection/explosion 和 first-party AssetPack 仍属于 MCP010D–F。C 的 RenderSet@2/比较/评审已进入 Runtime-owned producer、CAS artifact、严格 readback、固定 render、QualityReport 和 evidence lineage；但 source raw Gate 使用 synthetic reference，仅证明合同与绑定。当前 Runtime Skill registry 的 11 项中，只有 `primitive-blockout@0.2.0` 因 primitive@2 真实 consumer 被标为 active；这不产生材质、纹理、PBR 或视觉相似度。Darwin 512 MiB OS memory hard cap、人评阈值、Viewer/package/live C 和 360 更不能由结构 PASS 推导。
+
+最新 `d9c23b…ac0bd` 开发包记录了 Bundle 知识分支的校正：`limited` 只阻断视觉质量声明，`STRUCTURAL_BLOCKOUT` 仍需用户明确选择并经过相同 Runtime geometry/readback/approval 硬门。该包的 isolated raw/real-Codex V2 structural 通过；用户完整重启后它已成为当前 live Desktop cohort，并完成 32 工具、Ready/doctor、cohort/catalog/hash 与项目只读回读结构激活。
 
 目标 `HumanVisualReviewReceipt` 只证明用户评分绑定到特定 reference/camera/render/candidate hash，不证明模型身份，也不能覆盖 Geometry/UV/PBR 硬门。当前单张参考只能产生 `PARTIAL_VISIBLE_VIEW_PASS`；`HQ_360_PASS` 在多视图完整前固定 blocked。
 

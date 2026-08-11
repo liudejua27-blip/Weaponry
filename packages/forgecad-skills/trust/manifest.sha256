@@ -1,4 +1,4 @@
 # Development trust manifest. The aggregate registry is the registry source;
 # each independently materialized Bundle carries its own manifest/Recipe trust
 # lines under bundles/<skill-id>/<version>/trust/.
-f171d06d857fad96ecc1f3c278b47f3666cb303ae9f5b56b0a2484571f2e0376  registry.json
+ce61081188f988ece2d93e378efc9bd4257bbd2b7ae80c1718b2a47cd49b3f24  registry.json

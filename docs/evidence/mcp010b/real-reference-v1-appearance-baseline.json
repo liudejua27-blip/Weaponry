@@ -1,0 +1,79 @@
+{
+  "schema_version": "ForgeCADMCP010BRealReferenceBaseline@1",
+  "task_id": "FGC-MCP010B",
+  "status": "PASS_WITH_QUALITY_LIMITATION",
+  "recorded_on": "2026-08-10",
+  "project_id": "project-822d5513ad41499290910913cbc2bfd1",
+  "reference_id": "reference-35bc12fe88f349c9ba3590b271fb9130",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "route": "legacy V1 compatibility geometry -> AppearanceProgram@1 -> fixed RenderSet@1 -> limited quality -> reject",
+  "persistent_user_data_touched": true,
+  "sequence": [
+    "appearance_prepare",
+    "artifact_readback_get",
+    "quality_get",
+    "candidate_reject"
+  ],
+  "geometry_program": {
+    "schema_version": "GeometryProgram@1",
+    "canonical_sha256": "99403af1a76d53015b32db7c96f4469b99f85c89a9674bd863731e1580d10e1d",
+    "part_count": 15,
+    "operator_id": "forgecad.geometry.primitive@1"
+  },
+  "appearance_program": {
+    "schema_version": "AppearanceProgram@1",
+    "canonical_sha256": "98fe170f65813bc08aa7aa6e26cb26d2084331e4fb5e95999433c7b6e9651ddb",
+    "material_zone_ids": [
+      "zone-white-shell",
+      "zone-black-mechanical",
+      "zone-amber-emissive"
+    ],
+    "texture_inputs": "none"
+  },
+  "artifact": {
+    "artifact_id": "8337a0020f36fabf3a5169e0ce8182e265824e882827c2bf5211f77010d1106e",
+    "candidate_id": "candidate-e3ec02f58b9d4cf3b49bc435d8fb6528",
+    "object_sha256": "8337a0020f36fabf3a5169e0ce8182e265824e882827c2bf5211f77010d1106e",
+    "size_bytes": 109564,
+    "triangle_count": 548,
+    "validator_status": "passed",
+    "uv_status": "passed",
+    "tangent_status": "passed"
+  },
+  "render_set": {
+    "schema_version": "RenderSet@1",
+    "passes": ["beauty", "silhouette", "normal", "part-id"],
+    "resolution": [256, 256],
+    "renderer_hash": "3724717bdcb35f4f143a440d6400b4e2697ecf6f9601f86bc146fd39d086a06d",
+    "render_set_object_sha256": "b45995d605775eaa9dcd5839613d3fc6e86754c9ed252e2406d62a8ed68ad3da"
+  },
+  "job": {
+    "job_id": "job-5d71582faf954466b5d876f107ee9f2e",
+    "status": "succeeded",
+    "progress": 100
+  },
+  "quality": {
+    "quality_report_id": "quality-appearance-8337a0020f36fabf3a5169e0ce8182e2",
+    "hard_gate_passed": false,
+    "reference_compare_status": "limited",
+    "aspect_score": 0.4661654438601297,
+    "aspect_threshold": 0.55,
+    "quality_report_object_sha256": "0545c0f2a700d79aec77f0e82ee94d894445f0ca8e1019ca7b21b6234434d28e",
+    "limitation": "MVP aspect evidence does not infer pixel silhouette, landmarks or semantic correspondence."
+  },
+  "decision": {
+    "candidate_state": "rejected",
+    "approval_receipt_id": "receipt-90ccd7b2788d4f86ac69aac2eebfb22b",
+    "version_created": false,
+    "export_created": false,
+    "human_visual_review": "NOT_RUN",
+    "pbr_texture_fidelity": "NOT_RUN",
+    "360_coverage": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "interpretation": [
+    "The bounded V1 material route can produce three typed material zones and four deterministic fixed-render metadata passes.",
+    "UV/tangent/GLB readback passing is structural evidence only; this run has no texture inputs and is not AppearanceProgram@2.",
+    "The limited aspect gate failed, so Runtime rejected the exploratory candidate and did not mint a version.",
+    "This result reinforces that material compilation and triangle count cannot substitute for MCP010C reference render/compare evidence."
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "coordinate_system": "right-handed-y-up",
+  "expected": {
+    "dag": "acyclic",
+    "finite": true,
+    "operator_allowlist": "pass",
+    "semantic_part_sink": "pass"
+  },
+  "fixture_id": "primitive-blockout-v2-declarative-valid",
+  "recipe_id": "primitive-blockout",
+  "schema_version": "SkillBenchmarkFixture@1",
+  "skill_id": "primitive-blockout",
+  "units": "meter",
+  "values": {
+    "max_nodes": 128,
+    "max_triangles": 250000,
+    "parts": 12
+  }
+}

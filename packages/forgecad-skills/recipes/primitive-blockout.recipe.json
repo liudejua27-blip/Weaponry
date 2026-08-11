@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 128
+  },
+  "canonical_sha256": "d4f04d353de08ab4838914e127600e5466ae319e7258bd470e042865fa4cc8ee",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "blockout-v2"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "GeometryProgram@2",
+      "node_id": "blockout-v2",
+      "operator_id": "forgecad.geometry.primitive@2",
+      "output_schema": "GeometryPrepareResult@2"
+    }
+  ],
+  "recipe_id": "primitive-blockout",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "primitive-blockout",
+  "units": "meter"
+}

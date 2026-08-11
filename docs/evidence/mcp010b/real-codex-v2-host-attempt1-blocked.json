@@ -1,0 +1,22 @@
+{
+  "schema_version": "ForgeCADMCP010BCodexCliProbe@1",
+  "task_id": "FGC-MCP010B",
+  "attempt": 1,
+  "status": "BLOCKED",
+  "scope": "real Codex CLI V2 structural host gate",
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "reference_path_recorded": false,
+  "image_bytes_recorded": false,
+  "observed_prefix": [
+    "project_create",
+    "reference_import"
+  ],
+  "blocked_reason": "The first authoring prompt did not complete a discoverable live catalog-to-hash sequence. The probe did not create a confirmed version or touch persistent user data.",
+  "remediation": "Expose the Runtime-owned OperatorCatalog@1 through an explicit read-only operator_catalog_get tool, bind its digest to capabilities/hash/artifact/readback, and use that constrained route in the next attempt.",
+  "visual_similarity": "NOT_RUN",
+  "human_review": "NOT_RUN",
+  "assetpack_or_pbr_v2": "NOT_RUN",
+  "candidate_confirmed": false,
+  "persistent_user_data_touched": false
+}

@@ -5,7 +5,7 @@
 
 ## 1. 现在能做什么
 
-当前仓库已完成 MCP001–004 的单用户事务基座，并完成 MCP005：Runtime/IPC、candidate/approval/immutable version/restore/diagnostic export、轻量启动监督、真实 Codex CLI diagnostic write、PNG/JPEG ReferenceEvidence/CAS admission 和 Viewer read model；MCP006 完成十个 development-only first-party Skill Bundle；MCP007 完成有界 typed GeometryProgram → 多 Part GLB → strict ArtifactReadback；MCP008 增加 hash-bound UV/tangent/PBR、四个固定 render pass 和 Three.js GLB canvas；MCP009 增加 limited quality、稳定 Part `change_prepare`、reject/confirm/restore 和 CAS-backed `mvp-glb` receipt。真实 Codex CLI 已完成授权图片→geometry/appearance→quality→approval/version→CAS-only GLB 的十二调用 host receipt。普通用户可以进行开发构建上的本地 MVP 评估，但仍不能把 limited evidence 宣称为像素级“高质量 3D”。Codex IDE/VS Code/Cursor/Windsurf 仍是未来兼容范围。
+当前仓库已完成 MCP001–004 的单用户事务基座，并完成 MCP005：Runtime/IPC、candidate/approval/immutable version/restore/diagnostic export、轻量启动监督、真实 Codex CLI diagnostic write、PNG/JPEG ReferenceEvidence/CAS admission 和 Viewer read model；MCP006 完成十个历史 development-only first-party Skill Bundle，MCP010B 追加当前可执行的 `primitive-blockout@0.2.0` V2 Skill；MCP007 完成有界 typed GeometryProgram → 多 Part GLB → strict ArtifactReadback；MCP008 增加 hash-bound UV/tangent/PBR、四个固定 render pass 和 Three.js GLB canvas；MCP009 增加 limited quality、稳定 Part `change_prepare`、reject/confirm/restore 和 CAS-backed `mvp-glb` receipt。真实 Codex CLI 已完成授权图片→geometry/appearance→quality→approval/version→CAS-only GLB 的十二调用 host receipt。普通用户可以进行开发构建上的本地 MVP 评估，但仍不能把 limited evidence 宣称为像素级“高质量 3D”。Codex IDE/VS Code/Cursor/Windsurf 仍是未来兼容范围。
 
 旧界面、内置模型和旧工作台已从当前树删除；不要寻找旧入口或配置任何模型 API Key，也不要把 reset 归档中的旧结果当作新方向的项目证据。
 
@@ -13,7 +13,7 @@
 
 - 保留并备份旧 Library、数据库、CAS、导入和导出；
 - 阅读新产品文档和查看迁移状态；
-- 当前可打开 Runtime Viewer 查看 Runtime 项目、候选、GLB bytes、UV/tangent/PBR metadata 和固定 render lineage；可通过带授权 image attachment 的真实 Codex CLI 导入 PNG/JPEG、生成 14/15-part bounded robot、读回 Appearance/Quality 并确认 CAS-only MVP GLB；可通过只读 `skill_list/skill_get` 查看十个 development-only Bundle。视觉比较和用户评分仍按 evidence 记录，不得把本地 fixture 或 limited aspect 当作相似度。
+- 当前可打开 Runtime Viewer 查看 Runtime 项目、候选、GLB bytes、UV/tangent/PBR metadata 和固定 render lineage；可通过带授权 image attachment 的真实 Codex CLI 导入 PNG/JPEG、使用 `primitive-blockout@0.2.0` 生成 V2 bounded robot、读回 ArtifactReadback/Quality 并按批准边界确认 CAS-only MVP GLB；可通过只读 `skill_list/skill_get` 查看 11 个 development-only Bundle。视觉比较和用户评分仍按 evidence 记录，不得把本地 fixture 或 limited aspect 当作相似度。
 
 ## 2. MVP 目标流程
 

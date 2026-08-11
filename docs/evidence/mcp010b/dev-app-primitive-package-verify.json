@@ -1,0 +1,16 @@
+{
+  "schema_version": "ForgeCADMCP010BPrimitivePackageVerify@1",
+  "task_id": "FGC-MCP010B",
+  "status": "PASS",
+  "build_cohort_sha256": "5143ac3ba3518593106d19f3302d21af9e2d04b2912840a90b49b7c2b9776e61",
+  "resource_allowlist": [
+    "forgecad-geometry-worker",
+    "forgecad-mcp",
+    "forgecad-runtime"
+  ],
+  "codesign": "ad-hoc deep strict PASS",
+  "runtime_probe": "NOT_RUN",
+  "developer_id": "NOT_RUN",
+  "notarization": "NOT_RUN",
+  "persistent_user_data_touched": false
+}

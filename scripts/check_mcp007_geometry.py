@@ -37,7 +37,7 @@ def request(value: dict[str, Any]) -> dict[str, Any]:
 
 
 def run(worker: str, payload: dict[str, Any]) -> dict[str, Any]:
-    completed = subprocess.run([worker], input=json.dumps(payload) + "\n", text=True, capture_output=True, check=False, timeout=20)
+    completed = subprocess.run([worker, "--isolated-once"], input=json.dumps(payload) + "\n", text=True, capture_output=True, check=False, timeout=20)
     lines = [line for line in completed.stdout.splitlines() if line.strip()]
     if not lines:
         raise RuntimeError("geometry worker returned no response")

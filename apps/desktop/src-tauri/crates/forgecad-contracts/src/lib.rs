@@ -56,6 +56,7 @@ pub struct RuntimeCapabilities {
     pub supports_resource_read: bool,
     pub supports_geometry_execution: bool,
     pub supports_render_execution: bool,
+    pub operator_catalog_sha256: Option<String>,
     pub contract_versions: Vec<String>,
     pub mcp_protocol_versions: Vec<String>,
     pub resource_uris: Vec<String>,
@@ -82,6 +83,7 @@ impl Default for RuntimeCapabilities {
             supports_resource_read: true,
             supports_geometry_execution: false,
             supports_render_execution: false,
+            operator_catalog_sha256: None,
             contract_versions: vec![CONTRACT_SET.to_owned()],
             mcp_protocol_versions: MCP_PROTOCOL_VERSIONS
                 .iter()
@@ -168,6 +170,29 @@ pub struct CandidateRecord {
     pub error_code: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// Durable, V2-only evidence that binds a reviewable geometry candidate to
+/// the exact typed program, strict readback and quality objects used at
+/// confirmation time.  It intentionally lives beside `Candidate@1` rather
+/// than changing the historical candidate contract in place.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeometryCandidateEvidenceRecord {
+    pub schema_version: String,
+    pub candidate_id: String,
+    pub project_id: String,
+    pub reference_id: Option<String>,
+    pub reference_sha256: Option<String>,
+    pub geometry_program_sha256: String,
+    pub geometry_program_object_sha256: String,
+    pub operator_catalog_sha256: String,
+    pub readback_config_sha256: String,
+    pub artifact_object_sha256: String,
+    pub artifact_readback_object_sha256: String,
+    pub quality_report_object_sha256: String,
+    pub quality_report_id: String,
+    pub canonical_sha256: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -286,6 +311,26 @@ pub struct ReferenceGetResult {
     pub reference: ReferenceEvidenceRecord,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SkillExecutionAvailability {
+    /// Every operator in the immutable Bundle lock has a semantic,
+    /// product-owned executor in the current Runtime/Worker cohort.
+    Active,
+    /// At least one, but not all, locked operators have a real executor.
+    Partial,
+    /// None of the locked operators has a real executor in this cohort.
+    Unavailable,
+}
+
+impl Default for SkillExecutionAvailability {
+    fn default() -> Self {
+        // A historical `SkillBundleManifest@1` is declarative metadata.  Its
+        // lack of this runtime overlay must never be read as executable.
+        Self::Unavailable
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SkillBundleManifestRecord {
     pub schema_version: String,
@@ -305,6 +350,15 @@ pub struct SkillBundleManifestRecord {
     pub canonical_sha256: String,
     pub trust_profile: String,
     pub signature: String,
+    /// Runtime-derived availability. It is deliberately outside the Bundle
+    /// canonical hash so a signed/declarative manifest retains its identity
+    /// across Runtime cohorts.
+    #[serde(default)]
+    pub execution_availability: SkillExecutionAvailability,
+    /// Locked operator IDs that are not semantically executable by this
+    /// Runtime/Worker cohort. It is empty only when availability is `active`.
+    #[serde(default)]
+    pub missing_operator_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

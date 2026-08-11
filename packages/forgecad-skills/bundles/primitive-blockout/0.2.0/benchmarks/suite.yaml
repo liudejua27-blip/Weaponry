@@ -1,0 +1,13 @@
+schema_version: SkillBenchmarkSuite@1
+suite_id: primitive-blockout-v2-smoke
+status: passed
+fixtures:
+  - fixtures/valid.json
+  - fixtures/invalid-cycle-unit-finite.json
+metrics:
+  - name: declarative_plan_validation
+    threshold: 1
+  - name: forbidden_capabilities
+    threshold: 0
+notes:
+  - Synthetic metadata plus Runtime source-focused V2 hash/readback tests; this bundle does not claim visual similarity, PBR or 360-degree quality.

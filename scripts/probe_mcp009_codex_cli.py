@@ -27,6 +27,7 @@ from probe_mcp007_codex_cli import (
     geometry_program,
     mcp_calls,
     sha256_json_without_hash,
+    structured_result,
     unrelated_side_effects,
 )
 
@@ -112,8 +113,9 @@ def appearance_program(geometry: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
-def reference_geometry_program() -> dict[str, Any]:
-    program = geometry_program()
+def reference_geometry_program(project_id: str) -> dict[str, Any]:
+    """Build a V1 compatibility program bound to the live project."""
+    program = geometry_program(project_id)
     program["nodes"].append(
         {
             "node_id": "chest-light",
@@ -132,28 +134,37 @@ def reference_geometry_program() -> dict[str, Any]:
     return program
 
 
-def prompt(reference_path: str) -> str:
-    geometry = reference_geometry_program()
+def setup_prompt(reference_path: str) -> str:
+    return f"""Use only the forgecad MCP server. Do not use shell, filesystem, browser, images, other MCP servers or arbitrary code.
+
+This is the reference-admission half of a real MCP009 host acceptance run. Execute exactly these two calls in order and stop:
+1) project_create with name=\"Codex MCP009 robot appearance\" and policy={{\"profile\":\"mvp\"}}. Save project_id.
+2) reference_import with project_id=<saved project_id>, source={{\"kind\":\"codex_local_file\",\"path\":{json.dumps(reference_path, ensure_ascii=False)}}}, authorization={{\"user_authorized\":true,\"declaration\":\"The user supplied and authorized this reference for the local ForgeCAD MVP.\"}}. Save reference_id from structured_content.reference.reference_id.
+
+Stop after reference_import and return only project_id and reference_id. Do not call any other ForgeCAD tool and do not claim visual similarity, PBR, human approval or 360 degree coverage.
+"""
+
+
+def appearance_prompt(project_id: str, reference_id: str) -> str:
+    geometry = reference_geometry_program(project_id)
     appearance = appearance_program(geometry)
     geometry_json = json.dumps(geometry, ensure_ascii=False, separators=(",", ":"))
     appearance_json = json.dumps(appearance, ensure_ascii=False, separators=(",", ":"))
     return f"""Use only the forgecad MCP server. Do not use shell, filesystem, browser, images, other MCP servers or arbitrary code.
 
-This is a real host acceptance turn for the user's authorized hard-surface robot reference. The typed programs below are bounded product-owned primitives; do not describe them as pixel-level reconstruction. Execute exactly these calls in this order and wait for each structured result:
-1) project_create with name=\"Codex MCP009 robot appearance\" and policy={{\"profile\":\"mvp\"}}. Save project_id.
-2) reference_import with project_id=<saved project_id>, source={{\"kind\":\"codex_local_file\",\"path\":{json.dumps(reference_path, ensure_ascii=False)}}}, authorization={{\"user_authorized\":true,\"declaration\":\"The user supplied and authorized this reference for the local ForgeCAD MVP.\"}}. The returned structured_content is {{\"reference\":{{...}}}}; save reference_id from structured_content.reference.reference_id.
-3) geometry_prepare with project_id=<saved project_id>, request={{\"typed\":\"geometry\",\"reference_id\":<saved reference_id>,\"geometry_program\":{geometry_json}}}. The returned structured_content is {{\"artifact\":{{...}},\"candidate\":{{...}}}}; save artifact_id and candidate_id from structured_content.artifact, plus the returned candidate object.
-4) Immediately call artifact_readback_get with exact JSON arguments {{\"artifact_id\":<saved geometry artifact_id>,\"candidate_id\":<saved geometry candidate_id>}}. Do not omit either key and do not call it with an empty object.
-5) appearance_prepare with project_id=<saved project_id>, request={{\"typed\":\"appearance\",\"reference_id\":<saved reference_id>,\"geometry_program\":{geometry_json},\"appearance_program\":{appearance_json}}}. Its structured_content.artifact is the NEW appearance artifact; save its artifact_id and candidate_id, not the old geometry candidate.
-6) Immediately call artifact_readback_get with exact JSON arguments {{\"artifact_id\":<saved appearance artifact_id>,\"candidate_id\":<saved appearance candidate_id>}}. Do not omit either key.
-7) quality_get with the appearance candidate_id and reference_id. Treat the reference comparison as limited evidence, not a visual similarity score.
-8) candidate_confirm with project_id and the appearance candidate's candidate_id, prepared_object_id, prepared_object_sha256 and quality_report_id copied from that appearance candidate. Use approval_receipt_id=\"codex-mcp009-approval\", approval_summary=\"Approve bounded robot appearance candidate\", approval_session_id=\"codex-mcp009-session\", approval_expires_at=\"9999999999\", idempotency_key=\"codex-mcp009-confirm\".
-9) version_list with the saved project_id and save the newly confirmed version_id.
-10) export_prepare with project_id, the confirmed version_id, format=\"glb\", profile=\"mvp-glb\", request={{\"target\":\"cas-only\",\"reason\":\"Codex MCP009 host acceptance\"}}. Save export_id.
-11) export_confirm with project_id, the saved export_id, the same version_id, format=\"glb\", profile=\"mvp-glb\", approval_receipt_id=\"codex-mcp009-export-approval\", approval_summary=\"Approve CAS-backed MVP GLB export\", approval_session_id=\"codex-mcp009-session\", approval_expires_at=\"9999999999\", idempotency_key=\"codex-mcp009-export\".
-12) version_list again.
+The project and authorized reference already exist. The typed programs below are bounded product-owned primitives; do not describe them as pixel-level reconstruction. Use exactly project_id={json.dumps(project_id)} and reference_id={json.dumps(reference_id)}. Execute exactly these calls in this order and wait for each structured result:
+1) geometry_prepare with project_id={json.dumps(project_id)}, request={{\"typed\":\"geometry\",\"reference_id\":{json.dumps(reference_id)},\"geometry_program\":{geometry_json}}}. The returned structured_content is {{\"artifact\":{{...}},\"candidate\":{{...}}}}; save artifact_id and candidate_id from structured_content.artifact, plus the returned candidate object.
+2) Immediately call artifact_readback_get with exact JSON arguments {{\"artifact_id\":<saved geometry artifact_id>,\"candidate_id\":<saved geometry candidate_id>}}. Do not omit either key and do not call it with an empty object.
+3) appearance_prepare with project_id={json.dumps(project_id)}, request={{\"typed\":\"appearance\",\"reference_id\":{json.dumps(reference_id)},\"geometry_program\":{geometry_json},\"appearance_program\":{appearance_json}}}. Its structured_content.artifact is the NEW appearance artifact; save its artifact_id and candidate_id, not the old geometry candidate.
+4) Immediately call artifact_readback_get with exact JSON arguments {{\"artifact_id\":<saved appearance artifact_id>,\"candidate_id\":<saved appearance candidate_id>}}. Do not omit either key.
+5) quality_get with the appearance candidate_id and reference_id. Treat the reference comparison as limited evidence, not a visual similarity score.
+6) candidate_confirm with project_id and the appearance candidate's candidate_id, prepared_object_id, prepared_object_sha256 and quality_report_id copied from that appearance candidate. Use approval_receipt_id=\"codex-mcp009-approval\", approval_summary=\"Approve bounded robot appearance candidate\", approval_session_id=\"codex-mcp009-session\", approval_expires_at=\"9999999999\", idempotency_key=\"codex-mcp009-confirm\".
+7) version_list with project_id={json.dumps(project_id)} and save the newly confirmed version_id.
+8) export_prepare with project_id={json.dumps(project_id)}, the confirmed version_id, format=\"glb\", profile=\"mvp-glb\", request={{\"target\":\"cas-only\",\"reason\":\"Codex MCP009 host acceptance\"}}. Save export_id.
+9) export_confirm with project_id={json.dumps(project_id)}, the saved export_id, the same version_id, format=\"glb\", profile=\"mvp-glb\", approval_receipt_id=\"codex-mcp009-export-approval\", approval_summary=\"Approve CAS-backed MVP GLB export\", approval_session_id=\"codex-mcp009-session\", approval_expires_at=\"9999999999\", idempotency_key=\"codex-mcp009-export\".
+10) version_list again.
 
-This is a hard protocol sequence, not a conversational checkpoint: after the first version_list you MUST continue immediately with export_prepare, export_confirm and the final version_list. Do not stop after candidate_confirm/version_list and do not emit a final answer until all twelve calls have completed. Do not retry with incomplete arguments and do not make any extra ForgeCAD call. If a required result field is missing, stop and report the failure rather than issuing an empty or duplicate call.
+This is a hard protocol sequence, not a conversational checkpoint. Do not stop after candidate_confirm/version_list and do not emit a final answer until all ten calls in this turn have completed. Do not retry with incomplete arguments and do not make any extra ForgeCAD call. If a required result field is missing, stop and report the failure rather than issuing an empty or duplicate call.
 
 Return only a compact summary of the tool calls and the returned artifact/version/output hashes. Do not claim human visual acceptance, pixel similarity, packaged signing or a finished high-quality model.
 """
@@ -225,49 +236,89 @@ def main() -> int:
             handoff = json.loads(ready.read_text(encoding="utf-8"))
             environment.update({"FORGECAD_RUNTIME_SOCKET": str(handoff["socket_path"]), "FORGECAD_RUNTIME_TOKEN": str(handoff["token"])})
             with tempfile.TemporaryDirectory(dir="/tmp", prefix="fc9-codex-") as workspace:
-                try:
-                    completed = subprocess.run(
-                        [
-                            args.codex_command,
-                            "exec",
-                            "--ephemeral",
-                            "--ignore-user-config",
-                            "--json",
-                            "--color",
-                            "never",
-                            "--approve-for-me",
-                            "--skip-git-repo-check",
-                            "-C",
-                            workspace,
-                            "-c",
-                            config_override(args.mcp_command),
-                            "-c",
-                            'mcp_servers.cloudflare-api={url="http://127.0.0.1:1",enabled=false,required=false}',
-                            "--image",
-                            str(source),
-                        ],
-                        input=prompt(str(source)) + "\n",
+                base_command = [
+                    args.codex_command,
+                    "exec",
+                    "--ephemeral",
+                    "--ignore-user-config",
+                    "--json",
+                    "--color",
+                    "never",
+                    "--approve-for-me",
+                    "--skip-git-repo-check",
+                    "-C",
+                    workspace,
+                    "-c",
+                    config_override(args.mcp_command),
+                    "-c",
+                    'mcp_servers.cloudflare-api={url="http://127.0.0.1:1",enabled=false,required=false}',
+                ]
+
+                def run_codex(turn_prompt: str, include_image: bool) -> subprocess.CompletedProcess[str]:
+                    command = list(base_command)
+                    if include_image:
+                        command.extend(["--image", str(source)])
+                    return subprocess.run(
+                        command,
+                        input=turn_prompt + "\n",
                         env=environment,
                         text=True,
                         capture_output=True,
                         timeout=args.timeout,
                         check=False,
                     )
+
+                try:
+                    setup_completed = run_codex(setup_prompt(str(source)), True)
+                    setup_items = event_items(setup_completed.stdout)
+                    setup_calls = mcp_calls(setup_items)
+                    project_result = structured_result(setup_items, "project_create")
+                    reference_result = structured_result(setup_items, "reference_import")
+                    reference = reference_result.get("reference") if isinstance(reference_result, dict) else None
+                    project_id = project_result.get("project_id") if isinstance(project_result, dict) else None
+                    reference_id = reference.get("reference_id") if isinstance(reference, dict) else None
+                    setup_tools = [call.get("tool") for call in setup_calls if call.get("server") == "forgecad"]
+                    setup_ok = (
+                        setup_completed.returncode == 0
+                        and setup_tools == ["project_create", "reference_import"]
+                        and all(call.get("status") == "completed" for call in setup_calls)
+                        and isinstance(project_id, str)
+                        and isinstance(reference_id, str)
+                        and not unrelated_side_effects(setup_items)
+                    )
+                    if not setup_ok:
+                        receipt = blocked("Codex did not complete the exact project/reference setup sequence.", source_sha256, len(source_bytes))
+                        receipt.update(
+                            {
+                                "codex_exit_code": setup_completed.returncode,
+                                "mcp_tool_calls": setup_calls,
+                                "expected_sequence": list(SEQUENCE),
+                            }
+                        )
+                        print(json.dumps(receipt, ensure_ascii=False, separators=(",", ":")))
+                        return 3
+
+                    completed = run_codex(appearance_prompt(project_id, reference_id), False)
                 except subprocess.TimeoutExpired:
                     print(json.dumps(blocked("Codex CLI timed out before the ordered host receipt completed.", source_sha256, len(source_bytes)), separators=(",", ":")))
                     return 3
-            calls = mcp_calls(event_items(completed.stdout))
+            authoring_items = event_items(completed.stdout)
+            authoring_calls = mcp_calls(authoring_items)
+            calls = setup_calls + authoring_calls
             if args.debug:
                 import sys
+                print(setup_completed.stdout, file=sys.stderr)
+                print(setup_completed.stderr, file=sys.stderr)
                 print(completed.stdout, file=sys.stderr)
                 print(completed.stderr, file=sys.stderr)
             tools = [call.get("tool") for call in calls if call.get("server") == "forgecad"]
             statuses_ok = all(call.get("status") == "completed" for call in calls)
-            status = "PASS" if completed.returncode == 0 and tools == list(SEQUENCE) and statuses_ok and not unrelated_side_effects(event_items(completed.stdout)) else "BLOCKED"
+            status = "PASS" if completed.returncode == 0 and tools == list(SEQUENCE) and statuses_ok and not unrelated_side_effects(setup_items + authoring_items) else "BLOCKED"
             receipt: dict[str, Any] = {
                 "status": status,
                 "mode": "codex-cli-mcp009-appearance-export",
                 "codex_exit_code": completed.returncode,
+                "setup_codex_exit_code": setup_completed.returncode,
                 "mcp_tool_calls": calls,
                 "expected_sequence": list(SEQUENCE),
                 "source_sha256": source_sha256,

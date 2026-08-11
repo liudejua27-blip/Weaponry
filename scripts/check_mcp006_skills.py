@@ -27,6 +27,7 @@ EXPECTED = {
     "render-evidence",
     "reference-compare",
     "local-edit-and-export",
+    "primitive-blockout",
 }
 
 
@@ -239,7 +240,7 @@ def main() -> int:
         fail("MCP006 registry must be first-party development-only")
     entries = registry.get("skills")
     if not isinstance(entries, list) or {entry.get("skill_id") for entry in entries} != EXPECTED:
-        fail("MCP006 registry must contain exactly the ten MVP Skill IDs")
+        fail("MCP006 registry must contain exactly the eleven MVP Skill IDs")
 
     expected_registry_hash = hashlib.sha256(registry_bytes).hexdigest()
     for required in (
@@ -270,7 +271,8 @@ def main() -> int:
         if key in seen:
             fail(f"duplicate Skill version: {key}")
         seen.add(key)
-        if version != "0.1.0":
+        expected_version = "0.2.0" if skill_id == "primitive-blockout" else "0.1.0"
+        if version != expected_version:
             fail(f"unexpected Skill version: {key}")
         capabilities = entry.get("capabilities", {})
         for forbidden in ("network", "filesystem_read", "filesystem_write", "dynamic_code", "model_calls"):
@@ -280,7 +282,11 @@ def main() -> int:
         validators = entry.get("validator_ids", [])
         if not operators or not validators:
             fail(f"{key} has an empty operator/validator allowlist")
-        if any(not operator.startswith("forgecad.") or not operator.endswith("@1") for operator in operators):
+        if any(
+            not operator.startswith("forgecad.")
+            or operator.rsplit("@", 1)[-1] not in {"1", "2"}
+            for operator in operators
+        ):
             fail(f"{key} has an unregistered operator")
         if any(not validator.endswith("@1") for validator in validators):
             fail(f"{key} has an invalid validator id")

@@ -1,0 +1,36 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: primitive-blockout
+version: 0.2.0
+status: development-only
+publisher: forgecad-first-party
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/geometry-program-v2.schema.json
+output_schema: schemas/geometry-prepare-result-v2.schema.json
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: true
+  render_execution: false
+operator_ids:
+  - forgecad.geometry.primitive@2
+validator_ids:
+  - geometry_budget@1
+  - finite_parameters@1
+  - operator_allowlist@1
+budgets:
+  max_nodes: 128
+  max_triangles: 250000
+  max_glb_bytes: 67108864
+  max_worker_memory_bytes: 536870912
+  max_runtime_ms: 10000
+benchmark_suite: primitive-blockout-v2-smoke
+known_limitations:
+  - Primitive@2 is a bounded structural blockout compiler; it is not a texture or PBR material generator.
+  - A single reference produces only a reviewable visible-view candidate; hidden surfaces remain inferred or unknown.
+  - Distribution signature and third-party installation are deferred to MCP012-013.

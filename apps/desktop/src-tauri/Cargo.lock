@@ -856,6 +856,7 @@ dependencies = [
  "base64 0.22.1",
  "forgecad-worker-protocol",
  "image",
+ "libc",
  "serde_json",
  "sha2",
  "thiserror 2.0.18",
@@ -879,6 +880,7 @@ dependencies = [
  "forgecad-core",
  "forgecad-geometry-worker",
  "forgecad-store",
+ "forgecad-worker-protocol",
  "image",
  "libc",
  "serde",
@@ -907,6 +909,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

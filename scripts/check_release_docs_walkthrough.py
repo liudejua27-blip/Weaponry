@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,8 @@ def main() -> int:
         "docs/MVP_DELIVERY_PLAN.md",
         "docs/MVP_TOOL_CATALOG.md",
         "docs/AUTHORITATIVE_STATE.md",
+        "docs/SCHEMAS.md",
+        "docs/CODEX_GEOMETRY_V2_WORKFLOW.md",
         "docs/DESIGN.md",
         "docs/ADR/0025-codex-only-mcp-3d-runtime.md",
         "docs/MCP_RUNTIME_CONTRACT.md",
@@ -40,6 +43,8 @@ def main() -> int:
         "docs/evidence/mcp007/manifest.json",
         "docs/evidence/mcp008/manifest.json",
         "docs/evidence/mcp009/manifest.json",
+        "docs/evidence/mcp010b/manifest.json",
+        "docs/evidence/mcp010c/manifest.json",
     ]
     missing = [path for path in required if not (ROOT / path).exists()]
     if missing:
@@ -87,7 +92,7 @@ def main() -> int:
     required_mcp010_rows = (
         "FGC-MCP010A | done | MCP009",
         "FGC-MCP010B | blocked | MCP010A",
-        "FGC-MCP010C | blocked | MCP010B",
+        "FGC-MCP010C | in_progress | MCP010B",
         "FGC-MCP010D | blocked | MCP010C",
         "FGC-MCP010E | blocked | MCP010D",
         "FGC-MCP010F | blocked | MCP010E",
@@ -100,11 +105,23 @@ def main() -> int:
     mcp010_plan = (ROOT / "docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md").read_text(
         encoding="utf-8"
     )
+    contract_manifest = json.loads(
+        (ROOT / "packages/forgecad-contracts/manifest.json").read_text(encoding="utf-8")
+    )
+    current_contract_count = len(contract_manifest.get("schemas", []))
+    if current_contract_count != 59:
+        raise SystemExit(
+            f"MCP010C current contract reconciliation expected 59 schemas, found {current_contract_count}"
+        )
+
     required_mcp010_terms = (
         "PARTIAL_VISIBLE_VIEW_PASS",
         "BLOCKED_REFERENCE_COVERAGE",
-        "17 read + 13 write",
+        "20 read + 16 write",
         "44 个 JSON Schema",
+        f"{current_contract_count} 个 JSON Schema",
+        "RenderSet@2",
+        "PASS_WITH_UNRUN_VISUAL_GATES",
         "MCP010F",
     )
     missing_mcp010_terms = [

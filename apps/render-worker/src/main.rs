@@ -1,4 +1,4 @@
-use forgecad_worker_protocol::{WorkerRequest, WorkerResponse};
+use forgecad_worker_protocol::{build_cohort_sha256, WorkerRequest, WorkerResponse};
 use std::io::{self, BufRead, Write};
 
 fn main() {
@@ -10,6 +10,7 @@ fn main() {
             Err(error) => WorkerResponse {
                 protocol: forgecad_worker_protocol::WORKER_PROTOCOL.to_owned(),
                 request_id: "unknown".to_owned(),
+                build_cohort_sha256: build_cohort_sha256(),
                 ok: false,
                 result: None,
                 error: Some(forgecad_worker_protocol::WorkerError {

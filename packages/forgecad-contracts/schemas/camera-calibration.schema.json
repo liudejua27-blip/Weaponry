@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/camera-calibration.schema.json",
+  "title": "CameraCalibration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "camera_hash", "projection", "transform", "fov_y_degrees", "near_m", "far_m", "resolution", "coordinate_system", "renderer_revision", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "CameraCalibration@1"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "projection": {"const": "perspective"},
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position_m", "target_m", "up"],
+      "properties": {
+        "position_m": {"$ref": "#/$defs/vec3"},
+        "target_m": {"$ref": "#/$defs/vec3"},
+        "up": {"$ref": "#/$defs/vec3"}
+      }
+    },
+    "fov_y_degrees": {"type": "number", "exclusiveMinimum": 1, "exclusiveMaximum": 179},
+    "near_m": {"type": "number", "exclusiveMinimum": 0},
+    "far_m": {"type": "number", "exclusiveMinimum": 0},
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {"width": {"const": 512}, "height": {"const": 512}}
+    },
+    "coordinate_system": {"const": "right-handed-y-up-meter"},
+    "renderer_revision": {"$ref": "#/$defs/identifier"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [{"if": {"properties": {"far_m": {"type": "number"}, "near_m": {"type": "number"}}}, "then": {"properties": {"far_m": {"exclusiveMinimum": 0}}}}],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "vec3": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}], "items": false, "minItems": 3, "maxItems": 3}
+  }
+}

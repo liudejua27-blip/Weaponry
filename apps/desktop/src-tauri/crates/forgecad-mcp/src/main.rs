@@ -19,13 +19,18 @@ const INSTRUCTIONS: &str = "ForgeCAD is a local Codex-only 3D Runtime. Read capa
 enum Backend {
     #[allow(dead_code)]
     InProcess(Runtime),
+    // Retained only for focused in-memory IPC coverage.  All production
+    // endpoint paths use DynamicIpc so no idle authenticated stream survives
+    // between Codex tool calls.
+    #[allow(dead_code)]
     AuthenticatedIpc(LocalIpcClient),
     DynamicIpc(DynamicIpcBackend),
     Unavailable(String),
 }
 
 struct DynamicIpcBackend {
-    ready_file: PathBuf,
+    ready_file: Option<PathBuf>,
+    fixed_endpoint: Option<LocalIpcEndpoint>,
     status_file: Option<PathBuf>,
 }
 
@@ -113,21 +118,23 @@ fn backend_from_environment() -> (Backend, Option<MvpSupervisor>) {
         std::env::var("FORGECAD_RUNTIME_SOCKET").ok(),
         std::env::var("FORGECAD_RUNTIME_TOKEN").ok(),
     ) {
-        (Some(socket), Some(token)) => {
-            let backend = LocalIpcClient::connect(&LocalIpcEndpoint::from_parts(socket, token))
-                .map(Backend::AuthenticatedIpc)
-                .unwrap_or_else(|_| {
-                    Backend::Unavailable("authenticated Runtime IPC is unavailable".to_owned())
-                });
-            (backend, None)
-        }
+        // An externally launched Runtime is intentionally dynamic too.  Codex
+        // can spend more than one authenticated IPC request window reasoning
+        // about an uploaded image before its first tool call.  Holding an
+        // authenticated client open here would let the Runtime time it out,
+        // then turn that first real write into RUNTIME_UNAVAILABLE.
+        (Some(socket), Some(token)) => (
+            Backend::DynamicIpc(DynamicIpcBackend::from_fixed_endpoint(
+                LocalIpcEndpoint::from_parts(socket, token),
+            )),
+            None,
+        ),
         (None, None) => match std::env::var_os("FORGECAD_RUNTIME_READY_FILE") {
             Some(path) if !path.is_empty() => (
-                Backend::DynamicIpc(DynamicIpcBackend {
-                    ready_file: PathBuf::from(path),
-                    status_file: std::env::var_os("FORGECAD_RUNTIME_STATUS_FILE")
-                        .map(PathBuf::from),
-                }),
+                Backend::DynamicIpc(DynamicIpcBackend::from_ready_file(
+                    PathBuf::from(path),
+                    std::env::var_os("FORGECAD_RUNTIME_STATUS_FILE").map(PathBuf::from),
+                )),
                 None,
             ),
             _ => match supervisor::runtime_data_root() {
@@ -137,10 +144,10 @@ fn backend_from_environment() -> (Backend, Option<MvpSupervisor>) {
                         // Always keep the default path dynamic. A probe client
                         // must be dropped immediately so one MCP adapter never
                         // monopolizes Runtime's sequential request connection.
-                        let backend = Backend::DynamicIpc(DynamicIpcBackend {
-                            ready_file: runtime_supervisor.ready_file().to_path_buf(),
-                            status_file: Some(runtime_supervisor.status_file().to_path_buf()),
-                        });
+                        let backend = Backend::DynamicIpc(DynamicIpcBackend::from_ready_file(
+                            runtime_supervisor.ready_file().to_path_buf(),
+                            Some(runtime_supervisor.status_file().to_path_buf()),
+                        ));
                         runtime_supervisor.start();
                         (backend, Some(runtime_supervisor))
                     }
@@ -449,6 +456,17 @@ fn mcp009_write_tool_names() -> Vec<String> {
     vec!["change_prepare".to_owned()]
 }
 
+fn mcp010c_write_tool_names() -> Vec<String> {
+    [
+        "reference_compare_prepare",
+        "visual_review_submit",
+        "human_visual_review_submit",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
+}
+
 fn is_mcp004_write_tool(name: &str) -> bool {
     mcp004_write_tool_names().iter().any(|tool| tool == name)
 }
@@ -469,12 +487,17 @@ fn is_mcp009_write_tool(name: &str) -> bool {
     mcp009_write_tool_names().iter().any(|tool| tool == name)
 }
 
+fn is_mcp010c_write_tool(name: &str) -> bool {
+    mcp010c_write_tool_names().iter().any(|tool| tool == name)
+}
+
 fn is_write_tool(name: &str) -> bool {
     is_mcp004_write_tool(name)
         || is_mcp005_write_tool(name)
         || is_mcp007_write_tool(name)
         || is_mcp008_write_tool(name)
         || is_mcp009_write_tool(name)
+        || is_mcp010c_write_tool(name)
 }
 
 fn all_write_tool_names() -> Vec<String> {
@@ -483,6 +506,7 @@ fn all_write_tool_names() -> Vec<String> {
     names.extend(mcp007_write_tool_names());
     names.extend(mcp008_write_tool_names());
     names.extend(mcp009_write_tool_names());
+    names.extend(mcp010c_write_tool_names());
     names
 }
 
@@ -494,6 +518,7 @@ fn tools_with_writes(writes_enabled: bool) -> Vec<Value> {
         tools.extend(mcp007_write_tools());
         tools.extend(mcp008_write_tools());
         tools.extend(mcp009_write_tools());
+        tools.extend(mcp010c_write_tools());
     }
     tools.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
     tools
@@ -522,6 +547,26 @@ fn read_only_tools() -> Vec<Value> {
         tool(
             "doctor",
             "Read bounded MCP and Runtime health diagnostics without changing project state",
+            json!({"type":"object","additionalProperties":false}),
+            true,
+        ),
+        tool(
+            "geometry_program_hash",
+            "Validate a hash-free GeometryProgram@2 draft and return the Runtime-owned canonical hash without compiling or persisting a candidate",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","geometry_program_draft"],
+                "properties":{
+                    "schema_version":{"const":"GeometryProgramHashRequest@1"},
+                    "geometry_program_draft":{"type":"object"}
+                }
+            }),
+            true,
+        ),
+        tool(
+            "operator_catalog_get",
+            "Read the closed Runtime-owned OperatorCatalog@1 used to validate GeometryProgram@2 drafts",
             json!({"type":"object","additionalProperties":false}),
             true,
         ),
@@ -559,6 +604,20 @@ fn read_only_tools() -> Vec<Value> {
             "quality_get",
             "Read the Runtime-owned quality report; optionally include a bounded reference aspect comparison",
             json!({"type":"object","required":["candidate_id"],"properties":{"candidate_id":{"type":"string","minLength":1},"reference_id":{"type":"string","minLength":1}},"additionalProperties":false}),
+            true,
+        ),
+        tool(
+            "render_pass_get",
+            "Read one immutable 512x512 fixed-render PNG pass as an MCP image block; rendering is performed only by reference_compare_prepare",
+            json!({
+                "type":"object",
+                "required":["render_set_hash","pass"],
+                "properties":{
+                    "render_set_hash":sha256_property(),
+                    "pass":{"enum":["beauty","silhouette","depth","normal","ao","part-id","material-id","wireframe","uv-stretch"]}
+                },
+                "additionalProperties":false
+            }),
             true,
         ),
         tool(
@@ -883,7 +942,7 @@ fn mcp005_write_tools() -> Vec<Value> {
 fn mcp007_write_tools() -> Vec<Value> {
     vec![write_tool_with_transaction(
         "geometry_prepare",
-        "Compile a bounded typed GeometryProgram into a real multi-part GLB candidate and return strict ArtifactReadback; no permanent version is created until a later approval confirm.",
+        "Compile a bounded typed GeometryProgram into a multi-part GLB candidate. GeometryProgram@2 is catalog-hash-bound and returns strict BIN/accessor ArtifactReadback@2; GeometryProgram@1 remains the legacy-compatible MVP path. Read forgecad://operators/catalog before using V2. No permanent version is created until a later approval confirm.",
         json!({
             "type":"object",
             "required":["project_id","request"],
@@ -969,6 +1028,72 @@ fn mcp009_write_tools() -> Vec<Value> {
         false,
         "MCP009",
     )]
+}
+
+fn mcp010c_write_tools() -> Vec<Value> {
+    vec![
+        write_tool_with_transaction(
+            "reference_compare_prepare",
+            "Render a candidate with the fixed 512x512 perspective renderer, persist all nine AOVs, derive a local reference mask and comparison metrics, and return a reviewable visual evidence bundle without creating a version.",
+            json!({
+                "type":"object",
+                "required":["project_id","candidate_id","reference_id","view_spec"],
+                "properties":{
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "reference_id":id_property(),
+                    "view_spec":{"type":"object"},
+                    "camera":{"type":["object","null"]}
+                },
+                "additionalProperties":false
+            }),
+            false,
+            true,
+            "MCP010C",
+        ),
+        write_tool_with_transaction(
+            "visual_review_submit",
+            "Persist Codex typed visual issues and a bounded stage review against one candidate-bound RenderSet and comparison report.",
+            json!({
+                "type":"object",
+                "required":["candidate_id","reference_id","render_set_hash","comparison_report_hash","round","stage","issues","status"],
+                "properties":{
+                    "candidate_id":id_property(),
+                    "reference_id":id_property(),
+                    "render_set_hash":sha256_property(),
+                    "comparison_report_hash":sha256_property(),
+                    "round":{"type":"integer","minimum":1,"maximum":5},
+                    "stage":{"enum":["silhouette","structure","form","material-surface","final"]},
+                    "issues":{"type":"array","items":{"type":"object"},"maxItems":128},
+                    "status":{"enum":["submitted","needs_revision","accepted"]}
+                },
+                "additionalProperties":false
+            }),
+            false,
+            true,
+            "MCP010C",
+        ),
+        write_tool_with_transaction(
+            "human_visual_review_submit",
+            "Record the user's four visual scores and approval against the candidate-bound RenderSet and comparison report; this is evidence only and does not confirm a version.",
+            json!({
+                "type":"object",
+                "required":["candidate_id","reference_id","render_set_hash","comparison_report_hash","scores","approved"],
+                "properties":{
+                    "candidate_id":id_property(),
+                    "reference_id":id_property(),
+                    "render_set_hash":sha256_property(),
+                    "comparison_report_hash":sha256_property(),
+                    "scores":{"type":"object","required":["likeness","geometry_detail","material_fidelity","editability"],"properties":{"likeness":{"type":"integer","minimum":1,"maximum":5},"geometry_detail":{"type":"integer","minimum":1,"maximum":5},"material_fidelity":{"type":"integer","minimum":1,"maximum":5},"editability":{"type":"integer","minimum":1,"maximum":5}},"additionalProperties":false},
+                    "approved":{"type":"boolean"}
+                },
+                "additionalProperties":false
+            }),
+            true,
+            true,
+            "MCP010C",
+        ),
+    ]
 }
 
 fn resource_templates() -> Vec<Value> {
@@ -1151,14 +1276,403 @@ fn resources_read(
 }
 
 fn static_resource_descriptors() -> Vec<Value> {
-    vec![json!({
-        "uri":"forgecad://capabilities",
-        "name":"Runtime capabilities",
-        "description":"Static MCP and Runtime health capability manifest",
-        "mime_type":"application/json",
-        "schema_version":"RuntimeResource@1",
-        "read_only":true
-    })]
+    vec![
+        json!({
+            "uri":"forgecad://capabilities",
+            "name":"Runtime capabilities",
+            "description":"Static MCP and Runtime health capability manifest",
+            "mime_type":"application/json",
+            "schema_version":"RuntimeResource@1",
+            "read_only":true
+        }),
+        json!({
+            "uri":"forgecad://operators/catalog",
+            "name":"Geometry operator catalog",
+            "description":"Runtime-owned GeometryProgram@2 operator catalog; requires a live Runtime",
+            "mime_type":"application/json",
+            "schema_version":"RuntimeResource@1",
+            "read_only":true
+        }),
+    ]
+}
+
+// `tools/list` is a public contract, so stdio must enforce the same bounded
+// input envelopes it advertises before forwarding a request to Runtime.  This
+// is intentionally a small, fail-closed JSON Schema subset rather than a
+// general-purpose schema engine: it covers every keyword used by the current
+// tool schemas and has explicit recursion/work bounds.
+const MAX_TOOL_SCHEMA_VALIDATION_DEPTH: usize = 32;
+const MAX_TOOL_SCHEMA_VALIDATION_NODES: usize = 4_096;
+
+#[derive(Clone, Copy)]
+struct ToolSchemaValidationBudget {
+    remaining_nodes: usize,
+}
+
+impl ToolSchemaValidationBudget {
+    fn new() -> Self {
+        Self {
+            remaining_nodes: MAX_TOOL_SCHEMA_VALIDATION_NODES,
+        }
+    }
+
+    fn consume(&mut self, depth: usize) -> Result<(), ()> {
+        if depth > MAX_TOOL_SCHEMA_VALIDATION_DEPTH || self.remaining_nodes == 0 {
+            return Err(());
+        }
+        self.remaining_nodes -= 1;
+        Ok(())
+    }
+}
+
+fn validate_tools_call_envelope(params: &Map<String, Value>) -> Result<(), ()> {
+    if !params
+        .keys()
+        .all(|key| matches!(key.as_str(), "name" | "arguments" | "_meta"))
+    {
+        return Err(());
+    }
+    if !params
+        .get("name")
+        .and_then(Value::as_str)
+        .is_some_and(|name| !name.is_empty())
+    {
+        return Err(());
+    }
+    if params
+        .get("arguments")
+        .is_some_and(|value| !value.is_object())
+    {
+        return Err(());
+    }
+    if params.get("_meta").is_some_and(|value| !value.is_object()) {
+        return Err(());
+    }
+    Ok(())
+}
+
+fn validate_declared_tool_input(
+    name: &str,
+    arguments: &Value,
+    write_tools_enabled: bool,
+) -> Result<(), ()> {
+    let tools = tools_with_writes(write_tools_enabled);
+    let schema = tools
+        .iter()
+        .find(|tool| tool.get("name").and_then(Value::as_str) == Some(name))
+        .and_then(|tool| tool.get("inputSchema"))
+        .ok_or(())?;
+    let mut schema_budget = ToolSchemaValidationBudget::new();
+    validate_tool_schema_shape(schema, 0, &mut schema_budget)?;
+    let mut value_budget = ToolSchemaValidationBudget::new();
+    validate_value_against_tool_schema(schema, arguments, 0, &mut value_budget)
+}
+
+fn validate_tool_schema_shape(
+    schema: &Value,
+    depth: usize,
+    budget: &mut ToolSchemaValidationBudget,
+) -> Result<(), ()> {
+    budget.consume(depth)?;
+    let object = schema.as_object().ok_or(())?;
+    if !object.keys().all(|key| {
+        matches!(
+            key.as_str(),
+            "type"
+                | "required"
+                | "properties"
+                | "additionalProperties"
+                | "oneOf"
+                | "const"
+                | "enum"
+                | "minLength"
+                | "maxLength"
+                | "pattern"
+                | "minimum"
+                | "maximum"
+                | "maxProperties"
+                | "items"
+                | "minItems"
+                | "maxItems"
+        )
+    }) {
+        return Err(());
+    }
+    if let Some(value) = object.get("type") {
+        validate_schema_type_shape(value)?;
+    }
+    if let Some(value) = object.get("required") {
+        let values = value.as_array().ok_or(())?;
+        if !values.iter().all(Value::is_string) {
+            return Err(());
+        }
+    }
+    if let Some(value) = object.get("properties") {
+        let properties = value.as_object().ok_or(())?;
+        for property_schema in properties.values() {
+            validate_tool_schema_shape(property_schema, depth + 1, budget)?;
+        }
+    }
+    if let Some(value) = object.get("additionalProperties") {
+        if !value.is_boolean() {
+            return Err(());
+        }
+    }
+    if let Some(value) = object.get("oneOf") {
+        let alternatives = value
+            .as_array()
+            .filter(|items| !items.is_empty())
+            .ok_or(())?;
+        for alternative in alternatives {
+            validate_tool_schema_shape(alternative, depth + 1, budget)?;
+        }
+    }
+    if let Some(value) = object.get("enum") {
+        if value.as_array().filter(|items| !items.is_empty()).is_none() {
+            return Err(());
+        }
+    }
+    for key in [
+        "minLength",
+        "maxLength",
+        "maxProperties",
+        "minItems",
+        "maxItems",
+    ] {
+        if object
+            .get(key)
+            .is_some_and(|value| schema_usize(value).is_err())
+        {
+            return Err(());
+        }
+    }
+    if object
+        .get("minimum")
+        .is_some_and(|value| value.as_f64().is_none())
+    {
+        return Err(());
+    }
+    if object
+        .get("maximum")
+        .is_some_and(|value| value.as_f64().is_none())
+    {
+        return Err(());
+    }
+    if let Some(value) = object.get("pattern") {
+        if value.as_str() != Some("^[0-9a-f]{64}$") {
+            return Err(());
+        }
+    }
+    if let Some(value) = object.get("items") {
+        validate_tool_schema_shape(value, depth + 1, budget)?;
+    }
+    Ok(())
+}
+
+fn validate_value_against_tool_schema(
+    schema: &Value,
+    value: &Value,
+    depth: usize,
+    budget: &mut ToolSchemaValidationBudget,
+) -> Result<(), ()> {
+    budget.consume(depth)?;
+    let object = schema.as_object().ok_or(())?;
+    if let Some(schema_type) = object.get("type") {
+        validate_schema_type(schema_type, value)?;
+    }
+    if let Some(expected) = object.get("const") {
+        if value != expected {
+            return Err(());
+        }
+    }
+    if let Some(values) = object.get("enum").and_then(Value::as_array) {
+        if !values.iter().any(|expected| value == expected) {
+            return Err(());
+        }
+    }
+    if let Some(required) = object.get("required").and_then(Value::as_array) {
+        let values = value.as_object().ok_or(())?;
+        if !required
+            .iter()
+            .all(|key| key.as_str().is_some_and(|key| values.contains_key(key)))
+        {
+            return Err(());
+        }
+    }
+    if let Some(maximum) = object.get("maxProperties") {
+        let values = value.as_object().ok_or(())?;
+        if values.len() > schema_usize(maximum)? {
+            return Err(());
+        }
+    }
+    if let Some(properties) = object.get("properties").and_then(Value::as_object) {
+        if let Some(values) = value.as_object() {
+            if object.get("additionalProperties") == Some(&Value::Bool(false))
+                && values.keys().any(|key| !properties.contains_key(key))
+            {
+                return Err(());
+            }
+            for (key, property_schema) in properties {
+                if let Some(property_value) = values.get(key) {
+                    validate_value_against_tool_schema(
+                        property_schema,
+                        property_value,
+                        depth + 1,
+                        budget,
+                    )?;
+                }
+            }
+        } else if object.get("additionalProperties") == Some(&Value::Bool(false)) {
+            return Err(());
+        }
+    } else if object.get("additionalProperties") == Some(&Value::Bool(false)) {
+        if value.as_object().map_or(true, |values| !values.is_empty()) {
+            return Err(());
+        }
+    }
+    if let Some(minimum) = object.get("minimum").and_then(Value::as_f64) {
+        if value
+            .as_f64()
+            .filter(|candidate| *candidate >= minimum)
+            .is_none()
+        {
+            return Err(());
+        }
+    }
+    if let Some(maximum) = object.get("maximum").and_then(Value::as_f64) {
+        if value
+            .as_f64()
+            .filter(|candidate| *candidate <= maximum)
+            .is_none()
+        {
+            return Err(());
+        }
+    }
+    if let Some(string) = value.as_str() {
+        let character_count = string.chars().count();
+        if let Some(minimum) = object.get("minLength") {
+            if character_count < schema_usize(minimum)? {
+                return Err(());
+            }
+        }
+        if let Some(maximum) = object.get("maxLength") {
+            if character_count > schema_usize(maximum)? {
+                return Err(());
+            }
+        }
+        if let Some(pattern) = object.get("pattern").and_then(Value::as_str) {
+            if pattern != "^[0-9a-f]{64}$" || !is_lowercase_sha256(string) {
+                return Err(());
+            }
+        }
+    }
+    if let Some(items) = object.get("items") {
+        let values = value.as_array().ok_or(())?;
+        if let Some(minimum) = object.get("minItems") {
+            if values.len() < schema_usize(minimum)? {
+                return Err(());
+            }
+        }
+        if let Some(maximum) = object.get("maxItems") {
+            if values.len() > schema_usize(maximum)? {
+                return Err(());
+            }
+        }
+        for item in values {
+            validate_value_against_tool_schema(items, item, depth + 1, budget)?;
+        }
+    }
+    if let Some(alternatives) = object.get("oneOf").and_then(Value::as_array) {
+        let matches = alternatives
+            .iter()
+            .filter(|alternative| {
+                let mut alternative_budget = *budget;
+                validate_value_against_tool_schema(
+                    alternative,
+                    value,
+                    depth + 1,
+                    &mut alternative_budget,
+                )
+                .is_ok()
+            })
+            .count();
+        if matches != 1 {
+            return Err(());
+        }
+    }
+    Ok(())
+}
+
+fn validate_schema_type_shape(schema_type: &Value) -> Result<(), ()> {
+    match schema_type {
+        Value::String(kind) => validate_schema_type_name(kind),
+        Value::Array(kinds) if !kinds.is_empty() => {
+            for kind in kinds {
+                validate_schema_type_name(kind.as_str().ok_or(())?)?;
+            }
+            Ok(())
+        }
+        _ => Err(()),
+    }
+}
+
+fn validate_schema_type(schema_type: &Value, value: &Value) -> Result<(), ()> {
+    match schema_type {
+        Value::String(kind) if value_matches_schema_type(kind, value) => Ok(()),
+        Value::Array(kinds)
+            if kinds.iter().any(|kind| {
+                kind.as_str()
+                    .is_some_and(|kind| value_matches_schema_type(kind, value))
+            }) =>
+        {
+            Ok(())
+        }
+        _ => Err(()),
+    }
+}
+
+fn validate_schema_type_name(kind: &str) -> Result<(), ()> {
+    if matches!(
+        kind,
+        "object" | "array" | "string" | "number" | "integer" | "boolean" | "null"
+    ) {
+        Ok(())
+    } else {
+        Err(())
+    }
+}
+
+fn value_matches_schema_type(kind: &str, value: &Value) -> bool {
+    match kind {
+        "object" => value.is_object(),
+        "array" => value.is_array(),
+        "string" => value.is_string(),
+        "number" => value.is_number(),
+        "integer" => {
+            value.as_i64().is_some()
+                || value.as_u64().is_some()
+                || value
+                    .as_f64()
+                    .is_some_and(|number| number.is_finite() && number.fract() == 0.0)
+        }
+        "boolean" => value.is_boolean(),
+        "null" => value.is_null(),
+        _ => false,
+    }
+}
+
+fn schema_usize(value: &Value) -> Result<usize, ()> {
+    value
+        .as_u64()
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or(())
+}
+
+fn is_lowercase_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn call_tool(
@@ -1249,6 +1763,17 @@ fn call_tool(
                 }
             }));
         }
+        if is_mcp010c_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
         return Some(
             error_response(
                 Some(id),
@@ -1259,22 +1784,55 @@ fn call_tool(
             .expect("response for request"),
         );
     }
-    let arguments = params
-        .get("arguments")
-        .cloned()
-        .unwrap_or_else(|| json!({}));
-    if !arguments.is_object() {
+    // Preserve the historic disabled-write response above: it is an
+    // availability boundary, not a schema oracle.  For an exposed tool, all
+    // declared envelope checks run before Runtime dispatch or any write.
+    if validate_tools_call_envelope(params).is_err() {
         return Some(
             error_response(
                 Some(id),
                 -32602,
-                "Tool arguments must be an object",
+                "Tool call does not match the declared envelope",
+                Some(json!({"code":"INVALID_TOOL_PARAMS"})),
+            )
+            .expect("response for request"),
+        );
+    }
+    let arguments = params
+        .get("arguments")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    if validate_declared_tool_input(name, &arguments, write_tools_enabled).is_err() {
+        return Some(
+            error_response(
+                Some(id),
+                -32602,
+                "Tool arguments do not match the declared input schema",
                 Some(json!({"code":"INVALID_TOOL_PARAMS"})),
             )
             .expect("response for request"),
         );
     }
     match dispatch_tool(backend, name, &arguments, write_tools_enabled) {
+        Ok(value) if name == "render_pass_get" => {
+            let mut metadata = value.clone();
+            let Some(png_base64) = metadata
+                .as_object_mut()
+                .and_then(|object| object.remove("png_base64"))
+                .and_then(|value| value.as_str().map(str::to_owned))
+            else {
+                return Some(json!({
+                    "jsonrpc":"2.0",
+                    "id":id,
+                    "result":{"isError":true,"content":[{"type":"text","text":"Runtime returned an invalid render pass"}],"structuredContent":runtime_error_value("RENDER_PASS_INVALID: PNG payload is missing")}
+                }));
+            };
+            Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"content":[{"type":"image","data":png_base64,"mimeType":"image/png"},{"type":"text","text":serde_json::to_string(&metadata).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":metadata}
+            }))
+        }
         Ok(value) => Some(json!({
             "jsonrpc":"2.0",
             "id":id,
@@ -1323,6 +1881,9 @@ fn dispatch_tool_with_build_cohort(
                 .to_owned()
         } else if is_mcp009_write_tool(name) {
             "MCP009_CHANGE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required".to_owned()
+        } else if is_mcp010c_write_tool(name) {
+            "MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
         } else {
             "MCP004_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required".to_owned()
         });
@@ -1359,7 +1920,7 @@ fn backend_write_call(
             client.call(name, arguments.clone()).map_err(map_ipc_error)
         }
         Backend::DynamicIpc(dynamic) => {
-            let endpoint = read_ready_endpoint(&dynamic.ready_file)?;
+            let endpoint = dynamic.endpoint()?;
             let mut client = LocalIpcClient::connect(&endpoint).map_err(map_ipc_error)?;
             let runtime_capabilities = client
                 .call("capabilities_get", json!({}))
@@ -1484,14 +2045,43 @@ fn doctor_payload(backend: &Backend) -> Result<Value, String> {
 }
 
 impl DynamicIpcBackend {
+    fn from_ready_file(ready_file: PathBuf, status_file: Option<PathBuf>) -> Self {
+        Self {
+            ready_file: Some(ready_file),
+            fixed_endpoint: None,
+            status_file,
+        }
+    }
+
+    fn from_fixed_endpoint(endpoint: LocalIpcEndpoint) -> Self {
+        Self {
+            ready_file: None,
+            fixed_endpoint: Some(endpoint),
+            status_file: None,
+        }
+    }
+
+    fn endpoint(&self) -> Result<LocalIpcEndpoint, String> {
+        if let Some(endpoint) = &self.fixed_endpoint {
+            return Ok(endpoint.clone());
+        }
+        self.ready_file
+            .as_deref()
+            .ok_or_else(|| "RUNTIME_UNAVAILABLE: Runtime endpoint is unavailable".to_owned())
+            .and_then(read_ready_endpoint)
+    }
+
     fn call(&self, name: &str, arguments: &Value) -> Result<Value, String> {
-        let endpoint = read_ready_endpoint(&self.ready_file)?;
+        let endpoint = self.endpoint()?;
         let mut client = LocalIpcClient::connect(&endpoint).map_err(map_ipc_error)?;
         client.call(name, arguments.clone()).map_err(map_ipc_error)
     }
 
     fn status(&self) -> Value {
-        let ready_probe = probe_dynamic_ready_endpoint(&self.ready_file);
+        let ready_probe = match self.endpoint() {
+            Ok(endpoint) => probe_dynamic_endpoint(&endpoint),
+            Err(_) => DynamicReadyProbe::Unavailable,
+        };
         match ready_probe {
             DynamicReadyProbe::Authenticated => {
                 return json!({
@@ -1549,11 +2139,8 @@ enum DynamicReadyProbe {
     Unavailable,
 }
 
-fn probe_dynamic_ready_endpoint(path: &std::path::Path) -> DynamicReadyProbe {
-    let Ok(endpoint) = read_ready_endpoint(path) else {
-        return DynamicReadyProbe::Unavailable;
-    };
-    match LocalIpcClient::connect(&endpoint) {
+fn probe_dynamic_endpoint(endpoint: &LocalIpcEndpoint) -> DynamicReadyProbe {
+    match LocalIpcClient::connect(endpoint) {
         Ok(_) => DynamicReadyProbe::Authenticated,
         Err(IpcError::Io(error))
             if matches!(
@@ -1602,6 +2189,23 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         "capabilities_get" => {
             serde_json::to_value(runtime.capabilities()).map_err(|error| error.to_string())
         }
+        "operator_catalog_get" => Ok(runtime.active_operator_catalog()),
+        "geometry_program_hash" => runtime
+            .geometry_program_hash(arguments)
+            .map_err(|error| error.to_string()),
+        "render_pass_get" => {
+            let render_set_hash = arguments
+                .get("render_set_hash")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "render_set_hash is required".to_owned())?;
+            let pass = arguments
+                .get("pass")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "pass is required".to_owned())?;
+            runtime
+                .render_pass_get(render_set_hash, pass)
+                .map_err(|error| error.to_string())
+        }
         "project_list" => {
             serde_json::to_value(runtime.projects().map_err(|error| error.to_string())?)
                 .map_err(|error| error.to_string())
@@ -1644,6 +2248,18 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .prepare_geometry_candidate(project_id, base_version_id, request)
                 .map_err(|error| error.to_string())
         }
+        "reference_compare_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .prepare_reference_comparison(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
+        "visual_review_submit" => runtime
+            .submit_visual_review(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "human_visual_review_submit" => runtime
+            .submit_human_visual_review(arguments.clone())
+            .map_err(|error| error.to_string()),
         "appearance_prepare" => {
             let project_id = required_id(arguments, "project_id")?;
             let base_version_id = arguments.get("base_version_id").and_then(Value::as_str);
@@ -2141,15 +2757,233 @@ mod tests {
     }
 
     #[test]
+    fn geometry_program_hash_is_a_default_read_only_tool() {
+        let tools = tools_with_writes(false);
+        let tool = tools
+            .iter()
+            .find(|tool| tool["name"] == "geometry_program_hash")
+            .expect("geometry_program_hash tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["schema_version"]["const"],
+            "GeometryProgramHashRequest@1"
+        );
+        assert_eq!(
+            tool["inputSchema"]["additionalProperties"], false,
+            "the public envelope must remain closed"
+        );
+    }
+
+    #[test]
+    fn every_advertised_tool_input_schema_uses_the_bounded_validator_subset() {
+        for tool in tools_with_writes(true) {
+            let mut budget = ToolSchemaValidationBudget::new();
+            validate_tool_schema_shape(&tool["inputSchema"], 0, &mut budget)
+                .unwrap_or_else(|_| panic!("{} has an unsupported input schema", tool["name"]));
+        }
+    }
+
+    #[test]
+    fn nullable_envelope_fields_remain_valid_when_declared() {
+        assert!(validate_declared_tool_input(
+            "geometry_prepare",
+            &json!({
+                "project_id":"project-envelope-fixture",
+                "base_version_id":null,
+                "request":{"typed":"geometry","geometry_program":{}}
+            }),
+            true,
+        )
+        .is_ok());
+        assert!(validate_declared_tool_input(
+            "reference_import",
+            &json!({
+                "project_id":"project-envelope-fixture",
+                "source":{
+                    "kind":"inline_content",
+                    "mime":"image/png",
+                    "content_base64":"fixture"
+                },
+                "authorization":{"user_authorized":true,"declaration":"test"},
+                "expected_sha256":null
+            }),
+            true,
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn tool_input_envelopes_fail_closed_before_geometry_runtime_dispatch() {
+        let (mut backend, mut session) = initialized();
+        let project = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .create_project("MCP envelope fixture", json!({"scope":"test"}))
+                .expect("project"),
+            _ => unreachable!("test backend"),
+        };
+
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":21,
+                "method":"tools/call",
+                "params":{"name":"geometry_prepare","arguments":{"unexpected":true}}
+            }),
+        )
+        .expect("disabled response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"], "MCP007_GEOMETRY_TOOLS_DISABLED",
+            "disabled-write availability must remain ahead of input validation"
+        );
+
+        session.write_tools_enabled = true;
+        let mut geometry_program = json!({
+            "schema_version":"GeometryProgram@1",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"c".repeat(64),
+            "nodes":[{
+                "node_id":"torso",
+                "operator_id":"forgecad.geometry.primitive@1",
+                "part_id":"torso",
+                "parameters":{
+                    "shape":"box",
+                    "size":[1.0,1.4,0.5],
+                    "position":[0.0,1.2,0.0],
+                    "material_zone_id":"zone-white-shell"
+                }
+            }],
+            "budgets":{"max_nodes":8,"max_triangles":10000,"max_runtime_ms":1000}
+        });
+        geometry_program["canonical_sha256"] =
+            Value::String(canonical_json_hash(&geometry_program));
+        let valid_geometry_request = json!({
+            "project_id":project.project_id,
+            "request":{"typed":"geometry","geometry_program":geometry_program}
+        });
+
+        let mut unknown_outer = valid_geometry_request.clone();
+        unknown_outer["unexpected_outer"] = Value::Bool(true);
+        let mut unknown_request = valid_geometry_request.clone();
+        unknown_request["request"]["unexpected_request"] = Value::Bool(true);
+        let mut wrong_project_id_type = valid_geometry_request.clone();
+        wrong_project_id_type["project_id"] = Value::from(7);
+        let mut missing_required_request_field = valid_geometry_request.clone();
+        missing_required_request_field["request"]
+            .as_object_mut()
+            .expect("request object")
+            .remove("geometry_program");
+
+        for (id, arguments) in [
+            (22, unknown_outer),
+            (23, unknown_request),
+            (24, wrong_project_id_type),
+            (25, missing_required_request_field),
+        ] {
+            let response = handle(
+                &mut backend,
+                &mut session,
+                &json!({
+                    "jsonrpc":"2.0",
+                    "id":id,
+                    "method":"tools/call",
+                    "params":{"name":"geometry_prepare","arguments":arguments}
+                }),
+            )
+            .expect("invalid geometry envelope response");
+            assert_eq!(response["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        }
+
+        for (id, arguments) in [
+            (
+                26,
+                json!({
+                    "schema_version":"GeometryProgramHashRequest@1",
+                    "geometry_program_draft":{},
+                    "unexpected_outer":true
+                }),
+            ),
+            (27, json!({"geometry_program_draft":{}})),
+            (
+                28,
+                json!({
+                    "schema_version":7,
+                    "geometry_program_draft":[]
+                }),
+            ),
+        ] {
+            let response = handle(
+                &mut backend,
+                &mut session,
+                &json!({
+                    "jsonrpc":"2.0",
+                    "id":id,
+                    "method":"tools/call",
+                    "params":{"name":"geometry_program_hash","arguments":arguments}
+                }),
+            )
+            .expect("invalid hash envelope response");
+            assert_eq!(response["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        }
+
+        let outer_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":29,
+                "method":"tools/call",
+                "params":{
+                    "name":"geometry_program_hash",
+                    "arguments":{
+                        "schema_version":"GeometryProgramHashRequest@1",
+                        "geometry_program_draft":{}
+                    },
+                    "unexpected_call_field":true
+                }
+            }),
+        )
+        .expect("invalid tools/call envelope response");
+        assert_eq!(
+            outer_response["error"]["data"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+
+        let candidates = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .candidates(&project.project_id)
+                .expect("candidates after rejected envelopes"),
+            _ => unreachable!("test backend"),
+        };
+        assert!(
+            candidates.is_empty(),
+            "invalid MCP envelopes must not reach candidate preparation"
+        );
+    }
+
+    #[test]
+    fn operator_catalog_get_is_a_default_read_only_tool() {
+        let tools = tools_with_writes(false);
+        let tool = tools
+            .iter()
+            .find(|tool| tool["name"] == "operator_catalog_get")
+            .expect("operator_catalog_get tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+    }
+
+    #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 17);
+        assert_eq!(disabled.len(), 20);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 30);
+        assert_eq!(enabled.len(), 36);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -2255,10 +3089,7 @@ mod tests {
         } else {
             cohort_a
         };
-        let mut backend = Backend::DynamicIpc(DynamicIpcBackend {
-            ready_file,
-            status_file: None,
-        });
+        let mut backend = Backend::DynamicIpc(DynamicIpcBackend::from_ready_file(ready_file, None));
 
         let error = dispatch_tool_with_build_cohort(
             &mut backend,
@@ -2276,6 +3107,49 @@ mod tests {
             .call("runtime_shutdown", Value::Null)
             .expect("shutdown");
         drop(shutdown);
+        assert!(server_thread.join().expect("server thread").is_ok());
+        drop(runtime);
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fixed_endpoint_backend_does_not_hold_an_idle_authenticated_connection() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!("fc-fe-{}", nonce % 1_000_000_000));
+        fs::create_dir_all(&directory).expect("directory");
+        let endpoint = LocalIpcEndpoint::new(&directory).expect("endpoint");
+        let runtime = Arc::new(Runtime::ephemeral().expect("runtime"));
+        let server = runtime.ipc_server(&endpoint).expect("server");
+        let runtime_for_thread = runtime.clone();
+        let server_thread = thread::spawn(move || server.serve_forever(&runtime_for_thread));
+
+        let dynamic = DynamicIpcBackend::from_fixed_endpoint(endpoint.clone());
+        assert_eq!(
+            dynamic
+                .call("project_list", &Value::Null)
+                .expect("fixed endpoint call"),
+            json!([])
+        );
+
+        // The Runtime accepts one connection at a time.  This independent
+        // client can authenticate only if the call above dropped its client
+        // instead of retaining an idle authenticated stream between Codex
+        // tool calls.
+        let mut independent = LocalIpcClient::connect(&endpoint).expect("independent client");
+        assert_eq!(
+            independent
+                .call("project_list", Value::Null)
+                .expect("independent call"),
+            json!([])
+        );
+        independent
+            .call("runtime_shutdown", Value::Null)
+            .expect("shutdown");
+        drop(independent);
         assert!(server_thread.join().expect("server thread").is_ok());
         drop(runtime);
         let _ = fs::remove_dir_all(directory);
@@ -2351,7 +3225,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 30);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 36);
 
         let imported = handle(
             &mut backend,
@@ -2402,8 +3276,7 @@ mod tests {
                 "params":{"name":"candidate_prepare","arguments":{
                     "project_id":project.project_id,
                     "prepared_object_id":"mcp004-prepared-object",
-                    "prepared_object_sha256":object.record.sha256,
-                    "request":{"typed":"diagnostic"}
+                    "prepared_object_sha256":object.record.sha256
                 }}
             }),
         )
@@ -2562,6 +3435,20 @@ mod tests {
             .as_str()
             .expect("resource text")
             .contains("SkillGetResult@1"));
+        let manifest: Value = serde_json::from_str(
+            response["result"]["contents"][0]["text"]
+                .as_str()
+                .expect("resource text"),
+        )
+        .expect("skill resource JSON");
+        assert_eq!(manifest["skill"]["execution_availability"], "unavailable");
+        assert_eq!(
+            manifest["skill"]["missing_operator_ids"],
+            json!([
+                "forgecad.reference.validate@1",
+                "forgecad.reference.inventory@1"
+            ])
+        );
 
         let unknown = handle(
             &mut backend,
@@ -2607,10 +3494,7 @@ mod tests {
         )
         .expect("stale status");
 
-        let dynamic = DynamicIpcBackend {
-            ready_file,
-            status_file: Some(status_file),
-        };
+        let dynamic = DynamicIpcBackend::from_ready_file(ready_file, Some(status_file));
         let status = dynamic.status();
         assert_eq!(status["state"], "Degraded");
         assert_eq!(status["retryable"], true);
@@ -2649,10 +3533,10 @@ mod tests {
             br#"{"schema_version":"ForgeCADRuntimeSupervisorStatus@1","state":"Ready","retryable":false}"#,
         )
         .expect("status file");
-        let backend = Backend::DynamicIpc(DynamicIpcBackend {
+        let backend = Backend::DynamicIpc(DynamicIpcBackend::from_ready_file(
             ready_file,
-            status_file: Some(status_file),
-        });
+            Some(status_file),
+        ));
 
         let status = runtime_status_payload(&backend).expect("status");
         assert_eq!(status["state"], "Busy");

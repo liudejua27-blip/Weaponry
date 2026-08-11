@@ -1,0 +1,63 @@
+{
+  "schema_version": "ForgeCADEvidenceManifest@1",
+  "task_id": "FGC-MCP010C",
+  "status": "in_progress",
+  "recorded_on": "2026-08-11",
+  "scope": [
+    "ReferenceViewSpec@1",
+    "CameraCalibration@1",
+    "RenderSet@2",
+    "ReferenceComparisonReport@1",
+    "VisualReviewReport@1",
+    "HumanVisualReviewReceipt@1",
+    "QualityReport@2",
+    "fixed 512x512 perspective renderer with scene transforms, z-buffer and deterministic AOV output",
+    "local reference border flood-fill/morphology mask and bounded comparison metrics",
+    "Codex typed review, human score receipt and candidate-bound quality persistence"
+  ],
+  "current_source_surface": {
+    "contract_count": 59,
+    "contract_count_breakdown": {
+      "mcp006_historical_contracts": 44,
+      "mcp010b_current_source_contracts": 8,
+      "mcp010c_current_source_contracts": 7
+    },
+    "default_read_tool_count": 20,
+    "write_tool_count_when_opted_in": 16,
+    "total_tool_count_when_opted_in": 36,
+    "renderer_revision": "forgecad-renderer-2",
+    "renderer_output": "nine ordered 512x512 PNG passes",
+    "reference_mask_revision": "mask-2",
+    "quality_visual_claim": "NOT_CLAIMED"
+  },
+  "gates": {
+    "contracts_59": "PASS",
+    "geometry_worker_fixed_renderer_unit": "PASS",
+    "runtime_candidate_bound_nine_aov_review_unit": "PASS",
+    "runtime_nested_contract_output_validation": "PASS",
+    "mcp_tools_and_image_block": "PASS",
+    "reference_mask_and_metric_path": "PASS",
+    "raw_stdio_reference_compare_review": "PASS",
+    "deterministic_render_bytes": "PASS",
+    "real_user_reference_comparison": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+    "actual_reference_likeness_threshold": "FAIL_QUALITY_TARGET_NOT_MET",
+    "independent_human_visual_quality_gate": "NOT_RUN",
+    "viewer_compare_surface": "NOT_RUN",
+    "packaged_dev_app_c_renderer_e2e": "NOT_RUN",
+    "export_restart_hash_evidence": "NOT_RUN",
+    "hq_360_reference_coverage": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "evidence": [
+    "docs/evidence/mcp010c/raw-stdio.json",
+    "docs/evidence/mcp010c/real-reference-robot.json",
+    "script/test_mcp010c.sh"
+  ],
+  "limitations": [
+    "The synthetic source gate proves contract/transport/persistence behavior. An isolated run with the user's authorized robot PNG completed the real comparison and nine-AOV path, but failed the likeness thresholds: silhouette IoU 0.5132, boundary F1 0.1441, bbox edge error 0.1074 and centroid error 0.0169; landmark and region coverage were not supplied by the primitive blockout.",
+    "The real robot run is a primitive structural blockout only. Its typed visual review requests revision, quality_get returns QUALITY_TARGET_NOT_MET, no candidate was confirmed, and no human score was fabricated.",
+    "The current renderer is product-owned software output; no remote segmentation, paid generation API, Blender state or plugin is used.",
+    "A single three-quarter reference can only produce PARTIAL_VISIBLE_VIEW_PASS; HQ_360_PASS remains blocked until front/back/left/right/rear-three-quarter references include legs and feet.",
+    "PBR V2 textures/material packs, Viewer AOV UI, packaged current-cohort C E2E and export/restart hash checks remain for later C substeps or MCP010E/F."
+  ],
+  "persistent_user_data_touched": false
+}

@@ -1,0 +1,45 @@
+{
+  "schema_version": "ForgeCADMCP010BMcp009AppearanceExportReceipt@1",
+  "task_id": "FGC-MCP010B",
+  "status": "PASS",
+  "scope": "current d9c23b primitive-blockout Dev.app real Codex CLI through the retained MCP008/MCP009 MVP appearance and export path",
+  "source_revision": "13d1dc3e307cd96751f8d760837ca20150d78fef",
+  "build_cohort_sha256": "d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd",
+  "reference_object_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "reference_size_bytes": 2165094,
+  "mcp_tool_sequence": [
+    "project_create",
+    "reference_import",
+    "geometry_prepare",
+    "artifact_readback_get",
+    "appearance_prepare",
+    "artifact_readback_get",
+    "quality_get",
+    "candidate_confirm",
+    "version_list",
+    "export_prepare",
+    "export_confirm",
+    "version_list"
+  ],
+  "geometry_artifact": {
+    "artifact_sha256": "b278822197f14e5dea6056b90054a2a2e252e5fce5f16917e052e26fe5e781d4",
+    "triangle_count": 548,
+    "part_count": 15,
+    "validator_status": "passed"
+  },
+  "appearance_artifact": {
+    "artifact_sha256": "9e90e7d265587bc7c49d7831b78e89651147443631b942a2fe13da78ba759d94",
+    "triangle_count": 548,
+    "part_count": 15,
+    "validator_status": "passed"
+  },
+  "candidate_confirmed": true,
+  "export_confirmed": true,
+  "isolated_runtime_and_cas": true,
+  "persistent_user_data_touched": false,
+  "visual_similarity": "NOT_RUN",
+  "pbr_v2_asset_pack": "NOT_RUN",
+  "human_visual_review": "NOT_RUN",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "interpretation": "The image was admitted as user-authorized reference evidence. Geometry and appearance were deterministic typed MVP programs supplied by the host probe; this receipt proves the real Codex wire, approval, version and CAS-backed export path only, not image-conditioned reconstruction, PBR texture fidelity or high-quality visual similarity."
+}

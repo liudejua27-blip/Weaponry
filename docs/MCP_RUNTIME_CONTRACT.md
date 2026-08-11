@@ -1,7 +1,7 @@
 # ForgeCAD MCP Runtime 合同
 
-版本：2026-08-09
-状态：MCP005–MCP009 MVP functional core 和真实 Codex CLI host golden path 已完成；当前仍为 17 read + 13 write；MCP010C 工具为 planned/unavailable
+版本：2026-08-10
+状态：MCP005–MCP009 MVP functional core 和真实 Codex CLI host golden path 已完成；MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；MCP010C 当前源码为 20 read + 16 opt-in write = 36 个工具，fixed renderer/九 AOV/reference comparison/review raw Gate PASS；packaged/live C、真实用户 likeness、Viewer/PBR/360仍 NOT_RUN/BLOCKED
 P0 required 客户端：Codex Desktop、Codex CLI
 未来兼容客户端：Codex IDE / VS Code / Cursor / Windsurf；其他 MCP Client
 
@@ -59,8 +59,9 @@ MCP003 使用 2025-era 的有状态 stdio 生命周期：`2025-11-25` 是 ForgeC
 | `forgecad://renders/{render_set_id}/{pass}` | 固定视图/AOV 图像 | MCP008 生成四个 bounded PNG pass；binary 仍走受保护的 Viewer IPC |
 | `forgecad://skills/{skill_id}/{version}` | first-party Skill manifest | MCP006 development-only registry；只读 metadata，不含可执行 payload |
 | `forgecad://artifacts/{artifact_id}` | hash-bound 工件元数据 | MCP007 通过 `artifact_readback_get` 读取；binary blob 仍不内联 |
+| `forgecad://operators/catalog` | Runtime-owned `OperatorCatalog@1` | MCP010B V2 authoring catalog；必须与 `operator_catalog_get`、capabilities 和 V2 artifact/readback digest 相同 |
 
-MCP003 当前已实现 capabilities、项目 snapshot/selection、candidate、job、version 的 JSON projection 和对应 resource templates；MCP005 增加 references，MCP006 增加 first-party Skill manifest resources，MCP007 增加 artifact metadata/readback，MCP008 增加 RenderSet metadata。MCP raw tool 不内联原始 GLB/PNG bytes；可选 Viewer 通过 authenticated `artifact_bytes_get` 读 CAS bytes。资源 URI 只接受 `forgecad://` 和受限 opaque ID，不接受文件路径、URL、查询串或 `..`。
+MCP003 当前已实现 capabilities、项目 snapshot/selection、candidate、job、version 的 JSON projection 和对应 resource templates；MCP005 增加 references，MCP006 增加 first-party Skill manifest resources，MCP007 增加 artifact metadata/readback，MCP008 增加 RenderSet metadata，MCP010B 新增 operator catalog resource 的可调用镜像。MCP raw tool 不内联原始 GLB/PNG bytes；可选 Viewer 通过 authenticated `artifact_bytes_get` 读 CAS bytes。资源 URI 只接受 `forgecad://` 和受限 opaque ID，不接受文件路径、URL、查询串或 `..`。
 
 大二进制不内联到日志或事件；通过 MCP resource link 或受限 blob 读取，并声明 MIME、字节数和 SHA-256。
 
@@ -69,6 +70,10 @@ MCP003 当前已实现 capabilities、项目 snapshot/selection、candidate、jo
 ### 5.1 只读工具
 
 - `capabilities_get`
+- `runtime_status`
+- `doctor`
+- `operator_catalog_get`（与 `forgecad://operators/catalog` 同一 Runtime-owned `OperatorCatalog@1`）
+- `geometry_program_hash`（只校验 hash-free `GeometryProgram@2` draft 并返回 compiler-owned hash；零持久化副作用）
 - `project_list`
 - `project_get`
 - `snapshot_get`
@@ -84,7 +89,7 @@ MCP003 当前已实现 capabilities、项目 snapshot/selection、candidate、jo
 - `artifact_readback_get`
 - `reference_get`
 
-MCP003 的工具清单固定排序并声明 `readOnlyHint=true`、`destructiveHint=false`、`idempotentHint=true`、`openWorldHint=false`。当前默认仍为 17 个只读工具；`artifact_readback_get` 已读取 GLB header/lineage/part/triangle/UV/tangent metadata，`quality_get` 和 `version_diff` 已可用但质量比较保守标记 limited；不得以自然语言把 limited、fixture 或 unavailable 伪装成视觉 PASS。
+MCP003 的工具清单固定排序并声明 `readOnlyHint=true`、`destructiveHint=false`、`idempotentHint=true`、`openWorldHint=false`。当前 MCP010B 源码默认有 19 个只读工具；其中两个新 V2 authoring 工具只校验或读取，绝不编译或持久化。`artifact_readback_get` 已读取 GLB header/lineage/part/triangle/UV/tangent metadata，`quality_get` 和 `version_diff` 已可用但质量比较保守标记 limited；不得以自然语言把 limited、fixture 或 unavailable 伪装成视觉 PASS。MCP010A Dev.app 的 30-tool activation receipt、MCP003 历史的 17-read snapshot，以及 MCP010B 的 3c/f488 package receipts 都必须保留为历史。当前 52-contract source-focused Gate、历史 `bfa56ac…de9` package receipt和 `d9c23b…ac0bd` Dev.app package/Worker/raw/real-Codex structural Gate及 live Desktop structural activation均已通过。
 
 这些工具必须声明 read-only annotation，且不能以“读取”为名创建项目、下载网络资产、运行编译或改变 GC 生命周期。`reference_get` 只返回 ReferenceEvidence 元数据，不返回原始路径或字节；当前不提供原始图片 MCP blob 读取。
 
@@ -93,7 +98,7 @@ MCP003 的工具清单固定排序并声明 `readOnlyHint=true`、`destructiveHi
 - `project_create`（MCP004；创建项目元数据）
 - `candidate_prepare`（MCP004；diagnostic 或已入 CAS 的 typed object）
 - `reference_import`（MCP005；只写 CAS/ReferenceEvidence，不创建版本）
-- `geometry_prepare`（MCP007；bounded GeometryProgram@1）
+- `geometry_prepare`（MCP007 V1 compatibility；MCP010B 也接受由 `geometry_program_hash` 生成 canonical hash 的 V2 program，且 program `project_id` 必须等于 outer target project）
 - `appearance_prepare`（MCP008；bounded AppearanceProgram@1）
 - `quality_get`（只读；Runtime-owned hard checks + limited reference evidence）
 - `change_prepare`
@@ -107,7 +112,7 @@ MCP003 的工具清单固定排序并声明 `readOnlyHint=true`、`destructiveHi
 
 MCP004 当前已在 Runtime 和 authenticated local IPC 实现并测试以下 typed 方法：`project_create`、`candidate_prepare`、`candidate_confirm`、`candidate_reject`、`restore_prepare`、`restore_confirm`、`export_prepare`、`export_confirm`、`job_cancel`。MCP007 增加 `geometry_prepare`，MCP008 增加 `appearance_prepare`，MCP009 增加 `change_prepare`。`candidate_prepare` 接受已经存在于 Runtime CAS 的 prepared object hash，或受限的 `request.typed=diagnostic` 非视觉合同对象；两条路径都不接受图片路径、任意代码或网络 URL。`quality_get` 现在执行 Runtime-owned geometry/GLB/UV/tangent/PBR/fixed-render hard checks，并可返回明确 `limited` 的 reference aspect comparison。`restore_prepare` 只接受 project 内已 confirmed 且 quality-passing 的历史 version，并以当前 head 绑定新 candidate；`restore_confirm` 在单一 SQLite 事务中创建当前 head 的新子版本，历史版本不被覆盖。`export_prepare/export_confirm` 支持 `manifest-json/diagnostic` 和 `glb/mvp-glb`；GLB 只允许 confirmed quality-passing Runtime GLB，confirm 返回 CAS output hash/receipt，不写任意本机路径。
 
-`forgecad-mcp` 默认 stdio tool manifest 包含 17 个只读工具；显式 authenticated IPC + `FORGECAD_MCP_ENABLE_MCP004_WRITES=1` 时列出 30 个工具，即 17 个只读 + 13 个写工具（MCP004/005/007/008/009）。其中 `runtime_status` 和 `doctor` 只读取生命周期状态，不运行 fixture、confirm、签名或完整验收。`appearance_prepare` 与 `change_prepare` 都声明 `requiresConfirmation=true`、`readOnlyHint=false`。Runtime contract/version 由同版本 launcher 和 Runtime 事务合同保证，不把 client name 或一段 status 字符串当成安全边界。MCP/Runtime 不可用时 initialize 仍成功，依赖 Runtime 的调用返回结构化 `RUNTIME_UNAVAILABLE`、`retryable=true`。未启用时已知写工具分别返回 typed `MCP004_WRITE_TOOLS_DISABLED`、`MCP005_REFERENCE_TOOLS_DISABLED`、`MCP007_GEOMETRY_TOOLS_DISABLED`、`MCP008_APPEARANCE_TOOLS_DISABLED` 或 `MCP009_CHANGE_TOOLS_DISABLED`，不会静默降级。
+当前 `forgecad-mcp` 源码的默认 stdio tool manifest 包含 20 个只读工具；显式 authenticated IPC + `FORGECAD_MCP_ENABLE_MCP004_WRITES=1` 时列出 36 个工具，即 20 个只读 + 16 个写工具（MCP004/005/007/008/009/010C）。`operator_catalog_get` 与 resource 完全镜像；`geometry_program_hash` 拒绝预填 hash、unknown/V1/catalog mismatch 和无效 draft，且没有 Store/CAS/Job/event 写入。`render_pass_get` 只 CAS 读取 RenderSet@2 并返回 PNG image block；`reference_compare_prepare` 生成 candidate/reference-bound camera、九 AOV、mask、metrics、diff，不创建版本；两个 review 工具只保存 typed evidence。V2 physical contract 为 position ±10 m、dimension/height ≤10 m、radius/radii ≤5 m。`runtime_status` 和 `doctor` 只读取生命周期状态，不运行 fixture、confirm、签名或完整验收。视觉证据工具声明 `requiresConfirmation`/write boundary，Runtime 不把 receipt当密码学身份认证。Runtime contract/version 由同版本 launcher 和 Runtime 事务合同保证，不把 client name 或一段 status 字符串当成安全边界。MCP/Runtime 不可用时 initialize 仍成功，依赖 Runtime 的调用返回结构化 `RUNTIME_UNAVAILABLE`、`retryable=true`。
 
 MCP004 可按当前任务范围标为 done；其历史 evidence 中 reference/Geometry/GLB/signing 的 NOT_RUN/BLOCKED 保持不变，并分别转到 MCP005、MCP007–009 和 MCP013。
 
@@ -120,12 +125,15 @@ MCP004 可按当前任务范围标为 done；其历史 evidence 中 reference/Ge
 | MCP007 | `geometry_prepare`、`artifact_readback_get`、Viewer candidate/artifact read model | 否 |
 | MCP008 | `appearance_prepare`、四 pass fixed render、Viewer artifact bytes | 否 |
 | MCP009 | `quality_get`、`version_diff`、`change_prepare`、`glb/mvp-glb` export | confirm/export 依赖现有 approval 事务；reference compare limited |
+| MCP010B | `operator_catalog_get`、`geometry_program_hash`、V2 `geometry_prepare` / `ArtifactReadback@2` | hash/catalog 读取零永久版本；prepare 仍只创建候选，需严格 readback 才可继续 |
 
 只有 producer、Runtime validator、negative tests、capability 状态和真实 evidence 同任务完成后，工具才可从 unavailable 变 available。不能先把空工具列出再用自然语言结果伪装实现。
 
+隔离 source-built real Codex CLI 已完成 `project_create → reference_import → capabilities_get → operator_catalog_get → geometry_program_hash → geometry_prepare → artifact_readback_get` 的 V2 structural Gate；attempt 1 保持 `BLOCKED`，attempt 2 为历史 pre-semantic-Part-sink 的 `PASS`，且 candidate 未确认。固定同级 Worker 的 timeout/crash/FD isolation 和 accepted-result peak-RSS gate 另已通过，但 Darwin 512 MiB OS 总内存硬门为 `NOT_RUN`。3c/f488 Dev.app 的 V2 raw probe、packaged Worker structural E2E 和授权参考 CLI 链也都是历史 package receipt；f488 的候选未确认、为 12 Part/896 triangle，且 `chest-shell` 按顺序绑定 chest-shell/chest-panel。历史 `bfa56ac…de9` Dev.app receipt保留；当前 `d9c23b…ac0bd` Dev.app则通过 fresh package/Worker/raw/real-Codex structural Gate和 live Desktop structural activation，并产生相同结构规模的未确认 12 Part/896 triangle/161104-byte candidate；这些 receipt 都不证明参考相似度、材质/PBR V2、export/restore、Viewer hash 或 360°。
+
 MCP005 已满足上述条件：Runtime `supports_reference_import=true`，`reference_import` 在显式 authenticated IPC opt-in 下可用，`reference_get` 为只读工具；真实 Codex CLI evidence 见 `docs/evidence/mcp005/codex-cli-reference-e2e.json`。Codex Desktop 当前 bridge 仍是 `NOT_RUN / unavailable`，不得写成 Desktop PASS。MCP005 的成功只证明真实图片字节进入 CAS，不证明视觉理解、几何或 GLB。
 
-MCP006 已完成 development-only Bundle Gate：Runtime 已加载十项 first-party registry，`supports_skill_registry=true`，并通过 `skill_list`、`skill_get` 与 Skill resource 只读暴露 manifest。十个独立 Bundle 目录均包含本地合同 schema、Recipe、operator/validator allowlist、合成正/负 fixture、benchmark receipt、许可证、SBOM、provenance 和 development trust manifest；`scripts/check_mcp006_skills.py` 校验 DAG、单位、finite、预算、canonical hash、路径/脚本/网络 capability，并 fail closed。它们不是“已签名安装包”，不执行代码，不替代 Geometry/Render 结果；distribution signing/revocation 延后 MCP012–013。
+MCP006 已完成 historical development-only Bundle Gate：Runtime 已加载十项历史 first-party registry，`supports_skill_registry=true`，并通过 `skill_list`、`skill_get` 与 Skill resource 只读暴露 manifest。MCP010B 当前源码另外加载并验证 `primitive-blockout@0.2.0`，其 `forgecad.geometry.primitive@2` 是当前唯一 active V2 Skill consumer；十个历史 Bundle 和新 Bundle 均包含本地合同 schema、Recipe、operator/validator allowlist、合成正/负 fixture、benchmark receipt、许可证、SBOM、provenance 和 development trust manifest。`scripts/check_mcp006_skills.py` 校验 DAG、单位、finite、预算、canonical hash、路径/脚本/网络 capability，并 fail closed。它们不是“已签名安装包”，不执行任意代码，不替代 Geometry/Render 结果；distribution signing/revocation 延后 MCP012–013。
 
 MCP007 已完成 geometry Gate：`geometry_prepare` 只接受 canonical `GeometryProgram@1`，当前 allowlist 为 product-owned box/cylinder/sphere primitive；Runtime 写入 geometry GLB CAS，创建 reviewable candidate/quality report，返回 `GeometryPrepareResult@1` 与 strict `ArtifactReadback@1`。MCP008 已在其上完成 bounded Appearance/Render；MCP009 已完成 limited quality/change/version/export functional core。真实 Codex CLI geometry/readback slice 已 PASS（14 parts/516 triangles，见 `docs/evidence/mcp007/codex-cli-geometry.json`）；`docs/evidence/mcp009/codex-cli-appearance-export.json` 另记录真实图片附件到 appearance、quality、confirm、version 和 CAS-only GLB export 的十二调用 host golden path。MCP010A 已通过最小 Desktop activation write probe；完整 Desktop 3D write、packaged、像素/视觉 gates 仍保持 `BLOCKED/NOT_RUN`，不得把有限主链路扩展成通用质量结论。
 
@@ -157,7 +165,7 @@ Runtime 必须确认审批未过期、范围和 hash 完全一致、基线未漂
 
 请求中的 `approval_receipt_id` 在 MVP 中只是 Codex approval context 的 opaque id；Runtime 不信任它作为最终凭证。confirm/reject/export 成功或记录过期审批时，由 Runtime 在事务内生成 `receipt-...` 的最终持久化 receipt，并在结果中返回该 ID。它是宿主审批流程证据，不是密码学人类签名。
 
-### 5.6 MCP010C 计划工具（当前不可见）
+### 5.6 MCP010C 当前工具（source raw 已验证；真实/packaged 视觉门未运行）
 
 | 工具 | Annotation/确认 | 目标合同 |
 |---|---|---|
@@ -166,7 +174,7 @@ Runtime 必须确认审批未过期、范围和 hash 完全一致、基线未漂
 | `visual_review_submit` | write/evidence | 保存绑定 candidate/render/pass/region 的 typed review |
 | `human_visual_review_submit` | write/evidence + confirmation | 保存用户评分；Runtime receipt 不作为密码学身份认证 |
 
-`quality_get` 保持既有只读名称，只有 `QualityReport@2` producer、Schema、negative tests 和 persistence 同时完成后才升级返回语义。MCP010C 完成前 tool manifest 必须继续是 17 read + 13 write；完成全部 Gate 后目标才是 18 read + 16 write。空工具、自然语言结果或 target Schema 不能改变 capability 状态。
+`quality_get` 保持既有只读名称，现可读回 candidate-bound `QualityReport@2`；source synthetic/raw PASS 不等于用户图片 likeness PASS。当前 source manifest 为 20 read + 16 opt-in write；空工具、自然语言结果或 target Schema不能改变 capability 状态。packaged/live C、Viewer compare、人评阈值、PBR/纹理和 HQ_360 仍必须独立记录。
 
 MCP010E 的 first-party 离线 AssetPack 由应用资源和 Runtime CAS bootstrap 提供，不新增通用 `material_pack_install` 工具；publisher/install/disable/upgrade/revoke 属 MCP012。
 
@@ -251,9 +259,9 @@ default_tools_approval_mode = "writes"
 ## 11. MCP003 已完成的本地合同 Gate
 
 - `docs/evidence/mcp003/protocol-snapshot.json` 固定 MCP `2025-11-25`、Codex `2025-06-18` 兼容版本、initialize 字段、method、tools、annotations、resource templates 和 1 MiB projection 上限；
-- `resources/list`、`resources/read`、`resources/templates/list` 和 17 个只读工具（含 `runtime_status`/`doctor`/`reference_get`）由 Rust 单元测试及静态合同检查覆盖；
-- `npm run mcp003:stdio` 可对已打包或已构建的 `forgecad-mcp` 运行无配置副作用的原始 stdio 探测：校验四个响应、17 个只读工具、能力资源和协议不兼容 fail-closed；它是传输层证据，不等于 required Codex Desktop/CLI 宿主 E2E，也不把 IDE 变成当前 P0 Gate；MCP005 的 reference CLI admission 另由 `script/test_mcp005.sh` 和对应 Codex receipt 覆盖。
-- 官方 `@modelcontextprotocol/sdk` 的 `StdioClientTransport` 独立探测如再次运行应列出 17 个工具、1 个资源并读回 capabilities；历史 14-tool receipt 仍只描述旧会话，不覆盖当前 manifest；
+- MCP003 历史 `resources/list`、`resources/read`、`resources/templates/list` 与 17 个只读工具（含 `runtime_status`/`doctor`/`reference_get`）由当时 Rust 单元测试及静态合同检查覆盖；MCP010B 当前源码在此基础上新增两个默认 read tool，共 19 个，不改写原 receipt；
+- `npm run mcp003:stdio` 的历史 receipt 校验四个响应、17 个只读工具、能力资源和协议不兼容 fail-closed。当前 source manifest 应以 19-read MCP010B raw probe 为准；两者都是传输层证据，不等于 required Codex Desktop/CLI 宿主 E2E，也不把 IDE 变成当前 P0 Gate；MCP005 的 reference CLI admission 另由 `script/test_mcp005.sh` 和对应 Codex receipt 覆盖。
+- 官方 `@modelcontextprotocol/sdk` 的 `StdioClientTransport` 历史 MCP003 独立探测列出 17 个只读工具、1 个资源并读回 capabilities；当前 MCP010B source probe 应验证 19 个只读工具，并只对当前实际 probe 到的资源数量作出声明。历史 14-tool receipt 仍只描述旧会话，不覆盖当前 manifest；
 - Server/Runtime contract mismatch、协议版本不支持、非法 URI、非法 opaque ID 和未实现能力均 fail closed；
 - Desktop/CLI/IDE 配置基线不含 secret、绝对路径或现代协议 opt-in；所有基线使用 `forgecad-mcp` 单入口，`docs/evidence/mcp003/host-matrix.json` 记录 required protocol adapter、Codex CLI、Codex Desktop PASS，Desktop 实际 `initialize.protocolVersion=2025-06-18`，forced mismatch 为 `HOST_OVERRIDE_IGNORED / NOT_APPLICABLE`；IDE 保持 `OPTIONAL_NOT_IN_SCOPE`。
 

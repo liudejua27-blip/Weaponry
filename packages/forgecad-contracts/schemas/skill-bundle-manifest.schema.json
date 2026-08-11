@@ -22,6 +22,22 @@
     "benchmark_suite": {"type":"string","pattern":"^[a-zA-Z0-9_./-]{1,256}$"},
     "canonical_sha256": {"type":"string","pattern":"^[0-9a-f]{64}$"},
     "trust_profile": {"enum":["development-root","distribution-root"]},
-    "signature": {"enum":["development-only","signed"]}
-  }
+    "signature": {"enum":["development-only","signed"]},
+    "execution_availability": {"enum":["active","partial","unavailable"]},
+    "missing_operator_ids": {"type":"array","maxItems":32,"uniqueItems":true,"items":{"type":"string","pattern":"^forgecad\\.[a-z0-9_.-]+@[0-9]+$"}}
+  },
+  "allOf": [
+    {
+      "if": {"required":["execution_availability"]},
+      "then": {"required":["missing_operator_ids"]}
+    },
+    {
+      "if": {"properties":{"execution_availability":{"const":"active"}},"required":["execution_availability"]},
+      "then": {"properties":{"missing_operator_ids":{"maxItems":0}}}
+    },
+    {
+      "if": {"properties":{"execution_availability":{"enum":["partial","unavailable"]}},"required":["execution_availability"]},
+      "then": {"properties":{"missing_operator_ids":{"minItems":1}}}
+    }
+  ]
 }

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-view-spec.schema.json",
+  "title": "ReferenceViewSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "reference_id", "reference_sha256", "view_id", "source_view", "image", "landmarks", "regions", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "ReferenceViewSpec@1"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "view_id": {"$ref": "#/$defs/identifier"},
+    "source_view": {"enum": ["front", "back", "left", "right", "rear-three-quarter", "three-quarter", "unknown"]},
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "rotation_degrees", "crop"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "height": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "rotation_degrees": {"type": "number", "minimum": -180, "maximum": 180},
+        "crop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y", "width", "height"],
+          "properties": {
+            "x": {"type": "number", "minimum": 0, "maximum": 1},
+            "y": {"type": "number", "minimum": 0, "maximum": 1},
+            "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+            "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+          }
+        }
+      }
+    },
+    "landmarks": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"$ref": "#/$defs/landmark"}
+    },
+    "regions": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/region"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "visibility": {"enum": ["observed", "inferred", "unknown"]},
+    "landmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["landmark_id", "x", "y", "visibility", "confidence"],
+      "properties": {
+        "landmark_id": {"$ref": "#/$defs/identifier"},
+        "x": {"type": "number", "minimum": 0, "maximum": 1},
+        "y": {"type": "number", "minimum": 0, "maximum": 1},
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "x", "y", "width", "height", "visibility", "confidence"],
+      "properties": {
+        "region_id": {"$ref": "#/$defs/identifier"},
+        "x": {"type": "number", "minimum": 0, "maximum": 1},
+        "y": {"type": "number", "minimum": 0, "maximum": 1},
+        "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-prepare-result-v2.schema.json",
+  "title": "GeometryPrepareResultV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate", "job", "operator_catalog", "artifact"],
+  "properties": {
+    "schema_version": {"const": "GeometryPrepareResult@2"},
+    "candidate": {"$ref": "https://forgecad.local/contracts/candidate.schema.json"},
+    "job": {"$ref": "https://forgecad.local/contracts/runtime-job.schema.json"},
+    "operator_catalog": {"$ref": "https://forgecad.local/contracts/operator-catalog.schema.json"},
+    "artifact": {"$ref": "https://forgecad.local/contracts/artifact-readback-v2.schema.json"}
+  }
+}

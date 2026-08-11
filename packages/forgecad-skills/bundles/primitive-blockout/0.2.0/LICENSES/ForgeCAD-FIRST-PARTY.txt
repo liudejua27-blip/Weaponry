@@ -1,0 +1,5 @@
+ForgeCAD first-party declarative Skill metadata.
+
+This bundle contains no third-party code, executable payload, downloaded model,
+texture, or external service dependency. Distribution licensing and signatures
+remain governed by the ForgeCAD repository and MCP012-013 release process.

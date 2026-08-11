@@ -15,7 +15,7 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 
 “Codex-only”指支持范围，不是模型身份认证。不得用 `client_name == codex` 作为安全边界。图片附件必须通过真实 Codex 客户端证明字节进入 ForgeCAD CAS；没有证据时标为 unavailable。
 
-当前是单用户 MVP host golden path 已收口的开发阶段，不是通用高质量产品。MCP002–MCP009 的 Runtime/MCP/Worker/Viewer/事务能力已有 focused evidence；真实 Codex CLI 已用用户授权图片完成 reference→geometry→appearance→quality→confirm→CAS GLB 十二调用主链路。silhouette/landmark/region 相似度、真人视觉评分、签名打包仍是 `NOT_RUN/BLOCKED`，不能宣称“Codex 已生成通用高质量 3D”。
+当前是单用户 MVP host golden path 已收口、MCP010C 正在 source-focused 收口的开发阶段，不是通用高质量产品。MCP002–MCP009 的 Runtime/MCP/Worker/Viewer/事务能力已有 focused evidence；真实 Codex CLI 已用用户授权图片完成 reference→geometry→appearance→quality→confirm→CAS GLB 十二调用主链路。MCP010C 当前源码已实现固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、Codex/human review 与 MCP image block raw Gate；首次真实机器人 PNG 的 compare/review transport 已运行但 likeness threshold 未通过，独立人视觉门、Viewer compare、packaged C、PBR/纹理和 360°仍是 `NOT_RUN/BLOCKED`，不能宣称“Codex 已生成通用高质量 3D”。
 
 ## 2. 唯一权威阅读顺序
 
@@ -39,18 +39,18 @@ ForgeCAD 是由 Codex 调用的本地、可验证、可回退 3D Runtime，不�
 
 ## 3. 强制实施顺序
 
-实施顺序固定为 `FGC-MCP000 → MCP001 → ... → MCP009 → MCP010A → ... → MCP010F → MCP011 → MCP012 → MCP013`，详见任务索引。同一时刻只领取一个原子任务。MVP functional core 主线 `MCP005 → MCP006 → MCP007 → MCP008 → MCP009` 已完成；`MCP010A` 已完成真实 Codex Desktop 激活 Gate，`MCP010B`–`MCP010F` 必须按依赖保持 `blocked`，后续只能由独立 Goal 显式领取。
+实施顺序固定为 `FGC-MCP000 → MCP001 → ... → MCP009 → MCP010A → ... → MCP010F → MCP011 → MCP012 → MCP013`，详见任务索引。同一时刻只领取一个原子任务。MVP functional core 主线 `MCP005 → MCP006 → MCP007 → MCP008 → MCP009` 已完成；`MCP010A` 已完成真实 Codex Desktop 激活 Gate。用户已显式领取独立 MCP010C Goal，故当前 MCP010C 为 `in_progress`；MCP010B 的 Darwin OS 总内存硬门仍 `NOT_RUN`，作为 deferred prerequisite 保留账本；MCP010D–F 继续 `blocked`。
 
 `FGC-MCP001`–`FGC-MCP009` 已完成当前功能核心定义；`MCP010A`–`MCP010F` 是首个硬表面参考质量产品化轨道，`MCP011`–`MCP013` 保留可靠性、分发和正式发布职责：
 
 1. MCP004 已提供 candidate/Job/approval/confirm/reject/restore/diagnostic-export 事务、OS 文件锁、MCP 内置轻量 Runtime supervisor、真实 Codex CLI diagnostic write 和 Viewer read model；
 2. distribution signing、notarization、Desktop packaged write 和通用多客户端治理移到 MCP013，开发期不得让它们阻塞参考导入与几何能力；
 3. MCP005 已完成真实 PNG/JPEG 附件字节 → CAS → `ReferenceEvidence`，不得把它扩写成几何完成或引入任意脚本插件；
-4. MCP006 已完成 44 个 typed contracts、十个独立 first-party declarative Bundle、Registry 只读暴露、DAG/单位/finite/预算/hash/license/SBOM/provenance 负向 Gate；它不把 Skill metadata 冒充几何结果；
+4. MCP006 已完成其历史 44 个 typed contracts、十个独立 first-party declarative Bundle、Registry 只读暴露、DAG/单位/finite/预算/hash/license/SBOM/provenance 负向 Gate；MCP010B 当前源码在此基础上新增 8 个合同（`GeometryProgram@2`、`OperatorCatalog@1`、两个 authoring hash 合同、`ArtifactReadback@2`、`GeometryPrepareResult@2`、`GeometryQualityReport@2`、`GeometryCandidateEvidence@1`），共 52 个。当前 source-focused Gate 已通过；已安装 Dev.app receipt 仍是历史 cohort，不能把它冒充为本轮 package/live Desktop 证据；
 5. MCP007 已完成 product-owned bounded box/cylinder/sphere compiler、14 部件机器人 fixture、GLB lineage/readback、Runtime/MCP/Viewer authenticated IPC focused Gate；真实 Codex CLI 已用用户授权 PNG 完成 geometry/readback slice（14 parts/516 triangles/validator passed），MCP009 证据另含 appearance/quality/confirm/export 主链路；不得把有限主链路扩展成像素相似度或通用质量结论；
 6. IDE/其他 Client 和 transport-specific official conformance 保持未来/非阻塞状态，不得伪造 PASS。
 7. MCP008 的 bounded Appearance/Render/Viewer focused Gate 已通过；MCP009 的 Runtime golden-path/change/export focused Gate 已通过。MCP010 不能改写这些历史 receipt，只能新增 V2 合同、质量和真实视觉证据；真实 Codex、真人和 packaged gates 必须继续单独标记，不能用本地 fixture 代替。
-8. MCP010A 只做权威重排、同 revision 开发构建/用户级激活和真实 Codex capability Gate；第二次完整重启已证明真实工具、Runtime Ready、能力 cohort 和临时项目读回，故 010A 可标记 `done`。在后续独立 Goal 领取前不得开始 MCP010B。
+8. MCP010A 只做权威重排、同 revision 开发构建/用户级激活和真实 Codex capability Gate；第二次完整重启已证明真实工具、Runtime Ready、能力 cohort 和临时项目读回，故 010A 可标记 `done`。MCP010B 当前结构 Gate 已通过，但 Darwin 512 MiB OS 总内存硬门仍 `NOT_RUN`，不把受限输入预算或 peak-RSS 后验拒绝写成预防式硬上限。当前独立 Goal 已领取 MCP010C：源码默认有 20 个只读工具，显式 write opt-in 后为 20 read + 16 write = 36；`operator_catalog_get`、`geometry_program_hash`、`render_pass_get` 是 Runtime-owned 只读工具，`reference_compare_prepare`、`visual_review_submit`、`human_visual_review_submit` 是 C 的显式写证据工具。当前源码已通过 59 contracts、固定 renderer/九 AOV、reference comparison、MCP image block、Codex/human review 和 raw stdio source Gate；首次真实机器人 PNG 的 compare/review transport 已通过，但 quality 为 `QUALITY_TARGET_NOT_MET`，独立人评阈值、Viewer compare、packaged C、PBR/纹理、export/restart hash 和 360°仍未运行。MCP010D–F 继续 blocked。
 
 不得在当前脏 `main` 上直接删除。不得跳过 MCP001 继续扩展旧工作台或修 Provider。
 

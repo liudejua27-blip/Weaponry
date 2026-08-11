@@ -1,0 +1,7 @@
+{
+  "assets": [],
+  "network": false,
+  "note": "No external asset payload is included in this declarative V2 geometry bundle.",
+  "schema_version": "SkillAssetIndex@1",
+  "skill_id": "primitive-blockout"
+}

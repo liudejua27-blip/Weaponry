@@ -1,0 +1,39 @@
+{
+  "benchmark_suite": "primitive-blockout-v2-smoke",
+  "budgets": {
+    "max_glb_bytes": 67108864,
+    "max_nodes": 128,
+    "max_runtime_ms": 10000,
+    "max_triangles": 250000,
+    "max_worker_memory_bytes": 536870912
+  },
+  "canonical_sha256": "1451f11601cea512bf47140223febc2a693f74c1bd8601c01cc021d7dc035ccc",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": true,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/geometry-program-v2.schema.json",
+  "operator_ids": [
+    "forgecad.geometry.primitive@2"
+  ],
+  "output_schema": "schemas/geometry-prepare-result-v2.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "primitive-blockout",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "geometry_budget@1",
+    "finite_parameters@1",
+    "operator_allowlist@1"
+  ],
+  "version": "0.2.0"
+}

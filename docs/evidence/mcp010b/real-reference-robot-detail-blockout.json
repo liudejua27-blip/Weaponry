@@ -1,0 +1,89 @@
+{
+  "schema_version": "ForgeCADMCP010BRealReferenceDetailBlockoutEvidence@1",
+  "task_id": "FGC-MCP010B",
+  "recorded_on": "2026-08-10",
+  "persistent_user_data_touched": true,
+  "scope": "one user-authorized three-quarter robot reference; denser primitive structural candidate only",
+  "live": {
+    "mcp_build_cohort_sha256": "bfa56acaf8809c17794128573bd2498548947ed893469da67116ac0fa3336de9",
+    "runtime_build_cohort_sha256": "bfa56acaf8809c17794128573bd2498548947ed893469da67116ac0fa3336de9",
+    "build_cohort_match": true,
+    "runtime_status": "Ready",
+    "operator_catalog_sha256": "e69035a19c3f1379925919d9ed3511cb849648358fb2e46e888d8f51341e275a",
+    "active_operator_ids": ["forgecad.geometry.primitive@2"]
+  },
+  "reference": {
+    "reference_id": "reference-35bc12fe88f349c9ba3590b271fb9130",
+    "project_id": "project-822d5513ad41499290910913cbc2bfd1",
+    "object_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+    "user_authorized": true,
+    "view": "three-quarter front; lower body cropped",
+    "unknown_or_inferred": ["rear and far-side surfaces", "hidden joints and internal mechanisms", "feet and lower-leg details outside the crop"]
+  },
+  "program": {
+    "schema_version": "GeometryProgram@2",
+    "canonical_sha256": "13a3c1fb929460e23c508b903c043f074b6f04742f53f78e4554c86a168e1eee",
+    "node_count": 51,
+    "part_count": 51,
+    "material_zone_ids": ["zone-white-shell", "zone-dark-visor", "zone-dark-core", "zone-amber-emissive"],
+    "budget": {
+      "max_nodes": 64,
+      "max_triangles": 250000,
+      "max_glb_bytes": 67108864,
+      "max_worker_memory_bytes": 536870912,
+      "max_runtime_ms": 10000
+    }
+  },
+  "candidate": {
+    "candidate_id": "candidate-517d058d52184beb9fa0510547dc37e7",
+    "project_id": "project-822d5513ad41499290910913cbc2bfd1",
+    "state": "reviewable",
+    "confirmed": false,
+    "version_created": false,
+    "job_id": "job-b7c0f52f29524173892c6660402c4d1c",
+    "job_status": "succeeded",
+    "artifact_id": "9b1238e46a8c81e1bd1843e0de699f29552df483e4f36359cf7f5b6652ec2d80",
+    "artifact_sha256": "9b1238e46a8c81e1bd1843e0de699f29552df483e4f36359cf7f5b6652ec2d80",
+    "glb_size_bytes": 2658940,
+    "triangle_count": 16496,
+    "part_ids_count": 51,
+    "program_sha256": "13a3c1fb929460e23c508b903c043f074b6f04742f53f78e4554c86a168e1eee",
+    "readback_hard_gate_passed": true
+  },
+  "readback": {
+    "schema_version": "ArtifactReadback@2",
+    "validator_status": "passed",
+    "all_integrity_counters_zero": true,
+    "part_coverage": 1.0,
+    "source_coverage": 1.0,
+    "material_zone_coverage": 1.0,
+    "external_uri_count": 0
+  },
+  "quality": {
+    "schema_version": "QualityReport@1",
+    "quality_report_id": "quality-geometry-d100134e868c4ecc86e32cd5bff66dac",
+    "hard_gate_passed": false,
+    "structural_checks": "passed",
+    "reference_compare_status": "limited",
+    "reference_aspect_score": 0.4604316359607936,
+    "reference_aspect_threshold": 0.55,
+    "reference_bytes_verified": true,
+    "visual_similarity_metrics": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "limitation": "MVP only compares aspect ratio; it does not infer pixel silhouette, landmarks or semantic correspondence. The denser primitive graph is not evidence of visual improvement."
+  },
+  "gates": {
+    "catalog_hash_binding": "PASS",
+    "compiler_owned_program_hash": "PASS",
+    "geometry_prepare": "PASS",
+    "strict_glb_readback": "PASS",
+    "quality_aspect_gate": "FAIL",
+    "candidate_confirm": "NOT_RUN_BY_DESIGN",
+    "version_created": "NOT_RUN_BY_DESIGN",
+    "export": "NOT_RUN_BY_DESIGN",
+    "fixed_renderer_and_reference_compare": "BLOCKED_MCP010C",
+    "pbr_asset_pack": "BLOCKED_MCP010E",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "finding": "Adding more primitive parts increased structural detail and preserved strict lineage, but did not establish visual similarity; a real camera/render/mask comparison is required."
+}

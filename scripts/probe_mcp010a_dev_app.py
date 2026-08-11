@@ -27,6 +27,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--app", type=Path, default=DEFAULT_APP)
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--evidence", type=Path)
+    parser.add_argument(
+        "--task-id",
+        default="FGC-MCP010A",
+        help="Task recorded in an optional probe receipt.",
+    )
     parser.add_argument("--timeout", type=float, default=20.0)
     return parser.parse_args()
 
@@ -258,7 +263,12 @@ def main() -> int:
     cohort = str(manifest["build_cohort_sha256"])
     if args.verify_only:
         receipt = {
-            "schema_version": "ForgeCADMCP010ADevPackageVerify@1",
+            "schema_version": (
+                "ForgeCADMCP010ADevPackageVerify@1"
+                if args.task_id == "FGC-MCP010A"
+                else "ForgeCADDevAppPackageVerify@1"
+            ),
+            "task_id": args.task_id,
             "status": "PASS",
             "build_cohort_sha256": cohort,
             "resource_allowlist": [
@@ -336,8 +346,12 @@ def main() -> int:
                 client.close()
 
     receipt = {
-        "schema_version": "ForgeCADMCP010ADevProbe@1",
-        "task_id": "FGC-MCP010A",
+        "schema_version": (
+            "ForgeCADMCP010ADevProbe@1"
+            if args.task_id == "FGC-MCP010A"
+            else "ForgeCADDevAppProbe@1"
+        ),
+        "task_id": args.task_id,
         "status": "PASS",
         "protocol_version": "2025-06-18",
         "runtime_state": "Ready",

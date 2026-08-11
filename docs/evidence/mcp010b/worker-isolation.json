@@ -1,0 +1,71 @@
+{
+  "schema_version": "ForgeCADMCP010BWorkerIsolationEvidence@1",
+  "task_id": "FGC-MCP010B",
+  "recorded_on": "2026-08-09",
+  "scope": "source-built macOS fixed-sibling geometry Worker isolation",
+  "persistent_user_data_touched": false,
+  "gates": {
+    "fixed_sibling_and_cohort_binding": "PASS",
+    "one_shot_bounded_protocol": "PASS",
+    "five_run_determinism": "PASS",
+    "monotonic_10_second_timeout_kill_reap": "PASS",
+    "crash_isolation_before_persistence": "PASS",
+    "cloexec_descriptor_isolation": "PASS",
+    "inherited_soft_cpu_limit_preservation": "PASS",
+    "cpu_and_core_limit_reporting": "PASS",
+    "product_allocator_guard": "PASS",
+    "accepted_worker_peak_rss_budget": "PASS",
+    "watchdog_eintr_deadline": "PASS",
+    "pipe_failure_fd_cleanup": "PASS",
+    "darwin_os_total_memory_512m_cap": "NOT_RUN",
+    "packaged_worker_end_to_end": "PASS"
+  },
+  "implementation_facts": [
+    "Runtime resolves only its same-directory Worker sibling (with a Cargo test sibling exception); no MCP input chooses a path, command or environment.",
+    "macOS launch uses posix_spawn with POSIX_SPAWN_CLOEXEC_DEFAULT and only explicit stdin/stdout/stderr pipes.",
+    "The parent applies a monotonic 10-second wall-clock watchdog and kill/reap; EINTR is retried only while the same absolute deadline remains valid, and other wait errors are safely handled.",
+    "The Worker accepts exactly one bounded JSON request and returns exactly one bounded JSON response. Runtime validates protocol, request ID, cohort, program hash and strict GLB readback before persistence.",
+    "Worker CPU/core ceilings are installed before request-byte intake and stricter inherited soft limits are never raised.",
+    "A normal Worker exit is checked with Darwin wait4 peak RSS before response JSON is parsed. Any observed peak above 512 MiB is rejected before CAS/candidate persistence; this is an accepted-result budget gate, not operating-system prevention.",
+    "The closed Worker allocator has a 512 MiB accounting guard, but it does not prove operating-system total-RSS or virtual-memory enforcement.",
+    "Worker pipe descriptors use RAII ownership, so a later pipe or spawn failure closes every earlier endpoint."
+  ],
+  "host_limit_observation": {
+    "cpu_seconds": "verified at or below 10 seconds; stricter inherited soft limits remain effective",
+    "core_bytes": 0,
+    "rlimit_as": "unsupported on observed Darwin host",
+    "rlimit_data": "unsupported on observed Darwin host",
+    "rlimit_rss": "unavailable or advisory rather than an enforceable hard cap on observed Darwin host",
+    "accepted_peak_rss": "wait4 ru_maxrss is measured in bytes and a result above 512 MiB is rejected before response parsing or persistence",
+    "conclusion": "Do not claim the GeometryProgram 512 MiB budget is an OS total-memory hard cap on this platform."
+  },
+  "commands": [
+    {
+      "command": "script/test_mcp010b.sh",
+      "status": "PASS",
+      "coverage": [
+        "50-contract check",
+        "same-target Worker deterministic compile x5",
+        "malformed one-shot request",
+        "monotonic timeout/kill/reap",
+        "crash fixture",
+        "CLOEXEC descriptor non-inheritance",
+        "inherited soft CPU-limit preservation",
+        "truthful Darwin limits and allocator guard",
+        "EINTR deadline and pipe-failure descriptor cleanup",
+        "source-built raw MCP V2 flow"
+      ]
+    },
+    {
+      "command": "script/test_mcp007.sh && script/test_mcp008.sh && script/test_mcp009.sh",
+      "status": "PASS",
+      "coverage": [
+        "legacy V1 geometry, appearance and host-golden-path regressions through the isolated Worker path"
+      ]
+    }
+  ],
+  "limitations": [
+    "The current ad-hoc Dev.app has a completed structural Worker E2E receipt: its exact packaged MCP, Runtime and same-directory Geometry Worker report matching cohort f4885b11fc54b27b88b81bb9d56b84cbd54b76a1ee5e139e531595ea57126bc1 while raw V2 geometry_prepare/readback and real Codex CLI structural paths pass. It is not a Developer ID/notarized production package or a user-restarted Desktop activation receipt.",
+    "This evidence does not prove visual similarity, PBR V2, AssetPack, high-detail operators, Viewer comparison, export/restart hash parity or complete 360-degree coverage."
+  ]
+}

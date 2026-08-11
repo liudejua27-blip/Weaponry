@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/render-set-v2.schema.json",
+  "title": "RenderSetV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "render_set_id", "candidate_id", "artifact_sha256", "program_sha256", "reference_id", "camera_hash", "renderer_hash", "width", "height", "passes", "pass_artifacts", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "RenderSet@2"},
+    "render_set_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "renderer_hash": {"$ref": "#/$defs/sha256"},
+    "width": {"const": 512},
+    "height": {"const": 512},
+    "passes": {"type": "array", "minItems": 9, "maxItems": 9, "uniqueItems": true, "items": {"enum": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]}},
+    "pass_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"],
+      "properties": {
+        "beauty": {"$ref": "#/$defs/pass_artifact"},
+        "silhouette": {"$ref": "#/$defs/pass_artifact"},
+        "depth": {"$ref": "#/$defs/pass_artifact"},
+        "normal": {"$ref": "#/$defs/pass_artifact"},
+        "ao": {"$ref": "#/$defs/pass_artifact"},
+        "part-id": {"$ref": "#/$defs/pass_artifact"},
+        "material-id": {"$ref": "#/$defs/pass_artifact"},
+        "wireframe": {"$ref": "#/$defs/pass_artifact"},
+        "uv-stretch": {"$ref": "#/$defs/pass_artifact"}
+      }
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "pass_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "mime", "size_bytes", "width", "height", "channels", "color_space"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "mime": {"const": "image/png"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "channels": {"const": "rgba8"},
+        "color_space": {"enum": ["srgb", "linear", "data"]}
+      }
+    }
+  }
+}

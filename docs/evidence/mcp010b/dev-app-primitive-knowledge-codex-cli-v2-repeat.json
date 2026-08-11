@@ -1,0 +1,105 @@
+{
+  "artifact": {
+    "artifact_id": "1acf3bfee01029dc8b8dd24284ed297f325f5fba8e0c11b143910e07593a9e26",
+    "candidate_id": "candidate-b6fd6a7b102c44fdb6eff6196330dc6b",
+    "multi_input_part_sink": {
+      "part_id": "chest-shell",
+      "source_node_ids": [
+        "chest-shell",
+        "chest-panel"
+      ]
+    },
+    "part_count": 12,
+    "triangle_count": 896,
+    "validator_status": "passed"
+  },
+  "assetpack_or_pbr_v2": "NOT_RUN",
+  "build_cohort_match": true,
+  "candidate_confirmed": false,
+  "expected_sequence": [
+    "project_create",
+    "reference_import",
+    "capabilities_get",
+    "operator_catalog_get",
+    "geometry_program_hash",
+    "geometry_prepare",
+    "artifact_readback_get"
+  ],
+  "geometry_worker_build_cohort_sha256": "d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd",
+  "hash_receipt": {
+    "canonical_sha256": "caf3884f57f409a8a87d66e65a9377ce22a4c381847876ae035357f0afcb89a7",
+    "operator_catalog_sha256": "e69035a19c3f1379925919d9ed3511cb849648358fb2e46e888d8f51341e275a"
+  },
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "mcp_build_cohort_sha256": "d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd",
+  "mcp_tool_calls": [
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "project_create"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_import"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "capabilities_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "operator_catalog_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "geometry_program_hash"
+    },
+    {
+      "artifact": {
+        "artifact_id": "1acf3bfee01029dc8b8dd24284ed297f325f5fba8e0c11b143910e07593a9e26",
+        "candidate_id": "candidate-b6fd6a7b102c44fdb6eff6196330dc6b",
+        "mime": "model/gltf-binary",
+        "part_ids": [
+          "head-shell",
+          "visor",
+          "neck",
+          "chest-shell",
+          "chest-core",
+          "shoulder-left",
+          "shoulder-right",
+          "arm-left",
+          "arm-right",
+          "pelvis",
+          "thigh-left",
+          "thigh-right"
+        ],
+        "size_bytes": 161104,
+        "triangle_count": 896,
+        "validator_status": "passed"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "geometry_prepare"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "artifact_readback_get"
+    }
+  ],
+  "persistent_user_data_touched": false,
+  "reference_path_recorded": false,
+  "runtime_build_cohort_sha256": "d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd",
+  "schema_version": "ForgeCADMCP010BCodexCliProbe@1",
+  "scope": "real Codex CLI V2 structural host gate",
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "PASS",
+  "task_id": "FGC-MCP010B",
+  "visual_similarity": "NOT_RUN"
+}

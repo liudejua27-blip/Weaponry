@@ -1,0 +1,137 @@
+{
+  "schema_version": "ForgeCADMCP010BRealReferenceStructuralEvidence@1",
+  "task_id": "FGC-MCP010B",
+  "recorded_on": "2026-08-10",
+  "persistent_user_data_touched": true,
+  "scope": "one user-authorized three-quarter robot reference; structural V2 candidate only",
+  "live": {
+    "mcp_build_cohort_sha256": "bfa56acaf8809c17794128573bd2498548947ed893469da67116ac0fa3336de9",
+    "runtime_build_cohort_sha256": "bfa56acaf8809c17794128573bd2498548947ed893469da67116ac0fa3336de9",
+    "build_cohort_match": true,
+    "runtime_status": "Ready",
+    "doctor_state": "Ready",
+    "protocol_version": "2025-06-18",
+    "operator_catalog_sha256": "e69035a19c3f1379925919d9ed3511cb849648358fb2e46e888d8f51341e275a",
+    "active_operator_ids": ["forgecad.geometry.primitive@2"],
+    "active_shapes": ["box", "cylinder", "ellipsoid", "sphere"]
+  },
+  "reference": {
+    "reference_id": "reference-35bc12fe88f349c9ba3590b271fb9130",
+    "project_id": "project-822d5513ad41499290910913cbc2bfd1",
+    "object_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+    "canonical_sha256": "ed646156dc5229e11054f1d7744437a72f5ba0c4dbf53f06936029992d0b8fa9",
+    "mime": "image/png",
+    "width": 1254,
+    "height": 1254,
+    "size_bytes": 2165094,
+    "user_authorized": true,
+    "import_mode": "inline_content",
+    "view": "three-quarter front; lower body cropped",
+    "observed": [
+      "white shell head and visor silhouette",
+      "dark exposed neck/core and warm accent zone",
+      "chest mass, shoulder caps, arm masses, pelvis and visible leg proportions"
+    ],
+    "inferred_or_unknown": [
+      "rear and far-side surfaces",
+      "hidden joints and internal mechanisms",
+      "feet and lower-leg details outside the crop"
+    ]
+  },
+  "route": [
+    "capabilities_get/runtime_status/doctor/operator_catalog_get",
+    "project_create",
+    "reference_import",
+    "skill_list",
+    "geometry_program_hash",
+    "geometry_prepare",
+    "candidate_get/artifact_readback_get/job_get",
+    "quality_get"
+  ],
+  "program": {
+    "schema_version": "GeometryProgram@2",
+    "project_id": "project-822d5513ad41499290910913cbc2bfd1",
+    "representation_plan_sha256": "6eb3355bf5befe8e4dd33a5e0459d5bb0e083ebbf1e05828a731ca1e4707d788",
+    "canonical_sha256": "d0a26fc7e7b2d7c1874e18f6224e0bbce00ccaa40837ced1fd7e7dc547fbc5aa",
+    "operator_catalog_sha256": "e69035a19c3f1379925919d9ed3511cb849648358fb2e46e888d8f51341e275a",
+    "node_count": 23,
+    "part_count": 23,
+    "material_zone_ids": [
+      "zone-white-shell",
+      "zone-dark-visor",
+      "zone-dark-core",
+      "zone-amber-emissive"
+    ],
+    "budget": {
+      "max_nodes": 64,
+      "max_triangles": 250000,
+      "max_glb_bytes": 67108864,
+      "max_worker_memory_bytes": 536870912,
+      "max_runtime_ms": 10000
+    }
+  },
+  "candidate": {
+    "candidate_id": "candidate-205dce23763d4fdb98f7860699cd78b4",
+    "project_id": "project-822d5513ad41499290910913cbc2bfd1",
+    "state": "reviewable",
+    "confirmed": false,
+    "version_created": false,
+    "job_id": "job-2e18f02ce29a4dba9469046b22412463",
+    "job_status": "succeeded",
+    "artifact_id": "5e4de35c564b651080638b97e29199fb3dea4a81eee0c78129a84e835ce5e375",
+    "artifact_sha256": "5e4de35c564b651080638b97e29199fb3dea4a81eee0c78129a84e835ce5e375",
+    "glb_size_bytes": 1592884,
+    "triangle_count": 9964,
+    "part_ids_count": 23,
+    "program_sha256": "d0a26fc7e7b2d7c1874e18f6224e0bbce00ccaa40837ced1fd7e7dc547fbc5aa",
+    "readback_config_sha256": "e012a66b040f0b653b594e1c52e9fc2b1683751419962c0235d1f5cbffda4400"
+  },
+  "readback": {
+    "schema_version": "ArtifactReadback@2",
+    "validator_status": "passed",
+    "hard_gate_passed": true,
+    "invalid_index_count": 0,
+    "non_finite_count": 0,
+    "degenerate_triangle_count": 0,
+    "boundary_edge_count": 0,
+    "non_manifold_edge_count": 0,
+    "winding_error_count": 0,
+    "uv_non_finite_count": 0,
+    "zero_area_uv_triangle_count": 0,
+    "tangent_non_finite_count": 0,
+    "tangent_orthogonality_error_count": 0,
+    "tangent_handedness_error_count": 0,
+    "external_uri_count": 0,
+    "metadata_mismatch_count": 0,
+    "part_coverage": 1.0,
+    "source_coverage": 1.0,
+    "material_zone_coverage": 1.0
+  },
+  "quality": {
+    "schema_version": "QualityReport@1",
+    "quality_report_id": "quality-geometry-788a695c40bd4128aa7367a6b28fc5be",
+    "hard_gate_passed": false,
+    "structural_checks": "passed",
+    "reference_compare_status": "limited",
+    "reference_aspect_score": 0.546637724065619,
+    "reference_aspect_threshold": 0.55,
+    "reference_bytes_verified": true,
+    "visual_similarity_metrics": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "limitation": "MVP only compares aspect ratio; it does not infer pixel silhouette, landmarks or semantic correspondence."
+  },
+  "gates": {
+    "reference_import_to_cas": "PASS",
+    "catalog_hash_binding": "PASS",
+    "compiler_owned_program_hash": "PASS",
+    "geometry_prepare": "PASS",
+    "strict_glb_readback": "PASS",
+    "quality_aspect_gate": "FAIL",
+    "candidate_confirm": "NOT_RUN_BY_DESIGN",
+    "appearance_program_v2": "UNAVAILABLE",
+    "fixed_renderer_and_reference_compare": "BLOCKED_MCP010C",
+    "pbr_asset_pack": "BLOCKED_MCP010E",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "next_action": "Do not confirm this candidate. Claim MCP010C explicitly before implementing fixed renderer/reference comparison; add front/back/left/right/rear-three-quarter references before any HQ_360 claim."
+}

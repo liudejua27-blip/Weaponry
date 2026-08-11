@@ -1,7 +1,7 @@
 # ForgeCAD 当前原子任务索引
 
-版本：2026-08-09
-状态：唯一任务状态表；MVP host golden path 与 FGC-MCP010A 已收口；MCP010B–F blocked
+版本：2026-08-10
+状态：唯一任务状态表；MVP host golden path 与 FGC-MCP010A 已收口；FGC-MCP010B 结构实现已通过、Darwin OS 总内存硬门 deferred；FGC-MCP010C in_progress，MCP010D–F blocked
 
 ## 1. 状态规则
 
@@ -24,8 +24,10 @@
 | FGC-MCP008 | done | MCP007 | bounded UV/tangent/PBR、固定 beauty/silhouette/normal/part-ID、真实 GLB Viewer |
 | FGC-MCP009 | done | MCP008 | limited quality projection、stable-Part `change_prepare`、拒绝/批准/版本/restore、CAS-backed MVP GLB export；功能核心收口 |
 | FGC-MCP010A | done | MCP009 | 权威重排、可恢复旧代码清理、同 revision 用户级开发 App 激活、真实 Codex capability/build-hash Gate；Desktop attempt 1 FAIL 保留，attempt 2 PASS（30 工具、Ready、cohort match、临时项目 readback） |
-| FGC-MCP010B | blocked | MCP010A | `GeometryProgram@2`、`OperatorCatalog@1`、`ArtifactReadback@2` 与真实 GLB/拓扑真值 |
-| FGC-MCP010C | blocked | MCP010B | 固定 perspective/z-buffer renderer、九 AOV、参考比较和 typed visual/human review |
+| FGC-MCP010B | blocked | MCP010A | V2 geometry/readback/Worker isolation source Gate 已通过；Darwin 512 MiB OS 总内存硬门 deferred 为 NOT_RUN，不阻塞当前 C source implementation；历史 package/live receipts 保留 |
+
+最新 d9c23b…ac0bd Skill-overlay Dev.app 已完成 package/raw/real-Codex V2 structural 子门；Bundle 知识现在明确区分视觉质量停止与用户明确批准的 `STRUCTURAL_BLOCKOUT` MVP 路径。该包已完成用户完整 Desktop restart，并通过 live Desktop structural activation；仍不得把它写成视觉/PBR能力。
+| FGC-MCP010C | in_progress | MCP010B | 固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、Codex/human review 与 MCP image block；source Gate PASS_WITH_UNRUN_VISUAL_GATES；首次真实机器人 compare/review transport PASS，但 likeness threshold FAIL_QUALITY_TARGET_NOT_MET |
 | FGC-MCP010D | blocked | MCP010C | 受限高细节 Operator、first-party Skill 0.2 及 Manifold 隔离采用 |
 | FGC-MCP010E | blocked | MCP010D | first-party 离线硬表面 AssetPack、UV/tangent/PBR/纹理 provenance |
 | FGC-MCP010F | blocked | MCP010E | Viewer compare/selection/explosion、真实机器人闭环、partial/360 人工门 |
@@ -33,13 +35,13 @@
 | FGC-MCP012 | blocked | MCP011 | 第三方 Skill 生命周期、外部项目深度治理、分发签名/撤销 |
 | FGC-MCP013 | blocked | MCP012 | Developer ID/notarization、clean install、升级回滚、packaged Desktop/CLI、跨类别真人门 |
 
-当前可领取任务：
+当前领取任务：
 
 ```text
-无 `in_progress` 任务；FGC-MCP010A 已完成，010B–F 仍 blocked，须由后续 Goal 显式领取。
+`FGC-MCP010C`：实现固定 renderer、九 AOV、参考比较、Codex/human visual review 和 MCP image block。合成/raw Gate 与首次真实机器人 reference→compare→review transport 已通过；真实候选 likeness threshold 为 `FAIL_QUALITY_TARGET_NOT_MET`，Viewer compare、packaged C、PBR/纹理、export/restart hash 和完整 360°仍必须保持独立状态。
 ```
 
-010A 的旧代码清理与恢复 Gate 已 PASS：旧 Provider/Agent/standalone Host 入口、旧评估和孤儿运行残留已移除或隔离，两份 Host receipt 仅作为 `SUPERSEDED` 历史归档，用户 `output/`、`WushenForgeLibrary`、Runtime V1 与 Codex 历史均保留。第一次用户重启后的真实 Desktop Gate 已运行并 `FAIL`，仅 17 个只读工具；该 receipt 保持原样。共享 Runtime 启动/IPC 生命周期修复已完成：launcher flock 是短时选主锁，Runtime `runtime.writer.lock` 是最终单写者；正常 MCP 适配器退出不停止 Ready Runtime，显式 shutdown/update 才停止。最终源码 `script/test_mcp004.sh`、`release:mvp`、同 cohort Dev.app、包验证和隔离 probe 均 PASS；第二次完整 Desktop 重启已 PASS，观察到 30 个工具、真实 `Ready`、`capabilities_get`/`project_list`、临时 `project_create` readback 和 MCP/Runtime 相同 build hash，成功 receipt 位于 `docs/evidence/mcp010a/codex-desktop-post-restart-success.json`。010A 现为 `done`，不得把 010B 改为 `ready`，须由后续 Goal 显式领取。
+010A 的旧代码清理与恢复 Gate 已 PASS：旧 Provider/Agent/standalone Host 入口、旧评估和孤儿运行残留已移除或隔离，两份 Host receipt 仅作为 `SUPERSEDED` 历史归档，用户 `output/`、`WushenForgeLibrary`、Runtime V1 与 Codex 历史均保留。MCP010A 的 30-tool Desktop receipt、MCP010B 的 3c/f488 Dev.app receipts和 884/896-triangle structural probes均为历史，原样保留。当前 MCP010B source 有 52 contracts（44 历史 + 8；含 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`），并已通过 V2 geometry/readback、Skill integrity、Worker isolation、MCP004/MCP007/MCP008/MCP009 回归、V2 restore hardening 和 closed GLB profile focused Gate；Darwin 512 MiB OS 总内存硬门仍 deferred/NOT_RUN。当前 MCP010C source 新增 7 个合同，总计 59；`script/test_mcp010c.sh` 已通过固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、MCP image block、Codex/human review 和确定性 raw stdio Gate。C 的 synthetic/reference structural evidence 不等于用户机器人 likeness 或高质量视觉 PASS；Viewer compare、packaged C、真实用户评分、PBR/纹理、export/restart hash 和 HQ_360 仍未运行，证据账本位于 `docs/evidence/mcp010c/manifest.json`。
 
 ## 3. MCP004 为什么现在可以 done
 
@@ -71,7 +73,7 @@ Owned：Reference Schema、图片 admission、Runtime/CAS、MCP tool/probe、MCP
 - success + truncated/oversize/decompression-bomb/path escape/symlink/hash mismatch tests；
 - 更新 capabilities、合同、用户文档和 `docs/evidence/mcp005/manifest.json`。
 
-已完成证据：PNG/JPEG Runtime admission、authorized-root/outside-root/symlink/hash/MIME negative tests、CAS readback、authenticated MCP adapter、真实 Codex CLI `project_create → reference_import → reference_get`。Codex Desktop 当前 bridge 仍记录 `NOT_RUN / unavailable`，不影响 CLI 任务退出；原图路径和字节没有进入仓库、DB、receipt 或日志。
+已完成证据：PNG/JPEG Runtime admission、authorized-root/outside-root/symlink/hash/MIME negative tests、CAS readback、authenticated MCP adapter、真实 Codex CLI `project_create → reference_import → reference_get`。Codex Desktop 当前 bridge 仍记录 `NOT_RUN / unavailable`，不影响 CLI 任务退出；原图路径和字节没有进入仓库、DB、receipt 或日志。MCP010C 另有一份隔离真实机器人九-AOV compare/review receipt，但当前视觉阈值未通过。
 
 禁止：Geometry/Render、远程 image-to-3D、Blender/Python、将图片复制进 Git。
 

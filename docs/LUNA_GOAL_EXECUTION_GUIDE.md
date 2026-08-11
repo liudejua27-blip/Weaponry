@@ -1,12 +1,12 @@
 # Luna Goal 执行指南：ForgeCAD 单用户 MVP
 
-版本：2026-08-09
+版本：2026-08-10
 状态：Luna 强制执行协议；MVP host golden path 已收口；MCP010 质量轨道已批准
-当前任务：`FGC-MCP010A done`；`FGC-MCP010B–FGC-MCP010F blocked`（等待后续独立 Goal）
+当前任务：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C in_progress/source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D–FGC-MCP010F blocked`
 
 ## 1. Goal 目标
 
-Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或状态真值。当前 Goal 的代码主线和真实 Codex CLI 已完成一条用户授权图片 → typed 3D → PBR/fixed render → quality → approval/version → CAS GLB receipt 的 MVP host golden path；下一步只补视觉/回退/Viewer 证据和可选产品化，不继续堆复杂后台治理。
+Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或状态真值。当前 Goal 的代码主线和真实 Codex CLI 已完成一条用户授权图片 → typed 3D → PBR/fixed render → quality → approval/version → CAS GLB receipt 的 MVP host golden path；当前 MCP010C source 已补固定 renderer、九 AOV、reference compare 和 typed/human review，真实用户 likeness、Viewer/package/live C、人评阈值、PBR V2/纹理和 360 仍按独立证据推进，不继续堆复杂后台治理。
 
 不要把 Goal 写成“完善整个软件”后无边界并行修改。一次只领取一个 `FGC-MCPxxx`，先完成退出 Gate，再进入下一项。MCP005–009 是已完成的 functional core；MCP010A–F 严格串行，MCP011–013 保留可靠性、分发和正式发布职责。
 
@@ -31,10 +31,10 @@ Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或�
 
 ## 3. Goal 建议文本
 
-用户已批准以下 Goal；010A 已完成，Luna 仍须按 A–F 串行执行：
+用户已批准并显式继续以下 Goal；010A 已完成，010B structural source Gate 已通过，当前只执行 010C，之后仍须按 A–F 串行执行：
 
 ```text
-按照 AGENTS.md、docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md、docs/CODEX_TASK_INDEX.md 和本指南，保护 dirty worktree，一次只执行一个原子任务。FGC-MCP010A 已完成权威重排、同 revision 用户级开发 App 激活和真实 Codex capability/build-hash Gate；证据包含第二次重启后的 30 个工具、Runtime Ready、临时 project_create/readback 和相同 build hash。MCP010B–F 保持 blocked，后续严格按 B 合同真值 → C 固定渲染/参考比较 → D 高细节 Operator → E 离线 AssetPack/UV/PBR → F Viewer/真实机器人/人工门执行。当前单图只允许 PARTIAL_VISIBLE_VIEW_PASS；补齐五张全身视图前 HQ_360_PASS=BLOCKED_REFERENCE_COVERAGE。禁止旧 Provider、付费 API、远程 image-to-3D、任意 Python/BlenderMCP、手工 GLB、heartbeat 或插件市场。
+按照 AGENTS.md、docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md、docs/CODEX_TASK_INDEX.md 和本指南，保护 dirty worktree，一次只执行一个原子任务。FGC-MCP010A 已完成权威重排、同 revision 用户级开发 App 激活和真实 Codex capability/build-hash Gate；010B structural source Gate 已通过，但 Darwin OS memory hard cap仍 NOT_RUN。当前只执行 FGC-MCP010C：固定 512×512 perspective/z-buffer renderer、九 AOV、local reference mask/metrics、MCP image block、Codex typed review 和 human receipt。当前 source Gate 使用 synthetic reference；真实用户 likeness、Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash和360仍独立记录。禁止旧 Provider、付费 API、远程 image-to-3D、任意 Python/BlenderMCP、手工 GLB、heartbeat 或插件市场。
 ```
 
 真实 host 证据按下面的顺序运行；`<AUTHORIZED_REFERENCE>` 必须是用户明确授权的本地 PNG/JPEG，命令输出不得写入 Git、日志或 receipt：
@@ -82,8 +82,8 @@ Destructive actions / user approval:
 
 - 当前 010A 已由用户批准并完成真实 Desktop Gate，标为 `done`；
 - 成功 receipt 必须保留，第一次失败 receipt 也不得改写；
-- 010A 已 done，未经后续独立 Goal 不得开始 B 的 Schema/代码；之后每次只将直接后继改为 ready/in_progress；
-- 当前事实仍是 44 Schema、17 read + 13 write、十个 Skill `0.1.0`；目标能力只写 planned/unavailable。
+- 010A 已 done；010B structural source Gate已通过但 Darwin OS memory hard cap deferred；用户已领取 C，因此当前只允许 C 保持 `in_progress`，D–F 不得开始；之后每次只将直接后继改为 ready/in_progress；
+- 当前工作树有 59 Schema（MCP006 历史 44 + MCP010B 8 + MCP010C 7）、20 read + 16 write（36）工具、11 个 Skill（10 个历史 `0.1.0` + `primitive-blockout@0.2.0` active）；C source Gate 已通过 contracts、fixed renderer/九 AOV、comparison/review、MCP image block 和 deterministic raw stdio。C synthetic/raw不证明真实用户 likeness；Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash和360只写 `NOT_RUN/BLOCKED`。
 
 ## 5. FGC-MCP005 已完成记录
 
@@ -114,7 +114,7 @@ MCP005 已完成：
 
 ### MCP006（已完成）
 
-先 Schema/validator，再 first-party Skills。MCP006 已完成 44 个 contracts schema、十项 registry manifest、十个独立标准 Bundle、trust hash、`skill_list/get` 和只读 resource、DAG/单位/finite/预算 validator、负向 fixture、benchmark receipt、LICENSE/NOTICE/SBOM/provenance 绑定；`uv-pbr` 已声明为 product-owned bounded geometry consumer。Codex 提交 typed program，ForgeCAD 不调用 LLM。MVP Bundle 用 canonical hash + first-party trust root；不省略许可证/SBOM/provenance，但分发签名/撤销延后。它只证明声明式能力可审计，不证明通用视觉质量。
+先 Schema/validator，再 first-party Skills。MCP006 已完成 44 个 contracts schema、十项 historical registry manifest、十个独立标准 Bundle、trust hash、`skill_list/get` 和只读 resource、DAG/单位/finite/预算 validator、负向 fixture、benchmark receipt、LICENSE/NOTICE/SBOM/provenance 绑定；MCP010B 另有 8 个 V2 contracts 与 `primitive-blockout@0.2.0` active overlay，绑定 Runtime primitive@2。Codex 提交 typed program，ForgeCAD 不调用 LLM。MVP Bundle 用 canonical hash + first-party trust root；不省略许可证/SBOM/provenance，但分发签名/撤销延后。它只证明声明式能力可审计，不证明通用视觉质量。
 
 ### MCP007（已完成）
 
@@ -219,7 +219,7 @@ ForgeCAD MVP completed for the first hard-surface reference benchmark on <commit
 
 1. `project_create`：创建本地项目，记录 `project_id`。
 2. `reference_import`：仅提交用户授权的 PNG/JPEG 字节或受授权 root 下的 Codex 文件，保存 `reference_id/object_sha256`。
-3. `skill_list` / `skill_get`：读取十个 first-party development Skill 的 manifest；Skill metadata 不是执行代码。
+3. `skill_list` / `skill_get`：读取 11 个 first-party development Skill 的 manifest；其中只有 `primitive-blockout@0.2.0` 的 primitive@2 consumer 当前 active，Skill metadata 仍不是任意执行代码。
 4. Codex 根据参考图输出 `GeometryProgram@1`；调用 `geometry_prepare`，检查 `ArtifactReadback@1` 的 `part_ids/triangle_count/validator_status`。
 5. 输出 hash-bound `AppearanceProgram@1`；调用 `appearance_prepare`，检查 UV/tangent、MaterialZone、`RenderSet@1` 四个固定 pass。
 6. 调用 `quality_get`；如果提供 `reference_id`，把 compare 的 `status=limited` 作为比例提示，不把它写成像素相似度。

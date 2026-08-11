@@ -2,7 +2,7 @@
 
 版本：2026-08-09
 MVP 结论：**功能核心 PASS；参考图真人验收/packaged release BLOCKED 或 NOT_RUN**
-MCP010 结论：**FGC-MCP010A done；MCP010B–F BLOCKED**
+MCP010 结论：**FGC-MCP010A done；FGC-MCP010B structural source Gate PASS（Darwin OS memory hard cap deferred/NOT_RUN）；FGC-MCP010C in_progress / source-focused PASS_WITH_UNRUN_VISUAL_GATES；MCP010D–F BLOCKED**
 生产发布结论：**BLOCKED，不可外部分发**
 
 ## 1. 已完成基座
@@ -61,8 +61,8 @@ MCP004 历史 manifest 仍保留 signing/reference/Geometry/GLB 的 BLOCKED/NOT_
 
 ## 3. 首个硬表面质量 Gate（MCP010A–F）
 
-- [ ] 010A：同 revision 用户级开发 App、raw stdio/CLI、用户重启后的真实 Codex capability/project/build hash
-- [ ] 010B：V2 Schema、真实 GLB/accessor/topology/source readback 和损坏输入 fail closed
+- [x] 010A：同 revision 用户级开发 App、raw stdio/CLI、用户重启后的真实 Codex capability/project/build hash
+- [ ] 010B：in_progress；V2 Schema、真实 GLB/accessor/topology/source readback、损坏输入 fail closed、Worker structural 子门、历史 `bfa56ac…de9` receipt与当前 `d9c23b…ac0bd` Dev.app 的 ad-hoc/package/isolated/raw/real-Codex structural probes 和完整重启后的 live Desktop structural activation 已 PASS；其未确认 candidate 为 12 Parts/896 triangles/161104-byte GLB，Darwin OS 总内存硬门仍 NOT_RUN
 - [ ] 010C：perspective/z-buffer 固定 renderer、九 AOV、silhouette/landmark/region metrics、typed review tools
 - [ ] 010D：高细节 Operator/Skill 0.2；Manifold 仅在 adoption accepted 后启用
 - [ ] 010E：first-party 离线 AssetPack、UV/tangent/PBR/texture、逐资产 license/SBOM/provenance、glTF Validator 0 errors

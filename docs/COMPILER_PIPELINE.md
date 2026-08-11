@@ -1,7 +1,7 @@
 # ForgeCAD 3D 编译器与质量管线
 
 版本：2026-08-09
-状态：MVP bounded compiler 已完成；FGC-MCP010A done；MCP010B–E 的 V2 compiler 仍为目标设计
+状态：MVP bounded compiler 已完成；FGC-MCP010A done；FGC-MCP010B V2 structural compiler 与固定同级 Worker 子门已通过（Darwin OS memory hard cap deferred）；FGC-MCP010C fixed renderer/reference compare source Gate PASS_WITH_UNRUN_VISUAL_GATES；MCP010D–E 仍为目标设计/blocked
 
 ## 1. 核心原则
 
@@ -30,9 +30,9 @@ MVP 不实现通用图生 3D 模型。Codex 已能看参考图，由 Codex 提�
 
 MCP007 先产生真实多 Part mesh/GLB；MCP008 加 bounded UV/PBR 和 beauty/silhouette/normal/part-ID；MCP009 加 limited reference aspect evidence、稳定 Part `change_prepare`、immutable version/restore 和 CAS-backed `mvp-glb` receipt。像素级 silhouette/landmark/region compare、surface network、deformable、有机角色、UDIM、完整 AOV、Blender worker 和跨类别 benchmark 均是 post-MVP。
 
-### 2.0.1 MCP010 V2 顺序（当前 unavailable）
+### 2.0.1 MCP010 V2 顺序
 
-MCP010 必须依次完成：B 的封闭 `GeometryProgram@2`/真实 DAG/GLB readback → C 的 perspective/z-buffer renderer、九 AOV 和 reference metrics → D 的 profile/revolve/sweep/loft/mirror/array/macros 与有条件 boolean → E 的离线 AssetPack、UV/tangent/PBR/texture。不能先装材质或 Skill metadata 再把缺失的 producer 写成 active。
+MCP010 必须依次完成：B 的封闭 `GeometryProgram@2`/真实 DAG/GLB readback → C 的 perspective/z-buffer renderer、九 AOV 和 reference metrics → D 的高细节 Operator → E 的离线 AssetPack、UV/tangent/PBR/texture。当前 B structural Gate 已通过但 Darwin OS 总内存硬门 deferred；C source Gate 已通过 `script/test_mcp010c.sh`，覆盖固定 camera/z-buffer、九 AOV、local mask/metrics、MCP image block、Codex/human review 和 deterministic raw stdio。首次真实机器人 PNG 也完成了 C 的 compare/review transport，但 primitive blockout 的 likeness threshold 为 `FAIL_QUALITY_TARGET_NOT_MET`；C 仍未完成 Viewer/package/live、人评和材质视觉门。D/E 仍 blocked。不能先装材质或 Skill metadata 再把缺失的 producer 写成 active。
 
 目标九 pass 固定为 beauty、silhouette、depth、normal、AO、part-ID、material-ID、wireframe、UV-stretch，全部绑定同一 candidate/camera/material/renderer hash。快速 Viewer renderer 可以不同，但不能生成第二套模型、材质或质量真值。
 

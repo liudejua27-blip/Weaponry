@@ -167,6 +167,19 @@ CREATE TABLE IF NOT EXISTS audit_events (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS visual_evidence (
+    candidate_id TEXT PRIMARY KEY REFERENCES candidates(candidate_id),
+    project_id TEXT NOT NULL REFERENCES projects(project_id),
+    reference_id TEXT NOT NULL REFERENCES reference_evidence(reference_id),
+    render_set_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+    comparison_report_object_sha256 TEXT,
+    visual_review_object_sha256 TEXT REFERENCES objects(sha256),
+    quality_report_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+    human_receipt_object_sha256 TEXT REFERENCES objects(sha256),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS snapshots_project_idx ON snapshots(project_id, revision DESC, snapshot_id ASC);
 CREATE INDEX IF NOT EXISTS candidates_project_idx ON candidates(project_id, updated_at DESC, candidate_id ASC);
 CREATE INDEX IF NOT EXISTS versions_project_idx ON design_asset_versions(project_id, created_at DESC, version_id ASC);
@@ -175,5 +188,6 @@ CREATE INDEX IF NOT EXISTS job_events_cursor_idx ON runtime_job_events(job_id, s
 CREATE INDEX IF NOT EXISTS objects_reachability_idx ON objects(reachability, created_at ASC);
 CREATE INDEX IF NOT EXISTS reference_evidence_project_idx ON reference_evidence(project_id, created_at DESC, reference_id ASC);
 CREATE INDEX IF NOT EXISTS audit_project_idx ON audit_events(project_id, created_at ASC, audit_id ASC);
+CREATE INDEX IF NOT EXISTS visual_evidence_project_idx ON visual_evidence(project_id, candidate_id);
 CREATE INDEX IF NOT EXISTS idempotency_project_idx ON write_idempotency(project_id, created_at ASC, idempotency_key ASC);
 CREATE INDEX IF NOT EXISTS export_manifests_project_idx ON export_manifests(project_id, created_at DESC, export_id ASC);

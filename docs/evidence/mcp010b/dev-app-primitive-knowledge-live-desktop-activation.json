@@ -1,0 +1,56 @@
+{
+  "schema_version": "ForgeCADMCP010BLiveDesktopActivation@1",
+  "task_id": "FGC-MCP010B",
+  "status": "PASS",
+  "scope": "fresh Codex Desktop live activation after d9 primitive-blockout package restart",
+  "source_revision": "13d1dc3e307cd96751f8d760837ca20150d78fef",
+  "build_cohort_sha256": "d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd",
+  "mcp_build_cohort_sha256": "d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd",
+  "runtime_build_cohort_sha256": "d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd",
+  "build_cohort_match": true,
+  "protocol": "2025-06-18",
+  "runtime_status": "Ready",
+  "doctor": {
+    "state": "Ready",
+    "checks": {
+      "mcp_protocol": "pass",
+      "runtime_endpoint": "ready",
+      "runtime_supervisor": "ready",
+      "stdio_lifecycle": "pass"
+    }
+  },
+  "tool_surface": {
+    "read_tools": 19,
+    "write_tools": 13,
+    "write_tools_enabled": true,
+    "total_tools": 32,
+    "tool_manifest_hash": "5f266bfb327d37b3e31ac7263aa6d8799c5036f854b2702122f3ec470b06c540"
+  },
+  "skill_registry": {
+    "count": 11,
+    "primitive_blockout": {
+      "skill_id": "primitive-blockout",
+      "version": "0.2.0",
+      "execution_availability": "active",
+      "missing_operator_ids": []
+    }
+  },
+  "operator_catalog": {
+    "catalog_id": "forgecad-mcp010b-primitives",
+    "canonical_sha256": "e69035a19c3f1379925919d9ed3511cb849648358fb2e46e888d8f51341e275a",
+    "operator_ids": [
+      "forgecad.geometry.primitive@2"
+    ]
+  },
+  "project_readback": {
+    "status": "PASS",
+    "project_count": 2
+  },
+  "persistent_user_data_touched": false,
+  "reference_import": "NOT_RUN",
+  "geometry_prepare": "NOT_RUN",
+  "visual_similarity": "NOT_RUN",
+  "assetpack_or_pbr_v2": "NOT_RUN",
+  "human_visual_review": "NOT_RUN",
+  "note": "This proves the current d9 development package is loaded by the live Codex Desktop and its read/health/catalog/Skill surfaces are cohort-consistent. It does not prove image-conditioned geometry, visual similarity, PBR V2, human review, export, or HQ_360_PASS."
+}

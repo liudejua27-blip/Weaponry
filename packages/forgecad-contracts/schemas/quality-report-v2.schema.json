@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/quality-report-v2.schema.json",
+  "title": "QualityReportV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "quality_report_id", "candidate_id", "artifact_sha256", "program_sha256", "reference_id", "reference_sha256", "render_set_hash", "comparison_report_hash", "human_receipt_hash", "structural_status", "visual_status", "hard_gate_passed", "limitations", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "QualityReport@2"},
+    "quality_report_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "reference_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "comparison_report_hash": {"$ref": "#/$defs/sha256"},
+    "human_receipt_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "structural_status": {"enum": ["passed", "failed", "not-run"]},
+    "visual_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE", "not-run"]},
+    "hard_gate_passed": {"type": "boolean"},
+    "limitations": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "allOf": [
+    {"if": {"properties": {"reference_id": {"const": null}}}, "then": {"properties": {"reference_sha256": {"const": null}}}},
+    {"if": {"properties": {"reference_id": {"type": "string"}}}, "then": {"properties": {"reference_sha256": {"$ref": "#/$defs/sha256"}}}}
+  ]
+}

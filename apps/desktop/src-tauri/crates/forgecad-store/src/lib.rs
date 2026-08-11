@@ -5,10 +5,11 @@ use forgecad_contracts::{
     is_opaque_id, is_sha256, ApprovalReceiptRecord, AuditEventRecord, CandidateConfirmRequest,
     CandidateConfirmResult, CandidateRecord, CandidateRejectRequest, CandidateRejectResult,
     CasObjectRecord, DesignAssetVersionRecord, ExportConfirmRequest, ExportConfirmResult,
-    ExportManifestRecord, ExportPrepareRequest, ExportPrepareResult, JobEventRecord, JobRecord,
-    JobSummary, ProjectRecord, ProjectSummary, ReferenceAuthorization, ReferenceEvidenceRecord,
-    RestoreConfirmRequest, RestoreConfirmResult, RestorePrepareRequest, RestorePrepareResult,
-    SnapshotRecord, SnapshotSummary,
+    ExportManifestRecord, ExportPrepareRequest, ExportPrepareResult,
+    GeometryCandidateEvidenceRecord, JobEventRecord, JobRecord, JobSummary, ProjectRecord,
+    ProjectSummary, ReferenceAuthorization, ReferenceEvidenceRecord, RestoreConfirmRequest,
+    RestoreConfirmResult, RestorePrepareRequest, RestorePrepareResult, SnapshotRecord,
+    SnapshotSummary,
 };
 use forgecad_core::{canonical_json_hash, sha256_hex};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -47,6 +48,20 @@ pub struct Store {
     connection: Arc<Mutex<Connection>>,
     cas: CasStore,
     database_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisualEvidenceRecord {
+    pub candidate_id: String,
+    pub project_id: String,
+    pub reference_id: String,
+    pub render_set_object_sha256: String,
+    pub comparison_report_object_sha256: Option<String>,
+    pub visual_review_object_sha256: Option<String>,
+    pub quality_report_object_sha256: String,
+    pub human_receipt_object_sha256: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 impl Store {
@@ -288,7 +303,8 @@ impl Store {
                 updated_at: row.get(14)?,
             })
         })?;
-        rows.collect::<Result<Vec<_>, _>>().map_err(StoreError::from)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(StoreError::from)
     }
 
     pub fn insert_candidate_and_job(
@@ -405,6 +421,157 @@ impl Store {
         self.get_candidate(candidate_id)?.ok_or_else(|| {
             StoreError::InvalidData("candidate disappeared after quality update".to_owned())
         })
+    }
+
+    /// Persist the V2 geometry provenance before exposing a candidate as
+    /// reviewable. This is deliberately one transaction: a candidate may not
+    /// become passing without the exact program/readback/quality evidence that
+    /// confirmation re-reads later.
+    pub fn record_geometry_candidate_evidence_and_mark_quality(
+        &self,
+        evidence: &GeometryCandidateEvidenceRecord,
+        hard_gate_passed: bool,
+        updated_at: &str,
+    ) -> Result<CandidateRecord, StoreError> {
+        validate_geometry_candidate_evidence(evidence)?;
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        let candidate = read_candidate_for_transaction(&transaction, &evidence.candidate_id)?
+            .ok_or_else(|| StoreError::Contract {
+                code: "NOT_FOUND".to_owned(),
+                message: "candidate not found for geometry evidence".to_owned(),
+            })?;
+        if candidate.project_id != evidence.project_id
+            || candidate.prepared_object_sha256.as_deref()
+                != Some(evidence.artifact_object_sha256.as_str())
+        {
+            return Err(StoreError::Contract {
+                code: "GEOMETRY_EVIDENCE_CANDIDATE_MISMATCH".to_owned(),
+                message: "geometry evidence does not bind this candidate artifact and project"
+                    .to_owned(),
+            });
+        }
+        if let Some(reference_id) = evidence.reference_id.as_deref() {
+            let reference = transaction
+                .query_row(
+                    "SELECT project_id, object_sha256 FROM reference_evidence WHERE reference_id = ?1",
+                    params![reference_id],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )
+                .optional()?
+                .ok_or_else(|| StoreError::Contract {
+                    code: "REFERENCE_SCOPE_DENIED".to_owned(),
+                    message: "geometry evidence reference is unavailable".to_owned(),
+                })?;
+            if reference.0 != evidence.project_id
+                || evidence.reference_sha256.as_deref() != Some(reference.1.as_str())
+            {
+                return Err(StoreError::Contract {
+                    code: "REFERENCE_SCOPE_DENIED".to_owned(),
+                    message: "geometry evidence reference is outside the candidate project"
+                        .to_owned(),
+                });
+            }
+        }
+        for hash in [
+            &evidence.geometry_program_object_sha256,
+            &evidence.artifact_object_sha256,
+            &evidence.artifact_readback_object_sha256,
+            &evidence.quality_report_object_sha256,
+        ] {
+            let exists = transaction
+                .query_row(
+                    "SELECT 1 FROM objects WHERE sha256 = ?1",
+                    params![hash],
+                    |_| Ok(()),
+                )
+                .optional()?
+                .is_some();
+            if !exists {
+                return Err(StoreError::Contract {
+                    code: "GEOMETRY_EVIDENCE_OBJECT_UNAVAILABLE".to_owned(),
+                    message: "geometry evidence references an unavailable CAS object".to_owned(),
+                });
+            }
+        }
+        transaction.execute(
+            "INSERT INTO geometry_candidate_evidence (candidate_id, project_id, reference_id, reference_sha256, geometry_program_sha256, geometry_program_object_sha256, operator_catalog_sha256, readback_config_sha256, artifact_object_sha256, artifact_readback_object_sha256, quality_report_object_sha256, quality_report_id, canonical_sha256, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![
+                &evidence.candidate_id,
+                &evidence.project_id,
+                &evidence.reference_id,
+                &evidence.reference_sha256,
+                &evidence.geometry_program_sha256,
+                &evidence.geometry_program_object_sha256,
+                &evidence.operator_catalog_sha256,
+                &evidence.readback_config_sha256,
+                &evidence.artifact_object_sha256,
+                &evidence.artifact_readback_object_sha256,
+                &evidence.quality_report_object_sha256,
+                &evidence.quality_report_id,
+                &evidence.canonical_sha256,
+                &evidence.created_at,
+            ],
+        )?;
+        let state = if hard_gate_passed {
+            "reviewable"
+        } else {
+            "failed"
+        };
+        let error_code = if hard_gate_passed {
+            None
+        } else {
+            Some("QUALITY_HARD_GATE_FAILED")
+        };
+        let updated = transaction.execute(
+            "UPDATE candidates SET state = ?1, quality_report_id = ?2, quality_hard_gate_passed = ?3, error_code = ?4, updated_at = ?5 WHERE candidate_id = ?6 AND state IN ('prepared', 'compiling', 'evaluating')",
+            params![state, &evidence.quality_report_id, hard_gate_passed, error_code, updated_at, &evidence.candidate_id],
+        )?;
+        if updated != 1 {
+            return Err(StoreError::Contract {
+                code: "CANDIDATE_STATE_INVALID".to_owned(),
+                message: "candidate is not awaiting geometry quality evaluation".to_owned(),
+            });
+        }
+        transaction.commit()?;
+        drop(connection);
+        self.get_candidate(&evidence.candidate_id)?.ok_or_else(|| {
+            StoreError::InvalidData(
+                "candidate disappeared after geometry evidence write".to_owned(),
+            )
+        })
+    }
+
+    pub fn get_geometry_candidate_evidence(
+        &self,
+        candidate_id: &str,
+    ) -> Result<Option<GeometryCandidateEvidenceRecord>, StoreError> {
+        let connection = self.lock_connection()?;
+        Ok(connection
+            .query_row(
+                "SELECT candidate_id, project_id, reference_id, reference_sha256, geometry_program_sha256, geometry_program_object_sha256, operator_catalog_sha256, readback_config_sha256, artifact_object_sha256, artifact_readback_object_sha256, quality_report_object_sha256, quality_report_id, canonical_sha256, created_at FROM geometry_candidate_evidence WHERE candidate_id = ?1",
+                params![candidate_id],
+                |row| {
+                    Ok(GeometryCandidateEvidenceRecord {
+                        schema_version: "GeometryCandidateEvidence@1".to_owned(),
+                        candidate_id: row.get(0)?,
+                        project_id: row.get(1)?,
+                        reference_id: row.get(2)?,
+                        reference_sha256: row.get(3)?,
+                        geometry_program_sha256: row.get(4)?,
+                        geometry_program_object_sha256: row.get(5)?,
+                        operator_catalog_sha256: row.get(6)?,
+                        readback_config_sha256: row.get(7)?,
+                        artifact_object_sha256: row.get(8)?,
+                        artifact_readback_object_sha256: row.get(9)?,
+                        quality_report_object_sha256: row.get(10)?,
+                        quality_report_id: row.get(11)?,
+                        canonical_sha256: row.get(12)?,
+                        created_at: row.get(13)?,
+                    })
+                },
+            )
+            .optional()?)
     }
 
     pub fn insert_version(&self, version: &DesignAssetVersionRecord) -> Result<(), StoreError> {
@@ -811,6 +978,80 @@ impl Store {
         Ok(())
     }
 
+    pub fn upsert_visual_evidence(
+        &self,
+        evidence: &VisualEvidenceRecord,
+    ) -> Result<(), StoreError> {
+        if !is_opaque_id(&evidence.candidate_id)
+            || !is_opaque_id(&evidence.project_id)
+            || !is_opaque_id(&evidence.reference_id)
+            || !is_sha256(&evidence.render_set_object_sha256)
+            || !is_sha256(&evidence.quality_report_object_sha256)
+            || evidence
+                .comparison_report_object_sha256
+                .as_deref()
+                .is_some_and(|value| !is_sha256(value))
+            || evidence
+                .visual_review_object_sha256
+                .as_deref()
+                .is_some_and(|value| !is_sha256(value))
+            || evidence
+                .human_receipt_object_sha256
+                .as_deref()
+                .is_some_and(|value| !is_sha256(value))
+            || evidence.created_at.is_empty()
+            || evidence.updated_at.is_empty()
+        {
+            return Err(StoreError::InvalidData(
+                "visual evidence identity or hash is invalid".to_owned(),
+            ));
+        }
+        let connection = self.lock_connection()?;
+        connection.execute(
+            "INSERT INTO visual_evidence (candidate_id, project_id, reference_id, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) ON CONFLICT(candidate_id) DO UPDATE SET project_id=excluded.project_id, reference_id=excluded.reference_id, render_set_object_sha256=excluded.render_set_object_sha256, comparison_report_object_sha256=excluded.comparison_report_object_sha256, visual_review_object_sha256=excluded.visual_review_object_sha256, quality_report_object_sha256=excluded.quality_report_object_sha256, human_receipt_object_sha256=excluded.human_receipt_object_sha256, updated_at=excluded.updated_at",
+            params![
+                evidence.candidate_id,
+                evidence.project_id,
+                evidence.reference_id,
+                evidence.render_set_object_sha256,
+                evidence.comparison_report_object_sha256,
+                evidence.visual_review_object_sha256,
+                evidence.quality_report_object_sha256,
+                evidence.human_receipt_object_sha256,
+                evidence.created_at,
+                evidence.updated_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_visual_evidence(
+        &self,
+        candidate_id: &str,
+    ) -> Result<Option<VisualEvidenceRecord>, StoreError> {
+        let connection = self.lock_connection()?;
+        Ok(connection
+            .query_row(
+                "SELECT candidate_id, project_id, reference_id, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at FROM visual_evidence WHERE candidate_id = ?1",
+                params![candidate_id],
+                |row| {
+                    Ok(VisualEvidenceRecord {
+                        candidate_id: row.get(0)?,
+                        project_id: row.get(1)?,
+                        reference_id: row.get(2)?,
+                        render_set_object_sha256: row.get(3)?,
+                        comparison_report_object_sha256: row.get(4)?,
+                        visual_review_object_sha256: row.get(5)?,
+                        quality_report_object_sha256: row.get(6)?,
+                        human_receipt_object_sha256: row.get(7)?,
+                        created_at: row.get(8)?,
+                        updated_at: row.get(9)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
     pub fn prepare_restore_candidate(
         &self,
         request: &RestorePrepareRequest,
@@ -909,14 +1150,17 @@ impl Store {
                 message: "restore source CAS object is unavailable".to_owned(),
             });
         }
-        let quality_report_id =
-            source_candidate
-                .quality_report_id
-                .clone()
-                .ok_or_else(|| StoreError::Contract {
-                    code: "QUALITY_HARD_GATE_FAILED".to_owned(),
-                    message: "restore source has no quality report".to_owned(),
-                })?;
+        // The source must still have passed a quality gate, but a restored
+        // candidate must not inherit that passing state directly. Runtime
+        // creates candidate-bound V2 readback/quality/evidence before it
+        // transitions this newly prepared candidate to `reviewable`.
+        source_candidate
+            .quality_report_id
+            .as_deref()
+            .ok_or_else(|| StoreError::Contract {
+                code: "QUALITY_HARD_GATE_FAILED".to_owned(),
+                message: "restore source has no quality report".to_owned(),
+            })?;
         let candidate_id = format!("candidate-{}", Uuid::new_v4().simple());
         let job_id = format!("job-{}", Uuid::new_v4().simple());
         let canonical_sha256 = canonical_json_hash(&serde_json::json!({
@@ -927,11 +1171,11 @@ impl Store {
             "source_version_id": request.source_version_id,
             "prepared_object_id": prepared_object_id,
             "prepared_object_sha256": prepared_object_sha256,
-            "state": "reviewable",
+            "state": "prepared",
             "request_sha256": request_sha256,
             "manifest_hash": source.2,
-            "quality_report_id": quality_report_id,
-            "quality_hard_gate_passed": true,
+            "quality_report_id": null,
+            "quality_hard_gate_passed": false,
             "created_at": now,
             "updated_at": now,
         }));
@@ -943,11 +1187,11 @@ impl Store {
             source_version_id: Some(request.source_version_id.clone()),
             prepared_object_id: Some(prepared_object_id.clone()),
             prepared_object_sha256: Some(prepared_object_sha256.clone()),
-            state: "reviewable".to_owned(),
+            state: "prepared".to_owned(),
             request_sha256: request_sha256.clone(),
             manifest_hash: Some(source.2.clone()),
-            quality_report_id: Some(quality_report_id),
-            quality_hard_gate_passed: true,
+            quality_report_id: None,
+            quality_hard_gate_passed: false,
             canonical_sha256,
             error_code: None,
             created_at: now.to_owned(),
@@ -1436,7 +1680,11 @@ impl Store {
         }
         let export_id = format!("export-{}", Uuid::new_v4().simple());
         let artifact_hashes = vec![version.manifest_hash.clone()];
-        let output_kind = if request.format == "glb" { "mvp-glb" } else { "diagnostic-manifest" };
+        let output_kind = if request.format == "glb" {
+            "mvp-glb"
+        } else {
+            "diagnostic-manifest"
+        };
         let manifest_payload = serde_json::json!({
             "schema_version": "ExportPayload@1",
             "export_id": export_id,
@@ -2041,6 +2289,48 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
         "TEXT NOT NULL DEFAULT 'legacy-migration'",
     )?;
     ensure_approval_tools_schema(&transaction)?;
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS geometry_candidate_evidence (
+             candidate_id TEXT PRIMARY KEY REFERENCES candidates(candidate_id),
+             project_id TEXT NOT NULL REFERENCES projects(project_id),
+             reference_id TEXT REFERENCES reference_evidence(reference_id),
+             reference_sha256 TEXT,
+             geometry_program_sha256 TEXT NOT NULL,
+             geometry_program_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             operator_catalog_sha256 TEXT NOT NULL,
+             readback_config_sha256 TEXT NOT NULL,
+             artifact_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             artifact_readback_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             quality_report_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             quality_report_id TEXT NOT NULL,
+             canonical_sha256 TEXT NOT NULL,
+             created_at TEXT NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS geometry_candidate_evidence_project_idx
+             ON geometry_candidate_evidence(project_id, candidate_id);",
+    )?;
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS visual_evidence (
+             candidate_id TEXT PRIMARY KEY REFERENCES candidates(candidate_id),
+             project_id TEXT NOT NULL REFERENCES projects(project_id),
+             reference_id TEXT NOT NULL REFERENCES reference_evidence(reference_id),
+             render_set_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             comparison_report_object_sha256 TEXT,
+             visual_review_object_sha256 TEXT REFERENCES objects(sha256),
+             quality_report_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             human_receipt_object_sha256 TEXT REFERENCES objects(sha256),
+             created_at TEXT NOT NULL,
+             updated_at TEXT NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS visual_evidence_project_idx
+             ON visual_evidence(project_id, candidate_id);",
+    )?;
+    ensure_column(
+        &transaction,
+        "visual_evidence",
+        "visual_review_object_sha256",
+        "TEXT",
+    )?;
     let version: String = transaction.query_row(
         "SELECT value FROM schema_meta WHERE key = 'runtime_schema_version'",
         [],
@@ -2051,6 +2341,41 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
     }
     transaction.commit()?;
     Ok(())
+}
+
+fn validate_geometry_candidate_evidence(
+    evidence: &GeometryCandidateEvidenceRecord,
+) -> Result<(), StoreError> {
+    if evidence.schema_version != "GeometryCandidateEvidence@1"
+        || !is_opaque_id(&evidence.candidate_id)
+        || !is_opaque_id(&evidence.project_id)
+        || !is_opaque_id(&evidence.quality_report_id)
+        || evidence.created_at.is_empty()
+        || evidence.created_at.len() > 64
+        || !is_sha256(&evidence.geometry_program_sha256)
+        || !is_sha256(&evidence.geometry_program_object_sha256)
+        || !is_sha256(&evidence.operator_catalog_sha256)
+        || !is_sha256(&evidence.readback_config_sha256)
+        || !is_sha256(&evidence.artifact_object_sha256)
+        || !is_sha256(&evidence.artifact_readback_object_sha256)
+        || !is_sha256(&evidence.quality_report_object_sha256)
+        || !is_sha256(&evidence.canonical_sha256)
+    {
+        return Err(StoreError::InvalidData(
+            "geometry candidate evidence is malformed".to_owned(),
+        ));
+    }
+    match (&evidence.reference_id, &evidence.reference_sha256) {
+        (None, None) => Ok(()),
+        (Some(reference_id), Some(reference_sha256))
+            if is_opaque_id(reference_id) && is_sha256(reference_sha256) =>
+        {
+            Ok(())
+        }
+        _ => Err(StoreError::InvalidData(
+            "geometry candidate reference evidence is malformed".to_owned(),
+        )),
+    }
 }
 
 fn ensure_column(
@@ -2344,16 +2669,14 @@ fn is_expired(now: &str, expires_at: &str) -> Result<bool, StoreError> {
     Ok(expires_at <= now)
 }
 
-fn read_reference_evidence(
-    row: &rusqlite::Row<'_>,
-) -> rusqlite::Result<ReferenceEvidenceRecord> {
+fn read_reference_evidence(row: &rusqlite::Row<'_>) -> rusqlite::Result<ReferenceEvidenceRecord> {
     let size_bytes: i64 = row.get(4)?;
     let width: i64 = row.get(5)?;
     let height: i64 = row.get(6)?;
     let frame_count: i64 = row.get(7)?;
     let authorization_json: String = row.get(9)?;
-    let authorization: ReferenceAuthorization = serde_json::from_str(&authorization_json)
-        .map_err(|error| {
+    let authorization: ReferenceAuthorization =
+        serde_json::from_str(&authorization_json).map_err(|error| {
             rusqlite::Error::FromSqlConversionFailure(
                 9,
                 rusqlite::types::Type::Text,

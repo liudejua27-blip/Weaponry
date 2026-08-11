@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-comparison-report.schema.json",
+  "title": "ReferenceComparisonReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_id", "candidate_id", "artifact_sha256", "reference_id", "reference_sha256", "render_set_hash", "camera_hash", "mask", "metrics", "status", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "ReferenceComparisonReport@1"},
+    "report_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "mask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "revision", "sha256", "width", "height"],
+      "properties": {
+        "method": {"const": "local-border-flood-fill-morphology"},
+        "revision": {"$ref": "#/$defs/identifier"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "width": {"const": 512},
+        "height": {"const": 512}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou", "critical_region_min_iou"],
+      "properties": {
+        "silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1},
+        "bbox_edge_error": {"type": "number", "minimum": 0, "maximum": 1},
+        "centroid_error": {"type": "number", "minimum": 0, "maximum": 1},
+        "landmark_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "landmark_nme": {"type": "number", "minimum": 0, "maximum": 1},
+        "region_median_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "critical_region_min_iou": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

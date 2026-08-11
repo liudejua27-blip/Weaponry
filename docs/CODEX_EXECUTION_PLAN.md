@@ -1,7 +1,7 @@
 # ForgeCAD Codex-only MVP 执行计划
 
-版本：2026-08-09
-状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done，MCP010B–F blocked
+版本：2026-08-10
+状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done；FGC-MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；FGC-MCP010C in_progress/source-focused PASS_WITH_UNRUN_VISUAL_GATES；MCP010D–F blocked
 
 ## 1. 产品策略
 
@@ -77,7 +77,7 @@ MCP004 原始 evidence 中的 signing、attachment、Geometry、GLB `BLOCKED/NOT
 
 Codex 是唯一视觉大脑；ForgeCAD 不调用模型。Codex 把参考理解成 `SubjectProfile`、`RepresentationPlan`、`AssemblyGraph`、`GeometryProgram` 和 `AppearanceProgram`。Skills 是声明式知识/Recipe/Validator，不是 prompt 插件或脚本。
 
-MVP 已交付 10 个组合能力的声明式 Bundle profile，不建市场：reference intake、subject profile、semantic assembly、silhouette blockout、hard-surface detail、mesh integrity、UV/PBR、render evidence、reference compare、local edit/export。它们仍不包含执行代码；MCP007 已实现独立 product-owned bounded Geometry Operator consumer。
+MVP 已交付 10 个组合能力的历史声明式 Bundle profile，不建市场：reference intake、subject profile、semantic assembly、silhouette blockout、hard-surface detail、mesh integrity、UV/PBR、render evidence、reference compare、local edit/export。MCP010B 在此基础上新增 `primitive-blockout@0.2.0`，绑定当前 `primitive@2` consumer；所有 Bundle 仍不包含任意执行代码，MCP007/010B 的 Runtime/Worker 才是唯一 product-owned operator consumer。
 
 ### MCP007 — Geometry（done）
 

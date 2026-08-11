@@ -21,6 +21,7 @@
     "supports_resource_read": {"type": "boolean"},
     "supports_geometry_execution": {"type": "boolean"},
     "supports_render_execution": {"type": "boolean"},
+    "operator_catalog_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
     "contract_versions": {"type": "array", "items": {"type": "string"}},
     "mcp_protocol_versions": {"type": "array", "items": {"type": "string"}},
     "resource_uris": {"type": "array", "items": {"type": "string"}},

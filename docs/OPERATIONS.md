@@ -11,20 +11,22 @@ Runtime 是唯一常驻产品状态写者。MCP 由 Codex 按需以 stdio 启动
 
 开发诊断可使用 `forgecad-runtime serve`，fixture 只能由独立测试子进程局部注入；正常 `forgecad-mcp serve --stdio` 不依赖 fixture。MCP 先保持 stdio，对同一数据根的现有 `ready.json` handoff 做 authenticated probe；没有可用实例时，以短时 launcher flock 选出一个启动者，其他 MCP 会话等待并复用胜出的共享 Runtime。Runtime 失败时状态为 `Degraded`，依赖调用返回 `RUNTIME_UNAVAILABLE`，最多自动重启一次。launcher flock 只负责启动选主；Runtime 在 migration 前持有的 `runtime.writer.lock` 才是最终唯一写者。正常 MCP 适配器退出不停止已经 Ready 的 Runtime，显式 shutdown/update 才停止。正常 Runtime data dir 为 macOS `~/Library/Application Support/ForgeCAD Runtime/runtime-data`；测试才使用临时目录。MVP 不使用 TTL lease/heartbeat、daemon 或 broker。
 
+开发包切换或升级前，可先运行 `python3 scripts/stop_forgecad_runtime.py` 做只读检查；只有确认要停止当前共享 Runtime 时才运行 `python3 scripts/stop_forgecad_runtime.py --confirm`。该脚本通过当前 `ready.json` 的本地 authenticated IPC 发送 `runtime_shutdown`，不输出 token、不向任意 PID 发信号、不删除 SQLite/CAS。停止后再完整退出并重开 Codex Desktop，MCP 才会加载新 cohort；没有 `--confirm` 时脚本不会产生运行时写入。
+
 ## 2. 启动顺序
 
 1. 开发 MVP 验证组件合同/version/hash；正式包额外验证签名；
 2. 没有可认证的 Ready handoff 时，MCP 仅用短时 launcher flock 完成复核、stale handoff 清理和启动选主；spawn 成功后立即释放 launcher flock；
 3. Runtime 在 migration 前获取 OS 独占 `runtime.writer.lock`；第二实例返回 `RUNTIME_BUSY`；
 4. 验证 Runtime V1 migration、SQLite integrity 和 CAS reachability；
-5. MCP006 已加载十个 first-party development Skill Bundle，MVP 已验证 canonical hash/trust root、Recipe DAG/单位/finite/预算、fixture receipt；MCP007 已启用 bounded geometry compiler 和 GLB readback；MCP008 已启用 appearance/fixed render；MCP009 已启用 limited quality/change/version/export；Bundle 仍只提供声明式 metadata；
+5. MCP006 已加载十个历史 first-party development Skill Bundle；MCP010B 当前源码另加载 `primitive-blockout@0.2.0` active V2 overlay。MVP 已验证 canonical hash/trust root、Recipe DAG/单位/finite/预算、fixture receipt；MCP007 已启用 bounded geometry compiler 和 GLB readback；MCP008 已启用 appearance/fixed render；MCP009 已启用 limited quality/change/version/export；Bundle 仍只提供声明式 metadata，primitive@2 的执行仍由 Runtime/Worker 预注册 consumer 所有；
 6. 非终态 Job 在 MVP 重启时转 typed failure；checkpoint 属于 MCP011；
 7. 开放 authenticated local IPC 并发布可认证 handoff；launcher flock 此时已释放，最终写者仍由 `runtime.writer.lock` 判定；
 8. Viewer/MCP 分别连接并读取 capabilities。
 
 本地回归使用 `script/test_mcp004.sh`：除原有 Runtime 缺失、ready 后 crash、一次有界 restart、stdio 存活、只读无副作用和 write approval metadata 外，共享生命周期还必须覆盖 stale handoff、多个 MCP 会话、启动者 idle、passive takeover、适配器关闭后 Runtime 仍可用、未认证 idle/坏 JSON/断开客户端不阻塞合法请求，以及第二 Runtime `RUNTIME_BUSY`。正常 MCP 适配器结束不清理已经 Ready 的共享 Runtime；测试和运维通过 authenticated 显式 shutdown 清理，update 流程也可显式停止。Runtime 存活不等于未完成 Job 有 checkpoint 保证。最终源码的该回归、current `release:mvp`、同 cohort 重建、package verify、隔离 probe 与第二次 Desktop 重启后的真实工具 Gate 已 PASS；第一次失败 receipt 保留，第二次已完成并写入成功 receipt。
 
-任一步失败，写路径保持关闭；不得启动 legacy sidecar 或打开旧 DB 回退。
+任一步失败，写路径保持关闭；不得启动 legacy sidecar 或打开旧 DB 回退。此前 bfa56 cohort 的第二次 Desktop 结构 Gate 已作为历史 receipt 保留；当前 d9c23b primitive-blockout 包已在用户完整 Desktop 重启后成为 live cohort，实时 `capabilities_get.build_cohort_match=true`、Runtime/doctor 为 Ready；若以后切换 cohort 仍为 false，必须按切换流程处理，不能把 Runtime Ready 单独当作 cohort 已切换。
 
 ## 3. 健康状态
 

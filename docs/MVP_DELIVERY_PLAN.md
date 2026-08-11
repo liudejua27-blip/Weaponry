@@ -1,8 +1,8 @@
 # ForgeCAD 单用户 MVP 交付计划
 
-版本：2026-08-09
+版本：2026-08-10
 状态：权威执行合同；MCP005–MCP009 单用户 MVP host golden path 已完成；FGC-MCP010A done
-当前起点：`FGC-MCP005`–`FGC-MCP009` focused Gate 和真实 Codex CLI 十二调用 reference→CAS GLB receipt 已通过；MCP010B–F 的 V2 几何、像素相似度、真人视觉门和离线材质仍为 `目标设计/NOT_RUN`
+当前起点：`FGC-MCP005`–`FGC-MCP009` focused Gate 和真实 Codex CLI 十二调用 reference→CAS GLB receipt 已通过；MCP010B structural source Gate 已通过但 Darwin 512 MiB OS 总内存硬门仍未运行；MCP010C source Gate 已实现固定 renderer、九 AOV、reference comparison、MCP image block 和 typed/human review。首次真实机器人 PNG 已完成 C 的 compare/review transport，但 likeness target 未通过；真人视觉门、Viewer/package/live C、PBR/纹理和 360 仍为 `目标设计/NOT_RUN/BLOCKED`
 
 ## 1. MVP 要交付什么
 
@@ -101,7 +101,7 @@ MVP 核心对象：
 - `AppearanceProgram@1`：glTF metallic-roughness 子集；
 - `RecipePlan@1`：声明式 DAG、输入/输出 hash 和预算。
 
-首批 10 个 first-party Skill：
+MCP006 首批 10 个历史 first-party Skill，MCP010B 追加当前 `primitive-blockout@0.2.0` active overlay：
 
 | Skill ID | MVP 责任 |
 |---|---|
@@ -120,7 +120,7 @@ MVP Bundle 可以由仓库 first-party 开发 trust root 校验 canonical hash�
 
 退出 Gate：Schema/生成类型/validator 无漂移；未知 Operator、DAG cycle、错误单位、非有限值、预算溢出、缺许可证、Bundle hash 漂移 fail closed；所有 Skill 均无可执行脚本和网络权限；canonical plan 在重复运行中 hash 一致。
 
-当前完成证据：`packages/forgecad-skills/registry.json` 已列出十个 Skills，并且每个 Skill 已物化为独立 `bundles/<skill_id>/0.1.0`，包含 `skill.yaml`、本地 contract schema、Recipe、operators.lock、validator subset、knowledge、assets/materials index、synthetic valid/invalid fixtures、benchmark receipt、LICENSE/NOTICE、SPDX SBOM、provenance、trust manifest 和明确延期的 signature placeholder；Runtime 已提供 development-only `skill_list`、`skill_get` 和 `forgecad://skills/{skill_id}/{version}` 资源；44 个合同已通过 contracts check；`scripts/materialize_mcp006_bundles.py` 与 `scripts/check_mcp006_skills.py` 已通过 operator lock、DAG cycle、unit/non-finite、预算、canonical hash、path/script/network capability 和 fixture receipt Gate；真实 Codex CLI 只读 registry E2E PASS。正式 distribution signature/revocation 和真实几何 benchmark 不属于 MCP006，分别留给 MCP012–013 与 MCP007–009；MCP007–009 已消费这些 Bundle 的 typed capability，MCP010 才是可选 post-MVP 产品化任务。
+当前完成证据：`packages/forgecad-skills/registry.json` 保留十个历史 `0.1.0` Skills，并新增 `primitive-blockout@0.2.0`；Bundle metadata、Runtime Skill integrity 和 source Gate 保持既有范围。当前源码共 59 contracts；MCP010C fixed renderer/九 AOV/reference compare/review raw Gate已单独记录在 `docs/evidence/mcp010c/`。正式 distribution signature/revocation、PBR V2/AssetPack、Viewer compare 和真实几何/视觉 benchmark不属于 MCP006，分别留给 MCP012–013、MCP010D–F；不得用 Skill metadata代替 producer。
 
 ### FGC-MCP007：真实几何 vertical slice（已完成）
 
@@ -198,6 +198,16 @@ MVP 验收不使用一个未经校准的分数冒充“高质量”。必须同�
 - `FGC-MCP013`：Developer ID、notarization、clean install、升级/回滚、Desktop/CLI packaged E2E、filesystem export、跨类别真人质量门。
 
 详细 A–F 合同见 `MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`。当前单图最多是 `PARTIAL_VISIBLE_VIEW_PASS`；五张补充全身视图前 `HQ_360_PASS=BLOCKED_REFERENCE_COVERAGE`。这些任务不能反向改写 MVP host receipt，任何公开分发或通用质量声明仍依赖 MCP013。
+
+### MCP010B 当前 V2 结构 authoring 边界（source Gate PASS；OS memory hard cap deferred）
+
+当前源码有 52 个 B JSON Schema（总源合同已因 C 为 59）和 B authoring/readback 工具；`operator_catalog_get` 与 `geometry_program_hash` 是默认只读工具。B source Gate 已通过 contracts、Skill integrity、Worker isolation、V2 restore hardening 和 closed GLB profile；Darwin OS memory hard cap deferred/NOT_RUN。Codex 先读取 catalog，再提交严格、无 `canonical_sha256` 的 V2 draft 到 hash 工具；Runtime 返回唯一 canonical hash，且不编译、不创建 candidate/Job、不写 SQLite/CAS。
+
+历史 source-built real Codex CLI 曾使用授权参考完成 `project_create → reference_import → capabilities_get → operator_catalog_get → geometry_program_hash → geometry_prepare → artifact_readback_get`，生成 pre-semantic-Part-sink 的未确认 12 Part/884 triangle primitive structural blockout。attempt 1 的 `BLOCKED` receipt 保留，attempt 2 的 structural PASS 不代表 reference likeness、texture/PBR V2、用户评分、export/restore、Viewer comparison 或 360°。MCP010A/010B 的 Dev.app receipts均为历史 cohort receipt；当前 `d9c23b…ac0bd` 的结构证据也不记录视觉质量。MCP010B structural source Gate已通过并转为 deferred（Darwin 512 MiB OS total-memory hard cap保持 `NOT_RUN`），不得由 isolation/peak-RSS 结果推断为总内存预防证明。
+
+### MCP010C 当前固定渲染与参考比较边界
+
+当前源码新增 7 个合同，总源合同 59；默认工具面为 20 read + 16 opt-in write。`script/test_mcp010c.sh` 已通过固定 512×512 perspective/z-buffer、scene transform、确定性九 AOV、CAS RenderSet@2、local reference mask/metrics、`render_pass_get` MCP image block、Codex typed review、human receipt 和 deterministic raw stdio。证据见 `docs/evidence/mcp010c/manifest.json` 与 `docs/evidence/mcp010c/raw-stdio.json`。首次真实机器人 PNG 另已完成九 AOV/compare/review transport，但 primitive blockout 的 likeness metrics 未达标，详见 `docs/evidence/mcp010c/real-reference-robot.json`；该 receipt 不创建 version，也不构成 `PARTIAL_VISIBLE_VIEW_PASS`。Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash 和 HQ_360 仍 `NOT_RUN/BLOCKED`。单张三分之四图最多只能产生 `PARTIAL_VISIBLE_VIEW_PASS`，且必须先通过阈值。
 
 ## 6. GitHub 工具采用决策
 

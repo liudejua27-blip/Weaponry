@@ -117,6 +117,7 @@ dependencies = [
  "base64",
  "forgecad-worker-protocol",
  "image",
+ "libc",
  "serde_json",
  "sha2",
  "thiserror",
@@ -128,6 +129,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

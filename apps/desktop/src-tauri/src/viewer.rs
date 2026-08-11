@@ -231,8 +231,14 @@ mod tests {
                 json!({"typed":"geometry","geometry_program":program}),
             )
             .expect("geometry candidate");
-        let artifact_id = geometry["artifact"]["artifact_id"].as_str().expect("artifact").to_owned();
-        let candidate_id = geometry["candidate"]["candidate_id"].as_str().expect("candidate").to_owned();
+        let artifact_id = geometry["artifact"]["artifact_id"]
+            .as_str()
+            .expect("artifact")
+            .to_owned();
+        let candidate_id = geometry["candidate"]["candidate_id"]
+            .as_str()
+            .expect("candidate")
+            .to_owned();
         let endpoint = LocalIpcEndpoint::new(&socket_root).expect("endpoint");
         let server = runtime.ipc_server(&endpoint).expect("server");
         let ready_path = root.join("ipc").join("ready.json");
@@ -257,10 +263,22 @@ mod tests {
             project.project_id
         );
         assert_eq!(model["projects"][0]["versions"], json!([]));
-        assert_eq!(model["projects"][0]["candidates"].as_array().unwrap().len(), 1);
-        assert_eq!(model["projects"][0]["candidates"][0]["candidate"]["candidate_id"], candidate_id);
-        assert_eq!(model["projects"][0]["candidates"][0]["artifact"]["artifact_id"], artifact_id);
-        assert_eq!(model["projects"][0]["candidates"][0]["artifact"]["part_ids"][0], "viewer-torso");
+        assert_eq!(
+            model["projects"][0]["candidates"].as_array().unwrap().len(),
+            1
+        );
+        assert_eq!(
+            model["projects"][0]["candidates"][0]["candidate"]["candidate_id"],
+            candidate_id
+        );
+        assert_eq!(
+            model["projects"][0]["candidates"][0]["artifact"]["artifact_id"],
+            artifact_id
+        );
+        assert_eq!(
+            model["projects"][0]["candidates"][0]["artifact"]["part_ids"][0],
+            "viewer-torso"
+        );
 
         let mut client = LocalIpcClient::connect(&shutdown_endpoint).expect("shutdown client");
         assert_eq!(

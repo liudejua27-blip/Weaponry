@@ -4,12 +4,14 @@
   "title":"AppearancePrepareResult",
   "type":"object",
   "additionalProperties":false,
-  "required":["schema_version","candidate","job","artifact","render_set"],
+  "required":["schema_version","candidate","job","artifact","render_set","render_set_object_sha256","quality_report_object_sha256"],
   "properties":{
     "schema_version":{"const":"AppearancePrepareResult@1"},
     "candidate":{"type":"object"},
     "job":{"type":"object"},
     "artifact":{"$ref":"https://forgecad.local/contracts/artifact-readback.schema.json"},
-    "render_set":{"$ref":"https://forgecad.local/contracts/render-set.schema.json"}
+    "render_set":{"$ref":"https://forgecad.local/contracts/render-set.schema.json"},
+    "render_set_object_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "quality_report_object_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
   }
 }

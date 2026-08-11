@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-program-hash-result.schema.json",
+  "title": "GeometryProgramHashResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "geometry_program_schema_version",
+    "canonical_sha256",
+    "operator_catalog_sha256",
+    "validation_status"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryProgramHashResult@1"},
+    "geometry_program_schema_version": {"const": "GeometryProgram@2"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "validation_status": {"const": "passed"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

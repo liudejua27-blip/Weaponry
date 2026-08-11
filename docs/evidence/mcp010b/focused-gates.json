@@ -1,0 +1,340 @@
+{
+  "schema_version": "ForgeCADMCP010BEvidence@1",
+  "task_id": "FGC-MCP010B",
+  "recorded_on": "2026-08-10",
+  "scope": "source-built V2 structural truth, fixed-endpoint MCP reconnect, and current installed Dev.app isolated V2 structural evidence",
+  "persistent_user_data_touched": false,
+  "results": [
+    {
+      "command": "current MCP010B source-focused reconciliation before the separately recorded current Dev.app package validation",
+      "status": "PASS",
+      "observations": [
+        "The current source manifest has 52 contracts: the retained MCP006 historical baseline has 44 and MCP010B adds eight, including GeometryQualityReport@2 and GeometryCandidateEvidence@1.",
+        "Current source-focused Gates passed: contract checker (52), MCP006 Skill integrity, script/test_mcp010b.sh (10 isolated Worker checks plus raw V2), script/test_mcp004.sh (32), script/test_mcp007.sh (14 Worker), script/test_mcp008.sh, script/test_mcp009.sh (Runtime 51/MCP 32), V2 restore hardening, and the closed GLB profile.",
+        "This source-focused reconciliation does not rebuild or replace the historical 3c/f488 Dev.app cohorts. The later bfa56 current Dev.app package evidence and a separate live Desktop activation receipt are recorded separately. No PBR/reference-similarity/visual/human/360 claim is made."
+      ]
+    },
+    {
+      "command": "historical 50-contract MCP010B source check: python3 scripts/check_forgecad_contracts.py && python3 scripts/check_mcp006_skills.py && git diff --check",
+      "status": "PASS",
+      "observations": [
+        "The retained historical receipt recorded 50 contracts as present and manifest-checked; it is not rewritten as current 52-contract evidence.",
+        "10 first-party declarative Skill Bundles pass the registry checker.",
+        "The worktree patch has no whitespace errors."
+      ]
+    },
+    {
+      "command": "CARGO_TARGET_DIR=/tmp/<isolated-target> script/with_rust_toolchain.sh cargo test --manifest-path apps/geometry-worker/Cargo.toml --offline --lib",
+      "status": "PASS",
+      "observations": [
+        "10 worker tests pass, including deterministic V2 primitives, multi-source semantic Part sinks, closed catalog binding, project/identifier/physical-envelope rejection, topology/normal checks, actual BIN/lineage corruption rejection and V1 UV/tangent compatibility derived from decoded GLB bytes.",
+        "This is a linked product crate test, not independent Worker process isolation evidence."
+      ]
+    },
+    {
+      "command": "CARGO_TARGET_DIR=/tmp/<isolated-target> script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime -p forgecad-mcp --offline",
+      "status": "PASS",
+      "observations": [
+        "This retained historical focused receipt recorded 39 Runtime library tests, one Runtime binary test, and 29 MCP tests; current source counts are recorded separately in the reconciliation entry.",
+        "Coverage includes V2 candidate-bound readback, confirm-time CAS revalidation, catalog tool/resource/capability digest equality, compiler-owned read-only hash, target-project binding, truthful Skill availability, stale handoff recovery and fixed-endpoint dynamic reconnection."
+      ]
+    },
+    {
+      "command": "python3 -m py_compile scripts/probe_mcp010b_raw_stdio.py && script/test_mcp010b.sh",
+      "status": "PASS",
+      "observations": [
+        "A source-built MCP and Runtime negotiated protocol 2025-06-18 in an isolated SQLite/CAS/socket root.",
+        "The raw public surface completed operator_catalog_get to geometry_program_hash to GeometryProgram@2 to GeometryPrepareResult@2 to ArtifactReadback@2 with an ordered multi-source semantic Part sink.",
+        "Catalog tool/resource/capability equality, hash read-only behavior, draft-to-hash-to-prepare compatibility, target-project binding, semantic-sink empty/duplicate/reused/unknown rejection, 10 m/5 m envelope rejection, candidate-bound reread, catalog mismatch rejection, candidate/artifact mismatch rejection and authenticated shutdown all passed."
+      ]
+    },
+    {
+      "command": "recorded historical pre-graph MCP010B Dev.app install and package-verification receipts",
+      "status": "PASS",
+      "observations": [
+        "The historical pre-semantic-Part-graph Dev.app was installed from source revision 13d1dc3e307cd96751f8d760837ca20150d78fef with cohort 3c6f59f2969367ea6b1bb41334e4a28cb506254a97f5345f80aa1e111cfc7140; its receipt and retained backup remain factual history.",
+        "Ad-hoc deep-strict verification passed. The package resource allowlist contains exactly forgecad-mcp, forgecad-runtime and forgecad-geometry-worker. Developer ID and notarization remain NOT_RUN."
+      ],
+      "evidence": [
+        "docs/evidence/mcp010b/dev-app-install.json",
+        "docs/evidence/mcp010b/dev-app-package-verify.json"
+      ]
+    },
+    {
+      "command": "recorded isolated historical pre-graph Dev.app Ready/project and V2 raw MCP probes",
+      "status": "PASS",
+      "observations": [
+        "The historical installed MCP/Runtime cohort matched at protocol 2025-06-18, reached Ready, and completed isolated project_create without touching persistent user data.",
+        "The installed binary V2 probe completed operator catalog → compiler-owned hash → prepare → ArtifactReadback@2 with matching cohort and passed negative catalog, prefilled-hash, project-binding and candidate/artifact mismatch cases."
+      ],
+      "evidence": [
+        "docs/evidence/mcp010b/dev-app-probe.json",
+        "docs/evidence/mcp010b/dev-app-v2-structural-probe.json"
+      ]
+    },
+    {
+      "command": "recorded historical real Codex CLI V2 structural host probe through the pre-graph MCP010B Dev.app",
+      "status": "PASS",
+      "observations": [
+        "A real Codex CLI used the historical pre-graph installed Dev.app MCP/Runtime cohort, with the install and cohort linkage recorded separately by the Dev.app install and raw-probe receipts.",
+        "With an authorized reference it completed project_create, reference_import, capabilities_get, operator_catalog_get, geometry_program_hash, geometry_prepare and artifact_readback_get. The candidate remained unconfirmed and had 12 Parts/884 triangles; no persistent user data, image bytes or reference path were recorded. This historical result does not cover the later semantic-Part graph contract.",
+        "The probe is structure-only. Visual similarity, AssetPack/PBR V2, human review, export/restore, 360-degree quality and user-restarted live Desktop V2 activation remain unproven."
+      ],
+      "evidence": [
+        "docs/evidence/mcp010b/dev-app-codex-cli-v2-structural.json",
+        "docs/evidence/mcp010b/dev-app-install.json",
+        "docs/evidence/mcp010b/dev-app-v2-structural-probe.json"
+      ]
+    },
+    {
+      "command": "recorded historical semantic-Part graph Dev.app install, package verification, raw V2 probe and real Codex CLI structural host probe",
+      "status": "PASS",
+      "observations": [
+        "The historical graph Dev.app cohort is f4885b11fc54b27b88b81bb9d56b84cbd54b76a1ee5e139e531595ea57126bc1. It passed ad-hoc deep-strict verification and contains exactly forgecad-mcp, forgecad-runtime and forgecad-geometry-worker.",
+        "Its isolated probe reached Ready and created a temporary project. Its raw V2 probe exercised a multi-source semantic Part sink and rejected empty, duplicate, reused and unknown source inputs.",
+        "A real Codex CLI used that installed cohort with an authorized reference and completed the seven required calls. Its unconfirmed candidate had 12 Parts and 896 triangles; chest-shell bound the ordered sources chest-shell and chest-panel. The exact packaged MCP, Runtime and fixed sibling Worker reported the same cohort; no persistent user data, image bytes or reference path was recorded.",
+        "The first packaged graph authoring attempt that stopped after reference admission remains BLOCKED; the later machine-checked authoring prompt passed. This is structural-only evidence, not visual similarity, PBR V2, human review, export/restore, 360-degree quality or a user-restarted Desktop V2 activation."
+      ],
+      "evidence": [
+        "docs/evidence/mcp010b/dev-app-graph-install.json",
+        "docs/evidence/mcp010b/dev-app-graph-package-verify.json",
+        "docs/evidence/mcp010b/dev-app-graph-probe.json",
+        "docs/evidence/mcp010b/dev-app-graph-v2-structural-probe.json",
+        "docs/evidence/mcp010b/dev-app-graph-codex-cli-v2-attempt1-blocked.json",
+        "docs/evidence/mcp010b/dev-app-graph-codex-cli-v2-structural.json"
+      ]
+    },
+    {
+      "command": "python3 scripts/install_mcp010a_dev_app.py --keep-previous --task-id FGC-MCP010B --evidence docs/evidence/mcp010b/dev-app-52-install.json; current Dev.app package/isolated/raw/real-Codex structural probes",
+      "status": "PASS",
+      "observations": [
+        "The current dirty 52-contract source revision 13d1dc3e307cd96751f8d760837ca20150d78fef was installed as cohort bfa56acaf8809c17794128573bd2498548947ed893469da67116ac0fa3336de9. Its ad-hoc deep-strict signature and the exact three-resource allowlist passed; the previous app backup was retained.",
+        "The exact current package negotiated protocol 2025-06-18, reached Runtime Ready, completed isolated project_create and touched no persistent user data. Its raw V2 probe passed catalog/tool/resource equality, hash authoring, ordered multi-source semantic Part sinks, candidate-bound readback and all listed negative cases.",
+        "A real Codex CLI used the exact packaged MCP, Runtime and fixed sibling Geometry Worker with matching bfa56 cohorts. It completed project_create, reference_import, capabilities_get, operator_catalog_get, geometry_program_hash, geometry_prepare and artifact_readback_get. The candidate was unconfirmed and structurally valid: 12 Parts, 896 triangles and a 161104-byte GLB; chest-shell bound chest-shell then chest-panel.",
+        "This is fresh package structural evidence only. It records no persistent user data, image bytes or reference path, and does not prove visual similarity, PBR V2, human review, export/restore, 360-degree quality or Developer ID/notarization. The subsequent live Desktop activation is recorded as a separate gate."
+      ],
+      "evidence": [
+        "docs/evidence/mcp010b/dev-app-52-install.json",
+        "docs/evidence/mcp010b/dev-app-52-package-verify.json",
+        "docs/evidence/mcp010b/dev-app-52-isolated-probe.json",
+        "docs/evidence/mcp010b/dev-app-52-v2-structural-probe.json",
+        "docs/evidence/mcp010b/dev-app-52-codex-cli-v2-structural.json"
+      ]
+    },
+    {
+      "command": "live Codex Desktop after complete restart: capabilities_get, runtime_status, doctor, operator_catalog_get, project_list/project_get and geometry_program_hash",
+      "status": "PASS",
+      "observations": [
+        "The first live check was retained as a FAIL because a newly loaded bfa56 MCP reused an older Ready f488 Runtime. After a complete restart, the live MCP and Runtime both reported bfa56acaf8809c17794128573bd2498548947ed893469da67116ac0fa3336de9 and build_cohort_match=true.",
+        "The live session exposed 32 tools (19 read and 13 write with opt-in), Runtime and doctor were Ready, the OperatorCatalog@1 tool returned the capability-matching digest, the existing activation-probe project was read successfully, and the zero-persistence GeometryProgram@2 hash request passed.",
+        "This is a live structural activation receipt only. It does not prove visual similarity, PBR V2, human review, export/restore, 360-degree quality or Developer ID/notarization."
+      ],
+      "evidence": [
+        "docs/evidence/mcp010b/dev-app-live-desktop-v2-mismatch.json",
+        "docs/evidence/mcp010b/dev-app-live-desktop-v2-activation.json"
+      ]
+    },
+    {
+      "command": "isolated MCP initialize, 58-second idle interval, then project_create",
+      "status": "PASS",
+      "observations": [
+        "An explicit socket/token endpoint now reconnects per MCP call; after the old 55-second IPC idle window, project_create returned Project@1 instead of RUNTIME_UNAVAILABLE.",
+        "The executable regression is also covered by fixed_endpoint_backend_does_not_hold_an_idle_authenticated_connection."
+      ]
+    },
+    {
+      "command": "live user-authorized reference run: project_create → inline reference_import → catalog/hash → geometry_prepare → readback → quality_get",
+      "status": "PASS_WITH_QUALITY_LIMITATION",
+      "observations": [
+        "The current bfa56 live cohort imported the authorized PNG into Runtime CAS with verified object SHA-256 and created a fresh project/reference pair without persisting the source path or image bytes in the receipt.",
+        "GeometryProgram@2 hash/catalog binding, GeometryPrepareResult@2, successful candidate Job, candidate-bound ArtifactReadback@2 and strict integrity all passed: 23 semantic Parts, 9964 triangles, 1592884-byte GLB, zero invalid/non-finite/degenerate/boundary/non-manifold/winding/UV/tangent/external-URI errors, and 100% Part/source/material coverage.",
+        "QualityReport@1 deliberately failed the limited MVP aspect proxy at 0.546637724065619 against 0.55; the report states that pixel silhouette, landmark and semantic correspondence are not implemented. The candidate remains unconfirmed and no version/export was created."
+      ],
+      "evidence": "docs/evidence/mcp010b/real-reference-robot-structural-run.json"
+    },
+    {
+      "command": "live user-authorized detail blockout: existing reference → 51-node primitive GeometryProgram@2 → hash → geometry_prepare → readback → quality_get",
+      "status": "PASS_WITH_QUALITY_LIMITATION",
+      "observations": [
+        "The same bfa56 live cohort compiled a denser primitive-only graph with 51 semantic Parts, 16,496 triangles and a 2,658,940-byte self-contained GLB.",
+        "Strict ArtifactReadback@2 passed with zero invalid/non-finite/degenerate/boundary/non-manifold/winding/UV/tangent/external-URI errors and 100% Part/source/material coverage.",
+        "The limited aspect proxy fell to 0.4604316359607936 against 0.55. This is a negative learning result: structural detail count cannot substitute for camera/render/mask comparison. The candidate remains unconfirmed and no version/export was created."
+      ],
+      "evidence": "docs/evidence/mcp010b/real-reference-robot-detail-blockout.json"
+    },
+    {
+      "command": "live user-authorized V1 compatibility baseline: AppearanceProgram@1 → artifact_readback_get → quality_get → candidate_reject",
+      "status": "PASS_WITH_QUALITY_LIMITATION",
+      "observations": [
+        "The current Ready Runtime compiled a legacy GeometryProgram@1 with 15 semantic Parts and a hash-bound AppearanceProgram@1 containing three material zones: white shell, black mechanical and warm amber emissive.",
+        "ArtifactReadback@1 passed for a 109564-byte GLB with 548 triangles; UV and tangent status were physically derived and passed. RenderSet@1 emitted four deterministic 256x256 metadata passes: beauty, silhouette, normal and part-id.",
+        "The limited reference aspect proxy was 0.4661654438601297 against the 0.55 threshold. Runtime returned hard_gate_passed=false; the exploratory candidate was rejected, so no immutable version or export was created.",
+        "This is a compatibility/material plumbing receipt only. It has no texture inputs, is not AppearanceProgram@2, and does not establish pixel similarity, human review or 360-degree coverage."
+      ],
+      "evidence": "docs/evidence/mcp010b/real-reference-v1-appearance-baseline.json"
+    },
+    {
+      "command": "script/test_mcp010b.sh",
+      "status": "PASS",
+      "observations": [
+        "The current source-focused run completed 10 isolated fixed-sibling Worker checks plus raw V2: deterministic compile, malformed one-shot rejection, 10-second monotonic timeout with kill/reap, crash isolation, CLOEXEC descriptor isolation, inherited soft CPU-limit preservation, truthful Darwin limit/allocator reporting, RAII pipe cleanup, V2 restore hardening, and closed GLB profile validation.",
+        "Runtime starts only its fixed same-directory (or Cargo test sibling) Worker through macOS posix_spawn with CLOEXEC_DEFAULT and explicit standard-stream pipes. Worker request/response, cohort, post-hoc peak-RSS budget and Runtime GLB readback checks all pass before any candidate/CAS/version write.",
+        "CPU and core ceilings are verified. A Darwin wait4 `ru_maxrss` greater than 512 MiB fails closed before response parsing. The closed Rust allocator rejects an over-ceiling reservation after a 32 MiB touched allocation, but neither mechanism is evidence of an OS-enforced total-RSS cap. Darwin RLIMIT_AS, RLIMIT_RSS and RLIMIT_DATA are unavailable or non-enforceable on this host."
+      ],
+      "evidence": "docs/evidence/mcp010b/worker-isolation.json"
+    },
+    {
+      "command": "script/test_mcp004.sh",
+      "status": "PASS",
+      "observations": [
+        "32 current MCP tests and the isolated shared-Runtime lifecycle regression pass.",
+        "The gate covers stale handoff recovery, concurrent MCP sessions, malformed/idle local IPC isolation, idle-owner passive takeover, bounded restart and approval-bound writes."
+      ]
+    },
+    {
+      "command": "primitive-blockout@0.2.0 Skill overlay: python3 scripts/check_mcp006_skills.py; Runtime skill_registry tests; packaged raw catalog → skill_list → hash → prepare → readback",
+      "status": "PASS",
+      "observations": [
+        "The current registry contains 11 entries: ten historical MCP006 declarative Bundles plus primitive-blockout@0.2.0.",
+        "The Runtime derives primitive-blockout@0.2.0 as execution_availability=active with no missing_operator_ids because forgecad.geometry.primitive@2 is the real product-owned consumer.",
+        "The newly rebuilt 5143ac3b… Dev.app matched MCP/Runtime/Worker cohorts, passed ad-hoc package verification and the isolated raw V2 probe, including skill count/active status and catalog/hash/readback negatives. No persistent user data was touched.",
+        "The package is development-only and the required full Desktop restart after this newer cohort remains NOT_RUN."
+      ],
+      "evidence": [
+        "docs/evidence/mcp010b/primitive-blockout-skill.json",
+        "docs/evidence/mcp010b/dev-app-primitive-install.json",
+        "docs/evidence/mcp010b/dev-app-primitive-package-verify.json",
+        "docs/evidence/mcp010b/dev-app-primitive-v2-probe.json"
+      ]
+    },
+    {
+      "command": "latest primitive-blockout knowledge package: install → isolated package probe → raw V2 → real Codex CLI V2",
+      "status": "PASS",
+      "observations": [
+        "The d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd Dev.app was rebuilt after aligning the declarative Skill knowledge with the two explicit decision paths: visual-quality stop versus user-approved STRUCTURAL_BLOCKOUT MVP export.",
+        "Ad-hoc package verification, isolated Ready/project_create, raw catalog → skill_list → hash → prepare → ArtifactReadback@2, all catalog/project/graph negatives, and real Codex CLI V2 structural authoring passed with matching MCP/Runtime/Worker cohorts. The Skill registry contained 11 entries and primitive-blockout@0.2.0 was active.",
+        "The isolated Codex candidate remained unconfirmed: 12 Parts, 896 triangles and a 161104-byte self-contained GLB. This is structural evidence only; visual similarity, PBR V2, human review and 360 coverage remain NOT_RUN. A complete Desktop restart after this package install remains NOT_RUN."
+      ],
+      "evidence": [
+        "docs/evidence/mcp010b/dev-app-primitive-knowledge-install.json",
+        "docs/evidence/mcp010b/dev-app-primitive-knowledge-probe.json",
+        "docs/evidence/mcp010b/dev-app-primitive-knowledge-v2-raw.json",
+        "docs/evidence/mcp010b/dev-app-primitive-knowledge-codex-cli-v2.json"
+      ]
+    },
+    {
+      "command": "latest d9c23b Dev.app real Codex CLI MCP009 appearance/export compatibility path",
+      "status": "PASS",
+      "observations": [
+        "The exact d9c23b… package completed the twelve-call project/reference → V1 geometry/readback → typed appearance/readback → limited quality → approval-bound confirm → version → CAS-backed MVP GLB export sequence in an isolated Runtime/CAS.",
+        "Geometry and appearance each produced 15 Parts and 548 triangles with physical GLB readback status passed; candidate and export confirmation completed. The image was used only for authorized reference admission and the typed programs were deterministic probe inputs.",
+        "This is retained MVP wire/export evidence, not image-conditioned reconstruction, PBR V2, visual similarity or human/360 acceptance."
+      ],
+      "evidence": "docs/evidence/mcp010b/dev-app-primitive-knowledge-codex-cli-mcp009-appearance-export.json"
+    },
+    {
+      "command": "python3 scripts/probe_mcp009_codex_cli.py --execute --reference <authorized-reference> --runtime-command <latest-5143-runtime> --mcp-command <latest-5143-mcp>",
+      "status": "PASS",
+      "observations": [
+        "A real Codex CLI used the latest 5143ac3b… primitive-blockout Dev.app in an isolated Runtime. The probe admitted the authorized reference, then used the returned project_id to bind the deterministic GeometryProgram@1 before running geometry/readback, AppearanceProgram@1, quality_get, approval-bound candidate_confirm, version_list and CAS-backed MVP GLB export.",
+        "The geometry and appearance artifacts each contained 15 Parts and 548 triangles with validator_status=passed; all twelve expected MCP calls completed, the candidate/version/export chain completed, and no persistent user data was touched.",
+        "This is retained MCP008/MCP009 MVP plumbing evidence only. The typed programs were deterministic probe inputs, not image-conditioned reconstruction; visual similarity, PBR V2, human review, packaged signing and 360-degree coverage remain unproven. The earlier hard-coded project-id failure is preserved as a useful project-binding regression signal rather than rewritten as a pass."
+      ],
+      "evidence": "docs/evidence/mcp010b/dev-app-primitive-codex-cli-mcp009-appearance-export.json"
+    },
+    {
+      "command": "isolated real Codex CLI V2 structural probe, attempt 1",
+      "status": "BLOCKED",
+      "observations": [
+        "project_create and reference_import completed, but the first authoring prompt did not complete a discoverable catalog-to-hash sequence.",
+        "No candidate was confirmed and no persistent user data was touched. The original BLOCKED receipt is retained."
+      ],
+      "evidence": "docs/evidence/mcp010b/real-codex-v2-host-attempt1-blocked.json"
+    },
+    {
+      "command": "python3 scripts/probe_mcp010b_codex_cli.py --execute --runtime-command <source-built-runtime> --mcp-command <source-built-mcp> --image <authorized-reference>",
+      "status": "PASS",
+      "observations": [
+        "A real Codex CLI used an isolated source-built Runtime/MCP and completed project_create, reference_import, capabilities_get, operator_catalog_get, geometry_program_hash, geometry_prepare and artifact_readback_get.",
+        "The V2 structural candidate was not confirmed; it had 12 Parts and 884 triangles, and catalog/program hashes matched across the hash receipt and ArtifactReadback@2.",
+        "The sanitized receipt records no source path, image bytes, prompt, persistent user data, visual similarity, human review or PBR V2 claim."
+      ],
+      "evidence": "docs/evidence/mcp010b/real-codex-v2-host-pass.json"
+    },
+    {
+      "command": "historical 50-contract npm run release:mvp",
+      "status": "PASS",
+      "observations": [
+        "The retained aggregate receipt passed with 50 contracts; MCP005 through MCP009 functional gates; documentation, repository integrity, safety, secrets and license/SBOM checks; desktop typecheck/build; Tauri workspace check; and whitespace validation. It is historical and not a 52-contract aggregate claim.",
+        "Optional real-Codex probes printed NOT_RUN only where their required environment opt-in was absent; they did not substitute for, or downgrade, the aggregate result."
+      ]
+    },
+    {
+      "command": "live Desktop after authenticated shutdown of the previous shared Runtime",
+      "status": "FAIL",
+      "observations": [
+        "The old shared Runtime was stopped through the authenticated development helper without deleting SQLite/CAS.",
+        "The existing MCP stdio child then started the newest d9c23b Runtime, but the MCP process itself still reported the previous bfa56ac cohort; capabilities_get correctly returned build_cohort_match=false.",
+        "The d9 Runtime was Ready and primitive-blockout@0.2.0 was active on its side. This is an activation/process-lifecycle failure, not a d9 package or Runtime structural failure; no persistent user data was touched."
+      ],
+      "evidence": "docs/evidence/mcp010b/live-desktop-d9-cohort-mismatch.json"
+    },
+    {
+      "command": "fresh d9 Dev.app real Codex CLI V2 structural repeat after Runtime switch",
+      "status": "PASS",
+      "observations": [
+        "The isolated real Codex CLI used the d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd MCP, Runtime and fixed sibling Geometry Worker with exact cohort equality.",
+        "The seven-call sequence project_create → reference_import → capabilities_get → operator_catalog_get → geometry_program_hash → geometry_prepare → artifact_readback_get completed with a 12-Part, 896-triangle, 161104-byte self-contained GLB; chest-shell bound the ordered sources chest-shell and chest-panel.",
+        "The candidate remained unconfirmed. Visual similarity, AssetPack/PBR V2 and human review were NOT_RUN; the isolated run touched no persistent user data. This does not prove a complete Codex Desktop restart or a visual-quality result."
+      ],
+      "evidence": "docs/evidence/mcp010b/dev-app-primitive-knowledge-codex-cli-v2-repeat.json"
+    },
+    {
+      "command": "fresh d9 Dev.app live Codex Desktop activation after complete restart",
+      "status": "PASS",
+      "observations": [
+        "The live MCP and Runtime both reported d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd and capabilities_get returned build_cohort_match=true.",
+        "The live surface exposed 32 tools (19 read and 13 write with opt-in), Runtime and doctor were Ready, the OperatorCatalog@1 digest matched, and the 11-entry Skill Registry reported primitive-blockout@0.2.0 as active with no missing operators.",
+        "A read-only project_list completed with two project records. No reference import, geometry prepare, visual comparison, PBR V2, human review or persistent write was run in this activation check."
+      ],
+      "evidence": "docs/evidence/mcp010b/dev-app-primitive-knowledge-live-desktop-activation.json"
+    },
+    {
+      "command": "python3 scripts/probe_mcp010b_codex_cli.py --execute --reference <authorized-reference> --runtime-command <d9-runtime> --mcp-command <d9-mcp>",
+      "status": "PASS",
+      "observations": [
+        "A real Codex CLI used the exact d9 MCP, Runtime and fixed sibling Geometry Worker with matching cohort hashes.",
+        "The seven-call reference admission and V2 authoring sequence completed: project_create, reference_import, capabilities_get, operator_catalog_get, geometry_program_hash, geometry_prepare and artifact_readback_get.",
+        "The candidate remained unconfirmed and produced a 12-Part, 896-triangle, 161104-byte self-contained GLB; chest-shell preserved ordered sources chest-shell and chest-panel. Visual similarity, human review and AssetPack/PBR V2 were NOT_RUN; the isolated run touched no persistent user data."
+      ],
+      "evidence": "docs/evidence/mcp010b/dev-app-primitive-knowledge-codex-cli-v2-current-repeat.json"
+    },
+    {
+      "command": "python3 scripts/probe_mcp010b_codex_cli.py --execute --reference <authorized-reference> --runtime-command <d9-runtime> --mcp-command <d9-mcp> (reference-bound quality pass)",
+      "status": "PASS",
+      "observations": [
+        "The d9 real Codex CLI route now passes the imported reference_id into geometry_prepare and quality_get instead of leaving the structural candidate unbound.",
+        "quality_get.reference_compare.reference_id matched the imported reference_id; the same d9 MCP/Runtime/Worker cohort produced a 12-Part, 896-triangle, 161104-byte GLB with strict readback passed.",
+        "The candidate remained unconfirmed, the limited quality result is not visual acceptance, and the isolated run touched no persistent user data."
+      ],
+      "evidence": "docs/evidence/mcp010b/dev-app-primitive-knowledge-codex-cli-v2-reference-bound.json"
+    },
+    {
+      "command": "python3 scripts/probe_mcp010b_codex_cli.py --execute --reference <authorized-reference> --runtime-command <d9-runtime> --mcp-command <d9-mcp> (reference/job/candidate readback pass)",
+      "status": "PASS",
+      "observations": [
+        "The d9 real Codex CLI route now completes the full bounded readback sequence: project_create, reference_import, reference_get, capabilities_get, operator_catalog_get, geometry_program_hash, geometry_prepare, job_get, candidate_get, artifact_readback_get and quality_get.",
+        "reference_get returned the imported reference_id; job_get returned succeeded with progress 100; candidate_get returned the same project/candidate in reviewable state with quality_hard_gate_passed=true; quality_get.reference_compare.reference_id matched the imported reference_id.",
+        "The matching d9 MCP/Runtime/Worker cohort produced a 12-Part, 896-triangle, 161104-byte self-contained GLB with strict readback passed. The candidate remained unconfirmed and the isolated run touched no persistent user data; visual similarity, PBR V2 and human review remain NOT_RUN."
+      ],
+      "evidence": "docs/evidence/mcp010b/dev-app-primitive-knowledge-codex-cli-v2-reference-bound-readbacks.json"
+    }
+  ],
+  "not_proven": [
+    "A Darwin-wide OS-enforced 512 MiB total-memory cap for the geometry Worker; accepted-result peak RSS is checked post-hoc and the scoped timeout/crash/post-hoc-memory isolation gate is PASS, while RLIMIT_AS, RLIMIT_RSS and RLIMIT_DATA are unavailable or non-enforceable on the observed host, so only the separate OS total-memory gate remains NOT_RUN.",
+    "A visual-quality or production-distribution acceptance; the current bfa56 live Desktop V2 structural activation is PASS, but it is not a Developer ID/notarized package and does not include visual/PBR gates.",
+    "Developer ID/notarized production package acceptance. Historical ad-hoc Dev.app structural E2E does not substitute for it.",
+    "Reference visual similarity, human review, Viewer comparison or export/restart hash parity.",
+    "High-detail operators, third-party libraries, texture AssetPack or PBR V2."
+  ]
+}

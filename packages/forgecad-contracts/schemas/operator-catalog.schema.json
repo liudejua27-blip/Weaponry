@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/operator-catalog.schema.json",
+  "title": "OperatorCatalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_id",
+    "geometry_program_schema_version",
+    "operators",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "OperatorCatalog@1"},
+    "catalog_id": {"$ref": "#/$defs/identifier"},
+    "geometry_program_schema_version": {"const": "GeometryProgram@2"},
+    "operators": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {"$ref": "#/$defs/primitive_operator"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "primitive_operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator_id",
+        "status",
+        "input_arity",
+        "output_kind",
+        "parameter_schema",
+        "part_output_required",
+        "supported_shapes"
+      ],
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.primitive@2"},
+        "status": {"const": "active"},
+        "input_arity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"const": 0},
+            "max": {"const": 0}
+          }
+        },
+        "output_kind": {"const": "triangle-mesh"},
+        "parameter_schema": {"const": "GeometryPrimitiveParameters@2"},
+        "part_output_required": {"const": true},
+        "supported_shapes": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"enum": ["box", "cylinder", "ellipsoid", "sphere"]}
+        }
+      }
+    }
+  }
+}

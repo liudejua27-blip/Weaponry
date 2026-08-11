@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-quality-report-v2.schema.json",
+  "title": "GeometryQualityReportV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scope",
+    "quality_report_id",
+    "candidate_id",
+    "artifact_sha256",
+    "program_sha256",
+    "operator_catalog_sha256",
+    "readback_config_sha256",
+    "artifact_readback_object_sha256",
+    "integrity",
+    "hard_gate_passed",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryQualityReport@2"},
+    "scope": {"const": "mcp010b-strict-glb-bin-accessor-hard-gates"},
+    "quality_report_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "integrity": {"$ref": "geometry-quality-report-v2.schema.json#/$defs/integrity"},
+    "hard_gate_passed": {"const": true},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "integrity": {"$ref": "artifact-readback-v2.schema.json#/$defs/passing_integrity"}
+  }
+}

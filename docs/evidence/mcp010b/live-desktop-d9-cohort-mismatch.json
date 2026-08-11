@@ -1,0 +1,15 @@
+{
+  "schema_version": "ForgeCADMCP010BLiveCohortMismatchReceipt@1",
+  "task_id": "FGC-MCP010B",
+  "recorded_on": "2026-08-10",
+  "status": "FAIL",
+  "scope": "live Desktop after authenticated shutdown of the previous shared Runtime",
+  "mcp_build_cohort_sha256": "bfa56acaf8809c17794128573bd2498548947ed893469da67116ac0fa3336de9",
+  "runtime_build_cohort_sha256": "d9c23b40919b52f67a50f1e1b610eebce94e91d639c143550c1bf4683c9ac0bd",
+  "build_cohort_match": false,
+  "runtime_status": "Ready",
+  "runtime_skill_observation": "primitive-blockout@0.2.0 active",
+  "failure": "An existing MCP stdio child remained on the previous bfa56 cohort and connected to the newly started d9c23b Runtime.",
+  "persistent_user_data_touched": false,
+  "next_action": "Fully quit Codex Desktop so the old MCP stdio children exit, then reopen and rerun the live cohort gate."
+}

@@ -3,12 +3,18 @@ name = "forgecad-runtime"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Internal test wiring only.  Production builds leave this feature disabled,
+# so Runtime can execute geometry only through the fixed sibling Worker.
+test-geometry-worker-fallback = ["dep:forgecad-geometry-worker"]
+
 [dependencies]
 base64 = "0.22"
 forgecad-core = { path = "../forgecad-core" }
 forgecad-contracts = { path = "../forgecad-contracts" }
-forgecad-geometry-worker = { path = "../../../../../apps/geometry-worker" }
+forgecad-geometry-worker = { path = "../../../../../apps/geometry-worker", optional = true }
 forgecad-store = { path = "../forgecad-store" }
+forgecad-worker-protocol = { path = "../forgecad-worker-protocol" }
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
@@ -16,3 +22,6 @@ serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+forgecad-geometry-worker = { path = "../../../../../apps/geometry-worker" }

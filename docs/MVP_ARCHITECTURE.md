@@ -55,7 +55,7 @@ runtime.writer.lock
 8. Runtime 意外退出时，仍存活的 MCP supervisor 最多进行一次简单重启；选主锁避免并发启动风暴，失败则进入 Degraded。
 9. Runtime 可跨适配器会话存活不等于 Job 已有 checkpoint 保证；MVP 仍不承诺 Codex 断线或 Runtime 崩溃后继续未完成 Job。
 
-这只是单用户本地进程复用，不是常驻 daemon、后台 broker 或多客户端服务治理。MCP010A 的共享生命周期 focused/aggregate tests、同 cohort Dev.app 重建、package verify、隔离 probe 和第二次 Desktop 重启后的真实工具 Gate 均已 PASS；010A 已完成，B–F 仍按依赖阻断。
+这只是单用户本地进程复用，不是常驻 daemon、后台 broker 或多客户端服务治理。MCP010A 的共享生命周期 focused/aggregate tests、同 cohort Dev.app 重建、package verify、隔离 probe 和第二次 Desktop 重启后的真实工具 Gate 均已 PASS；MCP010B f488 Dev.app 的安装、三资源 verify、隔离 Ready/project、V2 semantic-Part graph raw probe 与 exact packaged Worker structural E2E均为历史 cohort evidence。历史 `bfa56ac…de9` 52-contract Dev.app receipt保留；当前 `d9c23b…ac0bd` Dev.app 已通过 ad-hoc/package、隔离 Ready/project、V2 raw、matching Worker、真实 Codex CLI structural 子门和完整重启后的 live Desktop structural activation；010A 已完成，B–F 仍按依赖阻断。
 
 ## 写入流程
 

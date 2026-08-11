@@ -20,7 +20,7 @@ apps/
   blender-worker/        optional
 packages/
   forgecad-contracts/
-  forgecad-skills/       MCP006 first-party declarative bundles（十个独立 Bundle）
+  forgecad-skills/       MCP006 historical + MCP010B first-party bundles（10 个旧 Bundle + primitive-blockout@0.2.0）
 migrations-runtime-v1/
 docs/
 ```
@@ -79,7 +79,7 @@ CARGO_TARGET_DIR=/tmp/forgecad-mcp002-cargo-target \
 
 MCP005 已以 `image-rs/image` 的受限 PNG/JPEG features、decoder limits、authorized-root 和真实 Codex CLI receipt 收口。后续不得把用户原图复制进 fixture/Git；测试 fixture 使用自建、可公开的最小图片。
 
-MCP006 已建立 `SubjectProfile`、`RepresentationPlan`、`AssemblyGraph`、`GeometryProgram`、`AppearanceProgram`、`RecipePlan` Schema、十个独立 first-party Bundle、Recipe/DAG/单位/finite/预算/hash/license/SBOM/provenance Gate 和合成正/负 fixture。MCP007 已完成 product-owned bounded box/cylinder/sphere compiler、deterministic GLB/readback、Runtime/MCP/Viewer focused Gate；MCP008 已在现有 readback 上完成 bounded UV/tangent/PBR/render；MCP009 已完成 limited quality、stable-Part change、immutable version/restore 和 CAS export functional core。`img2threejs` 只提供 staged/detail-inventory/compare 的设计参考，`img2css` 只提供颜色/区域预览参考；不得安装其脚本、运行任意 JS/CSS 或把生成代码当 Runtime 真值。
+MCP006 已建立 `SubjectProfile`、`RepresentationPlan`、`AssemblyGraph`、`GeometryProgram`、`AppearanceProgram`、`RecipePlan` Schema、十个历史独立 first-party Bundle、Recipe/DAG/单位/finite/预算/hash/license/SBOM/provenance Gate 和合成正/负 fixture。MCP010B 当前源码另提供 `primitive-blockout@0.2.0`，绑定 GeometryProgram@2/primitive@2 与 strict readback；MCP007 已完成 product-owned bounded box/cylinder/sphere compiler、deterministic GLB/readback、Runtime/MCP/Viewer focused Gate；MCP008 已在现有 readback 上完成 bounded UV/tangent/PBR/render；MCP009 已完成 limited quality、stable-Part change、immutable version/restore 和 CAS export functional core。`img2threejs` 只提供 staged/detail-inventory/compare 的设计参考，`img2css` 只提供颜色/区域预览参考；不得安装其脚本、运行任意 JS/CSS 或把生成代码当 Runtime 真值。
 
 ## 8. 基线命令
 

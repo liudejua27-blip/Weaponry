@@ -1,0 +1,27 @@
+{
+  "coordinate_system": "left-handed-z-up",
+  "edges": [
+    {
+      "from": "a",
+      "to": "b"
+    },
+    {
+      "from": "b",
+      "to": "a"
+    }
+  ],
+  "expected": {
+    "dag": "reject",
+    "finite": "reject",
+    "operator_allowlist": "reject",
+    "units": "reject"
+  },
+  "fixture_id": "primitive-blockout-v2-declarative-invalid-cycle",
+  "recipe_id": "primitive-blockout",
+  "schema_version": "SkillBenchmarkFixture@1",
+  "skill_id": "primitive-blockout",
+  "units": "millimeter",
+  "values": {
+    "coordinate": "NaN"
+  }
+}

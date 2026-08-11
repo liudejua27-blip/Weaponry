@@ -1,7 +1,7 @@
 # FGC-MCP010 高质量硬表面参考闭环计划
 
 版本：2026-08-09
-状态：`FGC-MCP010A done`；`FGC-MCP010B`–`FGC-MCP010F blocked`
+状态：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C in_progress / source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D`–`FGC-MCP010F blocked`
 依赖：`FGC-MCP009 done（MVP host golden path）`
 
 本文是 MCP010A–F 的唯一详细执行合同。它不改写 MCP005–009 的历史 evidence，也不把目标 Schema、工具、Skill、库或素材写成当前能力。
@@ -30,13 +30,20 @@ ReferenceEvidence
 
 ## 2. 当前事实与目标分离
 
+### MCP010B/C current source reconciliation
+
+最新校正：`d9c23b…ac0bd` 是当前安装并已由用户完整重启加载的 Skill-overlay Dev.app，已通过 package/raw/real-Codex V2 structural probes 和 live Desktop structural activation。`5143ac3b…6e61`、bfa56 与更早 cohort 保留为历史 receipt；当前 live Desktop 为 d9。
+
+MCP006 的 44-contract、MCP010B 已保存的 50/52-contract aggregate，以及 3c/f488/bfa56/d9 Dev.app/raw/CLI receipt 都是历史或结构事实，原样保留。当前源码总计 **59 个 JSON Schema**：历史 44 加 MCP010B 的 8 和 MCP010C 的 7。当前 source Gate 已通过 B 的 V2 geometry/readback/Worker isolation 与 C 的 fixed renderer/九 AOV/reference compare/review raw path；C 工具面为 20 read + 16 opt-in write。C receipt 使用 synthetic reference，只证明绑定、传输、持久化和 deterministic bytes，不证明 PBR、用户 robot likeness、Viewer/package/live C、人评或 360。下文任何未特别注明的旧“50/52-contract/current Dev.app”叙述都应按本段分层。
+
 | 项目 | 当前事实 | MCP010 目标 |
+| 说明 | 上一段中的 `5143ac3b…6e61` 与 bfa56 仅是历史 package/live receipts；当前安装包与完整重启后的 live cohort 以 `d9c23b…ac0bd` 为准 | live 证据仍只证明结构工具链，不提前写成视觉/PBR能力 |
 |---|---|---|
-| 合同 | 44 个 JSON Schema，Geometry/Appearance/Readback/Render/Quality `@1` | 按 B/C/E 分阶段加入 V2/新合同 |
-| MCP | 17 read + 13 write | C 完成后计划为 18 read + 16 write |
-| Skill | 十个 first-party `0.1.0` declarative Bundle | D/E 按真实 consumer 升级七个 `0.2.0` Bundle |
+| 合同 | MCP006 历史为 44 个 JSON Schema；当前 MCP010B 源码新增 8 个合同，共 52 个 JSON Schema | 按 B/C/E 分阶段加入其余 V2/新合同 |
+| MCP | 当前源码为 20 read + 16 write（36）；C 的 source raw Gate 已通过，历史 Dev.app receipts仍按 cohort 保存 | 真实用户 likeness、Viewer/package/live C、人评/PBR/360证据仍需独立 Gate；不得用 synthetic/raw 直接宣传高质量 |
+| Skill | 十个历史 first-party `0.1.0` declarative Bundle + 当前 `primitive-blockout@0.2.0` active overlay | D/E 按真实 consumer 升级其余目标 Bundle |
 | 几何 | box/cylinder/sphere + limited transform | profile/revolve/sweep/loft/mirror/array/macros；boolean 有条件采用 |
-| Render | 四个 bounded pass；reference compare limited | perspective/z-buffer 固定 renderer + 九 AOV +真实指标 |
+| Render | MCP008/009 保留四个 compatibility pass；MCP010C source 已有 512×512 perspective/z-buffer + 九 AOV + local metrics | 真实用户视觉阈值、Viewer compare、packaged C、export/restart hash仍未运行 |
 | 材质 | factor-only bounded glTF PBR | first-party 离线 AssetPack、纹理、clearcoat/emissive strength |
 | Viewer | 只读 GLB canvas/read model | compare/AOV/diff/Part/MaterialZone/isolate/explosion/a11y |
 
@@ -48,6 +55,8 @@ ReferenceEvidence
 
 Owned：权威文档、文档 checker、用户级开发 App 构建/激活、原始 stdio/CLI/真实 Codex capability evidence。
 
+MCP010B 的 authoring 可用性补口已经在当前源码完成：公开但只读的 `operator_catalog_get` 返回与 `forgecad://operators/catalog` 完全相同的 Runtime-owned catalog，`geometry_program_hash` 由 Runtime/Worker 的同一 canonical JSON 实现校验无 hash V2 draft 并返回 compiler-owned hash。后者不编译、不创建 candidate/Job，也不写 SQLite/CAS；它已由 `catalog → hash → prepare` raw stdio、隔离 source-focused V2 structural Gate 和完整重启后的 live Desktop hash 调用验证。它不属于 010A 已安装 Dev.app 的 30-tool 或 MCP010B 早期 `3c6f59…7140` pre-graph 历史 receipt；`f4885b11…6bc1` 所记录的 package/isolated V2 semantic-Part graph raw activation 与 exact packaged Worker structural E2E 也是历史安装 cohort receipt。当前 `d9c23b…ac0bd` Dev.app 已通过 ad-hoc/package/Worker、isolated V2 raw、real-Codex structural 和用户完整重启后的 live Desktop structural 路径；live 证据仍不宣称视觉/PBR。
+
 必须：
 
 1. 把任务索引重排为 010A–F；同一时刻只允许一个原子任务处于 `in_progress`；
@@ -58,21 +67,27 @@ Owned：权威文档、文档 checker、用户级开发 App 构建/激活、原�
 
 退出：用户重启后的真实证据必须证明工具、Runtime Ready、能力 cohort 和临时项目读回；本次已满足并将 010A 标记 `done`。不得自动领取 010B。ad-hoc 开发 App 不是 MCP013 的签名安装包。
 
-当前进度：证据见 `docs/evidence/mcp010a/`。用户 Codex 配置已切换，第一次 Desktop 重启后的 live Gate 已实际运行并 `FAIL`，不是 `NOT_RUN`：仅发现 17 个只读工具、无 `project_create`，Runtime 实际不可用且没有项目写入；该历史 receipt 保持原样。显式 server environment write opt-in 已配置。共享 Runtime supervisor/IPC 修复已通过最终源码的 `script/test_mcp004.sh`（MCP 26/26 + lifecycle）和 `release:mvp`（Runtime 30/30、MCP 26/26、44 contracts、MCP005–009、Viewer/Tauri、docs/security）。短时 launcher flock 只用于启动选主，Runtime `runtime.writer.lock` 才是最终唯一写者；正常适配器退出不停止已经 Ready 的共享 Runtime，显式 shutdown/update 才停止。最终同 revision/cohort Dev.app 已按 `7a8fddf99c57893db93fe1bdd98ab65302bd890d191026495cbbc63ae4652064` 重建安装；ad-hoc deep-strict、`package:verify` 与隔离 package probe PASS。隔离 probe 协商 `2025-06-18`、观察到 `Ready` 与 build cohort match、完成隔离 `project_create`，且未触碰持久用户数据。第二次完整 Desktop 重启已真实观察到 30 个工具、Runtime `Ready`、`doctor` 通过、MCP/Runtime cohort match、临时 `project_create` 和 `project_get` readback；成功 receipt 为 `docs/evidence/mcp010a/codex-desktop-post-restart-success.json`。Geometry Worker 与 MCP/Runtime/Viewer 同 cohort 打包，但尚未被 Runtime 作为独立子进程调用，不属于 010A 完成声明。010A 已完成，B–F 保持 `blocked`。
+当前进度：010A/010B 历史与 source structural evidence 见 `docs/evidence/mcp010a/`、`docs/evidence/mcp010b/`；C source evidence 见 `docs/evidence/mcp010c/`。当前源码总计 59 个 JSON Schema、20 read + 16 write 工具。用户第一次 Desktop restart 的 FAIL receipt和后续结构 PASS receipt均保持原样。C 当前源码已在隔离 raw stdio 中证明 36-tool discovery、九 AOV、candidate-bound comparison、MCP image block、Codex/human review 与 deterministic bytes；该证据使用 synthetic reference，不是用户机器人 likeness。C 的 Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash 和 360仍 NOT_RUN/BLOCKED。短时 launcher flock 只用于启动选主，Runtime `runtime.writer.lock` 才是最终唯一写者。
 
 ### 3.2 FGC-MCP010B — V2 合同与几何真值
 
+兼容界限：`GeometryProgram@1` 继续服务已存在的 MCP007–009 appearance/export MVP 路径，且 Runtime 现会对其 GLB 作物理回读；它不是 MCP010B 的 V2 high-quality 写路径，也不得借此获得 V2 catalog、strict ArtifactReadback@2、比较或材质声明。历史对象不迁移、不改写。V1 新写入口的最终移除须与 MCP010E 的 `AppearanceProgram@2` 迁移一并设计，不能在 B 中让当前已验收的 V1 appearance/restore/export 链静默断裂。
+
 Owned：`GeometryProgram@2`、`OperatorCatalog@1`、`ArtifactReadback@2`、GLB/accessor validator、primitive 修复及负向 fixture。
+
+当前 B source Gate 与 C source Gate 已通过：B 覆盖 V2 geometry/readback/Worker isolation/restore；C 覆盖 59-contract checker、固定 renderer、九 AOV、local mask/metrics、candidate-bound review、MCP image block 和 deterministic raw stdio。C 的 source tool manifest 为 20 read + 16 write。历史 package/CLI/live receipts保持原样；C synthetic/raw不等于真实 robot likeness、PBR、Viewer/package/live、人评或 360。Darwin OS total-memory hard cap仍 `NOT_RUN`；授权单图仍只能产生 `PARTIAL_VISIBLE_VIEW_PASS`，HQ_360 仍 `BLOCKED_REFERENCE_COVERAGE`。
 
 必须：
 
 - `GeometryProgram@2` 按 `operator_id` 使用封闭参数 Schema，真实 DAG inputs，米/弧度单位，显式 Part outputs、operator catalog hash 和完整预算；
+- Codex 必须先用 `operator_catalog_get` 读取 live `OperatorCatalog@1`，把同一 digest 写入 hash-free draft，再调用 `geometry_program_hash`；返回 hash 填回 program 后才可 `geometry_prepare`。`GeometryProgram@2.project_id` 必须与外层 target project 完全相同：hash/catalog mismatch 由 hash/compile validation 拒绝，project mismatch 由 `geometry_prepare` 在编译和持久化前拒绝；
+- V2 物理 envelope 固定为：position 各轴 `[-10, 10]` m，box `size_m` 与 cylinder `height_m` 为 `(0, 10]` m，sphere/cylinder radius 与 ellipsoid radii 为 `(0, 5]` m，rotation 各轴为 `[-2π, 2π]`；
 - 修复 sphere 极点退化、cylinder 端盖法线、ellipsoid 法线、UV/tangent 假 PASS；
 - Runtime 遍历 GLB BIN/accessor，真实计算 index/non-finite/degenerate/boundary/non-manifold/winding/Part/Material/source coverage；
 - 删除 hard-coded validator PASS；损坏 index、source map、hash、winding 或 UV 时 fail closed；
-- `@1` 仅保留历史只读，不迁移或改写已确认版本。
+- `@1` 不迁移或改写已确认版本；在 `AppearanceProgram@2` 未实现前保留 MCP007–009 的显式过渡兼容链，但它不能产生 V2 结论或替代后续迁移设计。
 
-预算：512 nodes、250k triangles、64 MiB candidate GLB、512 MiB Worker memory；单次编译目标 10 秒以内，但测量失败不能转移为 MCP011 全局性能实现。
+预算：512 nodes、250k triangles、64 MiB candidate GLB、512 MiB Worker memory；单次编译目标 10 秒以内。当前 macOS 实证已证明 10 秒墙钟超时/回收、受限 Rust allocator guard 和 `wait4` 峰值 RSS 后验拒绝；但 `RLIMIT_AS`/`RLIMIT_RSS`/`RLIMIT_DATA` 不能提供本机可证明的预防式硬上限，不能把 512 MiB 写成 OS 总内存硬上限；该子门保持 `NOT_RUN`，测量失败不能转移为 MCP011 全局性能实现。
 
 ### 3.3 FGC-MCP010C — 固定渲染与参考比较
 
@@ -100,7 +115,7 @@ Renderer 必须提供 512×512 perspective、真实 camera transform、z-buffer�
 | `human_visual_review_submit` | write/evidence + confirmation | 保存用户评分，不作为密码学身份认证 |
 | `quality_get` | existing read | 只读取 Runtime 已持久化且绑定当前 hash 的报告 |
 
-当前工具数量在 C 完成前仍是 17 read + 13 write；C 全部门通过后目标才是 18 read + 16 write。
+当前源码工具数量为 20 read + 16 write。MCP010A/010B 的 30/32-tool Dev.app receipts均为历史 structural cohort；C source raw 已证明 `render_pass_get` image block 和三项视觉证据工具，但 packaged/live C、真实用户 likeness、人评阈值和所有 360°evidence仍 `NOT_RUN/BLOCKED`。
 
 参考 mask 使用产品内确定性 border flood-fill/morphology；Codex 提交 normalized landmarks、region、visibility 和 unknown/inferred。每个 candidate 最多五轮 `silhouette → structure → form → material/surface → final` 修正；未达标返回 `QUALITY_TARGET_NOT_MET`，不能自动 confirm。
 

@@ -37,7 +37,8 @@
       "hardenedRuntime": true,
       "files": {
         "Resources/forgecad-runtime": "target/release/forgecad-runtime",
-        "Resources/forgecad-mcp": "target/release/forgecad-mcp"
+        "Resources/forgecad-mcp": "target/release/forgecad-mcp",
+        "Resources/forgecad-geometry-worker": "target/release/forgecad-geometry-worker"
       }
     }
   }

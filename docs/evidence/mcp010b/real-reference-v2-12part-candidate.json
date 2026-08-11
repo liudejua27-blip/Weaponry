@@ -1,0 +1,68 @@
+{
+  "schema_version": "ForgeCADMCP010BRealReferenceCandidate@1",
+  "task_id": "FGC-MCP010B",
+  "status": "PASS_WITH_STRUCTURAL_ONLY_LIMITATION",
+  "recorded_on": "2026-08-10",
+  "persistent_user_data_touched": true,
+  "persistent_write_authorization": "user requested the reference-to-candidate modeling run",
+  "scope": "live authorized reference to V2 semantic-Part geometry candidate",
+  "project_id": "project-822d5513ad41499290910913cbc2bfd1",
+  "reference": {
+    "reference_id": "reference-35bc12fe88f349c9ba3590b271fb9130",
+    "object_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+    "authorization": "user_authorized",
+    "visibility_scope": "single three-quarter reference; rear, far-side occlusions, cropped feet and true surface properties remain unknown/inferred"
+  },
+  "candidate": {
+    "candidate_id": "candidate-bcab04e1d1cb446b857c9256b68630e8",
+    "state": "reviewable",
+    "prepared_object_sha256": "1bc08495b3d2f0e07db0ca29dd50244d783972a095386e8ba48646bd82eaa794",
+    "prepared_object_id": "geometry-object-1bc08495b3d2f0e07db0ca29dd50244d",
+    "program_sha256": "60103007feabd429bbb751ce38ace3558c3c2fd6c9d6eda407e778899c781f3b",
+    "operator_catalog_sha256": "e69035a19c3f1379925919d9ed3511cb849648358fb2e46e888d8f51341e275a",
+    "artifact_readback_schema": "ArtifactReadback@2",
+    "artifact_readback_canonical_sha256": "4a42cda90612163f2ba0b48bedc9fb106799b508fb357c26cce57be4512a9c81",
+    "triangle_count": 896,
+    "part_count": 12,
+    "source_node_count": 13,
+    "glb_size_bytes": 161104,
+    "hard_gate_passed": true,
+    "integrity_counters": {
+      "invalid_index_count": 0,
+      "non_finite_count": 0,
+      "degenerate_triangle_count": 0,
+      "boundary_edge_count": 0,
+      "non_manifold_edge_count": 0,
+      "winding_error_count": 0,
+      "uv_non_finite_count": 0,
+      "zero_area_uv_triangle_count": 0,
+      "tangent_non_finite_count": 0,
+      "tangent_orthogonality_error_count": 0,
+      "tangent_handedness_error_count": 0,
+      "external_uri_count": 0,
+      "metadata_mismatch_count": 0,
+      "part_coverage": 1.0,
+      "source_coverage": 1.0,
+      "material_zone_coverage": 1.0
+    },
+    "part_source_order": {
+      "chest-shell": ["chest-shell", "chest-panel"]
+    }
+  },
+  "quality": {
+    "quality_report_id": "quality-geometry-0518437303f849f7a06341ab1733e122",
+    "quality_report_schema": "QualityReport@1",
+    "hard_gate_passed": true,
+    "reference_compare_status": "limited",
+    "aspect_score": 0.6551724019808474,
+    "aspect_threshold": 0.55,
+    "limitation": "MCP010B reports only the Runtime aspect-ratio proxy; silhouette, landmark, region, material-fidelity and human visual metrics are not run."
+  },
+  "approval_and_delivery": {
+    "candidate_confirm": "NOT_RUN",
+    "immutable_version": "NOT_CREATED",
+    "export": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

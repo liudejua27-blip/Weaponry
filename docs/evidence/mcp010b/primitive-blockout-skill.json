@@ -1,0 +1,38 @@
+{
+  "schema_version": "ForgeCADMCP010BPrimitiveSkillEvidence@1",
+  "task_id": "FGC-MCP010B",
+  "status": "PASS",
+  "source_registry_sha256": "ce61081188f988ece2d93e378efc9bd4257bbd2b7ae80c1718b2a47cd49b3f24",
+  "skill_count": 11,
+  "historical_skill_count": 10,
+  "active_skill": {
+    "skill_id": "primitive-blockout",
+    "version": "0.2.0",
+    "execution_availability": "active",
+    "operator_ids": ["forgecad.geometry.primitive@2"],
+    "missing_operator_ids": [],
+    "input_schema": "contracts/geometry-program-v2.schema.json",
+    "output_schema": "contracts/geometry-prepare-result-v2.schema.json",
+    "bundle_signature": "development-only"
+  },
+  "source_focused_gates": {
+    "registry_checker": "PASS",
+    "runtime_skill_registry_tests": "PASS",
+    "raw_catalog_hash_prepare_readback": "PASS",
+    "skill_registry_count_and_active_operator": "PASS"
+  },
+  "installed_dev_app": {
+    "build_cohort_sha256": "5143ac3ba3518593106d19f3302d21af9e2d04b2912840a90b49b7c2b9776e61",
+    "install_and_ad_hoc_deep_strict": "PASS",
+    "package_layout_verify": "PASS",
+    "raw_v2_probe_with_active_skill": "PASS",
+    "persistent_user_data_touched": false,
+    "desktop_restart_after_this_skill_install": "NOT_RUN"
+  },
+  "limitations": [
+    "The Skill is a Runtime-backed structural primitive blockout route, not a texture/PBR, renderer, visual-similarity or 360-degree quality gate.",
+    "The ten MCP006 Skill receipts remain historical and are not rewritten by this overlay.",
+    "The current Dev.app package is ad-hoc development-only; Developer ID/notarization remain MCP013.",
+    "The full Desktop restart after this newer Skill cohort is intentionally recorded as NOT_RUN until the user restarts Codex again."
+  ]
+}

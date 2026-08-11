@@ -1,0 +1,13 @@
+{
+  "build_cohort_sha256": "3c6f59f2969367ea6b1bb41334e4a28cb506254a97f5345f80aa1e111cfc7140",
+  "codesign": "ad-hoc deep strict PASS",
+  "resource_allowlist": [
+    "forgecad-geometry-worker",
+    "forgecad-mcp",
+    "forgecad-runtime"
+  ],
+  "runtime_probe": "NOT_RUN",
+  "schema_version": "ForgeCADDevAppPackageVerify@1",
+  "status": "PASS",
+  "task_id": "FGC-MCP010B"
+}

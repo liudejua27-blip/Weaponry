@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/artifact-readback-v2.schema.json",
+  "title": "ArtifactReadbackV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "candidate_id",
+    "object_sha256",
+    "mime",
+    "size_bytes",
+    "program_sha256",
+    "operator_catalog_sha256",
+    "readback_config_sha256",
+    "triangle_count",
+    "part_ids",
+    "source_node_ids",
+    "material_zone_ids",
+    "part_bindings",
+    "validator_status",
+    "hard_gate_passed",
+    "integrity",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ArtifactReadback@2"},
+    "artifact_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "object_sha256": {"$ref": "#/$defs/sha256"},
+    "mime": {"const": "model/gltf-binary"},
+    "size_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+    "part_ids": {
+      "type": "array",
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "source_node_ids": {
+      "type": "array",
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "material_zone_ids": {
+      "type": "array",
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "part_bindings": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {"$ref": "#/$defs/part_binding"}
+    },
+    "validator_status": {"enum": ["passed", "failed"]},
+    "hard_gate_passed": {"type": "boolean"},
+    "integrity": {"$ref": "#/$defs/integrity"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"hard_gate_passed": {"const": true}}, "required": ["hard_gate_passed"]},
+      "then": {
+        "properties": {
+          "validator_status": {"const": "passed"},
+          "integrity": {"$ref": "#/$defs/passing_integrity"}
+        }
+      },
+      "else": {"properties": {"validator_status": {"const": "failed"}}}
+    },
+    {
+      "if": {"properties": {"validator_status": {"const": "passed"}}, "required": ["validator_status"]},
+      "then": {
+        "properties": {
+          "hard_gate_passed": {"const": true},
+          "integrity": {"$ref": "#/$defs/passing_integrity"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "part_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "source_node_id", "material_zone_id", "solid", "triangle_count"],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "source_node_id": {"$ref": "#/$defs/identifier"},
+        "material_zone_id": {"$ref": "#/$defs/identifier"},
+        "solid": {"type": "boolean"},
+        "triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000}
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "glb_parse_status",
+        "invalid_index_count",
+        "non_finite_count",
+        "degenerate_triangle_count",
+        "boundary_edge_count",
+        "non_manifold_edge_count",
+        "winding_error_count",
+        "uv_non_finite_count",
+        "zero_area_uv_triangle_count",
+        "tangent_non_finite_count",
+        "tangent_orthogonality_error_count",
+        "tangent_handedness_error_count",
+        "metadata_mismatch_count",
+        "external_uri_count",
+        "part_coverage",
+        "source_coverage",
+        "material_zone_coverage"
+      ],
+      "properties": {
+        "glb_parse_status": {"enum": ["passed", "failed"]},
+        "invalid_index_count": {"type": "integer", "minimum": 0},
+        "non_finite_count": {"type": "integer", "minimum": 0},
+        "degenerate_triangle_count": {"type": "integer", "minimum": 0},
+        "boundary_edge_count": {"type": "integer", "minimum": 0},
+        "non_manifold_edge_count": {"type": "integer", "minimum": 0},
+        "winding_error_count": {"type": "integer", "minimum": 0},
+        "uv_non_finite_count": {"type": "integer", "minimum": 0},
+        "zero_area_uv_triangle_count": {"type": "integer", "minimum": 0},
+        "tangent_non_finite_count": {"type": "integer", "minimum": 0},
+        "tangent_orthogonality_error_count": {"type": "integer", "minimum": 0},
+        "tangent_handedness_error_count": {"type": "integer", "minimum": 0},
+        "metadata_mismatch_count": {"type": "integer", "minimum": 0},
+        "external_uri_count": {"type": "integer", "minimum": 0},
+        "part_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "source_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "material_zone_coverage": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "passing_integrity": {
+      "allOf": [
+        {"$ref": "#/$defs/integrity"},
+        {
+          "properties": {
+            "glb_parse_status": {"const": "passed"},
+            "invalid_index_count": {"const": 0},
+            "non_finite_count": {"const": 0},
+            "degenerate_triangle_count": {"const": 0},
+            "boundary_edge_count": {"const": 0},
+            "non_manifold_edge_count": {"const": 0},
+            "winding_error_count": {"const": 0},
+            "uv_non_finite_count": {"const": 0},
+            "zero_area_uv_triangle_count": {"const": 0},
+            "tangent_non_finite_count": {"const": 0},
+            "tangent_orthogonality_error_count": {"const": 0},
+            "tangent_handedness_error_count": {"const": 0},
+            "metadata_mismatch_count": {"const": 0},
+            "external_uri_count": {"const": 0},
+            "part_coverage": {"const": 1},
+            "source_coverage": {"const": 1},
+            "material_zone_coverage": {"const": 1}
+          }
+        }
+      ]
+    }
+  }
+}

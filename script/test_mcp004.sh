@@ -9,6 +9,18 @@ TARGET_DIR="$TEMP_ROOT/cargo-target"
 RUNTIME_DATA="$TEMP_ROOT/runtime-data"
 MISSING_RUNTIME="$TEMP_ROOT/runtime-does-not-exist"
 
+# The MCP004 authenticated-IPC regression exercises a real geometry_prepare
+# through Runtime.  Production Runtime never links a compiler fallback: it
+# resolves only this same-target fixed Worker sibling.  Build it before the
+# MCP test binary so a test executable in `debug/deps` can resolve the
+# `debug/forgecad-geometry-worker` sibling exactly as Runtime does.
+CARGO_TARGET_DIR="$TARGET_DIR" \
+  "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo build \
+  --manifest-path "$PROJECT_ROOT/apps/geometry-worker/Cargo.toml" \
+  --bin forgecad-geometry-worker --offline
+
+test -x "$TARGET_DIR/debug/forgecad-geometry-worker"
+
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
   --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
@@ -264,7 +276,16 @@ requests = [
         "jsonrpc": "2.0",
         "id": 5,
         "method": "tools/call",
-        "params": {"name": "candidate_prepare", "arguments": {}},
+        # Keep this request schema-valid so the lifecycle regression reaches
+        # the missing Runtime path.  Malformed tool envelopes are separately
+        # covered by MCP's fail-closed input-validation tests.
+        "params": {
+            "name": "candidate_prepare",
+            "arguments": {
+                "project_id": "project-mcp004",
+                "request": {"typed": "diagnostic", "label": "lifecycle"},
+            },
+        },
     },
     {
         "jsonrpc": "2.0",
@@ -403,8 +424,13 @@ try:
     tool_names = {
         tool["name"] for tool in tools_response.get("result", {}).get("tools", [])
     }
-    if len(tool_names) != 30 or "project_create" not in tool_names:
-        raise SystemExit(f"shared MCP did not expose the expected 30 tools: {sorted(tool_names)}")
+    if (
+        len(tool_names) != 32
+        or "project_create" not in tool_names
+        or "geometry_program_hash" not in tool_names
+        or "operator_catalog_get" not in tool_names
+    ):
+        raise SystemExit(f"shared MCP did not expose the expected 32 tools: {sorted(tool_names)}")
 
     ready_path = os.path.join(shared_data, "ipc", "ready.json")
     ready_bytes = open(ready_path, "rb").read()
@@ -577,38 +603,49 @@ crash_env.update(
         ),
     }
 )
-crash_requests = [
-    {
-        "jsonrpc": "2.0",
-        "id": 10,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": "2025-06-18",
-            "capabilities": {},
-            "clientInfo": {"name": "mcp004-crash-regression", "version": "1"},
-        },
-    },
-    {
-        "jsonrpc": "2.0",
-        "id": 11,
-        "method": "tools/call",
-        "params": {"name": "runtime_status", "arguments": {}},
-    },
-    {
-        "jsonrpc": "2.0",
-        "id": 12,
-        "method": "tools/call",
-        "params": {"name": "project_list", "arguments": {}},
-    },
-]
-crash_responses = run_requests_stream(crash_env, crash_requests, {0: 1.0, 1: 1.0})
-crash_by_id = {item.get("id"): item for item in crash_responses if "id" in item}
-if crash_by_id[10].get("error") is not None:
-    raise SystemExit(f"initialize failed after Runtime child crash: {crash_by_id[10]}")
-crash_status = crash_by_id[11]["result"]["structuredContent"]
-if crash_status.get("state") not in {"Restarting", "Degraded", "Ready"} or crash_status.get("restart_count") != 1:
-    raise SystemExit(f"Runtime crash did not trigger one bounded restart: {crash_by_id[11]}")
-if crash_by_id[12]["result"]["structuredContent"].get("code") != "RUNTIME_UNAVAILABLE":
-    raise SystemExit(f"stdio did not remain alive after Runtime crash: {crash_by_id[12]}")
+crash_client = LiveMcp(crash_env, "mcp004-crash-regression")
+crash_data = crash_env["FORGECAD_RUNTIME_DATA_DIR"]
+crash_status = None
+crash_projects = None
+try:
+    crash_client.initialize()
+    # Runtime startup and the wrapper's ready-file observation are asynchronous.
+    # Poll the bounded status surface rather than sampling once at a fixed delay;
+    # this keeps the crash/restart assertion deterministic under a cold build or
+    # a busy CI host while still enforcing a short test deadline.
+    deadline = time.monotonic() + 6.0
+    while time.monotonic() < deadline:
+        crash_status = crash_client.tool("runtime_status", timeout=1.0)
+        if isinstance(crash_status, dict) and crash_status.get("restart_count") == 1:
+            break
+        time.sleep(0.1)
+    if not isinstance(crash_status, dict) or crash_status.get("restart_count") != 1:
+        raise SystemExit(
+            f"Runtime crash did not trigger one bounded restart before deadline: {crash_status}"
+        )
+    if crash_status.get("state") not in {"Restarting", "Degraded", "Ready"}:
+        raise SystemExit(f"Runtime crash settled on an invalid state: {crash_status}")
+    crash_projects_response = crash_client.request(
+        "tools/call",
+        {"name": "project_list", "arguments": {}},
+        timeout=1.0,
+    )
+    crash_projects = crash_projects_response.get("result", {}).get(
+        "structuredContent"
+    )
+finally:
+    close_errors = []
+    try:
+        crash_client.close()
+    except BaseException as error:
+        close_errors.append(error)
+    try:
+        shutdown_runtime(crash_data)
+    except BaseException as error:
+        close_errors.append(error)
+    if close_errors:
+        raise close_errors[0]
+if not isinstance(crash_projects, dict) or crash_projects.get("code") != "RUNTIME_UNAVAILABLE":
+    raise SystemExit(f"stdio did not remain alive after Runtime crash: {crash_projects}")
 print("MCP004 local lifecycle regressions PASS: stale recovery, three MCP sessions, rogue IPC isolation, idle-owner passive takeover, shared Runtime lifetime, missing Runtime, child crash, bounded restart, retryable calls, write approval")
 PY

@@ -7,3 +7,10 @@ edition = "2021"
 forgecad-runtime = { path = "../forgecad-runtime" }
 libc = "0.2"
 serde_json = "1"
+
+[dev-dependencies]
+# `forgecad-runtime` is a normal dependency of the MCP binary.  The
+# integration-style unit test below runs it as a dependency, so `cfg(test)` is
+# not set inside Runtime.  Enable its explicitly test-only fallback only for
+# this test target; release MCP builds still require the fixed sibling Worker.
+forgecad-runtime = { path = "../forgecad-runtime", features = ["test-geometry-worker-fallback"] }

@@ -1,0 +1,51 @@
+{
+  "schema_version": "ForgeCADMCP010BReferenceBaseline@1",
+  "task_id": "FGC-MCP010B",
+  "recorded_on": "2026-08-09",
+  "status": "BLOCKED",
+  "mode": "isolated-codex-cli-v1-transition-baseline",
+  "persistent_user_data_touched": false,
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "reference_path_recorded": false,
+  "image_bytes_recorded": false,
+  "completed_prefix": [
+    "project_create",
+    "reference_import",
+    "geometry_prepare",
+    "artifact_readback_get",
+    "appearance_prepare",
+    "artifact_readback_get",
+    "quality_get",
+    "candidate_confirm",
+    "version_list"
+  ],
+  "geometry_artifact": {
+    "artifact_id": "fd0eaa62f3bc9188aed3ca8c8f1ae51854306165b845ee8089c9ff5acca2994c",
+    "candidate_id": "candidate-d3cad28baaf04a2a874ebf0384e1ebc6",
+    "triangle_count": 548,
+    "validator_status": "passed",
+    "mime": "model/gltf-binary",
+    "size_bytes": 108640
+  },
+  "appearance_artifact": {
+    "artifact_id": "7eb416712183d46759b035b14c2324a585f92ef0254e80030f747e134209a331",
+    "candidate_id": "candidate-b6ce940af4fd461787522be85ebdf36a",
+    "triangle_count": 548,
+    "validator_status": "passed",
+    "mime": "model/gltf-binary",
+    "size_bytes": 109648
+  },
+  "blocked_before": [
+    "export_prepare",
+    "export_confirm",
+    "final_version_list"
+  ],
+  "reason": "Codex CLI completed the source-built V1 transition prefix but ended the turn before the exact export sequence. The probe therefore did not produce a full host receipt.",
+  "non_claims": [
+    "This is not GeometryProgram@2 or ArtifactReadback@2 evidence.",
+    "This is not a high-quality, reference-similarity, material-fidelity, visual-review or 360-degree result.",
+    "The single authorized three-quarter image leaves HQ_360_PASS blocked by reference coverage."
+  ],
+  "remediation_observation": "The same run occurred after replacing the persistent explicit-endpoint IPC client with per-call authenticated DynamicIpc. project_create succeeded after image reasoning, so the prior first-call RUNTIME_UNAVAILABLE failure was fixed."
+}

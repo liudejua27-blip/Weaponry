@@ -9,6 +9,11 @@ TARGET_DIR="$TEMP_ROOT/cargo-target"
 python3 "$PROJECT_ROOT/scripts/check_forgecad_contracts.py"
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
+  "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo build \
+  --manifest-path "$PROJECT_ROOT/apps/geometry-worker/Cargo.toml" \
+  --bin forgecad-geometry-worker --offline
+
+CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
   --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
   -p forgecad-runtime --lib --offline -- --test-threads=1

@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-program-v2.schema.json",
+  "title": "GeometryProgramV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "representation_plan_sha256",
+    "operator_catalog_sha256",
+    "units",
+    "budgets",
+    "nodes",
+    "part_outputs",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryProgram@2"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["length", "angle", "coordinate_system"],
+      "properties": {
+        "length": {"const": "meter"},
+        "angle": {"const": "radian"},
+        "coordinate_system": {"const": "right-handed-y-up"}
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_nodes",
+        "max_triangles",
+        "max_glb_bytes",
+        "max_worker_memory_bytes",
+        "max_runtime_ms"
+      ],
+      "properties": {
+        "max_nodes": {"type": "integer", "minimum": 1, "maximum": 512},
+        "max_triangles": {"type": "integer", "minimum": 1, "maximum": 250000},
+        "max_glb_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "max_worker_memory_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912},
+        "max_runtime_ms": {"type": "integer", "minimum": 1, "maximum": 10000}
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": {"$ref": "#/$defs/primitive_node"}
+    },
+    "part_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": {"$ref": "#/$defs/part_output"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "dimension_scalar": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10
+    },
+    "radius_scalar": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 5
+    },
+    "coordinate_scalar": {
+      "type": "number",
+      "minimum": -10,
+      "maximum": 10
+    },
+    "radian_scalar": {
+      "type": "number",
+      "minimum": -6.283185307179586,
+      "maximum": 6.283185307179586
+    },
+    "dimension_vector": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/dimension_scalar"}
+    },
+    "radius_vector": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/radius_scalar"}
+    },
+    "coordinate_vector": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/coordinate_scalar"}
+    },
+    "radian_vector": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/radian_scalar"}
+    },
+    "primitive_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "operator_id", "inputs", "parameters"],
+      "properties": {
+        "node_id": {"$ref": "#/$defs/identifier"},
+        "operator_id": {"const": "forgecad.geometry.primitive@2"},
+        "inputs": {
+          "type": "array",
+          "maxItems": 0,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "parameters": {
+          "oneOf": [
+            {"$ref": "#/$defs/box_parameters"},
+            {"$ref": "#/$defs/cylinder_parameters"},
+            {"$ref": "#/$defs/ellipsoid_parameters"},
+            {"$ref": "#/$defs/sphere_parameters"}
+          ]
+        }
+      }
+    },
+    "base_primitive_parameters": {
+      "type": "object",
+      "properties": {
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "box_parameters": {
+      "allOf": [
+        {"$ref": "#/$defs/base_primitive_parameters"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "size_m", "position_m", "rotation_rad"],
+          "properties": {
+            "shape": {"const": "box"},
+            "size_m": {"$ref": "#/$defs/dimension_vector"},
+            "position_m": {"$ref": "#/$defs/coordinate_vector"},
+            "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+          }
+        }
+      ]
+    },
+    "cylinder_parameters": {
+      "allOf": [
+        {"$ref": "#/$defs/base_primitive_parameters"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "radius_m", "height_m", "radial_segments", "position_m", "rotation_rad"],
+          "properties": {
+            "shape": {"const": "cylinder"},
+            "radius_m": {"$ref": "#/$defs/radius_scalar"},
+            "height_m": {"$ref": "#/$defs/dimension_scalar"},
+            "radial_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+            "position_m": {"$ref": "#/$defs/coordinate_vector"},
+            "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+          }
+        }
+      ]
+    },
+    "ellipsoid_parameters": {
+      "allOf": [
+        {"$ref": "#/$defs/base_primitive_parameters"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "radii_m", "longitude_segments", "latitude_segments", "position_m", "rotation_rad"],
+          "properties": {
+            "shape": {"const": "ellipsoid"},
+            "radii_m": {"$ref": "#/$defs/radius_vector"},
+            "longitude_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+            "latitude_segments": {"type": "integer", "minimum": 4, "maximum": 64},
+            "position_m": {"$ref": "#/$defs/coordinate_vector"},
+            "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+          }
+        }
+      ]
+    },
+    "sphere_parameters": {
+      "allOf": [
+        {"$ref": "#/$defs/base_primitive_parameters"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "radius_m", "longitude_segments", "latitude_segments", "position_m", "rotation_rad"],
+          "properties": {
+            "shape": {"const": "sphere"},
+            "radius_m": {"$ref": "#/$defs/radius_scalar"},
+            "longitude_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+            "latitude_segments": {"type": "integer", "minimum": 4, "maximum": 64},
+            "position_m": {"$ref": "#/$defs/coordinate_vector"},
+            "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+          }
+        }
+      ]
+    },
+    "part_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "input_node_ids", "material_zone_id", "solid"],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "input_node_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "material_zone_id": {"$ref": "#/$defs/identifier"},
+        "solid": {"type": "boolean"}
+      }
+    }
+  }
+}

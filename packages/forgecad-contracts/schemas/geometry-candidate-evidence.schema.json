@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-candidate-evidence.schema.json",
+  "title": "GeometryCandidateEvidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "project_id",
+    "reference_id",
+    "reference_sha256",
+    "geometry_program_sha256",
+    "geometry_program_object_sha256",
+    "operator_catalog_sha256",
+    "readback_config_sha256",
+    "artifact_object_sha256",
+    "artifact_readback_object_sha256",
+    "quality_report_object_sha256",
+    "quality_report_id",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryCandidateEvidence@1"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "reference_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "reference_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_object_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_object_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_id": {"$ref": "#/$defs/identifier"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 64}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"reference_id": {"const": null}}, "required": ["reference_id"]},
+      "then": {"properties": {"reference_sha256": {"const": null}}},
+      "else": {"properties": {"reference_sha256": {"$ref": "#/$defs/sha256"}}}
+    }
+  ],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

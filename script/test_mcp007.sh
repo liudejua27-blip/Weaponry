@@ -7,6 +7,11 @@ trap 'rm -rf "$TEMP_ROOT"' EXIT
 TARGET_DIR="$TEMP_ROOT/cargo-target"
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
+  "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo build \
+  --manifest-path "$PROJECT_ROOT/apps/geometry-worker/Cargo.toml" \
+  --bin forgecad-geometry-worker --offline
+
+CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
   --manifest-path "$PROJECT_ROOT/apps/geometry-worker/Cargo.toml" --offline
 
@@ -19,10 +24,6 @@ CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
   --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
   -p forgecad-mcp authenticated_ipc_opt_in_exposes_mcp004_prepare_without_enabling_in_process_runtime --offline
-
-CARGO_TARGET_DIR="$TARGET_DIR" \
-  "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo build \
-  --manifest-path "$PROJECT_ROOT/apps/geometry-worker/Cargo.toml" --offline
 
 python3 "$PROJECT_ROOT/scripts/check_mcp007_geometry.py" \
   --worker "$TARGET_DIR/debug/forgecad-geometry-worker"

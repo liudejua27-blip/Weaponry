@@ -24,7 +24,7 @@ TAURI_ROOT = ROOT / "apps" / "desktop" / "src-tauri"
 DEV_BUNDLE = TAURI_ROOT / "target" / "release" / "bundle" / "macos" / "ForgeCAD Runtime Dev.app"
 INSTALL_ROOT = Path.home() / "Applications"
 INSTALL_TARGET = INSTALL_ROOT / "ForgeCAD Runtime Dev.app"
-EVIDENCE = ROOT / "docs" / "evidence" / "mcp010a" / "dev-app-install.json"
+DEFAULT_EVIDENCE = ROOT / "docs" / "evidence" / "mcp010a" / "dev-app-install.json"
 EXCLUDED_PARTS = {".git", "target", "node_modules", "dist", "__pycache__"}
 SOURCE_INPUTS = (
     ROOT / "apps" / "desktop" / "src",
@@ -56,6 +56,17 @@ def parse_args() -> argparse.Namespace:
         "--keep-previous",
         action="store_true",
         help="Keep a timestamped previous Dev.app after a successful replacement.",
+    )
+    parser.add_argument(
+        "--task-id",
+        default="FGC-MCP010A",
+        help="Task recorded in the local development-install receipt.",
+    )
+    parser.add_argument(
+        "--evidence",
+        type=Path,
+        default=DEFAULT_EVIDENCE,
+        help="Receipt path, relative to the repository or absolute beneath its evidence directory.",
     )
     return parser.parse_args()
 
@@ -192,7 +203,7 @@ def sign_staging_app(app: Path, cohort: str, source_revision: str, dirty: bool, 
             "forgecad-mcp": "packaged",
             "forgecad-runtime": "packaged",
             "forgecad-viewer": "packaged",
-            "geometry-worker": "packaged same-cohort executable; Runtime still uses the linked product-owned crate until MCP010D",
+            "geometry-worker": "packaged same-cohort isolated one-shot executable",
             "render-worker": "unavailable until MCP010C",
         },
         "distribution_profile": "local-ad-hoc-development-only",
@@ -251,8 +262,21 @@ def install_atomically(staging_app: Path, keep_previous: bool) -> Path | None:
     return backup
 
 
+def evidence_path(path: Path) -> Path:
+    resolved = path if path.is_absolute() else ROOT / path
+    evidence_root = (ROOT / "docs" / "evidence").resolve()
+    try:
+        resolved.resolve().relative_to(evidence_root)
+    except ValueError as error:
+        raise SystemExit("development install receipt must stay under docs/evidence") from error
+    if resolved.suffix != ".json":
+        raise SystemExit("development install receipt must be JSON")
+    return resolved
+
+
 def main() -> int:
     args = parse_args()
+    receipt_path = evidence_path(args.evidence)
     cohort, file_count = source_cohort()
     source_revision = git_value("rev-parse", "HEAD")
     dirty = bool(git_value("status", "--porcelain", "--", *[str(path.relative_to(ROOT)) for path in SOURCE_INPUTS]))
@@ -347,8 +371,12 @@ def main() -> int:
             shutil.rmtree(staging_root)
 
     receipt = {
-        "schema_version": "ForgeCADMCP010ADevInstallReceipt@1",
-        "task_id": "FGC-MCP010A",
+        "schema_version": (
+            "ForgeCADMCP010ADevInstallReceipt@1"
+            if args.task_id == "FGC-MCP010A"
+            else "ForgeCADDevAppInstallReceipt@1"
+        ),
+        "task_id": args.task_id,
         "status": "PASS",
         "installed_app": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app",
         "build_cohort_sha256": cohort,
@@ -362,8 +390,8 @@ def main() -> int:
         "notarization": "NOT_RUN",
         "previous_app_backup": "retained" if backup is not None else "none",
     }
-    EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
-    EVIDENCE.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(receipt, sort_keys=True))
     return 0
 
