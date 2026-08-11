@@ -96,7 +96,7 @@ geometry_prepare(project_id, reference_id)
 
 当前真实单图演练的停止点是：23 个 semantic Parts、9,964 triangles、1,592,884-byte GLB 的 strict readback 通过，但 limited aspect proxy 为 `0.5466 < 0.55`，所以候选保持未确认、未创建 version/export。这是正确的 fail-closed 行为。
 
-MCP010C 首次真实机器人参考运行已经完成固定渲染/比较/typed review：1254×1254 用户授权 PNG 进入隔离 CAS，生成九个 512×512 AOV，使用 `mask-2` 的本地梯度 border flood-fill；该固定相机历史 baseline 的 silhouette IoU `0.5132`、boundary F1 `0.1441`、bbox edge error `0.1074`、centroid error `0.0169` 保留在 `docs/evidence/mcp010c/real-reference-robot.json`。当前 Runtime 已在未提供显式 camera 时自动按参考/模型 silhouette 包围盒取景，并将视觉指标量化后再写入 CAS；最新 raw receipt `docs/evidence/mcp010c/real-reference-robot-camera-autofit.json` 达到 IoU `0.6623`、boundary F1 `0.2418`、bbox edge error `0.0566`、centroid error `0.0135`，但仍为 `QUALITY_TARGET_NOT_MET`。两次候选均未确认、未创建 version/export，human receipt 为 `NOT_RUN`；这说明调用路线和数据往返真实可用，也明确说明当前 primitive blockout 尚未达到参考 likeness。
+MCP010C 首次真实机器人参考运行已经完成固定渲染/比较/typed review：1254×1254 用户授权 PNG 进入隔离 CAS，生成九个 512×512 AOV，使用 `mask-2` 的本地梯度 border flood-fill；该固定相机历史 baseline 的 silhouette IoU `0.5132`、boundary F1 `0.1441`、bbox edge error `0.1074`、centroid error `0.0169` 保留在 `docs/evidence/mcp010c/real-reference-robot.json`。当前 Runtime 已在未提供显式 camera 时自动按参考/模型 silhouette 包围盒取景，并将视觉指标量化后再写入 CAS；最新有界 camera-search raw receipt `docs/evidence/mcp010c/real-reference-robot-camera-search.json` 达到 IoU `0.6623`、boundary F1 `0.2418`、bbox edge error `0.0566`、centroid error `0.0135`，但仍为 `QUALITY_TARGET_NOT_MET`。两次候选均未确认、未创建 version/export，human receipt 为 `NOT_RUN`；这说明调用路线和数据往返真实可用，也明确说明当前 primitive blockout 尚未达到参考 likeness。
 
 随后按稳定 Part intake brief 运行的当前候选为 12 个 semantic Parts、13 个 source nodes、896 triangles、161104-byte GLB；strict ArtifactReadback@2 的 integrity counters 全为 0，Part/source/material coverage 均为 `1.0`，bounded aspect proxy 为 `0.65517`。该报告仍明确标记 `limited`，候选保持 `reviewable`、未确认、未创建 version/export；它是当前 primitive-only 路线的结构证据，不是 silhouette、PBR 或真人视觉通过。
 
@@ -113,6 +113,11 @@ project_create → reference_import → reference_get
 → reference_compare_prepare → render_pass_get × 9
 → visual_review_submit → quality_get
 ```
+
+在同一 candidate 需要稳定比较时，重复调用 `reference_compare_prepare`（保持
+`project_id`、`candidate_id`、`reference_id`、`view_spec` 完全不变）最多五次，要求
+RenderSet、comparison report 和九个 pass artifact hash 全部一致；任何漂移都停止
+视觉迭代并保留 `DETERMINISM_FAILED` 证据，不要继续 confirm。
 
 真实运行 receipt 必须同时记录：参考 SHA、catalog/program/candidate/artifact/render/comparison hash、九个 AOV 顺序、Codex turn 数、ForgeCAD MCP 调用数、质量指标和 `QUALITY_TARGET_NOT_MET`（若未达门槛）。`render_pass_get` 返回的 PNG image block 不复制进 receipt；原图路径、图片字节、prompt、token、socket、用户绝对路径都不得写入证据。
 

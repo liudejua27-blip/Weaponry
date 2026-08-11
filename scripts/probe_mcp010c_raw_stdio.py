@@ -141,6 +141,12 @@ def parse_args() -> Any:
         action="store_true",
         help="Submit the fixed synthetic human-review fixture; never use this for an unscored user image.",
     )
+    parser.add_argument(
+        "--determinism-repeats",
+        type=int,
+        default=1,
+        help="Repeat the same candidate-bound comparison this many times and require identical hashes (1-5).",
+    )
     parser.add_argument("--timeout", type=float, default=30.0)
     return parser.parse_args()
 
@@ -148,6 +154,7 @@ def parse_args() -> Any:
 def main() -> int:
     args = parse_args()
     require(args.mcp.is_file() and args.runtime.is_file(), "source MCP010C binaries were unavailable")
+    require(1 <= args.determinism_repeats <= 5, "determinism-repeats must be between 1 and 5")
     if args.expected_build_cohort:
         require(re.fullmatch(r"[0-9a-f]{64}", args.expected_build_cohort) is not None, "invalid build cohort")
         mcp_identity = build_identity(args.mcp)
@@ -270,13 +277,29 @@ def main() -> int:
             "canonical_sha256": "",
         }
         view_spec["canonical_sha256"] = canonical_hash(view_spec)
-        comparison = client.tool("reference_compare_prepare", {"project_id": project_id, "candidate_id": candidate_id, "reference_id": reference_id, "view_spec": view_spec})
+        comparison_request = {"project_id": project_id, "candidate_id": candidate_id, "reference_id": reference_id, "view_spec": view_spec}
+        comparison = client.tool("reference_compare_prepare", comparison_request)
         render_set = comparison.get("render_set") if isinstance(comparison, dict) else None
         require(isinstance(render_set, dict) and render_set.get("schema_version") == "RenderSet@2", "reference_compare_prepare omitted RenderSet@2")
         require(render_set.get("passes") == ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"], "RenderSet did not contain the fixed nine AOV order")
         render_set_hash = comparison.get("render_set_object_sha256")
         comparison_hash = comparison.get("comparison_report_object_sha256")
         require(isinstance(render_set_hash, str) and isinstance(comparison_hash, str), "visual evidence CAS hashes were omitted")
+        baseline_pass_artifacts = render_set.get("pass_artifacts")
+        require(isinstance(baseline_pass_artifacts, dict), "RenderSet pass artifacts were omitted")
+        for repeat_index in range(1, args.determinism_repeats):
+            repeated = client.tool("reference_compare_prepare", comparison_request)
+            repeated_render_set = repeated.get("render_set") if isinstance(repeated, dict) else None
+            require(
+                repeated.get("render_set_object_sha256") == render_set_hash
+                and repeated.get("comparison_report_object_sha256") == comparison_hash,
+                f"deterministic comparison repeat {repeat_index + 1} changed a CAS hash",
+            )
+            require(
+                isinstance(repeated_render_set, dict)
+                and repeated_render_set.get("pass_artifacts") == baseline_pass_artifacts,
+                f"deterministic comparison repeat {repeat_index + 1} changed a pass artifact",
+            )
 
         image_response = client.request("tools/call", {"name": "render_pass_get", "arguments": {"render_set_hash": render_set_hash, "pass": "beauty"}})
         result = image_response.get("result")
@@ -337,10 +360,19 @@ def main() -> int:
             "reference_height": reference_height,
             "candidate_id": candidate_id,
             "artifact_sha256": prepared.get("artifact", {}).get("object_sha256"),
+            "render_set_sha256": render_set_hash,
+            "comparison_report_sha256": comparison_hash,
+            "pass_artifact_sha256": {
+                pass_name: artifact.get("sha256")
+                for pass_name, artifact in baseline_pass_artifacts.items()
+                if isinstance(artifact, dict) and isinstance(artifact.get("sha256"), str)
+            },
             "comparison_metrics": comparison.get("comparison_report", {}).get("metrics") if isinstance(comparison.get("comparison_report"), dict) else None,
             "quality_visual_status": quality.get("visual_status"),
             "quality_hard_gate_passed": quality.get("hard_gate_passed"),
             "render_passes_saved": 9 if args.render_dir else 1,
+            "determinism_repeat_count": args.determinism_repeats,
+            "determinism_hashes": "PASS" if args.determinism_repeats > 1 else "NOT_RUN",
             "expected_build_cohort_sha256": args.expected_build_cohort,
             "mcp_build_cohort_sha256": mcp_identity.get("build_cohort_sha256") if mcp_identity else None,
             "runtime_build_cohort_sha256": runtime_identity.get("build_cohort_sha256") if runtime_identity else None,

@@ -463,22 +463,55 @@ impl Runtime {
         let reference_bytes = self.cas_read(&reference.object_sha256)?;
         let reference_mask = reference_mask_png(&reference_bytes)?;
         if !explicit_camera {
-            if let Some(initial_silhouette) = render_passes
+            let initial_silhouette = render_passes
                 .iter()
                 .find(|pass| pass.pass == "silhouette")
                 .map(|pass| decode_binary_mask(&pass.png))
-            {
-                let initial_silhouette = initial_silhouette?;
-                let calibrated =
-                    calibrate_default_camera(&camera, &reference_mask.mask, &initial_silhouette);
-                if calibrated != camera {
-                    validate_camera_calibration(&calibrated)?;
-                    camera = calibrated;
-                    render_passes =
-                        render_glb_with_runtime_worker(&glb, &camera).map_err(|error| {
+                .transpose()?;
+            if let Some(initial_silhouette) = initial_silhouette {
+                // Compare a small deterministic set of framing candidates and
+                // keep the one with the best combined silhouette/boundary/
+                // extent/centroid score. This prevents a height-only fit from
+                // improving one metric while making the overall reference
+                // comparison worse. Only the winning render is persisted.
+                let mut best_camera = camera.clone();
+                let mut best_passes = std::mem::take(&mut render_passes);
+                let mut best_score = camera_fit_score(&reference_mask.mask, &initial_silhouette);
+                for candidate in [
+                    calibrate_default_camera_height_only(
+                        &camera,
+                        &reference_mask.mask,
+                        &initial_silhouette,
+                    ),
+                    calibrate_default_camera(&camera, &reference_mask.mask, &initial_silhouette),
+                ] {
+                    if candidate == camera {
+                        continue;
+                    }
+                    validate_camera_calibration(&candidate)?;
+                    let candidate_passes = render_glb_with_runtime_worker(&glb, &candidate)
+                        .map_err(|error| {
                             RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}"))
                         })?;
+                    let candidate_silhouette = candidate_passes
+                        .iter()
+                        .find(|pass| pass.pass == "silhouette")
+                        .map(|pass| decode_binary_mask(&pass.png))
+                        .transpose()?
+                        .ok_or_else(|| {
+                            RuntimeError::InvalidInput(
+                                "RENDER_REJECTED: calibrated silhouette pass missing".to_owned(),
+                            )
+                        })?;
+                    let score = camera_fit_score(&reference_mask.mask, &candidate_silhouette);
+                    if score > best_score {
+                        best_score = score;
+                        best_camera = candidate;
+                        best_passes = candidate_passes;
+                    }
                 }
+                camera = best_camera;
+                render_passes = best_passes;
             }
         }
         let camera_bytes = canonical_json_bytes(&camera)
@@ -3384,15 +3417,14 @@ fn default_camera_calibration() -> Value {
     camera
 }
 
-/// Fit the product-owned default camera to the visible reference silhouette.
-///
-/// This is deliberately a framing-only calibration: it changes the camera
-/// distance along the existing view ray, never the model, camera direction or
-/// hidden geometry. A caller-supplied CameraCalibration remains authoritative
-/// and bypasses this helper. The bounded mask heuristic keeps the comparison
-/// useful for a close-cropped single image without introducing a segmentation
-/// model or a second source of geometry truth.
-fn calibrate_default_camera(camera: &Value, reference: &[bool], model: &[bool]) -> Value {
+/// Preserve the original height-only framing candidate so the bounded search
+/// can compare it with the width/centroid candidate below. This is deliberately
+/// kept separate from explicit CameraCalibration input.
+fn calibrate_default_camera_height_only(
+    camera: &Value,
+    reference: &[bool],
+    model: &[bool],
+) -> Value {
     let Some(reference_bbox) = bbox(reference) else {
         return camera.clone();
     };
@@ -3434,6 +3466,148 @@ fn calibrate_default_camera(camera: &Value, reference: &[bool], model: &[bool]) 
     calibrated
 }
 
+/// Fit the product-owned default camera to the visible reference silhouette.
+///
+/// This is deliberately a framing-only calibration: it changes the camera
+/// distance along the existing view ray, never the model, camera direction or
+/// hidden geometry. A caller-supplied CameraCalibration remains authoritative
+/// and bypasses this helper. The bounded mask heuristic keeps the comparison
+/// useful for a close-cropped single image without introducing a segmentation
+/// model or a second source of geometry truth.
+fn calibrate_default_camera(camera: &Value, reference: &[bool], model: &[bool]) -> Value {
+    let Some(reference_bbox) = bbox(reference) else {
+        return camera.clone();
+    };
+    let Some(model_bbox) = bbox(model) else {
+        return camera.clone();
+    };
+    let reference_height = (reference_bbox.3 - reference_bbox.1 + 1) as f64;
+    let model_height = (model_bbox.3 - model_bbox.1 + 1) as f64;
+    let reference_width = (reference_bbox.2 - reference_bbox.0 + 1) as f64;
+    let model_width = (model_bbox.2 - model_bbox.0 + 1) as f64;
+    if reference_height <= 0.0
+        || model_height <= 0.0
+        || reference_width <= 0.0
+        || model_width <= 0.0
+    {
+        return camera.clone();
+    }
+    // Fit the larger normalized extent so the framing cannot improve one
+    // axis while pushing the other outside the reference crop.
+    let scale = (model_height / reference_height)
+        .max(model_width / reference_width)
+        .clamp(0.55, 1.45);
+    let Some(transform) = camera.get("transform").and_then(Value::as_object) else {
+        return camera.clone();
+    };
+    let Some(position) = camera_vec3(transform.get("position_m")) else {
+        return camera.clone();
+    };
+    let Some(target) = camera_vec3(transform.get("target_m")) else {
+        return camera.clone();
+    };
+    let Some(up_input) = camera_vec3(transform.get("up")) else {
+        return camera.clone();
+    };
+    let Some(fov_y_degrees) = camera.get("fov_y_degrees").and_then(Value::as_f64) else {
+        return camera.clone();
+    };
+    let view = [
+        target[0] - position[0],
+        target[1] - position[1],
+        target[2] - position[2],
+    ];
+    let view_length = (view[0] * view[0] + view[1] * view[1] + view[2] * view[2]).sqrt();
+    if !view_length.is_finite() || view_length <= f64::EPSILON {
+        return camera.clone();
+    }
+    let forward = [
+        view[0] / view_length,
+        view[1] / view_length,
+        view[2] / view_length,
+    ];
+    let right_raw = [
+        forward[1] * up_input[2] - forward[2] * up_input[1],
+        forward[2] * up_input[0] - forward[0] * up_input[2],
+        forward[0] * up_input[1] - forward[1] * up_input[0],
+    ];
+    let right_length =
+        (right_raw[0] * right_raw[0] + right_raw[1] * right_raw[1] + right_raw[2] * right_raw[2])
+            .sqrt();
+    if !right_length.is_finite() || right_length <= f64::EPSILON {
+        return camera.clone();
+    }
+    let right = [
+        right_raw[0] / right_length,
+        right_raw[1] / right_length,
+        right_raw[2] / right_length,
+    ];
+    let up = [
+        right[1] * forward[2] - right[2] * forward[1],
+        right[2] * forward[0] - right[0] * forward[2],
+        right[0] * forward[1] - right[1] * forward[0],
+    ];
+    let up_length = (up[0] * up[0] + up[1] * up[1] + up[2] * up[2]).sqrt();
+    if !up_length.is_finite() || up_length <= f64::EPSILON {
+        return camera.clone();
+    }
+    let up = [up[0] / up_length, up[1] / up_length, up[2] / up_length];
+    let fov_half = (fov_y_degrees.to_radians() * 0.5).tan();
+    if !fov_half.is_finite() || fov_half <= 0.0 {
+        return camera.clone();
+    }
+    let adjusted_position = [
+        target[0] + (position[0] - target[0]) * scale,
+        target[1] + (position[1] - target[1]) * scale,
+        target[2] + (position[2] - target[2]) * scale,
+    ];
+    let reference_center = [
+        (reference_bbox.0 + reference_bbox.2) as f64 * 0.5,
+        (reference_bbox.1 + reference_bbox.3) as f64 * 0.5,
+    ];
+    let model_center = [
+        (model_bbox.0 + model_bbox.2) as f64 * 0.5,
+        (model_bbox.1 + model_bbox.3) as f64 * 0.5,
+    ];
+    let delta_x = ((reference_center[0] - model_center[0]) / 512.0).clamp(-0.25, 0.25);
+    let delta_y = ((reference_center[1] - model_center[1]) / 512.0).clamp(-0.25, 0.25);
+    let adjusted_distance = view_length * scale;
+    let half_height = adjusted_distance * fov_half;
+    // C uses a square 512x512 render target.
+    let half_width = half_height;
+    // Shift the camera and target together, preserving the view ray while
+    // moving the model toward the reference silhouette centroid.
+    let camera_shift = [
+        -right[0] * delta_x * half_width * 2.0 + up[0] * delta_y * half_height * 2.0,
+        -right[1] * delta_x * half_width * 2.0 + up[1] * delta_y * half_height * 2.0,
+        -right[2] * delta_x * half_width * 2.0 + up[2] * delta_y * half_height * 2.0,
+    ];
+    let adjusted_target = [
+        target[0] + camera_shift[0],
+        target[1] + camera_shift[1],
+        target[2] + camera_shift[2],
+    ];
+    let adjusted_position = [
+        adjusted_position[0] + camera_shift[0],
+        adjusted_position[1] + camera_shift[1],
+        adjusted_position[2] + camera_shift[2],
+    ];
+    let mut calibrated = camera.clone();
+    let Some(calibrated_transform) = calibrated
+        .get_mut("transform")
+        .and_then(Value::as_object_mut)
+    else {
+        return camera.clone();
+    };
+    calibrated_transform.insert("position_m".to_owned(), json!(adjusted_position));
+    calibrated_transform.insert("target_m".to_owned(), json!(adjusted_target));
+    calibrated["camera_hash"] = Value::String(String::new());
+    calibrated["canonical_sha256"] = Value::String(String::new());
+    calibrated["camera_hash"] = Value::String(canonical_json_hash(&calibrated));
+    calibrated["canonical_sha256"] = Value::String(canonical_json_hash(&calibrated));
+    calibrated
+}
+
 fn camera_vec3(value: Option<&Value>) -> Option<[f64; 3]> {
     let values = value?.as_array()?;
     if values.len() != 3 {
@@ -3444,6 +3618,32 @@ fn camera_vec3(value: Option<&Value>) -> Option<[f64; 3]> {
         values[1].as_f64()?,
         values[2].as_f64()?,
     ])
+}
+
+fn camera_fit_score(reference: &[bool], model: &[bool]) -> f64 {
+    if reference.len() != 512 * 512 || model.len() != 512 * 512 {
+        return f64::NEG_INFINITY;
+    }
+    let metrics = compare_masks(reference, model, &json!({"landmarks":[],"regions":[]}));
+    let silhouette = metrics
+        .get("silhouette_iou")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let boundary = metrics
+        .get("boundary_f1_4px")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let bbox = metrics
+        .get("bbox_edge_error")
+        .and_then(Value::as_f64)
+        .unwrap_or(1.0);
+    let centroid = metrics
+        .get("centroid_error")
+        .and_then(Value::as_f64)
+        .unwrap_or(1.0);
+    // Equal bounded contributions keep a framing candidate from winning on
+    // IoU alone while drifting the visible centroid or crop edges.
+    silhouette + boundary + (1.0 - bbox) + (1.0 - centroid)
 }
 
 fn validate_reference_view_spec(

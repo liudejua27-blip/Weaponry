@@ -61,7 +61,7 @@ C 当前已新增严格 JSON Schema，并实现 Runtime producer/consumer 的顶
 
 ### 2.4.1 默认相机取景与指标 CAS 往返修复 — `PASS_WITH_QUALITY_TARGET_NOT_MET`
 
-当 `reference_compare_prepare` 未提供显式 `CameraCalibration@1` 时，Runtime 现在先用默认相机渲染一次，再依据参考 mask 与模型 silhouette 的包围盒高度沿既有 view ray 调整相机距离；显式 camera 仍完全由调用方控制，不改变模型或隐藏几何。真实用户 PNG 的隔离 raw 回归由 `docs/evidence/mcp010c/real-reference-robot-camera-autofit.json` 记录：IoU `0.6623`、boundary F1 `0.2418`、bbox edge error `0.0566`、centroid error `0.0135`，九个 AOV、typed review 和 `quality_get` 均成功，视觉状态仍为 `QUALITY_TARGET_NOT_MET`。
+当 `reference_compare_prepare` 未提供显式 `CameraCalibration@1` 时，Runtime 先用默认相机渲染一次，再在有界候选集中比较 height-only 与 width/centroid framing，按 silhouette、boundary、bbox 和 centroid 的综合分数选择唯一相机；显式 camera 仍完全由调用方控制，不改变模型或隐藏几何，只有胜出的九个 pass 会写入 CAS。真实用户 PNG 的最新隔离 raw 回归由 `docs/evidence/mcp010c/real-reference-robot-camera-search.json` 记录：IoU `0.6623`、boundary F1 `0.2418`、bbox edge error `0.0566`、centroid error `0.0135`，九个 AOV、typed review 和 `quality_get` 均成功，视觉状态仍为 `QUALITY_TARGET_NOT_MET`。
 
 同一回归暴露并修复了一个数据真值问题：高精度 `f64` 视觉指标在写入/读回 CAS 后可能改变最后几位，导致 `visual_review_submit` 错误拒绝合法 comparison report。Runtime 现在在持久化前将视觉指标量化到 12 位小数，并用 CAS round-trip 回归证明 canonical hash 稳定；这不是放宽质量门。
 
@@ -128,7 +128,7 @@ Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读�
 
 - Schema checker、Runtime producer/consumer 和 MCP envelope validator 全部通过；
 - unknown field、缺失 hash、跨 candidate/reference、pass 缺失、损坏 PNG、错误 camera、过期 review 全部 fail closed；
-- 同一机器重复五次 render、pass、metrics 和 report hash 完全一致；
+- 同一机器同一 candidate 的真实 MCP 比较连续重复五次，render pass、RenderSet、metrics 和 report hash 完全一致；脱敏 receipt 见 `docs/evidence/mcp010c/determinism-5x.json`；
 - restore/restart/export 后 render、reference、quality、candidate hash 不漂移。
 
 ### Renderer
@@ -156,9 +156,9 @@ Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读�
 
 用户已显式领取 MCP010C；Luna 后续只能继续本原子 Goal，并保持 C–F 的顺序。当前已完成：
 
-1. 59-contract checker、Worker renderer、Runtime review chain、嵌套 receipt validator、raw stdio receipt 和真实 Codex CLI C receipt 已建立；当前还新增了默认 camera auto-fit 与 fractional-metric CAS round-trip receipt；
+1. 59-contract checker、Worker renderer、Runtime review chain、嵌套 receipt validator、raw stdio receipt 和真实 Codex CLI C receipt 已建立；当前还新增了默认 camera auto-fit、fractional-metric CAS round-trip 和同一 candidate 五次 MCP determinism receipt；
 2. MCP010B 的 V2 graph、Worker isolation 和 closed GLB Gate 未被覆盖；
 3. synthetic source Gate 和首次真实机器人参考运行均已记录；真实运行只写入隔离临时 CAS，quality target 未通过，未改变用户持久数据；
-4. Viewer compare/read-only UI 的 source implementation 已完成并通过本地构建/IPC 测试；还需完成同 cohort packaged C/Viewer probe、五次 render/metrics/report determinism 和 export/restart hash；人评仍必须由用户实际提交，不能由脚本代填。
+4. Viewer compare/read-only UI 的 source implementation 已完成并通过本地构建/IPC 测试；五次 render/metrics/report determinism 已通过 source MCP receipt；还需完成同 cohort packaged Viewer probe、export/restart hash；人评仍必须由用户实际提交，不能由脚本代填。
 
 本文件的结论是 `MCP010C in_progress / source-focused PASS_WITH_UNRUN_VISUAL_GATES`，不是“当前已对单张图片生成高质量 3D”的宣传声明。

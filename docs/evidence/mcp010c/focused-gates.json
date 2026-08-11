@@ -23,6 +23,7 @@
     "review_receipt_hash_binding": "PASS",
     "nested_review_fields_fail_closed": "PASS",
     "real_codex_cli_reference_render_compare_review": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+    "mcp_determinism_repeat_5": "PASS: same candidate/reference/camera repeated five times with identical RenderSet, comparison and nine pass hashes",
     "real_user_robot_reference_transport_and_compare": "PASS",
     "real_user_robot_likeness_threshold": "FAIL_QUALITY_TARGET_NOT_MET"
   },
@@ -35,8 +36,10 @@
   },
   "evidence": [
     "docs/evidence/mcp010c/raw-stdio.json",
+    "docs/evidence/mcp010c/determinism-5x.json",
     "docs/evidence/mcp010c/real-reference-robot.json",
     "docs/evidence/mcp010c/real-reference-robot-camera-autofit.json",
+    "docs/evidence/mcp010c/real-reference-robot-camera-search.json",
     "docs/evidence/mcp010c/real-codex-cli-c-attempt13.json",
     "docs/evidence/mcp010c/dev-app-install.json",
     "docs/evidence/mcp010c/dev-app-package-verify.json",
@@ -71,8 +74,8 @@
   },
   "latest_real_reference_run": {
     "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
-    "evidence": "docs/evidence/mcp010c/real-reference-robot-camera-autofit.json",
-    "previous_evidence": "docs/evidence/mcp010c/real-reference-robot.json",
+    "evidence": "docs/evidence/mcp010c/real-reference-robot-camera-search.json",
+    "previous_evidence": "docs/evidence/mcp010c/real-reference-robot-camera-autofit.json",
     "camera_mode": "default_auto_fit",
     "metric_cas_round_trip": "PASS",
     "metrics": {

@@ -45,6 +45,6 @@ python3 "$PROJECT_ROOT/scripts/probe_mcp010c_raw_stdio.py" \
   --mcp "$TARGET_DIR/debug/forgecad-mcp" \
   --runtime "$TARGET_DIR/debug/forgecad-runtime" \
   --data-root "$DATA_ROOT" \
-  --evidence "$PROJECT_ROOT/docs/evidence/mcp010c/raw-stdio.json"
+  --determinism-repeats 5
 
 printf '%s\n' "MCP010C fixed renderer, nine-AOV, comparison and review gate PASS"

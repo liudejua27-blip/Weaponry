@@ -27,7 +27,7 @@
 | FGC-MCP010B | blocked | MCP010A | V2 geometry/readback/Worker isolation source Gate 已通过；Darwin 512 MiB OS 总内存硬门 deferred 为 NOT_RUN，不阻塞当前 C source implementation；历史 package/live receipts 保留 |
 
 最新 d9c23b…ac0bd Skill-overlay Dev.app 已完成 package/raw/real-Codex V2 structural 子门；Bundle 知识现在明确区分视觉质量停止与用户明确批准的 `STRUCTURAL_BLOCKOUT` MVP 路径。该包已完成用户完整 Desktop restart，并通过 live Desktop structural activation；仍不得把它写成视觉/PBR能力。
-| FGC-MCP010C | in_progress | MCP010B | 固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、Codex/human review 与 MCP image block；source Gate PASS_WITH_UNRUN_VISUAL_GATES；默认 camera auto-fit 与视觉指标 CAS round-trip 修复已通过 raw source regression；Viewer compare source implementation/local IPC-build tests PASS；真实 Codex CLI 已完成六 turn/32-call C transport；机器人 likeness threshold 仍 FAIL_QUALITY_TARGET_NOT_MET |
+| FGC-MCP010C | in_progress | MCP010B | 固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、Codex/human review 与 MCP image block；source Gate PASS_WITH_UNRUN_VISUAL_GATES；默认 camera auto-fit、视觉指标 CAS round-trip 与同一 candidate 五次 MCP determinism 已通过 source regression；Viewer compare source implementation/local IPC-build tests PASS；真实 Codex CLI 已完成六 turn/32-call C transport；机器人 likeness threshold 仍 FAIL_QUALITY_TARGET_NOT_MET |
 | FGC-MCP010D | blocked | MCP010C | 受限高细节 Operator、first-party Skill 0.2 及 Manifold 隔离采用 |
 | FGC-MCP010E | blocked | MCP010D | first-party 离线硬表面 AssetPack、UV/tangent/PBR/纹理 provenance |
 | FGC-MCP010F | blocked | MCP010E | Viewer compare/selection/explosion、真实机器人闭环、partial/360 人工门 |
