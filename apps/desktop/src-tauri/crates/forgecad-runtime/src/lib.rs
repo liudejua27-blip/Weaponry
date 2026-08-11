@@ -436,19 +436,13 @@ impl Runtime {
             .get("view_spec")
             .ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_VIEW_SPEC_REQUIRED".to_owned()))?;
         validate_reference_view_spec(view_spec, &reference)?;
-        let camera = object
+        let explicit_camera = object.get("camera").is_some_and(|value| !value.is_null());
+        let mut camera = object
             .get("camera")
+            .filter(|value| !value.is_null())
             .cloned()
             .unwrap_or_else(default_camera_calibration);
         validate_camera_calibration(&camera)?;
-        let camera_bytes = canonical_json_bytes(&camera)
-            .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-        let camera_object = self.put_object(
-            &camera_bytes,
-            None,
-            "application/json",
-            "camera-calibration",
-        )?;
         let artifact_sha256 = candidate
             .manifest_hash
             .clone()
@@ -464,8 +458,37 @@ impl Runtime {
                 inspection.failure_codes.join(",")
             )));
         }
-        let render_passes = render_glb_with_runtime_worker(&glb, &camera)
+        let mut render_passes = render_glb_with_runtime_worker(&glb, &camera)
             .map_err(|error| RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}")))?;
+        let reference_bytes = self.cas_read(&reference.object_sha256)?;
+        let reference_mask = reference_mask_png(&reference_bytes)?;
+        if !explicit_camera {
+            if let Some(initial_silhouette) = render_passes
+                .iter()
+                .find(|pass| pass.pass == "silhouette")
+                .map(|pass| decode_binary_mask(&pass.png))
+            {
+                let initial_silhouette = initial_silhouette?;
+                let calibrated =
+                    calibrate_default_camera(&camera, &reference_mask.mask, &initial_silhouette);
+                if calibrated != camera {
+                    validate_camera_calibration(&calibrated)?;
+                    camera = calibrated;
+                    render_passes =
+                        render_glb_with_runtime_worker(&glb, &camera).map_err(|error| {
+                            RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}"))
+                        })?;
+                }
+            }
+        }
+        let camera_bytes = canonical_json_bytes(&camera)
+            .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
+        let camera_object = self.put_object(
+            &camera_bytes,
+            None,
+            "application/json",
+            "camera-calibration",
+        )?;
         if render_passes.len() != 9
             || render_passes
                 .iter()
@@ -520,8 +543,6 @@ impl Runtime {
         let render_set_object =
             self.put_object(&render_set_bytes, None, "application/json", "render-set-v2")?;
         let render_set_hash = render_set_object.record.sha256.clone();
-        let reference_bytes = self.cas_read(&reference.object_sha256)?;
-        let reference_mask = reference_mask_png(&reference_bytes)?;
         let mask_object = self.put_object(
             &reference_mask.png,
             None,
@@ -3363,6 +3384,68 @@ fn default_camera_calibration() -> Value {
     camera
 }
 
+/// Fit the product-owned default camera to the visible reference silhouette.
+///
+/// This is deliberately a framing-only calibration: it changes the camera
+/// distance along the existing view ray, never the model, camera direction or
+/// hidden geometry. A caller-supplied CameraCalibration remains authoritative
+/// and bypasses this helper. The bounded mask heuristic keeps the comparison
+/// useful for a close-cropped single image without introducing a segmentation
+/// model or a second source of geometry truth.
+fn calibrate_default_camera(camera: &Value, reference: &[bool], model: &[bool]) -> Value {
+    let Some(reference_bbox) = bbox(reference) else {
+        return camera.clone();
+    };
+    let Some(model_bbox) = bbox(model) else {
+        return camera.clone();
+    };
+    let reference_height = (reference_bbox.3 - reference_bbox.1 + 1) as f64;
+    let model_height = (model_bbox.3 - model_bbox.1 + 1) as f64;
+    if reference_height <= 0.0 || model_height <= 0.0 {
+        return camera.clone();
+    }
+    let scale = (model_height / reference_height).clamp(0.55, 1.45);
+    let Some(transform) = camera.get("transform").and_then(Value::as_object) else {
+        return camera.clone();
+    };
+    let Some(position) = camera_vec3(transform.get("position_m")) else {
+        return camera.clone();
+    };
+    let Some(target) = camera_vec3(transform.get("target_m")) else {
+        return camera.clone();
+    };
+    let adjusted_position = [
+        target[0] + (position[0] - target[0]) * scale,
+        target[1] + (position[1] - target[1]) * scale,
+        target[2] + (position[2] - target[2]) * scale,
+    ];
+    let mut calibrated = camera.clone();
+    let Some(calibrated_transform) = calibrated
+        .get_mut("transform")
+        .and_then(Value::as_object_mut)
+    else {
+        return camera.clone();
+    };
+    calibrated_transform.insert("position_m".to_owned(), json!(adjusted_position));
+    calibrated["camera_hash"] = Value::String(String::new());
+    calibrated["canonical_sha256"] = Value::String(String::new());
+    calibrated["camera_hash"] = Value::String(canonical_json_hash(&calibrated));
+    calibrated["canonical_sha256"] = Value::String(canonical_json_hash(&calibrated));
+    calibrated
+}
+
+fn camera_vec3(value: Option<&Value>) -> Option<[f64; 3]> {
+    let values = value?.as_array()?;
+    if values.len() != 3 {
+        return None;
+    }
+    Some([
+        values[0].as_f64()?,
+        values[1].as_f64()?,
+        values[2].as_f64()?,
+    ])
+}
+
 fn validate_reference_view_spec(
     value: &Value,
     reference: &ReferenceEvidenceRecord,
@@ -5641,6 +5724,35 @@ mod tests {
         assert!(runtime
             .artifact_readback(artifact_id, "candidate-not-bound")
             .is_err());
+    }
+
+    #[test]
+    fn default_camera_framing_uses_reference_mask_only_when_camera_is_omitted() {
+        let camera = default_camera_calibration();
+        let mut reference = vec![false; 512 * 512];
+        let mut model = vec![false; 512 * 512];
+        for y in 48..464 {
+            for x in 180..332 {
+                reference[y * 512 + x] = true;
+            }
+        }
+        for y in 120..328 {
+            for x in 200..312 {
+                model[y * 512 + x] = true;
+            }
+        }
+        let calibrated = calibrate_default_camera(&camera, &reference, &model);
+        assert_ne!(calibrated, camera);
+        let original_position = camera["transform"]["position_m"][1]
+            .as_f64()
+            .expect("original camera position");
+        let calibrated_position = calibrated["transform"]["position_m"][1]
+            .as_f64()
+            .expect("calibrated camera position");
+        assert!(calibrated_position < original_position);
+        assert!(validate_camera_calibration(&calibrated).is_ok());
+        let explicit = camera.clone();
+        assert_eq!(explicit["camera_hash"], camera["camera_hash"]);
     }
 
     #[test]
