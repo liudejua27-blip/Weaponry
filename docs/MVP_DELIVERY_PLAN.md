@@ -2,7 +2,7 @@
 
 版本：2026-08-10
 状态：权威执行合同；MCP005–MCP009 单用户 MVP host golden path 已完成；FGC-MCP010A done
-当前起点：`FGC-MCP005`–`FGC-MCP009` focused Gate 和真实 Codex CLI 十二调用 reference→CAS GLB receipt 已通过；MCP010B structural source Gate 已通过但 Darwin 512 MiB OS 总内存硬门仍未运行；MCP010C source Gate 已实现固定 renderer、九 AOV、reference comparison、MCP image block 和 typed/human review。首次真实机器人 PNG 已完成 C 的 compare/review transport，但 likeness target 未通过；真人视觉门、Viewer/package/live C、PBR/纹理和 360 仍为 `目标设计/NOT_RUN/BLOCKED`
+当前起点：`FGC-MCP005`–`FGC-MCP009` focused Gate 和真实 Codex CLI 十二调用 reference→CAS GLB receipt 已通过；MCP010B structural source Gate 已通过但 Darwin 512 MiB OS 总内存硬门仍未运行；MCP010C source Gate 已实现固定 renderer、九 AOV、reference comparison、MCP image block 和 typed/human review，真实 Codex CLI C 另完成六 turn/32-call transport receipt。首次真实机器人 PNG 的 likeness target 未通过；真人视觉门、Viewer/package/live C、PBR/纹理和 360 仍为 `目标设计/NOT_RUN/BLOCKED`
 
 ## 1. MVP 要交付什么
 
@@ -208,6 +208,8 @@ MVP 验收不使用一个未经校准的分数冒充“高质量”。必须同�
 ### MCP010C 当前固定渲染与参考比较边界
 
 当前源码新增 7 个合同，总源合同 59；默认工具面为 20 read + 16 opt-in write。`script/test_mcp010c.sh` 已通过固定 512×512 perspective/z-buffer、scene transform、确定性九 AOV、CAS RenderSet@2、local reference mask/metrics、`render_pass_get` MCP image block、Codex typed review、human receipt 和 deterministic raw stdio。证据见 `docs/evidence/mcp010c/manifest.json` 与 `docs/evidence/mcp010c/raw-stdio.json`。首次真实机器人 PNG 另已完成九 AOV/compare/review transport，但 primitive blockout 的 likeness metrics 未达标，详见 `docs/evidence/mcp010c/real-reference-robot.json`；该 receipt 不创建 version，也不构成 `PARTIAL_VISIBLE_VIEW_PASS`。Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash 和 HQ_360 仍 `NOT_RUN/BLOCKED`。单张三分之四图最多只能产生 `PARTIAL_VISIBLE_VIEW_PASS`，且必须先通过阈值。
+
+当前 Dev.app packaged C 更新：安装/包验证/隔离探针、九 AOV raw renderer 和 packaged Codex CLI compare/review transport 已通过；其结果仍为 `QUALITY_TARGET_NOT_MET`，不构成 likeness PASS。packaged Viewer UI、真人评分、PBR/纹理、export/restart hash 和 HQ_360 继续 `NOT_RUN/BLOCKED`。
 
 ## 6. GitHub 工具采用决策
 

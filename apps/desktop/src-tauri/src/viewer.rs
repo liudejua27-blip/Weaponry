@@ -28,6 +28,38 @@ pub fn read_artifact_bytes(artifact_id: &str, candidate_id: &str) -> Value {
     }
 }
 
+/// Read one bounded reference image for the compare surface. The Viewer does
+/// not read the Runtime database or CAS directly; it asks the authenticated
+/// Runtime projection for candidate/project-bound bytes.
+pub fn read_reference_bytes(reference_id: &str, project_id: &str) -> Value {
+    match runtime_data_root()
+        .and_then(|root| read_reference_bytes_from_root(&root, reference_id, project_id))
+    {
+        Ok(value) => value,
+        Err(code) => unavailable(code),
+    }
+}
+
+/// Read one fixed-render pass on demand. Loading a single AOV keeps the Viewer
+/// bounded while still exposing all nine Runtime-owned passes through tabs.
+pub fn read_render_pass(render_set_hash: &str, pass: &str) -> Value {
+    match runtime_data_root()
+        .and_then(|root| read_render_pass_from_root(&root, render_set_hash, pass))
+    {
+        Ok(value) => value,
+        Err(code) => unavailable(code),
+    }
+}
+
+/// Read candidate-bound render/comparison/quality metadata without image
+/// payloads. This powers the compare panel and remains strictly read-only.
+pub fn read_visual_evidence(candidate_id: &str) -> Value {
+    match runtime_data_root().and_then(|root| read_visual_evidence_from_root(&root, candidate_id)) {
+        Ok(value) => value,
+        Err(code) => unavailable(code),
+    }
+}
+
 fn read_artifact_bytes_from_root(
     root: &Path,
     artifact_id: &str,
@@ -56,6 +88,61 @@ fn read_artifact_bytes_from_root(
             json!({"artifact_id":artifact_id,"candidate_id":candidate_id}),
         )
         .map_err(|_| "RUNTIME_REQUEST_FAILED".to_owned())
+}
+
+fn read_reference_bytes_from_root(
+    root: &Path,
+    reference_id: &str,
+    project_id: &str,
+) -> Result<Value, String> {
+    let mut client = connect_runtime(root)?;
+    client
+        .call(
+            "reference_bytes_get",
+            json!({"reference_id":reference_id,"project_id":project_id}),
+        )
+        .map_err(|_| "RUNTIME_REQUEST_FAILED".to_owned())
+}
+
+fn read_render_pass_from_root(
+    root: &Path,
+    render_set_hash: &str,
+    pass: &str,
+) -> Result<Value, String> {
+    let mut client = connect_runtime(root)?;
+    client
+        .call(
+            "render_pass_get",
+            json!({"render_set_hash":render_set_hash,"pass":pass}),
+        )
+        .map_err(|_| "RUNTIME_REQUEST_FAILED".to_owned())
+}
+
+fn read_visual_evidence_from_root(root: &Path, candidate_id: &str) -> Result<Value, String> {
+    let mut client = connect_runtime(root)?;
+    client
+        .call("visual_evidence_get", json!({"candidate_id":candidate_id}))
+        .map_err(|_| "RUNTIME_REQUEST_FAILED".to_owned())
+}
+
+fn connect_runtime(root: &Path) -> Result<LocalIpcClient, String> {
+    let ready_path = root.join("ipc").join("ready.json");
+    let handoff = read_bounded_json(&ready_path)?;
+    if handoff.get("status").and_then(Value::as_str) != Some("ready") {
+        return Err("RUNTIME_UNAVAILABLE".to_owned());
+    }
+    let socket = handoff
+        .get("socket_path")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "RUNTIME_UNAVAILABLE".to_owned())?;
+    let token = handoff
+        .get("token")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "RUNTIME_UNAVAILABLE".to_owned())?;
+    LocalIpcClient::connect(&LocalIpcEndpoint::from_parts(socket, token))
+        .map_err(|_| "RUNTIME_UNAVAILABLE".to_owned())
 }
 
 fn read_model_from_root(root: &Path) -> Result<Value, String> {
@@ -112,7 +199,24 @@ fn read_model_from_root(root: &Path) -> Result<Value, String> {
                         )
                         .ok()
                 });
-            candidate_views.push(json!({"candidate":candidate,"artifact":artifact}));
+            let quality = client
+                .call("quality_get", json!({"candidate_id": candidate_id}))
+                .ok();
+            let reference = quality
+                .as_ref()
+                .and_then(|value| value.get("reference_id"))
+                .and_then(Value::as_str)
+                .and_then(|reference_id| {
+                    client
+                        .call("reference_get", json!({"reference_id": reference_id}))
+                        .ok()
+                });
+            candidate_views.push(json!({
+                "candidate":candidate,
+                "artifact":artifact,
+                "quality":quality,
+                "reference":reference
+            }));
         }
         let snapshot = record
             .get("head_snapshot_id")
@@ -216,6 +320,21 @@ mod tests {
         let project = runtime
             .create_project("Viewer IPC fixture", json!({"scope":"test"}))
             .expect("project");
+        let reference = runtime
+            .import_reference(&forgecad_runtime::ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: forgecad_runtime::ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: forgecad_runtime::ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "viewer IPC reference".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
         let mut program = json!({
             "schema_version":"GeometryProgram@1",
             "project_id":project.project_id.clone(),
@@ -279,6 +398,14 @@ mod tests {
             model["projects"][0]["candidates"][0]["artifact"]["part_ids"][0],
             "viewer-torso"
         );
+        let reference_payload =
+            read_reference_bytes_from_root(&root, &reference.reference_id, &project.project_id)
+                .expect("reference bytes");
+        assert_eq!(reference_payload["reference_id"], reference.reference_id);
+        assert_eq!(reference_payload["sha256"], reference.object_sha256);
+        assert!(reference_payload["bytes_base64"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
 
         let mut client = LocalIpcClient::connect(&shutdown_endpoint).expect("shutdown client");
         assert_eq!(

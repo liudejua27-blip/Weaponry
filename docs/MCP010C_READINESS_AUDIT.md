@@ -59,6 +59,18 @@ C 当前已新增严格 JSON Schema，并实现 Runtime producer/consumer 的顶
 
 该运行证明真实图片字节、candidate、RenderSet、comparison、review 和 QualityReport 的绑定链可用；局部梯度边界 flood-fill 让 bbox/centroid 指标比初版更稳定，但当前 primitive-only 机器人草图仍只是结构 blockout。生成的 beauty/silhouette 预览见临时输出目录，脱敏 receipt 见 `docs/evidence/mcp010c/real-reference-robot.json`。当前结论是 `QUALITY_TARGET_NOT_MET`，不是 `PARTIAL_VISIBLE_VIEW_PASS`。
 
+### 2.5 真实 Codex CLI C 运行 — `PASS_WITH_QUALITY_TARGET_NOT_MET`
+
+同一 source-built MCP/Runtime/geometry Worker cohort 的真实 Codex CLI 已完成六个短 turn：setup 创建/导入与 `reference_get` 回读、V2 capability/catalog/skill/hash/geometry prepare、candidate-bound readback/compare、九个 `render_pass_get`、`visual_review_submit` 和 `quality_get`。共 32 个 ForgeCAD MCP 调用全部 completed，生成 27 个语义 Part、4100 triangles 和 validator-passed GLB；九个 AOV 顺序与 candidate/render/comparison/review hash 绑定一致。脱敏 receipt 为 `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json`。
+
+Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读查阅，已保留事件类型与 SHA-256 摘要；没有文件变更、网络调用或用户持久数据写入。该运行仍返回 `QUALITY_TARGET_NOT_MET`（silhouette IoU `0.5132`、boundary F1 `0.1441`），所以它证明的是“Codex 能真实调用 C 工具链”，不是高质量 likeness。
+
+### 2.6 Viewer 只读比较面 — `source implementation PASS / packaged C transport PASS / Viewer UI E2E NOT_RUN`
+
+源码现在提供了一个最小但可用的 Viewer 证据面：Runtime 通过 `visual_evidence_get` 返回 candidate-bound RenderSet、comparison、QualityReport 元数据；`reference_bytes_get` 只在项目绑定、CAS 元数据和实际 SHA-256 都匹配时返回参考图；`render_pass_get` 按需返回单个 AOV PNG。Tauri 只增加了对应的只读命令，React Viewer 增加参考图/Render AOV 分屏、透明叠加、闪烁切换、九个 AOV 选择、camera-lock 标识、质量指标与 hash 摘要，不创建 Runtime 状态或写入 CAS。
+
+这一层已通过 `forgecad-runtime` 的九 AOV/视觉证据回读测试、Viewer Rust IPC 测试、Tauri `cargo check`、TypeScript `typecheck` 和生产前端构建。当前 Dev.app 的安装/包验证/隔离探针、九 AOV raw C probe 和 packaged Codex CLI compare/review transport 也已通过；对应脱敏 receipt 见 `docs/evidence/mcp010c/dev-app-*.json`。这证明 packaged Runtime/MCP 的 C 传输路径，不证明 Viewer UI 已在 packaged app 中运行。因此“Viewer compare surface”继续保持 `NOT_RUN`，仅 source implementation 与 packaged C transport 分开记录。
+
 ## 3. C 的最小实现顺序
 
 按以下顺序领取一个独立的 MCP010C Goal。每一步都要有单独 receipt，PASS、FAIL、BLOCKED、NOT_RUN 分开记录。
@@ -92,7 +104,7 @@ C 当前已新增严格 JSON Schema，并实现 Runtime producer/consumer 的顶
 5. 每个 candidate 最多五轮：`silhouette → structure → form → material/surface → final`；任何一轮未达到目标都返回 `QUALITY_TARGET_NOT_MET`，不能偷偷 confirm 低质量 candidate。
 6. 首次真实机器人运行已完成一轮 `silhouette` review，Codex typed issue 要求补充 panel/vent/cable/joint detail；它没有改变硬门结果，candidate 保持未确认。
 
-### C4：工具和返回面 — `PASS`（raw stdio；packaged/live Desktop C gate 未运行）
+### C4：工具和返回面 — `PASS`（raw stdio + source/packaged real Codex CLI；Viewer UI 仍未运行）
 
 当前 source gate 已增加并验证以下 MCP tools：
 
@@ -128,18 +140,18 @@ C 当前已新增严格 JSON Schema，并实现 Runtime producer/consumer 的顶
 
 ### Codex/Viewer 证据
 
-- raw stdio 与真实 Codex CLI 必须完成 `catalog/camera → render → compare → review → quality` 的绑定链；
-- Viewer 只读显示参考、九 AOV、overlay/flicker/heatmap、camera lock、Part/MaterialZone 选择和 explosion 临时状态；
+- raw stdio 与真实 Codex CLI 已完成 `catalog/camera → render → compare → review → quality` 的绑定链；CLI receipt 仍保留 `QUALITY_TARGET_NOT_MET`，不升级为 likeness PASS；
+- Viewer 源码已只读显示参考、九 AOV、overlay/flicker、camera lock 和质量指标；当前 Dev.app 的 C renderer/compare/review transport 已通过，但 Viewer UI 的 packaged/current-cohort E2E、Part/MaterialZone 选择、explosion 临时状态和 heatmap 仍未运行；
 - Viewer 关闭、重启和 export 不改变 Runtime 真值；Viewer hash 必须与 export hash 相同；
-- C 完成前 Viewer compare、真人评分和完整 360°继续 `NOT_RUN/BLOCKED`。
+- C 完成前 packaged Viewer compare、真人评分和完整 360°继续 `NOT_RUN/BLOCKED`；packaged Codex C 仍明确为 `QUALITY_TARGET_NOT_MET`，不得升级为 likeness PASS。
 
 ## 5. C 当前收口检查清单
 
 用户已显式领取 MCP010C；Luna 后续只能继续本原子 Goal，并保持 C–F 的顺序。当前已完成：
 
-1. 59-contract checker、Worker renderer、Runtime review chain、嵌套 receipt validator 和 raw stdio receipt 已建立；
+1. 59-contract checker、Worker renderer、Runtime review chain、嵌套 receipt validator、raw stdio receipt 和真实 Codex CLI C receipt 已建立；
 2. MCP010B 的 V2 graph、Worker isolation 和 closed GLB Gate 未被覆盖；
 3. synthetic source Gate 和首次真实机器人参考运行均已记录；真实运行只写入隔离临时 CAS，quality target 未通过，未改变用户持久数据；
-4. 还需完成真实 Codex CLI C 证据、Viewer compare/read-only UI、同 cohort packaged C probe、五次 render/metrics/report determinism 和 export/restart hash；人评仍必须由用户实际提交，不能由脚本代填。
+4. Viewer compare/read-only UI 的 source implementation 已完成并通过本地构建/IPC 测试；还需完成同 cohort packaged C/Viewer probe、五次 render/metrics/report determinism 和 export/restart hash；人评仍必须由用户实际提交，不能由脚本代填。
 
 本文件的结论是 `MCP010C in_progress / source-focused PASS_WITH_UNRUN_VISUAL_GATES`，不是“当前已对单张图片生成高质量 3D”的宣传声明。

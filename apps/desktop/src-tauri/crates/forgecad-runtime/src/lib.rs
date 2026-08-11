@@ -696,6 +696,83 @@ impl Runtime {
         )
     }
 
+    /// Return the candidate-bound visual evidence needed by the optional
+    /// Viewer. Reports stay in CAS and are re-read/validated here; the
+    /// projection contains no image bytes and performs no writes.
+    pub fn visual_evidence(&self, candidate_id: &str) -> Result<Value, RuntimeError> {
+        validate_id(candidate_id)?;
+        let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "VISUAL_EVIDENCE_UNAVAILABLE: candidate not found".to_owned(),
+            )
+        })?;
+        let evidence = self
+            .store
+            .get_visual_evidence(candidate_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("VISUAL_EVIDENCE_UNAVAILABLE".to_owned()))?;
+        let reference = self.reference(&evidence.reference_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "VISUAL_EVIDENCE_UNAVAILABLE: reference not found".to_owned(),
+            )
+        })?;
+        if reference.project_id != candidate.project_id
+            || evidence.project_id != candidate.project_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "VISUAL_EVIDENCE_BINDING_MISMATCH: project differs".to_owned(),
+            ));
+        }
+        let render_set: Value = serde_json::from_slice(
+            &self.cas_read(&evidence.render_set_object_sha256)?,
+        )
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!("VISUAL_EVIDENCE_INVALID: RenderSet: {error}"))
+        })?;
+        validate_render_set_v2_output(&render_set)?;
+        if render_set.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+            || render_set.get("reference_id").and_then(Value::as_str)
+                != Some(evidence.reference_id.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "VISUAL_EVIDENCE_BINDING_MISMATCH: RenderSet candidate differs".to_owned(),
+            ));
+        }
+        let comparison_report = if let Some(hash) =
+            evidence.comparison_report_object_sha256.as_deref()
+        {
+            let report: Value = serde_json::from_slice(&self.cas_read(hash)?).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "VISUAL_EVIDENCE_INVALID: comparison report: {error}"
+                ))
+            })?;
+            validate_reference_comparison_report(&report)?;
+            if report.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+                || report.get("reference_id").and_then(Value::as_str)
+                    != Some(evidence.reference_id.as_str())
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "VISUAL_EVIDENCE_BINDING_MISMATCH: comparison report differs".to_owned(),
+                ));
+            }
+            Some(report)
+        } else {
+            None
+        };
+        let quality_report = self.quality(candidate_id, Some(&evidence.reference_id))?;
+        Ok(json!({
+            "schema_version":"ViewerVisualEvidence@1",
+            "candidate_id":candidate_id,
+            "project_id":evidence.project_id,
+            "reference_id":evidence.reference_id,
+            "render_set_hash":evidence.render_set_object_sha256,
+            "comparison_report_hash":evidence.comparison_report_object_sha256,
+            "quality_report_hash":evidence.quality_report_object_sha256,
+            "render_set":render_set,
+            "comparison_report":comparison_report,
+            "quality_report":quality_report
+        }))
+    }
+
     pub fn submit_visual_review(&self, request: Value) -> Result<Value, RuntimeError> {
         let object = request.as_object().ok_or_else(|| {
             RuntimeError::InvalidInput("visual review request must be an object".to_owned())
@@ -1926,6 +2003,67 @@ impl Runtime {
         }))
     }
 
+    /// Read a bounded reference image for the optional local Viewer. The
+    /// reference remains owned by Runtime/CAS; this method only exposes a
+    /// candidate/project-bound read projection and never mutates state.
+    pub fn reference_bytes(
+        &self,
+        reference_id: &str,
+        project_id: &str,
+    ) -> Result<Value, RuntimeError> {
+        validate_id(reference_id)?;
+        validate_id(project_id)?;
+        let reference = self.reference(reference_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("reference bytes are unavailable".to_owned())
+        })?;
+        if reference.project_id != project_id {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_PROJECT_MISMATCH: reference is not in this project".to_owned(),
+            ));
+        }
+        if !matches!(reference.mime.as_str(), "image/png" | "image/jpeg") {
+            return Err(RuntimeError::InvalidInput(
+                "reference is not a supported image".to_owned(),
+            ));
+        }
+        if reference.size_bytes > 32 * 1024 * 1024 {
+            return Err(RuntimeError::InvalidInput(
+                "reference exceeds Viewer read capacity".to_owned(),
+            ));
+        }
+        let record = self
+            .store
+            .get_object(&reference.object_sha256)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("reference CAS object is unavailable".to_owned())
+            })?;
+        if record.mime != reference.mime || record.size_bytes != reference.size_bytes {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_INTEGRITY_FAILED: CAS metadata differs from ReferenceEvidence"
+                    .to_owned(),
+            ));
+        }
+        let bytes = self.cas_read(&reference.object_sha256)?;
+        if bytes.len() as u64 != reference.size_bytes
+            || sha256_hex(&bytes) != reference.object_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_INTEGRITY_FAILED: CAS bytes do not match ReferenceEvidence".to_owned(),
+            ));
+        }
+        Ok(json!({
+            "schema_version":"ReferenceBytesRead@1",
+            "reference_id":reference.reference_id,
+            "project_id":reference.project_id,
+            "mime":reference.mime,
+            "width":reference.width,
+            "height":reference.height,
+            "size_bytes":bytes.len(),
+            "sha256":sha256_hex(&bytes),
+            "bytes_base64":base64::engine::general_purpose::STANDARD.encode(bytes)
+        }))
+    }
+
     fn ensure_candidate_artifact_binding(
         &self,
         candidate_id: &str,
@@ -2610,6 +2748,15 @@ impl Runtime {
                     .ok_or_else(|| RuntimeError::InvalidInput("pass is required".to_owned()))?;
                 self.render_pass_get(render_set_hash, pass)
             }
+            "visual_evidence_get" => {
+                let candidate_id = payload
+                    .get("candidate_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("candidate_id is required".to_owned())
+                    })?;
+                self.visual_evidence(candidate_id)
+            }
             "project_create" => {
                 let name = payload
                     .get("name")
@@ -2702,6 +2849,21 @@ impl Runtime {
                         RuntimeError::InvalidInput("candidate_id is required".to_owned())
                     })?;
                 Ok(self.artifact_bytes(artifact_id, candidate_id)?)
+            }
+            "reference_bytes_get" => {
+                let reference_id = payload
+                    .get("reference_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("reference_id is required".to_owned())
+                    })?;
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
+                Ok(self.reference_bytes(reference_id, project_id)?)
             }
             "snapshot_get" => {
                 let id = payload
@@ -5590,6 +5752,20 @@ mod tests {
             runtime.quality(&candidate_id, None).unwrap()["schema_version"],
             "QualityReport@2"
         );
+        let viewer_evidence = runtime
+            .visual_evidence(&candidate_id)
+            .expect("viewer visual evidence");
+        assert_eq!(viewer_evidence["schema_version"], "ViewerVisualEvidence@1");
+        assert_eq!(viewer_evidence["candidate_id"], candidate_id);
+        assert_eq!(viewer_evidence["reference_id"], reference.reference_id);
+        assert_eq!(
+            viewer_evidence["render_set_hash"],
+            prepared_visual["render_set_object_sha256"]
+        );
+        assert_eq!(
+            viewer_evidence["comparison_report"]["schema_version"],
+            "ReferenceComparisonReport@1"
+        );
     }
 
     #[test]
@@ -6561,6 +6737,44 @@ mod tests {
             imported.reference.object_sha256
         );
         assert_eq!(runtime.references(&project.project_id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn viewer_reference_bytes_are_hash_bound_and_project_scoped() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("Viewer reference bytes", json!({"profile":"mvp"}))
+            .expect("project");
+        let other_project = runtime
+            .create_project("Other project", json!({"profile":"mvp"}))
+            .expect("other project");
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "viewer read test".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
+        let payload = runtime
+            .reference_bytes(&reference.reference_id, &project.project_id)
+            .expect("reference bytes");
+        assert_eq!(payload["schema_version"], "ReferenceBytesRead@1");
+        assert_eq!(payload["sha256"], reference.object_sha256);
+        assert_eq!(payload["size_bytes"], reference.size_bytes);
+        assert!(payload["bytes_base64"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
+        assert!(runtime
+            .reference_bytes(&reference.reference_id, &other_project.project_id)
+            .is_err());
     }
 
     #[test]

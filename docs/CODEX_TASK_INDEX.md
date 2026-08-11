@@ -27,7 +27,7 @@
 | FGC-MCP010B | blocked | MCP010A | V2 geometry/readback/Worker isolation source Gate 已通过；Darwin 512 MiB OS 总内存硬门 deferred 为 NOT_RUN，不阻塞当前 C source implementation；历史 package/live receipts 保留 |
 
 最新 d9c23b…ac0bd Skill-overlay Dev.app 已完成 package/raw/real-Codex V2 structural 子门；Bundle 知识现在明确区分视觉质量停止与用户明确批准的 `STRUCTURAL_BLOCKOUT` MVP 路径。该包已完成用户完整 Desktop restart，并通过 live Desktop structural activation；仍不得把它写成视觉/PBR能力。
-| FGC-MCP010C | in_progress | MCP010B | 固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、Codex/human review 与 MCP image block；source Gate PASS_WITH_UNRUN_VISUAL_GATES；首次真实机器人 compare/review transport PASS，但 likeness threshold FAIL_QUALITY_TARGET_NOT_MET |
+| FGC-MCP010C | in_progress | MCP010B | 固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、Codex/human review 与 MCP image block；source Gate PASS_WITH_UNRUN_VISUAL_GATES；Viewer compare source implementation/local IPC-build tests PASS；真实 Codex CLI 已完成六 turn/32-call C transport；机器人 likeness threshold FAIL_QUALITY_TARGET_NOT_MET |
 | FGC-MCP010D | blocked | MCP010C | 受限高细节 Operator、first-party Skill 0.2 及 Manifold 隔离采用 |
 | FGC-MCP010E | blocked | MCP010D | first-party 离线硬表面 AssetPack、UV/tangent/PBR/纹理 provenance |
 | FGC-MCP010F | blocked | MCP010E | Viewer compare/selection/explosion、真实机器人闭环、partial/360 人工门 |
@@ -38,10 +38,12 @@
 当前领取任务：
 
 ```text
-`FGC-MCP010C`：实现固定 renderer、九 AOV、参考比较、Codex/human visual review 和 MCP image block。合成/raw Gate 与首次真实机器人 reference→compare→review transport 已通过；真实候选 likeness threshold 为 `FAIL_QUALITY_TARGET_NOT_MET`，Viewer compare、packaged C、PBR/纹理、export/restart hash 和完整 360°仍必须保持独立状态。
+`FGC-MCP010C`：实现固定 renderer、九 AOV、参考比较、Codex/human visual review 和 MCP image block。合成/raw Gate 与首次真实机器人 reference→compare→review transport 已通过；Viewer compare source implementation/local IPC-build tests 也已通过；真实候选 likeness threshold 为 `FAIL_QUALITY_TARGET_NOT_MET`，packaged/current-cohort Viewer/C、PBR/纹理、export/restart hash 和完整 360°仍必须保持独立状态。
+
+补充当前事实：Dev.app packaged C 的安装/包验证/隔离探针、九 AOV raw renderer 和 Codex CLI compare/review transport 已通过；packaged Viewer UI、真实人评、PBR/纹理、export/restart hash 和 360°仍独立保持 `NOT_RUN/BLOCKED`。
 ```
 
-010A 的旧代码清理与恢复 Gate 已 PASS：旧 Provider/Agent/standalone Host 入口、旧评估和孤儿运行残留已移除或隔离，两份 Host receipt 仅作为 `SUPERSEDED` 历史归档，用户 `output/`、`WushenForgeLibrary`、Runtime V1 与 Codex 历史均保留。MCP010A 的 30-tool Desktop receipt、MCP010B 的 3c/f488 Dev.app receipts和 884/896-triangle structural probes均为历史，原样保留。当前 MCP010B source 有 52 contracts（44 历史 + 8；含 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`），并已通过 V2 geometry/readback、Skill integrity、Worker isolation、MCP004/MCP007/MCP008/MCP009 回归、V2 restore hardening 和 closed GLB profile focused Gate；Darwin 512 MiB OS 总内存硬门仍 deferred/NOT_RUN。当前 MCP010C source 新增 7 个合同，总计 59；`script/test_mcp010c.sh` 已通过固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、MCP image block、Codex/human review 和确定性 raw stdio Gate。C 的 synthetic/reference structural evidence 不等于用户机器人 likeness 或高质量视觉 PASS；Viewer compare、packaged C、真实用户评分、PBR/纹理、export/restart hash 和 HQ_360 仍未运行，证据账本位于 `docs/evidence/mcp010c/manifest.json`。
+010A 的旧代码清理与恢复 Gate 已 PASS：旧 Provider/Agent/standalone Host 入口、旧评估和孤儿运行残留已移除或隔离，两份 Host receipt 仅作为 `SUPERSEDED` 历史归档，用户 `output/`、`WushenForgeLibrary`、Runtime V1 与 Codex 历史均保留。MCP010A 的 30-tool Desktop receipt、MCP010B 的 3c/f488 Dev.app receipts和 884/896-triangle structural probes均为历史，原样保留。当前 MCP010B source 有 52 contracts（44 历史 + 8；含 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`），并已通过 V2 geometry/readback、Skill integrity、Worker isolation、MCP004/MCP007/MCP008/MCP009 回归、V2 restore hardening 和 closed GLB profile focused Gate；Darwin 512 MiB OS 总内存硬门仍 deferred/NOT_RUN。当前 MCP010C source 新增 7 个合同，总计 59；`script/test_mcp010c.sh` 已通过固定 512×512 perspective/z-buffer renderer、九 AOV、candidate-bound reference comparison、MCP image block、Codex/human review 和确定性 raw stdio Gate；真实 Codex CLI 另完成六 turn/32-call C transport，receipt 为 `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json`。C 的 synthetic/reference/CLI structural evidence 不等于用户机器人 likeness 或高质量视觉 PASS；Viewer compare、packaged C、真实用户评分、PBR/纹理、export/restart hash 和 HQ_360 仍未运行，证据账本位于 `docs/evidence/mcp010c/manifest.json`。
 
 ## 3. MCP004 为什么现在可以 done
 

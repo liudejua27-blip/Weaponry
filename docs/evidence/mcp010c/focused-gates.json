@@ -8,7 +8,10 @@
     "runtime": "candidate-bound RenderSet@2, local reference mask, comparison report, visual review and human receipt persist through CAS/evidence",
     "runtime_nested_contract_output_validation": "mutated visual/human receipts and nested fields fail closed",
     "mcp": "20 read tools + 16 opt-in writes; render_pass_get returns a single MCP image block without duplicating base64 in structuredContent",
+    "viewer_compare_source_read_only": "PASS: Runtime visual_evidence_get/reference_bytes_get, Tauri read-only commands, Viewer AOV/compare source; Rust tests, cargo check, TypeScript typecheck and Vite build passed",
+    "packaged_dev_app_c": "PASS_WITH_QUALITY_TARGET_NOT_MET: current Dev.app install/package/isolated probe, nine-AOV raw renderer path, and packaged Codex CLI compare/review transport share the recorded cohort; no human likeness claim",
     "raw_stdio": "isolated Runtime/MCP completed reference_import → V2 hash/prepare → reference_compare_prepare → render_pass_get → visual_review_submit → human_visual_review_submit → quality_get",
+    "real_codex_cli": "source-built same-cohort Codex CLI completed six short turns and 32 ForgeCAD MCP calls through setup/readback, V2 discovery/hash/prepare, compare, nine AOV reads, typed review and quality_get; Skill.md lookups were read-only and recorded",
     "persistent_user_data_touched": false
   },
   "negative_or_binding_checks": {
@@ -17,19 +20,26 @@
     "nine_pass_order": "PASS",
     "review_receipt_hash_binding": "PASS",
     "nested_review_fields_fail_closed": "PASS",
+    "real_codex_cli_reference_render_compare_review": "PASS_WITH_QUALITY_TARGET_NOT_MET",
     "real_user_robot_reference_transport_and_compare": "PASS",
     "real_user_robot_likeness_threshold": "FAIL_QUALITY_TARGET_NOT_MET"
   },
   "not_run": {
     "independent_human_score_threshold": "NOT_RUN",
-    "viewer_reference_render_split": "NOT_RUN",
-    "packaged_dev_app_c_renderer": "NOT_RUN",
+    "viewer_reference_render_split": "NOT_RUN: source UI exists and local build/IPC tests pass; packaged/current-cohort Viewer E2E not run",
+    "packaged_dev_app_c_renderer": "PASS_WITH_QUALITY_TARGET_NOT_MET",
     "pbr_material_pack": "NOT_RUN",
     "full_360_reference_coverage": "BLOCKED_REFERENCE_COVERAGE"
   },
   "evidence": [
     "docs/evidence/mcp010c/raw-stdio.json",
-    "docs/evidence/mcp010c/real-reference-robot.json"
+    "docs/evidence/mcp010c/real-reference-robot.json",
+    "docs/evidence/mcp010c/real-codex-cli-c-attempt13.json",
+    "docs/evidence/mcp010c/dev-app-install.json",
+    "docs/evidence/mcp010c/dev-app-package-verify.json",
+    "docs/evidence/mcp010c/dev-app-probe.json",
+    "docs/evidence/mcp010c/dev-app-c-renderer-raw.json",
+    "docs/evidence/mcp010c/dev-app-codex-cli-c.json"
   ],
   "real_user_reference": {
     "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
@@ -38,6 +48,10 @@
     "render_passes": 9,
     "quality_visual_status": "QUALITY_TARGET_NOT_MET",
     "reference_mask_revision": "mask-2",
+    "codex_cli_turns": 6,
+    "codex_forgecad_tool_calls": 32,
+    "codex_cli_parts": 27,
+    "codex_cli_triangles": 4100,
     "human_review": "NOT_RUN",
     "metrics": {
       "silhouette_iou": 0.5132219166490375,
@@ -49,6 +63,7 @@
       "region_median_iou": 0.0,
       "critical_region_min_iou": 1.0
     },
-    "evidence": "docs/evidence/mcp010c/real-reference-robot.json"
+    "evidence": "docs/evidence/mcp010c/real-reference-robot.json",
+    "codex_cli_evidence": "docs/evidence/mcp010c/real-codex-cli-c-attempt13.json"
   }
 }

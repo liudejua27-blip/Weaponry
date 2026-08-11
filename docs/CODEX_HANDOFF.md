@@ -4,7 +4,7 @@
 分支：`main`；工作树包含受控 MCP010B/C 修改
 任务状态：`FGC-MCP005–FGC-MCP010A done（MVP host golden path + Dev activation）`；`MCP010B blocked/deferred（Darwin OS hard cap NOT_RUN）`；`MCP010C in_progress/source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`MCP010D–F blocked`
 
-> MCP010B/C reconciliation：MCP006 的 44-contract 与已保存的 50/52-contract、3c/f488/bfa56/d9 receipts是历史或结构事实。当前源码共 59 contracts、20 read + 16 opt-in write = 36 tools；MCP010C 的固定 renderer、九 AOV、candidate-bound comparison、MCP image block、Codex/human review 已通过 source raw Gate。首次真实机器人 PNG 运行也完成 compare/review transport，但 likeness threshold 为 `FAIL_QUALITY_TARGET_NOT_MET`（silhouette IoU 0.5132、boundary F1 0.1441）；B Darwin OS 总内存硬门仍 NOT_RUN；C Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash/360仍未完成，不得把 C structural/raw PASS 写成高质量视觉 PASS。
+> MCP010B/C reconciliation：MCP006 的 44-contract 与已保存的 50/52-contract、3c/f488/d9 receipts是历史或结构事实。当前源码共 59 contracts、20 read + 16 opt-in write = 36 tools；MCP010C 的固定 renderer、九 AOV、candidate-bound comparison、MCP image block、Codex/human review 已通过 source raw Gate，真实 Codex CLI 也已完成六 turn/32 MCP 调用的同 cohort C transport receipt。真实机器人 PNG likeness threshold 仍为 `FAIL_QUALITY_TARGET_NOT_MET`（silhouette IoU 0.5132、boundary F1 0.1441）；Viewer compare source implementation 已通过本地 IPC/构建测试，但 B Darwin OS 总内存硬门、packaged/current-cohort Viewer/C、人评阈值、PBR/纹理、export/restart hash/360仍未完成，不得把 C structural/raw/CLI transport PASS 写成高质量视觉 PASS。
 
 > 最新开发包 `d9c23b…ac0bd` 在 primitive-blockout 知识分支修正后重新构建并安装：ad-hoc/package、隔离 Ready/project、raw V2 和真实 Codex CLI V2 structural 均 PASS，`primitive-blockout@0.2.0` 为 active，候选仍未确认（12 Parts/896 triangles/161104-byte GLB）。用户完整重启后 d9 已成为当前 live Desktop cohort，已重新验证 32 工具、Ready、cohort/catalog/hash、active Skill 和临时项目 readback；该结构证据不宣称视觉/PBR/人评/360。
 
@@ -14,7 +14,9 @@
 
 > 同一授权参考的第二次 detail blockout 记录在 `docs/evidence/mcp010b/real-reference-robot-detail-blockout.json`：51 Parts、16,496 triangles、2,658,940-byte GLB 的 strict readback 通过，但 limited aspect proxy 为 `0.4604 < 0.55`。这次负向结果证明“增加 primitive 数量”不能替代固定相机、silhouette 和 region 比较；candidate 未确认、未创建 version/export。
 
-> MCP010C source Gate：当前源码已提供固定 512×512 perspective/z-buffer renderer、九个 PNG AOV、本地 reference mask/metrics、`render_pass_get` image block、Codex typed review 和 HumanVisualReview receipt。`script/test_mcp010c.sh` 与 raw stdio receipt 已 PASS；首次真实机器人 PNG 的 compare/review transport 已 PASS，但 silhouette IoU `0.5132`、boundary F1 `0.1441`，quality 为 `QUALITY_TARGET_NOT_MET`。Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash 和 HQ_360 仍 NOT_RUN/BLOCKED，详见 `docs/MCP010C_READINESS_AUDIT.md`。
+> MCP010C source Gate：当前源码已提供固定 512×512 perspective/z-buffer renderer、九个 PNG AOV、本地 reference mask/metrics、`render_pass_get` image block、Codex typed review 和 HumanVisualReview receipt。`script/test_mcp010c.sh`、raw stdio receipt 与真实 Codex CLI C receipt 均已通过结构/传输门；CLI receipt 完成六个短 turn、32 个 ForgeCAD 调用和九 AOV 读取，但真实机器人 likeness 仍为 silhouette IoU `0.5132`、boundary F1 `0.1441`、`QUALITY_TARGET_NOT_MET`。Viewer compare source implementation 已通过本地 IPC/构建测试；packaged/current-cohort Viewer/C、人评阈值、PBR/纹理、export/restart hash 和 HQ_360 仍 NOT_RUN/BLOCKED，详见 `docs/MCP010C_READINESS_AUDIT.md`。
+
+> Packaged C update：当前 Dev.app 安装/包验证/隔离探针、九 AOV raw renderer 和 packaged Codex CLI compare/review transport 已通过，receipt 位于 `docs/evidence/mcp010c/`；这不等于 packaged Viewer UI、人评或 likeness PASS。机器人质量状态仍为 `QUALITY_TARGET_NOT_MET`，Viewer UI、PBR/纹理、export/restart hash 和 HQ_360 继续 `NOT_RUN/BLOCKED`。
 
 ## 1. 本次范围决策
 
@@ -43,7 +45,7 @@
 - MCP007 已完成：product-owned bounded GeometryProgram compiler、box/cylinder/sphere、14 个语义机器人 Part fixture、finite/index/budget/lineage 检查、确定性 GLB、`ArtifactReadback@1`、authenticated MCP geometry/readback、Viewer candidate/artifact read model。`npm run mcp007:test` PASS；真实 Codex CLI 已用用户授权 PNG 完成 `project_create → reference_import → geometry_prepare → artifact_readback_get`，14 parts/516 triangles/validator passed，证据见 `docs/evidence/mcp007/`；它只证明 typed geometry host slice，不单独证明外观或视觉相似度；
 - MCP008 已完成：`AppearanceProgram@1` hash-bound material zones、UV/tangent、glTF PBR、四个兼容 PNG pass、Runtime readback、Three.js GLB canvas 和 `npm run mcp008:test`；MCP010C 在不改写该历史 RenderSet@1 的前提下新增 RenderSet@2 九 AOV/reference comparison/review source path；纹理烘焙/UDIM/PBR V2 仍未实现；
 - MCP009 已完成 MVP host golden path：`quality_get`（limited aspect compare）、`version_diff`、`change_prepare`、immutable confirm/reject/restore、`mvp-glb` CAS export receipt；`npm run mcp009:test` 的 24 Runtime tests + 16 MCP tests PASS；真实 Codex CLI 已完成十二调用 reference→geometry→appearance→quality→confirm→version→CAS GLB export，证据见 `docs/evidence/mcp009/`；
-- `npm run release:mcp004`、44/50/52-contract、3c/f488/bfa56/d9 Dev.app 以及其 Codex structural receipts均按历史范围保留，不能改写成 current C source。当前源码 59 contracts、`script/test_mcp010c.sh` 固定 renderer/九 AOV/comparison/review/raw Gate均 PASS；C synthetic receipt 与首次真实机器人 receipt 均不构成 likeness PASS，后者已明确记录 `QUALITY_TARGET_NOT_MET`；Viewer compare、packaged/live C、人评阈值、PBR V2、export/restart hash 和 360仍保持 NOT_RUN/BLOCKED。
+- `npm run release:mcp004`、44/50/52-contract、3c/f488/bfa56/d9 Dev.app 以及其 Codex structural receipts均按历史范围保留，不能改写成 current C source。当前源码 59 contracts、`script/test_mcp010c.sh` 固定 renderer/九 AOV/comparison/review/raw Gate均 PASS；真实 Codex CLI C 另有六 turn/32-call receipt，C synthetic/CLI receipt 与首次真实机器人 receipt 均不构成 likeness PASS，后者已明确记录 `QUALITY_TARGET_NOT_MET`；Viewer compare、packaged/live C、人评阈值、PBR V2、export/restart hash 和 360仍保持 NOT_RUN/BLOCKED。
 - MCP010A 可恢复旧代码清理已 PASS：恢复包 `20260809-mcp010a-legacy-cleanup` 的 Git bundle、tracked/local archive、worktree patch 和 SHA-256 清单均已验证；旧 Provider/Planner/CSG evaluation、packaged Agent sidecar、Gate07 配置、5 个孤儿 Python Agent、旧虚拟环境/Host/Proxy/生产包/日志/缓存/stale endpoint 已退出当前树或进入私有隔离区；无用 Rust API/依赖和旧 Tauri resource protocol 已移除。两份 standalone Host receipt 只保留为 `docs/evidence/archive/` 下的 `SUPERSEDED` 历史；`output/`、`WushenForgeLibrary`、Runtime V1 和 Codex 历史未修改。
 
 ## 3. 当前没有实现或不能宣称
@@ -73,7 +75,7 @@
 | Quality/Change/Version/Export | PASS MVP host golden path | MCP009 limited quality + approval/version + CAS-backed mvp-glb；pixel similarity/human gate NOT_RUN |
 | MCP010A authority/dev activation | DONE / DESKTOP ATTEMPT 1 FAIL RETAINED / ATTEMPT 2 PASS | 第一次完整重启只见 17 个只读工具，失败 receipt 保留；修复后第二次完整重启观察到 30 个工具、Runtime `Ready`、`doctor` ready、临时 `project_create`/readback 和相同 build cohort，成功 receipt 已保存 |
 | MCP010B V2 structural truth | BLOCKED/DEFERRED（source Gate PASS；Darwin OS memory hard cap NOT_RUN） | V2 geometry/readback、Skill integrity、Worker isolation、restore hardening 和 closed GLB profile已通过；不把受限预算/peak-RSS后验门当成OS预防式硬上限 |
-| MCP010C fixed render/compare/review | IN_PROGRESS / PASS_WITH_UNRUN_VISUAL_GATES | 当前源码 59 contracts、20 read + 16 opt-in write；512×512 perspective/z-buffer、九 AOV、candidate-bound comparison、MCP image block、Codex/human review 和 deterministic raw stdio PASS；首次真实机器人 compare/review transport PASS，但 likeness threshold `FAIL_QUALITY_TARGET_NOT_MET`；Viewer/packaged/live C、独立人评、PBR/纹理、export/restart hash、HQ_360 NOT_RUN/BLOCKED |
+| MCP010C fixed render/compare/review | IN_PROGRESS / PASS_WITH_UNRUN_VISUAL_GATES | 当前源码 59 contracts、20 read + 16 opt-in write；512×512 perspective/z-buffer、九 AOV、candidate-bound comparison、MCP image block、Codex/human review、deterministic raw stdio 和真实 Codex CLI 六 turn/32-call transport PASS；Viewer compare source implementation 与本地 IPC/build tests PASS；likeness threshold `FAIL_QUALITY_TARGET_NOT_MET`；packaged/current-cohort Viewer/C、独立人评、PBR/纹理、export/restart hash、HQ_360 NOT_RUN/BLOCKED |
 | signed/notarized packaged Desktop | BLOCKED / NOT_RUN | MCP013；历史 codesign 为 `errSecInternalComponent` |
 | IDE/其他 MCP Client/official transport conformance | OPTIONAL_NOT_IN_SCOPE | 不阻塞个人 MVP |
 
@@ -81,7 +83,7 @@
 
 本轮新增 V1 AppearanceProgram@1 兼容基线：材质区、固定渲染元数据、UV/tangent 和 GLB 回读通过，但 limited aspect proxy 为 0.4662 < 0.55；候选已拒绝，未创建 version/export。它不能被升级解释为 V2 PBR 或视觉质量证据；详见 `docs/evidence/mcp010b/real-reference-v1-appearance-baseline.json`。
 
-用户已明确领取 FGC-MCP010C。当前 C 已完成 source-focused implementation：固定 renderer、九 AOV、reference mask/metrics、MCP image block 和 Codex/human review。后续只补 C 的独立真实/packaged/Viewer evidence；不得在 C 中接入 010D 高细节 Operator、Manifold、010E AssetPack/纹理或远程服务：
+用户已明确领取 FGC-MCP010C。当前 C 已完成 source-focused implementation，并有真实 Codex CLI C transport receipt：固定 renderer、九 AOV、reference mask/metrics、MCP image block 和 Codex/human review。Viewer compare source implementation 已通过本地 IPC/构建测试；后续只补 C 的 packaged/current-cohort Viewer/人工评分/determinism/export-restart evidence；不得在 C 中接入 010D 高细节 Operator、Manifold、010E AssetPack/纹理或远程服务：
 
 1. V1 `GeometryProgram@1` / `ArtifactReadback@1` 是 MCP007–009 的过渡兼容路径：历史 candidate/version 不迁移、不改写；在 `AppearanceProgram@2` 到位前，现有 MVP appearance golden path 仍可显式使用 V1，但不得把它写成 MCP010B 的 V2 高质量结果；
 2. V2 必须有封闭 operator 参数 Schema、真实 DAG inputs、米/弧度单位、显式 Part outputs、operator catalog hash 和完整预算；`GeometryProgram@2.project_id` 必须与外层 `geometry_prepare.project_id` 完全相同，坐标范围为 ±10 m、dimension/height 不超过 10 m、radius/radii 不超过 5 m；
@@ -93,7 +95,7 @@
 
 当前 worktree 的 V2 路径已通过结构验证：`operator_catalog_get`、`forgecad://operators/catalog` 与 capability digest 一致；Codex 只能把 `operator_catalog_get` 返回的 digest 填入无 hash draft，再调用 `geometry_program_hash` 取得 compiler-owned `canonical_sha256`，最后调用 `geometry_prepare`。hash 工具不编译、不创建 candidate/Job，也不写 Store/CAS；它是 resource 的可调用镜像而非第二套 catalog 真值。catalog 节点仍是 closed leaf `primitive@2`，但真实图边是 `part_outputs[].input_node_ids` 的有序 semantic-Part sink：每个 source 必须恰好消费一次并保留逐 source readback binding。V2 target-project binding、10 m/5 m physical envelope、`ArtifactReadback@2` integrity、candidate-bound reread、confirm-time revalidation 和 Runtime-derived Skill availability 都有 source-built Gate。Codex/Luna 仍必须按 [Codex Geometry V2 工作流](CODEX_GEOMETRY_V2_WORKFLOW.md) 只以 JSON/BIN/accessor readback 判定结构硬门；未通过或未运行时不 confirm。
 
-本次已运行 MCP010B structural Gate 作为 C 前置事实；C 新增的 `script/test_mcp010c.sh` 已通过 59-contract checker、Worker renderer、Runtime candidate-bound review unit、MCP existing suite、raw stdio compare/review/image-block/determinism Gate。除 synthetic receipt 外，首次真实用户 robot PNG 也在隔离临时 CAS 完成九 AOV/compare/review transport，结果为 `QUALITY_TARGET_NOT_MET`，未确认 candidate、未写入用户持久数据；Viewer compare、packaged C、独立人评、PBR/纹理、export/restart hash 和 HQ_360保持 `NOT_RUN/BLOCKED`。
+本次已运行 MCP010B structural Gate 作为 C 前置事实；C 新增的 `script/test_mcp010c.sh` 已通过 59-contract checker、Worker renderer、Runtime candidate-bound review unit、MCP existing suite、raw stdio compare/review/image-block/determinism Gate。真实 Codex CLI C 还在同 cohort 隔离 Runtime 中完成六 turn/32 MCP 调用，证据见 `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json`；真实机器人结果为 `QUALITY_TARGET_NOT_MET`，未确认 candidate、未写入用户持久数据。Viewer compare source implementation 已通过本地 IPC/构建测试；packaged/current-cohort Viewer/C、独立人评、PBR/纹理、export/restart hash 和 HQ_360保持 `NOT_RUN/BLOCKED`。
 
 ### 当前 MCP010B 的 V2 authoring 已补齐，但任务未完成
 

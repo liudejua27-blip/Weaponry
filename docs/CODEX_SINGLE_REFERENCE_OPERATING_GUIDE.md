@@ -102,6 +102,37 @@ MCP010C 首次真实机器人参考运行已经完成固定渲染/比较/typed r
 
 用户重启后的 d9 Dev.app 又完成了一次隔离真实 Codex CLI 结构演练：同一授权 PNG 经过 `project_create → reference_import → reference_get → capabilities_get → operator_catalog_get → geometry_program_hash → geometry_prepare(reference_id) → job_get → candidate_get → artifact_readback_get → quality_get(reference_id)`，MCP/Runtime/Worker cohort 完全一致；`reference_get`、`candidate_get`、`quality_get.reference_compare.reference_id` 都与导入的 reference_id/项目一致，Job 为 succeeded/100%。输出 12 Parts、896 triangles、161104-byte 自包含 GLB，`chest-shell` 保留 `chest-shell → chest-panel` 有序来源。候选未确认，未触碰正式用户数据；该 receipt 仍只证明结构回读和参考绑定，不证明参考相似度、PBR、人工评分或 360°，证据见 `docs/evidence/mcp010b/dev-app-primitive-knowledge-codex-cli-v2-reference-bound-readbacks.json`。
 
+### 5.2 MCP010C 真实 Codex CLI 固定渲染路线
+
+要验证 Codex 是否真正能驱动 C 的视觉工具链，使用仓库内的 `scripts/probe_mcp010c_codex_cli.py`，不要手写另一套本地 JSON-RPC 或在 Codex 端计算 GeometryProgram hash。探针要求同一 cohort 的 `forgecad-mcp`、`forgecad-runtime` 和 sibling `forgecad-geometry-worker`，并把 Runtime 数据写入临时目录：
+
+```text
+project_create → reference_import → reference_get
+→ capabilities_get → runtime_status → doctor → operator_catalog_get → skill_list
+→ geometry_program_hash → geometry_prepare → job_get → candidate_get → artifact_readback_get
+→ reference_compare_prepare → render_pass_get × 9
+→ visual_review_submit → quality_get
+```
+
+真实运行 receipt 必须同时记录：参考 SHA、catalog/program/candidate/artifact/render/comparison hash、九个 AOV 顺序、Codex turn 数、ForgeCAD MCP 调用数、质量指标和 `QUALITY_TARGET_NOT_MET`（若未达门槛）。`render_pass_get` 返回的 PNG image block 不复制进 receipt；原图路径、图片字节、prompt、token、socket、用户绝对路径都不得写入证据。
+
+探针默认使用 Codex 的 MCP 自动审批工作区，并把非 MCP 事件脱敏分类；只读 `.codex/.../SKILL.md` 查阅可以记录为 `codex_skill_read_only`，任何文件变更、网络命令或未知命令都必须使 receipt 保持 `BLOCKED`。若只测试 read-only 边界，可显式传 `--sandbox read-only`，但该模式不能完成需要写入 Candidate/RenderSet/Review 的完整 C 路线。
+
+2026-08-11 的真实 CLI C receipt `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json` 已完成六个短 turn、32 个 ForgeCAD MCP 调用、27 个 semantic Parts、4100 triangles 和九 AOV；它证明“Codex 能真实调用 C 工具链”，但同一用户机器人参考的 silhouette IoU `0.5132`、boundary F1 `0.1441` 仍低于视觉门槛，因此不能称为高质量模型，也不能自动确认或导出 candidate。
+
+### 5.3 Viewer 只读比较路线
+
+完成 `reference_compare_prepare` 后，Viewer 会通过 authenticated local IPC 读取同一 candidate 的 visual evidence，再按需读取参考图和一个 AOV；它不启动 Runtime、不直接打开 SQLite/CAS，也不写 candidate/version。当前源码支持：
+
+```text
+viewer_read_model
+→ viewer_visual_evidence(candidate_id)
+→ viewer_reference_bytes(reference_id, project_id)
+→ viewer_render_pass(render_set_hash, pass)
+```
+
+界面提供 `split`、`overlay`、`flicker` 三种临时比较方式、九个固定 AOV 标签、camera-lock 状态、质量指标和 reference/render/hash 摘要。参考图和 PNG 仍由 Runtime 校验 project/reference/hash 后才返回；缺失或不一致时 Viewer 显示 unavailable，不从本机路径补读。当前 source implementation 已通过 Runtime/Viewer Rust 测试、Tauri check、TypeScript typecheck 和前端构建；Part/MaterialZone 隔离、explosion/heatmap 以及 packaged/current-cohort Viewer E2E 尚未通过，不能写成 Viewer PASS。
+
 兼容材质基线也已实际运行：V1 `AppearanceProgram@1` 生成 15 Parts、548 triangles、三种 material zone 和四个 256x256 fixed-render metadata pass，ArtifactReadback@1 的 UV/tangent/validator 均通过；但 limited aspect proxy 为 `0.4662 < 0.55`，Runtime 将候选拒绝。它证明的是材质 plumbing 和回读，不是 V2 PBR、纹理质量或视觉相似度；证据见 [`real-reference-v1-appearance-baseline.json`](evidence/mcp010b/real-reference-v1-appearance-baseline.json)。
 
 ### 5.1 现有 MVP 的完整 appearance/export 路线

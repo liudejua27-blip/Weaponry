@@ -14,3 +14,28 @@ h1, h2, p { margin-top: 0; } h1 { margin-bottom: 8px; font-size: clamp(28px, 4vw
 .glb-canvas { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 570px; } .viewport-message { position: relative; z-index: 2; display: grid; justify-items: center; gap: 9px; color: #aab9c8; text-align: center; pointer-events: none; } .viewport-message strong { color: #e4ebf4; font-size: 17px; } .viewport-message span:last-child { color: #75889b; font-size: 12px; } .viewport-icon { display: grid; width: 58px; height: 58px; place-items: center; margin-bottom: 6px; border: 1px solid #40617c; border-radius: 18px; color: #78b2df; background: rgba(33, 66, 94, .35); font-size: 32px; }
 .runtime-panel { padding: 22px 21px; } .panel-section { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid #1e2b3a; } .panel-section:last-child { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; } .panel-copy { margin-bottom: 0; font-size: 13px; } .capability-list { display: grid; gap: 12px; } .capability-row { display: grid; gap: 4px; padding: 11px 12px; border: 1px solid #213448; border-radius: 10px; background: #111c29; } .capability-row span { color: #73879b; font-size: 11px; } .capability-row strong { color: #d6e1ec; font-size: 12px; font-weight: 600; line-height: 1.45; } .panel-note { padding: 14px; border: 1px solid #2a3d4c; border-radius: 10px; background: rgba(19, 40, 53, .36); }
 @media (max-width: 1100px) { body { min-width: 0; } .runtime-shell { padding: 24px; } .runtime-header { align-items: flex-start; flex-direction: column; } .runtime-grid { grid-template-columns: 1fr; } .runtime-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; } .panel-section { margin-bottom: 0; } .panel-section:last-child { grid-column: 1 / -1; } }
+.compare-panel { padding: 22px 17px 18px; border-top: 1px solid #1c2937; background: rgba(8, 14, 22, .86); }
+.compare-header, .compare-toolbar, .compare-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.compare-header h2 { margin-bottom: 0; }
+.compare-status { display: inline-flex; align-items: center; gap: 7px; color: #d1b77f; font-size: 12px; }
+.quality-dot { width: 8px; height: 8px; border-radius: 50%; background: #d1a45f; box-shadow: 0 0 12px rgba(209, 164, 95, .45); }
+.quality-dot-pass { background: #61c79a; box-shadow: 0 0 12px rgba(97, 199, 154, .45); }
+.compare-toolbar { align-items: flex-start; flex-direction: column; margin: 17px 0 12px; }
+.aov-tabs, .mode-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.aov-tab, .mode-tab { border: 1px solid #263b4d; border-radius: 999px; padding: 6px 9px; color: #8399ad; background: #101b27; font: inherit; font-size: 11px; cursor: pointer; }
+.aov-tab:hover, .mode-tab:hover, .aov-tab-active, .mode-tab-active { border-color: #5a91ba; color: #e3f0fb; background: #1b3448; }
+.compare-stage { position: relative; display: grid; min-height: 300px; overflow: hidden; border: 1px solid #1f3445; border-radius: 12px; background: #060a10; }
+.compare-split { grid-template-columns: 1fr 1fr; }
+.compare-overlay, .compare-flicker { grid-template-columns: 1fr; }
+.compare-pane { position: relative; min-height: 300px; overflow: hidden; background: #0b1119; }
+.compare-overlay .compare-pane, .compare-flicker .compare-pane { position: absolute; inset: 0; }
+.compare-pane span { position: absolute; z-index: 2; top: 9px; left: 10px; padding: 4px 7px; border: 1px solid rgba(137, 177, 205, .32); border-radius: 5px; color: #b9d4e8; background: rgba(9, 16, 24, .72); font-size: 10px; letter-spacing: .08em; }
+.compare-pane img { display: block; width: 100%; height: 100%; min-height: 300px; object-fit: contain; }
+.compare-overlay .compare-reference img { opacity: .45; }
+.compare-overlay .compare-render img { opacity: .6; mix-blend-mode: screen; }
+.compare-empty { display: grid; place-items: center; min-height: 300px; padding: 30px; color: #70869a; font-size: 12px; text-align: center; }
+.compare-footer { justify-content: flex-start; flex-wrap: wrap; margin-top: 10px; color: #677f93; font-size: 11px; }
+.quality-summary { display: grid; gap: 8px; }
+.quality-summary > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid #1f3344; border-radius: 8px; background: #101b27; }
+.quality-summary span { color: #71879a; font-size: 11px; }
+.quality-summary strong { color: #d7e5ef; font-size: 11px; text-align: right; }

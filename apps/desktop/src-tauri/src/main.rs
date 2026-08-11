@@ -12,6 +12,21 @@ fn viewer_artifact_bytes(artifact_id: String, candidate_id: String) -> serde_jso
     viewer::read_artifact_bytes(&artifact_id, &candidate_id)
 }
 
+#[tauri::command]
+fn viewer_reference_bytes(reference_id: String, project_id: String) -> serde_json::Value {
+    viewer::read_reference_bytes(&reference_id, &project_id)
+}
+
+#[tauri::command]
+fn viewer_render_pass(render_set_hash: String, pass: String) -> serde_json::Value {
+    viewer::read_render_pass(&render_set_hash, &pass)
+}
+
+#[tauri::command]
+fn viewer_visual_evidence(candidate_id: String) -> serde_json::Value {
+    viewer::read_visual_evidence(&candidate_id)
+}
+
 fn main() {
     if std::env::args().any(|argument| argument == "--build-identity") {
         println!(
@@ -35,7 +50,10 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             viewer_read_model,
-            viewer_artifact_bytes
+            viewer_artifact_bytes,
+            viewer_reference_bytes,
+            viewer_render_pass,
+            viewer_visual_evidence
         ])
         .run(tauri::generate_context!())
         .expect("failed to run ForgeCAD Runtime Viewer");

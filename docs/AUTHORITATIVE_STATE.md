@@ -1,7 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
 版本：2026-08-10
-状态：MCP005–009 functional truth 已实现；FGC-MCP010A done；MCP010B structural truth source Gate 已通过但 Darwin OS memory hard cap deferred/NOT_RUN；MCP010C source-focused renderer/compare/review Gate 已通过，首次真实机器人 compare/review transport 已运行但 likeness threshold `FAIL_QUALITY_TARGET_NOT_MET`，Viewer/package/人评门仍 NOT_RUN/BLOCKED；MCP010D–F blocked
+状态：MCP005–009 functional truth 已实现；FGC-MCP010A done；MCP010B structural truth source Gate 已通过但 Darwin OS memory hard cap deferred/NOT_RUN；MCP010C source-focused renderer/compare/review Gate 已通过，首次真实机器人 compare/review transport 已运行但 likeness threshold `FAIL_QUALITY_TARGET_NOT_MET`；Viewer compare source implementation 已通过本地构建/IPC 测试，但 Viewer/package/人评门仍 NOT_RUN/BLOCKED；MCP010D–F blocked
 
 ## 1. 真值层级
 
@@ -19,9 +19,9 @@ MVP 具体规则：Reference truth 是 CAS 原始字节 + `ReferenceEvidence`，
 
 ### 1.1 MCP010 当前与目标真值
 
-MCP010B 当前源码增加 8 个合同，MCP010C 再增加 7 个合同，当前共 59 个 JSON Schema（MCP006 历史为 44）。B 的 `GeometryProgram@2`/strict readback/restore evidence source Gate 已通过；Darwin 512 MiB OS memory hard cap 仍 deferred/NOT_RUN。C 的 `ReferenceViewSpec@1`、`CameraCalibration@1`、`RenderSet@2`、`ReferenceComparisonReport@1`、`VisualReviewReport@1`、`HumanVisualReviewReceipt@1`、`QualityReport@2` 已由 Runtime/MCP producer/consumer 使用；固定 512×512 perspective/z-buffer renderer、九 AOV、local mask/metrics、MCP image block 和 Codex/human review 的 source raw Gate 已通过。首次真实机器人 PNG 运行也完成九 AOV/compare/review transport，但 primitive blockout 的 likeness threshold 未通过；脱敏证据见 `docs/evidence/mcp010c/real-reference-robot.json`。MCP010A/010B 的历史 Dev.app receipts仍原样保留，不能替代 C packaged/live/Viewer evidence。C synthetic/raw 和本次真实 transport receipt 都不证明用户机器人 likeness、PBR、独立人评或 360°。
+MCP010B 当前源码增加 8 个合同，MCP010C 再增加 7 个合同，当前共 59 个 JSON Schema（MCP006 历史为 44）。B 的 `GeometryProgram@2`/strict readback/restore evidence source Gate 已通过；Darwin 512 MiB OS memory hard cap 仍 deferred/NOT_RUN。C 的 `ReferenceViewSpec@1`、`CameraCalibration@1`、`RenderSet@2`、`ReferenceComparisonReport@1`、`VisualReviewReport@1`、`HumanVisualReviewReceipt@1`、`QualityReport@2` 已由 Runtime/MCP producer/consumer 使用；固定 512×512 perspective/z-buffer renderer、九 AOV、local mask/metrics、MCP image block 和 Codex/human review 的 source raw Gate 已通过，真实 Codex CLI 也完成六 turn/32-call C transport。真实机器人 PNG 的 likeness threshold 未通过；脱敏证据见 `docs/evidence/mcp010c/real-reference-robot.json` 与 `real-codex-cli-c-attempt13.json`。MCP010A/010B 的历史 Dev.app receipts仍原样保留，不能替代 C packaged/live/Viewer evidence。C synthetic/raw/CLI transport receipt 都不证明用户机器人 likeness、PBR、独立人评或 360°。
 
-`AppearanceProgram@2`、PBR V2/纹理、Viewer compare/selection/explosion 和 first-party AssetPack 仍属于 MCP010D–F。C 的 RenderSet@2/比较/评审已进入 Runtime-owned producer、CAS artifact、严格 readback、固定 render、QualityReport 和 evidence lineage；但 source raw Gate 使用 synthetic reference，仅证明合同与绑定。当前 Runtime Skill registry 的 11 项中，只有 `primitive-blockout@0.2.0` 因 primitive@2 真实 consumer 被标为 active；这不产生材质、纹理、PBR 或视觉相似度。Darwin 512 MiB OS memory hard cap、人评阈值、Viewer/package/live C 和 360 更不能由结构 PASS 推导。
+`AppearanceProgram@2`、PBR V2/纹理、Viewer 的 Part/MaterialZone/selection/explosion/heatmap、packaged E2E 和 first-party AssetPack 仍属于 MCP010D–F。C 的 RenderSet@2/比较/评审已进入 Runtime-owned producer、CAS artifact、严格 readback、固定 render、QualityReport 和 evidence lineage；Viewer compare source implementation 已通过本地 IPC/构建测试，但不等于 packaged/live Viewer Gate。当前 Runtime Skill registry 的 11 项中，只有 `primitive-blockout@0.2.0` 因 primitive@2 真实 consumer 被标为 active；这不产生材质、纹理、PBR 或视觉相似度。Darwin 512 MiB OS memory hard cap、人评阈值、Viewer/package/live C 和 360 更不能由结构 PASS 推导。
 
 最新 `d9c23b…ac0bd` 开发包记录了 Bundle 知识分支的校正：`limited` 只阻断视觉质量声明，`STRUCTURAL_BLOCKOUT` 仍需用户明确选择并经过相同 Runtime geometry/readback/approval 硬门。该包的 isolated raw/real-Codex V2 structural 通过；用户完整重启后它已成为当前 live Desktop cohort，并完成 32 工具、Ready/doctor、cohort/catalog/hash 与项目只读回读结构激活。
 
