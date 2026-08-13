@@ -1,7 +1,7 @@
 # ForgeCAD Runtime Schema 规范
 
-版本：2026-08-09
-状态：MCP005–MCP009 functional core 已落地；MCP006 历史 receipt 为 44 个 JSON Schema；MCP010B subtotal 为 52、MCP010C subtotal 为 59、MCP010E 新增 6 个、MCP010F 新增 13 个，当前源合同总数为 78。唯一 `in_progress` 为 `FGC-MCP010F`；历史 package/live receipt 仍按 cohort 单独保存。
+版本：2026-08-13
+状态：MCP005–MCP009 functional core 已落地；MCP006 历史 receipt 为 44 个 JSON Schema；MCP010B subtotal 为 52、MCP010C subtotal 为 59、MCP010E 新增 6 个、MCP010F 新增 13 个，当前源合同总数为 78。唯一 `in_progress` 为 `FGC-MCP010F`；历史 package/live receipt 仍按 cohort 单独保存。ADR-0026 的 DesignSession/SemanticSceneGraph/ReferenceCanvas/Critic 合同仍为目标设计，不计入 78。
 
 Stage 0 机器真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`；当前源码口径同时固定为 78 Schema、29 read + 18 opt-in write = 47，并绑定 78 个 Schema 文件内容集合哈希。attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`，packaged Viewer binding 为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`。Schema/producer 已实现不能补齐缺失 receipt 字段，也不能越过 PBR likeness、正式真人、export/restart 或 360 门。
 
@@ -54,6 +54,24 @@ MCP006 已加入 `ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`Ski
 工具 request/result Schema 随各自 producer 同任务增加；实际 manifest 数量只能从目录和 contract manifest 计算，不能把上表简单相加后提前写成当前总数。`@1` 历史版本继续只读，破坏性变化不得回填旧对象。
 
 当前 high-quality contract path 固定为 `GeometryProgram@2` detail → `ArtifactReadback@2` strict readback → `AppearanceProgram@2`（受前序门控制）→ `RenderSet@2` 九 AOV → `ReferenceComparisonReport@1` strict compare → `VisualReviewReport@1` / `QualityReport@2`。`[transition-v1]` `GeometryProgram@1` primitive-only、`AppearanceProgram@1` 与 `RenderSet@1` 四 pass 只属于历史兼容，不得提升为当前 high-quality contract path。
+
+## 2.3 ADR-0026 目标合同（未实现，不计入当前 manifest）
+
+| 目标合同 | 用途 | 激活条件 |
+|---|---|---|
+| `DesignSession@1` | 当前设计会话、stage、candidate/checkpoint binding、失败门 | Runtime producer、MCP read surface、negative tests 和真实 Codex evidence |
+| `DesignCheckpoint@1` | stage checkpoint、rollback/restore intent、candidate/version refs | 不移动 confirmed head；必须绑定 CAS/quality hash |
+| `DesignStagePlan@1` | 当前允许动作、禁止动作、下一步单 Part/MaterialZone intent | 只读工具先行；不得创建 geometry |
+| `ReferenceCanvas@1` | multi-view reference coverage、observed/inferred/unknown、camera claims | 绑定 `ReferenceEvidence` CAS hash；缺视图阻断 360 |
+| `DesignSpec@1` | category/style/primary forms/semantic parts/material language/stage criteria | Codex 生成草案，Runtime 校验范围和 hash |
+| `SemanticSceneGraph@1` | part tree、role、dimensions、symmetry、source map、editability | 从 candidate/readback/source map 派生 |
+| `ModelUnderstandingBundle@1` | SceneGraph + geometry stats + material zones + cameras + AOV/quality evidence + uncertainty | `scene_observe_get` producer 完成后才可用 |
+| `VisualEvidenceBundle@1` | multi-view AOV、metrics、failed gate、hash-only manifest | 不保存原图路径或截图作为版本真值 |
+| `DesignCriticReport@1` | evidence-bound issue、metric、threshold、part/material target | Codex typed critic 或 deterministic critic 输出，必须引用 evidence hash |
+| `RepairIntent@1` | bounded single-Part/MaterialZone repair proposal | 只能进入 prepare/recompile/readback/compare；不得直接写版本 |
+| `ParametricDesignKitManifest@1` | Housing/Panel/Vent/Joint/Sensor/Frame 等 macro catalog | 每个 macro 展开为 typed Geometry/Appearance program，并有 validator/benchmark |
+
+新增这些合同前必须更新 contract manifest、Schema checker、producer/consumer tests、MCP tool docs、Viewer docs 和 evidence；不能只创建空 Schema。
 
 `GeometryPrepareResult@2` 是闭合的短生命周期 MCP 返回，只包含 candidate、job、operator catalog 与 `ArtifactReadback@2`；它不应额外暴露持久 evidence。`GeometryQualityReport@2` 只表示 strict hard gate 已通过的 quality CAS receipt，失败走 typed rejection 而不是伪造 `hard_gate_passed=false` 的该 Schema。`GeometryCandidateEvidence@1` 是 Runtime/Store 的 candidate-bound durable provenance：它绑定 program、artifact、readback、quality、catalog/readback-config 和可选 reference hash，并由 confirm/restore reread 使用。当前 source-focused PASS 不等于新的安装包、Desktop live、PBR、reference similarity、human review 或 360°证据。
 

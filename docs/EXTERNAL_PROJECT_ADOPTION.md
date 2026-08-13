@@ -1,7 +1,7 @@
 # 外部项目、Blender 与 GitHub 采用清单
 
-版本：2026-08-12
-状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 已以受限 Worker Library 进入 Cargo.lock；xatlas、Manifold、Khronos Validator 和其他第三方仍未进入产品真值
+版本：2026-08-13
+状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 已以受限 Worker Library 进入 Cargo.lock；xatlas、Manifold、Khronos Validator 和其他第三方仍未进入产品真值。ADR-0026 新增 Pi Agent、Omniverse Kit、OpenUSD、FreeCAD、build123d/CadQuery、BlenderMCP、Trimesh、MaterialX、TRELLIS.2/Hunyuan3D 的研究边界；除既有 `mikktspace@0.3.0` 外均未 adopted。
 
 ## 1. 采用规则
 
@@ -56,7 +56,10 @@ ForgeCAD 已把这些原则映射到自己的边界：`GeometryProgram@2`/semant
 | [truck](https://github.com/ricosjp/truck) | Rust B-rep/NURBS CAD kernel | benchmark-first；能力和依赖面超过首个 mesh vertical slice |
 | [Parry](https://github.com/dimforge/parry) | collision/query | deferred；MCP010F 可先用 product-owned bbox explosion，采用 Parry 仍需独立 receipt |
 | OpenImageIO/OpenEXR/OpenCV/Embree/Filament/KTX/Basis | 高级图像、AOV、renderer、压缩 | deferred；包体/codec/插件/第二 renderer 风险 |
-| OpenUSD | 场景交换 | post-MVP reference；不进入 V1 真值 |
+| [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD) | scene graph、layer、variant、reference、交换 | reference-only / post-MVP benchmark；只学习 SemanticSceneGraph/ReferenceCanvas 思想，不进入 V1 真值 |
+| [Trimesh](https://github.com/mikedh/trimesh) | mesh analysis/repair/test reference | deferred / dev-reference；Python 库不进入 Runtime 真值，未来只能做离线验证或隔离工具 |
+| [NVIDIA Omniverse Kit](https://docs.omniverse.nvidia.com/dev-guide/latest/kit-architecture.html) | extension/app composition、headless/UI split、USD-based workbench architecture | reference-only；不引入 Kit SDK、Carbonite、USD runtime 或插件系统 |
+| Pi Agent | minimal linear agent harness、skills/extensions/prompt templates | reference-only；只学习 harness 形态，不把 Pi runtime 变成产品状态或 P0 dependency |
 
 ## 4. Reference-only / rejected 项目
 
@@ -65,8 +68,9 @@ ForgeCAD 已把这些原则映射到自己的边界：`GeometryProgram@2`/semant
 | [Blender](https://github.com/blender/blender) | Data-block、Modifier/Geometry Nodes、Principled、UV/Bake、AOV、OCIO、Asset Browser、Outliner | reference-only；GPL 分发边界、任意 Python、`.blend` 不能成为产品真值 |
 | [BlenderMCP](https://github.com/ahujasid/blender-mcp) | DCC tool choreography | rejected for MVP；可执行任意 Blender Python、socket/网络资产，已公开报告 unrestricted `exec()` 风险 |
 | [img2css](https://github.com/javierbyte/img2css) | 像素采样、颜色/轮廓预览和轻量 reference visualizer 思想 | BSD-3-Clause；CSS box-shadow/base64 输出只用于离线预览，不能进入 GeometryProgram、不能执行任意 JS/HTML |
-| [build123d](https://github.com/gumyr/build123d) / [CadQuery](https://github.com/CadQuery/cadquery) / FreeCAD MCP | MCP 工具粒度、CAD 操作暴露 | reference-only；任意 Python/文件/OS 与工程 CAD 状态边界不匹配 |
-| TripoSR/Hunyuan3D/其他 image-to-3D | benchmark、候选导入合同 | rejected for MVP；不内置权重/GPU/远程 3D Provider，未来另立 ADR |
+| [FreeCAD](https://github.com/FreeCAD/FreeCAD) / FreeCAD MCP | Document、transaction、parametric recompute、workbench/undo | reference-only；不接入 FreeCAD MCP，不把工程 CAD 状态、任意 Python 或文件系统暴露给 Runtime |
+| [build123d](https://github.com/gumyr/build123d) / [CadQuery](https://github.com/CadQuery/cadquery) | AI 友好的参数化 CAD API、OCCT/BREP modeling style | reference-only；当前只映射为 Parametric Design Kit typed JSON macro，不执行任意 Python/CadQuery script |
+| TripoSR / [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) / [Hunyuan3D](https://github.com/tencent-hunyuan/hunyuan3d-2.1) / 其他 image-to-3D | draft mesh、候选导入合同、PBR draft research | rejected for MVP / future opt-in research；不内置权重/GPU/远程 3D Provider，不能直接 confirm/export，未来另立 ADR |
 
 Reference only 必须保存研究链接和自研设计理由，但不复制源文件、提示词包或素材。
 
