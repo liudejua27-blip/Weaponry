@@ -1,7 +1,7 @@
 # ForgeCAD Codex-only MCP Runtime 设计
 
-版本：2026-08-09
-状态：单用户 MVP 架构；MCP001–009 Runtime/MCP/Worker/Viewer functional core 已实现，真实 Codex/视觉/packaged gates 单独保留
+版本：2026-08-13
+状态：单用户 MVP 架构；MCP001–009 Runtime/MCP/Worker/Viewer functional core 已实现，真实 Codex/视觉/packaged gates 单独保留。ADR-0026 的 Agentic Design Runtime 目标模块见 `ARCHITECTURE_MODULE_BOUNDARY.md`，尚未改变当前实现。
 
 ## 1. 系统上下文
 
@@ -23,6 +23,8 @@ Codex 拥有对话、推理、图片理解和编排；ForgeCAD 拥有产品状�
 
 Codex IDE/VS Code/Cursor/Windsurf 的 MCP 兼容代码可以保留为未来宿主适配，但不是当前 P0 产品链路、安装要求或 MCP003/MCP004 发布阻断。
 
+后续高质量路线按 ADR-0026 增加 DesignSession、SemanticSceneGraph、ReferenceCanvas、Visual Evidence Bundle、Critic/Repair 和 Parametric Design Kit。它们必须遵守本文件的单写者和 typed contract 规则；完整模块边界和废弃隔离规则分别见 `ARCHITECTURE_MODULE_BOUNDARY.md`、`DEPRECATED_ISOLATION_PLAN.md`。
+
 ## 2. 模块与所有权
 
 | 模块 | 唯一责任 | 明确禁止 |
@@ -37,6 +39,9 @@ Codex IDE/VS Code/Cursor/Windsurf 的 MCP 兼容代码可以保留为未来宿�
 | `blender-worker` | 可选固定 bake/render recipe | 任意 Python/addon/.blend 真值 |
 | Runtime Viewer | 查看、选择、隔离、临时爆炸 | 聊天、上传、Provider、永久编辑 |
 | Skill Registry | Bundle 验证、启用、撤销 | 直接执行未注册代码 |
+| DesignSession（目标） | stage/checkpoint/失败门/下一步允许动作 | 替代 Runtime candidate/version 或直接写几何 |
+| SemanticSceneGraph（目标） | 从 readback/render/quality 派生语义场景 | Codex 本地猜测或成为第二版本真值 |
+| Parametric Design Kit（目标） | 将设计 intent 展开为 bounded typed program | 任意 Python/CAD 脚本、外部插件直接执行 |
 
 依赖方向：`Viewer/MCP → Runtime → Core/Store → Contracts`。Worker 依赖 Contracts 和经审查的算法子集。禁止 Store、Worker、Viewer、MCP 绕过 Runtime 写项目。
 
