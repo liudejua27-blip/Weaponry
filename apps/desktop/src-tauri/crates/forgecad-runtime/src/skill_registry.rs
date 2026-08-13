@@ -53,15 +53,24 @@ static EMBEDDED_BUNDLE_ARCHIVE: OnceLock<Result<BundleArchive, String>> = OnceLo
 // This is intentionally a catalog of semantic executors, not a list of MCP
 // tool names or a trust declaration from a Skill Bundle.  A lock entry joins
 // this list only when the product-owned Worker/Runtime accepts and executes
-// that exact typed operator contract.  In MCP010B the only matching @1
-// operators are the bounded primitive compilers.  In particular, the legacy
-// `transform@1` spelling is not listed: GeometryProgram@1 does not model real
-// graph inputs for it, so treating its compatibility parser as an executor
-// would falsely activate a Skill.  The V2 compiler is the current authoring
-// path and is intentionally the only active V2 Skill operator.
+// that exact typed operator contract.  MCP010D adds bounded hard-surface
+// operators; legacy spellings remain omitted because a compatibility parser
+// is not evidence that a real graph operator exists.
 const EXECUTABLE_OPERATOR_IDS: &[&str] = &[
     "forgecad.geometry.primitive@1",
     "forgecad.geometry.primitive@2",
+    "forgecad.geometry.profile-extrude@1",
+    "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.revolve@1",
+    "forgecad.geometry.tube-sweep@1",
+    "forgecad.geometry.transform@2",
+    "forgecad.geometry.mirror@1",
+    "forgecad.geometry.array@1",
+    "forgecad.geometry.panel@1",
+    "forgecad.geometry.vent-array@1",
+    "forgecad.geometry.joint-stack@1",
+    "forgecad.geometry.part-output@1",
+    "forgecad.appearance.offline-pbr@1",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1116,7 +1125,11 @@ mod tests {
         assert_eq!(first, second);
         assert!(first
             .iter()
-            .filter(|skill| skill.skill_id != "primitive-blockout")
+            .filter(|skill| {
+                skill.skill_id != "primitive-blockout"
+                    && skill.skill_id != "hard-surface-detail"
+                    && skill.skill_id != "uv-pbr"
+            })
             .all(|skill| {
                 skill.publisher == "forgecad-first-party"
                     && skill.status == "development-only"
@@ -1136,6 +1149,26 @@ mod tests {
             SkillExecutionAvailability::Active
         );
         assert!(primitive.missing_operator_ids.is_empty());
+        let hard_surface = first
+            .iter()
+            .find(|skill| skill.skill_id == "hard-surface-detail")
+            .expect("hard surface detail skill");
+        assert_eq!(hard_surface.version, "0.2.0");
+        assert_eq!(
+            hard_surface.execution_availability,
+            SkillExecutionAvailability::Active
+        );
+        assert!(hard_surface.missing_operator_ids.is_empty());
+        let uv_pbr = first
+            .iter()
+            .find(|skill| skill.skill_id == "uv-pbr")
+            .expect("uv-pbr skill");
+        assert_eq!(uv_pbr.version, "0.2.0");
+        assert_eq!(
+            uv_pbr.execution_availability,
+            SkillExecutionAvailability::Active
+        );
+        assert!(uv_pbr.missing_operator_ids.is_empty());
     }
 
     #[test]
@@ -1151,10 +1184,7 @@ mod tests {
         );
         assert_eq!(
             silhouette.missing_operator_ids,
-            vec![
-                "forgecad.geometry.transform@1".to_owned(),
-                "forgecad.geometry.mirror@1".to_owned(),
-            ]
+            vec!["forgecad.geometry.transform@1".to_owned()]
         );
 
         let reference_intake = skills

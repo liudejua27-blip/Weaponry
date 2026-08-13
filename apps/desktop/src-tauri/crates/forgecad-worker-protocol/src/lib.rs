@@ -3,10 +3,16 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 pub const WORKER_PROTOCOL: &str = "forgecad-worker-protocol@1";
-/// The isolated Worker accepts a single bounded JSON request. The product
-/// programs are far smaller than this; the limit exists to keep malformed
-/// pipe input from becoming an unbounded allocation.
-pub const MAX_WORKER_REQUEST_BYTES: usize = 1 * 1024 * 1024;
+pub const MATERIAL_PACK_ID: &str = "forgecad-hard-surface-robot";
+const MATERIAL_PACK_MANIFEST_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../../..//packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/manifest.json"
+));
+/// The isolated Worker accepts a single bounded JSON request. Geometry
+/// programs are small, but `render_glb` carries the self-contained candidate
+/// (including up to 64 MiB of embedded PNGs) as base64. Keep the framing
+/// bounded while leaving room for that documented product maximum.
+pub const MAX_WORKER_REQUEST_BYTES: usize = 96 * 1024 * 1024;
 /// A 64 MiB GLB is base64 encoded in the internal response, so the response
 /// envelope needs modest headroom while still being decisively bounded.
 pub const MAX_WORKER_RESPONSE_BYTES: usize = 96 * 1024 * 1024;
@@ -45,20 +51,31 @@ pub struct WorkerError {
 /// The catalog is shared protocol data rather than a Runtime-owned mirror of
 /// executable Worker state. The Worker validates against this closed value and
 /// the Runtime exposes the exact same canonical JSON through its read path.
+///
+/// MCP010D deliberately keeps boolean unavailable until the isolated Manifold
+/// adoption receipt exists. The procedural profile, transform and hard-surface
+/// macro operators below are product-owned and active; no arbitrary script or
+/// plugin can add an operator at runtime.
 pub fn operator_catalog() -> Value {
     let mut catalog = json!({
         "schema_version":"OperatorCatalog@1",
-        "catalog_id":"forgecad-mcp010b-primitives",
+        "catalog_id":"forgecad-mcp010d-hard-surface",
         "geometry_program_schema_version":"GeometryProgram@2",
-        "operators":[{
-            "operator_id":"forgecad.geometry.primitive@2",
-            "status":"active",
-            "input_arity":{"min":0,"max":0},
-            "output_kind":"triangle-mesh",
-            "parameter_schema":"GeometryPrimitiveParameters@2",
-            "part_output_required":true,
-            "supported_shapes":["box","cylinder","ellipsoid","sphere"]
-        }],
+        "operators":[
+            {"operator_id":"forgecad.geometry.primitive@2","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"GeometryPrimitiveParameters@2","part_output_required":true,"supported_shapes":["box","cylinder","ellipsoid","sphere"]},
+            {"operator_id":"forgecad.geometry.profile-extrude@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"ProfileExtrudeParameters@1","part_output_required":true,"supported_shapes":["profile-extrude"]},
+            {"operator_id":"forgecad.geometry.profile-loft@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"ProfileLoftParameters@1","part_output_required":true,"supported_shapes":["profile-loft"]},
+            {"operator_id":"forgecad.geometry.revolve@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"RevolveParameters@1","part_output_required":true,"supported_shapes":["revolve"]},
+            {"operator_id":"forgecad.geometry.tube-sweep@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"TubeSweepParameters@1","part_output_required":true,"supported_shapes":["tube-sweep"]},
+            {"operator_id":"forgecad.geometry.transform@2","status":"active","input_arity":{"min":1,"max":1},"output_kind":"triangle-mesh","parameter_schema":"TransformParameters@2","part_output_required":true,"supported_shapes":["transform"]},
+            {"operator_id":"forgecad.geometry.mirror@1","status":"active","input_arity":{"min":1,"max":1},"output_kind":"triangle-mesh","parameter_schema":"MirrorParameters@1","part_output_required":true,"supported_shapes":["mirror"]},
+            {"operator_id":"forgecad.geometry.array@1","status":"active","input_arity":{"min":1,"max":1},"output_kind":"triangle-mesh","parameter_schema":"ArrayParameters@1","part_output_required":true,"supported_shapes":["array"]},
+            {"operator_id":"forgecad.geometry.panel@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"PanelParameters@1","part_output_required":true,"supported_shapes":["panel"]},
+            {"operator_id":"forgecad.geometry.vent-array@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"VentArrayParameters@1","part_output_required":true,"supported_shapes":["vent-array"]},
+            {"operator_id":"forgecad.geometry.joint-stack@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"JointStackParameters@1","part_output_required":true,"supported_shapes":["joint-stack"]},
+            {"operator_id":"forgecad.geometry.part-output@1","status":"active","input_arity":{"min":1,"max":64},"output_kind":"triangle-mesh","parameter_schema":"PartOutputParameters@1","part_output_required":true,"supported_shapes":["part-output"]},
+            {"operator_id":"forgecad.geometry.boolean@1","status":"unavailable","input_arity":{"min":2,"max":2},"output_kind":"triangle-mesh","parameter_schema":"BooleanParameters@1","part_output_required":true,"supported_shapes":["union","difference"]}
+        ],
         "canonical_sha256":""
     });
     let mut without_hash = catalog
@@ -77,6 +94,35 @@ pub fn operator_catalog_sha256() -> String {
         .to_owned()
 }
 
+/// Runtime-owned read-only material manifest.  The manifest is compiled into
+/// the same source cohort as the Worker; it is never fetched from a URL or
+/// resolved through a user path.  The checked-in canonical field is verified
+/// against the same canonical JSON function used by the Worker.
+pub fn material_pack_manifest() -> Value {
+    let manifest: Value = serde_json::from_str(MATERIAL_PACK_MANIFEST_JSON)
+        .expect("ForgeCAD material pack manifest is valid JSON");
+    let expected = manifest
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .expect("ForgeCAD material pack manifest has a canonical hash");
+    let mut without_hash = manifest
+        .as_object()
+        .expect("ForgeCAD material pack manifest is an object")
+        .clone();
+    without_hash.remove("canonical_sha256");
+    let actual = canonical_hash(&Value::Object(without_hash));
+    assert_eq!(expected, actual, "ForgeCAD material pack manifest hash drifted");
+    assert_eq!(manifest.get("pack_id").and_then(Value::as_str), Some(MATERIAL_PACK_ID));
+    manifest
+}
+
+pub fn material_pack_manifest_sha256() -> String {
+    material_pack_manifest()["canonical_sha256"]
+        .as_str()
+        .expect("ForgeCAD material pack manifest hash")
+        .to_owned()
+}
+
 pub fn build_cohort_sha256() -> Option<String> {
     option_env!("FORGECAD_BUILD_COHORT_SHA256")
         .filter(|value| is_sha256(value))
@@ -92,7 +138,11 @@ pub fn validate_request(request: &WorkerRequest) -> Result<(), String> {
     }
     if !matches!(
         request.operation.as_str(),
-        "compile_geometry" | "render_fixed" | "render_glb" | "geometry_program_hash"
+        "compile_geometry"
+            | "render_fixed"
+            | "render_glb"
+            | "render_glb_fit_batch"
+            | "geometry_program_hash"
     ) {
         return Err("worker operation is not allowlisted".to_owned());
     }

@@ -22,7 +22,7 @@
 
 ### 2.1 Runtime/MCP 入口
 
-当前 source-built MCP discovery 已包含 `render_pass_get`（read）以及 `reference_compare_prepare`、`visual_review_submit`、`human_visual_review_submit`（authenticated write opt-in）。工具面为 20 read + 16 write = 36。`appearance_prepare` 仍产生 `RenderSet@1` 四 pass compatibility path；C 的 `RenderSet@2` 只由 `reference_compare_prepare` 生成，避免改变 MCP008/MCP009 历史真值。
+当前 source-built MCP discovery 已包含 `render_pass_get`（read）、`material_pack_get`（read）以及 `reference_compare_prepare`、`visual_review_submit`、`human_visual_review_submit`（authenticated write opt-in）。当前全局工具面为 28 read + 18 write = 46；C 的历史 raw receipt仍按当时 20+16 结构保存。`appearance_prepare` 仍产生 `RenderSet@1` 四 pass compatibility path；C 的 `RenderSet@2` 只由 `reference_compare_prepare` 生成，避免改变 MCP008/MCP009 历史真值。轮廓目标/相机拟合/边界误差与 `CameraCalibrationRef@1` 属于后续 F source 增量，不改写 C 的历史 receipt。
 
 ### 2.2 当前 renderer 的事实
 
@@ -39,7 +39,7 @@
 
 ### 2.3 当前合同事实
 
-仓库当前有 59 个合同，其中 C 新增并由 Runtime producer/consumer 使用的七个合同为：
+仓库当前源合同为 77 个，其中 C 新增并由 Runtime producer/consumer 使用的七个合同为：
 
 - `ReferenceViewSpec@1`；
 - `CameraCalibration@1`；
@@ -65,11 +65,17 @@ C 当前已新增严格 JSON Schema，并实现 Runtime producer/consumer 的顶
 
 同一回归暴露并修复了一个数据真值问题：高精度 `f64` 视觉指标在写入/读回 CAS 后可能改变最后几位，导致 `visual_review_submit` 错误拒绝合法 comparison report。Runtime 现在在持久化前将视觉指标量化到 12 位小数，并用 CAS round-trip 回归证明 canonical hash 稳定；这不是放宽质量门。
 
+随后又修复了区域指标的定义：`region-mask-iou-v2` 现在在每个声明的可见区域内比较 reference/model 两个 silhouette mask，unknown 区域不进入 aggregate；不再把整个模型 mask 与区域矩形直接比较。真实 20-Part 用户机器人回归的 region median IoU 从修复前的 `0.1847` 更正为旧 rounded-panel 前基线 `0.8625`、critical region min 为 `0.6509`。当前 linework/material-zoned source baseline 为 26 Parts/4704 triangles，region median IoU `0.8694`、critical region min `0.6663`，silhouette IoU `0.7410`、boundary F1 `0.3288` 和 landmark coverage `0.7333` 仍未过门，整体继续保持 `QUALITY_TARGET_NOT_MET`。8-zone AssetPack refinement 仅增加可审计的材质族分区，不改变这些 comparison 指标。修复只改善比较真值，rounded-panel、linework 和 material-zoned 都只是增量几何/材质改善，不构成 likeness 或人评通过；脱敏 receipts 见 `docs/evidence/mcp010f/rounded-panel-real-reference.json`、`docs/evidence/mcp010f/surface-linework-real-reference.json` 与 `docs/evidence/mcp010f/surface-zones-real-reference.json`。
+
 ### 2.5 真实 Codex CLI C 运行 — `PASS_WITH_QUALITY_TARGET_NOT_MET`
 
-同一 source-built MCP/Runtime/geometry Worker cohort 的真实 Codex CLI 已完成六个短 turn：setup 创建/导入与 `reference_get` 回读、V2 capability/catalog/skill/hash/geometry prepare、candidate-bound readback/compare、九个 `render_pass_get`、`visual_review_submit` 和 `quality_get`。共 32 个 ForgeCAD MCP 调用全部 completed，生成 27 个语义 Part、4100 triangles 和 validator-passed GLB；九个 AOV 顺序与 candidate/render/comparison/review hash 绑定一致。脱敏 receipt 为 `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json`。
+同一 source-built MCP/Runtime/geometry Worker cohort 的真实 Codex CLI 已完成六个短 turn：setup 创建/导入与 `reference_get` 回读、V2 capability/catalog/skill/hash/geometry prepare、candidate-bound readback/compare、九个 `render_pass_get`、`visual_review_submit` 和 `quality_get`。共 32 个 ForgeCAD MCP 调用全部 completed，生成 27 个语义 Part、4100 triangles 和 validator-passed GLB；九个 AOV 顺序与 candidate/render/comparison/review hash 绑定一致。脱敏历史 receipt 为 `docs/evidence/mcp010c/real-codex-cli-c-attempt13.json`。
 
-Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读查阅，已保留事件类型与 SHA-256 摘要；没有文件变更、网络调用或用户持久数据写入。该 receipt 保留了自动取景修复前的 `QUALITY_TARGET_NOT_MET`（silhouette IoU `0.5132`、boundary F1 `0.1441`），所以它证明的是“Codex 能真实调用 C 工具链”，不是高质量 likeness；最新相机/指标修复目前只有 raw source receipt，尚未重跑完整 Codex CLI receipt。
+Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读查阅，已保留事件类型与 SHA-256 摘要；没有文件变更、网络调用或用户持久数据写入。该历史 receipt 保留了自动取景修复前的 `QUALITY_TARGET_NOT_MET`（silhouette IoU `0.5132`、boundary F1 `0.1441`），所以它证明的是“Codex 能真实调用 C 工具链”，不是高质量 likeness。
+
+### 2.5.1 轮廓优先真实 Codex CLI 完整 transport — `PASS_WITH_QUALITY_TARGET_NOT_MET`
+
+attempt32 是保留的 primitive route 历史 receipt。最新 receipt `docs/evidence/mcp010f/real-codex-cli-silhouette-first-20260813-attempt35-detail-camera-ref.json` 在同一隔离 source-built cohort 完成 11 个短 turn：reference/mask、V2 detail geometry hash/prepare、silhouette target、camera fit、Runtime-owned Rig hash、silhouette fit、candidate-bound readback、reference compare、boundary error、九个 AOV、typed visual review 与 quality。26 Parts、4704 triangles、validator-passed GLB 和所有 cohort/hash 绑定均通过；这次携带 15 个 image-derived landmarks/8 个 visible regions。结果为 `PASS_WITH_QUALITY_TARGET_NOT_MET`，silhouette IoU `0.741047`、boundary F1 `0.328765`、bbox edge error `0.007813`、centroid error `0.007878`、landmark coverage `0.733333`、landmark NME `0.134536`、region median `0.869403`、critical-region minimum `0.666289`。Runtime silhouette-fit proposal 为 `status=no_improvement`、IoU `0.698340`，仍是 read-only 参数建议，不是新 candidate。attempt33/34 的完整 CameraCalibration payload 因 canonical hash 漂移被 Runtime 正确拒绝；新增 `CameraCalibrationRef@1` 只传 Runtime-owned `camera_hash + canonical_sha256`，由 Runtime 按 candidate/target 证据解析完整相机，已消除该 transport 阻断。没有 human approval、PBR、confirm/export 或 360 门；未写入用户持久数据。camera search 内部仍为 64 次评估，Codex 只接收有限候选与哈希引用。
 
 ### 2.6 Viewer 只读比较面 — `source implementation PASS / packaged C transport PASS / Viewer UI E2E NOT_RUN`
 
@@ -148,7 +154,7 @@ Codex 过程中的两个非 MCP 事件是读取 `.codex/.../SKILL.md` 的只读�
 ### Codex/Viewer 证据
 
 - raw stdio 与真实 Codex CLI 已完成 `catalog/camera → render → compare → review → quality` 的绑定链；CLI receipt 仍保留 `QUALITY_TARGET_NOT_MET`，不升级为 likeness PASS；
-- Viewer 源码已只读显示参考、九 AOV、overlay/flicker、camera lock 和质量指标；当前 Dev.app 的 C renderer/compare/review transport 已通过，但 Viewer UI 的 packaged/current-cohort E2E、Part/MaterialZone 选择、explosion 临时状态和 heatmap 仍未运行；
+- Viewer 源码已只读显示参考、九 AOV、overlay/flicker、camera lock 和质量指标；隔离 Vite browser DOM smoke 已实际点击 AOV、模式、轮廓画布、heatmap/flicker 控件并验证无 metrics 时的空队列，但当前 Dev.app 的 C renderer/compare/review transport 已通过，正式 Viewer UI 的 packaged/current-cohort E2E、Part/MaterialZone 真实候选筛选、explosion 临时状态和 heatmap 数据态仍未运行；
 - Viewer 关闭、重启和 export 不改变 Runtime 真值；Viewer hash 必须与 export hash 相同；
 - C 完成前 packaged Viewer compare、真人评分和完整 360°继续 `NOT_RUN/BLOCKED`；packaged Codex C 仍明确为 `QUALITY_TARGET_NOT_MET`，不得升级为 likeness PASS。
 

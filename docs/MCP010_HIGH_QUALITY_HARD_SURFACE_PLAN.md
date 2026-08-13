@@ -1,10 +1,18 @@
 # FGC-MCP010 高质量硬表面参考闭环计划
 
-版本：2026-08-09
-状态：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C in_progress / source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D`–`FGC-MCP010F blocked`
+版本：2026-08-13
+状态：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D source-focused PASS_WITH_DEFERRED_BOOLEAN_AND_VISUAL_GATES（当前 packaged D 结构性探针 PASS，视觉门 NOT_RUN）`；`FGC-MCP010E source-focused PASS_WITH_DEFERRED_EXTERNAL_GATES（当前 packaged E 结构性探针 PASS，但视觉/人评/导出仍 NOT_RUN）`；唯一 `in_progress` 为 `FGC-MCP010F`（Viewer source、packaged CLI read-model、原生窗口与核心控件 smoke PASS；同一 provisional observation 的 packaged Viewer 绑定、正式 VoiceOver、人评和 360 仍 `NOT_RUN/BLOCKED`）。ADR-0026 已新增 Agentic Design Runtime 目标架构；它不改变当前 F 状态。
 依赖：`FGC-MCP009 done（MVP host golden path）`
 
+当前账本校正：源码合同为 78 个 JSON Schema，工具面为 29 个默认只读工具和 18 个显式 opt-in write 工具（共 47）。新增 `silhouette_part_error_get` 提供 hash-bound 的多 Part 局部轮廓误差表；它仍是结构/归因能力，不是 likeness 通过。
+
+Stage 0 机器真值唯一入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。attempt35 只是 provisional retained observation，不是已成立 benchmark：它是 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；packaged Viewer 又是不同 cohort/artifact，绑定为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`。因此 source/read-model/window/control smoke 均不能补写为同一 candidate 的 packaged visual E2E，更不能越过 PBR likeness、独立真人、export/restart 或 360 门。
+
+<!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
+
 本文是 MCP010A–F 的唯一详细执行合同。它不改写 MCP005–009 的历史 evidence，也不把目标 Schema、工具、Skill、库或素材写成当前能力。
+
+ADR-0026 补充本计划的方向：MCP010F 之后不能继续只靠堆 operator/detail/material 追求高质量，必须把 `ReferenceCanvas → DesignSpec → SemanticSceneGraph → stage gates → Visual Evidence Bundle → Critic/Repair` 变成产品化 authoring loop。在对应 Schema、Runtime producer、MCP tools 和真实 Codex evidence 完成前，这些仍是目标设计。
 
 ## 1. 目标和声明边界
 
@@ -28,26 +36,57 @@ ReferenceEvidence
 - 隐藏结构必须标记 `unknown/inferred`，不能以对称或想象伪装成参考事实；
 - 本轨道不承诺骨骼动画、制造 CAD、工程安全、跨类别通用重建或公开发行。
 
+当前高质量主路径固定为 `GeometryProgram@2` + active detail Operators → `ArtifactReadback@2` strict readback →（轮廓门解锁后）`AppearanceProgram@2` → `RenderSet@2` 九 AOV → candidate-bound strict `reference_compare_prepare` → typed `visual_review_submit` / `QualityReport@2`。`[transition-v1]` `GeometryProgram@1` + primitive-only + `RenderSet@1` 四 pass 只保留 MCP007–009 兼容/结构导出，不得作为当前高质量、reference likeness、PBR 或 360 路径。
+
+未来 Agentic high-quality 主路径在上述硬门之前增加设计理解层：
+
+```text
+ReferenceCanvas@1
+→ DesignSpec@1
+→ SemanticSceneGraph@1 / ModelUnderstandingBundle@1
+→ DesignStagePlan@1
+→ single bounded action
+→ strict readback / AOV / compare
+→ DesignCriticReport@1
+```
+
+该路径的新增对象只能从 Runtime/Worker/Render/Quality evidence 派生；不得让自然语言、截图或外部 DCC 状态成为真值。
+
 ## 2. 当前事实与目标分离
 
 ### MCP010B/C current source reconciliation
 
 最新校正：`d9c23b…ac0bd` 是当前安装并已由用户完整重启加载的 Skill-overlay Dev.app，已通过 package/raw/real-Codex V2 structural probes 和 live Desktop structural activation。`5143ac3b…6e61`、bfa56 与更早 cohort 保留为历史 receipt；当前 live Desktop 为 d9。
 
-MCP006 的 44-contract、MCP010B 已保存的 50/52-contract aggregate，以及 3c/f488/bfa56/d9 Dev.app/raw/CLI receipt 都是历史或结构事实，原样保留。当前源码总计 **59 个 JSON Schema**：历史 44 加 MCP010B 的 8 和 MCP010C 的 7。当前 source Gate 已通过 B 的 V2 geometry/readback/Worker isolation 与 C 的 fixed renderer/九 AOV/reference compare/review raw path；C 工具面为 20 read + 16 opt-in write。C receipt 使用 synthetic reference，只证明绑定、传输、持久化和 deterministic bytes，不证明 PBR、用户 robot likeness、Viewer/package/live C、人评或 360。下文任何未特别注明的旧“50/52-contract/current Dev.app”叙述都应按本段分层。
+MCP006 的 44-contract、MCP010B 已保存的 50/52-contract aggregate，以及 3c/f488/bfa56/d9 Dev.app/raw/CLI receipt 都是历史或结构事实，原样保留。当前源码总计 **78 个 JSON Schema**：历史 44 加 MCP010B 的 8、MCP010C 的 7、MCP010E 的 6，以及 MCP010F 的 13 个轮廓目标、Rig、Rig hash、Fit、PartFit、候选比较、`CameraCalibrationRef@1` 和 `SilhouettePartErrorResult@1` 合同。当前 source Gate 已通过 B 的 V2 geometry/readback/Worker isolation、C 的 fixed renderer/九 AOV/reference compare/review raw path、D 的真实 Operator、E 的离线 AssetPack/UV/PBR/MikkTSpace raw path，以及 F 的哈希绑定轮廓目标、扩展相机搜索、Runtime-owned camera reference、受限 Rig/SDF fit、单/多 Part contour proposal、Part error table 和 candidate compare Runtime path；当前工具面为 29 read + 18 opt-in write。C/E/F receipt 使用 synthetic 或结构性 reference，只证明绑定、传输、持久化和 deterministic bytes，不证明 PBR likeness、用户 robot likeness、Viewer/package/live、人评或 360。下文任何未特别注明的旧“50/52/65-contract/current Dev.app”叙述都应按本段分层。
 
 | 项目 | 当前事实 | MCP010 目标 |
 | 说明 | 上一段中的 `5143ac3b…6e61` 与 bfa56 仅是历史 package/live receipts；当前安装包与完整重启后的 live cohort 以 `d9c23b…ac0bd` 为准 | live 证据仍只证明结构工具链，不提前写成视觉/PBR能力 |
 |---|---|---|
-| 合同 | MCP006 历史为 44 个 JSON Schema；当前 MCP010B 源码新增 8 个合同，共 52 个 JSON Schema | 按 B/C/E 分阶段加入其余 V2/新合同 |
-| MCP | 当前源码为 20 read + 16 write（36）；C 的 source raw Gate 已通过，历史 Dev.app receipts仍按 cohort 保存 | 真实用户 likeness、Viewer/package/live C、人评/PBR/360证据仍需独立 Gate；不得用 synthetic/raw 直接宣传高质量 |
-| Skill | 十个历史 first-party `0.1.0` declarative Bundle + 当前 `primitive-blockout@0.2.0` active overlay | D/E 按真实 consumer 升级其余目标 Bundle |
-| 几何 | box/cylinder/sphere + limited transform | profile/revolve/sweep/loft/mirror/array/macros；boolean 有条件采用 |
-| Render | MCP008/009 保留四个 compatibility pass；MCP010C source 已有 512×512 perspective/z-buffer + 九 AOV + local metrics | 真实用户视觉阈值、Viewer compare、packaged C、export/restart hash仍未运行 |
-| 材质 | factor-only bounded glTF PBR | first-party 离线 AssetPack、纹理、clearcoat/emissive strength |
-| Viewer | 只读 GLB canvas/read model | compare/AOV/diff/Part/MaterialZone/isolate/explosion/a11y |
+| 合同 | MCP006 历史为 44 个 JSON Schema；当前 MCP010B/C/E/F 源码新增 34 个合同，共 78 个 JSON Schema（含 `CameraCalibrationRef@1`、`SilhouettePartErrorResult@1`） | 维持版本化合同；后续任务只可新增有证据的 Viewer/闭环合同 |
+| MCP | 当前源码为 29 read + 18 opt-in write（47）；F 新增 Runtime-owned `silhouette_rig_hash` 以避免 Codex 本地重算 Rig canonical hash，以及 `silhouette_part_error_get` 多 Part 误差表；C/E/F 的 source raw Gate 已通过，历史 Dev.app receipts仍按 cohort 保存 | 真实用户 likeness、同一 candidate 的 packaged Viewer、人评/PBR/360证据仍需独立 Gate；不得用 synthetic/raw 直接宣传高质量 |
+| Skill | 十个历史 first-party `0.1.0` declarative Bundle + 当前 `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0`、`uv-pbr@0.2.0` active overlay；AssetPack 独立于 Skill | 仅在真实 consumer、bundle integrity、AssetPack provenance 和 benchmark 都通过后保持 active |
+| 几何 | MCP010D source 已提供 primitive、profile/extrude、loft、revolve、tube-sweep、transform、mirror、array、panel、vent-array、joint-stack、part-output；同 cohort packaged D raw structural probe 已通过 | Manifold boolean、真实用户视觉阈值仍未运行 |
+| Render | `[transition-v1]` MCP008/009 保留四个 compatibility pass；MCP010C source 已有 512×512 perspective/z-buffer + 九 AOV + local metrics；MCP010F source Viewer 与 packaged CLI read-model 可读取这些 AOV并做临时对比 | 核心控件 smoke 已运行；同一 provisional observation 的 packaged binding、正式 VoiceOver、真实用户视觉阈值、export/restart hash仍未运行 |
+| 材质 | bounded glTF PBR：embedded baseColor/normal/metallic-roughness/AO/emissive channel sampling | first-party 离线 AssetPack、纹理、clearcoat/emissive strength |
+| Viewer | 只读 GLB canvas/read model；compare/AOV/diff/Part/MaterialZone/explosion/heatmap source surface、packaged CLI read-model、原生窗口与核心控件 smoke 已通过 | 同一 provisional observation 的 package binding、正式 VoiceOver、真人视觉门仍独立验收 |
 
 只有对应 producer、consumer、negative/focused/真实 Codex evidence 全部通过后，能力才能从 `planned/unavailable` 变为 `available`。
+
+### ADR-0026 Agentic Design Loop target
+
+下列能力是 MCP010F 后续重构目标，不属于当前 MCP010F source PASS：
+
+| 目标能力 | 当前状态 | MCP010 后续退出要求 |
+|---|---|---|
+| `SemanticSceneGraph@1` / `ModelUnderstandingBundle@1` | 目标设计 | 从 candidate/readback/RenderSet/Quality 派生，返回 Part roles、dimensions、symmetry、source map、MaterialZone、camera、selection、uncertainty |
+| `ReferenceCanvas@1` / `DesignSpec@1` | 目标设计 | 绑定 reference CAS hash、视图 coverage、observed/inferred/unknown、primary/secondary/tertiary goals |
+| `DesignSession@1` / `DesignCheckpoint@1` | 目标设计 | Runtime-owned stage/checkpoint/rollback projection；永久写仍走 candidate/version |
+| `scene_observe_get` / `visual_evidence_bundle_get` | 目标设计 | 一次返回 Codex 设计判断需要的 hash-bound 现场；默认只读 |
+| Parametric Design Kit | 目标设计 | Housing/Panel/Vent/Joint/Sensor/Frame 等 intent 展开为 typed bounded Geometry/Appearance programs |
+| `DesignCriticReport@1` / `RepairIntent@1` | 目标设计 | 只输出 evidence-bound 单 Part/MaterialZone repair，不直接写几何 |
+
+这些能力完成前，当前可见视图仍按已有 `reference_mask_prepare → camera_fit_prepare → silhouette_rig_hash → silhouette_fit_prepare → reference_compare_prepare → render_pass_get → visual_review_submit → quality_get` 链路执行。
 
 ## 3. 原子任务链
 
@@ -67,15 +106,15 @@ MCP010B 的 authoring 可用性补口已经在当前源码完成：公开但只�
 
 退出：用户重启后的真实证据必须证明工具、Runtime Ready、能力 cohort 和临时项目读回；本次已满足并将 010A 标记 `done`。不得自动领取 010B。ad-hoc 开发 App 不是 MCP013 的签名安装包。
 
-当前进度：010A/010B 历史与 source structural evidence 见 `docs/evidence/mcp010a/`、`docs/evidence/mcp010b/`；C source evidence 见 `docs/evidence/mcp010c/`。当前源码总计 59 个 JSON Schema、20 read + 16 write 工具。用户第一次 Desktop restart 的 FAIL receipt和后续结构 PASS receipt均保持原样。C 当前源码已在隔离 raw stdio 中证明 36-tool discovery、九 AOV、candidate-bound comparison、MCP image block、Codex/human review 与 deterministic bytes；该证据使用 synthetic reference，不是用户机器人 likeness。C 的 Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash 和 360仍 NOT_RUN/BLOCKED。短时 launcher flock 只用于启动选主，Runtime `runtime.writer.lock` 才是最终唯一写者。
+当前进度：010A/010B 历史与 source structural evidence 见 `docs/evidence/mcp010a/`、`docs/evidence/mcp010b/`；C source evidence 见 `docs/evidence/mcp010c/`；D/E/F source evidence 见 `docs/evidence/mcp010d/`、`docs/evidence/mcp010e/`、`docs/evidence/mcp010f/`。当前源码总计 78 个 JSON Schema、29 read + 18 opt-in write = 47 个工具。用户第一次 Desktop restart 的 FAIL receipt和后续结构 PASS receipt均保持原样。C 当前源码已在隔离 raw stdio 中证明 47-tool source manifest、九 AOV、candidate-bound comparison、MCP image block、Codex typed visual review 与 deterministic bytes；E raw stdio 已证明 AssetPack manifest/provenance、embedded PNG textures、512px UV atlas、固定 mikktspace、PBR bindings 和同一九 AOV render path；F source Gate 已新增 hash-bound silhouette target、扩展 camera search、`CameraCalibrationRef@1`、SilhouetteRig/SDF fit、单 Part contour proposal、candidate compare、只读 Viewer 的九 AOV、reference/render split/overlay/flicker、Part/MaterialZone 筛选、爆炸图和热图辅助及 TypeScript/Vite/Tauri 构建，另有 packaged CLI read-model、原生窗口与核心控件 smoke。C/D/E/F 结构/传输证据不是用户机器人 likeness；同一 provisional observation 的 packaged Viewer 绑定、正式 VoiceOver、独立人评阈值、xatlas/Validator、真实 PBR likeness、export/restart hash 和 360仍 `NOT_RUN/BLOCKED`。短时 launcher flock 只用于启动选主，Runtime `runtime.writer.lock` 才是最终唯一写者。
 
 ### 3.2 FGC-MCP010B — V2 合同与几何真值
 
-兼容界限：`GeometryProgram@1` 继续服务已存在的 MCP007–009 appearance/export MVP 路径，且 Runtime 现会对其 GLB 作物理回读；它不是 MCP010B 的 V2 high-quality 写路径，也不得借此获得 V2 catalog、strict ArtifactReadback@2、比较或材质声明。历史对象不迁移、不改写。V1 新写入口的最终移除须与 MCP010E 的 `AppearanceProgram@2` 迁移一并设计，不能在 B 中让当前已验收的 V1 appearance/restore/export 链静默断裂。
+兼容界限：`[transition-v1]` `GeometryProgram@1` 继续服务已存在的 MCP007–009 primitive-only appearance/export MVP 路径，且 Runtime 现会对其 GLB 作物理回读；它不是 MCP010B 的 V2 high-quality 写路径，也不得借此获得 V2 catalog、strict `ArtifactReadback@2`、九 AOV strict compare 或材质声明。历史对象不迁移、不改写。V1 新写入口的最终移除须与 MCP010E 的 `AppearanceProgram@2` 迁移一并设计，不能在 B 中让当前已验收的 V1 appearance/restore/export 链静默断裂。
 
 Owned：`GeometryProgram@2`、`OperatorCatalog@1`、`ArtifactReadback@2`、GLB/accessor validator、primitive 修复及负向 fixture。
 
-当前 B source Gate 与 C source Gate 已通过：B 覆盖 V2 geometry/readback/Worker isolation/restore；C 覆盖 59-contract checker、固定 renderer、九 AOV、local mask/metrics、candidate-bound review、MCP image block 和 deterministic raw stdio。C 的 source tool manifest 为 20 read + 16 write。历史 package/CLI/live receipts保持原样；C synthetic/raw不等于真实 robot likeness、PBR、Viewer/package/live、人评或 360。Darwin OS total-memory hard cap仍 `NOT_RUN`；授权单图仍只能产生 `PARTIAL_VISIBLE_VIEW_PASS`，HQ_360 仍 `BLOCKED_REFERENCE_COVERAGE`。
+当前 B source Gate 与 C/D/E/F source Gate 已通过：B 覆盖 V2 geometry/readback/Worker isolation/restore；C 覆盖当前合同 checker、固定 renderer、九 AOV、local mask/metrics、candidate-bound review、MCP image block 和 deterministic raw stdio（C 历史 subtotal 为 59）；D 覆盖 13-entry catalog/12 active operators；E 覆盖离线 AssetPack、512px UV atlas、fixed mikktspace、embedded PBR/九 AOV；F 覆盖哈希绑定轮廓目标、37 个覆盖全局尺度的粗候选加 9 个局部探针、扩展 Rig/SDF 搜索、单 Part proposal、2–8 候选比较、方向性边界误差、只读 Viewer 的 AOV/compare/Part/MaterialZone/explosion/heatmap source surface、TypeScript/Vite/Tauri 构建和 write-boundary negative check。当前 source tool manifest 为 29 read + 18 opt-in write = 47。历史 package/CLI/live receipts保持原样；C/D/E/F synthetic/raw/source不等于真实 robot likeness、PBR likeness、同一 candidate 的 packaged Viewer、人评或 360。Darwin OS total-memory hard cap、xatlas、Khronos Validator仍 `NOT_RUN`；授权单图仍只能产生 `PARTIAL_VISIBLE_VIEW_PASS`，HQ_360 仍 `BLOCKED_REFERENCE_COVERAGE`。
 
 必须：
 
@@ -85,7 +124,7 @@ Owned：`GeometryProgram@2`、`OperatorCatalog@1`、`ArtifactReadback@2`、GLB/a
 - 修复 sphere 极点退化、cylinder 端盖法线、ellipsoid 法线、UV/tangent 假 PASS；
 - Runtime 遍历 GLB BIN/accessor，真实计算 index/non-finite/degenerate/boundary/non-manifold/winding/Part/Material/source coverage；
 - 删除 hard-coded validator PASS；损坏 index、source map、hash、winding 或 UV 时 fail closed；
-- `@1` 不迁移或改写已确认版本；在 `AppearanceProgram@2` 未实现前保留 MCP007–009 的显式过渡兼容链，但它不能产生 V2 结论或替代后续迁移设计。
+- `[transition-v1]` `@1` 不迁移或改写已确认版本；MCP007–009 的 primitive-only 兼容链只保留历史结构/导出用途，不能产生 V2、detail、九 AOV strict compare 或高质量结论。
 
 预算：512 nodes、250k triangles、64 MiB candidate GLB、512 MiB Worker memory；单次编译目标 10 秒以内。当前 macOS 实证已证明 10 秒墙钟超时/回收、受限 Rust allocator guard 和 `wait4` 峰值 RSS 后验拒绝；但 `RLIMIT_AS`/`RLIMIT_RSS`/`RLIMIT_DATA` 不能提供本机可证明的预防式硬上限，不能把 512 MiB 写成 OS 总内存硬上限；该子门保持 `NOT_RUN`，测量失败不能转移为 MCP011 全局性能实现。
 
@@ -115,11 +154,17 @@ Renderer 必须提供 512×512 perspective、真实 camera transform、z-buffer�
 | `human_visual_review_submit` | write/evidence + confirmation | 保存用户评分，不作为密码学身份认证 |
 | `quality_get` | existing read | 只读取 Runtime 已持久化且绑定当前 hash 的报告 |
 
-当前源码工具数量为 20 read + 16 write。MCP010A/010B 的 30/32-tool Dev.app receipts均为历史 structural cohort；C source raw 已证明 `render_pass_get` image block 和三项视觉证据工具，但 packaged/live C、真实用户 likeness、人评阈值和所有 360°evidence仍 `NOT_RUN/BLOCKED`。
+当前源码工具数量为 29 read + 18 opt-in write = 47。MCP010A/010B 的 30/32-tool Dev.app receipts均为历史 structural cohort；C source raw 已证明 `render_pass_get` image block 和三项视觉证据工具，D 当前 packaged raw 已证明同 cohort Operator/strict readback transport，E raw 及当前 packaged E 已证明 `material_pack_get`、embedded texture 和九 AOV render path，F source 已证明轮廓目标、37 个覆盖全局尺度的粗候选加局部探针相机拟合、`CameraCalibrationRef@1`、Rig/SDF/Part/candidate compare 和边界误差读取。packaged Viewer 已有 read-model/window/core-control smoke，但与 attempt35 provisional observation 的 package binding、正式 VoiceOver、真实用户 likeness/PBR likeness、人评阈值和所有 360° evidence仍 `NOT_RUN/BLOCKED`。
 
 参考 mask 使用产品内确定性 border flood-fill/morphology；Codex 提交 normalized landmarks、region、visibility 和 unknown/inferred。每个 candidate 最多五轮 `silhouette → structure → form → material/surface → final` 修正；未达标返回 `QUALITY_TARGET_NOT_MET`，不能自动 confirm。
 
-### 3.4 FGC-MCP010D — 受限高细节几何
+区域质量门必须在同一 declared region 内比较 reference/model mask；不得把整个模型 mask 与区域矩形直接做 IoU。Runtime 的 `region-mask-iou-v2` 实现已采用该定义，并排除 `unknown` 区域；它修正指标真值，但不放宽 silhouette、boundary、landmark 或 human gate。
+
+为减少每轮上下文和截图噪声，C/F 允许使用 `scripts/make_mcp010f_comparison_sheet.py` 将同一 reference、beauty、silhouette 和一个 diagnostic AOV 打包为固定 2×2 review sheet。它是标准库 review helper，只保存 hash-only manifest，不计算质量、不写 Runtime/CAS；原图含用户字节时必须留在临时目录。Runtime `QualityReport@2` 与 candidate-bound comparison 仍是唯一质量真值。
+
+F 还提供 `scripts/build_mcp010f_fit_plan.py` 作为本地 Codex 编排辅助器。它验证 `ReferenceComparisonReport@1`、`ReferenceViewSpec@1` 和可选 `OperatorCatalog@1` 的 canonical hash，按五个有序阶段生成最多五条单一 Part/MaterialZone 修正意图，并保留每条意图的 metric、landmark、region 与 observed/inferred/unknown 来源。当前输出还为已知 region 提供稳定的 `primary_part_ids`、只读 `supporting_part_ids`、`material_zone_hints` 和按 Part 分组的 `part_operator_hints`；每轮只保留一个主 Part，未知 region 进入 `unmapped_region_ids`，不会被猜成可执行部件。它不写 Runtime/CAS、不生成几何参数、不调用 Operator、不替代 `QualityReport@2`；缺少活动目录时会清空 `operator_hints` 并明确记录阻断原因。该输出只能留在临时目录或脱敏后作为编排证据。
+
+### 3.4 FGC-MCP010D — 受限高细节几何（source-focused PASS）
 
 Owned：真实 Operator consumer、Worker 隔离/预算、Operator catalog、geometry Skills `0.2.0` 和 Manifold adoption。
 
@@ -134,13 +179,19 @@ Owned：真实 Operator consumer、Worker 隔离/预算、Operator catalog、geo
 
 Manifold 固定目标为 v3.5.2，仅 C API 静态进入隔离 geometry worker，关闭 Python/JS binding、自动下载和不受控并行。采用前必须有 full revision、LICENSE hash、transitive SBOM、恶意输入/时间/内存/确定性/source-ID benchmark 和 removal plan；receipt 未 `accepted` 时 `boolean` 保持 unavailable，机器人使用分层 shell，不阻塞其他 Operator。
 
-升级：`reference-intake@0.2.0`、`silhouette-blockout@0.2.0`、`hard-surface-detail@0.2.0`、`mesh-integrity@0.2.0`。只有所有 operator lock 均有真实 consumer 时才 active。
+当前实现结果：`operator_catalog_get` 返回 13 项，其中 12 项 active（primitive@2 加 11 个 D Operator），`boolean@1` 明确为 `unavailable`；`script/test_mcp010d.sh` 已通过 contracts、source-built Worker/Runtime/MCP、raw stdio `catalog → hash → prepare → readback`、7 semantic Parts/464 triangles、strict lineage、determinism、future-input/unknown-parameter/boolean negative。`hard-surface-detail@0.2.0` 的 manifest、recipe、operator lock、benchmark fixture、LICENSE/NOTICE、SPDX SBOM、provenance 和 development trust 均通过 Runtime integrity 后才返回 `active`。证据：`docs/evidence/mcp010d/manifest.json`、`focused-gates.json`、`raw-stdio.json`。
+
+本次 source-focused 退出不包含 Manifold adoption：未锁定 v3.5.2/full revision、未进入 C API Worker、未运行其恶意输入/内存/确定性/source-ID benchmark，因此 boolean 保持 unavailable。当前 Dev.app D 已有同 cohort raw structural receipt（catalog → GeometryProgram@2 → strict readback），但不证明 Viewer presentation、真实 Codex Desktop D 或视觉 likeness；真实 PBR likeness/纹理审美、第三方 Validator 和 360°也不由本节推导，均继续记录为 `NOT_RUN/BLOCKED`。
 
 机器人需要稳定 head/visor/neck、chest/core/shoulder、arm/hand、pelvis/hip、thigh/knee/shin/ankle/foot，并包含可追踪 panel、vent、joint ring、cable、emissive housing；左右结构使用 mirror，不维护两套漂移参数。
 
+当前用户单图 source benchmark 的最新几何/表面改进包括四层：panel@1 的固定四段圆角 profile 把面板从平面八点倒角升级为可重复的圆角轮廓；在其上使用 panel/mirror/vent/joint 组成 visor-edge、chest-ridge、shoulder-trim、forearm-rail、hip-flank、knee-cap 六类表面线流层；AppearanceProgram@2 将这些 semantic Parts 绑定到离线 AssetPack MaterialZone，当前保留两个可审计配方：8-zone surface-zones 用全套材质族，7-zone armor-shell-zones 保留可见上臂/前臂白色外壳并把深色限定在内构、凹槽、线缆和发光通道；profile-loft/revolve/tube-sweep/joint-stack 对重合且法线相容的曲面顶点启用受限平滑法线，但保留 panel/cap 锐边。当前 material-zoned linework receipt 为 26 Parts/4704 triangles，silhouette IoU 0.7410、boundary F1 0.3288、region median IoU 0.8694、critical-region minimum 0.6663；相对 rounded-panel baseline 的变化指标全部改善或持平，但仍低于整体视觉门，不能 confirm/export。rounded-panel、linework、surface-zones 和 armor-shell-zones receipts 保留在 `docs/evidence/mcp010f/`，旧 3368-triangle receipt 仍为历史对照；后续几何修正仍必须先做单一 Part 变更再跑同一 candidate 的 comparison，材质区增多不能替代轮廓修正。
+
 ### 3.5 FGC-MCP010E — 离线 AssetPack、UV 与 PBR
 
-Owned：`MaterialPackManifest@1`、`MaterialDefinition@1`、`TextureSet@1`、`TextureBuildReceipt@1`、`AppearanceProgram@2`、first-party AssetPack、xatlas/mikktspace/glTF Validator adoption 与材质 Skills `0.2.0`。
+Owned：`MaterialPackManifest@1`、`MaterialDefinition@1`、`TextureSet@1`、`TextureBuildReceipt@1`、`AppearanceProgram@2`、first-party AssetPack、bounded UV atlas、固定 `mikktspace@0.3.0` tangent producer、glTF Validator deferred adoption 与材质 Skills `0.2.0`。
+
+当前 E source 与 packaged structural 事实：固定 beauty renderer 已读取嵌入 baseColor/normal/metallic-roughness/AO/emissive 纹理，并以固定 key/fill/rim GGX-like 光照、clearcoat 与 emissive strength 参与采样；最新 PBR renderer Dev.app cohort `77d4bff5…f2a73` 已完成 ad-hoc/package/隔离用户参考图探针，但本次未重启 Desktop，且比较结果仍 `QUALITY_TARGET_NOT_MET`。这证明通道接线和离线 provenance，不证明机器人 PBR likeness、色彩审美、人评、export/restart hash 或 360°。最新胸甲浅斜切实验也只作为负向视觉证据：boundary F1/全局 silhouette 小幅改善，但 landmark/region 覆盖下降；单独增加胸甲上缘 cap 仍未改善全局 silhouette，retained baseline 未改变。
 
 `forgecad-hard-surface-robot@1.0.0` 必须是 AssetPack，不是 Skill，包含：白色 dielectric clearcoat、深灰喷涂金属、黑色阳极氧化金属、拉丝钢、工程塑料、关节橡胶、暖橙 emissive 和微划痕 normal/roughness 层。
 
@@ -154,27 +205,36 @@ Owned：`MaterialPackManifest@1`、`MaterialDefinition@1`、`TextureSet@1`、`Te
 
 UV/tangent/GLB 规则：
 
-- xatlas 和 mikktspace 固定 revision，经 receipt accepted 后才加入；
+- UV atlas 当前使用 ForgeCAD 自有的 512px deterministic triangle-chart grid（每 chart 4 texel padding、无重叠、finite/zero-area 回读）；xatlas 仍只保留 approved-for-evaluation，未进入产品依赖；
+- `mikktspace@0.3.0` 固定 crates.io checksum 与 GitHub revision，通过 `docs/evidence/adoption/mikktspace/0.3.0.yaml` 的 license/SBOM/恶意输入/确定性 receipt 后进入受限 Geometry Worker；Runtime 不直接链接该库；
 - baseColor/emissive 为 sRGB，normal/metallic/roughness/AO 为 linear，normal 固定 OpenGL `+Y`；
 - GLB 内嵌 PNG、禁止 external URI、按材质 hash 去重；candidate texture ≤64 MiB，export ≤128 MiB；
 - 支持 ratified `KHR_materials_clearcoat`、`KHR_materials_emissive_strength`；KTX2/LOD/通用 pack installer 延后；
 - glTF Validator 是开发 Gate，不能替代 Runtime readback。
 
-升级 `uv-pbr@0.2.0`、`render-evidence@0.2.0`、`reference-compare@0.2.0`；AssetPack、Operator 和 benchmark 缺一时保持 partial/unavailable。
+升级 `uv-pbr@0.2.0`、`render-evidence@0.2.0`、`reference-compare@0.2.0`；当前 78-contract checker、AssetPack manifest/provenance、Worker/MCP raw Gate 和同 cohort packaged E 结构性用户参考探针已通过。Khronos Validator、真实 PBR likeness、export/restart hash、同一 provisional observation 的 packaged Viewer binding 和 Viewer 人评仍 `NOT_RUN`；未来若第三方 adoption 失败，必须回退到 product-owned strict readback，而不能制造 Validator/mikktspace PASS。
 
 ### 3.6 FGC-MCP010F — Viewer 与真实机器人闭环
 
 Owned：reference/render split、overlay、flicker、diff heatmap、九 AOV、camera lock、Part/MaterialZone selection/isolate/explosion、candidate undo/redo、Viewer a11y 和真实 Codex/human evidence。
+
+当前 source slice：`script/test_mcp010f.sh` 已通过 Viewer source checker、TypeScript/Vite build、Tauri workspace compile、read-only IPC/write-boundary negative check；同 cohort Dev.app 的 `--viewer-read-model` 也已在隔离用户参考 candidate 活跃期间返回 `ForgeCADViewerReadModel@1` Ready 投影，artifact/quality/reference 结构映射通过。另有一次隔离 Vite browser DOM smoke 实际点击并验证了 9 个 AOV、3 种比较模式、轮廓画布、差异热图和 flicker；无 Runtime 数据时阶段保持 `reference-canvas` 且 correction queue 为空；同 cohort Dev.app 的 frontmost native-window smoke 观察到 1440×891 的 `ForgeCAD Runtime Viewer`，而本轮 Computer Use 又从打包 WebKit AX 树实际操作 AOV、Home/End、overlay/flicker、轮廓画布、差异热图和爆炸图。System Events 仍未暴露 WebKit 子树，故正式 VoiceOver/无障碍与人评仍保持独立 NOT_RUN。`RuntimeViewer.tsx` 的选择、材质区筛选、临时爆炸图、差异热图、显式 contour canvas、ephemeral reference-contour aid、contour-first 阶段门和 Codex correction queue 都只修改 ephemeral UI state；轮廓画布现在复制 candidate-bound `ForgeCADViewerContourDraft@2`，由 `scripts/validate_mcp010f_contour_draft.py` 生成单 Part `ForgeCADContourCorrectionIntent@1`，并拒绝 stale hash、自交/越界点和未选 Part 的写入意图。轮廓画布只是一键选择既有 silhouette AOV 与 overlay，reference-contour aid 使用与 Runtime `mask-2` 同源的受限边界连通 flood-fill/局部颜色差规则，仍只是视觉辅助，阶段门与 correction queue 仅从 candidate-bound metrics 生成提示，二者都不进入 QualityReport。视觉解锁只读取 candidate-bound `QualityReport@2.visual_status + hard_gate_passed`，不会把结构 candidate 的 `quality_hard_gate_passed` 当成视觉通过。Correction queue 不携带几何参数，只允许下一轮单 Part/单 MaterialZone 的受限意图，且要求保持 camera/reference/hash 不变并重新回读。当前仍未运行正式 VoiceOver accessibility、真人评分、export/restart hash 和五视图 360 门，因此 F 仍为 `in_progress`，不能宣称视觉质量完成。
+
+实际闭环演练：在打包 Viewer 选择 `chest-shell` 并绘制 candidate-bound 轮廓后，Codex 将草图限制为单 Part `chest-wedge-mild`，在隔离 Runtime 中重新执行几何、材质、参考比较和质量读取。该次传输/回读通过，但全局质量门仍失败（silhouette IoU 0.7399、boundary F1 0.3263、landmark coverage 0.6667、region median IoU 0.8487），相对 26-Part/4704-triangle 保留基线退化，未晋级、未 confirm/export。证据 `docs/evidence/mcp010f/contour-execution-actual-20260812.json`；此处证明的是 Viewer→Codex→Runtime 的实际单部件迭代链路，不是视觉相似度通过。
 
 Viewer 只有一个 WebGL context，继续只读 Runtime projection。永久 geometry/material/restore/export 仍回到 Codex 的 prepare/approval/confirm。
 
 真实链路固定为：
 
 ```text
-reference_import → geometry_prepare → artifact_readback_get
-→ appearance_prepare → reference_compare_prepare → render_pass_get
-→ visual_review_submit → 最多五轮 change_prepare
-→ human_visual_review_submit → quality_get
+reference_import → operator_catalog_get → geometry_program_hash(GeometryProgram@2/detail)
+→ geometry_prepare → artifact_readback_get(ArtifactReadback@2 strict)
+→ reference_mask_prepare → camera_fit_prepare / silhouette_fit_prepare
+→ appearance_prepare(AppearanceProgram@2，仅在前序门解锁后)
+→ reference_compare_prepare(同一 camera/reference/candidate，九 AOV strict compare)
+→ render_pass_get × 9 → visual_review_submit → quality_get
+→ 最多五轮单 Part change_prepare / strict compare
+→ human_visual_review_submit（独立真人门）
 → candidate_confirm → version_diff
 → restore_prepare/restore_confirm
 → export_prepare/export_confirm
@@ -198,11 +258,11 @@ reference_import → geometry_prepare → artifact_readback_get
 
 ### 4.2 当前可见视图门
 
-- silhouette IoU ≥0.72；
-- boundary F1（4 px）≥0.75；
-- bbox 边缘平均误差 ≤5%，centroid 误差 ≤4%；
-- 可见 landmark coverage ≥80%，weighted NME ≤8%；
-- region median IoU ≥0.50，critical region 不低于 0.30；
+- silhouette IoU ≥0.90；
+- boundary F1（4 px）≥0.90；
+- bbox 边缘平均误差 ≤2%，centroid 误差 ≤2%；
+- 可见 landmark coverage ≥80%，weighted NME ≤3%；
+- region median IoU ≥0.85，critical region 不低于 0.85；
 - 用户对 likeness、geometry detail、material fidelity、editability 各评分 ≥4/5。
 
 指标必须记录 reference/camera/mask/render/toolchain hash、阈值、实测值和 limitation。通过这些门只允许 `PARTIAL_VISIBLE_VIEW_PASS`。

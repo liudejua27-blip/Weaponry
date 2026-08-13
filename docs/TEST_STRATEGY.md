@@ -1,7 +1,11 @@
 # ForgeCAD 测试策略
 
 版本：2026-08-09
-状态：MCP001–009 focused Gates 已建立；FGC-MCP010A done；MCP010B–F visual/human Gates 尚未运行
+状态：MCP001–009 focused Gates 已建立；FGC-MCP010A done；MCP010B structural source Gate、MCP010C renderer/compare source Gate、MCP010D operator/Skill source Gate、MCP010E AssetPack/PBR source Gate 和 MCP010F Viewer/contour source Gate 已通过；同一候选的 packaged/human/PBR/export/360 子门仍 `NOT_RUN/BLOCKED`
+
+Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。源码门 PASS 不等于产品质量 PASS：attempt35 只是 provisional retained observation，它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，camera 绑定 `MISMATCH`，packaged Viewer binding 为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`。
+
+<!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
 
 ## 1. 证据层级
 
@@ -57,7 +61,7 @@ MVP 不预设一个没有校准的相似度数字作为营销门。MCP009 真实
 | 010A | docs/integrity、安全/许可证、同 revision binaries、raw stdio/CLI、用户重启后的真实 Codex capability/project/build hash |
 | 010B | V2 Schema、损坏 index/source/hash/winding/UV、primitive topology/normal、五次 deterministic GLB/readback |
 | 010C | synthetic camera recovery、z-buffer/occlusion、九 AOV hash、mask/IoU/F1/landmark/region、四个 MCP 工具和错误合同 |
-| 010D | 每个 Operator 正/负 fixture、预算/超时/崩溃、mirror lineage；Manifold 恶意输入/FFI/determinism/source-ID |
+| 010D | 每个已实现 Operator 正/负 fixture、预算/超时/崩溃、mirror/Part lineage；当前 11 个 D Operator 与 fixed sibling Worker Gate PASS；Manifold 恶意输入/FFI/determinism/source-ID adoption 仍 NOT_RUN，boolean unavailable |
 | 010E | AssetPack/hash/license/SBOM、颜色空间、UV/tangent、无 external URI、纹理预算、Runtime readback + glTF Validator |
 | 010F | Viewer 单 context、compare/selection/isolate/explosion/a11y、真实 Codex change/confirm/restore/export/restart 同 hash、人工评分 |
 

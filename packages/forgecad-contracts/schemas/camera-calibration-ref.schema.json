@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/camera-calibration-ref.schema.json",
+  "title": "CameraCalibrationRef",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "camera_hash", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "CameraCalibrationRef@1"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

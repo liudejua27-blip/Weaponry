@@ -1,0 +1,114 @@
+{
+  "build_cohorts": {
+    "mcp": "fdb096c9206a19987b3a133486009c3437463c19cbb046725afa0886aee4dd2b",
+    "runtime": "fdb096c9206a19987b3a133486009c3437463c19cbb046725afa0886aee4dd2b",
+    "worker": "fdb096c9206a19987b3a133486009c3437463c19cbb046725afa0886aee4dd2b"
+  },
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "mcp_tool_calls": [
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "project_create"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_import"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_mask_prepare"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "capabilities_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "runtime_status"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "doctor"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "operator_catalog_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "skill_list"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "geometry_program_hash"
+    },
+    {
+      "artifact": {
+        "artifact_id": "cc5ad72f77ef201b732b253497e91238018f791af6a4d2f14889ed42c8e9d13e",
+        "candidate_id": "candidate-1f08bda10b524076bf6241daede6def8",
+        "mime": "model/gltf-binary",
+        "part_ids": [
+          "head-shell",
+          "visor",
+          "chest-shell",
+          "chest-vent",
+          "chest-core",
+          "neck",
+          "pelvis",
+          "shoulder-pair",
+          "shoulder-armor-pair",
+          "upper-arm-pair",
+          "elbow-pair",
+          "forearm-pair",
+          "hand-pair",
+          "thigh-pair",
+          "hip-pair",
+          "knee-pair",
+          "shin-pair",
+          "cable-pair",
+          "core-ribs",
+          "amber-sensor",
+          "visor-edge",
+          "chest-ridge",
+          "shoulder-trim-pair",
+          "forearm-rail-pair",
+          "hip-flank-pair",
+          "knee-cap-pair"
+        ],
+        "size_bytes": 777696,
+        "triangle_count": 4704,
+        "validator_status": "passed"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "geometry_prepare"
+    }
+  ],
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "reason": "Codex authoring did not complete matching discovery/hash/prepare sequence",
+  "reference_path_recorded": false,
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010C",
+  "visual_quality_claim": "NOT_CLAIMED"
+}

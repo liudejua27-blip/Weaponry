@@ -337,6 +337,116 @@ pub(crate) fn render_glb(
     Ok(passes)
 }
 
+/// Render only the transient, low-resolution silhouette search batch. The
+/// fixed Worker parses the GLB once and evaluates up to 64 cameras in one
+/// isolated process; Runtime upsamples the returned mask for the existing
+/// 512×512 metrics. No fit PNG is persisted or exposed as an AOV.
+pub(crate) fn render_glb_fit_batch(
+    glb: &[u8],
+    cameras: &[Value],
+) -> Result<Vec<Vec<RenderPass>>, GeometryWorkerError> {
+    if glb.is_empty() || glb.len() > 64 * 1024 * 1024 || cameras.is_empty() || cameras.len() > 64 {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+    let fallback = || {
+        cameras
+            .iter()
+            .map(|camera| {
+                forgecad_geometry_worker::render_perspective_glb_fit_at_resolution(glb, camera, 128)
+                    .map(|passes| {
+                        passes
+                            .into_iter()
+                            .map(|pass| RenderPass {
+                                pass: pass.pass,
+                                png: pass.png,
+                                width: pass.width,
+                                height: pass.height,
+                            })
+                            .collect()
+                    })
+                    .map_err(|_| GeometryWorkerError::Rejected)
+            })
+            .collect::<Result<Vec<_>, _>>()
+    };
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, glb);
+    let result = match execute(
+        "render_glb_fit_batch",
+        json!({"glb_base64":encoded,"cameras":cameras,"resolution":128}),
+        DEFAULT_EXECUTION_BUDGET,
+    ) {
+        Ok(result) => result,
+        #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+        Err(GeometryWorkerError::Unavailable) => return fallback(),
+        Err(error) => return Err(error),
+    };
+    let object = strict_object(&result)?;
+    require_exact_keys(
+        object,
+        &["schema_version", "width", "height", "renderer_revision", "renders"],
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("RenderWorkerFitBatchResult@1")
+        || object.get("width").and_then(Value::as_u64) != Some(128)
+        || object.get("height").and_then(Value::as_u64) != Some(128)
+        || object.get("renderer_revision").and_then(Value::as_str) != Some("forgecad-renderer-2")
+    {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    let renders = object
+        .get("renders")
+        .and_then(Value::as_array)
+        .filter(|values| values.len() == cameras.len() && values.len() <= 64)
+        .ok_or(GeometryWorkerError::Protocol)?;
+    let expected = ["silhouette", "part-id"];
+    let mut output = Vec::with_capacity(renders.len());
+    for (index, render) in renders.iter().enumerate() {
+        let render = strict_object(render)?;
+        require_exact_keys(render, &["index", "passes"])?;
+        if render.get("index").and_then(Value::as_u64) != Some(index as u64) {
+            return Err(GeometryWorkerError::Protocol);
+        }
+        let values = render
+            .get("passes")
+            .and_then(Value::as_array)
+            .filter(|values| values.len() == expected.len())
+            .ok_or(GeometryWorkerError::Protocol)?;
+        let mut passes = Vec::with_capacity(expected.len());
+        for (value, expected_name) in values.iter().zip(expected) {
+            let pass = strict_object(value)?;
+            require_exact_keys(pass, &["pass", "mime", "width", "height", "png_base64"])?;
+            if pass.get("pass").and_then(Value::as_str) != Some(expected_name)
+                || pass.get("mime").and_then(Value::as_str) != Some("image/png")
+                || pass.get("width").and_then(Value::as_u64) != Some(128)
+                || pass.get("height").and_then(Value::as_u64) != Some(128)
+            {
+                return Err(GeometryWorkerError::Protocol);
+            }
+            let encoded = pass
+                .get("png_base64")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or(GeometryWorkerError::Protocol)?;
+            let png = base64::Engine::decode(
+                &base64::engine::general_purpose::STANDARD,
+                encoded.as_bytes(),
+            )
+            .map_err(|_| GeometryWorkerError::Protocol)?;
+            if png.is_empty() || png.len() > 4 * 1024 * 1024 || !png.starts_with(b"\x89PNG\r\n\x1a\n") {
+                return Err(GeometryWorkerError::Protocol);
+            }
+            passes.push(RenderPass {
+                pass: expected_name.to_owned(),
+                png,
+                width: 128,
+                height: 128,
+            });
+        }
+        output.push(passes);
+    }
+    Ok(output)
+}
+
 fn execute(
     operation: &str,
     payload: Value,

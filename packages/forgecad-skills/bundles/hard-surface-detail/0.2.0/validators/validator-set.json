@@ -1,0 +1,19 @@
+{
+  "dynamic_code": false,
+  "network": false,
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {
+      "builtin": "registered_operator_lock",
+      "id": "operator_allowlist@1"
+    },
+    {
+      "builtin": "finite_numbers_and_units",
+      "id": "finite_parameters@1"
+    },
+    {
+      "builtin": "node_triangle_time_budget",
+      "id": "geometry_budget@1"
+    }
+  ]
+}

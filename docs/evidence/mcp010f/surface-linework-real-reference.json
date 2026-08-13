@@ -1,0 +1,64 @@
+{
+  "schema_version": "ForgeCADMCP010FVisualRefinementReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "geometry_revision": "surface-linework-panel-vent-joint-layering",
+  "geometry_program_sha256": "06c85ed0f9f550b9371bcb2d62968959dd577ec82befac978b6457354544e3a0",
+  "geometry_artifact_sha256": "ccf4946518db8b09d9f473b0f7000cf4cb22dccae62ef4aaadb349eef0d10884",
+  "appearance_artifact_sha256": "07f2c40624ee2703312e299b0dedc8ca119ac8127f03d3cb7b84304ea43350de",
+  "asset_pack": {
+    "id": "forgecad-hard-surface-robot",
+    "manifest_sha256": "32284a0133b8f0a7eb19522f8a711f1d2bb2bc3d816b6e238948be4d3c5a4225"
+  },
+  "change_scope": {
+    "operators": ["panel@1", "mirror@1", "vent-array@1", "joint-stack@1"],
+    "behavior": "add thin visor, chest-ridge, shoulder-trim, forearm-rail, hip-flank and knee-cap Parts to express observed surface breaks and light channels",
+    "topology_changed": true,
+    "lineage_changed": false,
+    "worker_budget_changed": false,
+    "outer_silhouette_intentionally_changed": false
+  },
+  "candidate": {
+    "geometry_part_count": 26,
+    "geometry_triangle_count": 4704,
+    "appearance_part_count": 26,
+    "appearance_triangle_count": 4704,
+    "embedded_texture_uri_count": 0,
+    "aov_count": 9,
+    "mcp_image_block": "PASS"
+  },
+  "comparison": {
+    "comparison_report_hash": "8020833239b06c270f9cf28d7b62e9a1dca683aae0a8fb63d3bdd017ecef67e1",
+    "render_set_hash": "94478ff7fb2ee8b5d3680187dc308895739d32d293bbe439504627a001950c7f",
+    "metrics": {
+      "silhouette_iou": 0.741047132807,
+      "boundary_f1_4px": 0.32876512261,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.007878177805,
+      "landmark_coverage": 0.733333333333,
+      "landmark_nme": 0.134535946351,
+      "region_median_iou": 0.869403198991,
+      "critical_region_min_iou": 0.666288576965
+    },
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "hard_gate_passed": false,
+    "transport_status": "PASS_TRANSPORT_WITH_METRICS"
+  },
+  "comparison_delta_vs_rounded_panel": {
+    "silhouette_iou_delta": 0.002695747726,
+    "boundary_f1_4px_delta": 0.002316509058,
+    "bbox_edge_error_delta": 0.0,
+    "centroid_error_delta": -0.000097699163,
+    "landmark_coverage_delta": 0.0,
+    "landmark_nme_delta": 0.0,
+    "region_median_iou_delta": 0.0,
+    "critical_region_min_iou_delta": 0.01318587835
+  },
+  "decision": "promote_as_current_source_linework_baseline_without_quality_pass",
+  "visual_interpretation": "The added typed layers make visor, shoulder, forearm, hip and knee material breaks visible in beauty/material-ID passes and improve every changing global metric; the blockout remains far from reference likeness and does not authorize confirmation or export.",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false,
+  "visual_quality_claim": "NOT_CLAIMED"
+}

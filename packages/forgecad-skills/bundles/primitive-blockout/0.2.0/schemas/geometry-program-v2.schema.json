@@ -52,7 +52,7 @@
       "type": "array",
       "minItems": 1,
       "maxItems": 512,
-      "items": {"$ref": "#/$defs/primitive_node"}
+      "items": {"$ref": "#/$defs/geometry_node"}
     },
     "part_outputs": {
       "type": "array",
@@ -115,16 +115,32 @@
       "maxItems": 3,
       "items": {"$ref": "#/$defs/radian_scalar"}
     },
-    "primitive_node": {
+    "geometry_node": {
       "type": "object",
       "additionalProperties": false,
       "required": ["node_id", "operator_id", "inputs", "parameters"],
       "properties": {
         "node_id": {"$ref": "#/$defs/identifier"},
-        "operator_id": {"const": "forgecad.geometry.primitive@2"},
+        "operator_id": {
+          "enum": [
+            "forgecad.geometry.primitive@2",
+            "forgecad.geometry.profile-extrude@1",
+            "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.revolve@1",
+            "forgecad.geometry.tube-sweep@1",
+            "forgecad.geometry.transform@2",
+            "forgecad.geometry.mirror@1",
+            "forgecad.geometry.array@1",
+            "forgecad.geometry.panel@1",
+            "forgecad.geometry.vent-array@1",
+            "forgecad.geometry.joint-stack@1",
+            "forgecad.geometry.part-output@1"
+          ]
+        },
         "inputs": {
           "type": "array",
-          "maxItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true,
           "items": {"$ref": "#/$defs/identifier"}
         },
         "parameters": {
@@ -132,7 +148,18 @@
             {"$ref": "#/$defs/box_parameters"},
             {"$ref": "#/$defs/cylinder_parameters"},
             {"$ref": "#/$defs/ellipsoid_parameters"},
-            {"$ref": "#/$defs/sphere_parameters"}
+            {"$ref": "#/$defs/sphere_parameters"},
+            {"$ref": "#/$defs/profile_extrude_parameters"},
+            {"$ref": "#/$defs/profile_loft_parameters"},
+            {"$ref": "#/$defs/revolve_parameters"},
+            {"$ref": "#/$defs/tube_sweep_parameters"},
+            {"$ref": "#/$defs/transform_parameters"},
+            {"$ref": "#/$defs/mirror_parameters"},
+            {"$ref": "#/$defs/array_parameters"},
+            {"$ref": "#/$defs/panel_parameters"},
+            {"$ref": "#/$defs/vent_array_parameters"},
+            {"$ref": "#/$defs/joint_stack_parameters"},
+            {"$ref": "#/$defs/part_output_parameters"}
           ]
         }
       }
@@ -213,6 +240,181 @@
           }
         }
       ]
+    },
+    "profile_point": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/coordinate_scalar"}
+    },
+    "profile_points": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/profile_point"}
+    },
+    "path_point": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/coordinate_scalar"}
+    },
+    "path_points": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 128,
+      "items": {"$ref": "#/$defs/path_point"}
+    },
+    "profile_extrude_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "profile", "depth_m", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "profile-extrude"},
+        "profile": {"$ref": "#/$defs/profile_points"},
+        "depth_m": {"$ref": "#/$defs/dimension_scalar"},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "loft_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["height_m", "points"],
+      "properties": {
+        "height_m": {"$ref": "#/$defs/coordinate_scalar"},
+        "points": {"$ref": "#/$defs/profile_points"}
+      }
+    },
+    "profile_loft_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "profiles", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "profile-loft"},
+        "profiles": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {"$ref": "#/$defs/loft_profile"}
+        },
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "revolve_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "profile", "radial_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "revolve"},
+        "profile": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": {"$ref": "#/$defs/profile_point"}
+        },
+        "radial_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "tube_sweep_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "path", "radius_m", "radial_segments", "cap_ends", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "tube-sweep"},
+        "path": {"$ref": "#/$defs/path_points"},
+        "radius_m": {"$ref": "#/$defs/radius_scalar"},
+        "radial_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+        "cap_ends": {"type": "boolean"},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "transform_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "translation_m", "rotation_rad", "scale"],
+      "properties": {
+        "shape": {"const": "transform"},
+        "translation_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"},
+        "scale": {"$ref": "#/$defs/dimension_vector"}
+      }
+    },
+    "mirror_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "axis", "offset_m"],
+      "properties": {
+        "shape": {"const": "mirror"},
+        "axis": {"enum": ["x", "y", "z"]},
+        "offset_m": {"$ref": "#/$defs/coordinate_scalar"}
+      }
+    },
+    "array_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "count", "offset_m"],
+      "properties": {
+        "shape": {"const": "array"},
+        "count": {"type": "integer", "minimum": 1, "maximum": 32},
+        "offset_m": {"$ref": "#/$defs/coordinate_vector"}
+      }
+    },
+    "panel_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "size_m", "thickness_m", "bevel_m", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "panel"},
+        "size_m": {"$ref": "#/$defs/dimension_vector"},
+        "thickness_m": {"$ref": "#/$defs/dimension_scalar"},
+        "bevel_m": {"$ref": "#/$defs/dimension_scalar"},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "vent_array_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "width_m", "height_m", "depth_m", "slot_count", "slot_width_m", "slot_spacing_m", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "vent-array"},
+        "width_m": {"$ref": "#/$defs/dimension_scalar"},
+        "height_m": {"$ref": "#/$defs/dimension_scalar"},
+        "depth_m": {"$ref": "#/$defs/dimension_scalar"},
+        "slot_count": {"type": "integer", "minimum": 1, "maximum": 32},
+        "slot_width_m": {"$ref": "#/$defs/dimension_scalar"},
+        "slot_spacing_m": {"$ref": "#/$defs/dimension_scalar"},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "joint_stack_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "radius_m", "depth_m", "ring_count", "ring_spacing_m", "radial_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "joint-stack"},
+        "radius_m": {"$ref": "#/$defs/radius_scalar"},
+        "depth_m": {"$ref": "#/$defs/dimension_scalar"},
+        "ring_count": {"type": "integer", "minimum": 1, "maximum": 16},
+        "ring_spacing_m": {"$ref": "#/$defs/dimension_scalar"},
+        "radial_segments": {"type": "integer", "minimum": 8, "maximum": 64},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "part_output_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape"],
+      "properties": {
+        "shape": {"const": "part-output"}
+      }
     },
     "part_output": {
       "type": "object",

@@ -1,0 +1,78 @@
+{
+  "schema_version": "ForgeCADContourExecutionEvidence@1",
+  "task_id": "FGC-MCP010F-CONTOUR-ARTIFACT-BINDING",
+  "recorded_on": "2026-08-12",
+  "status": "QUALITY_TARGET_NOT_MET_NOT_PROMOTED",
+  "reference": {
+    "path": "/Users/liuchongjiang/Downloads/ChatGPT Image 2026年7月29日 12_28_04.png",
+    "sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+    "coverage": "single_three_quarter_view"
+  },
+  "viewer_action": {
+    "status": "PASS",
+    "selected_part_id": "chest-shell",
+    "drawn_and_copied": true,
+    "drafts": [
+      "docs/evidence/mcp010f/contour-draft-actual-20260812.json",
+      "docs/evidence/mcp010f/contour-draft-correction-actual-20260812.json"
+    ],
+    "intents": [
+      "docs/evidence/mcp010f/contour-intent-actual-20260812.json",
+      "docs/evidence/mcp010f/contour-intent-correction-actual-20260812.json"
+    ],
+    "runtime_write": false,
+    "transient_only": true
+  },
+  "isolated_runtime_execution": {
+    "status": "PASS_TRANSPORT_WITH_QUALITY_FAILURE",
+    "data_root": "isolated_temporary_runtime_root",
+    "persistent_user_data_touched": false,
+    "geometry_variant": "chest-wedge-mild",
+    "geometry_candidate_id": "candidate-0836cb266c6e4267a3cce07a2cc48767",
+    "visual_candidate_id": "candidate-0fe9edcc261f405ba89cf0bd087aa9af",
+    "program_sha256": "e75b72dde785bf2a4a9f395c4f35f0d0e93f1751d1530980f6dbaff326453a8e",
+    "artifact_sha256": "929d567f0c8812b19245859051905454ed05a98cd1bccc3139534b7066a6ab73",
+    "render_set_hash": "4e9bfec813949ce1af20b391304e426733b68cfda98e7b09c3a8c3c5edbc25aa",
+    "comparison_report_hash": "d65aef1df925b8ef4012304dadeda0615450e705f441f40efe36143982a3f95a",
+    "completed_steps": [
+      "operator_catalog_get",
+      "geometry_program_hash",
+      "geometry_prepare",
+      "appearance_prepare",
+      "reference_compare_prepare",
+      "quality_get"
+    ],
+    "candidate_confirm": "NOT_RUN",
+    "export": "NOT_RUN"
+  },
+  "comparison": {
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "metrics": {
+      "silhouette_iou": 0.739901387874,
+      "boundary_f1_4px": 0.326326642133,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.006233552073,
+      "landmark_coverage": 0.666666666667,
+      "landmark_nme": 0.134947701255,
+      "region_median_iou": 0.848707217795,
+      "critical_region_min_iou": 0.67382784834
+    },
+    "baseline_metrics": {
+      "silhouette_iou": 0.741047132807,
+      "boundary_f1_4px": 0.32876512261,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.007878177805,
+      "landmark_coverage": 0.733333333333,
+      "landmark_nme": 0.134535946351,
+      "region_median_iou": 0.869403198991,
+      "critical_region_min_iou": 0.666288576965
+    },
+    "decision": "REJECTED_BASELINE_RETAINED",
+    "reason": "The chest-shell contour run improved centroid and critical-region minimum slightly, but regressed silhouette IoU, boundary F1, landmark coverage, landmark NME and region median IoU."
+  },
+  "deferred_gates": {
+    "human_visual_review": "NOT_RUN",
+    "full_360_reference": "BLOCKED_REFERENCE_COVERAGE",
+    "pbr_likeness": "NOT_RUN"
+  }
+}

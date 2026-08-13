@@ -1,0 +1,121 @@
+{
+  "build_cohorts": {
+    "mcp": "fdb096c9206a19987b3a133486009c3437463c19cbb046725afa0886aee4dd2b",
+    "runtime": "fdb096c9206a19987b3a133486009c3437463c19cbb046725afa0886aee4dd2b",
+    "worker": "fdb096c9206a19987b3a133486009c3437463c19cbb046725afa0886aee4dd2b"
+  },
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "mcp_tool_calls": [
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "project_create"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_import"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_mask_prepare"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "capabilities_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "runtime_status"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "doctor"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "operator_catalog_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "skill_list"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "geometry_program_hash"
+    },
+    {
+      "artifact": {
+        "artifact_id": "2e75f7e7c7ca6b8c2524cdab62de468c1f309509e011ef16fbeecf98f14ba381",
+        "candidate_id": "candidate-337f8f9eae7b42e4990a69fce4b80d91",
+        "mime": "model/gltf-binary",
+        "part_ids": [
+          "head-shell",
+          "visor",
+          "neck",
+          "chest-shell",
+          "chest-core",
+          "chest-light",
+          "shoulder-left",
+          "shoulder-right",
+          "upper-arm-left",
+          "upper-arm-right",
+          "elbow-left",
+          "elbow-right",
+          "forearm-left",
+          "forearm-right",
+          "hand-left",
+          "hand-right",
+          "pelvis",
+          "hip-left",
+          "hip-right",
+          "thigh-left",
+          "thigh-right",
+          "knee-left",
+          "knee-right",
+          "shin-left",
+          "shin-right",
+          "foot-left",
+          "foot-right"
+        ],
+        "size_bytes": 686168,
+        "triangle_count": 4100,
+        "validator_status": "passed"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "geometry_prepare"
+    },
+    {
+      "code": "INVALID_INPUT",
+      "server": "forgecad",
+      "status": "failed",
+      "tool": "silhouette_target_get"
+    }
+  ],
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "reason": "Codex silhouette turn did not return selected camera evidence",
+  "reference_path_recorded": false,
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010C",
+  "visual_quality_claim": "NOT_CLAIMED"
+}

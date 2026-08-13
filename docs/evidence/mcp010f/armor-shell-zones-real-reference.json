@@ -1,0 +1,66 @@
+{
+  "schema_version": "ForgeCADMCP010FMaterialRefinementReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "geometry_revision": "surface-linework-panel-vent-joint-layering",
+  "geometry_program_sha256": "4c842b5e838579e773df7c2a02cf2705ed7d089327d3f706aa8ca1996309671f",
+  "geometry_artifact_sha256": "12a38c2299dfaee967a006cc28db2c6811e45ba26450d863b46aa9f14febace8",
+  "appearance_artifact_sha256": "0aa093e87c07deeb36f799f6a2a62b1e130d34950631ad7a06c7ea737a75b807",
+  "asset_pack": {
+    "id": "forgecad-hard-surface-robot",
+    "manifest_sha256": "32284a0133b8f0a7eb19522f8a711f1d2bb2bc3d816b6e238948be4d3c5a4225",
+    "material_zone_count": 7,
+    "material_ids": [
+      "white-dielectric-clearcoat",
+      "black-anodized-metal",
+      "brushed-steel",
+      "engineering-plastic",
+      "joint-rubber",
+      "micro-scratch-coat",
+      "warm-orange-emissive"
+    ],
+    "texture_manifest_count": 7,
+    "embedded_only": true
+  },
+  "change_scope": {
+    "geometry_changed": false,
+    "material_zones_changed": true,
+    "recipe": "armor-shell-zones",
+    "observed_cue": "visible upper-arm and forearm shells remain predominantly white while recessed joints and inner structures are dark",
+    "network_at_runtime": false,
+    "external_uri": false
+  },
+  "candidate": {
+    "geometry_part_count": 26,
+    "geometry_triangle_count": 4704,
+    "appearance_part_count": 26,
+    "appearance_triangle_count": 4704,
+    "aov_count": 9,
+    "mcp_image_block": "PASS"
+  },
+  "comparison": {
+    "comparison_report_hash": "9e733b1917c09c9f10c9eea7697e15360da9c0d387b7c5e735a5969972575aad",
+    "render_set_hash": "280965fdb3f8b69c3afe54a355fbe186d9e067b7f36a10b359ceefe1f04ae4c9",
+    "metrics": {
+      "silhouette_iou": 0.741047132807,
+      "boundary_f1_4px": 0.32876512261,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.007878177805,
+      "landmark_coverage": 0.733333333333,
+      "landmark_nme": 0.134535946351,
+      "region_median_iou": 0.869403198991,
+      "critical_region_min_iou": 0.666288576965
+    },
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "hard_gate_passed": false,
+    "transport_status": "PASS_TRANSPORT_WITH_METRICS"
+  },
+  "decision": "retain_as_current_material_recipe_candidate",
+  "visual_interpretation": "Compared with the darker-arm trial, armor-shell-zones restores the reference's white outer arm shells while retaining dark internal gaps and steel/rubber/emissive accents. It does not change geometry or silhouette metrics and is not a likeness or PBR-fidelity pass.",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false,
+  "visual_quality_claim": "NOT_CLAIMED",
+  "raw_receipt": "docs/evidence/mcp010f/armor-shell-zones-real-reference-raw.json"
+}

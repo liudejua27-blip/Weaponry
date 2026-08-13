@@ -1,0 +1,42 @@
+{
+  "schema_version": "ForgeCADEvidenceMCP010FGeometryExperimentReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "experiment_id": "shoulder-contour-mild",
+  "change_scope": {
+    "geometry_variant": "surface-linework plus explicit left/right outer shoulder shell contour",
+    "changed_parts": ["shoulder-armor-left", "shoulder-armor-right"],
+    "right_shoulder_position_m": [0.88, 2.06, 0.40],
+    "right_shoulder_size_m": [0.56, 0.48, 0.62],
+    "appearance_or_material_changed": false,
+    "camera_changed": false,
+    "outer_envelope_intent": "test the observed higher and fuller image-right shoulder without changing joints or arms"
+  },
+  "candidate": {
+    "geometry_part_count": 27,
+    "geometry_triangle_count": 4704,
+    "geometry_program_sha256": "63e6a306cb4f430442dbce64c018855a3ce83d039cef24e3736a1818983d02aa",
+    "geometry_artifact_sha256": "d79c99dfc8125636ef892447e18aca91a5fc74a5493b875a90ea4242695bebb8",
+    "appearance_artifact_sha256": "b9f27aaf4fe9ffd7f677edb4fadb49a2580dee6e904ea1a3d475123dffd2e6e1",
+    "comparison_report_hash": "f2c5b9ef50f8c26f32e5a43e814c565679c35b335fe7414d290f449c2568f248",
+    "render_set_hash": "8565bbb1ef51b2c05444ecb731dd1497c7689f202fd63a58d0b6e2e07e3b66e5"
+  },
+  "metrics": {
+    "silhouette_iou": 0.742468247826,
+    "boundary_f1_4px": 0.32752958114,
+    "bbox_edge_error": 0.0078125,
+    "centroid_error": 0.007965210412,
+    "landmark_coverage": 0.733333333333,
+    "landmark_nme": 0.069988917783,
+    "region_median_iou": 0.876397408703,
+    "critical_region_min_iou": 0.667518939394
+  },
+  "decision": "NOT_PROMOTED_BOUNDARY_PRIORITY",
+  "reason": "The asymmetric shoulder contour materially improved landmark NME and region agreement, but the higher-priority 4 px boundary F1 fell from the retained 0.3288 to 0.3275. It remains a local candidate for a future multi-view calibration round, not the current baseline.",
+  "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false,
+  "raw_receipt": "docs/evidence/mcp010f/shoulder-contour-mild-real-reference-raw.json"
+}

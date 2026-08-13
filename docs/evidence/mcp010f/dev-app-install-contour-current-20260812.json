@@ -1,0 +1,20 @@
+{
+  "build_cohort_sha256": "edadfc25341c26a132dc0106b90a5abe5a0afe9361f4fb5e132909509a66d22c",
+  "codesign": "ad-hoc deep strict PASS",
+  "developer_id": "NOT_RUN",
+  "installed_app": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app",
+  "notarization": "NOT_RUN",
+  "previous_app_backup": "retained",
+  "resource_sha256": {
+    "forgecad-geometry-worker": "fe0b24843281fc86c19520d40c6a47aa97651f45b200ae5e733673e1ade04ba5",
+    "forgecad-mcp": "41d3d7473026a5ee52f4b95c0327955002139d344aca9cdb341608a0ce6522b2",
+    "forgecad-runtime": "d97110fba12a632081900f0d55c96f46dcac441891c28070630cce3361ffca78"
+  },
+  "schema_version": "ForgeCADDevAppInstallReceipt@1",
+  "source_file_count": 503,
+  "source_revision": "b03b4f20878bbcf4494dec3468772e820a0e8428",
+  "source_worktree_dirty": true,
+  "status": "PASS",
+  "task_id": "FGC-MCP010F-CONTOUR",
+  "viewer_sha256": "016f4ebe6a9ea97f6daf687175ada3e14632c6d1af445a99d988cf89a66b1773"
+}

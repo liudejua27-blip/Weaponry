@@ -1,0 +1,37 @@
+{
+  "benchmark_suite": "uv-pbr-smoke",
+  "budgets": {
+    "max_export_bytes": 134217728,
+    "max_material_zones": 64,
+    "max_texture_bytes": 67108864
+  },
+  "canonical_sha256": "ed4fffd669c2a5449136ebc345b2bd9a4815351c6a4575d10cf5e4524d8ecb1d",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": true,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/geometry-program-v2.schema.json",
+  "operator_ids": [
+    "forgecad.appearance.offline-pbr@1"
+  ],
+  "output_schema": "schemas/appearance-program-v2.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "uv-pbr",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "uv_bounds@1",
+    "pbr_ranges@1",
+    "material_zone_binding@1"
+  ],
+  "version": "0.2.0"
+}

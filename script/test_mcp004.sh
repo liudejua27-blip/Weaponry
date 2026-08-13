@@ -425,12 +425,12 @@ try:
         tool["name"] for tool in tools_response.get("result", {}).get("tools", [])
     }
     if (
-        len(tool_names) != 32
+        len(tool_names) != 37
         or "project_create" not in tool_names
         or "geometry_program_hash" not in tool_names
         or "operator_catalog_get" not in tool_names
     ):
-        raise SystemExit(f"shared MCP did not expose the expected 32 tools: {sorted(tool_names)}")
+        raise SystemExit(f"shared MCP did not expose the expected 37 tools: {sorted(tool_names)}")
 
     ready_path = os.path.join(shared_data, "ipc", "ready.json")
     ready_bytes = open(ready_path, "rb").read()

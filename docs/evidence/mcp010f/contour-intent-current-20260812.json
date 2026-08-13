@@ -1,0 +1,57 @@
+{
+  "schema_version": "ForgeCADContourCorrectionIntent@1",
+  "status": "READY_FOR_SINGLE_PART_CONTOUR_EDIT",
+  "binding": {
+    "project_id": "project-faca2915ab0348b3acc8c6a2a9dc9e49",
+    "candidate_id": "candidate-4f958048298b4cc5855c22a13206945a",
+    "reference_id": "reference-5b5a7caa75674f8dac34aecf04e5b01a",
+    "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+    "artifact_sha256": "da2949605283261d79134e76db48508cf5db3c99160f00adda6d0fa73d32feb0",
+    "render_set_hash": "d8180f96cbac13d1a4f6c1da7ed726584226715b04f7becddc08f4c77e54cabb",
+    "comparison_report_hash": "7c64d586e2aabc09c0b845fc38bd6029586c2ad48303094639aa05891b1269a9"
+  },
+  "draft": {
+    "schema_version": "ForgeCADViewerContourDraft@2",
+    "draft_sha256": "7ca9ab544d8552f982bc8f62d0c02edae0598d67376af22af1790ee24d349745",
+    "point_count": 10,
+    "closed": true,
+    "coordinate_space": "normalized_reference_image",
+    "source_pass": "silhouette",
+    "selected_part_id": "chest-shell",
+    "selected_material_zone_id": "zone-white-shell"
+  },
+  "edit_policy": {
+    "allowed_scope": "one semantic Part and one contour-bearing Operator stage",
+    "preferred_operations": [
+      "profile-extrude@1",
+      "profile-loft@1",
+      "panel@1",
+      "transform@2"
+    ],
+    "preserve": [
+      "reference_id",
+      "camera_calibration",
+      "operator_catalog_sha256",
+      "base_candidate_hash"
+    ],
+    "rerun": [
+      "geometry_program_hash",
+      "geometry_prepare",
+      "artifact_readback_get",
+      "reference_compare_prepare",
+      "quality_get"
+    ],
+    "locked_until_pass": [
+      "landmark-structure",
+      "semantic-part-fill",
+      "surface-detail",
+      "uv-pbr",
+      "candidate_confirm",
+      "export_confirm"
+    ],
+    "hidden_or_cropped_regions": "unknown_or_inferred_only"
+  },
+  "runtime_write": false,
+  "persistent_user_data_touched": false,
+  "intent_sha256": "deb53b95037378cfb18175aedb816d6e90a799cb291b996841be3bbd66ff0f4d"
+}

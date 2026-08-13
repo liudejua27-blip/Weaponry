@@ -2,7 +2,13 @@
 
 版本：2026-08-10
 状态：权威执行合同；MCP005–MCP009 单用户 MVP host golden path 已完成；FGC-MCP010A done
-当前起点：`FGC-MCP005`–`FGC-MCP009` focused Gate 和真实 Codex CLI 十二调用 reference→CAS GLB receipt 已通过；MCP010B structural source Gate 已通过但 Darwin 512 MiB OS 总内存硬门仍未运行；MCP010C source Gate 已实现固定 renderer、九 AOV、reference comparison、MCP image block 和 typed/human review，真实 Codex CLI C 另完成六 turn/32-call transport receipt。首次真实机器人 PNG 的 likeness target 未通过；真人视觉门、Viewer/package/live C、PBR/纹理和 360 仍为 `目标设计/NOT_RUN/BLOCKED`
+当前起点：`FGC-MCP005`–`FGC-MCP009` focused Gate 和真实 Codex CLI 十二调用 reference→CAS GLB receipt 已通过；MCP010B structural source Gate 已通过但 Darwin 512 MiB OS 总内存硬门仍未运行；MCP010C source Gate 已实现固定 renderer、九 AOV、reference comparison、MCP image block 和 typed/human review，真实 Codex CLI C 已完成六 turn/32-call transport，轮廓优先 attempt28 又完成 source-built 12-turn transport，但 likeness target 仍未通过（IoU 0.6623、boundary F1 0.2418）；MCP010D/E source Gate 已实现真实硬表面 Operator、离线 AssetPack、512px UV atlas、fixed mikktspace、embedded PBR 和九 AOV raw path；MCP010F source Gate 已实现只读 Viewer 的 AOV/对比/Part/MaterialZone/explosion/heatmap surface，并加入 hash-bound contour target、兼容 camera fit、Rig/SDF、Part proposal 和 candidate compare。真人视觉门、Viewer/package/live C/D/E/F、xatlas/Validator、真实 PBR likeness 和 360 仍为 `目标设计/NOT_RUN/BLOCKED`
+
+Stage 0 当前交付口径：78 Schema、29 read + 18 opt-in write = 47 tools，唯一 `in_progress` 为 `FGC-MCP010F`；机器证据入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。attempt35 仅是 provisional retained observation，不具备 benchmark 资格：它是 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，camera-fit `354caf27…f95788` 与 reference-compare `8cd20605…a535` 为 `MISMATCH`；packaged Viewer 为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`，尚未绑定该 observation。source/raw/transport/build/AX smoke 不能替代视觉、人评或 packaged E2E Gate。
+
+<!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
+
+当前高质量 authoring/readback 路径使用 `GeometryProgram@2` 与 `ArtifactReadback@2`；下文 `GeometryProgram@1` 只保留为 `[transition-v1]` 的 MCP007 历史 MVP 证据，不能作为 MCP010F 当前执行入口。
 
 ## 1. MVP 要交付什么
 
@@ -120,7 +126,7 @@ MVP Bundle 可以由仓库 first-party 开发 trust root 校验 canonical hash�
 
 退出 Gate：Schema/生成类型/validator 无漂移；未知 Operator、DAG cycle、错误单位、非有限值、预算溢出、缺许可证、Bundle hash 漂移 fail closed；所有 Skill 均无可执行脚本和网络权限；canonical plan 在重复运行中 hash 一致。
 
-当前完成证据：`packages/forgecad-skills/registry.json` 保留十个历史 `0.1.0` Skills，并新增 `primitive-blockout@0.2.0`；Bundle metadata、Runtime Skill integrity 和 source Gate 保持既有范围。当前源码共 59 contracts；MCP010C fixed renderer/九 AOV/reference compare/review raw Gate已单独记录在 `docs/evidence/mcp010c/`。正式 distribution signature/revocation、PBR V2/AssetPack、Viewer compare 和真实几何/视觉 benchmark不属于 MCP006，分别留给 MCP012–013、MCP010D–F；不得用 Skill metadata代替 producer。
+当前完成证据：`packages/forgecad-skills/registry.json` 保留历史 `0.1.0` Skills，并新增 `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 和 `uv-pbr@0.2.0`；Bundle metadata、Runtime Skill integrity 和 source Gate保持既有范围。当前源码共 78 contracts；MCP010C fixed renderer/九 AOV/reference compare/review raw Gate、MCP010D/E Operator/AssetPack/UV/PBR/MikkTSpace raw Gate 和 MCP010F Viewer source、轮廓目标、`CameraCalibrationRef@1`、相机拟合、边界误差 Gate分别记录在 `docs/evidence/mcp010c/`、`docs/evidence/mcp010d/`、`docs/evidence/mcp010e/`、`docs/evidence/mcp010f/`。正式 distribution signature/revocation、xatlas/Validator、Viewer package 和真实几何/视觉 benchmark不属于 MCP006，分别留给 MCP012–013、MCP010F；不得用 Skill metadata代替 producer。
 
 ### FGC-MCP007：真实几何 vertical slice（已完成）
 
@@ -166,7 +172,7 @@ MVP 外观：白色涂层金属外壳、深色机械内构、有限暖橙 emissi
 
 实现：产品自有 bounded UV mapping、tangent、BaseColor/Metallic/Roughness/Normal/AO/Emissive 受限通道、glTF lowering、严格 readback；Viewer 使用现有 Three.js `GLTFLoader` 显示 Runtime artifact、候选/版本 ID；headless renderer 输出 beauty、silhouette、normal、part-ID，其他 AOV 可延后到发布。MCP008 必须先消费 MCP007 artifact/readback，不复制第二份模型或状态。xatlas、mikktspace 和 glTF Validator 仅为 approved-for-evaluation 候选，当前没有安装为产品依赖。
 
-退出 Gate：UV 越界/零面积、tangent/normal 方向、颜色空间、PBR 范围、MaterialZone 漂移 fail closed；当前由 product-owned strict readback 覆盖，外部 glTF Validator 仍为 NOT_RUN；Viewer 不生成第二份材质或模型状态；关闭 Viewer 后 headless render 仍成功；固定相机/灯光/分辨率/renderer version/hash 进入 receipt。
+退出 Gate：UV 越界/零面积、tangent/normal 方向、颜色空间、PBR 范围、MaterialZone 漂移 fail closed；当前由 product-owned strict readback 与固定 `mikktspace@0.3.0` 覆盖，外部 glTF Validator 仍为 NOT_RUN；Viewer 不生成第二份材质或模型状态；关闭 Viewer 后 headless render 仍成功；固定相机/灯光/分辨率/renderer version/hash 进入 receipt。
 
 ### FGC-MCP009：参考比较、局部修改与 MVP 闭环
 
@@ -191,8 +197,8 @@ MVP 验收不使用一个未经校准的分数冒充“高质量”。必须同�
 - `FGC-MCP010B`：V2 几何合同与真实 GLB/拓扑 readback；
 - `FGC-MCP010C`：perspective/z-buffer 固定 renderer、九 AOV、参考指标和 typed review；
 - `FGC-MCP010D`：受限高细节 Operator、Manifold 有条件采用和 geometry Skill `0.2.0`；
-- `FGC-MCP010E`：first-party 离线 AssetPack、UV/tangent/PBR/纹理和 provenance；
-- `FGC-MCP010F`：Viewer compare/selection/explosion、undo/redo、真实机器人和人工闭环；
+- `FGC-MCP010E`：first-party 离线 AssetPack、512px UV atlas、固定 mikktspace、embedded PBR/纹理和 provenance；
+- `FGC-MCP010F`：Viewer compare/selection/explosion、AOV/heatmap 辅助、undo/redo、真实机器人和人工闭环；当前 source slice 已通过，packaged/human/360 子门仍未运行；
 - `FGC-MCP011`：checkpoint、并发 Job、崩溃恢复、配额、GC、全局性能；
 - `FGC-MCP012`：通用第三方 Skill/AssetPack 生命周期、publisher、分发签名/撤销；
 - `FGC-MCP013`：Developer ID、notarization、clean install、升级/回滚、Desktop/CLI packaged E2E、filesystem export、跨类别真人质量门。
@@ -201,15 +207,15 @@ MVP 验收不使用一个未经校准的分数冒充“高质量”。必须同�
 
 ### MCP010B 当前 V2 结构 authoring 边界（source Gate PASS；OS memory hard cap deferred）
 
-当前源码有 52 个 B JSON Schema（总源合同已因 C 为 59）和 B authoring/readback 工具；`operator_catalog_get` 与 `geometry_program_hash` 是默认只读工具。B source Gate 已通过 contracts、Skill integrity、Worker isolation、V2 restore hardening 和 closed GLB profile；Darwin OS memory hard cap deferred/NOT_RUN。Codex 先读取 catalog，再提交严格、无 `canonical_sha256` 的 V2 draft 到 hash 工具；Runtime 返回唯一 canonical hash，且不编译、不创建 candidate/Job、不写 SQLite/CAS。
+当前源码以 manifest/目录计数为 78 个 JSON Schema；52 个 B subtotal、C 新增 7、E 新增 6、F 新增 12 只是历史阶段 subtotal，不能再相加作为当前总量。`operator_catalog_get`、`geometry_program_hash`、`material_pack_get`、`render_pass_get`、`silhouette_target_get`、`camera_fit_prepare`、`silhouette_fit_prepare`、`part_contour_fit_prepare`、`silhouette_part_error_get`、`silhouette_candidate_compare` 与 `boundary_error_get` 是默认只读工具。B source Gate 已通过 contracts、Skill integrity、Worker isolation、V2 restore hardening 和 closed GLB profile；E source Gate 已通过 AssetPack manifest/provenance、512px UV atlas、fixed mikktspace、embedded PBR and nine AOV；F source Gate 已通过 hash-bound contour target、Runtime-owned camera ref、bounded 64-render coarse-to-local camera search、Rig/SDF/Part/candidate compare 和 directional boundary error；Darwin OS memory hard cap deferred/NOT_RUN。Codex 先读取 catalog，再提交严格、无 `canonical_sha256` 的 V2 draft 到 hash 工具；Runtime 返回唯一 canonical hash，且不编译、不创建 candidate/Job、不写 SQLite/CAS。
 
 历史 source-built real Codex CLI 曾使用授权参考完成 `project_create → reference_import → capabilities_get → operator_catalog_get → geometry_program_hash → geometry_prepare → artifact_readback_get`，生成 pre-semantic-Part-sink 的未确认 12 Part/884 triangle primitive structural blockout。attempt 1 的 `BLOCKED` receipt 保留，attempt 2 的 structural PASS 不代表 reference likeness、texture/PBR V2、用户评分、export/restore、Viewer comparison 或 360°。MCP010A/010B 的 Dev.app receipts均为历史 cohort receipt；当前 `d9c23b…ac0bd` 的结构证据也不记录视觉质量。MCP010B structural source Gate已通过并转为 deferred（Darwin 512 MiB OS total-memory hard cap保持 `NOT_RUN`），不得由 isolation/peak-RSS 结果推断为总内存预防证明。
 
 ### MCP010C 当前固定渲染与参考比较边界
 
-当前源码新增 7 个合同，总源合同 59；默认工具面为 20 read + 16 opt-in write。`script/test_mcp010c.sh` 已通过固定 512×512 perspective/z-buffer、scene transform、确定性九 AOV、CAS RenderSet@2、local reference mask/metrics、`render_pass_get` MCP image block、Codex typed review、human receipt 和 deterministic raw stdio。证据见 `docs/evidence/mcp010c/manifest.json` 与 `docs/evidence/mcp010c/raw-stdio.json`。首次真实机器人 PNG 另已完成九 AOV/compare/review transport，但 primitive blockout 的 likeness metrics 未达标，详见 `docs/evidence/mcp010c/real-reference-robot.json`；该 receipt 不创建 version，也不构成 `PARTIAL_VISIBLE_VIEW_PASS`。Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash 和 HQ_360 仍 `NOT_RUN/BLOCKED`。单张三分之四图最多只能产生 `PARTIAL_VISIBLE_VIEW_PASS`，且必须先通过阈值。
+当前源码 manifest/目录共有 78 个合同，默认工具面为 29 read + 18 opt-in write = 47。`script/test_mcp010c.sh` 已通过固定 512×512 perspective/z-buffer、scene transform、确定性九 AOV、CAS RenderSet@2、local reference mask/metrics、`render_pass_get` MCP image block、Codex typed review、human receipt schema 和 deterministic raw stdio；`script/test_mcp010e.sh` 已通过 AssetPack/provenance、512px atlas、fixed mikktspace、embedded PBR textures、strict readback 和九 AOV image block；`script/test_mcp010f.sh` 还通过哈希绑定 silhouette target、`CameraCalibrationRef@1`、64-render coarse-to-local camera fit（37 个粗候选 + top-3×9 局部探针；候选排序在 64px 内部二值栅格/128px 合同输出完成，最终指标回到 512px）、bounded Rig/SDF/Part/candidate compare、directional boundary error、只读 Viewer source checker、TypeScript/Vite/Tauri 构建和 IPC write-boundary negative。上述仅为 source/raw/build 范围。真实机器人 attempt35 虽完成 11-turn transport，但为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`；fit/compare camera `MISMATCH`，且 packaged Viewer 未绑定同一 provisional observation，详见 `docs/evidence/mcp010f/current-benchmark-truth.json`。这些 receipt 不创建 version，也不构成 `PARTIAL_VISIBLE_VIEW_PASS`；同 observation 绑定的 packaged Viewer E2E、人评阈值、真实 PBR likeness、xatlas/Validator、export/restart hash 和 HQ_360 仍 `NOT_RUN/BLOCKED`。单张三分之四图最多只能产生 `PARTIAL_VISIBLE_VIEW_PASS`，且必须先通过阈值。
 
-当前 Dev.app packaged C 更新：安装/包验证/隔离探针、九 AOV raw renderer 和 packaged Codex CLI compare/review transport 已通过；其结果仍为 `QUALITY_TARGET_NOT_MET`，不构成 likeness PASS。packaged Viewer UI、真人评分、PBR/纹理、export/restart hash 和 HQ_360 继续 `NOT_RUN/BLOCKED`。
+当前 Dev.app packaged C 更新：安装/包验证/隔离探针、九 AOV raw renderer 和 packaged Codex CLI compare/review transport 已通过；其结果仍为 `QUALITY_TARGET_NOT_MET`，不构成 likeness PASS。packaged Viewer UI、真人评分、真实 PBR likeness/纹理审美、export/restart hash 和 HQ_360 继续 `NOT_RUN/BLOCKED`。
 
 ## 6. GitHub 工具采用决策
 

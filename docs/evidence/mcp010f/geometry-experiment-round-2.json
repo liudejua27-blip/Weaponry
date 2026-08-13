@@ -1,0 +1,100 @@
+{
+  "schema_version": "ForgeCADMCP010FGeometryExperimentReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "metric_revision": "region-mask-iou-v2",
+  "source": "user-authorized-reference-metadata-only",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "baseline": {
+    "geometry_part_count": 20,
+    "geometry_triangle_count": 3368,
+    "silhouette_iou": 0.73527430309,
+    "boundary_f1_4px": 0.32157114814,
+    "bbox_edge_error": 0.005859375,
+    "centroid_error": 0.007983424125,
+    "landmark_coverage": 0.733333333333,
+    "landmark_nme": 0.134797218839,
+    "region_median_iou": 0.86247566701,
+    "critical_region_min_iou": 0.650865739427
+  },
+  "experiments": [
+    {
+      "id": "head-wedge",
+      "status": "REJECTED",
+      "reason": "Tapered head/visor changed only the head region; IoU rose marginally but boundary, region and global gates did not improve.",
+      "comparison_report_hash": "253ade62dd5294e624a6b3e8c3b02b7855efab0c8a56033adea33d0fcc204dbe",
+      "geometry_part_count": 20,
+      "geometry_triangle_count": 3368,
+      "metrics": {
+        "silhouette_iou": 0.736947294113,
+        "boundary_f1_4px": 0.308882521883,
+        "bbox_edge_error": 0.009765625,
+        "centroid_error": 0.008842038444,
+        "landmark_coverage": 0.733333333333,
+        "landmark_nme": 0.134765625,
+        "region_median_iou": 0.844563464639,
+        "critical_region_min_iou": 0.654280405888
+      }
+    },
+    {
+      "id": "tapered-lower",
+      "status": "REJECTED",
+      "reason": "Profile-loft lower shells reduced the blocky feet but lost the reference silhouette and region agreement.",
+      "comparison_report_hash": "d726e55a5b9feea5d852c5780676fe20f60bebcd33ee6f86897a25ca0d411978",
+      "geometry_part_count": 20,
+      "geometry_triangle_count": 3304,
+      "metrics": {
+        "silhouette_iou": 0.697685584472,
+        "boundary_f1_4px": 0.271227438526,
+        "bbox_edge_error": 0.0078125,
+        "centroid_error": 0.008538534342,
+        "landmark_coverage": 0.733333333333,
+        "landmark_nme": 0.133984375,
+        "region_median_iou": 0.824111334675,
+        "critical_region_min_iou": 0.6252681764
+      }
+    },
+    {
+      "id": "asymmetric-stance",
+      "status": "REJECTED_BEST_LOCAL_IOU",
+      "reason": "Independent higher right shoulder/lower left arm improved global and region IoU, but boundary, bbox and landmark gates remained below target.",
+      "comparison_report_hash": "e2c1ee76fc3e0bc8ff30770624a319b343aea41d3028f7947eb74f06ed5fab64",
+      "geometry_part_count": 26,
+      "geometry_triangle_count": 3368,
+      "metrics": {
+        "silhouette_iou": 0.749025235312,
+        "boundary_f1_4px": 0.238078663418,
+        "bbox_edge_error": 0.01953125,
+        "centroid_error": 0.016745646214,
+        "landmark_coverage": 0.733333333333,
+        "landmark_nme": 0.136214890928,
+        "region_median_iou": 0.86844839529,
+        "critical_region_min_iou": 0.664871160285
+      }
+    },
+    {
+      "id": "asymmetric-armor",
+      "status": "REJECTED",
+      "reason": "Rounding the same asymmetric shoulder/arm shells did not improve the local IoU and worsened landmark NME versus the stance-only variant.",
+      "comparison_report_hash": "5b0e65ddb79f98d5ee285345a3d4ae2fd5188c44e2632ad1175e4b303f74383e",
+      "geometry_part_count": 26,
+      "geometry_triangle_count": 3368,
+      "metrics": {
+        "silhouette_iou": 0.747418390892,
+        "boundary_f1_4px": 0.24112684639,
+        "bbox_edge_error": 0.01953125,
+        "centroid_error": 0.016259276821,
+        "landmark_coverage": 0.733333333333,
+        "landmark_nme": 0.201408418467,
+        "region_median_iou": 0.854421611637,
+        "critical_region_min_iou": 0.667659844673
+      }
+    }
+  ],
+  "decision": "retain-baseline",
+  "best_local_experiment": "asymmetric-stance",
+  "quality_status": "QUALITY_TARGET_NOT_MET",
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE"
+}

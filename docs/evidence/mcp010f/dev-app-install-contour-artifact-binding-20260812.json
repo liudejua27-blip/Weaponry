@@ -1,0 +1,20 @@
+{
+  "build_cohort_sha256": "7f9e4c33787a9ad2e069aa82c9796be575f86e038da9276b600b43b14daee518",
+  "codesign": "ad-hoc deep strict PASS",
+  "developer_id": "NOT_RUN",
+  "installed_app": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app",
+  "notarization": "NOT_RUN",
+  "previous_app_backup": "retained",
+  "resource_sha256": {
+    "forgecad-geometry-worker": "d1db325caac07f1378bbbd958b927aeab2fd863a4f1a88c1a903526fbaa835d5",
+    "forgecad-mcp": "d6c4d2273aa078377f1660e55a924afa72a9bd7ffbd481437326899c03bcd4b6",
+    "forgecad-runtime": "d3310a083e3e09ecd2770b0ab46ef4e1938b6784d2f28b0ef5bd4aba1235c565"
+  },
+  "schema_version": "ForgeCADDevAppInstallReceipt@1",
+  "source_file_count": 503,
+  "source_revision": "b03b4f20878bbcf4494dec3468772e820a0e8428",
+  "source_worktree_dirty": true,
+  "status": "PASS",
+  "task_id": "FGC-MCP010F-CONTOUR-ARTIFACT-BINDING",
+  "viewer_sha256": "cbe89a0ea017402bce9e92ffc23a63e499622848420ebff23b26371c34694e2a"
+}

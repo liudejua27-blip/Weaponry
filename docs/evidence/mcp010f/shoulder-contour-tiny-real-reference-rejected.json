@@ -1,0 +1,39 @@
+{
+  "schema_version": "ForgeCADEvidenceMCP010FGeometryExperimentReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "experiment_id": "shoulder-contour-tiny",
+  "change_scope": {
+    "geometry_variant": "surface-linework plus smaller explicit left/right outer shoulder shell contour",
+    "changed_parts": ["shoulder-armor-left", "shoulder-armor-right"],
+    "appearance_or_material_changed": false,
+    "camera_changed": false
+  },
+  "candidate": {
+    "geometry_part_count": 27,
+    "geometry_triangle_count": 4704,
+    "geometry_program_sha256": "9cac84a6981384e7ecd556c44a2fc9c204bc8e739be88f46fd45e7712cfe4d6c",
+    "geometry_artifact_sha256": "5949fa6bfbbd0191da83b08465cd2d4c63541b02ed04355d605e95f62b1ee201",
+    "appearance_artifact_sha256": "729465ca6077391a2a7dd5507433e5caa6d6ff19ac4689794adca0c88ce1c916",
+    "comparison_report_hash": "399b5cc3b7202bd1c8323aae985826c0bd116af8328834b3a97076b359429a39",
+    "render_set_hash": "1eb66e65c462a77184fac260112accddd0f037c59955b5640b71dbf214e89ad8"
+  },
+  "metrics": {
+    "silhouette_iou": 0.741727882611,
+    "boundary_f1_4px": 0.32752958114,
+    "bbox_edge_error": 0.0078125,
+    "centroid_error": 0.007908451015,
+    "landmark_coverage": 0.733333333333,
+    "landmark_nme": 0.134535946351,
+    "region_median_iou": 0.872670985496,
+    "critical_region_min_iou": 0.666918964946
+  },
+  "decision": "REJECTED",
+  "reason": "The smaller shoulder contour did not recover boundary F1, and its landmark score returned to the retained baseline. It is not promoted.",
+  "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false,
+  "raw_receipt": "docs/evidence/mcp010f/shoulder-contour-tiny-real-reference-raw.json"
+}

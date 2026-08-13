@@ -1,0 +1,76 @@
+{
+  "schema_version": "ForgeCADMCP010FMaterialRefinementReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "geometry_revision": "surface-linework-panel-vent-joint-layering-with-material-zones",
+  "geometry_program_sha256": "57d4e6614748d2af9c2a54a7fa9d389a99c2d351a31beb9e79031dbe08197144",
+  "geometry_artifact_sha256": "efca4fd0a024df338b6528f63be6e92cb32e5480528e5ab29cef3679a37ec195",
+  "appearance_artifact_sha256": "7209d5ddc25568c2530e48ce08660687583ca87b329b9d5eb47b728864f8ad93",
+  "asset_pack": {
+    "id": "forgecad-hard-surface-robot",
+    "manifest_sha256": "32284a0133b8f0a7eb19522f8a711f1d2bb2bc3d816b6e238948be4d3c5a4225",
+    "material_zone_count": 8,
+    "material_ids": [
+      "white-dielectric-clearcoat",
+      "dark-painted-metal",
+      "black-anodized-metal",
+      "brushed-steel",
+      "engineering-plastic",
+      "joint-rubber",
+      "micro-scratch-coat",
+      "warm-orange-emissive"
+    ],
+    "texture_manifest_count": 7,
+    "embedded_only": true
+  },
+  "change_scope": {
+    "geometry_changed": false,
+    "material_zones_changed": true,
+    "material_families": [
+      "white dielectric clearcoat",
+      "dark painted metal",
+      "black anodized metal",
+      "brushed steel",
+      "engineering plastic",
+      "joint rubber",
+      "micro-scratch clearcoat",
+      "warm orange emissive"
+    ],
+    "surface_binding": "every semantic Part has exactly one typed MaterialZone; geometry hash and AppearanceProgram hash are bound",
+    "network_at_runtime": false,
+    "external_uri": false
+  },
+  "candidate": {
+    "geometry_part_count": 26,
+    "geometry_triangle_count": 4704,
+    "appearance_part_count": 26,
+    "appearance_triangle_count": 4704,
+    "aov_count": 9,
+    "mcp_image_block": "PASS"
+  },
+  "comparison": {
+    "comparison_report_hash": "9a4b36ffc42507025e60b4d34f26f2ee62b3dc2e5e5d600970d1c3a1220647e6",
+    "render_set_hash": "f7ea5341f82d43e8fb47a4b0d02b60f5852e5fbefbb8e292b4cd5d2856eec750",
+    "metrics": {
+      "silhouette_iou": 0.741047132807,
+      "boundary_f1_4px": 0.32876512261,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.007878177805,
+      "landmark_coverage": 0.733333333333,
+      "landmark_nme": 0.134535946351,
+      "region_median_iou": 0.869403198991,
+      "critical_region_min_iou": 0.666288576965
+    },
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "hard_gate_passed": false,
+    "transport_status": "PASS_TRANSPORT_WITH_METRICS"
+  },
+  "decision": "promote_material_zoned_surface_linework_without_quality_pass",
+  "visual_interpretation": "The fixed renderer now shows distinct white clearcoat, dark painted, anodized, brushed steel, plastic, rubber, micro-scratch and emissive families on traceable Parts. Silhouette metrics are unchanged from the geometry-only linework pass; this is a material/readability improvement, not a likeness pass.",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false,
+  "visual_quality_claim": "NOT_CLAIMED",
+  "raw_receipt": "docs/evidence/mcp010f/surface-zones-real-reference-raw.json"
+}

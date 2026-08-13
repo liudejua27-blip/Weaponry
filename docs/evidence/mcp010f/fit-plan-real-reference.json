@@ -1,0 +1,41 @@
+{
+  "schema_version": "ForgeCADMCP010FFitPlanReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_HASH_BOUND_REVISE_PLAN",
+  "source": "user-authorized-reference-metadata-only",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "reference_id": "reference-de8dea1124884156863b653912eaf5fd",
+  "candidate_id": "candidate-3947456c942d4433b819457527528731",
+  "comparison_report_canonical_sha256": "cc9e6840eae83ddafb04a241281297c2c72937b374220510522fb4b9a530faa3",
+  "view_spec_canonical_sha256": "bf82dc350069adcc4e1cd2f08e05642f0227cce1b7642dec93556af983d0bec9",
+  "operator_catalog_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+  "quality_status": "QUALITY_TARGET_NOT_MET",
+  "decision": "revise",
+  "action_stages": ["silhouette", "structure", "form"],
+  "action_ids": ["fit-silhouette", "fit-landmarks", "fit-regions"],
+  "action_target_regions": {
+    "fit-silhouette": ["whole-body", "chest-armor", "right-shoulder-arm", "head-visor"],
+    "fit-landmarks": ["chest-armor", "right-shoulder-arm", "head-visor", "right-thigh-knee"],
+    "fit-regions": ["chest-armor", "right-shoulder-arm", "head-visor", "right-thigh-knee"]
+  },
+  "metrics": {
+    "silhouette_iou": 0.73527430309,
+    "boundary_f1_4px": 0.32157114814,
+    "bbox_edge_error": 0.005859375,
+    "centroid_error": 0.007983424125,
+    "landmark_coverage": 0.733333333333,
+    "landmark_nme": 0.134797218839,
+    "region_median_iou": 0.184749242545,
+    "critical_region_min_iou": 0.077724871959
+  },
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "visual_quality_claim": "NOT_CLAIMED",
+  "human_visual_review": "NOT_RUN",
+  "full_360_reference": "BLOCKED_REFERENCE_COVERAGE",
+  "notes": [
+    "The helper verified the exact comparison and view canonical hashes before producing the queue.",
+    "The queue contains bounded intents only; it did not create a GeometryProgram, call an Operator, or write Runtime/CAS.",
+    "Operator hints were filtered against the captured active catalog and must be rechecked live before use."
+  ]
+}

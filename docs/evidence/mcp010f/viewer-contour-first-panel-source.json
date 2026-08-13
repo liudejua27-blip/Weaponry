@@ -1,0 +1,49 @@
+{
+  "schema_version": "ForgeCADMCP010FContourFirstViewerReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_UI_DERIVED_CUMULATIVE_GATES",
+  "implementation": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
+  "source_gate": "script/test_mcp010f.sh",
+  "workflow_sequence": [
+    "reference-canvas",
+    "silhouette-blockout",
+    "landmark-structure",
+    "semantic-part-fill",
+    "surface-detail",
+    "uv-pbr",
+    "final"
+  ],
+  "verified_behaviors": [
+    "missing comparison metrics keep the UI at reference-canvas, mark later gates not-run or locked, and emit no correction intent",
+    "failed silhouette metrics show silhouette-blockout and lock structure, form and surface/material guidance",
+    "structure and form gates are cumulative and cannot be unlocked by material or heatmap UI state",
+    "the contour canvas button selects the silhouette AOV and overlay mode in one read-only action, keeping the camera/reference comparison fixed",
+        "the contour canvas may add a deterministic border-connected flood-fill reference contour aid in browser memory for visual guidance only",
+    "the surface/material row is only a transient can-enter hint after the form gate passes",
+    "the panel names ReferenceComparisonReport@1 and QualityReport as the authoritative truth boundary",
+        "the panel derives a bounded Codex correction queue: silhouette, landmark, form and surface intents are emitted in cumulative order with failed metrics and one-Part/one-MaterialZone constraints",
+    "the panel uses only candidate-bound visual QualityReport@2 status for visual unlocks; a structural candidate quality_hard_gate_passed fallback cannot clear the visual queue",
+    "the panel fails closed when viewer_visual_evidence is unavailable and does not fall back to a generic candidate quality projection or render hash",
+    "the correction queue never contains geometry parameters, never moves the camera and never invokes a Runtime write tool",
+    "the panel never invokes Runtime write tools and never persists image bytes, UI state or new quality evidence"
+  ],
+  "thresholds": {
+    "silhouette_iou": 0.72,
+    "boundary_f1_4px": 0.75,
+    "bbox_edge_error": 0.05,
+    "centroid_error": 0.04,
+    "landmark_coverage": 0.8,
+    "landmark_nme": 0.08,
+    "region_median_iou": 0.5,
+    "critical_region_min_iou": 0.3
+  },
+  "truth_boundary": "Runtime candidate-bound ReferenceComparisonReport@1 and QualityReport",
+  "correction_queue": "PASS_SOURCE_READ_ONLY_HASH_BOUND_INTENTS",
+  "contour_canvas": "PASS_SOURCE_SILHOUETTE_AOV_OVERLAY",
+    "reference_contour_aid": "PASS_SOURCE_EPHEMERAL_BORDER_FLOOD_FILL_AID",
+  "packaged_ui_e2e": "NOT_RUN",
+  "human_visual_review": "NOT_RUN",
+  "full_360_reference": "BLOCKED_REFERENCE_COVERAGE",
+  "visual_quality_claim": "NOT_CLAIMED",
+  "persistent_user_data_touched": false
+}

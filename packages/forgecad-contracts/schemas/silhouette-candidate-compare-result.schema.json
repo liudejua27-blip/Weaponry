@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-candidate-compare-result.schema.json",
+  "title": "SilhouetteCandidateCompareResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_sha256", "candidates", "winner_candidate_id", "delta", "status", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "SilhouetteCandidateCompareResult@1"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "candidates": {"type": "array", "minItems": 2, "maxItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["candidate_id", "metrics", "loss"], "properties": {"candidate_id": {"$ref": "#/$defs/id"}, "metrics": {"$ref": "#/$defs/metrics"}, "loss": {"type": "number", "minimum": 0}}}},
+    "winner_candidate_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "delta": {"type": "object", "additionalProperties": false, "required": ["silhouette_iou", "boundary_f1_4px", "sdf_chamfer_px"], "properties": {"silhouette_iou": {"type": "number"}, "boundary_f1_4px": {"type": "number"}, "sdf_chamfer_px": {"type": "number"}}},
+    "status": {"enum": ["ready", "tie", "unavailable"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metrics": {"type": "object", "additionalProperties": false, "required": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "sdf_chamfer_px"], "properties": {"silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1}, "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1}, "bbox_edge_error": {"type": "number", "minimum": 0, "maximum": 1}, "centroid_error": {"type": "number", "minimum": 0, "maximum": 1}, "sdf_chamfer_px": {"type": "number", "minimum": 0}}}
+  }
+}

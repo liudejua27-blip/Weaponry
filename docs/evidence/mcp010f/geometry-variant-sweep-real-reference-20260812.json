@@ -1,0 +1,106 @@
+{
+  "schema_version": "ForgeCADGeometryVariantSweepEvidence@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_TRANSPORT_WITH_ALL_VISUAL_VARIANTS_BELOW_TARGET",
+  "recorded_on": "2026-08-12",
+  "reference_mode": "user-authorized-inline",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "build_cohort_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "tool_chain": {
+    "mcp": "same-cohort source-built forgecad-mcp",
+    "runtime": "same-cohort source-built forgecad-runtime",
+    "worker": "same-cohort fixed sibling forgecad-geometry-worker",
+    "asset_pack": "forgecad-hard-surface-robot@1.0.0",
+    "aov_count": 9,
+    "artifact_readback": "ArtifactReadback@2 hard_gate_passed",
+    "persistent_user_data_touched": false
+  },
+  "variants": [
+    {
+      "geometry_variant": "surface-linework",
+      "geometry_part_count": 26,
+      "geometry_triangle_count": 4704,
+      "silhouette_iou": 0.741047132807,
+      "boundary_f1_4px": 0.32876512261,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.007878177805,
+      "landmark_coverage": 0.733333333333,
+      "landmark_nme": 0.134535946351,
+      "region_median_iou": 0.869403198991,
+      "critical_region_min_iou": 0.666288576965,
+      "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+      "role": "retained_baseline"
+    },
+    {
+      "geometry_variant": "sleek-armor",
+      "geometry_part_count": 20,
+      "geometry_triangle_count": 3944,
+      "silhouette_iou": 0.696913851652,
+      "boundary_f1_4px": 0.164398920825,
+      "bbox_edge_error": 0.025390625,
+      "centroid_error": 0.027580191964,
+      "landmark_coverage": 0.533333333333,
+      "landmark_nme": 0.20078125,
+      "region_median_iou": 0.771211335753,
+      "critical_region_min_iou": 0.608429334083,
+      "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+      "role": "rejected"
+    },
+    {
+      "geometry_variant": "tapered-shells",
+      "geometry_part_count": 26,
+      "geometry_triangle_count": 4112,
+      "silhouette_iou": 0.739921775514,
+      "boundary_f1_4px": 0.279177633475,
+      "bbox_edge_error": 0.005859375,
+      "centroid_error": 0.012987404247,
+      "landmark_coverage": 0.733333333333,
+      "landmark_nme": 0.06979452593,
+      "region_median_iou": 0.882286679809,
+      "critical_region_min_iou": 0.662444703143,
+      "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+      "role": "follow_up_only_not_promoted"
+    },
+    {
+      "geometry_variant": "long-limbs",
+      "geometry_part_count": 20,
+      "geometry_triangle_count": 3944,
+      "silhouette_iou": 0.722938599422,
+      "boundary_f1_4px": 0.222828818,
+      "bbox_edge_error": 0.0390625,
+      "centroid_error": 0.008282208307,
+      "landmark_coverage": 0.666666666667,
+      "landmark_nme": 0.201475808356,
+      "region_median_iou": 0.732709584817,
+      "critical_region_min_iou": 0.661065460253,
+      "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+      "role": "rejected"
+    },
+    {
+      "geometry_variant": "helmet-visor",
+      "geometry_part_count": 20,
+      "geometry_triangle_count": 3968,
+      "silhouette_iou": 0.72683554412,
+      "boundary_f1_4px": 0.307676219082,
+      "bbox_edge_error": 0.00390625,
+      "centroid_error": 0.01711639566,
+      "landmark_coverage": 0.8,
+      "landmark_nme": 0.133984375,
+      "region_median_iou": 0.877134456632,
+      "critical_region_min_iou": 0.648847796499,
+      "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+      "role": "rejected"
+    }
+  ],
+  "decision": {
+    "retained_product_candidate": "surface-linework",
+    "follow_up_candidate": "tapered-shells",
+    "promotion": "NONE",
+    "reason": "Every tested variant fails at least boundary F1 and one or more landmark gates. Tapered-shells improves landmark NME and region median IoU but its rendered preview remains visibly blockout-like; no variant is eligible for confirm, export, likeness claim or HQ_360_PASS."
+  },
+  "truth_boundary": [
+    "Transport, strict readback, AssetPack binding and nine AOV generation passed.",
+    "Metrics are candidate-bound ReferenceComparisonReport evidence, not a human likeness judgment.",
+    "Human visual review, packaged Viewer UI accessibility, export/restart hash and full 360 reference coverage remain NOT_RUN/BLOCKED."
+  ]
+}

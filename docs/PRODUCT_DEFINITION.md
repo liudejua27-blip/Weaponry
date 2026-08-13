@@ -1,13 +1,13 @@
 # ForgeCAD 产品定义
 
-版本：2026-08-09
-状态：单用户 MVP host golden path 已完成；MCP005–009 geometry/appearance/render/limited-quality/change/version/export 可用，真实 Codex CLI 主链已通过，像素/真人质量门仍未运行
+版本：2026-08-13
+状态：单用户 MVP host golden path 已完成；MCP005–009 geometry/appearance/render/limited-quality/change/version/export 可用，真实 Codex CLI 主链已通过；MCP010F 仍为 `QUALITY_TARGET_NOT_MET`。ADR-0026 已把后续方向定义为 Agentic Design Runtime，但 DesignSession/SemanticSceneGraph/ReferenceCanvas/Critic loop 仍是目标设计，尚未成为当前实现能力。
 
 ## 1. 一句话
 
 ForgeCAD 是 Codex 可自由调用的本地 3D Runtime：把用户的合法参考和要求编译成可检查、可局部修改、可回退和可导出的 3D 资产。MVP 只提供 bounded hard-surface functional core；“高质量/相似度”必须由真实参考指标和真人门证明，不能由工具存在或单张截图推出。
 
-Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent 对话。
+Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent 对话。ADR-0026 进一步规定：未来高质量路线不是把 ForgeCAD 变成聊天 Agent，而是在 Runtime 上增加可观察的 Agentic design loop，让 Codex 每步都能读取语义场景、视觉证据、阶段门和下一步允许动作。
 
 ## 2. 目标用户
 
@@ -26,6 +26,21 @@ Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent �
 5. 在 Viewer 选择局部，在 Codex 中反复提出 typed 修改；
 6. 用户批准后创建不可变版本；
 7. 查看爆炸图、恢复历史或导出 GLB 等交付资产。
+
+目标高质量流程升级为：
+
+```text
+ReferenceCanvas
+→ DesignSpec
+→ SemanticSceneGraph / ModelUnderstandingBundle
+→ primary-form gate
+→ secondary-structure gate
+→ tertiary-detail gate
+→ uv-pbr gate
+→ final review / human / export
+```
+
+Primary form 未过时不能做细节；visible-view 未过时不能解锁 PBR；`QUALITY_TARGET_NOT_MET` 不能 confirm/export。
 
 ## 4. 产品承诺
 
@@ -49,6 +64,10 @@ Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent �
 
 质量包括完整主体、身份轮廓、比例、结构层级、中观/局部细节、UV、PBR、纹理、材质、固定视图相似度和交付 readback。时间和资源有上限，但不靠跳过必要证据换取“看起来很快”。
 
+### 看得见和可解释
+
+未来 Codex 不能只收到 object/position/mesh 数字。ForgeCAD 必须能提供 Scene Graph、语义 Part、尺寸、对称关系、source operator、MaterialZone、几何统计、相机、selection、多视图 AOV、失败门和 evidence hash。每个设计建议必须能回指具体 `part_id`、`material_zone_id`、`render_id`、`quality_report_hash` 或 `feature_id`。
+
 ## 5. 单用户 MVP 范围
 
 - 本地 macOS Alpha；
@@ -61,6 +80,8 @@ Codex 是大脑，ForgeCAD 是身体。ForgeCAD 不再内置大模型或 Agent �
 - Runtime Viewer；
 - 候选、用户批准、不可变版本、一次局部修改、回退和 GLB 导出；
 - 默认无模型 API 网络调用、无常驻大模型或 3D 神经权重。
+
+ADR-0026 的 Agentic Design Runtime、DesignSession、SemanticSceneGraph、Parametric Design Kit 和 Critic/Repair loop 属于下一阶段目标设计，不列入当前 MVP 已实现范围。
 
 Codex IDE / VS Code / Cursor / Windsurf 保留为未来兼容目标，不安装、不作为当前 P0 产品入口或发布 Gate。若未来正式建设 Skill SDK、插件开发生态或第三方开发者模式，再单独升级其支持级别。
 
@@ -77,6 +98,7 @@ MVP 不包含爆炸图完整 UX、后台 Job checkpoint、第三方插件市场�
 - 未经用户批准创建永久版本；
 - 未经 adoption receipt、许可证/SBOM/Benchmark 审核的 GitHub 项目或资产；
 - BlenderMCP、FreeCAD MCP、任意 Python CAD MCP 或远程 image-to-3D Provider。
+- 直接套用 Pi Agent、Omniverse Kit、OpenUSD、FreeCAD、build123d/CadQuery、BlenderMCP、TRELLIS/Hunyuan3D 的代码、Skill 或权重作为产品真值。它们只能按 `EXTERNAL_PROJECT_ADOPTION.md` 作为 reference-only、approved-for-evaluation 或 accepted 依赖进入。
 
 ## 7. 安全与内容范围
 

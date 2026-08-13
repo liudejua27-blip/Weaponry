@@ -1,7 +1,7 @@
 # ForgeCAD Skill Package 标准
 
-版本：2026-08-09
-状态：当前十个 first-party Bundle 仍为 `0.1.0`；MCP010D/E 的七个 `0.2.0` 目标为 planned/unavailable；分发签名和第三方安装仍属 MCP012/013
+版本：2026-08-11
+状态：历史十个 first-party Bundle 保持 `0.1.0`；MCP010D 已新增并激活受限 `hard-surface-detail@0.2.0`，`primitive-blockout@0.2.0` 继续 active；MCP010E 的 `uv-pbr@0.2.0`、`render-evidence@0.2.0`、`reference-compare@0.2.0` 与 `forgecad-hard-surface-robot@1.0.0` 已通过 source-focused 离线 Gate；xatlas/Validator、分发签名和第三方安装仍属后续 MCP012/013
 
 ## 1. 定义
 
@@ -100,7 +100,7 @@ MVP 不建设第三方插件市场，也不让 distribution signing 阻塞 3D ve
 | 2 | `subject-profile` | typed 类别、比例、材质线索和不确定项 |
 | 3 | `semantic-assembly` | Assembly/Part/MaterialZone 稳定层级 |
 | 4 | `silhouette-blockout` | 当前用 bounded box/cylinder/sphere/transform 做轮廓 blockout；profile/sweep 仅为声明式后续目标 |
-| 5 | `hard-surface-detail` | 当前只提供声明式 panel/vent/joint/bevel 目标；未实现 Operator 必须 fail closed |
+| 5 | `hard-surface-detail@0.2.0` | MCP010D 已实现 profile/loft/revolve/sweep/transform/mirror/array/panel/vent/joint/part-output；boolean/Manifold 保持 unavailable，Bundle 不携带 executable |
 | 6 | `mesh-integrity` | 几何硬门、source map 和 GLB readback |
 | 7 | `uv-pbr` | UV、tangent、metallic-roughness、normal/AO/emissive |
 | 8 | `render-evidence` | 固定相机 beauty/silhouette/normal/part-ID |
@@ -113,7 +113,7 @@ MVP 不建设第三方插件市场，也不让 distribution signing 阻塞 3D ve
 
 | Task | 目标 Bundle | active 前置条件 |
 |---|---|---|
-| MCP010D | `reference-intake@0.2.0`、`silhouette-blockout@0.2.0`、`hard-surface-detail@0.2.0`、`mesh-integrity@0.2.0` | V2 Schema、真实 operator consumer、validator、benchmark 和 receipt |
+| MCP010D | `hard-surface-detail@0.2.0`（primitive-blockout@0.2.0 active） | V2 Schema、真实 operator consumer、validator、benchmark、receipt 和同 cohort packaged raw structural probe 已通过；Manifold/视觉子门 NOT_RUN |
 | MCP010E | `uv-pbr@0.2.0`、`render-evidence@0.2.0`、`reference-compare@0.2.0` | AssetPack、UV/tangent/PBR/render/metric producer 和逐资产 provenance |
 
 其他 Bundle 保持 `0.1.0`。010A 文档重排不能修改 registry 版本或 active 状态；任何缺失 Operator/Asset/Benchmark 必须返回 partial/unavailable 和 `missing_operator_ids`。

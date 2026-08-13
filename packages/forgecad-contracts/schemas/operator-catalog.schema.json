@@ -18,8 +18,8 @@
     "operators": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 1,
-      "items": {"$ref": "#/$defs/primitive_operator"}
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/operator"}
     },
     "canonical_sha256": {"$ref": "#/$defs/sha256"}
   },
@@ -32,7 +32,7 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
-    "primitive_operator": {
+    "operator": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -45,26 +45,26 @@
         "supported_shapes"
       ],
       "properties": {
-        "operator_id": {"const": "forgecad.geometry.primitive@2"},
-        "status": {"const": "active"},
+        "operator_id": {"$ref": "#/$defs/identifier"},
+        "status": {"enum": ["active", "unavailable"]},
         "input_arity": {
           "type": "object",
           "additionalProperties": false,
           "required": ["min", "max"],
           "properties": {
-            "min": {"const": 0},
-            "max": {"const": 0}
+            "min": {"type": "integer", "minimum": 0, "maximum": 64},
+            "max": {"type": "integer", "minimum": 0, "maximum": 64}
           }
         },
         "output_kind": {"const": "triangle-mesh"},
-        "parameter_schema": {"const": "GeometryPrimitiveParameters@2"},
-        "part_output_required": {"const": true},
+        "parameter_schema": {"$ref": "#/$defs/identifier"},
+        "part_output_required": {"type": "boolean"},
         "supported_shapes": {
           "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
+          "minItems": 1,
+          "maxItems": 8,
           "uniqueItems": true,
-          "items": {"enum": ["box", "cylinder", "ellipsoid", "sphere"]}
+          "items": {"$ref": "#/$defs/identifier"}
         }
       }
     }

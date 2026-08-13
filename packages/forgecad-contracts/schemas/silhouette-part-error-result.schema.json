@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-part-error-result.schema.json",
+  "title": "SilhouettePartErrorResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "target_sha256", "render_set_hash", "metrics", "parts", "recommended_part_ids", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "SilhouettePartErrorResult@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "metrics": {"$ref": "#/$defs/metrics"},
+    "parts": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/part"}},
+    "recommended_part_ids": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "sdf_chamfer_px"],
+      "properties": {
+        "silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1},
+        "bbox_edge_error": {"type": "number", "minimum": 0, "maximum": 1},
+        "centroid_error": {"type": "number", "minimum": 0, "maximum": 1},
+        "sdf_chamfer_px": {"type": "number", "minimum": 0}
+      }
+    },
+    "bbox": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1}
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "visibility", "status", "target_boundary_pixels", "model_pixels", "target_bbox", "model_bbox", "centroid_delta_px", "width_ratio", "height_ratio", "boundary_error_px"],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/id"},
+        "visibility": {"enum": ["observed", "inferred", "unknown"]},
+        "status": {"enum": ["ready", "missing_model_part", "empty_target_part"]},
+        "target_boundary_pixels": {"type": "integer", "minimum": 0, "maximum": 262144},
+        "model_pixels": {"type": "integer", "minimum": 0, "maximum": 262144},
+        "target_bbox": {"$ref": "#/$defs/bbox"},
+        "model_bbox": {"$ref": "#/$defs/bbox"},
+        "centroid_delta_px": {
+          "type": "array",
+          "prefixItems": [{"type": "number", "minimum": -512, "maximum": 512}, {"type": "number", "minimum": -512, "maximum": 512}],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "width_ratio": {"type": "number", "minimum": 0, "maximum": 4},
+        "height_ratio": {"type": "number", "minimum": 0, "maximum": 4},
+        "boundary_error_px": {"type": "number", "minimum": 0, "maximum": 512}
+      }
+    }
+  }
+}

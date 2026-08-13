@@ -231,6 +231,13 @@ def assert_materialized_bundle(entry: dict[str, object]) -> None:
 
 
 def main() -> int:
+    superseded_active_path = SKILLS / "reference-to-typed-plan"
+    if superseded_active_path.exists():
+        fail("superseded reference-to-typed-plan Skill must stay in packages/forgecad-skills/archive")
+    archived_superseded = SKILLS / "archive" / "superseded" / "reference-to-typed-plan" / "0.1.0" / "skill.yaml"
+    if not archived_superseded.exists():
+        fail("superseded reference-to-typed-plan archive is missing")
+
     registry_path = SKILLS / "registry.json"
     registry_bytes = registry_path.read_bytes()
     registry = json.loads(registry_bytes)
@@ -271,7 +278,7 @@ def main() -> int:
         if key in seen:
             fail(f"duplicate Skill version: {key}")
         seen.add(key)
-        expected_version = "0.2.0" if skill_id == "primitive-blockout" else "0.1.0"
+        expected_version = "0.2.0" if skill_id in {"primitive-blockout", "hard-surface-detail", "uv-pbr"} else "0.1.0"
         if version != expected_version:
             fail(f"unexpected Skill version: {key}")
         capabilities = entry.get("capabilities", {})

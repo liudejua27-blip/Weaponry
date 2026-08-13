@@ -1,0 +1,45 @@
+project: mikktspace
+source_url: https://github.com/gltf-rs/mikktspace
+crate_url: https://crates.io/crates/mikktspace/0.3.0
+revision: 6275cc4f15cff8be29819fb34ae8be3b9129dae1
+identity: restricted-library
+version: 0.3.0
+license_spdx: MIT OR Apache-2.0
+license_files_sha256:
+  LICENSE-APACHE: 3708458dee7f359ac6c9c5558023ed481be87e5372c43ebd7f2ca7ad23c12026
+  LICENSE-MIT: 64683213376aa8247990850a6743bb101f31261cce3919c33035b835e75a8331
+crate_archive_sha256: 7d0b56b403871a8f992ca626d52cc0a690d4841baea8955dc4af6304ac62f8b0
+transitive_sbom_sha256: 98334b19397449100009743bd25ed9a873063d4a5cb8c73224c9f37ac8bf2135
+vendored_files: []
+patches: []
+capabilities:
+  - mikkelsen_tangent_space
+  - tangent_handedness
+denied_capabilities:
+  - network
+  - filesystem_read
+  - filesystem_write
+  - dynamic_code
+  - model_calls
+benchmarks:
+  - script/test_mcp010e.sh
+  - deterministic_worker_compile_5x
+  - strict_glb_tangent_handedness_readback
+security_tests:
+  - malformed_uv_and_degenerate_triangle_fail_closed
+  - tangent_nan_bin_tamper_fail_closed
+  - bounded_worker_protocol_and_timeout
+platforms:
+  - macos-arm64
+resource_budget:
+  max_runtime_ms: 10000
+  max_worker_memory_bytes: 536870912
+fallback_or_removal_plan: >-
+  If the pinned crate fails license, determinism, compatibility, or resource
+  review, remove the dependency and keep the product-owned tangent path
+  unavailable rather than manufacturing a PASS receipt.
+approval: accepted
+scope: mcp010e-source-focused-development-only
+notes: >-
+  The crate is called only inside the bounded geometry Worker after Runtime
+  admission. It is not a plugin, network service, or second product truth.

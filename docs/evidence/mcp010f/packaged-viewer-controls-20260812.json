@@ -1,0 +1,22 @@
+{
+  "schema_version": "ForgeCADMCP010FPackagedViewerControls@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_PACKAGED_AX_CORE_CONTROLS",
+  "build_cohort_sha256": "b4652984cb48fb15d0373a38e4f395f0726579c632471a52a73b647cfe2dd330",
+  "app": "ForgeCAD Runtime Dev.app",
+  "accessibility_surface": "Computer Use AX tree exposed tauri://localhost HTML content",
+  "controls": {
+    "aov_material_id_selected": true,
+    "aov_home_to_beauty": true,
+    "aov_end_to_uv_stretch": true,
+    "compare_overlay": true,
+    "compare_flicker": true,
+    "contour_canvas": true,
+    "difference_heatmap": true,
+    "explosion_view": true
+  },
+  "write_boundary": "PASS_EPHEMERAL_VIEWER_STATE_ONLY",
+  "reference_and_visual_quality": "NOT_RUN",
+  "voiceover_formal_accessibility": "NOT_RUN",
+  "persistent_user_data_touched": false
+}

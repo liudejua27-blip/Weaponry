@@ -6,9 +6,13 @@
 //! calls a model/network service.
 
 pub mod integrity;
+mod operator_d;
 
 use base64::Engine;
-pub use forgecad_worker_protocol::{operator_catalog, operator_catalog_sha256};
+pub use forgecad_worker_protocol::{
+    material_pack_manifest, material_pack_manifest_sha256, operator_catalog,
+    operator_catalog_sha256,
+};
 use image::{imageops, ImageFormat, Rgba, RgbaImage};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -61,7 +65,7 @@ struct PartSourceMesh {
     indices: Vec<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct PrimitiveNodeMesh {
     operator_id: String,
     positions: Vec<[f32; 3]>,
@@ -87,7 +91,8 @@ struct ValidatedV2GeometryProgram {
 #[derive(Debug, Clone)]
 struct ValidatedV2Node {
     node_id: String,
-    primitive: ValidatedV2Primitive,
+    operator_id: String,
+    operator: operator_d::ValidatedOperator,
 }
 
 #[derive(Debug, Clone)]
@@ -371,17 +376,10 @@ fn compile_geometry_program_v2_with_appearance(
         validate_geometry_program_v2(program, V2CanonicalHashRequirement::PresentAndMatches)?;
     let appearance_zones = validate_appearance(appearance, &validation.program_sha256)?;
     let mut sources = std::collections::BTreeMap::<String, PrimitiveNodeMesh>::new();
-    for node in validation.nodes {
-        let (positions, normals, indices) = compile_v2_primitive(&node.primitive);
-        sources.insert(
-            node.node_id,
-            PrimitiveNodeMesh {
-                operator_id: "forgecad.geometry.primitive@2".to_owned(),
-                positions,
-                normals,
-                indices,
-            },
-        );
+    for node in &validation.nodes {
+        let mut mesh = operator_d::compile_operator(&node.operator, &sources)?;
+        mesh.operator_id = node.operator_id.clone();
+        sources.insert(node.node_id.clone(), mesh);
     }
     let mut parts = Vec::with_capacity(validation.part_outputs.len());
     for output in validation.part_outputs {
@@ -425,11 +423,6 @@ fn compile_geometry_program_v2_with_appearance(
             sources: part_sources,
             material,
         });
-    }
-    if !sources.is_empty() {
-        return Err(GeometryError::Invalid(
-            "GeometryProgram@2 contains unconsumed source nodes".to_owned(),
-        ));
     }
     let triangle_count = parts
         .iter()
@@ -598,7 +591,9 @@ fn validate_geometry_program_v2(
             "GeometryProgram@2 node count exceeds the declared budget".to_owned(),
         ));
     }
-    let mut source_primitives = std::collections::BTreeMap::new();
+    let mut node_counts = std::collections::BTreeMap::<String, u64>::new();
+    let mut node_ids = HashSet::new();
+    let mut consumed_by_node = HashSet::new();
     let mut nodes = Vec::with_capacity(node_values.len());
     for node in node_values {
         let node = node.as_object().ok_or_else(|| {
@@ -610,21 +605,44 @@ fn validate_geometry_program_v2(
             "GeometryProgram@2 node",
         )?;
         let node_id = required_identifier(node, "node_id")?.to_owned();
-        if required_text(node, "operator_id")? != "forgecad.geometry.primitive@2" {
+        if !node_ids.insert(node_id.clone()) {
             return Err(GeometryError::Invalid(
-                "operator is not active in OperatorCatalog@1".to_owned(),
+                "GeometryProgram@2 node_id must be unique".to_owned(),
             ));
         }
+        let operator_id = required_text(node, "operator_id")?.to_owned();
         let inputs = node
             .get("inputs")
             .and_then(Value::as_array)
             .ok_or_else(|| {
                 GeometryError::Invalid("GeometryProgram@2 inputs is required".to_owned())
             })?;
-        if !inputs.is_empty() {
-            return Err(GeometryError::Invalid(
-                "primitive@2 accepts exactly zero inputs".to_owned(),
-            ));
+        let mut input_node_ids = Vec::with_capacity(inputs.len());
+        let mut local_inputs = HashSet::new();
+        for input in inputs {
+            let input = input.as_str().ok_or_else(|| {
+                GeometryError::Invalid(
+                    "GeometryProgram@2 inputs must contain identifiers".to_owned(),
+                )
+            })?;
+            let input = required_identifier_value(input, "inputs")?.to_owned();
+            if !local_inputs.insert(input.clone()) {
+                return Err(GeometryError::Invalid(
+                    "GeometryProgram@2 node inputs must not repeat a source node".to_owned(),
+                ));
+            }
+            if !node_ids.contains(&input) {
+                return Err(GeometryError::Invalid(
+                    "GeometryProgram@2 node inputs must reference an earlier node".to_owned(),
+                ));
+            }
+            if !consumed_by_node.insert(input.clone()) {
+                return Err(GeometryError::Invalid(
+                    "GeometryProgram@2 nodes may be consumed by exactly one downstream node"
+                        .to_owned(),
+                ));
+            }
+            input_node_ids.push(input);
         }
         let parameters = node
             .get("parameters")
@@ -634,16 +652,14 @@ fn validate_geometry_program_v2(
                     "GeometryProgram@2 node parameters must be an object".to_owned(),
                 )
             })?;
-        let primitive = validate_v2_primitive_parameters(parameters)?;
-        if source_primitives
-            .insert(node_id.clone(), primitive.clone())
-            .is_some()
-        {
-            return Err(GeometryError::Invalid(
-                "GeometryProgram@2 node_id must be unique".to_owned(),
-            ));
-        }
-        nodes.push(ValidatedV2Node { node_id, primitive });
+        let (operator, triangle_count) =
+            operator_d::validate_operator(&operator_id, &input_node_ids, parameters, &node_counts)?;
+        node_counts.insert(node_id.clone(), triangle_count);
+        nodes.push(ValidatedV2Node {
+            node_id,
+            operator_id,
+            operator,
+        });
     }
 
     let output_values = object
@@ -719,13 +735,13 @@ fn validate_geometry_program_v2(
                         .to_owned(),
                 ));
             }
-            let primitive = source_primitives.get(source_node_id).ok_or_else(|| {
+            let node_count = node_counts.get(source_node_id).ok_or_else(|| {
                 GeometryError::Invalid(
                     "GeometryProgram@2 part output references an unknown source node".to_owned(),
                 )
             })?;
             estimated_triangle_count = estimated_triangle_count
-                .checked_add(primitive.triangle_count())
+                .checked_add(*node_count)
                 .ok_or_else(|| {
                     GeometryError::Invalid(
                         "GeometryProgram@2 triangle count is outside the declared budget"
@@ -741,9 +757,24 @@ fn validate_geometry_program_v2(
             solid,
         });
     }
-    if consumed_sources.len() != source_primitives.len() {
+    if consumed_sources
+        .iter()
+        .any(|node_id| consumed_by_node.contains(node_id))
+    {
         return Err(GeometryError::Invalid(
-            "GeometryProgram@2 nodes require exactly one explicit part output consumption"
+            "GeometryProgram@2 part output cannot consume an intermediate node".to_owned(),
+        ));
+    }
+    let final_nodes = consumed_sources.len();
+    if final_nodes == 0
+        || node_counts
+            .keys()
+            .filter(|node_id| !consumed_by_node.contains(*node_id))
+            .count()
+            != final_nodes
+    {
+        return Err(GeometryError::Invalid(
+            "GeometryProgram@2 nodes require exactly one explicit downstream or part output consumption"
                 .to_owned(),
         ));
     }
@@ -862,6 +893,56 @@ pub fn worker_result(request: &Value) -> Result<Value, GeometryError> {
                 "height":512,
                 "renderer_revision":"forgecad-renderer-2",
                 "passes":passes.iter().map(|pass| json!({"pass":pass.pass,"mime":"image/png","width":pass.width,"height":pass.height,"png_base64":base64::engine::general_purpose::STANDARD.encode(&pass.png)})).collect::<Vec<_>>()
+            }))
+        }
+        "render_glb_fit_batch" => {
+            require_closed_payload(payload, &["glb_base64", "cameras", "resolution"])?;
+            let encoded = payload
+                .get("glb_base64")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| GeometryError::Invalid("glb_base64 is required".to_owned()))?;
+            let glb = base64::engine::general_purpose::STANDARD
+                .decode(encoded.as_bytes())
+                .map_err(|_| GeometryError::Invalid("glb_base64 is invalid".to_owned()))?;
+            if glb.is_empty() || glb.len() > 64 * 1024 * 1024 {
+                return Err(GeometryError::Invalid(
+                    "GLB exceeds the bounded fit input".to_owned(),
+                ));
+            }
+            let resolution = payload
+                .get("resolution")
+                .and_then(Value::as_u64)
+                .filter(|value| *value == 128)
+                .ok_or_else(|| GeometryError::Invalid("fit resolution must be 128".to_owned()))?
+                as u32;
+            let cameras = payload
+                .get("cameras")
+                .and_then(Value::as_array)
+                .filter(|values| !values.is_empty() && values.len() <= 64)
+                .ok_or_else(|| {
+                    GeometryError::Invalid("fit cameras are outside the bounded range".to_owned())
+                })?;
+            let mut renders = Vec::with_capacity(cameras.len());
+            for (index, camera) in cameras.iter().enumerate() {
+                let passes = render_perspective_glb_fit_at_resolution(&glb, camera, resolution)?;
+                renders.push(json!({
+                    "index": index,
+                    "passes": passes.iter().map(|pass| json!({
+                        "pass":pass.pass,
+                        "mime":"image/png",
+                        "width":pass.width,
+                        "height":pass.height,
+                        "png_base64":base64::engine::general_purpose::STANDARD.encode(&pass.png)
+                    })).collect::<Vec<_>>()
+                }));
+            }
+            Ok(json!({
+                "schema_version":"RenderWorkerFitBatchResult@1",
+                "width":resolution,
+                "height":resolution,
+                "renderer_revision":"forgecad-renderer-2",
+                "renders":renders
             }))
         }
         _ => Err(GeometryError::Invalid(
@@ -1290,10 +1371,12 @@ fn normalize(value: [f32; 3]) -> [f32; 3] {
     }
 }
 
-/// Build deterministic local UV charts and MikkTSpace-compatible tangent
-/// vectors from the actual triangle geometry.  MCP010B deliberately keeps
-/// charts local to each triangle: an atlas/packing policy belongs to MCP010E,
-/// but every emitted UV and tangent is already derived from real mesh data.
+/// Build deterministic local UV charts and MikkTSpace tangent vectors from
+/// the actual triangle geometry. MCP010E owns the atlas policy; this product
+/// implementation deliberately gives every triangle a bounded chart, then
+/// delegates tangent accumulation/handedness to the pinned `mikktspace`
+/// 0.3.0 reference port. Duplicating chart vertices is intentional: strict
+/// topology inspection welds positions before judging a declared solid part.
 /// Duplicating chart vertices is intentional; strict topology inspection welds
 /// positions before judging a declared solid part.
 fn triangulate_uv_charts(
@@ -1325,12 +1408,21 @@ fn triangulate_uv_charts(
         (max[1] - min[1]).max(0.0001),
         (max[2] - min[2]).max(0.0001),
     ];
+    let triangle_count = indices.len() / 3;
+    let columns = (triangle_count as f32).sqrt().ceil().max(1.0) as usize;
+    let rows = triangle_count.div_ceil(columns).max(1);
+    let cell_u = 1.0 / columns as f32;
+    let cell_v = 1.0 / rows as f32;
+    // Four texels at the pack's 512px working resolution.  The clamp keeps
+    // tiny stress fixtures finite while preserving a non-overlapping chart
+    // interior for the normal product budget.
+    let padding_u = (4.0_f32 / 512.0_f32).min(cell_u * 0.2);
+    let padding_v = (4.0_f32 / 512.0_f32).min(cell_v * 0.2);
     let mut chart_positions = Vec::with_capacity(indices.len());
     let mut chart_normals = Vec::with_capacity(indices.len());
     let mut uvs = Vec::with_capacity(indices.len());
-    let mut tangents = Vec::with_capacity(indices.len());
     let mut chart_indices = Vec::with_capacity(indices.len());
-    for triangle in indices.chunks_exact(3) {
+    for (triangle_index, triangle) in indices.chunks_exact(3).enumerate() {
         let source = [
             triangle[0] as usize,
             triangle[1] as usize,
@@ -1364,7 +1456,7 @@ fn triangulate_uv_charts(
         } else {
             2
         };
-        let triangle_uvs = triangle_positions.map(|position| match projection {
+        let projected_uvs = triangle_positions.map(|position| match projection {
             0 => [
                 (position[2] - min[2]) / extent[2],
                 (position[1] - min[1]) / extent[1],
@@ -1378,8 +1470,14 @@ fn triangulate_uv_charts(
                 (position[1] - min[1]) / extent[1],
             ],
         });
-        let edge_a = subtract3(triangle_positions[1], triangle_positions[0]);
-        let edge_b = subtract3(triangle_positions[2], triangle_positions[0]);
+        let chart_column = triangle_index % columns;
+        let chart_row = triangle_index / columns;
+        let triangle_uvs = projected_uvs.map(|uv| {
+            [
+                chart_column as f32 * cell_u + padding_u + uv[0] * (cell_u - 2.0 * padding_u),
+                chart_row as f32 * cell_v + padding_v + uv[1] * (cell_v - 2.0 * padding_v),
+            ]
+        });
         let uv_a = [
             triangle_uvs[1][0] - triangle_uvs[0][0],
             triangle_uvs[1][1] - triangle_uvs[0][1],
@@ -1394,39 +1492,75 @@ fn triangulate_uv_charts(
                 "primitive UV projection produced a zero-area triangle".to_owned(),
             ));
         }
-        let reciprocal = 1.0 / determinant;
-        let tangent_basis = [
-            (edge_a[0] * uv_b[1] - edge_b[0] * uv_a[1]) * reciprocal,
-            (edge_a[1] * uv_b[1] - edge_b[1] * uv_a[1]) * reciprocal,
-            (edge_a[2] * uv_b[1] - edge_b[2] * uv_a[1]) * reciprocal,
-        ];
-        let bitangent_basis = [
-            (edge_b[0] * uv_a[0] - edge_a[0] * uv_b[0]) * reciprocal,
-            (edge_b[1] * uv_a[0] - edge_a[1] * uv_b[0]) * reciprocal,
-            (edge_b[2] * uv_a[0] - edge_a[2] * uv_b[0]) * reciprocal,
-        ];
         for vertex in 0..3 {
             let normal = normalize(normals[source[vertex]]);
-            let tangent = subtract3(tangent_basis, scale3(normal, dot3(normal, tangent_basis)));
-            if !finite3(tangent) || length3(tangent) <= f32::EPSILON {
-                return Err(GeometryError::Invalid(
-                    "primitive UV projection produced an invalid tangent".to_owned(),
-                ));
-            }
-            let tangent = normalize(tangent);
-            let handedness = if dot3(cross3(normal, tangent), bitangent_basis) < 0.0 {
-                -1.0
-            } else {
-                1.0
-            };
             chart_positions.push(triangle_positions[vertex]);
             chart_normals.push(normal);
             uvs.push(triangle_uvs[vertex]);
-            tangents.push([tangent[0], tangent[1], tangent[2], handedness]);
             chart_indices.push((chart_indices.len()) as u32);
         }
     }
-    Ok((chart_positions, chart_normals, uvs, tangents, chart_indices))
+
+    let mut tangent_mesh = MikkTriangleMesh {
+        positions: chart_positions,
+        normals: chart_normals,
+        uvs,
+        tangents: vec![[0.0; 4]; triangle_count * 3],
+    };
+    if !mikktspace::generate_tangents(&mut tangent_mesh) {
+        return Err(GeometryError::Invalid(
+            "MikkTSpace rejected the UV chart mesh".to_owned(),
+        ));
+    }
+    if tangent_mesh
+        .tangents
+        .iter()
+        .any(|tangent| !tangent.iter().all(|component| component.is_finite()))
+    {
+        return Err(GeometryError::Invalid(
+            "MikkTSpace produced a non-finite tangent".to_owned(),
+        ));
+    }
+    Ok((
+        tangent_mesh.positions,
+        tangent_mesh.normals,
+        tangent_mesh.uvs,
+        tangent_mesh.tangents,
+        chart_indices,
+    ))
+}
+
+struct MikkTriangleMesh {
+    positions: Vec<[f32; 3]>,
+    normals: Vec<[f32; 3]>,
+    uvs: Vec<[f32; 2]>,
+    tangents: Vec<[f32; 4]>,
+}
+
+impl mikktspace::Geometry for MikkTriangleMesh {
+    fn num_faces(&self) -> usize {
+        self.positions.len() / 3
+    }
+
+    fn num_vertices_of_face(&self, _face: usize) -> usize {
+        3
+    }
+
+    fn position(&self, face: usize, vertex: usize) -> [f32; 3] {
+        self.positions[face * 3 + vertex]
+    }
+
+    fn normal(&self, face: usize, vertex: usize) -> [f32; 3] {
+        self.normals[face * 3 + vertex]
+    }
+
+    fn tex_coord(&self, face: usize, vertex: usize) -> [f32; 2] {
+        self.uvs[face * 3 + vertex]
+    }
+
+    fn set_tangent_encoded(&mut self, tangent: [f32; 4], face: usize, vertex: usize) {
+        self.tangents[face * 3 + vertex] = tangent;
+    }
 }
 
 fn subtract3(left: [f32; 3], right: [f32; 3]) -> [f32; 3] {
@@ -1471,9 +1605,14 @@ fn validate_appearance(
     let object = appearance
         .as_object()
         .ok_or_else(|| GeometryError::Invalid("appearance program must be an object".to_owned()))?;
-    if object.get("schema_version").and_then(Value::as_str) != Some("AppearanceProgram@1") {
+    let schema_version = object.get("schema_version").and_then(Value::as_str);
+    if !matches!(
+        schema_version,
+        Some("AppearanceProgram@1" | "AppearanceProgram@2")
+    ) {
         return Err(GeometryError::Invalid(
-            "appearance schema_version must be AppearanceProgram@1".to_owned(),
+            "appearance schema_version must be AppearanceProgram@1 or AppearanceProgram@2"
+                .to_owned(),
         ));
     }
     if object.get("project_id").and_then(Value::as_str).is_none() {
@@ -1511,10 +1650,18 @@ fn validate_appearance(
         .ok_or_else(|| {
             GeometryError::Invalid("appearance material_zones is required".to_owned())
         })?;
-    if zones.is_empty() || zones.len() > 32 {
+    let max_zones = if schema_version == Some("AppearanceProgram@2") {
+        64
+    } else {
+        32
+    };
+    if zones.is_empty() || zones.len() > max_zones {
         return Err(GeometryError::Invalid(
             "appearance material_zones is outside its budget".to_owned(),
         ));
+    }
+    if schema_version == Some("AppearanceProgram@2") {
+        return validate_appearance_v2(object, geometry_program_sha256, zones);
     }
     let mut result = HashMap::new();
     for zone in zones {
@@ -1548,6 +1695,183 @@ fn validate_appearance(
         );
     }
     Ok(result)
+}
+
+fn validate_appearance_v2(
+    object: &Map<String, Value>,
+    geometry_program_sha256: &str,
+    zones: &[Value],
+) -> Result<HashMap<String, Value>, GeometryError> {
+    if object.get("material_pack_id").and_then(Value::as_str) != Some("forgecad-hard-surface-robot")
+    {
+        return Err(GeometryError::Invalid(
+            "AppearanceProgram@2 material_pack_id is not the bundled first-party pack".to_owned(),
+        ));
+    }
+    let manifest_sha256 = object
+        .get("material_pack_manifest_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            GeometryError::Invalid(
+                "AppearanceProgram@2 material_pack_manifest_sha256 is required".to_owned(),
+            )
+        })?;
+    if manifest_sha256 != material_pack_manifest_sha256() {
+        return Err(GeometryError::Invalid(
+            "AppearanceProgram@2 material pack manifest hash does not match the offline pack"
+                .to_owned(),
+        ));
+    }
+    if object
+        .get("geometry_program_sha256")
+        .and_then(Value::as_str)
+        != Some(geometry_program_sha256)
+    {
+        return Err(GeometryError::Invalid(
+            "AppearanceProgram@2 is not bound to the geometry program".to_owned(),
+        ));
+    }
+    let manifest = material_pack_manifest();
+    let definitions = manifest
+        .get("material_definitions")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            GeometryError::Invalid("offline material definitions are missing".to_owned())
+        })?;
+    let texture_sets = manifest
+        .get("texture_sets")
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid("offline texture sets are missing".to_owned()))?;
+    let mut result = HashMap::new();
+    for zone in zones {
+        let zone = zone
+            .as_object()
+            .ok_or_else(|| GeometryError::Invalid("material zone must be an object".to_owned()))?;
+        let zone_id = required_text(zone, "zone_id")?.to_owned();
+        if result.contains_key(&zone_id) {
+            return Err(GeometryError::Invalid(
+                "material zone ids must be unique".to_owned(),
+            ));
+        }
+        let part_ids = zone
+            .get("part_ids")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                GeometryError::Invalid("material zone part_ids is required".to_owned())
+            })?;
+        if part_ids.is_empty()
+            || part_ids.len() > 512
+            || part_ids.iter().any(|value| value.as_str().is_none())
+        {
+            return Err(GeometryError::Invalid(
+                "AppearanceProgram@2 material zone part_ids is invalid".to_owned(),
+            ));
+        }
+        let material_id = required_text(zone, "material_id")?;
+        let definition = definitions
+            .iter()
+            .find(|definition| {
+                definition.get("material_id").and_then(Value::as_str) == Some(material_id)
+            })
+            .ok_or_else(|| GeometryError::Invalid(format!("unknown material_id: {material_id}")))?;
+        let expected_texture_set = definition
+            .get("texture_set_id")
+            .cloned()
+            .unwrap_or(Value::Null);
+        let requested_texture_set = zone.get("texture_set_id").cloned().unwrap_or(Value::Null);
+        if requested_texture_set != expected_texture_set {
+            return Err(GeometryError::Invalid(
+                "AppearanceProgram@2 texture_set_id does not match the material definition"
+                    .to_owned(),
+            ));
+        }
+        if let Some(texture_set_id) = requested_texture_set.as_str() {
+            if !texture_sets.iter().any(|texture_set| {
+                texture_set.get("texture_set_id").and_then(Value::as_str) == Some(texture_set_id)
+            }) {
+                return Err(GeometryError::Invalid(
+                    "AppearanceProgram@2 references an unknown texture set".to_owned(),
+                ));
+            }
+        }
+        let mut material = pack_material_json(definition, requested_texture_set.as_str());
+        // glTF material names mirror the semantic MaterialZone so the strict
+        // readback can prove every triangle's binding without trusting an
+        // external pack lookup. The stable material_id remains in extras.
+        material["name"] = Value::String(zone_id.clone());
+        result.insert(zone_id, material);
+    }
+    Ok(result)
+}
+
+fn pack_material_json(definition: &Value, texture_set_id: Option<&str>) -> Value {
+    let material_id = definition
+        .get("material_id")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown-material");
+    let base_color = definition
+        .get("base_color_factor")
+        .cloned()
+        .unwrap_or_else(|| json!([0.7, 0.7, 0.7, 1.0]));
+    let metallic = definition
+        .get("metallic_factor")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let roughness = definition
+        .get("roughness_factor")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.5);
+    let emissive = definition
+        .get("emissive_factor")
+        .cloned()
+        .unwrap_or_else(|| json!([0.0, 0.0, 0.0]));
+    let clearcoat = definition
+        .get("clearcoat_factor")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let emissive_strength = definition
+        .get("emissive_strength")
+        .and_then(Value::as_f64)
+        .unwrap_or(1.0);
+    let texture_keys = match texture_set_id {
+        Some("metal-surface") => json!({
+            "base_color":"metal010_color",
+            "normal":"metal010_normal_gl",
+            "roughness":"metal010_roughness",
+            "metallic":"metal010_metalness"
+        }),
+        // The bundled Plastic006 color map is a black engineering-plastic
+        // surface.  The white dielectric armor uses the same texture set for
+        // its normal/roughness provenance, but must keep its authored white
+        // baseColorFactor instead of multiplying by a black albedo.
+        Some("plastic-surface") if material_id == "white-dielectric-clearcoat" => json!({
+            "normal":"plastic006_normal_gl",
+            "roughness":"plastic006_roughness"
+        }),
+        Some("plastic-surface") => json!({
+            "base_color":"plastic006_color",
+            "normal":"plastic006_normal_gl",
+            "roughness":"plastic006_roughness"
+        }),
+        _ => json!({}),
+    };
+    let mut material = json!({
+        "name":material_id,
+        "pbrMetallicRoughness":{"baseColorFactor":base_color,"metallicFactor":metallic,"roughnessFactor":roughness},
+        "emissiveFactor":emissive,
+        "extras":{"forgecad":{"material_pack_id":"forgecad-hard-surface-robot","material_id":material_id,"texture_set_id":texture_set_id,"texture_keys":texture_keys}}
+    });
+    if clearcoat > 0.0 {
+        material["extensions"] = json!({
+            "KHR_materials_clearcoat":{"clearcoatFactor":clearcoat},
+            "KHR_materials_emissive_strength":{"emissiveStrength":emissive_strength}
+        });
+    } else if emissive_strength > 1.0 {
+        material["extensions"] = json!({
+            "KHR_materials_emissive_strength":{"emissiveStrength":emissive_strength}
+        });
+    }
+    material
 }
 
 fn bounded_float(
@@ -1796,9 +2120,25 @@ fn write_glb(
     let mut meshes = Vec::new();
     let mut nodes = Vec::new();
     let mut materials = Vec::new();
+    let mut material_texture_keys = Vec::<Map<String, Value>>::new();
+    let mut texture_keys = Vec::<String>::new();
     for (mesh_index, part) in parts.iter().enumerate() {
         let material_index = materials.len();
-        materials.push(part.material.clone());
+        let material = part.material.clone();
+        let keys = material
+            .get("extras")
+            .and_then(|value| value.get("forgecad"))
+            .and_then(|value| value.get("texture_keys"))
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        for key in keys.values().filter_map(Value::as_str) {
+            if !texture_keys.iter().any(|existing| existing == key) {
+                texture_keys.push(key.to_owned());
+            }
+        }
+        material_texture_keys.push(keys);
+        materials.push(material);
         let part_lineage = json!({
             "part_id":part.part_id,
             "material_zone_id":part.material_zone_id,
@@ -1857,6 +2197,66 @@ fn write_glb(
         );
         nodes.push(json!({"name":part.part_id,"mesh":mesh_index,"extras":part_lineage}));
     }
+    let mut images = Vec::new();
+    let mut textures = Vec::new();
+    let mut texture_indices = HashMap::<String, usize>::new();
+    for key in &texture_keys {
+        let bytes = pack_texture_bytes(key).ok_or_else(|| {
+            GeometryError::Invalid(format!(
+                "offline material pack texture is unavailable: {key}"
+            ))
+        })?;
+        if bytes.len() > 16 * 1024 * 1024 {
+            return Err(GeometryError::Invalid(
+                "offline material pack texture exceeds its per-image bound".to_owned(),
+            ));
+        }
+        while binary.len() % 4 != 0 {
+            binary.push(0);
+        }
+        let offset = binary.len();
+        binary.extend_from_slice(bytes);
+        while binary.len() % 4 != 0 {
+            binary.push(0);
+        }
+        let stored_length = binary.len() - offset;
+        let view = buffer_views.len();
+        buffer_views.push(json!({"buffer":0,"byteOffset":offset,"byteLength":stored_length}));
+        let image_index = images.len();
+        images.push(json!({"bufferView":view,"mimeType":"image/png","name":key}));
+        textures.push(json!({"source":image_index}));
+        texture_indices.insert(key.clone(), textures.len() - 1);
+    }
+    for (material, keys) in materials.iter_mut().zip(material_texture_keys.iter()) {
+        let Some(pbr) = material
+            .get_mut("pbrMetallicRoughness")
+            .and_then(Value::as_object_mut)
+        else {
+            continue;
+        };
+        for (slot, field) in [
+            ("base_color", "baseColorTexture"),
+            ("roughness", "metallicRoughnessTexture"),
+        ] {
+            if let Some(key) = keys.get(slot).and_then(Value::as_str) {
+                if let Some(index) = texture_indices.get(key) {
+                    pbr.insert(field.to_owned(), json!({"index":index}));
+                }
+            }
+        }
+        for (slot, field) in [("normal", "normalTexture"), ("ao", "occlusionTexture")] {
+            if let Some(key) = keys.get(slot).and_then(Value::as_str) {
+                if let Some(index) = texture_indices.get(key) {
+                    material[field] = json!({"index":index});
+                }
+            }
+        }
+        if let Some(key) = keys.get("emissive").and_then(Value::as_str) {
+            if let Some(index) = texture_indices.get(key) {
+                material["emissiveTexture"] = json!({"index":index});
+            }
+        }
+    }
     while binary.len() % 4 != 0 {
         binary.push(0);
     }
@@ -1867,7 +2267,13 @@ fn write_glb(
         "part_ids":ordered_unique_part_ids(parts),
         "source_node_ids":ordered_source_node_ids(parts),
         "material_zone_ids":ordered_unique_material_zone_ids(parts),
+        "uv_atlas":{"schema_version":"UvAtlas@1","packing":"triangle-chart-grid","resolution":512,"padding_texels":4,"charts":triangle_count},
     });
+    if !texture_keys.is_empty() {
+        forgecad["material_pack_id"] = Value::String("forgecad-hard-surface-robot".to_owned());
+        forgecad["material_pack_manifest_sha256"] = Value::String(material_pack_manifest_sha256());
+        forgecad["texture_count"] = Value::from(texture_keys.len() as u64);
+    }
     if let Some(operator_catalog_sha256) = operator_catalog_sha256 {
         forgecad["operator_catalog_sha256"] = Value::String(operator_catalog_sha256.to_owned());
         forgecad["part_bindings"] = Value::Array(
@@ -1887,7 +2293,7 @@ fn write_glb(
                 .collect(),
         );
     }
-    let root = json!({
+    let mut root = json!({
         "asset":{"version":"2.0","generator":"ForgeCAD MCP010B bounded geometry compiler"},
         "scene":0,
         "scenes":[{"nodes":(0..nodes.len()).collect::<Vec<_>>() }],
@@ -1899,6 +2305,10 @@ fn write_glb(
         "accessors":accessors,
         "extras":{"forgecad":forgecad}
     });
+    if !images.is_empty() {
+        root["images"] = Value::Array(images);
+        root["textures"] = Value::Array(textures);
+    }
     let mut json_bytes =
         serde_json::to_vec(&root).map_err(|error| GeometryError::Invalid(error.to_string()))?;
     while json_bytes.len() % 4 != 0 {
@@ -1916,6 +2326,40 @@ fn write_glb(
     glb.extend_from_slice(b"BIN\0");
     glb.extend_from_slice(&binary);
     Ok(glb)
+}
+
+fn pack_texture_bytes(key: &str) -> Option<&'static [u8]> {
+    match key {
+        "metal010_color" => Some(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_color.png"
+        ))),
+        "metal010_normal_gl" => Some(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_normal_gl.png"
+        ))),
+        "metal010_roughness" => Some(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_roughness.png"
+        ))),
+        "metal010_metalness" => Some(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_metalness.png"
+        ))),
+        "plastic006_color" => Some(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/plastic006_color.png"
+        ))),
+        "plastic006_normal_gl" => Some(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/plastic006_normal_gl.png"
+        ))),
+        "plastic006_roughness" => Some(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/plastic006_roughness.png"
+        ))),
+        _ => None,
+    }
 }
 
 fn ordered_unique_part_ids(parts: &[PartMesh]) -> Vec<String> {
@@ -2081,6 +2525,7 @@ struct PerspectiveVertex {
     depth: f32,
     world: [f32; 3],
     normal: [f32; 3],
+    tangent: [f32; 4],
     uv: [f32; 2],
 }
 
@@ -2089,6 +2534,8 @@ struct RasterHit {
     depth: f32,
     world: [f32; 3],
     normal: [f32; 3],
+    tangent: [f32; 4],
+    uv: [f32; 2],
     mesh_index: usize,
     material_index: usize,
     edge: bool,
@@ -2106,6 +2553,82 @@ pub fn render_perspective_glb(
     glb: &[u8],
     camera: &Value,
 ) -> Result<Vec<RenderPass>, GeometryError> {
+    render_perspective_glb_at_resolution(glb, camera, 512)
+}
+
+/// Render the same fixed camera at a bounded internal resolution. The public
+/// evidence path remains 512×512; the lower-resolution variant is only for
+/// Runtime's transient silhouette search and is never persisted as an AOV.
+pub fn render_perspective_glb_at_resolution(
+    glb: &[u8],
+    camera: &Value,
+    resolution: u32,
+) -> Result<Vec<RenderPass>, GeometryError> {
+    render_perspective_glb_at_resolution_with_passes(
+        glb,
+        camera,
+        resolution,
+        &[
+            "beauty",
+            "silhouette",
+            "depth",
+            "normal",
+            "ao",
+            "part-id",
+            "material-id",
+            "wireframe",
+            "uv-stretch",
+        ],
+    )
+}
+
+/// Render only the two passes needed by the transient camera/Rig solver. This
+/// avoids encoding seven irrelevant AOVs for every search camera; the public
+/// fixed-render evidence path above remains the complete nine-pass renderer.
+pub fn render_perspective_glb_fit_at_resolution(
+    glb: &[u8],
+    camera: &Value,
+    resolution: u32,
+) -> Result<Vec<RenderPass>, GeometryError> {
+    render_perspective_glb_at_resolution_with_passes(
+        glb,
+        camera,
+        resolution,
+        &["silhouette", "part-id"],
+    )
+}
+
+fn render_perspective_glb_at_resolution_with_passes(
+    glb: &[u8],
+    camera: &Value,
+    resolution: u32,
+    requested_passes: &[&str],
+) -> Result<Vec<RenderPass>, GeometryError> {
+    if !(64..=512).contains(&resolution) {
+        return Err(GeometryError::Invalid(
+            "fit render resolution is outside the bounded range".to_owned(),
+        ));
+    }
+    if requested_passes.is_empty()
+        || requested_passes.iter().any(|pass| {
+            !matches!(
+                *pass,
+                "beauty"
+                    | "silhouette"
+                    | "depth"
+                    | "normal"
+                    | "ao"
+                    | "part-id"
+                    | "material-id"
+                    | "wireframe"
+                    | "uv-stretch"
+            )
+        })
+    {
+        return Err(GeometryError::Invalid(
+            "requested render passes are outside the fixed allowlist".to_owned(),
+        ));
+    }
     let (root, binary) = parse_glb(glb)?;
     let meshes = root
         .get("meshes")
@@ -2131,10 +2654,33 @@ pub fn render_perspective_glb(
         ));
     }
     let (camera_position, forward, right, up, fov_y, near, far) = parse_camera(camera)?;
-    let width = 512u32;
-    let height = 512u32;
-    let sample_width = width * 2;
-    let sample_height = height * 2;
+    let textures = if requested_passes.contains(&"beauty") {
+        embedded_render_textures(&root, &views, &binary)?
+    } else {
+        Vec::new()
+    };
+    let width = resolution;
+    let height = resolution;
+    // The fixed nine-AOV renderer keeps its deterministic 2x supersampling
+    // path.  The transient fit renderer only asks for binary silhouette and
+    // Part-ID passes; rendering those masks at the output grid avoids four
+    // times as many raster samples for every camera trial while preserving
+    // the exact same depth/lineage semantics.  The result is still encoded
+    // at the contract's 128x128 resolution and is never persisted as an AOV.
+    let transient_binary_fit = requested_passes.len() == 2
+        && requested_passes.contains(&"silhouette")
+        && requested_passes.contains(&"part-id");
+    let raster_resolution = if transient_binary_fit {
+        // A 64px binary raster is sufficient for ranking a bounded camera
+        // neighborhood; the result is deterministically upsampled to the
+        // 128px transient contract below.  The final persisted comparison
+        // still uses the 512px fixed renderer.
+        (resolution / 2).max(64)
+    } else {
+        resolution * 2
+    };
+    let sample_width = raster_resolution;
+    let sample_height = raster_resolution;
     let mut hits = vec![None::<RasterHit>; (sample_width * sample_height) as usize];
     let focal = 1.0 / (fov_y.to_radians() * 0.5).tan();
     let aspect = width as f32 / height as f32;
@@ -2182,8 +2728,17 @@ pub fn render_perspective_glb(
             let positions = read_vec3_accessor(accessors, views, &binary, position_accessor)?;
             let normals = read_vec3_accessor(accessors, views, &binary, normal_accessor)?;
             let uvs = read_vec2_accessor(accessors, views, &binary, uv_accessor)?;
+            let tangents = attributes
+                .get("TANGENT")
+                .and_then(Value::as_u64)
+                .map(|index| read_vec4_accessor(accessors, views, &binary, index as usize))
+                .transpose()?
+                .unwrap_or_else(|| vec![[1.0, 0.0, 0.0, 1.0]; positions.len()]);
             let indices = read_indices_accessor(accessors, views, &binary, index_accessor)?;
-            if positions.len() != normals.len() || positions.len() != uvs.len() {
+            if positions.len() != normals.len()
+                || positions.len() != uvs.len()
+                || positions.len() != tangents.len()
+            {
                 return Err(GeometryError::Invalid(
                     "GLB render attributes have mismatched counts".to_owned(),
                 ));
@@ -2199,6 +2754,7 @@ pub fn render_perspective_glb(
                     depth: 0.0,
                     world: [0.0; 3],
                     normal: [0.0, 1.0, 0.0],
+                    tangent: [1.0, 0.0, 0.0, 1.0],
                     uv: [0.0; 2],
                 }; 3];
                 let mut rejected = false;
@@ -2211,6 +2767,11 @@ pub fn render_perspective_glb(
                         })?,
                     );
                     let normal = normalize(transform_direction(transform, normals[source_index]));
+                    let source_tangent = tangents[source_index];
+                    let tangent_direction = normalize(transform_direction(
+                        transform,
+                        [source_tangent[0], source_tangent[1], source_tangent[2]],
+                    ));
                     let relative = subtract3(world, camera_position);
                     let z = dot3(relative, forward);
                     if !z.is_finite() || z <= near || z >= far {
@@ -2227,6 +2788,16 @@ pub fn render_perspective_glb(
                         depth: (z - near) / (far - near),
                         world,
                         normal,
+                        tangent: [
+                            tangent_direction[0],
+                            tangent_direction[1],
+                            tangent_direction[2],
+                            if source_tangent[3].is_sign_negative() {
+                                -1.0
+                            } else {
+                                1.0
+                            },
+                        ],
                         uv: uvs[source_index],
                     };
                 }
@@ -2255,18 +2826,8 @@ pub fn render_perspective_glb(
             "camera produced no visible triangles".to_owned(),
         ));
     }
-    let mut passes = Vec::with_capacity(9);
-    for pass in [
-        "beauty",
-        "silhouette",
-        "depth",
-        "normal",
-        "ao",
-        "part-id",
-        "material-id",
-        "wireframe",
-        "uv-stretch",
-    ] {
+    let mut passes = Vec::with_capacity(requested_passes.len());
+    for pass in requested_passes.iter().copied() {
         let mut image = RgbaImage::from_pixel(sample_width, sample_height, Rgba([8, 12, 18, 255]));
         for y in 0..sample_height {
             for x in 0..sample_width {
@@ -2292,10 +2853,13 @@ pub fn render_perspective_glb(
                     "uv-stretch" => uv_stretch_color(hit.uv_stretch),
                     _ => shade_material(
                         &root,
+                        &textures,
                         hit.material_index,
                         hit.normal,
+                        hit.tangent,
                         hit.world,
                         camera_position,
+                        hit.uv,
                     ),
                 };
                 image.put_pixel(x, y, Rgba(color));
@@ -2639,6 +3203,7 @@ fn rasterize_perspective_triangle(
                 depth: 0.0,
                 world: [0.0; 3],
                 normal: [0.0; 3],
+                tangent: [1.0, 0.0, 0.0, 1.0],
                 uv: [0.0; 2],
             };
             let w0 = edge2(vertices[1], vertices[2], p) / area;
@@ -2676,6 +3241,24 @@ fn rasterize_perspective_triangle(
                         + w1 * vertices[1].normal[2]
                         + w2 * vertices[2].normal[2],
                 ]),
+                tangent: {
+                    let tangent = normalize([
+                        w0 * vertices[0].tangent[0]
+                            + w1 * vertices[1].tangent[0]
+                            + w2 * vertices[2].tangent[0],
+                        w0 * vertices[0].tangent[1]
+                            + w1 * vertices[1].tangent[1]
+                            + w2 * vertices[2].tangent[1],
+                        w0 * vertices[0].tangent[2]
+                            + w1 * vertices[1].tangent[2]
+                            + w2 * vertices[2].tangent[2],
+                    ]);
+                    [tangent[0], tangent[1], tangent[2], vertices[0].tangent[3]]
+                },
+                uv: [
+                    w0 * vertices[0].uv[0] + w1 * vertices[1].uv[0] + w2 * vertices[2].uv[0],
+                    w0 * vertices[0].uv[1] + w1 * vertices[1].uv[1] + w2 * vertices[2].uv[1],
+                ],
                 mesh_index,
                 material_index,
                 edge: w0.min(w1).min(w2) < 0.025,
@@ -2735,37 +3318,128 @@ fn uv_stretch_color(value: f32) -> [u8; 4] {
 }
 fn shade_material(
     root: &Value,
+    textures: &[Option<RgbaImage>],
     material_index: usize,
     normal: [f32; 3],
+    tangent: [f32; 4],
     world: [f32; 3],
     camera: [f32; 3],
+    uv: [f32; 2],
 ) -> [u8; 4] {
-    let (base, metallic, roughness, emissive) = material_parameters(root, material_index);
-    let n = normalize(normal);
-    let light = normalize([0.45, 0.8, 0.6]);
+    let (mut base, mut metallic, mut roughness, mut emissive) =
+        material_parameters(root, material_index);
+    if let Some(texture_index) = material_base_color_texture_index(root, material_index) {
+        if let Some(Some(texture)) = textures.get(texture_index) {
+            let sampled = sample_texture(texture, uv);
+            for channel in 0..3 {
+                base[channel] *= srgb_to_linear(sampled[channel]);
+            }
+        }
+    }
+    if let Some(texture_index) =
+        material_texture_index(root, material_index, "metallicRoughnessTexture")
+    {
+        if let Some(Some(texture)) = textures.get(texture_index) {
+            let sampled = sample_texture_unit(texture, uv);
+            // glTF stores roughness in G and metallic in B.  The bundled
+            // roughness-only maps are grayscale, so this remains compatible
+            // while allowing a future packed metal/rough texture.
+            roughness = (roughness * sampled[1]).clamp(0.04, 1.0);
+            metallic = (metallic * sampled[2]).clamp(0.0, 1.0);
+        }
+    }
+    let ao = material_texture_index(root, material_index, "occlusionTexture")
+        .and_then(|texture_index| textures.get(texture_index))
+        .and_then(|texture| texture.as_ref())
+        .map(|texture| sample_texture_unit(texture, uv)[0])
+        .unwrap_or(1.0);
+    if let Some(texture_index) = material_texture_index(root, material_index, "emissiveTexture") {
+        if let Some(Some(texture)) = textures.get(texture_index) {
+            let sampled = sample_texture(texture, uv);
+            for channel in 0..3 {
+                emissive[channel] *= srgb_to_linear(sampled[channel]);
+            }
+        }
+    }
+    let emissive_strength = material_extension_factor(
+        root,
+        material_index,
+        "KHR_materials_emissive_strength",
+        "emissiveStrength",
+    )
+    .unwrap_or(1.0);
+    let clearcoat = material_extension_factor(
+        root,
+        material_index,
+        "KHR_materials_clearcoat",
+        "clearcoatFactor",
+    )
+    .unwrap_or(0.0)
+    .clamp(0.0, 1.0);
+    let mut n = normalize(normal);
+    if let Some(texture_index) = material_texture_index(root, material_index, "normalTexture") {
+        if let Some(Some(texture)) = textures.get(texture_index) {
+            let sampled = sample_texture_unit(texture, uv);
+            let tangent_sign = tangent[3].signum();
+            let tangent = normalize([tangent[0], tangent[1], tangent[2]]);
+            let bitangent = normalize(scale3(cross3(n, tangent), tangent_sign));
+            let mapped = normalize([
+                sampled[0] * 2.0 - 1.0,
+                sampled[1] * 2.0 - 1.0,
+                sampled[2] * 2.0 - 1.0,
+            ]);
+            n = normalize(add3(
+                add3(scale3(tangent, mapped[0]), scale3(bitangent, mapped[1])),
+                scale3(n, mapped[2]),
+            ));
+        }
+    }
     let view = normalize(subtract3(camera, world));
-    let half = normalize(add3(light, view));
-    let ndotl = dot3(n, light).max(0.0);
-    let ndotv = dot3(n, view).max(0.0);
-    let ndoth = dot3(n, half).max(0.0);
-    let vdoth = dot3(view, half).max(0.0);
-    let alpha = roughness.max(0.04).powi(2);
-    let d = (alpha * alpha)
-        / (std::f32::consts::PI * ((ndoth * ndoth * (alpha * alpha - 1.0) + 1.0).powi(2)));
-    let k = ((roughness + 1.0) * (roughness + 1.0)) / 8.0;
-    let g1 = ndotv / (ndotv * (1.0 - k) + k);
-    let g2 = ndotl / (ndotl * (1.0 - k) + k);
     let f0 = [
         0.04 * (1.0 - metallic) + base[0] * metallic,
         0.04 * (1.0 - metallic) + base[1] * metallic,
         0.04 * (1.0 - metallic) + base[2] * metallic,
     ];
-    let fresnel = 1.0 - vdoth;
-    let fresnel = fresnel.powi(5);
+    // Three fixed studio lights give the hard-surface renderer readable key,
+    // fill and rim separation without accepting an HDRI, shader or URL.
+    let lights = [
+        (normalize([0.45, 0.80, 0.60]), [1.0, 0.86, 0.72], 1.10),
+        (normalize([-0.65, 0.35, 0.70]), [0.32, 0.45, 0.70], 0.38),
+        (normalize([-0.35, 0.60, -0.82]), [0.58, 0.68, 1.0], 0.62),
+    ];
     let mut color = [0.0; 3];
+    for (light, light_color, intensity) in lights {
+        let half = normalize(add3(light, view));
+        let ndotl = dot3(n, light).max(0.0);
+        let ndotv = dot3(n, view).max(0.0);
+        let ndoth = dot3(n, half).max(0.0);
+        let vdoth = dot3(view, half).max(0.0);
+        let alpha = roughness.max(0.04).powi(2);
+        let d = (alpha * alpha)
+            / (std::f32::consts::PI * ((ndoth * ndoth * (alpha * alpha - 1.0) + 1.0).powi(2)));
+        let k = ((roughness + 1.0) * (roughness + 1.0)) / 8.0;
+        let g1 = ndotv / (ndotv * (1.0 - k) + k);
+        let g2 = ndotl / (ndotl * (1.0 - k) + k);
+        let fresnel = (1.0 - vdoth).powi(5);
+        for i in 0..3 {
+            let spec = (d * g1 * g2 * f0[i] * (1.0 - fresnel) + f0[i] * fresnel) * ndotl;
+            color[i] +=
+                (base[i] * (1.0 - metallic) * ndotl * 0.78 + spec) * intensity * light_color[i];
+        }
+        if clearcoat > 0.0 {
+            let coat_roughness = 0.10;
+            let coat_alpha = coat_roughness * coat_roughness;
+            let coat_d = (coat_alpha * coat_alpha)
+                / (std::f32::consts::PI
+                    * ((ndoth * ndoth * (coat_alpha * coat_alpha - 1.0) + 1.0).powi(2)));
+            let coat_spec = coat_d * g1 * g2 * (1.0 - fresnel) * ndotl * clearcoat;
+            for i in 0..3 {
+                color[i] += coat_spec * intensity * light_color[i];
+            }
+        }
+    }
     for i in 0..3 {
-        let spec = (d * g1 * g2 * f0[i] * (1.0 - fresnel) + f0[i] * fresnel) * ndotl;
-        color[i] = base[i] * (1.0 - metallic) * ndotl * 0.85 + spec + base[i] * 0.08 + emissive[i];
+        color[i] += base[i] * (0.055 + 0.045 * ao) + emissive[i] * emissive_strength;
     }
     [
         linear_to_srgb(color[0]),
@@ -2773,6 +3447,146 @@ fn shade_material(
         linear_to_srgb(color[2]),
         255,
     ]
+}
+
+fn embedded_render_textures(
+    root: &Value,
+    views: &[Value],
+    binary: &[u8],
+) -> Result<Vec<Option<RgbaImage>>, GeometryError> {
+    let Some(textures) = root.get("textures").and_then(Value::as_array) else {
+        return Ok(Vec::new());
+    };
+    let images = root
+        .get("images")
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid("GLB textures require images".to_owned()))?;
+    textures
+        .iter()
+        .map(|texture| {
+            let Some(source) = texture.get("source").and_then(Value::as_u64) else {
+                return Ok(None);
+            };
+            let image = images.get(source as usize).ok_or_else(|| {
+                GeometryError::Invalid("GLB texture image index is invalid".to_owned())
+            })?;
+            let Some(view_index) = image.get("bufferView").and_then(Value::as_u64) else {
+                return Ok(None);
+            };
+            let bytes = read_buffer_view_bytes(views, binary, view_index as usize)?;
+            let decoded = image::load_from_memory(bytes)
+                .map_err(|error| {
+                    GeometryError::Invalid(format!("GLB texture decode failed: {error}"))
+                })?
+                .to_rgba8();
+            if decoded.width() == 0 || decoded.height() == 0 {
+                return Err(GeometryError::Invalid("GLB texture is empty".to_owned()));
+            }
+            Ok(Some(decoded))
+        })
+        .collect()
+}
+
+fn read_buffer_view_bytes<'a>(
+    views: &[Value],
+    binary: &'a [u8],
+    index: usize,
+) -> Result<&'a [u8], GeometryError> {
+    let view = views
+        .get(index)
+        .and_then(Value::as_object)
+        .ok_or_else(|| GeometryError::Invalid("GLB image bufferView is invalid".to_owned()))?;
+    let offset = view.get("byteOffset").and_then(Value::as_u64).unwrap_or(0) as usize;
+    let length = view
+        .get("byteLength")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| GeometryError::Invalid("GLB image byteLength is missing".to_owned()))?
+        as usize;
+    let end = offset
+        .checked_add(length)
+        .ok_or_else(|| GeometryError::Invalid("GLB image range overflow".to_owned()))?;
+    binary
+        .get(offset..end)
+        .ok_or_else(|| GeometryError::Invalid("GLB image exceeds BIN".to_owned()))
+}
+
+fn material_base_color_texture_index(root: &Value, material_index: usize) -> Option<usize> {
+    root.get("materials")
+        .and_then(Value::as_array)
+        .and_then(|materials| materials.get(material_index))
+        .and_then(|material| material.get("pbrMetallicRoughness"))
+        .and_then(|pbr| pbr.get("baseColorTexture"))
+        .and_then(|texture| texture.get("index"))
+        .and_then(Value::as_u64)
+        .map(|index| index as usize)
+}
+
+fn material_texture_index(root: &Value, material_index: usize, slot: &str) -> Option<usize> {
+    root.get("materials")
+        .and_then(Value::as_array)
+        .and_then(|materials| materials.get(material_index))
+        .and_then(|material| {
+            material
+                .get("pbrMetallicRoughness")
+                .and_then(|pbr| pbr.get(slot))
+                .or_else(|| material.get(slot))
+        })
+        .and_then(|texture| texture.get("index"))
+        .and_then(Value::as_u64)
+        .map(|index| index as usize)
+}
+
+fn material_extension_factor(
+    root: &Value,
+    material_index: usize,
+    extension: &str,
+    field: &str,
+) -> Option<f32> {
+    root.get("materials")
+        .and_then(Value::as_array)
+        .and_then(|materials| materials.get(material_index))
+        .and_then(|material| material.get("extensions"))
+        .and_then(|extensions| extensions.get(extension))
+        .and_then(|value| value.get(field))
+        .and_then(Value::as_f64)
+        .map(|value| value as f32)
+}
+
+fn sample_texture(texture: &RgbaImage, uv: [f32; 2]) -> [u8; 3] {
+    let u = uv[0].rem_euclid(1.0);
+    let v = 1.0 - uv[1].rem_euclid(1.0);
+    let x = (u * texture.width().saturating_sub(1) as f32).round() as u32;
+    let y = (v * texture.height().saturating_sub(1) as f32).round() as u32;
+    let pixel = texture.get_pixel(x, y);
+    [pixel[0], pixel[1], pixel[2]]
+}
+
+fn sample_texture_unit(texture: &RgbaImage, uv: [f32; 2]) -> [f32; 4] {
+    let pixel = sample_texture_pixel(texture, uv);
+    [
+        pixel[0] as f32 / 255.0,
+        pixel[1] as f32 / 255.0,
+        pixel[2] as f32 / 255.0,
+        pixel[3] as f32 / 255.0,
+    ]
+}
+
+fn sample_texture_pixel(texture: &RgbaImage, uv: [f32; 2]) -> [u8; 4] {
+    let u = uv[0].rem_euclid(1.0);
+    let v = 1.0 - uv[1].rem_euclid(1.0);
+    let x = (u * texture.width().saturating_sub(1) as f32).round() as u32;
+    let y = (v * texture.height().saturating_sub(1) as f32).round() as u32;
+    let pixel = texture.get_pixel(x, y);
+    [pixel[0], pixel[1], pixel[2], pixel[3]]
+}
+
+fn srgb_to_linear(value: u8) -> f32 {
+    let value = value as f32 / 255.0;
+    if value <= 0.04045 {
+        value / 12.92
+    } else {
+        ((value + 0.055) / 1.055).powf(2.4)
+    }
 }
 fn material_parameters(root: &Value, index: usize) -> ([f32; 3], f32, f32, [f32; 3]) {
     let material = root
@@ -2922,6 +3736,48 @@ fn read_vec3_accessor(
         ]);
     }
     Ok(values)
+}
+
+fn read_vec4_accessor(
+    accessors: &[Value],
+    views: &[Value],
+    binary: &[u8],
+    index: usize,
+) -> Result<Vec<[f32; 4]>, GeometryError> {
+    let (accessor, view) = accessor_view(accessors, views, index)?;
+    if accessor.get("componentType").and_then(Value::as_u64) != Some(5126)
+        || accessor.get("type").and_then(Value::as_str) != Some("VEC4")
+    {
+        return Err(GeometryError::Invalid(
+            "GLB VEC4 accessor is not float".to_owned(),
+        ));
+    }
+    let count = accessor
+        .get("count")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| GeometryError::Invalid("GLB accessor count is missing".to_owned()))?
+        as usize;
+    let offset = view.get("byteOffset").and_then(Value::as_u64).unwrap_or(0) as usize
+        + accessor
+            .get("byteOffset")
+            .and_then(Value::as_u64)
+            .unwrap_or(0) as usize;
+    if offset + count.saturating_mul(16) > binary.len() {
+        return Err(GeometryError::Invalid(
+            "GLB VEC4 accessor exceeds BIN".to_owned(),
+        ));
+    }
+    Ok(binary[offset..offset + count * 16]
+        .chunks_exact(16)
+        .map(|chunk| {
+            [
+                f32::from_le_bytes(chunk[0..4].try_into().unwrap()),
+                f32::from_le_bytes(chunk[4..8].try_into().unwrap()),
+                f32::from_le_bytes(chunk[8..12].try_into().unwrap()),
+                f32::from_le_bytes(chunk[12..16].try_into().unwrap()),
+            ]
+        })
+        .collect())
 }
 
 fn read_indices_accessor(
@@ -3353,6 +4209,170 @@ mod tests {
         draft
     }
 
+    fn d_operator_program() -> Value {
+        let mut program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-d",
+            "representation_plan_sha256":"d".repeat(64),
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{
+                "max_nodes":32,
+                "max_triangles":100000,
+                "max_glb_bytes":67108864,
+                "max_worker_memory_bytes":536870912,
+                "max_runtime_ms":10000
+            },
+            "nodes":[
+                {"node_id":"base","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[0.8,0.8,0.8],"position_m":[-1.5,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"transformed","operator_id":"forgecad.geometry.transform@2","inputs":["base"],"parameters":{"shape":"transform","translation_m":[0.0,0.6,0.0],"rotation_rad":[0.0,0.2,0.0],"scale":[1.0,0.8,1.0]}},
+                {"node_id":"mirrored","operator_id":"forgecad.geometry.mirror@1","inputs":["transformed"],"parameters":{"shape":"mirror","axis":"x","offset_m":0.0}},
+                {"node_id":"arrayed","operator_id":"forgecad.geometry.array@1","inputs":["mirrored"],"parameters":{"shape":"array","count":2,"offset_m":[1.0,0.0,0.0]}},
+                {"node_id":"panel","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[1.6,0.8,0.3],"thickness_m":0.18,"bevel_m":0.08,"position_m":[0.0,1.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"vent","operator_id":"forgecad.geometry.vent-array@1","inputs":[],"parameters":{"shape":"vent-array","width_m":1.2,"height_m":0.6,"depth_m":0.18,"slot_count":4,"slot_width_m":0.12,"slot_spacing_m":0.12,"position_m":[0.0,1.0,0.25],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"joint","operator_id":"forgecad.geometry.joint-stack@1","inputs":[],"parameters":{"shape":"joint-stack","radius_m":0.22,"depth_m":0.12,"ring_count":3,"ring_spacing_m":0.18,"radial_segments":12,"position_m":[-1.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"extrude","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-0.3,-0.2],[0.3,-0.2],[0.35,0.15],[0.0,0.3],[-0.35,0.15]],"depth_m":0.25,"position_m":[1.0,0.5,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"loft","operator_id":"forgecad.geometry.profile-loft@1","inputs":[],"parameters":{"shape":"profile-loft","profiles":[{"height_m":0.0,"points":[[-0.3,-0.2],[0.3,-0.2],[0.3,0.2],[-0.3,0.2]]},{"height_m":0.4,"points":[[-0.2,-0.12],[0.2,-0.12],[0.2,0.12],[-0.2,0.12]]}],"position_m":[1.0,1.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"revolve","operator_id":"forgecad.geometry.revolve@1","inputs":[],"parameters":{"shape":"revolve","profile":[[0.2,-0.2],[0.35,0.0],[0.2,0.2]],"radial_segments":16,"position_m":[-1.0,1.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"sweep","operator_id":"forgecad.geometry.tube-sweep@1","inputs":[],"parameters":{"shape":"tube-sweep","path":[[-0.5,0.0,0.0],[0.0,0.3,0.2],[0.5,0.0,0.0]],"radius_m":0.08,"radial_segments":12,"cap_ends":true,"position_m":[0.0,1.8,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"aggregate","operator_id":"forgecad.geometry.part-output@1","inputs":["panel","vent"],"parameters":{"shape":"part-output"}}
+            ],
+            "part_outputs":[
+                {"part_id":"arrayed-part","input_node_ids":["arrayed"],"material_zone_id":"zone-white-shell","solid":true},
+                {"part_id":"panel-vent","input_node_ids":["aggregate"],"material_zone_id":"zone-black-mechanical","solid":true},
+                {"part_id":"joint-part","input_node_ids":["joint"],"material_zone_id":"zone-black-mechanical","solid":true},
+                {"part_id":"extrude-part","input_node_ids":["extrude"],"material_zone_id":"zone-white-shell","solid":true},
+                {"part_id":"loft-part","input_node_ids":["loft"],"material_zone_id":"zone-white-shell","solid":true},
+                {"part_id":"revolve-part","input_node_ids":["revolve"],"material_zone_id":"zone-black-mechanical","solid":true},
+                {"part_id":"sweep-part","input_node_ids":["sweep"],"material_zone_id":"zone-emissive-amber","solid":true}
+            ]
+        });
+        let hash = canonical_hash(&program);
+        program
+            .as_object_mut()
+            .expect("D program object")
+            .insert("canonical_sha256".to_owned(), Value::String(hash));
+        program
+    }
+
+    #[test]
+    fn mcp010d_hard_surface_operators_compile_with_deterministic_lineage() {
+        let program = d_operator_program();
+        let first = compile_geometry_program(&program).expect("D operator program");
+        let second = compile_geometry_program(&program).expect("D operator program second");
+        assert_eq!(first.glb, second.glb);
+        assert_eq!(first.part_ids.len(), 7);
+        assert!(first.triangle_count > 200);
+        let inspection = integrity::inspect_glb(&first.glb).expect("D strict readback");
+        assert!(
+            inspection.hard_gate_passed,
+            "{:?}",
+            inspection.failure_codes
+        );
+        assert_eq!(
+            inspection.operator_catalog_sha256.as_deref(),
+            Some(operator_catalog_sha256().as_str())
+        );
+        assert!(inspection.source_node_ids.iter().any(|id| id == "arrayed"));
+        assert!(inspection
+            .source_node_ids
+            .iter()
+            .any(|id| id == "aggregate"));
+    }
+
+    #[test]
+    fn mcp010d_dag_and_operator_parameters_fail_closed() {
+        let mut cycle = d_operator_program();
+        cycle["nodes"][1]["inputs"] = json!(["transformed"]);
+        cycle["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&cycle)));
+        assert!(compile_geometry_program(&cycle).is_err());
+
+        let mut unknown_parameter = d_operator_program();
+        unknown_parameter["nodes"][4]["parameters"]["script"] = json!("nope");
+        unknown_parameter["canonical_sha256"] =
+            Value::String(canonical_hash(&without_hash(&unknown_parameter)));
+        assert!(compile_geometry_program(&unknown_parameter).is_err());
+
+        let mut boolean = d_operator_program();
+        boolean["nodes"][0]["operator_id"] =
+            Value::String("forgecad.geometry.boolean@1".to_owned());
+        boolean["nodes"][0]["parameters"] = json!({"shape":"difference"});
+        boolean["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&boolean)));
+        assert!(compile_geometry_program(&boolean).is_err());
+    }
+
+    #[test]
+    fn mcp010e_offline_pack_uv_atlas_and_pbr_textures_are_embedded() {
+        let geometry = d_operator_program();
+        let geometry_hash = geometry["canonical_sha256"].as_str().unwrap().to_owned();
+        let mut appearance = json!({
+            "schema_version":"AppearanceProgram@2",
+            "project_id":"project-d",
+            "geometry_program_sha256":geometry_hash,
+            "material_pack_id":"forgecad-hard-surface-robot",
+            "material_pack_manifest_sha256":material_pack_manifest_sha256(),
+            "material_zones":[
+                {"zone_id":"zone-white-shell","part_ids":["arrayed-part","extrude-part","loft-part"],"material_id":"white-dielectric-clearcoat","texture_set_id":"plastic-surface"},
+                {"zone_id":"zone-black-mechanical","part_ids":["panel-vent","joint-part","revolve-part"],"material_id":"dark-painted-metal","texture_set_id":"metal-surface"},
+                {"zone_id":"zone-emissive-amber","part_ids":["sweep-part"],"material_id":"warm-orange-emissive","texture_set_id":null}
+            ],
+            "canonical_sha256":""
+        });
+        appearance["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&appearance)));
+        let artifact = compile_geometry_program_with_appearance(&geometry, Some(&appearance))
+            .expect("MCP010E appearance compile");
+        let inspection = integrity::inspect_glb(&artifact.glb).expect("MCP010E readback");
+        assert!(
+            inspection.hard_gate_passed,
+            "{:?}",
+            inspection.failure_codes
+        );
+        let (root, _) = glb_root_and_bin_offset(&artifact.glb);
+        assert!(root
+            .get("images")
+            .and_then(Value::as_array)
+            .is_some_and(|v| v.len() >= 6));
+        assert!(root
+            .get("textures")
+            .and_then(Value::as_array)
+            .is_some_and(|v| v.len() >= 6));
+        assert_eq!(root["extras"]["forgecad"]["uv_atlas"]["resolution"], 512);
+        assert!(
+            root["extras"]["forgecad"]["texture_count"]
+                .as_u64()
+                .unwrap()
+                >= 6
+        );
+
+        let mut invalid = appearance;
+        invalid["material_pack_manifest_sha256"] = Value::String("0".repeat(64));
+        invalid["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&invalid)));
+        assert!(compile_geometry_program_with_appearance(&geometry, Some(&invalid)).is_err());
+    }
+
+    #[test]
+    fn mcp010e_white_shell_keeps_factor_and_texture_sampling_is_bounded() {
+        let manifest = material_pack_manifest();
+        let definition = manifest["material_definitions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["material_id"] == "white-dielectric-clearcoat")
+            .unwrap();
+        let white = pack_material_json(definition, Some("plastic-surface"));
+        assert!(white["pbrMetallicRoughness"]
+            .get("baseColorTexture")
+            .is_none());
+        assert_eq!(
+            white["pbrMetallicRoughness"]["baseColorFactor"],
+            json!([0.82, 0.86, 0.9, 1.0])
+        );
+
+        let texture = RgbaImage::from_pixel(2, 2, Rgba([128, 64, 32, 255]));
+        assert_eq!(sample_texture(&texture, [0.25, 0.75]), [128, 64, 32]);
+        assert!(srgb_to_linear(128) > srgb_to_linear(64));
+    }
+
     #[test]
     fn v2_draft_hash_is_key_order_stable_and_compiler_compatible() {
         let draft = v2_draft_program();
@@ -3564,6 +4584,84 @@ mod tests {
     }
 
     #[test]
+    fn transient_fit_renderer_emits_only_silhouette_and_part_id() {
+        let artifact = compile_geometry_program(&v2_program()).expect("V2 artifact");
+        let camera = json!({
+            "schema_version":"CameraCalibration@1",
+            "camera_hash":"a".repeat(64),
+            "projection":"perspective",
+            "transform":{"position_m":[4.0,3.0,6.0],"target_m":[0.0,1.5,0.0],"up":[0.0,1.0,0.0]},
+            "fov_y_degrees":42.0,
+            "near_m":0.05,
+            "far_m":20.0,
+            "resolution":{"width":512,"height":512},
+            "coordinate_system":"right-handed-y-up-meter",
+            "renderer_revision":"forgecad-renderer-2",
+            "canonical_sha256":"b".repeat(64)
+        });
+        let passes = render_perspective_glb_fit_at_resolution(&artifact.glb, &camera, 128)
+            .expect("fit renderer");
+        assert_eq!(
+            passes
+                .iter()
+                .map(|pass| pass.pass.as_str())
+                .collect::<Vec<_>>(),
+            vec!["silhouette", "part-id"]
+        );
+        assert!(passes
+            .iter()
+            .all(|pass| pass.width == 128 && pass.height == 128));
+    }
+
+    #[test]
+    fn pbr_renderer_resolves_embedded_texture_slots_and_extensions() {
+        let root = json!({
+            "materials":[{
+                "pbrMetallicRoughness":{
+                    "baseColorTexture":{"index":0},
+                    "metallicRoughnessTexture":{"index":1}
+                },
+                "normalTexture":{"index":2},
+                "occlusionTexture":{"index":3},
+                "emissiveTexture":{"index":4},
+                "extensions":{
+                    "KHR_materials_clearcoat":{"clearcoatFactor":0.7},
+                    "KHR_materials_emissive_strength":{"emissiveStrength":3.0}
+                }
+            }]
+        });
+        assert_eq!(material_base_color_texture_index(&root, 0), Some(0));
+        assert_eq!(
+            material_texture_index(&root, 0, "metallicRoughnessTexture"),
+            Some(1)
+        );
+        assert_eq!(material_texture_index(&root, 0, "normalTexture"), Some(2));
+        assert_eq!(
+            material_texture_index(&root, 0, "occlusionTexture"),
+            Some(3)
+        );
+        assert_eq!(material_texture_index(&root, 0, "emissiveTexture"), Some(4));
+        assert_eq!(
+            material_extension_factor(&root, 0, "KHR_materials_clearcoat", "clearcoatFactor"),
+            Some(0.7)
+        );
+        assert_eq!(
+            material_extension_factor(
+                &root,
+                0,
+                "KHR_materials_emissive_strength",
+                "emissiveStrength"
+            ),
+            Some(3.0)
+        );
+        let texture = RgbaImage::from_pixel(2, 2, Rgba([128, 64, 255, 255]));
+        assert_eq!(
+            sample_texture_unit(&texture, [0.25, 0.75]),
+            [128.0 / 255.0, 64.0 / 255.0, 1.0, 1.0]
+        );
+    }
+
+    #[test]
     fn operator_catalog_is_closed_and_hash_bound() {
         let catalog = operator_catalog();
         let declared = catalog["canonical_sha256"]
@@ -3573,7 +4671,10 @@ mod tests {
         let mut without_hash = catalog.as_object().expect("catalog object").clone();
         without_hash.remove("canonical_sha256");
         assert_eq!(declared, canonical_hash(&Value::Object(without_hash)));
-        assert_eq!(catalog["operators"].as_array().expect("operators").len(), 1);
+        assert_eq!(
+            catalog["operators"].as_array().expect("operators").len(),
+            13
+        );
         assert_eq!(
             catalog["operators"][0]["operator_id"],
             "forgecad.geometry.primitive@2"

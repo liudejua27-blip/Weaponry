@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/material-definition.schema.json",
+  "title":"MaterialDefinition",
+  "type":"object","additionalProperties":false,
+  "required":["material_id","name","base_color_factor","metallic_factor","roughness_factor","emissive_factor","texture_set_id","clearcoat_factor","emissive_strength"],
+  "properties":{
+    "material_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "name":{"type":"string","minLength":1,"maxLength":128},
+    "base_color_factor":{"type":"array","minItems":4,"maxItems":4,"items":{"type":"number","minimum":0,"maximum":1}},
+    "metallic_factor":{"type":"number","minimum":0,"maximum":1},
+    "roughness_factor":{"type":"number","exclusiveMinimum":0,"maximum":1},
+    "emissive_factor":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":0,"maximum":1}},
+    "texture_set_id":{"type":["string","null"],"pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "clearcoat_factor":{"type":"number","minimum":0,"maximum":1},
+    "emissive_strength":{"type":"number","minimum":0,"maximum":16}
+  }
+}

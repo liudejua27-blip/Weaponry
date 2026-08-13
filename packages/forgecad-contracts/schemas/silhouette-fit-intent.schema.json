@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-fit-intent.schema.json",
+  "title": "SilhouetteFitIntent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "target_sha256", "rig", "base_camera", "optimizer", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "SilhouetteFitIntent@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "rig": {"$ref": "https://forgecad.local/contracts/silhouette-rig.schema.json"},
+    "base_camera": {
+      "oneOf": [
+        {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/camera-calibration-ref.schema.json"}
+      ]
+    },
+    "optimizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "max_iterations", "max_evaluations", "step_fraction"],
+      "properties": {
+        "algorithm": {"enum": ["grid", "coordinate_descent"]},
+        "max_iterations": {"type": "integer", "minimum": 1, "maximum": 8},
+        "max_evaluations": {"type": "integer", "minimum": 1, "maximum": 64},
+        "step_fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.5}
+      }
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

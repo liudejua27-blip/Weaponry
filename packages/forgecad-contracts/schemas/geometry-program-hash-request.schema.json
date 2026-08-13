@@ -64,7 +64,7 @@
           "minItems": 1,
           "maxItems": 512,
           "items": {
-            "$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/primitive_node"
+            "$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/geometry_node"
           }
         },
         "part_outputs": {

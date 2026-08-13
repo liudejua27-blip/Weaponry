@@ -1,0 +1,11 @@
+{
+  "project_id": "project-cb1b3534d9a8498a8a92d7d6514b1fc4",
+  "candidate_id": "candidate-0fe9edcc261f405ba89cf0bd087aa9af",
+  "reference_id": "reference-513e81a5c47e4a77b95564df596d002b",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "artifact_sha256": "929d567f0c8812b19245859051905454ed05a98cd1bccc3139534b7066a6ab73",
+  "render_set_hash": "4e9bfec813949ce1af20b391304e426733b68cfda98e7b09c3a8c3c5edbc25aa",
+  "comparison_report_hash": "d65aef1df925b8ef4012304dadeda0615450e705f441f40efe36143982a3f95a",
+  "part_ids": ["head-shell", "visor", "chest-shell", "chest-vent", "chest-core", "neck", "pelvis", "shoulder-pair", "shoulder-armor-pair", "upper-arm-pair", "elbow-pair", "forearm-pair", "hand-pair", "thigh-pair", "hip-pair", "knee-pair", "shin-pair", "cable-pair", "core-ribs", "amber-sensor"],
+  "material_zone_ids": ["zone-white-shell", "zone-black-anodized", "zone-brushed-steel", "zone-engineering-plastic", "zone-joint-rubber", "zone-emissive-amber", "zone-micro-scratch"]
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": "MaterialPackManifest@1",
+  "pack_id": "forgecad-hard-surface-robot",
+  "version": "1.0.0",
+  "publisher": "forgecad-first-party",
+  "status": "development-only",
+  "license_spdx": "CC0-1.0",
+  "source_assets": [
+    {
+      "asset_id": "ambientcg-metal010-2k-png",
+      "source_url": "https://ambientcg.com/view?id=Metal010",
+      "download_url": "https://ambientcg.com/get?file=Metal010_2K-PNG.zip",
+      "source_id": "Metal010",
+      "license_spdx": "CC0-1.0",
+      "license_url": "https://docs.ambientcg.com/license/",
+      "raw_archive_sha256": "54ce013cbc2ae7a38766ee0325542be34bc61fad0ed82b75a84636f507314444",
+      "retrieved_at": "2026-08-11",
+      "derivation": "select Color, NormalGL, Roughness, Metalness; downsample to 512px PNG with macOS sips; no color transform"
+    },
+    {
+      "asset_id": "ambientcg-plastic006-2k-png",
+      "source_url": "https://ambientcg.com/view?id=Plastic006",
+      "download_url": "https://ambientcg.com/get?file=Plastic006_2K-PNG.zip",
+      "source_id": "Plastic006",
+      "license_spdx": "CC0-1.0",
+      "license_url": "https://docs.ambientcg.com/license/",
+      "raw_archive_sha256": "0a429a6781da813fa3a4b25663e7274db10ebabe79197093075379df00793812",
+      "retrieved_at": "2026-08-11",
+      "derivation": "select Color, NormalGL, Roughness; downsample to 512px PNG with macOS sips; no color transform"
+    },
+    {
+      "asset_id": "polyhaven-studio-small-03",
+      "source_url": "https://polyhaven.com/a/studio_small_03",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/4k/studio_small_03_4k.exr",
+      "source_id": "studio_small_03",
+      "license_spdx": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "raw_archive_sha256": "fbaa5f64cdfddcf2ebbca7aee43457fac74b5f8b0f2755a65185eaa5d9f8e371",
+      "retrieved_at": "2026-08-11",
+      "derivation": "recorded for future fixed-lighting adoption; not read by Runtime in 1.0.0"
+    }
+  ],
+  "textures": [
+    {"texture_id":"metal010_color","file":"textures/metal010_color.png","sha256":"21f0e6f9fe903ca50df53b1721ca9f5babe62f387906e600a819995ba5aaaa13","semantic":"baseColor","color_space":"sRGB","normal_convention":null,"width":512,"height":512},
+    {"texture_id":"metal010_normal_gl","file":"textures/metal010_normal_gl.png","sha256":"4f0385733f5456a2e317ab4298e547c11771504566852eeb46d87d6291c77590","semantic":"normal","color_space":"linear","normal_convention":"OpenGL+Y","width":512,"height":512},
+    {"texture_id":"metal010_roughness","file":"textures/metal010_roughness.png","sha256":"8c16a8a28db62745773d32fae15c385b60ece83e85f6f80b7ec0cc284c1c0bc9","semantic":"roughness","color_space":"linear","normal_convention":null,"width":512,"height":512},
+    {"texture_id":"metal010_metalness","file":"textures/metal010_metalness.png","sha256":"dfbba0874eb90d1015c167a579cffcf54512f05f02b95e3979978ab7fb79bfc9","semantic":"metallic","color_space":"linear","normal_convention":null,"width":512,"height":512},
+    {"texture_id":"plastic006_color","file":"textures/plastic006_color.png","sha256":"41183aa6ddc6b60adf9781ddfe446dd40493ef394e17db91784153dca2e8ada8","semantic":"baseColor","color_space":"sRGB","normal_convention":null,"width":512,"height":512},
+    {"texture_id":"plastic006_normal_gl","file":"textures/plastic006_normal_gl.png","sha256":"71a749a2e1d35e8356b8c70b910aca51924ab66d7fc8562b62a6d544168c21cd","semantic":"normal","color_space":"linear","normal_convention":"OpenGL+Y","width":512,"height":512},
+    {"texture_id":"plastic006_roughness","file":"textures/plastic006_roughness.png","sha256":"e78819318fe6f17e92e4c24dc0b0f30f9602e515286695226613e0207f46407c","semantic":"roughness","color_space":"linear","normal_convention":null,"width":512,"height":512}
+  ],
+  "material_definitions": [
+    {"material_id":"white-dielectric-clearcoat","name":"White dielectric clearcoat","base_color_factor":[0.82,0.86,0.9,1.0],"metallic_factor":0.05,"roughness_factor":0.24,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"plastic-surface","clearcoat_factor":0.72,"emissive_strength":1.0},
+    {"material_id":"dark-painted-metal","name":"Dark painted metal","base_color_factor":[0.08,0.1,0.12,1.0],"metallic_factor":0.72,"roughness_factor":0.28,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"metal-surface","clearcoat_factor":0.18,"emissive_strength":1.0},
+    {"material_id":"black-anodized-metal","name":"Black anodized metal","base_color_factor":[0.025,0.035,0.05,1.0],"metallic_factor":0.88,"roughness_factor":0.22,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"metal-surface","clearcoat_factor":0.12,"emissive_strength":1.0},
+    {"material_id":"brushed-steel","name":"Brushed steel","base_color_factor":[0.52,0.56,0.6,1.0],"metallic_factor":0.95,"roughness_factor":0.3,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"metal-surface","clearcoat_factor":0.08,"emissive_strength":1.0},
+    {"material_id":"engineering-plastic","name":"Black engineering plastic","base_color_factor":[0.025,0.03,0.035,1.0],"metallic_factor":0.04,"roughness_factor":0.48,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"plastic-surface","clearcoat_factor":0.08,"emissive_strength":1.0},
+    {"material_id":"joint-rubber","name":"Joint rubber","base_color_factor":[0.012,0.014,0.016,1.0],"metallic_factor":0.0,"roughness_factor":0.72,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"plastic-surface","clearcoat_factor":0.0,"emissive_strength":1.0},
+    {"material_id":"warm-orange-emissive","name":"Warm orange emissive","base_color_factor":[0.14,0.035,0.008,1.0],"metallic_factor":0.12,"roughness_factor":0.26,"emissive_factor":[1.0,0.12,0.015],"texture_set_id":null,"clearcoat_factor":0.1,"emissive_strength":4.0},
+    {"material_id":"micro-scratch-coat","name":"Micro-scratch clearcoat","base_color_factor":[0.66,0.7,0.74,1.0],"metallic_factor":0.62,"roughness_factor":0.32,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"metal-surface","clearcoat_factor":0.42,"emissive_strength":1.0}
+  ],
+  "texture_sets": [
+    {"texture_set_id":"metal-surface","base_color_texture_id":"metal010_color","normal_texture_id":"metal010_normal_gl","roughness_texture_id":"metal010_roughness","metallic_texture_id":"metal010_metalness","ao_texture_id":null},
+    {"texture_set_id":"plastic-surface","base_color_texture_id":"plastic006_color","normal_texture_id":"plastic006_normal_gl","roughness_texture_id":"plastic006_roughness","metallic_texture_id":null,"ao_texture_id":null}
+  ],
+  "limits":{"max_texture_bytes":67108864,"max_export_bytes":134217728,"embedded_only":true,"external_uri":false},
+  "canonical_sha256":"32284a0133b8f0a7eb19522f8a711f1d2bb2bc3d816b6e238948be4d3c5a4225"
+}

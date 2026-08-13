@@ -65,11 +65,81 @@ def mcp_calls(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         elif item.get("status"):
             grouped[key]["status"] = item["status"]
         result = item.get("result")
+        arguments = item.get("arguments")
+        if isinstance(arguments, dict) and item.get("tool") == "silhouette_fit_prepare":
+            grouped[key]["fit_argument_keys"] = sorted(str(field) for field in arguments.keys())
+            for field in ("canonical_sha256", "target_sha256", "project_id", "candidate_id", "schema_version"):
+                value = arguments.get(field)
+                if isinstance(value, (str, int, float, bool)):
+                    grouped[key][f"fit_argument_{field}"] = value
+            camera = arguments.get("base_camera")
+            rig = arguments.get("rig")
+            if isinstance(camera, dict):
+                grouped[key]["fit_argument_camera_hash"] = camera.get("camera_hash")
+                grouped[key]["fit_argument_camera_canonical_sha256"] = camera.get("canonical_sha256")
+            if isinstance(rig, dict):
+                grouped[key]["fit_argument_rig_canonical_sha256"] = rig.get("canonical_sha256")
+            optimizer = arguments.get("optimizer")
+            grouped[key]["fit_argument_optimizer_type"] = type(optimizer).__name__
+            if isinstance(optimizer, dict):
+                grouped[key]["fit_argument_optimizer"] = {
+                    field: optimizer.get(field)
+                    for field in ("algorithm", "max_iterations", "max_evaluations", "step_fraction")
+                    if field in optimizer
+                }
+        if isinstance(arguments, dict) and item.get("tool") == "render_pass_get":
+            # Keep only the bounded render identity in receipts.  Recording
+            # the exact hash/pass pair makes a failed AOV transport
+            # distinguishable from a Runtime render-set rejection without
+            # retaining prompts, image bytes, or arbitrary arguments.
+            for field in ("render_set_hash", "pass", "candidate_id"):
+                value = arguments.get(field)
+                if isinstance(value, (str, int, float, bool)):
+                    grouped[key][f"argument_{field}"] = value
         if isinstance(result, dict):
+            # Codex JSONL has emitted both the MCP SDK snake_case spelling
+            # and the wire/API camelCase spelling over time.  Treat them as
+            # the same typed result; otherwise a successful tool call is
+            # incorrectly recorded as completed-but-empty and later stages
+            # cannot resume from its hashes.
             structured = result.get("structured_content")
+            if not isinstance(structured, dict):
+                structured = result.get("structuredContent")
             if isinstance(structured, dict):
                 if isinstance(structured.get("code"), str):
                     grouped[key]["code"] = structured["code"]
+                for field in ("message", "next_action", "retryable"):
+                    value = structured.get(field)
+                    if isinstance(value, (str, bool)):
+                        grouped[key][field] = value
+                evidence_ids = structured.get("evidence_ids")
+                if isinstance(evidence_ids, list) and all(isinstance(value, str) for value in evidence_ids):
+                    grouped[key]["evidence_ids"] = evidence_ids[:8]
+                # Keep a compact diagnostic projection for non-artifact
+                # typed responses.  Real Codex event envelopes may omit a
+                # large structured payload; recording the keys and the
+                # selected camera/hash fields lets a receipt distinguish
+                # client truncation from a Runtime contract failure without
+                # storing prompts, image bytes or full candidate data.
+                grouped[key]["structured_keys"] = sorted(str(field) for field in structured.keys())
+                for field in (
+                    "schema_version",
+                    "canonical_sha256",
+                    "target_sha256",
+                    "project_id",
+                    "candidate_id",
+                    "camera_hash",
+                    "selected_camera_hash",
+                ):
+                    if field in structured and isinstance(structured[field], (str, int, float, bool)):
+                        grouped[key][field] = structured[field]
+                for field in ("selected_camera", "camera"):
+                    if isinstance(structured.get(field), dict):
+                        grouped[key][field] = {
+                            key_name: structured[field].get(key_name)
+                            for key_name in ("camera_hash", "canonical_sha256", "yaw", "pitch", "roll", "fov_degrees", "distance_m")
+                            if key_name in structured[field]
+                        }
                 artifact = structured.get("artifact")
                 if isinstance(artifact, dict):
                     grouped[key]["artifact"] = {
@@ -187,6 +257,8 @@ def structured_result(items: list[dict[str, Any]], tool_name: str) -> dict[str, 
         if not isinstance(result, dict):
             continue
         structured = result.get("structured_content")
+        if not isinstance(structured, dict):
+            structured = result.get("structuredContent")
         if isinstance(structured, dict):
             return structured
     return None

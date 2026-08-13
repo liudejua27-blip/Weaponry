@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/texture-build-receipt.schema.json",
+  "title":"TextureBuildReceipt",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","pack_id","pack_version","recipe_id","toolchain","source_archive_policy","color_management","external_uri","network_at_runtime","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"TextureBuildReceipt@1"},
+    "pack_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "pack_version":{"type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "recipe_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "toolchain":{"type":"string","minLength":1,"maxLength":256},
+    "source_archive_policy":{"type":"string","minLength":1,"maxLength":512},
+    "color_management":{"type":"string","minLength":1,"maxLength":512},
+    "external_uri":{"const":false},
+    "network_at_runtime":{"const":false},
+    "canonical_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+  }
+}

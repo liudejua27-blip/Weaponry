@@ -1,0 +1,30 @@
+{
+  "schema_version": "ForgeCADViewerContourDraft@2",
+  "coordinate_space": "normalized_reference_image",
+  "points": [
+    {"x": 0.41657638136511377, "y": 0.2987888003355705},
+    {"x": 0.4743956527627302, "y": 0.275429949664429},
+    {"x": 0.549812093716143, "y": 0.2832162332214765},
+    {"x": 0.5950619582881906, "y": 0.3299339345637584},
+    {"x": 0.6000897210184182, "y": 0.493445889261745},
+    {"x": 0.5938050176056338, "y": 0.5479498741610739},
+    {"x": 0.5875203141928494, "y": 0.6024538590604027},
+    {"x": 0.5447843309859155, "y": 0.653064702181208},
+    {"x": 0.47062483071505956, "y": 0.645278418624161},
+    {"x": 0.4473714280877573, "y": 0.6082935717281879},
+    {"x": 0.424118025460455, "y": 0.5713087248322147},
+    {"x": 0.4153194406825569, "y": 0.43504876258389263}
+  ],
+  "closed": true,
+  "transient_only": true,
+  "runtime_write": false,
+  "project_id": "project-cb1b3534d9a8498a8a92d7d6514b1fc4",
+  "candidate_id": "candidate-59c37d65e8c54ee19432e518911928f4",
+  "reference_id": "reference-513e81a5c47e4a77b95564df596d002b",
+  "artifact_sha256": "48d5f390dc179821dedf6e6b595dce2b86a9aeaddd9e71d612b88cbc708badff",
+  "render_set_hash": "85fa4d1ea3b2f95b79ca5b3511ede32bfdca1bdc312aec2332d8987f296f1c61",
+  "comparison_report_hash": "dd093c377ff01dd9d7428db994c08e54b9c0706ce937c6bfe74beb563cf0bc61",
+  "source_pass": "silhouette",
+  "selected_part_id": "chest-shell",
+  "selected_material_zone_id": null
+}

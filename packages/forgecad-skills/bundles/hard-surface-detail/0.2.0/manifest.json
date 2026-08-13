@@ -1,0 +1,49 @@
+{
+  "benchmark_suite": "hard-surface-detail-smoke",
+  "budgets": {
+    "max_glb_bytes": 67108864,
+    "max_nodes": 512,
+    "max_runtime_ms": 10000,
+    "max_triangles": 250000,
+    "max_worker_memory_bytes": 536870912
+  },
+  "canonical_sha256": "f7ed9865d3fb59df14f42a4009a7b1c4e9e0ae2819c4dd9eb3855eaea8f07f89",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": true,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/geometry-program-v2.schema.json",
+  "operator_ids": [
+    "forgecad.geometry.profile-extrude@1",
+    "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.revolve@1",
+    "forgecad.geometry.tube-sweep@1",
+    "forgecad.geometry.transform@2",
+    "forgecad.geometry.mirror@1",
+    "forgecad.geometry.array@1",
+    "forgecad.geometry.panel@1",
+    "forgecad.geometry.vent-array@1",
+    "forgecad.geometry.joint-stack@1",
+    "forgecad.geometry.part-output@1"
+  ],
+  "output_schema": "schemas/geometry-prepare-result-v2.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "hard-surface-detail",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "geometry_budget@1",
+    "finite_parameters@1",
+    "operator_allowlist@1"
+  ],
+  "version": "0.2.0"
+}

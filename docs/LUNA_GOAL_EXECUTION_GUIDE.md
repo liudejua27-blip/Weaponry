@@ -1,12 +1,16 @@
 # Luna Goal 执行指南：ForgeCAD 单用户 MVP
 
-版本：2026-08-10
+版本：2026-08-13
 状态：Luna 强制执行协议；MVP host golden path 已收口；MCP010 质量轨道已批准
-当前任务：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C in_progress/source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D–FGC-MCP010F blocked`
+当前任务：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C done（source-focused PASS_WITH_UNRUN_VISUAL_GATES）`；`FGC-MCP010D/E source + packaged structural PASS（Manifold/xatlas/Validator/视觉子门 NOT_RUN）`；唯一 `in_progress` 为 `FGC-MCP010F`（Viewer source、packaged CLI read-model、原生窗口与核心控件 smoke PASS；provisional observation package binding/正式 VoiceOver/人评/360 `NOT_RUN/BLOCKED`）
 
 ## 1. Goal 目标
 
-Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或状态真值。当前 Goal 的代码主线和真实 Codex CLI 已完成一条用户授权图片 → typed 3D → PBR/fixed render → quality → approval/version → CAS GLB receipt 的 MVP host golden path；当前 MCP010C source 已补固定 renderer、九 AOV、reference compare 和 typed/human review，真实用户 likeness、Viewer/package/live C、人评阈值、PBR V2/纹理和 360 仍按独立证据推进，不继续堆复杂后台治理。
+Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或状态真值。当前 Goal 的代码主线和真实 Codex CLI 已完成一条用户授权图片 → typed 3D → PBR/fixed render → quality → approval/version → CAS GLB receipt 的 MVP host golden path；MCP010C source 已完成固定 renderer、九 AOV、reference compare、Codex typed visual review 以及 human review 合同/工具接口，MCP010D/E source 已完成真实硬表面 Operator、离线 AssetPack、UV atlas、MikkTSpace 和嵌入式 PBR，MCP010F source 已完成只读 Viewer 的 AOV/对比/部件筛选/材质区筛选/爆炸图/热图辅助。真实用户 likeness、同一 candidate 的 packaged Viewer、独立真人评分、PBR likeness、xatlas/Validator、export/restart hash 和 360 仍按独立证据推进，不继续堆复杂后台治理。
+
+Stage 0 唯一机器可读真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，不是合格 benchmark；它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；packaged Viewer 来自不同 cohort/artifact，未绑定该 candidate。任何 Luna 状态更新都必须保留这些失败/未运行边界。
+
+<!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
 
 不要把 Goal 写成“完善整个软件”后无边界并行修改。一次只领取一个 `FGC-MCPxxx`，先完成退出 Gate，再进入下一项。MCP005–009 是已完成的 functional core；MCP010A–F 严格串行，MCP011–013 保留可靠性、分发和正式发布职责。
 
@@ -17,24 +21,36 @@ Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或�
 3. `docs/DOCUMENTATION_STATUS.md`
 4. `docs/CODEX_HANDOFF.md`
 5. `docs/ADR/0025-codex-only-mcp-3d-runtime.md`
-6. `docs/RESET_MIGRATION_PLAN.md`
-7. `docs/CODEX_EXECUTION_PLAN.md`
-8. `docs/CODEX_TASK_INDEX.md`
-9. `docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`
-10. `docs/AUTHORITATIVE_STATE.md`
-11. `docs/MVP_DELIVERY_PLAN.md`
-12. `docs/MVP_TOOL_CATALOG.md`
-13. 本文件
-14. 当前任务对应的 MCP/Schema/Compiler/Viewer/Skill/Test/Packaging 合同。
+6. `docs/ADR/0026-agentic-design-runtime.md`
+7. `docs/FORGECAD_AGENTIC_DESIGN_RUNTIME_PLAN.md`
+8. `docs/ARCHITECTURE_MODULE_BOUNDARY.md`
+9. `docs/DEPRECATED_ISOLATION_PLAN.md`
+10. `docs/RESET_MIGRATION_PLAN.md`
+11. `docs/CODEX_EXECUTION_PLAN.md`
+12. `docs/CODEX_TASK_INDEX.md`
+13. `docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`
+14. `docs/AUTHORITATIVE_STATE.md`
+15. `docs/MVP_DELIVERY_PLAN.md`
+16. `docs/MVP_TOOL_CATALOG.md`
+17. 本文件
+18. 当前任务对应的 MCP/Schema/Compiler/Viewer/Skill/Test/Packaging 合同。
 
 若冲突，按 `DOCUMENTATION_MAP.md` 解决；没有明确权威时先修文档，不自行混合两套架构。
 
+ADR-0026、Agentic plan、模块边界和废弃隔离计划都是当前权威阅读链的一部分，但它们只把 DesignSession/SemanticSceneGraph/scene observe/Critic loop 标为目标设计。没有 Schema/tool/runtime evidence 前，Luna 不得把这些目标写成 PASS。
+
 ## 3. Goal 建议文本
 
-用户已批准并显式继续以下 Goal；010A 已完成，010B structural source Gate 已通过，当前只执行 010C，之后仍须按 A–F 串行执行：
+用户已批准并显式继续以下 Goal；010A–E 的已完成/source 状态按账本保留，当前只执行唯一 `in_progress` 的 FGC-MCP010F：
 
 ```text
-按照 AGENTS.md、docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md、docs/CODEX_TASK_INDEX.md 和本指南，保护 dirty worktree，一次只执行一个原子任务。FGC-MCP010A 已完成权威重排、同 revision 用户级开发 App 激活和真实 Codex capability/build-hash Gate；010B structural source Gate 已通过，但 Darwin OS memory hard cap仍 NOT_RUN。当前只执行 FGC-MCP010C：固定 512×512 perspective/z-buffer renderer、九 AOV、local reference mask/metrics、MCP image block、Codex typed review 和 human receipt。当前 source Gate 使用 synthetic reference；真实用户 likeness、Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash和360仍独立记录。禁止旧 Provider、付费 API、远程 image-to-3D、任意 Python/BlenderMCP、手工 GLB、heartbeat 或插件市场。
+按照 AGENTS.md、docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md、docs/CODEX_TASK_INDEX.md 和本指南，保护 dirty worktree，一次只执行一个原子任务。当前源码固定为 78 Schema、29 read + 18 opt-in write = 47，唯一 `in_progress` 是 FGC-MCP010F。高质量路径只允许 `GeometryProgram@2` detail → strict readback → 九 AOV strict compare → typed visual review；`[transition-v1]` primitive-only 仅为历史兼容。Viewer source 和 packaged read-model/window/core-control smoke 已通过，但 attempt35 仍为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，fit/compare camera `MISMATCH`，packaged Viewer 未绑定 provisional observation。正式 VoiceOver、真人、PBR likeness、export/restart hash 和 360 仍独立记录。禁止旧 Provider、付费 API、远程 image-to-3D、任意 Python/BlenderMCP、手工 GLB、heartbeat 或插件市场。
+```
+
+若用户要求大调整或架构重规划，应追加：
+
+```text
+同时遵循 ADR-0026、FORGECAD_AGENTIC_DESIGN_RUNTIME_PLAN、ARCHITECTURE_MODULE_BOUNDARY 和 DEPRECATED_ISOLATION_PLAN。目标是让架构和模块边界清晰：先隔离 superseded 文档/代码/模块，再按 ReferenceCanvas → DesignSpec → SemanticSceneGraph → stage gates → Visual Evidence → Critic/Repair 拆分后续任务。不得在当前脏工作树直接删除未知文件；废弃项先进入 archive/quarantine 并保持可恢复证据。
 ```
 
 真实 host 证据按下面的顺序运行；`<AUTHORIZED_REFERENCE>` 必须是用户明确授权的本地 PNG/JPEG，命令输出不得写入 Git、日志或 receipt：
@@ -82,8 +98,8 @@ Destructive actions / user approval:
 
 - 当前 010A 已由用户批准并完成真实 Desktop Gate，标为 `done`；
 - 成功 receipt 必须保留，第一次失败 receipt 也不得改写；
-- 010A 已 done；010B structural source Gate已通过但 Darwin OS memory hard cap deferred；用户已领取 C，因此当前只允许 C 保持 `in_progress`，D–F 不得开始；之后每次只将直接后继改为 ready/in_progress；
-- 当前工作树有 59 Schema（MCP006 历史 44 + MCP010B 8 + MCP010C 7）、20 read + 16 write（36）工具、11 个 Skill（10 个历史 `0.1.0` + `primitive-blockout@0.2.0` active）；C source Gate 已通过 contracts、fixed renderer/九 AOV、comparison/review、MCP image block 和 deterministic raw stdio。C synthetic/raw不证明真实用户 likeness；Viewer compare、packaged/live C、人评阈值、PBR/纹理、export/restart hash和360只写 `NOT_RUN/BLOCKED`。
+- 010A 已 done；010B structural source Gate已通过但 Darwin OS memory hard cap deferred；010C source-focused Gate 已完成但视觉子门仍未运行；D/E source Gate 已完成；当前只允许 F 保持 `in_progress`，其 packaged/human/360 子门独立记录；之后每次只将直接后继改为 ready/in_progress；
+- 当前工作树有 78 Schema（MCP006 历史 44 + MCP010B 8 + MCP010C 7 + MCP010E 6 + MCP010F 13，含 `CameraCalibrationRef@1` 与 `SilhouettePartErrorResult@1`）、29 read + 18 opt-in write = 47 个工具、11 个 Skill（历史 `0.1.0` + `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0`、`uv-pbr@0.2.0` active）；C source Gate 已通过 contracts、fixed renderer/九 AOV、comparison/typed visual review、MCP image block 和 deterministic raw stdio，D/E source Gate 已通过真实 Operator、AssetPack、UV/PBR/MikkTSpace/embedded-texture 和九 AOV，并有同 cohort packaged D/E structural probes，F source Gate 另通过哈希绑定轮廓目标、Runtime-owned camera reference、方向性边界误差、多 Part `silhouette_part_error_get` 归因表、只读 Viewer 的 AOV/compare/selection/explosion/heatmap 及构建边界，packaged Viewer 另有 read-model/window/core-control smoke。attempt35 likeness/receipt/camera 仍失败或不完整；provisional observation package binding、正式 VoiceOver、人评阈值、xatlas/Validator、PBR likeness、export/restart hash和360只写 `NOT_RUN/BLOCKED`。
 
 ## 5. FGC-MCP005 已完成记录
 
@@ -114,19 +130,19 @@ MCP005 已完成：
 
 ### MCP006（已完成）
 
-先 Schema/validator，再 first-party Skills。MCP006 已完成 44 个 contracts schema、十项 historical registry manifest、十个独立标准 Bundle、trust hash、`skill_list/get` 和只读 resource、DAG/单位/finite/预算 validator、负向 fixture、benchmark receipt、LICENSE/NOTICE/SBOM/provenance 绑定；MCP010B 另有 8 个 V2 contracts 与 `primitive-blockout@0.2.0` active overlay，绑定 Runtime primitive@2。Codex 提交 typed program，ForgeCAD 不调用 LLM。MVP Bundle 用 canonical hash + first-party trust root；不省略许可证/SBOM/provenance，但分发签名/撤销延后。它只证明声明式能力可审计，不证明通用视觉质量。
+先 Schema/validator，再 first-party Skills。MCP006 已完成 44 个 contracts schema、十项 historical registry manifest、十个独立标准 Bundle、trust hash、`skill_list/get` 和只读 resource、DAG/单位/finite/预算 validator、负向 fixture、benchmark receipt、LICENSE/NOTICE/SBOM/provenance 绑定；当前总数为 78 Schema，`primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0` 均有 active Runtime consumer。Codex 提交 typed program，ForgeCAD 不调用 LLM。MVP Bundle 用 canonical hash + first-party trust root；不省略许可证/SBOM/provenance，但分发签名/撤销延后。它只证明声明式能力可审计，不证明通用视觉质量。
 
 ### MCP007（已完成）
 
-MCP007 已通过 `npm run mcp007:test`：Geometry Worker library/binary 接受 canonical `GeometryProgram@1`，生成确定性 glTF 2.0 GLB；Runtime 生成 geometry candidate/quality report，MCP 通过 authenticated IPC 暴露 `geometry_prepare` 和 `artifact_readback_get`，Viewer read model 读取候选与 artifact lineage。当前 fixture 覆盖 14 个语义机器人部件和 finite/index/budget/unknown-operator/no-version-on-failure；实体 GLB/PBR/render 已由 MCP008 接上。真实 Codex CLI geometry receipt 已 PASS（用户授权 PNG → 14-part/516-triangle typed geometry）；外观/质量/导出已由 MCP009 十二调用 receipt 覆盖，但不等于像素相似度或真人高质量结论。
+`[transition-v1]` MCP007 已通过 `npm run mcp007:test`：Geometry Worker library/binary 接受 canonical `GeometryProgram@1` primitive-only program，生成确定性 glTF 2.0 GLB；Runtime 生成 geometry candidate/quality report，MCP 通过 authenticated IPC 暴露 `geometry_prepare` 和 `artifact_readback_get`，Viewer read model 读取候选与 artifact lineage。该历史 fixture/receipt 不等于当前 `GeometryProgram@2` detail、九 AOV strict compare、像素相似度或真人高质量结论。
 
 ### MCP008（已完成功能核心）
 
-`npm run mcp008:test` 已通过：hash-bound 三种 MaterialZone、UV/tangent/glTF PBR lowering、beauty/silhouette/normal/part-ID 固定 PNG、Runtime readback 和 Three.js GLB canvas。Viewer 只读，不复制状态；renderer 不依赖 Viewer。真实 Codex appearance/readback 已在 MCP009 receipt 中 PASS；限制仍为无纹理烘焙/UDIM/全 AOV、像素相似度和视觉评分。证据：`docs/evidence/mcp008/`、`docs/evidence/mcp009/`。
+`[transition-v1]` `npm run mcp008:test` 已通过：hash-bound 三种 MaterialZone、UV/tangent/glTF PBR lowering、四个固定 PNG、Runtime readback 和 Three.js GLB canvas。Viewer 只读，不复制状态；该历史四-pass receipt 不替代当前 `AppearanceProgram@2`、九 AOV、strict compare、PBR likeness 或视觉评分。证据：`docs/evidence/mcp008/`、`docs/evidence/mcp009/`。
 
 ### MCP009（MVP host golden path 已完成）
 
-`npm run mcp009:test` 已通过 24 个 Runtime tests + 16 个 MCP tests；真实 Codex CLI 已完成十二调用 reference→geometry→appearance→readback→quality→candidate_confirm→version_list→CAS-only export。`quality_get` 仍只返回明确 `limited` aspect-ratio；`change_prepare` 要求当前 base version、稳定 Part ID、allowlisted operation 和新 typed programs；confirm/reject/restore 保持 immutable/idempotent；`mvp-glb` export 只消费 confirmed quality-passing CAS GLB，返回 output hash 和 receipt，不写任意本机路径。限制：像素级 silhouette/landmark/region compare、真人评分和 Desktop write 未运行。证据：`docs/evidence/mcp009/`。
+`[transition-v1]` `npm run mcp009:test` 已通过 24 个 Runtime tests + 16 个 MCP tests；真实 Codex CLI 已完成十二调用 reference→geometry→appearance→readback→quality→candidate_confirm→version_list→CAS-only export。该历史 `QualityReport@1` 只含明确 `limited` aspect-ratio；`change_prepare` 要求当前 base version、稳定 Part ID、allowlisted operation 和新 typed programs；confirm/reject/restore 保持 immutable/idempotent；`mvp-glb` export 只消费 confirmed quality-passing CAS GLB，返回 output hash 和 receipt，不写任意本机路径。当前 MCP010C/F 已实现 candidate-bound silhouette/landmark/region compare 和 Codex typed visual review，但 attempt35 仍 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，独立真人评分和 retained-candidate packaged Viewer E2E 未运行。证据：`docs/evidence/mcp009/` 与 Stage 0 真值。
 
 ## 7. GitHub / Skill / Plugin 纪律
 
@@ -213,19 +229,20 @@ MVP 关闭：
 ForgeCAD MVP completed for the first hard-surface reference benchmark on <commit/worktree>; universal high-quality image-to-3D and production distribution remain out of scope.
 ```
 
-## 12. 当前可执行的 MVP 工具顺序
+## 12. 当前可执行的高质量工具顺序
 
 真实 Codex host 具备 MCP write opt-in 后，按下面顺序调用；每一步把返回的 ID/hash传给下一步，禁止从模型自由猜测 hash：
 
-1. `project_create`：创建本地项目，记录 `project_id`。
-2. `reference_import`：仅提交用户授权的 PNG/JPEG 字节或受授权 root 下的 Codex 文件，保存 `reference_id/object_sha256`。
-3. `skill_list` / `skill_get`：读取 11 个 first-party development Skill 的 manifest；其中只有 `primitive-blockout@0.2.0` 的 primitive@2 consumer 当前 active，Skill metadata 仍不是任意执行代码。
-4. Codex 根据参考图输出 `GeometryProgram@1`；调用 `geometry_prepare`，检查 `ArtifactReadback@1` 的 `part_ids/triangle_count/validator_status`。
-5. 输出 hash-bound `AppearanceProgram@1`；调用 `appearance_prepare`，检查 UV/tangent、MaterialZone、`RenderSet@1` 四个固定 pass。
-6. 调用 `quality_get`；如果提供 `reference_id`，把 compare 的 `status=limited` 作为比例提示，不把它写成像素相似度。
-7. 用户拒绝候选时调用 `candidate_reject`；确认时只把 Runtime 返回的 candidate/artifact/quality hash 放入 `candidate_confirm`，并生成新的 immutable version。
-8. 局部修改时读取当前 `version_id`，只提交一个 `change_set.part_id` 和 allowlisted operation，再调用 `change_prepare`；它仍需完整新 Geometry/Appearance programs，失败不得移动 head。
-9. 修改后再次 `quality_get`，用户批准后 `candidate_confirm`；需要回退时 `restore_prepare` → `restore_confirm`，永远创建新子版本。
-10. 导出时 `export_prepare(format=glb, profile=mvp-glb)` → 用户确认 → `export_confirm`，保存 `output_sha256` 和 receipt；当前输出留在 CAS，不能把任意路径传入 Runtime。
+1. `capabilities_get → runtime_status → doctor → operator_catalog_get → skill_list`：要求 Runtime Ready、同 cohort、catalog digest 一致；当前口径必须是 29 read + 18 opt-in write = 47。
+2. `project_create → reference_import → reference_get`：只提交用户授权 PNG/JPEG，记录 project/reference/object hash 和 observed/inferred/unknown coverage。
+3. 构造 project/catalog-bound `GeometryProgram@2` detail draft；`geometry_program_hash → geometry_prepare → job_get → candidate_get → artifact_readback_get`，要求 strict `ArtifactReadback@2` 的完整 lineage 和零 integrity failure。
+4. `reference_mask_prepare → silhouette_target_get → camera_fit_prepare → silhouette_rig_hash → silhouette_fit_prepare`；fit 返回的 camera 必须与后续 compare 的 camera hash/canonical hash 一致，不一致即停止。
+5. 仅在轮廓/结构门允许时提交 `AppearanceProgram@2` 并运行 `appearance_prepare`；AssetPack/UV/tangent/PBR readback 不等于 PBR likeness。
+6. `reference_compare_prepare` 必须绑定同一 project/reference/candidate/artifact/camera，生成 `RenderSet@2` 九 AOV strict compare；逐项 `render_pass_get`，再 `visual_review_submit → quality_get`。
+7. 任一 strict metric 失败时保留 receipt，只做一次单 Part/detail 受限修正并重跑 readback/九 AOV/strict compare；`QUALITY_TARGET_NOT_MET` 禁止 confirm/export。
+8. 只有 strict visible-view 通过后才进入独立 `human_visual_review_submit`；正式真人门当前仍 `NOT_RUN`，不得由 Codex typed review 代替。
+9. 真人批准精确 candidate/version 后才可 `candidate_confirm → version_diff → restore_prepare/restore_confirm → export_prepare/export_confirm`，并验证 preview/export/restart 同 hash；这些门当前仍未完成。
+
+`[transition-v1]` `GeometryProgram@1` primitive-only + `AppearanceProgram@1` + `RenderSet@1` 四 pass 只保留 MCP007–009 structural MVP/历史导出兼容。它不是当前高质量路径，不能产出 strict likeness、PBR、human、packaged Viewer 或 360 结论。
 
 真实验收必须另外记录：Codex host 类型、MCP initialize 版本、参考源字节 hash、Geometry/Appearance canonical hash、GLB hash、RenderSet hash、QualityReport、approval receipt、version DAG、Viewer readback、重启后的 hash 和真人评分。任何一项没有运行，都写 `NOT_RUN`；宿主不可用写 `BLOCKED`。

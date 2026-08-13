@@ -1,0 +1,289 @@
+{
+  "allowed_read_only_events": 0,
+  "aov_order": [
+    "beauty",
+    "silhouette",
+    "depth",
+    "normal",
+    "ao",
+    "part-id",
+    "material-id",
+    "wireframe",
+    "uv-stretch"
+  ],
+  "artifact_id": "7257e20e2453c35d9163462937157412ed543e69367067fac1ddc75817cb98b5",
+  "artifact_sha256": "7257e20e2453c35d9163462937157412ed543e69367067fac1ddc75817cb98b5",
+  "build_cohorts": {
+    "mcp": "b4652984cb48fb15d0373a38e4f395f0726579c632471a52a73b647cfe2dd330",
+    "runtime": "b4652984cb48fb15d0373a38e4f395f0726579c632471a52a73b647cfe2dd330",
+    "worker": "b4652984cb48fb15d0373a38e4f395f0726579c632471a52a73b647cfe2dd330"
+  },
+  "candidate_id": "candidate-ce71a84d7e0949ed985c665957d15155",
+  "catalog_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+  "codex_exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "codex_sandbox": "workspace-write",
+  "codex_turn_count": 6,
+  "comparison_metrics": {
+    "bbox_edge_error": 0.056640625,
+    "boundary_f1_4px": 0.24176079828,
+    "centroid_error": 0.013471252369,
+    "critical_region_min_iou": 1.0,
+    "landmark_coverage": 0.0,
+    "landmark_nme": 1.0,
+    "region_median_iou": 0.0,
+    "silhouette_iou": 0.662282347453
+  },
+  "comparison_report_hash": "11292d7d381aaee3f2a15fbd72b1504d5907e42d1df122125ffbec9b720a965e",
+  "expected_sequences": {
+    "authoring": [
+      "capabilities_get",
+      "runtime_status",
+      "doctor",
+      "operator_catalog_get",
+      "skill_list",
+      "geometry_program_hash",
+      "geometry_prepare"
+    ],
+    "compare": [
+      "job_get",
+      "candidate_get",
+      "artifact_readback_get",
+      "reference_compare_prepare"
+    ],
+    "render": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "ao",
+      "part-id",
+      "material-id",
+      "wireframe",
+      "uv-stretch"
+    ],
+    "review": [
+      "visual_review_submit",
+      "quality_get"
+    ],
+    "setup": [
+      "project_create",
+      "reference_import",
+      "reference_get"
+    ]
+  },
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "job_id": "job-302d12dd424a42188f1c18b663a1b739",
+  "mcp_tool_calls": [
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "project_create"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_import"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "capabilities_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "runtime_status"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "doctor"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "operator_catalog_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "skill_list"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "geometry_program_hash"
+    },
+    {
+      "artifact": {
+        "artifact_id": "7257e20e2453c35d9163462937157412ed543e69367067fac1ddc75817cb98b5",
+        "candidate_id": "candidate-ce71a84d7e0949ed985c665957d15155",
+        "mime": "model/gltf-binary",
+        "part_ids": [
+          "head-shell",
+          "visor",
+          "neck",
+          "chest-shell",
+          "chest-core",
+          "chest-light",
+          "shoulder-left",
+          "shoulder-right",
+          "upper-arm-left",
+          "upper-arm-right",
+          "elbow-left",
+          "elbow-right",
+          "forearm-left",
+          "forearm-right",
+          "hand-left",
+          "hand-right",
+          "pelvis",
+          "hip-left",
+          "hip-right",
+          "thigh-left",
+          "thigh-right",
+          "knee-left",
+          "knee-right",
+          "shin-left",
+          "shin-right",
+          "foot-left",
+          "foot-right"
+        ],
+        "size_bytes": 686168,
+        "triangle_count": 4100,
+        "validator_status": "passed"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "geometry_prepare"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "job_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "candidate_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "artifact_readback_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "reference_compare_prepare"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "render_pass_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "visual_review_submit"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "tool": "quality_get"
+    }
+  ],
+  "part_count": 27,
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "program_sha256": "c6fe68fda1cf6fc5f4f537012c769b2ad777e90d9e0eb593bfa19b1f4ca5d056",
+  "project_id": "project-925a6dece331448db436ade317d81e4c",
+  "protocol_version": "2025-06-18",
+  "quality_claim": "QUALITY_TARGET_NOT_MET_OR_NOT_CLAIMED",
+  "quality_hard_gate_passed": false,
+  "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+  "reference_height": 1254,
+  "reference_id": "reference-cd957cc31cf94aeaaf190af6d5a9ad20",
+  "reference_path_recorded": false,
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "reference_width": 1254,
+  "render_pass_calls": 9,
+  "render_pass_image_blocks": "NOT_OBSERVED_IN_SANITIZED_CLI_EVENTS",
+  "render_pass_order": [
+    "beauty",
+    "silhouette",
+    "depth",
+    "normal",
+    "ao",
+    "part-id",
+    "material-id",
+    "wireframe",
+    "uv-stretch"
+  ],
+  "render_set_hash": "e77c2130346ae1ae168a4cea7ff40225402e1aee0ebfbb77d9db6936bfb000b2",
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "side_effect_events": [],
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+  "task_id": "FGC-MCP010C",
+  "triangle_count": 4100,
+  "unrelated_side_effects": false,
+  "validator_status": "passed",
+  "visual_quality_claim": "NOT_CLAIMED",
+  "visual_review_status": "needs_revision"
+}

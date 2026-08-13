@@ -3,7 +3,7 @@
 版本：2026-08-09
 状态：`FGC-MCP010B structural source Gate PASS；Darwin OS memory hard cap deferred/NOT_RUN`；本文件是 V2 调用和审计指引，不代表 C 的视觉质量或 360°通过
 
-当前 B 源码 reconciliation 已通过 source-focused Gate：B 52 contracts（44 历史 + 8 MCP010B，新增 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`）、MCP006 Skill integrity、isolated Worker/raw V2、V2 restore hardening 与 closed GLB profile。当前总源合同因 MCP010C 为 59，但本文件只描述 B authoring/readback。3c/f488/bfa56/d9 Dev.app/CLI evidence 是历史或结构 cohort；本工作流不宣称 PBR、reference similarity、human review 或 360°。
+当前 B 源码 reconciliation 已通过 source-focused Gate：B subtotal 为 52 contracts（44 历史 + 8 MCP010B，新增 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`）、MCP006 Skill integrity、isolated Worker/raw V2、V2 restore hardening 与 closed GLB profile。当前仓库总源合同为 65（C subtotal 59，E 再新增 6），但本文件只描述 B authoring/readback。3c/f488/bfa56/d9 Dev.app/CLI evidence 是历史或结构 cohort；本工作流不宣称 PBR、reference similarity、human review 或 360°。
 
 ## 1. 用途和边界
 
@@ -54,7 +54,7 @@ capabilities_get
 3. `capabilities_get.operator_catalog_sha256` 存在且与 catalog 的 `canonical_sha256` 相同；
 4. program 中只能使用 catalog 中 `status="active"` 的 Operator 和其公布的形状。
 
-当前 catalog 的 node input arity 为零，因为它只公布 primitive leaf。MCP010B 的真实图边位于**有序 `part_outputs[].input_node_ids` semantic-Part sink**：一个或多个 primitive leaf 输入一个语义 Part，Runtime 将它们作为同一 Part 的独立 GLB primitives 编译，并为每个输入保留单独的 `source_node_id` 回读 binding。每个 source node 必须在全部 sinks 中正好消费一次；空、未知、重复或跨 sink 重用的输入都必须 fail closed。这是受限的 `primitive leaf → semantic Part sink` 组合 DAG，不是多节点布尔/变换图。不要把 `transform@2`、mirror、array、profile、loft、revolve、sweep、panel、vent、joint-stack 或 boolean 填进 V2 nodes；它们尚未出现在 live catalog。
+当前 MCP010D catalog 的 node input arity 已支持真实有序 DAG：primitive leaf 与 transform/mirror/array、profile/loft/revolve/sweep、panel/vent/joint/part-output 等 operator 的输入按 `inputs` 绑定；`part_outputs[].input_node_ids` 仍是语义 Part sink，允许一个 Part 聚合多个 detail source，并为每个 source 保留单独的 `source_node_id` 回读 binding。每个 node input 必须指向更早节点且不能被多个下游复用；每个 source 必须在下游或最终 sink 中正好消费一次；空、未知、重复、循环和 unconsumed input 都必须 fail closed。`boolean@1` 仍 unavailable，未通过 Manifold adoption 前不得提交。
 
 ## 3. Skill 是建议来源，不是执行权威
 

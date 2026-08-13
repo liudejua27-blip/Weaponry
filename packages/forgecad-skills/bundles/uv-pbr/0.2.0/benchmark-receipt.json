@@ -1,0 +1,14 @@
+{
+  "fixture_sha256": "af6422f8d2f58f2d7f8e7f03da33fc38d0337924bfa75b8f08b20725b4ff4f14",
+  "metrics": {
+    "declarative_plan_validation": 1,
+    "fixtures": 2,
+    "forbidden_capabilities": 0
+  },
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "uv-pbr",
+  "status": "passed",
+  "suite_id": "uv-pbr-smoke",
+  "version": "0.2.0"
+}

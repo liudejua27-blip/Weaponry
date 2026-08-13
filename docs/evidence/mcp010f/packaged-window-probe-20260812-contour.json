@@ -1,0 +1,19 @@
+{
+  "schema_version": "ForgeCADMCP010FPackagedWindowProbe@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_STRUCTURAL_WINDOW",
+  "packaged_viewer_ui_e2e": "NOT_RUN",
+  "accessibility_e2e": "NOT_RUN",
+  "window_count": 1,
+  "windows": [
+    {
+      "title": "ForgeCAD Runtime Viewer",
+      "x": 36.0,
+      "y": 33.0,
+      "width": 1440.0,
+      "height": 891.0
+    }
+  ],
+  "runtime_handoff_status": "ready",
+  "persistent_user_data_touched": false
+}

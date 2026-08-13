@@ -1,0 +1,28 @@
+{
+  "schema_version": "ForgeCADViewerContourDraft@2",
+  "coordinate_space": "normalized_reference_image",
+  "points": [
+    {"x": 0.355, "y": 0.345},
+    {"x": 0.455, "y": 0.300},
+    {"x": 0.590, "y": 0.305},
+    {"x": 0.690, "y": 0.355},
+    {"x": 0.715, "y": 0.455},
+    {"x": 0.685, "y": 0.555},
+    {"x": 0.575, "y": 0.615},
+    {"x": 0.445, "y": 0.600},
+    {"x": 0.365, "y": 0.525},
+    {"x": 0.335, "y": 0.425}
+  ],
+  "closed": true,
+  "transient_only": true,
+  "runtime_write": false,
+  "project_id": "project-faca2915ab0348b3acc8c6a2a9dc9e49",
+  "candidate_id": "candidate-4f958048298b4cc5855c22a13206945a",
+  "reference_id": "reference-5b5a7caa75674f8dac34aecf04e5b01a",
+  "artifact_sha256": "da2949605283261d79134e76db48508cf5db3c99160f00adda6d0fa73d32feb0",
+  "render_set_hash": "d8180f96cbac13d1a4f6c1da7ed726584226715b04f7becddc08f4c77e54cabb",
+  "comparison_report_hash": "7c64d586e2aabc09c0b845fc38bd6029586c2ad48303094639aa05891b1269a9",
+  "source_pass": "silhouette",
+  "selected_part_id": "chest-shell",
+  "selected_material_zone_id": "zone-white-shell"
+}

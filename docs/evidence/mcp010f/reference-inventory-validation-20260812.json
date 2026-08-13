@@ -1,0 +1,19 @@
+{
+  "schema_version": "ForgeCADReferenceInventoryValidation@1",
+  "status": "PASS",
+  "validation_status": "passed",
+  "inventory_sha256": "b765eba67d545129a332f832023af870f629b5f2f8c06bdac5718d5a97c265e2",
+  "detail_count": 10,
+  "evidence_counts": {
+    "observed": 8,
+    "inferred": 1,
+    "unknown": 1
+  },
+  "referenced_operator_count": 7,
+  "operator_catalog": "PASS_LIVE_ACTIVE_OPERATORS",
+  "assetpack_manifest": "PASS_ASSETPACK_MATERIALS",
+  "errors": [],
+  "warnings": [],
+  "next_action": "construct_or_update_hash_bound_geometry_draft",
+  "persistent_user_data_touched": false
+}

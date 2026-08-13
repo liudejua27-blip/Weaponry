@@ -1,0 +1,48 @@
+{
+  "schema_version": "ForgeCADMCP010FGeometryExperimentReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "metric_revision": "region-mask-iou-v2",
+  "source": "user-authorized-reference-metadata-only",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "baseline": {
+    "geometry_variant": "surface-linework + armor-shell-zones",
+    "geometry_part_count": 26,
+    "geometry_triangle_count": 4704,
+    "silhouette_iou": 0.741047132807,
+    "boundary_f1_4px": 0.32876512261,
+    "bbox_edge_error": 0.0078125,
+    "centroid_error": 0.007878177805,
+    "landmark_coverage": 0.733333333333,
+    "landmark_nme": 0.134535946351,
+    "region_median_iou": 0.869403198991,
+    "critical_region_min_iou": 0.666288576965
+  },
+  "experiment": {
+    "geometry_variant": "chest-wedge + surface-linework + armor-shell-zones",
+    "geometry_program_sha256": "56413ff1f6a6620cb15c4c4f87c88d10b52ac017880ed34a555d1e017ccaa0d1",
+    "geometry_artifact_sha256": "44fcef5625b46bfd5a921178d7f9765c4741b023088090f03efb7d0a58c0b33c",
+    "appearance_artifact_sha256": "df5342784391a330b6fbaab66bfb4490b6b0112b9f63dd783c446f78a2f4db89",
+    "render_set_hash": "1cf4dbfcac4ff4ecd3dcd848cd70a1a5b0bda17d208d3e56596972b217470172",
+    "comparison_report_hash": "edd2373b7faf84c7c2a962a9e2aeba2813bb274804ee1dbcfe3ead38572d70f6",
+    "geometry_part_count": 26,
+    "geometry_triangle_count": 4652,
+    "metrics": {
+      "silhouette_iou": 0.74334652779,
+      "boundary_f1_4px": 0.333760342523,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.006655660041,
+      "landmark_coverage": 0.666666666667,
+      "landmark_nme": 0.134796363018,
+      "region_median_iou": 0.84778994439,
+      "critical_region_min_iou": 0.686956521739
+    },
+    "transport": "PASS_TRANSPORT_WITH_METRICS",
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "decision": "REJECTED_NOT_PROMOTED",
+  "reason": "The shallow chest wedge improved the higher-priority boundary F1 and silhouette IoU, but reduced observed landmark coverage from 73.3% to 66.7% and reduced region median IoU. It remains a bounded negative/diagnostic experiment; the retained baseline is unchanged.",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false
+}

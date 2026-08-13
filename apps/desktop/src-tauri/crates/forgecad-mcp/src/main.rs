@@ -7,6 +7,7 @@ use forgecad_runtime::{
     LocalIpcClient, LocalIpcEndpoint, Runtime, RuntimeCapabilities, MCP_PROTOCOL_VERSIONS,
 };
 use serde_json::{json, Map, Value};
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
@@ -63,8 +64,14 @@ fn main() {
         print_build_identity("forgecad-mcp");
         return;
     }
+    if std::env::args().skip(1).eq(["--tool-manifest-summary"]) {
+        print_tool_manifest_summary();
+        return;
+    }
     if !valid_arguments() {
-        eprintln!("usage: forgecad-mcp [serve --stdio | --build-identity]");
+        eprintln!(
+            "usage: forgecad-mcp [serve --stdio | --build-identity | --tool-manifest-summary]"
+        );
         return;
     }
     let (mut backend, mut supervisor) = backend_from_environment();
@@ -106,6 +113,95 @@ fn print_build_identity(component: &str) {
         }))
         .expect("build identity serializes")
     );
+}
+
+fn print_tool_manifest_summary() {
+    let summary = tool_manifest_summary().expect("MCP tool manifest invariants hold");
+    println!(
+        "{}",
+        serde_json::to_string(&summary).expect("tool manifest summary serializes")
+    );
+}
+
+fn tool_name_set(
+    tools: &[Value],
+    expected_read_only: Option<bool>,
+) -> Result<BTreeSet<String>, String> {
+    let mut names = BTreeSet::new();
+    for entry in tools {
+        let name = entry
+            .get("name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "tool manifest entry is missing a string name".to_owned())?;
+        if !names.insert(name.to_owned()) {
+            return Err(format!("duplicate tool manifest name: {name}"));
+        }
+        if let Some(expected) = expected_read_only {
+            let actual = entry
+                .pointer("/annotations/readOnlyHint")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| format!("tool {name} is missing annotations.readOnlyHint"))?;
+            if actual != expected {
+                return Err(format!(
+                    "tool {name} readOnlyHint is {actual}, expected {expected}"
+                ));
+            }
+        }
+    }
+    Ok(names)
+}
+
+fn tool_manifest_summary() -> Result<Value, String> {
+    let read_tools = tools_with_writes(false);
+    let enabled_tools = tools_with_writes(true);
+    let read_names = tool_name_set(&read_tools, Some(true))?;
+    let enabled_names = tool_name_set(&enabled_tools, None)?;
+    if !read_names.is_subset(&enabled_names) {
+        return Err("write-enabled manifest removed a read-only tool".to_owned());
+    }
+    let write_names = enabled_names
+        .difference(&read_names)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for entry in &enabled_tools {
+        let Some(name) = entry.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        if write_names.contains(name) {
+            let read_only = entry
+                .pointer("/annotations/readOnlyHint")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| format!("write tool {name} is missing annotations.readOnlyHint"))?;
+            if read_only {
+                return Err(format!("write tool {name} is marked read-only"));
+            }
+        }
+    }
+    let declared_write_names = all_write_tool_names();
+    let declared_write_set = declared_write_names
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if declared_write_names.len() != declared_write_set.len() {
+        return Err("all_write_tool_names contains a duplicate".to_owned());
+    }
+    if write_names != declared_write_set {
+        return Err("write-enabled manifest differs from all_write_tool_names".to_owned());
+    }
+
+    let mut summary = json!({
+        "schema_version":"ForgeCADMcpToolManifestSummary@1",
+        "build_cohort_sha256":build_cohort_sha256(),
+        "read_count":read_names.len(),
+        "write_count":write_names.len(),
+        "total_count":enabled_names.len(),
+        "read_names":read_names.into_iter().collect::<Vec<_>>(),
+        "write_names":write_names.into_iter().collect::<Vec<_>>(),
+        "read_manifest_sha256":tool_manifest_hash(false),
+        "write_enabled_manifest_sha256":tool_manifest_hash(true)
+    });
+    summary["canonical_sha256"] = Value::String(canonical_json_hash(&summary));
+    Ok(summary)
 }
 
 fn valid_arguments() -> bool {
@@ -467,6 +563,13 @@ fn mcp010c_write_tool_names() -> Vec<String> {
     .collect()
 }
 
+fn mcp010f_write_tool_names() -> Vec<String> {
+    ["reference_mask_prepare", "reference_mask_refine_prepare"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+}
+
 fn is_mcp004_write_tool(name: &str) -> bool {
     mcp004_write_tool_names().iter().any(|tool| tool == name)
 }
@@ -491,6 +594,10 @@ fn is_mcp010c_write_tool(name: &str) -> bool {
     mcp010c_write_tool_names().iter().any(|tool| tool == name)
 }
 
+fn is_mcp010f_write_tool(name: &str) -> bool {
+    mcp010f_write_tool_names().iter().any(|tool| tool == name)
+}
+
 fn is_write_tool(name: &str) -> bool {
     is_mcp004_write_tool(name)
         || is_mcp005_write_tool(name)
@@ -498,6 +605,7 @@ fn is_write_tool(name: &str) -> bool {
         || is_mcp008_write_tool(name)
         || is_mcp009_write_tool(name)
         || is_mcp010c_write_tool(name)
+        || is_mcp010f_write_tool(name)
 }
 
 fn all_write_tool_names() -> Vec<String> {
@@ -507,6 +615,7 @@ fn all_write_tool_names() -> Vec<String> {
     names.extend(mcp008_write_tool_names());
     names.extend(mcp009_write_tool_names());
     names.extend(mcp010c_write_tool_names());
+    names.extend(mcp010f_write_tool_names());
     names
 }
 
@@ -519,6 +628,7 @@ fn tools_with_writes(writes_enabled: bool) -> Vec<Value> {
         tools.extend(mcp008_write_tools());
         tools.extend(mcp009_write_tools());
         tools.extend(mcp010c_write_tools());
+        tools.extend(mcp010f_write_tools());
     }
     tools.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
     tools
@@ -565,8 +675,133 @@ fn read_only_tools() -> Vec<Value> {
             true,
         ),
         tool(
+            "silhouette_rig_hash",
+            "Validate a hash-free SilhouetteRig@1 draft and return the Runtime-owned canonical hash without persisting anything",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","project_id","candidate_id","rig_draft"],
+                "properties":{
+                    "schema_version":{"const":"SilhouetteRigHashRequest@1"},
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "rig_draft":{
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","rig_id","candidate_id","parameters"],
+                        "properties":{
+                            "schema_version":{"const":"SilhouetteRig@1"},
+                            "rig_id":id_property(),
+                            "candidate_id":id_property(),
+                            "parameters":{
+                                "type":"array",
+                                "minItems":1,
+                                "maxItems":64,
+                                "items":{
+                                    "type":"object",
+                                    "additionalProperties":false,
+                                    "required":["parameter_id","part_id","semantic","value","min","max","step","unit"],
+                                    "properties":{
+                                        "parameter_id":id_property(),
+                                        "part_id":id_property(),
+                                        "semantic":{"enum":["width","height","depth","offset_x","offset_y","offset_z","scale"]},
+                                        "value":{"type":"number"},
+                                        "min":{"type":"number"},
+                                        "max":{"type":"number"},
+                                        "step":{"type":"number","minimum":0},
+                                        "unit":{"enum":["meter","ratio"]}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }),
+            true,
+        ),
+        tool(
+            "boundary_error_get",
+            "Read candidate-bound directional silhouette boundary errors against a prepared reference target",
+            json!({
+                "type":"object",
+                "required":["candidate_id","target_sha256"],
+                "properties":{
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property(),
+                    "max_segments":{"type":"integer","minimum":1,"maximum":64}
+                },
+                "additionalProperties":false
+            }),
+            true,
+        ),
+        tool(
+            "silhouette_part_error_get",
+            "Read candidate-bound per-Part contour error, local envelope ratios and bounded repair priority",
+            json!({
+                "type":"object",
+                "required":["project_id","candidate_id","target_sha256"],
+                "properties":{
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property()
+                },
+                "additionalProperties":false
+            }),
+            true,
+        ),
+        tool(
+            "camera_fit_prepare",
+            "Search a small deterministic camera neighborhood using the reference silhouette target and candidate silhouette; this only returns camera evidence and never changes the candidate.",
+            json!({
+                "type":"object",
+                "required":["project_id","candidate_id","target_sha256"],
+                "properties":{
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property(),
+                    "camera":{"type":["object","null"]}
+                },
+                "additionalProperties":false
+            }),
+            true,
+        ),
+        tool(
+            "silhouette_fit_prepare",
+            "Run a bounded deterministic camera and SilhouetteRig fit proposal against the reference mask; it never mutates the candidate.",
+            json!({
+                "type":"object",
+                "required":["project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
+                "properties":{
+                    "project_id":id_property(),"candidate_id":id_property(),"target_sha256":sha256_property(),
+                    "rig":{"type":"object"},"base_camera":{"type":"object"},
+                    "optimizer":{"type":"object","required":["algorithm","max_iterations","max_evaluations","step_fraction"],"properties":{"algorithm":{"enum":["grid","coordinate_descent"]},"max_iterations":{"type":"integer","minimum":1,"maximum":8},"max_evaluations":{"type":"integer","minimum":1,"maximum":64},"step_fraction":{"type":"number","minimum":0.000001,"maximum":0.5}},"additionalProperties":false},
+                    "canonical_sha256":sha256_property()
+                },
+                "additionalProperties":false
+            }),
+            true,
+        ),
+        tool(
+            "part_contour_fit_prepare",
+            "Return a bounded one-Part contour adjustment proposal from candidate-bound render evidence without changing the candidate.",
+            json!({"type":"object","required":["project_id","candidate_id","target_sha256","part_id","rig"],"properties":{"project_id":id_property(),"candidate_id":id_property(),"target_sha256":sha256_property(),"part_id":id_property(),"rig":{"type":"object"}},"additionalProperties":false}),
+            true,
+        ),
+        tool(
+            "silhouette_candidate_compare",
+            "Compare 2 to 8 candidate silhouettes against one immutable target and return the best bounded evidence.",
+            json!({"type":"object","required":["project_id","target_sha256","candidate_ids"],"properties":{"project_id":id_property(),"target_sha256":sha256_property(),"candidate_ids":{"type":"array","minItems":2,"maxItems":8,"items":id_property()}},"additionalProperties":false}),
+            true,
+        ),
+        tool(
             "operator_catalog_get",
             "Read the closed Runtime-owned OperatorCatalog@1 used to validate GeometryProgram@2 drafts",
+            json!({"type":"object","additionalProperties":false}),
+            true,
+        ),
+        tool(
+            "material_pack_get",
+            "Read the immutable offline forgecad-hard-surface-robot MaterialPack manifest, texture hashes and color-space rules",
             json!({"type":"object","additionalProperties":false}),
             true,
         ),
@@ -624,6 +859,17 @@ fn read_only_tools() -> Vec<Value> {
             "selection_get",
             "Read the ephemeral Viewer selection projection",
             json!({"type":"object","additionalProperties":false}),
+            true,
+        ),
+        tool(
+            "silhouette_target_get",
+            "Read a hash-bound 512x512 reference silhouette target without returning original image bytes",
+            json!({
+                "type":"object",
+                "required":["target_sha256"],
+                "properties":{"target_sha256":sha256_property()},
+                "additionalProperties":false
+            }),
             true,
         ),
         tool(
@@ -1043,7 +1289,8 @@ fn mcp010c_write_tools() -> Vec<Value> {
                     "candidate_id":id_property(),
                     "reference_id":id_property(),
                     "view_spec":{"type":"object"},
-                    "camera":{"type":["object","null"]}
+                    "camera":{"type":["object","null"]},
+                    "target_sha256":sha256_property()
                 },
                 "additionalProperties":false
             }),
@@ -1092,6 +1339,49 @@ fn mcp010c_write_tools() -> Vec<Value> {
             true,
             true,
             "MCP010C",
+        ),
+    ]
+}
+
+fn mcp010f_write_tools() -> Vec<Value> {
+    vec![
+        write_tool_with_transaction(
+            "reference_mask_prepare",
+            "Create a hash-bound 512x512 silhouette target from a user-authorized reference; an optional Codex contour is rasterized deterministically and no model candidate is created.",
+            json!({
+                "type":"object",
+                "required":["project_id","reference_id"],
+                "properties":{
+                    "project_id":id_property(),
+                    "reference_id":id_property(),
+                    "contour_points":{"type":["array","null"],"maxItems":512,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}},
+                    "landmarks":{"type":["array","null"],"maxItems":128,"items":{"type":"object"}},
+                    "parts":{"type":["array","null"],"maxItems":64,"items":{"type":"object"}}
+                },
+                "additionalProperties":false
+            }),
+            false,
+            false,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "reference_mask_refine_prepare",
+            "Create a new immutable silhouette target by refining an existing target with a bounded normalized contour; the source target remains unchanged.",
+            json!({
+                "type":"object",
+                "required":["project_id","base_target_sha256","contour_points"],
+                "properties":{
+                    "project_id":id_property(),
+                    "base_target_sha256":sha256_property(),
+                    "contour_points":{"type":"array","minItems":3,"maxItems":512,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}},
+                    "landmarks":{"type":["array","null"],"maxItems":128,"items":{"type":"object"}},
+                    "parts":{"type":["array","null"],"maxItems":64,"items":{"type":"object"}}
+                },
+                "additionalProperties":false
+            }),
+            false,
+            false,
+            "MCP010F",
         ),
     ]
 }
@@ -1978,7 +2268,85 @@ fn map_ipc_error(error: IpcError) -> String {
         IpcError::RuntimeRequest(detail) => {
             let code = detail.split(':').next().unwrap_or(detail.as_str()).trim();
             match code {
-                "INVALID_INPUT" => "INVALID_INPUT: Runtime request rejected".to_owned(),
+                "INVALID_INPUT" => {
+                    // Keep the adapter free of user payloads and local paths,
+                    // but preserve the stable stage code when Runtime has
+                    // one.  Codex can then repair a fit envelope (or stop on
+                    // a rejected quality gate) without guessing from the
+                    // generic INVALID_INPUT bucket.
+                    let stage = detail
+                        .split(':')
+                        .nth(1)
+                        .map(str::trim)
+                        .and_then(|value| value.split(':').next())
+                        .unwrap_or("");
+                    match stage {
+                        "SILHOUETTE_FIT_INVALID" => {
+                            let reason = detail
+                                .split_once("SILHOUETTE_FIT_INVALID:")
+                                .map(|(_, value)| value.trim())
+                                .unwrap_or("");
+                            let reason = [
+                                "canonical_sha256 does not bind intent",
+                                "rig is required",
+                                "base_camera is required",
+                                "optimizer is required",
+                                "unsupported optimizer",
+                                "candidate not found",
+                                "target not found",
+                            ]
+                            .into_iter()
+                            .find(|candidate| reason.starts_with(candidate))
+                            .unwrap_or("request shape or numeric canonicalization");
+                            format!("SILHOUETTE_FIT_INVALID: Runtime fit intent rejected ({reason})")
+                        }
+                        "SILHOUETTE_FIT_REJECTED" => "SILHOUETTE_FIT_REJECTED: Runtime silhouette gate rejected the candidate".to_owned(),
+                        "SILHOUETTE_FIT_RENDER_FAILED" => "SILHOUETTE_FIT_RENDER_FAILED: Runtime fit render failed".to_owned(),
+                        "SILHOUETTE_RIG_INVALID" => {
+                            let reason = detail
+                                .split_once("SILHOUETTE_RIG_INVALID:")
+                                .map(|(_, value)| value.trim())
+                                .filter(|value| !value.is_empty())
+                                .unwrap_or("contract validation failed");
+                            format!("SILHOUETTE_RIG_INVALID: {reason}")
+                        }
+                        "CAMERA_CALIBRATION_INVALID" => {
+                            let reason = detail
+                                .split_once("CAMERA_CALIBRATION_INVALID:")
+                                .map(|(_, value)| value.trim())
+                                .filter(|value| !value.is_empty())
+                                .unwrap_or("contract validation failed");
+                            format!("CAMERA_CALIBRATION_INVALID: {reason}")
+                        }
+                        "CONTRACT_OUTPUT_INVALID" => {
+                            let reason = detail
+                                .split_once("CONTRACT_OUTPUT_INVALID:")
+                                .map(|(_, value)| value.trim())
+                                .filter(|value| !value.is_empty())
+                                .unwrap_or("contract validation failed");
+                            format!("CONTRACT_OUTPUT_INVALID: {reason}")
+                        }
+                        "CANDIDATE_ARTIFACT_UNAVAILABLE" => "CANDIDATE_ARTIFACT_UNAVAILABLE: Runtime candidate has no readable artifact".to_owned(),
+                        "SILHOUETTE_FIT_UNAVAILABLE" => "SILHOUETTE_FIT_UNAVAILABLE: Runtime fit could not produce an evaluation".to_owned(),
+                        "SILHOUETTE_PART_ERROR_UNAVAILABLE" => "SILHOUETTE_PART_ERROR_UNAVAILABLE: Runtime Part contour evidence is unavailable".to_owned(),
+                        "SILHOUETTE_PART_ERROR_INVALID" => {
+                            let reason = detail
+                                .split_once("SILHOUETTE_PART_ERROR_INVALID:")
+                                .map(|(_, value)| value.trim())
+                                .filter(|value| !value.is_empty())
+                                .unwrap_or("Part contour evidence is invalid");
+                            format!("SILHOUETTE_PART_ERROR_INVALID: {reason}")
+                        }
+                        "REFERENCE_BINDING_MISMATCH" => "REFERENCE_BINDING_MISMATCH: Runtime reference evidence is not bound to the candidate".to_owned(),
+                        _ if detail.contains("SilhouettePartErrorResult@1") => {
+                            "SILHOUETTE_PART_ERROR_INVALID: Runtime Part contour evidence failed its contract".to_owned()
+                        }
+                        _ if detail.contains("SILHOUETTE_PART_ERROR_UNAVAILABLE") => {
+                            "SILHOUETTE_PART_ERROR_UNAVAILABLE: Runtime Part contour evidence is unavailable".to_owned()
+                        }
+                        _ => "INVALID_INPUT: Runtime request rejected".to_owned(),
+                    }
+                }
                 "STORE_ERROR" => "STORE_ERROR: Runtime store rejected the request".to_owned(),
                 "RUNTIME_BUSY" => "RUNTIME_BUSY: Runtime writer is busy".to_owned(),
                 "IPC_ERROR" => "IPC_ERROR: Runtime IPC request failed".to_owned(),
@@ -2190,9 +2558,39 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
             serde_json::to_value(runtime.capabilities()).map_err(|error| error.to_string())
         }
         "operator_catalog_get" => Ok(runtime.active_operator_catalog()),
+        "material_pack_get" => Ok(runtime.material_pack_manifest()),
         "geometry_program_hash" => runtime
             .geometry_program_hash(arguments)
             .map_err(|error| error.to_string()),
+        "silhouette_rig_hash" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .silhouette_rig_hash(project_id, arguments)
+                .map_err(|error| error.to_string())
+        }
+        "silhouette_target_get" => {
+            let target_sha256 = required_sha256(arguments, "target_sha256")?;
+            runtime
+                .silhouette_target_get(target_sha256)
+                .map_err(|error| error.to_string())
+        }
+        "boundary_error_get" => {
+            let candidate_id = required_id(arguments, "candidate_id")?;
+            let target_sha256 = required_sha256(arguments, "target_sha256")?;
+            runtime
+                .boundary_error(
+                    candidate_id,
+                    target_sha256,
+                    arguments.get("max_segments").and_then(Value::as_u64),
+                )
+                .map_err(|error| error.to_string())
+        }
+        "silhouette_part_error_get" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .silhouette_part_error(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
         "render_pass_get" => {
             let render_set_hash = arguments
                 .get("render_set_hash")
@@ -2252,6 +2650,43 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
             let project_id = required_id(arguments, "project_id")?;
             runtime
                 .prepare_reference_comparison(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
+        "reference_mask_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .prepare_reference_mask(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
+        "reference_mask_refine_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .refine_reference_mask(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
+        "camera_fit_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .prepare_camera_fit(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
+        "silhouette_fit_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            let arguments = canonicalize_silhouette_fit_wire(arguments)?;
+            runtime
+                .silhouette_fit_prepare(project_id, arguments)
+                .map_err(|error| error.to_string())
+        }
+        "part_contour_fit_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .part_contour_fit_prepare(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
+        "silhouette_candidate_compare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .silhouette_candidate_compare(project_id, arguments.clone())
                 .map_err(|error| error.to_string())
         }
         "visual_review_submit" => runtime
@@ -2396,6 +2831,105 @@ fn required_id<'a>(arguments: &'a Value, key: &str) -> Result<&'a str, String> {
         ));
     }
     Ok(id)
+}
+
+/// Reconcile the harmless numeric spelling change that can occur when Codex
+/// copies a JSON response (for example `1.0` becoming `1`).  Runtime keeps the
+/// original typed contract and its own canonical hashes; the adapter only
+/// restores continuous fields before dispatch and re-binds the outer intent.
+/// A caller-provided hash must match either the exact wire payload or this
+/// deterministic restoration.  Arbitrary/wrong hashes still fail closed.
+fn canonicalize_silhouette_fit_wire(arguments: &Value) -> Result<Value, String> {
+    let object = arguments
+        .as_object()
+        .ok_or_else(|| "INVALID_INPUT: silhouette fit arguments must be an object".to_owned())?;
+    let supplied = object
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "INVALID_INPUT: canonical_sha256 is required".to_owned())?;
+
+    let mut wire_input = arguments.clone();
+    wire_input["canonical_sha256"] = Value::String(String::new());
+    let wire_hash = canonical_json_hash(&wire_input);
+
+    let mut restored = arguments.clone();
+    if let Some(camera) = restored.get("base_camera").cloned() {
+        restored["base_camera"] = normalize_continuous_numbers(&camera, true);
+    }
+    if let Some(rig) = restored.get("rig").cloned() {
+        restored["rig"] = normalize_continuous_numbers(&rig, false);
+    }
+    if let Some(optimizer) = restored.get("optimizer").cloned() {
+        restored["optimizer"] = normalize_optimizer_numbers(&optimizer);
+    }
+    restored["canonical_sha256"] = Value::String(String::new());
+    let restored_hash = canonical_json_hash(&restored);
+    if supplied != wire_hash && supplied != restored_hash {
+        return Err("SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent".to_owned());
+    }
+    restored["canonical_sha256"] = Value::String(restored_hash);
+    Ok(restored)
+}
+
+fn normalize_continuous_numbers(value: &Value, preserve_resolution: bool) -> Value {
+    match value {
+        Value::Number(number) => number
+            .as_f64()
+            .and_then(serde_json::Number::from_f64)
+            .map(Value::Number)
+            .unwrap_or_else(|| value.clone()),
+        Value::Array(values) => Value::Array(
+            values
+                .iter()
+                .map(|child| normalize_continuous_numbers(child, preserve_resolution))
+                .collect(),
+        ),
+        Value::Object(object) => Value::Object(
+            object
+                .iter()
+                .map(|(key, child)| {
+                    let normalized = if preserve_resolution && key == "resolution" {
+                        child.clone()
+                    } else {
+                        normalize_continuous_numbers(child, preserve_resolution)
+                    };
+                    (key.clone(), normalized)
+                })
+                .collect(),
+        ),
+        _ => value.clone(),
+    }
+}
+
+fn normalize_optimizer_numbers(value: &Value) -> Value {
+    let Some(object) = value.as_object() else {
+        return value.clone();
+    };
+    Value::Object(
+        object
+            .iter()
+            .map(|(key, child)| {
+                if matches!(key.as_str(), "max_iterations" | "max_evaluations") {
+                    (key.clone(), child.clone())
+                } else {
+                    (key.clone(), normalize_continuous_numbers(child, false))
+                }
+            })
+            .collect(),
+    )
+}
+
+fn required_sha256<'a>(arguments: &'a Value, key: &str) -> Result<&'a str, String> {
+    let sha256 = arguments
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    if sha256.len() != 64 || !sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(format!(
+            "INVALID_INPUT: {key} is required and must be a SHA-256"
+        ));
+    }
+    Ok(sha256)
 }
 
 fn tool_manifest_hash(write_tools_enabled: bool) -> String {
@@ -2757,6 +3291,29 @@ mod tests {
     }
 
     #[test]
+    fn tool_manifest_summary_is_derived_from_the_actual_enabled_manifests() {
+        let summary = tool_manifest_summary().expect("tool manifest summary");
+        assert_eq!(
+            summary["schema_version"],
+            "ForgeCADMcpToolManifestSummary@1"
+        );
+        assert_eq!(summary["read_count"], 29);
+        assert_eq!(summary["write_count"], 18);
+        assert_eq!(summary["total_count"], 47);
+        assert_eq!(summary["read_names"].as_array().unwrap().len(), 29);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 18);
+        let mut hash_input = summary.clone();
+        hash_input
+            .as_object_mut()
+            .expect("summary object")
+            .remove("canonical_sha256");
+        assert_eq!(
+            summary["canonical_sha256"],
+            canonical_json_hash(&hash_input)
+        );
+    }
+
+    #[test]
     fn geometry_program_hash_is_a_default_read_only_tool() {
         let tools = tools_with_writes(false);
         let tool = tools
@@ -2772,6 +3329,80 @@ mod tests {
             tool["inputSchema"]["additionalProperties"], false,
             "the public envelope must remain closed"
         );
+    }
+
+    #[test]
+    fn silhouette_rig_hash_is_a_default_read_only_tool() {
+        let tools = tools_with_writes(false);
+        let tool = tools
+            .iter()
+            .find(|tool| tool["name"] == "silhouette_rig_hash")
+            .expect("silhouette_rig_hash tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["schema_version"]["const"],
+            "SilhouetteRigHashRequest@1"
+        );
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["rig_draft"]["additionalProperties"],
+            false
+        );
+    }
+
+    #[test]
+    fn silhouette_hash_arguments_accept_sha256_values() {
+        let sha256 = "a".repeat(64);
+        assert_eq!(
+            required_sha256(&json!({"target_sha256":sha256}), "target_sha256")
+                .expect("target hash"),
+            "a".repeat(64)
+        );
+        assert!(
+            required_sha256(&json!({"target_sha256":"g".repeat(64)}), "target_sha256").is_err()
+        );
+    }
+
+    #[test]
+    fn silhouette_fit_wire_numbers_are_restored_before_hash_binding() {
+        let mut request = json!({
+            "project_id":"project-fit-wire",
+            "candidate_id":"candidate-fit-wire",
+            "target_sha256":"a".repeat(64),
+            "rig":{"parameters":[{"value":1.0,"min":0.8,"max":1.2,"step":0.04}]},
+            "base_camera":{"fov_y_degrees":33.0,"near_m":0.05,"far_m":20.0,"resolution":{"width":512,"height":512}},
+            "optimizer":{"max_iterations":2,"max_evaluations":8,"step_fraction":0.1},
+            "canonical_sha256":""
+        });
+        let wire = {
+            fn integerize(value: &Value) -> Value {
+                match value {
+                    Value::Number(number) => number
+                        .as_f64()
+                        .filter(|value| value.is_finite() && value.fract() == 0.0)
+                        .map(|value| serde_json::Number::from(value.round() as i64))
+                        .map(Value::Number)
+                        .unwrap_or_else(|| value.clone()),
+                    Value::Array(values) => Value::Array(values.iter().map(integerize).collect()),
+                    Value::Object(object) => Value::Object(
+                        object
+                            .iter()
+                            .map(|(key, child)| (key.clone(), integerize(child)))
+                            .collect(),
+                    ),
+                    _ => value.clone(),
+                }
+            }
+            integerize(&request)
+        };
+        request = wire.clone();
+        request["canonical_sha256"] = Value::String(canonical_json_hash(&wire));
+        let restored = canonicalize_silhouette_fit_wire(&request).expect("wire hash accepted");
+        assert_eq!(restored["base_camera"]["fov_y_degrees"], json!(33.0));
+        assert_eq!(restored["base_camera"]["resolution"]["width"], json!(512));
+        assert_ne!(restored["canonical_sha256"], Value::String(String::new()));
+        request["canonical_sha256"] = Value::String("b".repeat(64));
+        assert!(canonicalize_silhouette_fit_wire(&request).is_err());
     }
 
     #[test]
@@ -2977,13 +3608,13 @@ mod tests {
     #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 20);
+        assert_eq!(disabled.len(), 29);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 36);
+        assert_eq!(enabled.len(), 47);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -3225,7 +3856,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 36);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 47);
 
         let imported = handle(
             &mut backend,

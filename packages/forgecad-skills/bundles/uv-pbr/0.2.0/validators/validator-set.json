@@ -1,0 +1,19 @@
+{
+  "dynamic_code": false,
+  "network": false,
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {
+      "builtin": "uv_range_and_overlap",
+      "id": "uv_bounds@1"
+    },
+    {
+      "builtin": "gltf_pbr_ranges",
+      "id": "pbr_ranges@1"
+    },
+    {
+      "builtin": "part_material_lineage",
+      "id": "material_zone_binding@1"
+    }
+  ]
+}

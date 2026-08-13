@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-fit-result.schema.json",
+  "title": "SilhouetteFitResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "target_sha256", "selected_camera", "selected_parameters", "parameter_deltas", "geometry_evaluations", "iterations", "evaluations", "metrics", "thresholds", "status", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "SilhouetteFitResult@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "selected_camera": {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+    "selected_parameters": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/parameter"}},
+    "parameter_deltas": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/parameter_delta"}},
+    "geometry_evaluations": {"type": "integer", "minimum": 0, "maximum": 64},
+    "iterations": {"type": "integer", "minimum": 0, "maximum": 8},
+    "evaluations": {"type": "integer", "minimum": 1, "maximum": 64},
+    "metrics": {"$ref": "#/$defs/metrics"},
+    "thresholds": {"$ref": "#/$defs/thresholds"},
+    "status": {"enum": ["ready", "no_improvement", "quality_target_not_met", "unavailable"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "parameter": {"type": "object", "additionalProperties": false, "required": ["parameter_id", "part_id", "value"], "properties": {"parameter_id": {"$ref": "#/$defs/id"}, "part_id": {"$ref": "#/$defs/id"}, "value": {"type": "number"}}},
+    "parameter_delta": {"type": "object", "additionalProperties": false, "required": ["parameter_id", "part_id", "from", "to", "delta"], "properties": {"parameter_id": {"$ref": "#/$defs/id"}, "part_id": {"$ref": "#/$defs/id"}, "from": {"type": "number"}, "to": {"type": "number"}, "delta": {"type": "number"}}},
+    "metrics": {"type": "object", "additionalProperties": false, "required": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "sdf_chamfer_px"], "properties": {"silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1}, "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1}, "bbox_edge_error": {"type": "number", "minimum": 0, "maximum": 1}, "centroid_error": {"type": "number", "minimum": 0, "maximum": 1}, "sdf_chamfer_px": {"type": "number", "minimum": 0}}},
+    "thresholds": {"type": "object", "additionalProperties": false, "required": ["silhouette_iou", "boundary_f1_4px"], "properties": {"silhouette_iou": {"const": 0.9}, "boundary_f1_4px": {"const": 0.9}}}
+  }
+}

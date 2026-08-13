@@ -1,7 +1,11 @@
 # ForgeCAD Runtime Viewer
 
 版本：2026-08-09
-状态：MCP008–009 已实现只读 GLB canvas；MCP010F compare/selection/explosion/a11y 为 planned/unavailable，packaged WebView 仍属 MCP013
+状态：当前源码口径为 78 Schema、29 read + 18 opt-in write = 47；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。唯一 `in_progress` 为 `FGC-MCP010F`；provisional observation 的 packaged Viewer binding、正式 VoiceOver、真人/PBR/360 与发布级 packaged E2E 仍 `NOT_RUN/BLOCKED`
+
+Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
+
+<!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
 
 ## 1. 产品角色
 
@@ -57,16 +61,17 @@ MCP007–009 已按顺序增加：
 - MCP008：hash-bound PBR metadata、真实 GLB canvas、固定 beauty/silhouette/normal/part-ID render evidence；
 - MCP009：`quality_get`/`version_diff`、stable-ID `change_prepare` handoff、immutable version/restore 和 CAS export receipts。
 
-Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI 不实现真正的 Part selection/isolate、reference overlay 或 full issue editing；不能把能显示 GLB 写成 reference similarity PASS。
+Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI 已实现 candidate-bound AOV/reference compare、Part/MaterialZone 筛选、临时 explosion、diff heatmap、轮廓画布和 correction queue projection；full issue editing、正式 VoiceOver 和 provisional observation 的 packaged visual E2E 尚未完成。任何已显示 GLB/AOV 或交互 smoke 都不能写成 reference similarity PASS。
 
-### 5.1 MCP010F 目标增量（当前未实现）
+### 5.1 MCP010F 当前实现与剩余门
 
-- reference/render split、透明 overlay、flicker、diff heatmap；
-- beauty/silhouette/depth/normal/AO/part-ID/material-ID/wireframe/UV-stretch 九 AOV；
-- camera lock、Part/MaterialZone selection、isolate/hide、临时 explosion；
-- candidate undo/redo、issue 定位、键盘和 reduced-motion 行为。
+- 已实现 source surface：reference/render split、透明 overlay、flicker、diff heatmap；
+- 已实现 source surface：beauty/silhouette/depth/normal/AO/part-ID/material-ID/wireframe/UV-stretch 九 AOV；
+- 已实现 ephemeral surface：Part/MaterialZone 筛选、临时 explosion、轮廓画布、hash-bound 草图复制与只读 correction queue；
+- 已有证据：TypeScript/Vite/Tauri source Gate、packaged CLI read-model、原生窗口以及 AOV/Home/End/overlay/flicker/轮廓/热图/爆炸图核心控件 smoke；
+- 尚未关闭：full issue editing/candidate undo-redo、正式 VoiceOver、同一 provisional observation 的 packaged Viewer binding、独立真人评分、PBR likeness、export/restart 同 hash 与 360。
 
-这些 UI 必须只消费 Runtime 的 `RenderSet@2`、QualityReport 和 selection projection。屏幕图像、Three.js scene 或本地交互状态不能回写质量 PASS。源码 browser/a11y Gate 属 MCP010F；Developer ID、clean install、packaged WebView/GPU 和 packaged Codex E2E 仍属 MCP013。
+这些 UI 只消费 Runtime 的 `RenderSet@2`、QualityReport 和 selection projection。屏幕图像、Three.js scene 或本地交互状态不能回写质量 PASS。当前 high-quality inspection 路径是 `GeometryProgram@2` detail → strict readback → `RenderSet@2` 九 AOV → candidate-bound strict compare → typed visual review；`[transition-v1]` `GeometryProgram@1` primitive-only / `RenderSet@1` 四 pass 仅用于历史兼容。正式 VoiceOver 与 provisional observation package binding 属 MCP010F 未关闭子门；Developer ID、clean install、发布级 packaged WebView/GPU/Codex E2E 仍属 MCP013。
 
 ## 6. 可访问性与性能
 
@@ -84,4 +89,4 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 - Viewer 关闭时完整 Runtime/MCP 流程仍成功；
 - candidate、quality、selection、version 和 export 的 ID/hash 与 Runtime 一致；
 - 重启恢复不依赖 localStorage；
-- 当前已有 `npm run desktop:typecheck` 和 focused GLB read model evidence；源码 browser/尺寸/键盘/screen reader Gate 属 MCP010F，packaged WebView/GPU/签名安装环境属于 MCP013，当前均为 `NOT_RUN`。
+- 当前已有 `npm run desktop:typecheck`、focused GLB/read-model、source build、packaged CLI read-model、原生窗口和核心控件 smoke evidence；这些不是 attempt35 的 packaged binding。正式 VoiceOver/screen-reader、独立人评、PBR likeness、export/restart hash 与 360 仍 `NOT_RUN/BLOCKED`；发布级 packaged WebView/GPU/签名安装环境属于 MCP013。

@@ -1,0 +1,26 @@
+{
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "task_id": "FGC-MCP010C",
+  "scope": "real Codex CLI source-built silhouette-first setup and authoring entry",
+  "status": "BLOCKED",
+  "attempt": 3,
+  "build_cohorts": {
+    "mcp": "0fe1c39c896cd48f561ed0d054412815e4b7ca67f3a4611f8ec7769f90f08a3e",
+    "runtime": "0fe1c39c896cd48f561ed0d054412815e4b7ca67f3a4611f8ec7769f90f08a3e",
+    "worker": "0fe1c39c896cd48f561ed0d054412815e4b7ca67f3a4611f8ec7769f90f08a3e"
+  },
+  "mcp_tool_calls": [
+    {"server": "forgecad", "tool": "project_create", "status": "completed"},
+    {"server": "forgecad", "tool": "reference_import", "status": "completed"},
+    {"server": "forgecad", "tool": "reference_get", "status": "completed"}
+  ],
+  "image_bytes_recorded": false,
+  "reference_path_recorded": false,
+  "persistent_user_data_touched": false,
+  "visual_quality_claim": "NOT_CLAIMED",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "pbr_material_pack": "NOT_RUN",
+  "reason": "The isolated Codex authoring turn exited before capabilities, silhouette target, camera fit or geometry preparation; setup was isolated and no persistent user data was touched.",
+  "next_gate": "Run the dedicated silhouette-first Codex sequence: reference target confirmation, camera_fit_prepare, silhouette_fit_prepare, boundary_error_get and one-Part correction before detail/PBR."
+}

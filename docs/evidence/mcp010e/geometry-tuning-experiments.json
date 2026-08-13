@@ -1,0 +1,140 @@
+{
+  "schema_version": "ForgeCADMCP010EGeometryTuningExperimentReceipt@1",
+  "task_id": "FGC-MCP010E",
+  "status": "EXPERIMENTS_REJECTED",
+  "metric_revision": "pre-region-mask-iou-v2",
+  "metric_note": "The region values in this tuning ledger were recorded before Runtime region-mask-iou-v2. The current region semantics and current baseline are in docs/evidence/mcp010f/fit-plan-real-reference-region-fix.json.",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "baseline": {
+    "geometry_part_count": 20,
+    "geometry_triangle_count": 3368,
+    "silhouette_iou": 0.73527430309,
+    "boundary_f1_4px": 0.32157114814,
+    "bbox_edge_error": 0.005859375,
+    "centroid_error": 0.007983424125,
+    "landmark_coverage": 0.733333333333,
+    "landmark_nme": 0.134797218839,
+    "region_median_iou": 0.184749242545,
+    "critical_region_min_iou": 0.077724871959
+  },
+  "experiments": [
+    {
+      "id": "rounded-shoulder-ellipsoid",
+      "status": "REJECTED",
+      "reason": "visual shoulder shells became spherical and toy-like; boundary alignment worsened",
+      "metrics": {
+        "silhouette_iou": 0.736610088716,
+        "boundary_f1_4px": 0.277323140804,
+        "centroid_error": 0.011110557584,
+        "landmark_coverage": 0.733333333333,
+        "region_median_iou": 0.188153978104
+      }
+    },
+    {
+      "id": "shoulder-profile-loft",
+      "status": "REJECTED",
+      "reason": "angular shoulder shell shifted the observed shoulder landmarks and degraded silhouette boundary",
+      "metrics": {
+        "silhouette_iou": 0.726608786377,
+        "boundary_f1_4px": 0.153977934626,
+        "centroid_error": 0.015063037351,
+        "landmark_coverage": 0.6,
+        "region_median_iou": 0.193255312596
+      }
+    },
+    {
+      "id": "tapered-chest-profile-loft",
+      "status": "REJECTED",
+      "reason": "single tapered chest shell became a large slab and lost chest/landmark correspondence",
+      "metrics": {
+        "silhouette_iou": 0.70983130468,
+        "boundary_f1_4px": 0.274976014746,
+        "centroid_error": 0.002938812252,
+        "landmark_coverage": 0.666666666667,
+        "landmark_nme": 0.201354573468,
+        "region_median_iou": 0.191382796383,
+        "critical_region_min_iou": 0.067849038941
+      }
+    },
+    {
+      "id": "helmet-visor",
+      "status": "REJECTED",
+      "reason": "wider tapered helmet improved bbox edge error and landmark coverage slightly, but reduced silhouette, boundary, centroid and region agreement",
+      "metrics": {
+        "silhouette_iou": 0.723916746513,
+        "boundary_f1_4px": 0.301056668198,
+        "bbox_edge_error": 0.00390625,
+        "centroid_error": 0.017176844265,
+        "landmark_coverage": 0.8,
+        "landmark_nme": 0.133984375,
+        "region_median_iou": 0.181480498806,
+        "critical_region_min_iou": 0.074945743911
+      }
+    },
+    {
+      "id": "three-quarter",
+      "status": "REJECTED",
+      "reason": "uniform final-Part yaw produced a less aligned silhouette and bbox; landmark NME improved but did not compensate for global mask and region loss",
+      "metrics": {
+        "silhouette_iou": 0.654897543274,
+        "boundary_f1_4px": 0.283844445964,
+        "bbox_edge_error": 0.05078125,
+        "centroid_error": 0.03399118985,
+        "landmark_coverage": 0.6,
+        "landmark_nme": 0.07186888902,
+        "region_median_iou": 0.148751522533,
+        "critical_region_min_iou": 0.075923889565
+      }
+    },
+    {
+      "id": "long-limbs",
+      "status": "REJECTED",
+      "reason": "smaller helmet and longer visible limbs improved centroid and critical-region minimum slightly, but degraded silhouette, boundary, bbox, landmark and landmark-NME agreement",
+      "metrics": {
+        "silhouette_iou": 0.72139117785,
+        "boundary_f1_4px": 0.222746774366,
+        "bbox_edge_error": 0.0390625,
+        "centroid_error": 0.00748920438,
+        "landmark_coverage": 0.666666666667,
+        "landmark_nme": 0.201475808356,
+        "region_median_iou": 0.188228225651,
+        "critical_region_min_iou": 0.087083216587
+      }
+    },
+    {
+      "id": "sleek-armor",
+      "status": "REJECTED",
+      "reason": "narrower helmet, tapered chest, thinner hanging arms and smaller lower limbs made the blockout less toy-like but worsened global alignment and observed landmarks",
+      "comparison_report_hash": "4fc07ad045ff6793816f25cf75427f855328eed7c906872740b57eca14c2471e",
+      "metrics": {
+        "silhouette_iou": 0.694808963103,
+        "boundary_f1_4px": 0.164306814605,
+        "bbox_edge_error": 0.025390625,
+        "centroid_error": 0.02718480402,
+        "landmark_coverage": 0.6,
+        "landmark_nme": 0.200651041667,
+        "region_median_iou": 0.183211356661,
+        "critical_region_min_iou": 0.085920912951
+      }
+    },
+    {
+      "id": "visible-thigh",
+      "status": "REJECTED",
+      "reason": "broader lower-thigh framing reduced the full-body silhouette mismatch slightly, but bbox, boundary, landmark and region agreement remained below the baseline and the target gates",
+      "comparison_report_hash": "3fecabca5dad9964ad8c54b239a595a158b7516247d52a1ebe00c6f1665ab0e3",
+      "metrics": {
+        "silhouette_iou": 0.715219359463,
+        "boundary_f1_4px": 0.270230706721,
+        "bbox_edge_error": 0.02734375,
+        "centroid_error": 0.012389034727,
+        "landmark_coverage": 0.666666666667,
+        "landmark_nme": 0.201698124294,
+        "region_median_iou": 0.177729301948,
+        "critical_region_min_iou": 0.085162817716
+      }
+    }
+  ],
+  "decision": "retain-baseline",
+  "persistent_user_data_touched": false,
+  "visual_likeness": "QUALITY_TARGET_NOT_MET"
+}

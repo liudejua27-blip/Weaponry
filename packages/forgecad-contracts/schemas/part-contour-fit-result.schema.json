@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/part-contour-fit-result.schema.json",
+  "title": "PartContourFitResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "target_sha256", "part_id", "adjustments", "metrics", "status", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "PartContourFitResult@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/id"},
+    "adjustments": {"type": "array", "maxItems": 16, "items": {"type": "object", "additionalProperties": false, "required": ["parameter_id", "delta", "bounded_value"], "properties": {"parameter_id": {"$ref": "#/$defs/id"}, "delta": {"type": "number"}, "bounded_value": {"type": "number"}}}},
+    "metrics": {"$ref": "#/$defs/metrics"},
+    "status": {"enum": ["proposal_ready", "no_action", "unavailable"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metrics": {"type": "object", "additionalProperties": false, "required": ["silhouette_iou", "boundary_f1_4px", "sdf_chamfer_px", "part_boundary_error_px"], "properties": {"silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1}, "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1}, "sdf_chamfer_px": {"type": "number", "minimum": 0}, "part_boundary_error_px": {"type": "number", "minimum": 0}}}
+  }
+}

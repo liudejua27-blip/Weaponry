@@ -3,8 +3,9 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
+from check_mcp010f_stage0_truth import check_truth
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -45,6 +46,10 @@ def main() -> int:
         "docs/evidence/mcp009/manifest.json",
         "docs/evidence/mcp010b/manifest.json",
         "docs/evidence/mcp010c/manifest.json",
+        "docs/evidence/mcp010d/manifest.json",
+        "docs/evidence/mcp010e/manifest.json",
+        "docs/evidence/mcp010f/manifest.json",
+        "docs/evidence/mcp010f/current-benchmark-truth.json",
     ]
     missing = [path for path in required if not (ROOT / path).exists()]
     if missing:
@@ -92,10 +97,10 @@ def main() -> int:
     required_mcp010_rows = (
         "FGC-MCP010A | done | MCP009",
         "FGC-MCP010B | blocked | MCP010A",
-        "FGC-MCP010C | in_progress | MCP010B",
-        "FGC-MCP010D | blocked | MCP010C",
-        "FGC-MCP010E | blocked | MCP010D",
-        "FGC-MCP010F | blocked | MCP010E",
+        "FGC-MCP010C | done | MCP010B",
+        "FGC-MCP010D | done | MCP010C",
+        "FGC-MCP010E | done | MCP010D",
+        "FGC-MCP010F | in_progress | MCP010E",
         "FGC-MCP011 | blocked | MCP010F",
     )
     missing_mcp010_rows = [row for row in required_mcp010_rows if row not in task_index]
@@ -105,24 +110,18 @@ def main() -> int:
     mcp010_plan = (ROOT / "docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md").read_text(
         encoding="utf-8"
     )
-    contract_manifest = json.loads(
-        (ROOT / "packages/forgecad-contracts/manifest.json").read_text(encoding="utf-8")
-    )
-    current_contract_count = len(contract_manifest.get("schemas", []))
-    if current_contract_count != 59:
-        raise SystemExit(
-            f"MCP010C current contract reconciliation expected 59 schemas, found {current_contract_count}"
-        )
+    stage0 = check_truth()
+    current_contract_count = stage0["schema_count"]
 
     required_mcp010_terms = (
         "PARTIAL_VISIBLE_VIEW_PASS",
         "BLOCKED_REFERENCE_COVERAGE",
-        "20 read + 16 write",
         "44 个 JSON Schema",
         f"{current_contract_count} 个 JSON Schema",
         "RenderSet@2",
         "PASS_WITH_UNRUN_VISUAL_GATES",
         "MCP010F",
+        "docs/evidence/mcp010f/current-benchmark-truth.json",
     )
     missing_mcp010_terms = [
         term for term in required_mcp010_terms if term not in mcp010_plan
@@ -137,7 +136,8 @@ def main() -> int:
     mvp = (ROOT / "docs/MVP_DELIVERY_PLAN.md").read_text(encoding="utf-8")
     required_mvp_terms = (
         "reference_import",
-        "GeometryProgram@1",
+        "GeometryProgram@2",
+        "ArtifactReadback@2",
         "MCP009",
         "change_prepare",
         "mvp-glb",

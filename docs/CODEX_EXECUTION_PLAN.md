@@ -1,11 +1,13 @@
 # ForgeCAD Codex-only MVP 执行计划
 
-版本：2026-08-10
-状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done；FGC-MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；FGC-MCP010C in_progress/source-focused PASS_WITH_UNRUN_VISUAL_GATES；MCP010D–F blocked
+版本：2026-08-13
+状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done；FGC-MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source-focused in_progress（packaged/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 新增 Agentic Design Runtime 目标路线，尚未进入当前实现口径。
 
 ## 1. 产品策略
 
 ForgeCAD 是 Codex 控制的本地 3D Runtime。MVP 优先证明一张真实参考图可以变成一个真实、可编辑、可验证、可回退的硬表面 GLB，而不是先建设生产级后台治理或插件市场。
+
+ADR-0026 后续策略：不要继续把高质量问题理解为“多调用几个工具”或“替换为更强图生 3D 模型”。下一阶段要先把 Codex 的观察面和 Runtime 的设计状态机补齐：`SemanticSceneGraph`、`ReferenceCanvas`、`DesignSession`、stage gates、Visual Evidence Bundle、Critic/Repair loop 和 Parametric Design Kit。
 
 固定架构：
 
@@ -103,10 +105,28 @@ MVP 已交付 10 个组合能力的历史声明式 Bundle profile，不建市场
 - 010B：先让 Schema、GeometryProgram/OperatorCatalog/GLB readback 和失败路径成为真实真值；
 - 010C：再实现 perspective/z-buffer 固定 renderer、九 AOV、参考比较和 typed visual/human review；
 - 010D：在 C 的指标闭环上扩展受限高细节 Operator，Manifold 只有 adoption receipt accepted 后才进入 Worker；
-- 010E：离线 AssetPack、UV/tangent/PBR/纹理及逐资产 provenance；不建设网络 API 或通用安装器；
-- 010F：Viewer compare/selection/explosion、undo/redo 和真实机器人闭环。单图只允许 `PARTIAL_VISIBLE_VIEW_PASS`，补齐五张全身参考前 360 固定 blocked。
+- 010E：离线 AssetPack、512px UV atlas、固定 `mikktspace@0.3.0`、embedded PBR 纹理及逐资产 provenance；不建设网络 API 或通用安装器；
+- 010F：Viewer compare/selection/explosion、AOV、undo/redo 和真实机器人闭环。当前只读 Viewer source Gate 已通过；单图只允许 `PARTIAL_VISIBLE_VIEW_PASS`，补齐五张全身参考前 360 固定 blocked。
 
 010D/E 的单操作资源预算不替代 MCP011 的 Job checkpoint/GC/全局性能；first-party 固定 AssetPack 不替代 MCP012 的通用第三方生命周期；ad-hoc 开发 App 不替代 MCP013 的正式签名、安装和 packaged E2E。
+
+## 6.2 Agentic Design Runtime 重规划顺序
+
+ADR-0026 的工作只能在不破坏 MCP010F 当前真值的前提下增量落地。推荐顺序：
+
+```text
+truth freeze / current quality boundary
+→ SemanticSceneGraph@1 / ModelUnderstandingBundle@1
+→ ReferenceCanvas@1 / DesignSpec@1
+→ DesignSession@1 / DesignCheckpoint@1 / DesignStagePlan@1
+→ scene_observe_get / visual_evidence_bundle_get
+→ Parametric Design Kit v0
+→ DesignCriticReport@1 / RepairIntent@1
+→ real Codex stage-gated loop
+→ human/export/restart hash
+```
+
+每一步都必须先有公开 Schema、validator/negative tests、Runtime producer、MCP read/write 边界、Viewer 消费面和 evidence。没有这些证据时，相关能力只能写 `目标设计/NOT_IMPLEMENTED`。`scene_observe_get` 和 `design_stage_plan_get` 默认应从只读工具开始；任何会创建 candidate/version 的动作仍走现有 prepare/approval/confirm 纪律。
 
 ## 7. 质量证据顺序
 
@@ -119,6 +139,8 @@ MVP 已交付 10 个组合能力的历史声明式 Bundle profile，不建市场
 7. 用户接受 + version/restore/export hash 一致。
 
 任何材质包、单张 beauty、GLB 能打开、Skill 已安装或 Codex 自评都不能跳过前一层。
+
+ADR-0026 后，质量证据还必须按 stage 写明：`reference-canvas`、`primary-form`、`secondary-structure`、`tertiary-detail`、`uv-pbr`、`final-review`。Primary/form 门失败时，后续 detail/material 的运行只能记录为诊断或误操作，不能解锁确认。
 
 ## 8. Gate 顺序
 
@@ -160,3 +182,4 @@ git diff --check
 - MCP007 done：真实几何 vertical slice，不表示 PBR/相似度完成；
 - MCP009 host golden path done：可以声明“单用户 MVP 真实 Codex host 路径完成”；像素级相似度、Viewer/restore host 和真人评分通过后，才可声明“首个硬表面参考基准质量闭环完成”；
 - MCP013 done 且跨类别真人门通过后，才可声明可分发、通用高质量产品。
+- ADR-0026 docs done：只能声明“Agentic Design Runtime 目标架构已记录”；不能声明 DesignSession、SemanticSceneGraph、scene observe、Critic loop 或 Parametric Design Kit 已实现。

@@ -1,7 +1,7 @@
 # ForgeCAD License / SBOM Ledger
 
-版本：2026-08-09
-状态：当前依赖账本 + MVP 评估候选；候选不是已采用依赖
+版本：2026-08-11
+状态：当前依赖账本 + MCP010E source-focused 采用回执；除固定 mikktspace 外候选仍不是已采用依赖
 
 MCP002 建立的最小依赖账本继续作为基础；MCP005 起每次 adoption 增量更新。
 
@@ -25,7 +25,7 @@ MCP002 建立的最小依赖账本继续作为基础；MCP005 起每次 adoption
 | gltf-rs/gltf | MIT OR Apache-2.0 | MCP007 | exact version、external URI policy、malicious GLB、SBOM |
 | Manifold | Apache-2.0 | MCP007 | exact revision/binding、transitives、FFI/package、topology benchmark |
 | xatlas | MIT | MCP008 | exact revision、vendoring/build、determinism benchmark；MVP 当前使用 product-owned bounded UV mapping，未安装 |
-| gltf-rs/mikktspace | MIT/Apache-2.0 初筛 | MCP008 | verify exact repository/license files、golden tangent |
+| gltf-rs/mikktspace 0.3.0 | MIT/Apache-2.0 | MCP010E | **accepted（受限 Worker）**；固定 revision、license/SBOM、确定性和 GLB handedness 回执见 `docs/evidence/adoption/mikktspace/0.3.0.yaml` |
 | Khronos glTF-Validator | Apache-2.0 | MCP008 | pinned tool artifact、transitives、report normalization |
 | glTF-Transform | MIT | MCP009 | dev-only Node boundary、lockfile/SBOM、determinism |
 

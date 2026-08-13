@@ -16,15 +16,17 @@
     "Codex typed review, human score receipt and candidate-bound quality persistence"
   ],
   "current_source_surface": {
-    "contract_count": 59,
+    "contract_count": 65,
     "contract_count_breakdown": {
       "mcp006_historical_contracts": 44,
       "mcp010b_current_source_contracts": 8,
-      "mcp010c_current_source_contracts": 7
+      "mcp010c_current_source_contracts": 7,
+      "mcp010b_quality_evidence_contracts": 2,
+      "mcp010d_operator_and_asset_contracts": 6
     },
-    "default_read_tool_count": 20,
+    "default_read_tool_count": 21,
     "write_tool_count_when_opted_in": 16,
-    "total_tool_count_when_opted_in": 36,
+    "total_tool_count_when_opted_in": 37,
     "renderer_revision": "forgecad-renderer-2",
     "renderer_output": "nine ordered 512x512 PNG passes",
     "reference_mask_revision": "mask-2",
@@ -64,6 +66,8 @@
     "docs/evidence/mcp010c/dev-app-probe.json",
     "docs/evidence/mcp010c/dev-app-c-renderer-raw.json",
     "docs/evidence/mcp010c/dev-app-codex-cli-c.json",
+    "docs/evidence/mcp010c/real-codex-cli-current-20260812-attempt2.json",
+    "docs/evidence/mcp010c/real-codex-cli-current-20260812-attempt3.json",
     "script/test_mcp010c.sh"
   ],
   "limitations": [
@@ -72,7 +76,9 @@
     "A real Codex CLI source-built run completed six short turns and 32 ForgeCAD MCP calls, including V2 discovery/hash/prepare, candidate-bound comparison, all nine render_pass_get calls, visual_review_submit and quality_get. The only non-MCP events were two recorded read-only Skill.md lookups; no file change, network call or user-persistent write was observed.",
     "The current renderer is product-owned software output; no remote segmentation, paid generation API, Blender state or plugin is used.",
     "A single three-quarter reference can only produce PARTIAL_VISIBLE_VIEW_PASS; HQ_360_PASS remains blocked until front/back/left/right/rear-three-quarter references include legs and feet.",
-    "The Viewer reference/AOV compare source implementation and local IPC/build tests pass. The isolated source MCP probe now repeats the same candidate-bound comparison five times and observes identical RenderSet, comparison and nine pass hashes. The current Dev.app package, isolated C probe, and packaged Codex CLI renderer/compare/review transport also pass structurally, while the robot likeness gate remains QUALITY_TARGET_NOT_MET. Packaged Viewer UI E2E, Part/MaterialZone selection, explosion/heatmap, PBR V2 textures/material packs and export/restart hash checks remain NOT_RUN for later C substeps or MCP010E/F."
+    "The Viewer reference/AOV compare source implementation and local IPC/build tests pass. The isolated source MCP probe now repeats the same candidate-bound comparison five times and observes identical RenderSet, comparison and nine pass hashes. The current Dev.app package, isolated C probe, and packaged Codex CLI renderer/compare/review transport also pass structurally, while the robot likeness gate remains QUALITY_TARGET_NOT_MET. Packaged Viewer UI E2E, Part/MaterialZone selection, explosion/heatmap, PBR V2 textures/material packs and export/restart hash checks remain NOT_RUN for later C substeps or MCP010E/F.",
+    "A current same-cohort source-built Codex CLI run completed six turns and 32 MCP calls against the user's authorized robot PNG, including catalog/skill/hash/geometry, candidate-bound comparison, all nine render passes, typed review and quality. Runtime/Worker/MCP cohort binding passed and no persistent user data was touched; the resulting metrics still returned QUALITY_TARGET_NOT_MET (silhouette IoU 0.6623, boundary F1 0.2418, landmark coverage 0 and region median IoU 0). This is real transport evidence, not a visual-quality pass; see real-codex-cli-current-20260812-attempt2.json.",
+    "A subsequent same-cohort setup attempt imported the authorized reference in an isolated temporary project but exited before the silhouette-first authoring sequence. It is recorded as BLOCKED rather than a quality result; no image bytes or persistent user data were recorded. See real-codex-cli-current-20260812-attempt3.json."
   ],
   "latest_real_reference_run": {
     "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",

@@ -1,0 +1,413 @@
+{
+  "build_cohorts": {
+    "mcp": "7ca5800b164cbd48558283608324ccb80326d3121bb914d7635fb8df550e793a",
+    "runtime": "7ca5800b164cbd48558283608324ccb80326d3121bb914d7635fb8df550e793a",
+    "worker": "7ca5800b164cbd48558283608324ccb80326d3121bb914d7635fb8df550e793a"
+  },
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "mcp_tool_calls": [
+    {
+      "canonical_sha256": "1f556933773a70c08839fd377daebea957dbdd6e2ac6020569dc45355331af5c",
+      "project_id": "project-3deef9e8ff104eb8a1e8c92f78f25ad5",
+      "schema_version": "Project@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "active_snapshot_revision",
+        "canonical_sha256",
+        "created_at",
+        "head_snapshot_id",
+        "name",
+        "policy",
+        "project_id",
+        "schema_version",
+        "updated_at"
+      ],
+      "tool": "project_create"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "canonical_sha256": "716c71dbd613c5417a0a666462e4b6b636d0f749191af16f3d2cb6e638bacb26",
+      "project_id": "project-3deef9e8ff104eb8a1e8c92f78f25ad5",
+      "schema_version": "ReferenceMaskPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "mask_sha256",
+        "project_id",
+        "reference_id",
+        "schema_version",
+        "target",
+        "target_sha256"
+      ],
+      "target_sha256": "cd09cd3534e8f4ef36533a6b350b7258da7533a2bf46dd81fcd63976afee2c43",
+      "tool": "reference_mask_prepare"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "build_cohort_match",
+        "build_cohort_sha256",
+        "contract_set",
+        "contract_versions",
+        "ipc_transport",
+        "limitations",
+        "mcp_build_cohort_sha256",
+        "mcp_protocol_versions",
+        "mcp_transport",
+        "mcp_write_tool_names",
+        "mcp_write_tools_enabled",
+        "operator_catalog_sha256",
+        "resource_uris",
+        "runtime_version",
+        "status",
+        "supports_authenticated_ipc",
+        "supports_cas",
+        "supports_geometry_execution",
+        "supports_job_read",
+        "supports_reference_import",
+        "supports_render_execution",
+        "supports_resource_read",
+        "supports_skill_registry",
+        "supports_snapshot_read",
+        "tool_manifest_hash",
+        "write_model"
+      ],
+      "tool": "capabilities_get"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeSupervisorStatus@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "retryable",
+        "schema_version",
+        "source",
+        "state"
+      ],
+      "tool": "runtime_status"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeDoctor@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "checks",
+        "retryable",
+        "runtime",
+        "schema_version",
+        "scope",
+        "state"
+      ],
+      "tool": "doctor"
+    },
+    {
+      "canonical_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+      "schema_version": "OperatorCatalog@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "catalog_id",
+        "geometry_program_schema_version",
+        "operators",
+        "schema_version"
+      ],
+      "tool": "operator_catalog_get"
+    },
+    {
+      "schema_version": "SkillListResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "schema_version",
+        "skills"
+      ],
+      "tool": "skill_list"
+    },
+    {
+      "canonical_sha256": "34651c1d312f32c593b90da9381c78a91320b939364bff90131abe05560ee236",
+      "schema_version": "GeometryProgramHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "geometry_program_schema_version",
+        "operator_catalog_sha256",
+        "schema_version",
+        "validation_status"
+      ],
+      "tool": "geometry_program_hash"
+    },
+    {
+      "artifact": {
+        "artifact_id": "4d67c3e7b2449a9745f9ad0814d5e72be1a201d4c56b058c8025db3458d01728",
+        "candidate_id": "candidate-9eb95d51779e48bcb449a9643fd25011",
+        "mime": "model/gltf-binary",
+        "part_ids": [
+          "head-shell",
+          "visor",
+          "neck",
+          "chest-shell",
+          "chest-core",
+          "chest-light",
+          "shoulder-left",
+          "shoulder-right",
+          "upper-arm-left",
+          "upper-arm-right",
+          "elbow-left",
+          "elbow-right",
+          "forearm-left",
+          "forearm-right",
+          "hand-left",
+          "hand-right",
+          "pelvis",
+          "hip-left",
+          "hip-right",
+          "thigh-left",
+          "thigh-right",
+          "knee-left",
+          "knee-right",
+          "shin-left",
+          "shin-right",
+          "foot-left",
+          "foot-right"
+        ],
+        "size_bytes": 686168,
+        "triangle_count": 4100,
+        "validator_status": "passed"
+      },
+      "schema_version": "GeometryPrepareResult@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact",
+        "candidate",
+        "job",
+        "operator_catalog",
+        "schema_version"
+      ],
+      "tool": "geometry_prepare"
+    },
+    {
+      "canonical_sha256": "c3814d315f03474c27b76a0bea94dd0eec7468b5f4989176b18bf1ea0e1e43bb",
+      "schema_version": "SilhouetteTarget@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "contour_points",
+        "coordinate_space",
+        "height",
+        "landmarks",
+        "mask_sha256",
+        "parts",
+        "reference_id",
+        "reference_sha256",
+        "schema_version",
+        "source",
+        "target_id",
+        "width"
+      ],
+      "tool": "silhouette_target_get"
+    },
+    {
+      "candidate_id": "candidate-9eb95d51779e48bcb449a9643fd25011",
+      "canonical_sha256": "ca3a14b269bf1e8beeff307be130acbe7eb71b83ecc2de9822d4118c1ef1391c",
+      "schema_version": "CameraFitResult@1",
+      "selected_camera": {
+        "camera_hash": "5eca9d765495e87ffac71d607d5d6d6b1647ee79d8ea29861a6e5bd7fad0a80f",
+        "canonical_sha256": "0f88a43f83e544826a4a6c0b5c836c5052b5e0b8c9813c66727ae3198513dc4a"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "candidates",
+        "canonical_sha256",
+        "schema_version",
+        "selected_camera",
+        "status",
+        "target_sha256"
+      ],
+      "target_sha256": "cd09cd3534e8f4ef36533a6b350b7258da7533a2bf46dd81fcd63976afee2c43",
+      "tool": "camera_fit_prepare"
+    },
+    {
+      "canonical_sha256": "48e70561c14d1da7604dd895c73cbc4209ff968f72d9bb8cca110b6e6d098b9f",
+      "schema_version": "SilhouetteRigHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "schema_version",
+        "silhouette_rig_schema_version",
+        "validation_status"
+      ],
+      "tool": "silhouette_rig_hash"
+    },
+    {
+      "code": "CONTRACT_OUTPUT_INVALID",
+      "evidence_ids": [],
+      "fit_argument_camera_canonical_sha256": "0f88a43f83e544826a4a6c0b5c836c5052b5e0b8c9813c66727ae3198513dc4a",
+      "fit_argument_camera_hash": "5eca9d765495e87ffac71d607d5d6d6b1647ee79d8ea29861a6e5bd7fad0a80f",
+      "fit_argument_candidate_id": "candidate-9eb95d51779e48bcb449a9643fd25011",
+      "fit_argument_canonical_sha256": "0e886f81849779e7070879911895e29c9459e08934b2da49ad1762e78c45453f",
+      "fit_argument_keys": [
+        "base_camera",
+        "candidate_id",
+        "canonical_sha256",
+        "optimizer",
+        "project_id",
+        "rig",
+        "target_sha256"
+      ],
+      "fit_argument_optimizer": {
+        "algorithm": "coordinate_descent",
+        "max_evaluations": 8,
+        "max_iterations": 2,
+        "step_fraction": 0.1
+      },
+      "fit_argument_optimizer_type": "dict",
+      "fit_argument_project_id": "project-3deef9e8ff104eb8a1e8c92f78f25ad5",
+      "fit_argument_rig_canonical_sha256": "48e70561c14d1da7604dd895c73cbc4209ff968f72d9bb8cca110b6e6d098b9f",
+      "fit_argument_target_sha256": "cd09cd3534e8f4ef36533a6b350b7258da7533a2bf46dd81fcd63976afee2c43",
+      "message": "CameraCalibration@1.canonical_sha256 does not bind the payload",
+      "next_action": "Read capabilities_get and correct the request or wait for the required MCP task.",
+      "retryable": false,
+      "schema_version": "RuntimeError@1",
+      "server": "forgecad",
+      "status": "failed",
+      "structured_keys": [
+        "code",
+        "evidence_ids",
+        "message",
+        "next_action",
+        "retryable",
+        "schema_version"
+      ],
+      "tool": "silhouette_fit_prepare"
+    },
+    {
+      "code": "CONTRACT_OUTPUT_INVALID",
+      "evidence_ids": [],
+      "fit_argument_camera_canonical_sha256": "0f88a43f83e544826a4a6c0b5c836c5052b5e0b8c9813c66727ae3198513dc4a",
+      "fit_argument_camera_hash": "5eca9d765495e87ffac71d607d5d6d6b1647ee79d8ea29861a6e5bd7fad0a80f",
+      "fit_argument_candidate_id": "candidate-9eb95d51779e48bcb449a9643fd25011",
+      "fit_argument_canonical_sha256": "0e886f81849779e7070879911895e29c9459e08934b2da49ad1762e78c45453f",
+      "fit_argument_keys": [
+        "base_camera",
+        "candidate_id",
+        "canonical_sha256",
+        "optimizer",
+        "project_id",
+        "rig",
+        "target_sha256"
+      ],
+      "fit_argument_optimizer": {
+        "algorithm": "coordinate_descent",
+        "max_evaluations": 8,
+        "max_iterations": 2,
+        "step_fraction": 0.1
+      },
+      "fit_argument_optimizer_type": "dict",
+      "fit_argument_project_id": "project-3deef9e8ff104eb8a1e8c92f78f25ad5",
+      "fit_argument_rig_canonical_sha256": "48e70561c14d1da7604dd895c73cbc4209ff968f72d9bb8cca110b6e6d098b9f",
+      "fit_argument_target_sha256": "cd09cd3534e8f4ef36533a6b350b7258da7533a2bf46dd81fcd63976afee2c43",
+      "message": "CameraCalibration@1.canonical_sha256 does not bind the payload",
+      "next_action": "Read capabilities_get and correct the request or wait for the required MCP task.",
+      "retryable": false,
+      "schema_version": "RuntimeError@1",
+      "server": "forgecad",
+      "status": "failed",
+      "structured_keys": [
+        "code",
+        "evidence_ids",
+        "message",
+        "next_action",
+        "retryable",
+        "schema_version"
+      ],
+      "tool": "silhouette_fit_prepare"
+    },
+    {
+      "code": "CONTRACT_OUTPUT_INVALID",
+      "evidence_ids": [],
+      "fit_argument_camera_canonical_sha256": "0f88a43f83e544826a4a6c0b5c836c5052b5e0b8c9813c66727ae3198513dc4a",
+      "fit_argument_camera_hash": "5eca9d765495e87ffac71d607d5d6d6b1647ee79d8ea29861a6e5bd7fad0a80f",
+      "fit_argument_candidate_id": "candidate-9eb95d51779e48bcb449a9643fd25011",
+      "fit_argument_canonical_sha256": "0e886f81849779e7070879911895e29c9459e08934b2da49ad1762e78c45453f",
+      "fit_argument_keys": [
+        "base_camera",
+        "candidate_id",
+        "canonical_sha256",
+        "optimizer",
+        "project_id",
+        "rig",
+        "target_sha256"
+      ],
+      "fit_argument_optimizer": {
+        "algorithm": "coordinate_descent",
+        "max_evaluations": 8,
+        "max_iterations": 2,
+        "step_fraction": 0.1
+      },
+      "fit_argument_optimizer_type": "dict",
+      "fit_argument_project_id": "project-3deef9e8ff104eb8a1e8c92f78f25ad5",
+      "fit_argument_rig_canonical_sha256": "48e70561c14d1da7604dd895c73cbc4209ff968f72d9bb8cca110b6e6d098b9f",
+      "fit_argument_target_sha256": "cd09cd3534e8f4ef36533a6b350b7258da7533a2bf46dd81fcd63976afee2c43",
+      "message": "CameraCalibration@1.canonical_sha256 does not bind the payload",
+      "next_action": "Read capabilities_get and correct the request or wait for the required MCP task.",
+      "retryable": false,
+      "schema_version": "RuntimeError@1",
+      "server": "forgecad",
+      "status": "failed",
+      "structured_keys": [
+        "code",
+        "evidence_ids",
+        "message",
+        "next_action",
+        "retryable",
+        "schema_version"
+      ],
+      "tool": "silhouette_fit_prepare"
+    }
+  ],
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "reason": "Codex did not complete silhouette fit after 3 bounded attempts",
+  "reference_path_recorded": false,
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "silhouette_fit_intent_sha256": "0e886f81849779e7070879911895e29c9459e08934b2da49ad1762e78c45453f",
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010C",
+  "visual_quality_claim": "NOT_CLAIMED"
+}

@@ -1,0 +1,29 @@
+{
+  "artifact_readback": "ArtifactReadback@2 hard_gate_passed",
+  "geometry_program": "GeometryProgram@2 DAG",
+  "lineage": "PASS",
+  "negative_boolean_unavailable": "PASS",
+  "negative_future_input": "PASS",
+  "operator_catalog": "13 entries / 12 active / boolean unavailable",
+  "operators": [
+    "forgecad.geometry.array@1",
+    "forgecad.geometry.joint-stack@1",
+    "forgecad.geometry.mirror@1",
+    "forgecad.geometry.panel@1",
+    "forgecad.geometry.part-output@1",
+    "forgecad.geometry.profile-extrude@1",
+    "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.revolve@1",
+    "forgecad.geometry.transform@2",
+    "forgecad.geometry.tube-sweep@1",
+    "forgecad.geometry.vent-array@1"
+  ],
+  "persistent_user_data_touched": false,
+  "protocol_version": "2025-06-18",
+  "runtime_cleanup": "PASS",
+  "schema_version": "ForgeCADMCP010DRawStdioProbe@1",
+  "semantic_parts": 7,
+  "status": "PASS",
+  "task_id": "FGC-MCP010D",
+  "triangle_count": 488
+}

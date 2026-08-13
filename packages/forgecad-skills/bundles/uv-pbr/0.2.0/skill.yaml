@@ -1,0 +1,33 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: uv-pbr
+version: 0.2.0
+status: development-only
+publisher: forgecad-first-party
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/geometry-program-v2.schema.json
+output_schema: schemas/appearance-program-v2.schema.json
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: true
+  render_execution: false
+operator_ids:
+  - forgecad.appearance.offline-pbr@1
+validator_ids:
+  - uv_bounds@1
+  - pbr_ranges@1
+  - material_zone_binding@1
+budgets:
+  max_material_zones: 64
+  max_texture_bytes: 67108864
+  max_export_bytes: 134217728
+benchmark_suite: uv-pbr-smoke
+known_limitations:
+  - Declarative safety receipt does not claim geometry, render or visual quality.
+  - Distribution signature and third-party installation are deferred to MCP012-013.

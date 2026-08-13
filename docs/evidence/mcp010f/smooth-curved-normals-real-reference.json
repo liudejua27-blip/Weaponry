@@ -1,0 +1,43 @@
+{
+  "schema_version": "ForgeCADMCP010FVisualRefinementReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "geometry_revision": "curved-operator-compatible-normals",
+  "geometry_program_sha256": "1ae42e7af793f8385613c314efac814793db057273deadf88ffca5a05b1a6072",
+  "geometry_artifact_sha256": "7e3fe8465c0065888811ab251c23c425ab7892521b499a1b2d4539740af24865",
+  "appearance_artifact_sha256": "a80e7a4ec7e688d7ea56d83fc0d17c8d17990749a65f1c7edb4e01502dc4c239",
+  "asset_pack": {
+    "id": "forgecad-hard-surface-robot",
+    "manifest_sha256": "32284a0133b8f0a7eb19522f8a711f1d2bb2bc3d816b6e238948be4d3c5a4225"
+  },
+  "change_scope": {
+    "operators": ["profile-loft@1", "revolve@1", "tube-sweep@1", "joint-stack@1"],
+    "behavior": "smooth only coincident compatible curved-surface normals; preserve panel/cap hard edges",
+    "topology_changed": false,
+    "lineage_changed": false,
+    "worker_budget_changed": false
+  },
+  "comparison": {
+    "comparison_report_hash": "604bc665fda6aa1824317eccd9137310634720f16f75cfd565f220b97bee10d3",
+    "render_set_hash": "b9725cf79e85af73b555d9a7f44e0fb3380a4a94ab440f3ae4cf439766725b7b",
+    "metrics": {
+      "silhouette_iou": 0.738351385081,
+      "boundary_f1_4px": 0.326448613552,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.007975876968,
+      "landmark_coverage": 0.733333333333,
+      "landmark_nme": 0.134535946351,
+      "region_median_iou": 0.869403198991,
+      "critical_region_min_iou": 0.653102698615
+    },
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "hard_gate_passed": false,
+    "transport_status": "PASS_TRANSPORT_WITH_METRICS"
+  },
+  "decision": "retain_as_render_quality_increment_without_metric_promotion",
+  "visual_interpretation": "Curved head/joint surfaces shade more continuously in the fixed beauty pass; silhouette and reference metrics are unchanged, so this does not promote the candidate or replace the rounded-panel baseline.",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false
+}

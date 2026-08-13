@@ -1,0 +1,12 @@
+{
+  "schema_version":"TextureBuildReceipt@1",
+  "pack_id":"forgecad-hard-surface-robot",
+  "pack_version":"1.0.0",
+  "recipe_id":"forgecad-hard-surface-robot-512-png@1",
+  "toolchain":"macOS sips; PNG bytes embedded by ForgeCAD geometry worker",
+  "source_archive_policy":"raw archives remain in adoption cache and are not read at runtime",
+  "color_management":"baseColor/emissive sRGB; normal/metallic/roughness/AO linear; OpenGL +Y normal",
+  "external_uri":false,
+  "network_at_runtime":false,
+  "canonical_sha256":"27d44a7f4953039c620f19af652d20779ab56967be6cd4dd5d97d3c462b1d295"
+}

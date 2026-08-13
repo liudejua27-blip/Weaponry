@@ -1,0 +1,36 @@
+{
+  "schema_version": "ForgeCADEvidenceMCP010FGeometryExperimentReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "experiment_id": "head-turn-mild",
+  "change_scope": {
+    "geometry_variant": "surface-linework plus head-shell rotation only",
+    "head_rotation_rad": [0.0, 0.12, 0.0],
+    "appearance_or_material_changed": false,
+    "camera_changed": false,
+    "outer_envelope_intent": "test whether a small head turn improves the visible visor/crown alignment"
+  },
+  "candidate": {
+    "geometry_part_count": 26,
+    "geometry_triangle_count": 4704,
+    "comparison_report_hash": "f26da36f66c48bc7fdb7eb1f4950cad31e1cbe89fa7c39a0bc016c70bebd7edb",
+    "render_set_hash": "a700ae6aacfae7a9eb9d7c8d24e1039a6590fbb6ee8a170459b8d317fb38b637"
+  },
+  "metrics": {
+    "silhouette_iou": 0.741275176956,
+    "boundary_f1_4px": 0.323350135873,
+    "bbox_edge_error": 0.0078125,
+    "centroid_error": 0.007243082798,
+    "landmark_coverage": 0.733333333333,
+    "landmark_nme": 0.134535946351,
+    "region_median_iou": 0.869323394495,
+    "critical_region_min_iou": 0.666288576965
+  },
+  "decision": "REJECTED",
+  "reason": "The small head rotation raised silhouette IoU by 0.00023 and improved centroid error, but reduced the higher-priority boundary F1 from 0.3288 to 0.3234 and slightly reduced region agreement; it is not promoted.",
+  "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false
+}

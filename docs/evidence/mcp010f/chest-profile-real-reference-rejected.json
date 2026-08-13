@@ -1,0 +1,41 @@
+{
+  "schema_version": "ForgeCADMCP010FVisualExperimentReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "experiment": "chest-profile",
+  "change_scope": {
+    "semantic_part": "chest-shell",
+    "operator_change": "panel@1 -> profile-loft@1",
+    "other_parts_changed": false,
+    "material_zones_changed": false,
+    "camera_changed": false
+  },
+  "candidate": {
+    "geometry_program_sha256": "5e17c5dfad5ff5ad1f1edfcf4c2c3e5fea5f353c6101a7deeaf904de156c3237",
+    "geometry_artifact_sha256": "71ff711cee60239f6c0263e4819e817bce13a684be08f625ba16b6c727e12d7a",
+    "appearance_artifact_sha256": "1f839cc11e3121832508645439989822858c35d06300a251b6b0835481c37d04",
+    "parts": 20,
+    "triangles": 3900
+  },
+  "comparison": {
+    "comparison_report_hash": "385ebf7043e10f320d5471735a7d1fb582581cadacd4a09a5534de088deb471a",
+    "render_set_hash": "f20f288c14766b749e9e65c483f0914ac468cd539982cdd4342139776080c9c7",
+    "metrics": {
+      "silhouette_iou": 0.704382908491,
+      "boundary_f1_4px": 0.306367638444,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.003657330747,
+      "landmark_coverage": 0.666666666667,
+      "landmark_nme": 0.201202613018,
+      "region_median_iou": 0.757209195666,
+      "critical_region_min_iou": 0.623469918238
+    },
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "transport_status": "PASS_TRANSPORT_WITH_METRICS"
+  },
+  "decision": "REJECT_KEEP_SURFACE_LINEWORK_BASELINE",
+  "reason": "A single chest-shell loft improved centroid error but regressed boundary F1, silhouette IoU, landmark coverage, region median and critical-region IoU; it does not explain the observed reference silhouette better.",
+  "human_visual_review": "NOT_RUN",
+  "persistent_user_data_touched": false
+}

@@ -1,7 +1,7 @@
 # 外部项目、Blender 与 GitHub 采用清单
 
-版本：2026-08-09
-状态：MVP 采用决策；FGC-MCP010A 只重排目标；当前没有新增 `accepted` 项、依赖或 AssetPack
+版本：2026-08-12
+状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 已以受限 Worker Library 进入 Cargo.lock；xatlas、Manifold、Khronos Validator 和其他第三方仍未进入产品真值
 
 ## 1. 采用规则
 
@@ -14,7 +14,7 @@
 
 每项必须通过：维护活跃度、许可证/例外、依赖 SBOM、恶意输入、确定性、资源上限、平台打包、性能、替代/退出策略和 Benchmark。禁止整仓复制、自动运行安装脚本、拉取模型权重、执行 arbitrary Python/JavaScript、在 Runtime 内起不受控网络服务或让第三方格式成为第二真值。
 
-采用状态只允许：`approved-for-evaluation | accepted | deferred | reference-only | rejected`。只有 `accepted` 且有精确 revision receipt 的项目才能改 lockfile/安装包。本文件当前没有 `accepted` 项。
+采用状态只允许：`approved-for-evaluation | accepted | deferred | reference-only | rejected`。只有 `accepted` 且有精确 revision receipt 的项目才能改 lockfile/安装包。本文件当前只有受限范围的 `mikktspace@0.3.0` 为 `accepted`。
 
 ## 2. MVP approved-for-evaluation
 
@@ -23,13 +23,28 @@
 | [image-rs/image](https://github.com/image-rs/image) | PNG/JPEG decode/admission | MIT/Apache-2.0 | approved-for-evaluation | MCP005；关闭 default features、只开 PNG/JPEG、decoder limits、恶意图片 |
 | [gltf-rs/gltf](https://github.com/gltf-rs/gltf) | Rust GLB strict readback | MIT OR Apache-2.0 | approved-for-evaluation | MCP007；禁外部 URI、buffer/image/size 上限 |
 | [Manifold](https://github.com/elalish/manifold) | robust mesh boolean/manifold | Apache-2.0 | approved-for-evaluation | MCP010D；v3.5.2/full revision、C API/FFI、面数/时间/内存/拓扑/source IDs/removal |
-| [xatlas](https://github.com/jpcy/xatlas) | UV unwrap/pack | MIT | approved-for-evaluation | MCP010E；determinism、seam/overlap、跨平台 |
-| [mikktspace Rust](https://github.com/gltf-rs/mikktspace) | tangent generation | MIT/Apache-2.0 初筛 | approved-for-evaluation | MCP010E；精确许可证复核、与 Viewer/GLB golden 一致 |
+| [xatlas](https://github.com/jpcy/xatlas) | UV unwrap/pack | MIT | approved-for-evaluation | MCP010E；determinism、seam/overlap、跨平台；当前不安装，产品使用 bounded triangle-chart packer |
+| [mikktspace Rust](https://github.com/gltf-rs/mikktspace) | MikkTSpace tangent generation | MIT/Apache-2.0 | **accepted**（仅 MCP010E source-focused Worker） | 固定 0.3.0、源码 revision、crate/license/SBOM receipt、确定性/恶意输入/GLB handedness Gate；见 `docs/evidence/adoption/mikktspace/0.3.0.yaml` |
 | [Khronos glTF-Validator](https://github.com/KhronosGroup/glTF-Validator) | GLB 交付验证 | Apache-2.0 | approved-for-evaluation | MCP010E/F；恶意 GLB、版本 pin、JSON 报告归一 |
 | [glTF-Transform](https://github.com/donmccurdy/glTF-Transform) | GLB inspection/优化 | MIT | approved-for-evaluation-as-dev-tool | MCP009；Node 只在构建/测试，不能写 Runtime 真值 |
 | [img2threejs](https://github.com/img2threejs/img2threejs) | 分阶段 image → typed spec → procedural review 的工作流思想 | Apache-2.0 | approved-for-evaluation / first-party reimplementation | MCP006；仅学习 staged passes、detail inventory、per-region confidence 和 side-by-side review；不安装其 Python/TypeScript skill，不把 Three.js/JS 作为 Runtime 真值 |
 
-“许可证初筛”不是法律批准。当前仍没有 `accepted` 第三方 3D compiler/UV/render dependency；MCP008 的 UV/tangent/software render 由 product-owned bounded implementation 提供。Luna 可以做隔离 benchmark，但只有 `accepted` receipt 才能改 lockfile；distribution legal review、最终二进制 SBOM 和签名仍在 MCP012/013。
+“许可证初筛”不是法律批准。当前只有 `mikktspace@0.3.0` 作为受限 tangent library 通过 source-focused receipt；UV atlas 仍是 ForgeCAD 自有的 512px bounded chart packer，xatlas 尚未安装，Manifold/Validator 也未进入产品包。distribution legal review、最终二进制 SBOM 和签名仍在 MCP012/013。
+
+### 2.1 img2threejs 研究快照（2026-08-12）
+
+本次阅读了 upstream repository 的 README 与 `SKILL.md`。最值得移植的是方法，而不是运行时：先做 detail inventory 和质量合同，再按 `blockout → structural → form → material → lighting → interaction → optimization` 分阶段生成；每个可见特征必须落到有名字的组件/材质条目；每轮都用受控相机把 render 与 reference 对照，并对关键区域单独记录 confidence；单张图无法证明的背面和隐藏结构必须标为 approximate/unknown，而不是伪造确定性。upstream 明确把结果定位为 code-only、procedural、可编辑的 Three.js 场景，而不是不可编辑的黑盒 mesh。[img2threejs repository](https://github.com/img2threejs/img2threejs)、[upstream SKILL.md](https://github.com/img2threejs/img2threejs/blob/main/SKILL.md)
+
+ForgeCAD 已把这些原则映射到自己的边界：`GeometryProgram@2`/semantic Part/Operator Catalog 对应可编辑组件；`reference_compare_prepare`、九 AOV、`visual_review_submit` 和 `quality_get` 对应分阶段回看；Skill recipe 与 evidence manifest 对应 detail inventory/quality contract；unknown coverage 与 `BLOCKED_REFERENCE_COVERAGE` 对应单图不可见区域。当前没有安装 upstream Python/TypeScript skill，也没有把 Three.js、浏览器预览、Hosted Converter 或其任意脚本变成 Runtime 真值；产品真值仍是 Rust Worker 的 typed program、GLB BIN/accessor 回读、CAS hash 和用户确认。
+
+这次研究还明确了下一项产品缺口：ForgeCAD 已能测整体 silhouette IoU，但 boundary F1、landmark、region detail 的修正仍主要依赖 Codex 判断；本轮新增的 `scripts/make_mcp010f_comparison_sheet.py` 将 reference/beauty/silhouette/diagnostic AOV 固定打包为一张标准库 review sheet，让 Codex 只做视觉判断，manifest 只保存 hash，不替代 Runtime 质量真值。下一步仍应增强“按区域的可见特征清单 + 局部 comparison 修正”，而不是引入远程 image-to-3D API 或插件市场。
+
+### 2.2 其他上游研究快照（2026-08-12）
+
+- [`pmndrs/gltfjsx`](https://github.com/pmndrs/gltfjsx)：学习其“命名 node/material 图、可复用实例、清理冗余 transform”的消费侧思想；ForgeCAD 只把它映射为稳定 Part/MaterialZone 名称、Viewer read model 和导出前性能检查，不运行 gltfjsx、不让 React/JSX 成为 Runtime 真值。
+- [`mrdoob/three.js`](https://github.com/mrdoob/three.js)：学习 `PerspectiveCamera`、物理材质色彩空间和 AOV/后处理的 Viewer 表达方式；产品固定 renderer/GLB readback 仍由 Rust Worker 真值负责，Three.js 只读展示。
+- [`jpcy/xatlas`](https://github.com/jpcy/xatlas)：学习 chart segmentation、atlas packing 和 seams/texel density 的可验证输出；当前仍 `approved-for-evaluation`，没有把未验证的第三方 unwrap 写入产品包。
+- [`microsoft/TRELLIS`](https://github.com/microsoft/TRELLIS)：确认 image-conditioned mesh/GLB 是提升单图前脸细节的潜在路线，但其权重、CUDA/conda 依赖和 GPU 运行时与 ForgeCAD 离线、无内置模型的 MVP 边界冲突，因此只保留为未来明确 opt-in 的 external-base-mesh 研究，不下载权重、不接入 Runtime。
 
 ## 3. Deferred / benchmark-first
 

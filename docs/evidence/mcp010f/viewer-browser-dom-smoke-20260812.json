@@ -1,0 +1,48 @@
+{
+  "schema_version": "ForgeCADMCP010FViewerBrowserDomSmoke@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_ISOLATED_VITE_BROWSER_DOM_SMOKE",
+  "runner": "Playwright CLI against the local Vite Viewer build",
+  "runtime_bridge": "unavailable_by_design",
+  "observed": {
+    "aov_count": 9,
+    "aov_names": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"],
+    "compare_mode_count": 3,
+    "compare_modes": ["split", "overlay", "flicker"],
+    "default_stage_without_metrics": "reference-canvas",
+    "default_correction_queue_empty_without_metrics": true,
+    "contour_canvas_click": {
+      "selected_pass": "silhouette",
+      "selected_mode": "overlay",
+      "contour_canvas_class_present": true,
+      "queue_still_empty_without_metrics": true
+    },
+    "contour_annotation": {
+      "pointer_stroke_points": 4,
+      "bounded_point_limit": 128,
+      "normalized_coordinate_space": "normalized_reference_image",
+      "closed_preview": true,
+      "copy_status": "copied",
+      "runtime_write": false,
+      "persistent_user_data_touched": false
+    },
+    "difference_heatmap_toggle": true,
+    "flicker_toggle": true,
+    "aov_keyboard_navigation": {
+      "arrow_right_from_beauty": "silhouette",
+      "end": "uv-stretch",
+      "home": "beauty",
+      "roving_tabindex_and_focus": true,
+      "aria_selected_tracks_focus": true
+    },
+    "quality_metric_count_in_source_panel": 8,
+    "quality_metric_names": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou", "critical_region_min_iou"],
+    "semantic_roles": ["status", "tablist", "tab", "tabpanel", "group", "region", "complementary", "combobox", "button"]
+  },
+  "persistent_user_data_touched": false,
+  "limitations": [
+    "This is a browser DOM smoke over the Vite build, not a Tauri packaged UI or accessibility API E2E.",
+    "Runtime IPC was intentionally unavailable, so no candidate, reference bytes, GLB or quality report was read.",
+    "The smoke proves control wiring and empty-intake semantics only; it does not prove visual likeness, PBR fidelity, human review or 360-degree quality."
+  ]
+}

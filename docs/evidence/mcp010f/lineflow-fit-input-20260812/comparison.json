@@ -1,0 +1,29 @@
+{
+  "artifact_sha256": "54ae0b5e8c4063fa9f7c921609bfeff4425289d464daf83af8816c207b50f9d1",
+  "camera_hash": "8cd20605a8b497eae82b7108338dc7201870b64994f3fc1cdc30850c7c84a535",
+  "candidate_id": "candidate-7ddb81e84ab3464dbaa19f59f7c57365",
+  "canonical_sha256": "0cfcc8114e9ffb7981b19692e803a7882c6cdfa39cf85887121db48903454af3",
+  "mask": {
+    "height": 512,
+    "method": "local-border-flood-fill-morphology",
+    "revision": "mask-2",
+    "sha256": "eb6868de50a216bdc7057289f831bf185eb8688fcec1235bc5d1db913122ae1d",
+    "width": 512
+  },
+  "metrics": {
+    "bbox_edge_error": 0.0078125,
+    "boundary_f1_4px": 0.32876512261,
+    "centroid_error": 0.007878177805,
+    "critical_region_min_iou": 0.666288576965,
+    "landmark_coverage": 0.733333333333,
+    "landmark_nme": 0.134535946351,
+    "region_median_iou": 0.869403198991,
+    "silhouette_iou": 0.741047132807
+  },
+  "reference_id": "reference-5e7f8cbb25af4a269ac34fa10529d21e",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "render_set_hash": "0fc4d4d733dbfbf8d3e4ad9f77a06bf5fb040e0214f4b3b3319261d09ad181e6",
+  "report_id": "comparison-0fc4d4d733dbfbf8d3e4ad9f77a06bf5",
+  "schema_version": "ReferenceComparisonReport@1",
+  "status": "QUALITY_TARGET_NOT_MET"
+}

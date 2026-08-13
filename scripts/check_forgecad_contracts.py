@@ -77,11 +77,26 @@ def check_mcp010b_contracts() -> None:
         and budget_properties.get("max_runtime_ms", {}).get("maximum") == 10000,
         "GeometryProgram@2 limits do not match MCP010B budgets",
     )
-    node_properties = geometry["$defs"]["primitive_node"].get("properties", {})
+    node_properties = geometry["$defs"]["geometry_node"].get("properties", {})
     require(
-        node_properties.get("operator_id", {}).get("const") == "forgecad.geometry.primitive@2"
-        and node_properties.get("inputs", {}).get("maxItems") == 0,
-        "GeometryProgram@2 must expose only leaf primitive@2 nodes with explicit inputs",
+        set(node_properties.get("operator_id", {}).get("enum", []))
+        == {
+            "forgecad.geometry.primitive@2",
+            "forgecad.geometry.profile-extrude@1",
+            "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.revolve@1",
+            "forgecad.geometry.tube-sweep@1",
+            "forgecad.geometry.transform@2",
+            "forgecad.geometry.mirror@1",
+            "forgecad.geometry.array@1",
+            "forgecad.geometry.panel@1",
+            "forgecad.geometry.vent-array@1",
+            "forgecad.geometry.joint-stack@1",
+            "forgecad.geometry.part-output@1",
+        }
+        and node_properties.get("inputs", {}).get("maxItems") == 64
+        and node_properties.get("inputs", {}).get("uniqueItems") is True,
+        "GeometryProgram@2 must expose the closed MCP010D operator set and explicit DAG inputs",
     )
     parameter_refs = {
         item.get("$ref")
@@ -94,8 +109,19 @@ def check_mcp010b_contracts() -> None:
             "#/$defs/cylinder_parameters",
             "#/$defs/ellipsoid_parameters",
             "#/$defs/sphere_parameters",
+            "#/$defs/profile_extrude_parameters",
+            "#/$defs/profile_loft_parameters",
+            "#/$defs/revolve_parameters",
+            "#/$defs/tube_sweep_parameters",
+            "#/$defs/transform_parameters",
+            "#/$defs/mirror_parameters",
+            "#/$defs/array_parameters",
+            "#/$defs/panel_parameters",
+            "#/$defs/vent_array_parameters",
+            "#/$defs/joint_stack_parameters",
+            "#/$defs/part_output_parameters",
         },
-        "GeometryProgram@2 primitive parameter variants drifted",
+        "GeometryProgram@2 operator parameter variants drifted",
     )
     definitions = geometry["$defs"]
     require(
@@ -166,7 +192,7 @@ def check_mcp010b_contracts() -> None:
     require(
         draft.get("properties", {}).get("schema_version", {}).get("const") == "GeometryProgram@2"
         and draft.get("properties", {}).get("nodes", {}).get("items", {}).get("$ref")
-        == "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/primitive_node"
+        == "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/geometry_node"
         and draft.get("properties", {}).get("part_outputs", {}).get("items", {}).get("$ref")
         == "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/part_output",
         "GeometryProgramHashRequest@1 draft must reuse the GeometryProgram@2 node and Part output definitions",
@@ -205,19 +231,18 @@ def check_mcp010b_contracts() -> None:
         catalog.get("properties", {}).get("schema_version", {}).get("const") == "OperatorCatalog@1",
         "OperatorCatalog@1 schema_version is not closed",
     )
-    operator = catalog["$defs"]["primitive_operator"]
+    operator = catalog["$defs"]["operator"]
+    catalog_entries = catalog.get("properties", {}).get("operators", {})
     require(
-        operator.get("properties", {}).get("operator_id", {}).get("const")
-        == "forgecad.geometry.primitive@2",
-        "OperatorCatalog@1 must not advertise an unimplemented operator",
+        catalog_entries.get("maxItems") == 32
+        and operator.get("properties", {}).get("status", {}).get("enum") == ["active", "unavailable"],
+        "OperatorCatalog@1 must expose a bounded active/unavailable operator catalog",
     )
-    supported_shapes = operator["properties"]["supported_shapes"]
     require(
-        set(supported_shapes.get("items", {}).get("enum", []))
-        == {"box", "cylinder", "ellipsoid", "sphere"}
-        and supported_shapes.get("minItems") == 4
-        and supported_shapes.get("maxItems") == 4,
-        "OperatorCatalog@1 primitive shapes drifted",
+        operator.get("properties", {}).get("operator_id", {}).get("$ref")
+        == "#/$defs/identifier"
+        and operator.get("properties", {}).get("supported_shapes", {}).get("maxItems") == 8,
+        "OperatorCatalog@1 generic operator definition drifted",
     )
 
     readback = load_schema("artifact-readback-v2.schema.json")
@@ -572,6 +597,195 @@ def check_mcp010c_contracts() -> None:
     )
 
 
+def check_mcp010e_contracts() -> None:
+    """Keep the offline material/texture authoring path closed and bounded."""
+    expected = {
+        "material-pack-manifest.schema.json": "MaterialPackManifest@1",
+        "material-definition.schema.json": "MaterialDefinition@1",
+        "texture-set.schema.json": "TextureSet@1",
+        "texture-build-receipt.schema.json": "TextureBuildReceipt@1",
+        "appearance-program-v2.schema.json": "AppearanceProgram@2",
+        "appearance-prepare-result-v2.schema.json": "AppearancePrepareResult@2",
+    }
+    versioned = {
+        filename: version
+        for filename, version in expected.items()
+        if filename
+        not in {"material-definition.schema.json", "texture-set.schema.json"}
+    }
+    for filename, version in expected.items():
+        schema = load_schema(filename)
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and (
+                filename not in {"material-definition.schema.json", "texture-set.schema.json"}
+                or schema.get("title") == version.removesuffix("@1")
+            ),
+            f"{version} must be a closed object contract",
+        )
+        if filename in versioned:
+            require_required(schema, {"schema_version"}, version)
+
+    manifest = load_schema("material-pack-manifest.schema.json")
+    require_required(
+        manifest,
+        {
+            "schema_version",
+            "pack_id",
+            "version",
+            "source_assets",
+            "textures",
+            "material_definitions",
+            "texture_sets",
+            "limits",
+            "canonical_sha256",
+        },
+        "MaterialPackManifest@1",
+    )
+    limits = manifest["properties"]["limits"]["properties"]
+    require(
+        limits["max_texture_bytes"].get("const") == 67108864
+        and limits["max_export_bytes"].get("const") == 134217728
+        and limits["embedded_only"].get("const") is True
+        and limits["external_uri"].get("const") is False,
+        "MaterialPackManifest@1 must keep embedded texture and size limits closed",
+    )
+    texture = load_schema("texture-set.schema.json")
+    texture_fields = texture["$defs"]["texture"]["properties"]
+    require(
+        texture_fields["file"].get("pattern") == r"^textures/[A-Za-z0-9_.-]+\.png$"
+        and texture_fields["normal_convention"].get("enum") == ["OpenGL+Y", None]
+        and texture_fields["width"].get("maximum") == 2048,
+        "TextureSet@1 must use embedded PNGs and explicit OpenGL normal convention",
+    )
+    appearance = load_schema("appearance-program-v2.schema.json")
+    require_required(
+        appearance,
+        {
+            "schema_version",
+            "project_id",
+            "geometry_program_sha256",
+            "material_pack_id",
+            "material_pack_manifest_sha256",
+            "material_zones",
+            "canonical_sha256",
+        },
+        "AppearanceProgram@2",
+    )
+    require(
+        appearance["properties"]["material_pack_id"].get("const")
+        == "forgecad-hard-surface-robot"
+        and appearance["properties"]["material_zones"]["items"].get("additionalProperties")
+        is False,
+        "AppearanceProgram@2 must bind the first-party pack and closed material zones",
+    )
+    result = load_schema("appearance-prepare-result-v2.schema.json")
+    require(
+        result["properties"]["artifact"].get("$ref")
+        == "https://forgecad.local/contracts/artifact-readback-v2.schema.json"
+        and result["properties"]["render_set"].get("$ref")
+        == "https://forgecad.local/contracts/render-set-v2.schema.json",
+        "AppearancePrepareResult@2 must expose strict artifact and nine-pass render receipts",
+    )
+
+
+def check_mcp010f_silhouette_contracts() -> None:
+    """Keep the contour-first target and diagnostic receipts closed."""
+    expected = {
+        "silhouette-target.schema.json": "SilhouetteTarget@1",
+        "reference-mask-prepare-result.schema.json": "ReferenceMaskPrepareResult@1",
+        "camera-fit-result.schema.json": "CameraFitResult@1",
+        "camera-calibration-ref.schema.json": "CameraCalibrationRef@1",
+        "boundary-error-result.schema.json": "BoundaryErrorResult@1",
+        "silhouette-rig.schema.json": "SilhouetteRig@1",
+        "silhouette-rig-hash-request.schema.json": "SilhouetteRigHashRequest@1",
+        "silhouette-rig-hash-result.schema.json": "SilhouetteRigHashResult@1",
+        "silhouette-fit-intent.schema.json": "SilhouetteFitIntent@1",
+        "silhouette-fit-result.schema.json": "SilhouetteFitResult@1",
+        "part-contour-fit-result.schema.json": "PartContourFitResult@1",
+        "silhouette-candidate-compare-result.schema.json": "SilhouetteCandidateCompareResult@1",
+    }
+    for filename, version in expected.items():
+        schema = load_schema(filename)
+        require(
+            schema.get("type") == "object"
+            and schema.get("additionalProperties") is False
+            and schema.get("properties", {}).get("schema_version", {}).get("const") == version,
+            f"{version} must be a closed object contract",
+        )
+        required = {"schema_version"}
+        if filename not in {"silhouette-rig-hash-request.schema.json"}:
+            required.add("canonical_sha256")
+        require_required(schema, required, version)
+
+    target = load_schema("silhouette-target.schema.json")
+    require(
+        target["properties"]["coordinate_space"].get("const")
+        == "normalized_reference_image"
+        and target["properties"]["width"].get("const") == 512
+        and target["properties"]["height"].get("const") == 512
+        and target["properties"]["contour_points"].get("maxItems") == 512,
+        "SilhouetteTarget@1 must use normalized 512x512 contour truth",
+    )
+    camera_fit = load_schema("camera-fit-result.schema.json")
+    require(
+        camera_fit["properties"]["candidates"].get("maxItems") == 128
+        and camera_fit["properties"]["status"].get("enum")
+        == ["ready", "no_improvement", "unavailable"],
+        "CameraFitResult@1 must remain bounded and typed",
+    )
+    boundary = load_schema("boundary-error-result.schema.json")
+    require(
+        boundary["properties"]["segments"].get("maxItems") == 64
+        and len(boundary["$defs"]["point_px"].get("prefixItems", [])) == 2
+        and boundary["properties"]["segments"]["items"]["properties"]["direction"].get("enum")
+        == ["inward", "outward", "aligned"],
+        "BoundaryErrorResult@1 must expose bounded signed pixel segments",
+    )
+    require(
+        "sdf_chamfer_px" in boundary["properties"]["metrics"]["required"],
+        "BoundaryErrorResult@1 must expose SDF/Chamfer loss",
+    )
+    rig = load_schema("silhouette-rig.schema.json")
+    require(
+        rig["properties"]["parameters"].get("maxItems") == 64
+        and rig["additionalProperties"] is False,
+        "SilhouetteRig@1 must be bounded and closed",
+    )
+    fit = load_schema("silhouette-fit-result.schema.json")
+    require(
+        fit["properties"]["evaluations"].get("maximum") == 64
+        and fit["$defs"]["thresholds"]["properties"]["silhouette_iou"].get("const") == 0.9,
+        "SilhouetteFitResult@1 must expose bounded optimizer evidence and strict thresholds",
+    )
+    camera_ref = load_schema("camera-calibration-ref.schema.json")
+    require(
+        camera_ref.get("additionalProperties") is False
+        and set(camera_ref.get("required", []))
+        == {"schema_version", "camera_hash", "canonical_sha256"}
+        and camera_ref["properties"]["schema_version"].get("const")
+        == "CameraCalibrationRef@1",
+        "CameraCalibrationRef@1 must contain only Runtime-owned camera hashes",
+    )
+    fit_intent = load_schema("silhouette-fit-intent.schema.json")
+    fit_camera = fit_intent["properties"]["base_camera"]
+    require(
+        {item.get("$ref") for item in fit_camera.get("oneOf", [])}
+        == {
+            "https://forgecad.local/contracts/camera-calibration.schema.json",
+            "https://forgecad.local/contracts/camera-calibration-ref.schema.json",
+        },
+        "SilhouetteFitIntent@1 must accept a full camera or a compact Runtime camera reference",
+    )
+    compare = load_schema("silhouette-candidate-compare-result.schema.json")
+    require(
+        compare["properties"]["candidates"].get("minItems") == 2
+        and compare["properties"]["candidates"].get("maxItems") == 8,
+        "SilhouetteCandidateCompareResult@1 must compare a bounded candidate set",
+    )
+
+
 def main() -> int:
     required = [
         CONTRACT_ROOT / "manifest.json",
@@ -614,6 +828,8 @@ def main() -> int:
         raise SystemExit("contract manifest schema list does not match checked-in schemas")
     check_mcp010b_contracts()
     check_mcp010c_contracts()
+    check_mcp010f_silhouette_contracts()
+    check_mcp010e_contracts()
     print(f"ForgeCAD contracts OK: {len(actual_schemas)} schemas")
     return 0
 

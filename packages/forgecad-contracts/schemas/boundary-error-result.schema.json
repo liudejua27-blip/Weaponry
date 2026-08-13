@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/boundary-error-result.schema.json",
+  "title": "BoundaryErrorResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_id", "target_sha256", "render_set_hash", "metrics", "segments", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "BoundaryErrorResult@1"},
+    "candidate_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "metrics": {"type": "object", "additionalProperties": false, "required": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "sdf_chamfer_px"], "properties": {"silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1}, "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1}, "bbox_edge_error": {"type": "number", "minimum": 0, "maximum": 1}, "centroid_error": {"type": "number", "minimum": 0, "maximum": 1}, "sdf_chamfer_px": {"type": "number", "minimum": 0}}},
+    "segments": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reference", "model", "delta_px", "distance_px", "direction", "part_id"],
+        "properties": {
+          "reference": {"$ref": "#/$defs/point"},
+          "model": {"$ref": "#/$defs/point"},
+          "delta_px": {"$ref": "#/$defs/point_px"},
+          "distance_px": {"type": "number", "minimum": 0},
+          "direction": {"enum": ["inward", "outward", "aligned"]},
+          "part_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]{1,128}$"}
+        }
+      }
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "point": {"type": "array", "prefixItems": [{"type": "number", "minimum": 0, "maximum": 1}, {"type": "number", "minimum": 0, "maximum": 1}], "items": false, "minItems": 2, "maxItems": 2},
+    "point_px": {"type": "array", "prefixItems": [{"type": "number", "minimum": -512, "maximum": 512}, {"type": "number", "minimum": -512, "maximum": 512}], "items": false, "minItems": 2, "maxItems": 2}
+  }
+}

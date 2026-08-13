@@ -1,0 +1,13 @@
+# Product-owned operator lock. Operators are pre-registered in the bounded
+# geometry Worker; this bundle does not install executable code.
+forgecad.geometry.profile-extrude@1 = forgecad-runtime-builtin
+forgecad.geometry.profile-loft@1 = forgecad-runtime-builtin
+forgecad.geometry.revolve@1 = forgecad-runtime-builtin
+forgecad.geometry.tube-sweep@1 = forgecad-runtime-builtin
+forgecad.geometry.transform@2 = forgecad-runtime-builtin
+forgecad.geometry.mirror@1 = forgecad-runtime-builtin
+forgecad.geometry.array@1 = forgecad-runtime-builtin
+forgecad.geometry.panel@1 = forgecad-runtime-builtin
+forgecad.geometry.vent-array@1 = forgecad-runtime-builtin
+forgecad.geometry.joint-stack@1 = forgecad-runtime-builtin
+forgecad.geometry.part-output@1 = forgecad-runtime-builtin

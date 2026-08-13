@@ -1,0 +1,399 @@
+{
+  "assertion_ledger": {
+    "BT001_COHORT_EQUAL": "PASS",
+    "BT002_PROJECT_PROPAGATION": "PASS",
+    "BT003_CANDIDATE_PROPAGATION": "PASS",
+    "BT004_PROGRAM_CATALOG_BINDING": "PASS",
+    "BT005_ARTIFACT_BINDING": "PASS",
+    "BT006_CAMERA_BINDING": "FAIL",
+    "BT007_TARGET_BINDING": "PASS",
+    "BT008_AOV_ORDER": "PASS",
+    "BT009_AOV_HASH_COMPLETENESS": "MISSING",
+    "BT010_METRIC_EXACT_SET": "PASS",
+    "BT011_THRESHOLD_EXACT_SET_IN_RECEIPT": "MISSING",
+    "BT012_STATUS_DERIVATION": "PASS",
+    "BT013_NO_APPEARANCE_CLAIM": "PASS",
+    "BT014_UNRUN_EXPLICITNESS": "MISSING",
+    "BT015_NO_CROSS_RUN_FIELD_BORROW": "PASS",
+    "BT016_SURFACE_RAW_PAIR": "FAIL",
+    "BT017_ARMOR_RAW_PAIR": "PASS",
+    "BT018_MATERIAL_PREDECESSOR_BINDING": "MISSING",
+    "BT019_BENCHMARK_ELIGIBILITY": "MISSING",
+    "BT020_LEGACY_RECEIPT_RECORDED_AT": "MISSING"
+  },
+  "authority_docs": [
+    "docs/DOCUMENTATION_STATUS.md",
+    "docs/CODEX_HANDOFF.md",
+    "docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md",
+    "docs/AUTHORITATIVE_STATE.md",
+    "docs/MVP_DELIVERY_PLAN.md",
+    "docs/MVP_TOOL_CATALOG.md",
+    "docs/LUNA_GOAL_EXECUTION_GUIDE.md",
+    "docs/MCP_RUNTIME_CONTRACT.md",
+    "docs/SCHEMAS.md",
+    "docs/WORKBENCH_VIEWER.md",
+    "docs/CODEX_TASK_INDEX.md",
+    "docs/TEST_STRATEGY.md",
+    "docs/evidence/CAPABILITY_GATE_MATRIX.md"
+  ],
+  "auxiliary_runs": {
+    "armor_shell_zones": {
+      "curated_path": "docs/evidence/mcp010f/armor-shell-zones-real-reference.json",
+      "curated_raw_binding": "PASS",
+      "curated_sha256": "4dbaec74deb94b4a42149cd34f38871c10ee32303d62245dcdda35a52810adeb",
+      "predecessor_geometry_binding": "MISSING",
+      "raw_path": "docs/evidence/mcp010f/armor-shell-zones-real-reference-raw.json",
+      "raw_sha256": "20bc0966fe09d7f771b566dffffa983dbe825779e34541a1c373d78829d44e45",
+      "relation_to_primary": "SELF_CONSISTENT_AUXILIARY_RUN"
+    },
+    "surface_linework": {
+      "curated_path": "docs/evidence/mcp010f/surface-linework-real-reference.json",
+      "curated_raw_binding": "FAIL_HASHES_DIFFER",
+      "curated_sha256": "311906c04a4e982715b41e5a02d951772d9d59541f8db158a73c89ff690a98fb",
+      "raw_path": "docs/evidence/mcp010f/surface-linework-real-reference-raw.json",
+      "raw_sha256": "ab88ede89901924442c6de1ca3b471be3bdba45e62530ee9c95af7943068efc4",
+      "relation_to_primary": "UNBOUND_SEPARATE_RUN"
+    }
+  },
+  "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
+  "canonical_sha256": "36a34cc5a02a73931d6839e3cee38a1827d3a6c1f8487a6491abf9da5b71ff19",
+  "current_source": {
+    "contracts": {
+      "manifest_path": "packages/forgecad-contracts/manifest.json",
+      "manifest_sha256": "2b9459d836d19e1076d93cd9f8abcae85a06272089d018135d5b01468abde653",
+      "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
+      "schema_content_set_sha256": "33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a",
+      "schema_count": 78
+    },
+    "mcp_tools": {
+      "read_count": 29,
+      "read_manifest_sha256": "bf0ea917a91d0f4e028c0827b798f0d9c26427bd34d33880249e01ec59118536",
+      "read_names": [
+        "artifact_readback_get",
+        "boundary_error_get",
+        "camera_fit_prepare",
+        "candidate_get",
+        "capabilities_get",
+        "doctor",
+        "geometry_program_hash",
+        "job_events_read",
+        "job_get",
+        "material_pack_get",
+        "operator_catalog_get",
+        "part_contour_fit_prepare",
+        "project_get",
+        "project_list",
+        "quality_get",
+        "reference_get",
+        "render_pass_get",
+        "runtime_status",
+        "selection_get",
+        "silhouette_candidate_compare",
+        "silhouette_fit_prepare",
+        "silhouette_part_error_get",
+        "silhouette_rig_hash",
+        "silhouette_target_get",
+        "skill_get",
+        "skill_list",
+        "snapshot_get",
+        "version_diff",
+        "version_list"
+      ],
+      "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
+      "source_sha256": "70155067710909a14f5bc6e4885d9e7b7778bef909445225798583f73d557654",
+      "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
+      "summary_receipt_sha256": "bd1ff865fa55b4b99d1711e3bdf25efd7a8721f003d8ca0690dc0bd6f1d13478",
+      "total_count": 47,
+      "write_count": 18,
+      "write_enabled_manifest_sha256": "41ed6d386ccd63daa05aff5bd1bad6cb63195c4606d2b307a4fecb3c703c11b4",
+      "write_names": [
+        "appearance_prepare",
+        "candidate_confirm",
+        "candidate_prepare",
+        "candidate_reject",
+        "change_prepare",
+        "export_confirm",
+        "export_prepare",
+        "geometry_prepare",
+        "human_visual_review_submit",
+        "job_cancel",
+        "project_create",
+        "reference_compare_prepare",
+        "reference_import",
+        "reference_mask_prepare",
+        "reference_mask_refine_prepare",
+        "restore_confirm",
+        "restore_prepare",
+        "visual_review_submit"
+      ]
+    },
+    "task_chain": {
+      "dependency": "MCP010E",
+      "only_in_progress": "FGC-MCP010F"
+    },
+    "visible_view_policy": {
+      "authority": "RUNTIME_SOURCE_POLICY_NOT_EMBEDDED_IN_ATTEMPT35_RECEIPT",
+      "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
+      "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
+      "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+      "runtime_source_sha256": "2ebb9dbc56fe672cdf373374d57fb2a35e079a1c8727caa7d10fc0663746dbe7",
+      "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
+      "viewer_projection_sha256": "4eee47476d30c85defbb6fd4e6bc4ee18f1f3196df2c96990619d5bd8785d820"
+    }
+  },
+  "evidence_status": "INCOMPLETE_TRUTH_BINDING",
+  "evidence_manifest": {
+    "path": "docs/evidence/mcp010f/manifest.json",
+    "sha256": "9d7a41b610715c1ad3bb5f97f71959c22311acf0094c9d4f7f5118933a821843"
+  },
+  "latest_attempt": {
+    "build_cohorts": {
+      "mcp": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "runtime": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "worker": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "attempt_count_evidence": "UNVERIFIED_DECLARED_REASON_ONLY_NO_RAW_TRANSCRIPT_OR_TURN_COUNT",
+    "cohort_provenance": "UNVERIFIED_SENTINEL_LIKE_DECLARED_VALUE",
+    "classification": "DECLARED_REAL_CODEX_BLOCKED_DIAGNOSTIC_WITH_UNVERIFIED_HOST_AND_COHORT_PROVENANCE",
+    "host_provenance": "UNVERIFIED_COMPACT_RECEIPT_LACKS_RAW_EVENTS_EXIT_CODES_AND_TRANSCRIPT_HASH",
+    "quality_result": "NOT_PRODUCED",
+    "reason": "Codex did not complete operator discovery after 3 bounded attempts",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-semantic-aligned-fast-20260813.json",
+    "source_receipt_sha256": "76f9a4f8fc8d9f81a23d239122e75df6e6d864dbb558112127d7f197a7fe8fb1",
+    "status": "BLOCKED"
+  },
+  "latest_completed_transport": {
+    "artifact_sha256": "316fee223d60304ea6f5078433974b9ab64cdccd25bba72e143b0f006726c8b7",
+    "build_cohorts": {
+      "mcp": "1c92f710612a78a7c7ce4bc975cf03ab339047d452eb938a209bfc120bcdd0ce",
+      "runtime": "1c92f710612a78a7c7ce4bc975cf03ab339047d452eb938a209bfc120bcdd0ce",
+      "worker": "1c92f710612a78a7c7ce4bc975cf03ab339047d452eb938a209bfc120bcdd0ce"
+    },
+    "candidate_id": "candidate-16d6f053a01b46e3ab570e6a926a93dd",
+    "comparison_report_hash": "80fc977b27d562a895ad0690bbbed7f31be4cd6c29688077fb515e6b086fb0c1",
+    "metric_semantics": "SEMANTIC_PART_ANCHOR_CHECKPOINT_NOT_COMPARABLE_TO_ATTEMPT35_LANDMARK_METRICS",
+    "metrics": {
+      "bbox_edge_error": 0.0078125,
+      "boundary_f1_4px": 0.32876512261,
+      "centroid_error": 0.007878177805,
+      "critical_region_min_iou": 0.666288576965,
+      "landmark_coverage": 0.139498432602,
+      "landmark_nme": 0.087015499392,
+      "region_median_iou": 0.869403198991,
+      "silhouette_iou": 0.741047132807
+    },
+    "promotion_decision": "NOT_PROMOTED_METRIC_SEMANTICS_CHANGED_AND_QUALITY_TARGET_NOT_MET",
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "render_set_hash": "13ad00cab732da252fa857d403bdef10f0073f3c8cdaecf4387155dfe823969f",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-semantic-landmark-compare-20260813.json",
+    "source_receipt_sha256": "6080334c9cc040ccd27ae002c35c96a40c7e2c72bc3026f0e990e2156c6c8980",
+    "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
+  },
+  "packaged_viewer": {
+    "artifact_sha256": "b47f4ddf13dcf3db58e787037549c9d75b964662b62fe292abd44ef9c2cc18ea",
+    "build_cohort_sha256": "77d4bff511a21f094a4875ccc4967b429441172adc008771e47dafc1797f2a73",
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "render_set_hash": "6ffeea1cfa73c02ad6828a51600930c0d27d484d30359f7c084b33aa135604aa",
+    "provisional_observation_binding": "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT",
+    "source_receipt_path": "docs/evidence/mcp010f/packaged-viewer-read-model.json",
+    "source_receipt_sha256": "87efe32b5d6e8cbfc87f4796507032537523865ff679e2d3c8abab55692cb921",
+    "ui_e2e": "NOT_RUN"
+  },
+  "phase_zero": {
+    "completed": [
+      "machine-readable current source counts and tool names",
+      "one provisional retained observation pointer with frozen source hashes and benchmark eligibility explicitly blocked",
+      "separate newest-transport and packaged-Viewer facts",
+      "automatic source drift, contract-content, cross-run isolation and candidate-gate semantic checks"
+    ],
+    "remaining": [
+      "regenerate one current-cohort compact receipt with one camera binding, canonical-vs-object hashes, per-AOV hashes, readback counters, structured threshold revision, metric revision and explicit NOT_RUN fields",
+      "bind the packaged Viewer to that exact candidate, artifact, RenderSet and comparison hashes",
+      "prove the real Codex host consumed returned image blocks rather than only calling render_pass_get",
+      "run formal VoiceOver, independent human review, PBR likeness and export/restart hash gates"
+    ],
+    "status": "IN_PROGRESS"
+  },
+  "purpose": "Stage 0 machine-readable source and provisional-observation snapshot; evidence index only, never Runtime product truth or an eligible benchmark",
+  "real_codex_run_inventory": {
+    "path": "docs/evidence/mcp010f/real-codex-run-inventory.json",
+    "ordering_confidence": "SNAPSHOT_ONLY_LEGACY_RECEIPTS_LACK_RECORDED_AT",
+    "sha256": "05aaeaaba04fa0ae6748a9c5f06a994add7ffa5987b2da02cb32652c733923e7",
+    "run_count": 51
+  },
+  "recorded_on": "2026-08-13",
+  "provisional_retained_observation": {
+    "aov_order": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "ao",
+      "part-id",
+      "material-id",
+      "wireframe",
+      "uv-stretch"
+    ],
+    "artifact_id": "2a4dc607e13bc0e5af598dbe13b40a227b14a68cf944a6b20a2f09ee80b16a0a",
+    "artifact_readback_canonical_sha256": "d7de7b59bfb85ce0b9e83389fc1df0f44fe7ae2e9aea5b95014c1e6d8fdcad1a",
+    "artifact_sha256": "2a4dc607e13bc0e5af598dbe13b40a227b14a68cf944a6b20a2f09ee80b16a0a",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "build_cohorts": {
+      "mcp": "74749cc76f038729abf88c4c2e3dc06696ea493124b74b715d0079a88b90e1c3",
+      "runtime": "74749cc76f038729abf88c4c2e3dc06696ea493124b74b715d0079a88b90e1c3",
+      "worker": "74749cc76f038729abf88c4c2e3dc06696ea493124b74b715d0079a88b90e1c3"
+    },
+    "camera_binding": {
+      "binding_status": "MISMATCH",
+      "comparison_camera_canonical_sha256": "66a31b0266cbd98096b29b7868e3cfc8af3a7c9d1a4f61e6d9670df21d76b6b0",
+      "comparison_camera_hash": "8cd20605a8b497eae82b7108338dc7201870b64994f3fc1cdc30850c7c84a535",
+      "fit_camera_canonical_sha256": "072b9b40c32324fec63a311bd6dd07d88dd4d82e8e17fabdaaab8e9930db5d9c",
+      "fit_camera_hash": "354caf270e65a9819c169e070ef6ad4223f38fab3e77232822ebe7fcb0f95788"
+    },
+    "candidate_canonical_sha256": "bcdf89f24cb681880617a03c141ece216e75819872fbddd3f71ead72d605da54",
+    "candidate_id": "candidate-c51a411f8de8491abaf70582d91ca47b",
+    "catalog_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+    "comparison_hash_kind": "UNSPECIFIED_CANONICAL_OR_CAS_OBJECT",
+    "comparison_report_hash": "9dc0e9e8b080b7ff5f3e6681ed06e2746d851cddc7cafc5488aa382313506a3e",
+    "confirmation_eligibility": "BLOCKED_QUALITY_TARGET_NOT_MET",
+    "current_candidate_visible_view_gate": "FAIL_QUALITY_TARGET_NOT_MET",
+    "export_restart_hash": "NOT_RUN",
+    "geometry_route": "detail",
+    "geometry_variant": "surface-linework",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "human_review": "NOT_RUN",
+    "material_variant": "armor-shell-zones",
+    "metric_gate_results": {
+      "bbox_edge_error": "PASS",
+      "boundary_f1_4px": "FAIL",
+      "centroid_error": "PASS",
+      "critical_region_min_iou": "FAIL",
+      "landmark_coverage": "FAIL",
+      "landmark_nme": "FAIL",
+      "region_median_iou": "PASS",
+      "silhouette_iou": "FAIL"
+    },
+    "metrics": {
+      "bbox_edge_error": 0.0078125,
+      "boundary_f1_4px": 0.32876512261,
+      "centroid_error": 0.007878177805,
+      "critical_region_min_iou": 0.666288576965,
+      "landmark_coverage": 0.733333333333,
+      "landmark_nme": 0.134535946351,
+      "region_median_iou": 0.869403198991,
+      "silhouette_iou": 0.741047132807
+    },
+    "part_count": 26,
+    "pbr_material_pack": "NOT_RUN",
+    "persistent_user_data_touched": false,
+    "program_sha256": "c17ba72405a4fa331528877dae190c61f452f5c292e5a5b4295c41ae8dc95613",
+    "project_id": "project-c88f733df5a940ed8842a2e85d5a89c7",
+    "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+    "receipt_completeness": {
+      "artifact_readback_integrity_counters": "MISSING",
+      "camera_binding": "MISMATCH",
+      "candidate_confirm": "MISSING_FROM_PRIMARY_RECEIPT",
+      "candidate_state": "MISSING",
+      "comparison_canonical_vs_object_hashes": "MISSING",
+      "export": "MISSING_FROM_PRIMARY_RECEIPT",
+      "mask_sha256_and_revision": "MISSING",
+      "metric_revision": "MISSING",
+      "per_aov_hashes_and_dimensions": "MISSING",
+      "render_canonical_vs_object_hashes": "MISSING",
+      "restart_hash": "MISSING_FROM_PRIMARY_RECEIPT",
+      "status": "INCOMPLETE_TRUTH_BINDING",
+      "structured_thresholds": "MISSING",
+      "threshold_revision": "MISSING",
+      "visual_review_receipt_hash": "MISSING"
+    },
+    "reference_id": "reference-5906cebebba146cc8bf9e60359594968",
+    "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+    "render_hash_kind": "UNSPECIFIED_CANONICAL_OR_CAS_OBJECT",
+    "render_pass_image_blocks": "NOT_OBSERVED_IN_SANITIZED_CLI_EVENTS",
+    "render_set_hash": "1c1081ef93e68482c4a1b411fb8ce7c97c76f45a13abb5bce5e5bab56dd7ba7e",
+    "selection_policy": {
+      "chosen_path": "docs/evidence/mcp010f/real-codex-cli-silhouette-first-20260813-attempt35-detail-camera-ref.json",
+      "claim": "PROVISIONAL_RETAINED_OBSERVATION_NOT_PROVEN_GLOBAL_BEST",
+      "comparator_priority_after_eligibility": [
+        "boundary_f1_4px:max",
+        "silhouette_iou:max",
+        "bbox_edge_error:min",
+        "centroid_error:min",
+        "landmark_coverage:max",
+        "landmark_nme:min",
+        "region_median_iou:max",
+        "critical_region_min_iou:max"
+      ],
+      "known_comparison_ledger": [
+        {
+          "benchmark_eligible": false,
+          "path": "docs/evidence/mcp010f/real-codex-cli-silhouette-first-20260813-attempt35-detail-camera-ref.json",
+          "reason": "BLOCKED_CAMERA_MISMATCH_AND_INCOMPLETE_RECEIPT_BINDINGS",
+          "sha256": "ae5a97aa3e47995eb034d23716a00adbe8d4dca33076c6da954e1acc5df7f43b"
+        },
+        {
+          "benchmark_eligible": false,
+          "path": "docs/evidence/mcp010f/part-correction-source-20260813.json",
+          "reason": "SOURCE_PROBE_NOT_COMPLETE_REAL_CODEX_AND_BUILD_COHORT_NULL",
+          "sha256": "e8e2d48576403b2169e040b6cd640f137a79a58ef7099ef644ac7bddeccde0b7"
+        },
+        {
+          "benchmark_eligible": false,
+          "path": "docs/evidence/mcp010f/real-codex-cli-semantic-landmark-compare-20260813.json",
+          "reason": "METRIC_SEMANTICS_CHANGED_AND_QUALITY_TARGET_NOT_MET",
+          "sha256": "6080334c9cc040ccd27ae002c35c96a40c7e2c72bc3026f0e990e2156c6c8980"
+        },
+        {
+          "benchmark_eligible": false,
+          "path": "docs/evidence/mcp010f/real-codex-cli-semantic-aligned-fast-20260813.json",
+          "reason": "BLOCKED_NO_QUALITY_RESULT",
+          "sha256": "76f9a4f8fc8d9f81a23d239122e75df6e6d864dbb558112127d7f197a7fe8fb1"
+        }
+      ],
+      "policy_id": "MCP010F_PROVISIONAL_OBSERVATION_SELECTION@1",
+      "required_future_fields": [
+        "recorded_at",
+        "metric_revision",
+        "threshold_revision",
+        "single_camera_binding",
+        "per_aov_hashes_and_dimensions",
+        "canonical_vs_object_hashes",
+        "artifact_readback_integrity_counters",
+        "explicit_downstream_not_run_fields"
+      ],
+      "selection_status": "INCOMPLETE_ELIGIBILITY_AND_METRIC_REVISION",
+      "tie_breaker": "latest recorded_at only after identical metric revision and complete eligibility"
+    },
+    "semantic_claim": "PROVISIONAL_RETAINED_OBSERVATION_NOT_PROVEN_GLOBAL_BEST",
+    "silhouette_camera_hash": "354caf270e65a9819c169e070ef6ad4223f38fab3e77232822ebe7fcb0f95788",
+    "silhouette_rig_sha256": "f67a497a07ab6aa99711e7fb9ff9f1c5471f0482b0978f885421881062527447",
+    "silhouette_target_sha256": "e15ee9d06d58f1b57a8490806d1eb9f32efba70617041fb13e2e257c9e9e100d",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-silhouette-first-20260813-attempt35-detail-camera-ref.json",
+    "source_receipt_sha256": "ae5a97aa3e47995eb034d23716a00adbe8d4dca33076c6da954e1acc5df7f43b",
+    "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+    "strict_visible_view_policy_implemented": "PASS",
+    "threshold_binding": "CURRENT_RUNTIME_SOURCE_POLICY_NOT_EMBEDDED_IN_ATTEMPT35_RECEIPT",
+    "thresholds": {
+      "bbox_edge_error_max": 0.02,
+      "boundary_f1_4px_min": 0.9,
+      "centroid_error_max": 0.02,
+      "critical_region_min_iou_min": 0.85,
+      "landmark_coverage_min": 0.8,
+      "landmark_nme_max": 0.03,
+      "region_median_iou_min": 0.85,
+      "silhouette_iou_min": 0.9
+    },
+    "triangle_count": 4704,
+    "validator_status": "passed",
+    "view_spec_sha256": "47dfcbd5346dd5ace6247665ea8012e6d611fae1333bca2a8db1df30c1eb2d9f",
+    "visual_intake": {
+      "landmark_count": 15,
+      "region_count": 8,
+      "source_sha256": "3689a979e592903a4fb193fa5501a0811c88e9592ff54dc177a76d03dc8ec17f",
+      "status": "PROVIDED"
+    },
+    "visual_review_status": "needs_revision"
+  },
+  "schema_version": "ForgeCADMCP010FStage0Truth@2",
+  "task_id": "FGC-MCP010F"
+}

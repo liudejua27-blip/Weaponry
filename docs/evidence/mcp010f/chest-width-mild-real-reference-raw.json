@@ -1,0 +1,20 @@
+{
+  "schema_version": "ForgeCADMCP010ERawStdioProbe@1",
+  "task_id": "FGC-MCP010E",
+  "status": "PASS",
+  "geometry_variant": "chest-width-mild",
+  "material_variant": "armor-shell-zones",
+  "reference_mode": "user-authorized-inline",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "geometry_program_sha256": "a0ec5eb4a45d22a9cc16c8aee35327c494b298e98efe9b6acfc22bb297b680ee",
+  "geometry_artifact_sha256": "cf6c5aa61725f39445f2b9aeb01e1a0cd1e78a81c3e0089a967ae03440c833a3",
+  "appearance_artifact_sha256": "58fb28c8de85e1b5f8c01b7e8f386271b042d954e8a6496ee9462c8e78303f7b",
+  "comparison_report_hash": "dbe67dcfd6e271e97e78eab403cf0a85a39246c805ce991755468be1088cf0ad",
+  "render_set_hash": "b28de92a2085443d3012b76c00c52032e5e3d38463a9d32f35d8375dc1ed9974",
+  "geometry_part_count": 20,
+  "geometry_triangle_count": 3944,
+  "material_zone_count": 6,
+  "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+  "human_review": "NOT_RUN",
+  "persistent_user_data_touched": false
+}

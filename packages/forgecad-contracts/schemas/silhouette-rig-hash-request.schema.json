@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-rig-hash-request.schema.json",
+  "title": "SilhouetteRigHashRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "rig_draft"],
+  "properties": {
+    "schema_version": {"const": "SilhouetteRigHashRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "rig_draft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "rig_id", "candidate_id", "parameters"],
+      "properties": {
+        "schema_version": {"const": "SilhouetteRig@1"},
+        "rig_id": {"$ref": "#/$defs/id"},
+        "candidate_id": {"$ref": "#/$defs/id"},
+        "parameters": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/parameter"}}
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parameter_id", "part_id", "semantic", "value", "min", "max", "step", "unit"],
+      "properties": {
+        "parameter_id": {"$ref": "#/$defs/id"},
+        "part_id": {"$ref": "#/$defs/id"},
+        "semantic": {"enum": ["width", "height", "depth", "offset_x", "offset_y", "offset_z", "scale"]},
+        "value": {"type": "number"},
+        "min": {"type": "number"},
+        "max": {"type": "number"},
+        "step": {"type": "number", "exclusiveMinimum": 0},
+        "unit": {"enum": ["meter", "ratio"]}
+      }
+    }
+  }
+}

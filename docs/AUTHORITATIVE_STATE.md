@@ -1,7 +1,13 @@
 # ForgeCAD 权威状态与版本真值
 
-版本：2026-08-10
-状态：MCP005–009 functional truth 已实现；FGC-MCP010A done；MCP010B structural truth source Gate 已通过但 Darwin OS memory hard cap deferred/NOT_RUN；MCP010C source-focused renderer/compare/review Gate 已通过，首次真实机器人 compare/review transport 已运行但 likeness threshold `FAIL_QUALITY_TARGET_NOT_MET`；Viewer compare source implementation 已通过本地构建/IPC 测试，但 Viewer/package/人评门仍 NOT_RUN/BLOCKED；MCP010D–F blocked
+版本：2026-08-13
+状态：MCP005–009 functional truth 已实现；FGC-MCP010A done；MCP010B structural truth source Gate 已通过但 Darwin OS memory hard cap deferred/NOT_RUN；MCP010C source-focused renderer/compare/review Gate、MCP010D hard-surface Operator/Skill Gate 与 MCP010E 离线 AssetPack/UV/PBR/MikkTSpace Gate 已通过，首次真实机器人 compare/review transport 已运行但 likeness threshold `FAIL_QUALITY_TARGET_NOT_MET`；MCP010F Viewer source Gate 已通过（packaged/current-cohort Viewer、独立人评、360 仍 NOT_RUN/BLOCKED）。当前 F 轮廓 slice 另提供 Runtime-owned `silhouette_part_error_get`：按 hash 绑定的多 Part table 归因局部边界误差，source focused PASS；它不改变当前真实图片 likeness 失败事实。ADR-0026 新增 Agentic Design Runtime 目标架构，但其 DesignSession/SemanticSceneGraph/ReferenceCanvas/Critic loop 尚未成为当前真值层。
+
+Stage 0 权威快照：当前为 78 Schema、29 read + 18 opt-in write = 47 tools，唯一 `in_progress` 为 `FGC-MCP010F`；机器可读事实入口是 `docs/evidence/mcp010f/current-benchmark-truth.json`。attempt35 只称 `provisional retained observation`，视觉状态为 `QUALITY_TARGET_NOT_MET`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`：camera-fit 选中相机 `354caf27…f95788`，reference-compare 相机为 `8cd20605…a535`，判定 `MISMATCH`。packaged Viewer 仍是 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`，没有绑定同一 observation 的 candidate/artifact/RenderSet/comparison；attempt35 不是 best 或合格 benchmark，source、raw transport、build、窗口结构或 AX smoke 也不构成视觉、人评或 packaged E2E PASS。
+
+运行时间线以 `docs/evidence/mcp010f/real-codex-run-inventory.json` 为准：attempt5 是历史 CameraCalibrationRef 里程碑；最新完成传输为 `docs/evidence/mcp010f/real-codex-cli-semantic-landmark-compare-20260813.json`，状态仍为 `QUALITY_TARGET_NOT_MET`，其 landmark coverage/NME 已切换为语义 Part-ID 指标，未晋升为模型或 benchmark；最新尝试为 `docs/evidence/mcp010f/real-codex-cli-semantic-aligned-fast-20260813.json`，在三次有界 operator discovery 后 `BLOCKED`，没有质量指标。
+
+<!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
 
 ## 1. 真值层级
 
@@ -17,13 +23,30 @@ GLB、图片、`.blend`、Three.js scene、prompt、Skill 文档和 Codex 评价
 
 MVP 具体规则：Reference truth 是 CAS 原始字节 + `ReferenceEvidence`，不是本机路径；Geometry truth 是 canonical `GeometryProgram` + worker receipt + mesh/GLB readback，不是 `.blend` 或 Viewer scene；Appearance truth 是 typed MaterialZone/AppearanceProgram；Render/Quality 只证明同一 candidate hash；导出是 confirmed version 的派生物，不反向成为版本头。
 
+### 1.0.1 Agentic Design Runtime 目标真值
+
+ADR-0026 引入的目标对象不改变现有真值层级：
+
+- `DesignSession@1` 未来只组织 stage、checkpoint、失败门和下一步允许动作；永久写仍必须落到 Runtime candidate/version/job；
+- `SemanticSceneGraph@1` / `ModelUnderstandingBundle@1` 未来是只读理解投影，必须由 Runtime candidate、readback、RenderSet、QualityReport 和 source map 派生；
+- `ReferenceCanvas@1` / `DesignSpec@1` 未来绑定 reference CAS hash、coverage、observed/inferred/unknown 和 stage criteria，不保存原图路径或 prompt；
+- Critic/Repair report 未来只记录 evidence-bound issue 和 bounded intent，不能跳过 compile/readback/render/compare；
+- Parametric Design Kit 未来必须展开为 typed Geometry/Appearance contracts，不允许成为任意脚本或第二几何真值。
+
+在这些对象有 Schema、producer/consumer、MCP/Viewer evidence 前，它们只属于目标设计，不得计入当前 Schema/tool 数量或能力账本。
+
 ### 1.1 MCP010 当前与目标真值
 
-MCP010B 当前源码增加 8 个合同，MCP010C 再增加 7 个合同，当前共 59 个 JSON Schema（MCP006 历史为 44）。B 的 `GeometryProgram@2`/strict readback/restore evidence source Gate 已通过；Darwin 512 MiB OS memory hard cap 仍 deferred/NOT_RUN。C 的 `ReferenceViewSpec@1`、`CameraCalibration@1`、`RenderSet@2`、`ReferenceComparisonReport@1`、`VisualReviewReport@1`、`HumanVisualReviewReceipt@1`、`QualityReport@2` 已由 Runtime/MCP producer/consumer 使用；固定 512×512 perspective/z-buffer renderer、九 AOV、local mask/metrics、MCP image block 和 Codex/human review 的 source raw Gate 已通过，真实 Codex CLI 也完成六 turn/32-call C transport。真实机器人 PNG 的 likeness threshold 未通过；脱敏证据见 `docs/evidence/mcp010c/real-reference-robot.json` 与 `real-codex-cli-c-attempt13.json`。MCP010A/010B 的历史 Dev.app receipts仍原样保留，不能替代 C packaged/live/Viewer evidence。C synthetic/raw/CLI transport receipt 都不证明用户机器人 likeness、PBR、独立人评或 360°。
+MCP010B 当前源码增加 8 个合同，MCP010C 再增加 7 个合同，MCP010E 再增加 6 个合同，MCP010F 轮廓求解器新增 12 个合同（含 `CameraCalibrationRef@1`）及其余 CameraCalibration/target binding 合同，当前共 78 个 JSON Schema（MCP006 历史为 44）。B 的 `GeometryProgram@2`/strict readback/restore evidence source Gate 已通过；Darwin 512 MiB OS memory hard cap 仍 deferred/NOT_RUN。C 的 reference/renderer/review 合同、E 的 AssetPack/Appearance V2 合同与 F 的 silhouette target/camera/Rig/SDF/Part/candidate compare 合同已由 Runtime/MCP producer/consumer 使用；固定 512×512 perspective/z-buffer renderer、九 AOV、local mask/metrics、MCP image block、Codex/human review、离线 AssetPack、512px UV atlas、固定 mikktspace、embedded PBR texture、哈希绑定轮廓目标、扩展相机搜索、受限 Rig/SDF fit 和候选比较的 source raw Gate 已通过。历史真实 Codex CLI C receipt 已完成六 turn/32-call transport；带 15 landmark/8 region intake 的 source-built silhouette-first attempt35 已完成 11-turn detail reference→mask/target→camera/Rig/fit→compare→boundary→九 AOV→typed review/quality transport，但只保留为 provisional retained observation，结果为 `QUALITY_TARGET_NOT_MET`（26 Parts/4704 triangles，IoU `0.741047`、boundary F1 `0.328765`、bbox edge error `0.007813`、landmark coverage `0.733333`、region median `0.869403`），不是 likeness PASS；其 camera-fit `354caf27…f95788` 与 reference-compare `8cd20605…a535` 为 `MISMATCH`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`。Runtime fit proposal 为 `no_improvement`、IoU `0.698340`，仍是 read-only 建议，没有新 candidate mutation/confirm。attempt33/34 的完整相机 payload hash 漂移失败保留为负向证据；`CameraCalibrationRef@1` 已消除跨轮次浮点复制阻断，但不补齐 attempt35 的 compare 真值绑定。当前单 Part proposal 已改为使用选中 Part 的本地边界宽高和质心误差，而不是全身包围盒，且通过独立单测；这只改善编排信号，不证明新模型质量。脱敏证据见 `docs/evidence/mcp010f/real-codex-cli-silhouette-first-20260813-attempt35-detail-camera-ref.json`；same-observation packaged Viewer/human/PBR/export/360 仍未运行。MCP010A/010B 的历史 Dev.app receipts仍原样保留，不能替代 C/D/E/F packaged/live/Viewer evidence。C/E/F synthetic/raw/CLI transport receipt 都不证明用户机器人 likeness、PBR likeness、独立人评或 360°。
 
-`AppearanceProgram@2`、PBR V2/纹理、Viewer 的 Part/MaterialZone/selection/explosion/heatmap、packaged E2E 和 first-party AssetPack 仍属于 MCP010D–F。C 的 RenderSet@2/比较/评审已进入 Runtime-owned producer、CAS artifact、严格 readback、固定 render、QualityReport 和 evidence lineage；Viewer compare source implementation 已通过本地 IPC/构建测试，但不等于 packaged/live Viewer Gate。当前 Runtime Skill registry 的 11 项中，只有 `primitive-blockout@0.2.0` 因 primitive@2 真实 consumer 被标为 active；这不产生材质、纹理、PBR 或视觉相似度。Darwin 512 MiB OS memory hard cap、人评阈值、Viewer/package/live C 和 360 更不能由结构 PASS 推导。
+历史 CameraCalibrationRef 里程碑 `docs/evidence/mcp010f/real-codex-cli-camera-ref-20260813-attempt5.json` 使用同一授权 PNG、同 cohort `e968c9ef…6980`、26 Parts/4704 triangles、九 AOV 和 typed review，Runtime 通过 `camera_hash + canonical_sha256 + target_sha256` 解析精确相机。其 comparison 仍为 `QUALITY_TARGET_NOT_MET`（IoU `0.698465`、boundary F1 `0.281074`、bbox edge error `0.037109`、centroid `0.049908`、landmark coverage `0.666667`、landmark NME `0.201432`、region median `0.771619`、critical region min `0.675106`）。attempt5 不是当前最新完成传输，也不是 benchmark，不解锁材质、confirm/export、human review 或 360；用户持久数据未改变。
+
+`AppearanceProgram@2`、PBR V2/纹理、Viewer 的 Part/MaterialZone/selection/explosion/heatmap、packaged E2E 和 first-party AssetPack 已由 MCP010E/F source Gate 部分落地。C 的 RenderSet@2/比较/评审已进入 Runtime-owned producer、CAS artifact、严格 readback、固定 render、QualityReport 和 evidence lineage；E 的 AssetPack/manifest/provenance、embedded textures、UV/tangent 和九 AOV 也已进入同一 Runtime/Worker source path；F 的 Viewer compare source surface 已通过本地 IPC/构建测试，但不等于 packaged/live Viewer Gate。当前 Runtime Skill registry 的 11 项中，`primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0` 在真实 consumer 和 immutable bundle 校验后 active；这不产生视觉 likeness 或 360°结论。Darwin 512 MiB OS memory hard cap、人评阈值、Viewer/package/live C/D/E/F 和 360 更不能由结构/PBR source PASS 推导。
 
 最新 `d9c23b…ac0bd` 开发包记录了 Bundle 知识分支的校正：`limited` 只阻断视觉质量声明，`STRUCTURAL_BLOCKOUT` 仍需用户明确选择并经过相同 Runtime geometry/readback/approval 硬门。该包的 isolated raw/real-Codex V2 structural 通过；用户完整重启后它已成为当前 live Desktop cohort，并完成 32 工具、Ready/doctor、cohort/catalog/hash 与项目只读回读结构激活。
+
+2026-08-13 的 F 轮廓优先增量已通过隔离 source transport probe：真实 Viewer `chest-shell` 草图被绑定为局部 target，`part_contour_fit_prepare` 生成建议，四个有界单 Part 变体由固定比较器筛选。最高 IoU 为 `0.745895`（provisional observation 对照值 `0.741047`），loss winner 为 IoU `0.745135`、Boundary F1 `0.340045`；两者都未达到严格 `0.90` 轮廓门，也未创建 candidate version/export。该证据只证明轻量纠偏编排和 bounded candidate 选择，不能产生合格 benchmark 或改写当前机器人 `QUALITY_TARGET_NOT_MET`；fresh source binary 的 build identity 为 null，故不宣称 cohort PASS。
+Runtime 的 `silhouette_fit_prepare` 现在会在有 typed Part slice 时做一次选定相机 Part-ID readback，并对匹配参数使用局部 target/model envelope 与 centroid proposal；无 slice 时保持全身 fallback。合成局部优先单测、完整 Runtime 和新的 source receipt 均通过，但它仍只是 bounded reviewable proposal，不放宽质量门或确认/导出边界。
 
 目标 `HumanVisualReviewReceipt` 只证明用户评分绑定到特定 reference/camera/render/candidate hash，不证明模型身份，也不能覆盖 Geometry/UV/PBR 硬门。当前单张参考只能产生 `PARTIAL_VISIBLE_VIEW_PASS`；`HQ_360_PASS` 在多视图完整前固定 blocked。
 

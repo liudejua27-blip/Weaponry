@@ -1,0 +1,34 @@
+{
+  "schema_version": "ForgeCADMCP010FFitPlanSourceReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_BOUNDED_SEMANTIC_PART_MAPPING",
+  "implementation": "scripts/build_mcp010f_fit_plan.py",
+  "input_contracts": [
+    "ReferenceComparisonReport@1",
+    "ReferenceViewSpec@1",
+    "OperatorCatalog@1"
+  ],
+  "output_contract": "ForgeCADReferenceFitPlan@1",
+  "verified_behaviors": [
+    "workflow output is explicitly reference-canvas → silhouette-blockout → landmark-structure → semantic-part-fill → surface-detail → uv-pbr → final",
+    "silhouette gate is evaluated before structure/form/material actions and locks surface_material_unlocked until cumulative gates pass",
+    "known image-space regions map to one primary semantic Part and bounded read-only supporting Parts",
+    "material_zone_hints and per-Part part_operator_hints are emitted without inventing operators",
+    "unknown region IDs are retained in unmapped_region_ids",
+    "canonical input hashes remain mandatory",
+    "no Runtime/CAS/SQLite write and no image bytes recorded"
+  ],
+  "fixture_assertions": [
+    "failed silhouette fixture emits only the silhouette action and keeps later gates locked",
+    "canvas metadata is transient-only and names Runtime QualityReport as the truth source",
+    "chest-armor -> chest-shell primary",
+    "chest-vent/chest-core supporting context",
+    "active catalog filters per-Part operator hints",
+    "invalid comparison canonical hash rejected"
+  ],
+  "source_gate": "script/test_mcp010f.sh",
+  "persistent_user_data_touched": false,
+  "visual_quality_claim": "NOT_CLAIMED",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE"
+}

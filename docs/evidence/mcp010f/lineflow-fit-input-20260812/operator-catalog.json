@@ -1,0 +1,194 @@
+{
+  "canonical_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+  "catalog_id": "forgecad-mcp010d-hard-surface",
+  "geometry_program_schema_version": "GeometryProgram@2",
+  "operators": [
+    {
+      "input_arity": {
+        "max": 0,
+        "min": 0
+      },
+      "operator_id": "forgecad.geometry.primitive@2",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "GeometryPrimitiveParameters@2",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "box",
+        "cylinder",
+        "ellipsoid",
+        "sphere"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 0,
+        "min": 0
+      },
+      "operator_id": "forgecad.geometry.profile-extrude@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "ProfileExtrudeParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "profile-extrude"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 0,
+        "min": 0
+      },
+      "operator_id": "forgecad.geometry.profile-loft@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "ProfileLoftParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "profile-loft"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 0,
+        "min": 0
+      },
+      "operator_id": "forgecad.geometry.revolve@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "RevolveParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "revolve"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 0,
+        "min": 0
+      },
+      "operator_id": "forgecad.geometry.tube-sweep@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "TubeSweepParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "tube-sweep"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 1,
+        "min": 1
+      },
+      "operator_id": "forgecad.geometry.transform@2",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "TransformParameters@2",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "transform"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 1,
+        "min": 1
+      },
+      "operator_id": "forgecad.geometry.mirror@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "MirrorParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "mirror"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 1,
+        "min": 1
+      },
+      "operator_id": "forgecad.geometry.array@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "ArrayParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "array"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 0,
+        "min": 0
+      },
+      "operator_id": "forgecad.geometry.panel@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "PanelParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "panel"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 0,
+        "min": 0
+      },
+      "operator_id": "forgecad.geometry.vent-array@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "VentArrayParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "vent-array"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 0,
+        "min": 0
+      },
+      "operator_id": "forgecad.geometry.joint-stack@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "JointStackParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "joint-stack"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 64,
+        "min": 1
+      },
+      "operator_id": "forgecad.geometry.part-output@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "PartOutputParameters@1",
+      "part_output_required": true,
+      "status": "active",
+      "supported_shapes": [
+        "part-output"
+      ]
+    },
+    {
+      "input_arity": {
+        "max": 2,
+        "min": 2
+      },
+      "operator_id": "forgecad.geometry.boolean@1",
+      "output_kind": "triangle-mesh",
+      "parameter_schema": "BooleanParameters@1",
+      "part_output_required": true,
+      "status": "unavailable",
+      "supported_shapes": [
+        "union",
+        "difference"
+      ]
+    }
+  ],
+  "schema_version": "OperatorCatalog@1"
+}

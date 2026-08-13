@@ -1,0 +1,36 @@
+{
+  "schema_version": "ForgeCADEvidenceMCP010FGeometryExperimentReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-12",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "experiment_id": "pose-yaw-mild",
+  "change_scope": {
+    "geometry_variant": "surface-linework plus one ordered transform stage per semantic Part",
+    "yaw_radians": -0.1,
+    "appearance_or_material_changed": false,
+    "camera_changed": false,
+    "outer_envelope_intent": "test a small three-quarter pose hypothesis without changing Part proportions"
+  },
+  "candidate": {
+    "geometry_part_count": 26,
+    "geometry_triangle_count": 4704,
+    "comparison_report_hash": "18ddf0d1ee68341256c32408b5f3d73d2905411675ff6b6e0757caca89c38797",
+    "render_set_hash": "a276fa9cfca51b7187995aa1b775b8476b6e200e3e126dfae96facbc989664ba"
+  },
+  "metrics": {
+    "silhouette_iou": 0.725125021555,
+    "boundary_f1_4px": 0.278630686917,
+    "bbox_edge_error": 0.005859375,
+    "centroid_error": 0.007416200836,
+    "landmark_coverage": 0.666666666667,
+    "landmark_nme": 0.134743613528,
+    "region_median_iou": 0.838923163208,
+    "critical_region_min_iou": 0.658699990497
+  },
+  "decision": "REJECTED",
+  "reason": "A mild global yaw reduced silhouette IoU, boundary F1, landmark coverage and region agreement versus the retained surface-linework baseline; the camera/pose hypothesis is not promoted.",
+  "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false
+}

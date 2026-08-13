@@ -1,0 +1,20 @@
+{
+  "build_cohort_sha256": "22013490a8a64005da2b8aaa851a7e188fccc9dff7c552d46438e470d0d71343",
+  "codesign": "ad-hoc deep strict PASS",
+  "developer_id": "NOT_RUN",
+  "installed_app": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app",
+  "notarization": "NOT_RUN",
+  "previous_app_backup": "retained",
+  "resource_sha256": {
+    "forgecad-geometry-worker": "044debf20967bfd9a51cf54972a1633e6c5c5fd8f2c0e8f28072569212687ec6",
+    "forgecad-mcp": "0c62d033cb6dbcd56bedc1d84e4c6099e8cdc61dc9120408662a638e1453c889",
+    "forgecad-runtime": "58b15b559ab46b994e0887f8f7815d7c71e352135a6abd7e6d3221b53702cb06"
+  },
+  "schema_version": "ForgeCADDevAppInstallReceipt@1",
+  "source_file_count": 503,
+  "source_revision": "b03b4f20878bbcf4494dec3468772e820a0e8428",
+  "source_worktree_dirty": true,
+  "status": "PASS",
+  "task_id": "FGC-MCP010E-MIRROR",
+  "viewer_sha256": "1e8a88812e356082335baa63674891b331ef31aa58dd3eb5d790d06f417d9d23"
+}

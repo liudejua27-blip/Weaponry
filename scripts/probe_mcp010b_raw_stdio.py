@@ -519,11 +519,11 @@ def main() -> int:
         operators = catalog.get("operators")
         require(
             isinstance(operators, list)
-            and len(operators) == 1
+            and len(operators) == 13
             and isinstance(operators[0], dict)
             and operators[0].get("operator_id") == "forgecad.geometry.primitive@2"
             and operators[0].get("status") == "active",
-            "catalog did not expose only the actual primitive@2 operator",
+            "catalog did not expose the current MCP010D operator set with primitive@2 first",
         )
 
         project = client.tool(

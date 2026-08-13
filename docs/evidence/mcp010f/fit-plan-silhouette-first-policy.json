@@ -1,0 +1,38 @@
+{
+  "schema_version": "ForgeCADMCP010FSilhouetteFirstPolicyReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_POLICY_AND_NEGATIVE_GATE",
+  "implementation": "scripts/build_mcp010f_fit_plan.py",
+  "source_gate": "script/test_mcp010f.sh",
+  "workflow": [
+    "reference-canvas",
+    "silhouette-blockout",
+    "landmark-structure",
+    "semantic-part-fill",
+    "surface-detail",
+    "uv-pbr",
+    "final"
+  ],
+  "verified_behaviors": [
+    "failed silhouette metrics emit only a silhouette action",
+    "failed silhouette metrics keep structure, form and material actions locked",
+    "material review issues do not bypass the cumulative silhouette/structure/form gates",
+    "passing cumulative gates unlock a material-surface action when a typed material issue exists",
+    "canvas metadata is transient-only and names ReferenceComparisonReport@1/QualityReport as the truth source",
+    "no Runtime/CAS/SQLite write and no image bytes recorded"
+  ],
+  "metric_priority": [
+    "boundary_f1_4px",
+    "silhouette_iou",
+    "bbox_edge_error",
+    "centroid_error",
+    "landmark_coverage",
+    "landmark_nme",
+    "region_median_iou",
+    "critical_region_min_iou"
+  ],
+  "visual_quality_claim": "NOT_CLAIMED",
+  "human_visual_review": "NOT_RUN",
+  "full_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false
+}

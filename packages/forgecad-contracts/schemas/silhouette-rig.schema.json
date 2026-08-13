@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-rig.schema.json",
+  "title": "SilhouetteRig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rig_id", "candidate_id", "parameters", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "SilhouetteRig@1"},
+    "rig_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "parameters": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["parameter_id", "part_id", "semantic", "value", "min", "max", "step", "unit"],
+        "properties": {
+          "parameter_id": {"$ref": "#/$defs/id"},
+          "part_id": {"$ref": "#/$defs/id"},
+          "semantic": {"enum": ["width", "height", "depth", "offset_x", "offset_y", "offset_z", "scale"]},
+          "value": {"type": "number", "finite": true},
+          "min": {"type": "number", "finite": true},
+          "max": {"type": "number", "finite": true},
+          "step": {"type": "number", "exclusiveMinimum": 0, "finite": true},
+          "unit": {"enum": ["meter", "ratio"]}
+        }
+      }
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -8,7 +8,7 @@
 use crate::GeometryError;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_GLB_BYTES: usize = 64 * 1024 * 1024;
 const POSITION_WELD_SCALE: f64 = 1_000_000.0;
@@ -670,9 +670,10 @@ struct PartLineage {
 }
 
 /// The V2 product artifact is a closed static profile, rather than a generic
-/// glTF scene.  In particular, there is no animation, skinning, morph target,
-/// texture/image, camera, or extension path which a renderer could use to show
-/// geometry that the static accessor loop below did not inspect.
+/// glTF scene.  Embedded PNG textures are the sole permitted image path for
+/// MCP010E; animation, skinning, morph targets, cameras and external URIs stay
+/// rejected.  Texture bytes are accounted for as image buffer views below so
+/// they cannot hide an uninspected payload in BIN.
 fn enforce_canonical_v2_asset_profile(root: &Value, meshes: &[Value], metrics: &mut Metrics) {
     let Some(root) = root.as_object() else {
         metrics.metadata_mismatch_count += 1;
@@ -690,6 +691,8 @@ fn enforce_canonical_v2_asset_profile(root: &Value, meshes: &[Value], metrics: &
             "buffers",
             "bufferViews",
             "accessors",
+            "images",
+            "textures",
             "extras",
         ],
     ) {
@@ -738,7 +741,16 @@ fn enforce_canonical_v2_asset_profile(root: &Value, meshes: &[Value], metrics: &
         };
         if !has_only_keys(
             material,
-            &["name", "pbrMetallicRoughness", "emissiveFactor"],
+            &[
+                "name",
+                "pbrMetallicRoughness",
+                "emissiveFactor",
+                "normalTexture",
+                "occlusionTexture",
+                "emissiveTexture",
+                "extensions",
+                "extras",
+            ],
         ) {
             metrics.metadata_mismatch_count += 1;
         }
@@ -751,9 +763,68 @@ fn enforce_canonical_v2_asset_profile(root: &Value, meshes: &[Value], metrics: &
         };
         if !has_only_keys(
             pbr,
-            &["baseColorFactor", "metallicFactor", "roughnessFactor"],
+            &[
+                "baseColorFactor",
+                "metallicFactor",
+                "roughnessFactor",
+                "baseColorTexture",
+                "metallicRoughnessTexture",
+            ],
         ) {
             metrics.metadata_mismatch_count += 1;
+        }
+        for texture_key in [
+            "baseColorTexture",
+            "metallicRoughnessTexture",
+            "normalTexture",
+            "occlusionTexture",
+            "emissiveTexture",
+        ] {
+            let Some(texture) = material.get(texture_key).or_else(|| pbr.get(texture_key)) else {
+                continue;
+            };
+            if !has_exact_keys(texture.as_object().unwrap_or(&Map::new()), &["index"])
+                || texture.get("index").and_then(Value::as_u64).is_none()
+            {
+                metrics.metadata_mismatch_count += 1;
+            }
+        }
+        if let Some(images) = root.get("images").and_then(Value::as_array) {
+            for image in images {
+                let Some(image) = image.as_object() else {
+                    metrics.metadata_mismatch_count += 1;
+                    continue;
+                };
+                if !has_exact_keys(image, &["bufferView", "mimeType", "name"])
+                    || image.get("mimeType").and_then(Value::as_str) != Some("image/png")
+                    || image.get("bufferView").and_then(Value::as_u64).is_none()
+                {
+                    metrics.metadata_mismatch_count += 1;
+                }
+            }
+        }
+        if let Some(textures) = root.get("textures").and_then(Value::as_array) {
+            for texture in textures {
+                let Some(texture) = texture.as_object() else {
+                    metrics.metadata_mismatch_count += 1;
+                    continue;
+                };
+                if !has_exact_keys(texture, &["source"])
+                    || texture.get("source").and_then(Value::as_u64).is_none()
+                {
+                    metrics.metadata_mismatch_count += 1;
+                }
+            }
+        }
+        if let Some(extensions) = material.get("extensions").and_then(Value::as_object) {
+            if extensions.keys().any(|key| {
+                !matches!(
+                    key.as_str(),
+                    "KHR_materials_clearcoat" | "KHR_materials_emissive_strength"
+                )
+            }) {
+                metrics.metadata_mismatch_count += 1;
+            }
         }
     }
 }
@@ -819,6 +890,14 @@ fn enforce_canonical_v2_static_bin_layout(
         metrics.metadata_mismatch_count += 1;
     }
     let mut view_uses = BTreeMap::<usize, V2AccessorRole>::new();
+    let image_view_indices = root
+        .get("images")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|image| image.get("bufferView").and_then(Value::as_u64))
+        .filter_map(|index| usize::try_from(index).ok())
+        .collect::<BTreeSet<_>>();
     for (accessor_index, role) in accessor_uses {
         let Some(accessor) = accessors.get(*accessor_index).and_then(Value::as_object) else {
             metrics.metadata_mismatch_count += 1;
@@ -857,7 +936,7 @@ fn enforce_canonical_v2_static_bin_layout(
         }
     }
 
-    if view_uses.len() != views.len() {
+    if view_uses.len() + image_view_indices.len() != views.len() {
         metrics.metadata_mismatch_count += 1;
     }
     let mut expected_offset = 0usize;
@@ -866,16 +945,27 @@ fn enforce_canonical_v2_static_bin_layout(
             metrics.metadata_mismatch_count += 1;
             continue;
         };
-        let Some(role) = view_uses.get(&view_index).copied() else {
-            metrics.metadata_mismatch_count += 1;
-            continue;
-        };
-        let (_, _, _, expected_target) = role.layout();
-        if !has_exact_keys(view, &["buffer", "byteOffset", "byteLength", "target"])
-            || view.get("buffer").and_then(Value::as_u64) != Some(0)
-            || view.get("target").and_then(Value::as_u64) != Some(expected_target)
-        {
-            metrics.metadata_mismatch_count += 1;
+        let image_view = image_view_indices.contains(&view_index);
+        let role = view_uses.get(&view_index).copied();
+        if image_view {
+            if role.is_some()
+                || !has_exact_keys(view, &["buffer", "byteOffset", "byteLength"])
+                || view.get("buffer").and_then(Value::as_u64) != Some(0)
+            {
+                metrics.metadata_mismatch_count += 1;
+            }
+        } else {
+            let Some(role) = role else {
+                metrics.metadata_mismatch_count += 1;
+                continue;
+            };
+            let (_, _, _, expected_target) = role.layout();
+            if !has_exact_keys(view, &["buffer", "byteOffset", "byteLength", "target"])
+                || view.get("buffer").and_then(Value::as_u64) != Some(0)
+                || view.get("target").and_then(Value::as_u64) != Some(expected_target)
+            {
+                metrics.metadata_mismatch_count += 1;
+            }
         }
         let Some(offset) = view
             .get("byteOffset")
