@@ -1,6 +1,6 @@
 # ForgeCAD 单用户 MVP 交付计划
 
-版本：2026-08-10
+版本：2026-08-13
 状态：权威执行合同；MCP005–MCP009 单用户 MVP host golden path 已完成；FGC-MCP010A done
 当前起点：`FGC-MCP005`–`FGC-MCP009` focused Gate 和真实 Codex CLI 十二调用 reference→CAS GLB receipt 已通过；MCP010B structural source Gate 已通过但 Darwin 512 MiB OS 总内存硬门仍未运行；MCP010C source Gate 已实现固定 renderer、九 AOV、reference comparison、MCP image block 和 typed/human review，真实 Codex CLI C 已完成六 turn/32-call transport，轮廓优先 attempt28 又完成 source-built 12-turn transport，但 likeness target 仍未通过（IoU 0.6623、boundary F1 0.2418）；MCP010D/E source Gate 已实现真实硬表面 Operator、离线 AssetPack、512px UV atlas、fixed mikktspace、embedded PBR 和九 AOV raw path；MCP010F source Gate 已实现只读 Viewer 的 AOV/对比/Part/MaterialZone/explosion/heatmap surface，并加入 hash-bound contour target、兼容 camera fit、Rig/SDF、Part proposal 和 candidate compare。真人视觉门、Viewer/package/live C/D/E/F、xatlas/Validator、真实 PBR likeness 和 360 仍为 `目标设计/NOT_RUN/BLOCKED`
 
@@ -9,6 +9,8 @@ Stage 0 当前交付口径：78 Schema、29 read + 18 opt-in write = 47 tools，
 <!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
 
 当前高质量 authoring/readback 路径使用 `GeometryProgram@2` 与 `ArtifactReadback@2`；下文 `GeometryProgram@1` 只保留为 `[transition-v1]` 的 MCP007 历史 MVP 证据，不能作为 MCP010F 当前执行入口。
+
+ADR-0026 与本轮架构重规划补充：后续高质量交付必须先建立清晰模块边界和废弃隔离，再落地 Agentic Design Runtime 的 ReferenceCanvas、DesignSpec、SemanticSceneGraph、DesignSession、Visual Evidence 和 Critic/Repair loop。该目标不改变当前 MVP done 状态，也不把任何新合同计入当前 78 Schema。
 
 ## 1. MVP 要交付什么
 
@@ -48,6 +50,8 @@ flowchart LR
 - Worker 只执行产品预注册、带预算的 typed Operator；不接受 Python、JavaScript、shell、URL 或任意文件路径。
 - Viewer 是可选只读界面。关闭 Viewer 不损坏已确认数据；MVP 不保证 Codex/MCP 退出后未完成 Job 继续。
 - 测试、签名、SBOM、evidence 是交付流程，不是额外常驻运行组件。
+
+模块清晰度要求见 `ARCHITECTURE_MODULE_BOUNDARY.md`：每个模块必须说明唯一写者、Schema、持久化边界、网络/脚本/路径权限、Gate 和 evidence。废弃文档、代码与模块的处理见 `DEPRECATED_ISOLATION_PLAN.md`；active 目录不得混入 superseded 模块。
 
 ## 3. MVP 与正式发布分界
 
@@ -202,6 +206,8 @@ MVP 验收不使用一个未经校准的分数冒充“高质量”。必须同�
 - `FGC-MCP011`：checkpoint、并发 Job、崩溃恢复、配额、GC、全局性能；
 - `FGC-MCP012`：通用第三方 Skill/AssetPack 生命周期、publisher、分发签名/撤销；
 - `FGC-MCP013`：Developer ID、notarization、clean install、升级/回滚、Desktop/CLI packaged E2E、filesystem export、跨类别真人质量门。
+
+ADR-0026 后续重构 backlog 不插队改变当前任务链。推荐在 MCP010F truth freeze 后拆分为：SemanticSceneGraph/ModelUnderstandingBundle、ReferenceCanvas/DesignSpec、DesignSession/Checkpoint、scene observe/visual evidence bundle、Parametric Design Kit、Critic/Repair、真实 stage-gated robot loop。
 
 详细 A–F 合同见 `MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`。当前单图最多是 `PARTIAL_VISIBLE_VIEW_PASS`；五张补充全身视图前 `HQ_360_PASS=BLOCKED_REFERENCE_COVERAGE`。这些任务不能反向改写 MVP host receipt，任何公开分发或通用质量声明仍依赖 MCP013。
 

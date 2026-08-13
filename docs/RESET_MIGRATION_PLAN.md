@@ -1,8 +1,8 @@
 # ForgeCAD 硬切重置与迁移清单
 
-版本：2026-08-09
-状态：历史硬切已完成；后续 MVP 执行以 `MVP_DELIVERY_PLAN.md` 为准
-决策依据：[ADR-0025](ADR/0025-codex-only-mcp-3d-runtime.md)
+版本：2026-08-13
+状态：历史硬切已完成；后续 MVP 执行以 `MVP_DELIVERY_PLAN.md` 为准；ADR-0026 后续要求 active/archive 模块边界清晰，废弃材料先隔离再删除
+决策依据：[ADR-0025](ADR/0025-codex-only-mcp-3d-runtime.md)、[ADR-0026](ADR/0026-agentic-design-runtime.md)
 
 本文是 Luna 执行“先拆断旧工作台，再建设 Codex-only MCP Runtime”的唯一删除清单。没有列入“保留/迁移”的旧代码，不能因为测试依赖而恢复成产品路径。
 
@@ -18,6 +18,18 @@
 6. 删除只在 reset 分支执行。
 
 备份目录不得加入仓库。后续任何破坏性变更仍需新的恢复门。
+
+## 0.1 2026-08-13 隔离补充规则
+
+本文件的历史删除清单继续有效，但后续不再把“删除”作为第一动作。任何废弃文档、代码或模块先按 `DEPRECATED_ISOLATION_PLAN.md` 分类：
+
+1. active 能力：保留在当前源树并有 Schema/tool/runtime/evidence；
+2. target design：只在 ADR/plan 文档中描述；
+3. superseded：移动到 `docs/evidence/archive/**` 或 `packages/forgecad-skills/archive/**`；
+4. rejected：只保留 adoption/decision reason，不进入 active tree；
+5. private backup：含用户数据、原图、绝对路径或旧运行状态时，保留在 Git 外。
+
+本轮已将 superseded `reference-to-typed-plan@0.1.0` 移出 active Skill 根目录，放入 `packages/forgecad-skills/archive/superseded/reference-to-typed-plan/0.1.0`。后续新增废弃项必须先写隔离清单和恢复门，再移动或删除；当前脏工作树不得直接删除不明来源文件。
 
 ## 1. 文档清单
 
@@ -62,6 +74,10 @@
 - `WORKBENCH_VIEWER.md`
 - `SKILL_PACKAGE_STANDARD.md`
 - `EXTERNAL_PROJECT_ADOPTION.md`
+- `ADR/0026-agentic-design-runtime.md`
+- `FORGECAD_AGENTIC_DESIGN_RUNTIME_PLAN.md`
+- `ARCHITECTURE_MODULE_BOUNDARY.md`
+- `DEPRECATED_ISOLATION_PLAN.md`
 
 ## 2. 代码直接删除清单
 
