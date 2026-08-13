@@ -1,7 +1,7 @@
 # ForgeCAD Runtime Viewer
 
-版本：2026-08-09
-状态：当前源码口径为 78 Schema、29 read + 18 opt-in write = 47；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。唯一 `in_progress` 为 `FGC-MCP010F`；provisional observation 的 packaged Viewer binding、正式 VoiceOver、真人/PBR/360 与发布级 packaged E2E 仍 `NOT_RUN/BLOCKED`
+版本：2026-08-13
+状态：当前源码口径为 78 Schema、29 read + 18 opt-in write = 47；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。唯一 `in_progress` 为 `FGC-MCP010F`；provisional observation 的 packaged Viewer binding、正式 VoiceOver、真人/PBR/360 与发布级 packaged E2E 仍 `NOT_RUN/BLOCKED`。ADR-0026 目标是把 Viewer 升级为只读 design stage console，但尚未实现 DesignSession/SemanticSceneGraph 工具面。
 
 Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
 
@@ -19,6 +19,8 @@ Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth
 
 Viewer 不包含聊天、prompt、图片上传、模型选择、Provider 配置、API Key、搜索、coding workspace 或 Agent timeline。
 
+ADR-0026 后，Viewer 的目标角色升级为只读 **design stage console**：它应展示 ReferenceCanvas、DesignSpec 摘要、SemanticSceneGraph、当前 stage、失败门、Visual Evidence Bundle、Critic issue 和下一步允许动作。但这些都必须从 Runtime evidence 派生；Viewer 仍不成为写者。
+
 ## 2. 页面模型
 
 ```text
@@ -33,6 +35,14 @@ Viewer 不包含聊天、prompt、图片上传、模型选择、Provider 配置�
 ```
 
 只允许一个交互 WebGL renderer/context。固定视图和 AOV 是 Runtime 生成的 CAS 工件；Viewer 展示而不重新定义质量事实。
+
+目标 stage console 追加只读区域：
+
+```text
+ReferenceCanvas | DesignSpec | Stage gates | Critic issues | Next allowed action
+```
+
+该区域没有几何写按钮；任何 repair/confirm/export 都回到 Codex 的 prepare/approval/confirm。
 
 ## 3. 允许的交互
 
@@ -72,6 +82,19 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 - 尚未关闭：full issue editing/candidate undo-redo、正式 VoiceOver、同一 provisional observation 的 packaged Viewer binding、独立真人评分、PBR likeness、export/restart 同 hash 与 360。
 
 这些 UI 只消费 Runtime 的 `RenderSet@2`、QualityReport 和 selection projection。屏幕图像、Three.js scene 或本地交互状态不能回写质量 PASS。当前 high-quality inspection 路径是 `GeometryProgram@2` detail → strict readback → `RenderSet@2` 九 AOV → candidate-bound strict compare → typed visual review；`[transition-v1]` `GeometryProgram@1` primitive-only / `RenderSet@1` 四 pass 仅用于历史兼容。正式 VoiceOver 与 provisional observation package binding 属 MCP010F 未关闭子门；Developer ID、clean install、发布级 packaged WebView/GPU/Codex E2E 仍属 MCP013。
+
+### 5.2 ADR-0026 目标 Viewer 面
+
+未来 Viewer 应通过 `scene_observe_get` / `visual_evidence_bundle_get` 只读显示：
+
+- SceneGraph：Part tree、role、dimensions、symmetry、source map；
+- 当前 camera、selection、multi-view AOV；
+- ReferenceCanvas coverage 和 missing/unknown views；
+- 当前 stage、失败指标、阈值和 evidence hash；
+- Critic issue 列表和单 Part/MaterialZone repair intent；
+- checkpoint/version/candidate 关系。
+
+这些目标面当前为 `NOT_IMPLEMENTED`。在对应工具落地前，Viewer 只能显示现有 candidate-bound AOV/compare/quality/selection，不得用本地 UI 推导 DesignSession 真值。
 
 ## 6. 可访问性与性能
 
