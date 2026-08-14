@@ -1,6 +1,6 @@
 # ForgeCAD 架构与模块边界
 
-版本：2026-08-13
+版本：2026-08-15
 状态：模块权责文档；描述当前已实现边界与 ADR-0026 目标模块。Agentic observe/plan projection、嵌套只读 projection conformance、受批准的 durable session/checkpoint/RepairIntent prepare/readback，以及 MCP010F 的窄范围 Primary Form 单动作 prepare/evaluate、bounded action-run/readback 已进入 Runtime/MCP/Viewer；通用 durable/reference/DesignSpec producer、完整单动作 orchestrator 和 Repair 应用仍未进入当前边界。
 
 ## 1. 总体边界
@@ -37,6 +37,7 @@ Codex/Agent 负责理解、规划、设计判断、选择工具和迭代。Forge
 | `forgecad-runtime` | SQLite/CAS/Project/Candidate/Version/Job/Quality | 唯一写者、candidate/version/approval/export、Skill registry、QualityReport | 让 MCP/Viewer/Worker 写库、接受任意路径/URL/脚本 |
 | Runtime Primary Form repair prepare | Runtime-owned staged candidate/CAS、RenderSet、Comparison、QualityReport | 接收一次 bounded typed intent，完成 Runtime-owned fit→GeometryProgram→strict readback→Render Worker→compare；只返回 staged candidate，failed quality 仍失败 | Codex 连续参数搜索、Viewer 重算质量、confirm/version/export、任意脚本 |
 | Runtime Agentic action run | Runtime-owned SQLite/CAS `AgenticActionRunRecord` 与 action result projection | 接收一个已批准、单 Part、`primary-form` bounded action；复用 Runtime repair pipeline，返回可重放的 `DesignActionRun@1`，并通过 `design_action_run_get` 精确回读 | 多阶段自动推进、Repair 应用、candidate/version mutation、confirm/export、Viewer 本地质量推导、任意脚本 |
+| Runtime Render Worker adapter | 无持久状态；只返回 typed render passes | `render_worker.rs` 是 Runtime 侧 fixed/perspective/batch 协议解析唯一入口；只把 bounded GLB + typed camera 交给固定 sibling Render Worker，Primary Form 的 framing/ranking/refit 共用此入口 | 接收 GeometryProgram、编译几何、写 SQLite/CAS、在 Runtime/Viewer 内联 renderer、网络/路径/脚本 |
 | Contracts | JSON Schema + canonical hash | 定义跨进程对象、版本、negative gates | 空 Schema 冒充能力、未实现 producer 就宣传 PASS |
 | Geometry Worker | 临时 worker process | bounded typed Operator、GLB lowering、strict readback | 网络监听、任意 Python/JS/shell、下载资产、写 Runtime DB、渲染 AOV |
 | Render Core / Render Worker | `apps/render-core` 无状态 renderer + `apps/render-worker` 一次性 worker process | 只接受 bounded self-contained GLB 与 typed camera，生成 fixed/perspective/batch AOV；Render Worker 不依赖 Geometry Worker crate | 编译 GeometryProgram、写 Runtime DB、网络/路径/脚本/模型调用 |

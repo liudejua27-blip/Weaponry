@@ -1,4 +1,5 @@
 mod geometry_worker;
+mod render_worker;
 mod ipc;
 mod agentic_design;
 mod agentic_action;
@@ -500,7 +501,7 @@ impl Runtime {
             .into_iter()
             .filter_map(|index| all_coarse_variants.get(index).cloned())
             .collect::<Vec<_>>();
-        let base_full_passes = geometry_worker::render_glb_fit_batch_at_resolution(
+        let base_full_passes = render_worker::render_glb_fit_batch_at_resolution(
             &glb,
             std::slice::from_ref(&base_camera),
             512,
@@ -645,7 +646,7 @@ impl Runtime {
                     .ok_or_else(|| RuntimeError::InvalidInput("CAMERA_FIT_RENDER_FAILED: full-resolution row missing".to_owned()))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let full_resolution_passes = geometry_worker::render_glb_fit_batch_at_resolution(
+        let full_resolution_passes = render_worker::render_glb_fit_batch_at_resolution(
             &glb,
             &full_resolution_cameras,
             512,
@@ -1748,7 +1749,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     camera_refit_budget,
                 );
                 if !refit_cameras.is_empty() {
-                    let refit_passes = geometry_worker::render_glb_fit_batch_at_resolution(
+                    let refit_passes = render_worker::render_glb_fit_batch_at_resolution(
                         &artifact.glb,
                         &refit_cameras,
                         512,
@@ -8582,7 +8583,7 @@ fn camera_fit_row_from_passes(
     reference_mask: &[bool],
     landmarks: Option<&Value>,
     camera: Value,
-    passes: &[geometry_worker::RenderPass],
+    passes: &[render_worker::RenderPass],
     part_ids: &[String],
 ) -> Result<Value, RuntimeError> {
     validate_camera_calibration(&camera)?;
@@ -11321,20 +11322,24 @@ fn hash_geometry_program_with_runtime_worker(
 fn render_fixed_with_runtime_worker(
     geometry_program: &Value,
     appearance_program: &Value,
-) -> Result<Vec<geometry_worker::RenderPass>, geometry_worker::GeometryWorkerError> {
-    match geometry_worker::render_fixed(geometry_program, appearance_program) {
+) -> Result<Vec<render_worker::RenderPass>, geometry_worker::GeometryWorkerError> {
+    let artifact = match geometry_worker::compile_geometry(geometry_program, Some(appearance_program)) {
+        Ok(artifact) => artifact,
+        #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+        Err(geometry_worker::GeometryWorkerError::Unavailable) => {
+            geometry_worker::compile_geometry_test_fallback(geometry_program, Some(appearance_program))?
+        }
+        Err(error) => return Err(error),
+    };
+    match render_worker::render_fixed_glb(&artifact.glb) {
         Ok(passes) => Ok(passes),
         #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
-            let artifact = geometry_worker::compile_geometry_test_fallback(
-                geometry_program,
-                Some(appearance_program),
-            )?;
             forgecad_render_core::render_fixed_glb(&artifact.glb)
                 .map(|passes| {
                     passes
                         .into_iter()
-                        .map(|pass| geometry_worker::RenderPass {
+                        .map(|pass| render_worker::RenderPass {
                             pass: pass.pass,
                             png: pass.png,
                             width: pass.width,
@@ -11351,8 +11356,8 @@ fn render_fixed_with_runtime_worker(
 fn render_glb_with_runtime_worker(
     glb: &[u8],
     camera: &Value,
-) -> Result<Vec<geometry_worker::RenderPass>, geometry_worker::GeometryWorkerError> {
-    match geometry_worker::render_glb(glb, camera) {
+) -> Result<Vec<render_worker::RenderPass>, geometry_worker::GeometryWorkerError> {
+    match render_worker::render_glb(glb, camera) {
         Ok(passes) => Ok(passes),
         #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
@@ -11360,7 +11365,7 @@ fn render_glb_with_runtime_worker(
                 .map(|passes| {
                     passes
                         .into_iter()
-                        .map(|pass| geometry_worker::RenderPass {
+                        .map(|pass| render_worker::RenderPass {
                             pass: pass.pass,
                             png: pass.png,
                             width: pass.width,
@@ -11377,8 +11382,8 @@ fn render_glb_with_runtime_worker(
 fn render_glb_fit_batch_with_runtime_worker(
     glb: &[u8],
     cameras: &[Value],
-) -> Result<Vec<Vec<geometry_worker::RenderPass>>, geometry_worker::GeometryWorkerError> {
-    geometry_worker::render_glb_fit_batch(glb, cameras)
+) -> Result<Vec<Vec<render_worker::RenderPass>>, geometry_worker::GeometryWorkerError> {
+    render_worker::render_glb_fit_batch(glb, cameras)
 }
 
 fn strict_glb_inspection(bytes: &[u8]) -> Result<integrity::GlbIntegrity, RuntimeError> {

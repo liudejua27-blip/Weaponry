@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Runtime Render Worker adapter Gate：`forgecad-runtime/src/render_worker.rs` 现在是 fixed/perspective/batch Render Worker response 的唯一 Runtime typed adapter；Geometry Worker 仅提供 Geometry compile 与固定 sibling launcher，Primary Form 的 framing/full-resolution/refit 统一通过 adapter 进入 isolated Render Worker。source ownership checker、Runtime check 和 focused Primary Form/action/camera regressions 通过；不产生新的真实参考视觉证据，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 仍未运行或阻断。
+
 2026-08-15 Primary Form automatic-target Part Gate：`part_contour_fit_prepare` 现在可从同一 Render Worker silhouette + Part-ID boundary evidence 投影无显式 Part slice 的 automatic target，单 Part probe 支持 `shin-pair → shin-left` 的 bounded typed patch、同 cohort identity 和 baseline retention。真实 receipt `docs/evidence/mcp010f/part-correction-current-20260815-shin-auto.json` 通过 transport/compare，但五个候选均未同时避免 IoU/Boundary/bbox/centroid 回归，故 authored baseline 保留；该 Gate 是局部归因/回退 PASS，不是 likeness 或 high-quality PASS，仍为 `QUALITY_TARGET_NOT_MET`，不改变 camera `MISMATCH`、benchmark incomplete binding、人评/PBR/export-restart/360 状态。
 
 2026-08-15 Primary Form action budget Gate：修复前 real-Codex receipt 证明 `primary_form_repair_prepare` 把 detail 请求的 `max_evaluations=64` 静默截为 24；Runtime 现恢复固定 64 cap，并以 helper 统一约束 `max_iterations=1`。端到端 Runtime fixture 实际消费 63 次 bounded fit，focused/full source Gate 通过；修复后 real-Codex 复跑在 authoring/hash/prepare 阶段 `BLOCKED`，没有新的 compare/likeness 结果。该 Gate 是 Runtime 收敛预算与 Codex 单动作边界 PASS，不是视觉质量 PASS；仍保留 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark incomplete binding、人评/PBR/export-restart/360 未运行。
