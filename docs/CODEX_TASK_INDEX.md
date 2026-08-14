@@ -7,6 +7,8 @@ Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.jso
 
 2026-08-14 Primary Form 肢段尺度/装配控制扩展：detail probe 的 `SilhouetteRig@1` 从 20 个控制扩展为 26 个，新增上臂/前臂/大腿/小腿高度和肘/膝垂直位置；Runtime 复用已有 typed `height`/`offset_y` DAG materialization 与 bounded search，Codex 不再承接连续参数搜索。同步修正 raw stdio probe 的旧工具数期望（`35 + 22 = 57`）。focused/full Runtime、MCP010C 与干净 worktree 的 MCP010F source Gate 通过；没有新的授权机器人视觉 receipt，当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
 
+2026-08-14 Primary Form 首轮全控制覆盖 follow-up：detail probe 的 26-control Rig 现在以 `max_evaluations=64` 调用 Runtime；在 GeometryProgram 路径，Runtime 的 `32/16/16` 三段预算让初始证据提案之后完整覆盖 26 个控制，再执行剩余方向试探和相机重拟合。Codex 仍只提交一次 Rig，连续参数搜索不回到 Codex。26-control schedule regression 与 full Runtime 通过，未产生新的授权机器人视觉 receipt；F 仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-14 Viewer evidence lineage follow-up：Runtime `visual_evidence` 现在在 Viewer read model 出口统一验证 candidate artifact、RenderSet、comparison report、QualityReport、reference/target 和 camera 的 hash-bound lineage；comparison 缺失、artifact/target/reference/camera 不一致均 fail closed。新增合法 RenderSet 重绑错误 artifact 的 Runtime 负向回归；并修正 `primary_form_repair_prepare` optimizer schema 与 MCP 有界 schema validator 的不兼容。该模块只收口 Viewer 真值边界，不改变 `QUALITY_TARGET_NOT_MET`、`MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或未运行的 human/PBR/export-restart/360 门。
 
 2026-08-14 Primary Form objective alignment follow-up：Runtime Geometry trial 统一复用 camera 的 landmark/coverage-aware loss，避免几何搜索用 contour-only loss 绕过观测证据；focused 与完整 Runtime 回归通过。新 cohort 真实 Codex 复跑在 authoring sequence 阻断，未产出新的视觉指标，故不升级当前任务的视觉质量或 benchmark 状态。

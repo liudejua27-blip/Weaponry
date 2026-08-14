@@ -1136,7 +1136,7 @@ def main() -> int:
                     "target_sha256": silhouette_target_sha,
                     "rig": rig,
                     "base_camera": camera_ref,
-                    "optimizer": {"algorithm": "coordinate_descent", "max_iterations": 2, "max_evaluations": 32, "step_fraction": 0.1},
+                    "optimizer": {"algorithm": "coordinate_descent", "max_iterations": 2, "max_evaluations": 64, "step_fraction": 0.1},
                     "canonical_sha256": "",
                 }
                 # Codex may serialize an integral float as an integer while

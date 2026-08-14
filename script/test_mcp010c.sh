@@ -21,8 +21,9 @@ assert 'skill_id' in source and 'ponytail-preflight' in source
 assert "Before any other ForgeCAD tool in this fresh MCP session" in source
 for parameter_id in ("upper-arm-height", "forearm-height", "thigh-height", "shin-height", "elbow-offset-y", "knee-offset-y"):
     assert f'"parameter_id": "{parameter_id}"' in source
+assert '"max_evaluations": 64' in source
 print("Codex CLI probe Ponytail preflight session boundary PASS")
-print("Codex CLI probe Primary Form limb-length and vertical-placement controls PASS")
+print("Codex CLI probe Primary Form 26-control bounded coverage budget PASS")
 PY
 
 CARGO_TARGET_DIR="$TARGET_DIR" \

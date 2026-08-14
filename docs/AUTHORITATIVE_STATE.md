@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-14 Primary Form 首轮全控制覆盖修订：detail route 的 26-control `SilhouetteRig@1` 现在通过 `max_evaluations=64` 进入 Runtime；GeometryProgram 路径的确定性预算为 `32 geometry + 16 initial-camera + 16 geometry-winner-camera-refit`，首轮几何试探覆盖初始证据提案和全部 26 个控制。该 source/convergence 修订有 Runtime focused/full regression，但尚未重新运行授权机器人 reference，因此不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或人评/PBR/export-restart/360 状态。
+
 版本：2026-08-13
 状态：MCP005–009 functional truth 已实现；FGC-MCP010A done；MCP010B structural truth source Gate 已通过但 Darwin OS memory hard cap deferred/NOT_RUN；MCP010C source-focused renderer/compare/review Gate、MCP010D hard-surface Operator/Skill Gate 与 MCP010E 离线 AssetPack/UV/PBR/MikkTSpace Gate 已通过，首次真实机器人 compare/review transport 已运行但 likeness threshold `FAIL_QUALITY_TARGET_NOT_MET`；MCP010F Viewer source Gate 已通过，当前 cohort packaged Viewer CLI read-model 已完成 exact project/candidate/artifact/reference/render-set/comparison lineage binding，正式 UI/accessibility、独立人评、360 仍 NOT_RUN/BLOCKED。当前 F 轮廓 slice 另提供 Runtime-owned `silhouette_part_error_get`：按 hash 绑定的多 Part table 归因局部边界误差，source focused PASS；它不改变当前真实图片 likeness 失败事实。ADR-0026 的 observe/plan projection 与受批准 durable `DesignSession`/`DesignCheckpoint`/`RepairIntent` prepare/readback 已成为当前 source/runtime/MCP/Viewer 证据层；单动作 orchestrator、Repair 应用、完整 producer/consumer conformance 与完整视觉门仍未完成。
 

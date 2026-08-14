@@ -28,6 +28,7 @@ from pathlib import Path
 source = Path("scripts/probe_mcp010c_codex_cli.py").read_text(encoding="utf-8")
 for parameter_id in ("upper-arm-height", "forearm-height", "thigh-height", "shin-height", "elbow-offset-y", "knee-offset-y"):
     assert f'"parameter_id": "{parameter_id}"' in source
+assert '"max_evaluations": 64' in source
 print("MCP010F source route includes bounded Primary Form limb-length and vertical-placement controls")
 PY
 

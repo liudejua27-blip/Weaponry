@@ -1425,9 +1425,10 @@ impl Runtime {
                         .max(1e-6);
                     // The first coordinate pass follows the direction of the
                     // evidence-attributed proposal, so a 16-probe default
-                    // reaches all 12 current Primary Form controls.  Only a
-                    // later pass tests the opposite direction.  The old
-                    // +/- pair schedule spent two probes on each early
+                    // reaches every supplied Primary Form control whenever the
+                    // Runtime budget has room for the complete first pass.
+                    // Only a later pass tests the opposite direction.  The
+                    // old +/- pair schedule spent two probes on each early
                     // parameter and left the rest of the Rig untouched.
                     let authored_value = parameter.get("value").and_then(Value::as_f64).unwrap_or(value);
                     let proposal_value = selected_parameters
@@ -13933,7 +13934,7 @@ mod tests {
 
     #[test]
     fn primary_form_probe_schedule_covers_all_ranked_parameters_before_repeat() {
-        let ranked = (0..12).collect::<Vec<_>>();
+        let ranked = (0..26).collect::<Vec<_>>();
         let first_pass = (1..=ranked.len())
             .map(|probe_index| primary_form_probe_coordinate(&ranked, probe_index).unwrap())
             .collect::<Vec<_>>();
@@ -13950,6 +13951,9 @@ mod tests {
         assert_eq!(primary_form_evaluation_budgets(1, true), (0, 1, 0));
         assert_eq!(primary_form_evaluation_budgets(64, true), (32, 16, 16));
         assert_eq!(primary_form_evaluation_budgets(24, false), (0, 24, 0));
+        let detail_rig_parameter_count = 26;
+        let detail_budgets = primary_form_evaluation_budgets(64, true);
+        assert!(detail_budgets.0 >= detail_rig_parameter_count + 1);
         for max_evaluations in 1..=64 {
             let budgets = primary_form_evaluation_budgets(max_evaluations, true);
             assert!(budgets.0 + budgets.1 + budgets.2 <= max_evaluations);

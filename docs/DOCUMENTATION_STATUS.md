@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-14 Primary Form 首轮全控制覆盖修复：detail probe 的 26-control `SilhouetteRig@1` 现在提交 `max_evaluations=64`；Runtime 的三段有界预算为 `32 geometry + 16 initial-camera + 16 geometry-winner-camera-refit`，几何阶段的初始证据提案之后完整覆盖 26 个控制。该修复仍是 Runtime/source 收敛能力，不是 Codex 连续搜索或视觉质量证据；26-control focused regression、full Runtime 回归、MCP010C/F source Gate 通过。没有新的授权机器人 likeness receipt，当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。
+
 2026-08-14 Primary Form 肢段尺度/装配控制扩展：detail probe 现在声明 26 个有界 Rig 控制，在现有 typed `height`/`offset_y` 语义上补充四个肢段高度和肘/膝垂直装配位置；Runtime 的 bounded schedule、DAG-aware materialization、Geometry/Render Worker 边界和 Viewer 真值边界不变。同步修正 raw stdio probe 的工具清单期望为 `35 read + 22 opt-in write = 57`。focused/full Runtime、MCP010C 与干净 worktree 的 MCP010F source Gate 通过；没有新的授权机器人 likeness receipt，故状态仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 仍未运行或阻断。
 
 2026-08-14 Viewer 真值边界修复：Runtime `visual_evidence` 现在统一检查 candidate artifact、RenderSet、comparison report、QualityReport、reference/target 与 camera 的同 hash lineage，并对缺失 comparison 或错误 artifact fail closed。新增 Runtime 负向回归验证跨 artifact 绑定被拒绝；同时修正 `primary_form_repair_prepare` 的 optimizer schema，使 MCP 有界 schema validator 可完整验证 57 个工具。Viewer 继续只显示 Runtime `QualityReport@2`，本修复不升级真实机器人质量状态。
