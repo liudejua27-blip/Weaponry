@@ -36,7 +36,8 @@ Codex/Agent 负责理解、规划、设计判断、选择工具和迭代。Forge
 | `forgecad-mcp` | 无数据库状态 | MCP initialize、tool/resource manifest、typed request validation、连接 Runtime | 打开 SQLite/CAS、执行模型、运行脚本、保存 Provider/API Key |
 | `forgecad-runtime` | SQLite/CAS/Project/Candidate/Version/Job/Quality | 唯一写者、candidate/version/approval/export、Skill registry、QualityReport | 让 MCP/Viewer/Worker 写库、接受任意路径/URL/脚本 |
 | Contracts | JSON Schema + canonical hash | 定义跨进程对象、版本、negative gates | 空 Schema 冒充能力、未实现 producer 就宣传 PASS |
-| Geometry Worker | 临时 worker process | bounded typed Operator、GLB lowering、strict readback | 网络监听、任意 Python/JS/shell、下载资产、写 Runtime DB |
+| Geometry Worker | 临时 worker process | bounded typed Operator、GLB lowering、strict readback | 网络监听、任意 Python/JS/shell、下载资产、写 Runtime DB、渲染 AOV |
+| Render Core / Render Worker | `apps/render-core` 无状态 renderer + `apps/render-worker` 一次性 worker process | 只接受 bounded self-contained GLB 与 typed camera，生成 fixed/perspective/batch AOV；Render Worker 不依赖 Geometry Worker crate | 编译 GeometryProgram、写 Runtime DB、网络/路径/脚本/模型调用 |
 | Appearance/Render path | Worker/Runtime evidence | MaterialZone、UV/tangent、PBR、九 AOV、reference compare | 用 beauty/截图替代 QualityReport |
 | Agentic projection | Runtime 按需派生的临时 projection；不持久化 | `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get`；输出 observed/inferred/unknown、stage、gate、action 和 hash binding | 写 SQLite/CAS/candidate/version/checkpoint；把 projection 当 durable DesignSession 或视觉 PASS |
 | Agentic durable prepare | Runtime-owned SQLite/CAS session/checkpoint/RepairIntent prepare/readback | `session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare`；要求 approval、project/candidate/reference/evidence binding，restore 只生成 CAS-only intent | 执行 orchestrator/Repair、直接改 candidate/version/history、把 prepare receipt 当视觉 PASS |
@@ -66,6 +67,8 @@ Codex/Agent 负责理解、规划、设计判断、选择工具和迭代。Forge
 - `apps/desktop/src-tauri/crates/forgecad-runtime/**`
 - `apps/desktop/src-tauri/crates/forgecad-mcp/**`
 - `apps/geometry-worker/**`
+- `apps/render-core/**`
+- `apps/render-worker/**`
 - `apps/desktop/src/features/runtime-viewer/**`
 - `packages/forgecad-contracts/schemas/**`
 - `packages/forgecad-skills/bundles/**`

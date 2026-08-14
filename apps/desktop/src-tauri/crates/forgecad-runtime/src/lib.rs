@@ -9792,7 +9792,7 @@ fn render_fixed_with_runtime_worker(
                 geometry_program,
                 Some(appearance_program),
             )?;
-            forgecad_geometry_worker::render_fixed_glb(&artifact.glb)
+            forgecad_render_core::render_fixed_glb(&artifact.glb)
                 .map(|passes| {
                     passes
                         .into_iter()
@@ -9818,7 +9818,7 @@ fn render_glb_with_runtime_worker(
         Ok(passes) => Ok(passes),
         #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
-            forgecad_geometry_worker::render_perspective_glb(glb, camera)
+            forgecad_render_core::render_perspective_glb(glb, camera)
                 .map(|passes| {
                     passes
                         .into_iter()

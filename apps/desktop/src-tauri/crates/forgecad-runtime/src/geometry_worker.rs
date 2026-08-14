@@ -380,7 +380,7 @@ pub(crate) fn render_glb_fit_batch_at_resolution(
         cameras
             .iter()
             .map(|camera| {
-                forgecad_geometry_worker::render_perspective_glb_fit_at_resolution(glb, camera, resolution)
+                forgecad_render_core::render_perspective_glb_fit_at_resolution(glb, camera, resolution)
                     .map(|passes| {
                         passes
                             .into_iter()

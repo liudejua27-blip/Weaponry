@@ -9,6 +9,7 @@ DATA_ROOT="$TEMP_ROOT/runtime-data"
 EXPORT_DATA_ROOT="$TEMP_ROOT/export-restart-runtime-data"
 
 python3 "$PROJECT_ROOT/scripts/check_forgecad_contracts.py"
+python3 "$PROJECT_ROOT/scripts/check_render_worker_boundary.py"
 python3 -m py_compile "$PROJECT_ROOT/scripts/probe_mcp010c_raw_stdio.py"
 python3 - "$PROJECT_ROOT/scripts/probe_mcp010c_codex_cli.py" <<'PY'
 from pathlib import Path
