@@ -1457,9 +1457,12 @@ fn boundary_error_segments_for_masks(
         if let Some(program) = geometry_program_draft.as_ref() {
             // Evaluate the evidence-attributed proposal once, then walk a
             // deterministic coordinate neighborhood around the best actual
-            // mesh found so far.  Every probe goes through the isolated
-            // Geometry Worker and Render Worker; this is the Primary Form
-            // numeric loop, not an image-space heuristic in Codex.
+            // mesh found so far.  If the joint proposal overshoots, the first
+            // two bounded retries backtrack it toward the authored baseline
+            // before spending the remaining budget on single-coordinate
+            // probes. Every probe goes through the isolated Geometry Worker
+            // and Render Worker; this is the Primary Form numeric loop, not
+            // an image-space heuristic in Codex.
             let parameter_indices = ranked_rig_parameter_indices_with_boundary_context(
                 rig,
                 &selected_parameters,
@@ -1495,15 +1498,39 @@ fn boundary_error_segments_for_masks(
             let mut best_geometry_loss = best_loss;
             let mut best_geometry_parameters = baseline_parameters.clone();
             let mut best_geometry_metrics = metrics.clone();
+            let mut initial_proposal_improved = None;
             for probe_index in 0..geometry_budget {
+                let backtrack_fraction = if initial_proposal_improved == Some(false) {
+                    match probe_index {
+                        1 => Some(0.5),
+                        2 => Some(0.25),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
                 let mut parameter_values = if probe_index == 0 {
                     selected_parameters.clone()
+                } else if let Some(fraction) = backtrack_fraction {
+                    interpolate_rig_parameter_values(
+                        definitions,
+                        &selected_parameters,
+                        fraction,
+                    )
                 } else {
                     best_geometry_parameters.clone()
                 };
-                if probe_index > 0 && !parameter_indices.is_empty() {
-                    let probe_slot = probe_index - 1;
-                    let coordinate = primary_form_probe_coordinate(&parameter_indices, probe_index)
+                if probe_index > 0 && backtrack_fraction.is_none() && !parameter_indices.is_empty() {
+                    let coordinate_probe_index = if initial_proposal_improved == Some(false) {
+                        // Probe 1 and 2 were reserved for proposal backtracking.
+                        // Start the coordinate schedule at its first parameter
+                        // only after those retries have been consumed.
+                        probe_index.saturating_sub(2)
+                    } else {
+                        probe_index
+                    };
+                    let probe_slot = coordinate_probe_index - 1;
+                    let coordinate = primary_form_probe_coordinate(&parameter_indices, coordinate_probe_index)
                         .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty".to_owned()))?;
                     let parameter = definitions.get(coordinate).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter index drifted".to_owned()))?;
                     let value = parameter_values
@@ -1554,6 +1581,9 @@ fn boundary_error_segments_for_masks(
                     Some(&selected_camera),
                 )?;
                 if applied == 0 {
+                    if probe_index == 0 {
+                        initial_proposal_improved = Some(false);
+                    }
                     continue;
                 }
                 let finalized = finalize_v2_geometry_program(draft)?;
@@ -1595,6 +1625,9 @@ fn boundary_error_segments_for_masks(
                 // two values were not comparable.
                 let loss = camera_fit_loss(&loss_metrics);
                 geometry_evaluations += 1;
+                if probe_index == 0 {
+                    initial_proposal_improved = Some(loss + 1e-12 < best_loss);
+                }
                 if loss + 1e-12 < best_geometry_loss {
                     best_geometry_loss = loss;
                     best_geometry_parameters = parameter_values;
@@ -9740,6 +9773,47 @@ fn primary_form_probe_coordinate(parameter_indices: &[usize], probe_index: usize
     parameter_indices.get((probe_index - 1) % parameter_indices.len()).copied()
 }
 
+/// Backtrack one evidence-attributed joint proposal toward the authored Rig
+/// baseline without widening any typed bound. This is used only inside the
+/// Runtime-owned Primary Form search: it gives coupled width/height/offset
+/// controls a deterministic chance to recover from an over-large projection
+/// before the search falls back to independent coordinate probes.
+fn interpolate_rig_parameter_values(
+    definitions: &[Value],
+    selected_parameters: &[Value],
+    fraction: f64,
+) -> Vec<Value> {
+    let fraction = fraction.clamp(0.0, 1.0);
+    definitions
+        .iter()
+        .enumerate()
+        .map(|(index, definition)| {
+            let authored = definition
+                .get("value")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0);
+            let proposed = selected_parameters
+                .get(index)
+                .and_then(|row| row.get("value"))
+                .and_then(Value::as_f64)
+                .unwrap_or(authored);
+            let min = definition
+                .get("min")
+                .and_then(Value::as_f64)
+                .unwrap_or(authored);
+            let max = definition
+                .get("max")
+                .and_then(Value::as_f64)
+                .unwrap_or(authored);
+            let mut value = definition.clone();
+            value["value"] = Value::from(stable_visual_metric(
+                (authored + (proposed - authored) * fraction).clamp(min, max),
+            ));
+            value
+        })
+        .collect()
+}
+
 fn primary_form_evaluation_budgets(
     max_evaluations: usize,
     has_geometry_program: bool,
@@ -14458,6 +14532,48 @@ mod tests {
         assert_eq!(primary_form_probe_coordinate(&ranked, ranked.len() + 1), Some(0));
         assert_eq!(primary_form_probe_coordinate(&[], 1), None);
         assert_eq!(primary_form_probe_coordinate(&ranked, 0), None);
+    }
+
+    #[test]
+    fn primary_form_joint_proposal_backtracks_inside_authored_bounds() {
+        let definitions = vec![
+            json!({
+                "parameter_id":"chest-width",
+                "part_id":"chest-shell",
+                "semantic":"width",
+                "value":1.0,
+                "min":0.5,
+                "max":1.5,
+                "step":0.05,
+                "unit":"ratio"
+            }),
+            json!({
+                "parameter_id":"chest-offset-x",
+                "part_id":"chest-shell",
+                "semantic":"offset_x",
+                "value":0.0,
+                "min":-0.4,
+                "max":0.4,
+                "step":0.05,
+                "unit":"meter"
+            }),
+        ];
+        let proposal = vec![
+            json!({"parameter_id":"chest-width","part_id":"chest-shell","value":1.4}),
+            json!({"parameter_id":"chest-offset-x","part_id":"chest-shell","value":0.3}),
+        ];
+        let half = interpolate_rig_parameter_values(&definitions, &proposal, 0.5);
+        let quarter = interpolate_rig_parameter_values(&definitions, &proposal, 0.25);
+        assert_eq!(half[0]["value"], 1.2);
+        assert_eq!(half[1]["value"], 0.15);
+        assert_eq!(quarter[0]["value"], 1.1);
+        assert_eq!(quarter[1]["value"], 0.075);
+        assert!(half.iter().zip(&definitions).all(|(value, definition)| {
+            let candidate = value["value"].as_f64().unwrap();
+            let min = definition["min"].as_f64().unwrap();
+            let max = definition["max"].as_f64().unwrap();
+            (min..=max).contains(&candidate)
+        }));
     }
 
     #[test]

@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-14 Primary Form 联合 proposal 回退 handoff：Runtime 现在在同一 dominant Part 内对证据提案执行固定 `1.0 → 0.5 → 0.25` 回退；只有严格改善才更新 Geometry incumbent，之后才进入单坐标探测。回退值始终从 authored baseline 插值且不扩大 `SilhouetteRig@1` bounds，所有试算继续经 Geometry Worker、strict readback 和隔离 Render Worker。focused/full Runtime 与 contracts 通过；没有新的授权参考字节或视觉 receipt，仍保持 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，不代表 Repair 已执行。
+
 2026-08-14 Primary Form bilateral Part-ID projection handoff：Runtime 已把 Render Worker 的左右显式 Part-ID 聚合到同一 Rig `*-pair` semantic Part，再计算局部 envelope proposal；这补上了“主导 Part 已选中但 pair proposal 未被投影”的收敛缺口。focused/full Runtime、MCP010C/F source 与 Render Worker boundary Gate 通过；没有新的授权参考字节或视觉 receipt，当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-14 Primary Form 单 Part action scope handoff：Runtime 已把 candidate-bound boundary evidence 聚合出的主导 Part 设为单次 bounded repair 的唯一 mutable scope，并对其他 Part 恢复 authored baseline；critic projection 现在把 Codex-facing repair operation 固定为 `primary_form_repair_prepare`，避免重新暴露 `silhouette_fit_prepare` 连续搜索。focused/full Runtime、Agentic contract、MCP010C/F source 与 Render Worker boundary Gate 通过。当前没有新的授权参考字节或视觉 receipt，仍保持 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，Repair 尚未执行。

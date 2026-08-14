@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-14 Primary Form 联合 proposal 回退修复：当 candidate-bound dominant Part 的一次性 width/height/offset 联合提案未严格优于 authored baseline 时，Runtime 在继续坐标探测前按 `1.0 → 0.5 → 0.25` 的固定比例回退重试；仍受同一 bounded budget、Rig bounds、Geometry Worker、strict GLB readback 和隔离 Render Worker 约束。focused/full Runtime 与 contracts 通过；没有新的授权参考字节或视觉 receipt，质量真值仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-14 Primary Form bilateral Part-ID projection repair：Runtime boundary proposal 现在把 Worker 的固定 `*-left`/`*-right` Part-ID 聚合到 Rig 的 `*-pair` semantic Part，再计算同一局部 envelope 的 width/height/offset proposal；此前只能选中 dominant pair，但 proposal 可能保持 authored baseline。pair alias focused regression、full Runtime、MCP010C/F source Gate 通过；没有新的授权参考字节或视觉 receipt，质量真值不变。
 
 2026-08-14 Primary Form 单 Part action scope：Runtime 现在先从 candidate-bound Part-ID boundary evidence 选出主导 Part，再把本次 bounded proposal 的可变范围锁定到该 Part；其余参数恢复 authored baseline，避免一次动作耦合多个轮廓误差。`DesignCriticReport@1.primary_form_directive.repair_operation` 同步直接指向 `primary_form_repair_prepare`，Codex 不再把只读 `silhouette_fit_prepare` 当作连续搜索入口。focused/full Runtime、Agentic contract、MCP010C/F source 和 Render Worker boundary Gate 通过；没有新的授权参考字节或视觉 receipt，故 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 及 human/PBR/export-restart/360 状态不变。
