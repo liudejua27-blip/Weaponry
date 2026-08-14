@@ -1174,19 +1174,16 @@ impl Runtime {
             }
             None => None,
         };
-        // Give the Runtime-owned Primary Form search the larger share of the
-        // bounded budget.  The previous independent cap of eight evaluations
-        // per phase meant a request for 24 evaluations silently consumed only
-        // 16 and, with a 12-parameter Rig, never reached the later controls.
-        // Each geometry probe is still bounded and goes through the isolated
-        // Geometry Worker plus Render Worker; Codex supplies the typed Rig
-        // bounds once and does not choose a continuous parameter trace.
-        // Camera rows are also real Worker renders, but retain the remainder
-        // of the caller's declared budget instead of applying a second fixed
-        // cap.  The outer optimizer validation still bounds the total request
-        // to 64 evaluations; a later retry remains the explicit refinement
-        // boundary.
-        let (geometry_budget, camera_budget) = primary_form_evaluation_budgets(
+        // Split the caller's bounded budget into initial camera search,
+        // geometry trials and a final camera refit around the winning geometry.
+        // The old independent per-phase caps could consume the request before
+        // later Rig controls were reached and left the geometry winner at a
+        // camera that had only been optimized for the authored mesh.  Every
+        // probe below remains a real isolated Geometry/Render Worker call;
+        // Codex supplies the typed Rig bounds once and never chooses a
+        // continuous parameter trace.  The outer optimizer validation still
+        // bounds the complete three-phase schedule to 64 evaluations.
+        let (geometry_budget, camera_budget, camera_refit_budget) = primary_form_evaluation_budgets(
             max_evaluations,
             geometry_program_draft.is_some(),
         );
@@ -1338,7 +1335,7 @@ impl Runtime {
             }
         }
         rows.sort_by(|left, right| left.0.partial_cmp(&right.0).unwrap_or(std::cmp::Ordering::Equal));
-        let (mut best_loss, selected_camera, mut metrics) = best_overall
+        let (mut best_loss, mut selected_camera, mut metrics) = best_overall
             .or_else(|| rows.first().cloned())
             .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_UNAVAILABLE".to_owned()))?;
         let base_loss = rows
@@ -1374,6 +1371,7 @@ impl Runtime {
             Some(&selected_camera),
         );
         let mut geometry_evaluations = 0usize;
+        let mut camera_refit_evaluations = 0usize;
         // Preserve the exact typed GeometryProgram that produced the winning
         // geometry trial. Returning only compact parameter deltas forced
         // Codex to reconstruct the program and could silently diverge from
@@ -1518,6 +1516,90 @@ impl Runtime {
                 // free to choose a different typed Part/target intent.
                 selected_parameters = baseline_parameters;
             }
+
+            // Geometry and camera are coupled: changing the chest/limb
+            // envelope changes the perspective projection that minimizes the
+            // same target loss.  The old path accepted a geometry winner at
+            // the authored camera and then sent that pair directly to
+            // compare.  That allowed camera error to mask geometry progress
+            // (or let a camera compensate for a bad form), so a Primary Form
+            // action could report a local winner without actually converging.
+            // Refit only a small deterministic neighborhood around the
+            // geometry winner.  This is still one Runtime-owned bounded
+            // schedule; Codex never sees or steers the continuous trace.
+            if camera_refit_budget > 0 && selected_geometry_program.is_some() {
+                let finalized = selected_geometry_program
+                    .as_ref()
+                    .expect("geometry program checked above");
+                let artifact = compile_geometry_with_runtime_worker(finalized, None)
+                    .map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_REFIT_FAILED: {error}")))?;
+                let inspection = strict_glb_inspection(&artifact.glb).map_err(|error| {
+                    RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_REFIT_FAILED: {error}"))
+                })?;
+                if !inspection.hard_gate_passed {
+                    return Err(RuntimeError::InvalidInput(format!(
+                        "SILHOUETTE_FIT_GEOMETRY_REFIT_FAILED: {}",
+                        inspection.failure_codes.join(",")
+                    )));
+                }
+                let refit_cameras = primary_form_camera_refit_schedule(
+                    &selected_camera,
+                    camera_refit_budget,
+                );
+                if !refit_cameras.is_empty() {
+                    let refit_passes = geometry_worker::render_glb_fit_batch_at_resolution(
+                        &artifact.glb,
+                        &refit_cameras,
+                        512,
+                    )
+                    .map_err(|error| {
+                        RuntimeError::InvalidInput(format!(
+                            "SILHOUETTE_FIT_GEOMETRY_REFIT_RENDER_FAILED: {error}"
+                        ))
+                    })?;
+                    if refit_passes.len() != refit_cameras.len() {
+                        return Err(RuntimeError::InvalidInput(
+                            "SILHOUETTE_FIT_GEOMETRY_REFIT_RENDER_FAILED: result count mismatch"
+                                .to_owned(),
+                        ));
+                    }
+                    for (camera_candidate, passes) in refit_cameras.into_iter().zip(refit_passes) {
+                        let silhouette = passes
+                            .iter()
+                            .find(|pass| pass.pass == "silhouette")
+                            .ok_or_else(|| {
+                                RuntimeError::InvalidInput(
+                                    "SILHOUETTE_FIT_GEOMETRY_REFIT_RENDER_FAILED: silhouette pass missing"
+                                        .to_owned(),
+                                )
+                            })?;
+                        let model_mask = decode_binary_mask(&silhouette.png).map_err(|error| {
+                            RuntimeError::InvalidInput(format!(
+                                "SILHOUETTE_FIT_GEOMETRY_REFIT_FAILED: {error}"
+                            ))
+                        })?;
+                        let part_context = passes
+                            .iter()
+                            .find(|pass| pass.pass == "part-id")
+                            .map(|pass| (pass.png.as_slice(), inspection.part_ids.as_slice()));
+                        let candidate_metrics =
+                            extended_silhouette_metrics(&target_mask.mask, &model_mask);
+                        let loss_metrics = transient_loss_metrics_with_parts(
+                            &candidate_metrics,
+                            &model_mask,
+                            target.get("landmarks"),
+                            part_context,
+                        );
+                        let loss = camera_fit_loss(&loss_metrics);
+                        camera_refit_evaluations += 1;
+                        if loss + 1e-12 < best_loss {
+                            best_loss = loss;
+                            selected_camera = camera_candidate;
+                            metrics = candidate_metrics;
+                        }
+                    }
+                }
+            }
         }
         // The geometry-search incumbent may still be represented by the full
         // SilhouetteRig parameter definitions when the authored baseline wins.
@@ -1527,7 +1609,10 @@ impl Runtime {
         // deltas and validating the result.
         let selected_parameters = compact_rig_parameter_values(rig, &selected_parameters);
         let parameter_deltas = rig_parameter_deltas(rig, &selected_parameters);
-        let total_evaluations = rows.len().saturating_add(geometry_evaluations);
+        let total_evaluations = rows
+            .len()
+            .saturating_add(geometry_evaluations)
+            .saturating_add(camera_refit_evaluations);
         let mut result = json!({
             "schema_version":"SilhouetteFitResult@1",
             "project_id":project_id,
@@ -9081,14 +9166,47 @@ fn primary_form_probe_coordinate(parameter_indices: &[usize], probe_index: usize
     parameter_indices.get((probe_index - 1) % parameter_indices.len()).copied()
 }
 
-fn primary_form_evaluation_budgets(max_evaluations: usize, has_geometry_program: bool) -> (usize, usize) {
-    let geometry_budget = if has_geometry_program && max_evaluations >= 2 {
-        (max_evaluations.saturating_mul(2) / 3).clamp(1, 48)
-    } else {
-        0
-    };
-    let camera_budget = max_evaluations.saturating_sub(geometry_budget).max(1).min(32);
-    (geometry_budget, camera_budget)
+fn primary_form_evaluation_budgets(
+    max_evaluations: usize,
+    has_geometry_program: bool,
+) -> (usize, usize, usize) {
+    if !has_geometry_program {
+        return (0, max_evaluations.clamp(1, 64), 0);
+    }
+    if max_evaluations < 3 {
+        return (0, max_evaluations.clamp(1, 64), 0);
+    }
+    // Reserve a first-class budget for the coupled geometry -> camera
+    // convergence pass.  A geometry-only 2/3 split made the final camera
+    // implicit and could spend every evaluation before the winner was
+    // re-framed.  The three budgets always sum to the caller's hard cap.
+    let geometry_budget = (max_evaluations / 2).clamp(1, 40);
+    let camera_budget = (max_evaluations / 4).clamp(1, 24);
+    let camera_refit_budget = max_evaluations
+        .saturating_sub(geometry_budget)
+        .saturating_sub(camera_budget)
+        .clamp(1, 24);
+    (geometry_budget, camera_budget, camera_refit_budget)
+}
+
+fn primary_form_camera_refit_schedule(base: &Value, budget: usize) -> Vec<Value> {
+    if budget == 0 {
+        return Vec::new();
+    }
+    let mut cameras = Vec::with_capacity(budget);
+    cameras.push(base.clone());
+    for candidate in camera_fit_refinement_variants(base)
+        .into_iter()
+        .chain(camera_fit_search_variants(base).into_iter())
+    {
+        if cameras.len() >= budget {
+            break;
+        }
+        if !cameras.iter().any(|existing| existing == &candidate) {
+            cameras.push(candidate);
+        }
+    }
+    cameras
 }
 
 fn bbox_axis_ratios(target: &[bool], model: &[bool]) -> (f64, f64) {
@@ -13720,11 +13838,33 @@ mod tests {
 
     #[test]
     fn primary_form_budget_honors_declared_bound_with_geometry_priority() {
-        assert_eq!(primary_form_evaluation_budgets(24, true), (16, 8));
-        assert_eq!(primary_form_evaluation_budgets(8, true), (5, 3));
-        assert_eq!(primary_form_evaluation_budgets(1, true), (0, 1));
-        assert_eq!(primary_form_evaluation_budgets(64, true), (42, 22));
-        assert_eq!(primary_form_evaluation_budgets(24, false), (0, 24));
+        assert_eq!(primary_form_evaluation_budgets(24, true), (12, 6, 6));
+        assert_eq!(primary_form_evaluation_budgets(8, true), (4, 2, 2));
+        assert_eq!(primary_form_evaluation_budgets(1, true), (0, 1, 0));
+        assert_eq!(primary_form_evaluation_budgets(64, true), (32, 16, 16));
+        assert_eq!(primary_form_evaluation_budgets(24, false), (0, 24, 0));
+        for max_evaluations in 1..=64 {
+            let budgets = primary_form_evaluation_budgets(max_evaluations, true);
+            assert!(budgets.0 + budgets.1 + budgets.2 <= max_evaluations);
+            assert!(budgets.0 <= 40 && budgets.1 <= 24 && budgets.2 <= 24);
+        }
+    }
+
+    #[test]
+    fn primary_form_camera_refit_schedule_is_bounded_and_keeps_winner_first() {
+        let base = default_camera_calibration();
+        let schedule = primary_form_camera_refit_schedule(&base, 6);
+        assert_eq!(schedule.len(), 6);
+        assert_eq!(schedule.first(), Some(&base));
+        assert!(schedule
+            .iter()
+            .all(|camera| validate_camera_calibration(camera).is_ok()));
+        let hashes = schedule
+            .iter()
+            .filter_map(|camera| camera.get("camera_hash").and_then(Value::as_str))
+            .collect::<std::collections::HashSet<_>>();
+        assert_eq!(hashes.len(), schedule.len());
+        assert!(primary_form_camera_refit_schedule(&base, 64).len() <= 64);
     }
 
     #[test]
