@@ -1511,13 +1511,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             &boundary_segments,
             Some(&selected_camera),
         );
-        // A Primary Form action must converge one semantic Part at a time.
-        // The boundary projection can produce proposals for several Parts, but
-        // feeding all of them into probe zero couples unrelated silhouette
-        // errors and lets a large global loss hide which edit actually helped.
-        // Keep the dominant candidate-bound Part as the only mutable scope for
-        // this Runtime action; an unchanged result leaves the next action free
-        // to select the next Part from a fresh observation.
+        // Seed probe zero from the dominant candidate-bound Part. The boundary
+        // projection can produce proposals for several Parts, but feeding all
+        // of them into the first probe couples unrelated silhouette errors and
+        // lets a large global loss hide which edit actually helped. The seed is
+        // intentionally local; the bounded coordinate schedule below still
+        // visits every supplied Rig Part so a single observation can converge
+        // the full Primary Form without asking Codex to run a search loop.
         let focused_part_id = dominant_boundary_rig_part(rig, &boundary_segments);
         if let Some(part_id) = focused_part_id.as_deref() {
             selected_parameters = focus_rig_parameters_to_part(rig, &selected_parameters, part_id);
@@ -1545,23 +1545,6 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 &selected_parameters,
                 &boundary_segments,
             );
-            let parameter_indices = if let Some(part_id) = focused_part_id.as_deref() {
-                parameter_indices
-                    .into_iter()
-                    .filter(|index| {
-                        rig.get("parameters")
-                            .and_then(Value::as_array)
-                            .and_then(|parameters| parameters.get(*index))
-                            .and_then(|parameter| parameter.get("part_id"))
-                            .and_then(Value::as_str)
-                            .is_some_and(|candidate_part_id| {
-                                rig_part_matches_observed_part(candidate_part_id, part_id)
-                            })
-                    })
-                    .collect::<Vec<_>>()
-            } else {
-                parameter_indices
-            };
             let definitions = rig
                 .get("parameters")
                 .and_then(Value::as_array)
@@ -10035,11 +10018,11 @@ fn ranked_rig_parameter_indices_with_boundary_context(
     indices
 }
 
-/// Select the single Rig Part that owns the largest candidate-bound visible
-/// boundary error.  The score is intentionally the same squared-distance
-/// aggregation used by the coordinate ranking so the action scope and probe
-/// order cannot disagree.  A `*-pair` Rig Part is allowed to own its fixed
-/// left/right output aliases; no fuzzy or user-defined name matching is used.
+/// Select the Rig Part that owns the largest candidate-bound visible boundary
+/// error. The score is intentionally the same squared-distance aggregation
+/// used by the coordinate ranking so the seed proposal and probe order cannot
+/// disagree. A `*-pair` Rig Part is allowed to own its fixed left/right output
+/// aliases; no fuzzy or user-defined name matching is used.
 fn dominant_boundary_rig_part(rig: &Value, segments: &[Value]) -> Option<String> {
     let parameters = rig.get("parameters").and_then(Value::as_array)?;
     let mut rig_parts = HashSet::new();
@@ -10079,10 +10062,11 @@ fn dominant_boundary_rig_part(rig: &Value, segments: &[Value]) -> Option<String>
     ranked.into_iter().next().map(|(part_id, _)| part_id)
 }
 
-/// Keep the Runtime-owned proposal shape intact while restoring every
-/// non-focused Part to its authored value.  The GeometryProgram materializer
+/// Keep the Runtime-owned seed proposal shape intact while restoring every
+/// non-focused Part to its authored value. The GeometryProgram materializer
 /// expects parameter order to remain stable, so this returns a full ordered
-/// compact proposal rather than a sparse patch map.
+/// compact proposal rather than a sparse patch map. Later bounded coordinate
+/// probes are deliberately not restricted by this seed scope.
 fn focus_rig_parameters_to_part(
     rig: &Value,
     selected_parameters: &[Value],
@@ -15504,7 +15488,7 @@ mod tests {
     }
 
     #[test]
-    fn primary_form_scope_locks_one_dominant_part_and_restores_other_proposals() {
+    fn primary_form_seed_restores_other_part_proposals() {
         let rig = json!({"parameters":[
             {"parameter_id":"chest-width","part_id":"chest-shell","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"},
             {"parameter_id":"shin-width","part_id":"shin-pair","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"},
@@ -15529,6 +15513,44 @@ mod tests {
         assert!(rig_part_matches_observed_part("shin-pair", "shin-left"));
         assert!(rig_part_matches_observed_part("shin-pair", "shin-right"));
         assert!(!rig_part_matches_observed_part("chest-shell", "shin-left"));
+    }
+
+    #[test]
+    fn primary_form_bounded_sweep_keeps_secondary_parts_after_dominant_seed() {
+        let rig = json!({"parameters":[
+            {"parameter_id":"chest-width","part_id":"chest-shell","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"shin-width","part_id":"shin-pair","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"head-width","part_id":"head-shell","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"}
+        ]});
+        let selected = vec![
+            json!({"parameter_id":"chest-width","part_id":"chest-shell","value":1.18}),
+            json!({"parameter_id":"shin-width","part_id":"shin-pair","value":1.04}),
+            json!({"parameter_id":"head-width","part_id":"head-shell","value":1.12}),
+        ];
+        let segments = vec![
+            json!({"part_id":"shin-pair","distance_px":48.0}),
+            json!({"part_id":"shin-pair","distance_px":38.0}),
+            json!({"part_id":"head-shell","distance_px":30.0}),
+        ];
+        let focused = dominant_boundary_rig_part(&rig, &segments).expect("dominant Part");
+        let seeded = focus_rig_parameters_to_part(&rig, &selected, &focused);
+        let ranked = ranked_rig_parameter_indices_with_boundary_context(&rig, &seeded, &segments);
+
+        assert_eq!(focused, "shin-pair");
+        assert_eq!(seeded[0]["value"], 1.0);
+        assert_eq!(seeded[1]["value"], 1.04);
+        assert_eq!(seeded[2]["value"], 1.0);
+        assert_eq!(ranked, vec![1, 2, 0]);
+        assert_eq!(
+            ranked
+                .iter()
+                .filter_map(|index| rig["parameters"][*index]["part_id"].as_str())
+                .collect::<Vec<_>>(),
+            vec!["shin-pair", "head-shell", "chest-shell"]
+        );
+        assert_eq!(primary_form_probe_coordinate(&ranked, 1), Some(1));
+        assert_eq!(primary_form_probe_coordinate(&ranked, 2), Some(2));
+        assert_eq!(primary_form_probe_coordinate(&ranked, 3), Some(0));
     }
 
     #[test]

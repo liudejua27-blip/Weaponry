@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Primary Form bounded multi-Part sweep：修复 Runtime 在 dominant boundary Part 存在时把完整 Rig coordinate schedule 过滤成单一 Part 的缺口。dominant Part 仍只用于 seed proposal；后续 fixed bounded probes 覆盖所有 supplied typed Rig controls，新增 seed/sweep regression，`forgecad-runtime` 全量 100 passed、10 ignored。无新的真实 likeness receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`、human/PBR/export-restart/360 未运行状态；Agentic action-run 仍是单 Part。
+
 2026-08-15 Primary Form 局部 Part 偏移标定：Runtime 将显式 Part envelope proposal 的米制 `offset_x/offset_y` 统一换算到相机平面世界尺度，并修正 image-Y/down 与 camera-plane/up 的符号；缺少 camera 的 legacy proposal 不再用 Rig step 猜测米制位移。新增 focused regression，`forgecad-runtime` 全部 109 个单元测试通过（99 passed、10 个 worker isolation tests 按要求 ignored）。这是 source/convergence 修复，没有新的授权机器人视觉 receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`、human/PBR/export-restart/360 未运行状态。
 
 2026-08-15 Primary Form same-camera retention：Runtime 在 staged candidate 之前用最终 camera 和 512px Render Worker 对 source/proposal 做同目标 full-resolution weighted-loss compare；未严格改善则返回 `PrimaryFormAcceptance@1.retained_source`，不创建 candidate、不覆盖 source VisualEvidence。contracts、Runtime focused regression 与 Stage 0 checker 通过；本模块不升级真实质量，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。

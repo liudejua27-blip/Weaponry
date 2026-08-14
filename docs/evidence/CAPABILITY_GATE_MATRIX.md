@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Primary Form bounded multi-Part sweep Gate：Runtime 保留 candidate-bound dominant Part 的局部 seed，但不再把后续 coordinate probes 限制在该 Part；固定 bounded schedule 会按 boundary score、proposal delta 和稳定 ID 排序后覆盖完整 typed Rig。新增 seed/sweep coverage regression 与完整 `forgecad-runtime` Gate 通过（100 passed、10 ignored）；无新的真实 likeness receipt，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。该 Gate 不改变 Agentic action-run 当前单 Part scope。
+
 2026-08-15 Primary Form local Part offset calibration Gate：Runtime 局部 Part envelope proposal 的米制 `offset_x/offset_y` 使用 candidate fit 的 `CameraCalibration@1` world-per-normalized-screen scale，`offset_y` 与 landmark/boundary projection 统一 camera-plane up 符号；无 camera 的 legacy proposal 对米制 offset fail-safe 为 neutral。focused regression 与 `forgecad-runtime` 全单测通过；无 Schema/工具数变化、无新的真实 likeness receipt，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Primary Form same-camera retention Gate：Runtime 在 `geometry_prepare` 前用同一最终 camera、reference target、512px Render Worker 和 weighted loss 对 source/proposal 做 non-persisted compare；只有 strict improvement 才创建 staged candidate，失败返回 `PrimaryFormAcceptance@1.status=retained_source` 并保留 authored source。合同、Runtime focused regression、candidate/version no-write boundary 通过；无新授权机器人视觉 receipt，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 仍未运行或阻断。
