@@ -25,6 +25,7 @@ SCRIPT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_ROOT))
 
 from probe_mcp010b_raw_stdio import (  # noqa: E402
+    GateFailure,
     MCP_PROTOCOL_VERSION,
     McpClient,
     build_identity,
@@ -99,6 +100,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--geometry-variant", default="surface-linework")
     parser.add_argument("--part-id", default="chest-shell")
+    parser.add_argument(
+        "--target-mode",
+        choices=("contour", "automatic"),
+        default="contour",
+        help="Use an explicit Part contour or let Runtime attribute an automatic silhouette boundary through Part-ID evidence.",
+    )
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--timeout", type=float, default=90.0)
     return parser.parse_args()
@@ -203,6 +210,31 @@ def compare_candidate(
     }
 
 
+def non_regressing_single_part_candidate(
+    baseline: dict[str, Any], candidate: dict[str, Any]
+) -> bool:
+    strict_improvement = False
+    for metric_name, direction in (
+        ("silhouette_iou", "min"),
+        ("boundary_f1_4px", "min"),
+        ("bbox_edge_error", "max"),
+        ("centroid_error", "max"),
+    ):
+        baseline_value = baseline.get("metrics", {}).get(metric_name)
+        candidate_value = candidate.get("metrics", {}).get(metric_name)
+        if not isinstance(baseline_value, (int, float)) or not isinstance(candidate_value, (int, float)):
+            return False
+        if direction == "min":
+            if candidate_value + 1e-12 < baseline_value:
+                return False
+            strict_improvement = strict_improvement or candidate_value > baseline_value + 1e-12
+        else:
+            if candidate_value - 1e-12 > baseline_value:
+                return False
+            strict_improvement = strict_improvement or candidate_value < baseline_value - 1e-12
+    return strict_improvement
+
+
 def adjustment_map(result: dict[str, Any]) -> dict[str, float]:
     rows = result.get("adjustments")
     require(isinstance(rows, list), "part_contour_fit_prepare omitted adjustments")
@@ -217,12 +249,14 @@ PART_NODE_IDS = {
     "chest-shell": "chest-panel",
     "shoulder-armor-left": "shoulder-armor-left",
     "shoulder-armor-right": "shoulder-armor-right",
+    "shin-pair": "shin-left",
 }
 
 PART_PARAMETER_PREFIXES = {
     "chest-shell": "chest",
     "shoulder-armor-left": "shoulder",
     "shoulder-armor-right": "shoulder",
+    "shin-pair": "shin",
 }
 
 
@@ -291,7 +325,10 @@ def main() -> int:
     require(source.is_file() and not source.is_symlink(), "reference must be a regular file")
     require(args.mcp.is_file() and args.runtime.is_file(), "MCP/Runtime binaries are unavailable")
     require(args.timeout > 0, "timeout must be positive")
-    contour, parts = load_contour(args.contour_draft, args.part_id)
+    contour: list[list[float]] = []
+    parts: list[dict[str, Any]] = []
+    if args.target_mode == "contour":
+        contour, parts = load_contour(args.contour_draft, args.part_id)
     source_bytes = source.read_bytes()
     width, height = png_dimensions(source_bytes)
     result: dict[str, Any] = {
@@ -299,6 +336,7 @@ def main() -> int:
         "status": "BLOCKED",
         "geometry_variant": args.geometry_variant,
         "part_id": args.part_id,
+        "target_mode": args.target_mode,
         "reference_sha256": __import__("hashlib").sha256(source_bytes).hexdigest(),
         "persistent_user_data_touched": False,
     }
@@ -307,9 +345,20 @@ def main() -> int:
     ready: dict[str, Any] | None = None
     preflight: dict[str, str] | None = None
     try:
+        mcp_identity = build_identity(args.mcp)
+        runtime_identity = build_identity(args.runtime)
+        require(
+            isinstance(mcp_identity, dict)
+            and isinstance(runtime_identity, dict)
+            and mcp_identity.get("build_cohort_sha256") == runtime_identity.get("build_cohort_sha256")
+            and isinstance(mcp_identity.get("build_cohort_sha256"), str),
+            "MCP/Runtime build cohorts do not match",
+        )
+        result["build_cohort_sha256"] = mcp_identity["build_cohort_sha256"]
         data_root = args.data_root.expanduser().resolve()
         require(not data_root.exists(), "data root must not pre-exist")
         data_root.mkdir(mode=0o700, parents=True)
+        (data_root / "ipc").mkdir(mode=0o700)
         ready_path = data_root / "ipc" / "ready.json"
         environment = os.environ.copy()
         for key in ("FORGECAD_RUNTIME_SOCKET", "FORGECAD_RUNTIME_TOKEN", "FORGECAD_RUNTIME_DATA_DIR", "FORGECAD_RUNTIME_COMMAND"):
@@ -347,30 +396,35 @@ def main() -> int:
         automatic_target = client.tool("reference_mask_prepare", {"project_id": project_id, "reference_id": reference["reference_id"]})
         automatic_target_sha = automatic_target.get("target_sha256")
         require(isinstance(automatic_target_sha, str) and len(automatic_target_sha) == 64, "automatic target is unavailable")
-        refined_target = client.tool("reference_mask_refine_prepare", {"project_id": project_id, "base_target_sha256": automatic_target_sha, "contour_points": contour, "landmarks": clean_target_landmarks(), "parts": parts})
-        refined_target_sha = refined_target.get("target_sha256")
-        require(isinstance(refined_target_sha, str) and len(refined_target_sha) == 64, "refined Part target is unavailable")
+        if args.target_mode == "contour":
+            refined_target = client.tool("reference_mask_refine_prepare", {"project_id": project_id, "base_target_sha256": automatic_target_sha, "contour_points": contour, "landmarks": clean_target_landmarks(), "parts": parts})
+            refined_target_sha = refined_target.get("target_sha256")
+            require(isinstance(refined_target_sha, str) and len(refined_target_sha) == 64, "refined Part target is unavailable")
+        else:
+            refined_target_sha = automatic_target_sha
         baseline = build_geometry(client, project_id, reference["reference_id"], catalog_hash, draft)
         baseline_compare = compare_candidate(client, project_id, reference, baseline, width, height)
-        part_error = client.tool(
-            "silhouette_part_error_get",
-            {
-                "project_id": project_id,
-                "candidate_id": baseline["candidate_id"],
-                "target_sha256": refined_target_sha,
-            },
-        )
-        require(
-            isinstance(part_error, dict)
-            and part_error.get("schema_version") == "SilhouettePartErrorResult@1"
-            and isinstance(part_error.get("parts"), list)
-            and any(
-                row.get("part_id") == args.part_id
-                for row in part_error["parts"]
-                if isinstance(row, dict)
-            ),
-            "silhouette_part_error_get omitted the selected Part row",
-        )
+        part_error = None
+        if args.target_mode == "contour":
+            part_error = client.tool(
+                "silhouette_part_error_get",
+                {
+                    "project_id": project_id,
+                    "candidate_id": baseline["candidate_id"],
+                    "target_sha256": refined_target_sha,
+                },
+            )
+            require(
+                isinstance(part_error, dict)
+                and part_error.get("schema_version") == "SilhouettePartErrorResult@1"
+                and isinstance(part_error.get("parts"), list)
+                and any(
+                    row.get("part_id") == args.part_id
+                    for row in part_error["parts"]
+                    if isinstance(row, dict)
+                ),
+                "silhouette_part_error_get omitted the selected Part row",
+            )
         rig = silhouette_rig_draft(baseline["candidate_id"])
         parameter_prefix = part_parameter_prefix(args.part_id)
         rig["parameters"] = [
@@ -419,7 +473,7 @@ def main() -> int:
         result.update({
             "status": "PASS_TRANSPORT_WITH_METRICS",
             "ponytail_preflight": preflight,
-            "build_cohort_sha256": None,
+            "build_cohort_sha256": result["build_cohort_sha256"],
             "project_id": project_id,
             "reference_id": reference["reference_id"],
             "catalog_sha256": catalog_hash,
@@ -430,10 +484,33 @@ def main() -> int:
             "candidate_comparisons": comparisons,
             "winner": winner,
             "candidate_count": len(candidates),
+            "retention": {
+                "baseline_candidate_id": baseline["candidate_id"],
+                "accepted_candidate_id": next(
+                    (
+                        row["candidate_id"]
+                        for row in comparisons[1:]
+                        if non_regressing_single_part_candidate(baseline_compare, row)
+                    ),
+                    baseline["candidate_id"],
+                ),
+                "status": "CANDIDATE_ACCEPTED" if any(
+                    non_regressing_single_part_candidate(baseline_compare, row)
+                    for row in comparisons[1:]
+                ) else "BASELINE_RETAINED_NO_NON_REGRESSING_SINGLE_PART_CANDIDATE",
+                "policy": "preserve authored baseline unless IoU, Boundary F1, bbox edge error, and centroid error all avoid regression",
+            },
             "quality_claim": "NO_LIKENESS_PASS_CLAIM; SINGLE_PART_CORRECTION_TRANSPORT_ONLY",
         })
-    except (OSError, ProbeFailure, ValueError, json.JSONDecodeError, subprocess.SubprocessError) as error:
+    except (GateFailure, OSError, ProbeFailure, ValueError, json.JSONDecodeError, subprocess.SubprocessError) as error:
         result["reason"] = str(error)[:2000]
+        if runtime is not None and runtime.stderr is not None:
+            try:
+                stderr = runtime.stderr.read()
+            except OSError:
+                stderr = ""
+            if stderr:
+                result["runtime_stderr"] = stderr[-2000:]
     finally:
         if client is not None:
             try:

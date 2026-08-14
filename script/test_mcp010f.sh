@@ -19,8 +19,10 @@ assert preflight < project_create
 assert '"skill_id": "ponytail-preflight"' in source
 assert '"version": "0.1.0"' in source
 assert '"shoulder-armor-right": "shoulder-armor-right"' in source
+assert '"shin-pair": "shin-left"' in source
+assert '--target-mode' in source
 assert 'def part_parameter_prefix' in source
-print("MCP010F part-correction probe reads ponytail-preflight before design tools and supports bounded shoulder Parts")
+print("MCP010F part-correction probe reads ponytail-preflight before design tools and supports bounded shoulder/shin Parts")
 PY
 python3 - <<'PY'
 from pathlib import Path

@@ -908,6 +908,57 @@ fn boundary_error_segments_for_masks(
     segments
 }
 
+/// Project automatic silhouette boundary evidence onto one semantic Part.
+///
+/// An automatic target has no user-drawn Part contour.  We can still make a
+/// bounded local proposal when the fixed Render Worker returned a Part-ID
+/// pass: each reference boundary sample is attributed to the nearest visible
+/// model boundary Part, and only those attributed samples are projected into a
+/// local envelope.  This is evidence projection, not hidden-side inference.
+fn projected_part_boundary_mask(segments: &[Value], part_id: &str) -> Option<Vec<bool>> {
+    let mut mask = vec![false; 512 * 512];
+    let mut count = 0usize;
+    for segment in segments {
+        if segment.get("part_id").and_then(Value::as_str) != Some(part_id) {
+            continue;
+        }
+        let Some(point) = segment.get("reference").and_then(Value::as_array) else {
+            continue;
+        };
+        let Some(x) = point.first().and_then(Value::as_f64) else {
+            continue;
+        };
+        let Some(y) = point.get(1).and_then(Value::as_f64) else {
+            continue;
+        };
+        let px = (x.clamp(0.0, 1.0) * 511.0).round() as usize;
+        let py = (y.clamp(0.0, 1.0) * 511.0).round() as usize;
+        if !mask[py * 512 + px] {
+            mask[py * 512 + px] = true;
+            count += 1;
+        }
+    }
+    (count > 0).then_some(mask)
+}
+
+fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f64> {
+    let mut total = 0.0;
+    let mut count = 0usize;
+    for segment in segments {
+        if segment.get("part_id").and_then(Value::as_str) != Some(part_id) {
+            continue;
+        }
+        let Some(distance) = segment.get("distance_px").and_then(Value::as_f64) else {
+            continue;
+        };
+        if distance.is_finite() {
+            total += distance.clamp(0.0, 512.0);
+            count += 1;
+        }
+    }
+    (count > 0).then(|| (total / count as f64).clamp(0.0, 512.0))
+}
+
     /// Return a deterministic per-Part contour error table for Luna's next
     /// bounded repair round.  This is deliberately read-only: it consumes the
     /// candidate's fixed RenderSet/Part-ID pass and the target's explicit
@@ -2139,10 +2190,40 @@ fn boundary_error_segments_for_masks(
         let decoded_part_mask = part_png
             .as_deref()
             .and_then(|bytes| decode_part_mask(bytes, part_id, &part_ids));
-        let part_error = part_png
-            .as_deref()
-            .map(|bytes| part_boundary_error(bytes, &target_mask.mask, &target, part_id, &part_ids))
-            .unwrap_or_else(|| metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0));
+        let explicit_target_part_boundary = target_part_boundary_mask(&target, part_id);
+        let automatic_boundary_segments = if explicit_target_part_boundary.is_none() {
+            Self::boundary_error_segments_for_masks(
+                &target_mask.mask,
+                &model_mask,
+                part_png.as_deref(),
+                &part_ids,
+                64,
+            )
+        } else {
+            Vec::new()
+        };
+        let projected_target_part_boundary = if explicit_target_part_boundary.is_none() {
+            Self::projected_part_boundary_mask(&automatic_boundary_segments, part_id)
+        } else {
+            None
+        };
+        let target_part_boundary = explicit_target_part_boundary
+            .clone()
+            .or(projected_target_part_boundary);
+        let part_error = if explicit_target_part_boundary.is_some() {
+            part_png
+                .as_deref()
+                .map(|bytes| part_boundary_error(bytes, &target_mask.mask, &target, part_id, &part_ids))
+                .unwrap_or_else(|| metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0))
+        } else {
+            Self::projected_part_boundary_error(&automatic_boundary_segments, part_id)
+                .or_else(|| {
+                    part_png.as_deref().map(|bytes| {
+                        part_boundary_error(bytes, &target_mask.mask, &target, part_id, &part_ids)
+                    })
+                })
+                .unwrap_or_else(|| metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0))
+        };
         let mut adjustments = Vec::new();
         if let Some(parameters) = object.get("rig").and_then(|rig| rig.get("parameters")).and_then(Value::as_array) {
             // A Part proposal must be driven by that Part's own projected
@@ -2151,7 +2232,7 @@ fn boundary_error_segments_for_masks(
             // the main reason contour edits drifted away from the reference.
             if let (Some(model_part_mask), Some(target_part_mask)) = (
                 decoded_part_mask.as_deref(),
-                target_part_boundary_mask(&target, part_id),
+                target_part_boundary.as_deref(),
             ) {
                 if let (Some(target_envelope), Some(model_envelope)) = (
                     mask_envelope(&target_part_mask),
@@ -14678,6 +14759,22 @@ mod tests {
             "value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"meter"
         });
         assert_eq!(local_part_parameter_delta(&depth, target, model), 0.0);
+    }
+
+    #[test]
+    fn automatic_part_boundary_projection_uses_only_attributed_samples() {
+        let segments = vec![
+            json!({"part_id":"shin-pair","reference":[0.20,0.80],"distance_px":48.0}),
+            json!({"part_id":"shin-pair","reference":[0.62,0.90],"distance_px":32.0}),
+            json!({"part_id":"head-shell","reference":[0.56,0.15],"distance_px":42.0}),
+        ];
+        let mask = Runtime::projected_part_boundary_mask(&segments, "shin-pair").expect("projected mask");
+        let envelope = mask_envelope(&mask).expect("projected envelope");
+        assert!(envelope.min_x < envelope.max_x);
+        assert!(envelope.min_y < envelope.max_y);
+        assert_eq!(Runtime::projected_part_boundary_error(&segments, "shin-pair"), Some(40.0));
+        assert!(Runtime::projected_part_boundary_mask(&segments, "missing").is_none());
+        assert!(Runtime::projected_part_boundary_error(&segments, "missing").is_none());
     }
 
     #[test]

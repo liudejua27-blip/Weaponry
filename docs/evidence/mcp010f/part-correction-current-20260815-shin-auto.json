@@ -1,0 +1,213 @@
+{
+  "automatic_target_sha256": "cbefd4a18623c6ad2cb7cfc8190995adc37ee361634d413c759f85d08d27d6c0",
+  "build_cohort_sha256": "77ccce8586ffb701a4a7233c90a14b1368c55648062ea696bb546e597626b9d4",
+  "candidate_comparisons": [
+    {
+      "candidate_id": "candidate-174c04e9c6104b71be8307caeeb565cb",
+      "comparison_report_hash": "c22562e5331b60cccaa1590c996f1661eb900f0b422e8de748361db63ee1390e",
+      "metrics": {
+        "bbox_edge_error": 0.0078125,
+        "boundary_f1_4px": 0.32876512261,
+        "centroid_error": 0.007878177805,
+        "critical_region_min_iou": 0.666288576965,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.087015499392,
+        "region_median_iou": 0.869403198991,
+        "silhouette_iou": 0.741047132807
+      },
+      "render_set_hash": "76254c2d7d9e13147e9b8dd8e620ddc11cbdbf5378734e42a91491e631adcaa1",
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "candidate_id": "candidate-95d3f7db19cf44488398ee3e25a0ac13",
+      "comparison_report_hash": "9d8212679a10021657eeb38a83e0515e1c4272bc5473cafa17a0fbce32965d56",
+      "metrics": {
+        "bbox_edge_error": 0.00390625,
+        "boundary_f1_4px": 0.33191795628,
+        "centroid_error": 0.006173978536,
+        "critical_region_min_iou": 0.666224600957,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.080318597394,
+        "region_median_iou": 0.864328748437,
+        "silhouette_iou": 0.736649577886
+      },
+      "render_set_hash": "8a911ecaf8a35be37dff209e183a8e5810d110faf8fa90e29e404693abc0f5ba",
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "candidate_id": "candidate-ba960a671d244f40ad4100a6f241d0c1",
+      "comparison_report_hash": "3209325a443b503a7c531628276b549040be94c80fe61e709689cdbee4423d18",
+      "metrics": {
+        "bbox_edge_error": 0.00390625,
+        "boundary_f1_4px": 0.329835235212,
+        "centroid_error": 0.005842695598,
+        "critical_region_min_iou": 0.666951202162,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.078806507195,
+        "region_median_iou": 0.860608459625,
+        "silhouette_iou": 0.733976802806
+      },
+      "render_set_hash": "08ea43d344025624269a57a0ca2544f99d1e5a89c0b23f50e241b456e1a19999",
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "candidate_id": "candidate-4720cd199d4449b4a27802a6b1296ee7",
+      "comparison_report_hash": "fbdc7e9b28ea79a1d23c474eee3e95d3b771f6dd4445cb152853c1e508dfb1b2",
+      "metrics": {
+        "bbox_edge_error": 0.005859375,
+        "boundary_f1_4px": 0.323394297196,
+        "centroid_error": 0.004859399546,
+        "critical_region_min_iou": 0.666809157405,
+        "landmark_coverage": 0.075235109718,
+        "landmark_nme": 0.081008940151,
+        "region_median_iou": 0.85358325383,
+        "silhouette_iou": 0.729318891786
+      },
+      "render_set_hash": "fbbdf166936a745eb08d6de63f9f22c4db24610ee2fe3a7114fa6f610a02a759",
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "candidate_id": "candidate-52ba2b1f082348d68aff53e8a80eff9f",
+      "comparison_report_hash": "d740c464dce35d42b9aa88599bc0e79b0e4bea01cd7cbb453d12d7254289a354",
+      "metrics": {
+        "bbox_edge_error": 0.0078125,
+        "boundary_f1_4px": 0.327508463248,
+        "centroid_error": 0.003999274247,
+        "critical_region_min_iou": 0.665847897969,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.089055022395,
+        "region_median_iou": 0.869852392166,
+        "silhouette_iou": 0.740800738475
+      },
+      "render_set_hash": "997d3c9a379f759b6907bae42a373df4115b26065fc126e2bdb125bc7d703261",
+      "status": "QUALITY_TARGET_NOT_MET"
+    }
+  ],
+  "candidate_count": 5,
+  "catalog_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+  "geometry_variant": "surface-linework",
+  "part_error": null,
+  "part_fit": {
+    "adjustments": [
+      {
+        "bounded_value": 1.181818181818,
+        "delta": 0.181818181818,
+        "parameter_id": "shin-width"
+      },
+      {
+        "bounded_value": 0.75,
+        "delta": -0.25,
+        "parameter_id": "shin-height"
+      },
+      {
+        "bounded_value": -0.029120739248,
+        "delta": -0.029120739248,
+        "parameter_id": "shin-offset-x"
+      },
+      {
+        "bounded_value": 0.039908479098,
+        "delta": 0.039908479098,
+        "parameter_id": "shin-offset-y"
+      }
+    ],
+    "metrics": {
+      "boundary_f1_4px": 0.32876512261,
+      "part_boundary_error_px": 26.187351999755,
+      "sdf_chamfer_px": 16.725810827693,
+      "silhouette_iou": 0.741047132807
+    },
+    "status": "proposal_ready"
+  },
+  "part_id": "shin-pair",
+  "persistent_user_data_touched": false,
+  "ponytail_preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-c58d0152917c41d1ab6adc1eaea11843",
+  "quality_claim": "NO_LIKENESS_PASS_CLAIM; SINGLE_PART_CORRECTION_TRANSPORT_ONLY",
+  "reference_id": "reference-1e9fe1a3792d4abe97945d4124b2089e",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "refined_part_target_sha256": "cbefd4a18623c6ad2cb7cfc8190995adc37ee361634d413c759f85d08d27d6c0",
+  "retention": {
+    "accepted_candidate_id": "candidate-174c04e9c6104b71be8307caeeb565cb",
+    "baseline_candidate_id": "candidate-174c04e9c6104b71be8307caeeb565cb",
+    "policy": "preserve authored baseline unless IoU, Boundary F1, bbox edge error, and centroid error all avoid regression",
+    "status": "BASELINE_RETAINED_NO_NON_REGRESSING_SINGLE_PART_CANDIDATE"
+  },
+  "schema_version": "ForgeCADMCP010FPartCorrectionProbe@1",
+  "status": "PASS_TRANSPORT_WITH_METRICS",
+  "target_mode": "automatic",
+  "winner": {
+    "candidates": [
+      {
+        "candidate_id": "candidate-52ba2b1f082348d68aff53e8a80eff9f",
+        "loss": 0.178295435541,
+        "metrics": {
+          "bbox_edge_error": 0.0078125,
+          "boundary_f1_4px": 0.327508463248,
+          "centroid_error": 0.003999274247,
+          "sdf_chamfer_px": 16.73612759401,
+          "silhouette_iou": 0.740800738475
+        }
+      },
+      {
+        "candidate_id": "candidate-174c04e9c6104b71be8307caeeb565cb",
+        "loss": 0.178426175933,
+        "metrics": {
+          "bbox_edge_error": 0.0078125,
+          "boundary_f1_4px": 0.32876512261,
+          "centroid_error": 0.007878177805,
+          "sdf_chamfer_px": 16.725810827693,
+          "silhouette_iou": 0.741047132807
+        }
+      },
+      {
+        "candidate_id": "candidate-95d3f7db19cf44488398ee3e25a0ac13",
+        "loss": 0.178573178466,
+        "metrics": {
+          "bbox_edge_error": 0.00390625,
+          "boundary_f1_4px": 0.33191795628,
+          "centroid_error": 0.006173978536,
+          "sdf_chamfer_px": 16.845156243148,
+          "silhouette_iou": 0.736649577886
+        }
+      },
+      {
+        "candidate_id": "candidate-ba960a671d244f40ad4100a6f241d0c1",
+        "loss": 0.179599034811,
+        "metrics": {
+          "bbox_edge_error": 0.00390625,
+          "boundary_f1_4px": 0.329835235212,
+          "centroid_error": 0.005842695598,
+          "sdf_chamfer_px": 16.959818948023,
+          "silhouette_iou": 0.733976802806
+        }
+      },
+      {
+        "candidate_id": "candidate-4720cd199d4449b4a27802a6b1296ee7",
+        "loss": 0.181950086963,
+        "metrics": {
+          "bbox_edge_error": 0.005859375,
+          "boundary_f1_4px": 0.323394297196,
+          "centroid_error": 0.004859399546,
+          "sdf_chamfer_px": 17.140409833296,
+          "silhouette_iou": 0.729318891786
+        }
+      }
+    ],
+    "canonical_sha256": "149fc76fcc30146f09e3dc758f0850c5b908cea717d864520fe5d5543ade78f7",
+    "delta": {
+      "boundary_f1_4px": 0.001256659362,
+      "sdf_chamfer_px": -0.010316766317,
+      "silhouette_iou": 0.000246394332
+    },
+    "schema_version": "SilhouetteCandidateCompareResult@1",
+    "status": "ready",
+    "target_sha256": "cbefd4a18623c6ad2cb7cfc8190995adc37ee361634d413c759f85d08d27d6c0",
+    "winner_candidate_id": "candidate-52ba2b1f082348d68aff53e8a80eff9f"
+  }
+}

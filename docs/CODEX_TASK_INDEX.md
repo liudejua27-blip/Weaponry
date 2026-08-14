@@ -3,6 +3,8 @@
 版本：2026-08-14
 状态：唯一任务状态表；MVP host golden path 与 FGC-MCP010A 已收口；FGC-MCP010B 结构实现已通过、Darwin OS 总内存硬门 deferred；FGC-MCP010C source-focused 已完成；FGC-MCP010D/E source-focused 已通过；FGC-MCP010F source-focused in_progress，packaged/人评/360 子门保留。ADR-0026 的 Agentic Design Runtime 已完成 observe/plan projection、嵌套只读 projection conformance 与 durable session/checkpoint/RepairIntent prepare/readback slice；durable/reference/DesignSpec 完整 producer、单动作 orchestrator 和 Repair 应用 backlog 尚未改变当前唯一任务状态。
 
+2026-08-15 `FGC-MCP010F` automatic-target Part correction：Runtime `part_contour_fit_prepare` 对无显式 Part contour 的 automatic target 复用 candidate-bound silhouette/Part-ID boundary projection；`shin-pair` bounded source patch、同 cohort real receipt 与 baseline retention 已通过。没有候选被接受或持久化，F 仍 `in_progress`，质量仍 `QUALITY_TARGET_NOT_MET`。
+
 2026-08-15 `FGC-MCP010F` Primary Form action budget 修复：真实修复前 receipt 发现 detail action 请求 64 次却被 Runtime 外层 cap 截断为 24；源码恢复同一 bounded ceiling `64`，保留 `max_iterations=1`，并增加 optimizer normalization 与 `primary_form_repair_prepare` 端到端消费预算回归（fixture 实际 63 次）。Dev.app/package cohort `c521bf28…c4a5` 通过安装校验；修复后真实 Codex 复跑在 geometry hash/prepare authoring sequence 阻断，未产生新的视觉结果。该原子模块只修正 Runtime action budget，不改变 Stage 0 的 `QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`benchmark=BLOCKED_INCOMPLETE_BINDING`，F 仍为唯一 `in_progress`。
 
 2026-08-15 `FGC-MCP010F` packaged Render Worker landing：同 cohort Dev.app 已实际携带并校验 `forgecad-render-worker` Resource；packaged Runtime raw stdio probe 通过 sibling Worker 完成九 AOV、固定 renderer、determinism、compare 和 image-block transport。三份证据已纳入 MCP010F manifest。该模块只关闭 packaged Worker resource/process/protocol 的结构性缺口；synthetic reference 的质量仍 `QUALITY_TARGET_NOT_MET`，不推进人评/PBR/export-restart/360，也不把当前 `in_progress` F 任务标为 done。
