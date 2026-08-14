@@ -1308,6 +1308,16 @@ def main() -> int:
             and len(render_set["pass_artifacts"]) == 9,
             "appearance RenderSet@2 did not contain the fixed nine AOVs",
         )
+        require(
+            render_set.get("render_worker_binding_status") in ("same_cohort_verified", "cohort_unavailable"),
+            "appearance RenderSet omitted the Render Worker binding status",
+        )
+        if args.expected_build_cohort:
+            require(
+                render_set.get("render_worker_binding_status") == "same_cohort_verified"
+                and render_set.get("render_worker_build_cohort_sha256") == args.expected_build_cohort,
+                "appearance RenderSet Worker cohort was not bound to the expected packaged cohort",
+            )
         render_set_hash = prepared.get("render_set_object_sha256")
         require(isinstance(render_set_hash, str) and len(render_set_hash) == 64, "render set CAS hash was missing")
         comparison_summary: dict[str, Any] = {"status": "NOT_RUN"}
@@ -1350,6 +1360,12 @@ def main() -> int:
                 and comparison_render_set.get("passes") == passes,
                 "reference_compare_prepare did not return the fixed RenderSet@2",
             )
+            if args.expected_build_cohort:
+                require(
+                    comparison_render_set.get("render_worker_binding_status") == "same_cohort_verified"
+                    and comparison_render_set.get("render_worker_build_cohort_sha256") == args.expected_build_cohort,
+                    "comparison RenderSet Worker cohort was not bound to the expected packaged cohort",
+                )
             comparison_hash = comparison.get("comparison_report_object_sha256")
             comparison_render_set_hash = comparison.get("render_set_object_sha256")
             require(

@@ -162,6 +162,8 @@ type ViewerVisualEvidence = {
     candidate_id?: string
     artifact_sha256?: string
     reference_id?: string
+    render_worker_build_cohort_sha256?: string | null
+    render_worker_binding_status?: 'same_cohort_verified' | 'cohort_unavailable'
   } | null
   comparison_report?: {
     candidate_id?: string
@@ -4153,6 +4155,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                   <span>GLB：{activeSnapshot.artifactId ?? '未就绪'}</span>
                   <span>参考：{activeSnapshot.referenceId ? '已绑定' : '未绑定'}</span>
                   <span>渲染集：{activeSnapshot.renderSetHash ? '已绑定' : '未绑定'}</span>
+                  <span>Render Worker：{evidence?.render_set?.render_worker_binding_status === 'same_cohort_verified' ? '同 cohort 已验证' : evidence?.render_set ? 'cohort 不可验证' : '未绑定'}</span>
                   <span>比对：{activeSnapshot.comparisonReportHash ? '已绑定' : '未绑定'}</span>
                   <span>质量报告：{activeSnapshot.qualityReportHash || activeSnapshot.hasVisualEvidenceBinding ? '已绑定' : '未绑定'}</span>
                   <span>GLB 回读：{compactHash(activeSnapshot.artifactCanonicalSha256)}</span>

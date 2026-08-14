@@ -57,6 +57,7 @@
     "runtime-project.schema.json",
     "runtime-snapshot.schema.json",
     "runtime-job.schema.json",
+    "runtime-job-result.schema.json",
     "runtime-error.schema.json",
     "runtime-resource.schema.json",
     "runtime-selection.schema.json",

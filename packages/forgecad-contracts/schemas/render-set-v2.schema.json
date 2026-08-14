@@ -4,7 +4,7 @@
   "title": "RenderSetV2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "render_set_id", "candidate_id", "artifact_sha256", "program_sha256", "reference_id", "camera_hash", "renderer_hash", "width", "height", "passes", "pass_artifacts", "canonical_sha256"],
+  "required": ["schema_version", "render_set_id", "candidate_id", "artifact_sha256", "program_sha256", "reference_id", "camera_hash", "renderer_hash", "render_worker_build_cohort_sha256", "render_worker_binding_status", "width", "height", "passes", "pass_artifacts", "canonical_sha256"],
   "properties": {
     "schema_version": {"const": "RenderSet@2"},
     "render_set_id": {"$ref": "#/$defs/identifier"},
@@ -14,6 +14,8 @@
     "reference_id": {"$ref": "#/$defs/identifier"},
     "camera_hash": {"$ref": "#/$defs/sha256"},
     "renderer_hash": {"$ref": "#/$defs/sha256"},
+    "render_worker_build_cohort_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "render_worker_binding_status": {"enum": ["same_cohort_verified", "cohort_unavailable"]},
     "width": {"const": 512},
     "height": {"const": 512},
     "passes": {"type": "array", "minItems": 9, "maxItems": 9, "uniqueItems": true, "items": {"enum": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]}},
@@ -38,6 +40,7 @@
   "$defs": {
     "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
     "pass_artifact": {
       "type": "object",
       "additionalProperties": false,

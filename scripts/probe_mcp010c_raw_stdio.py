@@ -340,6 +340,22 @@ def main() -> int:
         render_set = comparison.get("render_set") if isinstance(comparison, dict) else None
         require(isinstance(render_set, dict) and render_set.get("schema_version") == "RenderSet@2", "reference_compare_prepare omitted RenderSet@2")
         require(render_set.get("passes") == ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"], "RenderSet did not contain the fixed nine AOV order")
+        require(
+            render_set.get("render_worker_binding_status") in ("same_cohort_verified", "cohort_unavailable"),
+            "RenderSet omitted the Runtime-owned Render Worker binding status",
+        )
+        if args.expected_build_cohort:
+            require(
+                render_set.get("render_worker_binding_status") == "same_cohort_verified"
+                and render_set.get("render_worker_build_cohort_sha256") == args.expected_build_cohort,
+                "RenderSet Worker cohort was not bound to the expected packaged cohort",
+            )
+        else:
+            require(
+                render_set.get("render_worker_binding_status") == "cohort_unavailable"
+                and render_set.get("render_worker_build_cohort_sha256") is None,
+                "source RenderSet must make unavailable Worker cohort explicit",
+            )
         render_set_hash = comparison.get("render_set_object_sha256")
         comparison_hash = comparison.get("comparison_report_object_sha256")
         quality_report_object_sha256 = comparison.get("quality_report_object_sha256")
@@ -527,6 +543,8 @@ def main() -> int:
             "expected_build_cohort_sha256": args.expected_build_cohort,
             "mcp_build_cohort_sha256": mcp_identity.get("build_cohort_sha256") if mcp_identity else None,
             "runtime_build_cohort_sha256": runtime_identity.get("build_cohort_sha256") if runtime_identity else None,
+            "render_worker_binding_status": render_set.get("render_worker_binding_status"),
+            "render_worker_build_cohort_sha256": render_set.get("render_worker_build_cohort_sha256"),
             "persistent_user_data_touched": False,
         }
         if export_restart_receipt is not None:

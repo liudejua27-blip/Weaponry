@@ -14,8 +14,24 @@ const RENDER_WORKER_BINARY: &str = "forgecad-render-worker";
 /// Launch the fixed Render Worker sibling through the generic Runtime
 /// transport seam. This module owns the Render Worker identity; Geometry
 /// Worker owns neither this binary nor this protocol.
-fn execute_render_worker(operation: &str, payload: Value) -> Result<Value, GeometryWorkerError> {
+fn execute_render_worker(
+    operation: &str,
+    payload: Value,
+) -> Result<Value, GeometryWorkerError> {
     geometry_worker::execute_sibling_worker(RENDER_WORKER_BINARY, operation, payload)
+}
+
+fn execute_render_worker_with_metadata(
+    operation: &str,
+    payload: Value,
+) -> Result<geometry_worker::SiblingWorkerResult, GeometryWorkerError> {
+    geometry_worker::execute_sibling_worker_with_metadata(RENDER_WORKER_BINARY, operation, payload)
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct RenderWorkerRender {
+    pub passes: Vec<RenderPass>,
+    pub build_cohort_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,13 +97,23 @@ pub(crate) fn render_glb(
     glb: &[u8],
     camera: &Value,
 ) -> Result<Vec<RenderPass>, GeometryWorkerError> {
+    render_glb_with_worker_identity(glb, camera).map(|render| render.passes)
+}
+
+/// Render one bounded GLB and retain the child Worker cohort for the
+/// Runtime-owned RenderSet evidence. The ordinary `render_glb` API deliberately
+/// remains a pass-only helper for transient fit/search callers.
+pub(crate) fn render_glb_with_worker_identity(
+    glb: &[u8],
+    camera: &Value,
+) -> Result<RenderWorkerRender, GeometryWorkerError> {
     if glb.is_empty() || glb.len() > 64 * 1024 * 1024 {
         return Err(GeometryWorkerError::Protocol);
     }
     let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, glb);
     let result =
-        execute_render_worker("render_glb", json!({"glb_base64":encoded,"camera":camera}))?;
-    let object = strict_object(&result)?;
+        execute_render_worker_with_metadata("render_glb", json!({"glb_base64":encoded,"camera":camera}))?;
+    let object = strict_object(&result.result)?;
     require_exact_keys(
         object,
         &[
@@ -140,7 +166,10 @@ pub(crate) fn render_glb(
             height: 512,
         });
     }
-    Ok(passes)
+    Ok(RenderWorkerRender {
+        passes,
+        build_cohort_sha256: result.build_cohort_sha256,
+    })
 }
 
 pub(crate) fn render_glb_fit_batch(

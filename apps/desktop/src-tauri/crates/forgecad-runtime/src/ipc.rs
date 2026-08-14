@@ -574,7 +574,27 @@ mod platform {
 
 fn runtime_error_code(error: &RuntimeError) -> String {
     match error {
-        RuntimeError::InvalidInput(detail) => detail
+        RuntimeError::InvalidInput(detail) => {
+            if detail.starts_with("SILHOUETTE_FIT_REJECTED:") {
+                let reason = detail.trim_start_matches("SILHOUETTE_FIT_REJECTED:").trim();
+                let code = if reason.starts_with("STRICT_GLB_READBACK_FAILED")
+                    || reason.starts_with("strict GLB readback failed")
+                {
+                    "SILHOUETTE_FIT_REJECTED_GLB"
+                } else if reason.starts_with("candidate geometry evidence is not bound") {
+                    "SILHOUETTE_FIT_REJECTED_EVIDENCE_BINDING"
+                } else if reason.starts_with("GeometryProgram CAS is invalid") {
+                    "SILHOUETTE_FIT_REJECTED_GEOMETRY_CAS"
+                } else if reason.starts_with("persisted GeometryProgram scope is invalid") {
+                    "SILHOUETTE_FIT_REJECTED_GEOMETRY_SCOPE"
+                } else if reason.starts_with("persisted GeometryProgram provenance drifted") {
+                    "SILHOUETTE_FIT_REJECTED_GEOMETRY_PROVENANCE"
+                } else {
+                    "SILHOUETTE_FIT_REJECTED"
+                };
+                return code.to_owned();
+            }
+            detail
             .split(':')
             .map(str::trim)
             .find(|value| {
@@ -582,9 +602,13 @@ fn runtime_error_code(error: &RuntimeError) -> String {
                     || value.starts_with("PRIMARY_FORM_REPAIR_")
                     || value.starts_with("SILHOUETTE_FIT_GEOMETRY_")
                     || value.starts_with("SILHOUETTE_FIT_RENDER_FAILED")
-            })
+                    || value.starts_with("CAMERA_FIT_")
+                    || value.starts_with("SILHOUETTE_FIT_")
+                    || value.starts_with("CANDIDATE_ARTIFACT_UNAVAILABLE")
+                })
             .map(str::to_owned)
-            .map_or_else(|| format!("INVALID_INPUT: {detail}"), |code| code),
+            .map_or_else(|| format!("INVALID_INPUT: {detail}"), |code| code)
+        }
         RuntimeError::Store(StoreError::Contract { code, .. }) => {
             format!("STORE_CONTRACT: {code}")
         }

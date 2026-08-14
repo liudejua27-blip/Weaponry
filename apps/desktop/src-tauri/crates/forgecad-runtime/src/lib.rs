@@ -52,6 +52,7 @@ use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
+use std::thread;
 use uuid::Uuid;
 
 // `integrity.rs` is shared verbatim with the Worker so its focused mutation
@@ -109,7 +110,12 @@ const CAMERA_FIT_FULL_RESOLUTION_MAX_EVALUATIONS: usize = 5;
 // fit. The action remains bounded and keeps continuous parameter search in
 // Runtime/Workers rather than pushing it back into Codex.
 const PRIMARY_FORM_REPAIR_MAX_EVALUATIONS: u64 = 64;
-const PRIMARY_FORM_REPAIR_MAX_ITERATIONS: u64 = 1;
+// A single 64-evaluation action may make a strong first camera/geometry
+// incumbent but still need one local continuation around that incumbent.
+// Keep the total evaluation ceiling unchanged; expose at most two Runtime
+// iterations so the second round can refine the first round's camera context
+// without returning a continuous search trace to Codex.
+const PRIMARY_FORM_REPAIR_MAX_ITERATIONS: u64 = 2;
 
 fn normalize_primary_form_repair_optimizer(optimizer: &mut serde_json::Map<String, Value>) {
     let requested_evaluations = optimizer
@@ -200,6 +206,21 @@ impl Runtime {
             camera_fit_cache: Mutex::new(HashMap::new()),
             _process_lock: None,
         })
+    }
+
+    /// Create a Runtime view for a background Job.  SQLite/CAS remain shared
+    /// through Store's synchronization boundary, while the process lock is
+    /// intentionally not duplicated.  The foreground Runtime keeps the only
+    /// ownership lock; this view is an execution context, not another
+    /// Runtime process.
+    fn background_runtime(&self) -> Self {
+        Self {
+            store: self.store.clone(),
+            capabilities: self.capabilities.clone(),
+            reference_attachment_roots: self.reference_attachment_roots.clone(),
+            camera_fit_cache: Mutex::new(HashMap::new()),
+            _process_lock: None,
+        }
     }
 
     pub fn capabilities(&self) -> &RuntimeCapabilities {
@@ -3004,8 +3025,24 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 ));
             }
         }
+        let mut reused_cached_camera_fit = false;
         let mut camera = match object.get("camera").filter(|value| !value.is_null()) {
-            None => default_camera_calibration(),
+            None => {
+                let cached_camera = target_sha256.as_deref().and_then(|target_sha256| {
+                    let cache_key = camera_fit_cache_key(project_id, candidate_id, target_sha256);
+                    self.camera_fit_cache
+                        .lock()
+                        .ok()
+                        .and_then(|cache| cache.get(&cache_key).cloned())
+                        .and_then(|result| result.get("selected_camera").cloned())
+                });
+                if let Some(cached_camera) = cached_camera {
+                    reused_cached_camera_fit = true;
+                    cached_camera
+                } else {
+                    default_camera_calibration()
+                }
+            }
             Some(value)
                 if value.get("schema_version").and_then(Value::as_str)
                     == Some("CameraCalibrationRef@1") => {
@@ -3039,11 +3076,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 inspection.failure_codes.join(",")
             )));
         }
-        let mut render_passes = render_glb_with_runtime_worker(&glb, &camera)
+        let initial_render = render_glb_with_runtime_worker_identity(&glb, &camera)
             .map_err(|error| RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}")))?;
+        let mut render_worker_cohort = initial_render.build_cohort_sha256.clone();
+        let mut render_passes = initial_render.passes;
         let reference_bytes = self.cas_read(&reference.object_sha256)?;
         let reference_mask = reference_mask_png(&reference_bytes)?;
-        if !explicit_camera {
+        if !explicit_camera && !reused_cached_camera_fit {
             let initial_silhouette = render_passes
                 .iter()
                 .find(|pass| pass.pass == "silhouette")
@@ -3070,11 +3109,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         continue;
                     }
                     validate_camera_calibration(&candidate)?;
-                    let candidate_passes = render_glb_with_runtime_worker(&glb, &candidate)
+                    let candidate_render = render_glb_with_runtime_worker_identity(&glb, &candidate)
                         .map_err(|error| {
                             RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}"))
                         })?;
-                    let candidate_silhouette = candidate_passes
+                    let candidate_silhouette = candidate_render
+                        .passes
                         .iter()
                         .find(|pass| pass.pass == "silhouette")
                         .map(|pass| decode_binary_mask(&pass.png))
@@ -3088,7 +3128,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     if score > best_score {
                         best_score = score;
                         best_camera = candidate;
-                        best_passes = candidate_passes;
+                        render_worker_cohort = candidate_render.build_cohort_sha256.clone();
+                        best_passes = candidate_render.passes;
                     }
                 }
                 camera = best_camera;
@@ -3144,6 +3185,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "reference_id":reference_id,
             "camera_hash":camera["camera_hash"].clone(),
             "renderer_hash":sha256_hex(b"forgecad-renderer@2-fixed-perspective-ggx-aov"),
+            "render_worker_build_cohort_sha256":render_worker_cohort.clone(),
+            "render_worker_binding_status":render_worker_binding_status(render_worker_cohort.as_ref()),
             "width":512,
             "height":512,
             "passes":["beauty","silhouette","depth","normal","ao","part-id","material-id","wireframe","uv-stretch"],
@@ -3695,6 +3738,214 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             ));
         }
         Ok(self.store.list_job_events(id, after_sequence)?)
+    }
+
+    /// Read the CAS-backed result published by a Runtime Job.  The result is
+    /// unavailable while the job is queued/running; callers poll `job_get` or
+    /// `job_events_read` first.  Only a hash-bound object recorded by the Job
+    /// terminal event can be returned.
+    pub fn job_result(&self, id: &str) -> Result<Value, RuntimeError> {
+        validate_id(id)?;
+        let job = self
+            .store
+            .get_job(id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: job not found".to_owned()))?;
+        let events = self.store.list_job_events(id, 0)?;
+        let result_sha256 = events
+            .iter()
+            .rev()
+            .find(|event| event.kind == "completed")
+            .and_then(|event| event.payload.get("result_sha256"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(if job.status == "running" || job.status == "queued" {
+                    "JOB_RESULT_PENDING".to_owned()
+                } else {
+                    "JOB_RESULT_UNAVAILABLE".to_owned()
+                })
+            })?;
+        if !forgecad_contracts::is_sha256(result_sha256) {
+            return Err(RuntimeError::InvalidInput(
+                "JOB_RESULT_INVALID: result hash is not a SHA-256".to_owned(),
+            ));
+        }
+        let result: Value = serde_json::from_slice(&self.cas_read(result_sha256)?).map_err(|_| {
+            RuntimeError::InvalidInput("JOB_RESULT_INVALID: result CAS object is not JSON".to_owned())
+        })?;
+        Ok(json!({
+            "schema_version": "RuntimeJobResult@1",
+            "job": job,
+            "result_sha256": result_sha256,
+            "result": result,
+        }))
+    }
+
+    /// Start an asynchronous Runtime-owned Primary Form search.  The request
+    /// is admitted synchronously and the actual Geometry/Render Worker loop
+    /// runs outside the MCP IPC deadline.  It creates no version and does not
+    /// bypass the existing `primary_form_repair_prepare` acceptance path.
+    pub fn primary_form_repair_job_prepare(
+        &self,
+        project_id: &str,
+        base_version_id: Option<&str>,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
+        validate_id(project_id)?;
+        let object = request.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_JOB_INVALID: request must be an object".to_owned(),
+            )
+        })?;
+        validate_request_keys(
+            object,
+            &[
+                "project_id",
+                "candidate_id",
+                "target_sha256",
+                "rig",
+                "base_camera",
+                "optimizer",
+                "base_version_id",
+                "canonical_sha256",
+            ],
+            "primary_form_repair_job_prepare",
+        )?;
+        if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
+            return Err(RuntimeError::InvalidInput(
+                "PROJECT_SCOPE_DENIED: Primary Form job project differs".to_owned(),
+            ));
+        }
+        if object.get("base_version_id").and_then(Value::as_str) != base_version_id {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_JOB_INVALID: base_version_id argument is not bound to intent"
+                    .to_owned(),
+            ));
+        }
+        let intent_hash = required_value_sha(object.get("canonical_sha256"), "canonical_sha256")?;
+        let mut intent_without_hash = request.clone();
+        intent_without_hash["canonical_sha256"] = Value::String(String::new());
+        if canonical_json_hash(&intent_without_hash) != intent_hash
+            && canonical_json_hash(&normalize_json_numbers(&intent_without_hash)) != intent_hash
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_JOB_INVALID: canonical_sha256 does not bind intent"
+                    .to_owned(),
+            ));
+        }
+        let job_id = format!("job-primary-form-{}", Uuid::new_v4().simple());
+        let request_sha256 = request_hash(&request);
+        let now = now_string();
+        let job = JobRecord {
+            schema_version: "RuntimeJob@1".to_owned(),
+            job_id: job_id.clone(),
+            project_id: project_id.to_owned(),
+            kind: "primary_form_repair".to_owned(),
+            status: "queued".to_owned(),
+            progress: 0,
+            request_sha256: request_sha256.clone(),
+            checkpoint_sha256: None,
+            error_code: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        let event = JobEventRecord {
+            schema_version: "RuntimeJobEvent@1".to_owned(),
+            job_id: job_id.clone(),
+            sequence: 1,
+            kind: "queued".to_owned(),
+            payload: json!({
+                "stage": "primary-form",
+                "request_sha256": request_sha256,
+                "continuous_search_owner": "runtime",
+            }),
+            created_at: now,
+        };
+        self.store.insert_job_with_event(&job, &event)?;
+
+        let worker_runtime = self.background_runtime();
+        let worker_project_id = project_id.to_owned();
+        let worker_base_version_id = base_version_id.map(str::to_owned);
+        let worker_request = request;
+        let worker_job_id = job_id.clone();
+        thread::spawn(move || {
+            let result = worker_runtime.primary_form_repair_prepare(
+                &worker_project_id,
+                worker_base_version_id.as_deref(),
+                worker_request,
+            );
+            match result {
+                Ok(result) => {
+                    let result_bytes = match canonical_json_bytes(&result) {
+                        Ok(bytes) => bytes,
+                        Err(_) => {
+                            let _ = worker_runtime.store.finish_job_with_event(
+                                &worker_job_id,
+                                "failed",
+                                0,
+                                Some("PRIMARY_FORM_REPAIR_JOB_RESULT_SERIALIZATION_FAILED"),
+                                "failed",
+                                &json!({"stage":"result","code":"PRIMARY_FORM_REPAIR_JOB_RESULT_SERIALIZATION_FAILED"}),
+                                &now_string(),
+                            );
+                            return;
+                        }
+                    };
+                    let result_object = match worker_runtime.put_object(
+                        &result_bytes,
+                        None,
+                        "application/json",
+                        "primary-form-repair-job-result",
+                    ) {
+                        Ok(object) => object,
+                        Err(_) => {
+                            let _ = worker_runtime.store.finish_job_with_event(
+                                &worker_job_id,
+                                "failed",
+                                0,
+                                Some("PRIMARY_FORM_REPAIR_JOB_RESULT_CAS_FAILED"),
+                                "failed",
+                                &json!({"stage":"result","code":"PRIMARY_FORM_REPAIR_JOB_RESULT_CAS_FAILED"}),
+                                &now_string(),
+                            );
+                            return;
+                        }
+                    };
+                    let prepared = result.get("status").and_then(Value::as_str) == Some("prepared");
+                    let _ = worker_runtime.store.finish_job_with_event(
+                        &worker_job_id,
+                        "succeeded",
+                        100,
+                        None,
+                        "completed",
+                        &json!({
+                            "stage": "primary-form",
+                            "result_sha256": result_object.record.sha256,
+                            "result_status": result.get("status").and_then(Value::as_str).unwrap_or("unknown"),
+                            "candidate_staged": prepared,
+                        }),
+                        &now_string(),
+                    );
+                }
+                Err(error) => {
+                    let code = primary_form_job_error_code(&error);
+                    let _ = worker_runtime.store.finish_job_with_event(
+                        &worker_job_id,
+                        "failed",
+                        0,
+                        Some(&code),
+                        "failed",
+                        &json!({"stage":"primary-form","code":code}),
+                        &now_string(),
+                    );
+                }
+            }
+        });
+
+        let job = self
+            .store
+            .get_job(&job_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_JOB_LOST".to_owned()))?;
+        serde_json::to_value(job).map_err(|error| RuntimeError::InvalidInput(error.to_string()))
     }
 
     pub fn selection(&self) -> SelectionRecord {
@@ -4548,8 +4799,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         )?;
 
         let camera = default_camera_calibration();
-        let render_passes = render_glb_with_runtime_worker(&artifact.glb, &camera)
+        let render_result = render_glb_with_runtime_worker_identity(&artifact.glb, &camera)
             .map_err(|error| RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}")))?;
+        let render_worker_cohort = render_result.build_cohort_sha256.clone();
+        let render_passes = render_result.passes;
         let mut pass_artifacts = serde_json::Map::new();
         for pass in &render_passes {
             let object = self.put_object(
@@ -4579,6 +4832,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "reference_id":reference_id,
             "camera_hash":camera_hash,
             "renderer_hash":renderer_hash,
+            "render_worker_build_cohort_sha256":render_worker_cohort.clone(),
+            "render_worker_binding_status":render_worker_binding_status(render_worker_cohort.as_ref()),
             "width":512,
             "height":512,
             "passes":render_passes.iter().map(|pass| pass.pass.clone()).collect::<Vec<_>>(),
@@ -6026,6 +6281,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 Ok(serde_json::to_value(self.job_events(id, after_sequence)?)
                     .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?)
             }
+            "job_result_get" => {
+                let id = payload
+                    .get("job_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("job_id is required".to_owned()))?;
+                Ok(self.job_result(id)?)
+            }
             "version_list" => {
                 let project_id = payload.get("project_id").and_then(Value::as_str);
                 Ok(serde_json::to_value(self.versions(project_id)?)
@@ -6138,6 +6400,14 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
                 let base_version_id = payload.get("base_version_id").and_then(Value::as_str);
                 self.primary_form_repair_prepare(project_id, base_version_id, payload.clone())
+            }
+            "primary_form_repair_job_prepare" => {
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                let base_version_id = payload.get("base_version_id").and_then(Value::as_str);
+                self.primary_form_repair_job_prepare(project_id, base_version_id, payload.clone())
             }
             "part_contour_fit_prepare" => {
                 let project_id = payload
@@ -8008,6 +8278,8 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
             "reference_id",
             "camera_hash",
             "renderer_hash",
+            "render_worker_build_cohort_sha256",
+            "render_worker_binding_status",
             "width",
             "height",
             "passes",
@@ -8034,6 +8306,42 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
         "renderer_hash",
     ] {
         required_contract_sha256(object, key, "RenderSet@2")?;
+    }
+    let worker_status = object
+        .get("render_worker_binding_status")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: RenderSet@2 worker binding status is invalid".to_owned(),
+            )
+        })?;
+    let worker_cohort = object
+        .get("render_worker_build_cohort_sha256")
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: RenderSet@2 worker cohort is missing".to_owned(),
+            )
+        })?;
+    match worker_status {
+        "same_cohort_verified" => {
+            let worker_cohort = worker_cohort.as_str().ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: verified RenderSet worker cohort is null".to_owned(),
+                )
+            })?;
+            if build_cohort_sha256().as_deref() != Some(worker_cohort) {
+                return Err(RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: RenderSet Worker cohort differs from Runtime cohort"
+                        .to_owned(),
+                ));
+            }
+        }
+        "cohort_unavailable" if worker_cohort.is_null() => {}
+        _ => {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: RenderSet Worker cohort/status pair is invalid".to_owned(),
+            ));
+        }
     }
     let expected = [
         "beauty",
@@ -12114,25 +12422,52 @@ fn render_fixed_with_runtime_worker(
     }
 }
 
+#[derive(Debug, Clone)]
+struct RuntimeRenderResult {
+    passes: Vec<render_worker::RenderPass>,
+    build_cohort_sha256: Option<String>,
+}
+
+fn render_worker_binding_status(cohort: Option<&String>) -> &'static str {
+    if cohort.is_some() {
+        "same_cohort_verified"
+    } else {
+        "cohort_unavailable"
+    }
+}
+
 fn render_glb_with_runtime_worker(
     glb: &[u8],
     camera: &Value,
 ) -> Result<Vec<render_worker::RenderPass>, geometry_worker::GeometryWorkerError> {
-    match render_worker::render_glb(glb, camera) {
-        Ok(passes) => Ok(passes),
+    render_glb_with_runtime_worker_identity(glb, camera).map(|render| render.passes)
+}
+
+fn render_glb_with_runtime_worker_identity(
+    glb: &[u8],
+    camera: &Value,
+) -> Result<RuntimeRenderResult, geometry_worker::GeometryWorkerError> {
+    match render_worker::render_glb_with_worker_identity(glb, camera) {
+        Ok(render) => Ok(RuntimeRenderResult {
+            passes: render.passes,
+            build_cohort_sha256: render.build_cohort_sha256,
+        }),
         #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
             forgecad_render_core::render_perspective_glb(glb, camera)
                 .map(|passes| {
-                    passes
-                        .into_iter()
-                        .map(|pass| render_worker::RenderPass {
-                            pass: pass.pass,
-                            png: pass.png,
-                            width: pass.width,
-                            height: pass.height,
-                        })
-                        .collect()
+                    RuntimeRenderResult {
+                        passes: passes
+                            .into_iter()
+                            .map(|pass| render_worker::RenderPass {
+                                pass: pass.pass,
+                                png: pass.png,
+                                width: pass.width,
+                                height: pass.height,
+                            })
+                            .collect(),
+                        build_cohort_sha256: None,
+                    }
                 })
                 .map_err(|_| geometry_worker::GeometryWorkerError::Rejected)
         }
@@ -12968,6 +13303,24 @@ fn request_hash(value: &Value) -> String {
     forgecad_core::canonical_json_hash(value)
 }
 
+fn primary_form_job_error_code(error: &RuntimeError) -> String {
+    let detail = error.to_string();
+    let code = detail
+        .split(':')
+        .next()
+        .unwrap_or_default()
+        .trim();
+    if code.starts_with("PRIMARY_FORM_REPAIR_")
+        || code.starts_with("SILHOUETTE_FIT_")
+        || code.starts_with("CAMERA_FIT_")
+        || code == "CANDIDATE_ARTIFACT_UNAVAILABLE"
+    {
+        code.to_owned()
+    } else {
+        "PRIMARY_FORM_REPAIR_JOB_FAILED".to_owned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -12976,6 +13329,7 @@ mod tests {
         ExportPrepareRequest, RestoreConfirmRequest, RestorePrepareRequest,
     };
     use std::fs;
+    use std::time::Duration;
 
     struct Fixture {
         runtime: Runtime,
@@ -13526,6 +13880,21 @@ mod tests {
             )
             .expect("camera fit for reference");
         let selected_camera = camera_fit["selected_camera"].as_object().unwrap();
+        let automatic_fit_bound_visual = runtime
+            .prepare_reference_comparison(
+                &project.project_id,
+                json!({
+                    "candidate_id":candidate_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "view_spec":view_spec.clone(),
+                    "target_sha256":target_sha256.clone()
+                }),
+            )
+            .expect("automatic comparison reuses the cached fit camera");
+        assert_eq!(
+            automatic_fit_bound_visual["render_set"]["camera_hash"],
+            selected_camera["camera_hash"]
+        );
         let camera_ref = json!({
             "schema_version":"CameraCalibrationRef@1",
             "camera_hash":selected_camera["camera_hash"].clone(),
@@ -13584,6 +13953,14 @@ mod tests {
         let render_set = &prepared_visual["render_set"];
         assert_eq!(render_set["schema_version"], "RenderSet@2");
         assert_eq!(render_set["passes"].as_array().unwrap().len(), 9);
+        assert_eq!(
+            render_set["render_worker_binding_status"],
+            render_worker_binding_status(build_cohort_sha256().as_ref())
+        );
+        assert_eq!(
+            render_set["render_worker_build_cohort_sha256"],
+            build_cohort_sha256().map(Value::String).unwrap_or(Value::Null)
+        );
         let render_set_hash = prepared_visual["render_set_object_sha256"]
             .as_str()
             .unwrap();
@@ -15431,6 +15808,7 @@ mod tests {
             .as_u64()
             .expect("Primary Form fit evaluation count");
         assert!((63..=64).contains(&primary_form_evaluations));
+        assert_eq!(primary_form["fit_result"]["iterations"], 2);
         assert!(primary_form["fit_result"]["strict_improvement"].is_boolean());
         assert!(primary_form["fit_result"]["baseline_metrics"].is_object());
         let fit_camera = fit["selected_camera"].clone();
@@ -15622,7 +16000,7 @@ mod tests {
         });
         normalize_primary_form_repair_optimizer(optimizer.as_object_mut().unwrap());
         assert_eq!(optimizer["max_evaluations"], 64);
-        assert_eq!(optimizer["max_iterations"], 1);
+        assert_eq!(optimizer["max_iterations"], 2);
 
         let mut oversized = json!({
             "max_evaluations": 128,
@@ -15630,12 +16008,12 @@ mod tests {
         });
         normalize_primary_form_repair_optimizer(oversized.as_object_mut().unwrap());
         assert_eq!(oversized["max_evaluations"], 64);
-        assert_eq!(oversized["max_iterations"], 1);
+        assert_eq!(oversized["max_iterations"], 2);
 
         let mut defaults = json!({});
         normalize_primary_form_repair_optimizer(defaults.as_object_mut().unwrap());
         assert_eq!(defaults["max_evaluations"], 64);
-        assert_eq!(defaults["max_iterations"], 1);
+        assert_eq!(defaults["max_iterations"], 2);
     }
 
     #[test]
@@ -17443,5 +17821,123 @@ mod tests {
             .expect("action readback");
         assert_eq!(read, first);
         assert_eq!(runtime.versions(Some(session["project_id"].as_str().unwrap())).unwrap().len(), before_versions);
+    }
+
+    #[test]
+    fn primary_form_job_returns_before_worker_failure_and_exposes_terminal_receipt() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("Async Primary Form job test", json!({"scope":"test"}))
+            .expect("project");
+        let project_id = project.project_id.clone();
+        let mut request = json!({
+            "project_id":project_id,
+            "candidate_id":"candidate-missing",
+            "target_sha256":"a".repeat(64),
+            "rig":{},
+            "base_camera":{},
+            "optimizer":{
+                "algorithm":"coordinate_descent",
+                "max_iterations":1,
+                "max_evaluations":64,
+                "step_fraction":0.1
+            },
+            "base_version_id":null,
+            "canonical_sha256":""
+        });
+        request["canonical_sha256"] = Value::String(canonical_json_hash(&request));
+        let started = runtime
+            .primary_form_repair_job_prepare(&project_id, None, request)
+            .expect("job is admitted before worker execution");
+        let job_id = started["job_id"].as_str().expect("job id").to_owned();
+        assert_eq!(started["status"], "queued");
+        assert_eq!(started["progress"], 0);
+
+        let mut terminal = None;
+        for _ in 0..80 {
+            let current = runtime.job(&job_id).expect("job readback").expect("job");
+            if matches!(current.status.as_str(), "succeeded" | "failed" | "cancelled") {
+                terminal = Some(current);
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let terminal = terminal.expect("background job reaches a terminal state");
+        assert_eq!(terminal.status, "failed");
+        assert_eq!(terminal.error_code.as_deref(), Some("PRIMARY_FORM_REPAIR_JOB_FAILED"));
+        let events = runtime.job_events(&job_id, 0).expect("events");
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].kind, "queued");
+        assert_eq!(events[1].kind, "failed");
+        let result_error = runtime
+            .job_result(&job_id)
+            .expect_err("failed job has no result object");
+        assert!(result_error.to_string().contains("JOB_RESULT_UNAVAILABLE"));
+    }
+
+    #[test]
+    fn render_set_worker_cohort_binding_fails_closed() {
+        let pass_names = [
+            "beauty",
+            "silhouette",
+            "depth",
+            "normal",
+            "ao",
+            "part-id",
+            "material-id",
+            "wireframe",
+            "uv-stretch",
+        ];
+        let mut pass_artifacts = serde_json::Map::new();
+        for pass in pass_names {
+            pass_artifacts.insert(
+                pass.to_owned(),
+                json!({
+                    "sha256": "b".repeat(64),
+                    "mime": "image/png",
+                    "size_bytes": 1,
+                    "width": 512,
+                    "height": 512,
+                    "channels": "rgba8",
+                    "color_space": "data"
+                }),
+            );
+        }
+        let mut render_set = json!({
+            "schema_version": "RenderSet@2",
+            "render_set_id": "render-set-cohort-test",
+            "candidate_id": "candidate-cohort-test",
+            "artifact_sha256": "a".repeat(64),
+            "program_sha256": "a".repeat(64),
+            "reference_id": "reference-cohort-test",
+            "camera_hash": "a".repeat(64),
+            "renderer_hash": "a".repeat(64),
+            "render_worker_build_cohort_sha256": null,
+            "render_worker_binding_status": "cohort_unavailable",
+            "width": 512,
+            "height": 512,
+            "passes": pass_names,
+            "pass_artifacts": pass_artifacts,
+            "canonical_sha256": ""
+        });
+        render_set["canonical_sha256"] = Value::String(canonical_json_hash(&render_set));
+        validate_render_set_v2_output(&render_set).expect("unavailable worker identity is explicit");
+
+        let default_mismatched_cohort = "f".repeat(64);
+        let mismatched_cohort = if build_cohort_sha256().as_deref()
+            == Some(default_mismatched_cohort.as_str())
+        {
+            "e".repeat(64)
+        } else {
+            default_mismatched_cohort
+        };
+        render_set["render_worker_build_cohort_sha256"] = Value::String(mismatched_cohort);
+        render_set["render_worker_binding_status"] = Value::String("same_cohort_verified".to_owned());
+        render_set["canonical_sha256"] = Value::String(canonical_json_hash(&render_set));
+        let error = validate_render_set_v2_output(&render_set)
+            .expect_err("a RenderSet from another Worker cohort must fail closed");
+        assert!(error
+            .to_string()
+            .contains("RenderSet Worker cohort differs from Runtime cohort"));
     }
 }

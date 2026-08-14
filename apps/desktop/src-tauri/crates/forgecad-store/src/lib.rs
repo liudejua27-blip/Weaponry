@@ -844,6 +844,115 @@ impl Store {
         Ok(())
     }
 
+    /// Insert a queued job and its first event atomically.  Long-running
+    /// Runtime work must become observable before a worker thread starts so a
+    /// client can safely disconnect and poll the durable receipt later.
+    pub fn insert_job_with_event(
+        &self,
+        job: &JobRecord,
+        event: &JobEventRecord,
+    ) -> Result<(), StoreError> {
+        validate_job(job)?;
+        validate_job_event(event)?;
+        if event.job_id != job.job_id {
+            return Err(StoreError::InvalidData(
+                "job event does not belong to job".to_owned(),
+            ));
+        }
+        let event_payload = serde_json::to_string(&event.payload)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
+            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                job.job_id,
+                job.project_id,
+                job.kind,
+                job.status,
+                i64::from(job.progress),
+                job.request_sha256,
+                job.checkpoint_sha256,
+                job.error_code,
+                job.created_at,
+                job.updated_at,
+            ],
+        )?;
+        transaction.execute(
+            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                event.job_id,
+                event.sequence,
+                event.kind,
+                event_payload,
+                event.created_at,
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    /// Finish a background job and append its terminal event atomically.
+    /// Cancellation wins if it was observed before completion; a worker must
+    /// never turn a user-cancelled receipt back into success.
+    pub fn finish_job_with_event(
+        &self,
+        job_id: &str,
+        status: &str,
+        progress: u8,
+        error_code: Option<&str>,
+        event_kind: &str,
+        payload: &Value,
+        updated_at: &str,
+    ) -> Result<JobSummary, StoreError> {
+        if !is_opaque_id(job_id)
+            || !matches!(status, "succeeded" | "failed" | "cancelled")
+            || progress > 100
+            || event_kind.trim().is_empty()
+            || !payload.is_object()
+        {
+            return Err(StoreError::InvalidData(
+                "invalid terminal job update".to_owned(),
+            ));
+        }
+        let event_payload = serde_json::to_string(payload)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        let current_status: Option<String> = transaction
+            .query_row(
+                "SELECT status FROM runtime_jobs WHERE job_id = ?1",
+                params![job_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(current_status) = current_status else {
+            return Err(StoreError::Contract {
+                code: "NOT_FOUND".to_owned(),
+                message: "job not found".to_owned(),
+            });
+        };
+        if matches!(current_status.as_str(), "succeeded" | "failed" | "cancelled") {
+            return read_job_summary(&transaction, job_id);
+        }
+        transaction.execute(
+            "UPDATE runtime_jobs SET status = ?1, progress = ?2, error_code = ?3, updated_at = ?4 WHERE job_id = ?5",
+            params![status, i64::from(progress), error_code, updated_at, job_id],
+        )?;
+        let next_sequence: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM runtime_job_events WHERE job_id = ?1",
+            params![job_id],
+            |row| row.get(0),
+        )?;
+        transaction.execute(
+            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![job_id, next_sequence, event_kind, event_payload, updated_at],
+        )?;
+        let job = read_job_summary(&transaction, job_id)?;
+        transaction.commit()?;
+        Ok(job)
+    }
+
     pub fn cancel_job(&self, job_id: &str, updated_at: &str) -> Result<JobSummary, StoreError> {
         if !is_opaque_id(job_id) {
             return Err(StoreError::InvalidData("invalid job id".to_owned()));
@@ -4609,6 +4718,57 @@ mod tests {
             .list_versions(Some("project-job-cancel"))
             .unwrap()
             .is_empty());
+    }
+
+    #[test]
+    fn queued_job_event_and_terminal_result_are_atomic_and_cancel_wins() {
+        let store = Store::memory().expect("store");
+        store
+            .insert_project(&project("project-job-result"))
+            .expect("project");
+        let job = JobRecord {
+            schema_version: "RuntimeJob@1".to_owned(),
+            job_id: "job-result".to_owned(),
+            project_id: "project-job-result".to_owned(),
+            kind: "primary_form_repair".to_owned(),
+            status: "queued".to_owned(),
+            progress: 0,
+            request_sha256: "b".repeat(64),
+            checkpoint_sha256: None,
+            error_code: None,
+            created_at: "1".to_owned(),
+            updated_at: "1".to_owned(),
+        };
+        let queued = JobEventRecord {
+            schema_version: "RuntimeJobEvent@1".to_owned(),
+            job_id: job.job_id.clone(),
+            sequence: 1,
+            kind: "queued".to_owned(),
+            payload: serde_json::json!({"stage":"primary-form"}),
+            created_at: "1".to_owned(),
+        };
+        store
+            .insert_job_with_event(&job, &queued)
+            .expect("queued job");
+        assert_eq!(store.list_job_events("job-result", 0).unwrap().len(), 1);
+        let completed = store
+            .finish_job_with_event(
+                "job-result",
+                "succeeded",
+                100,
+                None,
+                "completed",
+                &serde_json::json!({"result_sha256":"c".repeat(64)}),
+                "2",
+            )
+            .expect("completed job");
+        assert_eq!(completed.status, "succeeded");
+        assert_eq!(completed.progress, 100);
+        assert_eq!(store.list_job_events("job-result", 0).unwrap().len(), 2);
+        let error = store
+            .cancel_job("job-result", "3")
+            .expect_err("terminal job cannot be cancelled");
+        assert!(error.to_string().contains("JOB_NOT_CANCELLABLE"));
     }
 
     #[test]

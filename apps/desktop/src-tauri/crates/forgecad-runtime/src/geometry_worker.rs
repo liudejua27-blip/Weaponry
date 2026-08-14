@@ -69,6 +69,16 @@ pub(crate) enum GeometryWorkerError {
     PeakRssBudgetExceeded,
 }
 
+/// The generic sibling launcher returns the typed result together with the
+/// identity reported by the child. Callers that only need the payload should
+/// keep using `execute_sibling_worker`; evidence-producing adapters can retain
+/// the cohort without duplicating process or protocol code.
+#[derive(Debug, Clone)]
+pub(crate) struct SiblingWorkerResult {
+    pub result: Value,
+    pub build_cohort_sha256: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct GeometryArtifact {
     pub glb: Vec<u8>,
@@ -205,7 +215,23 @@ pub(crate) fn execute_sibling_worker(
     operation: &str,
     payload: Value,
 ) -> Result<Value, GeometryWorkerError> {
-    execute_sibling_worker_with_budget(worker_binary, operation, payload, DEFAULT_EXECUTION_BUDGET)
+    execute_sibling_worker_with_metadata(worker_binary, operation, payload)
+        .map(|response| response.result)
+}
+
+/// Launch one bounded sibling request and retain the child's authenticated
+/// build identity for a Runtime-owned evidence envelope.
+pub(crate) fn execute_sibling_worker_with_metadata(
+    worker_binary: &str,
+    operation: &str,
+    payload: Value,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
+    execute_sibling_worker_with_metadata_and_budget(
+        worker_binary,
+        operation,
+        payload,
+        DEFAULT_EXECUTION_BUDGET,
+    )
 }
 
 fn execute_sibling_worker_with_budget(
@@ -214,6 +240,21 @@ fn execute_sibling_worker_with_budget(
     payload: Value,
     execution_budget: ExecutionBudget,
 ) -> Result<Value, GeometryWorkerError> {
+    execute_sibling_worker_with_metadata_and_budget(
+        worker_binary,
+        operation,
+        payload,
+        execution_budget,
+    )
+    .map(|response| response.result)
+}
+
+fn execute_sibling_worker_with_metadata_and_budget(
+    worker_binary: &str,
+    operation: &str,
+    payload: Value,
+    execution_budget: ExecutionBudget,
+) -> Result<SiblingWorkerResult, GeometryWorkerError> {
     let request = WorkerRequest {
         protocol: WORKER_PROTOCOL.to_owned(),
         request_id: format!("forgecad-worker-{}", uuid::Uuid::new_v4().simple()),
@@ -240,10 +281,14 @@ fn execute_sibling_worker_with_budget(
     if response.build_cohort_sha256 != build_cohort_sha256() {
         return Err(GeometryWorkerError::Protocol);
     }
+    let build_cohort_sha256 = response.build_cohort_sha256.clone();
     if !response.ok {
         return Err(GeometryWorkerError::Rejected);
     }
-    response.result.ok_or(GeometryWorkerError::Protocol)
+    Ok(SiblingWorkerResult {
+        result: response.result.ok_or(GeometryWorkerError::Protocol)?,
+        build_cohort_sha256,
+    })
 }
 
 /// Extract only limits that a V2 author has explicitly declared inside the

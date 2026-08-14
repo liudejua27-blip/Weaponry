@@ -580,6 +580,7 @@ fn mcp010f_write_tool_names() -> Vec<String> {
         "reference_mask_prepare",
         "reference_mask_refine_prepare",
         "primary_form_repair_prepare",
+        "primary_form_repair_job_prepare",
     ]
         .into_iter()
         .map(str::to_owned)
@@ -844,6 +845,12 @@ fn read_only_tools() -> Vec<Value> {
         tool(
             "job_get",
             "Read a durable Runtime job receipt",
+            json!({"type":"object","required":["job_id"],"properties":{"job_id":{"type":"string","minLength":1}},"additionalProperties":false}),
+            true,
+        ),
+        tool(
+            "job_result_get",
+            "Read a CAS-backed result published by a completed Runtime job",
             json!({"type":"object","required":["job_id"],"properties":{"job_id":{"type":"string","minLength":1}},"additionalProperties":false}),
             true,
         ),
@@ -1439,6 +1446,28 @@ fn mcp010f_write_tools() -> Vec<Value> {
             true,
             "MCP010F",
         ),
+        write_tool_with_transaction(
+            "primary_form_repair_job_prepare",
+            "Queue one Runtime-owned Primary Form repair Job when the bounded search may exceed one MCP request window. Poll job_get, then read the exact CAS-backed PrimaryFormRepairPrepareResult@1 with job_result_get. It never confirms a version or exports.",
+            json!({
+                "type":"object",
+                "required":["project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
+                "properties":{
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property(),
+                    "rig":{"type":"object"},
+                    "base_camera":{"type":"object"},
+                    "optimizer":{"type":"object","required":["algorithm","max_iterations","max_evaluations","step_fraction"],"properties":{"algorithm":{"enum":["grid","coordinate_descent"]},"max_iterations":{"type":"integer","minimum":1,"maximum":8},"max_evaluations":{"type":"integer","minimum":1,"maximum":64},"step_fraction":{"type":"number","minimum":0.000001,"maximum":0.5}},"additionalProperties":false},
+                    "base_version_id":nullable_id_property(),
+                    "canonical_sha256":sha256_property()
+                },
+                "additionalProperties":false
+            }),
+            false,
+            true,
+            "MCP010F",
+        ),
     ]
 }
 
@@ -1729,6 +1758,9 @@ fn validate_tool_schema_shape(
                 | "properties"
                 | "additionalProperties"
                 | "oneOf"
+                | "allOf"
+                | "if"
+                | "then"
                 | "const"
                 | "enum"
                 | "minLength"
@@ -1740,6 +1772,7 @@ fn validate_tool_schema_shape(
                 | "items"
                 | "minItems"
                 | "maxItems"
+                | "uniqueItems"
         )
     }) {
         return Err(());
@@ -1773,6 +1806,20 @@ fn validate_tool_schema_shape(
             validate_tool_schema_shape(alternative, depth + 1, budget)?;
         }
     }
+    if let Some(value) = object.get("allOf") {
+        let alternatives = value
+            .as_array()
+            .filter(|items| !items.is_empty())
+            .ok_or(())?;
+        for alternative in alternatives {
+            validate_tool_schema_shape(alternative, depth + 1, budget)?;
+        }
+    }
+    for key in ["if", "then"] {
+        if let Some(value) = object.get(key) {
+            validate_tool_schema_shape(value, depth + 1, budget)?;
+        }
+    }
     if let Some(value) = object.get("enum") {
         if value.as_array().filter(|items| !items.is_empty()).is_none() {
             return Err(());
@@ -1793,6 +1840,12 @@ fn validate_tool_schema_shape(
         }
     }
     if object
+        .get("uniqueItems")
+        .is_some_and(|value| !value.is_boolean())
+    {
+        return Err(());
+    }
+    if object
         .get("minimum")
         .is_some_and(|value| value.as_f64().is_none())
     {
@@ -1805,7 +1858,11 @@ fn validate_tool_schema_shape(
         return Err(());
     }
     if let Some(value) = object.get("pattern") {
-        if value.as_str() != Some("^[0-9a-f]{64}$") {
+        if !matches!(
+            value.as_str(),
+            Some("^[0-9a-f]{64}$")
+                | Some("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+        ) {
             return Err(());
         }
     }
@@ -1907,7 +1964,12 @@ fn validate_value_against_tool_schema(
             }
         }
         if let Some(pattern) = object.get("pattern").and_then(Value::as_str) {
-            if pattern != "^[0-9a-f]{64}$" || !is_lowercase_sha256(string) {
+            let valid = match pattern {
+                "^[0-9a-f]{64}$" => is_lowercase_sha256(string),
+                "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$" => is_opaque_id(string),
+                _ => false,
+            };
+            if !valid {
                 return Err(());
             }
         }
@@ -1927,6 +1989,13 @@ fn validate_value_against_tool_schema(
         for item in values {
             validate_value_against_tool_schema(items, item, depth + 1, budget)?;
         }
+        if object.get("uniqueItems") == Some(&Value::Bool(true)) {
+            for (index, item) in values.iter().enumerate() {
+                if values[index + 1..].iter().any(|other| other == item) {
+                    return Err(());
+                }
+            }
+        }
     }
     if let Some(alternatives) = object.get("oneOf").and_then(Value::as_array) {
         let matches = alternatives
@@ -1944,6 +2013,21 @@ fn validate_value_against_tool_schema(
             .count();
         if matches != 1 {
             return Err(());
+        }
+    }
+    if let Some(all_of) = object.get("allOf").and_then(Value::as_array) {
+        for schema in all_of {
+            validate_value_against_tool_schema(schema, value, depth + 1, budget)?;
+        }
+    }
+    if let Some(condition) = object.get("if") {
+        let mut condition_budget = *budget;
+        if validate_value_against_tool_schema(condition, value, depth + 1, &mut condition_budget)
+            .is_ok()
+        {
+            if let Some(then_schema) = object.get("then") {
+                validate_value_against_tool_schema(then_schema, value, depth + 1, budget)?;
+            }
         }
     }
     Ok(())
@@ -2546,6 +2630,10 @@ fn map_ipc_error(error: IpcError) -> String {
                         }
                         "SILHOUETTE_FIT_REJECTED" => "SILHOUETTE_FIT_REJECTED: Runtime silhouette gate rejected the candidate".to_owned(),
                         "SILHOUETTE_FIT_RENDER_FAILED" => "SILHOUETTE_FIT_RENDER_FAILED: Runtime fit render failed".to_owned(),
+                        "CAMERA_FIT_INVALID" => "CAMERA_FIT_INVALID: Runtime camera-fit intent rejected".to_owned(),
+                        "CAMERA_FIT_REJECTED" => "CAMERA_FIT_REJECTED: Runtime camera-fit gate rejected the candidate".to_owned(),
+                        "CAMERA_FIT_RENDER_FAILED" => "CAMERA_FIT_RENDER_FAILED: Runtime camera-fit render failed".to_owned(),
+                        "CAMERA_FIT_CONTRACT_INVALID" => "CAMERA_FIT_CONTRACT_INVALID: Runtime camera-fit result failed its contract".to_owned(),
                         "PRIMARY_FORM_REPAIR_INVALID" => {
                             let reason = detail
                                 .split_once("PRIMARY_FORM_REPAIR_INVALID:")
@@ -2648,7 +2736,26 @@ fn map_ipc_error(error: IpcError) -> String {
                 "STORE_LEGACY_DATABASE_REJECTED" => "STORE_LEGACY_DATABASE_REJECTED: Runtime rejected a legacy database".to_owned(),
                 "STORE_LOCK_POISONED" => "STORE_LOCK_POISONED: Runtime store lock is poisoned".to_owned(),
                 "RUNTIME_BUSY" => "RUNTIME_BUSY: Runtime writer is busy".to_owned(),
+                "CAMERA_FIT_INVALID" => "CAMERA_FIT_INVALID: Runtime camera-fit intent rejected".to_owned(),
+                "CAMERA_FIT_REJECTED" => "CAMERA_FIT_REJECTED: Runtime camera-fit gate rejected the candidate".to_owned(),
+                "CAMERA_FIT_RENDER_FAILED" => "CAMERA_FIT_RENDER_FAILED: Runtime camera-fit render failed".to_owned(),
+                "CAMERA_FIT_CONTRACT_INVALID" => "CAMERA_FIT_CONTRACT_INVALID: Runtime camera-fit result failed its contract".to_owned(),
+                "CANDIDATE_ARTIFACT_UNAVAILABLE" => "CANDIDATE_ARTIFACT_UNAVAILABLE: Runtime candidate has no readable artifact".to_owned(),
+                "SILHOUETTE_FIT_INVALID" => "SILHOUETTE_FIT_INVALID: Runtime fit intent rejected".to_owned(),
+                "SILHOUETTE_FIT_REJECTED" => "SILHOUETTE_FIT_REJECTED: Runtime silhouette gate rejected the candidate".to_owned(),
+                "SILHOUETTE_FIT_RENDER_FAILED" => "SILHOUETTE_FIT_RENDER_FAILED: Runtime fit render failed".to_owned(),
+                "PRIMARY_FORM_REPAIR_INVALID" => "PRIMARY_FORM_REPAIR_INVALID: Runtime Primary Form intent rejected".to_owned(),
+                "PRIMARY_FORM_REPAIR_REJECTED" => "PRIMARY_FORM_REPAIR_REJECTED: Runtime Primary Form geometry proposal rejected".to_owned(),
                 "IPC_ERROR" => "IPC_ERROR: Runtime IPC request failed".to_owned(),
+                code if code.starts_with("SILHOUETTE_FIT_GEOMETRY_") => {
+                    format!("{code}: Runtime silhouette geometry trial failed")
+                }
+                code if code.starts_with("SILHOUETTE_FIT_REJECTED_") => {
+                    format!("{code}: Runtime silhouette fit rejected its persisted candidate evidence")
+                }
+                code if code.starts_with("PRIMARY_FORM_REPAIR_ACCEPTANCE_") => {
+                    format!("{code}: Runtime Primary Form same-camera acceptance failed")
+                }
                 _ => "RUNTIME_UNAVAILABLE: Runtime request failed".to_owned(),
             }
         }
@@ -3048,6 +3155,21 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 )
                 .map_err(|error| error.to_string())
         }
+        "primary_form_repair_job_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            let arguments = canonicalize_silhouette_fit_wire(arguments)?;
+            let base_version_id = arguments
+                .get("base_version_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            runtime
+                .primary_form_repair_job_prepare(
+                    project_id,
+                    base_version_id.as_deref(),
+                    arguments,
+                )
+                .map_err(|error| error.to_string())
+        }
         "part_contour_fit_prepare" => {
             let project_id = required_id(arguments, "project_id")?;
             runtime
@@ -3151,6 +3273,10 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                     .map_err(|error| error.to_string())?,
             )
             .map_err(|error| error.to_string())
+        }
+        "job_result_get" => {
+            let id = required_id(arguments, "job_id")?;
+            runtime.job_result(id).map_err(|error| error.to_string())
         }
         "version_list" => {
             let project_id = arguments.get("project_id").and_then(Value::as_str);
@@ -3692,6 +3818,18 @@ mod tests {
             map_ipc_error(IpcError::RuntimeRequest("RUNTIME_BUSY".to_owned())),
             "RUNTIME_BUSY: Runtime writer is busy"
         );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "SILHOUETTE_FIT_REJECTED: persisted GeometryProgram provenance drifted".to_owned(),
+            )),
+            "SILHOUETTE_FIT_REJECTED: Runtime silhouette gate rejected the candidate"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "PRIMARY_FORM_REPAIR_INVALID".to_owned(),
+            )),
+            "PRIMARY_FORM_REPAIR_INVALID: Runtime Primary Form intent rejected"
+        );
         assert!(map_ipc_error(IpcError::Io(std::io::Error::other("socket")))
             .starts_with("RUNTIME_UNAVAILABLE:"));
     }
@@ -3734,11 +3872,11 @@ mod tests {
             summary["schema_version"],
             "ForgeCADMcpToolManifestSummary@1"
         );
-        assert_eq!(summary["read_count"], 36);
-        assert_eq!(summary["write_count"], 23);
-        assert_eq!(summary["total_count"], 59);
-        assert_eq!(summary["read_names"].as_array().unwrap().len(), 36);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 23);
+        assert_eq!(summary["read_count"], 37);
+        assert_eq!(summary["write_count"], 24);
+        assert_eq!(summary["total_count"], 61);
+        assert_eq!(summary["read_names"].as_array().unwrap().len(), 37);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 24);
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -4170,13 +4308,13 @@ mod tests {
     #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 36);
+        assert_eq!(disabled.len(), 37);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 59);
+        assert_eq!(enabled.len(), 61);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -4454,7 +4592,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 59);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 61);
 
         let imported = handle(
             &mut backend,

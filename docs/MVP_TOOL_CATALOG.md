@@ -1,13 +1,13 @@
 # ForgeCAD MVP 工具、Skill 与外部项目目录
 
 版本：2026-08-13
-状态：MVP 功能核心目录；当前源码为 102 个 contracts、36 read + 23 opt-in write = 59 个工具、12 个 Skill（必须先读 `ponytail-preflight@0.1.0`，以及历史 Bundle + `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0`、`uv-pbr@0.2.0`）；唯一 `in_progress` 为 `FGC-MCP010F`。MCP010C source-focused fixed renderer/九 AOV/reference compare/typed visual review、MCP010D hard-surface Operator/Skill、MCP010E 离线 AssetPack/UV/PBR/MikkTSpace、MCP010F Viewer 与 contour-first Runtime target/Rig/SDF/Part/candidate compare source slice（含 `CameraCalibrationRef@1` 和 `silhouette_part_error_get`）已通过各自范围；新增 `primary_form_repair_prepare` 将一次 Primary Form fit→compile→readback→render→compare 收口为 Runtime-owned staged prepare/evaluate；新增 `design_action_run_prepare`/`design_action_run_get` 的窄范围单 Part `primary-form` action-run/readback 也已通过 focused Runtime/MCP source Gate。Agentic observe/plan projection 与 durable DesignSession/Checkpoint/RepairIntent prepare/readback 也有隔离 source/transport/restart receipt，真实 Runtime 的嵌套只读 projection producer/consumer conformance 已通过独立回执。packaged Viewer 也已有 CLI read-model、原生窗口和核心控件 smoke，但同一 provisional observation 的 package binding、PBR likeness、正式 VoiceOver、真人评审和 360 仍 `NOT_RUN/BLOCKED`；durable/reference/DesignSpec 完整 producer、通用单动作 orchestrator 和 Repair 应用仍未完成。
+状态：MVP 功能核心目录；当前源码为 103 个 contracts、37 read + 24 opt-in write = 61 个工具、12 个 Skill（必须先读 `ponytail-preflight@0.1.0`，以及历史 Bundle + `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0`、`uv-pbr@0.2.0`）；唯一 `in_progress` 为 `FGC-MCP010F`。MCP010C source-focused fixed renderer/九 AOV/reference compare/typed visual review、MCP010D hard-surface Operator/Skill、MCP010E 离线 AssetPack/UV/PBR/MikkTSpace、MCP010F Viewer 与 contour-first Runtime target/Rig/SDF/Part/candidate compare source slice（含 `CameraCalibrationRef@1` 和 `silhouette_part_error_get`）已通过各自范围；新增 `primary_form_repair_prepare` 将一次 Primary Form fit→compile→readback→render→compare 收口为 Runtime-owned staged prepare/evaluate；新增 `primary_form_repair_job_prepare` 将可能超过单次 IPC deadline 的长搜索异步化，并由 `job_result_get` 回读 CAS 结果；新增 `RuntimeJobResult@1` 约束该 CAS 结果外层 envelope；新增 `design_action_run_prepare`/`design_action_run_get` 的窄范围单 Part `primary-form` action-run/readback 也已通过 focused Runtime/MCP source Gate。Agentic observe/plan projection 与 durable DesignSession/Checkpoint/RepairIntent prepare/readback 也有隔离 source/transport/restart receipt，真实 Runtime 的嵌套只读 projection producer/consumer conformance 已通过独立回执。packaged Viewer 也已有 CLI read-model、原生窗口和核心控件 smoke，但同一 provisional observation 的 package binding、PBR likeness、正式 VoiceOver、真人评审和 360 仍 `NOT_RUN/BLOCKED`；durable/reference/DesignSpec 完整 producer、通用单动作 orchestrator 和 Repair 应用仍未完成。
 
 本文是 Luna 执行 Goal 时的“能调用什么、何时调用、什么不能声称”的单一索引。它不是新的运行时配置，也不允许绕过 MCP 合同。工具实现仍以 Rust source 和 JSON Schema 为权威；本文只提供可读的路线图和验收边界。
 
 Stage 0 机器真值读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，候选状态是 `QUALITY_TARGET_NOT_MET`，证据完整性是 `INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`，packaged Viewer 为不同 cohort/artifact，尚未绑定该 observation。工具或 Viewer 已实现不等于这些缺口已通过，也不能提升 human/PBR/export-restart/360 状态。
 
-<!-- forgecad-stage0: schemas=102 schema_set_sha256=f7f80833de9e3f018b610d864beb3108628004de7f479074b22053e65bdcbbce read_tools=36 write_tools=23 total_tools=59 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json latest_completed=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json -->
+<!-- forgecad-stage0: schemas=103 schema_set_sha256=145c98ac7b788bb8d7cc2e82b2091ddce8bd4aa5f485a2740f4135b2898627bd read_tools=37 write_tools=24 total_tools=61 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json latest_completed=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json -->
 
 ## 1. MVP 运行边界
 
@@ -24,7 +24,7 @@ forgecad-mcp  ── authenticated local IPC ── forgecad-runtime
 ForgeCAD Viewer（可选）
 ```
 
-- 当前源码的默认连接暴露 36 个只读工具；只有 authenticated IPC、Runtime handoff 和 `FORGECAD_MCP_ENABLE_MCP004_WRITES=1` 同时满足时，才暴露完整 59 个工具（36 read + 23 opt-in write）。其中 `operator_catalog_get`、`geometry_program_hash`、`silhouette_rig_hash`、`material_pack_get`、`render_pass_get`、`silhouette_target_get`、`camera_fit_prepare`、`silhouette_fit_prepare`、`part_contour_fit_prepare`、`silhouette_part_error_get`、`silhouette_candidate_compare`、`boundary_error_get`、`session_get`、`checkpoint_get` 和 Agentic 的 `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 是 Runtime-owned 只读工具；`reference_mask_prepare`/`reference_mask_refine_prepare`/`primary_form_repair_prepare`、`session_create_or_resume`、`checkpoint_prepare`、`checkpoint_restore_prepare` 需要显式 write opt-in。C source raw receipt 证明九 AOV、comparison、review 和 image block 的绑定链，不证明用户图片 likeness；E raw receipt 另证明 AssetPack、嵌入纹理、UV/tangent readback 和 PBR lowering；F contour-first slice 证明 target/camera/Rig/Rig-hash/SDF/Part/candidate boundary source dispatch；Agentic receipts证明 observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback 的隔离 transport，不证明 orchestrator、Repair 应用或机器人 likeness。MCP010A/010B 的 Dev.app receipts继续按历史结构证据保留。
+- 当前源码的默认连接暴露 37 个只读工具；只有 authenticated IPC、Runtime handoff 和 `FORGECAD_MCP_ENABLE_MCP004_WRITES=1` 同时满足时，才暴露完整 61 个工具（37 read + 24 opt-in write）。其中 `operator_catalog_get`、`geometry_program_hash`、`silhouette_rig_hash`、`material_pack_get`、`render_pass_get`、`silhouette_target_get`、`camera_fit_prepare`、`silhouette_fit_prepare`、`part_contour_fit_prepare`、`silhouette_part_error_get`、`silhouette_candidate_compare`、`boundary_error_get`、`session_get`、`checkpoint_get`、`job_result_get` 和 Agentic 的 `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 是 Runtime-owned 只读工具；`reference_mask_prepare`/`reference_mask_refine_prepare`/`primary_form_repair_prepare`/`primary_form_repair_job_prepare`、`session_create_or_resume`、`checkpoint_prepare`、`checkpoint_restore_prepare` 需要显式 write opt-in。C source raw receipt 证明九 AOV、comparison、review 和 image block 的绑定链，不证明用户图片 likeness；E raw receipt 另证明 AssetPack、嵌入纹理、UV/tangent readback 和 PBR lowering；F contour-first slice 证明 target/camera/Rig/Rig-hash/SDF/Part/candidate boundary source dispatch；Agentic receipts证明 observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback 的隔离 transport，不证明 orchestrator、Repair 应用或机器人 likeness。MCP010A/010B 的 Dev.app receipts继续按历史结构证据保留。
 - Codex 可在临时目录调用 `scripts/make_mcp010f_comparison_sheet.py`，把同一参考图、`beauty`、`silhouette` 和一个诊断 AOV 打包成固定 2×2 review sheet。它只做标准库 PNG 重采样/哈希清单，不评分、不写 Runtime/CAS；原图字节不得进入仓库或 evidence，`QualityReport@2` 仍是唯一质量真值。
 - Codex 也可在临时目录调用 `scripts/build_mcp010f_fit_plan.py`，把已绑定的 comparison/view/catalog JSON 转成最多五轮、按 `reference-canvas → silhouette-blockout → landmark-structure → semantic-part-fill → surface-detail → uv-pbr → final` 门控的单部件修正队列。轮廓门未通过时只返回 silhouette 动作，并锁定后续 landmark/form/material；它只验证输入 hash 和整理 metric/landmark/region 证据，并为已知 region 输出一个 `primary_part_id`、只读 supporting Parts、material-zone hints 和按 Part 分组的 Operator hints；未知 region 不会被猜成部件。它不生成 GeometryProgram、不调用 Operator、不写 Runtime/CAS；缺少 live OperatorCatalog 时不会伪造可执行提示。
 - 本机 Codex 另提供 `forgecad-material-surface-design` 编排 Skill，专门把 live AssetPack、MaterialZone、profile/panel/vent/joint/sweep 线条、UV/PBR 通道和九 AOV 复核串成一条短路径。它不是 Runtime Skill Bundle，不改变 `skill_list` 的产品真值，也不安装第三方插件；缺失 AssetPack 或 `AppearanceProgram@2` 时必须报告 `MATERIAL_ROUTE_UNAVAILABLE`。
@@ -56,7 +56,7 @@ ForgeCAD Viewer（可选）
 
 这些工具已有公开 Schema、negative tests、Runtime producer 和隔离 Viewer/Runtime evidence；真实 Runtime 的 scene/stage 嵌套只读 projection 已通过 `scripts/check_agentic_projection_receipt.py`，durable 工具与 Primary Form action-run 仍只覆盖 prepare/readback。durable/reference/DesignSpec 完整 producer、通用单动作 design orchestrator、Repair 实际应用、完整 Visual Evidence contract conformance 和 real Codex quality loop 仍未实现。Codex 仍必须先读取 `ponytail-preflight@0.1.0`，并在写工具前提交显式 approval。
 
-## 2. 只读工具（默认可见，36 个）
+## 2. 只读工具（默认可见，37 个）
 
 | 工具 | 用途 | 当前 MVP 证据/限制 |
 |---|---|---|
@@ -75,6 +75,7 @@ ForgeCAD Viewer（可选）
 | `silhouette_part_error_get` | 返回每个声明 Part 的局部 envelope、质心/宽高比、边界误差和推荐修正 Part | 只读 hash-bound 多 Part 归因；不创建 candidate/version；缺失 Part 或 unknown slice 必须 fail closed |
 | `job_events_read` | 读取 durable Job events | MVP 支持读取/取消；checkpoint 续跑属 MCP011 |
 | `job_get` | 读取 Job 状态 | 非终态重启可转 typed failure |
+| `job_result_get` | 读取已完成 Job 的 CAS-backed 结果 | 仅返回终态 event 绑定的 JSON；排队/运行中返回 `JOB_RESULT_PENDING`；不恢复跨重启执行 |
 | `operator_catalog_get` | 读取 Runtime-owned `OperatorCatalog@1` | 返回值必须与 `forgecad://operators/catalog`、capability 和 V2 artifact/readback digest 一致；不是第二套 catalog 真值 |
 | `project_get` | 读取项目元数据和 head | 不创建项目 |
 | `project_list` | 列出当前 Runtime 项目 | 不读取旧 Library |
@@ -126,7 +127,7 @@ ForgeCAD Viewer（可选）
 | `visual_review_submit` | write/evidence | 保存绑定 pass/region/candidate hash 的 Codex typed issue |
 | `human_visual_review_submit` | write/evidence + confirmation | 保存用户评分；不作为密码学身份认证；真人阈值门仍 NOT_RUN |
 
-`quality_get` 现可读回 candidate-bound `QualityReport@2`；attempt35 返回 `QUALITY_TARGET_NOT_MET`，不得 confirm/export。当前工具数为 36 read + 23 opt-in write = 59；Agentic projection 只读、可重建，durable session/checkpoint/RepairIntent 只覆盖已记录的 prepare/readback receipt，不替代 QualityReport 或已确认 version。Viewer source 与 packaged read-model/window/core-control smoke 已实现，但 attempt35 camera 绑定不一致，且 package 未绑定同一 provisional observation。真实 PBR likeness、正式 VoiceOver、人评、export/restart hash 和 360 仍不在 source Gate。
+`quality_get` 现可读回 candidate-bound `QualityReport@2`；attempt35 返回 `QUALITY_TARGET_NOT_MET`，不得 confirm/export。当前工具数为 37 read + 24 opt-in write = 61；Agentic projection 只读、可重建，durable session/checkpoint/RepairIntent 只覆盖已记录的 prepare/readback receipt，不替代 QualityReport 或已确认 version。Viewer source 与 packaged read-model/window/core-control smoke 已实现，但 attempt35 camera 绑定不一致，且 package 未绑定同一 provisional observation。真实 PBR likeness、正式 VoiceOver、人评、export/restart hash 和 360 仍不在 source Gate。
 
 ### 3.2 MCP010F contour-first 工具
 
@@ -134,6 +135,7 @@ ForgeCAD Viewer（可选）
 |---|---|---|
 | `reference_mask_prepare` | write/CAS target | 用 reference 或 Codex normalized contour 创建 `SilhouetteTarget@1` 和 PNG mask；不创建 candidate/version |
 | `reference_mask_refine_prepare` | write/CAS target | 基于旧 target 创建新不可变 target；旧 hash 不覆盖 |
+| `primary_form_repair_job_prepare` | write/approval | 当 64-evaluation Primary Form search 可能超过一次 IPC window 时，创建 queued Runtime Job；后台仍复用同一 Geometry/Render Worker/strict readback/same-camera acceptance，不 confirm/version/export |
 
 轮廓 target 未通过前，Luna 只允许一个 contour-bearing Part 的 geometry 修正；不得跳到材质堆叠。完整调用纪律见 `docs/CODEX_SILHOUETTE_FIT_WORKFLOW.md`。
 
