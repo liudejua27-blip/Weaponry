@@ -17,6 +17,8 @@ Stage 0 权威快照：当前为 101 Schema、35 read + 21 opt-in write = 56 too
 
 2026-08-14 Primary Form proposal handoff state：`silhouette_fit_prepare` now exposes an optional `selected_geometry_program` only when a Runtime Geometry Worker trial strictly improves the authored baseline. The returned `GeometryProgram@2` is project/hash validated at the result boundary and remains read-only; it is intended for a later user-approved `geometry_prepare` call, not automatic candidate mutation or confirmation. Contracts and focused/source gates pass; this does not change `QUALITY_TARGET_NOT_MET`, camera `MISMATCH`, benchmark eligibility, or the unrun human/PBR/export/360 gates.
 
+2026-08-14 Primary Form bounded schedule state：camera coordinate-descent no longer aborts when one local batch fails to improve the incumbent. It now consumes the remaining Runtime-owned bounded schedule so later roll/FOV/distance/target-offset/global-scale axes are evaluated before the declared budget is exhausted; a focused 8-camera fixture verifies all 8 evaluations are consumed. This repairs a real convergence truncation, but adds no visual-quality evidence and does not change `QUALITY_TARGET_NOT_MET`, camera `MISMATCH`, `BLOCKED_INCOMPLETE_BINDING`, or the unrun human/PBR/export/360 gates.
+
 ## 1. 真值层级
 
 1. **Runtime V1 SQLite + CAS**：项目、候选、版本、Job、Skill、审批和工件唯一持久真值；

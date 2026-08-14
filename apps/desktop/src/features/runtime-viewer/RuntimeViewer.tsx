@@ -22,7 +22,7 @@ import {
 const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
 const VIEWER_HOVER_CACHE = '__forgecad_hover_state_v1'
 const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键：框选 · 右键：旋转 · 中键：平移 · 滚轮：缩放 · 1/2/3/4/5/6 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
-const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选（按住 Shift + 左键拖拽）', '右键：旋转', '中键：平移', '滚轮：缩放', '1～6：切换视角', 'Z/X/C：光照预设', 'F：聚焦', 'R：重置视角', 'Esc：清选']
+const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选（按住 Shift+左键拖拽）', '右键：旋转', '中键：平移', '滚轮：缩放', '1：前视角', '2：左视角', '3：顶视角', '4：右视角', '5：后视角', '6：三分之三四', 'Z/X/C：光照预设', 'F：聚焦', 'R：重置视角', 'Esc：清选']
 const VIEWPORT_KEYBOARD_HINTS_NO_FOCUS = ['请先点击视口后再使用键盘快捷键']
 const VIEWPORT_KEYBOARD_HINTS_ACTIVE = ['当前：快捷键生效']
 type ThreeRuntimeCore = typeof import('./three-runtime-core')
@@ -2524,6 +2524,19 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const visualStatusLabel = formatQualityStatus(visualStatus)
   const visualStatusClass = qualityStatusClass(visualStatus)
   const visualStatusIcon = visualStatusClass === 'passed' ? '✓' : visualStatusClass === 'failed' ? '!' : visualStatusClass === 'partial' ? '~' : '·'
+  const activeCandidateChain = useMemo(() => {
+    const artifactReady = artifactLoadState === 'ready' && Boolean(artifact)
+    const compareReady = compareLoadState === 'ready' && Boolean(referenceImage) && Boolean(renderImage)
+    const evidenceReady = Boolean(visualEvidenceBound && evidence)
+    const qualityReady = visualQualityReport?.hard_gate_passed !== undefined
+    return {
+      artifactReady,
+      compareReady,
+      evidenceReady,
+      qualityReady,
+      visualStatus: formatQualityStatus(visualStatus),
+    }
+  }, [artifact, artifactLoadState, compareLoadState, evidence, referenceImage, renderImage, visualEvidenceBound, visualQualityReport?.hard_gate_passed, visualStatus])
   // Display the Runtime decision verbatim. Viewer does not add a second
   // status predicate or recompute the visual gate from metrics.
   const visualHardGatePassed = visualQualityReport?.hard_gate_passed === true
@@ -2630,6 +2643,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const handleViewportPointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
     setViewportFocused(true)
     setViewportActionHint('等待输入')
+    event.currentTarget.focus()
     const state = viewerSceneRef.current
     if (!state || artifactLoadState !== 'ready' || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey) {
       setViewportActionHint('请先等待模型就绪后再点选')
@@ -2668,28 +2682,15 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     const target = pickViewportObjectFromPointer(state, event, rect, partLockState, materialLockState)
     if (!target) {
       setViewportActionHint('未命中对象')
-      setSelectedObjectId(null)
+      resetCompareSelection()
       setHoveredObjectId(null)
-      setSelectedPartId('all')
-      setSelectedMaterialZone('all')
-      setSelectedPass('beauty')
-      setFocusedSceneTreeNodeId(null)
-      setExpandedPartIds({})
       return
     }
     setHoveredObjectId(target.uuid)
     setSelectedObjectId(target.uuid)
     const targetState = state.objects.get(target)
     if (targetState) {
-      syncSelectionViewportContext(targetState.partId, targetState.materialZoneId)
-      const targetNodeId = sceneTreeMaterialNodeId(targetState.partId, targetState.materialZoneId)
-      setFocusedSceneTreeNodeId(targetNodeId)
-      const focusButton = sceneTreeNodeRefs.current[targetNodeId]
-      if (focusButton) {
-        focusButton.focus()
-        focusButton.scrollIntoView({ block: 'nearest' })
-      }
-      setSceneTreePartExpanded(targetState.partId, true)
+      syncSceneTreeSelection(targetState.partId, targetState.materialZoneId, target.uuid)
       setViewportActionHint(`已选中：${targetState.partId}`)
       focusViewportTarget(target)
     }
@@ -2734,25 +2735,12 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       const target = pickViewportObjectFromPointer(state, event, rect, partLockState, materialLockState)
       if (!target) {
         setViewportActionHint('框选未命中')
-        setSelectedObjectId(null)
-        setSelectedPartId('all')
-        setSelectedMaterialZone('all')
-        setSelectedPass('beauty')
-        setFocusedSceneTreeNodeId(null)
-        setExpandedPartIds({})
+        resetCompareSelection()
       } else {
         const targetState = state.objects.get(target)
         setSelectedObjectId(target.uuid)
         if (targetState) {
-          syncSelectionViewportContext(targetState.partId, targetState.materialZoneId)
-          const targetNodeId = sceneTreeMaterialNodeId(targetState.partId, targetState.materialZoneId)
-          setFocusedSceneTreeNodeId(targetNodeId)
-          const focusButton = sceneTreeNodeRefs.current[targetNodeId]
-          if (focusButton) {
-            focusButton.focus()
-            focusButton.scrollIntoView({ block: 'nearest' })
-          }
-          setSceneTreePartExpanded(targetState.partId, true)
+          syncSceneTreeSelection(targetState.partId, targetState.materialZoneId, target.uuid)
           setViewportActionHint(`已命中：${targetState.partId}`)
           focusViewportTarget(target)
         }
@@ -2821,6 +2809,24 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     setSelectedPartId(partId)
     setSelectedMaterialZone('all')
     setSelectedPass(partId === 'all' ? 'beauty' : 'part-id')
+  }
+
+  const focusSceneTreeNode = (nodeId: string) => {
+    const nodeElement = sceneTreeNodeRefs.current[nodeId]
+    if (!nodeElement) return
+    setFocusedSceneTreeNodeId(nodeId)
+    nodeElement.focus()
+    nodeElement.scrollIntoView({ block: 'nearest' })
+  }
+
+  const syncSceneTreeSelection = (partId: string, materialZoneId: string, objectId?: string | null) => {
+    syncSelectionViewportContext(partId, materialZoneId)
+    setSceneTreePartExpanded(partId, true)
+    if (objectId !== undefined) setSelectedObjectId(objectId)
+    const targetNodeId = materialZoneId === 'all'
+      ? sceneTreePartNodeId(partId)
+      : sceneTreeMaterialNodeId(partId, materialZoneId)
+    focusSceneTreeNode(targetNodeId)
   }
 
   const resetCompareSelection = () => {
@@ -2905,41 +2911,24 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   }
 
   const handleSceneTreePartSelect = (partId: string) => {
-    syncSelectionViewportContext(partId, 'all')
-    toggleSceneTreePartExpanded(partId)
+    syncSceneTreeSelection(partId, 'all', null)
     const object = findSceneTreeObject(partId)
-    const focusNodeId = sceneTreePartNodeId(partId)
-    setFocusedSceneTreeNodeId(focusNodeId)
-    const focusNode = sceneTreeNodeRefs.current[focusNodeId]
-    if (focusNode) {
-      focusNode.focus()
-      focusNode.scrollIntoView({ block: 'nearest' })
-    }
     if (object) {
-      setSelectedObjectId(object.uuid)
+      syncSceneTreeSelection(partId, 'all', object.uuid)
       focusViewportTarget(object)
-    } else {
-      setSelectedObjectId(null)
+      return
     }
   }
 
   const handleSceneTreeMaterialSelect = (partId: string, materialZoneId: string) => {
-    syncSelectionViewportContext(partId, materialZoneId)
-    setSceneTreePartExpanded(partId, true)
+    syncSceneTreeSelection(partId, materialZoneId)
     const object = findSceneTreeObject(partId, materialZoneId)
-    const focusNodeId = sceneTreeMaterialNodeId(partId, materialZoneId)
-    setFocusedSceneTreeNodeId(focusNodeId)
-    const focusNode = sceneTreeNodeRefs.current[focusNodeId]
-    if (focusNode) {
-      focusNode.focus()
-      focusNode.scrollIntoView({ block: 'nearest' })
-    }
     if (object) {
-      setSelectedObjectId(object.uuid)
+      syncSceneTreeSelection(partId, materialZoneId, object.uuid)
       focusViewportTarget(object)
-    } else {
-      setSelectedObjectId(null)
+      return
     }
+    syncSceneTreeSelection(partId, materialZoneId, null)
   }
 
   const toggleTreePartVisibility = (partId: string) => {
@@ -2958,13 +2947,6 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     toggleViewportMaterialLock(materialZoneId)
   }
 
-  const focusSceneTreeNode = (nodeId: string) => {
-    const nodeElement = sceneTreeNodeRefs.current[nodeId]
-    if (!nodeElement) return
-    setFocusedSceneTreeNodeId(nodeId)
-    nodeElement.focus()
-    nodeElement.scrollIntoView({ block: 'nearest' })
-  }
   const handleSceneTreeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (sceneTreeNavigationNodes.length === 0) return
     const currentIndex = focusedSceneTreeNodeId
@@ -3512,13 +3494,19 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                     className="scene-tree-inline-toggle"
                     onClick={() => toggleTreePartVisibility(part.partId)}
                     aria-label={`切换部件 ${part.partId} 可见性`}
-                  >{partVisible ? '👁' : '🚫'}</button>
+                  >
+                    <span className="scene-tree-inline-toggle-icon" aria-hidden="true">{partVisible ? '👁' : '🚫'}</span>
+                    <span>{partVisible ? '可见' : '隐藏'}</span>
+                  </button>
                   <button
                     type="button"
                     className={`scene-tree-inline-toggle ${partLocked ? 'scene-tree-inline-toggle-active' : ''}`}
                     onClick={() => toggleTreePartLock(part.partId)}
                     aria-label={`切换部件 ${part.partId} 锁定`}
-                  >{partLocked ? '🔒' : '🔓'}</button>
+                  >
+                    <span className="scene-tree-inline-toggle-icon" aria-hidden="true">{partLocked ? '🔒' : '🔓'}</span>
+                    <span>{partLocked ? '锁定' : '解锁'}</span>
+                  </button>
                 </div>
                   {isPartExpanded && <div className="scene-tree-material-list" role="list" aria-label={`${part.partId} 的材质区`}>
                   {part.materials.map((material) => {
@@ -3556,7 +3544,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                           toggleTreeMaterialVisibility(material.materialZoneId)
                         }}
                         aria-label={`切换材质区 ${material.materialZoneId} 可见性`}
-                      >{materialVisible ? '👁' : '🚫'}</button>
+                      >
+                        <span className="scene-tree-inline-toggle-icon" aria-hidden="true">{materialVisible ? '👁' : '🚫'}</span>
+                        <span>{materialVisible ? '可见' : '隐藏'}</span>
+                      </button>
                       <button
                         type="button"
                         className={`scene-tree-inline-toggle ${materialLocked ? 'scene-tree-inline-toggle-active' : ''}`}
@@ -3565,7 +3556,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                           toggleTreeMaterialLock(material.materialZoneId)
                         }}
                         aria-label={`切换材质区 ${material.materialZoneId} 锁定`}
-                      >{materialLocked ? '🔒' : '🔓'}</button>
+                      >
+                        <span className="scene-tree-inline-toggle-icon" aria-hidden="true">{materialLocked ? '🔒' : '🔓'}</span>
+                        <span>{materialLocked ? '锁定' : '解锁'}</span>
+                      </button>
                     </div>
                   })}
                 </div>}
@@ -3610,6 +3604,14 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         <section className="panel-section" aria-labelledby="candidate-snapshot-title">
           <p className="section-kicker">候选快照</p>
           <h2 id="candidate-snapshot-title">当前候选与上一候选快照比对</h2>
+          <div className="snapshot-chain-summary">
+            <span>链路联动：</span>
+            <span className={`snapshot-chain-chip ${activeCandidateChain.artifactReady ? 'snapshot-chain-chip-ok' : 'snapshot-chain-chip-missing'}`}>GLB</span>
+            <span className={`snapshot-chain-chip ${activeCandidateChain.compareReady ? 'snapshot-chain-chip-ok' : 'snapshot-chain-chip-missing'}`}>对比</span>
+            <span className={`snapshot-chain-chip ${activeCandidateChain.evidenceReady ? 'snapshot-chain-chip-ok' : 'snapshot-chain-chip-missing'}`}>证据</span>
+            <span className={`snapshot-chain-chip ${activeCandidateChain.qualityReady ? 'snapshot-chain-chip-ok' : 'snapshot-chain-chip-missing'}`}>质量</span>
+            <span>可视状态：{activeCandidateChain.visualStatus}</span>
+          </div>
           {!activeSnapshot ? <p className="panel-copy">当前候选无快照数据，等待候选数据可用。</p> : (
             <div className="snapshot-compare">
               <div className="snapshot-card">

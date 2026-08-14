@@ -1325,7 +1325,13 @@ impl Runtime {
                     best_overall = Some(iteration_best);
                 }
             } else {
-                break;
+                // A local camera batch can tie or lose while a later
+                // deterministic neighborhood (roll/FOV/distance/target
+                // offset/global scale) still contains a better view.  Stop
+                // only after the declared bounded schedule is exhausted;
+                // otherwise `max_evaluations` silently became a prefix
+                // budget and Primary Form could never inspect those axes.
+                continue;
             }
             if algorithm == "grid" {
                 break;
@@ -13214,9 +13220,12 @@ mod tests {
             .expect("fit winner comparison");
         assert_eq!(comparison["camera"]["camera_hash"], fit_camera["camera_hash"]);
         assert_eq!(comparison["camera"]["canonical_sha256"], fit_camera["canonical_sha256"]);
-        assert!(fit["iterations"].as_u64().unwrap() >= 1);
-        assert!(fit["iterations"].as_u64().unwrap() <= 2);
-        assert!(fit["evaluations"].as_u64().unwrap() <= 8);
+        // The optimizer may retain the authored camera as the incumbent, but
+        // it must still consume the declared bounded camera schedule instead
+        // of stopping after the first non-improving batch and hiding later
+        // axes from the proposal.
+        assert_eq!(fit["iterations"].as_u64(), Some(2));
+        assert_eq!(fit["evaluations"].as_u64(), Some(8));
         assert!(fit["geometry_evaluations"].as_u64().unwrap() <= 5);
         assert_eq!(fit["parameter_deltas"].as_array().map(Vec::len), Some(1));
         assert!(fit["parameter_deltas"][0]["delta"].as_f64().unwrap().is_finite());

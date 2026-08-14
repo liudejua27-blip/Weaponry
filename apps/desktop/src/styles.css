@@ -225,6 +225,10 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .snapshot-meta { display: grid; gap: 4px; padding: 8px; border: 1px dashed #2b4356; border-radius: 8px; color: #89a2b4; font-size: 10px; background: rgba(11, 17, 24, .55); }
 .snapshot-meta span { display: inline-flex; gap: 6px; align-items: center; }
 .snapshot-meta span::before { content: '•'; font-weight: 800; opacity: .7; color: #8ea7bc; }
+.snapshot-chain-summary { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 10px; color: #8ea5b8; font-size: 10px; }
+.snapshot-chain-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; padding: 3px 7px; border-radius: 999px; border: 1px solid #2f4355; font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+.snapshot-chain-chip-ok { color: #9de7bf; border-color: rgba(94, 192, 145, .65); background: rgba(28, 66, 50, .34); }
+.snapshot-chain-chip-missing { color: #d5a08d; border-color: rgba(196, 111, 95, .55); background: rgba(74, 31, 24, .24); }
 .snapshot-diff-list { margin-top: 8px; }
 .snapshot-diff-prev { color: #6d8295; margin: 0 7px; font-size: 12px; }
 .snapshot-binding-delta { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 5px; }
@@ -286,9 +290,10 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .scene-tree-row-meta { color: #6f8192; font-size: 10px; white-space: nowrap; }
 .scene-tree-row-child { background: #0d1620; grid-template-columns: 1fr auto auto; }
 .scene-tree-row-selected { border-color: #5d92b6; color: #edf4fb; box-shadow: inset 3px 0 0 #72b5e6; }
-.scene-tree-inline-toggle { height: 27px; min-width: 26px; padding: 0 6px; border: 1px solid #30445a; border-radius: 6px; color: #93adc2; background: #142238; cursor: pointer; }
+.scene-tree-inline-toggle { height: 27px; min-width: 36px; padding: 0 7px; border: 1px solid #30445a; border-radius: 6px; color: #93adc2; background: #142238; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 10px; }
 .scene-tree-inline-toggle:hover, .scene-tree-inline-toggle:focus-visible { color: #d9edf6; border-color: #5b86a9; }
 .scene-tree-inline-toggle-active { color: #ffdda8; border-color: #b17f49; }
+.scene-tree-inline-toggle-icon { font-size: 11px; line-height: 1; }
 .scene-tree-material-list { display: grid; gap: 4px; padding-left: 5px; }
 .runtime-selected-object { margin-top: 10px; }
 .runtime-selected-object .viewer-toggle { margin-left: auto; padding: 5px 8px; }

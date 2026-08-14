@@ -9,6 +9,8 @@
 
 2026-08-14 Primary Form 提案边界修复：严格改善 authored baseline 的几何试算现在以 `selected_geometry_program` 返回到 `SilhouetteFitResult@1`，并由 Runtime 再次通过 Geometry Worker hash/contract 校验；没有严格改善则为 `null`。该只读 typed proposal 可在用户批准后直接进入 `geometry_prepare`，减少 Codex 的参数重建和重复连续搜索；contracts、focused Runtime silhouette-fit、MCP010F source Gate 通过，真实视觉质量仍 `QUALITY_TARGET_NOT_MET`。
 
+2026-08-14 Primary Form bounded schedule 修复：camera coordinate-descent 在单个候选批次没有改善时不再提前 `break`，而是继续消费声明的 Runtime-owned 有界 schedule，确保后续 roll/FOV/distance/target-offset/global-scale 轴仍被检查；只有预算耗尽后才结束该轮。此前 `max_evaluations=24` 的 camera remainder 可能被错误截成 16，已由 Runtime focused regression 固定为完整 `evaluations=8`（8-camera fixture）。这是收敛路径修复，不是新的视觉证据；本轮仍无授权机器人重跑，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 及 human/PBR/export-restart/360 未运行事实不变。
+
 2026-08-13 模块化修复状态：Render Worker 已成为隔离一次性 JSONL 进程，Runtime 的固定渲染、GLB 渲染和 fit-batch 路径经该进程执行；Primary Form 的连续参数搜索收归 Runtime 的有界、确定性坐标邻域，Codex 只提供一次 typed proposal；Viewer 不再从 comparison metrics 本地推导质量门，只显示 Runtime Agentic projection 和 candidate-bound `QualityReport@2`。`script/test_mcp010c.sh` 与 `script/test_mcp010f.sh` 聚合门通过，真实 C raw stdio 的 Render Worker/九 AOV/比较/评审链路通过；这些结果仅证明模块和结构闭环，不能升级为机器人 likeness、PBR、人评或 360 PASS。
 
 2026-08-14 F 回归状态：`silhouette_fit_prepare` 现在复用 winner camera-fit probe 的 transient silhouette/Part-ID 证据，且 Primary Form 只有在 Worker 评估严格改善时才替换 authored baseline；fresh Runtime focused regression 已证明 winner `CameraCalibrationRef@1` 进入 `reference_compare_prepare` 后 camera hash/canonical hash 不漂移。旧 attempt35 的真实 receipt 仍保留为 `camera=MISMATCH`、`QUALITY_TARGET_NOT_MET`、`BLOCKED_INCOMPLETE_BINDING`，需要新的同 cohort 真实参考闭环才能更新机器真值；本轮修复不把 source regression 写成视觉 likeness PASS。

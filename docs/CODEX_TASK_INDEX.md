@@ -9,6 +9,8 @@ Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.jso
 
 2026-08-14 Primary Form proposal handoff follow-up：严格优于 authored baseline 的 Geometry Worker 试算现在随 `SilhouetteFitResult@1.selected_geometry_program` 返回；Runtime 校验其 `GeometryProgram@2` project/canonical hash，未改善时返回 `null`。它仍不自动写 candidate/version 或确认，后续必须在用户批准后调用 `geometry_prepare`；合同/Runtime focused/source Gate 已通过，未产生新的 likeness receipt。
 
+2026-08-14 Primary Form bounded schedule follow-up：修复 camera coordinate-descent 在首个不改善批次提前停止的问题；Runtime 现在会继续执行声明的有界 schedule，覆盖后续 roll/FOV/distance/target-offset/global-scale 轴，focused fixture 验证 `max_evaluations=8` 实际完成 8 次评估。该修复只改善 Primary Form 收敛路径，不改变唯一 `in_progress` 任务、Viewer 质量权威边界或当前 `QUALITY_TARGET_NOT_MET` / `MISMATCH` / `BLOCKED_INCOMPLETE_BINDING` 真值。
+
 <!-- forgecad-stage0: schemas=101 schema_set_sha256=2b22ee5bc28d3cfa332bd8f2677d07a4eb2405d8f545fcad9d137115101d763d read_tools=35 write_tools=21 total_tools=56 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json latest_completed=real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json -->
 
 2026-08-14 Primary Form convergence follow-up：Runtime 修复了 `max_evaluations=24` 实际只消费 16 次的预算截断，并让有界坐标 schedule 在反向试探前覆盖当前 12 个 Rig 参数；CLI receipt 新增 canonical observation 的 target/observation/fit 分阶段 projection。`script/test_mcp010f.sh` 当前 source Gate PASS，Stage 0 仍保留 `QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，没有新增视觉 benchmark。
