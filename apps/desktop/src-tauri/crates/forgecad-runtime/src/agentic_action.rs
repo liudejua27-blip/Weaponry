@@ -7,8 +7,7 @@
 //! approval; it never receives a parameter-search loop.
 
 use super::{
-    canonical_json_bytes, canonical_json_hash, default_camera_calibration,
-    Runtime, RuntimeError,
+    canonical_json_bytes, canonical_json_hash, Runtime, RuntimeError,
 };
 use super::agentic_session::validate_observation_claims;
 use forgecad_contracts::{is_opaque_id, is_sha256, CandidateRecord};
@@ -43,6 +42,7 @@ impl Runtime {
             .ok_or_else(|| invalid_action("action is required"))?;
         let requested_stage = required_id(object, "requested_stage")?;
         let input_sha256 = required_sha(object, "input_sha256")?;
+        let requested_observation_sha256 = required_sha(object, "observation_sha256")?;
         let expected_input_sha256 = action_input_sha256(
             project_id,
             session_id,
@@ -50,15 +50,17 @@ impl Runtime {
             run_id,
             action,
             requested_stage,
+            requested_observation_sha256,
         );
         if input_sha256 != expected_input_sha256 {
             return Err(invalid_action(
-                "input_sha256 does not bind the action and design-session scope",
+                "input_sha256 does not bind the action, observation and design-session scope",
             ));
         }
 
         if let Some(existing) = self.store.get_agentic_action_run(run_id)? {
             if existing.input_sha256 != input_sha256
+                || existing.observation_sha256 != requested_observation_sha256
                 || existing.session_id != session_id
                 || existing.project_id != project_id
                 || existing.candidate_id != candidate_id
@@ -97,6 +99,11 @@ impl Runtime {
             "observation.canonical_sha256",
         )?
         .to_owned();
+        if observation_sha256 != requested_observation_sha256 {
+            return Err(invalid_action(
+                "AGENTIC_OBSERVATION_STALE: supplied observation does not match the current Runtime projection",
+            ));
+        }
         let evidence = self.visual_evidence(candidate_id).map_err(|error| {
             RuntimeError::InvalidInput(format!(
                 "AGENTIC_ACTION_PRECONDITION_FAILED: candidate-bound visual evidence is unavailable: {error}"
@@ -121,13 +128,19 @@ impl Runtime {
             "action.target_id",
         )?;
         let rig = rig_from_action(candidate_id, input_sha256, part_id, action)?;
+        let base_camera = self.resolve_action_camera(
+            project_id,
+            candidate_id,
+            target_sha256,
+            &session.camera_hash,
+        )?;
         let base_version_id = session.current_version_id.as_deref();
         let mut primary_form_request = json!({
             "project_id": project_id,
             "candidate_id": candidate_id,
             "target_sha256": target_sha256,
             "rig": rig,
-            "base_camera": default_camera_calibration(),
+            "base_camera": base_camera,
             "optimizer": {
                 "algorithm": "coordinate_descent",
                 "max_iterations": 1,
@@ -257,6 +270,43 @@ impl Runtime {
         }
         Ok(action_run_value(&run))
     }
+
+    fn resolve_action_camera(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+        target_sha256: &str,
+        camera_hash: &str,
+    ) -> Result<Value, RuntimeError> {
+        let fit = self.prepare_camera_fit(
+            project_id,
+            json!({
+                "project_id":project_id,
+                "candidate_id":candidate_id,
+                "target_sha256":target_sha256,
+                "camera":Value::Null
+            }),
+        )?;
+        let camera = fit
+            .get("candidates")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|row| row.get("camera"))
+            .find(|camera| camera.get("camera_hash").and_then(Value::as_str) == Some(camera_hash))
+            .cloned()
+            .or_else(|| {
+                fit.get("selected_camera")
+                    .filter(|camera| camera.get("camera_hash").and_then(Value::as_str) == Some(camera_hash))
+                    .cloned()
+            })
+            .ok_or_else(|| {
+                invalid_action(
+                    "AGENTIC_CAMERA_BINDING_MISMATCH: session camera is not present in Runtime candidate-bound camera evidence",
+                )
+            })?;
+        Ok(camera)
+    }
 }
 
 fn action_request_object<'a>(request: &'a Value, operation: &str) -> Result<&'a Map<String, Value>, RuntimeError> {
@@ -289,6 +339,7 @@ fn validate_action_request(object: &Map<String, Value>) -> Result<(), RuntimeErr
             "approval_expires_at",
             "approval_session_id",
             "idempotency_key",
+            "observation_sha256",
         ],
     )?;
     for key in [
@@ -297,6 +348,7 @@ fn validate_action_request(object: &Map<String, Value>) -> Result<(), RuntimeErr
         "candidate_id",
         "run_id",
         "input_sha256",
+        "observation_sha256",
         "requested_stage",
         "approval_receipt_id",
         "approval_summary",
@@ -536,6 +588,7 @@ fn action_input_sha256(
     run_id: &str,
     action: &Value,
     requested_stage: &str,
+    observation_sha256: &str,
 ) -> String {
     canonical_json_hash(&json!({
         "project_id":project_id,
@@ -543,7 +596,8 @@ fn action_input_sha256(
         "candidate_id":candidate_id,
         "run_id":run_id,
         "action":action,
-        "requested_stage":requested_stage
+        "requested_stage":requested_stage,
+        "observation_sha256":observation_sha256
     }))
 }
 

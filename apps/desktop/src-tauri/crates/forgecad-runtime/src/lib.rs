@@ -17085,6 +17085,13 @@ mod tests {
             }))
             .expect("session");
         assert_eq!(session["session"]["current_stage"], "primary-form");
+        let observation = runtime
+            .agentic_scene_observe(&project.project_id, Some(&candidate_id))
+            .expect("action observation");
+        let observation_sha256 = observation["canonical_sha256"]
+            .as_str()
+            .expect("observation hash")
+            .to_owned();
         let action = json!({
             "action_id":"bounded-primary-form-adjustment",
             "action_kind":"bounded-repair",
@@ -17102,7 +17109,8 @@ mod tests {
             "candidate_id":candidate_id.clone(),
             "run_id":run_id,
             "action":action,
-            "requested_stage":"primary-form"
+            "requested_stage":"primary-form",
+            "observation_sha256":observation_sha256.clone()
         }));
         let before_versions = runtime.versions(Some(&project.project_id)).expect("versions").len();
         let request = json!({
@@ -17112,6 +17120,7 @@ mod tests {
             "run_id":run_id,
             "action":action,
             "input_sha256":input_sha256,
+            "observation_sha256":observation_sha256,
             "requested_stage":"primary-form",
             "approved":true,
             "approval_receipt_id":"bounded-action-run-approval",
@@ -17123,9 +17132,6 @@ mod tests {
             .design_action_run_prepare(request.clone())
             .expect("action run");
         assert_eq!(first["schema_version"], "DesignActionRun@1");
-        let observation = runtime
-            .agentic_scene_observe(&project.project_id, Some(&candidate_id))
-            .expect("action observation");
         assert_eq!(
             first["observation_sha256"],
             observation["canonical_sha256"],
@@ -17136,6 +17142,27 @@ mod tests {
         assert_eq!(first["persistent_user_data_touched"], false);
         assert!(first["locked_actions"].as_array().unwrap().iter().any(|value| value == "confirm"));
         assert!(first["locked_actions"].as_array().unwrap().iter().any(|value| value == "export"));
+        let stale_run_id = "action-run-stale-observation";
+        let stale_observation_sha256 = "f".repeat(64);
+        let stale_input_sha256 = canonical_json_hash(&json!({
+            "project_id":project.project_id.clone(),
+            "session_id":session_id,
+            "candidate_id":candidate_id.clone(),
+            "run_id":stale_run_id,
+            "action":action.clone(),
+            "requested_stage":"primary-form",
+            "observation_sha256":stale_observation_sha256.clone()
+        }));
+        let mut stale_request = request.clone();
+        stale_request["run_id"] = Value::String(stale_run_id.to_owned());
+        stale_request["input_sha256"] = Value::String(stale_input_sha256);
+        stale_request["observation_sha256"] = Value::String(stale_observation_sha256);
+        let stale_error = runtime
+            .design_action_run_prepare(stale_request)
+            .expect_err("stale observation must fail closed");
+        assert!(stale_error
+            .to_string()
+            .contains("AGENTIC_OBSERVATION_STALE"));
         let second = runtime
             .design_action_run_prepare(request)
             .expect("idempotent action run");

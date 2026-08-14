@@ -65,13 +65,14 @@ const OPERATOR_IDS: [&str; 12] = [
 
 const READ_FIELDS: [&str; 4] = ["project_id", "session_id", "candidate_id", "run_id"];
 
-const WRITE_FIELDS: [&str; 13] = [
+const WRITE_FIELDS: [&str; 14] = [
     "project_id",
     "session_id",
     "candidate_id",
     "run_id",
     "action",
     "input_sha256",
+    "observation_sha256",
     "requested_stage",
     "approved",
     "approval_receipt_id",
@@ -345,6 +346,7 @@ fn write_schema() -> Value {
             "run_id",
             "action",
             "input_sha256",
+            "observation_sha256",
             "requested_stage",
             "approved",
             "approval_receipt_id",
@@ -358,6 +360,7 @@ fn write_schema() -> Value {
             ("run_id".to_owned(), id_property()),
             ("action".to_owned(), bounded_action_schema()),
             ("input_sha256".to_owned(), sha256_property()),
+            ("observation_sha256".to_owned(), sha256_property()),
             ("requested_stage".to_owned(), stage_property()),
             ("approved".to_owned(), json!({"const": true})),
             ("approval_receipt_id".to_owned(), id_property()),
@@ -624,6 +627,10 @@ fn validate_prepare(object: &Map<String, Value>) -> Result<(), String> {
     let input_sha256 = required_sha256(object, "input_sha256")?;
     if input_sha256.is_empty() {
         return Err("AGENTIC_ACTION_INVALID_INPUT: input_sha256 is required".to_owned());
+    }
+    let observation_sha256 = required_sha256(object, "observation_sha256")?;
+    if observation_sha256.is_empty() {
+        return Err("AGENTIC_ACTION_INVALID_INPUT: observation_sha256 is required".to_owned());
     }
 
     if object.get("approved") != Some(&Value::Bool(true)) {
@@ -983,6 +990,7 @@ mod tests {
             "run_id": "run-1",
             "action": action(),
             "input_sha256": "a".repeat(64),
+            "observation_sha256": "b".repeat(64),
             "requested_stage": "primary-form",
             "approved": true,
             "approval_receipt_id": "approval-1",
@@ -1029,6 +1037,7 @@ mod tests {
             "run_id",
             "action",
             "input_sha256",
+            "observation_sha256",
             "requested_stage",
             "approved",
             "approval_receipt_id",
@@ -1076,6 +1085,15 @@ mod tests {
         let mut empty = prepare();
         empty["run_id"] = Value::String("   ".to_owned());
         assert!(validate_call("design_action_run_prepare", &empty, &binding()).is_err());
+
+        let mut missing_observation = prepare();
+        missing_observation
+            .as_object_mut()
+            .unwrap()
+            .remove("observation_sha256");
+        assert!(validate_call("design_action_run_prepare", &missing_observation, &binding())
+            .unwrap_err()
+            .contains("observation_sha256"));
 
         let mut cross_project = prepare();
         cross_project["project_id"] = Value::String("project-2".to_owned());

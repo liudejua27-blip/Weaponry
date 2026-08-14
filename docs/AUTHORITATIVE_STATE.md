@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 observation/camera binding 状态：Runtime action 只接受由 Codex 明确提交的 `observation_sha256`，并把它纳入 `DesignActionRun@1.input_sha256`；当前 Runtime observation canonical hash 不一致时返回 `AGENTIC_OBSERVATION_STALE`，不创建 action receipt。Primary Form 的 camera handoff 使用 session `camera_hash` 在同一 candidate/target-bound fit projection 中解析完整 `CameraCalibration`，未命中时返回 `AGENTIC_CAMERA_BINDING_MISMATCH`，不使用 default fallback。MCP/Runtime focused tests 通过；这只是观察和相机的证据绑定修复，不改变 Runtime 唯一写者、Viewer read-only authority 或 Stage 0 的 `QUALITY_TARGET_NOT_MET`、`MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Runtime quality-authority 状态：`visible_view_gate_checks` 集中持有 visible-view metric 的方向/阈值/状态，`visible_view_gate_passes` 与 Agentic critic projection 共享它；Agentic 不再自带第二套质量门。该修复保持 Runtime 唯一质量权威与 Viewer read-only projection boundary，focused/full Runtime 和 MCP010F source Gate 通过。没有新的真实视觉 receipt，Stage 0 仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 仍未运行或阻断。
 
 2026-08-15 Primary Form metric-priority 状态：Runtime 的 bounded fit 不再用 Chamfer/IoU 加权和单独决定 winner。`primary_form_metric_ordering` 以 boundary F1、silhouette IoU、bbox、centroid、landmark coverage/NME、region 顺序逐层比较；同一优先级完全相等时才使用 scalar loss 作为稳定 tie-break。该排序已接入 camera fit、Rig geometry/refit、same-camera acceptance 与 candidate compare，并新增 focused regression；完整 Runtime 预期 `104 passed / 12 ignored`。没有新的真实机器人视觉 receipt，Stage 0 仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 仍未运行或阻断。
