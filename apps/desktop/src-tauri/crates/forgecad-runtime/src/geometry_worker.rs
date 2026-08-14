@@ -24,7 +24,6 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const GEOMETRY_WORKER_BINARY: &str = "forgecad-geometry-worker";
-const RENDER_WORKER_BINARY: &str = "forgecad-render-worker";
 const WORKER_WALL_TIMEOUT: Duration = Duration::from_secs(10);
 // Darwin's `wait4(2)` reports `ru_maxrss` in bytes. This is deliberately a
 // post-hoc acceptance gate: it prevents an over-budget Worker result from
@@ -191,31 +190,25 @@ fn execute(
     payload: Value,
     execution_budget: ExecutionBudget,
 ) -> Result<Value, GeometryWorkerError> {
-    execute_on_worker(
-        GEOMETRY_WORKER_BINARY,
-        operation,
-        payload,
-        execution_budget,
-    )
+    execute_sibling_worker_with_budget(GEOMETRY_WORKER_BINARY, operation, payload, execution_budget)
 }
 
-/// Shared Runtime launcher seam for the dedicated Render Worker adapter.
-/// Geometry compilation and Render Worker protocol parsing live in separate
-/// modules; this function only supplies the fixed sibling-process transport
-/// and never accepts a GeometryProgram.
-pub(crate) fn execute_render_worker(
+/// Shared Runtime launcher seam for typed sibling workers.
+///
+/// The caller owns the worker-specific binary identity and protocol projection
+/// while this module owns only the fixed-process transport and its bounded
+/// lifetime. Keeping this seam generic prevents Geometry Worker code from
+/// importing Render Worker ownership and prevents Render Worker code from
+/// reaching the GeometryProgram compiler.
+pub(crate) fn execute_sibling_worker(
+    worker_binary: &str,
     operation: &str,
     payload: Value,
 ) -> Result<Value, GeometryWorkerError> {
-    execute_on_worker(
-        RENDER_WORKER_BINARY,
-        operation,
-        payload,
-        DEFAULT_EXECUTION_BUDGET,
-    )
+    execute_sibling_worker_with_budget(worker_binary, operation, payload, DEFAULT_EXECUTION_BUDGET)
 }
 
-fn execute_on_worker(
+fn execute_sibling_worker_with_budget(
     worker_binary: &str,
     operation: &str,
     payload: Value,
@@ -223,7 +216,7 @@ fn execute_on_worker(
 ) -> Result<Value, GeometryWorkerError> {
     let request = WorkerRequest {
         protocol: WORKER_PROTOCOL.to_owned(),
-        request_id: format!("geometry-{}", uuid::Uuid::new_v4().simple()),
+        request_id: format!("forgecad-worker-{}", uuid::Uuid::new_v4().simple()),
         operation: operation.to_owned(),
         payload,
     };
@@ -760,12 +753,7 @@ fn test_worker_mode_with_timeout(
     args: &[&str],
     wall_timeout: Duration,
 ) -> Result<(i32, Vec<u8>), GeometryWorkerError> {
-    let child = spawn_fixed_worker(
-        GEOMETRY_WORKER_BINARY,
-        args,
-        Vec::new(),
-        wall_timeout,
-    )?;
+    let child = spawn_fixed_worker(GEOMETRY_WORKER_BINARY, args, Vec::new(), wall_timeout)?;
     Ok((child.exit_code, child.stdout))
 }
 

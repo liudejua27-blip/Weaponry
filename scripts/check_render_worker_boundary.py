@@ -37,6 +37,10 @@ for symbol in (
 ):
     assert symbol not in runtime_source, symbol
 assert "render_worker::render_glb_fit_batch_at_resolution" in runtime_source
-assert "pub(crate) fn execute_render_worker" in runtime_geometry_adapter
-assert "geometry_worker::compile_geometry" not in runtime_render_adapter
+assert 'const RENDER_WORKER_BINARY: &str = "forgecad-render-worker";' in runtime_render_adapter
+assert "fn execute_render_worker" in runtime_render_adapter
+assert "pub(crate) fn execute_sibling_worker" in runtime_geometry_adapter
+assert "RENDER_WORKER_BINARY" not in runtime_geometry_adapter
+assert "execute_render_worker" not in runtime_geometry_adapter
+assert "geometry_worker::compile_geometry(" not in runtime_render_adapter
 print("Render Worker source ownership boundary PASS")
