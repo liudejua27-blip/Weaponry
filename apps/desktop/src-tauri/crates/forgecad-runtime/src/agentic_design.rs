@@ -57,6 +57,7 @@ struct ProjectionContext {
     candidate_selection: &'static str,
     geometry: GeometryContext,
     visual: VisualContext,
+    primary_form_error: Option<Value>,
     quality: QualityContext,
     reference_canvas: Value,
     lineage: Value,
@@ -165,6 +166,12 @@ fn build_context(
         Some(candidate) => read_visual_context(runtime, candidate, &geometry)?,
         None => unknown_visual_context(None, None, None),
     };
+    let primary_form_error = read_primary_form_error_context(
+        runtime,
+        project_id,
+        candidate.as_ref(),
+        &visual,
+    )?;
     let reference_id = visual.reference_id.clone().or_else(|| {
         geometry
             .evidence
@@ -192,6 +199,7 @@ fn build_context(
         "snapshot_revision":snapshot.as_ref().map(|snapshot| snapshot.revision),
         "candidate_id":candidate.as_ref().map(|candidate| candidate.candidate_id.clone()),
         "candidate_canonical_sha256":candidate.as_ref().map(|candidate| candidate.canonical_sha256.clone()),
+        "primary_form_error_hash":primary_form_error.as_ref().and_then(|error| error.get("canonical_sha256").and_then(Value::as_str)),
         "lineage":lineage
     }));
 
@@ -202,11 +210,50 @@ fn build_context(
         candidate_selection,
         geometry,
         visual,
+        primary_form_error,
         quality,
         reference_canvas,
         lineage,
         projection_key,
     })
+}
+
+fn read_primary_form_error_context(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate: Option<&CandidateRecord>,
+    visual: &VisualContext,
+) -> Result<Option<Value>, RuntimeError> {
+    let Some(candidate) = candidate else {
+        return Ok(None);
+    };
+    if visual.bundle.get("available").and_then(Value::as_bool) != Some(true) {
+        return Ok(None);
+    }
+    let Some(target_sha256) = visual
+        .bundle
+        .get("hashes")
+        .and_then(|hashes| hashes.get("target_sha256"))
+        .and_then(Value::as_str)
+    else {
+        return Ok(None);
+    };
+
+    let request = json!({
+        "project_id": project_id,
+        "candidate_id": candidate.candidate_id,
+        "target_sha256": target_sha256
+    });
+    match runtime.silhouette_part_error(project_id, request) {
+        Ok(result) => Ok(Some(result)),
+        // A target generated from one undivided contour is still valid for
+        // global silhouette comparison, but it cannot support Part ownership.
+        // Keep the Agentic envelope useful and explicitly unknown instead of
+        // turning this optional diagnostic into a hard observation failure.
+        Err(RuntimeError::InvalidInput(detail))
+            if detail.starts_with("SILHOUETTE_PART_ERROR_UNAVAILABLE:") => Ok(None),
+        Err(error) => Err(error),
+    }
 }
 
 fn select_candidate(
@@ -1150,6 +1197,36 @@ fn build_design_session(
     }))
 }
 
+fn primary_form_focus(part_error: Option<&Value>) -> (Option<String>, &'static str) {
+    let Some(part_error) = part_error else {
+        return (None, "unknown");
+    };
+    let Some(focus_part_id) = part_error
+        .get("recommended_part_ids")
+        .and_then(Value::as_array)
+        .and_then(|parts| parts.first())
+        .and_then(Value::as_str)
+    else {
+        return (None, "unknown");
+    };
+    let focus_part_status = part_error
+        .get("parts")
+        .and_then(Value::as_array)
+        .and_then(|parts| {
+            parts.iter().find(|part| {
+                part.get("part_id").and_then(Value::as_str) == Some(focus_part_id)
+            })
+        })
+        .and_then(|part| part.get("visibility").and_then(Value::as_str))
+        .map(|visibility| match visibility {
+            "observed" => "observed",
+            "inferred" => "inferred",
+            _ => "unknown",
+        })
+        .unwrap_or("unknown");
+    (Some(focus_part_id.to_owned()), focus_part_status)
+}
+
 fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value {
     let stage = stage_plan
         .get("current_stage")
@@ -1299,6 +1376,11 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
         .clone()
         .map(Value::String)
         .unwrap_or(Value::Null);
+    let (focus_part_id, focus_part_status) = primary_form_focus(context.primary_form_error.as_ref());
+    let focus_part_value = focus_part_id
+        .clone()
+        .map(Value::String)
+        .unwrap_or(Value::Null);
     let primary_form_directive = json!({
         "status":if failed_metrics.is_empty() {
             if context.quality.strict_visual_gate == "passed" {"passed"} else {"unknown"}
@@ -1308,6 +1390,9 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
         "metric_priority":["boundary_f1_4px","silhouette_iou","bbox_edge_error","centroid_error","landmark_coverage","landmark_nme","region_median_iou","critical_region_min_iou"],
         "failed_metrics":failed_metrics,
         "target_sha256":target_sha_value,
+        "part_error":context.primary_form_error.clone().unwrap_or(Value::Null),
+        "focus_part_id":focus_part_value.clone(),
+        "focus_part_status":focus_part_status,
         "diagnostic_operation":if target_sha256.is_some() {"silhouette_part_error_get"} else if metrics.is_some() {"reference_compare_prepare"} else {"none"},
         // `silhouette_fit_prepare` remains a Runtime read-only primitive, but
         // it is not the Codex-facing next action. Exposing it here would split
@@ -1364,7 +1449,7 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
             "repair_intent_id":format!("repair-{}", &repair_key[..24]),
             "stage":stage,
             "issue_ids":issue_ids,
-            "scope":{"part_id":Value::Null,"part_id_status":"unknown","material_zone_id":Value::Null,"material_zone_id_status":"unknown"},
+            "scope":{"part_id":focus_part_value.clone(),"part_id_status":focus_part_status,"material_zone_id":Value::Null,"material_zone_id_status":"unknown"},
             "bounded_action":{"operation":primary_form_directive["repair_operation"],"parameters":target_sha256.as_ref().map(|target| json!({"target_sha256":target})).unwrap_or_else(|| json!({})),"requires_new_candidate":true,"arbitrary_script":false},
             "status":"proposed",
             "projection_only":true,

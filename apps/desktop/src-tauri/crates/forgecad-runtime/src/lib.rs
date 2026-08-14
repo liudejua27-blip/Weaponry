@@ -14393,6 +14393,20 @@ mod tests {
         assert!(recommended.iter().any(|id| id == "visor"));
         assert_eq!(part_errors["parts"][1]["part_id"], "visor");
         assert!(part_errors["parts"][1]["status"] == "ready");
+        let observation = runtime
+            .agentic_scene_observe(&project.project_id, Some(&first_id))
+            .expect("Agentic observation includes Runtime Part error context");
+        let directive = &observation["design_critic_report"]["primary_form_directive"];
+        assert_eq!(directive["part_error"], part_errors);
+        assert_eq!(
+            directive["focus_part_id"],
+            part_errors["recommended_part_ids"][0]
+        );
+        assert_eq!(directive["focus_part_status"], "observed");
+        assert_eq!(
+            observation["design_critic_report"]["repair_intents"][0]["scope"]["part_id"],
+            directive["focus_part_id"]
+        );
         assert!(runtime
             .part_contour_fit_prepare(&project.project_id, json!({"project_id":project.project_id.clone(),"candidate_id":first_id.clone(),"target_sha256":target["target_sha256"].clone(),"part_id":"unknown-part","rig":rig.clone()}))
             .is_err());

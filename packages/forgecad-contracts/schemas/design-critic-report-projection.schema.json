@@ -119,6 +119,9 @@
         "metric_priority",
         "failed_metrics",
         "target_sha256",
+        "part_error",
+        "focus_part_id",
+        "focus_part_status",
         "diagnostic_operation",
         "repair_operation",
         "continuous_search_owner",
@@ -153,6 +156,14 @@
           }
         },
         "target_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"},
+        "part_error": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "https://forgecad.local/contracts/silhouette-part-error-result.schema.json"}
+          ]
+        },
+        "focus_part_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+        "focus_part_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
         "diagnostic_operation": {"enum": ["silhouette_part_error_get", "reference_compare_prepare", "none"]},
         "repair_operation": {"enum": ["primary_form_repair_prepare", "silhouette_fit_prepare", "reference_compare_prepare", "none"]},
         "continuous_search_owner": {"const": "runtime"},
