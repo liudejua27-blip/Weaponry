@@ -92,6 +92,11 @@ impl Runtime {
             &session.camera_hash,
             &session.evidence_sha256,
         )?;
+        let observation_sha256 = required_sha_from_value(
+            observation.get("canonical_sha256"),
+            "observation.canonical_sha256",
+        )?
+        .to_owned();
         let evidence = self.visual_evidence(candidate_id).map_err(|error| {
             RuntimeError::InvalidInput(format!(
                 "AGENTIC_ACTION_PRECONDITION_FAILED: candidate-bound visual evidence is unavailable: {error}"
@@ -189,6 +194,7 @@ impl Runtime {
             reference_sha256: reference.object_sha256.clone(),
             camera_hash,
             input_sha256: input_sha256.to_owned(),
+            observation_sha256,
             action: action.clone(),
             requested_stage: requested_stage.to_owned(),
             status: status.to_owned(),
@@ -552,6 +558,7 @@ fn action_run_value(run: &AgenticActionRunRecord) -> Value {
         "reference_sha256":run.reference_sha256,
         "camera_hash":run.camera_hash,
         "input_sha256":run.input_sha256,
+        "observation_sha256":run.observation_sha256,
         "action":run.action,
         "requested_stage":run.requested_stage,
         "status":run.status,
@@ -600,6 +607,17 @@ fn required_id_from_value<'a>(value: Option<&'a Value>, key: &str) -> Result<&'a
         .ok_or_else(|| invalid_action(&format!("{key} is required")))?;
     if !is_opaque_id(value) {
         return Err(invalid_action(&format!("{key} is malformed")));
+    }
+    Ok(value)
+}
+
+fn required_sha_from_value<'a>(value: Option<&'a Value>, key: &str) -> Result<&'a str, RuntimeError> {
+    let value = value
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| invalid_action(&format!("{key} is required")))?;
+    if !is_sha256(value) {
+        return Err(invalid_action(&format!("{key} must be SHA-256")));
     }
     Ok(value)
 }

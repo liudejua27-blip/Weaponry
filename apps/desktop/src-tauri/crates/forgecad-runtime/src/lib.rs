@@ -16579,6 +16579,14 @@ mod tests {
             .design_action_run_prepare(request.clone())
             .expect("action run");
         assert_eq!(first["schema_version"], "DesignActionRun@1");
+        let observation = runtime
+            .agentic_scene_observe(&project.project_id, Some(&candidate_id))
+            .expect("action observation");
+        assert_eq!(
+            first["observation_sha256"],
+            observation["canonical_sha256"],
+            "the immutable action receipt must bind the exact Runtime observation"
+        );
         assert!(matches!(first["status"].as_str(), Some("completed" | "blocked")));
         assert_eq!(first["runtime_write"], false);
         assert_eq!(first["persistent_user_data_touched"], false);

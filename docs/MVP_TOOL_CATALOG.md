@@ -7,7 +7,7 @@
 
 Stage 0 机器真值读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，候选状态是 `QUALITY_TARGET_NOT_MET`，证据完整性是 `INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`，packaged Viewer 为不同 cohort/artifact，尚未绑定该 observation。工具或 Viewer 已实现不等于这些缺口已通过，也不能提升 human/PBR/export-restart/360 状态。
 
-<!-- forgecad-stage0: schemas=102 schema_set_sha256=8d3644fb8169157584cf844a21588d4b6a49c7852600de4698205a7da6050cdb read_tools=36 write_tools=23 total_tools=59 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json latest_completed=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json -->
+<!-- forgecad-stage0: schemas=102 schema_set_sha256=3eac35f77e0773c957b8a623256288bb248b3f7e06828d0a0b291c293802292f read_tools=36 write_tools=23 total_tools=59 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json latest_completed=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json -->
 
 ## 1. MVP 运行边界
 
@@ -51,7 +51,7 @@ ForgeCAD Viewer（可选）
 | `session_create_or_resume` | write/approval | 创建或恢复同一 reference/candidate/evidence lineage 的 session；需要显式 opt-in |
 | `checkpoint_prepare` | write/approval | 保存阶段/失败检查点；只接受已观察 evidence，确认状态仍由既有事务控制 |
 | `checkpoint_restore_prepare` | write/approval | 只生成 CAS-bound `RepairIntent@1`；不修改 candidate/version/history |
-| `design_action_run_get` | read | 回读 Runtime-owned、candidate/session/reference-bound `DesignActionRun@1`；不重算质量、不推进 stage |
+| `design_action_run_get` | read | 回读 Runtime-owned、candidate/session/reference/observation-bound `DesignActionRun@1`；包含本回合 `observation_sha256`，不重算质量、不推进 stage |
 | `design_action_run_prepare` | write/approval | 只接受一个已批准、单 Part、`primary-form` bounded action；复用 Runtime compile/readback/render/evaluate，锁定 confirm/export，不修改 candidate/version/user data |
 
 这些工具已有公开 Schema、negative tests、Runtime producer 和隔离 Viewer/Runtime evidence；真实 Runtime 的 scene/stage 嵌套只读 projection 已通过 `scripts/check_agentic_projection_receipt.py`，durable 工具与 Primary Form action-run 仍只覆盖 prepare/readback。durable/reference/DesignSpec 完整 producer、通用单动作 design orchestrator、Repair 实际应用、完整 Visual Evidence contract conformance 和 real Codex quality loop 仍未实现。Codex 仍必须先读取 `ponytail-preflight@0.1.0`，并在写工具前提交显式 approval。

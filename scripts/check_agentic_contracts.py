@@ -930,6 +930,7 @@ def make_action_run_fixture() -> dict[str, Any]:
         "reference_sha256": REFERENCE_HASH,
         "camera_hash": CAMERA_HASH,
         "input_sha256": HASH,
+        "observation_sha256": CANONICAL_HASH,
         "action": {
             "action_id": "action-primary",
             "action_kind": "bounded-repair",
@@ -990,6 +991,10 @@ def check_action_run_contract(manifest: dict[str, Any]) -> None:
     invalid_output = copy.deepcopy(fixture)
     invalid_output["stage_results"]["prepare"]["output_sha256"] = "not-a-sha256"
     require(not is_valid(schema, invalid_output), "invalid stage output hash was accepted")
+
+    missing_observation = copy.deepcopy(fixture)
+    missing_observation.pop("observation_sha256")
+    require(not is_valid(schema, missing_observation), "action run without canonical observation binding was accepted")
 
     unpaired_checkpoint = copy.deepcopy(fixture)
     unpaired_checkpoint["stage_results"]["prepare"]["checkpoint_sha256"] = HASH

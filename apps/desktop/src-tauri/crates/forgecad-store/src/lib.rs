@@ -165,6 +165,10 @@ pub struct AgenticActionRunRecord {
     pub reference_sha256: String,
     pub camera_hash: String,
     pub input_sha256: String,
+    /// Canonical hash of the single Runtime observation consumed by this run.
+    /// It prevents the action receipt from being detached from the
+    /// candidate-bound scene/quality projection that authorized the repair.
+    pub observation_sha256: String,
     pub action: Value,
     pub requested_stage: String,
     pub status: String,
@@ -3535,6 +3539,7 @@ fn validate_agentic_action_run(run: &AgenticActionRunRecord) -> Result<(), Store
         || !is_sha256(&run.reference_sha256)
         || !is_sha256(&run.camera_hash)
         || !is_sha256(&run.input_sha256)
+        || !is_sha256(&run.observation_sha256)
         || !run.action.is_object()
         || !is_opaque_id(&run.requested_stage)
         || !matches!(
