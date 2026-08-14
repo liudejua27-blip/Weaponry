@@ -360,7 +360,8 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .error-console-item-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .error-console-item-title strong { display: inline-flex; align-items: center; gap: 8px; color: #f2f8fe; font-size: 12px; }
 .error-console-item-category { display: inline-grid; margin-left: auto; border: 1px solid #445c72; border-radius: 999px; padding: 2px 6px; background: #122036; color: #9eb3c5; font-size: 10px; }
-.error-console-item .viewer-toggle { margin-top: 6px; }
+.error-console-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.error-console-actions .viewer-toggle { margin-top: 0; }
 .error-console-item-error { border-color: rgba(239, 154, 136, .48); background: rgba(74, 31, 24, .22); }
 .error-console-item-warn { border-color: rgba(138, 186, 214, .48); background: rgba(18, 43, 64, .28); }
 .error-console-item p:first-of-type { font-weight: 560; color: #d6e4f0; }

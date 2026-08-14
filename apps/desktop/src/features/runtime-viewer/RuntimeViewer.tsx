@@ -92,13 +92,15 @@ type ViewerProject = {
     }
     artifact?: {
       artifact_id?: string
+      object_sha256?: string
+      canonical_sha256?: string
       candidate_id?: string
       program_sha256?: string
       mime?: string
       part_ids?: string[]
       source_node_ids?: string[]
       material_zone_ids?: string[]
-      part_bindings?: Array<{ part_id?: string; source_node_id?: string; material_zone_id?: string }>
+      part_bindings?: Array<{ part_id?: string; source_node_id?: string; material_zone_id?: string; triangle_count?: number; solid?: boolean }>
       triangle_count?: number
       validator_status?: string
       uv_status?: string
@@ -143,6 +145,7 @@ type QualityReport = {
   quality_report_hash?: string
   visual_status?: string
   hard_gate_passed?: boolean
+  checks?: Array<{ check_id?: string; status?: string }>
 }
 
 type ViewerVisualEvidence = {
@@ -232,9 +235,12 @@ type CandidateSnapshotRecord = {
   partIdSignature: string
   materialZoneCount: number
   materialZoneSignature: string
+  materialBindingSignature: string
+  partBindingSignature: string
   triangleCount: number
   programSha256: string | null
   artifactId: string | null
+  artifactCanonicalSha256: string | null
   artifactSha256: string | null
   referenceId: string | null
   referenceSha256: string | null
@@ -246,6 +252,7 @@ type CandidateSnapshotRecord = {
   uvStatus: string
   tangentStatus: string
   validatorStatus: string
+  pbrStatus: string
   artifact: CandidateView['artifact']
   quality: CandidateView['quality']
   reference: CandidateView['reference']
@@ -275,12 +282,16 @@ type ErrorConsoleItem = {
   severity: 'error' | 'warn'
   actionLabel?: string
   action?: () => void
+  secondaryActionLabel?: string
+  secondaryAction?: () => void
 }
 
 function deriveErrorCategory(code: string, fallback: ErrorConsoleCategory): ErrorConsoleCategory {
   if (/binding|mismatch/i.test(code)) return '绑定不一致'
   if (/bridge|tauri|host/i.test(code)) return '数据未可用'
   if (/unavailable|missing|empty|not[-_ ]?ready/i.test(code)) return '数据未可用'
+  if (/worker.*unavailable/i.test(code)) return '数据未可用'
+  if (/worker|result[_-]image/i.test(code)) return '异常'
   if (/glb|artifact|render|reference|parse|decode|load|bytes/i.test(code)) return '加载失败'
   if (/request|request_failed|sync|summary/i.test(code)) return '读取失败'
   if (/compare|evidence|runtime|permission/i.test(code)) return '读取失败'
@@ -299,6 +310,11 @@ function compactSignature(value: string | null | undefined, length = 12): string
   return compactHash(value, length)
 }
 
+function qualityCheckStatus(quality: QualityReport | null | undefined, checkId: string): string {
+  const status = quality?.checks?.find((check) => check.check_id === checkId)?.status
+  return status ? normalizeStatusText(status) : '未运行'
+}
+
 function buildCandidateSnapshotRecord(entry: CandidateView, projectId?: string): CandidateSnapshotRecord | null {
   const candidate = entry.candidate
   if (!candidate?.candidate_id) return null
@@ -311,6 +327,23 @@ function buildCandidateSnapshotRecord(entry: CandidateView, projectId?: string):
   const artifactSha256 = artifact?.artifact_id ?? null
   const referenceId = reference?.reference_id ?? null
   const referenceSha256 = reference?.object_sha256 ?? null
+  const partBindings = artifact?.part_bindings ?? []
+  const partBindingSignature = partBindings
+    .map((binding) => [
+      binding.part_id ?? '未知部件',
+      binding.source_node_id ?? '未知源节点',
+      binding.material_zone_id ?? '未知材质区',
+      binding.triangle_count ?? '未知三角形',
+      binding.solid === undefined ? '未知实体' : binding.solid ? '实体' : '非实体',
+    ].join(':'))
+    .sort()
+    .join('|')
+  const materialBindingValues = partBindings.length > 0
+    ? partBindings.map((binding) => `${binding.part_id ?? '未知部件'}:${binding.material_zone_id ?? '未知材质区'}`)
+    : [...(artifact?.material_zone_ids ?? [])]
+  const materialBindingSignature = materialBindingValues
+    .sort()
+    .join('|')
   const hasArtifactBinding = hasCandidateBoundArtifact(entry, projectId)
   const candidateId = candidate.candidate_id
   const hasReferenceBinding = hasCandidateBoundReference(entry, projectId)
@@ -333,9 +366,12 @@ function buildCandidateSnapshotRecord(entry: CandidateView, projectId?: string):
     partIdSignature: [...(artifact?.part_ids ?? [])].sort().join('|'),
     materialZoneCount: artifact?.material_zone_ids?.length ?? 0,
     materialZoneSignature: [...(artifact?.material_zone_ids ?? [])].sort().join('|'),
+    materialBindingSignature,
+    partBindingSignature,
     triangleCount: artifact?.triangle_count ?? 0,
     programSha256: artifact?.program_sha256 ?? null,
     artifactId,
+    artifactCanonicalSha256: artifact?.canonical_sha256 ?? null,
     artifactSha256,
     referenceId,
     referenceSha256,
@@ -347,6 +383,7 @@ function buildCandidateSnapshotRecord(entry: CandidateView, projectId?: string):
     uvStatus: artifact?.uv_status ?? '未知',
     tangentStatus: artifact?.tangent_status ?? '未知',
     validatorStatus: artifact?.validator_status ?? '未知',
+    pbrStatus: qualityCheckStatus(quality, 'pbr_material_zones'),
     artifact,
     quality,
     reference: entry.reference,
@@ -362,10 +399,14 @@ function buildSnapshotDiffRows(current: CandidateSnapshotRecord, previous: Candi
     return [
       { label: '候选状态', current: current.candidateState, previous: '—', status: 'missing' },
       { label: '结构哈希', current: compactHash(current.candidateCanonicalSha256), previous: '—', status: 'missing' },
+      { label: 'GLB 回读哈希', current: compactHash(current.artifactCanonicalSha256), previous: '—', status: 'missing' },
       { label: 'Part 数', current: String(current.partCount), previous: '—', status: 'missing' },
       { label: '部件清单', current: compactSignature(current.partIdSignature), previous: '—', status: 'missing' },
+      { label: '部件绑定', current: compactSignature(current.partBindingSignature), previous: '—', status: 'missing' },
       { label: '材质区数', current: String(current.materialZoneCount), previous: '—', status: 'missing' },
       { label: '材质区清单', current: compactSignature(current.materialZoneSignature), previous: '—', status: 'missing' },
+      { label: '材质绑定', current: compactSignature(current.materialBindingSignature), previous: '—', status: 'missing' },
+      { label: 'PBR 材质区', current: current.pbrStatus, previous: '—', status: 'missing' },
       { label: '三角形', current: String(current.triangleCount), previous: '—', status: 'missing' },
     ]
   }
@@ -385,11 +426,15 @@ function buildSnapshotDiffRows(current: CandidateSnapshotRecord, previous: Candi
   return [
     build('候选状态', current.candidateState, previous.candidateState),
     build('结构哈希', compactHash(current.candidateCanonicalSha256), compactHash(previous.candidateCanonicalSha256)),
+    build('GLB 回读哈希', compactHash(current.artifactCanonicalSha256), compactHash(previous.artifactCanonicalSha256)),
     build('几何程序哈希', compactHash(current.programSha256), compactHash(previous.programSha256)),
     build('Part 数', current.partCount === 0 ? '0' : String(current.partCount), previous.partCount === 0 ? '0' : String(previous.partCount)),
     build('部件清单', compactSignature(current.partIdSignature), compactSignature(previous.partIdSignature)),
+    build('部件绑定', compactSignature(current.partBindingSignature), compactSignature(previous.partBindingSignature)),
     build('材质区数', String(current.materialZoneCount), String(previous.materialZoneCount)),
     build('材质区清单', compactSignature(current.materialZoneSignature), compactSignature(previous.materialZoneSignature)),
+    build('材质绑定', compactSignature(current.materialBindingSignature), compactSignature(previous.materialBindingSignature)),
+    build('PBR 材质区', current.pbrStatus, previous.pbrStatus),
     build('三角形', String(current.triangleCount), String(previous.triangleCount)),
     build('UV 状态', current.uvStatus, previous.uvStatus),
     build('切线状态', current.tangentStatus, previous.tangentStatus),
@@ -539,6 +584,8 @@ function deriveCandidateErrorMeaning(code: string): string {
   if (code === 'COMPARE_IMAGE_DATA_UNAVAILABLE') return '比较图像数据不可用，暂无法生成差异视图。'
   if (code === 'COMPARE_RESULT_IMAGE_UNAVAILABLE') return '比较 Worker 已返回，但 Viewer 无法生成临时显示图像。'
   if (code === 'COMPARE_WORKER_UNAVAILABLE') return '当前环境无法启动比较计算 Worker；可重试或关闭热图/轮廓辅助。'
+  if (code === 'COMPARE_WORKER_IMAGE_DECODE_UNAVAILABLE') return '当前 WebView 不支持 Worker 图像解码；可重试，Viewer 会尝试兼容回退。'
+  if (code === 'COMPARE_WORKER_IMAGE_DATA_UNAVAILABLE') return 'Worker 无法创建临时图像缓冲区；原始 AOV 与 Runtime 质量报告不受影响。'
   if (code === 'COMPARE_WORKER_FAILED' || code === 'DIFFERENCE_HEATMAP_FAILED') return '差异热图计算 Worker 失败；原始 AOV 与 Runtime QualityReport 不受影响。'
   if (code === 'GLB_EMPTY_SCENE') return 'GLB 场景为空。'
   if (code === 'REFERENCE_CONTOUR_FAILED' || code === 'REFERENCE_CONTOUR_IMAGE_DATA_UNAVAILABLE') return '参考轮廓辅助计算失败；原始参考图与 Runtime 质量门不受影响。'
@@ -803,15 +850,15 @@ const COMPARE_MODE_LABELS: Record<CompareMode, string> = {
   flicker: '闪烁',
 }
 const AOV_PASS_LABELS: Record<AovPass, string> = {
-  beauty: 'beauty',
+  beauty: '美化 Beauty',
   silhouette: '轮廓',
   depth: '深度',
   normal: '法线',
-  ao: 'AO',
+  ao: '环境遮蔽 AO',
   'part-id': '部件ID',
   'material-id': '材质ID',
   wireframe: '线框',
-  'uv-stretch': 'UV拉伸',
+  'uv-stretch': 'UV 拉伸',
 }
 
 function drawContainedImage(context: CanvasRenderingContext2D, image: HTMLImageElement) {
@@ -841,8 +888,10 @@ type CompareWorkerRequest = {
   kind: 'difference' | 'contour'
   width: number
   height: number
-  referenceBuffer: ArrayBuffer
+  referenceBuffer?: ArrayBuffer
   renderBuffer?: ArrayBuffer
+  referenceBlob?: Blob
+  renderBlob?: Blob
   sensitivity?: number
 }
 
@@ -863,6 +912,62 @@ function imageDataToDataUrl(result: { buffer: ArrayBuffer; width: number; height
   if (!context) return null
   context.putImageData(new ImageData(new Uint8ClampedArray(result.buffer), result.width, result.height), 0, 0)
   return canvas.toDataURL('image/png')
+}
+
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  const separator = dataUrl.indexOf(',')
+  if (!dataUrl.startsWith('data:') || separator < 0) return null
+  const header = dataUrl.slice(5, separator)
+  const base64 = dataUrl.slice(separator + 1)
+  if (!/;base64$/i.test(header)) return null
+  const mime = header.slice(0, -7) || 'application/octet-stream'
+  try {
+    const binary = atob(base64)
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+    return new Blob([bytes], { type: mime })
+  } catch {
+    return null
+  }
+}
+
+function canPrepareCompareImagesInWorker(): boolean {
+  return typeof Worker !== 'undefined'
+    && typeof createImageBitmap !== 'undefined'
+    && typeof OffscreenCanvas !== 'undefined'
+}
+
+async function buildCompareWorkerRequest(options: {
+  kind: CompareWorkerRequest['kind']
+  referenceDataUrl: string
+  renderDataUrl?: string
+  sensitivity?: number
+}): Promise<CompareWorkerRequest> {
+  const base = {
+    kind: options.kind,
+    width: HEATMAP_SIZE,
+    height: HEATMAP_SIZE,
+    sensitivity: options.sensitivity,
+  } as const
+  if (canPrepareCompareImagesInWorker()) {
+    const referenceBlob = dataUrlToBlob(options.referenceDataUrl)
+    const renderBlob = options.renderDataUrl ? dataUrlToBlob(options.renderDataUrl) : null
+    if (referenceBlob && (!options.renderDataUrl || renderBlob)) {
+      return { ...base, referenceBlob, renderBlob: renderBlob ?? undefined }
+    }
+  }
+
+  // Older WebViews may not expose OffscreenCanvas. Keep a bounded fallback;
+  // the expensive difference/contour loops still run in compare-worker.ts.
+  const reference = await decodeImage(options.referenceDataUrl)
+  const render = options.renderDataUrl ? await decodeImage(options.renderDataUrl) : null
+  const referenceData = createContainedImageData(reference)
+  const renderData = render ? createContainedImageData(render) : null
+  if (!referenceData || (options.renderDataUrl && !renderData)) throw new Error('COMPARE_IMAGE_DATA_UNAVAILABLE')
+  return {
+    ...base,
+    referenceBuffer: referenceData.data.buffer,
+    renderBuffer: renderData?.data.buffer,
+  }
 }
 
 function runCompareWorker(
@@ -888,7 +993,12 @@ function runCompareWorker(
     onError('COMPARE_WORKER_FAILED')
     worker.terminate()
   }
-  const transferables: Transferable[] = [request.referenceBuffer]
+  if (!request.referenceBuffer && !request.referenceBlob) {
+    onError('COMPARE_IMAGE_DATA_UNAVAILABLE')
+    return () => undefined
+  }
+  const transferables: Transferable[] = []
+  if (request.referenceBuffer) transferables.push(request.referenceBuffer)
   if (request.renderBuffer) transferables.push(request.renderBuffer)
   worker.postMessage({ ...request, id }, transferables)
   return () => {
@@ -1094,6 +1204,7 @@ type ForgeHoverSnapshot = {
   hasEmissive: boolean
   emissive?: [number, number, number]
   emissiveIntensity?: number
+  color?: [number, number, number]
 }
 
 function applyMaterialSelectionState(material: THREE.Material, isSelected: boolean): void {
@@ -1134,6 +1245,7 @@ function applyMaterialSelectionState(material: THREE.Material, isSelected: boole
   if (next.hasEmissive && anyMaterial.emissive?.set) {
     anyMaterial.emissive.set(1, 0.74, 0.2)
   }
+  if (anyMaterial.color?.set) anyMaterial.color.set(1, 0.64, 0.12)
   if (anyMaterial.emissiveIntensity !== undefined) anyMaterial.emissiveIntensity = Math.max(anyMaterial.emissiveIntensity, 0.9)
   if (anyMaterial.roughness !== undefined) anyMaterial.roughness = Math.max(0, Math.min(0.75, anyMaterial.roughness))
   if (anyMaterial.metalness !== undefined) anyMaterial.metalness = Math.min(0.15, anyMaterial.metalness)
@@ -1144,6 +1256,7 @@ function applyMaterialHoverState(material: THREE.Material, isHovered: boolean): 
   const anyMaterial = material as {
     emissive?: { toArray?: () => number[]; set?: (...args: unknown[]) => void }
     emissiveIntensity?: number
+    color?: { toArray?: () => number[]; set?: (...args: unknown[]) => void }
   }
 
   if (!isHovered) {
@@ -1154,6 +1267,7 @@ function applyMaterialHoverState(material: THREE.Material, isHovered: boolean): 
         anyMaterial.emissiveIntensity = cache.emissiveIntensity
       }
     }
+    if (cache.color && anyMaterial.color?.set) anyMaterial.color.set(cache.color[0], cache.color[1], cache.color[2])
     delete (material.userData as Record<string, unknown>)[VIEWER_HOVER_CACHE]
     return
   }
@@ -1163,11 +1277,13 @@ function applyMaterialHoverState(material: THREE.Material, isHovered: boolean): 
     hasEmissive: Boolean(anyMaterial.emissive && anyMaterial.emissive.toArray),
     emissive: anyMaterial.emissive?.toArray?.().map((item) => Number(item.toFixed(6))) as [number, number, number] | undefined,
     emissiveIntensity: anyMaterial.emissiveIntensity,
+    color: anyMaterial.color?.toArray?.().map((item) => Number(item.toFixed(6))) as [number, number, number] | undefined,
   }
   ;(material.userData as Record<string, unknown>)[VIEWER_HOVER_CACHE] = next
   if (next.hasEmissive && anyMaterial.emissive?.set) {
     anyMaterial.emissive.set(1, 0.85, 0.25)
   }
+  if (anyMaterial.color?.set) anyMaterial.color.set(1, 0.82, 0.25)
   if (anyMaterial.emissiveIntensity !== undefined) {
     anyMaterial.emissiveIntensity = Math.max(anyMaterial.emissiveIntensity, 0.55)
   }
@@ -1444,6 +1560,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const [artifactError, setArtifactError] = useState<string | null>(null)
   const [artifactRetryNonce, setArtifactRetryNonce] = useState(0)
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null)
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([])
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null)
   const [partVisibility, setPartVisibility] = useState<Record<string, boolean>>({})
   const [materialVisibility, setMaterialVisibility] = useState<Record<string, boolean>>({})
@@ -1765,6 +1882,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
       buildSnapshotMetricDelta(activeSnapshot.materialZoneCount, comparisonSnapshot.materialZoneCount, '材质区数'),
       buildSnapshotMetricDelta(activeSnapshot.triangleCount, comparisonSnapshot.triangleCount, '三角形'),
       buildSnapshotMetricDelta(activeSnapshot.qualityPass ? 1 : 0, comparisonSnapshot.qualityPass ? 1 : 0, '质量门通过'),
+      buildSnapshotTextMetricDelta(activeSnapshot.materialBindingSignature ? '已提供' : '未提供', comparisonSnapshot.materialBindingSignature ? '已提供' : '未提供', '材质绑定'),
+      buildSnapshotTextMetricDelta(activeSnapshot.uvStatus, comparisonSnapshot.uvStatus, 'UV'),
+      buildSnapshotTextMetricDelta(activeSnapshot.tangentStatus, comparisonSnapshot.tangentStatus, '切线'),
+      buildSnapshotTextMetricDelta(activeSnapshot.pbrStatus, comparisonSnapshot.pbrStatus, 'PBR 材质区'),
       buildSnapshotDurationDelta(activeSnapshot, comparisonSnapshot),
     ]
   }, [activeSnapshot, comparisonSnapshot])
@@ -1776,6 +1897,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
       triangleCount: activeSnapshot.triangleCount,
       uvStatus: activeSnapshot.uvStatus,
       tangentStatus: activeSnapshot.tangentStatus,
+      pbrStatus: activeSnapshot.pbrStatus,
       quality: activeSnapshot.qualityPass ? '通过' : activeSnapshot.hasVisualEvidenceBinding ? '未通过' : '待绑定',
       visualStatus: formatQualityStatus(activeSnapshot.visualStatus),
       gateStatusClass: activeSnapshot.hasVisualEvidenceBinding ? (activeSnapshot.qualityPass ? 'passed' : 'failed') : 'not-run',
@@ -1785,6 +1907,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     if (!selectedSceneObject) return
     if (!selectedSceneObject.object.visible || isViewportObjectLocked(selectedSceneObject.data, partLockState, materialLockState)) {
       setSelectedObjectId(null)
+      setSelectedObjectIds([])
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
       setFocusedSceneTreeNodeId(null)
@@ -1800,11 +1923,11 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const viewportHintItems = useMemo(() => [
     viewportActionHint,
     viewportFocused ? '视口快捷键已就绪' : '视口未聚焦 · 点击空白区域或画布获取快捷键',
-    `视图状态：${selectedObjectId ? `已选中 ${selectedSceneObject?.data.partId ?? '对象'}` : '未选中'}`,
+    `视图状态：${selectedObjectId ? `已选中 ${selectedObjectIds.length > 1 ? `${selectedObjectIds.length} 个对象 · ` : ''}${selectedSceneObject?.data.partId ?? '对象'}` : '未选中'}`,
     ...(viewportFocused
       ? [...VIEWPORT_KEYBOARD_HINTS_ACTIVE, ...VIEWPORT_KEYBOARD_HINTS]
       : VIEWPORT_KEYBOARD_HINTS_NO_FOCUS),
-  ], [viewportActionHint, selectedObjectId, selectedSceneObject?.data.partId, viewportFocused])
+  ], [viewportActionHint, selectedObjectId, selectedObjectIds.length, selectedSceneObject?.data.partId, viewportFocused])
   const compareSelectionHint = selectedMaterialZone !== 'all'
     ? `材质筛选：${selectedMaterialZone}`
     : selectedPartId !== 'all'
@@ -1868,9 +1991,19 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     setEvidence(null)
     refreshViewerData()
   }
+  const refreshCurrentCandidate = () => {
+    setEvidenceError(null)
+    setEvidence(null)
+    setArtifactError(null)
+    setArtifactLoadState('idle')
+    setCompareError(null)
+    setCompareLoadState('idle')
+    refreshViewerData()
+  }
   const clearManualCandidateSelection = () => {
     setSelectedCandidateId(null)
     setSelectedObjectId(null)
+    setSelectedObjectIds([])
     setHoveredObjectId(null)
     setSelectedPartId('all')
     setSelectedMaterialZone('all')
@@ -1906,6 +2039,8 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         severity: statusClassFromCode(evidenceError, evidenceError === 'VISUAL_EVIDENCE_UNAVAILABLE' || evidenceError === 'REFERENCE_UNAVAILABLE' || evidenceError === 'VISUAL_EVIDENCE_BINDING_MISMATCH'),
         actionLabel: '重新读取该候选证据',
         action: retryEvidenceLoad,
+        secondaryActionLabel: candidateId ? '切换自动候选' : undefined,
+        secondaryAction: candidateId ? clearManualCandidateSelection : undefined,
       })
     }
 
@@ -1925,6 +2060,8 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         severity: statusClassFromCode(artifactError),
         actionLabel: '重试 GLB',
         action: retryArtifactLoad,
+        secondaryActionLabel: '切换自动候选',
+        secondaryAction: clearManualCandidateSelection,
       })
     }
 
@@ -1932,7 +2069,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
       const compareAssetError = compareLoadState === 'error'
       result.push({
         id: 'runtime-compare',
-        scope: compareAssetError ? `参考对比（${selectedPass}）` : '对比辅助计算',
+        scope: compareAssetError ? `参考对比（${AOV_PASS_LABELS[selectedPass]}）` : '对比辅助计算',
         code: compareError,
         title: compareAssetError ? '参考图/Render PNG 对比读取失败' : '差异热图/轮廓辅助计算失败',
         category: deriveErrorCategory(compareError, compareAssetError ? '读取失败' : '异常'),
@@ -1941,6 +2078,8 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         severity: statusClassFromCode(compareError),
         actionLabel: '重试比较资源',
         action: retryCompareLoad,
+        secondaryActionLabel: '切换自动候选',
+        secondaryAction: clearManualCandidateSelection,
       })
     }
 
@@ -1954,8 +2093,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         summary: '可能为生成中、未完成或数据未可用',
         meaning: '当前候选没有可用的 GLB 绑定，请等待生成完成或手动切换其他候选查看。',
         severity: 'warn',
-        actionLabel: '取消手动选择（切到自动候选）',
-        action: clearManualCandidateSelection,
+        actionLabel: '刷新当前候选',
+        action: refreshCurrentCandidate,
+        secondaryActionLabel: '切换自动候选',
+        secondaryAction: clearManualCandidateSelection,
       })
     }
 
@@ -1969,8 +2110,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         summary: '候选已存在，但质量与对比证据尚未全部写回',
         meaning: '数据处于生成或写回窗口内，属于可重试/可等待的“数据未可用”状态。',
         severity: 'warn',
-        actionLabel: '取消手动选择（切到自动候选）',
-        action: clearManualCandidateSelection,
+        actionLabel: '刷新当前候选',
+        action: refreshCurrentCandidate,
+        secondaryActionLabel: '切换自动候选',
+        secondaryAction: clearManualCandidateSelection,
       })
     }
 
@@ -1988,6 +2131,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     modelSyncError,
     refreshViewerData,
     retryArtifactLoad,
+    refreshCurrentCandidate,
     retryCompareLoad,
     selectedPass,
     clearManualCandidateSelection,
@@ -2022,12 +2166,15 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     if (activeCandidateIdRef.current !== nextCandidateId) {
       activeCandidateIdRef.current = nextCandidateId
       setSelectedObjectId(null)
+      setSelectedObjectIds([])
       setHoveredObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
       setExpandedPartIds({})
       setPartLockState({})
       setMaterialLockState({})
+      setSceneTreeFilter('all')
+      setSceneTreeSearch('')
       setViewportMarqueeRect(null)
     }
   }, [activeCandidateId])
@@ -2252,6 +2399,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     setContourPoints([])
     setContourCopyStatus('idle')
     setSelectedObjectId(null)
+    setSelectedObjectIds([])
     setPartVisibility({})
     setMaterialVisibility({})
     setExpandedPartIds({})
@@ -2585,14 +2733,21 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     const state = viewerSceneRef.current
     if (!state) return
     state.objects.forEach((objectState, object) => {
-      const isSelected = object.uuid === selectedObjectId
+      const isSelected = selectedObjectIds.includes(object.uuid) || object.uuid === selectedObjectId
       const isHovered = object.uuid === hoveredObjectId && !isSelected
       objectState.isSelected = isSelected
-      applyObjectSelectionState(object, isSelected)
-      applyObjectHoverState(object, isHovered)
+      if (isSelected) {
+        // Clear a previous hover snapshot first; otherwise restoring hover
+        // after selection would overwrite the selected highlight.
+        applyObjectHoverState(object, false)
+        applyObjectSelectionState(object, true)
+      } else {
+        applyObjectSelectionState(object, false)
+        applyObjectHoverState(object, isHovered)
+      }
     })
     state.renderer.render(state.scene, state.camera)
-  }, [hoveredObjectId, selectedObjectId, artifactLoadState])
+  }, [hoveredObjectId, selectedObjectId, selectedObjectIds, artifactLoadState])
 
   const referenceDataUrl = referenceImage?.bytes_base64
     ? `data:${referenceImage.mime ?? 'image/png'};base64,${referenceImage.bytes_base64}`
@@ -2608,23 +2763,14 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     let stopWorker: () => void = () => undefined
     const load = async () => {
       setCompareError(null)
-      const reference = new Image()
-      const render = new Image()
-      reference.src = referenceDataUrl
-      render.src = renderDataUrl
-      await Promise.all([reference.decode(), render.decode()])
-      if (!active) return
-      const referenceData = createContainedImageData(reference)
-      const renderData = createContainedImageData(render)
-      if (!referenceData || !renderData) throw new Error('COMPARE_IMAGE_DATA_UNAVAILABLE')
-      stopWorker = runCompareWorker({
+      const request = await buildCompareWorkerRequest({
         kind: 'difference',
-        width: HEATMAP_SIZE,
-        height: HEATMAP_SIZE,
-        referenceBuffer: referenceData.data.buffer,
-        renderBuffer: renderData.data.buffer,
+        referenceDataUrl,
+        renderDataUrl,
         sensitivity: heatmapSensitivity,
-      }, (result) => {
+      })
+      if (!active) return
+      stopWorker = runCompareWorker(request, (result) => {
         if (!active) return
         const dataUrl = imageDataToDataUrl(result)
         if (!dataUrl) {
@@ -2653,18 +2799,12 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     let stopWorker: () => void = () => undefined
     const load = async () => {
       setCompareError(null)
-      const reference = new Image()
-      reference.src = referenceDataUrl
-      await reference.decode()
-      if (!active) return
-      const referenceData = createContainedImageData(reference)
-      if (!referenceData) throw new Error('REFERENCE_CONTOUR_IMAGE_DATA_UNAVAILABLE')
-      stopWorker = runCompareWorker({
+      const request = await buildCompareWorkerRequest({
         kind: 'contour',
-        width: HEATMAP_SIZE,
-        height: HEATMAP_SIZE,
-        referenceBuffer: referenceData.data.buffer,
-      }, (result) => {
+        referenceDataUrl,
+      })
+      if (!active) return
+      stopWorker = runCompareWorker(request, (result) => {
         if (!active) return
         const dataUrl = imageDataToDataUrl(result)
         if (!dataUrl) {
@@ -2800,6 +2940,12 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     state.renderer.render(state.scene, state.camera)
   }
 
+  const replaceViewportSelection = (objectIds: string[], primaryObjectId?: string | null) => {
+    const uniqueObjectIds = [...new Set(objectIds)]
+    setSelectedObjectIds(uniqueObjectIds)
+    setSelectedObjectId(primaryObjectId ?? uniqueObjectIds[0] ?? null)
+  }
+
   const toggleViewportPartLock = (partId: string) => {
     setPartLockState((current) => ({ ...current, [partId]: !current[partId] }))
   }
@@ -2855,7 +3001,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
       return
     }
     setHoveredObjectId(target.uuid)
-    setSelectedObjectId(target.uuid)
+    replaceViewportSelection([target.uuid], target.uuid)
     const targetState = state.objects.get(target)
     if (targetState) {
       syncSceneTreeSelection(targetState.partId, targetState.materialZoneId, target.uuid)
@@ -2905,7 +3051,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         resetCompareSelection()
       } else {
         const targetState = state.objects.get(target)
-        setSelectedObjectId(target.uuid)
+        replaceViewportSelection([target.uuid], target.uuid)
         if (targetState) {
           syncSceneTreeSelection(targetState.partId, targetState.materialZoneId, target.uuid)
           setViewportActionHint(`已命中：${targetState.partId} · 按 F 聚焦`)
@@ -2924,7 +3070,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
       const first = hits[0]
     if (!first) {
       setViewportActionHint('框选完成但未命中')
-      setSelectedObjectId(null)
+      replaceViewportSelection([])
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
       setFocusedSceneTreeNodeId(null)
@@ -2933,10 +3079,20 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     }
     const targetState = state.objects.get(first)
     const targetPartId = targetState?.partId
-      setSelectedObjectId(first.uuid)
-    setViewportActionHint(targetPartId ? `框选命中：${targetPartId} · 按 F 聚焦` : '框选命中 · 按 F 聚焦')
+    replaceViewportSelection(hits.map((object) => object.uuid), first.uuid)
+    setViewportActionHint(targetPartId
+      ? `框选命中：${hits.length} 个对象 · 主对象 ${targetPartId} · 按 F 聚焦`
+      : `框选命中：${hits.length} 个对象 · 按 F 聚焦`)
     if (targetState) {
-      syncSelectionViewportContext(targetState.partId, targetState.materialZoneId)
+      if (hits.length === 1) syncSelectionViewportContext(targetState.partId, targetState.materialZoneId)
+      else {
+        // A marquee is a real multi-selection. Keep the whole model visible
+        // while the primary object drives Inspector focus; a single semantic
+        // filter would hide the other selected meshes immediately.
+        setSelectedPartId('all')
+        setSelectedMaterialZone('all')
+        setSelectedPass('beauty')
+      }
       const targetNodeId = sceneTreeMaterialNodeId(targetState.partId, targetState.materialZoneId)
       setFocusedSceneTreeNodeId(targetNodeId)
       const focusButton = sceneTreeNodeRefs.current[targetNodeId]
@@ -2991,7 +3147,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const syncSceneTreeSelection = (partId: string, materialZoneId: string, objectId?: string | null) => {
     syncSelectionViewportContext(partId, materialZoneId)
     setSceneTreePartExpanded(partId, true)
-    if (objectId !== undefined) setSelectedObjectId(objectId)
+    if (objectId !== undefined) replaceViewportSelection(objectId ? [objectId] : [], objectId)
     const targetNodeId = materialZoneId === 'all'
       ? sceneTreePartNodeId(partId)
       : sceneTreeMaterialNodeId(partId, materialZoneId)
@@ -3003,7 +3159,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     setSelectedMaterialZone('all')
     setSelectedPass('beauty')
     setFocusedSceneTreeNodeId(null)
-    setSelectedObjectId(null)
+    replaceViewportSelection([])
     setHoveredObjectId(null)
   }
 
@@ -3050,7 +3206,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
       event.preventDefault()
       moveViewportCameraToPreset('three-quarter')
       setViewportActionHint('6：切到三分之四视角')
-    } else if (event.key === 'Escape' && (selectedObjectId || selectedPartId !== 'all' || selectedMaterialZone !== 'all')) {
+    } else if (event.key === 'Escape' && (selectedObjectIds.length > 0 || selectedPartId !== 'all' || selectedMaterialZone !== 'all')) {
       event.preventDefault()
       resetCompareSelection()
       setViewportActionHint('Esc：已清除选中')
@@ -3435,16 +3591,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
           const partNodeId = sceneTreePartNodeId(part.partId)
           const isPartExpanded = Boolean(expandedPartIds[part.partId])
           const partSelected = selectedPartId === part.partId && selectedMaterialZone === 'all'
-          return <div
-            className="scene-tree-part"
-            role="treeitem"
-            aria-level={1}
-            aria-posinset={index + 1}
-            aria-setsize={filteredSceneTreeByState.length}
-            aria-selected={partSelected}
-            aria-expanded={isPartExpanded}
-            key={part.partId}
-          >
+          return <div className="scene-tree-part" role="presentation" key={part.partId}>
             <div className="runtime-scene-tree-part-row">
               <button
                 type="button"
@@ -3457,6 +3604,12 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               <button
                 type="button"
                 className={`scene-tree-row scene-tree-part-select ${partSelected ? 'scene-tree-row-selected' : ''} ${focusedSceneTreeNodeId === partNodeId ? 'scene-tree-row-focused' : ''}`}
+                role="treeitem"
+                aria-level={1}
+                aria-posinset={index + 1}
+                aria-setsize={filteredSceneTreeByState.length}
+                aria-selected={partSelected}
+                aria-expanded={isPartExpanded}
                 ref={(node) => {
                   if (node) sceneTreeNodeRefs.current[partNodeId] = node
                   else delete sceneTreeNodeRefs.current[partNodeId]
@@ -3464,7 +3617,6 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                 tabIndex={focusedSceneTreeNodeId === partNodeId || (focusedSceneTreeNodeId === null && sceneTreeNavigationNodes[0]?.id === partNodeId) ? 0 : -1}
                 onClick={() => handleSceneTreePartSelect(part.partId)}
                 onFocus={() => setFocusedSceneTreeNodeId(partNodeId)}
-                aria-pressed={partSelected}
                 aria-label={`选择部件 ${part.partId}`}
               >
                 <span className="scene-tree-row-title">{index === filteredSceneTreeByState.length - 1 ? '└ ' : '├ '}{part.partId}</span>
@@ -3493,18 +3645,15 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                 const materialSelected = selectedPartId === part.partId && selectedMaterialZone === material.materialZoneId
                 const materialLocked = Boolean(materialLockState[material.materialZoneId])
                 const materialNodeId = sceneTreeMaterialNodeId(part.partId, material.materialZoneId)
-                return <div
-                  role="treeitem"
-                  aria-level={2}
-                  aria-posinset={materialIndex + 1}
-                  aria-setsize={part.materials.length}
-                  aria-selected={materialSelected}
-                  key={`${part.partId}-${material.materialZoneId}`}
-                  className="runtime-scene-tree-material-row"
-                >
+                return <div role="presentation" key={`${part.partId}-${material.materialZoneId}`} className="runtime-scene-tree-material-row">
                   <button
                     type="button"
                     className={`scene-tree-row scene-tree-row-child scene-tree-material-select ${materialSelected ? 'scene-tree-row-selected' : ''} ${focusedSceneTreeNodeId === materialNodeId ? 'scene-tree-row-focused' : ''}`}
+                    role="treeitem"
+                    aria-level={2}
+                    aria-posinset={materialIndex + 1}
+                    aria-setsize={part.materials.length}
+                    aria-selected={materialSelected}
                     onClick={() => handleSceneTreeMaterialSelect(part.partId, material.materialZoneId)}
                     ref={(node) => {
                       if (node) sceneTreeNodeRefs.current[materialNodeId] = node
@@ -3512,7 +3661,6 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                     }}
                     tabIndex={focusedSceneTreeNodeId === materialNodeId ? 0 : -1}
                     onFocus={() => setFocusedSceneTreeNodeId(materialNodeId)}
-                    aria-pressed={materialSelected}
                     aria-label={`选择材质区 ${material.materialZoneId}`}
                   >
                     <span className="scene-tree-row-title">└ {material.materialZoneId}</span>
@@ -3567,7 +3715,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
           <div className="selected-object-card runtime-selected-object">
             <span className="selected-object-icon" aria-hidden="true">◎</span>
             <div>
-              <strong>当前选中</strong>
+              <strong>当前选中{selectedObjectIds.length > 1 ? ` · ${selectedObjectIds.length} 个对象` : ''}</strong>
               <small>{selectedSceneObject.data.partId}</small>
               <small>{selectedSceneObject.data.materialZoneId}</small>
             </div>
@@ -3648,7 +3796,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               <p>{item.summary}</p>
               <p><strong>范围：</strong>{item.scope}</p>
               <p><strong>处理建议：</strong>{item.meaning}</p>
-              {item.action && item.actionLabel ? <button type="button" className="viewer-toggle" onClick={item.action}>{item.actionLabel}</button> : null}
+              {(item.action && item.actionLabel) || (item.secondaryAction && item.secondaryActionLabel) ? <div className="error-console-actions">
+                {item.action && item.actionLabel ? <button type="button" className="viewer-toggle" onClick={item.action}>{item.actionLabel}</button> : null}
+                {item.secondaryAction && item.secondaryActionLabel ? <button type="button" className="viewer-toggle" onClick={item.secondaryAction}>{item.secondaryActionLabel}</button> : null}
+              </div> : null}
             </div>
           ))}
         </div>
@@ -3696,6 +3847,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               className="glb-canvas"
               tabIndex={0}
               aria-label="Runtime GLB 三维预览；左键选中，Shift 加左键框选，右键旋转，中键平移，滚轮缩放，F 聚焦，R 重置视角"
+              aria-keyshortcuts="F R 1 2 3 4 5 6 Z X C Escape"
               onFocus={() => {
                 setViewportFocused(true)
                 setViewportActionHint('快捷键已激活（F/R/Z/X/C/1-6）')
@@ -3760,10 +3912,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             {diffHeatmap && <label>热图敏感度 {heatmapSensitivity.toFixed(1)}×<input type="range" min="0.5" max="2.5" step="0.1" value={heatmapSensitivity} onChange={(event) => setHeatmapSensitivity(Number(event.target.value))} /></label>}
             <span className="compare-parameter-hint">{compareZoom > 1 ? '拖拽画面平移' : '放大后可拖拽平移'}{measureMode ? ' · 点击两点完成测量' : ''}</span>
           </div>
-          <div id="render-aov-panel" role="tabpanel" aria-labelledby={`render-aov-tab-${selectedPass}`} className={`compare-stage compare-${compareMode} ${contourCanvasActive ? 'contour-canvas' : ''} ${diffHeatmap ? 'compare-heatmap' : ''} ${compareZoom > 1 && !measureMode && !contourCanvasActive ? 'compare-pan-ready' : ''}`} aria-label={`${selectedPass} 参考对比`} onPointerDown={handleComparePointerDown} onPointerMove={handleComparePointerMove} onPointerUp={handleComparePointerUp} onPointerCancel={handleComparePointerUp}>
-            {contourCanvasActive && <div className="contour-canvas-badge">轮廓草图画布 · SILHOUETTE AOV</div>}
+          <div id="render-aov-panel" role="tabpanel" aria-labelledby={`render-aov-tab-${selectedPass}`} className={`compare-stage compare-${compareMode} ${contourCanvasActive ? 'contour-canvas' : ''} ${diffHeatmap ? 'compare-heatmap' : ''} ${compareZoom > 1 && !measureMode && !contourCanvasActive ? 'compare-pan-ready' : ''}`} aria-label={`${AOV_PASS_LABELS[selectedPass]} 参考对比`} onPointerDown={handleComparePointerDown} onPointerMove={handleComparePointerMove} onPointerUp={handleComparePointerUp} onPointerCancel={handleComparePointerUp}>
+            {contourCanvasActive && <div className="contour-canvas-badge">轮廓草图画布 · 轮廓 Silhouette AOV</div>}
             {referenceDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && !flickerOn)) && <div className="compare-pane compare-reference"><span>参考图</span><img src={referenceDataUrl} alt="授权参考图" style={referenceImageStyle} onError={() => { setCompareLoadState('error'); setCompareError('REFERENCE_IMAGE_DECODE_FAILED') }} /></div>}
-            {renderDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && flickerOn)) && <div className="compare-pane compare-render"><span>{selectedPass}</span><img src={renderDataUrl} alt={`固定渲染 ${selectedPass}`} style={renderImageStyle} onError={() => { setCompareLoadState('error'); setCompareError('RENDER_PASS_IMAGE_DECODE_FAILED') }} /></div>}
+            {renderDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && flickerOn)) && <div className="compare-pane compare-render"><span>{AOV_PASS_LABELS[selectedPass]}</span><img src={renderDataUrl} alt={`固定渲染 ${AOV_PASS_LABELS[selectedPass]}`} style={renderImageStyle} onError={() => { setCompareLoadState('error'); setCompareError('RENDER_PASS_IMAGE_DECODE_FAILED') }} /></div>}
             {contourCanvasActive && referenceContourAidUrl && <div className="reference-contour-aid"><span>参考轮廓引导 · 仅 Viewer</span><img src={referenceContourAidUrl} alt="确定性参考轮廓引导" /></div>}
             {contourCanvasActive && referenceDataUrl && <svg
               className="contour-annotation-layer"
@@ -3785,10 +3937,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               {measuredPixels !== null && <text x="0.02" y="0.96" fill="#d9f2ff" fontSize="0.035" stroke="#06121c" strokeWidth="0.006" paintOrder="stroke">约 {measuredPixels}px / 512</text>}
             </svg>}
             {diffHeatmap && differenceHeatmapUrl && <div className="heatmap-layer"><span>像素差异 · 512×512</span><img className="heatmap-image" src={differenceHeatmapUrl} alt="参考图与渲染图差异热图" /></div>}
-            {diffHeatmap && <div className="heatmap-legend" role="status">{differenceHeatmapUrl ? '差异热图已由后台 Worker 生成；数值质量仍以 Runtime QualityReport 为准。' : compareError ? `热图失败：${compareError}` : '正在生成当前参考图与 Render AOV 的差异热图…'}</div>}
-            {compareLoadState === 'loading' && <div className="compare-empty">正在读取候选绑定的参考图与 {selectedPass} AOV…</div>}
+            {diffHeatmap && <div className="heatmap-legend" role="status">{differenceHeatmapUrl ? '差异热图已由后台 Worker 生成；数值质量仍以 Runtime QualityReport 为准。' : compareError ? `热图失败：${compareError}` : '正在生成当前参考图与渲染 AOV 的差异热图…'}</div>}
+            {compareLoadState === 'loading' && <div className="compare-empty">正在读取候选绑定的参考图与 {AOV_PASS_LABELS[selectedPass]} AOV…</div>}
             {compareLoadState === 'error' && <div className="compare-error" role="alert"><span className="status-icon status-icon-error">!</span><span>比较资源读取失败：{compareError ?? 'COMPARE_ASSET_LOAD_FAILED'}</span><button type="button" className="viewer-toggle" onClick={() => setCompareRetryNonce((value) => value + 1)}>重试比较</button></div>}
-            {compareLoadState === 'idle' && (!referenceDataUrl || !renderDataUrl) ? <div className="compare-empty">等待候选绑定的参考图、RenderSet 和 {selectedPass} PNG</div> : null}
+            {compareLoadState === 'idle' && (!referenceDataUrl || !renderDataUrl) ? <div className="compare-empty">等待候选绑定的参考图、RenderSet 和 {AOV_PASS_LABELS[selectedPass]} PNG</div> : null}
           </div>
           {contourCanvasActive && referenceDataUrl && <div className="contour-draft-toolbar" aria-label="临时轮廓草图工具">
             <span aria-live="polite">临时轮廓点：{contourPoints.length}/128 · {contourBindingReady ? '候选已绑定' : '等待候选绑定证据'} · 仅 Viewer 显示</span>
@@ -3866,6 +4018,8 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                   <span>耗时：{activeSnapshotTiming?.elapsedDisplay ?? activeSnapshotTiming?.statusLabel ?? '未运行'}</span>
                   <span>UV: {activeSnapshot.uvStatus}</span>
                   <span>切线: {activeSnapshot.tangentStatus}</span>
+                  <span>PBR 材质区: {activeSnapshot.pbrStatus}</span>
+                  <span>材质绑定: {activeSnapshot.materialBindingSignature ? '已提供' : '未提供'}</span>
                   <span>校验: {activeSnapshot.validatorStatus}</span>
                   <span>可视化: {candidateQuickPreview?.visualStatus}</span>
                   <span>
@@ -3885,6 +4039,9 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                   <span>渲染集：{activeSnapshot.renderSetHash ? '已绑定' : '未绑定'}</span>
                   <span>比对：{activeSnapshot.comparisonReportHash ? '已绑定' : '未绑定'}</span>
                   <span>质量报告：{activeSnapshot.qualityReportHash || activeSnapshot.hasVisualEvidenceBinding ? '已绑定' : '未绑定'}</span>
+                  <span>GLB 回读：{compactHash(activeSnapshot.artifactCanonicalSha256)}</span>
+                  <span>部件绑定：{compactSignature(activeSnapshot.partBindingSignature)}</span>
+                  <span>材质绑定：{compactSignature(activeSnapshot.materialBindingSignature)}</span>
                   <span>绑定摘要：{activeSnapshotBinding ? formatBindingStatusText(activeSnapshotBinding) : '—'}</span>
                 </div>
               </div>
@@ -3901,6 +4058,8 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                     <span>耗时：{comparisonSnapshotTiming?.elapsedDisplay ?? comparisonSnapshotTiming?.statusLabel ?? '未运行'}</span>
                     <span>UV: {comparisonSnapshot.uvStatus}</span>
                     <span>切线: {comparisonSnapshot.tangentStatus}</span>
+                    <span>PBR 材质区: {comparisonSnapshot.pbrStatus}</span>
+                    <span>材质绑定: {comparisonSnapshot.materialBindingSignature ? '已提供' : '未提供'}</span>
                     <span>校验: {comparisonSnapshot.validatorStatus}</span>
                     <span>可视化: {formatQualityStatus(comparisonSnapshot.visualStatus)}</span>
                     <span>
@@ -3914,6 +4073,9 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                     {comparisonSnapshotBinding ? <span>绑定摘要：{formatBindingStatusText(comparisonSnapshotBinding)}</span> : null}
                     <span>结构：{compactHash(comparisonSnapshot.candidateCanonicalSha256)}</span>
                     <span>几何程序：{compactHash(comparisonSnapshot.programSha256)}</span>
+                    <span>GLB 回读：{compactHash(comparisonSnapshot.artifactCanonicalSha256)}</span>
+                    <span>部件绑定：{compactSignature(comparisonSnapshot.partBindingSignature)}</span>
+                    <span>材质绑定：{compactSignature(comparisonSnapshot.materialBindingSignature)}</span>
                   </div>
                 ) : <p className="panel-copy">还没有历史候选用于对比。</p>}
               </div>
@@ -3944,7 +4106,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                 <button type="button" className="viewer-toggle" onClick={() => comparisonSnapshot && setSelectedCandidateId(comparisonSnapshot.candidateId)} disabled={!comparisonSnapshot}>
                   快速回看对比候选
                     </button>
-                <span>当前候选的耗时、GLB、对比图和 Runtime 质量报告已绑定；差异字段包含结构、部件、材质区、UV/切线和证据。</span>
+                <span>当前候选的耗时、GLB、对比图和 Runtime 质量报告已绑定；差异字段包含结构、部件、材质区、UV/切线/PBR 和证据。</span>
               </div>
             </>
           ) : null}

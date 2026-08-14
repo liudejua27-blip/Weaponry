@@ -42,7 +42,7 @@ FIT_PLAN_SOURCE = ROOT / "scripts/build_mcp010f_fit_plan.py"
 TOOL_SUMMARY_PATH = ROOT / "docs/evidence/mcp010f/source-tool-manifest-summary.json"
 RUN_INVENTORY_PATH = ROOT / "docs/evidence/mcp010f/real-codex-run-inventory.json"
 EVIDENCE_MANIFEST_PATH = ROOT / "docs/evidence/mcp010f/manifest.json"
-EXPECTED_EVIDENCE_MANIFEST_SHA256 = "af92319bea9a1886ab522cc1b82266534fe61bb05d76f75001d23d63a0b9e8e8"
+EXPECTED_EVIDENCE_MANIFEST_SHA256 = "5e0a38ef05d94fdf0ec2d78fa8c3f0b0dddf2dadbe61c51ea11702b4203d41f1"
 TASK_INDEX = ROOT / "docs/CODEX_TASK_INDEX.md"
 
 AUTHORITY_DOCS = (
@@ -797,14 +797,16 @@ def check_run_inventory(truth: dict[str, Any]) -> None:
             attempt_truth["host_provenance"] == "VERIFIED_SANITIZED_CLI_EVENTS_AND_EXIT_CODES",
             "completed latest attempt host provenance drifted",
         )
+        turn_count = attempt.get("codex_turn_count")
+        exit_codes = attempt.get("codex_exit_codes")
         require(
-            attempt_truth["attempt_count_evidence"] == "VERIFIED_RAW_RECEIPT_11_CODEX_TURNS_ZERO_EXIT_CODES",
+            attempt_truth["attempt_count_evidence"] == f"VERIFIED_RAW_RECEIPT_{turn_count}_CODEX_TURNS_ZERO_EXIT_CODES",
             "completed latest attempt count evidence drifted",
         )
         require(len(set(attempt_truth["build_cohorts"].values())) == 1, "completed latest attempt cohorts diverged")
         require(attempt_truth["quality_result"] == "QUALITY_TARGET_NOT_MET", "completed latest attempt quality result drifted")
-        require(attempt.get("codex_turn_count") == 11, "completed latest attempt Codex turn count drifted")
-        require(attempt.get("codex_exit_codes") == [0] * 11, "completed latest attempt exit-code evidence drifted")
+        require(isinstance(turn_count, int) and turn_count > 0, "completed latest attempt Codex turn count drifted")
+        require(exit_codes == [0] * turn_count, "completed latest attempt exit-code evidence drifted")
         require(attempt.get("unrelated_side_effects") is False, "completed latest attempt reports unrelated side effects")
         require(attempt.get("persistent_user_data_touched") is False, "completed latest attempt reports persistent user data")
         require(attempt.get("camera_binding_status") == "PASS_SILHOUETTE_FIT_TO_COMPARE", "completed latest attempt camera binding drifted")
@@ -879,6 +881,7 @@ def check_run_inventory(truth: dict[str, Any]) -> None:
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-viewer-bound.json",
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-canonical-intake-viewer-bound.json",
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
     }:
         require(
             transport_truth["promotion_decision"] == "NOT_PROMOTED_QUALITY_TARGET_NOT_MET_AND_PROVISIONAL_BASELINE_FROZEN",
@@ -1178,12 +1181,12 @@ def check_truth_declared_semantics(truth: dict[str, Any]) -> None:
 
     require(
         truth["latest_attempt"]["source_receipt_path"]
-        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json",
+        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
         "frozen latest-attempt path drifted",
     )
     require(
         truth["latest_completed_transport"]["source_receipt_path"]
-        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
+        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
         "frozen latest-completed path drifted",
     )
     require(
@@ -1332,7 +1335,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         require(forbidden not in limitation_text, f"evidence manifest contains a forbidden promotion claim: {forbidden}")
     require(isinstance(manifest["scope"], list) and manifest["scope"], "evidence manifest scope must be a non-empty list")
     require(isinstance(manifest["limitations"], list) and manifest["limitations"], "evidence manifest limitations must be non-empty")
-    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 131, "evidence manifest frozen evidence count drifted")
+    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 133, "evidence manifest frozen evidence count drifted")
     require(len(set(manifest["evidence"])) == len(manifest["evidence"]), "evidence manifest contains duplicate entries")
     for index, entry in enumerate(manifest["evidence"]):
         require(isinstance(entry, str) and entry, f"evidence entry {index} must be a non-empty string")

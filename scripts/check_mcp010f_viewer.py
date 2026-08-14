@@ -64,13 +64,25 @@ def main() -> int:
         "forceContextLoss",
         "selectedCandidateId",
         "AUTO_LATEST_CANDIDATE",
+        "selectedObjectIds",
+        "replaceViewportSelection",
+        'role="treeitem"',
+        "sceneTreeFilter",
         "candidateSortOrder",
         "compareZoom",
         "comparePan",
         "measureMode",
         "exportCompareSnapshot",
         "compare-parameters",
+        "dataUrlToBlob",
+        "createImageBitmap",
+        "OffscreenCanvas",
         "error-console",
+        "refreshCurrentCandidate",
+        "secondaryActionLabel",
+        "切换自动候选",
+        "pbrStatus",
+        "PBR 材质区",
         "轮廓画布",
         "role=\"tab\"",
         "aria-controls=\"render-aov-panel\"",
@@ -170,7 +182,7 @@ def main() -> int:
     if "read-only IPC client" not in tauri_source or "read_model" not in tauri_source:
         raise SystemExit("Viewer Tauri bridge is missing its read-only projection boundary")
     worker_source = COMPARE_WORKER.read_text(encoding="utf-8")
-    worker_tokens = ["createDifferenceImage", "createContourImage", "onmessage", "postMessage"]
+    worker_tokens = ["createDifferenceImage", "createContourImage", "decodeBlobToBuffer", "createImageBitmap", "OffscreenCanvas", "onmessage", "postMessage"]
     missing_worker_tokens = [token for token in worker_tokens if token not in worker_source]
     if missing_worker_tokens:
         raise SystemExit(f"Viewer compare worker is missing required tokens: {missing_worker_tokens}")
