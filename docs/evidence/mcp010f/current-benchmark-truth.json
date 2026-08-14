@@ -56,7 +56,7 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "7945421a742a3ee8f4be44dd474063a0667efa22073a12fc994c2ca59406dcc0",
+  "canonical_sha256": "93a51049f300402876a7cdbd8ebd61fb4b4de386e9ef06ad99b98a9bb81bddd0",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -148,7 +148,7 @@
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
       "runtime_source_sha256": "d26d8fd28d38c13c9f6d25338c3024045df0d03b90b028f081b00f95dacba6be",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
-      "viewer_projection_sha256": "f97e0834da61d79b2e1e53caffa3dfd4acb530e3802eb651c4db210ead6f6a30"
+      "viewer_projection_sha256": "a47bc66323500c0ae4a37c7f09e9b00103ca798517a3a493e835a06f4d182843"
     }
   },
   "evidence_status": "INCOMPLETE_TRUTH_BINDING",

@@ -103,7 +103,9 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 - 3D viewport 使用懒加载的 Three runtime 与 `OrbitControls`，支持 orbit/pan/zoom；`ResizeObserver` 同步容器宽高、camera aspect、projection matrix 和 renderer size，不再固定为初始化时的 `aspect=1`。
 - 候选选择从自动绑定扩展为显式“自动·最新任务 / 手动候选·历史”选择，并按最新/最旧切换；候选选择、GLB、参考比较、质量投影和生成耗时共用同一 candidate ID。
 - 候选切换和 GLB 重试会完整释放 controls、scene、geometry、material、texture、renderer/context；轮廓边界与差异热图通过 `compare-worker.ts` 在 Worker 中计算，避免大图像循环阻塞主线程。
+- Scene Tree 只在左侧工作台列渲染一份；GLB 回读时为每个 Mesh 隔离临时 Material 实例（纹理仍共享），避免共享材质导致跨部件高亮或重复 DOM/ID。
 - Runtime、GLB、candidate-bound evidence、AOV 和比较资源失败均显示可复制的故障码及重试入口；比较面板增加缩放、亮度、双层透明度、热图敏感度、标尺、平移和当前视图导出。
+- 差异热图与轮廓 Worker 的失败也会投影到全局 Error Console；成功重试会清除旧的辅助计算故障码，原始 AOV 与 Runtime `QualityReport` 仍保持独立。
 - Viewer 轮询改为首次完整读取 + 变更摘要读取；仅在 project/head/candidate/version 相关摘要签名变化时重新拉取大 payload，后台页将摘要间隔放宽至 15 秒。
 - 生成耗时独立面板按任务 ID 展示平均耗时、候选状态成功率和异常计数；缺失、未来时间、无法解析和超长耗时使用图标、文本和边框共同提示。状态图例统一区分通过、未通过/异常、未运行/未知。
 

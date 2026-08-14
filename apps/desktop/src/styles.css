@@ -178,7 +178,100 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 
 /* RuntimeViewer compatibility surface: the Agentic read-only viewer remains
    available inside the product shell while the newer shell is rolled out. */
-.runtime-shell { min-height: 100vh; padding: 34px 42px 42px; background: radial-gradient(circle at 18% -10%, #1a293b 0, transparent 36%), #090d14; }
+
+/* Runtime workbench shell: Scene / Viewport / Inspector / History / Activity. */
+.runtime-shell { display: flex; height: 100vh; min-height: 0; padding: 0; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 50% -30%, rgba(28, 50, 69, .52), transparent 42%), #090f16; }
+.runtime-app-bar { display: flex; min-height: 56px; flex: 0 0 56px; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid #263341; background: #0c131b; }
+.runtime-brand-lockup { display: inline-flex; min-width: 0; align-items: center; gap: 9px; color: #f2f7fb; letter-spacing: -.03em; }
+.runtime-brand-lockup strong { font-size: 17px; font-weight: 650; }
+.runtime-brand-mark { display: grid; width: 27px; height: 27px; place-items: center; border: 1px solid #4e7597; border-radius: 7px; color: #8fc9eb; background: #162a3b; font-size: 17px; }
+.runtime-project-name { max-width: 220px; overflow: hidden; color: #7d91a1; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-codex-connection { display: inline-flex; align-items: center; gap: 7px; margin-left: 12px; color: #d0ad76; font-size: 11px; white-space: nowrap; }
+.runtime-codex-connection-ready { color: #a8d8bd; }
+.runtime-connection-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #d0a05e; box-shadow: 0 0 10px rgba(208, 160, 94, .4); }
+.runtime-codex-connection-ready .runtime-connection-dot { background: #79c7a0; box-shadow: 0 0 10px rgba(121, 199, 160, .45); }
+.runtime-app-actions { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
+.runtime-top-action { display: inline-flex; min-height: 31px; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #2d4352; border-radius: 5px; color: #91a5b4; background: #101b25; font-size: 10px; cursor: pointer; }
+.runtime-top-action:hover { border-color: #5b86a9; color: #e2eff7; background: #172938; }
+.runtime-top-action-primary { border-color: #477ca7; color: #eaf5ff; background: #1c5c8b; }
+.runtime-top-action-primary:hover { background: #2878b0; }
+.runtime-top-action:disabled { cursor: not-allowed; opacity: .48; }
+.runtime-shell > .error-console { max-height: 188px; flex: 0 0 auto; overflow: auto; margin: 0; padding: 12px 18px; border-top: 0; border-right: 0; border-left: 0; border-radius: 0; }
+.runtime-shell > .error-console .section-toolbar { margin-bottom: 4px; }
+.runtime-workbench-grid { display: grid; min-height: 0; flex: 1 1 auto; grid-template-columns: 220px minmax(440px, 1fr) 342px; gap: 0; overflow: hidden; border-bottom: 1px solid #263341; }
+.runtime-scene-panel { display: flex; min-height: 0; flex-direction: column; overflow: hidden; border-right: 1px solid #263341; background: #111922; }
+.runtime-workbench-panel-header { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; border-bottom: 1px solid #263341; }
+.runtime-workbench-panel-header h2 { margin: 3px 0 0; color: #e8eef5; font-size: 13px; font-weight: 650; }
+.runtime-workbench-panel-eyebrow { display: block; color: #6e90aa; font-size: 9px; letter-spacing: .13em; }
+.runtime-workbench-panel-count, .runtime-rail-meta { color: #617889; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
+.runtime-scene-tree-scroll { min-height: 0; flex: 1; overflow: auto; padding: 10px 6px; }
+.runtime-scene-part-row { display: flex; align-items: center; gap: 2px; }
+.runtime-scene-part-row .tree-row-part { flex: 1; min-width: 0; }
+.runtime-scene-part-row .tree-visibility { width: 26px; flex: 0 0 26px; margin-left: 0; color: #688194; }
+.runtime-scene-part-row .tree-visibility:hover, .runtime-scene-part-row .tree-visibility:focus-visible { color: #cfe7f5; background: rgba(115, 169, 209, .1); }
+.runtime-scene-part-row .tree-visibility-locked { color: #d0ad76; }
+.runtime-scene-panel .scene-footer { flex: 0 0 38px; }
+.runtime-viewport-card { display: flex; min-height: 0; height: 100%; flex-direction: column; overflow: hidden; border: 0; border-radius: 0; box-shadow: none; }
+.runtime-viewport-card .viewport-stage { min-height: 220px; flex: 1 1 auto; }
+.runtime-viewport-card .compare-panel { min-height: 0; max-height: 42%; flex: 0 0 auto; overflow: auto; border-top: 1px solid #263341; }
+.runtime-viewport-card .compare-stage { min-height: 140px; }
+.runtime-viewport-card .compare-pane { min-height: 140px; }
+.runtime-inspector-panel { min-height: 0; padding: 0; overflow: hidden; border: 0; border-left: 1px solid #263341; border-radius: 0; box-shadow: none; background: #111922; }
+.runtime-inspector-scroll { height: 100%; overflow: auto; padding-bottom: 14px; }
+.runtime-inspector-scroll > .panel-section { margin: 0; padding: 14px 16px; border-bottom: 1px solid #263341; }
+.runtime-inspector-scroll > .panel-section:last-child { border-bottom: 0; }
+.runtime-inspector-selection { display: grid; gap: 4px; margin: 12px 0; padding: 10px; border: 1px solid #2c4152; border-radius: 6px; background: #14202b; }
+.runtime-inspector-selection strong { overflow: hidden; color: #edf4fa; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-inspector-selection span { overflow: hidden; color: #718697; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-inspector-properties { margin-top: 10px; }
+.runtime-inspector-properties > div { padding: 4px 0; }
+.runtime-inspector-properties strong { color: #bdceda; font-size: 10px; font-weight: 500; }
+.runtime-bottom-rail { display: grid; min-height: 142px; flex: 0 0 142px; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .85fr); background: #0d151d; }
+.runtime-history-panel, .runtime-activity-panel { min-width: 0; overflow: hidden; }
+.runtime-history-panel { border-right: 1px solid #263341; }
+.runtime-rail-header { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; border-bottom: 1px solid #263341; }
+.runtime-rail-header h2 { margin: 3px 0 0; color: #e8eef5; font-size: 12px; font-weight: 650; }
+.runtime-version-strip { display: flex; min-height: 98px; gap: 8px; overflow-x: auto; padding: 10px 12px; }
+.runtime-version-card { display: grid; min-width: 136px; align-content: center; gap: 4px; padding: 8px 10px; border: 1px solid #2b4050; border-radius: 5px; color: #9cb1bf; text-align: left; background: #101b24; cursor: pointer; }
+.runtime-version-card:hover, .runtime-version-card-current { border-color: #5792bc; color: #eaf5fb; background: #183047; box-shadow: inset 3px 0 0 #76b8e6; }
+.runtime-version-card-comparison { border-color: rgba(149, 131, 207, .7); background: #1d1a31; box-shadow: inset 3px 0 0 #9583cf; }
+.runtime-version-card-comparison:hover { border-color: #b09fe4; background: #28213e; }
+.runtime-version-card-anomaly { border-color: rgba(239, 154, 136, .72); background: #2b1c20; box-shadow: inset 3px 0 0 #ff8878; }
+.runtime-version-card-anomaly:hover { border-color: #ff9f8e; background: #3b2429; }
+.runtime-version-card-id { display: flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; color: #c9d9e4; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-version-card-badge { flex: none; padding: 2px 4px; border: 1px solid #42576a; border-radius: 999px; color: #8da6b8; font-family: inherit; font-size: 8px; font-weight: 600; letter-spacing: .02em; }
+.runtime-version-card-badge-current { border-color: rgba(118, 184, 230, .7); color: #b9e2f8; }
+.runtime-version-card-badge-comparison { border-color: rgba(176, 159, 228, .72); color: #d4c8f3; }
+.runtime-version-card strong { color: #8ca9bb; font-size: 10px; font-weight: 550; }
+.runtime-version-card small { overflow: hidden; color: #657d8d; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-version-card-timing-anomaly { color: #f4b5a6 !important; }
+.runtime-version-card-chain { color: #7e9bad !important; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px !important; }
+.runtime-rail-empty { margin: auto; color: #657d8d; font-size: 10px; }
+.runtime-activity-list { display: grid; gap: 0; padding: 4px 12px 8px; }
+.runtime-activity-row { display: flex; min-height: 26px; align-items: center; gap: 8px; border-bottom: 1px solid rgba(38, 51, 65, .58); color: #a8b8c5; font-size: 10px; }
+.runtime-activity-row:last-child { border-bottom: 0; }
+.runtime-activity-row strong { margin-left: auto; max-width: 180px; overflow: hidden; color: #cad8e2; font-size: 10px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-activity-row .activity-state { width: 17px; height: 17px; flex: 0 0 17px; }
+
+@media (max-width: 1180px) {
+  .runtime-workbench-grid { grid-template-columns: 196px minmax(360px, 1fr) 300px; }
+  .runtime-project-name { max-width: 150px; }
+}
+
+@media (max-width: 900px) {
+  .runtime-shell { height: auto; min-height: 100vh; overflow: visible; }
+  .runtime-workbench-grid { grid-template-columns: 1fr; overflow: visible; }
+  .runtime-scene-panel { min-height: 260px; border-right: 0; border-bottom: 1px solid #263341; }
+  .runtime-viewport-card { min-height: 690px; }
+  .runtime-inspector-panel { max-height: none; border-left: 0; border-bottom: 1px solid #263341; }
+  .runtime-inspector-scroll { height: auto; max-height: none; }
+  .runtime-bottom-rail { min-height: 280px; flex-basis: auto; grid-template-columns: 1fr; }
+  .runtime-history-panel { border-right: 0; border-bottom: 1px solid #263341; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runtime-version-card, .runtime-top-action { transition: none; }
+}
 .runtime-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; max-width: 1480px; margin: 0 auto 26px; }
 .runtime-header .eyebrow, .runtime-header .section-kicker { margin: 0 0 9px; color: #6f9dc9; font-size: 11px; font-weight: 700; letter-spacing: .18em; }
 .runtime-header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 48px); letter-spacing: -.04em; }
@@ -215,7 +308,13 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .runtime-panel .capability-row strong { color: #d6e1ec; font-size: 12px; font-weight: 600; line-height: 1.45; }
 .runtime-panel .panel-note { padding: 14px; border: 1px solid #2a3d4c; border-radius: 10px; background: rgba(19, 40, 53, .36); }
 .snapshot-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.snapshot-compare-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin: 8px 0 10px; padding: 9px 10px; border: 1px solid #263d50; border-radius: 9px; background: rgba(9, 18, 28, .62); }
+.snapshot-compare-toolbar label { display: grid; gap: 5px; min-width: min(320px, 100%); color: #8299ad; font-size: 10px; letter-spacing: .04em; }
+.snapshot-compare-toolbar select { width: 100%; padding: 7px 9px; border: 1px solid #34516a; border-radius: 7px; color: #e1edf7; background: #101b27; font: inherit; font-size: 11px; }
+.snapshot-compare-mode { align-self: center; color: #7f97a8; font-size: 10px; }
 .snapshot-card { padding: 12px; border: 1px solid #233649; border-radius: 10px; background: rgba(16, 28, 40, .68); }
+.snapshot-card-current { border-color: rgba(117, 190, 231, .68); box-shadow: inset 3px 0 0 #76b8e6; }
+.snapshot-card-comparison { border-color: rgba(147, 129, 207, .52); box-shadow: inset 3px 0 0 #9583cf; }
 .snapshot-card-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #cad9e3; font-weight: 560; letter-spacing: -.01em; }
 .snapshot-card-title span { font-size: 12px; color: #d9e5ef; }
 .snapshot-card-title code { color: #9cb6d2; font-size: 10px; overflow-wrap: anywhere; }
@@ -233,6 +332,11 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .snapshot-diff-prev { color: #6d8295; margin: 0 7px; font-size: 12px; }
 .snapshot-binding-delta { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 5px; }
 .snapshot-binding-delta-item { padding: 3px 6px; border: 1px solid #2e4353; border-radius: 6px; color: #8ea5b5; font-size: 10px; background: #0f1a27; }
+.snapshot-diff-changed { color: #f0c889; }
+.snapshot-delta-increase { color: #f0c889; }
+.snapshot-delta-decrease { color: #8ed7b0; }
+.snapshot-delta-unknown { color: #d1b77f; }
+.snapshot-delta-same { color: #8ea5b5; }
 .snapshot-diff-controls { margin-top: 9px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #7f97a8; font-size: 10px; }
 .workflow-gate-row-anomaly { border-color: rgba(239, 154, 136, .6); background: rgba(74, 31, 24, .32); }
 .workflow-gate-row-failed { border-color: rgba(239, 154, 136, .38); }
@@ -274,8 +378,6 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .section-toolbar .viewer-toggle { font-size: 10px; }
 .toolbar-segmented { display: inline-flex; align-items: center; gap: 4px; }
 .toolbar-segmented .viewer-toggle { margin: 0; }
-.runtime-scene-tree h2 { margin: 0 0 8px; color: #cbd5e1; font-size: 16px; font-weight: 560; }
-.scene-tree-summary { color: #6d8395; font-size: 11px; }
 .scene-tree-search { display: grid; gap: 4px; margin-bottom: 8px; color: #8299ad; font-size: 10px; letter-spacing: .02em; }
 .scene-tree-search input { width: 100%; padding: 8px 10px; border: 1px solid #2d4353; border-radius: 6px; color: #e2edf7; background: #111d2b; font: inherit; font-size: 12px; }
 .scene-tree-list { display: grid; gap: 6px; max-height: 332px; overflow: auto; padding-right: 4px; }
@@ -285,10 +387,13 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .scene-tree-row { display: grid; width: 100%; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #27384a; border-radius: 7px; color: #adc2d0; background: #101a28; font-size: 11px; text-align: left; cursor: pointer; }
 .scene-tree-row:hover { border-color: #5b86a9; color: #d7e7f4; }
 .scene-tree-row:focus-visible { outline: 2px solid #89c4ea; outline-offset: 2px; }
+.scene-tree-part-select { flex: 1 1 auto; min-width: 0; grid-template-columns: 1fr auto; }
 .scene-tree-row-focused { box-shadow: inset 4px 0 0 #89c4ea; border-color: #5b86a9 !important; color: #eaf3fb !important; }
 .scene-tree-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scene-tree-row-meta { color: #6f8192; font-size: 10px; white-space: nowrap; }
 .scene-tree-row-child { background: #0d1620; grid-template-columns: 1fr auto auto; }
+.scene-tree-material-row { display: flex; align-items: center; gap: 6px; padding-left: 5px; }
+.scene-tree-material-select { flex: 1 1 auto; grid-template-columns: 1fr auto; min-width: 0; }
 .scene-tree-row-selected { border-color: #5d92b6; color: #edf4fb; box-shadow: inset 3px 0 0 #72b5e6; }
 .scene-tree-inline-toggle { height: 27px; min-width: 36px; padding: 0 7px; border: 1px solid #30445a; border-radius: 6px; color: #93adc2; background: #142238; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 10px; }
 .scene-tree-inline-toggle:hover, .scene-tree-inline-toggle:focus-visible { color: #d9edf6; border-color: #5b86a9; }
@@ -324,5 +429,49 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .status-legend { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 10px; color: #91a0b4; font-size: 10px; }
 .status-legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .workflow-note .status-icon { vertical-align: -4px; margin-right: 3px; }
-@media (max-width: 1100px) { .runtime-shell { padding: 24px; } .runtime-header { align-items: flex-start; flex-direction: column; } .runtime-grid { grid-template-columns: 1fr; } .runtime-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; } .runtime-panel .panel-section { margin-bottom: 0; } .runtime-panel .panel-section:last-child { grid-column: 1 / -1; } .snapshot-compare { grid-template-columns: 1fr; } .snapshot-diff-controls { flex-wrap: wrap; } }
+@media (max-width: 1100px) { .runtime-header { align-items: flex-start; flex-direction: column; } .runtime-grid { grid-template-columns: 1fr; } .snapshot-compare { grid-template-columns: 1fr; } .snapshot-diff-controls { flex-wrap: wrap; } }
 @media (max-width: 700px) { .candidate-toolbar select { min-width: 0; width: 100%; } .candidate-toolbar label { flex: 1 1 100%; } .compare-parameters label { flex: 1 1 140px; } .compare-parameters input[type="range"] { width: 100%; } }
+
+/* Final workbench overrides: the legacy viewer rules above still style the
+   inner viewport, but must not reintroduce the old padded two-column shell. */
+.runtime-shell { display: flex; height: 100vh; min-height: 0; padding: 0; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 50% -30%, rgba(28, 50, 69, .52), transparent 42%), #090f16; }
+.runtime-viewport-card { min-height: 0; height: 100%; border: 0; border-radius: 0; box-shadow: none; }
+.runtime-viewport-card .viewport-stage { min-height: 220px; flex: 1 1 auto; }
+.runtime-viewport-card .glb-canvas { min-height: 0; }
+.runtime-inspector-panel { min-height: 0; padding: 0; border: 0; border-left: 1px solid #263341; border-radius: 0; box-shadow: none; }
+.runtime-inspector-panel .runtime-inspector-scroll > .panel-section { margin: 0; padding: 14px 16px; border-bottom: 1px solid #263341; }
+
+.runtime-scene-tree-controls { padding: 8px 0 7px; border-bottom: 1px solid rgba(38, 51, 65, .72); }
+.runtime-scene-tree-search { margin: 0 0 7px; }
+.runtime-scene-tree-search span { color: #7890a2; font-size: 9px; }
+.runtime-scene-tree-search input { padding: 6px 7px; border-radius: 5px; font-size: 10px; }
+.runtime-scene-tree-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.runtime-scene-tree-toolbar .toolbar-segmented { gap: 2px; }
+.runtime-scene-tree-toolbar .viewer-toggle { min-height: 24px; padding: 0 5px; font-size: 9px; }
+.runtime-scene-tree-list { max-height: none; overflow: visible; padding: 8px 0 0; }
+.runtime-scene-tree-part-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 22px 22px; align-items: center; gap: 2px; }
+.runtime-scene-tree-expander { display: grid; width: 18px; height: 26px; place-items: center; border: 0; border-radius: 4px; color: #83a9c2; background: transparent; cursor: pointer; font-size: 15px; }
+.runtime-scene-tree-expander:hover, .runtime-scene-tree-expander:focus-visible { color: #e4f3fb; background: rgba(115, 169, 209, .12); outline: none; }
+.runtime-scene-tree-part-row .scene-tree-part-select { min-width: 0; min-height: 28px; padding: 4px 5px; border-radius: 5px; font-size: 10px; }
+.runtime-scene-tree-part-row .scene-tree-row-meta, .runtime-scene-tree-material-row .scene-tree-row-meta { font-size: 9px; }
+.runtime-scene-tree-icon-toggle { display: grid; width: 22px; height: 26px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 4px; color: #86a4b8; background: transparent; cursor: pointer; font-size: 12px; }
+.runtime-scene-tree-icon-toggle:hover, .runtime-scene-tree-icon-toggle:focus-visible { border-color: #45657a; color: #e2f1f8; background: rgba(115, 169, 209, .12); outline: none; }
+.runtime-scene-tree-icon-toggle-off { color: #667986; }
+.runtime-scene-tree-icon-toggle-locked { color: #edc47e; }
+.runtime-scene-tree-material-list { gap: 2px; padding: 3px 0 3px 18px; }
+.runtime-scene-tree-material-row { display: grid; grid-template-columns: minmax(0, 1fr) 22px 22px; align-items: center; gap: 2px; }
+.runtime-scene-tree-material-row .scene-tree-material-select { min-width: 0; min-height: 26px; padding: 3px 5px; border-radius: 5px; font-size: 9px; }
+.runtime-scene-root { margin-bottom: 3px; padding-inline: 7px; }
+.runtime-selected-object { align-items: start; margin: 8px 0 0; padding: 7px; }
+.runtime-selected-object .selected-object-icon { width: 25px; height: 25px; font-size: 13px; }
+.runtime-selected-object > div:nth-child(2) { gap: 2px; }
+.runtime-selected-object strong { font-size: 10px; }
+.runtime-selected-object small { font-size: 8px; }
+.runtime-selected-object-controls { gap: 3px; }
+.runtime-selected-object-controls .viewer-toggle { min-height: 23px; padding: 0 5px; font-size: 8px; }
+
+@media (max-width: 900px) {
+  .runtime-shell { height: auto; min-height: 100vh; overflow: visible; }
+  .runtime-scene-tree-list { max-height: 330px; overflow: auto; }
+  .runtime-inspector-panel { border-left: 0; }
+}

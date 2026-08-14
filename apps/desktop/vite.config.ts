@@ -33,9 +33,18 @@ export default defineConfig({
             return `three-extras-${safeSegment}`
           }
           if (id.includes('/node_modules/@phosphor-icons/react/')) return 'phosphor-icons'
+          // OrbitControls/GLTFLoader import the public three entry, which also
+          // exports WebGLRenderer. Keep that bridge with the renderer chunk so
+          // the lightweight source-only core cannot point back to it.
+          if (id.includes('/node_modules/three/build/three.module.js')) return 'three-runtime-renderer'
           const threeSourceRoot = '/node_modules/three/src/'
           const sourceIndex = id.indexOf(threeSourceRoot)
           if (sourceIndex >= 0) {
+            if (id.endsWith('/three/src/extras/PMREMGenerator.js')) return 'three-runtime-renderer'
+            if (id.endsWith('/three/src/materials/ShaderMaterial.js')) return 'three-runtime-renderer'
+            if (id.endsWith('/three/src/materials/RawShaderMaterial.js')) return 'three-runtime-renderer'
+            if (id.includes('/node_modules/three/src/renderers/shaders/')) return 'three-runtime-shaders'
+            if (id.includes('/node_modules/three/src/renderers/')) return 'three-runtime-renderer'
             return 'three-runtime-core'
           }
           return undefined
