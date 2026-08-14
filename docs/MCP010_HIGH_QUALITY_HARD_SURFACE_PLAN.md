@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D source-focused PASS_WITH_DEFERRED_BOOLEAN_AND_VISUAL_GATES（当前 packaged D 结构性探针 PASS，视觉门 NOT_RUN）`；`FGC-MCP010E source-focused PASS_WITH_DEFERRED_EXTERNAL_GATES（当前 packaged E 结构性探针 PASS，但视觉/人评/导出仍 NOT_RUN）`；唯一 `in_progress` 为 `FGC-MCP010F`（Viewer source、packaged CLI read-model、原生窗口与核心控件 smoke PASS；同一 provisional observation 的 packaged Viewer 绑定、正式 VoiceOver、人评和 360 仍 `NOT_RUN/BLOCKED`）。ADR-0026 已新增 Agentic Design Runtime 目标架构；它不改变当前 F 状态。
 
+2026-08-14 Primary Form bilateral Part-ID projection：Runtime boundary proposal 现在把 Render Worker 的显式左右 Part-ID 合并到 Rig 的 `*-pair` semantic Part，再计算局部 envelope 的 width/height/offset proposal；这修复了 dominant pair 已命中但 pair proposal 仍为 authored baseline 的收敛断点。pair focused/full Runtime、MCP010C/F source 与 Render Worker boundary Gate 通过；没有新的授权参考字节或视觉 receipt，质量与 benchmark 真值保持不变。
+
 2026-08-14 Primary Form 单 Part repair scope：Runtime 现在把主导 candidate-bound Part-ID boundary error 设为一次 bounded repair 的唯一 mutable scope，其他 Part 的 typed proposal 恢复 authored baseline；`DesignCriticReport@1` 的 Codex-facing repair operation 直接指向 `primary_form_repair_prepare`，避免把 `silhouette_fit_prepare` 重新暴露成连续参数搜索。Runtime/Agentic contract/MCP010C/F/Render Worker boundary Gate 通过；这仍只是收敛与编排修复，没有新的授权参考字节或视觉 receipt，现有质量与 benchmark 阻断不变。
 
 2026-08-14 Primary Form Part-priority follow-up：在 Runtime 已产生 candidate-bound Part-ID boundary segments 后，bounded geometry probe 排序优先于主导 Part 的聚合 contour distance，再以 typed proposal delta 和稳定参数 ID 排序；没有 Part-ID evidence 时沿用旧 fallback。此模块修复只改善有限预算的误差覆盖，不是 likeness 门；本轮真实复验因授权参考原图字节不可用而 `BLOCKED_REFERENCE_BYTES_NOT_AVAILABLE`，当前质量与 benchmark 真值不变。

@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-14 Primary Form bilateral Part-ID projection Gate：Runtime 将 `*-left`/`*-right` Worker Part-ID 归并到对应 `*-pair` Rig Part 后计算局部 boundary envelope proposal；pair alias regression、full Runtime、MCP010C/F source 与 Render Worker boundary PASS。该 Gate 只证明收敛输入修复，没有新的视觉 receipt，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-14 Primary Form 单 Part action Gate：Runtime 将主导 Part 的 candidate-bound boundary score 绑定为本次 repair 的唯一 mutable scope，并将 critic projection 的 repair operation 固定为 `primary_form_repair_prepare`；非聚焦参数回到 authored baseline，避免 Codex 重新接管连续搜索。focused/full Runtime、Agentic contract、MCP010C/F source 与 Render Worker boundary PASS；没有新视觉 receipt，故仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-14 Primary Form Part-priority Gate：Runtime 使用同 candidate Part-ID boundary evidence 为 bounded Rig probes 建立主导 Part 优先级，并保留无 Part evidence 的 deterministic fallback；focused/full Runtime regression 与 MCP010F source Gate PASS。当前没有新的授权参考图视觉 receipt，故仍为 source/convergence PASS、`QUALITY_TARGET_NOT_MET`，不改变 camera `MISMATCH`、benchmark incomplete binding、人评/PBR/export-restart/360 状态。

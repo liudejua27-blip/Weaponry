@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-14 Primary Form bilateral Part-ID projection repair：Runtime boundary proposal 现在把 Worker 的固定 `*-left`/`*-right` Part-ID 聚合到 Rig 的 `*-pair` semantic Part，再计算同一局部 envelope 的 width/height/offset proposal；此前只能选中 dominant pair，但 proposal 可能保持 authored baseline。pair alias focused regression、full Runtime、MCP010C/F source Gate 通过；没有新的授权参考字节或视觉 receipt，质量真值不变。
+
 2026-08-14 Primary Form 单 Part action scope：Runtime 现在先从 candidate-bound Part-ID boundary evidence 选出主导 Part，再把本次 bounded proposal 的可变范围锁定到该 Part；其余参数恢复 authored baseline，避免一次动作耦合多个轮廓误差。`DesignCriticReport@1.primary_form_directive.repair_operation` 同步直接指向 `primary_form_repair_prepare`，Codex 不再把只读 `silhouette_fit_prepare` 当作连续搜索入口。focused/full Runtime、Agentic contract、MCP010C/F source 和 Render Worker boundary Gate 通过；没有新的授权参考字节或视觉 receipt，故 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 及 human/PBR/export-restart/360 状态不变。
 
 2026-08-14 Primary Form Part-priority convergence repair：Runtime 现在从 candidate-bound Part-ID boundary segments 聚合主导 Part 的误差分数，并把它作为 bounded Rig 坐标排序的第一优先级；无 Part-ID evidence 时回退到现有提案改变量排序。该修复保持 Geometry/Render Worker、strict readback、authored-baseline fallback 和 Codex 单动作边界不变；新增 Runtime regression 与 MCP010F source Gate 通过。真实视觉复验因授权参考原图字节未保留而 `BLOCKED_REFERENCE_BYTES_NOT_AVAILABLE`，当前仍 `QUALITY_TARGET_NOT_MET`，没有新的 likeness 或 benchmark 证据。

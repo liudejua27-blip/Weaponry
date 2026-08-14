@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-14 Primary Form bilateral Part-ID projection handoff：Runtime 已把 Render Worker 的左右显式 Part-ID 聚合到同一 Rig `*-pair` semantic Part，再计算局部 envelope proposal；这补上了“主导 Part 已选中但 pair proposal 未被投影”的收敛缺口。focused/full Runtime、MCP010C/F source 与 Render Worker boundary Gate 通过；没有新的授权参考字节或视觉 receipt，当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-14 Primary Form 单 Part action scope handoff：Runtime 已把 candidate-bound boundary evidence 聚合出的主导 Part 设为单次 bounded repair 的唯一 mutable scope，并对其他 Part 恢复 authored baseline；critic projection 现在把 Codex-facing repair operation 固定为 `primary_form_repair_prepare`，避免重新暴露 `silhouette_fit_prepare` 连续搜索。focused/full Runtime、Agentic contract、MCP010C/F source 与 Render Worker boundary Gate 通过。当前没有新的授权参考字节或视觉 receipt，仍保持 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，Repair 尚未执行。
 
 2026-08-14 Primary Form Part-priority follow-up：`silhouette_fit_prepare` 已将 candidate-bound `boundary_error_segments_for_masks` 传入 Runtime-owned Rig ranking。排序优先级为 Part 聚合边界误差 → 当前参数 proposal delta → `parameter_id`，没有 Part-ID evidence 时回到既有排序；这只改变有限预算的坐标覆盖顺序，不暴露连续搜索给 Codex，也不改变 Viewer 质量权威。回归测试与 MCP010F source Gate 通过；新的真实视觉复验需要重新提供/授权参考原图，当前保留 r3 的 `QUALITY_TARGET_NOT_MET` 事实。

@@ -9002,9 +9002,18 @@ fn apply_boundary_part_parameter_projection(
         let Some(part_id) = definition.get("part_id").and_then(Value::as_str) else {
             continue;
         };
-        let Some(points) = grouped.get(part_id) else {
-            continue;
-        };
+        // The typed Rig may own a bilateral `*-pair` while the Render Worker
+        // exposes the visible AOV as fixed `*-left`/`*-right` Part IDs. Merge
+        // those aliases before computing the local envelope; otherwise the
+        // dominant Part can be selected correctly but receives no boundary
+        // width/height/offset proposal.
+        let points = grouped
+            .iter()
+            .filter(|(observed_part_id, _)| {
+                rig_part_matches_observed_part(part_id, observed_part_id)
+            })
+            .flat_map(|(_, points)| points.iter().copied())
+            .collect::<Vec<_>>();
         if points.len() < 2 {
             continue;
         }
@@ -14686,6 +14695,29 @@ mod tests {
         );
         assert!(projected[0]["value"].as_f64().unwrap() > 1.0);
         assert!(projected[1]["value"].as_f64().unwrap() < 0.0);
+        assert_eq!(projected[2]["value"], 1.0);
+    }
+
+    #[test]
+    fn boundary_projection_merges_bilateral_worker_part_ids_for_pair_rig() {
+        let rig = json!({"parameters":[
+            {"parameter_id":"shin-width","part_id":"shin-pair","semantic":"width","value":1.0,"min":0.82,"max":1.5,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"shin-offset-x","part_id":"shin-pair","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"},
+            {"parameter_id":"chest-width","part_id":"chest-shell","semantic":"width","value":1.0,"min":0.82,"max":1.18,"step":0.04,"unit":"ratio"}
+        ]});
+        let selected = rig["parameters"].as_array().unwrap().clone();
+        let segments = vec![
+            json!({"reference":[0.20,0.82],"model":[0.30,0.82],"distance_px":48.0,"part_id":"shin-left"}),
+            json!({"reference":[0.80,0.82],"model":[0.70,0.82],"distance_px":38.0,"part_id":"shin-right"}),
+        ];
+        let projected = apply_boundary_part_parameter_projection(
+            &rig,
+            &selected,
+            &segments,
+            Some(&default_camera_calibration()),
+        );
+        assert!(projected[0]["value"].as_f64().unwrap() > 1.0);
+        assert!(projected[1]["value"].as_f64().unwrap().abs() < 1e-9);
         assert_eq!(projected[2]["value"], 1.0);
     }
 
