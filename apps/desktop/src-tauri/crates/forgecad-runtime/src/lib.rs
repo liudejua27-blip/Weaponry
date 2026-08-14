@@ -1978,13 +1978,17 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "fit_result":fit,
             "prepared_candidate":Value::Null,
             "visual_evidence":Value::Null,
+            "acceptance":Value::Null,
             "status":"no_improvement",
             "quality_status":"not-run",
             "candidate_state":"unchanged",
             "version_created":false,
             "canonical_sha256":""
         });
-        let Some(program) = result["fit_result"]["selected_geometry_program"].as_object() else {
+        let Some(program) = result["fit_result"]["selected_geometry_program"]
+            .as_object()
+            .cloned()
+        else {
             result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
             validate_primary_form_repair_prepare_result(&result)?;
             return Ok(result);
@@ -1996,6 +2000,124 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             ));
         }
 
+        let selected_program = Value::Object(program.clone());
+        let source_candidate_id = fit
+            .get("candidate_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_REPAIR_REJECTED: fit candidate_id is missing".to_owned(),
+                )
+            })?;
+        let source_candidate = self
+            .candidate(source_candidate_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: source candidate not found".to_owned()))?;
+        let source_artifact_sha256 = source_candidate
+            .manifest_hash
+            .clone()
+            .or(source_candidate.prepared_object_sha256.clone())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("CANDIDATE_ARTIFACT_UNAVAILABLE".to_owned())
+            })?;
+        let source_glb = self.cas_read(&source_artifact_sha256)?;
+        let source_inspection = strict_glb_inspection(&source_glb)?;
+        if !source_inspection.hard_gate_passed {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRIMARY_FORM_REPAIR_REJECTED: source GLB readback failed: {}",
+                source_inspection.failure_codes.join(",")
+            )));
+        }
+        let selected_camera = result["fit_result"]["selected_camera"].clone();
+        // This exact view spec and camera are reused for source and proposal.
+        // A fit winner is not accepted merely because its transient camera
+        // loss improved; the source artifact must survive the same final
+        // 512px Render Worker comparison before a new candidate is staged.
+        let view_spec = primary_form_view_spec(&reference, &target, target_sha256)?;
+        let source_compare = compare_glb_metrics_at_camera(
+            self,
+            project_id,
+            source_candidate_id,
+            reference_id,
+            target_sha256,
+            &view_spec,
+            &selected_camera,
+            &source_glb,
+            &source_inspection.part_ids,
+        )?;
+        let proposed_artifact = compile_geometry_with_runtime_worker(&selected_program, None)
+            .map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRIMARY_FORM_REPAIR_ACCEPTANCE_COMPILE_FAILED: {error}"
+                ))
+            })?;
+        let proposed_inspection = strict_glb_inspection(&proposed_artifact.glb).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRIMARY_FORM_REPAIR_ACCEPTANCE_READBACK_FAILED: {error}"
+            ))
+        })?;
+        validate_worker_metadata(&proposed_artifact, &proposed_inspection)?;
+        if !proposed_inspection.hard_gate_passed {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRIMARY_FORM_REPAIR_ACCEPTANCE_READBACK_FAILED: {}",
+                proposed_inspection.failure_codes.join(",")
+            )));
+        }
+        let proposed_compare = compare_glb_metrics_at_camera(
+            self,
+            project_id,
+            source_candidate_id,
+            reference_id,
+            target_sha256,
+            &view_spec,
+            &selected_camera,
+            &proposed_artifact.glb,
+            &proposed_inspection.part_ids,
+        )?;
+        let source_loss = camera_fit_loss(
+            source_compare
+                .get("metrics")
+                .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: source metrics".to_owned()))?,
+        );
+        let proposed_loss = camera_fit_loss(
+            proposed_compare
+                .get("metrics")
+                .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: proposal metrics".to_owned()))?,
+        );
+        let strict_same_camera_improvement = primary_form_strict_same_camera_improvement(
+            source_compare
+                .get("metrics")
+                .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: source metrics".to_owned()))?,
+            proposed_compare
+                .get("metrics")
+                .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: proposal metrics".to_owned()))?,
+        );
+        result["acceptance"] = json!({
+            "schema_version":"PrimaryFormAcceptance@1",
+            "source_candidate_id":source_candidate_id,
+            "proposal_program_sha256":proposed_inspection.program_sha256,
+            "proposal_candidate_id":Value::Null,
+            "target_sha256":target_sha256,
+            "reference_id":reference_id,
+            "camera_hash":selected_camera["camera_hash"].clone(),
+            "source_loss":stable_visual_metric(source_loss),
+            "proposal_loss":stable_visual_metric(proposed_loss),
+            "strict_improvement":strict_same_camera_improvement,
+            "status":if strict_same_camera_improvement {"accepted"} else {"retained_source"}
+        });
+        if !strict_same_camera_improvement {
+            // The selected program improved only the transient fit objective
+            // (usually by camera compensation). Do not create a staged
+            // candidate or overwrite source VisualEvidence; the authored
+            // candidate remains the only accepted baseline for the next
+            // Runtime action.
+            result["status"] = Value::String("no_improvement".to_owned());
+            result["quality_status"] = Value::String("not-run".to_owned());
+            result["candidate_state"] = Value::String("unchanged".to_owned());
+            result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+            validate_primary_form_repair_prepare_result(&result)?;
+            return Ok(result);
+        }
+
         let prepared = self
             .prepare_geometry_candidate(
                 project_id,
@@ -2003,7 +2125,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 json!({
                     "typed":"geometry",
                     "reference_id":reference_id,
-                    "geometry_program":Value::Object(program.clone())
+                    "geometry_program":selected_program.clone()
                 }),
             )
             .map_err(|error| match error {
@@ -2048,7 +2170,6 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "candidate_id",
         )?
         .to_owned();
-        let selected_camera = result["fit_result"]["selected_camera"].clone();
         // The fit winner is cached against the source candidate. The staged
         // GeometryProgram has a new candidate ID, so passing a
         // CameraCalibrationRef here would make comparison look up the old
@@ -2056,7 +2177,6 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         // this exact validated calibration; carry the complete object across
         // the internal staged-candidate boundary instead of asking Codex to
         // reconstruct or rebind it.
-        let view_spec = primary_form_view_spec(&reference, &target, target_sha256)?;
         let comparison = self.prepare_reference_comparison(
             project_id,
             json!({
@@ -2073,6 +2193,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .and_then(Value::as_str)
             .unwrap_or("not-run");
         result["prepared_candidate"] = prepared;
+        result["acceptance"]["proposal_candidate_id"] = Value::String(prepared_candidate_id.clone());
         result["visual_evidence"] = json!({
             "candidate_id":prepared_candidate_id,
             "reference_id":reference_id,
@@ -7137,6 +7258,7 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
             "fit_result",
             "prepared_candidate",
             "visual_evidence",
+            "acceptance",
             "status",
             "quality_status",
             "candidate_state",
@@ -7177,6 +7299,9 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
     let visual = object
         .get("visual_evidence")
         .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: visual_evidence".to_owned()))?;
+    let acceptance = object
+        .get("acceptance")
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: acceptance".to_owned()))?;
     if object.get("status").and_then(Value::as_str) == Some("no_improvement") {
         if !prepared.is_null()
             || !visual.is_null()
@@ -7187,6 +7312,14 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
                 "CONTRACT_OUTPUT_INVALID: no-improvement result must not contain a staged candidate"
                     .to_owned(),
             ));
+        }
+        if !acceptance.is_null() {
+            validate_primary_form_acceptance(
+                acceptance,
+                object,
+                None,
+                "retained_source",
+            )?;
         }
     } else {
         validate_geometry_prepare_result_v2_output(prepared)?;
@@ -7241,9 +7374,114 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
                 "CONTRACT_OUTPUT_INVALID: prepared result candidate state drifted".to_owned(),
             ));
         }
+        let prepared_candidate_id = prepared
+            .pointer("/candidate/candidate_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: prepared candidate id".to_owned(),
+                )
+            })?;
+        validate_primary_form_acceptance(
+            acceptance,
+            object,
+            Some(prepared_candidate_id),
+            "accepted",
+        )?;
     }
     required_contract_sha256(object, "canonical_sha256", "PrimaryFormRepairPrepareResult@1")?;
     verify_output_canonical_hash(value, "PrimaryFormRepairPrepareResult@1")
+}
+
+fn validate_primary_form_acceptance(
+    value: &Value,
+    parent: &serde_json::Map<String, Value>,
+    expected_proposal_candidate_id: Option<&str>,
+    expected_status: &str,
+) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "source_candidate_id",
+            "proposal_program_sha256",
+            "proposal_candidate_id",
+            "target_sha256",
+            "reference_id",
+            "camera_hash",
+            "source_loss",
+            "proposal_loss",
+            "strict_improvement",
+            "status",
+        ],
+        "PrimaryFormAcceptance@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("PrimaryFormAcceptance@1")
+        || object.get("status").and_then(Value::as_str) != Some(expected_status)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PrimaryFormAcceptance@1 constants drifted".to_owned(),
+        ));
+    }
+    for key in ["source_candidate_id", "reference_id"] {
+        required_contract_identifier(object, key, "PrimaryFormAcceptance@1")?;
+    }
+    if object.get("source_candidate_id") != parent.get("source_candidate_id")
+        || object.get("target_sha256") != parent.get("target_sha256")
+        || object.get("reference_id") != parent.get("reference_id")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PrimaryFormAcceptance@1 scope drifted".to_owned(),
+        ));
+    }
+    required_contract_sha256(object, "proposal_program_sha256", "PrimaryFormAcceptance@1")?;
+    required_contract_sha256(object, "target_sha256", "PrimaryFormAcceptance@1")?;
+    required_contract_sha256(object, "camera_hash", "PrimaryFormAcceptance@1")?;
+    for key in ["source_loss", "proposal_loss"] {
+        let loss = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormAcceptance@1 {key}"
+            ))
+        })?;
+        if !loss.is_finite() || loss < 0.0 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormAcceptance@1 {key}"
+            )));
+        }
+    }
+    let strict_improvement = object
+        .get("strict_improvement")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormAcceptance@1 strict_improvement".to_owned(),
+            )
+        })?;
+    let proposal_candidate_id = object.get("proposal_candidate_id").ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PrimaryFormAcceptance@1 proposal_candidate_id".to_owned(),
+        )
+    })?;
+    match expected_proposal_candidate_id {
+        Some(expected) => {
+            if proposal_candidate_id.as_str() != Some(expected) || !strict_improvement {
+                return Err(RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: accepted Primary Form proposal is not strictly improved"
+                        .to_owned(),
+                ));
+            }
+        }
+        None => {
+            if !proposal_candidate_id.is_null() || strict_improvement {
+                return Err(RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: retained Primary Form source must reject the proposal"
+                        .to_owned(),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
@@ -10348,6 +10586,13 @@ fn camera_fit_loss(metrics: &Value) -> f64 {
     weighted_contour_loss(metrics)
 }
 
+fn primary_form_strict_same_camera_improvement(
+    source_metrics: &Value,
+    proposal_metrics: &Value,
+) -> bool {
+    camera_fit_loss(proposal_metrics) + 1e-12 < camera_fit_loss(source_metrics)
+}
+
 fn part_color_index(pixel: [u8; 4]) -> Option<usize> {
     // Part-ID colors are generated from a fixed 256-entry palette.  The
     // previous decoder searched that palette linearly for every pixel, which
@@ -11405,6 +11650,90 @@ fn render_glb_with_runtime_worker(
         }
         Err(error) => Err(error),
     }
+}
+
+/// Compare an unpersisted GLB at one exact Runtime-owned camera.
+///
+/// Primary Form uses this before `geometry_prepare`: the bounded fit may have
+/// improved its transient loss by changing the camera, but that is not enough
+/// to justify creating a staged candidate. This helper reuses the same 512px
+/// Render Worker and candidate-bound reference metrics as the persisted
+/// comparison path, while deliberately writing neither a candidate nor
+/// VisualEvidence. The caller can therefore retain the authored candidate
+/// before entering the normal prepare/evidence transaction.
+fn compare_glb_metrics_at_camera(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate_id: &str,
+    reference_id: &str,
+    target_sha256: &str,
+    view_spec: &Value,
+    camera: &Value,
+    glb: &[u8],
+    part_ids: &[String],
+) -> Result<Value, RuntimeError> {
+    let candidate = runtime
+        .candidate(candidate_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned()))?;
+    if candidate.project_id != project_id {
+        return Err(RuntimeError::InvalidInput(
+            "PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned(),
+        ));
+    }
+    let reference = runtime.reference(reference_id)?.ok_or_else(|| {
+        RuntimeError::InvalidInput("NOT_FOUND: reference not found".to_owned())
+    })?;
+    if reference.project_id != project_id {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_SCOPE_DENIED: reference is outside the target project".to_owned(),
+        ));
+    }
+    let target = runtime.read_silhouette_target(target_sha256)?;
+    if target.get("reference_id").and_then(Value::as_str) != Some(reference_id) {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_SCOPE_DENIED: silhouette target is bound to another reference".to_owned(),
+        ));
+    }
+    validate_reference_view_spec(view_spec, &reference)?;
+    validate_camera_calibration(camera)?;
+    let reference_bytes = runtime.cas_read(&reference.object_sha256)?;
+    let reference_mask = reference_mask_png(&reference_bytes)?;
+    let render_passes = render_glb_with_runtime_worker(glb, camera).map_err(|error| {
+        RuntimeError::InvalidInput(format!("PRIMARY_FORM_ACCEPTANCE_RENDER_FAILED: {error}"))
+    })?;
+    let model_mask = render_passes
+        .iter()
+        .find(|pass| pass.pass == "silhouette")
+        .map(|pass| decode_binary_mask(&pass.png))
+        .transpose()?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_ACCEPTANCE_RENDER_FAILED: silhouette pass missing".to_owned(),
+            )
+        })?;
+    let part_png = render_passes
+        .iter()
+        .find(|pass| pass.pass == "part-id")
+        .map(|pass| pass.png.as_slice());
+    let metrics = compare_masks_with_parts(
+        &reference_mask.mask,
+        &model_mask,
+        view_spec,
+        part_png.map(|bytes| (bytes, part_ids)),
+    );
+    let visual_status = if visible_view_gate_passes(&metrics) {
+        "PARTIAL_VISIBLE_VIEW_PASS"
+    } else {
+        "QUALITY_TARGET_NOT_MET"
+    };
+    Ok(json!({
+        "candidate_id":candidate_id,
+        "reference_id":reference_id,
+        "target_sha256":target_sha256,
+        "camera_hash":camera["camera_hash"].clone(),
+        "metrics":metrics,
+        "visual_status":visual_status
+    }))
 }
 
 fn render_glb_fit_batch_with_runtime_worker(
@@ -14490,6 +14819,7 @@ mod tests {
         assert!(fit["camera_evaluations"].as_u64().unwrap() >= 1);
         assert!(fit["evaluations"].as_u64().unwrap() >= fit["camera_evaluations"].as_u64().unwrap());
         let before_primary_form_versions = runtime.versions(Some(&project.project_id)).unwrap().len();
+        let before_primary_form_candidates = runtime.candidates(&project.project_id).unwrap().len();
         let mut primary_form_request = json!({
             "project_id":project.project_id.clone(),
             "candidate_id":first_id.clone(),
@@ -14523,9 +14853,24 @@ mod tests {
                 primary_form["visual_evidence"]["quality_report"]["candidate_id"],
                 primary_form["visual_evidence"]["candidate_id"]
             );
+            assert_eq!(
+                runtime.candidates(&project.project_id).unwrap().len(),
+                before_primary_form_candidates + 1
+            );
+            assert_eq!(primary_form["acceptance"]["status"], "accepted");
+            assert_eq!(primary_form["acceptance"]["strict_improvement"], true);
         } else {
             assert_eq!(primary_form["status"], "no_improvement");
             assert_eq!(primary_form["candidate_state"], "unchanged");
+            assert_eq!(
+                runtime.candidates(&project.project_id).unwrap().len(),
+                before_primary_form_candidates
+            );
+            if primary_form["acceptance"].is_object() {
+                assert_eq!(primary_form["acceptance"]["status"], "retained_source");
+                assert_eq!(primary_form["acceptance"]["proposal_candidate_id"], Value::Null);
+                assert_eq!(primary_form["acceptance"]["strict_improvement"], false);
+            }
         }
         let primary_form_evaluations = primary_form["fit_result"]["evaluations"]
             .as_u64()
@@ -14979,6 +15324,34 @@ mod tests {
         assert!(aligned_loss < contour_only);
         assert!(misaligned_loss > aligned_loss);
         assert!(misaligned_loss > contour_only);
+    }
+
+    #[test]
+    fn primary_form_acceptance_requires_strict_same_camera_improvement() {
+        let source = json!({
+            "silhouette_iou":0.75,
+            "boundary_f1_4px":0.34,
+            "bbox_edge_error":0.01,
+            "centroid_error":0.004,
+            "sdf_chamfer_px":15.0
+        });
+        let improved = json!({
+            "silhouette_iou":0.76,
+            "boundary_f1_4px":0.35,
+            "bbox_edge_error":0.009,
+            "centroid_error":0.003,
+            "sdf_chamfer_px":14.0
+        });
+        let regressed = json!({
+            "silhouette_iou":0.751,
+            "boundary_f1_4px":0.339,
+            "bbox_edge_error":0.011,
+            "centroid_error":0.004,
+            "sdf_chamfer_px":15.2
+        });
+        assert!(primary_form_strict_same_camera_improvement(&source, &improved));
+        assert!(!primary_form_strict_same_camera_improvement(&source, &regressed));
+        assert!(!primary_form_strict_same_camera_improvement(&source, &source));
     }
 
     #[test]

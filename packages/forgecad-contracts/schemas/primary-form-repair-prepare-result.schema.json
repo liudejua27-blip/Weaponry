@@ -14,6 +14,7 @@
     "fit_result",
     "prepared_candidate",
     "visual_evidence",
+    "acceptance",
     "status",
     "quality_status",
     "candidate_state",
@@ -39,6 +40,12 @@
         {"$ref": "#/$defs/visual_evidence"}
       ]
     },
+    "acceptance": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/acceptance"}
+      ]
+    },
     "status": {"enum": ["no_improvement", "prepared"]},
     "quality_status": {
       "enum": [
@@ -55,6 +62,41 @@
   "$defs": {
     "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source_candidate_id",
+        "proposal_program_sha256",
+        "proposal_candidate_id",
+        "target_sha256",
+        "reference_id",
+        "camera_hash",
+        "source_loss",
+        "proposal_loss",
+        "strict_improvement",
+        "status"
+      ],
+      "properties": {
+        "schema_version": {"const": "PrimaryFormAcceptance@1"},
+        "source_candidate_id": {"$ref": "#/$defs/identifier"},
+        "proposal_program_sha256": {"$ref": "#/$defs/sha256"},
+        "proposal_candidate_id": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/identifier"}
+          ]
+        },
+        "target_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "source_loss": {"type": "number", "minimum": 0},
+        "proposal_loss": {"type": "number", "minimum": 0},
+        "strict_improvement": {"type": "boolean"},
+        "status": {"enum": ["accepted", "retained_source"]}
+      }
+    },
     "visual_evidence": {
       "type": "object",
       "additionalProperties": false,
