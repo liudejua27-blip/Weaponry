@@ -1,7 +1,9 @@
 # ForgeCAD 当前原子任务索引
 
-版本：2026-08-14
+版本：2026-08-15
 状态：唯一任务状态表；MVP host golden path 与 FGC-MCP010A 已收口；FGC-MCP010B 结构实现已通过、Darwin OS 总内存硬门 deferred；FGC-MCP010C source-focused 已完成；FGC-MCP010D/E source-focused 已通过；FGC-MCP010F source-focused in_progress，packaged/人评/360 子门保留。ADR-0026 的 Agentic Design Runtime 已完成 observe/plan projection、嵌套只读 projection conformance 与 durable session/checkpoint/RepairIntent prepare/readback slice；durable/reference/DesignSpec 完整 producer、单动作 orchestrator 和 Repair 应用 backlog 尚未改变当前唯一任务状态。
+
+2026-08-15 `FGC-MCP010F` Primary Form 双向边界证据：Runtime 的 candidate-bound boundary observation 现在在固定上限内同时采样 target→model 与 model→target 两个方向；model-owned excess/displaced edge 也保留同一 candidate/camera/Part-ID 绑定，再由既有 per-Part coverage 与最多 64 条 deterministic selection 投影给 bounded Rig sweep。新增 regression 证明模型独有边缘不会被单向最近点投影丢失；`forgecad-runtime` 全量 `103 passed / 12 ignored`。该模块不改变 schema/tool manifest、Render Worker typed boundary、Viewer read-only quality authority 或真实 likeness receipt；Stage 0 仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 仍未运行或阻断。
 
 2026-08-15 `FGC-MCP010F` Render Worker ownership refactor：Runtime 的通用 sibling transport 已从 `geometry_worker.rs` 抽成 `execute_sibling_worker`；`forgecad-render-worker` 二进制身份和 `execute_render_worker` adapter 现在只由 `render_worker.rs` 持有，Geometry Worker 不再知道 Render Worker。新增两个要求同 cohort sibling 的隔离 conformance（九 AOV/512px/PNG/重复确定性、拒绝 GeometryProgram 载荷）；当前 `forgecad-runtime` 全量 `102 passed / 12 ignored`，source boundary checker 与 `git diff --check` 通过。该模块不改变 schema/tool manifest、真实 likeness receipt、Viewer 质量权威或当前 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`、human/PBR/export-restart/360 未运行状态。
 

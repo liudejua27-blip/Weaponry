@@ -925,28 +925,52 @@ fn boundary_error_segments_for_masks(
         .enumerate()
         .filter_map(|(index, value)| value.then_some((index % 512, index / 512)))
         .collect();
-    if model_points.is_empty() {
+    let reference_points: Vec<(usize, usize)> = target_boundary
+        .iter()
+        .enumerate()
+        .filter_map(|(index, value)| value.then_some((index % 512, index / 512)))
+        .collect();
+    if model_points.is_empty() || reference_points.is_empty() {
         return Vec::new();
     }
     let (center_x, center_y) = mask_centroid(reference).unwrap_or((255.5, 255.5));
-    let sample_stride = ((target_boundary.iter().filter(|value| **value).count() / 128).max(1)) as usize;
+    let reference_sample_stride = ((reference_points.len() + 127) / 128).max(1);
+    let model_sample_stride = ((model_points.len() + 127) / 128).max(1);
     let part_image = part_png.and_then(|png| {
         image::load_from_memory(png)
             .ok()
             .map(|image| image.resize_exact(512, 512, imageops::FilterType::Nearest).to_rgba8())
     });
-    let mut segments = Vec::new();
-    for (index, value) in target_boundary.iter().enumerate() {
-        if !*value || index % sample_stride != 0 {
-            continue;
+    let part_id_at = |x: usize, y: usize| {
+        part_image.as_ref().and_then(|image| {
+            let pixel = image.get_pixel(x as u32, y as u32).0;
+            let index = part_color_index(pixel)?;
+            part_ids.get(index).cloned()
+        })
+    };
+    let direction_for = |reference_x: usize,
+                         reference_y: usize,
+                         model_x: usize,
+                         model_y: usize,
+                         distance: f64| {
+        let dx = model_x as f64 - reference_x as f64;
+        let dy = model_y as f64 - reference_y as f64;
+        let radial_x = reference_x as f64 - center_x;
+        let radial_y = reference_y as f64 - center_y;
+        if distance <= 4.0 {
+            "aligned"
+        } else if dx * radial_x + dy * radial_y >= 0.0 {
+            "outward"
+        } else {
+            "inward"
         }
-        let tx = index % 512;
-        let ty = index / 512;
-        let (mx, my, distance) = model_points
+    };
+    let nearest_point = |source_x: usize, source_y: usize, candidates: &[(usize, usize)]| {
+        candidates
             .iter()
             .map(|(x, y)| {
-                let dx = *x as f64 - tx as f64;
-                let dy = *y as f64 - ty as f64;
+                let dx = *x as f64 - source_x as f64;
+                let dy = *y as f64 - source_y as f64;
                 (*x, *y, (dx * dx + dy * dy).sqrt())
             })
             .min_by(|left, right| {
@@ -954,30 +978,38 @@ fn boundary_error_segments_for_masks(
                     .partial_cmp(&right.2)
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .expect("model points is non-empty");
-        let dx = mx as f64 - tx as f64;
-        let dy = my as f64 - ty as f64;
-        let radial_x = tx as f64 - center_x;
-        let radial_y = ty as f64 - center_y;
-        let direction = if distance <= 4.0 {
-            "aligned"
-        } else if dx * radial_x + dy * radial_y >= 0.0 {
-            "outward"
-        } else {
-            "inward"
-        };
-        let part_id = part_image.as_ref().and_then(|image| {
-            let pixel = image.get_pixel(mx as u32, my as u32).0;
-            let index = part_color_index(pixel)?;
-            part_ids.get(index).cloned()
-        });
+            .expect("boundary candidates are non-empty")
+    };
+    let mut segments = Vec::new();
+    // Forward correspondence preserves the old target-owned evidence path.
+    // Sampling the boundary point list, rather than raster indices, gives the
+    // fixed 128-sample budget a stable contour distribution.
+    for &(tx, ty) in reference_points.iter().step_by(reference_sample_stride).take(128) {
+        let (mx, my, distance) = nearest_point(tx, ty, &model_points);
         segments.push(json!({
             "reference":[tx as f64 / 511.0, ty as f64 / 511.0],
             "model":[mx as f64 / 511.0, my as f64 / 511.0],
-            "delta_px":[stable_visual_metric(dx), stable_visual_metric(dy)],
+            "delta_px":[stable_visual_metric(mx as f64 - tx as f64), stable_visual_metric(my as f64 - ty as f64)],
             "distance_px":stable_visual_metric(distance),
-            "direction":direction,
-            "part_id":part_id
+            "direction":direction_for(tx, ty, mx, my, distance),
+            "part_id":part_id_at(mx, my)
+        }));
+    }
+
+    // Reverse correspondence captures model-owned excess or displaced
+    // boundary that has no distinct target sample. Without it, a protruding
+    // Part can disappear from the proposal merely because every target point
+    // found a nearby model edge. It remains bounded to 128 samples and the
+    // same deterministic Part-ID attribution as the forward direction.
+    for &(mx, my) in model_points.iter().step_by(model_sample_stride).take(128) {
+        let (tx, ty, distance) = nearest_point(mx, my, &reference_points);
+        segments.push(json!({
+            "reference":[tx as f64 / 511.0, ty as f64 / 511.0],
+            "model":[mx as f64 / 511.0, my as f64 / 511.0],
+            "delta_px":[stable_visual_metric(mx as f64 - tx as f64), stable_visual_metric(my as f64 - ty as f64)],
+            "distance_px":stable_visual_metric(distance),
+            "direction":direction_for(tx, ty, mx, my, distance),
+            "part_id":part_id_at(mx, my)
         }));
     }
     Self::retain_boundary_segments_with_part_coverage(&segments, max_segments)
@@ -15421,6 +15453,45 @@ mod tests {
         let expanded = Runtime::retain_boundary_segments_with_part_coverage(&segments, 5);
         assert_eq!(expanded.len(), 5);
         assert_eq!(expanded[4]["part_id"], Value::Null);
+    }
+
+    #[test]
+    fn boundary_error_segments_include_model_owned_excess_edges() {
+        let mut reference = vec![false; 512 * 512];
+        let mut model = vec![false; 512 * 512];
+        let mut part_image = RgbaImage::from_pixel(512, 512, Rgba([0, 0, 0, 0]));
+        let part_color = Rgba([73, 119, 91, 255]);
+        for y in 200..300 {
+            for x in 80..160 {
+                reference[y * 512 + x] = true;
+                model[y * 512 + x] = true;
+                part_image.put_pixel(x as u32, y as u32, part_color);
+            }
+            // This second island exists only in the model. A target->model
+            // nearest-boundary pass never observes it as a distinct target
+            // edge, while the reverse correspondence must retain it.
+            for x in 360..430 {
+                model[y * 512 + x] = true;
+                part_image.put_pixel(x as u32, y as u32, part_color);
+            }
+        }
+        let mut part_png = Vec::new();
+        part_image
+            .write_to(&mut Cursor::new(&mut part_png), ImageFormat::Png)
+            .expect("part-id png");
+
+        let segments = Runtime::boundary_error_segments_for_masks(
+            &reference,
+            &model,
+            Some(&part_png),
+            &["shell".to_owned()],
+            64,
+        );
+        assert!(segments.iter().any(|segment| {
+            segment["part_id"] == "shell"
+                && segment["model"][0].as_f64().unwrap_or(0.0) > 0.65
+                && segment["distance_px"].as_f64().unwrap_or(0.0) > 4.0
+        }));
     }
 
     #[test]

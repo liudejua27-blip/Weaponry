@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Primary Form 双向 boundary projection：Runtime 将同一 candidate-bound silhouette 的 boundary evidence 从单向 target→model 扩为有界的 target→model 与 model→target；模型侧多余/外扩边缘因此进入 Part-ID coverage 和 bounded Rig sweep，而不是被 target 点的 nearest projection 静默丢失。新增 `boundary_error_segments_include_model_owned_excess_edges` regression，`forgecad-runtime` 全量 `103 passed / 12 ignored`；没有 Schema、工具数或 Viewer quality authority 变化，也没有新的真实视觉 receipt。Stage 0 仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 继续未运行或阻断。
+
 2026-08-15 Render Worker ownership 状态：Geometry Worker 现在只负责 Geometry compile 与通用 fixed sibling transport；`render_worker.rs` 独占 `forgecad-render-worker` binary identity 和 typed Render Worker adapter。新增同 cohort isolated conformance tests（九 AOV、512px PNG、重复确定性、拒绝 GeometryProgram），普通 Runtime 全量 `102 passed / 12 ignored`，source checker PASS。该模块没有新的真实 reference/likeness receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 或 human/PBR/export-restart/360 未运行事实。
 
 2026-08-15 Primary Form evidence-magnitude handoff：Runtime 在第一轮 coordinate probes 中优先使用同一 boundary observation 对当前坐标给出的 bounded proposal magnitude，单次最多半个 authored bound；当前已处于 proposal 或进入反向 pass 时仍使用小步。该模块让一次聚合观察能对 secondary Part 产生有意义的有限修正，Codex 不承担连续搜索。新增 regression，`forgecad-runtime` 全量 102 passed、10 ignored；没有新的真实 likeness receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 或 human/PBR/export-restart/360 未运行状态。
