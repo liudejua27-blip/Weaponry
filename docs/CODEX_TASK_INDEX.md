@@ -5,6 +5,8 @@
 
 Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。当前为 102 Schema、35 read + 22 opt-in write = 57 tools，唯一 `in_progress` 为 `FGC-MCP010F`。attempt35 仅是 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING` 的 provisional retained observation，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，camera 绑定 `MISMATCH`；补充 receipt `docs/evidence/mcp010f/primary-form-cas-rerun-20260814.json` 已完成 current-cohort fit/compare/AOV/review 与 packaged Viewer exact lineage binding，但不改变 Stage 0 latest pointer、attempt35 provisional 状态或 benchmark 资格。
 
+2026-08-14 Viewer evidence lineage follow-up：Runtime `visual_evidence` 现在在 Viewer read model 出口统一验证 candidate artifact、RenderSet、comparison report、QualityReport、reference/target 和 camera 的 hash-bound lineage；comparison 缺失、artifact/target/reference/camera 不一致均 fail closed。新增合法 RenderSet 重绑错误 artifact 的 Runtime 负向回归；并修正 `primary_form_repair_prepare` optimizer schema 与 MCP 有界 schema validator 的不兼容。该模块只收口 Viewer 真值边界，不改变 `QUALITY_TARGET_NOT_MET`、`MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或未运行的 human/PBR/export-restart/360 门。
+
 2026-08-14 Primary Form objective alignment follow-up：Runtime Geometry trial 统一复用 camera 的 landmark/coverage-aware loss，避免几何搜索用 contour-only loss 绕过观测证据；focused 与完整 Runtime 回归通过。新 cohort 真实 Codex 复跑在 authoring sequence 阻断，未产出新的视觉指标，故不升级当前任务的视觉质量或 benchmark 状态。
 
 2026-08-14 Primary Form proposal handoff follow-up：严格优于 authored baseline 的 Geometry Worker 试算现在随 `SilhouetteFitResult@1.selected_geometry_program` 返回；Runtime 校验其 `GeometryProgram@2` project/canonical hash，未改善时返回 `null`。它仍不自动写 candidate/version 或确认，后续必须在用户批准后调用 `geometry_prepare`；合同/Runtime focused/source Gate 已通过，未产生新的 likeness receipt。

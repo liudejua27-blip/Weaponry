@@ -2759,6 +2759,50 @@ impl Runtime {
                 "VISUAL_EVIDENCE_BINDING_MISMATCH: RenderSet candidate differs".to_owned(),
             ));
         }
+        let candidate_artifact_sha256 = candidate
+            .prepared_object_sha256
+            .as_deref()
+            .or(candidate.manifest_hash.as_deref())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "VISUAL_EVIDENCE_UNAVAILABLE: candidate artifact is missing".to_owned(),
+                )
+            })?;
+        if !forgecad_contracts::is_sha256(candidate_artifact_sha256)
+            || candidate
+                .prepared_object_sha256
+                .as_deref()
+                .is_some_and(|hash| !forgecad_contracts::is_sha256(hash))
+            || candidate
+                .manifest_hash
+                .as_deref()
+                .is_some_and(|hash| !forgecad_contracts::is_sha256(hash))
+            || candidate
+                .prepared_object_sha256
+                .as_deref()
+                .zip(candidate.manifest_hash.as_deref())
+                .is_some_and(|(prepared, manifest)| prepared != manifest)
+            || render_set.get("artifact_sha256").and_then(Value::as_str)
+                != Some(candidate_artifact_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "VISUAL_EVIDENCE_BINDING_MISMATCH: RenderSet artifact differs from candidate"
+                    .to_owned(),
+            ));
+        }
+        if let Some(target_sha256) = evidence.target_sha256.as_deref() {
+            let target = self.read_silhouette_target(target_sha256)?;
+            if target.get("reference_id").and_then(Value::as_str)
+                != Some(evidence.reference_id.as_str())
+                || target.get("reference_sha256").and_then(Value::as_str)
+                    != Some(reference.object_sha256.as_str())
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "VISUAL_EVIDENCE_BINDING_MISMATCH: silhouette target differs from reference"
+                        .to_owned(),
+                ));
+            }
+        }
         let comparison_report = if let Some(hash) =
             evidence.comparison_report_object_sha256.as_deref()
         {
@@ -2771,16 +2815,43 @@ impl Runtime {
             if report.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
                 || report.get("reference_id").and_then(Value::as_str)
                     != Some(evidence.reference_id.as_str())
+                || report.get("artifact_sha256").and_then(Value::as_str)
+                    != Some(candidate_artifact_sha256)
+                || report.get("reference_sha256").and_then(Value::as_str)
+                    != Some(reference.object_sha256.as_str())
+                || report.get("render_set_hash").and_then(Value::as_str)
+                    != Some(evidence.render_set_object_sha256.as_str())
+                || report.get("camera_hash") != render_set.get("camera_hash")
             {
                 return Err(RuntimeError::InvalidInput(
-                    "VISUAL_EVIDENCE_BINDING_MISMATCH: comparison report differs".to_owned(),
+                    "VISUAL_EVIDENCE_BINDING_MISMATCH: comparison report lineage differs"
+                        .to_owned(),
                 ));
             }
             Some(report)
         } else {
-            None
+            return Err(RuntimeError::InvalidInput(
+                "VISUAL_EVIDENCE_UNAVAILABLE: comparison report is missing".to_owned(),
+            ));
         };
         let quality_report = self.quality(candidate_id, Some(&evidence.reference_id))?;
+        validate_quality_report_v2_output(&quality_report)?;
+        if quality_report.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+            || quality_report.get("artifact_sha256").and_then(Value::as_str)
+                != Some(candidate_artifact_sha256)
+            || quality_report.get("reference_id").and_then(Value::as_str)
+                != Some(evidence.reference_id.as_str())
+            || quality_report.get("reference_sha256").and_then(Value::as_str)
+                != Some(reference.object_sha256.as_str())
+            || quality_report.get("render_set_hash").and_then(Value::as_str)
+                != Some(evidence.render_set_object_sha256.as_str())
+            || quality_report.get("comparison_report_hash").and_then(Value::as_str)
+                != evidence.comparison_report_object_sha256.as_deref()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "VISUAL_EVIDENCE_BINDING_MISMATCH: QualityReport lineage differs".to_owned(),
+            ));
+        }
         Ok(json!({
             "schema_version":"ViewerVisualEvidence@1",
             "candidate_id":candidate_id,
@@ -12221,6 +12292,42 @@ mod tests {
             })
             .expect("C export confirm");
         assert_eq!(exported.output_sha256, export.manifest.artifact_hashes[0]);
+
+        // Viewer evidence must fail closed in Runtime when a valid RenderSet
+        // is relinked to an unrelated artifact.  Client-side binding checks
+        // are useful defense in depth, but they cannot be the quality truth
+        // boundary because a Viewer payload may be stale or tampered with.
+        let mut mismatched_render_set = matched["render_set"].clone();
+        mismatched_render_set["artifact_sha256"] = Value::String("d".repeat(64));
+        mismatched_render_set["canonical_sha256"] = Value::String(String::new());
+        mismatched_render_set["canonical_sha256"] =
+            Value::String(canonical_json_hash(&mismatched_render_set));
+        let mismatched_render_set_object = runtime
+            .put_object(
+                &canonical_json_bytes(&mismatched_render_set).expect("mismatched RenderSet JSON"),
+                None,
+                "application/json",
+                "render-set-tamper-fixture",
+            )
+            .expect("mismatched RenderSet object");
+        let evidence = runtime
+            .store
+            .get_visual_evidence(&candidate_id)
+            .expect("visual evidence query")
+            .expect("visual evidence record");
+        runtime
+            .store
+            .upsert_visual_evidence(&VisualEvidenceRecord {
+                render_set_object_sha256: mismatched_render_set_object.record.sha256,
+                ..evidence
+            })
+            .expect("tamper fixture evidence");
+        let binding_error = runtime
+            .visual_evidence(&candidate_id)
+            .expect_err("Viewer evidence must reject mismatched artifact lineage");
+        assert!(binding_error
+            .to_string()
+            .contains("RenderSet artifact differs from candidate"));
     }
 
     #[test]

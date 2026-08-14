@@ -56,7 +56,7 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "608ab1c9b3f4b84aa107e1d5ef036dfe6077fa988668dc4e41d46e2d01e096da",
+  "canonical_sha256": "a79995b7fc2be4817773b238b13a39be250a85a058d7abc0b56ec1c2eca64f72",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -106,12 +106,12 @@
         "visual_evidence_bundle_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "47254445cdf96ac15d05ecab3e3ed5419a39a95f364eee493f633727dd37ea97",
+      "source_sha256": "52f9ea2a628d09c16466ff22f1cf8d4bc34e3c4d2b11093188fab9714f172a6d",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
-      "summary_receipt_sha256": "8dab3df52f9106f700363a617f010e2032cac57ac2c63d23ac5b19760acb2495",
+      "summary_receipt_sha256": "716fc74e0b96636274869ec0a26dc8dc98537c3f4281b68f94d67e2d27d3faf9",
       "total_count": 57,
       "write_count": 22,
-      "write_enabled_manifest_sha256": "ae26bfb10430d0b09c712334cc7613a5ad8494a7478b5314e665a28c732ad748",
+      "write_enabled_manifest_sha256": "63cebd3315fcc5119d14999ea737e6c6e21d0318c4178b5a494e2789cfb75aa9",
       "write_names": [
         "appearance_prepare",
         "candidate_confirm",
@@ -146,7 +146,7 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "6e46ab6d36ce78b26c579ba2398617aae2e70c866e4712f210c671acd39742be",
+      "runtime_source_sha256": "6c1b3f83db2af17e43fb679a318757c3d2517ba127aae31931fff8a775f7bade",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "f97e0834da61d79b2e1e53caffa3dfd4acb530e3802eb651c4db210ead6f6a30"
     }
