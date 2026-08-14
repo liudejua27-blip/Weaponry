@@ -1511,6 +1511,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             &boundary_segments,
             Some(&selected_camera),
         );
+        // Preserve the complete evidence projection separately from the local
+        // probe-zero seed. Non-dominant Parts are reset to authored values in
+        // the first joint trial so unrelated errors cannot be coupled, but
+        // their projected direction remains Runtime-owned evidence for the
+        // later coordinate probes.
+        let evidence_parameters = selected_parameters.clone();
         // Seed probe zero from the dominant candidate-bound Part. The boundary
         // projection can produce proposals for several Parts, but feeding all
         // of them into the first probe couples unrelated silhouette errors and
@@ -1613,13 +1619,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     // Only a later pass tests the opposite direction.  The
                     // old +/- pair schedule spent two probes on each early
                     // parameter and left the rest of the Rig untouched.
-                    let authored_value = parameter.get("value").and_then(Value::as_f64).unwrap_or(value);
-                    let proposal_value = selected_parameters
-                        .get(coordinate)
-                        .and_then(|row| row.get("value"))
-                        .and_then(Value::as_f64)
-                        .unwrap_or(authored_value);
-                    let proposal_direction = (proposal_value - authored_value).signum();
+                    let proposal_direction = primary_form_proposal_direction(
+                        definitions,
+                        &evidence_parameters,
+                        coordinate,
+                    );
                     let fallback_direction = if coordinate % 2 == 0 { 1.0 } else { -1.0 };
                     let direction = (if proposal_direction == 0.0 {
                         fallback_direction
@@ -10131,6 +10135,35 @@ fn primary_form_probe_coordinate(parameter_indices: &[usize], probe_index: usize
     parameter_indices.get((probe_index - 1) % parameter_indices.len()).copied()
 }
 
+/// Return the direction supplied by the full Runtime-owned evidence proposal
+/// for one coordinate. The dominant-Part seed intentionally zeroes secondary
+/// values for probe zero, so coordinate probes must read this separate
+/// projection instead of falling back to an index-based sign. A zero proposal
+/// still means that the deterministic fallback direction is appropriate.
+fn primary_form_proposal_direction(
+    definitions: &[Value],
+    evidence_parameters: &[Value],
+    coordinate: usize,
+) -> f64 {
+    let authored_value = definitions
+        .get(coordinate)
+        .and_then(|parameter| parameter.get("value"))
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let proposed_value = evidence_parameters
+        .get(coordinate)
+        .and_then(|parameter| parameter.get("value"))
+        .and_then(Value::as_f64)
+        .unwrap_or(authored_value);
+    if proposed_value > authored_value {
+        1.0
+    } else if proposed_value < authored_value {
+        -1.0
+    } else {
+        0.0
+    }
+}
+
 /// Backtrack one evidence-attributed joint proposal toward the authored Rig
 /// baseline without widening any typed bound. This is used only inside the
 /// Runtime-owned Primary Form search: it gives coupled width/height/offset
@@ -15551,6 +15584,18 @@ mod tests {
         assert_eq!(primary_form_probe_coordinate(&ranked, 1), Some(1));
         assert_eq!(primary_form_probe_coordinate(&ranked, 2), Some(2));
         assert_eq!(primary_form_probe_coordinate(&ranked, 3), Some(0));
+        assert_eq!(
+            primary_form_proposal_direction(rig["parameters"].as_array().unwrap(), &selected, 0),
+            1.0
+        );
+        assert_eq!(
+            primary_form_proposal_direction(rig["parameters"].as_array().unwrap(), &seeded, 0),
+            0.0
+        );
+        assert_eq!(
+            primary_form_proposal_direction(rig["parameters"].as_array().unwrap(), &selected, 2),
+            1.0
+        );
     }
 
     #[test]
