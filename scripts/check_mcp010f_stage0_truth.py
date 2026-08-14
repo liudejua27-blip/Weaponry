@@ -1182,7 +1182,7 @@ def check_truth_declared_semantics(truth: dict[str, Any]) -> None:
 
     require(
         truth["latest_attempt"]["source_receipt_path"]
-        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
+        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r10.json",
         "frozen latest-attempt path drifted",
     )
     require(

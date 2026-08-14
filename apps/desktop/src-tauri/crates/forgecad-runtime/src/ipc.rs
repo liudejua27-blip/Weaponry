@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use super::{Runtime, RuntimeError, StoreError};
+use super::{CasError, Runtime, RuntimeError, StoreError};
 
 const MAX_IPC_MESSAGE_BYTES: usize = 8 * 1024 * 1024;
 const IPC_AUTHENTICATION_TIMEOUT: Duration = Duration::from_millis(500);
@@ -577,7 +577,12 @@ fn runtime_error_code(error: &RuntimeError) -> String {
         RuntimeError::InvalidInput(detail) => detail
             .split(':')
             .map(str::trim)
-            .find(|value| value.starts_with("AGENTIC_"))
+            .find(|value| {
+                value.starts_with("AGENTIC_")
+                    || value.starts_with("PRIMARY_FORM_REPAIR_")
+                    || value.starts_with("SILHOUETTE_FIT_GEOMETRY_")
+                    || value.starts_with("SILHOUETTE_FIT_RENDER_FAILED")
+            })
             .map(str::to_owned)
             .map_or_else(|| format!("INVALID_INPUT: {detail}"), |code| code),
         RuntimeError::Store(StoreError::Contract { code, .. }) => {
@@ -586,7 +591,28 @@ fn runtime_error_code(error: &RuntimeError) -> String {
         RuntimeError::Store(StoreError::InvalidData(detail)) => {
             format!("STORE_INVALID_DATA: {detail}")
         }
-        RuntimeError::Store(_) => "STORE_ERROR".to_owned(),
+        RuntimeError::Store(StoreError::Sqlite(_)) => "STORE_SQLITE".to_owned(),
+        RuntimeError::Store(StoreError::Cas(CasError::HashMismatch { .. })) => {
+            "STORE_CAS_HASH_MISMATCH".to_owned()
+        }
+        RuntimeError::Store(StoreError::Cas(CasError::InvalidHash)) => {
+            "STORE_CAS_INVALID_HASH".to_owned()
+        }
+        RuntimeError::Store(StoreError::Cas(CasError::Corrupt)) => {
+            "STORE_CAS_CORRUPT".to_owned()
+        }
+        RuntimeError::Store(StoreError::Cas(CasError::CapacityExceeded)) => {
+            "STORE_CAS_CAPACITY_EXCEEDED".to_owned()
+        }
+        RuntimeError::Store(StoreError::Cas(CasError::UnsafeRoot)) => {
+            "STORE_CAS_UNSAFE_ROOT".to_owned()
+        }
+        RuntimeError::Store(StoreError::Cas(CasError::Io(_))) => "STORE_CAS_IO".to_owned(),
+        RuntimeError::Store(StoreError::Io(_)) => "STORE_IO".to_owned(),
+        RuntimeError::Store(StoreError::BackupUnavailable) => "STORE_BACKUP_UNAVAILABLE".to_owned(),
+        RuntimeError::Store(StoreError::MigrationVersionUnsupported) => "STORE_MIGRATION_UNSUPPORTED".to_owned(),
+        RuntimeError::Store(StoreError::LegacyDatabaseRejected) => "STORE_LEGACY_DATABASE_REJECTED".to_owned(),
+        RuntimeError::Store(StoreError::LockPoisoned) => "STORE_LOCK_POISONED".to_owned(),
         RuntimeError::Ipc(_) => "IPC_ERROR".to_owned(),
         RuntimeError::ProcessLock(_) => "RUNTIME_BUSY".to_owned(),
     }
@@ -683,6 +709,22 @@ mod tests {
     use std::fs;
     use std::thread;
     use std::time::Instant;
+
+    #[test]
+    fn runtime_error_code_preserves_bounded_primary_form_stage() {
+        assert_eq!(
+            runtime_error_code(&RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_INVALID: canonical_sha256 does not bind intent".to_owned(),
+            )),
+            "PRIMARY_FORM_REPAIR_INVALID"
+        );
+        assert_eq!(
+            runtime_error_code(&RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_REJECTED: selected GeometryProgram project differs".to_owned(),
+            )),
+            "PRIMARY_FORM_REPAIR_REJECTED"
+        );
+    }
 
     #[cfg(unix)]
     #[test]

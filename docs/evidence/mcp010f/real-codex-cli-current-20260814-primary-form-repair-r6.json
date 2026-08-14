@@ -1,0 +1,200 @@
+{
+  "build_cohorts": {
+    "mcp": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7",
+    "runtime": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7",
+    "worker": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7"
+  },
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "mcp_tool_calls": [
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "82bda63b085e10abe6f74c5253c51e6fbca3b2b59994ef8459c9a81489c42457",
+      "project_id": "project-3acd963e6a934c40a5d7483d040ecd77",
+      "schema_version": "Project@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "active_snapshot_revision",
+        "canonical_sha256",
+        "created_at",
+        "head_snapshot_id",
+        "name",
+        "policy",
+        "project_id",
+        "schema_version",
+        "updated_at"
+      ],
+      "tool": "project_create"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "5436b4d5aa5164e7ad7a7212673258ab9c90b421298c106be0a5d7cff093f26b",
+      "project_id": "project-3acd963e6a934c40a5d7483d040ecd77",
+      "schema_version": "ReferenceMaskPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "mask_sha256",
+        "project_id",
+        "reference_id",
+        "schema_version",
+        "target",
+        "target_sha256"
+      ],
+      "target_sha256": "229b2a09c9a43a4531a06528babd4c2d62e1fa3712eb5fc96b1703dfd733a5d2",
+      "tool": "reference_mask_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "build_cohort_match",
+        "build_cohort_sha256",
+        "contract_set",
+        "contract_versions",
+        "ipc_transport",
+        "limitations",
+        "mcp_build_cohort_sha256",
+        "mcp_protocol_versions",
+        "mcp_transport",
+        "mcp_write_tool_names",
+        "mcp_write_tools_enabled",
+        "operator_catalog_sha256",
+        "resource_uris",
+        "runtime_version",
+        "status",
+        "supports_authenticated_ipc",
+        "supports_cas",
+        "supports_geometry_execution",
+        "supports_job_read",
+        "supports_reference_import",
+        "supports_render_execution",
+        "supports_resource_read",
+        "supports_skill_registry",
+        "supports_snapshot_read",
+        "tool_manifest_hash",
+        "write_model"
+      ],
+      "tool": "capabilities_get"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeSupervisorStatus@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "retryable",
+        "schema_version",
+        "source",
+        "state"
+      ],
+      "tool": "runtime_status"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeDoctor@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "checks",
+        "retryable",
+        "runtime",
+        "schema_version",
+        "scope",
+        "state"
+      ],
+      "tool": "doctor"
+    },
+    {
+      "canonical_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+      "schema_version": "OperatorCatalog@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "catalog_id",
+        "geometry_program_schema_version",
+        "operators",
+        "schema_version"
+      ],
+      "tool": "operator_catalog_get"
+    },
+    {
+      "schema_version": "SkillListResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "schema_version",
+        "skills"
+      ],
+      "tool": "skill_list"
+    }
+  ],
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "reason": "Command '['codex', 'exec', '--ephemeral', '--ignore-user-config', '--json', '--color', 'never', '--skip-git-repo-check', '--approve-for-me', '-C', '/tmp/fc10c-codex-turn-8p0n2nim', '-c', 'mcp_servers.forgecad={command=\"/tmp/forgecad-primary-repair-cohort-20260814-6/debug/forgecad-mcp\",args=[\"serve\",\"--stdio\"],env_vars=[\"FORGECAD_RUNTIME_SOCKET\",\"FORGECAD_RUNTIME_TOKEN\",\"FORGECAD_MCP_ENABLE_MCP004_WRITES\",\"FORGECAD_ATTACHMENT_ROOTS\"],enabled=true,required=true,startup_timeout_sec=20,tool_timeout_sec=120,default_tools_approval_mode=\"writes\"}', '-c', 'mcp_servers.cloudflare-api={url=\"http://127.0.0.1:1\",enabled=false,required=false}', 'Before any other ForgeCAD tool in this fresh MCP session, call exactly one read-only preflight tool: skill_get with {\"skill_id\":\"ponytail-preflight\",\"version\":\"0.1.0\"}. Wait for its successful typed result, then follow the stage instructions below. This mandatory preflight is not a substitute for any stage call and must be the first ForgeCAD tool in this session.\\n\\nUse only the ForgeCAD MCP server. Do not use shell, filesystem, browser, images, other MCP servers, or local hash code.\\n\\nThe project_id is \"project-3acd963e6a934c40a5d7483d040ecd77\" and the authorized reference_id is \"reference-840f5d57be0a44dfaa57565ecd1d2ceb\". The discovery turn returned this exact operator catalog hash: \"1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760\". Call exactly these two ForgeCAD tools in order, then stop:\\n1) geometry_program_hash with {\"schema_version\":\"GeometryProgramHashRequest@1\",\"geometry_program_draft\":<draft below>}. Replace only the catalog placeholder with the exact hash above. Do not add canonical_sha256 before this call.\\n2) geometry_prepare with {\"project_id\":\"project-3acd963e6a934c40a5d7483d040ecd77\",\"request\":{\"typed\":\"geometry\",\"reference_id\":\"reference-840f5d57be0a44dfaa57565ecd1d2ceb\",\"geometry_program\":<same draft plus only the returned canonical_sha256>}}. Save the complete candidate, job and artifact objects.\\n\\",
+  "recorded_at": "2026-08-14T13:09:27Z",
+  "reference_path_recorded": false,
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "silhouette_fit_intent_sha256": null,
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010C",
+  "visual_quality_claim": "NOT_CLAIMED"
+}

@@ -2446,7 +2446,7 @@ fn map_ipc_error(error: IpcError) -> String {
                     let stage = detail
                         .split(':')
                         .map(str::trim)
-                        .find(|value| value.starts_with("AGENTIC_") || value.starts_with("GEOMETRY_PROGRAM_HASH_REJECTED") || value.starts_with("SILHOUETTE_") || value.starts_with("CAMERA_") || value.starts_with("CONTRACT_OUTPUT_INVALID"))
+                        .find(|value| value.starts_with("AGENTIC_") || value.starts_with("GEOMETRY_PROGRAM_HASH_REJECTED") || value.starts_with("SILHOUETTE_") || value.starts_with("CAMERA_") || value.starts_with("PRIMARY_FORM_REPAIR_") || value.starts_with("CONTRACT_OUTPUT_INVALID"))
                         .unwrap_or("");
                     match stage {
                         "GEOMETRY_PROGRAM_HASH_REJECTED" => {
@@ -2496,6 +2496,32 @@ fn map_ipc_error(error: IpcError) -> String {
                         }
                         "SILHOUETTE_FIT_REJECTED" => "SILHOUETTE_FIT_REJECTED: Runtime silhouette gate rejected the candidate".to_owned(),
                         "SILHOUETTE_FIT_RENDER_FAILED" => "SILHOUETTE_FIT_RENDER_FAILED: Runtime fit render failed".to_owned(),
+                        "PRIMARY_FORM_REPAIR_INVALID" => {
+                            let reason = detail
+                                .split_once("PRIMARY_FORM_REPAIR_INVALID:")
+                                .map(|(_, value)| value.trim())
+                                .filter(|value| !value.is_empty())
+                                .unwrap_or("request or target binding")
+                                .to_owned();
+                            let reason = [
+                                "request must be an object",
+                                "base_version_id argument is not bound to intent",
+                                "canonical_sha256 does not bind intent",
+                                "base_version_id must be an identifier or null",
+                                "target landmarks are missing",
+                            ]
+                            .into_iter()
+                            .find(|candidate| reason.starts_with(candidate))
+                            .unwrap_or("request or target binding");
+                            format!("PRIMARY_FORM_REPAIR_INVALID: Runtime Primary Form intent rejected ({reason})")
+                        }
+                        "PRIMARY_FORM_REPAIR_REJECTED" => "PRIMARY_FORM_REPAIR_REJECTED: Runtime Primary Form geometry proposal rejected".to_owned(),
+                        "PRIMARY_FORM_REPAIR_CAS_HASH_MISMATCH" => "PRIMARY_FORM_REPAIR_CAS_HASH_MISMATCH: Runtime Primary Form staged GeometryProgram hash binding rejected".to_owned(),
+                        "PRIMARY_FORM_REPAIR_CAS_INVALID_HASH" => "PRIMARY_FORM_REPAIR_CAS_INVALID_HASH: Runtime Primary Form staged hash is invalid".to_owned(),
+                        "PRIMARY_FORM_REPAIR_CAS_CORRUPT" => "PRIMARY_FORM_REPAIR_CAS_CORRUPT: Runtime Primary Form staged CAS object is corrupt".to_owned(),
+                        "PRIMARY_FORM_REPAIR_CAS_CAPACITY_EXCEEDED" => "PRIMARY_FORM_REPAIR_CAS_CAPACITY_EXCEEDED: Runtime Primary Form staged object exceeds the CAS limit".to_owned(),
+                        "PRIMARY_FORM_REPAIR_CAS_UNSAFE_ROOT" => "PRIMARY_FORM_REPAIR_CAS_UNSAFE_ROOT: Runtime Primary Form CAS root is unsafe".to_owned(),
+                        "PRIMARY_FORM_REPAIR_CAS_IO" => "PRIMARY_FORM_REPAIR_CAS_IO: Runtime Primary Form staged CAS file operation failed".to_owned(),
                         "SILHOUETTE_RIG_INVALID" => {
                             let reason = detail
                                 .split_once("SILHOUETTE_RIG_INVALID:")
@@ -2558,6 +2584,19 @@ fn map_ipc_error(error: IpcError) -> String {
                     format!("STORE_INVALID_DATA: Runtime store rejected the record ({reason})")
                 }
                 "STORE_ERROR" => "STORE_ERROR: Runtime store rejected the request".to_owned(),
+                "STORE_SQLITE" => "STORE_SQLITE: Runtime SQLite transaction rejected the request".to_owned(),
+                "STORE_CAS" => "STORE_CAS: Runtime CAS operation rejected the request".to_owned(),
+                "STORE_CAS_HASH_MISMATCH" => "STORE_CAS_HASH_MISMATCH: Runtime CAS content hash did not match the bound artifact".to_owned(),
+                "STORE_CAS_INVALID_HASH" => "STORE_CAS_INVALID_HASH: Runtime CAS received an invalid content hash".to_owned(),
+                "STORE_CAS_CORRUPT" => "STORE_CAS_CORRUPT: Runtime CAS object is corrupt".to_owned(),
+                "STORE_CAS_CAPACITY_EXCEEDED" => "STORE_CAS_CAPACITY_EXCEEDED: Runtime CAS object exceeds the configured limit".to_owned(),
+                "STORE_CAS_UNSAFE_ROOT" => "STORE_CAS_UNSAFE_ROOT: Runtime CAS root is unsafe".to_owned(),
+                "STORE_CAS_IO" => "STORE_CAS_IO: Runtime CAS file operation failed".to_owned(),
+                "STORE_IO" => "STORE_IO: Runtime store I/O failed".to_owned(),
+                "STORE_BACKUP_UNAVAILABLE" => "STORE_BACKUP_UNAVAILABLE: Runtime store backup is unavailable".to_owned(),
+                "STORE_MIGRATION_UNSUPPORTED" => "STORE_MIGRATION_UNSUPPORTED: Runtime store migration is unsupported".to_owned(),
+                "STORE_LEGACY_DATABASE_REJECTED" => "STORE_LEGACY_DATABASE_REJECTED: Runtime rejected a legacy database".to_owned(),
+                "STORE_LOCK_POISONED" => "STORE_LOCK_POISONED: Runtime store lock is poisoned".to_owned(),
                 "RUNTIME_BUSY" => "RUNTIME_BUSY: Runtime writer is busy".to_owned(),
                 "IPC_ERROR" => "IPC_ERROR: Runtime IPC request failed".to_owned(),
                 _ => "RUNTIME_UNAVAILABLE: Runtime request failed".to_owned(),

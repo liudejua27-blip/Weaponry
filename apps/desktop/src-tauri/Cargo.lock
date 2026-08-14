@@ -863,6 +863,7 @@ name = "forgecad-geometry-worker"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "forgecad-core",
  "forgecad-worker-protocol",
  "libc",
  "mikktspace",

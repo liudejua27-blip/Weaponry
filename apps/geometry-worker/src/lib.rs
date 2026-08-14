@@ -9,12 +9,12 @@ pub mod integrity;
 mod operator_d;
 
 use base64::Engine;
+use forgecad_core::canonical_json_hash;
 pub use forgecad_worker_protocol::{
     material_pack_manifest, material_pack_manifest_sha256, operator_catalog,
     operator_catalog_sha256,
 };
 use serde_json::{json, Map, Value};
-use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
 const MAX_COORDINATE: f32 = 10.0;
@@ -2376,50 +2376,7 @@ fn material_for_zone(zone: &str) -> Value {
 }
 
 fn canonical_hash(value: &Value) -> String {
-    let mut bytes = Vec::new();
-    write_canonical(value, &mut bytes);
-    let mut digest = Sha256::new();
-    digest.update(bytes);
-    digest
-        .finalize()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
-}
-
-fn write_canonical(value: &Value, output: &mut Vec<u8>) {
-    match value {
-        Value::Null => output.extend_from_slice(b"null"),
-        Value::Bool(value) => output.extend_from_slice(if *value { b"true" } else { b"false" }),
-        Value::Number(value) => output.extend_from_slice(value.to_string().as_bytes()),
-        Value::String(value) => {
-            serde_json::to_writer(&mut *output, value).expect("string serializes")
-        }
-        Value::Array(values) => {
-            output.push(b'[');
-            for (index, value) in values.iter().enumerate() {
-                if index != 0 {
-                    output.push(b',');
-                }
-                write_canonical(value, output);
-            }
-            output.push(b']');
-        }
-        Value::Object(values) => {
-            let mut keys = values.keys().collect::<Vec<_>>();
-            keys.sort_unstable();
-            output.push(b'{');
-            for (index, key) in keys.iter().enumerate() {
-                if index != 0 {
-                    output.push(b',');
-                }
-                serde_json::to_writer(&mut *output, key).expect("key serializes");
-                output.push(b':');
-                write_canonical(&values[*key], output);
-            }
-            output.push(b'}');
-        }
-    }
+    canonical_json_hash(value)
 }
 
 #[cfg(test)]

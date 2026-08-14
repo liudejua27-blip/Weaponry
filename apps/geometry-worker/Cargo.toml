@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 base64 = "0.22"
+forgecad-core = { path = "../desktop/src-tauri/crates/forgecad-core" }
 forgecad-worker-protocol = { path = "../desktop/src-tauri/crates/forgecad-worker-protocol" }
 libc = "0.2"
 mikktspace = "=0.3.0"

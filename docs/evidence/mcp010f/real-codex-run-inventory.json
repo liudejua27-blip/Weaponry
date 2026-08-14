@@ -441,13 +441,76 @@
     },
     {
       "sequence": 63,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair.json",
+      "sha256": "d5ed16ed92a6c9934f74eb90016a5675f53caf96711d59fc86eb242f558f89f0",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 64,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r2.json",
+      "sha256": "fc8ceb6d8bcea8248bf05dc2b359748437c453c1a30cccc5de04192374fd7a3e",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 65,
       "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
       "sha256": "5ffeac57d67c4566e5b3796d4601b04c671a4d4aa9b8ff0968cf4af379f955b2",
       "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
       "completed_transport": true
+    },
+    {
+      "completed_transport": false,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r3.json",
+      "sequence": 66,
+      "sha256": "037dfa12e619f2222426568a944db58f31fbaa57d339ac91a28dd4a72f940065",
+      "status": "BLOCKED"
+    },
+    {
+      "completed_transport": false,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r4.json",
+      "sequence": 67,
+      "sha256": "ee66c551b93b12bf2a1f38607a236bcd7554c2721601b95fdd8b3883e411d9ff",
+      "status": "BLOCKED"
+    },
+    {
+      "completed_transport": false,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r5.json",
+      "sequence": 68,
+      "sha256": "04b70106a6774266f5e757b27e41847874563b2507efcd9369c3be7799f82d67",
+      "status": "BLOCKED"
+    },
+    {
+      "completed_transport": false,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r6.json",
+      "sequence": 69,
+      "sha256": "562b8fc52d9b20e9ae919ff2d4d9dce7d312439080cda8ef8845481a205929ae",
+      "status": "BLOCKED"
+    },
+    {
+      "completed_transport": false,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r7.json",
+      "sequence": 70,
+      "sha256": "1cc9246b1b31cc9ab4c1d945b166116cb5389a0b61d171694a1b755e0943fb8a",
+      "status": "BLOCKED"
+    },
+    {
+      "completed_transport": false,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r8.json",
+      "sequence": 71,
+      "sha256": "af381aaa619028990cb6b1d1aeb0c06fab121b2d2feabfef119138217e9ee2c1",
+      "status": "BLOCKED"
+    },
+    {
+      "completed_transport": false,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r10.json",
+      "sequence": 72,
+      "sha256": "93c6b379c958fd8feb651f21fea983f874d449d4fe2a1b06b6857b8db06756da",
+      "status": "BLOCKED"
     }
   ],
-  "latest_attempt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
+  "latest_attempt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r10.json",
   "latest_completed_transport_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
-  "canonical_sha256": "a7952e4019b1dd0adbf4c725ccd942fb596764f250694ded67f327aff159f9f6"
+  "canonical_sha256": "4a2b618cc535d0a07b6f3d28244b0841037a728153ffc9d80e47324e5bec8976"
 }

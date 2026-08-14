@@ -16,7 +16,7 @@ Stage 0 机器真值唯一入口为 `docs/evidence/mcp010f/current-benchmark-tru
 
 2026-08-14 Viewer evidence lineage follow-up：Runtime `visual_evidence` now validates the complete candidate artifact → RenderSet → comparison → QualityReport chain together with reference/target/camera binding before exposing `ViewerVisualEvidence@1`; missing comparison and cross-artifact relinking fail closed in Runtime, so the Viewer no longer carries the sole responsibility for reconstructing this boundary. This is a source/runtime integrity repair only; it does not change the current robot visual result or unlock human/PBR/export/restart/360 gates.
 
-<!-- forgecad-stage0: schemas=102 schema_set_sha256=497b848aa5f7b6cbc26938c03173acf8e3901a491d636b05888a0dbeda5af371 read_tools=35 write_tools=22 total_tools=57 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-boundary-projection.json latest_completed=real-codex-cli-current-20260814-boundary-projection.json -->
+<!-- forgecad-stage0: schemas=102 schema_set_sha256=497b848aa5f7b6cbc26938c03173acf8e3901a491d636b05888a0dbeda5af371 read_tools=35 write_tools=22 total_tools=57 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-repair-r10.json latest_completed=real-codex-cli-current-20260814-boundary-projection.json -->
 
 本文是 MCP010A–F 的唯一详细执行合同。它不改写 MCP005–009 的历史 evidence，也不把目标 Schema、工具、Skill、库或素材写成当前能力。
 

@@ -5,7 +5,7 @@
 
 Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
 
-<!-- forgecad-stage0: schemas=102 schema_set_sha256=497b848aa5f7b6cbc26938c03173acf8e3901a491d636b05888a0dbeda5af371 read_tools=35 write_tools=22 total_tools=57 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-boundary-projection.json latest_completed=real-codex-cli-current-20260814-boundary-projection.json -->
+<!-- forgecad-stage0: schemas=102 schema_set_sha256=497b848aa5f7b6cbc26938c03173acf8e3901a491d636b05888a0dbeda5af371 read_tools=35 write_tools=22 total_tools=57 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-repair-r10.json latest_completed=real-codex-cli-current-20260814-boundary-projection.json -->
 
 ## 1. 产品角色
 
@@ -103,10 +103,14 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 - 3D viewport 使用懒加载的 Three runtime 与 `OrbitControls`，明确采用左键选中、右键拖动旋转、中键拖动平移、滚轮缩放；`ResizeObserver` 同步容器宽高、camera aspect、projection matrix 和 renderer size，不再固定为初始化时的 `aspect=1`。
 - 候选选择从自动绑定扩展为显式“自动·最新任务 / 手动候选·历史”选择，并按最新/最旧切换；候选选择、GLB、参考比较、质量投影和生成耗时共用同一 candidate ID。
 - 候选快照卡片同时展示耗时、GLB/参考/RenderSet/比对/质量绑定、Part/材质区、GLB 回读 canonical、Part→MaterialZone 绑定、UV、切线、PBR 材质区 check 和 Validator；当前候选与上一候选的 diff 快览不再只比较时间和状态，缺少 QualityReport check 时显示“未运行”。
-- 候选切换和 GLB 重试会完整释放 controls、scene、geometry、material、texture、renderer/context；轮廓边界与差异热图通过 `compare-worker.ts` 在 Worker 中计算，避免大图像循环阻塞主线程。
+- 候选切换和 GLB 重试会完整释放 controls、scene、geometry、material、texture、renderer；不在仍复用的 canvas 上强制丢失 WebGL context，避免历史候选切换后 renderer 无法重新初始化。轮廓边界与差异热图通过 `compare-worker.ts` 在 Worker 中计算，避免大图像循环阻塞主线程。
 - Scene Tree 只在左侧工作台列渲染一份；Part/MaterialZone 选择按钮自身承担 `treeitem` 语义，支持搜索、过滤、显隐、锁定和方向键导航。GLB 回读时为每个 Mesh 隔离临时 Material 实例（纹理仍共享），避免共享材质导致跨部件高亮或重复 DOM/ID；Shift+左键框选可同时高亮多个对象，主对象仍用于 Inspector/聚焦；悬停 Raycaster 按 `requestAnimationFrame` 节流，避免大模型 pointermove 触发连续 React 更新。
 - Runtime、GLB、candidate-bound evidence、AOV 和比较资源失败均显示可复制的故障码及重试入口；比较面板增加缩放、亮度、双层透明度、热图敏感度、标尺、平移和当前视图导出。
 - Error Console 对候选缺载荷/证据未就绪同时提供“刷新当前候选”和“切换自动候选（放弃当前查看）”动作；GLB/比较故障提供重试与切换动作。Viewer 不执行 reject/confirm/删除等 Runtime 写入，“放弃当前查看”只是切换临时选择，不改变候选数据。
+- Error Console 默认只保留摘要，详情可展开；真正的阻断错误自动展开。中心工作区保持 Scene / Viewport / Inspector 的固定关系，中心列在小窗口中纵向滚动以保证参考比较不会被裁切；场景树声明真实多选语义，框选取消会恢复 OrbitControls。
+- 新手基础模式将右侧 Inspector 限定为当前选中对象、当前候选和三项基础状态；耗时、证据哈希、Agentic 阶段和质量细节收进“专业检查”抽屉。参考比较默认只显示状态与基础画面，AOV、热图、标尺、筛选和导出收进可展开的“专业对比”区域。
+- 基础模式的工作台术语改为“模型、3D 视口、对象信息、当前版本、检查结果”；Part/MaterialZone、RenderSet 等内部字段只在专业面板或任务详情中出现。无项目/无候选时隐藏无效的版本排序和视角按钮，视口提供“描述需求 → 等待版本 → 查看确认”的三步空状态引导。
+- 项目首页、创建、检查确认和导出页沿用同一新手路径：先用自然语言描述，再查看模型版本，最后检查和导出；candidate-bound、confirmed head、Camera lock 等内部状态在普通页面改为用户可读文案。
 - 差异热图与轮廓 Worker 的图像解码、512×512 重采样和像素循环优先在 `OffscreenCanvas/createImageBitmap` Worker 路径执行；旧 WebView 自动回退到主线程解码后仍把差异/轮廓循环放在 Worker。热图敏感度滑杆有 120ms 有界防抖，避免连续拖动启动无效 Worker。失败也会投影到全局 Error Console；成功重试会清除旧的辅助计算故障码，原始 AOV 与 Runtime `QualityReport` 仍保持独立。
 - Viewer 轮询改为首次完整读取 + 变更摘要读取；仅在 project/head/candidate/version 相关摘要签名变化时重新拉取大 payload，后台页将摘要间隔放宽至 15 秒。
 - 生成耗时独立面板按任务 ID 展示平均耗时、候选状态成功率和异常计数；缺失、未来时间、无法解析和超长耗时使用图标、文本和边框共同提示。状态图例统一区分通过、未通过/异常、未运行/未知。

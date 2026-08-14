@@ -56,7 +56,7 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "565b1ee9ed17be428eefdc1232f87273ae2f535809c68ea219e456ccefe17adf",
+  "canonical_sha256": "82488935f3758d1eb50850129cf154c65ebf7eb4805a056b34693f8773665206",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -66,7 +66,7 @@
       "schema_count": 102
     },
     "mcp_tools": {
-    "read_count": 35,
+      "read_count": 35,
       "read_manifest_sha256": "213db57ca0b45f7b4239aa0a5f6e7ca34449b108678b54bae2210ff57229464f",
       "read_names": [
         "artifact_readback_get",
@@ -106,7 +106,7 @@
         "visual_evidence_bundle_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "52f9ea2a628d09c16466ff22f1cf8d4bc34e3c4d2b11093188fab9714f172a6d",
+      "source_sha256": "a816020ac58908e2f4108abfc80f31fd5a1820616d3294d4ae03334968945fef",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
       "summary_receipt_sha256": "716fc74e0b96636274869ec0a26dc8dc98537c3f4281b68f94d67e2d27d3faf9",
       "total_count": 57,
@@ -146,9 +146,9 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "1d9e464e14b042ffefb141198e2947aac19d3a3748c9542da5ab041f48953fba",
+      "runtime_source_sha256": "b45059e79657fc1aa0738a999109b40488ab38ee590cca0c5c91e15100f546ec",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
-      "viewer_projection_sha256": "ca6dbe28e14cb3064e43f106d621a3ef199538567e1182115e4774567b3b3a3e"
+      "viewer_projection_sha256": "274a29cce005fd880540140ceb3392e6e10fc072e934147f9b5c776b2f3e10ad"
     }
   },
   "evidence_status": "INCOMPLETE_TRUTH_BINDING",
@@ -158,19 +158,19 @@
   },
   "latest_attempt": {
     "build_cohorts": {
-      "mcp": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688",
-      "runtime": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688",
-      "worker": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688"
+      "mcp": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7",
+      "runtime": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7",
+      "worker": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7"
     },
-    "attempt_count_evidence": "VERIFIED_RAW_RECEIPT_11_CODEX_TURNS_ZERO_EXIT_CODES",
+    "attempt_count_evidence": "VERIFIED_SANITIZED_MCP_SETUP_CALLS_ONLY_NO_CODEX_TURN_COUNT",
     "cohort_provenance": "VERIFIED_CURRENT_SOURCE_BUILT_COHORT",
-    "classification": "REAL_CODEX_COMPLETED_TRANSPORT_WITH_QUALITY_TARGET_NOT_MET",
-    "host_provenance": "VERIFIED_SANITIZED_CLI_EVENTS_AND_EXIT_CODES",
-    "quality_result": "QUALITY_TARGET_NOT_MET",
-    "reason": null,
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
-    "source_receipt_sha256": "5ffeac57d67c4566e5b3796d4601b04c671a4d4aa9b8ff0968cf4af379f955b2",
-    "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
+    "classification": "REAL_CODEX_BLOCKED_SETUP_NO_QUALITY_RESULT",
+    "host_provenance": "VERIFIED_SANITIZED_MCP_SETUP_EVENTS_ONLY",
+    "quality_result": "NOT_PRODUCED",
+    "reason": "Codex did not complete silhouette_fit_prepare",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r10.json",
+    "source_receipt_sha256": "93c6b379c958fd8feb651f21fea983f874d449d4fe2a1b06b6857b8db06756da",
+    "status": "BLOCKED"
   },
   "latest_completed_transport": {
     "artifact_sha256": "71698275a3d927b09973de243c9db747353d7a66972610e8154b5d4149929933",
@@ -226,8 +226,8 @@
   "real_codex_run_inventory": {
     "path": "docs/evidence/mcp010f/real-codex-run-inventory.json",
     "ordering_confidence": "SNAPSHOT_ONLY_LEGACY_RECEIPTS_LACK_RECORDED_AT",
-    "sha256": "0577de3b5083d4f055d972cae365bb3418a9cd01bc1219781d208411bdeacebe",
-    "run_count": 63
+    "sha256": "4413a717f6a23e56c9cbaa1ea2c4878ac1da36febba129a6104da51cd49192a6",
+    "run_count": 72
   },
   "recorded_on": "2026-08-14",
   "provisional_retained_observation": {

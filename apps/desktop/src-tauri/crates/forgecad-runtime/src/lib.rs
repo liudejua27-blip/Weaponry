@@ -102,6 +102,12 @@ const CAMERA_FIT_RUNTIME_MAX_EVALUATIONS: usize = 8;
 // low-resolution aliasing or landmark tie from becoming a durable camera
 // binding while keeping the request bounded.
 const CAMERA_FIT_FULL_RESOLUTION_MAX_EVALUATIONS: usize = 5;
+// A Primary Form repair is one MCP action, so its nested Runtime-owned
+// search must have a smaller ceiling than the standalone diagnostic fit. This
+// keeps the typed action inside the MCP tool timeout while leaving continuous
+// parameter search in Runtime/Workers rather than pushing it back into Codex.
+const PRIMARY_FORM_REPAIR_MAX_EVALUATIONS: u64 = 24;
+const PRIMARY_FORM_REPAIR_MAX_ITERATIONS: u64 = 1;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RuntimeError {
@@ -1790,6 +1796,27 @@ fn boundary_error_segments_for_masks(
             .as_object_mut()
             .expect("Primary Form request object")
             .remove("base_version_id");
+        if let Some(optimizer) = fit_request
+            .get_mut("optimizer")
+            .and_then(Value::as_object_mut)
+        {
+            let requested_evaluations = optimizer
+                .get("max_evaluations")
+                .and_then(Value::as_u64)
+                .unwrap_or(PRIMARY_FORM_REPAIR_MAX_EVALUATIONS);
+            let requested_iterations = optimizer
+                .get("max_iterations")
+                .and_then(Value::as_u64)
+                .unwrap_or(PRIMARY_FORM_REPAIR_MAX_ITERATIONS);
+            optimizer.insert(
+                "max_evaluations".to_owned(),
+                Value::from(requested_evaluations.min(PRIMARY_FORM_REPAIR_MAX_EVALUATIONS)),
+            );
+            optimizer.insert(
+                "max_iterations".to_owned(),
+                Value::from(requested_iterations.min(PRIMARY_FORM_REPAIR_MAX_ITERATIONS)),
+            );
+        }
         fit_request["canonical_sha256"] = Value::String(String::new());
         fit_request["canonical_sha256"] =
             Value::String(canonical_json_hash(&fit_request));
@@ -1834,15 +1861,52 @@ fn boundary_error_segments_for_masks(
             ));
         }
 
-        let prepared = self.prepare_geometry_candidate(
-            project_id,
-            base_version_id.or_else(|| object.get("base_version_id").and_then(Value::as_str)),
-            json!({
-                "typed":"geometry",
-                "reference_id":reference_id,
-                "geometry_program":Value::Object(program.clone())
-            }),
-        )?;
+        let prepared = self
+            .prepare_geometry_candidate(
+                project_id,
+                base_version_id.or_else(|| object.get("base_version_id").and_then(Value::as_str)),
+                json!({
+                    "typed":"geometry",
+                    "reference_id":reference_id,
+                    "geometry_program":Value::Object(program.clone())
+                }),
+            )
+            .map_err(|error| match error {
+                RuntimeError::Store(StoreError::Cas(CasError::HashMismatch { .. })) => {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_REPAIR_CAS_HASH_MISMATCH: staged GeometryProgram hash binding rejected"
+                            .to_owned(),
+                    )
+                }
+                RuntimeError::Store(StoreError::Cas(CasError::InvalidHash)) => {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_REPAIR_CAS_INVALID_HASH: staged GeometryProgram hash is invalid"
+                            .to_owned(),
+                    )
+                }
+                RuntimeError::Store(StoreError::Cas(CasError::Corrupt)) => {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_REPAIR_CAS_CORRUPT: staged CAS object is corrupt".to_owned(),
+                    )
+                }
+                RuntimeError::Store(StoreError::Cas(CasError::CapacityExceeded)) => {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_REPAIR_CAS_CAPACITY_EXCEEDED: staged object exceeds the CAS limit"
+                            .to_owned(),
+                    )
+                }
+                RuntimeError::Store(StoreError::Cas(CasError::UnsafeRoot)) => {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_REPAIR_CAS_UNSAFE_ROOT: staged CAS root is unsafe".to_owned(),
+                    )
+                }
+                RuntimeError::Store(StoreError::Cas(CasError::Io(_))) => {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_REPAIR_CAS_IO: staged CAS file operation failed".to_owned(),
+                    )
+                }
+                other => other,
+            })?;
         validate_geometry_prepare_result_v2_output(&prepared)?;
         let prepared_candidate_id = required_value_id(
             prepared.pointer("/candidate/candidate_id"),
@@ -1850,11 +1914,13 @@ fn boundary_error_segments_for_masks(
         )?
         .to_owned();
         let selected_camera = result["fit_result"]["selected_camera"].clone();
-        let camera_ref = json!({
-            "schema_version":"CameraCalibrationRef@1",
-            "camera_hash":selected_camera["camera_hash"].clone(),
-            "canonical_sha256":selected_camera["canonical_sha256"].clone()
-        });
+        // The fit winner is cached against the source candidate. The staged
+        // GeometryProgram has a new candidate ID, so passing a
+        // CameraCalibrationRef here would make comparison look up the old
+        // candidate/target cache key and fail closed. Runtime already owns
+        // this exact validated calibration; carry the complete object across
+        // the internal staged-candidate boundary instead of asking Codex to
+        // reconstruct or rebind it.
         let view_spec = primary_form_view_spec(&reference, &target, target_sha256)?;
         let comparison = self.prepare_reference_comparison(
             project_id,
@@ -1863,7 +1929,7 @@ fn boundary_error_segments_for_masks(
                 "candidate_id":prepared_candidate_id,
                 "reference_id":reference_id,
                 "view_spec":view_spec,
-                "camera":camera_ref,
+                "camera":selected_camera,
                 "target_sha256":target_sha256
             }),
         )?;
@@ -5575,6 +5641,14 @@ fn boundary_error_segments_for_masks(
                     .and_then(Value::as_str)
                     .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
                 self.silhouette_fit_prepare(project_id, payload.clone())
+            }
+            "primary_form_repair_prepare" => {
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                let base_version_id = payload.get("base_version_id").and_then(Value::as_str);
+                self.primary_form_repair_prepare(project_id, base_version_id, payload.clone())
             }
             "part_contour_fit_prepare" => {
                 let project_id = payload
@@ -9315,6 +9389,23 @@ fn apply_rig_parameter_to_node(
 }
 
 fn finalize_v2_geometry_program(mut draft: Value) -> Result<Value, RuntimeError> {
+    // Runtime-created float Values have not crossed the JSON IPC boundary
+    // yet. Serialize and parse once before hashing so the in-memory draft has
+    // exactly the same serde_json number representation that the isolated
+    // Geometry Worker receives. Without this normalization, the Worker can
+    // validate one canonical hash while Runtime stores a different byte hash
+    // for the same logical Rig edit.
+    draft = serde_json::from_slice(
+        &serde_json::to_vec(&draft)
+            .map_err(|error| RuntimeError::InvalidInput(format!(
+                "SILHOUETTE_FIT_GEOMETRY_FAILED: program serialization failed: {error}"
+            )))?,
+    )
+    .map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "SILHOUETTE_FIT_GEOMETRY_FAILED: program round-trip failed: {error}"
+        ))
+    })?;
     draft
         .as_object_mut()
         .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: program is not an object".to_owned()))?

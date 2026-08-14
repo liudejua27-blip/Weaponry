@@ -70,7 +70,7 @@ def main() -> int:
         "Shift 加左键框选",
         "ResizeObserver",
         "disposeObjectResources",
-        "forceContextLoss",
+        "renderer.dispose()",
         "selectedCandidateId",
         "AUTO_LATEST_CANDIDATE",
         "selectedObjectIds",
@@ -176,7 +176,16 @@ def main() -> int:
         raise SystemExit(f"Viewer must not re-derive Runtime quality gates: {leaked_local_quality_logic}")
     if "visualQualityReport?.hard_gate_passed === true &&" in source:
         raise SystemExit("Viewer must display Runtime hard_gate_passed without adding a local predicate")
-    style_tokens = [".contour-annotation-layer", "touch-action: none", "cursor: crosshair", ".compare-parameters", ".error-console", ".status-icon"]
+    style_tokens = [
+        ".contour-annotation-layer",
+        "touch-action: none",
+        "cursor: crosshair",
+        ".compare-parameters",
+        ".error-console",
+        ".status-icon",
+        ".viewport-crosshair",
+        ".runtime-shell .viewport-hints",
+    ]
     missing_styles = [token for token in style_tokens if token not in styles]
     if missing_styles:
         raise SystemExit(f"Viewer contour annotation styles are missing required tokens: {missing_styles}")

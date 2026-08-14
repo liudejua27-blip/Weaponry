@@ -42,6 +42,7 @@ AOV_ORDER = ("beauty", "silhouette", "depth", "normal", "ao", "part-id", "materi
 SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")
 AUTHORING_SEQUENCE = ("capabilities_get", "runtime_status", "doctor", "operator_catalog_get", "skill_list", "geometry_program_hash", "geometry_prepare")
 COMPARE_SEQUENCE = ("job_get", "candidate_get", "artifact_readback_get", "reference_compare_prepare")
+PRIMARY_FORM_REPAIR_SEQUENCE = ("primary_form_repair_prepare",)
 RENDER_SEQUENCE = AOV_ORDER
 REVIEW_SEQUENCE = ("visual_review_submit", "quality_get")
 SILHOUETTE_TARGET_SEQUENCE = ("reference_mask_prepare",)
@@ -91,6 +92,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run the Runtime-owned reference mask, camera fit and bounded SilhouetteRig proposal before comparison.",
     )
+    parser.add_argument(
+        "--primary-form-repair",
+        action="store_true",
+        help="After silhouette_fit_prepare, submit its single Runtime-owned intent to primary_form_repair_prepare and compare the staged candidate.",
+    )
     parser.add_argument("--timeout", type=float, default=360.0)
     parser.add_argument("--sandbox", choices=("read-only", "workspace-write"), default="workspace-write")
     parser.add_argument(
@@ -104,7 +110,10 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="stop after candidate-bound boundary_error_get and persist its typed Part summary; skip AOV/review calls",
     )
-    return parser.parse_args()
+    options = parser.parse_args()
+    if options.primary_form_repair and not options.silhouette_first:
+        parser.error("--primary-form-repair requires --silhouette-first")
+    return options
 
 
 def write_receipt(path: Path | None, receipt: dict[str, Any]) -> None:
@@ -707,6 +716,21 @@ This is candidate-bound evidence for project {json.dumps(project_id)}. Return on
 """
 
 
+def primary_form_repair_prompt(request: dict[str, Any]) -> str:
+    request_json = json.dumps(request, ensure_ascii=False, separators=(",", ":"))
+    return f"""Use the ForgeCAD MCP server now. Call exactly one tool, then stop:
+primary_form_repair_prepare with this exact JSON object: {request_json}
+
+This is the single Runtime-owned Primary Form repair action. It must consume the
+same target, camera reference, Rig and optimizer intent; do not call
+silhouette_fit_prepare again, do not edit any parameter, and do not call
+geometry_prepare, render, compare, confirm or export separately in this turn.
+Return the typed staged-candidate/evidence result only. A no_improvement result
+must leave the source candidate unchanged; neither result is user approval or a
+visual-quality pass.
+"""
+
+
 def authoring_draft(geometry_route: str, project_id: str, geometry_variant: str, material_variant: str) -> tuple[dict[str, Any], str]:
     if geometry_route == "detail":
         draft_value = robot_detail_program_draft(
@@ -936,6 +960,7 @@ def main() -> int:
     runtime: subprocess.Popen[str] | None = None
     turn_outputs: list[subprocess.CompletedProcess[str]] = []
     silhouette_fit_intent_sha: str | None = None
+    primary_form_repair_intent_sha: str | None = None
     partial_evidence: dict[str, Any] = {}
     try:
         with tempfile.TemporaryDirectory(dir="/tmp", prefix="fc10c-codex-") as temporary:
@@ -993,6 +1018,9 @@ def main() -> int:
             comparison_camera_canonical: str | None = None
             silhouette_rig_sha: str | None = None
             silhouette_fit_result: dict[str, Any] | None = None
+            primary_form_repair_result: dict[str, Any] | None = None
+            primary_form_repair_source_candidate_id: str | None = None
+            primary_form_repair_items: list[dict[str, Any]] = []
             selected_camera_for_compare: dict[str, Any] | None = None
             silhouette_items: list[dict[str, Any]] = []
             if options.silhouette_first:
@@ -1183,6 +1211,79 @@ def main() -> int:
                 # visible in the receipt instead of silently comparing a
                 # different camera than the one the fit optimized.
                 selected_camera_for_compare = fit_selected_camera
+
+                if options.primary_form_repair:
+                    authored_candidate_id = candidate_id
+                    repair_request = dict(fit_request)
+                    repair_request["base_version_id"] = None
+                    repair_request["canonical_sha256"] = ""
+                    repair_request["canonical_sha256"] = canonical_hash(
+                        normalize_numeric_representation(repair_request)
+                    )
+                    primary_form_repair_intent_sha = repair_request["canonical_sha256"]
+                    repair_items = run_required_codex_turn(
+                        options,
+                        environment,
+                        primary_form_repair_prompt(repair_request),
+                        str(root),
+                        PRIMARY_FORM_REPAIR_SEQUENCE,
+                        turn_outputs,
+                        "Primary Form repair",
+                    )
+                    primary_form_repair_items.extend(repair_items)
+                    primary_form_repair_result = structured_result(
+                        repair_items, "primary_form_repair_prepare"
+                    ) or {}
+                    if not has_subsequence(
+                        call_sequence(repair_items), PRIMARY_FORM_REPAIR_SEQUENCE
+                    ) or not all_completed(repair_items, PRIMARY_FORM_REPAIR_SEQUENCE):
+                        raise RuntimeError("Codex did not complete primary_form_repair_prepare")
+                    primary_form_repair_source_candidate_id = field(
+                        primary_form_repair_result, "source_candidate_id"
+                    )
+                    if primary_form_repair_source_candidate_id != authored_candidate_id:
+                        raise RuntimeError(
+                            "primary_form_repair_prepare source candidate drifted from authored candidate"
+                        )
+                    repair_status = field(primary_form_repair_result, "status")
+                    if repair_status == "prepared":
+                        prepared_result = field(primary_form_repair_result, "prepared_candidate") or {}
+                        prepared_candidate = field(prepared_result, "candidate") or {}
+                        prepared_job = field(prepared_result, "job") or {}
+                        prepared_artifact = field(prepared_result, "artifact") or {}
+                        staged_candidate_id = field(prepared_candidate, "candidate_id")
+                        staged_job_id = field(prepared_job, "job_id")
+                        staged_artifact_id = field(prepared_artifact, "artifact_id")
+                        staged_program_hash = field(prepared_artifact, "program_sha256") or field(
+                            primary_form_repair_result,
+                            "fit_result",
+                            "selected_geometry_program",
+                            "canonical_sha256",
+                        )
+                        if not all(
+                            isinstance(value, str) and len(value) > 0
+                            for value in (
+                                staged_candidate_id,
+                                staged_job_id,
+                                staged_artifact_id,
+                                staged_program_hash,
+                            )
+                        ):
+                            raise RuntimeError(
+                                "primary_form_repair_prepare did not return a complete staged candidate"
+                            )
+                        candidate_id = staged_candidate_id
+                        job_id = staged_job_id
+                        artifact_id = staged_artifact_id
+                        artifact = prepared_artifact
+                        program_hash = staged_program_hash
+                        selected_camera_for_compare = field(
+                            primary_form_repair_result, "fit_result", "selected_camera"
+                        ) or selected_camera_for_compare
+                    elif repair_status != "no_improvement":
+                        raise RuntimeError(
+                            "primary_form_repair_prepare returned an unsupported status"
+                        )
 
             spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
             third = run_codex_turn(
@@ -1449,6 +1550,37 @@ def main() -> int:
                 "validator_status": field(artifact, "validator_status"),
                 "render_set_hash": render_set_hash,
                 "comparison_report_hash": comparison_hash,
+                "primary_form_repair_requested": options.primary_form_repair,
+                "primary_form_repair_intent_sha256": primary_form_repair_intent_sha,
+                "primary_form_repair": {
+                    "status": field(primary_form_repair_result or {}, "status"),
+                    "quality_status": field(primary_form_repair_result or {}, "quality_status"),
+                    "candidate_state": field(primary_form_repair_result or {}, "candidate_state"),
+                    "source_candidate_id": primary_form_repair_source_candidate_id,
+                    "prepared_candidate_id": field(
+                        primary_form_repair_result or {},
+                        "visual_evidence",
+                        "candidate_id",
+                    ),
+                    "staged_render_set_hash": field(
+                        primary_form_repair_result or {},
+                        "visual_evidence",
+                        "render_set_hash",
+                    ),
+                    "staged_comparison_report_hash": field(
+                        primary_form_repair_result or {},
+                        "visual_evidence",
+                        "comparison_report_hash",
+                    ),
+                    "staged_quality_report_hash": field(
+                        primary_form_repair_result or {},
+                        "visual_evidence",
+                        "quality_report_hash",
+                    ),
+                    "fit_status": field(primary_form_repair_result or {}, "fit_result", "status"),
+                    "fit_evaluations": field(primary_form_repair_result or {}, "fit_result", "evaluations"),
+                    "fit_metrics": field(primary_form_repair_result or {}, "fit_result", "metrics"),
+                } if options.primary_form_repair else None,
                 "aov_order": list(AOV_ORDER),
                 "render_pass_calls": len(actual_render_passes),
                 "render_pass_order": actual_render_passes,
@@ -1473,6 +1605,7 @@ def main() -> int:
                     "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE) if options.silhouette_first else [],
                     "silhouette": list(SILHOUETTE_SEQUENCE) if options.silhouette_first else [],
                     "compare": list(COMPARE_SEQUENCE),
+                    "primary_form_repair": list(PRIMARY_FORM_REPAIR_SEQUENCE) if options.primary_form_repair else [],
                     "render": list(RENDER_SEQUENCE),
                     "review": list(REVIEW_SEQUENCE),
                 },
@@ -1514,6 +1647,7 @@ def main() -> int:
                     "target": [call.get("tool") for call in mcp_calls(target_items)] if options.silhouette_first else [],
                     "observation": [call.get("tool") for call in mcp_calls(silhouette_turn_items)] if options.silhouette_first else [],
                     "fit": [call.get("tool") for call in mcp_calls(fit_items)] if options.silhouette_first else [],
+                    "repair": [call.get("tool") for call in mcp_calls(primary_form_repair_items)] if options.primary_form_repair else [],
                 },
                 "canonical_observation": {
                     "schema_version": "AgenticSceneObserveResult@1",
