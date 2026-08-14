@@ -1,0 +1,35 @@
+project: DietrichGebert/ponytail
+source_url: https://github.com/DietrichGebert/ponytail
+revision: 2ed6c52c9d7e5e56942508591085fd45dea277d3
+identity: first-party-workflow-reimplementation
+upstream_version: 4.9.0
+license_spdx: MIT
+license_file_git_blob: 715d483338cea4365f0d91a27799cf61226d6bcf
+reviewed_source_files:
+  - skills/ponytail/SKILL.md@02c0712c86277d49d18a77da3a2b825657bf02d1
+  - skills/ponytail-review/SKILL.md@e137a855bd87119a4517895a1000a59b0999e1b8
+  - package.json@2ed6c52c9d7e5e56942508591085fd45dea277d3
+vendored_files: []
+patches: []
+target: ForgeCAD first-party ponytail-preflight@0.1.0 declarative Skill and MCP session-order gate
+accepted_principles:
+  - decide whether a change is necessary before adding a new path
+  - inspect and reuse current product-owned capability before creating a new one
+  - use the smallest typed action that preserves validation and evidence
+denied_capabilities:
+  - npm_install
+  - lifecycle_hooks
+  - upstream_mcp_server
+  - dynamic_code
+  - shell
+  - arbitrary_filesystem
+  - network_runtime
+  - geometry_truth_from_prompt_or_path
+security_tests:
+  - static review of package hooks and plugin entrypoints; not installed or executed
+  - MCP preflight order test blocks design tools until first-party Skill is read
+  - MCP006 bundle integrity rejects executable payloads and unregistered bundles
+lockfile_or_package_change: false
+runtime_dependency: false
+approval: accepted
+fallback_or_removal_plan: Remove the first-party preflight entry and MCP session policy together; no third-party dependency or user project data must be migrated.

@@ -24,6 +24,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const GEOMETRY_WORKER_BINARY: &str = "forgecad-geometry-worker";
+const RENDER_WORKER_BINARY: &str = "forgecad-render-worker";
 const WORKER_WALL_TIMEOUT: Duration = Duration::from_secs(10);
 // Darwin's `wait4(2)` reports `ru_maxrss` in bytes. This is deliberately a
 // post-hoc acceptance gate: it prevents an over-budget Worker result from
@@ -198,7 +199,8 @@ pub(crate) fn render_fixed(
     appearance_program: &Value,
 ) -> Result<Vec<RenderPass>, GeometryWorkerError> {
     let execution_budget = execution_budget_for_geometry_program(geometry_program);
-    let result = execute(
+    let result = execute_on_worker(
+        RENDER_WORKER_BINARY,
         "render_fixed",
         json!({
             "geometry_program":geometry_program,
@@ -263,7 +265,8 @@ pub(crate) fn render_glb(
         return Err(GeometryWorkerError::Protocol);
     }
     let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, glb);
-    let result = execute(
+    let result = execute_on_worker(
+        RENDER_WORKER_BINARY,
         "render_glb",
         json!({"glb_base64":encoded,"camera":camera}),
         DEFAULT_EXECUTION_BUDGET,
@@ -345,7 +348,23 @@ pub(crate) fn render_glb_fit_batch(
     glb: &[u8],
     cameras: &[Value],
 ) -> Result<Vec<Vec<RenderPass>>, GeometryWorkerError> {
+    render_glb_fit_batch_at_resolution(glb, cameras, 128)
+}
+
+/// Render a bounded silhouette/Part-ID batch at the requested fixed
+/// resolution.  128px is the transient search path; 512px is used only for
+/// the small post-ranking camera verification set.  Both paths share one
+/// isolated Render Worker process so the Runtime does not pay one process
+/// launch per camera candidate.
+pub(crate) fn render_glb_fit_batch_at_resolution(
+    glb: &[u8],
+    cameras: &[Value],
+    resolution: u32,
+) -> Result<Vec<Vec<RenderPass>>, GeometryWorkerError> {
     if glb.is_empty() || glb.len() > 64 * 1024 * 1024 || cameras.is_empty() || cameras.len() > 64 {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    if !matches!(resolution, 128 | 512) {
         return Err(GeometryWorkerError::Protocol);
     }
     #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
@@ -353,7 +372,7 @@ pub(crate) fn render_glb_fit_batch(
         cameras
             .iter()
             .map(|camera| {
-                forgecad_geometry_worker::render_perspective_glb_fit_at_resolution(glb, camera, 128)
+                forgecad_geometry_worker::render_perspective_glb_fit_at_resolution(glb, camera, resolution)
                     .map(|passes| {
                         passes
                             .into_iter()
@@ -370,9 +389,10 @@ pub(crate) fn render_glb_fit_batch(
             .collect::<Result<Vec<_>, _>>()
     };
     let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, glb);
-    let result = match execute(
+    let result = match execute_on_worker(
+        RENDER_WORKER_BINARY,
         "render_glb_fit_batch",
-        json!({"glb_base64":encoded,"cameras":cameras,"resolution":128}),
+        json!({"glb_base64":encoded,"cameras":cameras,"resolution":resolution}),
         DEFAULT_EXECUTION_BUDGET,
     ) {
         Ok(result) => result,
@@ -387,8 +407,8 @@ pub(crate) fn render_glb_fit_batch(
     )?;
     if object.get("schema_version").and_then(Value::as_str)
         != Some("RenderWorkerFitBatchResult@1")
-        || object.get("width").and_then(Value::as_u64) != Some(128)
-        || object.get("height").and_then(Value::as_u64) != Some(128)
+        || object.get("width").and_then(Value::as_u64) != Some(resolution as u64)
+        || object.get("height").and_then(Value::as_u64) != Some(resolution as u64)
         || object.get("renderer_revision").and_then(Value::as_str) != Some("forgecad-renderer-2")
     {
         return Err(GeometryWorkerError::Protocol);
@@ -417,8 +437,8 @@ pub(crate) fn render_glb_fit_batch(
             require_exact_keys(pass, &["pass", "mime", "width", "height", "png_base64"])?;
             if pass.get("pass").and_then(Value::as_str) != Some(expected_name)
                 || pass.get("mime").and_then(Value::as_str) != Some("image/png")
-                || pass.get("width").and_then(Value::as_u64) != Some(128)
-                || pass.get("height").and_then(Value::as_u64) != Some(128)
+                || pass.get("width").and_then(Value::as_u64) != Some(resolution as u64)
+                || pass.get("height").and_then(Value::as_u64) != Some(resolution as u64)
             {
                 return Err(GeometryWorkerError::Protocol);
             }
@@ -432,14 +452,14 @@ pub(crate) fn render_glb_fit_batch(
                 encoded.as_bytes(),
             )
             .map_err(|_| GeometryWorkerError::Protocol)?;
-            if png.is_empty() || png.len() > 4 * 1024 * 1024 || !png.starts_with(b"\x89PNG\r\n\x1a\n") {
+            if png.is_empty() || png.len() > 16 * 1024 * 1024 || !png.starts_with(b"\x89PNG\r\n\x1a\n") {
                 return Err(GeometryWorkerError::Protocol);
             }
             passes.push(RenderPass {
                 pass: expected_name.to_owned(),
                 png,
-                width: 128,
-                height: 128,
+                width: resolution,
+                height: resolution,
             });
         }
         output.push(passes);
@@ -448,6 +468,20 @@ pub(crate) fn render_glb_fit_batch(
 }
 
 fn execute(
+    operation: &str,
+    payload: Value,
+    execution_budget: ExecutionBudget,
+) -> Result<Value, GeometryWorkerError> {
+    execute_on_worker(
+        GEOMETRY_WORKER_BINARY,
+        operation,
+        payload,
+        execution_budget,
+    )
+}
+
+fn execute_on_worker(
+    worker_binary: &str,
     operation: &str,
     payload: Value,
     execution_budget: ExecutionBudget,
@@ -462,7 +496,12 @@ fn execute(
     if input.is_empty() || input.len() > MAX_WORKER_REQUEST_BYTES {
         return Err(GeometryWorkerError::Protocol);
     }
-    let child = spawn_fixed_worker(&["--isolated-once"], input, execution_budget.wall_timeout)?;
+    let child = spawn_fixed_worker(
+        worker_binary,
+        &["--isolated-once"],
+        input,
+        execution_budget.wall_timeout,
+    )?;
     accept_completed_worker(&child, execution_budget.accepted_peak_rss_budget_bytes)?;
     // The post-hoc peak-RSS gate above intentionally runs before parsing the
     // child output. A result that exceeded the budget therefore cannot become
@@ -586,11 +625,12 @@ struct CollectedChild {
 
 #[cfg(target_os = "macos")]
 fn spawn_fixed_worker(
+    worker_binary: &str,
     args: &[&str],
     input: Vec<u8>,
     wall_timeout: Duration,
 ) -> Result<CollectedChild, GeometryWorkerError> {
-    let worker = resolve_fixed_worker()?;
+    let worker = resolve_fixed_worker(worker_binary)?;
     let WorkerPipes {
         stdin_read,
         stdin_write,
@@ -646,6 +686,7 @@ fn spawn_fixed_worker(
 
 #[cfg(not(target_os = "macos"))]
 fn spawn_fixed_worker(
+    _worker_binary: &str,
     _args: &[&str],
     _input: Vec<u8>,
     _wall_timeout: Duration,
@@ -654,15 +695,15 @@ fn spawn_fixed_worker(
 }
 
 #[cfg(target_os = "macos")]
-fn resolve_fixed_worker() -> Result<PathBuf, GeometryWorkerError> {
+fn resolve_fixed_worker(worker_binary: &str) -> Result<PathBuf, GeometryWorkerError> {
     let executable = std::env::current_exe().map_err(|_| GeometryWorkerError::Unavailable)?;
     let parent = executable
         .parent()
         .ok_or(GeometryWorkerError::Unavailable)?;
-    let mut candidates = vec![parent.join(GEOMETRY_WORKER_BINARY)];
+    let mut candidates = vec![parent.join(worker_binary)];
     if parent.file_name().is_some_and(|value| value == "deps") {
         if let Some(grandparent) = parent.parent() {
-            candidates.push(grandparent.join(GEOMETRY_WORKER_BINARY));
+            candidates.push(grandparent.join(worker_binary));
         }
     }
     for candidate in candidates {
@@ -963,7 +1004,12 @@ fn exit_code(status: libc::c_int) -> i32 {
 
 #[cfg(test)]
 pub(crate) fn test_worker_mode(args: &[&str]) -> Result<(i32, Vec<u8>), GeometryWorkerError> {
-    let child = spawn_fixed_worker(args, Vec::new(), DEFAULT_EXECUTION_BUDGET.wall_timeout)?;
+    let child = spawn_fixed_worker(
+        GEOMETRY_WORKER_BINARY,
+        args,
+        Vec::new(),
+        DEFAULT_EXECUTION_BUDGET.wall_timeout,
+    )?;
     Ok((child.exit_code, child.stdout))
 }
 
@@ -972,7 +1018,12 @@ pub(crate) fn test_worker_raw(
     args: &[&str],
     input: Vec<u8>,
 ) -> Result<(i32, Vec<u8>), GeometryWorkerError> {
-    let child = spawn_fixed_worker(args, input, DEFAULT_EXECUTION_BUDGET.wall_timeout)?;
+    let child = spawn_fixed_worker(
+        GEOMETRY_WORKER_BINARY,
+        args,
+        input,
+        DEFAULT_EXECUTION_BUDGET.wall_timeout,
+    )?;
     Ok((child.exit_code, child.stdout))
 }
 
@@ -981,7 +1032,12 @@ fn test_worker_mode_with_timeout(
     args: &[&str],
     wall_timeout: Duration,
 ) -> Result<(i32, Vec<u8>), GeometryWorkerError> {
-    let child = spawn_fixed_worker(args, Vec::new(), wall_timeout)?;
+    let child = spawn_fixed_worker(
+        GEOMETRY_WORKER_BINARY,
+        args,
+        Vec::new(),
+        wall_timeout,
+    )?;
     Ok((child.exit_code, child.stdout))
 }
 

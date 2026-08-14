@@ -1,0 +1,14 @@
+{
+  "fixture_sha256": "8e93b9be0852135403faaff8203166609ceede80a10c571a0f6a40fe7b19dd22",
+  "metrics": {
+    "declarative_plan_validation": 1,
+    "fixtures": 2,
+    "forbidden_capabilities": 0
+  },
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "ponytail-preflight",
+  "status": "passed",
+  "suite_id": "ponytail-preflight-smoke",
+  "version": "0.1.0"
+}

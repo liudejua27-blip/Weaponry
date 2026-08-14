@@ -1,0 +1,2 @@
+# Product-owned operator lock; this bundle contains no executable operator.
+forgecad.design.preflight@1 = forgecad-runtime-builtin

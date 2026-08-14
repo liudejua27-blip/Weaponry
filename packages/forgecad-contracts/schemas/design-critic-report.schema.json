@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-critic-report.schema.json",
+  "title": "DesignCriticReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "reference_id",
+    "reference_sha256",
+    "camera_hash",
+    "evidence_sha256",
+    "stage",
+    "quality_status",
+    "gate_status",
+    "summary",
+    "issues",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "DesignCriticReport@1"},
+    "report_id": {"$ref": "#/$defs/identifier"},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "stage": {"$ref": "#/$defs/stage"},
+    "quality_status": {"$ref": "#/$defs/quality_status"},
+    "gate_status": {"enum": ["pass", "fail", "unknown"]},
+    "summary": {"$ref": "#/$defs/safe_text"},
+    "issues": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/issue"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_identifier": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+          {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "quality_status": {
+      "enum": [
+        "PARTIAL_VISIBLE_VIEW_PASS",
+        "QUALITY_TARGET_NOT_MET",
+        "BLOCKED_REFERENCE_COVERAGE",
+        "not-run"
+      ]
+    },
+    "visibility": {
+      "enum": ["observed", "inferred", "unknown"]
+    },
+    "scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "part_id"],
+          "properties": {
+            "kind": {"const": "part"},
+            "part_id": {"$ref": "#/$defs/identifier"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "material_zone_id"],
+          "properties": {
+            "kind": {"const": "material-zone"},
+            "material_zone_id": {"$ref": "#/$defs/identifier"}
+          }
+        }
+      ]
+    },
+    "metric_name": {
+      "enum": [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "bbox_edge_error",
+        "centroid_error",
+        "landmark_coverage",
+        "landmark_nme",
+        "region_median_iou",
+        "critical_region_min_iou",
+        "triangle_count",
+        "material_zone_coverage",
+        "uv_stretch"
+      ]
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_name", "observed", "threshold", "unit", "direction", "visibility", "confidence", "evidence_sha256"],
+      "properties": {
+        "metric_name": {"$ref": "#/$defs/metric_name"},
+        "observed": {"type": ["number", "null"], "minimum": 0, "maximum": 1000000},
+        "threshold": {"type": "number", "minimum": 0, "maximum": 1000000},
+        "unit": {"enum": ["ratio", "normalized", "pixel", "count"]},
+        "direction": {"enum": ["minimum", "maximum"]},
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {
+            "properties": {
+              "observed": {"const": null},
+              "confidence": {"const": 0}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"visibility": {"enum": ["observed", "inferred"]}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"observed": {"type": "number"}}}
+        }
+      ]
+    },
+    "kit_id": {
+      "enum": [
+        "forgecad.kit.housing@1",
+        "forgecad.kit.panel@1",
+        "forgecad.kit.vent@1",
+        "forgecad.kit.joint@1",
+        "forgecad.kit.sensor@1",
+        "forgecad.kit.frame@1",
+        "forgecad.kit.handle@1",
+        "forgecad.kit.foot@1",
+        "forgecad.kit.wheel@1",
+        "forgecad.kit.fastener@1",
+        "forgecad.kit.cable@1",
+        "forgecad.kit.light@1"
+      ]
+    },
+    "operator_id": {
+      "enum": [
+        "forgecad.geometry.primitive@2",
+        "forgecad.geometry.profile-extrude@1",
+        "forgecad.geometry.profile-loft@1",
+        "forgecad.geometry.revolve@1",
+        "forgecad.geometry.tube-sweep@1",
+        "forgecad.geometry.transform@2",
+        "forgecad.geometry.mirror@1",
+        "forgecad.geometry.array@1",
+        "forgecad.geometry.panel@1",
+        "forgecad.geometry.vent-array@1",
+        "forgecad.geometry.joint-stack@1",
+        "forgecad.geometry.part-output@1"
+      ]
+    },
+    "proposed_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_kind", "kit_id", "operator_id", "parameter_id", "minimum", "maximum", "bounded", "description"],
+      "properties": {
+        "action_kind": {"enum": ["bounded-repair", "request-reference"]},
+        "kit_id": {"type": ["string", "null"], "enum": [null, "forgecad.kit.housing@1", "forgecad.kit.panel@1", "forgecad.kit.vent@1", "forgecad.kit.joint@1", "forgecad.kit.sensor@1", "forgecad.kit.frame@1", "forgecad.kit.handle@1", "forgecad.kit.foot@1", "forgecad.kit.wheel@1", "forgecad.kit.fastener@1", "forgecad.kit.cable@1", "forgecad.kit.light@1"]},
+        "operator_id": {"type": ["string", "null"], "enum": [null, "forgecad.geometry.primitive@2", "forgecad.geometry.profile-extrude@1", "forgecad.geometry.profile-loft@1", "forgecad.geometry.revolve@1", "forgecad.geometry.tube-sweep@1", "forgecad.geometry.transform@2", "forgecad.geometry.mirror@1", "forgecad.geometry.array@1", "forgecad.geometry.panel@1", "forgecad.geometry.vent-array@1", "forgecad.geometry.joint-stack@1", "forgecad.geometry.part-output@1"]},
+        "parameter_id": {"$ref": "#/$defs/nullable_identifier"},
+        "minimum": {"type": ["number", "null"], "minimum": -1000, "maximum": 1000},
+        "maximum": {"type": ["number", "null"], "minimum": -1000, "maximum": 1000},
+        "bounded": {"const": true},
+        "description": {"$ref": "#/$defs/safe_text"}
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issue_id", "scope", "claim", "metric", "risk", "status", "repair_intent_id", "repair_intent_sha256", "proposed_action"],
+      "properties": {
+        "issue_id": {"$ref": "#/$defs/identifier"},
+        "scope": {"$ref": "#/$defs/scope"},
+        "claim": {"$ref": "#/$defs/safe_text"},
+        "metric": {"$ref": "#/$defs/metric"},
+        "risk": {"enum": ["low", "medium", "high", "blocking"]},
+        "status": {"enum": ["pass", "fail", "unknown"]},
+        "repair_intent_id": {"$ref": "#/$defs/nullable_identifier"},
+        "repair_intent_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "proposed_action": {"$ref": "#/$defs/proposed_action"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"repair_intent_id": {"const": null}},
+            "required": ["repair_intent_id"]
+          },
+          "then": {"properties": {"repair_intent_sha256": {"const": null}}},
+          "else": {"properties": {"repair_intent_sha256": {"$ref": "#/$defs/sha256"}}}
+        }
+      ]
+    }
+  }
+}

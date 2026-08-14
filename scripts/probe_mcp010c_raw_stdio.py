@@ -249,9 +249,27 @@ def main() -> int:
 
         listed = client.request("tools/list")
         tools = listed.get("result", {}).get("tools")
-        require(isinstance(tools, list) and len(tools) == 37, "C source tool manifest did not expose 21 read + 16 write tools")
+        require(isinstance(tools, list) and len(tools) == 56, "C source tool manifest did not expose 35 read + 21 write tools")
         render_tool = next((tool for tool in tools if tool.get("name") == "render_pass_get"), None)
         require(isinstance(render_tool, dict) and render_tool.get("annotations", {}).get("readOnlyHint") is True, "render_pass_get was not read-only")
+
+        preflight = client.tool(
+            "skill_get",
+            {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+        )
+        preflight_skill = preflight.get("skill") if isinstance(preflight, dict) else None
+        preflight_knowledge = preflight.get("knowledge") if isinstance(preflight, dict) else None
+        require(
+            isinstance(preflight_skill, dict)
+            and preflight_skill.get("skill_id") == "ponytail-preflight"
+            and preflight_skill.get("version") == "0.1.0"
+            and isinstance(preflight_skill.get("canonical_sha256"), str)
+            and len(preflight_skill["canonical_sha256"]) == 64
+            and isinstance(preflight_knowledge, dict)
+            and isinstance(preflight_knowledge.get("canonical_sha256"), str)
+            and len(preflight_knowledge["canonical_sha256"]) == 64,
+            "ponytail preflight was not read before ForgeCAD design tools",
+        )
 
         project = client.tool("project_create", {"name": "MCP010C isolated visual loop", "policy": {"profile": "mvp"}})
         project_id = project.get("project_id") if isinstance(project, dict) else None
@@ -473,7 +491,8 @@ def main() -> int:
             "task_id": "FGC-MCP010C",
             "status": "PASS",
             "protocol_version": MCP_PROTOCOL_VERSION,
-            "tool_count": 37,
+            "tool_count": 56,
+            "ponytail_preflight": "PASS",
             "fixed_renderer": "512x512-perspective-zbuffer-deterministic",
             "aov_count": 9,
             "aov_order": render_set["passes"],

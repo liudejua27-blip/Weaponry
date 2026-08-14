@@ -1,0 +1,39 @@
+{
+  "task_id": "FGC-MCP006",
+  "record_type": "deprecated-skill-isolation-audit",
+  "status": "PASS",
+  "scope": "active Skill directory isolation only; not a geometry, visual-quality, package, or release gate",
+  "active_registry": {
+    "skill_count": 12,
+    "registry_path": "packages/forgecad-skills/registry.json"
+  },
+  "archived": [
+    {
+      "skill": "reference-to-typed-plan@0.1.0",
+      "replacement": "materialized-mcp006-bundles",
+      "archive_path": "packages/forgecad-skills/archive/superseded/reference-to-typed-plan/0.1.0",
+      "tree_sha256": "d12e69cbceac04da9c1386645a083e32a39f370c60be9e41038f7d43a63e596f"
+    },
+    {
+      "skill": "hard-surface-detail@0.1.0",
+      "replacement": "hard-surface-detail@0.2.0",
+      "archive_path": "packages/forgecad-skills/archive/superseded/hard-surface-detail/0.1.0",
+      "tree_sha256": "98a38f2b44a11962efe9a8bf201990825864f118ab2683f6a582a0512a2521aa"
+    },
+    {
+      "skill": "uv-pbr@0.1.0",
+      "replacement": "uv-pbr@0.2.0",
+      "archive_path": "packages/forgecad-skills/archive/superseded/uv-pbr/0.1.0",
+      "tree_sha256": "1e851aca170e665bf0618a61d316ae88d063749b2528036083fd374e0872563f"
+    }
+  ],
+  "controls": [
+    "Runtime build embeds only registry-declared Bundle versions.",
+    "MCP006 Skill gate rejects unregistered versions in packages/forgecad-skills/bundles.",
+    "Archive manifest verifies the preserved Bundle tree hashes."
+  ],
+  "limitations": [
+    "This audit does not change the active 12-Skill capability count.",
+    "This audit does not prove visual quality, human review, packaged Viewer E2E, or release readiness."
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": "ForgeCADViewerContourDraft@2",
+  "coordinate_space": "normalized_reference_image",
+  "points": [
+    {"x": 0.387, "y": 0.273},
+    {"x": 0.344, "y": 0.282},
+    {"x": 0.307, "y": 0.318},
+    {"x": 0.286, "y": 0.367},
+    {"x": 0.289, "y": 0.420},
+    {"x": 0.317, "y": 0.462},
+    {"x": 0.361, "y": 0.480},
+    {"x": 0.404, "y": 0.468},
+    {"x": 0.431, "y": 0.430},
+    {"x": 0.439, "y": 0.383},
+    {"x": 0.424, "y": 0.331}
+  ],
+  "closed": true,
+  "transient_only": true,
+  "runtime_write": false,
+  "source_pass": "silhouette",
+  "selected_part_id": "shoulder-armor-left",
+  "selected_material_zone_id": "zone-white-shell",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "annotation_status": "MANUALLY_DERIVED_FROM_USER_AUTHORIZED_REFERENCE",
+  "annotation_confidence": "medium"
+}

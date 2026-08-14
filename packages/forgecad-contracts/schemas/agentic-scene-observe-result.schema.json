@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/agentic-scene-observe-result.schema.json",
+  "title": "Agentic Scene Observe Result",
+  "type": "object",
+  "additionalProperties": false,
+  "x-forgecad-contract-role": "transport-projection",
+  "x-forgecad-projection-only": true,
+  "properties": {
+    "schema_version": {"const": "AgenticSceneObserveResult@1"},
+    "projection_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/projection_status"},
+    "read_only": {"const": true},
+    "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "candidate_selection": {"enum": ["explicit_candidate_id", "active_snapshot", "latest_candidate_when_no_active_snapshot"]},
+    "project": {"$ref": "https://forgecad.local/contracts/project.schema.json"},
+    "snapshot": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/snapshot.schema.json"}
+      ]
+    },
+    "candidate": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/candidate.schema.json"}
+      ]
+    },
+    "semantic_scene_graph": {"$ref": "https://forgecad.local/contracts/semantic-scene-graph-projection.schema.json"},
+    "model_understanding_bundle": {"$ref": "https://forgecad.local/contracts/model-understanding-bundle-projection.schema.json"},
+    "reference_canvas": {"$ref": "https://forgecad.local/contracts/reference-canvas-projection.schema.json"},
+    "visual_evidence_bundle": {"$ref": "https://forgecad.local/contracts/visual-evidence-bundle-projection.schema.json"},
+    "quality": {"$ref": "https://forgecad.local/contracts/agentic-quality-projection.schema.json"},
+    "design_session": {"$ref": "https://forgecad.local/contracts/design-session-projection.schema.json"},
+    "design_stage_plan": {"$ref": "https://forgecad.local/contracts/design-stage-plan-projection.schema.json"},
+    "design_critic_report": {"$ref": "https://forgecad.local/contracts/design-critic-report-projection.schema.json"},
+    "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"},
+    "canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
+  },
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "project_id",
+    "candidate_id",
+    "candidate_selection",
+    "project",
+    "snapshot",
+    "candidate",
+    "semantic_scene_graph",
+    "model_understanding_bundle",
+    "reference_canvas",
+    "visual_evidence_bundle",
+    "quality",
+    "design_session",
+    "design_stage_plan",
+    "design_critic_report",
+    "lineage",
+    "canonical_sha256"
+  ]
+}

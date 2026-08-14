@@ -1,0 +1,7 @@
+ForgeCAD first-party MVP Skill registry. No third-party source, executable,
+model weight, texture or remote asset is bundled. GitHub inspiration and
+license decisions are recorded in docs/evidence/mcp005/github-skills-audit.md.
+
+Bundle: ponytail-preflight@0.1.0
+Workflow source studied: DietrichGebert/ponytail at 2ed6c52c9d7e5e56942508591085fd45dea277d3 (MIT).
+No upstream source code, package, hook, MCP server or executable payload is included.

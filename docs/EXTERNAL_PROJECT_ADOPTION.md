@@ -1,7 +1,7 @@
 # 外部项目、Blender 与 GitHub 采用清单
 
 版本：2026-08-13
-状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 已以受限 Worker Library 进入 Cargo.lock；xatlas、Manifold、Khronos Validator 和其他第三方仍未进入产品真值。ADR-0026 新增 Pi Agent、Omniverse Kit、OpenUSD、FreeCAD、build123d/CadQuery、BlenderMCP、Trimesh、MaterialX、TRELLIS.2/Hunyuan3D 的研究边界；除既有 `mikktspace@0.3.0` 外均未 adopted。
+状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 已以受限 Worker Library 进入 Cargo.lock；xatlas、Manifold、Khronos Validator 和其他第三方仍未进入产品真值。ADR-0026 新增 Pi Agent、Omniverse Kit、OpenUSD、FreeCAD、build123d/CadQuery、BlenderMCP、Trimesh、MaterialX、TRELLIS.2/Hunyuan3D 的研究边界；用户另授权 Luna 对 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 进行冻结 revision 的选择性源文件研究。除既有 `mikktspace@0.3.0` 外均未 adopted。
 
 ## 1. 采用规则
 
@@ -12,9 +12,11 @@
 3. **Asset**：逐资产许可证、hash、作者和来源回执；
 4. **Reference only**：只学习算法或交互，不复制代码/资产。
 
+“受控源文件研究”不是第五种产品身份，而是 adoption 前的隔离流程：它只允许经过用户授权、冻结 revision、逐文件 receipt 的上游文件进入非产品研究缓存。它不改变 `Reference only` 的产品边界，也不等于 Library、Tool/Worker 或 Asset 已被采用。
+
 每项必须通过：维护活跃度、许可证/例外、依赖 SBOM、恶意输入、确定性、资源上限、平台打包、性能、替代/退出策略和 Benchmark。禁止整仓复制、自动运行安装脚本、拉取模型权重、执行 arbitrary Python/JavaScript、在 Runtime 内起不受控网络服务或让第三方格式成为第二真值。
 
-采用状态只允许：`approved-for-evaluation | accepted | deferred | reference-only | rejected`。只有 `accepted` 且有精确 revision receipt 的项目才能改 lockfile/安装包。本文件当前只有受限范围的 `mikktspace@0.3.0` 为 `accepted`。
+产品采用状态只允许：`approved-for-evaluation | accepted | deferred | reference-only | rejected`。研究 receipt 可以额外标为 `research-authorized`，但它不属于产品采用状态。只有作为依赖或二进制采用的 `accepted` 项目才能改 lockfile/安装包。本文件当前只有受限范围的 `mikktspace@0.3.0` 为 accepted dependency；`ponytail-preflight` 是另行记录的 accepted first-party workflow rewrite，不含上游代码或依赖。
 
 ## 2. MVP approved-for-evaluation
 
@@ -46,6 +48,32 @@ ForgeCAD 已把这些原则映射到自己的边界：`GeometryProgram@2`/semant
 - [`jpcy/xatlas`](https://github.com/jpcy/xatlas)：学习 chart segmentation、atlas packing 和 seams/texel density 的可验证输出；当前仍 `approved-for-evaluation`，没有把未验证的第三方 unwrap 写入产品包。
 - [`microsoft/TRELLIS`](https://github.com/microsoft/TRELLIS)：确认 image-conditioned mesh/GLB 是提升单图前脸细节的潜在路线，但其权重、CUDA/conda 依赖和 GPU 运行时与 ForgeCAD 离线、无内置模型的 MVP 边界冲突，因此只保留为未来明确 opt-in 的 external-base-mesh 研究，不下载权重、不接入 Runtime。
 
+### 2.3 Luna GitHub 受控复刻授权（2026-08-13）
+
+用户已授权 Luna 围绕 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 做重点研究、学习和选择性源文件复刻。授权的实际操作、冻结 commit、候选文件、许可证文件 Git blob、禁止能力和后续 Gate 由 `docs/LUNA_GITHUB_REPLICATION_PLAYBOOK.md` 与五份 `docs/evidence/adoption/<project>/<revision>.yaml` 共同定义。
+
+| 项目 | 当前研究处置 | 允许产物 | 明确不允许 |
+|---|---|---|---|
+| build123d | `research-authorized` | Parametric Design Kit 的自有 schema/Rust rewrite | Python/OCCT/VTK/Jupyter 进入 Runtime |
+| CadQuery | `research-authorized` | bounded selector/Sketch/assembly intent 的自有设计 | CadQuery/OCP script、GUI 或 FreeCAD binding |
+| BlenderMCP | `research-authorized`，仅安全/协议研究 | read-only observe、render evidence、tool receipt 的自有合同 | Blender Python、`exec()`、socket、遥测、网络资产 API |
+| Manifold | `research-authorized` | C API/FFI 的隔离 benchmark 设计 | 自动构建、直接启用 `boolean@1` 或写 Runtime state |
+| MaterialX | `research-authorized` | MaterialZone/PBR graph translator 的自有 schema | shader/render/Viewer/JS/Python runtime 引入 |
+
+研究副本只允许存放于受控 adoption cache 或 quarantine，不能提交为 active 模块。`vendored_files` 在这五份 receipt 中仍为空，表示本轮只完成研究快照和操作授权，尚未复制任何上游源码到产品树。
+
+### 2.4 Ponytail 前置工作流重写（2026-08-13）
+
+[`DietrichGebert/ponytail`](https://github.com/DietrichGebert/ponytail) 在固定
+`2ed6c52c9d7e5e56942508591085fd45dea277d3` revision、MIT 许可证下被接受为
+**workflow reference only**。ForgeCAD 只重写了“必要性 → 复用既有能力 → 最小
+typed action”的决策顺序，落地为 first-party `ponytail-preflight@0.1.0` 和 MCP
+session-order policy；详见其 receipt 与 `CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`。
+
+没有复制或运行上游 Source，没有修改 Cargo/npm lockfile，没有安装其 Node package、
+lifecycle hook 或 MCP server。该 accepted receipt 不是可分发 third-party dependency，
+也不把引用 Skill、bundle integrity 或会话顺序升级为几何/视觉质量通过。
+
 ## 3. Deferred / benchmark-first
 
 | 项目 | 用途 | 决策理由 |
@@ -72,7 +100,7 @@ ForgeCAD 已把这些原则映射到自己的边界：`GeometryProgram@2`/semant
 | [build123d](https://github.com/gumyr/build123d) / [CadQuery](https://github.com/CadQuery/cadquery) | AI 友好的参数化 CAD API、OCCT/BREP modeling style | reference-only；当前只映射为 Parametric Design Kit typed JSON macro，不执行任意 Python/CadQuery script |
 | TripoSR / [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) / [Hunyuan3D](https://github.com/tencent-hunyuan/hunyuan3d-2.1) / 其他 image-to-3D | draft mesh、候选导入合同、PBR draft research | rejected for MVP / future opt-in research；不内置权重/GPU/远程 3D Provider，不能直接 confirm/export，未来另立 ADR |
 
-Reference only 必须保存研究链接和自研设计理由，但不复制源文件、提示词包或素材。
+普通 `Reference only` 必须保存研究链接和自研设计理由，但不复制源文件、提示词包或素材。第 2.3 节五个指定项目是唯一例外：Luna 可以依照受控复刻手册把精确文件放入研究缓存；它们仍不得进入 active 模块、Skill、Runtime、lockfile 或安装包。
 
 ## 5. 材质与 HDRI 资产候选
 

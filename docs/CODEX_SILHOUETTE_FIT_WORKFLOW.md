@@ -8,6 +8,8 @@
 
 单张三分之四参考仍然不能证明背面、脚部或完整 360°。未知区域必须标记 `unknown/inferred`，不能由 Codex 猜测后写成观察事实。
 
+ADR-0026 后，本工作流是 `primary-form` stage 的当前实现切片：轮廓/比例未过时，`secondary-structure`、`tertiary-detail`、`uv-pbr` 和 export 都保持锁定。未来 `DesignStagePlan@1` 会把这个锁定关系变成 Runtime-owned stage projection；当前仍由本手册和 `QualityReport@2` 约束。
+
 ## 当前可调用闭环
 
 1. `reference_import`：Codex 先确认用户授权，把图片字节写入 Runtime CAS。不得传原图路径、URL、secret 或未经授权文件。

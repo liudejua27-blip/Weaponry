@@ -8,6 +8,11 @@ fn viewer_read_model() -> serde_json::Value {
 }
 
 #[tauri::command]
+fn viewer_read_model_summary() -> serde_json::Value {
+    viewer::read_model_summary()
+}
+
+#[tauri::command]
 fn viewer_artifact_bytes(artifact_id: String, candidate_id: String) -> serde_json::Value {
     viewer::read_artifact_bytes(&artifact_id, &candidate_id)
 }
@@ -25,6 +30,16 @@ fn viewer_render_pass(render_set_hash: String, pass: String) -> serde_json::Valu
 #[tauri::command]
 fn viewer_visual_evidence(candidate_id: String) -> serde_json::Value {
     viewer::read_visual_evidence(&candidate_id)
+}
+
+#[tauri::command]
+fn viewer_agentic_projection(project_id: String, candidate_id: String) -> serde_json::Value {
+    viewer::read_agentic_projection(&project_id, &candidate_id)
+}
+
+#[tauri::command]
+fn viewer_agentic_session(project_id: String, candidate_id: String) -> serde_json::Value {
+    viewer::read_agentic_session(&project_id, &candidate_id)
 }
 
 fn main() {
@@ -50,10 +65,13 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             viewer_read_model,
+            viewer_read_model_summary,
             viewer_artifact_bytes,
             viewer_reference_bytes,
             viewer_render_pass,
-            viewer_visual_evidence
+            viewer_visual_evidence,
+            viewer_agentic_projection,
+            viewer_agentic_session
         ])
         .run(tauri::generate_context!())
         .expect("failed to run ForgeCAD Runtime Viewer");

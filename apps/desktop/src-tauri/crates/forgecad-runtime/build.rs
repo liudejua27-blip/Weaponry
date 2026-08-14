@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -7,6 +8,17 @@ const ARCHIVE_MAGIC: &[u8; 8] = b"FCBNDL01";
 const MAX_ARCHIVE_FILES: usize = 512;
 const MAX_ARCHIVE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_ARTIFACT_BYTES: usize = 256 * 1024;
+
+#[derive(Deserialize)]
+struct SkillRegistry {
+    skills: Vec<RegistrySkill>,
+}
+
+#[derive(Deserialize)]
+struct RegistrySkill {
+    skill_id: String,
+    version: String,
+}
 
 fn collect_files(root: &Path, prefix: &Path, files: &mut Vec<(String, Vec<u8>)>) {
     let entries = fs::read_dir(root).unwrap_or_else(|error| {
@@ -71,12 +83,67 @@ fn collect_files(root: &Path, prefix: &Path, files: &mut Vec<(String, Vec<u8>)>)
     }
 }
 
+fn valid_bundle_component(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && !value.contains("..")
+        && value.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'-')
+        })
+}
+
+fn active_bundle_dirs(skill_bundles: &Path, registry_path: &Path) -> Vec<PathBuf> {
+    let registry_bytes = fs::read(registry_path).unwrap_or_else(|error| {
+        panic!(
+            "cannot read Skill registry {}: {error}",
+            registry_path.display()
+        )
+    });
+    let registry: SkillRegistry = serde_json::from_slice(&registry_bytes).unwrap_or_else(|error| {
+        panic!(
+            "cannot parse Skill registry {}: {error}",
+            registry_path.display()
+        )
+    });
+    if registry.skills.is_empty() {
+        panic!("Skill registry has no active entries");
+    }
+
+    let mut bundle_dirs = Vec::new();
+    for entry in registry.skills {
+        if !valid_bundle_component(&entry.skill_id) || !valid_bundle_component(&entry.version) {
+            panic!("Skill registry has an unsafe bundle path");
+        }
+        let bundle = skill_bundles.join(&entry.skill_id).join(&entry.version);
+        let metadata = fs::symlink_metadata(&bundle).unwrap_or_else(|error| {
+            panic!(
+                "active Skill bundle {} is missing: {error}",
+                bundle.display()
+            )
+        });
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            panic!(
+                "active Skill bundle must be a real directory: {}",
+                bundle.display()
+            );
+        }
+        bundle_dirs.push(bundle);
+    }
+    bundle_dirs.sort();
+    if bundle_dirs.windows(2).any(|window| window[0] == window[1]) {
+        panic!("Skill registry has duplicate active bundle paths");
+    }
+    bundle_dirs
+}
+
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("Cargo manifest dir"));
     let repository_root = manifest_dir.join("../../../../..");
     let skill_bundles = repository_root.join("packages/forgecad-skills/bundles");
+    let skill_registry = repository_root.join("packages/forgecad-skills/registry.json");
     let contract_schemas = repository_root.join("packages/forgecad-contracts/schemas");
     println!("cargo:rerun-if-changed={}", skill_bundles.display());
+    println!("cargo:rerun-if-changed={}", skill_registry.display());
     println!("cargo:rerun-if-changed={}", contract_schemas.display());
 
     // `collect_files` stores paths relative to each passed source directory.
@@ -84,7 +151,9 @@ fn main() {
     // path or a runtime filesystem lookup to verify a Bundle.
     let mut archive_files = Vec::new();
     let mut bundle_files = Vec::new();
-    collect_files(&skill_bundles, &skill_bundles, &mut bundle_files);
+    for bundle in active_bundle_dirs(&skill_bundles, &skill_registry) {
+        collect_files(&bundle, &skill_bundles, &mut bundle_files);
+    }
     archive_files.extend(
         bundle_files
             .into_iter()

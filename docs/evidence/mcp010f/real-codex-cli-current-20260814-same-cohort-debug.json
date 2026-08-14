@@ -1,0 +1,24 @@
+{
+  "build_cohorts": {
+    "mcp": "1aae244850f815104aa5868ca057156345a325a12d7efef8779dcfe9742a258f",
+    "runtime": "1aae244850f815104aa5868ca057156345a325a12d7efef8779dcfe9742a258f",
+    "worker": "1aae244850f815104aa5868ca057156345a325a12d7efef8779dcfe9742a258f"
+  },
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "mcp_tool_calls": [],
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "reason": "Codex setup did not return project/reference evidence",
+  "recorded_at": "2026-08-13T16:33:51Z",
+  "reference_path_recorded": false,
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "silhouette_fit_intent_sha256": null,
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010C",
+  "visual_quality_claim": "NOT_CLAIMED"
+}

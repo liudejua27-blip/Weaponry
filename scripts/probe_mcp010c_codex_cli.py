@@ -3,9 +3,10 @@
 
 This is an integration probe, not an image-to-mesh claim.  Codex receives a
 user-authorized reference on the setup turn and then drives the local MCP
-through V2 discovery, hash/prepare, fixed nine-pass comparison, image-pass
-reads, typed visual review and quality readback.  The receipt intentionally
-contains no source path, prompt, token, socket or image bytes.
+through V2 discovery, one canonical Agentic scene observation, hash/prepare,
+fixed nine-pass comparison, image-pass reads, typed visual review and quality
+readback.  The receipt intentionally contains no source path, prompt, token,
+socket or image bytes.
 """
 
 from __future__ import annotations
@@ -38,13 +39,17 @@ from probe_mcp010e_raw_stdio import robot_detail_program_draft  # noqa: E402
 
 
 AOV_ORDER = ("beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch")
-SETUP_SEQUENCE = ("project_create", "reference_import", "reference_get")
+SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")
 AUTHORING_SEQUENCE = ("capabilities_get", "runtime_status", "doctor", "operator_catalog_get", "skill_list", "geometry_program_hash", "geometry_prepare")
 COMPARE_SEQUENCE = ("job_get", "candidate_get", "artifact_readback_get", "reference_compare_prepare")
 RENDER_SEQUENCE = AOV_ORDER
 REVIEW_SEQUENCE = ("visual_review_submit", "quality_get")
 SILHOUETTE_TARGET_SEQUENCE = ("reference_mask_prepare",)
-SILHOUETTE_SEQUENCE = ("silhouette_target_get", "camera_fit_prepare", "silhouette_rig_hash")
+# Keep the visual turn as one bounded observe -> decide -> prepare surface.
+# scene_observe_get is deliberately inside the same ephemeral Codex turn as
+# target/camera/Rig, so the model does not stitch a design decision from
+# unrelated fragmented reads or silently re-observe after a state change.
+SILHOUETTE_SEQUENCE = ("silhouette_target_get", "scene_observe_get", "camera_fit_prepare", "silhouette_rig_hash")
 
 
 class BoundaryOnlyComplete(RuntimeError):
@@ -88,6 +93,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--timeout", type=float, default=360.0)
     parser.add_argument("--sandbox", choices=("read-only", "workspace-write"), default="workspace-write")
+    parser.add_argument(
+        "--viewer-executable",
+        type=Path,
+        help="Optional source-built ForgeCAD Viewer executable; bind its read model to this live Codex candidate.",
+    )
     parser.add_argument("--debug", action="store_true", help="print redacted Codex JSONL to stderr")
     parser.add_argument(
         "--boundary-only",
@@ -120,6 +130,149 @@ def build_cohort(command: str, component: str) -> str:
     if identity.get("component") != component or not isinstance(cohort, str) or len(cohort) != 64:
         raise ValueError(f"invalid {component} build identity")
     return cohort
+
+
+def read_bound_viewer_projection(
+    executable: Path,
+    data_root: Path,
+    expected_cohort: str,
+    project_id: str,
+    candidate_id: str,
+    artifact_id: str,
+    artifact_sha256: str,
+    reference_id: str,
+    reference_sha256: str,
+    render_set_hash: str,
+    comparison_report_hash: str,
+) -> dict[str, Any]:
+    """Read and verify the packaged Viewer projection while Runtime is live.
+
+    The Viewer remains read-only.  This check is deliberately performed before
+    the Codex probe shuts down its isolated Runtime so a structural projection
+    cannot be mistaken for a projection over a different candidate or cohort.
+    """
+    executable = executable.expanduser().resolve()
+    if not executable.is_file() or not os.access(executable, os.X_OK):
+        raise RuntimeError("packaged Viewer executable is missing or not executable")
+    environment = os.environ.copy()
+    environment["FORGECAD_RUNTIME_DATA_DIR"] = str(data_root)
+    identity = subprocess.run(
+        [str(executable), "--build-identity"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=environment,
+    )
+    if identity.returncode != 0:
+        raise RuntimeError("packaged Viewer build identity command failed")
+    try:
+        identity_value = json.loads(identity.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"packaged Viewer build identity was not JSON: {error}") from error
+    viewer_cohort = identity_value.get("build_cohort_sha256") if isinstance(identity_value, dict) else None
+    if (
+        not isinstance(identity_value, dict)
+        or identity_value.get("schema_version") != "ForgeCADDevBuildIdentity@1"
+        or identity_value.get("component") != "forgecad-viewer"
+        or not isinstance(viewer_cohort, str)
+        or len(viewer_cohort) != 64
+        or viewer_cohort != expected_cohort
+    ):
+        raise RuntimeError("packaged Viewer build cohort did not match the live Runtime cohort")
+
+    projection_process = subprocess.run(
+        [str(executable), "--viewer-read-model"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=environment,
+    )
+    if projection_process.returncode != 0:
+        raise RuntimeError("packaged Viewer read-model command failed")
+    try:
+        projection = json.loads(projection_process.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"packaged Viewer read model was not JSON: {error}") from error
+    if (
+        not isinstance(projection, dict)
+        or projection.get("schema_version") != "ForgeCADViewerReadModel@1"
+        or projection.get("status") != "Ready"
+        or projection.get("retryable") is not False
+    ):
+        raise RuntimeError("packaged Viewer did not return a Ready read model")
+
+    matching_project: dict[str, Any] | None = None
+    matching_candidate: dict[str, Any] | None = None
+    project_values = projection.get("projects")
+    if isinstance(project_values, list):
+        for project_view in project_values:
+            if not isinstance(project_view, dict):
+                continue
+            project = project_view.get("project") or {}
+            if project.get("project_id") != project_id:
+                continue
+            matching_project = project_view
+            for candidate_view in project_view.get("candidates") or []:
+                if not isinstance(candidate_view, dict):
+                    continue
+                candidate = candidate_view.get("candidate") or {}
+                if candidate.get("candidate_id") == candidate_id:
+                    matching_candidate = candidate_view
+                    break
+            break
+    if matching_project is None or matching_candidate is None:
+        raise RuntimeError("packaged Viewer read model did not contain the exact project/candidate")
+
+    candidate = matching_candidate.get("candidate") or {}
+    artifact = matching_candidate.get("artifact") or {}
+    quality_raw = matching_candidate.get("quality") or {}
+    quality = quality_raw.get("quality_report") if isinstance(quality_raw, dict) else None
+    quality = quality if isinstance(quality, dict) else quality_raw
+    reference_raw = matching_candidate.get("reference") or {}
+    reference = reference_raw.get("reference") if isinstance(reference_raw, dict) else None
+    reference = reference if isinstance(reference, dict) else reference_raw
+    binding_pairs = {
+        "candidate_id": (candidate.get("candidate_id"), candidate_id),
+        "candidate_project_id": (candidate.get("project_id"), project_id),
+        "candidate_manifest_hash": (candidate.get("manifest_hash"), artifact_id),
+        "artifact_id": (artifact.get("artifact_id"), artifact_id),
+        "artifact_candidate_id": (artifact.get("candidate_id"), candidate_id),
+        "artifact_object_sha256": (artifact.get("object_sha256"), artifact_sha256),
+        "quality_candidate_id": (quality.get("candidate_id"), candidate_id),
+        "quality_artifact_sha256": (quality.get("artifact_sha256"), artifact_sha256),
+        "quality_reference_id": (quality.get("reference_id"), reference_id),
+        "quality_reference_sha256": (quality.get("reference_sha256"), reference_sha256),
+        "quality_render_set_hash": (quality.get("render_set_hash"), render_set_hash),
+        "quality_comparison_report_hash": (quality.get("comparison_report_hash"), comparison_report_hash),
+        "reference_id": (reference.get("reference_id"), reference_id),
+        "reference_project_id": (reference.get("project_id"), project_id),
+        "reference_object_sha256": (reference.get("object_sha256"), reference_sha256),
+    }
+    mismatches = [name for name, (actual, expected) in binding_pairs.items() if actual != expected]
+    if mismatches:
+        raise RuntimeError(f"packaged Viewer lineage binding mismatch: {', '.join(mismatches)}")
+    return {
+        "status": "PASS_CURRENT_COHORT_BOUND_READ_MODEL",
+        "schema_version": projection["schema_version"],
+        "build_cohort_sha256": viewer_cohort,
+        "project_id": project_id,
+        "candidate_id": candidate_id,
+        "artifact_id": artifact_id,
+        "artifact_sha256": artifact_sha256,
+        "reference_id": reference_id,
+        "reference_sha256": reference_sha256,
+        "render_set_hash": render_set_hash,
+        "comparison_report_hash": comparison_report_hash,
+        "quality_visual_status": quality.get("visual_status"),
+        "quality_hard_gate_passed": quality.get("hard_gate_passed"),
+        "binding": "PASS_EXACT_PROJECT_CANDIDATE_ARTIFACT_REFERENCE_RENDERSET_COMPARISON",
+        "project_count": len(project_values) if isinstance(project_values, list) else 0,
+        "candidate_count": len(matching_project.get("candidates") or []),
+        "ui_e2e": "NOT_RUN",
+        "persistent_user_data_touched": False,
+    }
 
 
 def wait_for_ready(path: Path, process: subprocess.Popen[str], timeout: float) -> dict[str, Any]:
@@ -271,8 +424,14 @@ def side_effect_summary(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         shell_mutation = bool(re.search(r"[;&|<>]", command_text))
         read_only_skill_lookup = (
             item_type == "command_execution"
-            and "skill.md" in normalized_command
-            and ".codex/" in normalized_command
+            and (
+                "skill.md" in normalized_command
+                or (
+                    ".codex/" in normalized_command
+                    and "/skills/" in normalized_command
+                    and normalized_command.endswith(".md")
+                )
+            )
             and not shell_mutation
             and not any(token in normalized_command for token in forbidden_tokens)
         )
@@ -299,6 +458,14 @@ def blocking_side_effects(summary: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 def run_codex_turn(options: argparse.Namespace, environment: dict[str, str], prompt_text: str, workspace_root: str, image_path: str | None = None) -> subprocess.CompletedProcess[str]:
     """Run one short Codex turn with an explicit, inspectable shell sandbox."""
+    prompt_text = (
+        "Before any other ForgeCAD tool in this fresh MCP session, call exactly one read-only "
+        "preflight tool: skill_get with {\"skill_id\":\"ponytail-preflight\",\"version\":\"0.1.0\"}. "
+        "Wait for its successful typed result, then follow the stage instructions below. "
+        "This mandatory preflight is not a substitute for any stage call and must be the first "
+        "ForgeCAD tool in this session.\n\n"
+        + prompt_text
+    )
     with tempfile.TemporaryDirectory(dir="/tmp", prefix="fc10c-codex-turn-") as workspace:
         command = [
             options.codex_command,
@@ -404,11 +571,12 @@ def view_spec(reference_id: str, reference_sha: str, width: int, height: int, in
 def setup_prompt(reference_path: str) -> str:
     return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers, or arbitrary code.
 
-This is the first setup turn for a real MCP010C host gate. The user supplied and authorized the attached reference image. Call exactly these two ForgeCAD tools, in order, then stop:
+This is the first setup turn for a real MCP010C host gate. The mandatory Ponytail preflight has already been requested by the host wrapper. After it succeeds, call exactly these three ForgeCAD tools, in order, then stop:
 1) project_create with name=\"MCP010C Codex visual review\" and policy={{\"profile\":\"mvp\"}}; save project_id.
-2) reference_import with that project_id, source={{\"kind\":\"codex_local_file\",\"path\":{json.dumps(reference_path, ensure_ascii=False)}}}, authorization={{\"user_authorized\":true,\"declaration\":\"The user supplied and authorized this reference for local ForgeCAD modeling.\"}}; save reference_id.
+2) reference_import with that project_id, source={{\"kind\":\"codex_local_file\",\"path\":{json.dumps(reference_path, ensure_ascii=False)}}}, authorization={{\"user_authorized\":true,\"declaration\":\"The user supplied and authorized this reference for local ForgeCAD modeling.\"}}; save reference_id and object_sha256.
+3) reference_get with that reference_id; verify the returned reference_id and object_sha256 match the import result. Do not request or print image bytes.
 
-Do not call reference_get or any other ForgeCAD tool in this turn. Return only project_id and reference_id, then stop. Do not claim similarity, high quality, PBR, human approval or 360-degree coverage.
+Do not call any other ForgeCAD tool in this turn. Return only project_id, reference_id and the metadata readback, then stop. Do not claim similarity, high quality, PBR, human approval or 360-degree coverage.
 """
 
 
@@ -466,10 +634,11 @@ def silhouette_prompt(project_id: str, candidate_id: str, target_sha256: str) ->
     rig = json.dumps(silhouette_rig_draft(candidate_id), ensure_ascii=False, separators=(",", ":"))
     return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
 
-Call exactly these three ForgeCAD tools in order, then stop:
+Call exactly these four ForgeCAD tools in order, then stop:
 1) silhouette_target_get with {{"target_sha256":{json.dumps(target_sha256)}}}; verify it is the target for project {json.dumps(project_id)}.
-2) camera_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"camera":null}}; save the complete returned selected_camera calibration object (not only camera_hash/canonical_sha256) and its hash.
-3) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; copy only the returned canonical_sha256 into the unchanged rig for the next turn.
+2) scene_observe_get with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)}}}; treat the complete returned AgenticSceneObserveResult@1 as the only canonical scene/model/reference/quality context for this visual turn. Verify its project/candidate binding, read_only flag and canonical_sha256; do not replace it with a sequence of fragmented project/candidate/artifact/quality reads.
+3) camera_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"camera":null}}; use the one-shot observation as context and save the complete returned selected_camera calibration object (not only camera_hash/canonical_sha256) and its hash.
+4) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; copy only the returned canonical_sha256 into the unchanged rig for the next turn.
 
 Do not call silhouette_fit_prepare yet because the next turn will bind its request hash to the exact selected camera. Do not call geometry, appearance, compare, confirm or export. Return only target/camera/Rig hashes and opaque IDs; do not claim visual quality.
 """
@@ -702,7 +871,15 @@ def main() -> int:
     runtime_command = str(Path(options.runtime_command).expanduser().resolve())
     mcp_command = str(Path(options.mcp_command).expanduser().resolve())
     worker_command = str(Path(runtime_command).with_name("forgecad-geometry-worker"))
-    if options.timeout <= 0 or not Path(runtime_command).is_file() or not Path(mcp_command).is_file() or not Path(worker_command).is_file():
+    viewer_command = options.viewer_executable.expanduser().resolve() if options.viewer_executable else None
+    if (
+        options.timeout <= 0
+        or not Path(runtime_command).is_file()
+        or not Path(mcp_command).is_file()
+        or not Path(worker_command).is_file()
+        or viewer_command is not None
+        and (not viewer_command.is_file() or not os.access(viewer_command, os.X_OK))
+    ):
         receipt = base_receipt(source_sha, len(source_bytes)) | {"status": "BLOCKED", "reason": "same-cohort source MCP, Runtime and geometry Worker binaries were unavailable"}
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
@@ -786,6 +963,7 @@ def main() -> int:
             silhouette_camera_hash: str | None = None
             silhouette_fit_camera_hash: str | None = None
             silhouette_fit_camera_canonical: str | None = None
+            silhouette_observation_sha: str | None = None
             comparison_camera_hash: str | None = None
             comparison_camera_canonical: str | None = None
             silhouette_rig_sha: str | None = None
@@ -869,6 +1047,17 @@ def main() -> int:
                 silhouette_items.extend(silhouette_turn_items)
                 camera_result = structured_result(silhouette_turn_items, "camera_fit_prepare") or {}
                 rig_result = structured_result(silhouette_turn_items, "silhouette_rig_hash") or {}
+                observation_result = structured_result(silhouette_turn_items, "scene_observe_get") or {}
+                if (
+                    observation_result.get("schema_version") != "AgenticSceneObserveResult@1"
+                    or observation_result.get("read_only") is not True
+                    or observation_result.get("project_id") != project_id
+                    or observation_result.get("candidate_id") != candidate_id
+                    or not isinstance(observation_result.get("canonical_sha256"), str)
+                    or len(observation_result["canonical_sha256"]) != 64
+                ):
+                    raise RuntimeError("scene_observe_get did not return the bound canonical Agentic observation")
+                silhouette_observation_sha = observation_result["canonical_sha256"]
                 selected_camera = field(camera_result, "selected_camera") or field(camera_result, "camera")
                 # A real Codex turn can summarize a nested selected_camera as
                 # only its two hashes even though CameraFitResult also carries
@@ -1093,6 +1282,8 @@ def main() -> int:
                     "triangle_count": field(artifact, "triangle_count"),
                     "validator_status": field(artifact, "validator_status"),
                     "silhouette_target_sha256": silhouette_target_sha,
+                    "scene_observation_sha256": silhouette_observation_sha,
+                    "scene_observation_schema": "AgenticSceneObserveResult@1",
                     "silhouette_camera_hash": silhouette_camera_hash,
                     "silhouette_fit_camera_hash": silhouette_fit_camera_hash,
                     "silhouette_fit_camera_canonical_sha256": silhouette_fit_camera_canonical,
@@ -1182,6 +1373,21 @@ def main() -> int:
             review_report = field(review, "review") or review
             if not review_stage_completed(fifth_items) or successful_human_review(fifth_items):
                 raise RuntimeError("Codex did not complete typed review and quality readback")
+            packaged_viewer = None
+            if viewer_command is not None:
+                packaged_viewer = read_bound_viewer_projection(
+                    viewer_command,
+                    root,
+                    cohorts["runtime"],
+                    project_id,
+                    candidate_id,
+                    artifact_id,
+                    field(artifact, "object_sha256"),
+                    reference_id,
+                    reference_sha,
+                    render_set_hash,
+                    comparison_hash,
+                )
             all_items = [item for turn in turn_outputs for item in event_items(turn.stdout)]
             side_effects = side_effect_summary(all_items)
             blocking_events = blocking_side_effects(side_effects)
@@ -1250,8 +1456,10 @@ def main() -> int:
                 "geometry_variant": options.geometry_variant if options.geometry_route == "detail" else None,
                 "material_variant": options.material_variant if options.geometry_route == "detail" else None,
                 "silhouette_first": options.silhouette_first,
-                "silhouette_target_sha256": silhouette_target_sha,
-                "silhouette_camera_hash": silhouette_camera_hash,
+                    "silhouette_target_sha256": silhouette_target_sha,
+                    "scene_observation_sha256": silhouette_observation_sha,
+                    "scene_observation_schema": "AgenticSceneObserveResult@1" if silhouette_observation_sha else None,
+                    "silhouette_camera_hash": silhouette_camera_hash,
                 "silhouette_fit_camera_hash": silhouette_fit_camera_hash,
                 "silhouette_fit_camera_canonical_sha256": silhouette_fit_camera_canonical,
                 "comparison_camera_hash": comparison_camera_hash,
@@ -1277,6 +1485,8 @@ def main() -> int:
                 "silhouette_gate": "NOT_RUN" if not options.silhouette_first else ("PASS" if field(silhouette_fit_result or {}, "status") == "ready" else "QUALITY_TARGET_NOT_MET"),
                 "detail_material_stages": "LOCKED_UNTIL_SILHOUETTE_GATE" if options.silhouette_first and field(silhouette_fit_result or {}, "status") != "ready" else "NOT_APPLICABLE",
             })
+            if packaged_viewer is not None:
+                receipt["packaged_viewer"] = packaged_viewer
             if options.debug:
                 for turn in turn_outputs:
                     print(turn.stdout, file=sys.stderr)

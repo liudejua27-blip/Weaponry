@@ -1107,9 +1107,28 @@ pub fn get_result(skill_id: &str, version: &str) -> Result<Value, String> {
     let skill = get(skill_id, version)?.ok_or_else(|| {
         "CAPABILITY_UNAVAILABLE: Skill version is not in the first-party registry".to_owned()
     })?;
+    let key = format!("{}@{}", skill.skill_id, skill.version);
+    let prefix = format!("bundles/{}/{}/", skill.skill_id, skill.version);
+    let archive = bundle_archive()?;
+    let overview = bundle_text(&archive, &prefix, "knowledge/overview.md", &key)?.to_owned();
+    let constraints = bundle_text(&archive, &prefix, "knowledge/constraints.md", &key)?.to_owned();
+    let examples = bundle_text(&archive, &prefix, "knowledge/examples.md", &key)?.to_owned();
+    let knowledge_hash = canonical_json_hash(&json!({
+        "schema_version":"SkillKnowledge@1",
+        "overview":overview.clone(),
+        "constraints":constraints.clone(),
+        "examples":examples.clone(),
+    }));
     Ok(json!({
         "schema_version": "SkillGetResult@1",
-        "skill": skill
+        "skill": skill,
+        "knowledge": {
+            "schema_version":"SkillKnowledge@1",
+            "overview":overview,
+            "constraints":constraints,
+            "examples":examples,
+            "canonical_sha256":knowledge_hash,
+        }
     }))
 }
 
@@ -1121,7 +1140,7 @@ mod tests {
     fn registry_is_first_party_bounded_and_deterministic() {
         let first = list().expect("registry");
         let second = list().expect("registry second read");
-        assert_eq!(first.len(), 11);
+        assert_eq!(first.len(), 12);
         assert_eq!(first, second);
         assert!(first
             .iter()
@@ -1149,6 +1168,20 @@ mod tests {
             SkillExecutionAvailability::Active
         );
         assert!(primitive.missing_operator_ids.is_empty());
+        let ponytail = first
+            .iter()
+            .find(|skill| skill.skill_id == "ponytail-preflight")
+            .expect("ponytail preflight skill");
+        assert_eq!(ponytail.version, "0.1.0");
+        assert_eq!(
+            ponytail.execution_availability,
+            SkillExecutionAvailability::Unavailable
+        );
+        let result = get_result("ponytail-preflight", "0.1.0").expect("preflight result");
+        assert!(result["knowledge"]["overview"]
+            .as_str()
+            .expect("overview")
+            .contains("Ponytail preflight"));
         let hard_surface = first
             .iter()
             .find(|skill| skill.skill_id == "hard-surface-detail")

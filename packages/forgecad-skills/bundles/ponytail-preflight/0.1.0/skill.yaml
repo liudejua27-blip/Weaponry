@@ -1,0 +1,30 @@
+schema_version: ForgeCADSkillBundle@1
+skill_id: ponytail-preflight
+version: 0.1.0
+status: development-only
+publisher: forgecad-first-party
+contract_range: forgecad-runtime-contracts@1
+input_schema: schemas/reference-evidence.schema.json
+output_schema: schemas/representation-plan.schema.json
+recipe: recipes/default.recipe.json
+trust_profile: development-root
+signature: deferred-to-mcp012-013
+capabilities:
+  network: false
+  filesystem_read: false
+  filesystem_write: false
+  dynamic_code: false
+  model_calls: false
+  geometry_execution: false
+  render_execution: false
+operator_ids:
+  - forgecad.design.preflight@1
+validator_ids:
+  - preflight_read_before_design@1
+budgets:
+  max_nodes: 1
+  max_steps: 7
+benchmark_suite: ponytail-preflight-smoke
+known_limitations:
+  - Declarative safety receipt does not claim geometry, render or visual quality.
+  - Distribution signature and third-party installation are deferred to MCP012-013.

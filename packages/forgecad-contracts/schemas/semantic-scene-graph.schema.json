@@ -1,0 +1,432 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/semantic-scene-graph.schema.json",
+  "title": "SemanticSceneGraph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "graph_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "reference_id",
+    "reference_sha256",
+    "artifact_sha256",
+    "camera_hash",
+    "render_set_sha256",
+    "quality_report_sha256",
+    "observation",
+    "parts",
+    "material_zones",
+    "cameras",
+    "selection",
+    "claims",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SemanticSceneGraph@1"},
+    "graph_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "render_set_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_sha256": {"$ref": "#/$defs/sha256"},
+    "observation": {"$ref": "#/$defs/fact_state"},
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/part"}
+    },
+    "material_zones": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/material_zone"}
+    },
+    "cameras": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/camera"}
+    },
+    "selection": {"$ref": "#/$defs/selection"},
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/claim"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+          {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "visibility": {
+      "enum": ["observed", "inferred", "unknown"]
+    },
+    "fact_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibility", "confidence", "evidence_refs"],
+      "properties": {
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sha256"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "reference",
+            "artifact",
+            "render",
+            "comparison",
+            "quality",
+            "camera",
+            "scene",
+            "checkpoint",
+            "version",
+            "design-spec",
+            "visual-evidence",
+            "other"
+          ]
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "identifier_list": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "nullable_identifier": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": {"type": "number", "minimum": -1000, "maximum": 1000},
+        "y": {"type": "number", "minimum": -1000, "maximum": 1000},
+        "z": {"type": "number", "minimum": -1000, "maximum": 1000}
+      }
+    },
+    "non_negative_vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": {"type": "number", "minimum": 0, "maximum": 1000},
+        "y": {"type": "number", "minimum": 0, "maximum": 1000},
+        "z": {"type": "number", "minimum": 0, "maximum": 1000}
+      }
+    },
+    "bbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": {"$ref": "#/$defs/vector3"},
+        "max": {"$ref": "#/$defs/vector3"}
+      }
+    },
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "name",
+        "role",
+        "parent_id",
+        "child_ids",
+        "symmetry",
+        "visibility",
+        "confidence",
+        "geometry",
+        "material_zone_ids",
+        "source_node_ids",
+        "editability",
+        "evidence_refs"
+      ],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "name": {"$ref": "#/$defs/safe_text"},
+        "role": {
+          "enum": [
+            "root",
+            "main-body",
+            "housing",
+            "panel",
+            "vent",
+            "joint",
+            "sensor",
+            "frame",
+            "handle",
+            "foot",
+            "wheel",
+            "fastener",
+            "cable",
+            "light",
+            "other"
+          ]
+        },
+        "parent_id": {"$ref": "#/$defs/nullable_identifier"},
+        "child_ids": {"$ref": "#/$defs/identifier_list"},
+        "symmetry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["relation", "partner_id", "visibility", "confidence", "evidence_refs"],
+          "properties": {
+            "relation": {"enum": ["left-right", "centered", "none", "unknown"]},
+            "partner_id": {"$ref": "#/$defs/nullable_identifier"},
+            "visibility": {"$ref": "#/$defs/visibility"},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "evidence_refs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/evidence_ref"}
+            }
+          }
+        },
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bbox", "dimensions", "triangle_count", "surface_area"],
+          "properties": {
+            "bbox": {"$ref": "#/$defs/bbox"},
+            "dimensions": {"$ref": "#/$defs/non_negative_vector3"},
+            "triangle_count": {"type": "integer", "minimum": 0, "maximum": 250000},
+            "surface_area": {"type": "number", "minimum": 0, "maximum": 100000}
+          }
+        },
+        "material_zone_ids": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "source_node_ids": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "editability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["editable", "allowed_operations", "parameter_ids", "constraints"],
+          "properties": {
+            "editable": {"type": "boolean"},
+            "allowed_operations": {
+              "type": "array",
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "profile",
+                  "loft",
+                  "revolve",
+                  "sweep",
+                  "transform",
+                  "mirror",
+                  "array",
+                  "panel",
+                  "vent",
+                  "joint",
+                  "part-output"
+                ]
+              }
+            },
+            "parameter_ids": {"$ref": "#/$defs/identifier_list"},
+            "constraints": {
+              "type": "array",
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["constraint_id", "kind", "value", "unit"],
+                "properties": {
+                  "constraint_id": {"$ref": "#/$defs/identifier"},
+                  "kind": {"enum": ["min", "max", "step", "locked", "relationship"]},
+                  "value": {"type": "number", "minimum": -1000, "maximum": 1000},
+                  "unit": {"enum": ["meter", "radian", "ratio", "count", "boolean"]}
+                }
+              }
+            }
+          }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      }
+    },
+    "material_zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "material_zone_id",
+        "name",
+        "channels",
+        "surface_language",
+        "asset_sha256",
+        "observation",
+        "evidence_refs"
+      ],
+      "properties": {
+        "material_zone_id": {"$ref": "#/$defs/identifier"},
+        "name": {"$ref": "#/$defs/safe_text"},
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["base-color", "metallic", "roughness", "normal", "ao", "emissive", "clearcoat"]
+          }
+        },
+        "surface_language": {"$ref": "#/$defs/safe_text"},
+        "asset_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "observation": {"$ref": "#/$defs/fact_state"},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["camera_id", "role", "camera_hash", "visibility", "confidence", "evidence_refs"],
+      "properties": {
+        "camera_id": {"$ref": "#/$defs/identifier"},
+        "role": {"enum": ["active", "fixed", "reference"]},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selected_part_ids", "selected_material_zone_ids", "selected_camera_id", "isolation_mode"],
+      "properties": {
+        "selected_part_ids": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "selected_material_zone_ids": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "selected_camera_id": {"$ref": "#/$defs/nullable_identifier"},
+        "isolation_mode": {"enum": ["none", "part", "material-zone"]}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "subject_kind", "subject_id", "statement", "visibility", "confidence", "evidence_refs"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/identifier"},
+        "subject_kind": {"enum": ["scene", "part", "material-zone", "camera", "feature"]},
+        "subject_id": {"$ref": "#/$defs/identifier"},
+        "statement": {"$ref": "#/$defs/safe_text"},
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
+    }
+  }
+}

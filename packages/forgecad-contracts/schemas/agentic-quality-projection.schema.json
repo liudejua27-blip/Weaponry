@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/agentic-quality-projection.schema.json",
+  "title": "Agentic Quality Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "x-forgecad-contract-role": "transport-projection",
+  "x-forgecad-projection-only": true,
+  "properties": {
+    "schema_version": {"const": "AgenticQualityProjection@1"},
+    "projection_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/projection_status"},
+    "read_only": {"const": true},
+    "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "quality_report": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/quality-report.schema.json"},
+        {"$ref": "https://forgecad.local/contracts/quality-report-v2.schema.json"}
+      ]
+    },
+    "quality_report_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"},
+    "quality_report_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "structural_status": {"enum": ["passed", "failed", "unknown", "not-run"]},
+    "visual_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/quality_status"},
+    "candidate_quality_hard_gate_passed": {"type": "boolean"},
+    "strict_visual_gate": {"enum": ["passed", "failed", "unknown"]},
+    "pbr_unlocked": {"type": "boolean"},
+    "confirm_unlocked": {"type": "boolean"},
+    "export_unlocked": {"type": "boolean"},
+    "canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
+  },
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "candidate_id",
+    "quality_report",
+    "quality_report_hash",
+    "quality_report_id",
+    "structural_status",
+    "visual_status",
+    "candidate_quality_hard_gate_passed",
+    "strict_visual_gate",
+    "pbr_unlocked",
+    "confirm_unlocked",
+    "export_unlocked",
+    "canonical_sha256"
+  ]
+}

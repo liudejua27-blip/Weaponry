@@ -52,6 +52,10 @@ def component_paths(app: Path) -> dict[str, Path]:
         / "Contents"
         / "Resources"
         / "forgecad-geometry-worker",
+        "forgecad-render-worker": app
+        / "Contents"
+        / "Resources"
+        / "forgecad-render-worker",
         "forgecad-viewer": app / "Contents" / "MacOS" / "forgecad-desktop",
     }
 
@@ -87,6 +91,7 @@ def verify_app(app: Path) -> tuple[dict[str, Any], dict[str, Path]]:
         "forgecad-mcp",
         "forgecad-runtime",
         "forgecad-geometry-worker",
+        "forgecad-render-worker",
     }
     if executable_resources != expected_resources:
         raise SystemExit(f"unexpected executable Resources: {sorted(executable_resources)}")
@@ -274,7 +279,8 @@ def main() -> int:
             "resource_allowlist": [
                 "forgecad-geometry-worker",
                 "forgecad-mcp",
-                "forgecad-runtime"
+                "forgecad-render-worker",
+                "forgecad-runtime",
             ],
             "codesign": "ad-hoc deep strict PASS",
             "runtime_probe": "NOT_RUN",

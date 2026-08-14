@@ -139,6 +139,10 @@ def component_paths(app: Path) -> dict[str, Path]:
         / "Contents"
         / "Resources"
         / "forgecad-geometry-worker",
+        "forgecad-render-worker": app
+        / "Contents"
+        / "Resources"
+        / "forgecad-render-worker",
         "forgecad-viewer": app / "Contents" / "MacOS" / "forgecad-desktop",
     }
 
@@ -173,7 +177,12 @@ def build_identity(executable: Path) -> dict[str, object]:
 def sign_staging_app(app: Path, cohort: str, source_revision: str, dirty: bool, file_count: int, locks: dict[str, str]) -> dict[str, str]:
     paths = require_layout(app)
     sign_environment = os.environ.copy()
-    for name in ("forgecad-mcp", "forgecad-runtime", "forgecad-geometry-worker"):
+    for name in (
+        "forgecad-mcp",
+        "forgecad-runtime",
+        "forgecad-geometry-worker",
+        "forgecad-render-worker",
+    ):
         run(
             [
                 "codesign",
@@ -189,7 +198,12 @@ def sign_staging_app(app: Path, cohort: str, source_revision: str, dirty: bool, 
         )
     resource_hashes = {
         name: sha256_file(paths[name])
-        for name in ("forgecad-mcp", "forgecad-runtime", "forgecad-geometry-worker")
+        for name in (
+            "forgecad-mcp",
+            "forgecad-runtime",
+            "forgecad-geometry-worker",
+            "forgecad-render-worker",
+        )
     }
     manifest = {
         "schema_version": "ForgeCADDevBuildManifest@1",
@@ -204,7 +218,7 @@ def sign_staging_app(app: Path, cohort: str, source_revision: str, dirty: bool, 
             "forgecad-runtime": "packaged",
             "forgecad-viewer": "packaged",
             "geometry-worker": "packaged same-cohort isolated one-shot executable",
-            "render-worker": "unavailable until MCP010C",
+            "render-worker": "packaged same-cohort isolated one-shot executable",
         },
         "distribution_profile": "local-ad-hoc-development-only",
     }
@@ -308,6 +322,23 @@ def main() -> int:
             "forgecad-mcp",
             "--bin",
             "forgecad-mcp",
+        ],
+        environment=environment,
+    )
+    run(
+        [
+            str(ROOT / "script" / "with_rust_toolchain.sh"),
+            "cargo",
+            "build",
+            "--manifest-path",
+            str(ROOT / "apps" / "render-worker" / "Cargo.toml"),
+            "--release",
+            "--locked",
+            "--offline",
+            "--target-dir",
+            str(TAURI_ROOT / "target"),
+            "--bin",
+            "forgecad-render-worker",
         ],
         environment=environment,
     )

@@ -1,0 +1,23 @@
+project: manifold
+source_url: https://github.com/elalish/manifold
+revision: 969b1417afdee87dbc6147cf676bc04799418ec2
+identity: controlled-source-research
+license_spdx: Apache-2.0
+license_file_git_blob: 261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - bindings/c/include
+  - bindings/c/manifoldc.cpp
+  - bindings/c/conv.h
+target: isolated C API and FFI benchmark for manifold mesh boolean
+denied_capabilities:
+  - automatic_cmake_build
+  - wasm_binding
+  - python_binding
+  - network
+  - direct_runtime_state_write
+lockfile_or_package_change: false
+approval: research-authorized
+next_gate: accepted receipt with C API isolation, topology, determinism, resource and removal evidence
+fallback_or_removal_plan: Keep boolean@1 unavailable and retain the current product-owned geometry path.

@@ -1,0 +1,13 @@
+schema_version: SkillBenchmarkSuite@1
+suite_id: ponytail-preflight-smoke
+status: passed
+fixtures:
+  - fixtures/valid.json
+  - fixtures/invalid-cycle-unit-finite.json
+metrics:
+  - name: declarative_plan_validation
+    threshold: 1
+  - name: forbidden_capabilities
+    threshold: 0
+notes:
+  - Synthetic metadata only; geometry, render and visual quality remain later task gates.

@@ -13,18 +13,19 @@
 
 - 保留并备份旧 Library、数据库、CAS、导入和导出；
 - 阅读新产品文档和查看迁移状态；
-- 当前可打开 Runtime Viewer 查看 Runtime 项目、候选、GLB bytes、UV/tangent/PBR metadata 和固定 render lineage；可通过带授权 image attachment 的真实 Codex CLI 导入 PNG/JPEG、使用 `primitive-blockout@0.2.0` 生成 V2 bounded robot、读回 ArtifactReadback/Quality 并按批准边界确认 CAS-only MVP GLB；可通过只读 `skill_list/skill_get` 查看 11 个 development-only Bundle。视觉比较和用户评分仍按 evidence 记录，不得把本地 fixture 或 limited aspect 当作相似度。
+- 当前可打开 Runtime Viewer 查看 Runtime 项目、候选、GLB bytes、UV/tangent/PBR metadata 和固定 render lineage；可通过带授权 image attachment 的真实 Codex CLI 导入 PNG/JPEG、使用 `primitive-blockout@0.2.0` 生成 V2 bounded robot、读回 ArtifactReadback/Quality 并按批准边界确认 CAS-only MVP GLB；Codex 进入设计会话时必须先读取 `ponytail-preflight@0.1.0`，随后可通过只读 `skill_list/skill_get` 查看 12 个 development-only Bundle。视觉比较和用户评分仍按 evidence 记录，不得把本地 fixture 或 limited aspect 当作相似度。
 
 ## 2. MVP 目标流程
 
 1. 安装 ForgeCAD 和当前 P0 支持的 Codex Desktop 或 Codex CLI；
 2. 安装器为 Codex 配置本地 `forgecad` MCP Server；
 3. 在 Codex 对话中描述对象并上传有权使用的图片；
-4. Codex 调用 ForgeCAD 导入参考、生成候选、编译 bounded 几何/UV/tangent/PBR MaterialZone 并运行质量检查；当前没有纹理烘焙或 UDIM 交付；
-5. 打开 ForgeCAD Viewer 查看 3D、部件、固定视图和质量 metadata；
-6. 在 Codex 提供一个稳定 Part ID 的 `change_set`，调用 `change_prepare` 描述局部修改；当前 Viewer selection 仍是只读临时状态；
-7. Codex 显示准备写入的版本摘要，用户批准后才保存；
-8. 可让 Codex 准备 restore 或 `mvp-glb` CAS 导出 receipt，同样先预览再批准。完整爆炸图是 post-MVP；当前不接受任意本机导出路径。
+4. Codex 先读取 `ponytail-preflight@0.1.0`，检查是否可复用当前受限能力和最小 typed action；
+5. Codex 调用 ForgeCAD 导入参考、生成候选、编译 bounded 几何/UV/tangent/PBR MaterialZone 并运行质量检查；当前没有纹理烘焙或 UDIM 交付；
+6. 打开 ForgeCAD Viewer 查看 3D、部件、固定视图和质量 metadata；
+7. 在 Codex 提供一个稳定 Part ID 的 `change_set`，调用 `change_prepare` 描述局部修改；当前 Viewer selection 仍是只读临时状态；
+8. Codex 显示准备写入的版本摘要，用户批准后才保存；
+9. 可让 Codex 准备 restore 或 `mvp-glb` CAS 导出 receipt，同样先预览再批准。完整爆炸图是 post-MVP；当前不接受任意本机导出路径。
 
 首个 MVP host golden path 只针对一张硬表面机器人参考做 vertical slice，不承诺所有图片或类别。真实 host receipt 已通过；“参考基准质量通过”仍要有像素/轮廓指标和真人评分，完成状态以 `MVP_DELIVERY_PLAN.md` 与 `docs/evidence/mcp008|mcp009/` 为准。
 

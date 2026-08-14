@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-checkpoint.schema.json",
+  "title": "DesignCheckpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "checkpoint_id",
+    "session_id",
+    "project_id",
+    "stage",
+    "checkpoint_type",
+    "candidate_id",
+    "candidate_state_sha256",
+    "artifact_sha256",
+    "reference_id",
+    "reference_sha256",
+    "camera_hash",
+    "evidence_sha256",
+    "version_id",
+    "version_sha256",
+    "parent_checkpoint_id",
+    "parent_checkpoint_sha256",
+    "stage_gate",
+    "rollback",
+    "immutable",
+    "runtime_write",
+    "created_at",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "DesignCheckpoint@1"},
+    "checkpoint_id": {"$ref": "#/$defs/identifier"},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "stage": {"$ref": "#/$defs/stage"},
+    "checkpoint_type": {"enum": ["stage-entry", "stage-pass", "stage-fail", "manual-save", "rollback-source", "rollback-result"]},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "version_id": {"$ref": "#/$defs/nullable_identifier"},
+    "version_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "parent_checkpoint_id": {"$ref": "#/$defs/nullable_identifier"},
+    "parent_checkpoint_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "stage_gate": {"$ref": "#/$defs/stage_gate"},
+    "rollback": {"$ref": "#/$defs/rollback"},
+    "immutable": {"const": true},
+    "runtime_write": {"const": false},
+    "created_at": {"$ref": "#/$defs/timestamp"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"version_id": {"const": null}},
+        "required": ["version_id"]
+      },
+      "then": {"properties": {"version_sha256": {"const": null}}},
+      "else": {"properties": {"version_sha256": {"$ref": "#/$defs/sha256"}}}
+    },
+    {
+      "if": {
+        "properties": {"parent_checkpoint_id": {"const": null}},
+        "required": ["parent_checkpoint_id"]
+      },
+      "then": {"properties": {"parent_checkpoint_sha256": {"const": null}}},
+      "else": {"properties": {"parent_checkpoint_sha256": {"$ref": "#/$defs/sha256"}}}
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_identifier": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+          {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "nullable_safe_text": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/safe_text"}]
+    },
+    "stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "gate_id": {
+      "enum": [
+        "reference-authorized",
+        "reference-coverage",
+        "primary-silhouette",
+        "primary-proportion",
+        "secondary-structure",
+        "tertiary-detail",
+        "visible-view",
+        "uv-tangent-pbr",
+        "multi-view-compare",
+        "codex-typed-review",
+        "human-review",
+        "export-restart-hash",
+        "360-reference-coverage"
+      ]
+    },
+    "stage_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "status", "required_checks", "failed_checks", "evidence_hashes", "unlocks", "locks"],
+      "properties": {
+        "stage": {"$ref": "#/$defs/stage"},
+        "status": {"enum": ["pass", "fail", "unknown"]},
+        "required_checks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/gate_id"}
+        },
+        "failed_checks": {
+          "type": "array",
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/gate_id"}
+        },
+        "evidence_hashes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "unlocks": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"enum": ["checkpoint", "rollback", "next-stage", "bounded-repair", "human-review", "export"]}
+        },
+        "locks": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"enum": ["tertiary-detail", "uv-pbr", "confirm", "export", "next-stage"]}
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation", "target_checkpoint_id", "target_checkpoint_sha256", "target_version_id", "target_version_sha256", "reason"],
+      "properties": {
+        "relation": {"enum": ["none", "rollback-source", "rollback-result"]},
+        "target_checkpoint_id": {"$ref": "#/$defs/nullable_identifier"},
+        "target_checkpoint_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "target_version_id": {"$ref": "#/$defs/nullable_identifier"},
+        "target_version_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "reason": {"$ref": "#/$defs/nullable_safe_text"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"relation": {"const": "none"}},
+            "required": ["relation"]
+          },
+          "then": {
+            "properties": {
+              "target_checkpoint_id": {"const": null},
+              "target_checkpoint_sha256": {"const": null},
+              "target_version_id": {"const": null},
+              "target_version_sha256": {"const": null},
+              "reason": {"const": null}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"relation": {"enum": ["rollback-source", "rollback-result"]}},
+            "required": ["relation"]
+          },
+          "then": {
+            "anyOf": [
+              {"required": ["target_checkpoint_id"], "properties": {"target_checkpoint_id": {"type": "string"}}},
+              {"required": ["target_version_id"], "properties": {"target_version_id": {"type": "string"}}}
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {"target_checkpoint_id": {"const": null}},
+            "required": ["target_checkpoint_id"]
+          },
+          "then": {"properties": {"target_checkpoint_sha256": {"const": null}}},
+          "else": {"properties": {"target_checkpoint_sha256": {"$ref": "#/$defs/sha256"}}}
+        },
+        {
+          "if": {
+            "properties": {"target_version_id": {"const": null}},
+            "required": ["target_version_id"]
+          },
+          "then": {"properties": {"target_version_sha256": {"const": null}}},
+          "else": {"properties": {"target_version_sha256": {"$ref": "#/$defs/sha256"}}}
+        }
+      ]
+    }
+  }
+}

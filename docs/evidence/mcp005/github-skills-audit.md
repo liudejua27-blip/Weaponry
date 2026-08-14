@@ -21,4 +21,4 @@
 
 ## 采用状态
 
-当前两项均为 `approved-for-evaluation` / `reference-only`，没有修改 lockfile，也没有安装第三方 Skill。仓库内的 `reference-to-typed-plan` 仅作为 superseded provenance 保留；MCP006 registry/十个独立 Bundle 是 first-party、声明式、development-only，已通过 Bundle/DAG/operator/validator/benchmark/SBOM Gate，但仍不能作为 Geometry/Render 结果或第三方插件。正式签名和第三方安装留给 MCP012–013。
+当前两项均为 `approved-for-evaluation` / `reference-only`，没有修改 lockfile，也没有安装第三方 Skill。仓库内的 `reference-to-typed-plan` 已作为 superseded provenance 隔离在 `packages/forgecad-skills/archive/superseded/reference-to-typed-plan/0.1.0`；MCP006 registry/十一个 active Bundle 是 first-party、声明式、development-only，已通过 Bundle/DAG/operator/validator/benchmark/SBOM Gate，但仍不能作为 Geometry/Render 结果或第三方插件。正式签名和第三方安装留给 MCP012–013。

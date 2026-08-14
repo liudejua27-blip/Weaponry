@@ -3,7 +3,7 @@
 版本：2026-08-09
 状态：`FGC-MCP010B structural source Gate PASS；Darwin OS memory hard cap deferred/NOT_RUN`；本文件是 V2 调用和审计指引，不代表 C 的视觉质量或 360°通过
 
-当前 B 源码 reconciliation 已通过 source-focused Gate：B subtotal 为 52 contracts（44 历史 + 8 MCP010B，新增 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`）、MCP006 Skill integrity、isolated Worker/raw V2、V2 restore hardening 与 closed GLB profile。当前仓库总源合同为 65（C subtotal 59，E 再新增 6），但本文件只描述 B authoring/readback。3c/f488/bfa56/d9 Dev.app/CLI evidence 是历史或结构 cohort；本工作流不宣称 PBR、reference similarity、human review 或 360°。
+当前 B 源码 reconciliation 已通过 source-focused Gate：B subtotal 为 52 contracts（44 历史 + 8 MCP010B，新增 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`）、MCP006 Skill integrity、isolated Worker/raw V2、V2 restore hardening 与 closed GLB profile。当前全仓源合同为 100；本文件只描述 B authoring/readback，Agentic durable session/checkpoint/RepairIntent 另见 `docs/ADR/0026-agentic-design-runtime.md`。3c/f488/bfa56/d9 Dev.app/CLI evidence 是历史或结构 cohort；本工作流不宣称 PBR、reference similarity、human review 或 360°。
 
 ## 1. 用途和边界
 

@@ -3,6 +3,8 @@
 版本：`ForgeCADCodexReferenceInventory@1`  
 性质：Codex 编排模板；不是 Runtime 合同、不是 Skill Bundle、不会写 SQLite/CAS，也不会把图片字节写入 GeometryProgram。
 
+ADR-0026 后，本模板是未来 `ReferenceCanvas@1` / `DesignSpec@1` 的前身：它帮助 Codex 先把 Reference、coverage、observed/inferred/unknown、Primary/Secondary/Tertiary 阶段目标写清楚，再进入 geometry。它仍不是当前 Runtime durable Schema；当前 Agentic 只读 projection 也不能替代它的 CAS-bound producer。
+
 ## 1. 为什么需要这个模板
 
 单张参考图最容易出现的失败不是 Operator 不够多，而是 Codex 在没有明确“看到了什么、没有看到什么、这一轮要修什么”的情况下直接堆节点。这个模板把一次单图建模拆成四个可回读的事实层：
@@ -13,6 +15,8 @@
 4. `correction_state`：最多五轮的单变量修改记录。
 
 它吸收了 [img2threejs](https://github.com/img2threejs/img2threejs) 的 staged pass、detail inventory、per-region confidence 和 side-by-side review 思路，但把执行边界收敛到 ForgeCAD 的 typed GeometryProgram、AppearanceProgram、固定 renderer 和 Runtime readback。上游仓库及其 Skill 只作为研究参考，不进入 Runtime、Worker 或安装包。
+
+本模板也承接用户提出的三条纪律：Reference First、Primary/Secondary/Tertiary 禁止跨级、每步 render/critic/local fix。Primary form 未通过时，`detail_inventory` 中的 tertiary detail 只能记录为 planned，不得进入 `GeometryProgram@2`。
 
 ## 2. 最小 intake 记录
 

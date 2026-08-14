@@ -1,0 +1,24 @@
+{
+  "allowed_action_count": 2,
+  "empty_reference_stage_fail_closed": true,
+  "locked_action_count": 3,
+  "persistent_user_data_touched": false,
+  "preflight": {
+    "skill_id": "ponytail-preflight",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-d708cad03d07496a84db71d056dd2e73",
+  "protocol_version": "2025-06-18",
+  "runtime_write_scope": "isolated temporary project only",
+  "scene_observe_schema": "AgenticSceneObserveResult@1",
+  "schema_version": "ForgeCADAgenticRuntimeProbe@1",
+  "stage": "reference-canvas",
+  "stage_plan_schema": "DesignStagePlan@1",
+  "status": "PASS",
+  "task_id": "FGC-MCP010F",
+  "tool_manifest": {
+    "design_stage_plan_get": "read-only",
+    "scene_observe_get": "read-only"
+  }
+}

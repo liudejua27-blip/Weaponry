@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-session-projection.schema.json",
+  "title": "Design Session Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "x-forgecad-contract-role": "transport-projection",
+  "x-forgecad-projection-only": true,
+  "x-forgecad-durable-schema": "design-session.schema.json",
+  "properties": {
+    "schema_version": {"const": "DesignSession@1"},
+    "projection_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/projection_status"},
+    "read_only": {"const": true},
+    "durable": {"const": false},
+    "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "session_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "current_stage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/stage"},
+    "stage_plan_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+    "scene_graph_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+    "critic_report_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+    "checkpoint": {"$ref": "#/$defs/not_persisted"},
+    "rollback_intent": {"$ref": "#/$defs/not_persisted"},
+    "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"},
+    "canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
+  },
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "durable",
+    "project_id",
+    "candidate_id",
+    "session_id",
+    "current_stage",
+    "stage_plan_hash",
+    "scene_graph_hash",
+    "critic_report_hash",
+    "checkpoint",
+    "rollback_intent",
+    "lineage",
+    "canonical_sha256"
+  ],
+  "$defs": {
+    "not_persisted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "durable"],
+      "properties": {
+        "status": {"const": "not-persisted"},
+        "durable": {"const": false}
+      }
+    }
+  }
+}

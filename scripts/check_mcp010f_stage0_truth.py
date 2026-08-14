@@ -34,13 +34,15 @@ TRUTH_PATH = ROOT / "docs/evidence/mcp010f/current-benchmark-truth.json"
 CONTRACT_MANIFEST = ROOT / "packages/forgecad-contracts/manifest.json"
 SCHEMA_ROOT = ROOT / "packages/forgecad-contracts/schemas"
 MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs"
+AGENTIC_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_tools.rs"
+AGENTIC_WRITE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools.rs"
 RUNTIME_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs"
 VIEWER_SOURCE = ROOT / "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx"
 FIT_PLAN_SOURCE = ROOT / "scripts/build_mcp010f_fit_plan.py"
 TOOL_SUMMARY_PATH = ROOT / "docs/evidence/mcp010f/source-tool-manifest-summary.json"
 RUN_INVENTORY_PATH = ROOT / "docs/evidence/mcp010f/real-codex-run-inventory.json"
 EVIDENCE_MANIFEST_PATH = ROOT / "docs/evidence/mcp010f/manifest.json"
-EXPECTED_EVIDENCE_MANIFEST_SHA256 = "9d7a41b610715c1ad3bb5f97f71959c22311acf0094c9d4f7f5118933a821843"
+EXPECTED_EVIDENCE_MANIFEST_SHA256 = "af92319bea9a1886ab522cc1b82266534fe61bb05d76f75001d23d63a0b9e8e8"
 TASK_INDEX = ROOT / "docs/CODEX_TASK_INDEX.md"
 
 AUTHORITY_DOCS = (
@@ -67,6 +69,7 @@ WRITE_NAME_FUNCTIONS = (
     "mcp009_write_tool_names",
     "mcp010c_write_tool_names",
     "mcp010f_write_tool_names",
+    "agentic_write_tool_names",
 )
 
 METRIC_CRITERIA = {
@@ -115,12 +118,12 @@ OBSERVATION_KEYS = frozenset(
     "thresholds triangle_count validator_status view_spec_sha256 visual_intake visual_review_status".split()
 )
 EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
-    "boundary_error_runtime camera_fit_runtime codex_correction_queue comparison_sheet_helper contour_canvas "
+    "agentic_runtime_projection_conformance boundary_error_runtime camera_fit_runtime codex_correction_queue comparison_sheet_helper contour_canvas "
     "contour_draft_binding_validator contour_first_workflow_display contour_target_runtime difference_heatmap "
     "export_restart_hash fit_plan_helper full_360_reference human_visual_review latest_attempt latest_completed_transport "
     "packaged_current_cohort_contour_rebuild packaged_current_cohort_viewer packaged_viewer_core_controls "
     "packaged_viewer_provisional_observation_binding packaged_viewer_read_model packaged_viewer_window "
-    "part_aware_rig_proposal part_contour_fit_runtime part_contour_target_slice_runtime part_correction_source_probe "
+    "part_aware_rig_proposal part_contour_fit_runtime part_contour_target_slice_runtime part_correction_preflight_order part_correction_source_probe "
     "provisional_observation_benchmark_eligibility provisional_observation_camera_binding "
     "provisional_observation_truth_binding provisional_observation_visible_view_gate real_codex_camera_ref_transport "
     "real_codex_image_block_observation real_codex_landmark_aware_rig_fit real_codex_rig_fit_expanded_transport "
@@ -129,32 +132,37 @@ EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
     "silhouette_fit_runtime silhouette_part_error_runtime silhouette_rig_hash_runtime stage0_truth_integrity "
     "strict_visible_view_policy_implemented viewer_accessibility_e2e viewer_browser_dom_smoke "
     "viewer_contour_annotation viewer_contour_real_execution viewer_keyboard_navigation viewer_native_window_smoke "
-    "viewer_source_contract viewer_tauri_compile viewer_typescript_build viewer_write_boundary".split()
+ "viewer_candidate_artifact_binding viewer_candidate_binding_fixtures viewer_visual_evidence_binding_fixtures viewer_quality_report_contract_alignment viewer_source_contract viewer_tauri_compile viewer_typescript_build viewer_write_boundary "
+ "agentic_runtime_observe_plan agentic_runtime_session_checkpoint".split()
 )
 EXPECTED_EVIDENCE_MANIFEST_GATES = {
+    "agentic_runtime_projection_conformance": "PASS_CURRENT_COHORT_NESTED_RUNTIME_MCP_PROJECTION_CONTRACTS",
+    "agentic_runtime_session_checkpoint": "PASS_CURRENT_COHORT_ISOLATED_DURABLE_SESSION_CHECKPOINT_READBACK",
+    "agentic_runtime_observe_plan": "PASS_CURRENT_COHORT_ISOLATED_READ_ONLY_OBSERVE_PLAN",
     "boundary_error_runtime": "PASS_DIRECTIONAL_SDF_SEGMENT_EVIDENCE",
     "camera_fit_runtime": "PASS_BOUNDED_TYPED_CAMERA_SEARCH",
-    "codex_correction_queue": "PASS_SOURCE_READ_ONLY_HASH_BOUND_INTENTS",
+    "codex_correction_queue": "PASS_RUNTIME_ACTION_PROJECTION_READ_ONLY",
     "comparison_sheet_helper": "PASS_SOURCE_STANDARD_LIBRARY_HASH_ONLY_MANIFEST",
     "contour_canvas": "PASS_SOURCE_SILHOUETTE_AOV_OVERLAY",
     "contour_draft_binding_validator": "PASS_SOURCE_HASH_BOUND_SINGLE_PART_INTENT",
-    "contour_first_workflow_display": "PASS_SOURCE_UI_DERIVED_CUMULATIVE_GATES",
+    "contour_first_workflow_display": "PASS_RUNTIME_AGENTIC_PROJECTION_GATES",
     "contour_target_runtime": "PASS_HASH_BOUND_AUTOMATIC_AND_USER_REFINED",
     "difference_heatmap": "PASS_SOURCE_EPHEMERAL_PIXEL_DIFF_512X512",
     "export_restart_hash": "NOT_RUN",
     "fit_plan_helper": "PASS_SOURCE_STANDARD_LIBRARY_HASH_BOUND_INTENTS_ONLY",
     "full_360_reference": "BLOCKED_REFERENCE_COVERAGE",
     "human_visual_review": "NOT_RUN",
-    "latest_attempt": "BLOCKED_WITHOUT_QUALITY_RESULT",
-    "latest_completed_transport": "PASS_WITH_QUALITY_TARGET_NOT_MET_METRIC_SEMANTICS_CHANGED_NOT_PROMOTED",
+    "latest_attempt": "PASS_WITH_QUALITY_TARGET_NOT_MET_CURRENT_COHORT",
+    "latest_completed_transport": "PASS_WITH_QUALITY_TARGET_NOT_MET_NOT_PROMOTED_CURRENT_COHORT",
     "packaged_current_cohort_contour_rebuild": "PASS_AD_HOC_DEEP_STRICT_ISOLATED_READY_WINDOW",
-    "packaged_current_cohort_viewer": "PASS_STRUCTURAL_READ_MODEL_UI_NOT_RUN",
+    "packaged_current_cohort_viewer": "PASS_CURRENT_COHORT_BOUND_READ_MODEL_UI_NOT_RUN",
     "packaged_viewer_core_controls": "PASS_PACKAGED_AX_CORE_CONTROLS",
-    "packaged_viewer_provisional_observation_binding": "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT",
+    "packaged_viewer_provisional_observation_binding": "PASS_CURRENT_COHORT_BOUND_READ_MODEL",
     "packaged_viewer_read_model": "PASS_STRUCTURAL: same-cohort Dev.app CLI read-only projection over an isolated user-reference candidate",
     "packaged_viewer_window": "PASS_STRUCTURAL_WINDOW: same-cohort Dev.app opened ForgeCAD Runtime Viewer at 1296x803 over an isolated ready Runtime",
     "part_aware_rig_proposal": "PASS_RUNTIME_LOCAL_PART_ENVELOPE_WITH_GLOBAL_FALLBACK",
     "part_contour_fit_runtime": "PASS_SINGLE_PART_READ_ONLY_PROPOSAL",
+    "part_correction_preflight_order": "PASS_PONYTAIL_SKILL_GET_BEFORE_DESIGN_TOOLS",
     "part_contour_target_slice_runtime": "PASS_DISJOINT_TARGET_SLICE_AND_PART_BOUNDARY_ATTRIBUTION",
     "part_correction_source_probe": "PASS_TRANSPORT_WITH_METRICS_BEST_EFFORT_IOU_0.7459_NOT_QUALITY_PASS",
     "provisional_observation_benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
@@ -177,6 +185,10 @@ EXPECTED_EVIDENCE_MANIFEST_GATES = {
     "stage0_truth_integrity": "PASS_MACHINE_READABLE_DRIFT_AND_CROSS_RUN_ISOLATION",
     "strict_visible_view_policy_implemented": "PASS_RUNTIME_OWNED_IOU_0.90_BOUNDARY_F1_0.90_BBOX_CENTROID_0.02_LANDMARK_0.80_NME_0.03_REGION_0.85_CRITICAL_0.85",
     "viewer_accessibility_e2e": "NOT_RUN",
+    "viewer_candidate_artifact_binding": "PASS_SOURCE_FAIL_CLOSED_SAME_CANDIDATE_ONLY",
+    "viewer_candidate_binding_fixtures": "PASS_SAME_CANDIDATE_POSITIVE_CROSS_CANDIDATE_NEGATIVE_MISSING_EVIDENCE_NEGATIVE",
+    "viewer_visual_evidence_binding_fixtures": "PASS_NO_QUALITY_PROJECT_ID_CROSS_CANDIDATE_RENDER_NEGATIVE_MISSING_REFERENCE_HASH_NEGATIVE",
+    "viewer_quality_report_contract_alignment": "PASS_QUALITYREPORT_V2_HAS_NO_PROJECT_ID",
     "viewer_browser_dom_smoke": "PASS_ISOLATED_VITE_BROWSER_DOM_SMOKE",
     "viewer_contour_annotation": "PASS_EPHEMERAL_NORMALIZED_POINTER_DRAFT",
     "viewer_contour_real_execution": "PASS_TRANSPORT_WITH_QUALITY_TARGET_NOT_MET",
@@ -249,9 +261,58 @@ def source_tool_names() -> tuple[list[str], list[str]]:
     read_end = source.find("\nfn tool(", read_start)
     require(read_start >= 0 and read_end > read_start, "cannot locate read_only_tools source")
     read_names = re.findall(r'\btool\(\s*"([a-z0-9_]+)"', source[read_start:read_end])
+    if "tools.extend(agentic_tools::read_tools());" in source:
+        agentic_source = AGENTIC_MCP_SOURCE.read_text(encoding="utf-8")
+        agentic_start = agentic_source.find("pub const fn name")
+        agentic_end = agentic_source.find("pub const fn runtime_method", agentic_start)
+        require(
+            agentic_start >= 0 and agentic_end > agentic_start,
+            "cannot locate agentic read tool names",
+        )
+        read_names.extend(
+            re.findall(
+                r'=>\s*"([a-z0-9_]+)"',
+                agentic_source[agentic_start:agentic_end],
+            )
+        )
+    if "tools.extend(agentic_write_tools::read_tools());" in source:
+        agentic_write_source = AGENTIC_WRITE_MCP_SOURCE.read_text(encoding="utf-8")
+        read_function = re.search(
+            r"pub fn read_tools\(\) -> Vec<Value> \{(.*?)\n\}",
+            agentic_write_source,
+            flags=re.DOTALL,
+        )
+        require(read_function is not None, "cannot locate agentic write-module read tools")
+        for variant in re.findall(r"AgenticTool::([A-Za-z0-9_]+)", read_function.group(1)):
+            name_match = re.search(
+                rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
+                agentic_write_source,
+            )
+            require(name_match is not None, f"agentic read tool variant has no name: {variant}")
+            read_names.append(name_match.group(1))
 
     write_names: list[str] = []
     for function_name in WRITE_NAME_FUNCTIONS:
+        if function_name == "agentic_write_tool_names":
+            agentic_source = AGENTIC_WRITE_MCP_SOURCE.read_text(encoding="utf-8")
+            names_function = re.search(
+                r"pub fn write_tool_names\(\) -> Vec<String> \{(.*?)\n\}",
+                agentic_source,
+                flags=re.DOTALL,
+            )
+            require(names_function is not None, "cannot locate agentic write tool names")
+            variants = re.findall(r"AgenticTool::([A-Za-z0-9_]+)", names_function.group(1))
+            require(variants, "agentic_write_tool_names contains no tool variants")
+            names = []
+            for variant in variants:
+                name_match = re.search(
+                    rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
+                    agentic_source,
+                )
+                require(name_match is not None, f"agentic write tool variant has no name: {variant}")
+                names.append(name_match.group(1))
+            write_names.extend(names)
+            continue
         match = re.search(
             rf"fn {re.escape(function_name)}\(\) -> Vec<String> \{{(.*?)\n\}}",
             source,
@@ -723,32 +784,78 @@ def check_run_inventory(truth: dict[str, Any]) -> None:
     for field in ("status", "reason"):
         require(attempt_truth[field] == attempt.get(field), f"latest attempt field drifted: {field}")
     require(attempt_truth["build_cohorts"] == attempt.get("build_cohorts"), "latest attempt cohort drifted")
-    require(
-        attempt_truth["cohort_provenance"] == "UNVERIFIED_SENTINEL_LIKE_DECLARED_VALUE",
-        "latest attempt sentinel-like cohort provenance was hidden",
-    )
-    require(
-        attempt_truth["classification"]
-        == "DECLARED_REAL_CODEX_BLOCKED_DIAGNOSTIC_WITH_UNVERIFIED_HOST_AND_COHORT_PROVENANCE",
-        "latest attempt diagnostic classification drifted",
-    )
-    require(
-        attempt_truth["host_provenance"]
-        == "UNVERIFIED_COMPACT_RECEIPT_LACKS_RAW_EVENTS_EXIT_CODES_AND_TRANSCRIPT_HASH",
-        "latest attempt host provenance was falsely promoted",
-    )
-    require(
-        attempt_truth["attempt_count_evidence"]
-        == "UNVERIFIED_DECLARED_REASON_ONLY_NO_RAW_TRANSCRIPT_OR_TURN_COUNT",
-        "latest attempt count was falsely promoted",
-    )
-    require(
-        len(set(attempt_truth["build_cohorts"].values())) == 1
-        and next(iter(attempt_truth["build_cohorts"].values())) == "b" * 64,
-        "latest attempt no longer matches the explicitly unverified sentinel-like cohort",
-    )
-    require(attempt_truth["quality_result"] == "NOT_PRODUCED", "blocked latest attempt cannot claim a quality result")
-    require(attempt.get("comparison_metrics") is None, "blocked latest attempt unexpectedly contains comparison metrics")
+    if attempt.get("status") == "PASS_WITH_QUALITY_TARGET_NOT_MET":
+        require(
+            attempt_truth["cohort_provenance"] == "VERIFIED_CURRENT_SOURCE_BUILT_COHORT",
+            "completed latest attempt cohort provenance drifted",
+        )
+        require(
+            attempt_truth["classification"] == "REAL_CODEX_COMPLETED_TRANSPORT_WITH_QUALITY_TARGET_NOT_MET",
+            "completed latest attempt classification drifted",
+        )
+        require(
+            attempt_truth["host_provenance"] == "VERIFIED_SANITIZED_CLI_EVENTS_AND_EXIT_CODES",
+            "completed latest attempt host provenance drifted",
+        )
+        require(
+            attempt_truth["attempt_count_evidence"] == "VERIFIED_RAW_RECEIPT_11_CODEX_TURNS_ZERO_EXIT_CODES",
+            "completed latest attempt count evidence drifted",
+        )
+        require(len(set(attempt_truth["build_cohorts"].values())) == 1, "completed latest attempt cohorts diverged")
+        require(attempt_truth["quality_result"] == "QUALITY_TARGET_NOT_MET", "completed latest attempt quality result drifted")
+        require(attempt.get("codex_turn_count") == 11, "completed latest attempt Codex turn count drifted")
+        require(attempt.get("codex_exit_codes") == [0] * 11, "completed latest attempt exit-code evidence drifted")
+        require(attempt.get("unrelated_side_effects") is False, "completed latest attempt reports unrelated side effects")
+        require(attempt.get("persistent_user_data_touched") is False, "completed latest attempt reports persistent user data")
+        require(attempt.get("camera_binding_status") == "PASS_SILHOUETTE_FIT_TO_COMPARE", "completed latest attempt camera binding drifted")
+        require(isinstance(attempt.get("comparison_metrics"), dict), "completed latest attempt has no comparison metrics")
+    elif attempt.get("status") == "BLOCKED" and attempt.get("build_cohorts") == attempt_truth["build_cohorts"]:
+        require(
+            attempt_truth["cohort_provenance"] == "VERIFIED_CURRENT_SOURCE_BUILT_COHORT",
+            "blocked current-source attempt cohort provenance drifted",
+        )
+        require(
+            attempt_truth["classification"] == "REAL_CODEX_BLOCKED_SETUP_NO_QUALITY_RESULT",
+            "blocked current-source attempt classification drifted",
+        )
+        require(
+            attempt_truth["host_provenance"] == "VERIFIED_SANITIZED_MCP_SETUP_EVENTS_ONLY",
+            "blocked current-source attempt host provenance drifted",
+        )
+        require(
+            attempt_truth["attempt_count_evidence"] == "VERIFIED_SANITIZED_MCP_SETUP_CALLS_ONLY_NO_CODEX_TURN_COUNT",
+            "blocked current-source attempt count evidence drifted",
+        )
+        require(len(set(attempt_truth["build_cohorts"].values())) == 1, "blocked current-source attempt cohorts diverged")
+        require(attempt_truth["quality_result"] == "NOT_PRODUCED", "blocked current-source attempt claimed a quality result")
+        require(attempt.get("comparison_metrics") is None, "blocked current-source attempt unexpectedly contains comparison metrics")
+    else:
+        require(
+            attempt_truth["cohort_provenance"] == "UNVERIFIED_SENTINEL_LIKE_DECLARED_VALUE",
+            "latest attempt sentinel-like cohort provenance was hidden",
+        )
+        require(
+            attempt_truth["classification"]
+            == "DECLARED_REAL_CODEX_BLOCKED_DIAGNOSTIC_WITH_UNVERIFIED_HOST_AND_COHORT_PROVENANCE",
+            "latest attempt diagnostic classification drifted",
+        )
+        require(
+            attempt_truth["host_provenance"]
+            == "UNVERIFIED_COMPACT_RECEIPT_LACKS_RAW_EVENTS_EXIT_CODES_AND_TRANSCRIPT_HASH",
+            "latest attempt host provenance was falsely promoted",
+        )
+        require(
+            attempt_truth["attempt_count_evidence"]
+            == "UNVERIFIED_DECLARED_REASON_ONLY_NO_RAW_TRANSCRIPT_OR_TURN_COUNT",
+            "latest attempt count was falsely promoted",
+        )
+        require(
+            len(set(attempt_truth["build_cohorts"].values())) == 1
+            and next(iter(attempt_truth["build_cohorts"].values())) == "b" * 64,
+            "latest attempt no longer matches the explicitly unverified sentinel-like cohort",
+        )
+        require(attempt_truth["quality_result"] == "NOT_PRODUCED", "blocked latest attempt cannot claim a quality result")
+        require(attempt.get("comparison_metrics") is None, "blocked latest attempt unexpectedly contains comparison metrics")
 
     transport_truth = truth["latest_completed_transport"]
     require_exact_keys(
@@ -767,14 +874,29 @@ def check_run_inventory(truth: dict[str, Any]) -> None:
     require(transport.get("comparison_metrics") == transport_truth.get("metrics"), "latest completed transport metrics drifted")
     require(transport.get("render_set_hash") == transport_truth.get("render_set_hash"), "latest completed render set drifted")
     require(transport.get("comparison_report_hash") == transport_truth.get("comparison_report_hash"), "latest completed comparison drifted")
-    require(
-        transport_truth["promotion_decision"] == "NOT_PROMOTED_METRIC_SEMANTICS_CHANGED_AND_QUALITY_TARGET_NOT_MET",
-        "latest completed transport must not silently replace a differently measured retained benchmark",
-    )
-    require(
-        transport_truth["metric_semantics"] == "SEMANTIC_PART_ANCHOR_CHECKPOINT_NOT_COMPARABLE_TO_ATTEMPT35_LANDMARK_METRICS",
-        "latest completed metric-semantics boundary drifted",
-    )
+    if transport_truth["source_receipt_path"] in {
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-setup-aggregate.json",
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-viewer-bound.json",
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-canonical-intake-viewer-bound.json",
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
+    }:
+        require(
+            transport_truth["promotion_decision"] == "NOT_PROMOTED_QUALITY_TARGET_NOT_MET_AND_PROVISIONAL_BASELINE_FROZEN",
+            "current latest transport promotion boundary drifted",
+        )
+        require(
+            transport_truth["metric_semantics"] == "CURRENT_SOURCE_BUILT_FULL_VISIBLE_VIEW_METRICS_NOT_PROMOTED",
+            "current latest transport metric semantics drifted",
+        )
+    else:
+        require(
+            transport_truth["promotion_decision"] == "NOT_PROMOTED_METRIC_SEMANTICS_CHANGED_AND_QUALITY_TARGET_NOT_MET",
+            "latest completed transport must not silently replace a differently measured retained benchmark",
+        )
+        require(
+            transport_truth["metric_semantics"] == "SEMANTIC_PART_ANCHOR_CHECKPOINT_NOT_COMPARABLE_TO_ATTEMPT35_LANDMARK_METRICS",
+            "latest completed metric-semantics boundary drifted",
+        )
 
 
 def check_packaged_viewer(truth: dict[str, Any]) -> None:
@@ -782,18 +904,39 @@ def check_packaged_viewer(truth: dict[str, Any]) -> None:
     viewer_path = ROOT / viewer_truth["source_receipt_path"]
     viewer = load_json(viewer_path)
     require(sha256_file(viewer_path) == viewer_truth["source_receipt_sha256"], "packaged Viewer receipt bytes changed")
+    retained = truth["provisional_retained_observation"]
     packaged = viewer.get("packaged_viewer", {})
+    if viewer_truth["provisional_observation_binding"] == "PASS_CURRENT_COHORT_BOUND_READ_MODEL":
+        require(viewer.get("status") == "PASS_WITH_QUALITY_TARGET_NOT_MET", "bound packaged Viewer receipt is not a completed transport")
+        require(packaged.get("status") == "PASS_CURRENT_COHORT_BOUND_READ_MODEL", "bound packaged Viewer status drifted")
+        require(packaged.get("binding") == "PASS_EXACT_PROJECT_CANDIDATE_ARTIFACT_REFERENCE_RENDERSET_COMPARISON", "bound packaged Viewer lineage claim drifted")
+        require(packaged.get("build_cohort_sha256") == viewer_truth["build_cohort_sha256"], "packaged Viewer cohort drifted")
+        require(viewer.get("build_cohorts", {}).get("runtime") == viewer_truth["build_cohort_sha256"], "packaged Viewer cohort is not the live Runtime cohort")
+        require(viewer.get("artifact_id") == viewer_truth["artifact_sha256"], "packaged Viewer artifact id drifted")
+        require(viewer.get("artifact_sha256") == viewer_truth["artifact_sha256"], "packaged Viewer artifact hash drifted")
+        require(packaged.get("artifact_id") == viewer_truth["artifact_sha256"], "bound packaged Viewer artifact drifted")
+        require(viewer.get("render_set_hash") == viewer_truth["render_set_hash"], "packaged Viewer render set drifted")
+        require(packaged.get("render_set_hash") == viewer_truth["render_set_hash"], "bound packaged Viewer render set drifted")
+        require(packaged.get("comparison_report_hash") == viewer.get("comparison_report_hash"), "bound packaged Viewer comparison hash drifted")
+        require(viewer.get("quality_visual_status") == viewer_truth["quality_visual_status"], "packaged Viewer quality status drifted")
+        require(packaged.get("quality_visual_status") == viewer_truth["quality_visual_status"], "bound packaged Viewer quality status drifted")
+        require(viewer.get("quality_hard_gate_passed") is False, "bound packaged Viewer falsely reports a quality pass")
+        require(packaged.get("ui_e2e") == viewer_truth["ui_e2e"], "packaged Viewer UI gate drifted")
+        require(packaged.get("candidate_id") == viewer.get("candidate_id"), "bound packaged Viewer candidate drifted")
+        require(packaged.get("project_id") == viewer.get("project_id"), "bound packaged Viewer project drifted")
+        require(packaged.get("reference_id") == viewer.get("reference_id"), "bound packaged Viewer reference drifted")
+        require(viewer_truth["artifact_sha256"] != retained["artifact_sha256"], "bound packaged Viewer unexpectedly claims the retained artifact")
+        return
+    require(
+        viewer_truth["provisional_observation_binding"] == "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT",
+        "packaged Viewer binding has an unsupported value",
+    )
     compare = viewer.get("reference_compare", {})
     require(packaged.get("build_cohort_sha256") == viewer_truth["build_cohort_sha256"], "packaged Viewer cohort drifted")
     require(viewer.get("appearance_artifact_sha256") == viewer_truth["artifact_sha256"], "packaged Viewer artifact drifted")
     require(compare.get("render_set_hash") == viewer_truth["render_set_hash"], "packaged Viewer render set drifted")
     require(compare.get("quality_visual_status") == viewer_truth["quality_visual_status"], "packaged Viewer quality status drifted")
     require(packaged.get("ui_e2e") == viewer_truth["ui_e2e"], "packaged Viewer UI gate drifted")
-    retained = truth["provisional_retained_observation"]
-    require(
-        viewer_truth["provisional_observation_binding"] == "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT",
-        "packaged Viewer binding must remain explicit until a same-benchmark replay exists",
-    )
     require(viewer_truth["build_cohort_sha256"] != retained["build_cohorts"]["mcp"], "packaged Viewer unexpectedly claims the retained cohort")
     require(viewer_truth["artifact_sha256"] != retained["artifact_sha256"], "packaged Viewer unexpectedly claims the retained artifact")
 
@@ -869,10 +1012,13 @@ def check_truth_negative_semantics(truth: dict[str, Any]) -> None:
     require(retained["export_restart_hash"] == "NOT_RUN", "export/restart was falsely promoted")
     require(retained["hq_360"] == "BLOCKED_REFERENCE_COVERAGE", "360 gate was falsely promoted")
     require(retained["persistent_user_data_touched"] is False, "Stage 0 must not claim a persistent user-data write")
+    viewer_binding = truth["packaged_viewer"]["provisional_observation_binding"]
     require(
-        truth["packaged_viewer"]["provisional_observation_binding"] == "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT",
-        "packaged Viewer was falsely bound to the retained benchmark",
+        viewer_binding in {"NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT", "PASS_CURRENT_COHORT_BOUND_READ_MODEL"},
+        "packaged Viewer binding has an unsupported promotion state",
     )
+    if viewer_binding == "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT":
+        require(viewer_binding == "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT", "unbound packaged Viewer state drifted")
 
 
 def check_truth_shape(truth: dict[str, Any]) -> None:
@@ -994,7 +1140,7 @@ def check_truth_shape(truth: dict[str, Any]) -> None:
 
 def check_truth_declared_semantics(truth: dict[str, Any]) -> None:
     require(truth["observation_id"] == "robot-three-quarter-visible-view-attempt35-provisional", "observation id drifted")
-    require(truth["recorded_on"] == "2026-08-13", "Stage 0 recorded date drifted")
+    require(truth["recorded_on"] == "2026-08-14", "Stage 0 recorded date drifted")
     require(
         truth["purpose"]
         == "Stage 0 machine-readable source and provisional-observation snapshot; evidence index only, never Runtime product truth or an eligible benchmark",
@@ -1025,8 +1171,6 @@ def check_truth_declared_semantics(truth: dict[str, Any]) -> None:
         "automatic source drift, contract-content, cross-run isolation and candidate-gate semantic checks",
     ]
     expected_remaining = [
-        "regenerate one current-cohort compact receipt with one camera binding, canonical-vs-object hashes, per-AOV hashes, readback counters, structured threshold revision, metric revision and explicit NOT_RUN fields",
-        "bind the packaged Viewer to that exact candidate, artifact, RenderSet and comparison hashes",
         "prove the real Codex host consumed returned image blocks rather than only calling render_pass_get",
         "run formal VoiceOver, independent human review, PBR likeness and export/restart hash gates",
     ]
@@ -1034,16 +1178,16 @@ def check_truth_declared_semantics(truth: dict[str, Any]) -> None:
 
     require(
         truth["latest_attempt"]["source_receipt_path"]
-        == "docs/evidence/mcp010f/real-codex-cli-semantic-aligned-fast-20260813.json",
+        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json",
         "frozen latest-attempt path drifted",
     )
     require(
         truth["latest_completed_transport"]["source_receipt_path"]
-        == "docs/evidence/mcp010f/real-codex-cli-semantic-landmark-compare-20260813.json",
+        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
         "frozen latest-completed path drifted",
     )
     require(
-        truth["packaged_viewer"]["source_receipt_path"] == "docs/evidence/mcp010f/packaged-viewer-read-model.json",
+        truth["packaged_viewer"]["source_receipt_path"] == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
         "packaged Viewer receipt path drifted",
     )
     require(truth["packaged_viewer"]["ui_e2e"] == "NOT_RUN", "packaged Viewer UI was falsely promoted")
@@ -1173,8 +1317,8 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         "provisional_observation_camera_binding": "MISMATCH_FIT_VS_COMPARISON_CAMERA",
         "provisional_observation_visible_view_gate": observation["current_candidate_visible_view_gate"],
         "packaged_viewer_provisional_observation_binding": truth["packaged_viewer"]["provisional_observation_binding"],
-        "latest_completed_transport": "PASS_WITH_QUALITY_TARGET_NOT_MET_METRIC_SEMANTICS_CHANGED_NOT_PROMOTED",
-        "latest_attempt": "BLOCKED_WITHOUT_QUALITY_RESULT",
+        "latest_completed_transport": "PASS_WITH_QUALITY_TARGET_NOT_MET_NOT_PROMOTED_CURRENT_COHORT",
+        "latest_attempt": "PASS_WITH_QUALITY_TARGET_NOT_MET_CURRENT_COHORT",
         "real_codex_image_block_observation": observation["render_pass_image_blocks"],
         "viewer_accessibility_e2e": "NOT_RUN",
         "human_visual_review": observation["human_review"],
@@ -1188,7 +1332,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         require(forbidden not in limitation_text, f"evidence manifest contains a forbidden promotion claim: {forbidden}")
     require(isinstance(manifest["scope"], list) and manifest["scope"], "evidence manifest scope must be a non-empty list")
     require(isinstance(manifest["limitations"], list) and manifest["limitations"], "evidence manifest limitations must be non-empty")
-    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 120, "evidence manifest frozen evidence count drifted")
+    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 131, "evidence manifest frozen evidence count drifted")
     require(len(set(manifest["evidence"])) == len(manifest["evidence"]), "evidence manifest contains duplicate entries")
     for index, entry in enumerate(manifest["evidence"]):
         require(isinstance(entry, str) and entry, f"evidence entry {index} must be a non-empty string")
@@ -1299,8 +1443,8 @@ def check_truth() -> dict[str, Any]:
         "fit-plan visible-view policy and Runtime truth disagree",
     )
     require(
-        viewer_visible_view_thresholds() == truth["provisional_retained_observation"]["thresholds"],
-        "Viewer visible-view policy and Runtime truth disagree",
+        "Viewer 不再从 comparison metrics 重新计算质量门" in VIEWER_SOURCE.read_text(encoding="utf-8"),
+        "Viewer must consume Runtime quality gates instead of projecting thresholds",
     )
 
     check_receipt_binding(truth)

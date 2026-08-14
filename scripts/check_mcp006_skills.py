@@ -16,6 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "packages" / "forgecad-skills"
 CONTRACTS = ROOT / "packages" / "forgecad-contracts" / "schemas"
+BUNDLES = SKILLS / "bundles"
+ARCHIVE = SKILLS / "archive" / "superseded"
 EXPECTED = {
     "reference-intake",
     "subject-profile",
@@ -28,6 +30,21 @@ EXPECTED = {
     "reference-compare",
     "local-edit-and-export",
     "primitive-blockout",
+    "ponytail-preflight",
+}
+ARCHIVED = {
+    ("reference-to-typed-plan", "0.1.0"): {
+        "tree_sha256": "d12e69cbceac04da9c1386645a083e32a39f370c60be9e41038f7d43a63e596f",
+        "replacement": "materialized-mcp006-bundles",
+    },
+    ("hard-surface-detail", "0.1.0"): {
+        "tree_sha256": "98a38f2b44a11962efe9a8bf201990825864f118ab2683f6a582a0512a2521aa",
+        "replacement": "hard-surface-detail@0.2.0",
+    },
+    ("uv-pbr", "0.1.0"): {
+        "tree_sha256": "1e851aca170e665bf0618a61d316ae88d063749b2528036083fd374e0872563f",
+        "replacement": "uv-pbr@0.2.0",
+    },
 }
 
 
@@ -230,13 +247,52 @@ def assert_materialized_bundle(entry: dict[str, object]) -> None:
         fail(f"{key} signature placeholder is not explicitly deferred")
 
 
+def tree_hash(root: Path) -> str:
+    files = sorted(path for path in root.rglob("*") if path.is_file())
+    if not files:
+        fail(f"archive bundle is empty: {root.relative_to(ROOT)}")
+    lines = "".join(
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  ./{path.relative_to(root).as_posix()}\n"
+        for path in files
+    )
+    return hashlib.sha256(lines.encode("utf-8")).hexdigest()
+
+
+def assert_archived_bundles() -> None:
+    manifest_path = ARCHIVE / "manifest.json"
+    if not manifest_path.exists():
+        fail("superseded Skill archive manifest is missing")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schema_version") != "ForgeCADSkillArchiveManifest@1" or manifest.get("status") != "SUPERSEDED":
+        fail("superseded Skill archive manifest is invalid")
+    entries = manifest.get("entries")
+    if not isinstance(entries, list):
+        fail("superseded Skill archive entries are invalid")
+    actual = {
+        (entry.get("skill_id"), entry.get("version")): entry
+        for entry in entries
+        if isinstance(entry, dict)
+    }
+    if set(actual) != set(ARCHIVED):
+        fail("superseded Skill archive entries drift from the isolation policy")
+    for key, expected in ARCHIVED.items():
+        skill_id, version = key
+        entry = actual[key]
+        bundle = ARCHIVE / skill_id / version
+        if not (bundle / "skill.yaml").exists():
+            fail(f"archived Skill is missing: {skill_id}@{version}")
+        if entry.get("archive_path") != f"{skill_id}/{version}" or entry.get("status") != "SUPERSEDED":
+            fail(f"archived Skill receipt is invalid: {skill_id}@{version}")
+        if entry.get("replacement") != expected["replacement"]:
+            fail(f"archived Skill replacement is invalid: {skill_id}@{version}")
+        if entry.get("tree_sha256") != expected["tree_sha256"]:
+            fail(f"archived Skill tree hash is invalid: {skill_id}@{version}")
+        if tree_hash(bundle) != expected["tree_sha256"]:
+            fail(f"archived Skill bytes drifted: {skill_id}@{version}")
+
+
 def main() -> int:
-    superseded_active_path = SKILLS / "reference-to-typed-plan"
-    if superseded_active_path.exists():
-        fail("superseded reference-to-typed-plan Skill must stay in packages/forgecad-skills/archive")
-    archived_superseded = SKILLS / "archive" / "superseded" / "reference-to-typed-plan" / "0.1.0" / "skill.yaml"
-    if not archived_superseded.exists():
-        fail("superseded reference-to-typed-plan archive is missing")
+    assert_archived_bundles()
 
     registry_path = SKILLS / "registry.json"
     registry_bytes = registry_path.read_bytes()
@@ -247,7 +303,25 @@ def main() -> int:
         fail("MCP006 registry must be first-party development-only")
     entries = registry.get("skills")
     if not isinstance(entries, list) or {entry.get("skill_id") for entry in entries} != EXPECTED:
-        fail("MCP006 registry must contain exactly the eleven MVP Skill IDs")
+        fail("MCP006 registry must contain exactly the twelve MVP Skill IDs")
+
+    active_bundle_paths = {
+        (str(entry.get("skill_id")), str(entry.get("version")))
+        for entry in entries
+    }
+    actual_bundle_paths = {
+        (skill_dir.name, version_dir.name)
+        for skill_dir in BUNDLES.iterdir()
+        if skill_dir.is_dir()
+        for version_dir in skill_dir.iterdir()
+        if version_dir.is_dir()
+    }
+    unexpected_bundle_paths = sorted(actual_bundle_paths - active_bundle_paths)
+    if unexpected_bundle_paths:
+        fail(f"unregistered Skill bundles must be archived: {unexpected_bundle_paths}")
+    missing_bundle_paths = sorted(active_bundle_paths - actual_bundle_paths)
+    if missing_bundle_paths:
+        fail(f"active Skill bundles are missing: {missing_bundle_paths}")
 
     expected_registry_hash = hashlib.sha256(registry_bytes).hexdigest()
     for required in (

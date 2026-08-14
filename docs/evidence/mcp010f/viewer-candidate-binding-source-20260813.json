@@ -1,0 +1,65 @@
+{
+  "schema_version": "ForgeCADMCP010FViewerCandidateBindingReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-13",
+  "status": "PASS_SOURCE_WITH_UNRUN_VISUAL_GATES",
+  "scope": "read-only Viewer candidate/project/artifact/reference/RenderSet/evidence binding",
+  "implementation": {
+    "viewer_source": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
+    "viewer_source_sha256": "1291113958e32fba893f3b352101a0810b0abe6f6d00301cebb9539eeaf2b705",
+    "source_checker": "scripts/check_mcp010f_viewer.py",
+    "source_checker_sha256": "67afdfff18327aa4af551fdc8b87d111ec875befb2678e66938cc979203915b1"
+  },
+  "binding_policy": {
+    "candidate_project": "required",
+    "artifact_candidate": "required",
+    "artifact_sha256": "required",
+    "visual_evidence_candidate": "required",
+    "visual_evidence_project": "required",
+    "quality_reference_render_comparison": "must_match_visual_evidence",
+    "quality_report_project_id": "not_in_QualityReport@2_outer_evidence_envelope_required",
+    "reference_project_and_sha256": "required",
+    "render_set_candidate": "required",
+    "render_set_artifact_and_reference": "required",
+    "comparison_candidate_artifact_reference_render": "required",
+    "cross_candidate_fallback": "forbidden",
+    "missing_or_mismatched_evidence": "fail_closed_not_run"
+  },
+  "focused_results": {
+    "viewer_source_checker": "PASS",
+    "same_candidate_fixture": "PASS",
+    "cross_candidate_fixture": "PASS_FAIL_CLOSED",
+    "missing_evidence_fixture": "PASS_FAIL_CLOSED",
+    "visual_evidence_binding_fixtures": "PASS_NO_QUALITY_PROJECT_ID_CROSS_CANDIDATE_RENDER_NEGATIVE_MISSING_REFERENCE_HASH_NEGATIVE",
+    "quality_report_contract_alignment": "PASS_QUALITYREPORT_V2_HAS_NO_PROJECT_ID",
+    "desktop_typecheck": "PASS",
+    "desktop_vite_build": "PASS",
+    "desktop_tauri_check": "PASS",
+    "viewer_unavailable_unit": "PASS",
+    "viewer_authenticated_ipc_fixture": "BLOCKED_GEOMETRY_WORKER_UNAVAILABLE",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "boundary": {
+    "runtime_write": "NOT_USED",
+    "mcp_write_tools": "NOT_USED",
+    "schema_or_skill_registry_change": "NOT_USED",
+    "quality_status": "QUALITY_TARGET_NOT_MET_UNCHANGED",
+    "camera_binding": "MISMATCH_UNCHANGED",
+    "packaged_viewer_ui": "NOT_RUN",
+    "formal_voiceover": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "full_360_reference": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "notes": [
+    "The Viewer may display a structural artifact only when the artifact readback carries the same candidate_id as the active candidate.",
+    "QualityReport@2 has no project_id field; the Viewer binds project scope through the authenticated ViewerVisualEvidence envelope, candidate projection, reference project/hash, and nested RenderSet/ComparisonReport lineage.",
+    "Visual comparison remains unavailable until Runtime returns candidate/project-bound ViewerVisualEvidence and matching reference/render payloads.",
+    "This receipt proves source and focused binding behavior only; it is not a packaged Viewer, likeness, human, PBR or benchmark receipt."
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/semantic-scene-graph-projection.schema.json",
+  "title": "Semantic Scene Graph Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "x-forgecad-contract-role": "transport-projection",
+  "x-forgecad-projection-only": true,
+  "x-forgecad-durable-schema": "semantic-scene-graph.schema.json",
+  "properties": {
+    "schema_version": {"const": "SemanticSceneGraph@1"},
+    "projection_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/projection_status"},
+    "read_only": {"const": true},
+    "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "selection": {"$ref": "#/$defs/selection"},
+    "parts": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/part"}
+    },
+    "materials": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/material"}
+    },
+    "cameras": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/camera"}
+    },
+    "geometry": {"$ref": "#/$defs/geometry"},
+    "evidence": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"},
+    "uncertainty": {"$ref": "#/$defs/uncertainty"},
+    "canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
+  },
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "project_id",
+    "candidate_id",
+    "selection",
+    "parts",
+    "materials",
+    "cameras",
+    "geometry",
+    "evidence",
+    "uncertainty",
+    "canonical_sha256"
+  ],
+  "$defs": {
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "part_ids", "reason"],
+      "properties": {
+        "status": {"enum": ["unknown", "observed"]},
+        "part_ids": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"}
+        },
+        "reason": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+      }
+    },
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "part_id_status", "display_name", "display_name_status", "role", "role_status", "parent_part_id", "parent_part_id_status", "source_node_id", "source_node_id_status", "material_zone_id", "material_zone_id_status", "triangle_count", "triangle_count_status", "lineage"],
+      "properties": {
+        "part_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+        "part_id_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "display_name": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"},
+        "display_name_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "role": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+          ]
+        },
+        "role_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "parent_part_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+        "parent_part_id_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "children": {
+          "type": ["array", "null"],
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"}
+        },
+        "children_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "symmetry_partner": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+        "symmetry_partner_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "visibility": {"type": ["string", "null"], "enum": [null, "visible", "hidden"]},
+        "visibility_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "source_node_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+        "source_node_id_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "source_operator_id": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+          ]
+        },
+        "source_operator_id_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "material_zone_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+        "material_zone_id_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "triangle_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 250000},
+        "triangle_count_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "solid": {"type": ["boolean", "null"]},
+        "solid_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "bbox": {"const": null},
+        "bbox_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "dimensions": {"const": null},
+        "dimensions_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "editability": {"const": null},
+        "editability_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"}
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["material_zone_id", "status", "channels", "lineage"],
+      "properties": {
+        "material_zone_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+        "status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "channels": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["base_color", "metallic_roughness", "normal", "ao", "emissive"],
+          "properties": {
+            "base_color": {"const": "unknown"},
+            "metallic_roughness": {"const": "unknown"},
+            "normal": {"const": "unknown"},
+            "ao": {"const": "unknown"},
+            "emissive": {"const": "unknown"}
+          }
+        },
+        "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"}
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["camera_hash", "status", "kind", "parameters", "parameters_status", "lineage"],
+      "properties": {
+        "camera_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+        "status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "kind": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"},
+        "parameters": {"const": null},
+        "parameters_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"}
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_sha256", "triangle_count", "triangle_count_status", "bbox", "dimensions"],
+      "properties": {
+        "artifact_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"},
+        "triangle_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 250000},
+        "triangle_count_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"},
+        "bbox": {"const": "unknown"},
+        "dimensions": {"const": "unknown"}
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed", "inferred", "unknown"],
+      "properties": {
+        "observed": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}},
+        "inferred": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}},
+        "unknown": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}}
+      }
+    }
+  }
+}

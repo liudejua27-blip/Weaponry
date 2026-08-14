@@ -1,6 +1,6 @@
 # ADR-0026: Agentic Design Runtime
 
-状态：Accepted as target architecture；当前为目标设计，尚未落地为 Schema/tool/runtime Gate
+状态：Accepted as target architecture；observe/plan read-only projection 与 durable session/checkpoint/RepairIntent prepare/readback slice 已落地，单动作 orchestrator、Repair 应用和完整视觉 Gate 仍未完成
 日期：2026-08-13
 
 ## 背景
@@ -44,6 +44,20 @@ Codex / Pi-style Agent Harness
 ```
 
 ADR-0025 仍然有效：ForgeCAD 不内置 LLM/Provider，不执行任意 Python/JavaScript/shell，不让外部 DCC、GLB、Three.js scene、prompt 或截图成为版本真值。Rust Runtime 仍是 SQLite/CAS/Project/Candidate/Version/Job/Quality 的唯一写者，MCP 仍是薄 stdio adapter，Viewer 仍只读。
+
+### 0.1 第一阶段实施状态
+
+MCP010F 当前包含两个严格受限的 slice：
+
+- contracts manifest 新增本 ADR 的 10 个目标合同，并通过 `scripts/check_agentic_contracts.py` 的正向/负向 fixture 检查；
+- Runtime 新增按需重建的 `projection/read-only` observation、stage plan 和 critic projection；该投影只读现有 project/snapshot/candidate/evidence，不创建 candidate/version/job，也不把投影当作持久真值；
+- MCP 新增四个 read-only tool：`scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get`；每个工具均声明 read-only、非 destructive、非 open-world；
+- Viewer 新增 projection normalizer，只显示 Runtime 已返回的 stage/gate/action/hash，不在本地生成质量或设计状态；
+- 隔离探针先执行 Ponytail preflight，随后验证空参考 fail closed、动作锁定、project binding 和无用户持久数据写入：`docs/evidence/mcp010f/agentic-runtime-observe-plan-20260813.json`。
+- Runtime 另外提供受批准的 `session_create_or_resume`、`checkpoint_prepare`、`checkpoint_restore_prepare` 写入准备，以及 `session_get`、`checkpoint_get` durable readback；session/checkpoint 记录由 Runtime 写入 SQLite/CAS，恢复只生成 CAS-bound `RepairIntent@1`，不修改 candidate/version/history；
+- Viewer 通过 authenticated IPC 查询 durable session，仍只展示 read model，不提供写入按钮；完整重启后的 session/checkpoint/intent receipt 为 `docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`，合同检查为 `scripts/check_agentic_runtime_receipt.py`。
+
+这里的 `AgenticSceneObserveResult@1` 仍是可丢弃的 source transport envelope；durable session/checkpoint/RepairIntent 只在上述受限 prepare/readback 范围内存在。真实 Runtime 的嵌套只读 projection 已有独立 producer/consumer conformance 回执，但 durable/reference/DesignSpec 的完整 producer 尚未形成。它们尚未形成单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator 或 Repair 实际应用。这个区分是本 ADR 的强制状态边界。
 
 ### 1. Agent Harness
 
@@ -142,17 +156,16 @@ pass/fail/unknown
 
 ## 实施顺序
 
-ADR-0026 不改变当前唯一 `in_progress`：`FGC-MCP010F`。建议把后续工作拆成 MCP010F 的重构子门或 MCP014 之后的新任务：
+ADR-0026 不改变当前唯一 `in_progress`：`FGC-MCP010F`。observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback 已完成各自 source/isolated receipt；后续工作必须拆成独立、可验证的子任务：
 
-1. `SemanticSceneGraph@1` / `ModelUnderstandingBundle@1` Schema 与 read tool；
-2. `DesignSpec@1` / `ReferenceCanvas@1`；
-3. `DesignSession@1` / `DesignCheckpoint@1`；
-4. `scene_observe_get`：一次返回 Codex 设计判断所需现场；
-5. `design_stage_plan_get`：只读返回下一步允许动作和失败门；
-6. Parametric Design Kit v0；
-7. Visual Evidence Bundle；
-8. Critic/Repair schema；
-9. 真实机器人 visible-view loop + human gate + export/restart hash。
+1. durable/reference/DesignSpec 与剩余 Agentic contract family 的完整 producer/consumer conformance（嵌套只读 projection 已有独立 Gate）；
+2. `DesignSpec@1` / `ReferenceCanvas@1` 的独立 CAS-bound producer/readback 和真实参考覆盖证据；
+3. 单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator；
+4. bounded RepairIntent 执行和用户批准边界；
+5. Parametric Design Kit v0 的 typed macro producer；
+6. 完整 Visual Evidence Bundle 与 critic evidence hash；
+7. 真实 Codex observe→plan→bounded action→inspect loop；
+8. 真实机器人 visible-view loop + human gate + export/restart hash。
 
 ## 结果
 

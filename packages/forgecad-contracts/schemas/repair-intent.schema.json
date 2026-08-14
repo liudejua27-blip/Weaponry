@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/repair-intent.schema.json",
+  "title": "RepairIntent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "intent_id",
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "reference_id",
+    "reference_sha256",
+    "camera_hash",
+    "source_evidence_sha256",
+    "source_critic_report_id",
+    "source_critic_report_sha256",
+    "stage",
+    "scope",
+    "action",
+    "precondition",
+    "recompute",
+    "rollback",
+    "status",
+    "approval_required",
+    "runtime_write",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "RepairIntent@1"},
+    "intent_id": {"$ref": "#/$defs/identifier"},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "source_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "source_critic_report_id": {"$ref": "#/$defs/identifier"},
+    "source_critic_report_sha256": {"$ref": "#/$defs/sha256"},
+    "stage": {"$ref": "#/$defs/stage"},
+    "scope": {"$ref": "#/$defs/scope"},
+    "action": {"$ref": "#/$defs/action"},
+    "precondition": {"$ref": "#/$defs/precondition"},
+    "recompute": {"$ref": "#/$defs/recompute"},
+    "rollback": {"$ref": "#/$defs/rollback"},
+    "status": {"enum": ["proposed", "approved", "applied", "rejected"]},
+    "approval_required": {"const": true},
+    "runtime_write": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"rollback": {"properties": {"relation": {"const": "none"}}}},
+        "required": ["rollback"]
+      },
+      "then": {"properties": {"recompute": {"properties": {"confirm_allowed": {"const": false}}}}}
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_identifier": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+          {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "operator_id": {
+      "enum": [
+        "forgecad.geometry.primitive@2",
+        "forgecad.geometry.profile-extrude@1",
+        "forgecad.geometry.profile-loft@1",
+        "forgecad.geometry.revolve@1",
+        "forgecad.geometry.tube-sweep@1",
+        "forgecad.geometry.transform@2",
+        "forgecad.geometry.mirror@1",
+        "forgecad.geometry.array@1",
+        "forgecad.geometry.panel@1",
+        "forgecad.geometry.vent-array@1",
+        "forgecad.geometry.joint-stack@1",
+        "forgecad.geometry.part-output@1"
+      ]
+    },
+    "kit_id": {
+      "enum": [
+        "forgecad.kit.housing@1",
+        "forgecad.kit.panel@1",
+        "forgecad.kit.vent@1",
+        "forgecad.kit.joint@1",
+        "forgecad.kit.sensor@1",
+        "forgecad.kit.frame@1",
+        "forgecad.kit.handle@1",
+        "forgecad.kit.foot@1",
+        "forgecad.kit.wheel@1",
+        "forgecad.kit.fastener@1",
+        "forgecad.kit.cable@1",
+        "forgecad.kit.light@1"
+      ]
+    },
+    "scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "part_id"],
+          "properties": {
+            "kind": {"const": "part"},
+            "part_id": {"$ref": "#/$defs/identifier"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "material_zone_id"],
+          "properties": {
+            "kind": {"const": "material-zone"},
+            "material_zone_id": {"$ref": "#/$defs/identifier"}
+          }
+        }
+      ]
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_kind", "kit_id", "operator_id", "operation", "parameter_changes", "bounded", "description"],
+      "properties": {
+        "action_kind": {"enum": ["bounded-repair", "request-reference"]},
+        "kit_id": {"$ref": "#/$defs/kit_id"},
+        "operator_id": {"type": ["string", "null"], "enum": [null, "forgecad.geometry.primitive@2", "forgecad.geometry.profile-extrude@1", "forgecad.geometry.profile-loft@1", "forgecad.geometry.revolve@1", "forgecad.geometry.tube-sweep@1", "forgecad.geometry.transform@2", "forgecad.geometry.mirror@1", "forgecad.geometry.array@1", "forgecad.geometry.panel@1", "forgecad.geometry.vent-array@1", "forgecad.geometry.joint-stack@1", "forgecad.geometry.part-output@1"]},
+        "operation": {"enum": ["adjust-parameter", "rebuild-part", "rebuild-material-zone", "request-reference"]},
+        "parameter_changes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["parameter_id", "before", "after", "minimum", "maximum", "unit"],
+            "properties": {
+              "parameter_id": {"$ref": "#/$defs/identifier"},
+              "before": {"type": "number", "minimum": -1000, "maximum": 1000},
+              "after": {"type": "number", "minimum": -1000, "maximum": 1000},
+              "minimum": {"type": "number", "minimum": -1000, "maximum": 1000},
+              "maximum": {"type": "number", "minimum": -1000, "maximum": 1000},
+              "unit": {"enum": ["meter", "radian", "ratio", "count"]}
+            }
+          }
+        },
+        "bounded": {"const": true},
+        "description": {"$ref": "#/$defs/safe_text"}
+      }
+    },
+    "precondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failed_gate_id", "quality_status", "current_candidate_state_sha256", "evidence_sha256", "status"],
+      "properties": {
+        "failed_gate_id": {"enum": ["reference-coverage", "primary-silhouette", "primary-proportion", "secondary-structure", "tertiary-detail", "visible-view", "uv-tangent-pbr", "multi-view-compare", "codex-typed-review", "human-review", "export-restart-hash", "360-reference-coverage"]},
+        "quality_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE", "not-run"]},
+        "current_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "status": {"enum": ["failed", "unknown"]}
+      }
+    },
+    "recompute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps", "must_rebind_reference", "must_rebind_camera", "confirm_allowed"],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"enum": ["compile", "readback", "render", "compare"]}
+        },
+        "must_rebind_reference": {"const": true},
+        "must_rebind_camera": {"const": true},
+        "confirm_allowed": {"const": false}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation", "target_checkpoint_id", "target_checkpoint_sha256", "target_version_id", "target_version_sha256", "on_failure", "reason"],
+      "properties": {
+        "relation": {"enum": ["none", "restore-checkpoint", "restore-version"]},
+        "target_checkpoint_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "target_checkpoint_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "target_version_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "target_version_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "on_failure": {"enum": ["keep-current", "restore-checkpoint", "request-user"]},
+        "reason": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/safe_text"}]}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"relation": {"const": "none"}},
+            "required": ["relation"]
+          },
+          "then": {
+            "properties": {
+              "target_checkpoint_id": {"const": null},
+              "target_checkpoint_sha256": {"const": null},
+              "target_version_id": {"const": null},
+              "target_version_sha256": {"const": null},
+              "reason": {"const": null}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"target_checkpoint_id": {"const": null}},
+            "required": ["target_checkpoint_id"]
+          },
+          "then": {"properties": {"target_checkpoint_sha256": {"const": null}}},
+          "else": {"properties": {"target_checkpoint_sha256": {"$ref": "#/$defs/sha256"}}}
+        },
+        {
+          "if": {
+            "properties": {"target_version_id": {"const": null}},
+            "required": ["target_version_id"]
+          },
+          "then": {"properties": {"target_version_sha256": {"const": null}}},
+          "else": {"properties": {"target_version_sha256": {"$ref": "#/$defs/sha256"}}}
+        }
+      ]
+    }
+  }
+}

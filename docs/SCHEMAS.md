@@ -1,15 +1,15 @@
 # ForgeCAD Runtime Schema 规范
 
 版本：2026-08-13
-状态：MCP005–MCP009 functional core 已落地；MCP006 历史 receipt 为 44 个 JSON Schema；MCP010B subtotal 为 52、MCP010C subtotal 为 59、MCP010E 新增 6 个、MCP010F 新增 13 个，当前源合同总数为 78。唯一 `in_progress` 为 `FGC-MCP010F`；历史 package/live receipt 仍按 cohort 单独保存。ADR-0026 的 DesignSession/SemanticSceneGraph/ReferenceCanvas/Critic 合同仍为目标设计，不计入 78。
+状态：MCP005–MCP009 functional core 已落地；MCP006 历史 receipt 为 44 个 JSON Schema；MCP010B/C/E/F source 合同和 Agentic Design Runtime contract family 已进入当前 manifest，当前源合同总数为 100。唯一 `in_progress` 为 `FGC-MCP010F`；历史 package/live receipt 仍按 cohort 单独保存。Agentic observe/plan 的真实 Runtime 嵌套只读 projection 已通过 producer/consumer conformance checker；durable session/checkpoint/RepairIntent prepare/readback 已各自有 source/runtime/MCP/隔离重启证据，但不等于 durable/reference/DesignSpec 完整 producer conformance、完整 Visual Evidence conformance 或 orchestrator。
 
-Stage 0 机器真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`；当前源码口径同时固定为 78 Schema、29 read + 18 opt-in write = 47，并绑定 78 个 Schema 文件内容集合哈希。attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`，packaged Viewer binding 为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`。Schema/producer 已实现不能补齐缺失 receipt 字段，也不能越过 PBR likeness、正式真人、export/restart 或 360 门。
+Stage 0 机器真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`；当前源码口径同时固定为 100 Schema、35 read + 21 opt-in write = 56，并绑定 100 个 Schema 文件内容集合哈希。attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`，packaged Viewer binding 为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`。Schema/producer 已实现不能补齐缺失 receipt 字段，也不能越过 PBR likeness、正式真人、export/restart 或 360 门。
 
-<!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
+<!-- forgecad-stage0: schemas=101 schema_set_sha256=a48a823ce7d51b214978c966b4cfb27243857f7e6cf594b7c9f4ec47ad1a0c1e read_tools=35 write_tools=21 total_tools=56 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json latest_completed=real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json -->
 
 ## 1. 唯一来源
 
-新合同源位于 `packages/forgecad-contracts/schemas/**`。MCP003 已验证首批 15 个 JSON Schema；MCP004 增加审批、候选、restore 和 diagnostic export records；MCP005 增加 reference admission/get records；`[transition-v1]` MCP006–009 已落地 `SubjectProfile@1`、`RepresentationPlan@1`、`AssemblyGraph@1`、`GeometryProgram@1`、`AppearanceProgram@1`、`RecipePlan@1`、`ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`ChangePrepareResult@1`、GLB export profiles 和 Skill manifest/list/get/receipt/eval records，共 44 个历史 JSON Schema。MCP010B 增加 8 个受限 V2/evidence Schema，MCP010C 增加 7 个 renderer/compare/review Schema，MCP010E 增加 6 个离线材质/PBR Schema，MCP010F 增加 13 个 target/camera/Rig/fit/Part/candidate compare Schema，当前 manifest 共 78；这不改写 44-contract 历史 receipt。全部 Schema 均须可解析、带 draft/id、contract manifest 为 `forgecad-runtime-contracts@1` 且声明 `model_calls=false`，manifest 与目录无漂移。Rust records 由 `forgecad-contracts` 维护；完整生成器、TypeScript 生成和额外 transport/未来宿主 conformance 仍未完成。旧 Concept/Weapon/Provider/Agent Schema 已删除。
+新合同源位于 `packages/forgecad-contracts/schemas/**`。MCP003 已验证首批 15 个 JSON Schema；MCP004 增加审批、候选、restore 和 diagnostic export records；MCP005 增加 reference admission/get records；`[transition-v1]` MCP006–009 已落地 `SubjectProfile@1`、`RepresentationPlan@1`、`AssemblyGraph@1`、`GeometryProgram@1`、`AppearanceProgram@1`、`RecipePlan@1`、`ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`ChangePrepareResult@1`、GLB export profiles 和 Skill manifest/list/get/receipt/eval records，共 44 个历史 JSON Schema。MCP010B/C/D/E/F 与 Agentic contract family 继续增加当前 V2/evidence/target/camera/Rig/fit/Part/candidate compare/session/checkpoint/RepairIntent Schema，当前 manifest 共 100；这不改写 44-contract 历史 receipt。全部 Schema 均须可解析、带 draft/id、contract manifest 为 `forgecad-runtime-contracts@1` 且声明 `model_calls=false`，manifest 与目录无漂移。Rust records 由 `forgecad-contracts` 维护；完整生成器、TypeScript 生成和额外 transport/未来宿主 conformance 仍未完成。旧 Concept/Weapon/Provider/Agent Schema 已删除。
 
 ## 2. 首批 Schema
 
@@ -23,11 +23,11 @@ Stage 0 机器真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`；�
 
 ### Reference/Design/Geometry/Appearance（分阶段落地）
 
-MCP005 已落地 `ReferenceEvidence@1` 和四个 reference import/get request/result 合同；MCP006 已落地 `SubjectProfile@1`、`RepresentationPlan@1`、`AssemblyGraph@1`、`GeometryProgram@1`、`AppearanceProgram@1` 和 `RecipePlan@1`。`[transition-v1]` 这些 `@1` 几何/外观合同只保留历史结构兼容；当前 high-quality authoring 采用 `GeometryProgram@2` detail、`ArtifactReadback@2` strict readback、`AppearanceProgram@2`、`RenderSet@2` 九 AOV 和 candidate-bound strict compare。
+MCP005 已落地 `ReferenceEvidence@1` 和四个 reference import/get request/result 合同；MCP006 已落地 `SubjectProfile@1`、`RepresentationPlan@1`、`AssemblyGraph@1`、`GeometryProgram@1`、`AppearanceProgram@1` 和 `RecipePlan@1`。`[transition-v1]` 这些 `@1` 几何/外观合同只保留历史结构兼容；当前 high-quality authoring 采用 `GeometryProgram@2` detail、`ArtifactReadback@2` strict readback、`AppearanceProgram@2`、`RenderSet@2` 九 AOV 和 candidate-bound strict compare。Agentic 的 `DesignSession@1`、`DesignCheckpoint@1`、`RepairIntent@1` 等公开合同由 Runtime 受限 prepare/readback slice 使用，内部 SQLite 记录不作为新的几何真值。
 
 ### Evidence/Skill（MCP006–009 已落地合同，执行证据仍分层）
 
-MCP006 已加入 `ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`SkillBundleManifest@1`、`SkillListResult@1`、`SkillGetResult@1`、`SkillExecutionReceipt@1`、`SkillEvalReport@1`，MCP009 加入 `ChangePrepareResult@1`、GLB export profile 和 limited quality projection；`RecipePlan@1` 的单位/坐标/确定性顺序/max_edges 是显式合同。MCP010C 已实现 `VisualReviewReport@1`、landmark/region metrics、九 AOV compare 及 Codex/human review 合同/工具接口；attempt35 的 Codex typed review 已运行但需要修订，独立真人 receipt 仍 `NOT_RUN`。完整生产 export/restart 与发布仍是后续工作，不得用空 Schema 或已存在接口代替。
+MCP006 已加入 `ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`SkillBundleManifest@1`、`SkillListResult@1`、`SkillGetResult@1`、`SkillExecutionReceipt@1`、`SkillEvalReport@1`，MCP009 加入 `ChangePrepareResult@1`、GLB export profile 和 limited quality projection；`RecipePlan@1` 的单位/坐标/确定性顺序/max_edges 是显式合同。`SkillGetResult@1` 现内联 hash-bound `SkillKnowledge@1`（overview/constraints/examples），使 Codex 可在不读本机路径的情况下读取 first-party `ponytail-preflight@0.1.0`。MCP010C 已实现 `VisualReviewReport@1`、landmark/region metrics、九 AOV compare 及 Codex/human review 合同/工具接口；attempt35 的 Codex typed review 已运行但需要修订，独立真人 receipt 仍 `NOT_RUN`。完整生产 export/restart 与发布仍是后续工作，不得用空 Schema 或已存在接口代替。
 
 ## 2.1 MVP 落地顺序
 
@@ -42,7 +42,7 @@ MCP006 已加入 `ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`Ski
 
 不能一次加入全部空 Schema 再宣称能力存在；每项必须与 validator、negative tests 和实际 producer/consumer 同任务落地。
 
-## 2.2 MCP010 合同（当前源合同 78；B/C subtotal 与历史 44 receipt 不改写）
+## 2.2 MCP010 与 Agentic 合同（当前源合同 100；历史 44 receipt 不改写）
 
 | Task | 目标合同 | 激活条件 |
 |---|---|---|
@@ -55,7 +55,9 @@ MCP006 已加入 `ArtifactReadback@1`、`RenderSet@1`、`QualityReport@1`、`Ski
 
 当前 high-quality contract path 固定为 `GeometryProgram@2` detail → `ArtifactReadback@2` strict readback → `AppearanceProgram@2`（受前序门控制）→ `RenderSet@2` 九 AOV → `ReferenceComparisonReport@1` strict compare → `VisualReviewReport@1` / `QualityReport@2`。`[transition-v1]` `GeometryProgram@1` primitive-only、`AppearanceProgram@1` 与 `RenderSet@1` 四 pass 只属于历史兼容，不得提升为当前 high-quality contract path。
 
-## 2.3 ADR-0026 目标合同（未实现，不计入当前 manifest）
+## 2.3 ADR-0026 合同与当前落地层级
+
+Agentic contract family 已进入当前 manifest 并通过正/负 fixture checker，但必须区分“合同定义”和“producer conformance”。当前 Runtime 同时提供 `AgenticSceneObserveResult@1` 可重建只读 envelope，以及受批准的 `DesignSession@1`/`DesignCheckpoint@1`/`RepairIntent@1` prepare/readback slice。真实 Runtime 产生的 `AgenticSceneObserveResult@1` 与 `DesignStagePlanProjection@1` 嵌套只读投影已由 `scripts/check_agentic_projection_receipt.py` 对隔离回执完成 producer/consumer 校验；durable 对象已经在 Runtime SQLite/CAS 持久化并经 Runtime/MCP 重启 receipt 校验，但不代表 durable/reference/DesignSpec 完整 producer conformance、单动作 orchestrator 或 Repair 应用。隔离证据见 `docs/evidence/mcp010f/agentic-runtime-observe-plan-20260813.json`、`docs/evidence/mcp010f/agentic-runtime-projection-conformance-20260813.json` 与 `docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`。
 
 | 目标合同 | 用途 | 激活条件 |
 |---|---|---|

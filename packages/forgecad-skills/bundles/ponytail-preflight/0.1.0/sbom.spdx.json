@@ -1,0 +1,30 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "annotations": [
+    {
+      "annotationDate": "2026-08-09T00:00:00Z",
+      "annotationType": "OTHER",
+      "annotator": "Tool: forgecad-mcp006",
+      "comment": "Declarative metadata only; no executable or external asset payload."
+    },
+    {
+      "annotationDate": "2026-08-13T00:00:00Z",
+      "annotationType": "OTHER",
+      "annotator": "Tool: forgecad-mcp006",
+      "comment": "MIT workflow reference only: DietrichGebert/ponytail@2ed6c52c9d7e5e56942508591085fd45dea277d3. No third-party code or runtime dependency is included."
+    }
+  ],
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://forgecad.local/sbom/skill/ponytail-preflight/0.1.0",
+  "name": "forgecad-skill-ponytail-preflight",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "name": "forgecad-skill-ponytail-preflight",
+      "versionInfo": "0.1.0"
+    }
+  ],
+  "spdxVersion": "SPDX-2.3"
+}

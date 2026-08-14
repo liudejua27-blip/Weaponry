@@ -126,7 +126,7 @@ truth freeze / current quality boundary
 → human/export/restart hash
 ```
 
-每一步都必须先有公开 Schema、validator/negative tests、Runtime producer、MCP read/write 边界、Viewer 消费面和 evidence。没有这些证据时，相关能力只能写 `目标设计/NOT_IMPLEMENTED`。`scene_observe_get` 和 `design_stage_plan_get` 默认应从只读工具开始；任何会创建 candidate/version 的动作仍走现有 prepare/approval/confirm 纪律。
+每一步都必须先有公开 Schema、validator/negative tests、Runtime producer、MCP read/write 边界、Viewer 消费面和 evidence。当前 Agentic 的 `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 已满足 source/read-only projection Gate，真实 Runtime 的 scene/stage 嵌套只读 projection 已由 `scripts/check_agentic_projection_receipt.py` 完成 conformance 校验；`session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare` 已满足 durable prepare/readback Gate。后者不等于 durable/reference/DesignSpec 完整 producer、单动作 orchestrator 或 Repair execution。没有对应证据的后续能力仍只能写 `目标设计/NOT_IMPLEMENTED`；任何会创建 candidate/version 的动作仍走现有 prepare/approval/confirm 纪律。
 
 ## 7. 质量证据顺序
 

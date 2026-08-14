@@ -913,8 +913,8 @@ pub fn worker_result(request: &Value) -> Result<Value, GeometryError> {
             let resolution = payload
                 .get("resolution")
                 .and_then(Value::as_u64)
-                .filter(|value| *value == 128)
-                .ok_or_else(|| GeometryError::Invalid("fit resolution must be 128".to_owned()))?
+                .filter(|value| matches!(*value, 128 | 512))
+                .ok_or_else(|| GeometryError::Invalid("fit resolution must be 128 or 512".to_owned()))?
                 as u32;
             let cameras = payload
                 .get("cameras")

@@ -1,9 +1,11 @@
 # Codex 单张参考图操作手册
 
-版本：2026-08-12
-状态：当前 MCP010C/D/E source Gate 已完成、MCP010F Viewer source 与 packaged read-model/原生窗口结构路线可执行；不是视觉质量或材质质量验收
+版本：2026-08-13
+状态：当前 MCP010C/D/E source Gate 已完成、MCP010F Viewer source 与 packaged read-model/原生窗口结构路线可执行；不是视觉质量或材质质量验收。ADR-0026 要求后续单图流程升级为 ReferenceCanvas/DesignSpec/SemanticSceneGraph/stage gates；当前本手册仍只描述已存在工具链。
 
 本手册给 Codex/Luna 一条短而严格的单图调用路线。它适用于用户授权的一张 PNG/JPEG，尤其是机器人三分之四视图。它的结果是可编辑、可回读的结构化候选；当前 C 的 source/raw Gate、D/E 的 Operator/AssetPack source Gate 和 F 的 Viewer source surface 已通过，一次真实机器人参考运行已生成固定渲染、比较和评审证据，但首轮 primitive-only 候选的视觉阈值未通过。在真实 likeness、packaged Viewer、独立真人门和完整 360°门完成前，不得把结果称为像素相似、高质量 PBR 或完整 360°模型。
+
+ADR-0026 的“Codex 必须看得见”原则在本手册中的当前做法是：进入 silhouette-first 视觉回合后，先用同一 candidate/project 调用一次 `scene_observe_get`，由它返回 Scene Graph、object metadata、dimensions、geometry stats、current camera、selected objects 和 quality/evidence projection，再做 bounded camera/Rig action；不要让 Codex 用零散 project、artifact、quality 读取拼接连续设计判断。该 projection 仍是 Runtime-owned、只读、可重建现场，不是持久 DesignSpec 或视觉 PASS。
 
 推荐在 Codex 调用前启用本地 `$forgecad-single-reference-quality-loop` Skill；它是编排层 Skill，不是 Runtime 可执行 Bundle，不会安装插件或改变 Runtime catalog。机器人三分之四参考先读取该 Skill 的 `references/three-quarter-robot-intake-template.md` 与仓库的 `docs/CODEX_REFERENCE_DETAIL_INVENTORY.md`，先生成 `ForgeCADCodexReferenceInventory@1`（授权 hash、视角覆盖、identity/major/supporting 细节、observed/inferred/unknown、单轮修正目标），再进入 V2 hash/readback 流程。该 inventory 只帮助 Codex 编排，不写 Runtime/CAS；当前用户图片的脱敏实例见 `docs/evidence/mcp010f/reference-detail-inventory-real-reference.json`。
 

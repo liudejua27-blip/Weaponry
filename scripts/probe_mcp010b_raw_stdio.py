@@ -97,10 +97,9 @@ class McpClient:
         if not isinstance(result, dict):
             raise GateFailure(f"MCP tool failed for {name}: malformed result")
         if result.get("isError"):
-            raise GateFailure(
-                f"MCP tool failed for {name}: "
-                f"{result.get('structuredContent') or result.get('content') or 'untyped error'}"
-            )
+            error_payload = result.get("structuredContent") or result.get("content") or "untyped error"
+            rendered = json.dumps(error_payload, ensure_ascii=False, sort_keys=True)
+            raise GateFailure(f"MCP tool failed for {name}: {rendered[:2048]}")
         return result.get("structuredContent")
 
     def tool_error(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:

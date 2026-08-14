@@ -1,5 +1,7 @@
 mod geometry_worker;
 mod ipc;
+mod agentic_design;
+mod agentic_session;
 mod process_lock;
 mod skill_registry;
 
@@ -93,6 +95,13 @@ const VISIBLE_CRITICAL_REGION_IOU_MIN: f64 = 0.85;
 // the probes are a balanced yaw/pitch/framing spread rather than an arbitrary
 // prefix of the 37-row research list.
 const CAMERA_FIT_RUNTIME_MAX_EVALUATIONS: usize = 8;
+// The coarse camera search is intentionally low resolution, but the selected
+// calibration is later bound to the 512x512 comparison/render set. Re-rank a
+// small, deterministic top-k (plus the authored base camera) at the fixed
+// resolution before exposing a CameraCalibrationRef. This prevents a
+// low-resolution aliasing or landmark tie from becoming a durable camera
+// binding while keeping the request bounded.
+const CAMERA_FIT_FULL_RESOLUTION_MAX_EVALUATIONS: usize = 5;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RuntimeError {
@@ -456,11 +465,54 @@ impl Runtime {
         // base/offset probes. The complete 37-row list remains available to
         // offline tests; the product IPC path deliberately evaluates only a
         // fixed eight-row subset so the request cannot monopolise Runtime.
-        let coarse_indices = [0_usize, 5, 23, 11, 17, 13, 15, 30];
-        let coarse_variants = coarse_indices
+        // Reserve two slots for Runtime-owned framing candidates derived from
+        // the authored base camera. Those candidates preserve the historical
+        // height/extent calibration path without letting Codex search camera
+        // parameters continuously.
+        let coarse_indices = [0_usize, 5, 23, 11, 17, 13];
+        let mut coarse_variants = coarse_indices
             .into_iter()
             .filter_map(|index| all_coarse_variants.get(index).cloned())
             .collect::<Vec<_>>();
+        let base_full_passes = geometry_worker::render_glb_fit_batch_at_resolution(
+            &glb,
+            std::slice::from_ref(&base_camera),
+            512,
+        )
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "CAMERA_FIT_RENDER_FAILED: base framing verification failed: {error}"
+            ))
+        })?;
+        let base_full_silhouette = base_full_passes
+            .first()
+            .and_then(|passes| passes.iter().find(|pass| pass.pass == "silhouette"))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "CAMERA_FIT_RENDER_FAILED: base framing silhouette missing".to_owned(),
+                )
+            })?;
+        let base_full_model_mask = decode_binary_mask(&base_full_silhouette.png).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "CAMERA_FIT_RENDER_FAILED: base framing silhouette decode failed: {error}"
+            ))
+        })?;
+        for framing_camera in [
+            calibrate_default_camera_height_only(
+                &base_camera,
+                &reference_mask.mask,
+                &base_full_model_mask,
+            ),
+            calibrate_default_camera(
+                &base_camera,
+                &reference_mask.mask,
+                &base_full_model_mask,
+            ),
+        ] {
+            if framing_camera != base_camera && !coarse_variants.iter().any(|camera| camera == &framing_camera) {
+                coarse_variants.push(framing_camera);
+            }
+        }
         let mut rows = Vec::with_capacity(CAMERA_FIT_RUNTIME_MAX_EVALUATIONS);
         let coarse_passes = render_glb_fit_batch_with_runtime_worker(&glb, &coarse_variants)
             .map_err(|error| {
@@ -525,6 +577,88 @@ impl Runtime {
                     &passes,
                     &inspection.part_ids,
                 )?);
+            }
+        }
+        // The transient 128px ranking is only a bounded accelerator. The
+        // selected camera is consumed by the 512px comparison path, so verify
+        // the best coarse rows at that same fixed resolution before choosing
+        // the Runtime-owned binding. Include the authored base camera even
+        // when it did not make the coarse top-k; it is the fail-safe framing
+        // fallback and must remain comparable to every proposed camera.
+        rows.sort_by(|left, right| {
+            left["loss"]
+                .as_f64()
+                .unwrap_or(f64::INFINITY)
+                .partial_cmp(&right["loss"].as_f64().unwrap_or(f64::INFINITY))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let base_camera_index = rows
+            .iter()
+            .position(|row| row.get("camera") == Some(&base_camera));
+        let mut full_resolution_indices = rows
+            .iter()
+            .take(CAMERA_FIT_FULL_RESOLUTION_MAX_EVALUATIONS)
+            .enumerate()
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if let Some(index) = base_camera_index {
+            if !full_resolution_indices.contains(&index) {
+                if full_resolution_indices.len() >= CAMERA_FIT_FULL_RESOLUTION_MAX_EVALUATIONS {
+                    full_resolution_indices.pop();
+                }
+                full_resolution_indices.push(index);
+            }
+        }
+        full_resolution_indices.sort_unstable();
+        let full_resolution_cameras = full_resolution_indices
+            .iter()
+            .map(|index| {
+                rows.get(*index)
+                    .and_then(|row| row.get("camera"))
+                    .cloned()
+                    .ok_or_else(|| RuntimeError::InvalidInput("CAMERA_FIT_RENDER_FAILED: full-resolution row missing".to_owned()))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let full_resolution_passes = geometry_worker::render_glb_fit_batch_at_resolution(
+            &glb,
+            &full_resolution_cameras,
+            512,
+        )
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!("CAMERA_FIT_RENDER_FAILED: full-resolution verification failed: {error}"))
+        })?;
+        for (index, passes) in full_resolution_indices.into_iter().zip(full_resolution_passes) {
+            let silhouette = passes
+                .iter()
+                .find(|pass| pass.pass == "silhouette")
+                .ok_or_else(|| RuntimeError::InvalidInput("CAMERA_FIT_RENDER_FAILED: full-resolution silhouette missing".to_owned()))?;
+            let model_mask = decode_binary_mask(&silhouette.png).map_err(|error| {
+                RuntimeError::InvalidInput(format!("CAMERA_FIT_RENDER_FAILED: full-resolution silhouette decode failed: {error}"))
+            })?;
+            let full_metrics = extended_silhouette_metrics(&reference_mask.mask, &model_mask);
+            let part_context = passes
+                .iter()
+                .find(|pass| pass.pass == "part-id")
+                .map(|pass| (pass.png.as_slice(), inspection.part_ids.as_slice()));
+            let loss_metrics = transient_loss_metrics_with_parts(
+                &full_metrics,
+                &model_mask,
+                target.get("landmarks"),
+                part_context,
+            );
+            let loss = camera_fit_loss(&loss_metrics);
+            // CameraFitResult@1 intentionally exposes only the four compact
+            // camera metrics. Keep the full-resolution SDF/landmark values in
+            // the internal ranking loss, but never widen the public contract.
+            let metrics = json!({
+                "silhouette_iou": full_metrics["silhouette_iou"],
+                "boundary_f1_4px": full_metrics["boundary_f1_4px"],
+                "bbox_edge_error": full_metrics["bbox_edge_error"],
+                "centroid_error": full_metrics["centroid_error"]
+            });
+            if let Some(row) = rows.get_mut(index) {
+                row["loss"] = Value::from(stable_visual_metric(loss));
+                row["metrics"] = metrics;
             }
         }
         // Keep the full deterministic evaluation budget internal, but return
@@ -1046,16 +1180,14 @@ impl Runtime {
         // the Rig into a proposal-only heuristic.
         // Geometry variants are materially more expensive than camera-only
         // rows: each one is a real Worker compile followed by an isolated
-        // render.  Keep the synchronous MCP request comfortably below the
-        // local IPC deadline even when Codex asks for the maximum 24 logical
-        // evaluations.  The first proposal plus at most three symmetric
-        // probes is enough to select a bounded local correction; later
-        // change_prepare calls can continue from that winner.  Do not spend
-        // half the request budget on repeated process launches.
+        // render.  Reserve half of the caller's bounded budget for a
+        // Runtime-owned local coordinate descent.  Codex supplies the typed
+        // Rig bounds once; it does not choose a continuous parameter trace or
+        // repeatedly call the Runtime to search one scalar at a time.
         let geometry_budget = geometry_program_draft
             .as_ref()
             .filter(|_| max_evaluations >= 2)
-            .map(|_| (max_evaluations / 8).clamp(1, 2))
+            .map(|_| (max_evaluations / 2).clamp(1, 8))
             .unwrap_or(0);
         // A single fit request must finish within the MCP transport window.
         // Camera rows are still real Worker renders (not an image-space
@@ -1075,7 +1207,12 @@ impl Runtime {
         let mut remaining_budget = camera_budget;
         let mut completed_iterations = 0usize;
         let mut rows: Vec<(f64, Value, Value)> = Vec::new();
-        let mut base_model_mask = None;
+        // Keep the transient silhouette/Part-ID evidence alongside each
+        // camera row.  Re-rendering the selected camera after the search
+        // would consume an unreported evaluation and, more importantly,
+        // could let the proposal use a different image than the row that
+        // actually won the bounded camera loss.
+        let mut camera_model_evidence: Vec<(Value, Vec<bool>, Option<Vec<u8>>)> = Vec::new();
         let mut best_overall: Option<(f64, Value, Value)> = None;
         let mut previous_best_loss = f64::INFINITY;
         let mut step_offset = 0usize;
@@ -1161,10 +1298,12 @@ impl Runtime {
                 let model_mask = decode_binary_mask(&silhouette.png).map_err(|error| {
                     RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_RENDER_FAILED: {error}"))
                 })?;
-                if candidate_camera == camera {
-                    base_model_mask = Some(model_mask.clone());
-                }
                 let metrics = extended_silhouette_metrics(&target_mask.mask, &model_mask);
+                let part_png = passes
+                    .iter()
+                    .find(|pass| pass.pass == "part-id")
+                    .map(|pass| pass.png.clone());
+                camera_model_evidence.push((candidate_camera.clone(), model_mask.clone(), part_png));
                 let part_context = passes
                     .iter()
                     .find(|pass| pass.pass == "part-id")
@@ -1209,11 +1348,15 @@ impl Runtime {
             .find(|(_, value, _)| *value == camera)
             .map(|(loss, _, _)| *loss)
             .unwrap_or(best_loss);
-        let base_model_mask = base_model_mask.ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "SILHOUETTE_FIT_RENDER_FAILED: base camera result missing".to_owned(),
-            )
-        })?;
+        let (selected_model_mask, selected_part_png) = camera_model_evidence
+            .iter()
+            .find(|(candidate_camera, _, _)| candidate_camera == &selected_camera)
+            .map(|(_, model_mask, part_png)| (model_mask.clone(), part_png.clone()))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "SILHOUETTE_FIT_RENDER_FAILED: selected camera result missing".to_owned(),
+                )
+            })?;
         // A Rig proposal is only useful to Luna when a parameter is attributed
         // to the same visible Part that produced the boundary evidence.  The
         // coarse camera batch intentionally renders silhouette only; when the
@@ -1221,27 +1364,6 @@ impl Runtime {
         // Part-ID readback at the selected camera and use local envelopes for
         // those parameters.  Automatic targets with no Part annotations keep
         // the conservative whole-body proposal instead of inventing ownership.
-        let selected_part_png = if target
-            .get("parts")
-            .and_then(Value::as_array)
-            .is_some_and(|parts| !parts.is_empty())
-        {
-            let passes = render_glb_with_runtime_worker(&glb, &selected_camera).map_err(|error| {
-                RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_RENDER_FAILED: {error}"))
-            })?;
-            let part_png = passes
-                .iter()
-                .find(|pass| pass.pass == "part-id")
-                .map(|pass| pass.png.clone())
-                .ok_or_else(|| {
-                    RuntimeError::InvalidInput(
-                        "SILHOUETTE_FIT_RENDER_FAILED: selected camera part-id pass missing".to_owned(),
-                    )
-                })?;
-            Some(part_png)
-        } else {
-            None
-        };
         let part_context = selected_part_png
             .as_deref()
             .map(|part_png| (part_png, inspection.part_ids.as_slice()));
@@ -1249,25 +1371,42 @@ impl Runtime {
             rig,
             &target,
             &target_mask.mask,
-            &base_model_mask,
+            &selected_model_mask,
             part_context,
         );
         let mut geometry_evaluations = 0usize;
         if let Some(program) = geometry_program_draft.as_ref() {
-            // The first geometry trial uses the evidence-attributed Rig
-            // proposal.  Remaining trials are symmetric, bounded one-variable
-            // probes around that proposal.  Each trial is compiled by the
-            // fixed sibling Worker and rendered at the selected camera, so the
-            // returned winner is backed by an actual mesh rather than a scalar
-            // envelope estimate.
-            let mut parameter_variants = vec![selected_parameters.clone()];
-            if let Some(parameters) = rig.get("parameters").and_then(Value::as_array) {
-                for (index, parameter) in parameters.iter().enumerate() {
-                    if parameter_variants.len() >= geometry_budget {
-                        break;
-                    }
-                    let value = selected_parameters
-                        .get(index)
+            // Evaluate the evidence-attributed proposal once, then walk a
+            // deterministic coordinate neighborhood around the best actual
+            // mesh found so far.  Every probe goes through the isolated
+            // Geometry Worker and Render Worker; this is the Primary Form
+            // numeric loop, not an image-space heuristic in Codex.
+            let parameter_indices = ranked_rig_parameter_indices(rig, &selected_parameters);
+            let definitions = rig
+                .get("parameters")
+                .and_then(Value::as_array)
+                .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameters are missing".to_owned()))?;
+            // Keep the current authored Rig as the immutable optimization
+            // baseline.  An evidence-attributed proposal is a first trial,
+            // not an unconditional new incumbent: if it is worse than the
+            // current artifact, later coordinate probes must return to the
+            // authored parameters instead of walking around a bad proposal.
+            let baseline_parameters = definitions.clone();
+            let mut best_geometry_loss = best_loss;
+            let mut best_geometry_parameters = baseline_parameters.clone();
+            let mut best_geometry_metrics = metrics.clone();
+            for probe_index in 0..geometry_budget {
+                let mut parameter_values = if probe_index == 0 {
+                    selected_parameters.clone()
+                } else {
+                    best_geometry_parameters.clone()
+                };
+                if probe_index > 0 && !parameter_indices.is_empty() {
+                    let coordinate = parameter_indices[(probe_index - 1) / 2 % parameter_indices.len()];
+                    let direction = if probe_index % 2 == 1 { 1.0 } else { -1.0 };
+                    let parameter = definitions.get(coordinate).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter index drifted".to_owned()))?;
+                    let value = parameter_values
+                        .get(coordinate)
                         .and_then(|row| row.get("value"))
                         .and_then(Value::as_f64)
                         .unwrap_or_else(|| parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0));
@@ -1279,20 +1418,10 @@ impl Runtime {
                         .max(span * step_fraction * 0.25)
                         .min(span * 0.5)
                         .max(1e-6);
-                    for direction in [1.0_f64, -1.0] {
-                        if parameter_variants.len() >= geometry_budget {
-                            break;
-                        }
-                        let mut variant = selected_parameters.clone();
-                        if let Some(row) = variant.get_mut(index) {
-                            row["value"] = Value::from(stable_visual_metric((value + direction * delta).clamp(min, max)));
-                        }
-                        parameter_variants.push(variant);
+                    if let Some(row) = parameter_values.get_mut(coordinate) {
+                        row["value"] = Value::from(stable_visual_metric((value + direction * delta).clamp(min, max)));
                     }
                 }
-            }
-            let mut best_geometry: Option<(f64, Vec<Value>, Value)> = None;
-            for parameter_values in parameter_variants.into_iter().take(geometry_budget) {
                 let (draft, applied) = materialize_rig_geometry_program(program, rig, &parameter_values)?;
                 if applied == 0 {
                     continue;
@@ -1331,18 +1460,30 @@ impl Runtime {
                 );
                 let loss = extended_silhouette_loss(&loss_metrics);
                 geometry_evaluations += 1;
-                if best_geometry.as_ref().is_none_or(|best| loss < best.0) {
-                    best_geometry = Some((loss, parameter_values, variant_metrics));
+                if loss + 1e-12 < best_geometry_loss {
+                    best_geometry_loss = loss;
+                    best_geometry_parameters = parameter_values;
+                    best_geometry_metrics = variant_metrics;
                 }
             }
-            if let Some((geometry_loss, geometry_parameters, geometry_metrics)) = best_geometry {
-                if geometry_loss + 1e-12 < best_loss {
-                    best_loss = geometry_loss;
-                    selected_parameters = geometry_parameters;
-                    metrics = geometry_metrics;
-                }
+            if best_geometry_loss + 1e-12 < best_loss {
+                best_loss = best_geometry_loss;
+                selected_parameters = best_geometry_parameters;
+                metrics = best_geometry_metrics;
+            } else {
+                // Do not return a visually worse evidence proposal as if it
+                // were the Runtime winner.  A no-improvement result carries
+                // the authored baseline and leaves the next repair round
+                // free to choose a different typed Part/target intent.
+                selected_parameters = baseline_parameters;
             }
         }
+        // The geometry-search incumbent may still be represented by the full
+        // SilhouetteRig parameter definitions when the authored baseline wins.
+        // SilhouetteFitResult@1 deliberately exposes only the compact
+        // parameter projection, so normalize at this module boundary before
+        // calculating deltas and validating the result.
+        let selected_parameters = compact_rig_parameter_values(rig, &selected_parameters);
         let parameter_deltas = rig_parameter_deltas(rig, &selected_parameters);
         let total_evaluations = rows.len().saturating_add(geometry_evaluations);
         let mut result = json!({
@@ -1711,6 +1852,13 @@ impl Runtime {
             ));
         }
         skill_registry::get(skill_id, version).map_err(RuntimeError::InvalidInput)
+    }
+
+    pub fn skill_result(&self, skill_id: &str, version: &str) -> Result<Value, String> {
+        if !is_opaque_id(skill_id) || !is_opaque_id(version) {
+            return Err("invalid Skill identifier".to_owned());
+        }
+        skill_registry::get_result(skill_id, version)
     }
 
     pub fn projects(&self) -> Result<Vec<ProjectSummary>, RuntimeError> {
@@ -4577,6 +4725,59 @@ impl Runtime {
         payload: &Value,
     ) -> Result<Value, RuntimeError> {
         match method {
+            "agentic_scene_observe" => {
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                self.agentic_scene_observe(
+                    project_id,
+                    payload.get("candidate_id").and_then(Value::as_str),
+                )
+            }
+            "agentic_stage_plan" => {
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                self.agentic_stage_plan(
+                    project_id,
+                    payload.get("candidate_id").and_then(Value::as_str),
+                )
+            }
+            "agentic_critic_projection" => {
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                self.agentic_critic_projection(
+                    project_id,
+                    payload.get("candidate_id").and_then(Value::as_str),
+                )
+            }
+            "agentic_session_lookup" => {
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                let candidate_id = payload
+                    .get("candidate_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("candidate_id is required".to_owned()))?;
+                self.agentic_session_lookup(project_id, candidate_id)
+            }
+            "session_create_or_resume"
+            | "session_get"
+            | "checkpoint_prepare"
+            | "checkpoint_get"
+            | "checkpoint_restore_prepare" => match method {
+                "session_create_or_resume" => self.session_create_or_resume(payload.clone()),
+                "session_get" => self.session_get(payload.clone()),
+                "checkpoint_prepare" => self.checkpoint_prepare(payload.clone()),
+                "checkpoint_get" => self.checkpoint_get(payload.clone()),
+                "checkpoint_restore_prepare" => self.checkpoint_restore_prepare(payload.clone()),
+                _ => unreachable!("Agentic session IPC method dispatch arm is exhaustive"),
+            },
             "capabilities_get" => Ok(serde_json::to_value(self.capabilities())
                 .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?),
             "operator_catalog_get" => Ok(self.active_operator_catalog()),
@@ -7573,17 +7774,25 @@ fn weighted_contour_loss(metrics: &Value) -> f64 {
         .clamp(0.0, 1.0);
     if let Some(landmark_nme) = metrics.get("landmark_nme").and_then(Value::as_f64) {
         // When Luna supplies image-derived landmarks, reserve an auditable
-        // 10% of the bounded objective for their reprojection miss.  Scale
-        // the existing terms rather than silently making the total weight
-        // exceed one. Targets without landmarks retain the contour-only
+        // 10% of the bounded objective for landmark evidence.  Split that
+        // weight between reprojection miss and coverage: a camera that puts
+        // one landmark in an excellent position while dropping the other
+        // observed anchors must not beat a framing that covers the whole
+        // observed body.  Targets without landmarks retain the contour-only
         // objective below.
         let landmark_nme = landmark_nme.clamp(0.0, 1.0);
+        let landmark_coverage = metrics
+            .get("landmark_coverage")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0)
+            .clamp(0.0, 1.0);
         0.315 * chamfer
             + 0.225 * iou
             + 0.135 * boundary
             + 0.09 * bbox
             + 0.09 * centroid
-            + 0.10 * landmark_nme
+            + 0.05 * landmark_nme
+            + 0.05 * (1.0 - landmark_coverage)
             + 0.045 * regularization
     } else {
         0.35 * chamfer
@@ -7692,13 +7901,18 @@ fn validate_silhouette_rig(value: &Value, candidate_id: &str) -> Result<(), Runt
 }
 
 fn fit_rig_parameters(rig: &Value, target: &[bool], model: &[bool]) -> Vec<Value> {
-    let ratio = bbox_extent_ratio(target, model);
+    let (width_ratio, height_ratio) = bbox_axis_ratios(target, model);
     rig.get("parameters").and_then(Value::as_array).map(|parameters| parameters.iter().map(|parameter| {
         let value = parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0);
         let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
         let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
         let semantic = parameter.get("semantic").and_then(Value::as_str).unwrap_or("");
-        let multiplier = if matches!(semantic, "width" | "height" | "scale") { ratio } else { 1.0 };
+        let multiplier = match semantic {
+            "width" => width_ratio,
+            "height" => height_ratio,
+            "scale" => (width_ratio * height_ratio).sqrt().clamp(0.5, 1.5),
+            _ => 1.0,
+        };
         json!({"parameter_id":parameter.get("parameter_id").and_then(Value::as_str).unwrap_or("unknown"),"part_id":parameter.get("part_id").and_then(Value::as_str).unwrap_or("unknown"),"value":stable_visual_metric((value * multiplier).clamp(min, max))})
     }).collect()).unwrap_or_default()
 }
@@ -8132,12 +8346,80 @@ fn rig_parameter_deltas(rig: &Value, selected_parameters: &[Value]) -> Vec<Value
         .unwrap_or_default()
 }
 
-fn bbox_extent_ratio(target: &[bool], model: &[bool]) -> f64 {
-    let Some(target_box) = bbox(target) else { return 1.0; };
-    let Some(model_box) = bbox(model) else { return 1.0; };
-    let target_extent = ((target_box.2 - target_box.0 + 1).max(target_box.3 - target_box.1 + 1)) as f64;
-    let model_extent = ((model_box.2 - model_box.0 + 1).max(model_box.3 - model_box.1 + 1)) as f64;
-    (target_extent / model_extent.max(1.0)).clamp(0.5, 1.5)
+fn compact_rig_parameter_values(rig: &Value, selected_parameters: &[Value]) -> Vec<Value> {
+    rig.get("parameters")
+        .and_then(Value::as_array)
+        .map(|parameters| {
+            parameters
+                .iter()
+                .enumerate()
+                .filter_map(|(index, parameter)| {
+                    let selected = selected_parameters.get(index)?;
+                    let parameter_id = parameter.get("parameter_id").and_then(Value::as_str)?;
+                    let part_id = parameter.get("part_id").and_then(Value::as_str)?;
+                    let value = selected.get("value").and_then(Value::as_f64)?;
+                    Some(json!({
+                        "parameter_id": parameter_id,
+                        "part_id": part_id,
+                        "value": stable_visual_metric(value)
+                    }))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Rank primary-form controls by the size of the evidence-attributed proposal.
+/// This keeps the bounded Runtime search focused on the Parts that are furthest
+/// from the current visible target, while preserving a stable parameter-id tie
+/// break.  Codex does not receive or steer this ordering.
+fn ranked_rig_parameter_indices(rig: &Value, selected_parameters: &[Value]) -> Vec<usize> {
+    let Some(parameters) = rig.get("parameters").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    let mut indices: Vec<usize> = (0..parameters.len()).collect();
+    indices.sort_by(|left, right| {
+        let delta = |index: usize| {
+            let from = parameters
+                .get(index)
+                .and_then(|parameter| parameter.get("value"))
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0);
+            let to = selected_parameters
+                .get(index)
+                .and_then(|parameter| parameter.get("value"))
+                .and_then(Value::as_f64)
+                .unwrap_or(from);
+            (to - from).abs()
+        };
+        delta(*right)
+            .partial_cmp(&delta(*left))
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                let id = |index: usize| {
+                    parameters
+                        .get(index)
+                        .and_then(|parameter| parameter.get("parameter_id"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                };
+                id(*left).cmp(id(*right))
+            })
+    });
+    indices
+}
+
+fn bbox_axis_ratios(target: &[bool], model: &[bool]) -> (f64, f64) {
+    let Some(target_box) = bbox(target) else { return (1.0, 1.0); };
+    let Some(model_box) = bbox(model) else { return (1.0, 1.0); };
+    let target_width = (target_box.2 - target_box.0 + 1) as f64;
+    let target_height = (target_box.3 - target_box.1 + 1) as f64;
+    let model_width = (model_box.2 - model_box.0 + 1) as f64;
+    let model_height = (model_box.3 - model_box.1 + 1) as f64;
+    (
+        (target_width / model_width.max(1.0)).clamp(0.5, 1.5),
+        (target_height / model_height.max(1.0)).clamp(0.5, 1.5),
+    )
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -12274,6 +12556,31 @@ mod tests {
     }
 
     #[test]
+    fn camera_loss_rejects_low_landmark_coverage_even_with_low_nme() {
+        let mut covered = json!({
+            "silhouette_iou": 0.74,
+            "boundary_f1_4px": 0.33,
+            "bbox_edge_error": 0.01,
+            "centroid_error": 0.01,
+            "sdf_chamfer_px": 17.0,
+            "landmark_coverage": 0.733333333333,
+            "landmark_nme": 0.1345
+        });
+        let sparse = json!({
+            "silhouette_iou": 0.69,
+            "boundary_f1_4px": 0.25,
+            "bbox_edge_error": 0.035,
+            "centroid_error": 0.042,
+            "sdf_chamfer_px": 17.0,
+            "landmark_coverage": 0.067398119122,
+            "landmark_nme": 0.0914
+        });
+        assert!(weighted_contour_loss(&sparse) > weighted_contour_loss(&covered));
+        covered["landmark_coverage"] = json!(1.0);
+        assert!(weighted_contour_loss(&covered) < weighted_contour_loss(&sparse));
+    }
+
+    #[test]
     fn camera_fit_returns_bounded_hash_bound_candidates_without_mutating_candidate() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
@@ -12564,6 +12871,21 @@ mod tests {
             )
             .expect("fit winner camera ref resolves");
         assert_eq!(resolved_fit_camera, fit_camera);
+        let comparison = runtime
+            .prepare_reference_comparison(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "candidate_id":first_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "view_spec":view_spec,
+                    "camera":fit_camera_ref,
+                    "target_sha256":target["target_sha256"].clone()
+                }),
+            )
+            .expect("fit winner comparison");
+        assert_eq!(comparison["camera"]["camera_hash"], fit_camera["camera_hash"]);
+        assert_eq!(comparison["camera"]["canonical_sha256"], fit_camera["canonical_sha256"]);
         assert!(fit["iterations"].as_u64().unwrap() >= 1);
         assert!(fit["iterations"].as_u64().unwrap() <= 2);
         assert!(fit["evaluations"].as_u64().unwrap() <= 8);
@@ -12672,6 +12994,46 @@ mod tests {
             "value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"meter"
         });
         assert_eq!(local_part_parameter_delta(&depth, target, model), 0.0);
+    }
+
+    #[test]
+    fn global_rig_proposal_uses_axis_specific_bbox_ratios() {
+        let mut target_mask = vec![false; 512 * 512];
+        let mut model_mask = vec![false; 512 * 512];
+        for y in 100..220 {
+            for x in 100..250 {
+                target_mask[y * 512 + x] = true;
+            }
+        }
+        for y in 100..200 {
+            for x in 100..200 {
+                model_mask[y * 512 + x] = true;
+            }
+        }
+        let rig = json!({"parameters":[
+            {"parameter_id":"body-width","part_id":"body","semantic":"width","value":1.0,"min":0.5,"max":2.0,"step":0.05,"unit":"ratio"},
+            {"parameter_id":"body-height","part_id":"body","semantic":"height","value":1.0,"min":0.5,"max":2.0,"step":0.05,"unit":"ratio"},
+            {"parameter_id":"body-scale","part_id":"body","semantic":"scale","value":1.0,"min":0.5,"max":2.0,"step":0.05,"unit":"ratio"}
+        ]});
+        let selected = fit_rig_parameters(&rig, &target_mask, &model_mask);
+        assert_eq!(selected[0]["value"], 1.5);
+        assert_eq!(selected[1]["value"], 1.2);
+        assert!((selected[2]["value"].as_f64().unwrap() - 1.3416407865).abs() < 1e-10);
+    }
+
+    #[test]
+    fn silhouette_fit_compacts_authored_baseline_parameters() {
+        let rig = json!({"parameters":[
+            {"parameter_id":"body-width","part_id":"body","semantic":"width","value":1.0,"min":0.5,"max":2.0,"step":0.05,"unit":"ratio"}
+        ]});
+        let authored_baseline = vec![rig["parameters"][0].clone()];
+        let compact = compact_rig_parameter_values(&rig, &authored_baseline);
+        assert_eq!(compact, vec![json!({
+            "parameter_id":"body-width",
+            "part_id":"body",
+            "value":1.0
+        })]);
+        assert_eq!(compact[0].as_object().unwrap().len(), 3);
     }
 
     #[test]

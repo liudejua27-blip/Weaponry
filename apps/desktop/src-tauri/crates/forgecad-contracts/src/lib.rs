@@ -368,9 +368,19 @@ pub struct SkillListResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillKnowledgeRecord {
+    pub schema_version: String,
+    pub overview: String,
+    pub constraints: String,
+    pub examples: String,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillGetResult {
     pub schema_version: String,
     pub skill: SkillBundleManifestRecord,
+    pub knowledge: SkillKnowledgeRecord,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

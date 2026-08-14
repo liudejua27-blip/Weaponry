@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use super::{Runtime, RuntimeError};
+use super::{Runtime, RuntimeError, StoreError};
 
 const MAX_IPC_MESSAGE_BYTES: usize = 8 * 1024 * 1024;
 const IPC_AUTHENTICATION_TIMEOUT: Duration = Duration::from_millis(500);
@@ -574,7 +574,18 @@ mod platform {
 
 fn runtime_error_code(error: &RuntimeError) -> String {
     match error {
-        RuntimeError::InvalidInput(detail) => format!("INVALID_INPUT: {detail}"),
+        RuntimeError::InvalidInput(detail) => detail
+            .split(':')
+            .map(str::trim)
+            .find(|value| value.starts_with("AGENTIC_"))
+            .map(str::to_owned)
+            .map_or_else(|| format!("INVALID_INPUT: {detail}"), |code| code),
+        RuntimeError::Store(StoreError::Contract { code, .. }) => {
+            format!("STORE_CONTRACT: {code}")
+        }
+        RuntimeError::Store(StoreError::InvalidData(detail)) => {
+            format!("STORE_INVALID_DATA: {detail}")
+        }
         RuntimeError::Store(_) => "STORE_ERROR".to_owned(),
         RuntimeError::Ipc(_) => "IPC_ERROR".to_owned(),
         RuntimeError::ProcessLock(_) => "RUNTIME_BUSY".to_owned(),

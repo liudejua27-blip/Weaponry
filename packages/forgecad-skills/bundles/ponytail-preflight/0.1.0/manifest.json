@@ -1,0 +1,34 @@
+{
+  "benchmark_suite": "ponytail-preflight-smoke",
+  "budgets": {
+    "max_nodes": 1,
+    "max_steps": 7
+  },
+  "canonical_sha256": "c87c6d95fa36f03e05a9cbef601e00aa5746f1d683f468b694351168f9b94d94",
+  "capabilities": {
+    "dynamic_code": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "geometry_execution": false,
+    "model_calls": false,
+    "network": false,
+    "render_execution": false
+  },
+  "contract_range": "forgecad-runtime-contracts@1",
+  "input_schema": "schemas/reference-evidence.schema.json",
+  "operator_ids": [
+    "forgecad.design.preflight@1"
+  ],
+  "output_schema": "schemas/representation-plan.schema.json",
+  "publisher": "forgecad-first-party",
+  "recipe": "recipes/default.recipe.json",
+  "schema_version": "SkillBundleManifest@1",
+  "signature": "development-only",
+  "skill_id": "ponytail-preflight",
+  "status": "development-only",
+  "trust_profile": "development-root",
+  "validator_ids": [
+    "preflight_read_before_design@1"
+  ],
+  "version": "0.1.0"
+}

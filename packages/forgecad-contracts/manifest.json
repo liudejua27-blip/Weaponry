@@ -83,6 +83,89 @@
     "restore-confirm-result.schema.json",
     "export-manifest.schema.json",
     "export-prepare-result.schema.json",
-    "export-confirm-result.schema.json"
-  ]
+    "export-confirm-result.schema.json",
+    "design-action-run.schema.json",
+    "semantic-scene-graph.schema.json",
+    "model-understanding-bundle.schema.json",
+    "reference-canvas.schema.json",
+    "design-spec.schema.json",
+    "design-session.schema.json",
+    "design-stage-plan.schema.json",
+    "design-checkpoint.schema.json",
+    "design-critic-report.schema.json",
+    "repair-intent.schema.json",
+    "visual-evidence-bundle.schema.json",
+    "agentic-projection-primitives.schema.json",
+    "agentic-quality-projection.schema.json",
+    "agentic-scene-observe-result.schema.json",
+    "design-critic-report-projection.schema.json",
+    "design-session-projection.schema.json",
+    "design-stage-plan-projection.schema.json",
+    "model-understanding-bundle-projection.schema.json",
+    "reference-canvas-projection.schema.json",
+    "repair-intent-projection.schema.json",
+    "semantic-scene-graph-projection.schema.json",
+    "viewer-visual-evidence.schema.json",
+    "visual-evidence-bundle-projection.schema.json"
+  ],
+  "agentic_projection": {
+    "schema_version": "ForgeCADAgenticProjectionManifest@1",
+    "role": "transport-projection-only",
+    "durable_schema_files": [
+      "semantic-scene-graph.schema.json",
+      "model-understanding-bundle.schema.json",
+      "reference-canvas.schema.json",
+      "design-spec.schema.json",
+      "design-session.schema.json",
+      "design-stage-plan.schema.json",
+      "design-checkpoint.schema.json",
+      "design-critic-report.schema.json",
+      "repair-intent.schema.json",
+      "visual-evidence-bundle.schema.json"
+    ],
+    "projection_schema_files": [
+      "agentic-projection-primitives.schema.json",
+      "agentic-quality-projection.schema.json",
+      "agentic-scene-observe-result.schema.json",
+      "design-critic-report-projection.schema.json",
+      "design-session-projection.schema.json",
+      "design-stage-plan-projection.schema.json",
+      "model-understanding-bundle-projection.schema.json",
+      "reference-canvas-projection.schema.json",
+      "repair-intent-projection.schema.json",
+      "semantic-scene-graph-projection.schema.json",
+      "viewer-visual-evidence.schema.json",
+      "visual-evidence-bundle-projection.schema.json"
+    ],
+    "source_schema_bindings": [
+      {
+        "tool": "scene_observe_get",
+        "source_schema_version": "AgenticSceneObserveResult@1",
+        "schema_file": "agentic-scene-observe-result.schema.json",
+        "role": "transport-projection",
+        "durable_schema_file": null
+      },
+      {
+        "tool": "design_stage_plan_get",
+        "source_schema_version": "DesignStagePlan@1",
+        "schema_file": "design-stage-plan-projection.schema.json",
+        "role": "transport-projection",
+        "durable_schema_file": "design-stage-plan.schema.json"
+      },
+      {
+        "tool": "critic_report_get",
+        "source_schema_version": "DesignCriticReport@1",
+        "schema_file": "design-critic-report-projection.schema.json",
+        "role": "transport-projection",
+        "durable_schema_file": "design-critic-report.schema.json"
+      },
+      {
+        "tool": "visual_evidence_bundle_get",
+        "source_schema_version": "ViewerVisualEvidence@1",
+        "schema_file": "viewer-visual-evidence.schema.json",
+        "role": "transport-projection",
+        "durable_schema_file": null
+      }
+    ]
+  }
 }

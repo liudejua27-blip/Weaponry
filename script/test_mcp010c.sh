@@ -10,6 +10,16 @@ EXPORT_DATA_ROOT="$TEMP_ROOT/export-restart-runtime-data"
 
 python3 "$PROJECT_ROOT/scripts/check_forgecad_contracts.py"
 python3 -m py_compile "$PROJECT_ROOT/scripts/probe_mcp010c_raw_stdio.py"
+python3 - "$PROJECT_ROOT/scripts/probe_mcp010c_codex_cli.py" <<'PY'
+from pathlib import Path
+import sys
+
+source = Path(sys.argv[1]).read_text(encoding="utf-8")
+assert 'SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")' in source
+assert 'skill_id' in source and 'ponytail-preflight' in source
+assert "Before any other ForgeCAD tool in this fresh MCP session" in source
+print("Codex CLI probe Ponytail preflight session boundary PASS")
+PY
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
@@ -20,6 +30,33 @@ CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo build \
   --manifest-path "$PROJECT_ROOT/apps/geometry-worker/Cargo.toml" \
   --bin forgecad-geometry-worker --offline
+
+CARGO_TARGET_DIR="$TARGET_DIR" \
+  "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo build \
+  --manifest-path "$PROJECT_ROOT/apps/render-worker/Cargo.toml" \
+  --bin forgecad-render-worker --offline
+
+python3 - "$TARGET_DIR/debug/forgecad-render-worker" <<'PY'
+import json
+import subprocess
+import sys
+
+worker = sys.argv[1]
+process = subprocess.run(
+    [worker, "--isolated-once"],
+    input="{not-json}\n{not-json}\n",
+    text=True,
+    capture_output=True,
+    check=False,
+)
+responses = [line for line in process.stdout.splitlines() if line]
+assert process.returncode != 0
+assert len(responses) == 1, responses
+response = json.loads(responses[0])
+assert response["ok"] is False
+assert response["error"]["code"] == "PARSE_ERROR"
+print("Render Worker strict one-request lifecycle PASS")
+PY
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \

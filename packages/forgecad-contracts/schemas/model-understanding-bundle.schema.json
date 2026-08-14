@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/model-understanding-bundle.schema.json",
+  "title": "ModelUnderstandingBundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "reference_id",
+    "reference_sha256",
+    "artifact_sha256",
+    "camera_hash",
+    "scene_graph_sha256",
+    "render_set_sha256",
+    "quality_report_sha256",
+    "observation",
+    "observations",
+    "unknowns",
+    "decisions",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ModelUnderstandingBundle@1"},
+    "bundle_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "scene_graph_sha256": {"$ref": "#/$defs/sha256"},
+    "render_set_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_sha256": {"$ref": "#/$defs/sha256"},
+    "observation": {"$ref": "#/$defs/fact_state"},
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/observation"}
+    },
+    "unknowns": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/unknown"}
+    },
+    "decisions": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/decision"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+          {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "visibility": {
+      "enum": ["observed", "inferred", "unknown"]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sha256"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "reference",
+            "artifact",
+            "render",
+            "comparison",
+            "quality",
+            "camera",
+            "scene",
+            "checkpoint",
+            "version",
+            "design-spec",
+            "visual-evidence",
+            "other"
+          ]
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "fact_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibility", "confidence", "evidence_refs"],
+      "properties": {
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
+    },
+    "stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fact_id", "subject_kind", "subject_id", "statement", "state"],
+      "properties": {
+        "fact_id": {"$ref": "#/$defs/identifier"},
+        "subject_kind": {"enum": ["scene", "part", "material-zone", "camera", "feature", "region"]},
+        "subject_id": {"$ref": "#/$defs/identifier"},
+        "statement": {"$ref": "#/$defs/safe_text"},
+        "state": {"$ref": "#/$defs/fact_state"}
+      }
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unknown_id", "scope_kind", "scope_id", "question", "state", "blocked_stages"],
+      "properties": {
+        "unknown_id": {"$ref": "#/$defs/identifier"},
+        "scope_kind": {"enum": ["scene", "part", "material-zone", "camera", "region"]},
+        "scope_id": {"$ref": "#/$defs/identifier"},
+        "question": {"$ref": "#/$defs/safe_text"},
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["visibility", "confidence", "evidence_refs"],
+          "properties": {
+            "visibility": {"const": "unknown"},
+            "confidence": {"const": 0},
+            "evidence_refs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/evidence_ref"}
+            }
+          }
+        },
+        "blocked_stages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/stage"}
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "stage", "statement", "allowed_action_kind", "state"],
+      "properties": {
+        "decision_id": {"$ref": "#/$defs/identifier"},
+        "stage": {"$ref": "#/$defs/stage"},
+        "statement": {"$ref": "#/$defs/safe_text"},
+        "allowed_action_kind": {
+          "enum": [
+            "reference-import",
+            "coverage-annotation",
+            "mark-unknown",
+            "primary-blockout",
+            "primary-form-adjustment",
+            "secondary-structure",
+            "tertiary-detail",
+            "material-zone",
+            "uv-pbr",
+            "final-review",
+            "request-reference",
+            "bounded-repair",
+            "checkpoint",
+            "rollback",
+            "human-review",
+            "export"
+          ]
+        },
+        "state": {"$ref": "#/$defs/fact_state"}
+      }
+    }
+  }
+}

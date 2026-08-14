@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/viewer-visual-evidence.schema.json",
+  "title": "Viewer Visual Evidence Read Model",
+  "type": "object",
+  "additionalProperties": false,
+  "x-forgecad-contract-role": "transport-projection",
+  "x-forgecad-projection-only": true,
+  "x-forgecad-not-durable": true,
+  "properties": {
+    "schema_version": {"const": "ViewerVisualEvidence@1"},
+    "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "reference_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "render_set_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+    "comparison_report_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"},
+    "quality_report_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+    "render_set": {"$ref": "https://forgecad.local/contracts/render-set-v2.schema.json"},
+    "comparison_report": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/reference-comparison-report.schema.json"}
+      ]
+    },
+    "quality_report": {"$ref": "https://forgecad.local/contracts/quality-report-v2.schema.json"}
+  },
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "project_id",
+    "reference_id",
+    "render_set_hash",
+    "comparison_report_hash",
+    "quality_report_hash",
+    "render_set",
+    "comparison_report",
+    "quality_report"
+  ]
+}

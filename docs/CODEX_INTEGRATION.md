@@ -8,15 +8,16 @@
 用户不在 ForgeCAD 内聊天，也不在 ForgeCAD 内上传参考或配置模型。完整流程是：
 
 1. 用户打开 Codex，说明要设计的对象并上传有权使用的图片；
-2. Codex 读取 `forgecad` 能力、项目和当前 Viewer 选择；
-3. Codex 将图片导入 ForgeCAD CAS，形成 `ReferenceEvidence`；
-4. Codex 调用内置 Skills 形成 `SubjectProfile`、`RepresentationPlan` 和 typed design candidate；
-5. Runtime 编译几何、外观、渲染和质量证据；
-6. ForgeCAD Viewer 自动显示候选、固定视图、质量问题和部件树；
-7. 用户在 Codex 里提出局部修改，或在 Viewer 选择部件后回到 Codex 描述修改；
-8. Codex 准备 typed change，再次编译和比较；
-9. 只有用户在 Codex 中批准，Runtime 才确认不可变版本；
-10. 用户可要求恢复历史、查看爆炸图或导出，仍经 prepare/approval/confirm。
+2. Codex 先通过 `skill_get` 读取 `ponytail-preflight@0.1.0`，判断是否已有受限能力可复用并选择最小 typed action；
+3. Codex 读取 `forgecad` 能力、项目和当前 Viewer 选择；
+4. Codex 将图片导入 ForgeCAD CAS，形成 `ReferenceEvidence`；
+5. Codex 调用内置 Skills 形成 `SubjectProfile`、`RepresentationPlan` 和 typed design candidate；
+6. Runtime 编译几何、外观、渲染和质量证据；
+7. ForgeCAD Viewer 自动显示候选、固定视图、质量问题和部件树；
+8. 用户在 Codex 里提出局部修改，或在 Viewer 选择部件后回到 Codex 描述修改；
+9. Codex 准备 typed change，再次编译和比较；
+10. 只有用户在 Codex 中批准，Runtime 才确认不可变版本；
+11. 用户可要求恢复历史、查看爆炸图或导出，仍经 prepare/approval/confirm。
 
 ForgeCAD 单独启动时只显示 Viewer 和连接诊断，不提供“生成”假入口。
 
@@ -34,7 +35,7 @@ ForgeCAD 单独启动时只显示 Viewer 和连接诊断，不提供“生成”
 
 MCP003 的真实证据在 `docs/evidence/mcp003/`：原始/SDK protocol adapter、resources/read、只读工具和版本不兼容 fail-closed 已通过；认证 Codex CLI 真实回合已完成 `capabilities_get`、`selection_get`，并在 `2026-07-28` 环境下明确拒绝、无工具调用、无静默降级和无副作用；`codex-desktop-handshake.jsonl` 和 `host-handshake.jsonl` 记录 Desktop 实际 `initialize.protocolVersion=2025-06-18` 且 ForgeCAD 返回相同值，Desktop 只读证据证明无 ForgeCAD 项目、Job、模型或版本写入；`launchctl` override 被 Desktop 忽略，因此 Desktop forced mismatch 记录为 `HOST_OVERRIDE_IGNORED / NOT_APPLICABLE`。其中 `host-handshake.jsonl` 的观测器只做透明原样转发和记录，不改写/合成请求，也不作为写入证据。IDE 未运行是已知的非 P0 范围，不是 MCP003/MCP004 阻断。
 
-MCP004 当前在 Runtime/authenticated IPC 提供 typed `project_create`、`candidate_prepare`、`candidate_confirm`、`candidate_reject`、`restore_prepare`、`restore_confirm`、`export_prepare`、`export_confirm` 和 `job_cancel` 事务核心；MCP005 新增 `reference_import`/`reference_get`，MCP007/008/009 新增 geometry/appearance/change/quality/version/export。MCP010B/C/D/E/F 源码还提供默认只读的 `operator_catalog_get`、`geometry_program_hash`、`material_pack_get`、`render_pass_get`、`silhouette_target_get`、`camera_fit_prepare`、`silhouette_fit_prepare`、`part_contour_fit_prepare`、`silhouette_candidate_compare`、`boundary_error_get`，以及 C 的 `reference_compare_prepare`、`visual_review_submit`、`human_visual_review_submit` 显式证据工具；F 的 `reference_mask_prepare`/`reference_mask_refine_prepare` 是显式 opt-in 的 CAS target 写入。因此当前 source manifest 是 28 read + 18 write = 46，合同总数为 78。固定 renderer、D/E AssetPack 与真实机器人质量边界保持原有描述；轮廓 target/camera/Rig/SDF/Part/candidate compare 的调用顺序和停止规则见 `docs/CODEX_SILHOUETTE_FIT_WORKFLOW.md` 与 `docs/CODEX_CONTOUR_SKILL_PACK.md`。这些 source Gate 仍不等于用户图片 likeness、PBR、人评、packaged/live 或 360 PASS。
+MCP004 当前在 Runtime/authenticated IPC 提供 typed `project_create`、`candidate_prepare`、`candidate_confirm`、`candidate_reject`、`restore_prepare`、`restore_confirm`、`export_prepare`、`export_confirm` 和 `job_cancel` 事务核心；MCP005 新增 `reference_import`/`reference_get`，MCP007/008/009 新增 geometry/appearance/change/quality/version/export。MCP010B/C/D/E/F 源码还提供默认只读的 `operator_catalog_get`、`geometry_program_hash`、`material_pack_get`、`render_pass_get`、`silhouette_target_get`、`camera_fit_prepare`、`silhouette_fit_prepare`、`part_contour_fit_prepare`、`silhouette_part_error_get`、`silhouette_candidate_compare`、`boundary_error_get`，以及 C 的 `reference_compare_prepare`、`visual_review_submit`、`human_visual_review_submit` 显式证据工具；F 的 `reference_mask_prepare`/`reference_mask_refine_prepare` 是显式 opt-in 的 CAS target 写入。Agentic 另提供 `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get`、`session_get`、`checkpoint_get` read surface，以及 approval-gated `session_create_or_resume`、`checkpoint_prepare`、`checkpoint_restore_prepare`。因此当前 source manifest 是 35 read + 21 write = 56，合同总数为 100。除 `capabilities_get`、`runtime_status`、`doctor` 外，MCP session 必须先读 `ponytail-preflight@0.1.0`；该会话 policy 不新增模型或 Provider，也不改变 Runtime 唯一写者模型。固定 renderer、D/E AssetPack 与真实机器人质量边界保持原有描述；轮廓 target/camera/Rig/SDF/Part/candidate compare 的调用顺序和停止规则见 `docs/CODEX_SILHOUETTE_FIT_WORKFLOW.md` 与 `docs/CODEX_CONTOUR_SKILL_PACK.md`。这些 source Gate、Agentic projection 和 durable prepare/readback Gate 仍不等于用户图片 likeness、PBR、人评、packaged/live、Repair execution 或 360 PASS。
 
 2026-08-08 宿主验收记录：Computer Use 对 `com.openai.codex` 的只读状态请求被主机安全边界拒绝；Codex in-app Browser 连接成功但没有当前或用户标签页。该自动化 surface 仍单独记录为 BLOCKED，但不覆盖用户提供的 Desktop 握手/只读证据，也不把 IDE 变成 P0 要求。
 
@@ -126,7 +127,8 @@ python3 scripts/probe_mcp004_codex_cli.py --execute \
 
 随 Server 提供的 instructions 必须要求 Codex：
 
-- 先读 `capabilities_get`、`project_list` 和需要的 snapshot/resource；
+- 在任何设计 tool 或其他 Skill 前先读 `ponytail-preflight@0.1.0`；`capabilities_get`、`runtime_status`、`doctor` 仅可作 bootstrap diagnostics；
+- 随后读取 `capabilities_get`、`project_list` 和需要的 snapshot/resource；
 - 不猜测不可用能力；
 - 对含糊对象、缺失视图、尺寸或材质先向用户澄清；
 - 只提交公开 typed Schema，不提交任意脚本；

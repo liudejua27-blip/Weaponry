@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-canvas.schema.json",
+  "title": "ReferenceCanvas",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "canvas_id",
+    "project_id",
+    "reference_set_sha256",
+    "views",
+    "coverage",
+    "unknowns",
+    "claims",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "ReferenceCanvas@1"},
+    "canvas_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "reference_set_sha256": {"$ref": "#/$defs/sha256"},
+    "views": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/view"}
+    },
+    "coverage": {"$ref": "#/$defs/coverage"},
+    "unknowns": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/unknown"}
+    },
+    "claims": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/claim"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+          {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "visibility": {
+      "enum": ["observed", "inferred", "unknown"]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sha256"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "reference",
+            "artifact",
+            "render",
+            "comparison",
+            "quality",
+            "camera",
+            "scene",
+            "checkpoint",
+            "version",
+            "design-spec",
+            "visual-evidence",
+            "other"
+          ]
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibility", "confidence", "evidence_refs"],
+      "properties": {
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
+    },
+    "view_kind": {
+      "enum": [
+        "front",
+        "back",
+        "left",
+        "right",
+        "top",
+        "perspective",
+        "rear-three-quarter",
+        "material",
+        "detail"
+      ]
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "reference_id",
+        "reference_sha256",
+        "kind",
+        "authorization",
+        "image_dimensions",
+        "camera_claim",
+        "visible_regions",
+        "unknown_regions"
+      ],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/identifier"},
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "kind": {"$ref": "#/$defs/view_kind"},
+        "authorization": {"$ref": "#/$defs/authorization"},
+        "image_dimensions": {"$ref": "#/$defs/image_dimensions"},
+        "camera_claim": {"$ref": "#/$defs/camera_claim"},
+        "visible_regions": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/region"}
+        },
+        "unknown_regions": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/unknown_region"}
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_authorized", "declaration", "evidence_refs"],
+      "properties": {
+        "user_authorized": {"const": true},
+        "declaration": {"$ref": "#/$defs/safe_text"},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      }
+    },
+    "image_dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "height": {"type": "integer", "minimum": 1, "maximum": 16384}
+      }
+    },
+    "camera_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibility", "camera_hash", "claim", "evidence_refs"],
+      "properties": {
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "camera_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "claim": {"$ref": "#/$defs/safe_text"},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"camera_hash": {"const": null}}}
+        },
+        {
+          "if": {
+            "properties": {"visibility": {"enum": ["observed", "inferred"]}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"camera_hash": {"$ref": "#/$defs/sha256"}}}
+        }
+      ]
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "label", "state"],
+      "properties": {
+        "region_id": {"$ref": "#/$defs/identifier"},
+        "label": {"$ref": "#/$defs/safe_text"},
+        "state": {"$ref": "#/$defs/state"}
+      }
+    },
+    "unknown_region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "question", "state"],
+      "properties": {
+        "region_id": {"$ref": "#/$defs/identifier"},
+        "question": {"$ref": "#/$defs/safe_text"},
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["visibility", "confidence", "evidence_refs"],
+          "properties": {
+            "visibility": {"const": "unknown"},
+            "confidence": {"const": 0},
+            "evidence_refs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/evidence_ref"}
+            }
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_views",
+        "supplied_views",
+        "missing_views",
+        "coverage_status",
+        "hq_360_status",
+        "evidence_refs"
+      ],
+      "properties": {
+        "required_views": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/view_kind"}
+        },
+        "supplied_views": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/view_kind"}
+        },
+        "missing_views": {
+          "type": "array",
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/view_kind"}
+        },
+        "coverage_status": {"enum": ["complete", "partial", "blocked"]},
+        "hq_360_status": {"enum": ["eligible", "BLOCKED_REFERENCE_COVERAGE"]},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"missing_views": {"minItems": 1}},
+            "required": ["missing_views"]
+          },
+          "then": {
+            "properties": {
+              "coverage_status": {"enum": ["partial", "blocked"]},
+              "hq_360_status": {"const": "BLOCKED_REFERENCE_COVERAGE"}
+            }
+          },
+          "else": {
+            "properties": {
+              "coverage_status": {"const": "complete"},
+              "hq_360_status": {"const": "eligible"}
+            }
+          }
+        }
+      ]
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unknown_id", "scope_kind", "scope_id", "question", "state"],
+      "properties": {
+        "unknown_id": {"$ref": "#/$defs/identifier"},
+        "scope_kind": {"enum": ["scene", "part", "material-zone", "camera", "region"]},
+        "scope_id": {"$ref": "#/$defs/identifier"},
+        "question": {"$ref": "#/$defs/safe_text"},
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["visibility", "confidence", "evidence_refs"],
+          "properties": {
+            "visibility": {"const": "unknown"},
+            "confidence": {"const": 0},
+            "evidence_refs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/evidence_ref"}
+            }
+          }
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "subject_kind", "subject_id", "statement", "state"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/identifier"},
+        "subject_kind": {"enum": ["canvas", "view", "region", "camera"]},
+        "subject_id": {"$ref": "#/$defs/identifier"},
+        "statement": {"$ref": "#/$defs/safe_text"},
+        "state": {"$ref": "#/$defs/state"}
+      }
+    }
+  }
+}

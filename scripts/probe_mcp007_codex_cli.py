@@ -249,9 +249,17 @@ def blocked(reason: str, source_sha256: str, size: int) -> dict[str, Any]:
 
 
 def structured_result(items: list[dict[str, Any]], tool_name: str) -> dict[str, Any] | None:
-    """Return the last structured result for one completed MCP call."""
+    """Return the last structured result for one completed MCP call.
+
+    Codex JSONL may retain a structured payload on a failed/retried call while
+    a later lifecycle event carries the final status.  Do not let that stale
+    payload hide the last successful typed result from a bounded stage.
+    """
     for item in reversed(items):
         if item.get("type") != "mcp_tool_call" or item.get("tool") != tool_name:
+            continue
+        status = item.get("status")
+        if status not in (None, "completed"):
             continue
         result = item.get("result")
         if not isinstance(result, dict):

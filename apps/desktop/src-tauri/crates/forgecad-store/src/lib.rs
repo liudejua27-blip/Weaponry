@@ -11,8 +11,10 @@ use forgecad_contracts::{
     RestoreConfirmResult, RestorePrepareRequest, RestorePrepareResult, SnapshotRecord,
     SnapshotSummary,
 };
-use forgecad_core::{canonical_json_hash, sha256_hex};
+use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -62,6 +64,111 @@ pub struct VisualEvidenceRecord {
     pub human_receipt_object_sha256: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// Runtime-owned durable state for the Agentic Design Runtime.  The full
+/// record is also stored as a canonical JSON object in CAS; these fields are
+/// repeated in SQLite so binding checks and project-scoped reads stay inside
+/// the Store transaction boundary.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AgenticSessionRecord {
+    pub schema_version: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub revision: i64,
+    pub candidate_state_sha256: String,
+    pub design_spec_id: String,
+    pub design_spec_sha256: String,
+    pub reference_canvas_id: String,
+    pub reference_canvas_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub evidence_sha256: String,
+    pub current_version_id: Option<String>,
+    pub current_version_sha256: Option<String>,
+    pub current_stage: String,
+    pub quality_status: String,
+    pub status: String,
+    pub stage_gate: Value,
+    pub next_actions: Vec<Value>,
+    pub rollback: Value,
+    pub current_checkpoint_id: Option<String>,
+    pub current_checkpoint_sha256: Option<String>,
+    pub checkpoint_ids: Vec<String>,
+    pub lineage: Value,
+    /// SQLite/CAS object containing the canonical record.  It is omitted from
+    /// the CAS payload itself to avoid a content-hash cycle.
+    pub object_sha256: Option<String>,
+    pub canonical_sha256: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// An immutable checkpoint snapshot.  The explicit uncertainty/action lists
+/// are intentionally part of the durable record rather than derived by the
+/// Viewer, so a later readback cannot silently change what was known or
+/// unlocked at the time of the checkpoint.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AgenticCheckpointRecord {
+    pub schema_version: String,
+    pub checkpoint_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub revision: i64,
+    pub stage: String,
+    pub checkpoint_type: String,
+    pub candidate_state_sha256: String,
+    pub artifact_sha256: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub input_sha256: String,
+    pub evidence_sha256: String,
+    pub version_id: Option<String>,
+    pub version_sha256: Option<String>,
+    pub parent_checkpoint_id: Option<String>,
+    pub parent_checkpoint_sha256: Option<String>,
+    pub stage_gate: Value,
+    pub rollback: Value,
+    pub observed: Vec<String>,
+    pub inferred: Vec<String>,
+    pub unknown: Vec<String>,
+    pub failed_gates: Vec<String>,
+    pub allowed_actions: Vec<String>,
+    pub locked_actions: Vec<String>,
+    pub immutable: bool,
+    pub runtime_write: bool,
+    pub object_sha256: Option<String>,
+    pub canonical_sha256: String,
+    pub created_at: String,
+}
+
+/// An immutable Runtime-owned record for one bounded Agentic action run.
+/// Stage results are metadata-only and must point at CAS objects by hash; the
+/// Store never executes or interprets an action from this record.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgenticActionRunRecord {
+    pub schema_version: String,
+    pub run_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub input_sha256: String,
+    pub status: String,
+    pub completed_stage: String,
+    pub stage_results: Value,
+    pub checkpoint_id: Option<String>,
+    pub checkpoint_sha256: Option<String>,
+    pub immutable: bool,
+    /// SQLite/CAS object containing the canonical record.  It is omitted from
+    /// the CAS payload itself to avoid a content-hash cycle.
+    pub object_sha256: Option<String>,
+    pub canonical_sha256: String,
+    pub created_at: String,
 }
 
 impl Store {
@@ -1050,6 +1157,552 @@ impl Store {
                 },
             )
             .optional()?)
+    }
+
+    /// Insert or update one Runtime-owned DesignSession.  An existing session
+    /// may only be resumed when its project/candidate/reference binding is
+    /// identical; the Store never lets a caller retarget a session.
+    pub fn agentic_session_create_or_resume(
+        &self,
+        session: &AgenticSessionRecord,
+        object: &CasObjectRecord,
+    ) -> Result<AgenticSessionRecord, StoreError> {
+        validate_agentic_session(session)?;
+        let payload = agentic_payload_json(session)?;
+        ensure_agentic_object(
+            &self.cas,
+            object,
+            session.object_sha256.as_deref(),
+            &payload,
+        )?;
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        ensure_agentic_binding_rows(
+            &transaction,
+            &session.project_id,
+            &session.candidate_id,
+            &session.reference_id,
+            &session.reference_sha256,
+        )?;
+        let existing: Option<(String, String, i64, String, String, String, String)> = transaction
+            .query_row(
+                "SELECT project_id, candidate_id, revision, reference_id, reference_sha256, camera_hash, evidence_sha256 FROM agentic_design_sessions WHERE session_id = ?1",
+                params![session.session_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                    ))
+                },
+            )
+            .optional()?;
+        if let Some(existing) = existing {
+            let matches = existing.0 == session.project_id
+                && existing.1 == session.candidate_id
+                && existing.2 == session.revision
+                && existing.3 == session.reference_id
+                && existing.4 == session.reference_sha256
+                && existing.5 == session.camera_hash
+                && existing.6 == session.evidence_sha256;
+            if !matches {
+                return Err(StoreError::Contract {
+                    code: "AGENTIC_SESSION_BINDING_MISMATCH".to_owned(),
+                    message: "session cannot be resumed with another project, candidate, revision, reference, camera or evidence".to_owned(),
+                });
+            }
+        }
+        transaction.execute(
+            "INSERT INTO agentic_design_sessions (session_id, project_id, candidate_id, revision, candidate_state_sha256, reference_id, reference_sha256, camera_hash, evidence_sha256, current_checkpoint_id, current_checkpoint_sha256, object_sha256, canonical_sha256, payload_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16) ON CONFLICT(session_id) DO UPDATE SET project_id=excluded.project_id, candidate_id=excluded.candidate_id, revision=excluded.revision, candidate_state_sha256=excluded.candidate_state_sha256, reference_id=excluded.reference_id, reference_sha256=excluded.reference_sha256, camera_hash=excluded.camera_hash, evidence_sha256=excluded.evidence_sha256, current_checkpoint_id=excluded.current_checkpoint_id, current_checkpoint_sha256=excluded.current_checkpoint_sha256, object_sha256=excluded.object_sha256, canonical_sha256=excluded.canonical_sha256, payload_json=excluded.payload_json, updated_at=excluded.updated_at",
+            params![
+                session.session_id,
+                session.project_id,
+                session.candidate_id,
+                session.revision,
+                session.candidate_state_sha256,
+                session.reference_id,
+                session.reference_sha256,
+                session.camera_hash,
+                session.evidence_sha256,
+                session.current_checkpoint_id,
+                session.current_checkpoint_sha256,
+                object.sha256,
+                session.canonical_sha256,
+                payload,
+                session.created_at,
+                session.updated_at,
+            ],
+        )?;
+        transaction.execute(
+            "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
+            params![object.sha256],
+        )?;
+        transaction.commit()?;
+        drop(connection);
+        self.get_agentic_session(&session.session_id)?
+            .ok_or_else(|| {
+                StoreError::InvalidData("agentic session disappeared after write".to_owned())
+            })
+    }
+
+    /// Atomically persist an immutable checkpoint and advance the session's
+    /// current pointer.  The parent pointer is checked against the stored
+    /// session to reject stale writers before either row changes.
+    pub fn agentic_checkpoint_prepare(
+        &self,
+        checkpoint: &AgenticCheckpointRecord,
+        session: &AgenticSessionRecord,
+        checkpoint_object: &CasObjectRecord,
+        session_object: &CasObjectRecord,
+    ) -> Result<(), StoreError> {
+        validate_agentic_checkpoint(checkpoint)?;
+        validate_agentic_session(session)?;
+        let checkpoint_payload = agentic_payload_json(checkpoint)?;
+        let session_payload = agentic_payload_json(session)?;
+        ensure_agentic_object(
+            &self.cas,
+            checkpoint_object,
+            checkpoint.object_sha256.as_deref(),
+            &checkpoint_payload,
+        )?;
+        ensure_agentic_object(
+            &self.cas,
+            session_object,
+            session.object_sha256.as_deref(),
+            &session_payload,
+        )?;
+        if checkpoint.session_id != session.session_id
+            || checkpoint.project_id != session.project_id
+            || checkpoint.candidate_id != session.candidate_id
+            || checkpoint.revision != session.revision
+            || checkpoint.candidate_state_sha256 != session.candidate_state_sha256
+        {
+            return Err(StoreError::Contract {
+                code: "AGENTIC_CHECKPOINT_BINDING_MISMATCH".to_owned(),
+                message: "checkpoint does not bind to the session state".to_owned(),
+            });
+        }
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        ensure_agentic_binding_rows(
+            &transaction,
+            &session.project_id,
+            &session.candidate_id,
+            &session.reference_id,
+            &session.reference_sha256,
+        )?;
+        let stored_session: Option<(String, String, String, Option<String>, Option<String>)> = transaction
+            .query_row(
+                "SELECT project_id, candidate_id, evidence_sha256, current_checkpoint_id, current_checkpoint_sha256 FROM agentic_design_sessions WHERE session_id = ?1",
+                params![session.session_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .optional()?;
+        let Some(stored_session) = stored_session else {
+            return Err(StoreError::Contract {
+                code: "AGENTIC_SESSION_NOT_FOUND".to_owned(),
+                message: "checkpoint requires a persisted session".to_owned(),
+            });
+        };
+        if stored_session.0 != session.project_id
+            || stored_session.1 != session.candidate_id
+            || stored_session.2 != session.evidence_sha256
+            || stored_session.3 != checkpoint.parent_checkpoint_id
+            || stored_session.4 != checkpoint.parent_checkpoint_sha256
+        {
+            return Err(StoreError::Contract {
+                code: "AGENTIC_SESSION_STALE".to_owned(),
+                message: "checkpoint parent or session evidence is stale".to_owned(),
+            });
+        }
+        if let Some(parent_id) = checkpoint.parent_checkpoint_id.as_deref() {
+            let parent: Option<(String, String, String, String)> = transaction
+                .query_row(
+                    "SELECT session_id, project_id, candidate_id, canonical_sha256 FROM agentic_design_checkpoints WHERE checkpoint_id = ?1",
+                    params![parent_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .optional()?;
+            if parent.as_ref().map(|row| {
+                row.0 != checkpoint.session_id
+                    || row.1 != checkpoint.project_id
+                    || row.2 != checkpoint.candidate_id
+                    || row.3
+                        != checkpoint
+                            .parent_checkpoint_sha256
+                            .clone()
+                            .unwrap_or_default()
+            }) != Some(false)
+            {
+                return Err(StoreError::Contract {
+                    code: "AGENTIC_PARENT_BINDING_MISMATCH".to_owned(),
+                    message: "checkpoint parent is not part of the same session binding".to_owned(),
+                });
+            }
+        }
+        transaction.execute(
+            "INSERT INTO agentic_design_checkpoints (checkpoint_id, session_id, project_id, candidate_id, revision, candidate_state_sha256, artifact_sha256, reference_id, reference_sha256, camera_hash, input_sha256, evidence_sha256, parent_checkpoint_id, parent_checkpoint_sha256, object_sha256, canonical_sha256, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+            params![
+                checkpoint.checkpoint_id,
+                checkpoint.session_id,
+                checkpoint.project_id,
+                checkpoint.candidate_id,
+                checkpoint.revision,
+                checkpoint.candidate_state_sha256,
+                checkpoint.artifact_sha256,
+                checkpoint.reference_id,
+                checkpoint.reference_sha256,
+                checkpoint.camera_hash,
+                checkpoint.input_sha256,
+                checkpoint.evidence_sha256,
+                checkpoint.parent_checkpoint_id,
+                checkpoint.parent_checkpoint_sha256,
+                checkpoint_object.sha256,
+                checkpoint.canonical_sha256,
+                checkpoint_payload,
+                checkpoint.created_at,
+            ],
+        )?;
+        transaction.execute(
+            "UPDATE agentic_design_sessions SET project_id=?1, candidate_id=?2, revision=?3, candidate_state_sha256=?4, reference_id=?5, reference_sha256=?6, camera_hash=?7, evidence_sha256=?8, current_checkpoint_id=?9, current_checkpoint_sha256=?10, object_sha256=?11, canonical_sha256=?12, payload_json=?13, updated_at=?14 WHERE session_id=?15",
+            params![
+                session.project_id,
+                session.candidate_id,
+                session.revision,
+                session.candidate_state_sha256,
+                session.reference_id,
+                session.reference_sha256,
+                session.camera_hash,
+                session.evidence_sha256,
+                session.current_checkpoint_id,
+                session.current_checkpoint_sha256,
+                session_object.sha256,
+                session.canonical_sha256,
+                session_payload,
+                session.updated_at,
+                session.session_id,
+            ],
+        )?;
+        transaction.execute(
+            "UPDATE objects SET reachability = 'reachable' WHERE sha256 IN (?1, ?2)",
+            params![checkpoint_object.sha256, session_object.sha256],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn get_agentic_session(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<AgenticSessionRecord>, StoreError> {
+        let connection = self.lock_connection()?;
+        let row: Option<(String, String, String, String, String)> = connection
+            .query_row(
+                "SELECT payload_json, object_sha256, canonical_sha256, project_id, candidate_id FROM agentic_design_sessions WHERE session_id = ?1",
+                params![session_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .optional()?;
+        row.map(
+            |(payload, object_sha256, canonical_sha256, project_id, candidate_id)| {
+                let mut record: AgenticSessionRecord =
+                    serde_json::from_str(&payload).map_err(|error| {
+                        StoreError::InvalidData(format!("invalid agentic session payload: {error}"))
+                    })?;
+                if record.project_id != project_id
+                    || record.candidate_id != candidate_id
+                    || record.session_id != session_id
+                {
+                    return Err(StoreError::Contract {
+                        code: "AGENTIC_SESSION_PAYLOAD_BINDING_MISMATCH".to_owned(),
+                        message: "session payload does not match its SQLite binding".to_owned(),
+                    });
+                }
+                record.object_sha256 = Some(object_sha256);
+                record.canonical_sha256 = canonical_sha256;
+                validate_agentic_session(&record)?;
+                Ok(record)
+            },
+        )
+        .transpose()
+    }
+
+    pub fn get_agentic_session_for_binding(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+    ) -> Result<Option<AgenticSessionRecord>, StoreError> {
+        let connection = self.lock_connection()?;
+        let session_id: Option<String> = connection
+            .query_row(
+                "SELECT session_id FROM agentic_design_sessions WHERE project_id = ?1 AND candidate_id = ?2 ORDER BY updated_at DESC, session_id DESC LIMIT 1",
+                params![project_id, candidate_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        drop(connection);
+        session_id
+            .as_deref()
+            .map(|session_id| self.get_agentic_session(session_id))
+            .transpose()
+            .map(|value| value.flatten())
+    }
+
+    pub fn get_agentic_checkpoint(
+        &self,
+        checkpoint_id: &str,
+    ) -> Result<Option<AgenticCheckpointRecord>, StoreError> {
+        let connection = self.lock_connection()?;
+        let row: Option<(String, String, String, String, String, String)> = connection
+            .query_row(
+                "SELECT payload_json, object_sha256, canonical_sha256, session_id, project_id, candidate_id FROM agentic_design_checkpoints WHERE checkpoint_id = ?1",
+                params![checkpoint_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+            )
+            .optional()?;
+        row.map(
+            |(payload, object_sha256, canonical_sha256, session_id, project_id, candidate_id)| {
+                let mut record: AgenticCheckpointRecord =
+                    serde_json::from_str(&payload).map_err(|error| {
+                        StoreError::InvalidData(format!(
+                            "invalid agentic checkpoint payload: {error}"
+                        ))
+                    })?;
+                if record.project_id != project_id
+                    || record.candidate_id != candidate_id
+                    || record.session_id != session_id
+                    || record.checkpoint_id != checkpoint_id
+                {
+                    return Err(StoreError::Contract {
+                        code: "AGENTIC_CHECKPOINT_PAYLOAD_BINDING_MISMATCH".to_owned(),
+                        message: "checkpoint payload does not match its SQLite binding".to_owned(),
+                    });
+                }
+                record.object_sha256 = Some(object_sha256);
+                record.canonical_sha256 = canonical_sha256;
+                validate_agentic_checkpoint(&record)?;
+                Ok(record)
+            },
+        )
+        .transpose()
+    }
+
+    /// Persist one immutable Runtime-owned action-run record.  Resuming means
+    /// reading the existing immutable record: a repeated run_id may not update
+    /// its input, stage results, status, checkpoint pointer, or canonical data.
+    pub fn agentic_action_run_create_or_resume(
+        &self,
+        run: &AgenticActionRunRecord,
+        object: &CasObjectRecord,
+    ) -> Result<AgenticActionRunRecord, StoreError> {
+        validate_agentic_action_run(run)?;
+        validate_agentic_action_run_object(object)?;
+        let payload = agentic_action_run_payload_json(run)?;
+        let stage_results_json = canonical_json_bytes(&run.stage_results)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))
+            .and_then(|bytes| {
+                String::from_utf8(bytes).map_err(|error| StoreError::InvalidData(error.to_string()))
+            })?;
+        ensure_agentic_object(&self.cas, object, run.object_sha256.as_deref(), &payload)?;
+
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        ensure_agentic_action_run_binding_rows(&transaction, run)?;
+        ensure_agentic_action_run_object_row(&transaction, object)?;
+
+        let existing: Option<(
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+        )> =
+            transaction
+                .query_row(
+                    "SELECT payload_json, stage_results_json, object_sha256, input_sha256, canonical_sha256, session_id, project_id, candidate_id FROM agentic_action_runs WHERE run_id = ?1",
+                    params![run.run_id],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                            row.get(6)?,
+                            row.get(7)?,
+                        ))
+                    },
+                )
+                .optional()?;
+        if let Some(existing) = existing {
+            if existing.3 != run.input_sha256 {
+                return Err(StoreError::Contract {
+                    code: "AGENTIC_ACTION_RUN_INPUT_MISMATCH".to_owned(),
+                    message: "run_id is already bound to another input hash".to_owned(),
+                });
+            }
+            if existing.0 != payload
+                || existing.1 != stage_results_json
+                || existing.2 != object.sha256
+                || existing.4 != run.canonical_sha256
+                || existing.5 != run.session_id
+                || existing.6 != run.project_id
+                || existing.7 != run.candidate_id
+            {
+                return Err(StoreError::Contract {
+                    code: "AGENTIC_ACTION_RUN_IMMUTABLE_CONFLICT".to_owned(),
+                    message: "an existing run cannot be silently changed while resuming".to_owned(),
+                });
+            }
+            transaction.commit()?;
+            drop(connection);
+            return self.get_agentic_action_run(&run.run_id)?.ok_or_else(|| {
+                StoreError::InvalidData("action run disappeared after resume".to_owned())
+            });
+        }
+
+        transaction.execute(
+            "INSERT INTO agentic_action_runs (run_id, session_id, project_id, candidate_id, input_sha256, status, completed_stage, stage_results_json, checkpoint_id, checkpoint_sha256, immutable, object_sha256, canonical_sha256, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            params![
+                run.run_id,
+                run.session_id,
+                run.project_id,
+                run.candidate_id,
+                run.input_sha256,
+                run.status,
+                run.completed_stage,
+                stage_results_json,
+                run.checkpoint_id,
+                run.checkpoint_sha256,
+                run.immutable,
+                object.sha256,
+                run.canonical_sha256,
+                payload,
+                run.created_at,
+            ],
+        )?;
+        let marked_reachable = transaction.execute(
+            "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
+            params![object.sha256],
+        )?;
+        if marked_reachable != 1 {
+            return Err(StoreError::Contract {
+                code: "AGENTIC_ACTION_RUN_CAS_OBJECT_UNAVAILABLE".to_owned(),
+                message: "action run CAS metadata disappeared during the write".to_owned(),
+            });
+        }
+        transaction.commit()?;
+        drop(connection);
+        self.get_agentic_action_run(&run.run_id)?.ok_or_else(|| {
+            StoreError::InvalidData("action run disappeared after create".to_owned())
+        })
+    }
+
+    pub fn get_agentic_action_run(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<AgenticActionRunRecord>, StoreError> {
+        if !is_opaque_id(run_id) {
+            return Err(StoreError::InvalidData(
+                "invalid agentic action run id".to_owned(),
+            ));
+        }
+        let connection = self.lock_connection()?;
+        let row: Option<(
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+        )> = connection
+            .query_row(
+                "SELECT payload_json, stage_results_json, object_sha256, canonical_sha256, session_id, project_id, candidate_id, input_sha256 FROM agentic_action_runs WHERE run_id = ?1",
+                params![run_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+        drop(connection);
+
+        let Some((
+            payload,
+            stage_results_json,
+            object_sha256,
+            canonical_sha256,
+            session_id,
+            project_id,
+            candidate_id,
+            input_sha256,
+        )) = row
+        else {
+            return Ok(None);
+        };
+        let object = self
+            .get_object(&object_sha256)?
+            .ok_or_else(|| StoreError::Contract {
+                code: "AGENTIC_ACTION_RUN_CAS_OBJECT_UNAVAILABLE".to_owned(),
+                message: "action run CAS metadata is missing".to_owned(),
+            })?;
+        validate_agentic_action_run_object(&object)?;
+        let cas_payload = self.cas.read_verified(&object.sha256)?;
+        if cas_payload != payload.as_bytes() {
+            return Err(StoreError::Contract {
+                code: "AGENTIC_ACTION_RUN_CAS_PAYLOAD_MISMATCH".to_owned(),
+                message: "SQLite action run payload differs from its CAS object".to_owned(),
+            });
+        }
+
+        let mut record: AgenticActionRunRecord =
+            serde_json::from_str(&payload).map_err(|error| {
+                StoreError::InvalidData(format!("invalid agentic action run payload: {error}"))
+            })?;
+        let record_stage_results_json = canonical_json_bytes(&record.stage_results)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        if record.object_sha256.is_some()
+            || record.run_id != run_id
+            || record.session_id != session_id
+            || record.project_id != project_id
+            || record.candidate_id != candidate_id
+            || record.input_sha256 != input_sha256
+            || record.canonical_sha256 != canonical_sha256
+            || record_stage_results_json != stage_results_json.as_bytes()
+        {
+            return Err(StoreError::Contract {
+                code: "AGENTIC_ACTION_RUN_PAYLOAD_BINDING_MISMATCH".to_owned(),
+                message: "action run payload does not match its SQLite binding".to_owned(),
+            });
+        }
+        record.object_sha256 = Some(object_sha256);
+        validate_agentic_action_run(&record)?;
+        Ok(Some(record))
+    }
+
+    pub fn agentic_action_run_get(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<AgenticActionRunRecord>, StoreError> {
+        self.get_agentic_action_run(run_id)
     }
 
     pub fn prepare_restore_candidate(
@@ -2331,6 +2984,76 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
         "visual_review_object_sha256",
         "TEXT",
     )?;
+    // Agentic session/checkpoint state is an additive Runtime V1 extension.
+    // It creates no rows from existing projects and never opens or migrates a
+    // legacy database (that gate ran before this transaction).
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS agentic_design_sessions (
+             session_id TEXT PRIMARY KEY,
+             project_id TEXT NOT NULL REFERENCES projects(project_id),
+             candidate_id TEXT NOT NULL REFERENCES candidates(candidate_id),
+             revision INTEGER NOT NULL CHECK (revision >= 0),
+             candidate_state_sha256 TEXT NOT NULL,
+             reference_id TEXT NOT NULL REFERENCES reference_evidence(reference_id),
+             reference_sha256 TEXT NOT NULL,
+             camera_hash TEXT NOT NULL,
+             evidence_sha256 TEXT NOT NULL,
+             current_checkpoint_id TEXT,
+             current_checkpoint_sha256 TEXT,
+             object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             canonical_sha256 TEXT NOT NULL,
+             payload_json TEXT NOT NULL,
+             created_at TEXT NOT NULL,
+             updated_at TEXT NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS agentic_design_checkpoints (
+             checkpoint_id TEXT PRIMARY KEY,
+             session_id TEXT NOT NULL REFERENCES agentic_design_sessions(session_id),
+             project_id TEXT NOT NULL REFERENCES projects(project_id),
+             candidate_id TEXT NOT NULL REFERENCES candidates(candidate_id),
+             revision INTEGER NOT NULL CHECK (revision >= 0),
+             candidate_state_sha256 TEXT NOT NULL,
+             artifact_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             reference_id TEXT NOT NULL REFERENCES reference_evidence(reference_id),
+             reference_sha256 TEXT NOT NULL,
+             camera_hash TEXT NOT NULL,
+             input_sha256 TEXT NOT NULL,
+             evidence_sha256 TEXT NOT NULL,
+             parent_checkpoint_id TEXT,
+             parent_checkpoint_sha256 TEXT,
+             object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             canonical_sha256 TEXT NOT NULL,
+             payload_json TEXT NOT NULL,
+             created_at TEXT NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS agentic_sessions_project_idx
+             ON agentic_design_sessions(project_id, updated_at DESC, session_id ASC);
+         CREATE INDEX IF NOT EXISTS agentic_checkpoints_session_idx
+             ON agentic_design_checkpoints(session_id, created_at ASC, checkpoint_id ASC);
+         CREATE INDEX IF NOT EXISTS agentic_checkpoints_binding_idx
+             ON agentic_design_checkpoints(project_id, candidate_id, revision ASC, checkpoint_id ASC);
+         CREATE TABLE IF NOT EXISTS agentic_action_runs (
+             run_id TEXT PRIMARY KEY,
+             session_id TEXT NOT NULL REFERENCES agentic_design_sessions(session_id),
+             project_id TEXT NOT NULL REFERENCES projects(project_id),
+             candidate_id TEXT NOT NULL REFERENCES candidates(candidate_id),
+             input_sha256 TEXT NOT NULL,
+             status TEXT NOT NULL,
+             completed_stage TEXT NOT NULL,
+             stage_results_json TEXT NOT NULL,
+             checkpoint_id TEXT,
+             checkpoint_sha256 TEXT,
+             immutable INTEGER NOT NULL CHECK (immutable = 1),
+             object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             canonical_sha256 TEXT NOT NULL,
+             payload_json TEXT NOT NULL,
+             created_at TEXT NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS agentic_action_runs_binding_idx
+             ON agentic_action_runs(session_id, project_id, candidate_id, created_at ASC);
+         CREATE INDEX IF NOT EXISTS agentic_action_runs_input_idx
+             ON agentic_action_runs(input_sha256, run_id);",
+    )?;
     let version: String = transaction.query_row(
         "SELECT value FROM schema_meta WHERE key = 'runtime_schema_version'",
         [],
@@ -2341,6 +3064,700 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
     }
     transaction.commit()?;
     Ok(())
+}
+
+pub fn agentic_session_payload_bytes(record: &AgenticSessionRecord) -> Result<Vec<u8>, StoreError> {
+    let mut value =
+        serde_json::to_value(record).map_err(|error| StoreError::InvalidData(error.to_string()))?;
+    value["object_sha256"] = Value::Null;
+    canonical_json_bytes(&value).map_err(|error| StoreError::InvalidData(error.to_string()))
+}
+
+pub fn agentic_checkpoint_payload_bytes(
+    record: &AgenticCheckpointRecord,
+) -> Result<Vec<u8>, StoreError> {
+    let mut value =
+        serde_json::to_value(record).map_err(|error| StoreError::InvalidData(error.to_string()))?;
+    value["object_sha256"] = Value::Null;
+    canonical_json_bytes(&value).map_err(|error| StoreError::InvalidData(error.to_string()))
+}
+
+pub fn agentic_action_run_payload_bytes(
+    record: &AgenticActionRunRecord,
+) -> Result<Vec<u8>, StoreError> {
+    let mut value =
+        serde_json::to_value(record).map_err(|error| StoreError::InvalidData(error.to_string()))?;
+    value["object_sha256"] = Value::Null;
+    canonical_json_bytes(&value).map_err(|error| StoreError::InvalidData(error.to_string()))
+}
+
+pub fn agentic_action_run_canonical_sha256(
+    record: &AgenticActionRunRecord,
+) -> Result<String, StoreError> {
+    let mut value =
+        serde_json::to_value(record).map_err(|error| StoreError::InvalidData(error.to_string()))?;
+    let object = value.as_object_mut().ok_or_else(|| {
+        StoreError::InvalidData("agentic action run record is not a JSON object".to_owned())
+    })?;
+    object.insert("object_sha256".to_owned(), Value::Null);
+    object.insert("canonical_sha256".to_owned(), Value::String(String::new()));
+    Ok(canonical_json_hash(&value))
+}
+
+fn agentic_payload_json<T: Serialize>(record: &T) -> Result<String, StoreError> {
+    let mut value =
+        serde_json::to_value(record).map_err(|error| StoreError::InvalidData(error.to_string()))?;
+    if let Some(object) = value.as_object_mut() {
+        object.insert("object_sha256".to_owned(), Value::Null);
+    }
+    validate_agentic_metadata(&value, 0)?;
+    let bytes =
+        canonical_json_bytes(&value).map_err(|error| StoreError::InvalidData(error.to_string()))?;
+    if bytes.len() > 256 * 1024 {
+        return Err(StoreError::InvalidData(
+            "agentic payload exceeds bounded metadata capacity".to_owned(),
+        ));
+    }
+    String::from_utf8(bytes).map_err(|error| StoreError::InvalidData(error.to_string()))
+}
+
+fn agentic_action_run_payload_json(record: &AgenticActionRunRecord) -> Result<String, StoreError> {
+    let bytes = agentic_action_run_payload_bytes(record)?;
+    if bytes.len() > 256 * 1024 {
+        return Err(StoreError::InvalidData(
+            "agentic action run payload exceeds bounded metadata capacity".to_owned(),
+        ));
+    }
+    String::from_utf8(bytes).map_err(|error| StoreError::InvalidData(error.to_string()))
+}
+
+fn ensure_agentic_object(
+    cas: &CasStore,
+    object: &CasObjectRecord,
+    expected_sha256: Option<&str>,
+    payload: &str,
+) -> Result<(), StoreError> {
+    if expected_sha256 != Some(object.sha256.as_str())
+        || sha256_hex(payload.as_bytes()) != object.sha256
+    {
+        return Err(StoreError::InvalidData(
+            "agentic CAS object hash does not match canonical payload".to_owned(),
+        ));
+    }
+    cas.verify(&object.sha256, object.size_bytes)?;
+    Ok(())
+}
+
+fn validate_agentic_action_run_object(object: &CasObjectRecord) -> Result<(), StoreError> {
+    if object.schema_version != "CasObject@1"
+        || !is_sha256(&object.sha256)
+        || i64::try_from(object.size_bytes).is_err()
+        || object.mime != "application/json"
+        || !is_opaque_id(&object.kind)
+        || !matches!(object.reachability.as_str(), "temporary" | "reachable")
+        || object.created_at.is_empty()
+        || object.created_at.len() > 64
+    {
+        return Err(StoreError::InvalidData(
+            "agentic action run CAS metadata is malformed".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn ensure_agentic_action_run_object_row(
+    transaction: &rusqlite::Transaction<'_>,
+    object: &CasObjectRecord,
+) -> Result<(), StoreError> {
+    let stored: Option<(i64, String, String, String)> = transaction
+        .query_row(
+            "SELECT size_bytes, mime, kind, reachability FROM objects WHERE sha256 = ?1",
+            params![object.sha256],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()?;
+    let Some((size_bytes, mime, kind, reachability)) = stored else {
+        return Err(StoreError::Contract {
+            code: "AGENTIC_ACTION_RUN_CAS_OBJECT_UNAVAILABLE".to_owned(),
+            message: "action run CAS object is not registered in SQLite".to_owned(),
+        });
+    };
+    if size_bytes != i64::try_from(object.size_bytes).unwrap_or(i64::MAX)
+        || mime != object.mime
+        || kind != object.kind
+        || !matches!(reachability.as_str(), "temporary" | "reachable")
+    {
+        return Err(StoreError::InvalidData(
+            "action run CAS metadata differs from SQLite".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn ensure_agentic_binding_rows(
+    transaction: &rusqlite::Transaction<'_>,
+    project_id: &str,
+    candidate_id: &str,
+    reference_id: &str,
+    reference_sha256: &str,
+) -> Result<(), StoreError> {
+    let candidate_project: Option<String> = transaction
+        .query_row(
+            "SELECT project_id FROM candidates WHERE candidate_id = ?1",
+            params![candidate_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if candidate_project.as_deref() != Some(project_id) {
+        return Err(StoreError::Contract {
+            code: "AGENTIC_CANDIDATE_SCOPE_DENIED".to_owned(),
+            message: "candidate is not in the requested project".to_owned(),
+        });
+    }
+    let reference: Option<(String, String)> = transaction
+        .query_row(
+            "SELECT project_id, object_sha256 FROM reference_evidence WHERE reference_id = ?1",
+            params![reference_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    if reference.as_ref().map(|value| value.0.as_str()) != Some(project_id)
+        || reference.as_ref().map(|value| value.1.as_str()) != Some(reference_sha256)
+    {
+        return Err(StoreError::Contract {
+            code: "AGENTIC_REFERENCE_SCOPE_DENIED".to_owned(),
+            message: "reference is not bound to the requested project/hash".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn ensure_agentic_action_run_binding_rows(
+    transaction: &rusqlite::Transaction<'_>,
+    run: &AgenticActionRunRecord,
+) -> Result<(), StoreError> {
+    let candidate_project: Option<String> = transaction
+        .query_row(
+            "SELECT project_id FROM candidates WHERE candidate_id = ?1",
+            params![run.candidate_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if candidate_project.as_deref() != Some(run.project_id.as_str()) {
+        return Err(StoreError::Contract {
+            code: "AGENTIC_ACTION_RUN_CANDIDATE_SCOPE_DENIED".to_owned(),
+            message: "action run candidate is not in the requested project".to_owned(),
+        });
+    }
+
+    let session: Option<(String, String)> = transaction
+        .query_row(
+            "SELECT project_id, candidate_id FROM agentic_design_sessions WHERE session_id = ?1",
+            params![run.session_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((session_project, session_candidate)) = session else {
+        return Err(StoreError::Contract {
+            code: "AGENTIC_ACTION_RUN_SESSION_NOT_FOUND".to_owned(),
+            message: "action run requires a persisted DesignSession".to_owned(),
+        });
+    };
+    if session_project != run.project_id || session_candidate != run.candidate_id {
+        return Err(StoreError::Contract {
+            code: "AGENTIC_ACTION_RUN_BINDING_MISMATCH".to_owned(),
+            message: "action run session, project and candidate bindings differ".to_owned(),
+        });
+    }
+
+    if let Some(checkpoint_id) = run.checkpoint_id.as_deref() {
+        let checkpoint: Option<(String, String, String, String)> = transaction
+            .query_row(
+                "SELECT session_id, project_id, candidate_id, canonical_sha256 FROM agentic_design_checkpoints WHERE checkpoint_id = ?1",
+                params![checkpoint_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()?;
+        if checkpoint.as_ref().map(|value| {
+            value.0 != run.session_id
+                || value.1 != run.project_id
+                || value.2 != run.candidate_id
+                || Some(value.3.as_str()) != run.checkpoint_sha256.as_deref()
+        }) != Some(false)
+        {
+            return Err(StoreError::Contract {
+                code: "AGENTIC_ACTION_RUN_CHECKPOINT_MISMATCH".to_owned(),
+                message: "action run checkpoint pointer is unavailable or out of scope".to_owned(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_agentic_metadata(value: &Value, depth: usize) -> Result<(), StoreError> {
+    if depth > 12 {
+        return Err(StoreError::InvalidData(
+            "agentic metadata nesting exceeds the bounded limit".to_owned(),
+        ));
+    }
+    match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) => Ok(()),
+        Value::String(text) => {
+            if text.len() > 4096
+                || text.starts_with('/')
+                || text.starts_with('\\')
+                || text.starts_with("file:")
+                || text.starts_with("data:")
+                || text.starts_with("http:")
+                || text.starts_with("https:")
+                || text.contains("-----BEGIN")
+            {
+                return Err(StoreError::InvalidData(
+                    "agentic metadata contains a path, URL, secret or oversized string".to_owned(),
+                ));
+            }
+            Ok(())
+        }
+        Value::Array(values) => {
+            if values.len() > 256 {
+                return Err(StoreError::InvalidData(
+                    "agentic metadata array exceeds the bounded limit".to_owned(),
+                ));
+            }
+            for value in values {
+                validate_agentic_metadata(value, depth + 1)?;
+            }
+            Ok(())
+        }
+        Value::Object(values) => {
+            for (key, value) in values {
+                let lowered = key.to_ascii_lowercase();
+                let forbidden_field = lowered.split(['_', '-', '.']).any(|part| {
+                    matches!(
+                        part,
+                        "path"
+                            | "url"
+                            | "secret"
+                            | "token"
+                            | "password"
+                            | "script"
+                            | "command"
+                            | "shell"
+                            | "bytes"
+                            | "base64"
+                            | "prompt"
+                    )
+                }) || lowered.contains("api_key")
+                    || lowered.contains("apikey");
+                if forbidden_field {
+                    return Err(StoreError::InvalidData(format!(
+                        "agentic metadata contains a forbidden field: {key}"
+                    )));
+                }
+                validate_agentic_metadata(value, depth + 1)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+fn validate_hash_pair(
+    id: &Option<String>,
+    hash: &Option<String>,
+    label: &str,
+) -> Result<(), StoreError> {
+    match (id, hash) {
+        (None, None) => Ok(()),
+        (Some(id), Some(hash)) if is_opaque_id(id) && is_sha256(hash) => Ok(()),
+        _ => Err(StoreError::InvalidData(format!(
+            "agentic {label} id/hash pair is malformed"
+        ))),
+    }
+}
+
+fn validate_agentic_session(session: &AgenticSessionRecord) -> Result<(), StoreError> {
+    if session.schema_version != "DesignSession@1"
+        || !is_opaque_id(&session.session_id)
+        || !is_opaque_id(&session.project_id)
+        || !is_opaque_id(&session.candidate_id)
+        || session.revision < 0
+        || !is_sha256(&session.candidate_state_sha256)
+        || !is_opaque_id(&session.design_spec_id)
+        || !is_sha256(&session.design_spec_sha256)
+        || !is_opaque_id(&session.reference_canvas_id)
+        || !is_sha256(&session.reference_canvas_sha256)
+        || !is_opaque_id(&session.reference_id)
+        || !is_sha256(&session.reference_sha256)
+        || !is_sha256(&session.camera_hash)
+        || !is_sha256(&session.evidence_sha256)
+        || !is_opaque_id(&session.current_stage)
+        || !is_opaque_id(&session.status)
+        || !is_opaque_id(&session.quality_status)
+        || session
+            .object_sha256
+            .as_deref()
+            .is_none_or(|hash| !is_sha256(hash))
+        || !is_sha256(&session.canonical_sha256)
+        || session.created_at.is_empty()
+        || session.updated_at.is_empty()
+        || !session.stage_gate.is_object()
+        || !session.rollback.is_object()
+        || session.next_actions.is_empty()
+        || session.next_actions.len() > 8
+        || session.checkpoint_ids.len() > 128
+        || session.checkpoint_ids.iter().any(|id| !is_opaque_id(id))
+        || session
+            .checkpoint_ids
+            .windows(2)
+            .any(|pair| pair[0] == pair[1])
+    {
+        return Err(StoreError::InvalidData(
+            "agentic DesignSession record is malformed".to_owned(),
+        ));
+    }
+    validate_hash_pair(
+        &session.current_version_id,
+        &session.current_version_sha256,
+        "current version",
+    )?;
+    validate_hash_pair(
+        &session.current_checkpoint_id,
+        &session.current_checkpoint_sha256,
+        "current checkpoint",
+    )?;
+    if let Some(checkpoint_id) = session.current_checkpoint_id.as_deref() {
+        if !session.checkpoint_ids.iter().any(|id| id == checkpoint_id) {
+            return Err(StoreError::InvalidData(
+                "current checkpoint is absent from session history".to_owned(),
+            ));
+        }
+    }
+    validate_agentic_metadata(
+        &serde_json::to_value(session)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?,
+        0,
+    )
+}
+
+fn validate_agentic_checkpoint(checkpoint: &AgenticCheckpointRecord) -> Result<(), StoreError> {
+    if checkpoint.schema_version != "DesignCheckpoint@1"
+        || !is_opaque_id(&checkpoint.checkpoint_id)
+        || !is_opaque_id(&checkpoint.session_id)
+        || !is_opaque_id(&checkpoint.project_id)
+        || !is_opaque_id(&checkpoint.candidate_id)
+        || checkpoint.revision < 0
+        || !is_opaque_id(&checkpoint.stage)
+        || !is_opaque_id(&checkpoint.checkpoint_type)
+        || !is_sha256(&checkpoint.candidate_state_sha256)
+        || !is_sha256(&checkpoint.artifact_sha256)
+        || !is_opaque_id(&checkpoint.reference_id)
+        || !is_sha256(&checkpoint.reference_sha256)
+        || !is_sha256(&checkpoint.camera_hash)
+        || !is_sha256(&checkpoint.input_sha256)
+        || !is_sha256(&checkpoint.evidence_sha256)
+        || !is_sha256(&checkpoint.canonical_sha256)
+        || checkpoint
+            .object_sha256
+            .as_deref()
+            .is_none_or(|hash| !is_sha256(hash))
+        || !checkpoint.immutable
+        || checkpoint.runtime_write
+        || !checkpoint.stage_gate.is_object()
+        || !checkpoint.rollback.is_object()
+        || checkpoint.created_at.is_empty()
+        || checkpoint.observed.iter().any(|value| !is_opaque_id(value))
+        || checkpoint.inferred.iter().any(|value| !is_opaque_id(value))
+        || checkpoint.unknown.iter().any(|value| !is_opaque_id(value))
+        || checkpoint
+            .failed_gates
+            .iter()
+            .any(|value| !is_opaque_id(value))
+        || checkpoint
+            .allowed_actions
+            .iter()
+            .any(|value| !is_opaque_id(value))
+        || checkpoint
+            .locked_actions
+            .iter()
+            .any(|value| !is_opaque_id(value))
+    {
+        return Err(StoreError::InvalidData(
+            "agentic DesignCheckpoint record is malformed".to_owned(),
+        ));
+    }
+    validate_hash_pair(
+        &checkpoint.version_id,
+        &checkpoint.version_sha256,
+        "checkpoint version",
+    )?;
+    validate_hash_pair(
+        &checkpoint.parent_checkpoint_id,
+        &checkpoint.parent_checkpoint_sha256,
+        "checkpoint parent",
+    )?;
+    validate_agentic_metadata(
+        &serde_json::to_value(checkpoint)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?,
+        0,
+    )
+}
+
+fn validate_agentic_action_run(run: &AgenticActionRunRecord) -> Result<(), StoreError> {
+    if run.schema_version != "AgenticActionRun@1"
+        || !is_opaque_id(&run.run_id)
+        || !is_opaque_id(&run.session_id)
+        || !is_opaque_id(&run.project_id)
+        || !is_opaque_id(&run.candidate_id)
+        || !is_sha256(&run.input_sha256)
+        || !matches!(
+            run.status.as_str(),
+            "queued"
+                | "running"
+                | "waiting_for_input"
+                | "succeeded"
+                | "completed"
+                | "failed"
+                | "cancelled"
+                | "blocked"
+        )
+        || (run.completed_stage != "none" && !is_opaque_id(&run.completed_stage))
+        || !run.immutable
+        || run
+            .object_sha256
+            .as_deref()
+            .is_some_and(|hash| !is_sha256(hash))
+        || !is_sha256(&run.canonical_sha256)
+        || run.created_at.is_empty()
+        || run.created_at.len() > 64
+    {
+        return Err(StoreError::InvalidData(
+            "agentic action run record is malformed".to_owned(),
+        ));
+    }
+    validate_hash_pair(
+        &run.checkpoint_id,
+        &run.checkpoint_sha256,
+        "action run checkpoint",
+    )?;
+    validate_agentic_action_stage_results(&run.stage_results)?;
+    let value =
+        serde_json::to_value(run).map_err(|error| StoreError::InvalidData(error.to_string()))?;
+    validate_agentic_metadata(&value, 0)?;
+    validate_agentic_action_run_text(&value, 0)?;
+    let expected_canonical_sha256 = agentic_action_run_canonical_sha256(run)?;
+    if run.canonical_sha256 != expected_canonical_sha256 {
+        return Err(StoreError::Contract {
+            code: "AGENTIC_ACTION_RUN_CANONICAL_HASH_MISMATCH".to_owned(),
+            message: "action run canonical hash does not match its immutable fields".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn validate_agentic_action_stage_results(value: &Value) -> Result<(), StoreError> {
+    match value {
+        Value::Object(stages) => {
+            if stages.len() > 32 {
+                return Err(StoreError::InvalidData(
+                    "agentic action run has too many stage results".to_owned(),
+                ));
+            }
+            for (stage, result) in stages {
+                if !is_opaque_id(stage) {
+                    return Err(StoreError::InvalidData(
+                        "agentic action run stage id is malformed".to_owned(),
+                    ));
+                }
+                validate_agentic_action_stage_result(result, false)?;
+            }
+            Ok(())
+        }
+        Value::Array(results) => {
+            if results.len() > 32 {
+                return Err(StoreError::InvalidData(
+                    "agentic action run has too many stage results".to_owned(),
+                ));
+            }
+            let mut stage_ids = std::collections::BTreeSet::new();
+            for result in results {
+                let stage = result
+                    .as_object()
+                    .and_then(|object| object.get("stage"))
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        StoreError::InvalidData(
+                            "array action stage result must include a stage id".to_owned(),
+                        )
+                    })?;
+                if !stage_ids.insert(stage.to_owned()) {
+                    return Err(StoreError::InvalidData(
+                        "agentic action stage results contain a duplicate stage".to_owned(),
+                    ));
+                }
+                validate_agentic_action_stage_result(result, true)?;
+            }
+            Ok(())
+        }
+        _ => Err(StoreError::InvalidData(
+            "agentic action stage_results must be an object or array".to_owned(),
+        )),
+    }
+}
+
+fn validate_agentic_action_stage_result(
+    value: &Value,
+    requires_stage: bool,
+) -> Result<(), StoreError> {
+    const ALLOWED_FIELDS: &[&str] = &[
+        "stage",
+        "status",
+        "result_sha256",
+        "output_sha256",
+        "summary_sha256",
+        "error_code",
+        "checkpoint_id",
+        "checkpoint_sha256",
+        "canonical_sha256",
+        "completed_at",
+    ];
+    let object = value.as_object().ok_or_else(|| {
+        StoreError::InvalidData("agentic action stage result must be an object".to_owned())
+    })?;
+    for key in object.keys() {
+        if !ALLOWED_FIELDS.contains(&key.as_str()) {
+            return Err(StoreError::InvalidData(format!(
+                "unknown agentic action stage result field: {key}"
+            )));
+        }
+    }
+    if requires_stage {
+        let stage = object
+            .get("stage")
+            .and_then(Value::as_str)
+            .filter(|value| is_opaque_id(value))
+            .ok_or_else(|| {
+                StoreError::InvalidData("agentic action stage id is malformed".to_owned())
+            })?;
+        if stage.is_empty() {
+            return Err(StoreError::InvalidData(
+                "agentic action stage id is empty".to_owned(),
+            ));
+        }
+    } else if object.contains_key("stage") {
+        return Err(StoreError::InvalidData(
+            "object action stage result must not repeat its stage id".to_owned(),
+        ));
+    }
+    let status = object
+        .get("status")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            StoreError::InvalidData("agentic action stage result status is required".to_owned())
+        })?;
+    if !matches!(
+        status,
+        "queued"
+            | "running"
+            | "waiting_for_input"
+            | "succeeded"
+            | "completed"
+            | "failed"
+            | "cancelled"
+            | "blocked"
+            | "skipped"
+    ) {
+        return Err(StoreError::InvalidData(
+            "agentic action stage result status is unsupported".to_owned(),
+        ));
+    }
+    for field in [
+        "result_sha256",
+        "output_sha256",
+        "summary_sha256",
+        "checkpoint_sha256",
+        "canonical_sha256",
+    ] {
+        if let Some(value) = object.get(field) {
+            if value.as_str().is_none_or(|hash| !is_sha256(hash)) {
+                return Err(StoreError::InvalidData(format!(
+                    "agentic action stage result field {field} is not a SHA-256"
+                )));
+            }
+        }
+    }
+    if let Some(value) = object.get("checkpoint_id") {
+        if value.as_str().is_none_or(|id| !is_opaque_id(id)) {
+            return Err(StoreError::InvalidData(
+                "agentic action stage checkpoint id is malformed".to_owned(),
+            ));
+        }
+        if object.get("checkpoint_sha256").is_none() {
+            return Err(StoreError::InvalidData(
+                "agentic action stage checkpoint hash is required with its id".to_owned(),
+            ));
+        }
+    } else if object.contains_key("checkpoint_sha256") {
+        return Err(StoreError::InvalidData(
+            "agentic action stage checkpoint id is required with its hash".to_owned(),
+        ));
+    }
+    if let Some(value) = object.get("error_code") {
+        if value.as_str().is_none_or(|code| !is_opaque_id(code)) {
+            return Err(StoreError::InvalidData(
+                "agentic action stage error code is malformed".to_owned(),
+            ));
+        }
+    }
+    if let Some(value) = object.get("completed_at") {
+        if value
+            .as_str()
+            .is_none_or(|timestamp| timestamp.is_empty() || timestamp.len() > 64)
+        {
+            return Err(StoreError::InvalidData(
+                "agentic action stage completed_at is malformed".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_agentic_action_run_text(value: &Value, depth: usize) -> Result<(), StoreError> {
+    if depth > 12 {
+        return Err(StoreError::InvalidData(
+            "agentic action metadata nesting exceeds the bounded limit".to_owned(),
+        ));
+    }
+    match value {
+        Value::String(text) => {
+            let lowered = text.to_ascii_lowercase();
+            if lowered.contains("://")
+                || lowered.starts_with("javascript:")
+                || lowered.starts_with("ftp:")
+                || lowered.starts_with("bearer ")
+                || lowered.starts_with("sk-")
+                || lowered.contains("-----begin")
+            {
+                return Err(StoreError::InvalidData(
+                    "agentic action metadata contains a URL, secret or executable reference"
+                        .to_owned(),
+                ));
+            }
+            Ok(())
+        }
+        Value::Array(values) => {
+            for value in values {
+                validate_agentic_action_run_text(value, depth + 1)?;
+            }
+            Ok(())
+        }
+        Value::Object(values) => {
+            for value in values.values() {
+                validate_agentic_action_run_text(value, depth + 1)?;
+            }
+            Ok(())
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) => Ok(()),
+    }
 }
 
 fn validate_geometry_candidate_evidence(

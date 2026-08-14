@@ -1,0 +1,24 @@
+project: cadquery
+source_url: https://github.com/CadQuery/cadquery
+revision: d6729f51bf1ed183f110aacdbc6238e4a5110c96
+identity: controlled-source-research
+license_spdx: Apache-2.0
+license_file_git_blob: 6d3e10842660defd5ce3f2e024a4ca82c70acca8
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - cadquery/cq.py
+  - cadquery/sketch.py
+  - cadquery/selectors.py
+  - cadquery/assembly.py
+  - cadquery/occ_impl/shape_protocols.py
+target: product-owned typed selector and parametric macro design
+denied_capabilities:
+  - python_script_execution
+  - ocp_or_freecad_binding
+  - plugin_or_gui
+  - arbitrary_filesystem_access
+lockfile_or_package_change: false
+approval: research-authorized
+next_gate: per-file provenance review followed by a bounded Rust implementation proposal
+fallback_or_removal_plan: Keep current first-party operators; discard cached source if the license or dependency review fails.

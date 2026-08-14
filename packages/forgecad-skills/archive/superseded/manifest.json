@@ -1,0 +1,31 @@
+{
+  "schema_version": "ForgeCADSkillArchiveManifest@1",
+  "status": "SUPERSEDED",
+  "policy": "provenance-only",
+  "entries": [
+    {
+      "skill_id": "reference-to-typed-plan",
+      "version": "0.1.0",
+      "archive_path": "reference-to-typed-plan/0.1.0",
+      "status": "SUPERSEDED",
+      "replacement": "materialized-mcp006-bundles",
+      "tree_sha256": "d12e69cbceac04da9c1386645a083e32a39f370c60be9e41038f7d43a63e596f"
+    },
+    {
+      "skill_id": "hard-surface-detail",
+      "version": "0.1.0",
+      "archive_path": "hard-surface-detail/0.1.0",
+      "status": "SUPERSEDED",
+      "replacement": "hard-surface-detail@0.2.0",
+      "tree_sha256": "98a38f2b44a11962efe9a8bf201990825864f118ab2683f6a582a0512a2521aa"
+    },
+    {
+      "skill_id": "uv-pbr",
+      "version": "0.1.0",
+      "archive_path": "uv-pbr/0.1.0",
+      "status": "SUPERSEDED",
+      "replacement": "uv-pbr@0.2.0",
+      "tree_sha256": "1e851aca170e665bf0618a61d316ae88d063749b2528036083fd374e0872563f"
+    }
+  ]
+}

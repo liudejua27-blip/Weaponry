@@ -20,7 +20,8 @@
     {"id":"render_hash_binding@1","builtin":"candidate_render_lineage"},
     {"id":"quality_evidence_binding@1","builtin":"reference_render_region_binding"},
     {"id":"approval_hash_binding@1","builtin":"approval_version_hash_binding"},
-    {"id":"export_readback@1","builtin":"glb_manifest_readback"}
+    {"id":"export_readback@1","builtin":"glb_manifest_readback"},
+    {"id":"preflight_read_before_design@1","builtin":"session_preflight_read_before_modeling"}
   ],
   "network":false,
   "dynamic_code":false

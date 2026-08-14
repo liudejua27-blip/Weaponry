@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/model-understanding-bundle-projection.schema.json",
+  "title": "Model Understanding Bundle Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "x-forgecad-contract-role": "transport-projection",
+  "x-forgecad-projection-only": true,
+  "x-forgecad-durable-schema": "model-understanding-bundle.schema.json",
+  "properties": {
+    "schema_version": {"const": "ModelUnderstandingBundle@1"},
+    "projection_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/projection_status"},
+    "read_only": {"const": true},
+    "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "semantic_scene_graph": {"$ref": "https://forgecad.local/contracts/semantic-scene-graph-projection.schema.json"},
+    "reference_canvas": {"$ref": "https://forgecad.local/contracts/reference-canvas-projection.schema.json"},
+    "visual_evidence_bundle": {"$ref": "https://forgecad.local/contracts/visual-evidence-bundle-projection.schema.json"},
+    "quality": {"$ref": "https://forgecad.local/contracts/agentic-quality-projection.schema.json"},
+    "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"},
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed", "inferred", "unknown"],
+      "properties": {
+        "observed": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}},
+        "inferred": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}},
+        "unknown": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}}
+      }
+    },
+    "canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
+  },
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "project_id",
+    "candidate_id",
+    "semantic_scene_graph",
+    "reference_canvas",
+    "visual_evidence_bundle",
+    "quality",
+    "lineage",
+    "uncertainty",
+    "canonical_sha256"
+  ]
+}

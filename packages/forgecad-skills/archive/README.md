@@ -14,3 +14,8 @@ Rules:
 Current archive:
 
 - `superseded/reference-to-typed-plan/0.1.0`: superseded provenance from the early image-to-typed-plan Skill; replaced by the materialized MCP006 first-party bundles.
+- `superseded/hard-surface-detail/0.1.0`: superseded by the active bounded Operator-backed `hard-surface-detail@0.2.0` Bundle.
+- `superseded/uv-pbr/0.1.0`: superseded by the active AssetPack/PBR-backed `uv-pbr@0.2.0` Bundle.
+
+`superseded/manifest.json` records the immutable pre-archive tree hash and
+replacement for every archived Bundle. The MCP006 Skill gate verifies it.

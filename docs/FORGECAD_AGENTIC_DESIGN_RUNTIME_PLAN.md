@@ -1,7 +1,7 @@
 # ForgeCAD Agentic Design Runtime 重规划
 
 版本：2026-08-13
-状态：目标设计与文档计划；尚未新增当前源码 Schema/tool 数量，不改变 MCP010F 的 `QUALITY_TARGET_NOT_MET` 事实
+状态：目标架构计划；observe/plan projection、嵌套只读 projection producer/consumer conformance 与 durable session/checkpoint/RepairIntent prepare/readback 已实现并通过隔离证据；durable/reference/DesignSpec 完整 producer、单动作 orchestrator、Repair 应用和完整视觉闭环仍未完成，不改变 MCP010F 的 `QUALITY_TARGET_NOT_MET` 事实
 
 ## 1. 目标
 
@@ -32,7 +32,22 @@ ForgeCAD 要从“Codex 调用一组 3D 工具”升级为“Codex 能看见、�
 4. 外部项目研究没有收敛成 ForgeCAD 自有合同和 Gate；
 5. 当前结构 PASS 与视觉质量 PASS 容易被混淆。
 
-因此下一阶段不应先换模型或直接接 Blender/FreeCAD/TRELLIS，而应先补“观察、语义、阶段门、critic、checkpoint”。
+因此下一阶段不应先换模型或直接接 Blender/FreeCAD/TRELLIS，而应沿着“观察、语义、阶段门、critic、checkpoint”逐层补齐。
+
+## 2.1 已落地的第一阶段：观察、阶段规划与 durable prepare/readback
+
+MCP010F 已交付两个最小、可验证的 Agentic source slice：
+
+- Runtime 从现有 project/snapshot/candidate、Geometry readback、ReferenceEvidence、RenderSet、Comparison 和 QualityReport 按需派生 `projection/read-only`；投影不创建 candidate/version/job，也不冒充持久状态；
+- MCP 暴露 `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 四个只读工具，均要求明确 project/candidate binding，缺失或跨项目数据 fail closed；
+- observation envelope 一次返回语义场景、理解 bundle、参考画布、stage plan、critic 和 lineage/evidence hash，并显式标出 observed/inferred/unknown、allowed/blocked action；
+- Runtime/MCP 另提供 `session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare`：受批准的 session/checkpoint 写入 SQLite/CAS，restore 只生成 CAS-bound `RepairIntent@1`，不修改 candidate/version/history；
+- Viewer 只消费 authenticated IPC/read model 的归一化 projection，并查询 durable session；不在本地推导质量、Session 或 checkpoint，也不提供写入入口；
+- `scripts/probe_agentic_runtime.py` 在临时 Runtime/CAS 上先读取 `ponytail-preflight@0.1.0`，验证工具 manifest、空参考阻断、动作锁定和用户持久数据未触碰。证据：`docs/evidence/mcp010f/agentic-runtime-observe-plan-20260813.json`。
+- 同一探针在 Runtime/MCP 重启后读取 session/checkpoint，并由 `scripts/check_agentic_runtime_receipt.py` 校验公开合同、candidate/session binding 和不可变 RepairIntent：`docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`。
+- `scripts/check_agentic_projection_receipt.py` 已对真实 Runtime 回执中的 `AgenticSceneObserveResult@1` 与 `DesignStagePlanProjection@1` 嵌套对象完成 producer/consumer 校验：`docs/evidence/mcp010f/agentic-runtime-projection-conformance-20260813.json`。该 Gate 只覆盖嵌套只读 projection，不覆盖 durable/reference/DesignSpec 的完整 producer。
+
+本阶段的限制必须保留：durable slice 只覆盖受批准的 session/checkpoint prepare、readback 和 CAS-only RepairIntent；嵌套只读 projection conformance 已通过，但它不覆盖 durable/reference/DesignSpec 的完整 producer。当前仍不包含单动作 compile/readback/render/evaluate orchestrator、Repair 应用、candidate/version mutation、packaged same-cohort 或视觉质量通过。`AgenticSceneObserveResult@1` 仍是 projection envelope，不能替代这些边界。
 
 ## 3. 新主循环
 
@@ -189,15 +204,13 @@ allowed: true
 
 ## 7. 文档和任务落地
 
-短期不改变当前 `78 Schema / 29 read + 18 opt-in write = 47 tools` 事实。建议下一批文档/代码任务：
+当前源码为 `101 Schema / 35 read + 21 opt-in write = 56 tools`。durable prepare/readback slice 已有隔离 receipt；建议下一批文档/代码任务：
 
-1. 新增 ADR-0026 并更新文档索引；
-2. 在状态账本标记 Agentic Design Runtime 为目标设计；
-3. 在任务索引新增“replan backlog”，但不把它设为当前 in_progress；
-4. 新增目标 Schema 列表，不改 contracts manifest；
-5. 在工具目录新增 future tools：`scene_observe_get`、`design_stage_plan_get`、`visual_evidence_bundle_get`、`critic_report_get`；
-6. 在 Viewer 文档中把未来界面定位为 design stage console；
-7. 后续再按 Schema -> Runtime producer -> MCP tool -> Viewer -> real Codex evidence 的顺序实现。
+1. 为 durable/reference/DesignSpec producer 增加剩余完整 producer/consumer conformance，避免字段漂移；嵌套只读 projection checker 已完成，回执见 `scripts/check_agentic_projection_receipt.py`；
+2. 增加单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator，但仍不绕过用户批准；
+3. 执行 bounded `RepairIntent`，生成新 candidate prepare，保留旧 checkpoint/version 不变；
+4. 接入真实 Codex 的 observe→plan→bounded action→inspect loop，再独立运行 packaged/human/360 Gate；
+5. 最后才评估 Parametric Design Kit 的 macro producer 和外部库的 isolated adoption。
 
 ## 8. 当前不可宣称
 

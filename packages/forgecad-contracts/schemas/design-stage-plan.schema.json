@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-stage-plan.schema.json",
+  "title": "DesignStagePlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_id",
+    "plan_revision",
+    "session_id",
+    "project_id",
+    "design_spec_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "reference_id",
+    "reference_sha256",
+    "camera_hash",
+    "evidence_sha256",
+    "stage",
+    "quality_status",
+    "status",
+    "gate",
+    "stage_policy",
+    "allowed_actions",
+    "forbidden_action_kinds",
+    "rollback_allowed",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "DesignStagePlan@1"},
+    "plan_id": {"$ref": "#/$defs/identifier"},
+    "plan_revision": {"type": "integer", "minimum": 1, "maximum": 1000000},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "design_spec_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "stage": {"$ref": "#/$defs/stage"},
+    "quality_status": {"$ref": "#/$defs/quality_status"},
+    "status": {"enum": ["ready", "blocked", "awaiting-evidence", "complete"]},
+    "gate": {"$ref": "#/$defs/stage_gate"},
+    "stage_policy": {"$ref": "#/$defs/stage_policy"},
+    "allowed_actions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/action"}
+    },
+    "forbidden_action_kinds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/action_kind"}
+    },
+    "rollback_allowed": {"type": "boolean"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"quality_status": {"enum": ["QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE", "not-run"]}},
+        "required": ["quality_status"]
+      },
+      "then": {"properties": {"stage_policy": {"properties": {"export_unlocked": {"const": false}}}}}
+    },
+    {
+      "if": {
+        "properties": {"stage": {"enum": ["reference-canvas", "primary-form", "secondary-structure", "tertiary-detail", "uv-pbr"]}},
+        "required": ["stage"]
+      },
+      "then": {"properties": {"stage_policy": {"properties": {"export_unlocked": {"const": false}}}}}
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_identifier": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+          {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "quality_status": {
+      "enum": [
+        "PARTIAL_VISIBLE_VIEW_PASS",
+        "QUALITY_TARGET_NOT_MET",
+        "BLOCKED_REFERENCE_COVERAGE",
+        "not-run"
+      ]
+    },
+    "action_kind": {
+      "enum": [
+        "reference-import",
+        "coverage-annotation",
+        "mark-unknown",
+        "primary-blockout",
+        "primary-form-adjustment",
+        "secondary-structure",
+        "tertiary-detail",
+        "material-zone",
+        "uv-pbr",
+        "final-review",
+        "request-reference",
+        "bounded-repair",
+        "checkpoint",
+        "rollback",
+        "human-review",
+        "export",
+        "confirm",
+        "next-stage"
+      ]
+    },
+    "gate_id": {
+      "enum": [
+        "reference-authorized",
+        "reference-coverage",
+        "primary-silhouette",
+        "primary-proportion",
+        "secondary-structure",
+        "tertiary-detail",
+        "visible-view",
+        "uv-tangent-pbr",
+        "multi-view-compare",
+        "codex-typed-review",
+        "human-review",
+        "export-restart-hash",
+        "360-reference-coverage"
+      ]
+    },
+    "stage_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "status", "required_checks", "failed_checks", "evidence_hashes", "unlocks", "locks"],
+      "properties": {
+        "stage": {"$ref": "#/$defs/stage"},
+        "status": {"enum": ["pass", "fail", "unknown"]},
+        "required_checks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/gate_id"}
+        },
+        "failed_checks": {
+          "type": "array",
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/gate_id"}
+        },
+        "evidence_hashes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "unlocks": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/action_kind"}
+        },
+        "locks": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/action_kind"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "pass"}},
+            "required": ["status"]
+          },
+          "then": {"properties": {"failed_checks": {"maxItems": 0}}}
+        },
+        {
+          "if": {
+            "properties": {"status": {"enum": ["fail", "unknown"]}},
+            "required": ["status"]
+          },
+          "then": {"properties": {"locks": {"minItems": 1}}}
+        }
+      ]
+    },
+    "stage_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_detail_level", "requires_passed_stages", "export_unlocked", "blocked_reason"],
+      "properties": {
+        "max_detail_level": {"enum": ["reference", "primary", "secondary", "tertiary", "surface", "review"]},
+        "requires_passed_stages": {
+          "type": "array",
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/stage"}
+        },
+        "export_unlocked": {"type": "boolean"},
+        "blocked_reason": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/safe_text"}]
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "action_kind", "stage", "scope_kind", "target_id", "bounded", "evidence_sha256", "description"],
+      "properties": {
+        "action_id": {"$ref": "#/$defs/identifier"},
+        "action_kind": {"$ref": "#/$defs/action_kind"},
+        "stage": {"$ref": "#/$defs/stage"},
+        "scope_kind": {"enum": ["session", "part", "material-zone", "reference"]},
+        "target_id": {"$ref": "#/$defs/nullable_identifier"},
+        "bounded": {"const": true},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "description": {"$ref": "#/$defs/safe_text"}
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+project: materialx
+source_url: https://github.com/AcademySoftwareFoundation/MaterialX
+revision: a7b2d60aa682656b6fed72f760685612aa3a87c6
+identity: controlled-source-research
+license_spdx: Apache-2.0
+license_file_git_blob: d9a10c0d8e868ebf8da0b3dc95bb0be634c34bfe
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - source/MaterialXCore/Document.h
+  - source/MaterialXCore/Element.h
+  - source/MaterialXCore/Node.h
+  - source/MaterialXCore/Material.h
+  - source/MaterialXCore/Definition.h
+  - source/MaterialXCore/Look.h
+  - source/MaterialXCore/Value.h
+  - source/MaterialXCore/Variant.h
+target: product-owned MaterialZone and PBR graph translator schema
+denied_capabilities:
+  - cmake_build
+  - shader_generation
+  - renderer_or_viewer
+  - python_or_javascript_binding
+  - direct_runtime_state_write
+lockfile_or_package_change: false
+approval: research-authorized
+next_gate: schema-only proposal followed by a separate material graph evaluation
+fallback_or_removal_plan: Keep the current glTF metallic-roughness subset and discard cached source if review fails.

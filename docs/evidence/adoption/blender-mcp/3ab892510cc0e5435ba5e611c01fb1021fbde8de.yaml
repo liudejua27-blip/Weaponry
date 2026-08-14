@@ -1,0 +1,25 @@
+project: blender-mcp
+source_url: https://github.com/ahujasid/blender-mcp
+revision: 3ab892510cc0e5435ba5e611c01fb1021fbde8de
+identity: controlled-source-research
+license_spdx: MIT
+license_file_git_blob: 82e98f0ee1ef20d31f852ad43c91020cc51f82ea
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - src/blender_mcp/server.py
+  - src/blender_mcp/telemetry.py
+  - src/blender_mcp/telemetry_decorator.py
+  - addon.py
+target: product-owned read-only observe and visual-evidence contracts
+denied_capabilities:
+  - blender_python
+  - exec
+  - socket_server
+  - network_asset_api
+  - telemetry
+  - remote_host
+lockfile_or_package_change: false
+approval: research-authorized
+next_gate: static security review; no direct Runtime integration is permitted
+fallback_or_removal_plan: Retain only a source-map summary and discard any cache copy that contains executable integration code.

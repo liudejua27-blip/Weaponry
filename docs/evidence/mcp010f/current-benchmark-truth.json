@@ -56,24 +56,27 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "36a34cc5a02a73931d6839e3cee38a1827d3a6c1f8487a6491abf9da5b71ff19",
+  "canonical_sha256": "7f022ab2275578deca1c78271cee20f174aba330a59dab8441f0af30a0d9188d",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
-      "manifest_sha256": "2b9459d836d19e1076d93cd9f8abcae85a06272089d018135d5b01468abde653",
+    "manifest_sha256": "79289a9cb88389e82b54c60147700eac251e17d14ab9e8c1508a189cd7ac0a09",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-      "schema_content_set_sha256": "33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a",
-      "schema_count": 78
+    "schema_content_set_sha256": "a48a823ce7d51b214978c966b4cfb27243857f7e6cf594b7c9f4ec47ad1a0c1e",
+    "schema_count": 101
     },
     "mcp_tools": {
-      "read_count": 29,
-      "read_manifest_sha256": "bf0ea917a91d0f4e028c0827b798f0d9c26427bd34d33880249e01ec59118536",
+    "read_count": 35,
+    "read_manifest_sha256": "5083956a3b2182329f1d925e718bbb155effda785c3b50ab2b48067bccb46d9a",
       "read_names": [
         "artifact_readback_get",
         "boundary_error_get",
         "camera_fit_prepare",
         "candidate_get",
         "capabilities_get",
+        "checkpoint_get",
+        "critic_report_get",
+        "design_stage_plan_get",
         "doctor",
         "geometry_program_hash",
         "job_events_read",
@@ -87,7 +90,9 @@
         "reference_get",
         "render_pass_get",
         "runtime_status",
+        "scene_observe_get",
         "selection_get",
+        "session_get",
         "silhouette_candidate_compare",
         "silhouette_fit_prepare",
         "silhouette_part_error_get",
@@ -97,21 +102,24 @@
         "skill_list",
         "snapshot_get",
         "version_diff",
-        "version_list"
+        "version_list",
+        "visual_evidence_bundle_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "70155067710909a14f5bc6e4885d9e7b7778bef909445225798583f73d557654",
+    "source_sha256": "cef6b794e424dc913df6f5bd0735c7c1abe03483a4d42a35c5110a7eeb469199",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
-      "summary_receipt_sha256": "bd1ff865fa55b4b99d1711e3bdf25efd7a8721f003d8ca0690dc0bd6f1d13478",
-      "total_count": 47,
-      "write_count": 18,
-      "write_enabled_manifest_sha256": "41ed6d386ccd63daa05aff5bd1bad6cb63195c4606d2b307a4fecb3c703c11b4",
+    "summary_receipt_sha256": "6948075f6ad427f0041dc7529c112f94c144b881f38a8f1e47018224c758e436",
+    "total_count": 56,
+    "write_count": 21,
+    "write_enabled_manifest_sha256": "bcab87912eb3a9244bfcdde4d302706c53ee9690e372f539a526d44a551f07d2",
       "write_names": [
         "appearance_prepare",
         "candidate_confirm",
         "candidate_prepare",
         "candidate_reject",
         "change_prepare",
+        "checkpoint_prepare",
+        "checkpoint_restore_prepare",
         "export_confirm",
         "export_prepare",
         "geometry_prepare",
@@ -124,6 +132,7 @@
         "reference_mask_refine_prepare",
         "restore_confirm",
         "restore_prepare",
+        "session_create_or_resume",
         "visual_review_submit"
       ]
     },
@@ -136,67 +145,67 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "2ebb9dbc56fe672cdf373374d57fb2a35e079a1c8727caa7d10fc0663746dbe7",
+      "runtime_source_sha256": "0c7a0250f3f2221d73e8a1bd43428063f4958e46c7871e1fc3855fb25d6aa89a",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
-      "viewer_projection_sha256": "4eee47476d30c85defbb6fd4e6bc4ee18f1f3196df2c96990619d5bd8785d820"
+      "viewer_projection_sha256": "1cac36033526da5d19f3e66090358280f088209a13fabc7af39a06daff64e124"
     }
   },
   "evidence_status": "INCOMPLETE_TRUTH_BINDING",
   "evidence_manifest": {
     "path": "docs/evidence/mcp010f/manifest.json",
-    "sha256": "9d7a41b610715c1ad3bb5f97f71959c22311acf0094c9d4f7f5118933a821843"
+    "sha256": "af92319bea9a1886ab522cc1b82266534fe61bb05d76f75001d23d63a0b9e8e8"
   },
   "latest_attempt": {
     "build_cohorts": {
-      "mcp": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "runtime": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "worker": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      "mcp": "f05773c98290182378e126455c858c6695caaf25525a86d95fee366da27c9c5d",
+      "runtime": "f05773c98290182378e126455c858c6695caaf25525a86d95fee366da27c9c5d",
+      "worker": "f05773c98290182378e126455c858c6695caaf25525a86d95fee366da27c9c5d"
     },
-    "attempt_count_evidence": "UNVERIFIED_DECLARED_REASON_ONLY_NO_RAW_TRANSCRIPT_OR_TURN_COUNT",
-    "cohort_provenance": "UNVERIFIED_SENTINEL_LIKE_DECLARED_VALUE",
-    "classification": "DECLARED_REAL_CODEX_BLOCKED_DIAGNOSTIC_WITH_UNVERIFIED_HOST_AND_COHORT_PROVENANCE",
-    "host_provenance": "UNVERIFIED_COMPACT_RECEIPT_LACKS_RAW_EVENTS_EXIT_CODES_AND_TRANSCRIPT_HASH",
+    "attempt_count_evidence": "VERIFIED_SANITIZED_MCP_SETUP_CALLS_ONLY_NO_CODEX_TURN_COUNT",
+    "cohort_provenance": "VERIFIED_CURRENT_SOURCE_BUILT_COHORT",
+    "classification": "REAL_CODEX_BLOCKED_SETUP_NO_QUALITY_RESULT",
+    "host_provenance": "VERIFIED_SANITIZED_MCP_SETUP_EVENTS_ONLY",
     "quality_result": "NOT_PRODUCED",
-    "reason": "Codex did not complete operator discovery after 3 bounded attempts",
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-semantic-aligned-fast-20260813.json",
-    "source_receipt_sha256": "76f9a4f8fc8d9f81a23d239122e75df6e6d864dbb558112127d7f197a7fe8fb1",
+    "reason": "Codex setup did not complete the required MCP sequence",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json",
+    "source_receipt_sha256": "11f7b1ecddd40af578a74bd91348096adeb3091384c67155726a6c9740cd9ff8",
     "status": "BLOCKED"
   },
   "latest_completed_transport": {
-    "artifact_sha256": "316fee223d60304ea6f5078433974b9ab64cdccd25bba72e143b0f006726c8b7",
+    "artifact_sha256": "3662c38b162c48a8597c3ef01b14cd79e1f9fe0602ea0f69dfc6ff6116ef7d6e",
     "build_cohorts": {
-      "mcp": "1c92f710612a78a7c7ce4bc975cf03ab339047d452eb938a209bfc120bcdd0ce",
-      "runtime": "1c92f710612a78a7c7ce4bc975cf03ab339047d452eb938a209bfc120bcdd0ce",
-      "worker": "1c92f710612a78a7c7ce4bc975cf03ab339047d452eb938a209bfc120bcdd0ce"
+      "mcp": "e9078615a82a4af1a2b58bec9b9735bb68561dff8fc441ed0e929c523ecf0f0a",
+      "runtime": "e9078615a82a4af1a2b58bec9b9735bb68561dff8fc441ed0e929c523ecf0f0a",
+      "worker": "e9078615a82a4af1a2b58bec9b9735bb68561dff8fc441ed0e929c523ecf0f0a"
     },
-    "candidate_id": "candidate-16d6f053a01b46e3ab570e6a926a93dd",
-    "comparison_report_hash": "80fc977b27d562a895ad0690bbbed7f31be4cd6c29688077fb515e6b086fb0c1",
-    "metric_semantics": "SEMANTIC_PART_ANCHOR_CHECKPOINT_NOT_COMPARABLE_TO_ATTEMPT35_LANDMARK_METRICS",
+    "candidate_id": "candidate-56ddb00a46614a4d8665a64e278677f6",
+    "comparison_report_hash": "024d7dbc346188012c5ff2893f1276164dbeae0f5f34a3dfc1344119909f3840",
+    "metric_semantics": "CURRENT_SOURCE_BUILT_FULL_VISIBLE_VIEW_METRICS_NOT_PROMOTED",
     "metrics": {
-      "bbox_edge_error": 0.0078125,
-      "boundary_f1_4px": 0.32876512261,
-      "centroid_error": 0.007878177805,
-      "critical_region_min_iou": 0.666288576965,
-      "landmark_coverage": 0.139498432602,
-      "landmark_nme": 0.087015499392,
-      "region_median_iou": 0.869403198991,
-      "silhouette_iou": 0.741047132807
+      "bbox_edge_error": 0.03515625,
+      "boundary_f1_4px": 0.252540770111,
+      "centroid_error": 0.046151563742,
+      "critical_region_min_iou": 0.654307398181,
+      "landmark_coverage": 0.067398119122,
+      "landmark_nme": 0.078662128418,
+      "region_median_iou": 0.774717048925,
+      "silhouette_iou": 0.693333216002
     },
-    "promotion_decision": "NOT_PROMOTED_METRIC_SEMANTICS_CHANGED_AND_QUALITY_TARGET_NOT_MET",
+    "promotion_decision": "NOT_PROMOTED_QUALITY_TARGET_NOT_MET_AND_PROVISIONAL_BASELINE_FROZEN",
     "quality_visual_status": "QUALITY_TARGET_NOT_MET",
-    "render_set_hash": "13ad00cab732da252fa857d403bdef10f0073f3c8cdaecf4387155dfe823969f",
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-semantic-landmark-compare-20260813.json",
-    "source_receipt_sha256": "6080334c9cc040ccd27ae002c35c96a40c7e2c72bc3026f0e990e2156c6c8980",
+    "render_set_hash": "bea97d79eabd2fce6ed5eff7182a500cae0ce7afd6c66c68514ee47b5d077a50",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
+    "source_receipt_sha256": "bbec0b60f9fa77a2c7ec4e9760b17556b8bb1766f9dbe84401029f13284545e2",
     "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
   },
   "packaged_viewer": {
-    "artifact_sha256": "b47f4ddf13dcf3db58e787037549c9d75b964662b62fe292abd44ef9c2cc18ea",
-    "build_cohort_sha256": "77d4bff511a21f094a4875ccc4967b429441172adc008771e47dafc1797f2a73",
+    "artifact_sha256": "3662c38b162c48a8597c3ef01b14cd79e1f9fe0602ea0f69dfc6ff6116ef7d6e",
+    "build_cohort_sha256": "e9078615a82a4af1a2b58bec9b9735bb68561dff8fc441ed0e929c523ecf0f0a",
     "quality_visual_status": "QUALITY_TARGET_NOT_MET",
-    "render_set_hash": "6ffeea1cfa73c02ad6828a51600930c0d27d484d30359f7c084b33aa135604aa",
-    "provisional_observation_binding": "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT",
-    "source_receipt_path": "docs/evidence/mcp010f/packaged-viewer-read-model.json",
-    "source_receipt_sha256": "87efe32b5d6e8cbfc87f4796507032537523865ff679e2d3c8abab55692cb921",
+    "render_set_hash": "bea97d79eabd2fce6ed5eff7182a500cae0ce7afd6c66c68514ee47b5d077a50",
+    "provisional_observation_binding": "PASS_CURRENT_COHORT_BOUND_READ_MODEL",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
+    "source_receipt_sha256": "bbec0b60f9fa77a2c7ec4e9760b17556b8bb1766f9dbe84401029f13284545e2",
     "ui_e2e": "NOT_RUN"
   },
   "phase_zero": {
@@ -207,8 +216,6 @@
       "automatic source drift, contract-content, cross-run isolation and candidate-gate semantic checks"
     ],
     "remaining": [
-      "regenerate one current-cohort compact receipt with one camera binding, canonical-vs-object hashes, per-AOV hashes, readback counters, structured threshold revision, metric revision and explicit NOT_RUN fields",
-      "bind the packaged Viewer to that exact candidate, artifact, RenderSet and comparison hashes",
       "prove the real Codex host consumed returned image blocks rather than only calling render_pass_get",
       "run formal VoiceOver, independent human review, PBR likeness and export/restart hash gates"
     ],
@@ -218,10 +225,10 @@
   "real_codex_run_inventory": {
     "path": "docs/evidence/mcp010f/real-codex-run-inventory.json",
     "ordering_confidence": "SNAPSHOT_ONLY_LEGACY_RECEIPTS_LACK_RECORDED_AT",
-    "sha256": "05aaeaaba04fa0ae6748a9c5f06a994add7ffa5987b2da02cb32652c733923e7",
-    "run_count": 51
+    "sha256": "af83b10cf195e576cb49759c28e897480889c727906f4eca866cf270449d5da0",
+    "run_count": 61
   },
-  "recorded_on": "2026-08-13",
+  "recorded_on": "2026-08-14",
   "provisional_retained_observation": {
     "aov_order": [
       "beauty",

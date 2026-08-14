@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Materialize the ten first-party MCP006 Skill Bundles.
+"""Materialize the twelve active first-party MCP006 Skill Bundles.
 
 The source of truth remains the checked-in registry and contract schemas.  This
 script only copies those declarative inputs into independently auditable bundle
@@ -200,8 +200,21 @@ def materialize(entry: dict[str, object], write: bool) -> None:
             "a `limited` aspect-ratio evidence item. A Codex visual impression never "
             "upgrades that status to PASS by itself.\n"
         )
+    elif skill_id == "ponytail-preflight":
+        workflow_note = (
+            "\nThis is a ForgeCAD-authored adaptation of the decision order studied in "
+            "DietrichGebert/ponytail at its recorded MIT source revision. It is a "
+            "read-only planning gate, not an upstream plugin, hook, MCP server or "
+            "executable dependency. Before any ForgeCAD design tool or another Skill: "
+            "first decide whether the requested change is necessary; then inspect the "
+            "current project, candidate, reference and active capability; reuse an "
+            "existing bounded path where it fits; choose a product-owned typed Operator "
+            "only when needed; and perform the smallest prepared action that preserves "
+            "approval, lineage, quality and evidence.\n"
+        )
+    display_name = "Ponytail preflight" if skill_id == "ponytail-preflight" else skill_id
     overview = (
-        f"# {skill_id}\n\n"
+        f"# {display_name}\n\n"
         f"First-party declarative Skill `{skill_id}@{version}`. It declares typed inputs, "
         "a bounded Recipe and product-owned validators; it does not contain executable code.\n\n"
         "This bundle is planning metadata for the single-user MVP. A successful registry or "
@@ -223,6 +236,12 @@ def materialize(entry: dict[str, object], write: bool) -> None:
         constraint_note = (
             "- Never treat a color-grid/CSS preview, one beauty image, or a model-generated confidence statement as silhouette IoU, landmark, region, or human acceptance.\n"
         )
+    elif skill_id == "ponytail-preflight":
+        constraint_note = (
+            "- The MCP adapter accepts only `skill_get` for `ponytail-preflight@0.1.0` before other ForgeCAD design tools or Skills in a session; the bootstrap diagnostics `capabilities_get`, `runtime_status` and `doctor` remain read-only exemptions.\n"
+            "- This preflight does not authorize a geometry claim or a persistent write. Use the existing typed prepare, readback, quality and user-confirm steps, and retain unknown or occluded reference evidence as unknown.\n"
+            "- Do not install or execute the upstream Node package, its hooks, its MCP server, or arbitrary repository files.\n"
+        )
     constraints = (
         "# Constraints\n\n"
         "- No network, arbitrary filesystem path, environment variable, secret, model call, shell, Python or JavaScript.\n"
@@ -236,6 +255,13 @@ def materialize(entry: dict[str, object], write: bool) -> None:
         f"The fixture for `{skill_id}@{version}` is deliberately synthetic and contains no user image, "
         "model weight or external asset. It is used only to exercise declarative validation.\n"
     )
+    if skill_id == "ponytail-preflight":
+        examples += (
+            "\nFor a new reference-driven model, call `skill_get` for this Skill, inspect the "
+            "returned constraints, then use the smallest existing typed path: project/reference "
+            "intake, an active GeometryProgram path, strict readback, fixed render evidence and "
+            "user approval. Do not begin by adding a new tool, bundle or unrestricted script.\n"
+        )
     for relative, content in (
         ("knowledge/overview.md", overview),
         ("knowledge/constraints.md", constraints),
@@ -296,8 +322,15 @@ def materialize(entry: dict[str, object], write: bool) -> None:
 
     (bundle / "LICENSES").mkdir(parents=True, exist_ok=True)
     shutil.copyfile(COMMON_LICENSE, bundle / "LICENSES" / "ForgeCAD-FIRST-PARTY.txt")
+    notice = COMMON_NOTICE.read_text(encoding="utf-8") + f"\nBundle: {skill_id}@{version}\n"
+    if skill_id == "ponytail-preflight":
+        notice += (
+            "Workflow source studied: DietrichGebert/ponytail at "
+            "2ed6c52c9d7e5e56942508591085fd45dea277d3 (MIT).\n"
+            "No upstream source code, package, hook, MCP server or executable payload is included.\n"
+        )
     (bundle / "NOTICE").write_text(
-        COMMON_NOTICE.read_text(encoding="utf-8") + f"\nBundle: {skill_id}@{version}\n",
+        notice,
         encoding="utf-8",
     )
     sbom = {
@@ -309,6 +342,13 @@ def materialize(entry: dict[str, object], write: bool) -> None:
         "packages": [{"SPDXID": "SPDXRef-Package", "name": f"forgecad-skill-{skill_id}", "versionInfo": version, "licenseConcluded": "NOASSERTION", "downloadLocation": "NOASSERTION"}],
         "annotations": [{"annotationType": "OTHER", "annotator": "Tool: forgecad-mcp006", "annotationDate": "2026-08-09T00:00:00Z", "comment": "Declarative metadata only; no executable or external asset payload."}],
     }
+    if skill_id == "ponytail-preflight":
+        sbom["annotations"].append({
+            "annotationType": "OTHER",
+            "annotator": "Tool: forgecad-mcp006",
+            "annotationDate": "2026-08-13T00:00:00Z",
+            "comment": "MIT workflow reference only: DietrichGebert/ponytail@2ed6c52c9d7e5e56942508591085fd45dea277d3. No third-party code or runtime dependency is included.",
+        })
     write_json(bundle / "sbom.spdx.json", sbom)
     manifest_hash = sha256(bundle / "manifest.json")
     recipe_hash = sha256(recipe_path)
@@ -346,11 +386,20 @@ def materialize(entry: dict[str, object], write: bool) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true", help="write generated bundle files")
+    parser.add_argument("--skill", action="append", help="materialize only one declared skill id")
     args = parser.parse_args()
     document = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
-    for entry in document["skills"]:
+    entries = document["skills"]
+    if args.skill:
+        requested = set(args.skill)
+        known = {entry["skill_id"] for entry in entries}
+        unknown = sorted(requested - known)
+        if unknown:
+            parser.error(f"unknown declared Skill id: {', '.join(unknown)}")
+        entries = [entry for entry in entries if entry["skill_id"] in requested]
+    for entry in entries:
         materialize(entry, args.write)
-    print(f"MCP006 bundle materialization {'written' if args.write else 'checked'}: {len(document['skills'])} bundles")
+    print(f"MCP006 bundle materialization {'written' if args.write else 'checked'}: {len(entries)} bundles")
     return 0
 
 

@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-spec.schema.json",
+  "title": "DesignSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "spec_id",
+    "project_id",
+    "reference_canvas_id",
+    "reference_canvas_sha256",
+    "category",
+    "style",
+    "primary_forms",
+    "proportions",
+    "semantic_parts",
+    "material_language",
+    "stage_goals",
+    "risks",
+    "unknowns",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "DesignSpec@1"},
+    "spec_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "reference_canvas_id": {"$ref": "#/$defs/identifier"},
+    "reference_canvas_sha256": {"$ref": "#/$defs/sha256"},
+    "category": {"$ref": "#/$defs/safe_text"},
+    "style": {"$ref": "#/$defs/safe_text"},
+    "primary_forms": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/primary_form"}
+    },
+    "proportions": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/proportion"}
+    },
+    "semantic_parts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/semantic_part"}
+    },
+    "material_language": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/material_language"}
+    },
+    "stage_goals": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/stage_goal"}
+    },
+    "risks": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/risk"}
+    },
+    "unknowns": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/unknown"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+          {"pattern": "[Bb][Ee][Aa][Rr][Ee][Rr]\\s+"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "visibility": {
+      "enum": ["observed", "inferred", "unknown"]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sha256"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "reference",
+            "artifact",
+            "render",
+            "comparison",
+            "quality",
+            "camera",
+            "scene",
+            "checkpoint",
+            "version",
+            "design-spec",
+            "visual-evidence",
+            "other"
+          ]
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "fact_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibility", "confidence", "evidence_refs"],
+      "properties": {
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/evidence_ref"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
+    },
+    "stage": {
+      "enum": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ]
+    },
+    "action_kind": {
+      "enum": [
+        "reference-import",
+        "coverage-annotation",
+        "mark-unknown",
+        "primary-blockout",
+        "primary-form-adjustment",
+        "secondary-structure",
+        "tertiary-detail",
+        "material-zone",
+        "uv-pbr",
+        "final-review",
+        "request-reference",
+        "bounded-repair",
+        "checkpoint",
+        "rollback",
+        "human-review",
+        "export"
+      ]
+    },
+    "gate_id": {
+      "enum": [
+        "reference-authorized",
+        "reference-coverage",
+        "primary-silhouette",
+        "primary-proportion",
+        "secondary-structure",
+        "tertiary-detail",
+        "visible-view",
+        "uv-tangent-pbr",
+        "multi-view-compare",
+        "codex-typed-review",
+        "human-review",
+        "export-restart-hash",
+        "360-reference-coverage"
+      ]
+    },
+    "stage_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "status", "required_checks", "failed_checks", "evidence_hashes", "unlocks", "locks"],
+      "properties": {
+        "stage": {"$ref": "#/$defs/stage"},
+        "status": {"enum": ["pass", "fail", "unknown"]},
+        "required_checks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/gate_id"}
+        },
+        "failed_checks": {
+          "type": "array",
+          "maxItems": 13,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/gate_id"}
+        },
+        "evidence_hashes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "unlocks": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/action_kind"}
+        },
+        "locks": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/action_kind"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "pass"}},
+            "required": ["status"]
+          },
+          "then": {"properties": {"failed_checks": {"maxItems": 0}}}
+        },
+        {
+          "if": {
+            "properties": {"status": {"enum": ["fail", "unknown"]}},
+            "required": ["status"]
+          },
+          "then": {"properties": {"locks": {"minItems": 1}}}
+        }
+      ]
+    },
+    "role": {
+      "enum": [
+        "root",
+        "main-body",
+        "housing",
+        "panel",
+        "vent",
+        "joint",
+        "sensor",
+        "frame",
+        "handle",
+        "foot",
+        "wheel",
+        "fastener",
+        "cable",
+        "light",
+        "other"
+      ]
+    },
+    "primary_form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["form_id", "name", "role", "description", "state"],
+      "properties": {
+        "form_id": {"$ref": "#/$defs/identifier"},
+        "name": {"$ref": "#/$defs/safe_text"},
+        "role": {"$ref": "#/$defs/role"},
+        "description": {"$ref": "#/$defs/safe_text"},
+        "state": {"$ref": "#/$defs/fact_state"}
+      }
+    },
+    "proportion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proportion_id", "subject_id", "metric", "target", "tolerance", "unit", "state"],
+      "properties": {
+        "proportion_id": {"$ref": "#/$defs/identifier"},
+        "subject_id": {"$ref": "#/$defs/identifier"},
+        "metric": {
+          "enum": ["width-height", "height-depth", "part-to-body", "centroid-offset", "landmark-distance", "custom"]
+        },
+        "target": {"type": "number", "minimum": 0, "maximum": 1000},
+        "tolerance": {"type": "number", "minimum": 0, "maximum": 1000},
+        "unit": {"enum": ["ratio", "meter", "normalized", "pixel"]},
+        "state": {"$ref": "#/$defs/fact_state"}
+      }
+    },
+    "semantic_part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "role", "parent_id", "symmetry", "material_zone_ids", "state"],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "role": {"$ref": "#/$defs/role"},
+        "parent_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "symmetry": {"enum": ["left-right", "centered", "none", "unknown"]},
+        "material_zone_ids": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "state": {"$ref": "#/$defs/fact_state"}
+      }
+    },
+    "material_language": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["material_zone_id", "surface_language", "color_family", "channels", "state"],
+      "properties": {
+        "material_zone_id": {"$ref": "#/$defs/identifier"},
+        "surface_language": {"$ref": "#/$defs/safe_text"},
+        "color_family": {"$ref": "#/$defs/safe_text"},
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["base-color", "metallic", "roughness", "normal", "ao", "emissive", "clearcoat"]
+          }
+        },
+        "state": {"$ref": "#/$defs/fact_state"}
+      }
+    },
+    "stage_goal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "objective", "allowed_action_kinds", "forbidden_action_kinds", "exit_gate"],
+      "properties": {
+        "stage": {"$ref": "#/$defs/stage"},
+        "objective": {"$ref": "#/$defs/safe_text"},
+        "allowed_action_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/action_kind"}
+        },
+        "forbidden_action_kinds": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/action_kind"}
+        },
+        "exit_gate": {"$ref": "#/$defs/stage_gate"}
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk_id", "kind", "severity", "description", "state"],
+      "properties": {
+        "risk_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"enum": ["reference-coverage", "proportion", "silhouette", "topology", "material", "unknown-region", "camera"]},
+        "severity": {"enum": ["low", "medium", "high", "blocking"]},
+        "description": {"$ref": "#/$defs/safe_text"},
+        "state": {"$ref": "#/$defs/fact_state"}
+      }
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unknown_id", "question", "scope_kind", "scope_id", "state", "blocked_stages"],
+      "properties": {
+        "unknown_id": {"$ref": "#/$defs/identifier"},
+        "question": {"$ref": "#/$defs/safe_text"},
+        "scope_kind": {"enum": ["scene", "part", "material-zone", "camera", "region"]},
+        "scope_id": {"$ref": "#/$defs/identifier"},
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["visibility", "confidence", "evidence_refs"],
+          "properties": {
+            "visibility": {"const": "unknown"},
+            "confidence": {"const": 0},
+            "evidence_refs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/evidence_ref"}
+            }
+          }
+        },
+        "blocked_stages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/stage"}
+        }
+      }
+    }
+  }
+}

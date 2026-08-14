@@ -4,6 +4,21 @@
   "title":"SkillGetResult",
   "type":"object",
   "additionalProperties":false,
-  "required":["schema_version","skill"],
-  "properties":{"schema_version":{"const":"SkillGetResult@1"},"skill":{"$ref":"https://forgecad.local/contracts/skill-bundle-manifest.schema.json"}}
+  "required":["schema_version","skill","knowledge"],
+  "properties":{
+    "schema_version":{"const":"SkillGetResult@1"},
+    "skill":{"$ref":"https://forgecad.local/contracts/skill-bundle-manifest.schema.json"},
+    "knowledge":{
+      "type":"object",
+      "additionalProperties":false,
+      "required":["schema_version","overview","constraints","examples","canonical_sha256"],
+      "properties":{
+        "schema_version":{"const":"SkillKnowledge@1"},
+        "overview":{"type":"string","minLength":1,"maxLength":65536},
+        "constraints":{"type":"string","minLength":1,"maxLength":65536},
+        "examples":{"type":"string","minLength":1,"maxLength":65536},
+        "canonical_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+      }
+    }
+  }
 }

@@ -1,0 +1,23 @@
+project: build123d
+source_url: https://github.com/gumyr/build123d
+revision: ef48b98af7780028e015d9f079d8ccc01d894696
+identity: controlled-source-research
+license_spdx: Apache-2.0
+license_file_git_blob: d645695673349e3947e8e5ae42332d0ac3164cd7
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - src/build123d/build_part.py
+  - src/build123d/build_sketch.py
+  - src/build123d/operations_part.py
+  - src/build123d/topology
+target: product-owned ParametricDesignKit schema and bounded Rust lowering
+denied_capabilities:
+  - python_runtime
+  - occt_binding
+  - jupyter_or_vtk
+  - arbitrary_import_export_script
+lockfile_or_package_change: false
+approval: research-authorized
+next_gate: per-file provenance review followed by a first-party typed rewrite
+fallback_or_removal_plan: Keep the current GeometryProgram path; remove only the research cache if review fails.

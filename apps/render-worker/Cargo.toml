@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+forgecad-geometry-worker = { path = "../geometry-worker" }
 forgecad-worker-protocol = { path = "../desktop/src-tauri/crates/forgecad-worker-protocol" }
 serde_json = "1"

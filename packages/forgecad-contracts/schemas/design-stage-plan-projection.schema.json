@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-stage-plan-projection.schema.json",
+  "title": "Design Stage Plan Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "x-forgecad-contract-role": "transport-projection",
+  "x-forgecad-projection-only": true,
+  "x-forgecad-durable-schema": "design-stage-plan.schema.json",
+  "properties": {
+    "schema_version": {"const": "DesignStagePlan@1"},
+    "projection_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/projection_status"},
+    "read_only": {"const": true},
+    "durable_checkpoint": {"const": false},
+    "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "design_session_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "stage_order": {
+      "type": "array",
+      "const": ["reference-canvas", "primary-form", "secondary-structure", "tertiary-detail", "uv-pbr", "final-review"]
+    },
+    "current_stage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/stage"},
+    "current_stage_status": {"enum": ["not-started", "blocked", "ready-to-advance", "awaiting-evidence"]},
+    "next_stage": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/stage"}
+      ]
+    },
+    "stage_advance_allowed": {"type": "boolean"},
+    "strict_visual_gate": {"$ref": "#/$defs/strict_visual_gate"},
+    "quality_gate": {"$ref": "#/$defs/quality_gate"},
+    "unlocks": {"$ref": "#/$defs/unlocks"},
+    "allowed_actions": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/action"}
+    },
+    "blocked_actions": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/action"}
+    },
+    "checkpoint": {"$ref": "#/$defs/checkpoint"},
+    "rollback": {"$ref": "#/$defs/rollback"},
+    "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"},
+    "canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
+  },
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "durable_checkpoint",
+    "project_id",
+    "candidate_id",
+    "design_session_id",
+    "stage_order",
+    "current_stage",
+    "current_stage_status",
+    "next_stage",
+    "stage_advance_allowed",
+    "strict_visual_gate",
+    "quality_gate",
+    "unlocks",
+    "allowed_actions",
+    "blocked_actions",
+    "checkpoint",
+    "rollback",
+    "lineage",
+    "canonical_sha256"
+  ],
+  "$defs": {
+    "strict_visual_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "visual_status", "comparison_status", "reason"],
+      "properties": {
+        "status": {"enum": ["passed", "failed", "unknown"]},
+        "visual_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/quality_status"},
+        "comparison_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/quality_status"},
+        "reason": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+      }
+    },
+    "quality_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["structural_status", "candidate_quality_hard_gate_passed"],
+      "properties": {
+        "structural_status": {"enum": ["passed", "failed", "unknown", "not-run"]},
+        "candidate_quality_hard_gate_passed": {"type": "boolean"}
+      }
+    },
+    "unlocks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pbr", "confirm", "export"],
+      "properties": {
+        "pbr": {"type": "boolean"},
+        "confirm": {"type": "boolean"},
+        "export": {"type": "boolean"}
+      }
+    },
+    "action": {
+      "enum": [
+        "read_reference_evidence",
+        "prepare_candidate",
+        "inspect_failed_gate",
+        "repair_bounded_part_or_camera",
+        "rerun_readback_render_compare",
+        "advance_one_stage",
+        "inspect_part_lineage",
+        "prepare_bounded_action",
+        "inspect_artifact",
+        "render_reference_comparison",
+        "evaluate_quality",
+        "pbr_prepare",
+        "candidate_confirm",
+        "export_confirm"
+      ]
+    },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "durable", "reason"],
+      "properties": {
+        "status": {"const": "not-persisted"},
+        "durable": {"const": false},
+        "reason": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason"],
+      "properties": {
+        "status": {"const": "not-available-in-projection"},
+        "reason": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "budgets": {
+    "max_nodes": 1
+  },
+  "canonical_sha256": "ad8eca1e094286d01507f1c2192aeb66f7839448c5a81754787c5cf4f3070f08",
+  "coordinate_system": "right-handed-y-up",
+  "deterministic_order": [
+    "preflight"
+  ],
+  "edges": [],
+  "max_edges": 128,
+  "nodes": [
+    {
+      "input_schema": "ReferenceEvidence@1",
+      "node_id": "preflight",
+      "operator_id": "forgecad.design.preflight@1",
+      "output_schema": "RepresentationPlan@1"
+    }
+  ],
+  "recipe_id": "ponytail-preflight",
+  "schema_version": "RecipePlan@1",
+  "skill_id": "ponytail-preflight",
+  "units": "meter"
+}

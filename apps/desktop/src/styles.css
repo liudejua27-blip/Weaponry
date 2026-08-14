@@ -175,3 +175,75 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* RuntimeViewer compatibility surface: the Agentic read-only viewer remains
+   available inside the product shell while the newer shell is rolled out. */
+.runtime-shell { min-height: 100vh; padding: 34px 42px 42px; background: radial-gradient(circle at 18% -10%, #1a293b 0, transparent 36%), #090d14; }
+.runtime-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; max-width: 1480px; margin: 0 auto 26px; }
+.runtime-header .eyebrow, .runtime-header .section-kicker { margin: 0 0 9px; color: #6f9dc9; font-size: 11px; font-weight: 700; letter-spacing: .18em; }
+.runtime-header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 48px); letter-spacing: -.04em; }
+.runtime-header .subtitle { margin-bottom: 0; color: #91a0b4; font-size: 14px; line-height: 1.65; }
+.status-pill { display: inline-flex; align-items: center; gap: 9px; padding: 10px 14px; border: 1px solid #29465e; border-radius: 999px; color: #a8cbe8; background: rgba(18, 37, 55, .58); font-size: 12px; white-space: nowrap; }
+.status-pill-muted { border-color: #4a3f2c; color: #d1b77f; background: rgba(55, 43, 23, .45); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #d1a45f; box-shadow: 0 0 14px rgba(209, 164, 95, .55); }
+.runtime-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; max-width: 1480px; margin: 0 auto; }
+.viewport-card, .runtime-panel { border: 1px solid #1e2b3a; border-radius: 16px; background: rgba(15, 22, 32, .86); box-shadow: 0 22px 70px rgba(0, 0, 0, .2); }
+.viewport-card { min-height: 650px; overflow: hidden; }
+.viewport-card .viewport-toolbar, .viewport-card .viewport-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 17px; color: #b8c5d4; font-size: 12px; }
+.viewport-card .viewport-toolbar { border-bottom: 1px solid #1c2937; }
+.viewport-card .viewport-footer { justify-content: flex-start; color: #6d8094; border-top: 1px solid #1c2937; }
+.toolbar-muted { color: #617487; }
+.runtime-shell .viewport-stage { position: relative; display: grid; min-height: 570px; place-items: center; overflow: hidden; background: linear-gradient(135deg, rgba(16, 30, 45, .64), rgba(7, 12, 19, .88)); }
+.runtime-shell .viewport-stage::before { position: absolute; inset: 0; background-image: linear-gradient(rgba(95, 133, 166, .09) 1px, transparent 1px), linear-gradient(90deg, rgba(95, 133, 166, .09) 1px, transparent 1px); background-size: 44px 44px; mask-image: radial-gradient(circle, #000 0, transparent 72%); content: ''; }
+.viewport-crosshair { position: absolute; width: 260px; height: 260px; border: 1px solid rgba(102, 161, 203, .2); border-radius: 50%; }
+.viewport-crosshair::before, .viewport-crosshair::after { position: absolute; background: rgba(102, 161, 203, .2); content: ''; }
+.viewport-crosshair::before { top: 50%; left: -44px; width: calc(100% + 88px); height: 1px; }
+.viewport-crosshair::after { top: -44px; left: 50%; width: 1px; height: calc(100% + 88px); }
+.runtime-shell .glb-canvas { min-height: 570px; }
+.runtime-shell .viewport-message { position: absolute; right: 18px; bottom: 18px; justify-items: start; max-width: min(420px, calc(100% - 36px)); padding: 10px 12px; border: 1px solid rgba(61, 91, 115, .65); border-radius: 9px; background: rgba(7, 14, 22, .78); text-align: left; }
+.runtime-shell .viewport-message .viewport-icon { display: none; }
+.runtime-panel { padding: 22px 21px; }
+.runtime-panel .panel-section { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid #1e2b3a; }
+.runtime-panel .panel-section:last-child { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; }
+.runtime-panel .panel-copy { margin-bottom: 0; color: #91a0b4; font-size: 13px; line-height: 1.65; }
+.runtime-panel .capability-list { display: grid; gap: 12px; }
+.runtime-panel .capability-row { display: grid; gap: 4px; padding: 11px 12px; border: 1px solid #213448; border-radius: 10px; background: #111c29; }
+.runtime-panel .capability-row span { color: #73879b; font-size: 11px; }
+.runtime-panel .capability-row strong { color: #d6e1ec; font-size: 12px; font-weight: 600; line-height: 1.45; }
+.runtime-panel .panel-note { padding: 14px; border: 1px solid #2a3d4c; border-radius: 10px; background: rgba(19, 40, 53, .36); }
+.workflow-gate-row-anomaly { border-color: rgba(239, 154, 136, .6); background: rgba(74, 31, 24, .32); }
+.workflow-gate-row-failed { border-color: rgba(239, 154, 136, .38); }
+.runtime-alert { display: flex; align-items: center; gap: 10px; max-width: 1480px; padding: 10px 12px; margin: -10px auto 18px; border: 1px solid rgba(239, 154, 136, .55); border-radius: 10px; color: #f4c6bc; background: rgba(74, 31, 24, .42); font-size: 12px; }
+.runtime-alert > div { display: grid; gap: 3px; flex: 1; }
+.runtime-alert > div span { color: #d9aaa0; font-size: 11px; }
+.runtime-alert button { flex: none; }
+.status-icon { display: inline-grid; width: 17px; height: 17px; flex: none; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: 10px; font-weight: 800; line-height: 1; }
+.status-icon-pass { color: #7be0ab; }
+.status-icon-error { color: #ff9f8e; }
+.status-icon-muted { color: #d2bb83; }
+.status-icon-info { color: #8cc9f1; }
+.candidate-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 9px; padding: 11px 17px; border-bottom: 1px solid #1c2937; background: rgba(9, 17, 26, .72); }
+.candidate-toolbar label, .compare-parameters label { display: grid; gap: 5px; color: #8299ad; font-size: 10px; letter-spacing: .04em; }
+.candidate-toolbar select { min-width: min(560px, 70vw); max-width: 100%; padding: 7px 9px; border: 1px solid #34516a; border-radius: 8px; color: #e1edf7; background: #101b27; font: inherit; font-size: 11px; }
+.candidate-selection-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 31px; color: #9eb4c7; font-size: 10px; }
+.runtime-shell .viewport-stage { touch-action: none; }
+.compare-header code, .quality-summary code { margin-left: 5px; color: #95aabb; font-size: 10px; font-weight: 500; overflow-wrap: anywhere; }
+.compare-parameters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; padding: 9px 0 2px; color: #8399ad; }
+.compare-parameters label { min-width: 112px; }
+.compare-parameters input[type="range"] { width: 120px; accent-color: #7dbce3; }
+.compare-parameter-hint { align-self: center; color: #71879a; font-size: 10px; }
+.compare-stage.compare-pan-ready { cursor: grab; }
+.compare-stage.compare-pan-ready:active { cursor: grabbing; }
+.compare-pane img { transform-origin: center center; transition: transform .12s ease, opacity .12s ease, filter .12s ease; user-select: none; }
+.measure-layer { position: absolute; inset: 0; z-index: 6; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+.compare-error { position: absolute; inset: 0; z-index: 7; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; padding: 28px; color: #f0beb4; background: rgba(18, 9, 10, .9); font-size: 12px; text-align: center; }
+.workflow-gate-row-button { width: 100%; font: inherit; text-align: left; cursor: pointer; }
+.workflow-gate-row-button:hover, .workflow-gate-row-current { border-color: #5a91ba; box-shadow: inset 3px 0 0 #76b8e6; }
+.workflow-gate-row-button > span:first-child { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.workflow-gate-row-button > div { display: grid; justify-items: end; gap: 4px; }
+.workflow-gate-row-anomaly { box-shadow: inset 3px 0 0 #ff8878; }
+.status-legend { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 10px; color: #91a0b4; font-size: 10px; }
+.status-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.workflow-note .status-icon { vertical-align: -4px; margin-right: 3px; }
+@media (max-width: 1100px) { .runtime-shell { padding: 24px; } .runtime-header { align-items: flex-start; flex-direction: column; } .runtime-grid { grid-template-columns: 1fr; } .runtime-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; } .runtime-panel .panel-section { margin-bottom: 0; } .runtime-panel .panel-section:last-child { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .candidate-toolbar select { min-width: 0; width: 100%; } .candidate-toolbar label { flex: 1 1 100%; } .compare-parameters label { flex: 1 1 140px; } .compare-parameters input[type="range"] { width: 100%; } }

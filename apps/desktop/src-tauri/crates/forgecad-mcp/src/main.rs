@@ -1,3 +1,5 @@
+mod agentic_tools;
+mod agentic_write_tools;
 mod supervisor;
 
 #[cfg(test)]
@@ -15,7 +17,10 @@ use supervisor::MvpSupervisor;
 
 const SERVER_NAME: &str = "forgecad";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
-const INSTRUCTIONS: &str = "ForgeCAD is a local Codex-only 3D Runtime. Read capabilities and projects first; permanent writes require a prepared candidate and user approval. Long work returns a RuntimeJob. Do not send arbitrary code, URLs, secrets, or unauthorized paths.";
+const INSTRUCTIONS: &str = "ForgeCAD is a local Codex-only 3D Runtime. Before any design tool or any Skill other than the preflight itself, call skill_get for ponytail-preflight@0.1.0 and follow its bounded planning rules. Permanent writes require a prepared candidate and user approval. Long work returns a RuntimeJob. Do not send arbitrary code, URLs, secrets, or unauthorized paths.";
+const PONYTAIL_PREFLIGHT_SKILL_ID: &str = "ponytail-preflight";
+const PONYTAIL_PREFLIGHT_VERSION: &str = "0.1.0";
+const PONYTAIL_PREFLIGHT_REQUIRED: &str = "PONYTAIL_PREFLIGHT_REQUIRED: call skill_get with ponytail-preflight@0.1.0 before using ForgeCAD design tools or another Skill";
 
 enum Backend {
     #[allow(dead_code)]
@@ -47,6 +52,8 @@ struct Session {
     state: SessionState,
     negotiated_protocol_version: Option<String>,
     write_tools_enabled: bool,
+    ponytail_preflight_read: bool,
+    agentic_binding: agentic_write_tools::Binding,
 }
 
 impl Session {
@@ -55,6 +62,8 @@ impl Session {
             state: SessionState::New,
             negotiated_protocol_version: None,
             write_tools_enabled: false,
+            ponytail_preflight_read: false,
+            agentic_binding: agentic_write_tools::Binding::default(),
         }
     }
 }
@@ -329,7 +338,7 @@ fn handle(backend: &mut Backend, session: &mut Session, request: &Value) -> Opti
             backend,
             id,
             request.get("params"),
-            session.write_tools_enabled,
+            session,
         ),
         some_method => error_response(
             id,
@@ -570,6 +579,10 @@ fn mcp010f_write_tool_names() -> Vec<String> {
         .collect()
 }
 
+fn agentic_write_tool_names() -> Vec<String> {
+    agentic_write_tools::write_tool_names()
+}
+
 fn is_mcp004_write_tool(name: &str) -> bool {
     mcp004_write_tool_names().iter().any(|tool| tool == name)
 }
@@ -606,6 +619,7 @@ fn is_write_tool(name: &str) -> bool {
         || is_mcp009_write_tool(name)
         || is_mcp010c_write_tool(name)
         || is_mcp010f_write_tool(name)
+        || agentic_write_tools::is_write_tool(name)
 }
 
 fn all_write_tool_names() -> Vec<String> {
@@ -616,6 +630,7 @@ fn all_write_tool_names() -> Vec<String> {
     names.extend(mcp009_write_tool_names());
     names.extend(mcp010c_write_tool_names());
     names.extend(mcp010f_write_tool_names());
+    names.extend(agentic_write_tool_names());
     names
 }
 
@@ -629,13 +644,14 @@ fn tools_with_writes(writes_enabled: bool) -> Vec<Value> {
         tools.extend(mcp009_write_tools());
         tools.extend(mcp010c_write_tools());
         tools.extend(mcp010f_write_tools());
+        tools.extend(agentic_write_tools::write_tools());
     }
     tools.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
     tools
 }
 
 fn read_only_tools() -> Vec<Value> {
-    vec![
+    let mut tools = vec![
         tool(
             "artifact_readback_get",
             "Read strict hash-bound GLB metadata for a geometry candidate",
@@ -880,7 +896,7 @@ fn read_only_tools() -> Vec<Value> {
         ),
         tool(
             "skill_get",
-            "Read a first-party development Skill bundle manifest when the Skill Registry is available",
+            "Read a first-party development Skill bundle manifest and its checked-in knowledge. This exact tool must first read ponytail-preflight@0.1.0 before any ForgeCAD design tool or another Skill.",
             json!({"type":"object","required":["skill_id","version"],"properties":{"skill_id":{"type":"string","minLength":1},"version":{"type":"string","minLength":1}},"additionalProperties":false}),
             true,
         ),
@@ -908,7 +924,10 @@ fn read_only_tools() -> Vec<Value> {
             json!({"type":"object","properties":{"project_id":{"type":"string","minLength":1}},"additionalProperties":false}),
             true,
         ),
-    ]
+    ];
+    tools.extend(agentic_tools::read_tools());
+    tools.extend(agentic_write_tools::read_tools());
+    tools
 }
 
 fn tool(name: &str, description: &str, input_schema: Value, available: bool) -> Value {
@@ -1188,7 +1207,7 @@ fn mcp005_write_tools() -> Vec<Value> {
 fn mcp007_write_tools() -> Vec<Value> {
     vec![write_tool_with_transaction(
         "geometry_prepare",
-        "Compile a bounded typed GeometryProgram into a multi-part GLB candidate. GeometryProgram@2 is catalog-hash-bound and returns strict BIN/accessor ArtifactReadback@2; GeometryProgram@1 remains the legacy-compatible MVP path. Read forgecad://operators/catalog before using V2. No permanent version is created until a later approval confirm.",
+        "Compile a bounded typed GeometryProgram into a multi-part GLB candidate. First read ponytail-preflight@0.1.0 with skill_get in this MCP session. GeometryProgram@2 is catalog-hash-bound and returns strict BIN/accessor ArtifactReadback@2; GeometryProgram@1 remains the legacy-compatible MVP path. Read forgecad://operators/catalog before using V2. No permanent version is created until a later approval confirm.",
         json!({
             "type":"object",
             "required":["project_id","request"],
@@ -1969,8 +1988,9 @@ fn call_tool(
     backend: &mut Backend,
     id: Option<Value>,
     params: Option<&Value>,
-    write_tools_enabled: bool,
+    session: &mut Session,
 ) -> Option<Value> {
+    let write_tools_enabled = session.write_tools_enabled;
     let Some(id) = id else { return None };
     let Some(params) = params.and_then(Value::as_object) else {
         return Some(
@@ -1994,6 +2014,17 @@ fn call_tool(
             .expect("response for request"),
         );
     };
+    if agentic_write_tools::is_tool(name) && !session.ponytail_preflight_read {
+        return Some(json!({
+            "jsonrpc":"2.0",
+            "id":id,
+            "result":{
+                "isError":true,
+                "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(PONYTAIL_PREFLIGHT_REQUIRED)).unwrap_or_else(|_| "{}".to_owned())}],
+                "structuredContent":runtime_error_value(PONYTAIL_PREFLIGHT_REQUIRED)
+            }
+        }));
+    }
     if !tools_with_writes(write_tools_enabled)
         .iter()
         .any(|tool| tool["name"].as_str() == Some(name))
@@ -2064,6 +2095,17 @@ fn call_tool(
                 }
             }));
         }
+        if agentic_write_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("AGENTIC_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("AGENTIC_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
         return Some(
             error_response(
                 Some(id),
@@ -2103,6 +2145,30 @@ fn call_tool(
             .expect("response for request"),
         );
     }
+    if requires_ponytail_preflight(name, &arguments) && !session.ponytail_preflight_read {
+        return Some(json!({
+            "jsonrpc":"2.0",
+            "id":id,
+            "result":{
+                "isError":true,
+                "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(PONYTAIL_PREFLIGHT_REQUIRED)).unwrap_or_else(|_| "{}".to_owned())}],
+                "structuredContent":runtime_error_value(PONYTAIL_PREFLIGHT_REQUIRED)
+            }
+        }));
+    }
+    if agentic_write_tools::is_tool(name) {
+        if let Err(error) = agentic_write_tools::validate_call(
+            name,
+            &arguments,
+            &session.agentic_binding,
+        ) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+            }));
+        }
+    }
     match dispatch_tool(backend, name, &arguments, write_tools_enabled) {
         Ok(value) if name == "render_pass_get" => {
             let mut metadata = value.clone();
@@ -2123,17 +2189,46 @@ fn call_tool(
                 "result":{"content":[{"type":"image","data":png_base64,"mimeType":"image/png"},{"type":"text","text":serde_json::to_string(&metadata).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":metadata}
             }))
         }
-        Ok(value) => Some(json!({
-            "jsonrpc":"2.0",
-            "id":id,
-            "result":{"content":[{"type":"text","text":serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":value}
-        })),
+        Ok(value) => {
+            if agentic_write_tools::is_tool(name) {
+                if let Err(error) = agentic_write_tools::bind_response(
+                    name,
+                    &value,
+                    &mut session.agentic_binding,
+                ) {
+                    return Some(json!({
+                        "jsonrpc":"2.0",
+                        "id":id,
+                        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+                    }));
+                }
+            }
+            if is_ponytail_preflight_read(name, &arguments) {
+                session.ponytail_preflight_read = true;
+            }
+            Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"content":[{"type":"text","text":serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":value}
+            }))
+        }
         Err(error) => Some(json!({
             "jsonrpc":"2.0",
             "id":id,
             "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
         })),
     }
+}
+
+fn is_ponytail_preflight_read(name: &str, arguments: &Value) -> bool {
+    name == "skill_get"
+        && arguments.get("skill_id").and_then(Value::as_str) == Some(PONYTAIL_PREFLIGHT_SKILL_ID)
+        && arguments.get("version").and_then(Value::as_str) == Some(PONYTAIL_PREFLIGHT_VERSION)
+}
+
+fn requires_ponytail_preflight(name: &str, arguments: &Value) -> bool {
+    !matches!(name, "capabilities_get" | "runtime_status" | "doctor")
+        && !is_ponytail_preflight_read(name, arguments)
 }
 
 fn dispatch_tool(
@@ -2160,6 +2255,12 @@ fn dispatch_tool_with_build_cohort(
     local_build_cohort: Option<&str>,
 ) -> Result<Value, String> {
     if is_write_tool(name) && !write_tools_enabled {
+        if agentic_write_tools::is_write_tool(name) {
+            return Err(
+                "AGENTIC_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
         return Err(if is_mcp005_write_tool(name) {
             "MCP005_REFERENCE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
                 .to_owned()
@@ -2179,7 +2280,22 @@ fn dispatch_tool_with_build_cohort(
         });
     }
     if is_write_tool(name) {
+        if agentic_write_tools::is_write_tool(name) {
+            return backend_agentic_write_call(backend, name, arguments, local_build_cohort);
+        }
         return backend_write_call(backend, name, arguments, local_build_cohort);
+    }
+    if agentic_write_tools::is_tool(name) {
+        return match agentic_write_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(agentic_write_tools::unavailable_error(name)),
+        };
+    }
+    if agentic_tools::is_tool(name) {
+        return match agentic_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(agentic_tools::unavailable_error(name)),
+        };
     }
     match name {
         "capabilities_get" => capabilities_payload(backend, write_tools_enabled),
@@ -2188,6 +2304,23 @@ fn dispatch_tool_with_build_cohort(
         "version_diff" | "quality_get" => backend_call(backend, name, arguments),
         _ => backend_call(backend, name, arguments),
     }
+}
+
+fn backend_agentic_write_call(
+    backend: &mut Backend,
+    name: &str,
+    arguments: &Value,
+    local_build_cohort: Option<&str>,
+) -> Result<Value, String> {
+    backend_write_call(backend, name, arguments, local_build_cohort).map_err(|error| {
+        if error == "RUNTIME_UNAVAILABLE: Runtime request failed" {
+            return agentic_write_tools::unavailable_error(name);
+        }
+        if error.starts_with("RUNTIME_UNAVAILABLE:") {
+            return format!("AGENTIC_RUNTIME_UNAVAILABLE: {error}");
+        }
+        error
+    })
 }
 
 fn backend_write_call(
@@ -2266,6 +2399,13 @@ fn backend_call(backend: &mut Backend, name: &str, arguments: &Value) -> Result<
 fn map_ipc_error(error: IpcError) -> String {
     match error {
         IpcError::RuntimeRequest(detail) => {
+            if let Some(agentic_code) = detail
+                .split(':')
+                .map(str::trim)
+                .find(|value| value.starts_with("AGENTIC_"))
+            {
+                return format!("{agentic_code}: Runtime Agentic request rejected");
+            }
             let code = detail.split(':').next().unwrap_or(detail.as_str()).trim();
             match code {
                 "INVALID_INPUT" => {
@@ -2276,11 +2416,36 @@ fn map_ipc_error(error: IpcError) -> String {
                     // generic INVALID_INPUT bucket.
                     let stage = detail
                         .split(':')
-                        .nth(1)
                         .map(str::trim)
-                        .and_then(|value| value.split(':').next())
+                        .find(|value| value.starts_with("AGENTIC_") || value.starts_with("GEOMETRY_PROGRAM_HASH_REJECTED") || value.starts_with("SILHOUETTE_") || value.starts_with("CAMERA_") || value.starts_with("CONTRACT_OUTPUT_INVALID"))
                         .unwrap_or("");
                     match stage {
+                        "GEOMETRY_PROGRAM_HASH_REJECTED" => {
+                            let reason = detail
+                                .split_once("GEOMETRY_PROGRAM_HASH_REJECTED:")
+                                .map(|(_, value)| value.trim())
+                                .filter(|value| !value.is_empty())
+                                .unwrap_or("request shape or worker contract validation")
+                                .to_owned();
+                            let reason = [
+                                "request must be an object",
+                                "request must contain only schema_version and geometry_program_draft",
+                                "schema_version must be GeometryProgramHashRequest@1",
+                                "GEOMETRY_WORKER_PROTOCOL",
+                                "schema or project binding",
+                            ]
+                            .into_iter()
+                            .find(|candidate| reason.starts_with(candidate))
+                            .unwrap_or("request shape or worker contract validation");
+                            format!("GEOMETRY_PROGRAM_HASH_REJECTED: Runtime geometry hash request rejected ({reason})")
+                        }
+                        _ if stage.starts_with("AGENTIC_") => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("AGENTIC_RUNTIME_REJECTED");
+                            format!("{code}: Runtime Agentic request rejected")
+                        }
                         "SILHOUETTE_FIT_INVALID" => {
                             let reason = detail
                                 .split_once("SILHOUETTE_FIT_INVALID:")
@@ -2346,6 +2511,22 @@ fn map_ipc_error(error: IpcError) -> String {
                         }
                         _ => "INVALID_INPUT: Runtime request rejected".to_owned(),
                     }
+                }
+                "STORE_CONTRACT" => {
+                    let code = detail
+                        .split_once(':')
+                        .map(|(_, value)| value.trim())
+                        .filter(|value| !value.is_empty())
+                        .unwrap_or("contract rejection");
+                    format!("STORE_CONTRACT: Runtime store rejected the request ({code})")
+                }
+                "STORE_INVALID_DATA" => {
+                    let reason = detail
+                        .split_once(':')
+                        .map(|(_, value)| value.trim())
+                        .filter(|value| !value.is_empty())
+                        .unwrap_or("record validation");
+                    format!("STORE_INVALID_DATA: Runtime store rejected the record ({reason})")
                 }
                 "STORE_ERROR" => "STORE_ERROR: Runtime store rejected the request".to_owned(),
                 "RUNTIME_BUSY" => "RUNTIME_BUSY: Runtime writer is busy".to_owned(),
@@ -2554,11 +2735,60 @@ fn read_bounded_json(path: &std::path::Path) -> Result<Value, String> {
 
 fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Result<Value, String> {
     match name {
+        "session_create_or_resume"
+        | "session_get"
+        | "checkpoint_prepare"
+        | "checkpoint_get"
+        | "checkpoint_restore_prepare" => match name {
+            "session_create_or_resume" => runtime
+                .session_create_or_resume(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "session_get" => runtime
+                .session_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "checkpoint_prepare" => runtime
+                .checkpoint_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "checkpoint_get" => runtime
+                .checkpoint_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "checkpoint_restore_prepare" => runtime
+                .checkpoint_restore_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            _ => unreachable!("agentic write tool dispatch arm is exhaustive"),
+        },
         "capabilities_get" => {
             serde_json::to_value(runtime.capabilities()).map_err(|error| error.to_string())
         }
         "operator_catalog_get" => Ok(runtime.active_operator_catalog()),
         "material_pack_get" => Ok(runtime.material_pack_manifest()),
+        "agentic_scene_observe" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .agentic_scene_observe(
+                    project_id,
+                    arguments.get("candidate_id").and_then(Value::as_str),
+                )
+                .map_err(|error| error.to_string())
+        }
+        "agentic_stage_plan" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .agentic_stage_plan(
+                    project_id,
+                    arguments.get("candidate_id").and_then(Value::as_str),
+                )
+                .map_err(|error| error.to_string())
+        }
+        "agentic_critic_projection" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .agentic_critic_projection(
+                    project_id,
+                    arguments.get("candidate_id").and_then(Value::as_str),
+                )
+                .map_err(|error| error.to_string())
+        }
         "geometry_program_hash" => runtime
             .geometry_program_hash(arguments)
             .map_err(|error| error.to_string()),
@@ -2746,15 +2976,9 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         "skill_get" => {
             let skill_id = required_id(arguments, "skill_id")?;
             let version = required_id(arguments, "version")?;
-            let skill = runtime
-                .skill(skill_id, version)
-                .map_err(|error| error.to_string())?
-                .ok_or_else(|| {
-                    "CAPABILITY_UNAVAILABLE: Skill version is not in the first-party registry"
-                        .to_owned()
-                })?;
-            serde_json::to_value(json!({"schema_version":"SkillGetResult@1","skill":skill}))
-                .map_err(|error| error.to_string())
+            runtime
+                .skill_result(skill_id, version)
+                .map_err(|error| error.to_owned())
         }
         "snapshot_get" => {
             let id = required_id(arguments, "snapshot_id")?;
@@ -2991,7 +3215,77 @@ mod tests {
         .expect("initialize response");
         assert_eq!(response["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
         assert_eq!(session.state, SessionState::Ready);
+        // Most focused tests are about their target capability, not ordering.
+        // Dedicated coverage below starts from a fresh session to verify the gate.
+        session.ponytail_preflight_read = true;
         (backend, session)
+    }
+
+    #[test]
+    fn checkpoint_get_schema_accepts_bound_readback() {
+        let arguments = json!({
+            "checkpoint_id": "checkpoint-agentic-probe",
+            "session_id": "session-agentic-probe",
+            "project_id": "project-agentic-probe",
+            "candidate_id": "candidate-agentic-probe"
+        });
+        let schema = tools_with_writes(true)
+            .into_iter()
+            .find(|tool| tool["name"] == "checkpoint_get")
+            .expect("checkpoint_get tool")["inputSchema"]
+            .clone();
+        let mut schema_budget = ToolSchemaValidationBudget::new();
+        assert!(validate_tool_schema_shape(&schema, 0, &mut schema_budget).is_ok());
+        let mut value_budget = ToolSchemaValidationBudget::new();
+        assert!(validate_value_against_tool_schema(
+            &schema,
+            &arguments,
+            0,
+            &mut value_budget
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn ponytail_preflight_must_be_read_before_design_tools_or_other_skills() {
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("runtime"));
+        let mut session = Session::new();
+        let initialize_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":MCP_PROTOCOL_VERSION,"capabilities":{},"clientInfo":{"name":"test","version":"1"}}}),
+        )
+        .expect("initialize response");
+        assert_eq!(initialize_response["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
+
+        let blocked = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"operator_catalog_get","arguments":{}}}),
+        )
+        .expect("preflight block");
+        assert_eq!(blocked["result"]["isError"], true);
+        assert_eq!(blocked["result"]["structuredContent"]["code"], "PONYTAIL_PREFLIGHT_REQUIRED");
+
+        let preflight = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"skill_get","arguments":{"skill_id":"ponytail-preflight","version":"0.1.0"}}}),
+        )
+        .expect("preflight skill");
+        assert_eq!(preflight["result"]["structuredContent"]["skill"]["skill_id"], "ponytail-preflight");
+        assert!(preflight["result"]["structuredContent"]["knowledge"]["overview"]
+            .as_str()
+            .expect("preflight overview")
+            .contains("Ponytail preflight"));
+
+        let catalog = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"operator_catalog_get","arguments":{}}}),
+        )
+        .expect("catalog after preflight");
+        assert!(catalog["result"]["structuredContent"]["operators"].is_array());
     }
 
     #[test]
@@ -3029,6 +3323,7 @@ mod tests {
         .expect("initialize response");
         assert_eq!(response["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
         assert_eq!(session.state, SessionState::Ready);
+        session.ponytail_preflight_read = true;
 
         let status = handle(
             &mut backend,
@@ -3063,6 +3358,7 @@ mod tests {
         )
         .expect("initialize response");
         assert!(initialized_response["result"].is_object());
+        session.ponytail_preflight_read = true;
 
         let before_projects = match &backend {
             Backend::InProcess(runtime) => {
@@ -3297,11 +3593,11 @@ mod tests {
             summary["schema_version"],
             "ForgeCADMcpToolManifestSummary@1"
         );
-        assert_eq!(summary["read_count"], 29);
-        assert_eq!(summary["write_count"], 18);
-        assert_eq!(summary["total_count"], 47);
-        assert_eq!(summary["read_names"].as_array().unwrap().len(), 29);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 18);
+        assert_eq!(summary["read_count"], 35);
+        assert_eq!(summary["write_count"], 21);
+        assert_eq!(summary["total_count"], 56);
+        assert_eq!(summary["read_names"].as_array().unwrap().len(), 35);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 21);
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -3606,15 +3902,140 @@ mod tests {
     }
 
     #[test]
+    fn agentic_projection_tools_are_read_only_and_do_not_enter_write_manifest() {
+        let read_tools = tools_with_writes(false);
+        let enabled_tools = tools_with_writes(true);
+        for name in [
+            "scene_observe_get",
+            "design_stage_plan_get",
+            "critic_report_get",
+            "visual_evidence_bundle_get",
+        ] {
+            let read_tool = read_tools
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .expect("agentic read tool");
+            assert_eq!(read_tool["annotations"]["readOnlyHint"], true);
+            assert_eq!(read_tool["annotations"]["destructiveHint"], false);
+            assert_eq!(read_tool["annotations"]["idempotentHint"], true);
+            assert_eq!(read_tool["inputSchema"]["additionalProperties"], false);
+            assert!(!is_write_tool(name));
+            assert!(enabled_tools.iter().any(|tool| tool["name"] == name));
+        }
+        assert_eq!(
+            read_tools
+                .iter()
+                .find(|tool| tool["name"] == "scene_observe_get")
+                .expect("scene tool")
+                .pointer("/_meta/forgecad/availability"),
+            Some(&Value::String("available".to_owned()))
+        );
+        assert_eq!(
+            read_tools
+                .iter()
+                .find(|tool| tool["name"] == "visual_evidence_bundle_get")
+                .expect("evidence tool")
+                .pointer("/_meta/forgecad/source_schema"),
+            Some(&Value::String("ViewerVisualEvidence@1".to_owned()))
+        );
+    }
+
+    #[test]
+    fn agentic_targets_require_preflight_and_fail_closed_on_missing_project() {
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("runtime"));
+        let mut session = Session::new();
+        let initialized_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":MCP_PROTOCOL_VERSION,"capabilities":{},"clientInfo":{"name":"agentic-test","version":"1"}}}),
+        )
+        .expect("initialize response");
+        assert_eq!(
+            initialized_response["result"]["protocolVersion"],
+            MCP_PROTOCOL_VERSION
+        );
+
+        let blocked = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"scene_observe_get","arguments":{"project_id":"project-a","candidate_id":"candidate-a"}}}),
+        )
+        .expect("preflight response");
+        assert_eq!(
+            blocked["result"]["structuredContent"]["code"],
+            "PONYTAIL_PREFLIGHT_REQUIRED"
+        );
+
+        session.ponytail_preflight_read = true;
+        let unavailable = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"scene_observe_get","arguments":{"project_id":"project-a","candidate_id":"candidate-a"}}}),
+        )
+        .expect("unavailable response");
+        assert_eq!(unavailable["result"]["isError"], true);
+        assert_eq!(
+            unavailable["result"]["structuredContent"]["code"],
+            "invalid runtime input"
+        );
+        assert!(unavailable["result"]["structuredContent"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("project not found")));
+    }
+
+    #[test]
+    fn agentic_write_tools_require_preflight_and_explicit_opt_in() {
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("runtime"));
+        let mut session = Session::new();
+        handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":MCP_PROTOCOL_VERSION,"capabilities":{},"clientInfo":{"name":"agentic-write-test","version":"1"}}}),
+        )
+        .expect("initialize response");
+        let request = json!({
+            "session_id": null,
+            "project_id": "project-1",
+            "candidate_id": "candidate-1",
+            "idempotency_key": "idem-1",
+            "approved": true,
+            "approval_receipt_id": "approval-1",
+            "approval_summary": "approved"
+        });
+        let blocked = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"session_create_or_resume","arguments":request.clone()}}),
+        )
+        .expect("preflight response");
+        assert_eq!(
+            blocked["result"]["structuredContent"]["code"],
+            "PONYTAIL_PREFLIGHT_REQUIRED"
+        );
+
+        session.ponytail_preflight_read = true;
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"session_create_or_resume","arguments":request}}),
+        )
+        .expect("opt-in response");
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "AGENTIC_WRITE_TOOLS_DISABLED"
+        );
+    }
+
+    #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 29);
+        assert_eq!(disabled.len(), 35);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 47);
+        assert_eq!(enabled.len(), 56);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -3833,6 +4254,7 @@ mod tests {
             MCP_PROTOCOL_VERSION
         );
         assert!(session.write_tools_enabled);
+        session.ponytail_preflight_read = true;
 
         let created = handle(
             &mut backend,
@@ -3856,7 +4278,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 47);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 56);
 
         let imported = handle(
             &mut backend,

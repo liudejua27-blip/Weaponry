@@ -1,11 +1,11 @@
 # ForgeCAD 测试策略
 
 版本：2026-08-09
-状态：MCP001–009 focused Gates 已建立；FGC-MCP010A done；MCP010B structural source Gate、MCP010C renderer/compare source Gate、MCP010D operator/Skill source Gate、MCP010E AssetPack/PBR source Gate 和 MCP010F Viewer/contour source Gate 已通过；同一候选的 packaged/human/PBR/export/360 子门仍 `NOT_RUN/BLOCKED`
+状态：MCP001–009 focused Gates 已建立；FGC-MCP010A done；MCP010B structural source Gate、MCP010C renderer/compare source Gate、MCP010D operator/Skill source Gate、MCP010E AssetPack/PBR source Gate 和 MCP010F Viewer/contour source Gate 已通过；Agentic observe/plan projection、scene/stage 嵌套只读 projection conformance 与 durable session/checkpoint/RepairIntent prepare/readback isolated Gate 已通过；durable/reference/DesignSpec producer、单动作 orchestrator、Repair 应用、同一候选的 packaged/human/PBR/export/360 子门仍 `NOT_RUN/BLOCKED`
 
 Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。源码门 PASS 不等于产品质量 PASS：attempt35 只是 provisional retained observation，它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，camera 绑定 `MISMATCH`，packaged Viewer binding 为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`。
 
-<!-- forgecad-stage0: schemas=78 schema_set_sha256=33d33f041682858c672df74f0ef337828eccdb0b58f3617d2beeab743a53b37a read_tools=29 write_tools=18 total_tools=47 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT latest_attempt=real-codex-cli-semantic-aligned-fast-20260813.json latest_completed=real-codex-cli-semantic-landmark-compare-20260813.json -->
+<!-- forgecad-stage0: schemas=101 schema_set_sha256=a48a823ce7d51b214978c966b4cfb27243857f7e6cf594b7c9f4ec47ad1a0c1e read_tools=35 write_tools=21 total_tools=56 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json latest_completed=real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json -->
 
 ## 1. 证据层级
 
@@ -13,12 +13,13 @@ Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.jso
 2. Core deterministic unit/property；
 3. Store transaction/crash/recovery；
 4. Worker sandbox/geometry/render；
-5. Runtime integration；
-6. MCP conformance 和真实 Codex 宿主；
-7. Viewer browser + packaged WebView/GPU；
-8. 完整 reference→candidate→approval→version→restore→export；
-9. 安装/升级/回滚/灾难恢复；
-10. 跨类别独立真人质量。
+5. Agentic Runtime durable session/checkpoint：schema fixture、approval/binding、SQLite/CAS persistence、immutable failed checkpoint、CAS-only RepairIntent、Runtime/MCP restart readback 和 public-contract receipt checker；
+6. Runtime integration；
+7. MCP conformance 和真实 Codex 宿主；
+8. Viewer browser + packaged WebView/GPU；
+9. 完整 reference→candidate→approval→version→restore→export；
+10. 安装/升级/回滚/灾难恢复；
+11. 跨类别独立真人质量。
 
 低层通过不能替代高层；每层分别标 PASS/FAIL/BLOCKED/NOT_RUN。
 
@@ -73,4 +74,4 @@ MVP 不预设一个没有校准的相似度数字作为营销门。MCP009 真实
 
 ## 7. Evidence manifest
 
-每个任务 evidence 包含环境、commit/worktree、命令/exit code、合同/二进制/资产 hash、原始 artifacts、日志脱敏证明、未运行项和 blocker。Markdown 总结不替代机器收据。
+每个任务 evidence 包含环境、commit/worktree、命令/exit code、合同/二进制/资产 hash、原始 artifacts、日志脱敏证明、未运行项和 blocker。Agentic durable slice 的机器入口是 `scripts/probe_agentic_runtime.py`，合同校验是 `scripts/check_agentic_runtime_receipt.py`，receipt 为 `docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`。Markdown 总结不替代机器收据。

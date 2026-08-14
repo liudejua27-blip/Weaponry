@@ -1,0 +1,26 @@
+{
+  "coordinate_system": "left-handed-z-up",
+  "edges": [
+    {
+      "from": "a",
+      "to": "b"
+    },
+    {
+      "from": "b",
+      "to": "a"
+    }
+  ],
+  "expected": {
+    "dag": "reject",
+    "finite": "reject",
+    "units": "reject"
+  },
+  "fixture_id": "ponytail-preflight-declarative-invalid-cycle",
+  "recipe_id": "ponytail-preflight",
+  "schema_version": "SkillBenchmarkFixture@1",
+  "skill_id": "ponytail-preflight",
+  "units": "millimeter",
+  "values": {
+    "scale": "NaN"
+  }
+}

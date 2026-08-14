@@ -1,0 +1,11 @@
+{
+  "dynamic_code": false,
+  "network": false,
+  "schema_version": "SkillValidatorSet@1",
+  "validators": [
+    {
+      "builtin": "session_preflight_read_before_modeling",
+      "id": "preflight_read_before_design@1"
+    }
+  ]
+}

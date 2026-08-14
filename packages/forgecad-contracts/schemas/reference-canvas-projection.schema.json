@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-canvas-projection.schema.json",
+  "title": "Reference Canvas Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "x-forgecad-contract-role": "transport-projection",
+  "x-forgecad-projection-only": true,
+  "x-forgecad-durable-schema": "reference-canvas.schema.json",
+  "properties": {
+    "schema_version": {"const": "ReferenceCanvasProjection@1"},
+    "projection_status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/projection_status"},
+    "read_only": {"const": true},
+    "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "selected_reference_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "references": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/reference"}
+    },
+    "coverage": {"$ref": "#/$defs/coverage"},
+    "unknowns": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+    },
+    "canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
+  },
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "project_id",
+    "selected_reference_id",
+    "references",
+    "coverage",
+    "unknowns",
+    "canonical_sha256"
+  ],
+  "$defs": {
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_id",
+        "reference_sha256",
+        "reference_canonical_sha256",
+        "mime",
+        "size_bytes",
+        "width",
+        "height",
+        "frame_count",
+        "import_mode",
+        "authorization",
+        "view_claim",
+        "lineage"
+      ],
+      "properties": {
+        "reference_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+        "reference_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+        "reference_canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+        "mime": {"enum": ["image/png", "image/jpeg"]},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 8388608},
+        "width": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "height": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "frame_count": {"const": 1},
+        "import_mode": {"enum": ["inline_content", "codex_local_file"]},
+        "authorization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["user_authorized", "status"],
+          "properties": {
+            "user_authorized": {"type": "boolean"},
+            "status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"}
+          }
+        },
+        "view_claim": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "status"],
+          "properties": {
+            "value": {
+              "oneOf": [
+                {"type": "null"},
+                {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+              ]
+            },
+            "status": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/visibility"}
+          }
+        },
+        "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/reference_lineage"}
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "observed_views", "missing_views", "reason"],
+      "properties": {
+        "status": {"enum": ["unknown", "partial", "complete"]},
+        "observed_views": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"enum": ["front", "back", "left", "right", "top", "perspective", "three-quarter", "rear-three-quarter"]}
+        },
+        "missing_views": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"enum": ["front", "back", "left", "right", "top", "perspective", "three-quarter", "rear-three-quarter"]}
+        },
+        "reason": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+      }
+    }
+  }
+}

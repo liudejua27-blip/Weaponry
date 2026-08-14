@@ -1,6 +1,6 @@
 # ForgeCAD 完成定义
 
-版本：2026-08-09
+版本：2026-08-13
 适用：所有 `FGC-MCPxxx` 任务
 
 ## 1. 原子任务 Done
@@ -17,6 +17,7 @@
 - focused、aggregate、packaged、真实 Codex、视觉和真人证据分别记录；
 - `git diff --check` 和相关 Gate 通过；
 - 状态、能力矩阵、handoff 和用户文档同步；
+- 架构/模块边界清晰，新增或废弃模块已同步 `ARCHITECTURE_MODULE_BOUNDARY.md` 和 `DEPRECATED_ISOLATION_PLAN.md`；
 - 没有把未运行或 blocked 写成通过。
 
 ## 2. MCP 工具 Done
@@ -59,6 +60,16 @@ MCP005–MCP009 可以在 focused 本地证据全部通过后标记为 `done（�
 - 当前参考的 silhouette/landmark/region metrics、Codex typed review 和用户对 likeness/detail/material/editability 的评分均绑定同一 candidate hash；
 - 单张三分之四参考通过时声明只允许 `PARTIAL_VISIBLE_VIEW_PASS`；补齐 front/back/left/right/rear-three-quarter 全身参考并逐视图通过后才允许 `HQ_360_PASS`；
 - 声明限定为首个 hard-surface benchmark，不推导跨类别通用质量。
+
+## 5.1 Agentic Design Runtime 文档 Done
+
+仅完成 ADR/plan 文档时，只能声明目标架构已记录。要把 Agentic Design Runtime 的任一模块声明为实现，至少需要：
+
+- 对应 Schema 进入 contracts manifest；
+- Runtime producer 和 MCP read/write 边界实现；
+- Viewer 或 Codex 消费路径有 focused evidence；
+- 废弃/替代模块已从 active tree 移到 archive/quarantine；
+- `scene_observe_get`、DesignSession、SemanticSceneGraph、Critic/Repair 等不能只靠文档或 mock 标为 PASS。
 
 ## 6. 通用 3D 质量 Done（release）
 

@@ -1,7 +1,7 @@
 # ForgeCAD Skill Package 标准
 
-版本：2026-08-11
-状态：历史十个 first-party Bundle 保持 `0.1.0`；MCP010D 已新增并激活受限 `hard-surface-detail@0.2.0`，`primitive-blockout@0.2.0` 继续 active；MCP010E 的 `uv-pbr@0.2.0`、`render-evidence@0.2.0`、`reference-compare@0.2.0` 与 `forgecad-hard-surface-robot@1.0.0` 已通过 source-focused 离线 Gate；xatlas/Validator、分发签名和第三方安装仍属后续 MCP012/013
+版本：2026-08-13
+状态：其余历史 first-party Bundle 保持 `0.1.0`；`ponytail-preflight@0.1.0` 是设计前必须读取的 first-party session gate；MCP010D 已新增并激活受限 `hard-surface-detail@0.2.0`，`primitive-blockout@0.2.0` 继续 active；MCP010E 的 `uv-pbr@0.2.0`、`render-evidence@0.2.0`、`reference-compare@0.2.0` 与 `forgecad-hard-surface-robot@1.0.0` 已通过 source-focused 离线 Gate；xatlas/Validator、分发签名和第三方安装仍属后续 MCP012/013。已被 `0.2.0` 替代的 `hard-surface-detail@0.1.0`、`uv-pbr@0.1.0` 与早期 `reference-to-typed-plan@0.1.0` 均已隔离到 `packages/forgecad-skills/archive/`，不属于 active Skill。
 
 ## 1. 定义
 
@@ -50,6 +50,14 @@ packages/forgecad-skills/bundles/<skill-id>/<semver>/
 
 `skill.yaml` 至少包含：ID、semver、contract range、publisher、description、input/output Schema hashes、Recipe hashes、Operator IDs/versions、Validator IDs、asset manifests、capability/permission/budget、supported representations/categories、known limitations、Benchmark threshold、license/provenance/SBOM hashes。MVP 另含 development trust-root ID；distribution profile 才强制 signature hash 和撤销信息。
 
+归档 Skill 只能放在：
+
+```text
+packages/forgecad-skills/archive/superseded/<skill-id>/<semver>/
+```
+
+archive 下的 Skill 不进入 `registry.json`、不进入 `bundles/**`、不被 `skill_list` 暴露，也不能被当前能力账本计数。若需要复用，必须重新生成 active Bundle、manifest hash、Schema、validator、benchmark、LICENSE/NOTICE/SBOM/provenance 和 Runtime consumer evidence。
+
 ## 3. Recipe DAG
 
 Recipe 是无环、有类型的声明式图。每个 edge 的 source/target 类型、单位、坐标系和 cardinality 必须兼容。Runtime 在执行前：
@@ -96,6 +104,7 @@ MVP 不建设第三方插件市场，也不让 distribution signing 阻塞 3D ve
 
 | 顺序 | Skill ID | 责任 |
 |---:|---|---|
+| 0 | `ponytail-preflight@0.1.0` | 每个 MCP 设计会话必须先读；判断必要性、复用 Runtime 既有能力并选择最小 typed action；不执行几何、不能授权写入 |
 | 1 | `reference-intake` | 引用已 admission 的图片、视图/授权/可见性约束 |
 | 2 | `subject-profile` | typed 类别、比例、材质线索和不确定项 |
 | 3 | `semantic-assembly` | Assembly/Part/MaterialZone 稳定层级 |
@@ -119,6 +128,8 @@ MVP 不建设第三方插件市场，也不让 distribution signing 阻塞 3D ve
 其他 Bundle 保持 `0.1.0`。010A 文档重排不能修改 registry 版本或 active 状态；任何缺失 Operator/Asset/Benchmark 必须返回 partial/unavailable 和 `missing_operator_ids`。
 
 MVP 的参考图工作流借鉴 `img2threejs` 的 staged-pass/detail-inventory/per-region-confidence 纪律，并把它重写为上述 first-party typed metadata；`img2css` 只作为离线颜色/区域预览的设计参考。两者的脚本、Three.js 工厂、CSS/base64 和网页运行时均不进入 Bundle、Worker 或 Runtime 真值。
+
+`ponytail-preflight@0.1.0` 同样是 first-party rewrite：其 receipt 固定 MIT workflow reference revision，但上游 Node package、plugin hook、MCP server 和源代码均不进入 Bundle、Worker、Runtime、lockfile 或安装包。
 
 ## 8. 安装生命周期
 

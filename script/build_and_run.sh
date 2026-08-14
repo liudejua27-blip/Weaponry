@@ -20,6 +20,12 @@ CARGO_TARGET_DIR="$TARGET_DIR" \
   -p forgecad-runtime --bin forgecad-runtime \
   --offline
 
+CARGO_TARGET_DIR="$TARGET_DIR" \
+  "$ROOT_DIR/script/with_rust_toolchain.sh" cargo build \
+  --manifest-path "$ROOT_DIR/apps/render-worker/Cargo.toml" \
+  --bin forgecad-render-worker \
+  --offline
+
 exec env \
   -u FORGECAD_RUNTIME_DATA_DIR \
   -u FORGECAD_RUNTIME_SOCKET \

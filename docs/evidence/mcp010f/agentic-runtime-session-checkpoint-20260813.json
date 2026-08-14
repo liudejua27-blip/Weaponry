@@ -1,0 +1,239 @@
+{
+  "allowed_action_count": 2,
+  "candidate_id": "candidate-b0e3e67a4e5b435d85b6e7715203300a",
+  "checkpoint_canonical_sha256": "b364001652fb98716562d7804d93fe1a47d059ea253a899bb855ee3b2f775e44",
+  "checkpoint_id": "checkpoint-848ca1d6410bba3957ccdd943c8701a2",
+  "durable_records": {
+    "checkpoint": {
+      "artifact_sha256": "d53602b835ca95c3edb5a6f3f836cb90d272ae819b662db6406ca37ccece32b6",
+      "camera_hash": "9ef4e6f796c9a91431e9f2cf734a78f71bfeaf0d995a88065437d2c3d2bb4493",
+      "candidate_id": "candidate-b0e3e67a4e5b435d85b6e7715203300a",
+      "candidate_state_sha256": "fbf14d30bfb41e426566b6f3664f629368a65fead46b15a3bd16e591b78947c9",
+      "canonical_sha256": "b364001652fb98716562d7804d93fe1a47d059ea253a899bb855ee3b2f775e44",
+      "checkpoint_id": "checkpoint-848ca1d6410bba3957ccdd943c8701a2",
+      "checkpoint_type": "stage-fail",
+      "created_at": "2026-08-13T13:31:02Z",
+      "evidence_sha256": "5c0a49ba81f74e762e4ddb75994bb08f447a5d80c03c3420007972e3b2ed00f5",
+      "immutable": true,
+      "parent_checkpoint_id": null,
+      "parent_checkpoint_sha256": null,
+      "project_id": "project-c75888326c0f4ddfb87c75142ece4d32",
+      "reference_id": "reference-09cb4cffde8a47d0a35af77f3eb21ad6",
+      "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+      "rollback": {
+        "reason": null,
+        "relation": "none",
+        "target_checkpoint_id": null,
+        "target_checkpoint_sha256": null,
+        "target_version_id": null,
+        "target_version_sha256": null
+      },
+      "runtime_write": false,
+      "schema_version": "DesignCheckpoint@1",
+      "session_id": "session-agentic-probe",
+      "stage": "primary-form",
+      "stage_gate": {
+        "evidence_hashes": [
+          "5c0a49ba81f74e762e4ddb75994bb08f447a5d80c03c3420007972e3b2ed00f5"
+        ],
+        "failed_checks": [
+          "visible-view"
+        ],
+        "locks": [
+          "tertiary-detail",
+          "uv-pbr",
+          "confirm",
+          "export",
+          "next-stage"
+        ],
+        "required_checks": [
+          "primary-silhouette",
+          "primary-proportion",
+          "visible-view"
+        ],
+        "stage": "primary-form",
+        "status": "fail",
+        "unlocks": [
+          "checkpoint",
+          "bounded-repair"
+        ]
+      },
+      "version_id": null,
+      "version_sha256": null
+    },
+    "repair_intent": {
+      "action": {
+        "action_kind": "bounded-repair",
+        "bounded": true,
+        "description": "Prepare a new candidate from the selected checkpoint; no history is rewritten",
+        "kit_id": "forgecad.kit.housing@1",
+        "operation": "rebuild-part",
+        "operator_id": "forgecad.geometry.primitive@2",
+        "parameter_changes": [
+          {
+            "after": 1.0,
+            "before": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "parameter_id": "restore-source",
+            "unit": "count"
+          }
+        ]
+      },
+      "approval_required": true,
+      "camera_hash": "9ef4e6f796c9a91431e9f2cf734a78f71bfeaf0d995a88065437d2c3d2bb4493",
+      "candidate_id": "candidate-b0e3e67a4e5b435d85b6e7715203300a",
+      "candidate_state_sha256": "fbf14d30bfb41e426566b6f3664f629368a65fead46b15a3bd16e591b78947c9",
+      "canonical_sha256": "d2fbe5feb61d148bcd4476a809776b7102058f5cdb6bed6ab2ac606f4e89a0a9",
+      "intent_id": "repair-intent-ac333a2f7ba75d0c172134111117a778",
+      "precondition": {
+        "current_candidate_state_sha256": "fbf14d30bfb41e426566b6f3664f629368a65fead46b15a3bd16e591b78947c9",
+        "evidence_sha256": "5c0a49ba81f74e762e4ddb75994bb08f447a5d80c03c3420007972e3b2ed00f5",
+        "failed_gate_id": "visible-view",
+        "quality_status": "QUALITY_TARGET_NOT_MET",
+        "status": "failed"
+      },
+      "project_id": "project-c75888326c0f4ddfb87c75142ece4d32",
+      "recompute": {
+        "confirm_allowed": false,
+        "must_rebind_camera": true,
+        "must_rebind_reference": true,
+        "steps": [
+          "compile",
+          "readback",
+          "render",
+          "compare"
+        ]
+      },
+      "reference_id": "reference-09cb4cffde8a47d0a35af77f3eb21ad6",
+      "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+      "rollback": {
+        "on_failure": "request-user",
+        "reason": "Restore is a new candidate intent and never rewrites historical state",
+        "relation": "restore-checkpoint",
+        "target_checkpoint_id": "checkpoint-848ca1d6410bba3957ccdd943c8701a2",
+        "target_checkpoint_sha256": "b364001652fb98716562d7804d93fe1a47d059ea253a899bb855ee3b2f775e44",
+        "target_version_id": null,
+        "target_version_sha256": null
+      },
+      "runtime_write": false,
+      "schema_version": "RepairIntent@1",
+      "scope": {
+        "kind": "part",
+        "part_id": "scene"
+      },
+      "session_id": "session-agentic-probe",
+      "source_critic_report_id": "checkpoint-critic-checkpoint-848ca1d6410bba3957ccdd943c8701a2",
+      "source_critic_report_sha256": "b364001652fb98716562d7804d93fe1a47d059ea253a899bb855ee3b2f775e44",
+      "source_evidence_sha256": "5c0a49ba81f74e762e4ddb75994bb08f447a5d80c03c3420007972e3b2ed00f5",
+      "stage": "primary-form",
+      "status": "proposed"
+    },
+    "session": {
+      "camera_hash": "9ef4e6f796c9a91431e9f2cf734a78f71bfeaf0d995a88065437d2c3d2bb4493",
+      "candidate_id": "candidate-b0e3e67a4e5b435d85b6e7715203300a",
+      "candidate_state_sha256": "fbf14d30bfb41e426566b6f3664f629368a65fead46b15a3bd16e591b78947c9",
+      "canonical_sha256": "6a4bc8d8be50730a4356a09327b1ad6af2c6c69e9781c53a8baa4bacc83d747b",
+      "checkpoint_ids": [
+        "checkpoint-848ca1d6410bba3957ccdd943c8701a2"
+      ],
+      "created_at": "2026-08-13T13:31:01Z",
+      "current_checkpoint_id": "checkpoint-848ca1d6410bba3957ccdd943c8701a2",
+      "current_checkpoint_sha256": "b364001652fb98716562d7804d93fe1a47d059ea253a899bb855ee3b2f775e44",
+      "current_stage": "primary-form",
+      "current_version_id": null,
+      "current_version_sha256": null,
+      "design_spec_id": "design-spec-agentic-probe",
+      "design_spec_sha256": "e95d414eddc1b60ca30f630f7b38f6009cf1b2c0e1d735c49d22ecbc1e4d593c",
+      "evidence_sha256": "5c0a49ba81f74e762e4ddb75994bb08f447a5d80c03c3420007972e3b2ed00f5",
+      "next_actions": [
+        {
+          "action_id": "bounded-repair-537f5a76222f5ecf",
+          "action_kind": "bounded-repair",
+          "bounded": true,
+          "description": "Prepare one bounded repair and rerun compile/readback/render/compare",
+          "evidence_sha256": "5c0a49ba81f74e762e4ddb75994bb08f447a5d80c03c3420007972e3b2ed00f5",
+          "scope_kind": "session",
+          "stage": "primary-form",
+          "target_id": "session-agentic-probe"
+        }
+      ],
+      "project_id": "project-c75888326c0f4ddfb87c75142ece4d32",
+      "quality_status": "QUALITY_TARGET_NOT_MET",
+      "reference_canvas_id": "reference-canvas-agentic-probe",
+      "reference_canvas_sha256": "66e62e8c757cec065ddc62a6a250c2c2fae7099e2c360cec4ed970be76b00e84",
+      "reference_id": "reference-09cb4cffde8a47d0a35af77f3eb21ad6",
+      "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+      "rollback": {
+        "reason": null,
+        "relation": "none",
+        "runtime_confirm_allowed": false,
+        "target_checkpoint_id": null,
+        "target_checkpoint_sha256": null,
+        "target_version_id": null,
+        "target_version_sha256": null
+      },
+      "schema_version": "DesignSession@1",
+      "session_id": "session-agentic-probe",
+      "stage_gate": {
+        "evidence_hashes": [
+          "5c0a49ba81f74e762e4ddb75994bb08f447a5d80c03c3420007972e3b2ed00f5"
+        ],
+        "failed_checks": [
+          "visible-view"
+        ],
+        "locks": [
+          "tertiary-detail",
+          "uv-pbr",
+          "confirm",
+          "export",
+          "next-stage"
+        ],
+        "required_checks": [
+          "primary-silhouette",
+          "primary-proportion",
+          "visible-view"
+        ],
+        "stage": "primary-form",
+        "status": "fail",
+        "unlocks": [
+          "checkpoint",
+          "bounded-repair"
+        ]
+      },
+      "status": "awaiting-review",
+      "updated_at": "2026-08-13T13:31:02Z"
+    }
+  },
+  "empty_reference_stage_fail_closed": true,
+  "locked_action_count": 3,
+  "persistent_user_data_touched": false,
+  "preflight": {
+    "skill_id": "ponytail-preflight",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-c75888326c0f4ddfb87c75142ece4d32",
+  "protocol_version": "2025-06-18",
+  "reference_id": "reference-09cb4cffde8a47d0a35af77f3eb21ad6",
+  "restart_readback": true,
+  "restore_intent_object_sha256": "6b3a314e6aafa369767dd900cca11fe2708280b5ee971d7731efd9a011f471d5",
+  "runtime_write_scope": "isolated temporary project only",
+  "scene_observe_schema": "AgenticSceneObserveResult@1",
+  "schema_version": "ForgeCADAgenticRuntimeProbe@1",
+  "session_canonical_sha256": "6a4bc8d8be50730a4356a09327b1ad6af2c6c69e9781c53a8baa4bacc83d747b",
+  "session_id": "session-agentic-probe",
+  "stage": "reference-canvas",
+  "stage_plan_schema": "DesignStagePlan@1",
+  "status": "PASS",
+  "task_id": "FGC-MCP010F",
+  "tool_manifest": {
+    "checkpoint_get": "read-only durable lookup",
+    "checkpoint_prepare": "approved Runtime write",
+    "checkpoint_restore_prepare": "approved CAS-only intent",
+    "design_stage_plan_get": "read-only",
+    "scene_observe_get": "read-only",
+    "session_create_or_resume": "approved Runtime write",
+    "session_get": "read-only durable lookup"
+  }
+}

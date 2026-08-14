@@ -52,6 +52,40 @@ def require(condition: bool, message: str) -> None:
         raise ProbeFailure(message)
 
 
+def read_ponytail_preflight(client: McpClient) -> dict[str, str]:
+    """Read the mandatory first-party planning Skill before design calls."""
+    result = client.tool(
+        "skill_get",
+        {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+    )
+    require(isinstance(result, dict), "ponytail preflight returned no typed result")
+    skill = result.get("skill")
+    knowledge = result.get("knowledge")
+    require(
+        isinstance(skill, dict)
+        and skill.get("skill_id") == "ponytail-preflight"
+        and skill.get("version") == "0.1.0"
+        and isinstance(skill.get("canonical_sha256"), str)
+        and len(skill["canonical_sha256"]) == 64,
+        "ponytail preflight manifest was not verified",
+    )
+    require(
+        isinstance(knowledge, dict)
+        and isinstance(knowledge.get("canonical_sha256"), str)
+        and len(knowledge["canonical_sha256"]) == 64
+        and isinstance(knowledge.get("overview"), str)
+        and isinstance(knowledge.get("constraints"), str),
+        "ponytail preflight knowledge was not returned",
+    )
+    return {
+        "skill_id": skill["skill_id"],
+        "version": skill["version"],
+        "skill_manifest_sha256": skill["canonical_sha256"],
+        "knowledge_sha256": knowledge["canonical_sha256"],
+        "status": "PASS",
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mcp", type=Path, required=True)
@@ -179,44 +213,59 @@ def adjustment_map(result: dict[str, Any]) -> dict[str, float]:
     return output
 
 
+PART_NODE_IDS = {
+    "chest-shell": "chest-panel",
+    "shoulder-armor-left": "shoulder-armor-left",
+    "shoulder-armor-right": "shoulder-armor-right",
+}
+
+PART_PARAMETER_PREFIXES = {
+    "chest-shell": "chest",
+    "shoulder-armor-left": "shoulder",
+    "shoulder-armor-right": "shoulder",
+}
+
+
+def part_parameter_prefix(part_id: str) -> str:
+    prefix = PART_PARAMETER_PREFIXES.get(part_id)
+    require(isinstance(prefix, str), f"no bounded parameter namespace for Part {part_id}")
+    return prefix
+
+
 def apply_part_adjustment(draft: dict[str, Any], part_id: str, parameter_id: str, delta: float) -> dict[str, Any]:
     """Apply only one bounded semantic adjustment to the local typed draft."""
     result = copy.deepcopy(draft)
     nodes = result.get("nodes")
     require(isinstance(nodes, list), "GeometryProgram nodes are missing")
-    node = next(
-        (
-            item
-            for item in nodes
-            if isinstance(item, dict)
-            and item.get("node_id") == "chest-panel"
-        ),
-        None,
-    ) if part_id == "chest-shell" else None
+    node_id = PART_NODE_IDS.get(part_id)
+    require(isinstance(node_id, str), f"no deterministic patch route for Part {part_id}")
+    node = next((item for item in nodes if isinstance(item, dict) and item.get("node_id") == node_id), None)
     require(isinstance(node, dict), f"no deterministic patch route for Part {part_id}")
     parameters = node.get("parameters")
     require(isinstance(parameters, dict), "Part parameters are missing")
+    prefix = part_parameter_prefix(part_id)
+    semantic = parameter_id.removeprefix(f"{prefix}-")
     shape = parameters.get("shape")
     if shape == "panel":
         size = parameters.get("size_m")
         position = parameters.get("position_m")
         require(isinstance(size, list) and len(size) == 3, "panel size is missing")
         require(isinstance(position, list) and len(position) == 3, "panel position is missing")
-        if parameter_id == "chest-width":
+        if semantic == "width":
             size[0] = float(size[0]) * (1.0 + max(-0.25, min(0.25, delta)))
-        elif parameter_id == "chest-height":
+        elif semantic == "height":
             size[1] = float(size[1]) * (1.0 + max(-0.25, min(0.25, delta)))
-        elif parameter_id == "chest-offset-x":
+        elif semantic == "offset-x":
             position[0] = float(position[0]) + float(delta) * float(size[0])
-        elif parameter_id == "chest-offset-y":
+        elif semantic == "offset-y":
             position[1] = float(position[1]) + float(delta) * float(size[1])
         else:
-            raise ProbeFailure(f"unsupported chest adjustment {parameter_id}")
+            raise ProbeFailure(f"unsupported {part_id} adjustment {parameter_id}")
     elif shape in {"profile-extrude", "profile-loft"}:
         # Keep the patch intentionally conservative.  Profile coordinates are
         # scaled in the visible local plane; depth is never inferred from one
         # image and therefore is not exposed by this probe.
-        if parameter_id == "chest-width":
+        if semantic == "width":
             factor = 1.0 + max(-0.25, min(0.25, delta))
             if shape == "profile-extrude":
                 points = parameters.get("profile")
@@ -256,6 +305,7 @@ def main() -> int:
     runtime: subprocess.Popen[str] | None = None
     client: McpClient | None = None
     ready: dict[str, Any] | None = None
+    preflight: dict[str, str] | None = None
     try:
         data_root = args.data_root.expanduser().resolve()
         require(not data_root.exists(), "data root must not pre-exist")
@@ -281,6 +331,7 @@ def main() -> int:
         initialized = client.request("initialize", {"protocolVersion": MCP_PROTOCOL_VERSION, "capabilities": {}, "clientInfo": {"name": "forgecad-mcp010f-part-correction", "version": "1"}})
         require(initialized.get("result", {}).get("protocolVersion") == MCP_PROTOCOL_VERSION, "MCP initialize failed")
         client.notify("notifications/initialized")
+        preflight = read_ponytail_preflight(client)
         names = {item.get("name") for item in client.request("tools/list").get("result", {}).get("tools", []) if isinstance(item, dict)}
         required = {"project_create", "reference_import", "operator_catalog_get", "geometry_program_hash", "geometry_prepare", "reference_mask_prepare", "reference_mask_refine_prepare", "reference_compare_prepare", "part_contour_fit_prepare", "silhouette_part_error_get", "silhouette_candidate_compare"}
         require(required.issubset(names), "required contour tools are unavailable")
@@ -321,11 +372,12 @@ def main() -> int:
             "silhouette_part_error_get omitted the selected Part row",
         )
         rig = silhouette_rig_draft(baseline["candidate_id"])
+        parameter_prefix = part_parameter_prefix(args.part_id)
         rig["parameters"] = [
-            {"parameter_id": "chest-width", "part_id": args.part_id, "semantic": "width", "value": 1.0, "min": 0.75, "max": 1.25, "step": 0.04, "unit": "ratio"},
-            {"parameter_id": "chest-height", "part_id": args.part_id, "semantic": "height", "value": 1.0, "min": 0.75, "max": 1.25, "step": 0.04, "unit": "ratio"},
-            {"parameter_id": "chest-offset-x", "part_id": args.part_id, "semantic": "offset_x", "value": 0.0, "min": -0.25, "max": 0.25, "step": 0.02, "unit": "ratio"},
-            {"parameter_id": "chest-offset-y", "part_id": args.part_id, "semantic": "offset_y", "value": 0.0, "min": -0.25, "max": 0.25, "step": 0.02, "unit": "ratio"},
+            {"parameter_id": f"{parameter_prefix}-width", "part_id": args.part_id, "semantic": "width", "value": 1.0, "min": 0.75, "max": 1.25, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": f"{parameter_prefix}-height", "part_id": args.part_id, "semantic": "height", "value": 1.0, "min": 0.75, "max": 1.25, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": f"{parameter_prefix}-offset-x", "part_id": args.part_id, "semantic": "offset_x", "value": 0.0, "min": -0.25, "max": 0.25, "step": 0.02, "unit": "ratio"},
+            {"parameter_id": f"{parameter_prefix}-offset-y", "part_id": args.part_id, "semantic": "offset_y", "value": 0.0, "min": -0.25, "max": 0.25, "step": 0.02, "unit": "ratio"},
         ]
         rig["canonical_sha256"] = ""
         rig["canonical_sha256"] = canonical_hash(rig)
@@ -339,7 +391,7 @@ def main() -> int:
         priority = {"height": 0, "width": 1, "scale": 2, "offset_x": 3, "offset_y": 4}
         ordered = sorted(
             adjustments.items(),
-            key=lambda item: (priority.get(item[0].removeprefix("chest-"), 9), -abs(item[1])),
+            key=lambda item: (priority.get(item[0].removeprefix(f"{parameter_prefix}-"), 9), -abs(item[1])),
         )
         proposals: list[tuple[str, float]] = []
         if ordered:
@@ -366,6 +418,7 @@ def main() -> int:
             winner = None
         result.update({
             "status": "PASS_TRANSPORT_WITH_METRICS",
+            "ponytail_preflight": preflight,
             "build_cohort_sha256": None,
             "project_id": project_id,
             "reference_id": reference["reference_id"],

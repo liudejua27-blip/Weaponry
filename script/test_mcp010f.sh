@@ -9,6 +9,19 @@ trap 'rm -rf "$F_GATE_TARGET"' EXIT
 python3 scripts/check_mcp010f_stage0_truth.py
 python3 scripts/check_forgecad_contracts.py
 python3 scripts/check_mcp010f_viewer.py
+python3 - <<'PY'
+from pathlib import Path
+
+source = Path("scripts/probe_mcp010f_part_correction.py").read_text(encoding="utf-8")
+preflight = source.index("preflight = read_ponytail_preflight(client)")
+project_create = source.index('project = client.tool("project_create"')
+assert preflight < project_create
+assert '"skill_id": "ponytail-preflight"' in source
+assert '"version": "0.1.0"' in source
+assert '"shoulder-armor-right": "shoulder-armor-right"' in source
+assert 'def part_parameter_prefix' in source
+print("MCP010F part-correction probe reads ponytail-preflight before design tools and supports bounded shoulder Parts")
+PY
 
 INVENTORY_ROOT="$F_GATE_TARGET/reference-inventory"
 mkdir -p "$INVENTORY_ROOT"
@@ -473,7 +486,7 @@ assert observation["benchmark_eligibility"] == "BLOCKED_INCOMPLETE_BINDING"
 assert observation["camera_binding"]["binding_status"] == "MISMATCH"
 assert truth["evidence_status"] == "INCOMPLETE_TRUTH_BINDING"
 assert truth["assertion_ledger"]["BT009_AOV_HASH_COMPLETENESS"] == "MISSING"
-assert truth["packaged_viewer"]["provisional_observation_binding"] == "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT"
+assert truth["packaged_viewer"]["provisional_observation_binding"] == "PASS_CURRENT_COHORT_BOUND_READ_MODEL"
 assert truth["assertion_ledger"]["BT016_SURFACE_RAW_PAIR"] == "FAIL"
 
 print(json.dumps({
@@ -486,7 +499,7 @@ print(json.dumps({
     "camera_binding": "MISMATCH",
     "benchmark_truth": "INCOMPLETE_TRUTH_BINDING",
     "aov_hash_completeness": "MISSING",
-    "packaged_viewer_provisional_observation_binding": "NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT",
+    "packaged_viewer_provisional_observation_binding": "PASS_CURRENT_COHORT_BOUND_READ_MODEL",
     "surface_curated_raw_hash_binding": "FAIL",
     "viewer_source": "PASS",
     "contour_target_runtime": "PASS_HASH_BOUND_AUTOMATIC_AND_USER_REFINED",
