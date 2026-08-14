@@ -198,15 +198,23 @@ pub(crate) fn render_fixed(
     geometry_program: &Value,
     appearance_program: &Value,
 ) -> Result<Vec<RenderPass>, GeometryWorkerError> {
-    let execution_budget = execution_budget_for_geometry_program(geometry_program);
+    let artifact = compile_geometry(geometry_program, Some(appearance_program))?;
+    render_fixed_glb(&artifact.glb)
+}
+
+/// Render a compiled GLB with the legacy fixed camera. Geometry compilation
+/// happens in the Geometry Worker above; the Render Worker receives only
+/// persisted-model bytes and cannot become a second geometry compiler.
+pub(crate) fn render_fixed_glb(glb: &[u8]) -> Result<Vec<RenderPass>, GeometryWorkerError> {
+    if glb.is_empty() || glb.len() > 64 * 1024 * 1024 {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, glb);
     let result = execute_on_worker(
         RENDER_WORKER_BINARY,
         "render_fixed",
-        json!({
-            "geometry_program":geometry_program,
-            "appearance_program":appearance_program
-        }),
-        execution_budget,
+        json!({"glb_base64":encoded}),
+        DEFAULT_EXECUTION_BUDGET,
     )?;
     let object = strict_object(&result)?;
     require_exact_keys(object, &["schema_version", "passes"])?;

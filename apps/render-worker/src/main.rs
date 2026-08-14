@@ -98,7 +98,7 @@ fn handle_request(request: WorkerRequest) -> WorkerResponse {
             "render worker accepts only render operations",
         );
     }
-    match forgecad_geometry_worker::worker_result(
+    match forgecad_geometry_worker::render_worker_result(
         &serde_json::to_value(&request).expect("strict request serializes"),
     ) {
         Ok(result) => WorkerResponse {

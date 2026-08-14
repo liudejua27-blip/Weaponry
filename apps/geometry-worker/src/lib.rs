@@ -951,6 +951,59 @@ pub fn worker_result(request: &Value) -> Result<Value, GeometryError> {
     }
 }
 
+/// Narrow façade used by the isolated Render Worker binary. This is kept
+/// separate from `worker_result` so the render process cannot accidentally
+/// inherit the Geometry Worker's compile/hash operations through a generic
+/// dispatcher. The fixed render path accepts only a compiled GLB.
+pub fn render_worker_result(request: &Value) -> Result<Value, GeometryError> {
+    let operation = request
+        .get("operation")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let payload = request
+        .get("payload")
+        .and_then(Value::as_object)
+        .ok_or_else(|| GeometryError::Invalid("payload is required".to_owned()))?;
+    match operation {
+        "render_fixed" => {
+            require_closed_payload(payload, &["glb_base64"])?;
+            let glb = decode_render_glb(payload, "glb_base64")?;
+            let passes = render_fixed_glb(&glb)?;
+            Ok(json!({
+                "schema_version":"RenderWorkerResult@1",
+                "passes":passes.iter().map(|pass| json!({
+                    "pass":pass.pass,
+                    "mime":"image/png",
+                    "width":pass.width,
+                    "height":pass.height,
+                    "png_base64":base64::engine::general_purpose::STANDARD.encode(&pass.png)
+                })).collect::<Vec<_>>()
+            }))
+        }
+        "render_glb" | "render_glb_fit_batch" => worker_result(request),
+        _ => Err(GeometryError::Invalid(
+            "render worker operation is not allowlisted".to_owned(),
+        )),
+    }
+}
+
+fn decode_render_glb(payload: &Map<String, Value>, key: &str) -> Result<Vec<u8>, GeometryError> {
+    let encoded = payload
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| GeometryError::Invalid("glb_base64 is required".to_owned()))?;
+    let glb = base64::engine::general_purpose::STANDARD
+        .decode(encoded.as_bytes())
+        .map_err(|_| GeometryError::Invalid("glb_base64 is invalid".to_owned()))?;
+    if glb.is_empty() || glb.len() > 64 * 1024 * 1024 {
+        return Err(GeometryError::Invalid(
+            "GLB exceeds the bounded render input".to_owned(),
+        ));
+    }
+    Ok(glb)
+}
+
 fn require_closed_payload(
     payload: &Map<String, Value>,
     allowed: &[&str],
@@ -4611,6 +4664,20 @@ mod tests {
         assert!(passes
             .iter()
             .all(|pass| pass.width == 128 && pass.height == 128));
+    }
+
+    #[test]
+    fn render_worker_facade_rejects_geometry_compile_payload() {
+        let request = json!({
+            "operation":"render_fixed",
+            "payload":{
+                "geometry_program":v2_program(),
+                "appearance_program":{}
+            }
+        });
+        let error =
+            render_worker_result(&request).expect_err("render boundary must reject compiler input");
+        assert!(error.to_string().contains("unknown field"));
     }
 
     #[test]

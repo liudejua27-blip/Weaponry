@@ -58,6 +58,33 @@ assert response["error"]["code"] == "PARSE_ERROR"
 print("Render Worker strict one-request lifecycle PASS")
 PY
 
+python3 - "$TARGET_DIR/debug/forgecad-render-worker" <<'PY'
+import json
+import subprocess
+import sys
+
+worker = sys.argv[1]
+request = {
+    "protocol": "forgecad-worker-protocol@1",
+    "request_id": "render-boundary-test-1",
+    "operation": "render_fixed",
+    "payload": {"geometry_program": {}, "appearance_program": {}},
+}
+process = subprocess.run(
+    [worker, "--isolated-once"],
+    input=json.dumps(request),
+    text=True,
+    capture_output=True,
+    check=False,
+)
+assert process.returncode != 0
+response = json.loads(process.stdout)
+assert response["ok"] is False
+assert response["error"]["code"] == "RENDER_REJECTED"
+assert "unknown field" in response["error"]["message"]
+print("Render Worker compiled-GLB input boundary PASS")
+PY
+
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
   --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
