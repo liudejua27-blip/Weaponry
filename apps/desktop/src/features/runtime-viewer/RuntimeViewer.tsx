@@ -1,5 +1,45 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import {
+  ArrowClockwise,
+  ArrowUUpLeft,
+  ArrowUUpRight,
+  ArrowsOut,
+  Camera,
+  CaretDown,
+  CaretRight,
+  Check,
+  CheckCircle,
+  CircleNotch,
+  Copy,
+  CornersOut,
+  Cursor,
+  Cube,
+  DotsThree,
+  Eye,
+  EyeSlash,
+  Export,
+  FloppyDisk,
+  FolderSimple,
+  GearSix,
+  GitBranch,
+  Hand,
+  Info,
+  Lightbulb,
+  LinkSimple,
+  Lock,
+  MagnifyingGlass,
+  MapPin,
+  Plus,
+  Pulse,
+  Ruler,
+  SlidersHorizontal,
+  Sparkle,
+  Stack,
+  Trash,
+  WarningCircle,
+  X,
+} from '@phosphor-icons/react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
@@ -227,6 +267,15 @@ const WORKFLOW_STAGE_LABELS: Record<VisualWorkflow['currentStage'], string> = {
   final: '固定渲染复核',
 }
 
+const WORKBENCH_STAGE_STEPS: Array<[VisualWorkflow['currentStage'], string]> = [
+  ['reference-canvas', '参考图'],
+  ['silhouette-blockout', '大体外形'],
+  ['landmark-structure', '结构'],
+  ['semantic-part-fill', '细节'],
+  ['uv-pbr', '材质'],
+  ['final', '完成'],
+]
+
 const WORKFLOW_GATE_LABELS: Array<[keyof VisualWorkflow['gates'], string]> = [
   ['silhouette', '轮廓'],
   ['structure', '结构'],
@@ -260,6 +309,33 @@ type ViewerSceneState = {
   scene: THREE.Scene
   camera: THREE.PerspectiveCamera
   objects: Map<THREE.Object3D, ViewerObjectState>
+}
+
+function displayPartLabel(partId: string) {
+  const normalized = partId.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim()
+  const aliases: Record<string, string> = {
+    'chest shell': '胸甲',
+    'chest panel': '胸甲面板',
+    'shoulder left': '左肩甲',
+    'shoulder l': '左肩甲',
+    'shoulder right': '右肩甲',
+    'shoulder r': '右肩甲',
+    'forearm left': '左前臂',
+    'forearm l': '左前臂',
+    'forearm right': '右前臂',
+    'forearm r': '右前臂',
+    head: '头部',
+    pelvis: '骨盆',
+    'back thruster': '后背推进器',
+  }
+  const alias = aliases[normalized.toLowerCase()]
+  if (alias) return alias
+  return normalized ? normalized.replace(/\b\w/g, (character) => character.toUpperCase()) : '未命名部件'
+}
+
+function shortHash(value?: string | null) {
+  if (!value) return '—'
+  return value.length > 14 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value
 }
 
 const HEATMAP_SIZE = 512
@@ -402,7 +478,11 @@ function createReferenceContourAid(reference: HTMLImageElement): string | null {
 
 const EMPTY_MODEL: ViewerModel = { status: 'Unavailable', retryable: true, projects: [] }
 
-export function RuntimeViewer() {
+type RuntimeViewerProps = {
+  onNavigate?: (page: 'home' | 'create' | 'workbench' | 'check' | 'export') => void
+}
+
+export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const [model, setModel] = useState<ViewerModel>(EMPTY_MODEL)
   const [selectedPass, setSelectedPass] = useState<AovPass>('beauty')
   const [compareMode, setCompareMode] = useState<CompareMode>('split')
@@ -412,6 +492,11 @@ export function RuntimeViewer() {
   const [flickerOn, setFlickerOn] = useState(true)
   const [selectedPartId, setSelectedPartId] = useState('all')
   const [selectedMaterialZone, setSelectedMaterialZone] = useState('all')
+  const [selectedObjectId, setSelectedObjectId] = useState('all')
+  const [activeTool, setActiveTool] = useState<'select' | 'move' | 'rotate' | 'scale' | 'hand'>('select')
+  const [inspectorTab, setInspectorTab] = useState<'inspector' | 'evidence'>('inspector')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
   const [exploded, setExploded] = useState(false)
   const [diffHeatmap, setDiffHeatmap] = useState(false)
   const [differenceHeatmapUrl, setDifferenceHeatmapUrl] = useState<string | null>(null)
@@ -507,6 +592,7 @@ export function RuntimeViewer() {
   useEffect(() => {
     setSelectedPartId('all')
     setSelectedMaterialZone('all')
+    setSelectedObjectId('all')
     setExploded(false)
     setDiffHeatmap(false)
     setContourPoints([])
@@ -663,6 +749,13 @@ export function RuntimeViewer() {
   const comparisonMetrics = evidence?.comparison_report?.metrics ?? {}
   const visualQualityReport = evidence?.quality_report
   const visualStatus = visualQualityReport?.visual_status ?? 'not-run'
+  const visualStatusLabel = visualStatus === 'PARTIAL_VISIBLE_VIEW_PASS'
+    ? '局部可见视图通过'
+    : visualStatus === 'QUALITY_TARGET_NOT_MET'
+      ? '质量目标未达标'
+      : visualStatus === 'not-run'
+        ? '未运行'
+        : visualStatus
   const visualHardGatePassed = visualQualityReport?.hard_gate_passed === true && visualStatus === 'PARTIAL_VISIBLE_VIEW_PASS'
   const visualGateSource = visualQualityReport ? 'candidate-bound QualityReport@2' : 'not-run: visual QualityReport unavailable'
   const visualWorkflow = useMemo(
@@ -690,6 +783,39 @@ export function RuntimeViewer() {
     ['landmark_nme', 'Landmark NME'],
     ['region_median_iou', 'Region median IoU'],
     ['critical_region_min_iou', 'Critical-region IoU'],
+  ]
+
+  const selectedObjectLabel = selectedObjectId === 'all' ? '模型主体' : displayPartLabel(selectedObjectId)
+  const selectionIsAvailable = selectedObjectId !== 'all' && partIds.includes(selectedObjectId)
+  const viewportSnapshotLabel = ready
+    ? (project?.record?.head_snapshot_id ? '已读取当前快照' : '暂无已确认快照')
+    : '等待 Runtime'
+  const viewportMeta = artifact
+    ? `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} 个三角形 · UV ${artifact.uv_status ?? '未知'} · 切线 ${artifact.tangent_status ?? '未知'}`
+    : '选择对象、观察模型；永久修改仍由 Codex 通过 MCP 提交。'
+  const candidateStateLabel = latestCandidate?.candidate?.state === 'confirmed'
+    ? '已确认'
+    : latestCandidate?.candidate?.state === 'draft'
+      ? '草稿'
+      : latestCandidate?.candidate?.state === 'rejected'
+        ? '已拒绝'
+        : '无'
+  const activityItems = [
+    {
+      state: selectionIsAvailable ? 'active' : 'idle',
+      label: selectionIsAvailable ? `选择 ${selectedObjectLabel}` : '等待 Codex / 用户选择对象',
+      detail: selectionIsAvailable ? 'Viewer 临时选择' : viewportSnapshotLabel,
+    },
+    {
+      state: visualWorkflow.gates.silhouette.status === 'passed' ? 'done' : 'warn',
+      label: visualWorkflow.gates.silhouette.status === 'passed' ? '轮廓门已通过' : '轮廓门未通过',
+      detail: visualStatusLabel,
+    },
+    {
+      state: evidence?.comparison_report_hash ? 'done' : 'idle',
+      label: evidence?.comparison_report_hash ? '已读取固定视图证据' : '等待 candidate-bound 证据',
+      detail: evidence?.comparison_report_hash ? shortHash(evidence.comparison_report_hash) : '参考图 / 渲染集',
+    },
   ]
 
   const normalizeContourPoint = (event: PointerEvent<SVGSVGElement>) => {
@@ -784,77 +910,103 @@ export function RuntimeViewer() {
     }
   }
 
-  return <main className="runtime-shell">
-    <header className="runtime-header">
-      <div><p className="eyebrow">FORGECAD RUNTIME</p><h1>3D Runtime Viewer</h1><p className="subtitle">由 Codex 通过 MCP 调用；Viewer 只读取 Runtime 投影，不参与写入。</p></div>
-      <div className={`status-pill ${ready ? '' : 'status-pill-muted'}`} role="status"><span className="status-dot" />{ready ? 'Runtime ready · read-only' : 'Runtime unavailable · Viewer mode'}</div>
-    </header>
-    <section className="runtime-grid" aria-label="ForgeCAD runtime viewer">
-      <div className="viewport-card">
-        <div className="viewport-toolbar"><span>ActiveDesignSnapshot</span><span className="toolbar-muted">{ready ? (project?.record?.head_snapshot_id ? '已读取当前快照' : '暂无已确认快照') : '等待 Runtime'}</span></div>
-        <div className="viewport-stage" aria-label={artifact ? 'GLB artifact readback' : '3D viewport placeholder'}><div className="viewport-crosshair" aria-hidden="true" />{artifact ? <><canvas ref={canvasRef} className="glb-canvas" aria-label="Runtime GLB 3D preview" /><div className="viewport-message"><span className="viewport-icon">◇</span><strong>GLB readback 已连接</strong><span>{partCount} 个语义部件 · {artifact.triangle_count ?? 0} triangles · UV {artifact.uv_status ?? 'unknown'} · tangent {artifact.tangent_status ?? 'unknown'}</span><code>{artifact.artifact_id}</code></div></> : <div className="viewport-message"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
-        <div className="viewport-footer"><span>Project: {projectName}</span><span>Versions: {versionCount}</span><span>Candidate: {latestCandidate?.candidate?.state ?? 'none'}</span></div>
-        <section className="compare-panel" aria-label="Reference and fixed render comparison">
-          <div className="compare-header">
-            <div><p className="section-kicker">REFERENCE COMPARE</p><h2>固定视图证据</h2></div>
-            <div className="compare-status"><span className={`quality-dot ${visualHardGatePassed ? 'quality-dot-pass' : ''}`} />{visualStatus}</div>
-          </div>
-          <div className="compare-toolbar">
-            <div className="aov-tabs" role="tablist" aria-label="Render AOV passes">
-              {AOV_PASSES.map((pass) => <button key={pass} id={`render-aov-tab-${pass}`} role="tab" aria-controls="render-aov-panel" tabIndex={selectedPass === pass ? 0 : -1} type="button" className={`aov-tab ${selectedPass === pass ? 'aov-tab-active' : ''}`} aria-selected={selectedPass === pass} onClick={() => focusAovTab(pass)} onKeyDown={(event) => handleAovKeyDown(event, pass)}>{pass}</button>)}
-            </div>
-            <div className="mode-tabs" role="group" aria-label="Compare mode">
-              {(['split', 'overlay', 'flicker'] as CompareMode[]).map((mode) => <button key={mode} type="button" className={`mode-tab ${compareMode === mode ? 'mode-tab-active' : ''}`} aria-pressed={compareMode === mode} onClick={() => setCompareMode(mode)}>{mode}</button>)}
-            </div>
-          </div>
-          <div className="viewer-controls" aria-label="Part and material controls">
-            <label>Part<select value={selectedPartId} onChange={(event) => setSelectedPartId(event.target.value)} disabled={partIds.length === 0}><option value="all">全部部件</option>{partIds.map((partId) => <option key={partId} value={partId}>{partId}</option>)}</select></label>
-            <label>MaterialZone<select value={selectedMaterialZone} onChange={(event) => setSelectedMaterialZone(event.target.value)} disabled={materialZoneIds.length === 0}><option value="all">全部材质区</option>{materialZoneIds.map((zoneId) => <option key={zoneId} value={zoneId}>{zoneId}</option>)}</select></label>
-            <button type="button" className={`viewer-toggle ${exploded ? 'viewer-toggle-active' : ''}`} aria-pressed={exploded} onClick={() => setExploded((value) => !value)}>爆炸图</button>
-            <button type="button" className={`viewer-toggle ${contourCanvasActive ? 'viewer-toggle-active' : ''}`} aria-pressed={contourCanvasActive} onClick={() => { setSelectedPass('silhouette'); setCompareMode('overlay'); setDiffHeatmap(false) }}>轮廓画布</button>
-            <button type="button" className={`viewer-toggle ${diffHeatmap ? 'viewer-toggle-active' : ''}`} aria-pressed={diffHeatmap} onClick={() => setDiffHeatmap((value) => !value)}>差异热图</button>
-          </div>
-          <div id="render-aov-panel" role="tabpanel" aria-labelledby={`render-aov-tab-${selectedPass}`} className={`compare-stage compare-${compareMode} ${contourCanvasActive ? 'contour-canvas' : ''} ${diffHeatmap ? 'compare-heatmap' : ''}`} aria-label={`${selectedPass} reference comparison`}>
-            {contourCanvasActive && <div className="contour-canvas-badge">CONTOUR CANVAS · SILHOUETTE AOV</div>}
-            {referenceDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && !flickerOn)) && <div className="compare-pane compare-reference"><span>REFERENCE</span><img src={referenceDataUrl} alt="Authorized reference" /></div>}
-            {renderDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && flickerOn)) && <div className="compare-pane compare-render"><span>{selectedPass.toUpperCase()}</span><img src={renderDataUrl} alt={`Fixed render ${selectedPass}`} /></div>}
-            {contourCanvasActive && referenceContourAidUrl && <div className="reference-contour-aid"><span>REFERENCE CONTOUR AID · VIEWER ONLY</span><img src={referenceContourAidUrl} alt="Deterministic reference contour aid" /></div>}
-            {contourCanvasActive && referenceDataUrl && <svg
-              className="contour-annotation-layer"
-              viewBox="0 0 1 1"
-              role="img"
-              aria-label="临时参考轮廓草图；不会写入 Runtime"
-              onPointerDown={handleContourPointerDown}
-              onPointerMove={handleContourPointerMove}
-              onPointerUp={handleContourPointerUp}
-              onPointerCancel={handleContourPointerUp}
-            >
-              {contourPoints.length > 1 && <polyline points={contourPoints.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#ffb15a" strokeWidth="0.006" vectorEffect="non-scaling-stroke" />}
-              {contourPoints.length > 2 && <line x1={contourPoints[contourPoints.length - 1]?.x} y1={contourPoints[contourPoints.length - 1]?.y} x2={contourPoints[0]?.x} y2={contourPoints[0]?.y} stroke="#ffb15a" strokeWidth="0.003" strokeDasharray="0.012 0.008" vectorEffect="non-scaling-stroke" />}
-              {contourPoints.map((point, index) => <circle key={`${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r="0.008" fill="#ffb15a" stroke="#26180c" strokeWidth="0.003" vectorEffect="non-scaling-stroke" />)}
-            </svg>}
-            {diffHeatmap && differenceHeatmapUrl && <div className="heatmap-layer"><span>PIXEL DIFF · 512×512</span><img className="heatmap-image" src={differenceHeatmapUrl} alt="Reference and render difference heatmap" /></div>}
-            {diffHeatmap && <div className="heatmap-legend" role="status">{differenceHeatmapUrl ? '差异热图由当前参考图和 Render AOV 在 Viewer 内存中生成；数值质量仍以 Runtime QualityReport 为准。' : '正在生成当前参考图与 Render AOV 的差异热图…'}</div>}
-            {!referenceDataUrl || !renderDataUrl ? <div className="compare-empty">等待 candidate-bound 参考图、RenderSet 和 {selectedPass} PNG</div> : null}
-          </div>
-          {contourCanvasActive && referenceDataUrl && <div className="contour-draft-toolbar" aria-label="临时轮廓草图工具">
-            <span aria-live="polite">临时轮廓点：{contourPoints.length}/128 · {contourBindingReady ? 'candidate-bound' : '等待 candidate-bound evidence'} · Viewer only</span>
-            <button type="button" className="viewer-toggle" onClick={undoContourPoint} disabled={contourPoints.length === 0}>撤销上一点</button>
-            <button type="button" className="viewer-toggle" onClick={clearContourDraft} disabled={contourPoints.length === 0}>清除草图</button>
-            <button type="button" className="viewer-toggle" onClick={() => void copyContourDraft()} disabled={contourPoints.length < 3 || !contourBindingReady}>{contourCopyStatus === 'copied' ? '已复制给 Codex' : '复制 hash-bound 轮廓点集'}</button>
-            {contourCopyStatus === 'unavailable' && <span role="status">需要至少 3 个点、同一 candidate 的 reference/render/comparison hash 和可用剪贴板；点集仍只保存在 Viewer 内存。</span>}
-          </div>}
-          <div className="compare-footer"><span>Camera lock · 512×512 perspective</span><span>RenderSet: {renderSetHash ?? 'not-run'}</span><span>Reference: {referenceId ?? 'not-run'}</span></div>
-        </section>
+  const currentWorkbenchStageIndex = Math.max(0, WORKBENCH_STAGE_STEPS.findIndex(([stage]) => stage === visualWorkflow.currentStage))
+
+  return <main className="forgecad-app" data-testid="forgecad-workbench">
+    <header className="app-bar">
+      <div className="brand-lockup" aria-label="ForgeCAD">
+        <span className="brand-mark" aria-hidden="true"><Cube size={19} weight="duotone" /></span>
+        <strong>ForgeCAD</strong>
       </div>
-      <aside className="runtime-panel">
-        <section className="panel-section"><p className="section-kicker">CALL PATH</p><h2>Codex 是唯一外部 Agent</h2><p className="panel-copy">普通用户在 Codex 中对话并上传授权参考图。Codex 通过 MCP 工具提交类型化请求，ForgeCAD 不内置模型、聊天页或 API Key。</p></section>
-        <section className="panel-section"><p className="section-kicker">LIVE CONTRACT</p><div className="capability-list">{capabilities.map(([label, value]) => <div className="capability-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div></section>
-        <section className="panel-section"><p className="section-kicker">QUALITY EVIDENCE</p><div className="quality-summary"><div><span>Visual status</span><strong>{visualStatus}</strong></div><div><span>Visual gate</span><strong>{visualHardGatePassed ? 'PASS' : 'NOT PASSED'}</strong></div><div><span>Gate source</span><strong>{visualGateSource}</strong></div>{metricLabels.map(([key, label]) => <div key={key}><span>{label}</span><strong>{typeof comparisonMetrics[key] === 'number' ? comparisonMetrics[key].toFixed(3) : '—'}</strong></div>)}</div></section>
-        <section className="panel-section" aria-labelledby="contour-first-workflow-title"><p className="section-kicker">CONTOUR-FIRST WORKFLOW</p><h2 id="contour-first-workflow-title">轮廓优先门</h2><div className="workflow-summary" data-stage={visualWorkflow.currentStage}><div className="workflow-current"><span>当前阶段</span><strong>{WORKFLOW_STAGE_LABELS[visualWorkflow.currentStage]}</strong></div><div className="workflow-gates" aria-label="轮廓优先阶段门">{WORKFLOW_GATE_LABELS.map(([key, label]) => { const gate = visualWorkflow.gates[key] as WorkflowGate; return <div className="workflow-gate-row" key={key}><span>{label}</span><strong className={`workflow-gate-status workflow-gate-status-${gate.status}`}>{WORKFLOW_GATE_STATUS_LABELS[gate.status]}</strong></div> })}<div className="workflow-gate-row"><span>表面 / 材质</span><strong className={`workflow-gate-status ${visualWorkflow.gates.surfaceMaterialUnlocked ? 'workflow-gate-status-passed' : 'workflow-gate-status-locked'}`}>{visualWorkflow.gates.surfaceMaterialUnlocked ? '可进入' : '锁定'}</strong></div></div><p className="workflow-note">{workflowNote} 最终质量真值仍是 candidate-bound `ReferenceComparisonReport@1` / `QualityReport`；Viewer 状态不写 Runtime。</p></div></section>
-        <section className="panel-section" aria-labelledby="codex-correction-queue-title"><p className="section-kicker">CODEX NEXT ACTION</p><h2 id="codex-correction-queue-title">下一轮修正意图</h2><div className="correction-queue" aria-label="Codex correction queue">{correctionQueue.map((intent) => <article className="correction-card" key={intent.actionId}><div className="correction-card-header"><strong>{intent.actionId}</strong><span>{WORKFLOW_STAGE_LABELS[intent.stage]}</span></div><p>{intent.instruction}</p>{intent.failedMetrics.length > 0 && <div className="correction-metrics">失败指标：{intent.failedMetrics.map((metric) => <code key={metric}>{metric}</code>)}</div>}<ul>{intent.constraints.map((constraint) => <li key={constraint}>{constraint}</li>)}</ul></article>)}{correctionQueue.length === 0 && <p className="panel-copy">当前没有可安全生成的修正意图；等待 candidate-bound 视觉证据或真人评审。</p>}</div><p className="workflow-note">这是只读、hash-bound 的 Codex 编排提示，不直接调用 Runtime 写工具，也不替代 `ReferenceComparisonReport@1` / `QualityReport`。</p></section>
-        <section className="panel-section panel-note"><p className="section-kicker">MVP STATUS</p><p className="panel-copy">Viewer 通过受保护的本地 IPC 读取 Runtime 的候选、GLB bytes、版本和当前快照；Three.js 只创建临时 canvas scene，不写数据库、不改变 Runtime artifact。固定渲染证据和 PBR metadata 与 candidate hash 绑定。</p></section>
+      <span className="app-bar-divider" aria-hidden="true" />
+      <button type="button" className="project-switcher" title="当前项目" onClick={() => onNavigate?.('home')}><span>{projectName}</span><CaretDown size={14} /></button>
+      <div className="app-bar-spacer" />
+      <div className={`connection-state ${ready ? 'connection-ready' : 'connection-muted'}`} role="status"><span className="connection-dot" />{ready ? 'Codex · Runtime 已连接' : '等待 Codex / Runtime'}</div>
+      <span className="app-bar-divider" aria-hidden="true" />
+      <div className="app-actions" aria-label="全局操作">
+        <button type="button" className="icon-button" aria-label="撤销" title="撤销（由 Codex 管理）" onClick={() => setNotice('Viewer 不直接修改 Runtime；请在 Codex 中发起撤销或恢复。')}><ArrowUUpLeft size={17} /></button>
+        <button type="button" className="icon-button" aria-label="重做" title="重做（由 Codex 管理）" onClick={() => setNotice('Viewer 不直接修改 Runtime；请在 Codex 中发起重做或恢复。')}><ArrowUUpRight size={17} /></button>
+        <button type="button" className="top-action" onClick={() => setNotice('保存是 Runtime 的确认事务；Viewer 当前只读。')}><FloppyDisk size={16} />保存</button>
+        <button type="button" className="top-action top-action-primary" onClick={() => onNavigate?.('export')}><Export size={16} />导出</button>
+      </div>
+    </header>
+
+    <nav className="stage-progress-bar" aria-label="创作阶段">
+      {WORKBENCH_STAGE_STEPS.map(([stage, label], index) => <span key={stage} className={`stage-progress-step ${index === currentWorkbenchStageIndex ? 'stage-progress-current' : ''} ${index < currentWorkbenchStageIndex ? 'stage-progress-done' : ''}`}><span>{index < currentWorkbenchStageIndex ? <Check size={11} /> : index + 1}</span>{label}</span>)}
+    </nav>
+
+    <section className="workbench-grid" aria-label="ForgeCAD 工作台">
+      <aside className="scene-panel" data-testid="scene-tree" aria-label="场景树">
+        <div className="panel-header">
+          <div><span className="panel-title">场景</span><span className="panel-subtitle">结构树</span></div>
+          <div className="panel-header-actions"><button type="button" className="icon-button icon-button-small" aria-label="搜索对象" title="搜索对象"><MagnifyingGlass size={15} /></button><button type="button" className="icon-button icon-button-small" aria-label="添加对象" title="由 Codex 创建对象" onClick={() => setNotice('新对象由 Codex 通过 MCP 创建；Viewer 不直接写入。')}><Plus size={16} /></button></div>
+        </div>
+        <div className="tree-scroll">
+          <div className="tree-row tree-row-root"><CaretDown size={14} /><Stack size={15} weight="duotone" /><span>Robot_A</span><button type="button" className="tree-visibility" aria-label="Robot_A 可见" title="可见"><Eye size={14} /></button></div>
+          <div className="tree-row tree-row-group"><CaretDown size={14} /><FolderSimple size={15} weight="duotone" /><span>模型</span></div>
+          {partIds.length > 0 ? partIds.map((partId) => <button type="button" key={partId} className={`tree-row tree-row-part ${selectedObjectId === partId ? 'tree-row-selected' : ''}`} onClick={() => { setSelectedObjectId(partId); setInspectorTab('inspector') }} aria-current={selectedObjectId === partId ? 'true' : undefined}><Cube size={14} weight={selectedObjectId === partId ? 'fill' : 'regular'} /><span>{displayPartLabel(partId)}</span><span className="tree-row-id">{partId}</span><span className="tree-row-state"><Eye size={13} /></span></button>) : <div className="tree-empty"><Cube size={18} /><span>等待 Runtime 候选</span><small>Codex 提交后显示语义部件</small></div>}
+          <div className="tree-row tree-row-group tree-row-muted"><CaretRight size={14} /><Lightbulb size={15} weight="duotone" /><span>环境 / 灯光</span><span className="tree-row-state"><Eye size={13} /></span></div>
+          <div className="tree-row tree-row-group tree-row-muted"><CaretRight size={14} /><Camera size={15} weight="duotone" /><span>相机</span><span className="tree-row-state"><Eye size={13} /></span></div>
+        </div>
+        <div className="scene-footer"><span><MapPin size={13} />临时选择</span><button type="button" className="text-button" onClick={() => setSelectedObjectId('all')} disabled={selectedObjectId === 'all'}>清除</button></div>
+      </aside>
+
+      <section className="viewport-panel" data-testid="viewport-stage" aria-label="3D Viewport">
+        <div className="viewport-header">
+          <div className="viewport-breadcrumb"><span>3D 视口</span><span className="breadcrumb-separator">/</span><strong>{selectedObjectLabel}</strong></div>
+          <div className="viewport-header-meta"><span className="snapshot-indicator"><span className="snapshot-dot" />{viewportSnapshotLabel}</span><button type="button" className="icon-button icon-button-small" title="重置视角" aria-label="重置视角" onClick={() => setNotice('视角重置只影响 Viewer 临时状态。')}><ArrowClockwise size={15} /></button><button type="button" className="icon-button icon-button-small" title="聚焦当前对象（F）" aria-label="聚焦当前对象" onClick={() => setNotice(selectionIsAvailable ? `已聚焦 ${selectedObjectLabel}。` : '请先在场景树中选择一个对象。')}><ArrowsOut size={16} /></button></div>
+        </div>
+        <div className="viewport-content">
+          <div className="viewport-tool-rail" aria-label="Viewport 工具">
+            {([['select', '选择', <Cursor size={18} />], ['move', '移动', <ArrowsOut size={18} />], ['rotate', '旋转', <ArrowClockwise size={18} />], ['scale', '缩放', <CornersOut size={18} />], ['hand', '平移', <Hand size={18} />]] as const).map(([tool, label, icon]) => <button type="button" key={tool} className={`viewport-tool ${activeTool === tool ? 'viewport-tool-active' : ''}`} title={label} aria-label={label} aria-pressed={activeTool === tool} onClick={() => setActiveTool(tool)}>{icon}</button>)}
+            <span className="tool-rail-divider" />
+            <button type="button" className="viewport-tool" title="测量" aria-label="测量" onClick={() => setNotice('测量工具将在 Runtime 测量证据接入后启用。')}><Ruler size={18} /></button>
+          </div>
+          <div className="viewport-stage" aria-label={artifact ? 'GLB artifact readback' : '等待 Runtime 的 3D Viewport'}>
+            <div className="viewport-grid-lines" aria-hidden="true" />
+            <div className="viewport-axis" aria-hidden="true"><span className="axis-y">Y</span><span className="axis-x">X</span><span className="axis-z">Z</span></div>
+            {artifact ? <><canvas ref={canvasRef} className="glb-canvas" aria-label="Runtime GLB 3D preview" /><div className="viewport-readback-badge"><CheckCircle size={14} />模型回读已连接</div><div className="viewport-model-meta"><strong>{artifact.artifact_id ? shortHash(artifact.artifact_id) : 'artifact'}</strong><span>{viewportMeta}</span></div></> : <div className="viewport-message"><span className="viewport-empty-icon"><Cube size={26} weight="duotone" /></span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}
+            {selectionIsAvailable && <div className="ai-cursor-badge"><Sparkle size={14} />Codex 正在查看：{selectedObjectLabel}</div>}
+            <div className="viewport-help"><span>左键选择</span><span>右键旋转</span><span>滚轮缩放</span><kbd>F</kbd> 聚焦</div>
+            <div className="viewport-corner-actions"><button type="button" className="icon-button" title="网格显示" aria-label="网格显示"><SlidersHorizontal size={17} /></button><button type="button" className="icon-button" title="相机设置" aria-label="相机设置" onClick={() => setNotice('相机由 candidate-bound RenderSet 管理；Viewer 只保留临时观察状态。')}><Camera size={17} /></button><button type="button" className="icon-button" title="适应窗口" aria-label="适应窗口" onClick={() => setNotice('已请求适应当前 Viewport。')}><ArrowsOut size={17} /></button></div>
+          </div>
+        </div>
+        <div className="viewport-statusbar"><span><span className={`status-led ${ready ? 'status-led-green' : ''}`} />{ready ? 'Runtime 已就绪 · 只读' : 'Runtime 不可用 · 查看模式'}</span><span>项目：{projectName}</span><span>候选：{candidateStateLabel}</span><span className="statusbar-spacer" /><span>{artifact?.triangle_count ?? 0} 个三角形</span><span>512×512 证据</span></div>
+      </section>
+
+      <aside className="inspector-panel" data-testid="inspector-panel" aria-label="属性与证据">
+        <div className="inspector-tabs" role="tablist" aria-label="右侧面板">
+          <button type="button" role="tab" aria-selected={inspectorTab === 'inspector'} className={`inspector-tab ${inspectorTab === 'inspector' ? 'inspector-tab-active' : ''}`} onClick={() => setInspectorTab('inspector')}>属性 <span>当前对象</span></button>
+          <button type="button" role="tab" aria-selected={inspectorTab === 'evidence'} className={`inspector-tab ${inspectorTab === 'evidence' ? 'inspector-tab-active' : ''}`} onClick={() => setInspectorTab('evidence')}>证据 <span>AOV</span></button>
+        </div>
+        {inspectorTab === 'inspector' ? <div className="inspector-scroll">
+          <div className="selected-object-card"><div className="selected-object-icon"><Cube size={20} weight="duotone" /></div><div><span className="muted-label">当前选择</span><strong>{selectedObjectLabel}</strong><small>{selectionIsAvailable ? selectedObjectId : 'Viewer 临时选择'}</small></div><span className={`selection-dot ${selectionIsAvailable ? 'selection-dot-active' : ''}`} /></div>
+          <div className="inspector-action-row"><button type="button" title="复制对象" aria-label="复制对象" onClick={() => setNotice('复制是 Runtime candidate 事务；请通过 Codex 发起。')}><Copy size={16} /></button><button type="button" title="隐藏对象" aria-label="隐藏对象" onClick={() => setNotice('隐藏只影响临时 Viewer selection，当前对象未改变。')}><EyeSlash size={16} /></button><button type="button" title="锁定对象" aria-label="锁定对象" onClick={() => setNotice('对象锁定需要 Runtime 的显式状态合同。')}><Lock size={16} /></button><button type="button" title="删除对象" aria-label="删除对象" onClick={() => setNotice('Viewer 不提供删除；永久修改必须由 Codex 审批。')}><Trash size={16} /></button></div>
+          <section className="inspector-section"><button type="button" className="inspector-section-heading" onClick={() => setAdvancedOpen((value) => !value)}><CaretDown size={14} /><span>变换</span><span className="section-count">只读</span></button><div className="property-grid"><span>位置</span><div className="property-value"><b>X</b><span>—</span><b>Y</b><span>—</span><b>Z</b><span>—</span><em>mm</em></div><span>旋转</span><div className="property-value"><b>X</b><span>—</span><b>Y</b><span>—</span><b>Z</b><span>—</span><em>°</em></div><span>缩放</span><div className="property-value"><b>X</b><span>—</span><b>Y</b><span>—</span><b>Z</b><span>—</span></div></div></section>
+          <section className="inspector-section"><div className="inspector-section-heading"><CaretDown size={14} /><span>几何</span><span className="section-count">{artifact ? `${artifact.triangle_count ?? 0} 三角形` : '不可用'}</span></div><div className="property-list"><div><span>尺寸</span><strong>—</strong></div><div><span>镜像</span><strong>—</strong></div><div><span>平滑 / 细分</span><strong>—</strong></div></div></section>
+          <section className="inspector-section"><div className="inspector-section-heading"><CaretDown size={14} /><span>材质</span><span className="section-count">{materialZoneIds.length} 个区域</span></div><div className="material-row"><span className="material-swatch" /><div><strong>{selectedMaterialZone === 'all' ? '未选择材质区' : selectedMaterialZone}</strong><small>金属度 / 粗糙度由资产包提供</small></div><DotsThree size={18} /></div></section>
+          <section className="inspector-section inspector-quality"><div className="inspector-section-heading"><CaretDown size={14} /><span>质量</span><span className={`quality-inline ${visualHardGatePassed ? 'quality-inline-pass' : 'quality-inline-warn'}`}><span />{visualStatusLabel}</span></div><div className="quality-line"><span>视觉门</span><strong>{visualHardGatePassed ? '通过' : '未通过'}</strong></div><div className="quality-line"><span>生成版本</span><code>{shortHash(candidateId)}</code></div><div className="quality-line"><span>模型文件</span><code>{shortHash(artifact?.artifact_id)}</code></div></section>
+          <button type="button" className="advanced-row" onClick={() => setAdvancedOpen((value) => !value)}><CaretRight size={14} className={advancedOpen ? 'advanced-open' : ''} />高级参数<span>技术详情</span></button>
+          {advancedOpen && <div className="advanced-note"><Info size={15} /><span>Viewer 只呈现 Runtime read model；这里不编辑 GeometryProgram、AppearanceProgram 或 QualityReport。</span></div>}
+          <div className="inspector-note"><Info size={14} /><span>永久修改先由 Codex 准备，再经回读、质量、审批和确认。</span></div>
+        </div> : <div className="evidence-scroll" data-testid="evidence-panel">
+          <div className="evidence-heading"><div><span className="muted-label">固定视图证据</span><h2>与参考图对比</h2></div><span className={`quality-inline ${visualHardGatePassed ? 'quality-inline-pass' : 'quality-inline-warn'}`}><span />{visualStatusLabel}</span></div>
+          <div className="evidence-controls"><div className="evidence-control-label">AOV</div><div className="aov-tabs" role="tablist" aria-label="Render AOV passes">{AOV_PASSES.map((pass) => <button key={pass} id={`render-aov-tab-${pass}`} role="tab" aria-controls="render-aov-panel" tabIndex={selectedPass === pass ? 0 : -1} type="button" className={`aov-tab ${selectedPass === pass ? 'aov-tab-active' : ''}`} aria-selected={selectedPass === pass} onClick={() => focusAovTab(pass)} onKeyDown={(event) => handleAovKeyDown(event, pass)}>{pass}</button>)}</div><div className="mode-tabs" role="group" aria-label="Compare mode">{(['split', 'overlay', 'flicker'] as CompareMode[]).map((mode) => <button key={mode} type="button" className={`mode-tab ${compareMode === mode ? 'mode-tab-active' : ''}`} aria-pressed={compareMode === mode} onClick={() => setCompareMode(mode)}>{mode === 'split' ? '分屏' : mode === 'overlay' ? '叠加' : '闪烁'}</button>)}</div></div>
+          <div className="viewer-controls" aria-label="Part and material controls"><label>Part<select value={selectedPartId} onChange={(event) => setSelectedPartId(event.target.value)} disabled={partIds.length === 0}><option value="all">全部部件</option>{partIds.map((partId) => <option key={partId} value={partId}>{displayPartLabel(partId)}</option>)}</select></label><label>MaterialZone<select value={selectedMaterialZone} onChange={(event) => setSelectedMaterialZone(event.target.value)} disabled={materialZoneIds.length === 0}><option value="all">全部材质区</option>{materialZoneIds.map((zoneId) => <option key={zoneId} value={zoneId}>{zoneId}</option>)}</select></label><button type="button" className={`viewer-toggle ${exploded ? 'viewer-toggle-active' : ''}`} aria-pressed={exploded} onClick={() => setExploded((value) => !value)}>爆炸图</button><button type="button" className={`viewer-toggle ${contourCanvasActive ? 'viewer-toggle-active' : ''}`} aria-pressed={contourCanvasActive} onClick={() => { setSelectedPass('silhouette'); setCompareMode('overlay'); setDiffHeatmap(false) }}>轮廓</button><button type="button" className={`viewer-toggle ${diffHeatmap ? 'viewer-toggle-active' : ''}`} aria-pressed={diffHeatmap} onClick={() => setDiffHeatmap((value) => !value)}>热图</button></div>
+          <div id="render-aov-panel" role="tabpanel" aria-labelledby={`render-aov-tab-${selectedPass}`} className={`compare-stage compare-${compareMode} ${contourCanvasActive ? 'contour-canvas' : ''} ${diffHeatmap ? 'compare-heatmap' : ''}`} aria-label={`${selectedPass} reference comparison`}>{contourCanvasActive && <div className="contour-canvas-badge">CONTOUR · VIEWER ONLY</div>}{referenceDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && !flickerOn)) && <div className="compare-pane compare-reference"><span>REFERENCE</span><img src={referenceDataUrl} alt="Authorized reference" /></div>}{renderDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && flickerOn)) && <div className="compare-pane compare-render"><span>{selectedPass.toUpperCase()}</span><img src={renderDataUrl} alt={`Fixed render ${selectedPass}`} /></div>}{contourCanvasActive && referenceContourAidUrl && <div className="reference-contour-aid"><span>CONTOUR AID · VIEWER ONLY</span><img src={referenceContourAidUrl} alt="Deterministic reference contour aid" /></div>}{contourCanvasActive && referenceDataUrl && <svg className="contour-annotation-layer" viewBox="0 0 1 1" role="img" aria-label="临时参考轮廓草图；不会写入 Runtime" onPointerDown={handleContourPointerDown} onPointerMove={handleContourPointerMove} onPointerUp={handleContourPointerUp} onPointerCancel={handleContourPointerUp}>{contourPoints.length > 1 && <polyline points={contourPoints.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#ffb15a" strokeWidth="0.006" vectorEffect="non-scaling-stroke" />}{contourPoints.length > 2 && <line x1={contourPoints[contourPoints.length - 1]?.x} y1={contourPoints[contourPoints.length - 1]?.y} x2={contourPoints[0]?.x} y2={contourPoints[0]?.y} stroke="#ffb15a" strokeWidth="0.003" strokeDasharray="0.012 0.008" vectorEffect="non-scaling-stroke" />}{contourPoints.map((point, index) => <circle key={`${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r="0.008" fill="#ffb15a" stroke="#26180c" strokeWidth="0.003" vectorEffect="non-scaling-stroke" />)}</svg>}{diffHeatmap && differenceHeatmapUrl && <div className="heatmap-layer"><span>PIXEL DIFF · 512×512</span><img className="heatmap-image" src={differenceHeatmapUrl} alt="Reference and render difference heatmap" /></div>}{diffHeatmap && <div className="heatmap-legend" role="status">{differenceHeatmapUrl ? '差异热图由当前参考图和 Render AOV 在 Viewer 内存中生成；数值质量仍以 Runtime QualityReport 为准。' : '正在生成当前参考图与 Render AOV 的差异热图…'}</div>}{!referenceDataUrl || !renderDataUrl ? <div className="compare-empty">等待 candidate-bound 参考图、RenderSet 和 {selectedPass} PNG</div> : null}</div>
+          {contourCanvasActive && referenceDataUrl && <div className="contour-draft-toolbar" aria-label="临时轮廓草图工具"><span aria-live="polite">轮廓点：{contourPoints.length}/128 · {contourBindingReady ? 'candidate-bound' : '等待 evidence'}</span><button type="button" className="viewer-toggle" onClick={undoContourPoint} disabled={contourPoints.length === 0}>撤销</button><button type="button" className="viewer-toggle" onClick={clearContourDraft} disabled={contourPoints.length === 0}>清除</button><button type="button" className="viewer-toggle" onClick={() => void copyContourDraft()} disabled={contourPoints.length < 3 || !contourBindingReady}>{contourCopyStatus === 'copied' ? '已复制给 Codex' : '复制点集'}</button></div>}
+          <div className="compare-footer"><span>Camera lock · 512×512</span><span>RenderSet: {shortHash(renderSetHash)}</span><span>Reference: {shortHash(referenceId)}</span></div>
+          <section className="evidence-workflow"><div className="evidence-section-heading"><span>轮廓优先门</span><strong>{WORKFLOW_STAGE_LABELS[visualWorkflow.currentStage]}</strong></div><div className="workflow-gates" aria-label="轮廓优先阶段门">{WORKFLOW_GATE_LABELS.map(([key, label]) => { const gate = visualWorkflow.gates[key] as WorkflowGate; return <div className="workflow-gate-row" key={key}><span>{label}</span><strong className={`workflow-gate-status workflow-gate-status-${gate.status}`}>{WORKFLOW_GATE_STATUS_LABELS[gate.status]}</strong></div> })}<div className="workflow-gate-row"><span>表面 / 材质</span><strong className={`workflow-gate-status ${visualWorkflow.gates.surfaceMaterialUnlocked ? 'workflow-gate-status-passed' : 'workflow-gate-status-locked'}`}>{visualWorkflow.gates.surfaceMaterialUnlocked ? '可进入' : '锁定'}</strong></div></div><p className="workflow-note">{workflowNote} Viewer 不写 Runtime。</p></section>
+          <section className="evidence-metrics"><div className="evidence-section-heading"><span>质量指标</span><code>{shortHash(evidence?.comparison_report_hash)}</code></div>{metricLabels.map(([key, label]) => <div className="metric-row" key={key}><span>{label}</span><strong>{typeof comparisonMetrics[key] === 'number' ? comparisonMetrics[key].toFixed(3) : '—'}</strong></div>)}</section>
+          <section className="evidence-next"><div className="evidence-section-heading"><span>下一轮修正意图</span><Sparkle size={15} /></div>{correctionQueue.length > 0 ? correctionQueue.map((intent) => <article className="correction-card" key={intent.actionId}><div className="correction-card-header"><strong>{intent.actionId}</strong><span>{WORKFLOW_STAGE_LABELS[intent.stage]}</span></div><p>{intent.instruction}</p>{intent.failedMetrics.length > 0 && <div className="correction-metrics">{intent.failedMetrics.map((metric) => <code key={metric}>{metric}</code>)}</div>}</article>) : <p className="panel-copy">当前没有可安全生成的修正意图；等待 candidate-bound 视觉证据或真人评审。</p>}</section>
+        </div>}
       </aside>
     </section>
+
+    <section className="bottom-rail" aria-label="Codex 操作与版本历史">
+      <section className="activity-panel" data-testid="codex-activity"><div className="rail-header"><div><span className="panel-title">Codex 操作</span><span className="panel-subtitle">实时状态</span></div><button type="button" className="text-button" onClick={() => setInspectorTab('evidence')}><Pulse size={14} />查看详情</button></div><div className="activity-list">{activityItems.map((item) => <div className="activity-row" key={item.label}><span className={`activity-state activity-state-${item.state}`}>{item.state === 'done' ? <Check size={12} /> : item.state === 'warn' ? <WarningCircle size={13} /> : item.state === 'active' ? <CircleNotch size={13} /> : <span />}</span><span className="activity-label">{item.label}</span><span className="activity-detail">{item.detail}</span></div>)}</div></section>
+      <section className="versions-panel" data-testid="version-rail"><div className="rail-header"><div><span className="panel-title">版本</span><span className="panel-subtitle">不可变历史</span></div><button type="button" className="text-button" onClick={() => onNavigate?.('check')}><GitBranch size={14} />版本历史</button></div><div className="version-content"><div className="current-version-card"><span className="version-label">当前版本</span><strong>{versionCount > 0 ? `V${versionCount}` : '—'}</strong><span>{project?.record?.head_snapshot_id ? shortHash(project.record.head_snapshot_id) : '暂无已确认版本'}</span></div><div className="version-summary"><span>不可变版本</span><strong>{versionCount}</strong><small>恢复会创建新子版本，不改写历史</small></div></div></section>
+    </section>
+    {notice && <div className="notice-toast" role="status"><Info size={15} /><span>{notice}</span><button type="button" aria-label="关闭提示" onClick={() => setNotice(null)}><X size={15} /></button></div>}
   </main>
 }
