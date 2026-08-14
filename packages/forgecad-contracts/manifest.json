@@ -37,6 +37,7 @@
     "silhouette-rig-hash-result.schema.json",
     "silhouette-fit-intent.schema.json",
     "silhouette-fit-result.schema.json",
+    "primary-form-repair-prepare-result.schema.json",
     "part-contour-fit-result.schema.json",
     "silhouette-part-error-result.schema.json",
     "silhouette-candidate-compare-result.schema.json",

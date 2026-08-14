@@ -1,6 +1,6 @@
 # ForgeCAD 文档地图
 
-版本：2026-08-13 · 状态：MCP005–MCP009 MVP functional core 已收口；FGC-MCP010A done；FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source + current-cohort packaged CLI read-model in_progress（Tauri packaged UI/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 / Agentic Design Runtime 已完成 observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback source slice；架构模块边界和废弃隔离计划继续作为治理文档。当前为 101 Schema、56 tools，完整 orchestrator/Repair/视觉闭环和 `QUALITY_TARGET_NOT_MET` 事实仍需分层记录。
+版本：2026-08-13 · 状态：MCP005–MCP009 MVP functional core 已收口；FGC-MCP010A done；FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source + current-cohort packaged CLI read-model in_progress（Tauri packaged UI/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 / Agentic Design Runtime 已完成 observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback source slice；架构模块边界和废弃隔离计划继续作为治理文档。当前为 102 Schema、57 tools，完整 orchestrator/Repair/视觉闭环和 `QUALITY_TARGET_NOT_MET` 事实仍需分层记录。
 
 ## 阅读顺序
 

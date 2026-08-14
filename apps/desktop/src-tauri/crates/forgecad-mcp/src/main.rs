@@ -573,7 +573,11 @@ fn mcp010c_write_tool_names() -> Vec<String> {
 }
 
 fn mcp010f_write_tool_names() -> Vec<String> {
-    ["reference_mask_prepare", "reference_mask_refine_prepare"]
+    [
+        "reference_mask_prepare",
+        "reference_mask_refine_prepare",
+        "primary_form_repair_prepare",
+    ]
         .into_iter()
         .map(str::to_owned)
         .collect()
@@ -1400,6 +1404,28 @@ fn mcp010f_write_tools() -> Vec<Value> {
             }),
             false,
             false,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "primary_form_repair_prepare",
+            "Run one Runtime-owned bounded Primary Form repair: fit continuous parameters, compile the winning typed GeometryProgram, perform strict readback, render fixed nine-AOV evidence through the isolated Render Worker, and evaluate the staged candidate against the same target. It never confirms a version or exports.",
+            json!({
+                "type":"object",
+                "required":["project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
+                "properties":{
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property(),
+                    "rig":{"type":"object"},
+                    "base_camera":{"type":"object"},
+                    "optimizer":{"type":"object","required":["algorithm","max_iterations","max_evaluations","step_fraction"],"properties":{"algorithm":{"enum":["grid","coordinate_descent"]},"max_iterations":{"type":"integer","minimum":1,"maximum":8},"max_evaluations":{"type":"integer","minimum":1,"maximum":64},"step_fraction":{"type":"number","exclusiveMinimum":0,"maximum":0.5}},"additionalProperties":false},
+                    "base_version_id":nullable_id_property(),
+                    "canonical_sha256":sha256_property()
+                },
+                "additionalProperties":false
+            }),
+            false,
+            true,
             "MCP010F",
         ),
     ]
@@ -2275,6 +2301,9 @@ fn dispatch_tool_with_build_cohort(
         } else if is_mcp010c_write_tool(name) {
             "MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
                 .to_owned()
+        } else if is_mcp010f_write_tool(name) {
+            "MCP010F_PRIMARY_FORM_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
         } else {
             "MCP004_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required".to_owned()
         });
@@ -2905,6 +2934,21 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
             let arguments = canonicalize_silhouette_fit_wire(arguments)?;
             runtime
                 .silhouette_fit_prepare(project_id, arguments)
+                .map_err(|error| error.to_string())
+        }
+        "primary_form_repair_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            let arguments = canonicalize_silhouette_fit_wire(arguments)?;
+            let base_version_id = arguments
+                .get("base_version_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            runtime
+                .primary_form_repair_prepare(
+                    project_id,
+                    base_version_id.as_deref(),
+                    arguments,
+                )
                 .map_err(|error| error.to_string())
         }
         "part_contour_fit_prepare" => {
@@ -3594,10 +3638,10 @@ mod tests {
             "ForgeCADMcpToolManifestSummary@1"
         );
         assert_eq!(summary["read_count"], 35);
-        assert_eq!(summary["write_count"], 21);
-        assert_eq!(summary["total_count"], 56);
+        assert_eq!(summary["write_count"], 22);
+        assert_eq!(summary["total_count"], 57);
         assert_eq!(summary["read_names"].as_array().unwrap().len(), 35);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 21);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 22);
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -4035,7 +4079,7 @@ mod tests {
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 56);
+        assert_eq!(enabled.len(), 57);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -4060,6 +4104,41 @@ mod tests {
                 .expect("required schema")
                 .iter()
                 .any(|value| value == "request"));
+        }
+    }
+
+    #[test]
+    fn primary_form_repair_prepare_is_an_explicit_runtime_owned_write() {
+        let disabled = tools_with_writes(false);
+        assert!(!disabled
+            .iter()
+            .any(|tool| tool["name"] == "primary_form_repair_prepare"));
+
+        let enabled = tools_with_writes(true);
+        let tool = enabled
+            .iter()
+            .find(|tool| tool["name"] == "primary_form_repair_prepare")
+            .expect("Primary Form repair tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(tool["annotations"]["destructiveHint"], false);
+        assert_eq!(tool["annotations"]["idempotentHint"], true);
+        assert_eq!(tool["_meta"]["forgecad"]["requiresConfirmation"], true);
+        assert_eq!(tool["_meta"]["forgecad"]["transaction"], "MCP010F");
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        for field in [
+            "project_id",
+            "candidate_id",
+            "target_sha256",
+            "rig",
+            "base_camera",
+            "optimizer",
+            "canonical_sha256",
+        ] {
+            assert!(tool["inputSchema"]["required"]
+                .as_array()
+                .expect("Primary Form required schema")
+                .iter()
+                .any(|value| value == field));
         }
     }
 
@@ -4278,7 +4357,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 56);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 57);
 
         let imported = handle(
             &mut backend,

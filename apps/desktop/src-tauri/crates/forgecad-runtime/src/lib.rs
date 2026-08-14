@@ -1569,6 +1569,185 @@ impl Runtime {
         Ok(result)
     }
 
+    /// Execute one Runtime-owned Primary Form repair prepare.  Codex supplies
+    /// one bounded fit intent; the Runtime owns the continuous search and
+    /// chains the winning typed GeometryProgram through Geometry Worker,
+    /// strict readback, isolated Render Worker and candidate-bound compare.
+    /// This creates only a staged candidate.  It never confirms a version or
+    /// exports an asset, and a failed visual gate remains a failed result.
+    pub fn primary_form_repair_prepare(
+        &self,
+        project_id: &str,
+        base_version_id: Option<&str>,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
+        validate_id(project_id)?;
+        let object = request.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_INVALID: request must be an object".to_owned(),
+            )
+        })?;
+        validate_request_keys(
+            object,
+            &[
+                "project_id",
+                "candidate_id",
+                "target_sha256",
+                "rig",
+                "base_camera",
+                "optimizer",
+                "base_version_id",
+                "canonical_sha256",
+            ],
+            "primary_form_repair_prepare",
+        )?;
+        if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
+            return Err(RuntimeError::InvalidInput(
+                "PROJECT_SCOPE_DENIED: Primary Form repair project differs".to_owned(),
+            ));
+        }
+        let request_base_version_id = object
+            .get("base_version_id")
+            .and_then(Value::as_str);
+        if request_base_version_id != base_version_id {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_INVALID: base_version_id argument is not bound to intent"
+                    .to_owned(),
+            ));
+        }
+        let intent_hash = required_value_sha(object.get("canonical_sha256"), "canonical_sha256")?;
+        let mut intent_without_hash = request.clone();
+        intent_without_hash["canonical_sha256"] = Value::String(String::new());
+        if canonical_json_hash(&intent_without_hash) != intent_hash
+            && canonical_json_hash(&normalize_json_numbers(&intent_without_hash)) != intent_hash
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_INVALID: canonical_sha256 does not bind intent".to_owned(),
+            ));
+        }
+        if let Some(requested_base_version) = object.get("base_version_id") {
+            if !requested_base_version.is_null() {
+                let base_version = requested_base_version.as_str().ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_REPAIR_INVALID: base_version_id must be an identifier or null"
+                            .to_owned(),
+                    )
+                })?;
+                validate_id(base_version)?;
+            }
+        }
+
+        // Keep the existing SilhouetteFitResult@1 contract as the search
+        // boundary.  The outer action hash includes base_version_id, while
+        // the nested fit hash is deterministically re-derived after removing
+        // that transaction concern.
+        let mut fit_request = request.clone();
+        fit_request
+            .as_object_mut()
+            .expect("Primary Form request object")
+            .remove("base_version_id");
+        fit_request["canonical_sha256"] = Value::String(String::new());
+        fit_request["canonical_sha256"] =
+            Value::String(canonical_json_hash(&fit_request));
+        let fit = self.silhouette_fit_prepare(project_id, fit_request)?;
+        let target_sha256 = required_value_sha(fit.get("target_sha256"), "target_sha256")?;
+        let target = self.read_silhouette_target(target_sha256)?;
+        let reference_id = required_value_id(target.get("reference_id"), "reference_id")?;
+        let reference = self.reference(reference_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("NOT_FOUND: Primary Form reference not found".to_owned())
+        })?;
+        if reference.project_id != project_id {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_SCOPE_DENIED: Primary Form target reference is outside the project"
+                    .to_owned(),
+            ));
+        }
+
+        let mut result = json!({
+            "schema_version":"PrimaryFormRepairPrepareResult@1",
+            "project_id":project_id,
+            "source_candidate_id":fit["candidate_id"].clone(),
+            "target_sha256":target_sha256,
+            "reference_id":reference_id,
+            "fit_result":fit,
+            "prepared_candidate":Value::Null,
+            "visual_evidence":Value::Null,
+            "status":"no_improvement",
+            "quality_status":"not-run",
+            "candidate_state":"unchanged",
+            "version_created":false,
+            "canonical_sha256":""
+        });
+        let Some(program) = result["fit_result"]["selected_geometry_program"].as_object() else {
+            result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+            validate_primary_form_repair_prepare_result(&result)?;
+            return Ok(result);
+        };
+        if program.get("project_id").and_then(Value::as_str) != Some(project_id) {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_REJECTED: selected GeometryProgram project differs"
+                    .to_owned(),
+            ));
+        }
+
+        let prepared = self.prepare_geometry_candidate(
+            project_id,
+            base_version_id.or_else(|| object.get("base_version_id").and_then(Value::as_str)),
+            json!({
+                "typed":"geometry",
+                "reference_id":reference_id,
+                "geometry_program":Value::Object(program.clone())
+            }),
+        )?;
+        validate_geometry_prepare_result_v2_output(&prepared)?;
+        let prepared_candidate_id = required_value_id(
+            prepared.pointer("/candidate/candidate_id"),
+            "candidate_id",
+        )?
+        .to_owned();
+        let selected_camera = result["fit_result"]["selected_camera"].clone();
+        let camera_ref = json!({
+            "schema_version":"CameraCalibrationRef@1",
+            "camera_hash":selected_camera["camera_hash"].clone(),
+            "canonical_sha256":selected_camera["canonical_sha256"].clone()
+        });
+        let view_spec = primary_form_view_spec(&reference, &target, target_sha256)?;
+        let comparison = self.prepare_reference_comparison(
+            project_id,
+            json!({
+                "project_id":project_id,
+                "candidate_id":prepared_candidate_id,
+                "reference_id":reference_id,
+                "view_spec":view_spec,
+                "camera":camera_ref,
+                "target_sha256":target_sha256
+            }),
+        )?;
+        let quality_status = comparison
+            .pointer("/quality_report/visual_status")
+            .and_then(Value::as_str)
+            .unwrap_or("not-run");
+        result["prepared_candidate"] = prepared;
+        result["visual_evidence"] = json!({
+            "candidate_id":prepared_candidate_id,
+            "reference_id":reference_id,
+            "target_sha256":target_sha256,
+            "camera_hash":comparison["camera"]["camera_hash"].clone(),
+            "render_set_hash":comparison["render_set_object_sha256"].clone(),
+            "comparison_report_hash":comparison["comparison_report_object_sha256"].clone(),
+            "quality_report_hash":comparison["quality_report_object_sha256"].clone(),
+            "render_set":comparison["render_set"].clone(),
+            "comparison_report":comparison["comparison_report"].clone(),
+            "quality_report":comparison["quality_report"].clone()
+        });
+        result["status"] = Value::String("prepared".to_owned());
+        result["quality_status"] = Value::String(quality_status.to_owned());
+        result["candidate_state"] = Value::String("staged_new_candidate".to_owned());
+        result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+        validate_primary_form_repair_prepare_result(&result)?;
+        Ok(result)
+    }
+
     /// Resolve either a complete CameraCalibration@1 or a compact
     /// CameraCalibrationRef@1.  The compact form is deliberately limited to
     /// the two Runtime-owned hashes; when a model round-trips a large camera
@@ -6441,6 +6620,172 @@ fn validate_extended_silhouette_metrics(value: &Value, context: &str) -> Result<
         if !number.is_finite() || number < 0.0 { return Err(RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {context}.{key}"))); }
     }
     Ok(())
+}
+
+fn primary_form_view_spec(
+    reference: &ReferenceEvidenceRecord,
+    target: &Value,
+    target_sha256: &str,
+) -> Result<Value, RuntimeError> {
+    let landmarks = target
+        .get("landmarks")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_INVALID: target landmarks are missing".to_owned(),
+            )
+        })?
+        .iter()
+        .map(|landmark| {
+            let object = exact_object(
+                landmark,
+                &["landmark_id", "x", "y", "visibility"],
+                "PrimaryFormRepair target landmark",
+            )?;
+            Ok(json!({
+                "landmark_id":object["landmark_id"].clone(),
+                "x":object["x"].clone(),
+                "y":object["y"].clone(),
+                "visibility":object["visibility"].clone(),
+                "confidence":1.0
+            }))
+        })
+        .collect::<Result<Vec<_>, RuntimeError>>()?;
+    let mut view_spec = json!({
+        "schema_version":"ReferenceViewSpec@1",
+        "reference_id":reference.reference_id,
+        "reference_sha256":reference.object_sha256,
+        "view_id":format!("primary-form-target-{}", &target_sha256[..24.min(target_sha256.len())]),
+        "source_view":"unknown",
+        "image":{"width":reference.width,"height":reference.height,"rotation_degrees":0.0,"crop":{"x":0.0,"y":0.0,"width":1.0,"height":1.0}},
+        "landmarks":landmarks,
+        "regions":[],
+        "canonical_sha256":""
+    });
+    view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+    validate_reference_view_spec(&view_spec, reference)?;
+    Ok(view_spec)
+}
+
+fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "project_id",
+            "source_candidate_id",
+            "target_sha256",
+            "reference_id",
+            "fit_result",
+            "prepared_candidate",
+            "visual_evidence",
+            "status",
+            "quality_status",
+            "candidate_state",
+            "version_created",
+            "canonical_sha256",
+        ],
+        "PrimaryFormRepairPrepareResult@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("PrimaryFormRepairPrepareResult@1")
+        || !matches!(
+            object.get("status").and_then(Value::as_str),
+            Some("no_improvement" | "prepared")
+        )
+        || object.get("version_created") != Some(&Value::Bool(false))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PrimaryFormRepairPrepareResult@1 constants drifted"
+                .to_owned(),
+        ));
+    }
+    required_contract_identifier(object, "project_id", "PrimaryFormRepairPrepareResult@1")?;
+    required_contract_identifier(
+        object,
+        "source_candidate_id",
+        "PrimaryFormRepairPrepareResult@1",
+    )?;
+    required_contract_identifier(object, "reference_id", "PrimaryFormRepairPrepareResult@1")?;
+    required_contract_sha256(object, "target_sha256", "PrimaryFormRepairPrepareResult@1")?;
+    validate_silhouette_fit_result(
+        object
+            .get("fit_result")
+            .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit_result".to_owned()))?,
+    )?;
+    let prepared = object
+        .get("prepared_candidate")
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: prepared_candidate".to_owned()))?;
+    let visual = object
+        .get("visual_evidence")
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: visual_evidence".to_owned()))?;
+    if object.get("status").and_then(Value::as_str) == Some("no_improvement") {
+        if !prepared.is_null()
+            || !visual.is_null()
+            || object.get("quality_status").and_then(Value::as_str) != Some("not-run")
+            || object.get("candidate_state").and_then(Value::as_str) != Some("unchanged")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: no-improvement result must not contain a staged candidate"
+                    .to_owned(),
+            ));
+        }
+    } else {
+        validate_geometry_prepare_result_v2_output(prepared)?;
+        let visual = exact_object(
+            visual,
+            &[
+                "candidate_id",
+                "reference_id",
+                "target_sha256",
+                "camera_hash",
+                "render_set_hash",
+                "comparison_report_hash",
+                "quality_report_hash",
+                "render_set",
+                "comparison_report",
+                "quality_report",
+            ],
+            "PrimaryFormRepairPrepareResult@1.visual_evidence",
+        )?;
+        required_contract_identifier(visual, "candidate_id", "PrimaryFormRepair visual evidence")?;
+        required_contract_identifier(visual, "reference_id", "PrimaryFormRepair visual evidence")?;
+        required_contract_sha256(visual, "target_sha256", "PrimaryFormRepair visual evidence")?;
+        for key in [
+            "camera_hash",
+            "render_set_hash",
+            "comparison_report_hash",
+            "quality_report_hash",
+        ] {
+            required_contract_sha256(visual, key, "PrimaryFormRepair visual evidence")?;
+        }
+        validate_render_set_v2_output(visual.get("render_set").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: render_set".to_owned())
+        })?)?;
+        validate_reference_comparison_report(visual.get("comparison_report").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: comparison_report".to_owned())
+        })?)?;
+        validate_quality_report_v2_output(visual.get("quality_report").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: quality_report".to_owned())
+        })?)?;
+        if object.get("quality_status")
+            != visual.get("quality_report").and_then(|report| report.get("visual_status"))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: quality status is not bound to the Runtime report"
+                    .to_owned(),
+            ));
+        }
+        if object.get("candidate_state").and_then(Value::as_str)
+            != Some("staged_new_candidate")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: prepared result candidate state drifted".to_owned(),
+            ));
+        }
+    }
+    required_contract_sha256(object, "canonical_sha256", "PrimaryFormRepairPrepareResult@1")?;
+    verify_output_canonical_hash(value, "PrimaryFormRepairPrepareResult@1")
 }
 
 fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
@@ -13212,6 +13557,44 @@ mod tests {
         fit_request["canonical_sha256"] = Value::String(canonical_json_hash(&fit_request));
         let fit = runtime.silhouette_fit_prepare(&project.project_id, fit_request).expect("fit");
         validate_silhouette_fit_result(&fit).expect("fit contract");
+        let before_primary_form_versions = runtime.versions(Some(&project.project_id)).unwrap().len();
+        let mut primary_form_request = json!({
+            "project_id":project.project_id.clone(),
+            "candidate_id":first_id.clone(),
+            "target_sha256":target["target_sha256"].clone(),
+            "rig":rig.clone(),
+            "base_camera":default_camera_calibration(),
+            "optimizer":{"algorithm":"coordinate_descent","max_iterations":2,"max_evaluations":8,"step_fraction":0.1},
+            "canonical_sha256":""
+        });
+        primary_form_request["canonical_sha256"] =
+            Value::String(canonical_json_hash(&primary_form_request));
+        let primary_form = runtime
+            .primary_form_repair_prepare(&project.project_id, None, primary_form_request)
+            .expect("Primary Form repair prepare");
+        validate_primary_form_repair_prepare_result(&primary_form)
+            .expect("Primary Form repair contract");
+        assert_eq!(primary_form["source_candidate_id"], first_id);
+        assert_eq!(primary_form["target_sha256"], target["target_sha256"]);
+        assert_eq!(primary_form["version_created"], false);
+        assert_eq!(
+            runtime.versions(Some(&project.project_id)).unwrap().len(),
+            before_primary_form_versions
+        );
+        if primary_form["status"] == "prepared" {
+            assert_eq!(primary_form["candidate_state"], "staged_new_candidate");
+            assert_eq!(
+                primary_form["visual_evidence"]["target_sha256"],
+                target["target_sha256"]
+            );
+            assert_eq!(
+                primary_form["visual_evidence"]["quality_report"]["candidate_id"],
+                primary_form["visual_evidence"]["candidate_id"]
+            );
+        } else {
+            assert_eq!(primary_form["status"], "no_improvement");
+            assert_eq!(primary_form["candidate_state"], "unchanged");
+        }
         let fit_camera = fit["selected_camera"].clone();
         let fit_camera_ref = json!({
             "schema_version": "CameraCalibrationRef@1",

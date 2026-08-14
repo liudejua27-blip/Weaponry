@@ -56,14 +56,14 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "af1f88e36c049b3dd8824e15af95f245d1537ae8f561f639bb204d47ba886d73",
+  "canonical_sha256": "71ec77201d5f9f1bbf5267f22092b400b7334c835aa4b95907fb7bf2972e3463",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
-    "manifest_sha256": "79289a9cb88389e82b54c60147700eac251e17d14ab9e8c1508a189cd7ac0a09",
+      "manifest_sha256": "07103db88f209d45ab1ad55d53be9350c82b636ff046323973ee8d28cc540749",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-    "schema_content_set_sha256": "ab08025c7517bc6c3385b6d3e02052bc89926816e779a57684811048b6942654",
-    "schema_count": 101
+      "schema_content_set_sha256": "497b848aa5f7b6cbc26938c03173acf8e3901a491d636b05888a0dbeda5af371",
+      "schema_count": 102
     },
     "mcp_tools": {
     "read_count": 35,
@@ -106,12 +106,12 @@
         "visual_evidence_bundle_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "1deeb5240eadf44faded736c688ba87376c68f9ca7aff239b3fbd6763d64015b",
+      "source_sha256": "47254445cdf96ac15d05ecab3e3ed5419a39a95f364eee493f633727dd37ea97",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
-      "summary_receipt_sha256": "493beb86a847b1dc3f7e757974b36e1e67b68e63ed54112e3210a500d483e17b",
-    "total_count": 56,
-    "write_count": 21,
-      "write_enabled_manifest_sha256": "750c16900aa13861359c2754118cdd94bed20ea968045282ce19e576e30eb161",
+      "summary_receipt_sha256": "8dab3df52f9106f700363a617f010e2032cac57ac2c63d23ac5b19760acb2495",
+      "total_count": 57,
+      "write_count": 22,
+      "write_enabled_manifest_sha256": "ae26bfb10430d0b09c712334cc7613a5ad8494a7478b5314e665a28c732ad748",
       "write_names": [
         "appearance_prepare",
         "candidate_confirm",
@@ -125,6 +125,7 @@
         "geometry_prepare",
         "human_visual_review_submit",
         "job_cancel",
+        "primary_form_repair_prepare",
         "project_create",
         "reference_compare_prepare",
         "reference_import",
@@ -145,7 +146,7 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "c9860e9fe2620f78a3dff22a3ab4fbdc35e2d6dc00eeb3d04fcf7d4663b0c1df",
+      "runtime_source_sha256": "f1dd7bb3299fe8cbff26eec336d508eb7a766e9e93d45f1bbb6d9f5969aa2746",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "f97e0834da61d79b2e1e53caffa3dfd4acb530e3802eb651c4db210ead6f6a30"
     }

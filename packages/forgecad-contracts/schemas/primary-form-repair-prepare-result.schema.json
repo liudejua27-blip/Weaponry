@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/primary-form-repair-prepare-result.schema.json",
+  "title": "PrimaryFormRepairPrepareResult",
+  "description": "One Runtime-owned bounded Primary Form fit, staged geometry candidate, strict readback, fixed Render Worker evidence and candidate-bound visual evaluation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "source_candidate_id",
+    "target_sha256",
+    "reference_id",
+    "fit_result",
+    "prepared_candidate",
+    "visual_evidence",
+    "status",
+    "quality_status",
+    "candidate_state",
+    "version_created",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "PrimaryFormRepairPrepareResult@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_id": {"$ref": "#/$defs/identifier"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/identifier"},
+    "fit_result": {"$ref": "https://forgecad.local/contracts/silhouette-fit-result.schema.json"},
+    "prepared_candidate": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/geometry-prepare-result-v2.schema.json"}
+      ]
+    },
+    "visual_evidence": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/visual_evidence"}
+      ]
+    },
+    "status": {"enum": ["no_improvement", "prepared"]},
+    "quality_status": {
+      "enum": [
+        "PARTIAL_VISIBLE_VIEW_PASS",
+        "QUALITY_TARGET_NOT_MET",
+        "BLOCKED_REFERENCE_COVERAGE",
+        "not-run"
+      ]
+    },
+    "candidate_state": {"enum": ["unchanged", "staged_new_candidate"]},
+    "version_created": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "visual_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "reference_id",
+        "target_sha256",
+        "camera_hash",
+        "render_set_hash",
+        "comparison_report_hash",
+        "quality_report_hash",
+        "render_set",
+        "comparison_report",
+        "quality_report"
+      ],
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/identifier"},
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "target_sha256": {"$ref": "#/$defs/sha256"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "render_set_hash": {"$ref": "#/$defs/sha256"},
+        "comparison_report_hash": {"$ref": "#/$defs/sha256"},
+        "quality_report_hash": {"$ref": "#/$defs/sha256"},
+        "render_set": {"$ref": "https://forgecad.local/contracts/render-set-v2.schema.json"},
+        "comparison_report": {"$ref": "https://forgecad.local/contracts/reference-comparison-report.schema.json"},
+        "quality_report": {"$ref": "https://forgecad.local/contracts/quality-report-v2.schema.json"}
+      }
+    }
+  }
+}

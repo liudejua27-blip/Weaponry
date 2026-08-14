@@ -1,7 +1,7 @@
 # ForgeCAD Agentic Design Runtime 重规划
 
 版本：2026-08-13
-状态：目标架构计划；observe/plan projection、嵌套只读 projection producer/consumer conformance 与 durable session/checkpoint/RepairIntent prepare/readback 已实现并通过隔离证据；durable/reference/DesignSpec 完整 producer、单动作 orchestrator、Repair 应用和完整视觉闭环仍未完成，不改变 MCP010F 的 `QUALITY_TARGET_NOT_MET` 事实
+状态：目标架构计划；observe/plan projection、嵌套只读 projection producer/consumer conformance、durable session/checkpoint/RepairIntent prepare/readback 与 MCP010F 窄范围 Primary Form 单动作 prepare/evaluate 已实现并通过各自证据；durable/reference/DesignSpec 完整 producer、通用单动作 orchestrator、Repair 应用和完整视觉闭环仍未完成，不改变 MCP010F 的 `QUALITY_TARGET_NOT_MET` 事实
 
 ## 1. 目标
 
@@ -42,12 +42,13 @@ MCP010F 已交付两个最小、可验证的 Agentic source slice：
 - MCP 暴露 `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 四个只读工具，均要求明确 project/candidate binding，缺失或跨项目数据 fail closed；
 - observation envelope 一次返回语义场景、理解 bundle、参考画布、stage plan、critic 和 lineage/evidence hash，并显式标出 observed/inferred/unknown、allowed/blocked action；
 - Runtime/MCP 另提供 `session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare`：受批准的 session/checkpoint 写入 SQLite/CAS，restore 只生成 CAS-bound `RepairIntent@1`，不修改 candidate/version/history；
+- MCP010F 另提供窄范围 `primary_form_repair_prepare`：Codex 只提交一次 target/camera/Rig/optimizer typed intent，Runtime 在一个有界动作内完成 fit、typed GeometryProgram、strict readback、隔离 Render Worker 九 AOV 与 candidate-bound compare，返回 staged candidate 和 Runtime `QualityReport@2`；没有严格改善则保持 source candidate unchanged，且不 confirm/version/export；
 - Viewer 只消费 authenticated IPC/read model 的归一化 projection，并查询 durable session；不在本地推导质量、Session 或 checkpoint，也不提供写入入口；
 - `scripts/probe_agentic_runtime.py` 在临时 Runtime/CAS 上先读取 `ponytail-preflight@0.1.0`，验证工具 manifest、空参考阻断、动作锁定和用户持久数据未触碰。证据：`docs/evidence/mcp010f/agentic-runtime-observe-plan-20260813.json`。
 - 同一探针在 Runtime/MCP 重启后读取 session/checkpoint，并由 `scripts/check_agentic_runtime_receipt.py` 校验公开合同、candidate/session binding 和不可变 RepairIntent：`docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`。
 - `scripts/check_agentic_projection_receipt.py` 已对真实 Runtime 回执中的 `AgenticSceneObserveResult@1` 与 `DesignStagePlanProjection@1` 嵌套对象完成 producer/consumer 校验：`docs/evidence/mcp010f/agentic-runtime-projection-conformance-20260813.json`。该 Gate 只覆盖嵌套只读 projection，不覆盖 durable/reference/DesignSpec 的完整 producer。
 
-本阶段的限制必须保留：durable slice 只覆盖受批准的 session/checkpoint prepare、readback 和 CAS-only RepairIntent；嵌套只读 projection conformance 已通过，但它不覆盖 durable/reference/DesignSpec 的完整 producer。当前仍不包含单动作 compile/readback/render/evaluate orchestrator、Repair 应用、candidate/version mutation、packaged same-cohort 或视觉质量通过。`AgenticSceneObserveResult@1` 仍是 projection envelope，不能替代这些边界。
+本阶段的限制必须保留：durable slice 只覆盖受批准的 session/checkpoint prepare、readback 和 CAS-only RepairIntent；嵌套只读 projection conformance 已通过，但它不覆盖 durable/reference/DesignSpec 的完整 producer。当前仅包含 MCP010F Primary Form 的窄范围 prepare/evaluate slice，不包含通用单动作 compile/readback/render/evaluate orchestrator、Repair 应用、用户确认后的 candidate/version mutation、packaged same-cohort 或视觉质量通过。`AgenticSceneObserveResult@1` 仍是 projection envelope，不能替代这些边界。
 
 ## 3. 新主循环
 
@@ -204,10 +205,10 @@ allowed: true
 
 ## 7. 文档和任务落地
 
-当前源码为 `101 Schema / 35 read + 21 opt-in write = 56 tools`。durable prepare/readback slice 已有隔离 receipt；建议下一批文档/代码任务：
+当前源码为 `102 Schema / 35 read + 22 opt-in write = 57 tools`。durable prepare/readback 与 Primary Form 窄范围 prepare/evaluate slice 已有各自 focused/source receipt；建议下一批文档/代码任务：
 
 1. 为 durable/reference/DesignSpec producer 增加剩余完整 producer/consumer conformance，避免字段漂移；嵌套只读 projection checker 已完成，回执见 `scripts/check_agentic_projection_receipt.py`；
-2. 增加单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator，但仍不绕过用户批准；
+2. 将当前 Primary Form 窄范围链路抽象为通用单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator，但仍不绕过用户批准；
 3. 执行 bounded `RepairIntent`，生成新 candidate prepare，保留旧 checkpoint/version 不变；
 4. 接入真实 Codex 的 observe→plan→bounded action→inspect loop，再独立运行 packaged/human/360 Gate；
 5. 最后才评估 Parametric Design Kit 的 macro producer 和外部库的 isolated adoption。
