@@ -55,7 +55,21 @@ def main() -> int:
     require(session["session_id"] == receipt.get("session_id"), "session id drifted from probe binding")
     require(checkpoint["checkpoint_id"] == receipt.get("checkpoint_id"), "checkpoint id drifted from probe binding")
     require(session["current_checkpoint_id"] == checkpoint["checkpoint_id"], "session checkpoint pointer is not durable")
+    require(isinstance(session.get("observation_sha256"), str), "session omitted canonical observation hash")
+    require(
+        checkpoint.get("observation_sha256") == session["observation_sha256"],
+        "checkpoint observation hash is not bound to the session observation",
+    )
+    observation = receipt.get("projection_records", {}).get("scene_observe", {})
+    require(
+        observation.get("canonical_sha256") == session["observation_sha256"],
+        "durable session observation hash differs from the one-shot observation",
+    )
     require(intent["candidate_id"] == session["candidate_id"], "repair intent crossed candidate binding")
+    require(
+        intent.get("observation_sha256") == session["observation_sha256"],
+        "repair intent observation hash is not bound to the durable session observation",
+    )
     require(intent["runtime_write"] is False, "repair intent is not CAS-only")
     print("Agentic Runtime receipt OK: durable session/checkpoint/repair records conform and remain bound")
     return 0

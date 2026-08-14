@@ -1673,6 +1673,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 &selected_parameters,
                 &boundary_segments,
             );
+            let parameter_groups = ranked_rig_parameter_groups(rig, &parameter_indices);
             let definitions = rig
                 .get("parameters")
                 .and_then(Value::as_array)
@@ -1710,64 +1711,91 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     best_geometry_parameters.clone()
                 };
                 if probe_index > 0 && backtrack_fraction.is_none() && !parameter_indices.is_empty() {
-                    let coordinate_probe_index = if initial_proposal_improved == Some(false) {
+                    let search_probe_index = if initial_proposal_improved == Some(false) {
                         // Probe 1 and 2 were reserved for proposal backtracking.
-                        // Start the coordinate schedule at its first parameter
-                        // only after those retries have been consumed.
+                        // Start the local-Part schedule only after those retries
+                        // have been consumed.
                         probe_index.saturating_sub(2)
                     } else {
                         probe_index
                     };
-                    let probe_slot = coordinate_probe_index - 1;
-                    let coordinate = primary_form_probe_coordinate(&parameter_indices, coordinate_probe_index)
-                        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty".to_owned()))?;
-                    let parameter = definitions.get(coordinate).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter index drifted".to_owned()))?;
-                    let value = parameter_values
-                        .get(coordinate)
-                        .and_then(|row| row.get("value"))
-                        .and_then(Value::as_f64)
-                        .unwrap_or_else(|| parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0));
-                    let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
-                    let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
-                    let step = parameter.get("step").and_then(Value::as_f64).unwrap_or(0.01).abs();
-                    let span = (max - min).abs();
-                    let delta = (step * step_fraction)
-                        .max(span * step_fraction * 0.25)
-                        .min(span * 0.5)
-                        .max(1e-6);
-                    // The first coordinate pass follows the direction of the
-                    // evidence-attributed proposal, so a 16-probe default
-                    // reaches every supplied Primary Form control whenever the
-                    // Runtime budget has room for the complete first pass.
-                    // Only a later pass tests the opposite direction.  The
-                    // old +/- pair schedule spent two probes on each early
-                    // parameter and left the rest of the Rig untouched.
-                    let proposal_direction = primary_form_proposal_direction(
-                        definitions,
-                        &evidence_parameters,
-                        coordinate,
-                    );
-                    let fallback_direction = if coordinate % 2 == 0 { 1.0 } else { -1.0 };
-                    let direction = (if proposal_direction == 0.0 {
-                        fallback_direction
+                    let group_index = (initial_proposal_improved == Some(false))
+                        .then_some(search_probe_index.saturating_sub(1))
+                        .filter(|index| *index < parameter_groups.len());
+                    if let Some(group_index) = group_index {
+                        // Once a joint proposal has failed, test each Part as
+                        // one local shape hypothesis before falling back to
+                        // individual coordinates. This lets coupled
+                        // width/height/offset changes escape a greedy local
+                        // minimum while retaining the current best Part edits.
+                        parameter_values = interpolate_rig_parameter_group_values(
+                            definitions,
+                            &best_geometry_parameters,
+                            &evidence_parameters,
+                            &parameter_groups[group_index],
+                            1.0,
+                        );
                     } else {
-                        proposal_direction
-                    }) * if probe_slot / parameter_indices.len() % 2 == 0 {
-                        1.0
-                    } else {
-                        -1.0
-                    };
-                    let probe_pass = probe_slot / parameter_indices.len();
-                    let magnitude = primary_form_probe_magnitude(
-                        definitions,
-                        &evidence_parameters,
-                        &parameter_values,
-                        coordinate,
-                        delta,
-                        probe_pass,
-                    );
-                    if let Some(row) = parameter_values.get_mut(coordinate) {
-                        row["value"] = Value::from(stable_visual_metric((value + direction * magnitude).clamp(min, max)));
+                        let coordinate_probe_index = if initial_proposal_improved == Some(false) {
+                            search_probe_index.saturating_sub(parameter_groups.len())
+                        } else {
+                            search_probe_index
+                        };
+                        if coordinate_probe_index == 0 {
+                            return Err(RuntimeError::InvalidInput(
+                                "SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty".to_owned(),
+                            ));
+                        }
+                        let probe_slot = coordinate_probe_index - 1;
+                        let coordinate = primary_form_probe_coordinate(&parameter_indices, coordinate_probe_index)
+                            .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty".to_owned()))?;
+                        let parameter = definitions.get(coordinate).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter index drifted".to_owned()))?;
+                        let value = parameter_values
+                            .get(coordinate)
+                            .and_then(|row| row.get("value"))
+                            .and_then(Value::as_f64)
+                            .unwrap_or_else(|| parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0));
+                        let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
+                        let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
+                        let step = parameter.get("step").and_then(Value::as_f64).unwrap_or(0.01).abs();
+                        let span = (max - min).abs();
+                        let delta = (step * step_fraction)
+                            .max(span * step_fraction * 0.25)
+                            .min(span * 0.5)
+                            .max(1e-6);
+                        // The first coordinate pass follows the direction of
+                        // the evidence-attributed proposal. Only a later pass
+                        // tests the opposite direction. Part-group probes now
+                        // consume the first recovery budget when the joint
+                        // proposal was rejected, so a single observation can
+                        // refine a local shape before scalar nudges.
+                        let proposal_direction = primary_form_proposal_direction(
+                            definitions,
+                            &evidence_parameters,
+                            coordinate,
+                        );
+                        let fallback_direction = if coordinate % 2 == 0 { 1.0 } else { -1.0 };
+                        let direction = (if proposal_direction == 0.0 {
+                            fallback_direction
+                        } else {
+                            proposal_direction
+                        }) * if probe_slot / parameter_indices.len() % 2 == 0 {
+                            1.0
+                        } else {
+                            -1.0
+                        };
+                        let probe_pass = probe_slot / parameter_indices.len();
+                        let magnitude = primary_form_probe_magnitude(
+                            definitions,
+                            &evidence_parameters,
+                            &parameter_values,
+                            coordinate,
+                            delta,
+                            probe_pass,
+                        );
+                        if let Some(row) = parameter_values.get_mut(coordinate) {
+                            row["value"] = Value::from(stable_visual_metric((value + direction * magnitude).clamp(min, max)));
+                        }
                     }
                 }
                 let (draft, applied) = materialize_rig_geometry_program(
@@ -5674,9 +5702,14 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .get("project_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
-                self.agentic_stage_plan(
+                let observation_sha256 = payload
+                    .get("observation_sha256")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("observation_sha256 is required".to_owned()))?;
+                self.agentic_stage_plan_bound(
                     project_id,
                     payload.get("candidate_id").and_then(Value::as_str),
+                    observation_sha256,
                 )
             }
             "agentic_critic_projection" => {
@@ -5684,9 +5717,33 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .get("project_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
-                self.agentic_critic_projection(
+                let observation_sha256 = payload
+                    .get("observation_sha256")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("observation_sha256 is required".to_owned()))?;
+                self.agentic_critic_projection_bound(
                     project_id,
                     payload.get("candidate_id").and_then(Value::as_str),
+                    observation_sha256,
+                )
+            }
+            "agentic_visual_evidence_bundle" => {
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                let candidate_id = payload
+                    .get("candidate_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("candidate_id is required".to_owned()))?;
+                let observation_sha256 = payload
+                    .get("observation_sha256")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RuntimeError::InvalidInput("observation_sha256 is required".to_owned()))?;
+                self.agentic_visual_evidence_bundle_bound(
+                    project_id,
+                    candidate_id,
+                    observation_sha256,
                 )
             }
             "agentic_session_lookup" => {
@@ -10238,6 +10295,86 @@ fn ranked_rig_parameter_indices_with_boundary_context(
             })
     });
     indices
+}
+
+/// Group the Runtime-owned Rig coordinates by semantic Part while preserving
+/// the boundary-priority order of the first coordinate in each group. A
+/// width/height/offset correction for one visible Part is a single local shape
+/// hypothesis; evaluating those coordinates independently can reject every
+/// member even when the coupled Part proposal is the actual improvement.
+fn ranked_rig_parameter_groups(rig: &Value, parameter_indices: &[usize]) -> Vec<Vec<usize>> {
+    let Some(parameters) = rig.get("parameters").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    let mut groups: Vec<(String, Vec<usize>)> = Vec::new();
+    for index in parameter_indices {
+        let Some(part_id) = parameters
+            .get(*index)
+            .and_then(|parameter| parameter.get("part_id"))
+            .and_then(Value::as_str)
+        else {
+            continue;
+        };
+        if let Some((_, indices)) = groups.iter_mut().find(|(id, _)| id == part_id) {
+            indices.push(*index);
+        } else {
+            groups.push((part_id.to_owned(), vec![*index]));
+        }
+    }
+    groups.into_iter().map(|(_, indices)| indices).collect()
+}
+
+/// Apply one evidence-attributed Part proposal to the current geometry
+/// incumbent. Only the coordinates in `group` move; all other coordinates stay
+/// at the incumbent so successful local improvements can be composed without
+/// asking Codex to search a continuous parameter vector.
+fn interpolate_rig_parameter_group_values(
+    definitions: &[Value],
+    current_parameters: &[Value],
+    evidence_parameters: &[Value],
+    group: &[usize],
+    fraction: f64,
+) -> Vec<Value> {
+    let fraction = fraction.clamp(0.0, 1.0);
+    let group = group.iter().copied().collect::<HashSet<_>>();
+    definitions
+        .iter()
+        .enumerate()
+        .map(|(index, definition)| {
+            let mut value = current_parameters
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| definition.clone());
+            if group.contains(&index) {
+                let authored = definition
+                    .get("value")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0);
+                let from = current_parameters
+                    .get(index)
+                    .and_then(|row| row.get("value"))
+                    .and_then(Value::as_f64)
+                    .unwrap_or(authored);
+                let to = evidence_parameters
+                    .get(index)
+                    .and_then(|row| row.get("value"))
+                    .and_then(Value::as_f64)
+                    .unwrap_or(from);
+                let min = definition
+                    .get("min")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(authored);
+                let max = definition
+                    .get("max")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(authored);
+                value["value"] = Value::from(stable_visual_metric(
+                    (from + (to - from) * fraction).clamp(min, max),
+                ));
+            }
+            value
+        })
+        .collect()
 }
 
 /// Select the Rig Part that owns the largest candidate-bound visible boundary
@@ -15434,6 +15571,50 @@ mod tests {
     }
 
     #[test]
+    fn primary_form_parameter_groups_keep_boundary_priority_and_part_coupling() {
+        let rig = json!({
+            "parameters": [
+                {"parameter_id":"head-width","part_id":"head","value":1.0},
+                {"parameter_id":"chest-width","part_id":"chest","value":1.0},
+                {"parameter_id":"head-height","part_id":"head","value":1.0},
+                {"parameter_id":"chest-offset-y","part_id":"chest","value":0.0},
+                {"parameter_id":"shin-width","part_id":"shin","value":1.0}
+            ]
+        });
+        let groups = ranked_rig_parameter_groups(&rig, &[1, 2, 0, 4, 3]);
+        assert_eq!(groups, vec![vec![1, 3], vec![2, 0], vec![4]]);
+    }
+
+    #[test]
+    fn primary_form_group_probe_moves_only_the_selected_part() {
+        let definitions = vec![
+            json!({"parameter_id":"head-width","part_id":"head","value":1.0,"min":0.5,"max":1.5}),
+            json!({"parameter_id":"chest-width","part_id":"chest","value":1.0,"min":0.5,"max":1.5}),
+            json!({"parameter_id":"chest-height","part_id":"chest","value":1.0,"min":0.5,"max":1.5}),
+        ];
+        let current = vec![
+            json!({"parameter_id":"head-width","part_id":"head","value":1.1}),
+            json!({"parameter_id":"chest-width","part_id":"chest","value":1.0}),
+            json!({"parameter_id":"chest-height","part_id":"chest","value":1.0}),
+        ];
+        let evidence = vec![
+            json!({"parameter_id":"head-width","part_id":"head","value":0.8}),
+            json!({"parameter_id":"chest-width","part_id":"chest","value":1.4}),
+            json!({"parameter_id":"chest-height","part_id":"chest","value":0.8}),
+        ];
+        let result = interpolate_rig_parameter_group_values(
+            &definitions,
+            &current,
+            &evidence,
+            &[1, 2],
+            0.5,
+        );
+        assert_eq!(result[0]["value"], 1.1);
+        assert_eq!(result[1]["value"], 1.2);
+        assert_eq!(result[2]["value"], 0.9);
+    }
+
+    #[test]
     fn primary_form_repair_optimizer_preserves_bounded_detail_budget() {
         let mut optimizer = json!({
             "max_evaluations": 64,
@@ -17172,6 +17353,11 @@ mod tests {
             .as_str()
             .expect("observation hash")
             .to_owned();
+        assert_eq!(
+            session["session"]["observation_sha256"],
+            observation["canonical_sha256"],
+            "durable session must bind the same one-shot Runtime observation"
+        );
         let action = json!({
             "action_id":"bounded-primary-form-adjustment",
             "action_kind":"bounded-repair",

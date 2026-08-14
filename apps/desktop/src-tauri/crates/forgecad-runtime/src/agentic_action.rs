@@ -99,6 +99,11 @@ impl Runtime {
             "observation.canonical_sha256",
         )?
         .to_owned();
+        if observation_sha256 != session.observation_sha256 {
+            return Err(invalid_action(
+                "AGENTIC_SESSION_STALE: current observation does not match the durable session",
+            ));
+        }
         if observation_sha256 != requested_observation_sha256 {
             return Err(invalid_action(
                 "AGENTIC_OBSERVATION_STALE: supplied observation does not match the current Runtime projection",

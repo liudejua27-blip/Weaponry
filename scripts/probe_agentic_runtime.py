@@ -182,8 +182,16 @@ def main() -> int:
         require(isinstance(project_id, str) and project_id, "project_create omitted project_id")
 
         observe = client.tool("scene_observe_get", {"project_id": project_id})
-        plan = client.tool("design_stage_plan_get", {"project_id": project_id})
         require(isinstance(observe, dict), "scene_observe_get returned no typed projection")
+        observation_sha256 = observe.get("canonical_sha256")
+        require(
+            isinstance(observation_sha256, str) and len(observation_sha256) == 64,
+            "scene_observe_get omitted canonical observation hash",
+        )
+        plan = client.tool(
+            "design_stage_plan_get",
+            {"project_id": project_id, "observation_sha256": observation_sha256},
+        )
         require(isinstance(plan, dict), "design_stage_plan_get returned no typed projection")
         require(
             observe.get("schema_version") == "AgenticSceneObserveResult@1"
@@ -281,7 +289,11 @@ def main() -> int:
         )
         candidate_plan = client.tool(
             "design_stage_plan_get",
-            {"project_id": project_id, "candidate_id": candidate_id},
+            {
+                "project_id": project_id,
+                "candidate_id": candidate_id,
+                "observation_sha256": observed["canonical_sha256"],
+            },
         )
         require(
             isinstance(candidate_plan, dict)

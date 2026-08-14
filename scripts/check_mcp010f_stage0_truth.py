@@ -43,7 +43,7 @@ FIT_PLAN_SOURCE = ROOT / "scripts/build_mcp010f_fit_plan.py"
 TOOL_SUMMARY_PATH = ROOT / "docs/evidence/mcp010f/source-tool-manifest-summary.json"
 RUN_INVENTORY_PATH = ROOT / "docs/evidence/mcp010f/real-codex-run-inventory.json"
 EVIDENCE_MANIFEST_PATH = ROOT / "docs/evidence/mcp010f/manifest.json"
-EXPECTED_EVIDENCE_MANIFEST_SHA256 = "162f43f9db60e0034f0d9df8b7f3f8f0612418326dc5ab99471461c917ba33ee"
+EXPECTED_EVIDENCE_MANIFEST_SHA256 = "f290dea38213c999a9d998c0924ab178c8f7c8f0a7ee05329b75a7ec59700ea8"
 TASK_INDEX = ROOT / "docs/CODEX_TASK_INDEX.md"
 
 AUTHORITY_DOCS = (
@@ -1375,7 +1375,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         require(forbidden not in limitation_text, f"evidence manifest contains a forbidden promotion claim: {forbidden}")
     require(isinstance(manifest["scope"], list) and manifest["scope"], "evidence manifest scope must be a non-empty list")
     require(isinstance(manifest["limitations"], list) and manifest["limitations"], "evidence manifest limitations must be non-empty")
-    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 136, "evidence manifest frozen evidence count drifted")
+    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 138, "evidence manifest frozen evidence count drifted")
     require(len(set(manifest["evidence"])) == len(manifest["evidence"]), "evidence manifest contains duplicate entries")
     for index, entry in enumerate(manifest["evidence"]):
         require(isinstance(entry, str) and entry, f"evidence entry {index} must be a non-empty string")

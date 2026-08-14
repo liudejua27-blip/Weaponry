@@ -40,7 +40,7 @@ impl AgenticReadTool {
             Self::SceneObserve => Some("agentic_scene_observe"),
             Self::StagePlan => Some("agentic_stage_plan"),
             Self::CriticReport => Some("agentic_critic_projection"),
-            Self::VisualEvidenceBundle => Some("visual_evidence_get"),
+            Self::VisualEvidenceBundle => Some("agentic_visual_evidence_bundle"),
         }
     }
 
@@ -53,7 +53,7 @@ impl AgenticReadTool {
             Self::SceneObserve => "agentic_scene_observe",
             Self::StagePlan => "agentic_stage_plan",
             Self::CriticReport => "agentic_critic_projection",
-            Self::VisualEvidenceBundle => "visual_evidence_get",
+            Self::VisualEvidenceBundle => "agentic_visual_evidence_bundle",
         }
     }
 
@@ -62,7 +62,7 @@ impl AgenticReadTool {
             Self::SceneObserve => Some("AgenticSceneObserveResult@1"),
             Self::StagePlan => Some("DesignStagePlan@1"),
             Self::CriticReport => Some("DesignCriticReport@1"),
-            Self::VisualEvidenceBundle => Some("ViewerVisualEvidence@1"),
+            Self::VisualEvidenceBundle => Some("VisualEvidenceBundle@1"),
         }
     }
 }
@@ -103,16 +103,16 @@ fn tool_definition(tool: AgenticReadTool) -> Value {
             project_candidate_schema(),
         ),
         AgenticReadTool::StagePlan => (
-            "Read the Runtime-owned Agentic design stage plan. Stage unlocks are fail-closed on the available evidence and this tool never advances a stage, creates a checkpoint, or invokes approval.",
-            project_candidate_schema(),
+            "Read the stage plan slice from the exact Runtime-owned scene observation identified by observation_sha256. Call scene_observe_get first; this tool never rebuilds a second observation, advances a stage, creates a checkpoint, or invokes approval.",
+            project_candidate_observation_schema(),
         ),
         AgenticReadTool::CriticReport => (
-            "Read the Runtime-owned evidence-bound critic projection. It returns DesignCriticReport@1 with bounded repair intents for inspection only; execution remains in the existing prepare and approval flow.",
-            project_candidate_schema(),
+            "Read the critic slice from the exact Runtime-owned scene observation identified by observation_sha256. It returns DesignCriticReport@1 with bounded repair intents for inspection only; execution remains in the existing prepare and approval flow.",
+            project_candidate_observation_schema(),
         ),
         AgenticReadTool::VisualEvidenceBundle => (
-            "Read the existing candidate-bound visual evidence projection. It returns ViewerVisualEvidence@1 from the Runtime and does not create a render, candidate, version, or CAS object.",
-            candidate_schema(),
+            "Read the canonical VisualEvidenceBundle@1 slice from the exact Runtime-owned scene observation identified by observation_sha256. This is the Agentic evidence view; the separate ViewerVisualEvidence@1 transport remains internal to the Viewer path.",
+            candidate_observation_schema(),
         ),
     };
     let mut forgecad = json!({
@@ -137,15 +137,6 @@ fn tool_definition(tool: AgenticReadTool) -> Value {
     })
 }
 
-fn candidate_schema() -> Value {
-    json!({
-        "type": "object",
-        "required": ["candidate_id"],
-        "properties": {"candidate_id": id_property()},
-        "additionalProperties": false
-    })
-}
-
 fn project_candidate_schema() -> Value {
     json!({
         "type": "object",
@@ -156,6 +147,36 @@ fn project_candidate_schema() -> Value {
         },
         "additionalProperties": false
     })
+}
+
+fn project_candidate_observation_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["project_id", "observation_sha256"],
+        "properties": {
+            "project_id": id_property(),
+            "candidate_id": id_property(),
+            "observation_sha256": sha256_property()
+        },
+        "additionalProperties": false
+    })
+}
+
+fn candidate_observation_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["project_id", "candidate_id", "observation_sha256"],
+        "properties": {
+            "project_id": id_property(),
+            "candidate_id": id_property(),
+            "observation_sha256": sha256_property()
+        },
+        "additionalProperties": false
+    })
+}
+
+fn sha256_property() -> Value {
+    json!({"type":"string","pattern":"^[0-9a-f]{64}$"})
 }
 
 fn id_property() -> Value {
@@ -177,6 +198,29 @@ mod tests {
             assert_eq!(tool["annotations"]["openWorldHint"], false);
             assert_eq!(tool["inputSchema"]["additionalProperties"], false);
         }
+        for name in ["design_stage_plan_get", "critic_report_get"] {
+            let tool = tools
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .expect("bound follow-up tool");
+            assert!(tool["inputSchema"]["required"]
+                .as_array()
+                .expect("required fields")
+                .iter()
+                .any(|field| field == "observation_sha256"));
+        }
+        let evidence_tool = tools
+            .iter()
+            .find(|tool| tool["name"] == "visual_evidence_bundle_get")
+            .expect("bound evidence tool");
+        assert_eq!(
+            evidence_tool["_meta"]["forgecad"]["source_schema"],
+            "VisualEvidenceBundle@1"
+        );
+        assert_eq!(
+            evidence_tool["_meta"]["forgecad"]["runtime_method"],
+            "agentic_visual_evidence_bundle"
+        );
         assert!(AgenticReadTool::from_name("scene_observe_get")
             .expect("scene tool")
             .available());
@@ -205,7 +249,7 @@ mod tests {
             AgenticReadTool::from_name("visual_evidence_bundle_get")
                 .expect("evidence tool")
                 .runtime_method(),
-            Some("visual_evidence_get")
+            Some("agentic_visual_evidence_bundle")
         );
         assert_eq!(
             AgenticReadTool::from_name("critic_report_get")

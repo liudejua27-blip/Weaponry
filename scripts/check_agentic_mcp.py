@@ -130,8 +130,8 @@ def check_sources() -> None:
                 fail(f"Agentic adapter is missing {name}")
     if 'Some("agentic_critic_projection")' not in agentic:
         fail("critic projection is not bound to the Runtime projection method")
-    if 'Some("visual_evidence_get")' not in agentic:
-        fail("evidence projection is not bound to the existing Runtime read method")
+    if 'Some("agentic_visual_evidence_bundle")' not in agentic:
+        fail("evidence projection is not bound to the canonical Runtime observation slice")
     for method in ("agentic_scene_observe", "agentic_stage_plan"):
         if f'"{method}"' not in agentic:
             fail(f"unimplemented Runtime method is not recorded: {method}")

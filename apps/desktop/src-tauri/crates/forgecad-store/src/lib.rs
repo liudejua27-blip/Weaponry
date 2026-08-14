@@ -90,6 +90,7 @@ pub struct AgenticSessionRecord {
     pub reference_sha256: String,
     pub camera_hash: String,
     pub evidence_sha256: String,
+    pub observation_sha256: String,
     pub current_version_id: Option<String>,
     pub current_version_sha256: Option<String>,
     pub current_stage: String,
@@ -131,6 +132,7 @@ pub struct AgenticCheckpointRecord {
     pub camera_hash: String,
     pub input_sha256: String,
     pub evidence_sha256: String,
+    pub observation_sha256: String,
     pub version_id: Option<String>,
     pub version_sha256: Option<String>,
     pub parent_checkpoint_id: Option<String>,
@@ -1305,6 +1307,7 @@ impl Store {
             || checkpoint.candidate_id != session.candidate_id
             || checkpoint.revision != session.revision
             || checkpoint.candidate_state_sha256 != session.candidate_state_sha256
+            || checkpoint.observation_sha256 != session.observation_sha256
         {
             return Err(StoreError::Contract {
                 code: "AGENTIC_CHECKPOINT_BINDING_MISMATCH".to_owned(),
@@ -3417,6 +3420,7 @@ fn validate_agentic_session(session: &AgenticSessionRecord) -> Result<(), StoreE
         || !is_sha256(&session.reference_sha256)
         || !is_sha256(&session.camera_hash)
         || !is_sha256(&session.evidence_sha256)
+        || !is_sha256(&session.observation_sha256)
         || !is_opaque_id(&session.current_stage)
         || !is_opaque_id(&session.status)
         || !is_opaque_id(&session.quality_status)
@@ -3482,6 +3486,7 @@ fn validate_agentic_checkpoint(checkpoint: &AgenticCheckpointRecord) -> Result<(
         || !is_sha256(&checkpoint.camera_hash)
         || !is_sha256(&checkpoint.input_sha256)
         || !is_sha256(&checkpoint.evidence_sha256)
+        || !is_sha256(&checkpoint.observation_sha256)
         || !is_sha256(&checkpoint.canonical_sha256)
         || checkpoint
             .object_sha256

@@ -113,6 +113,32 @@ impl Runtime {
         Ok(build_stage_plan(&context))
     }
 
+    /// Return the stage plan from one previously observed Runtime snapshot.
+    /// The MCP follow-up surface uses this bound form so a caller cannot
+    /// silently rebuild a second, differently bound observation between
+    /// Observe and Plan.
+    pub fn agentic_stage_plan_bound(
+        &self,
+        project_id: &str,
+        candidate_id: Option<&str>,
+        observation_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
+        let observation = self.bound_agentic_observation(
+            project_id,
+            candidate_id,
+            observation_sha256,
+        )?;
+        observation
+            .get("design_stage_plan")
+            .cloned()
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_PROJECTION_INVALID: observation omitted design_stage_plan"
+                        .to_owned(),
+                )
+            })
+    }
+
     /// Return the optional evidence-bound critic projection without executing a
     /// repair.  RepairIntent is a bounded suggestion, never a write command.
     pub fn agentic_critic_projection(
@@ -123,6 +149,80 @@ impl Runtime {
         let context = build_context(self, project_id, candidate_id)?;
         let stage_plan = build_stage_plan(&context);
         Ok(build_critic_report(&context, &stage_plan))
+    }
+
+    /// Return the critic from the exact observation supplied by the caller.
+    /// Critic output is therefore a projection slice, not another observation
+    /// pass that can drift in candidate/reference/evidence lineage.
+    pub fn agentic_critic_projection_bound(
+        &self,
+        project_id: &str,
+        candidate_id: Option<&str>,
+        observation_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
+        let observation = self.bound_agentic_observation(
+            project_id,
+            candidate_id,
+            observation_sha256,
+        )?;
+        observation
+            .get("design_critic_report")
+            .cloned()
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_PROJECTION_INVALID: observation omitted design_critic_report"
+                        .to_owned(),
+                )
+            })
+    }
+
+    /// Return the canonical VisualEvidenceBundle slice from one observation.
+    /// The older ViewerVisualEvidence read remains available to the Viewer
+    /// transport, but the Agentic tool must not expose a second evidence shape.
+    pub fn agentic_visual_evidence_bundle_bound(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+        observation_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
+        let observation = self.bound_agentic_observation(
+            project_id,
+            Some(candidate_id),
+            observation_sha256,
+        )?;
+        observation
+            .get("visual_evidence_bundle")
+            .cloned()
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_PROJECTION_INVALID: observation omitted visual_evidence_bundle"
+                        .to_owned(),
+                )
+            })
+    }
+
+    fn bound_agentic_observation(
+        &self,
+        project_id: &str,
+        candidate_id: Option<&str>,
+        observation_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
+        if !is_sha256(observation_sha256) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_OBSERVATION_BINDING_INVALID: observation_sha256 is not a SHA-256"
+                    .to_owned(),
+            ));
+        }
+        let observation = self.agentic_scene_observe(project_id, candidate_id)?;
+        if observation.get("canonical_sha256").and_then(Value::as_str)
+            != Some(observation_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_OBSERVATION_STALE: follow-up projection does not match scene_observe_get"
+                    .to_owned(),
+            ));
+        }
+        Ok(observation)
     }
 }
 
@@ -1602,6 +1702,30 @@ mod tests {
         assert_eq!(result["design_stage_plan"]["unlocks"]["pbr"], false);
         assert_eq!(result["visual_evidence_bundle"]["status"], "unknown");
         assert!(result["canonical_sha256"].as_str().is_some_and(is_sha256));
+    }
+
+    #[test]
+    fn bound_followups_slice_the_same_observation_and_reject_stale_hashes() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = project(&runtime);
+        let observation = runtime
+            .agentic_scene_observe(&project.project_id, None)
+            .expect("observation");
+        let observation_sha256 = observation["canonical_sha256"].as_str().expect("hash");
+
+        let stage_plan = runtime
+            .agentic_stage_plan_bound(&project.project_id, None, observation_sha256)
+            .expect("bound stage plan");
+        assert_eq!(stage_plan, observation["design_stage_plan"]);
+        let critic = runtime
+            .agentic_critic_projection_bound(&project.project_id, None, observation_sha256)
+            .expect("bound critic");
+        assert_eq!(critic, observation["design_critic_report"]);
+
+        let stale = runtime
+            .agentic_stage_plan_bound(&project.project_id, None, &"f".repeat(64))
+            .expect_err("stale follow-up must fail closed");
+        assert!(stale.to_string().contains("AGENTIC_OBSERVATION_STALE"));
     }
 
     #[test]

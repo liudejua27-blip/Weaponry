@@ -4077,7 +4077,7 @@ mod tests {
                 .find(|tool| tool["name"] == "visual_evidence_bundle_get")
                 .expect("evidence tool")
                 .pointer("/_meta/forgecad/source_schema"),
-            Some(&Value::String("ViewerVisualEvidence@1".to_owned()))
+            Some(&Value::String("VisualEvidenceBundle@1".to_owned()))
         );
     }
 
