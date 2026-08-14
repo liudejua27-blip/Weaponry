@@ -39,6 +39,21 @@ type SceneTreePartSummary = {
   materials: SceneTreeMaterialSummary[]
 }
 
+type SceneTreeNodeType = 'part' | 'material'
+
+type SceneTreeNavigationNode = {
+  id: string
+  type: SceneTreeNodeType
+  partId: string
+  materialZoneId?: string
+}
+
+const SCENE_TREE_PART_NODE_PREFIX = 'part'
+const SCENE_TREE_MATERIAL_NODE_PREFIX = 'material'
+
+const sceneTreePartNodeId = (partId: string): string => `${SCENE_TREE_PART_NODE_PREFIX}:${partId}`
+const sceneTreeMaterialNodeId = (partId: string, materialZoneId: string): string => `${SCENE_TREE_MATERIAL_NODE_PREFIX}:${partId}:${materialZoneId}`
+
 type ViewerProject = {
   project?: { project_id?: string; name?: string }
   record?: { head_snapshot_id?: string | null }
@@ -557,6 +572,7 @@ function isCandidateBoundArtifactPayload(
   payload: ArtifactBytes | null | undefined,
   artifactId?: string,
   candidateId?: string,
+  artifactSha256?: string | null,
 ): boolean {
   return Boolean(
     payload
@@ -564,7 +580,7 @@ function isCandidateBoundArtifactPayload(
       && candidateId
       && payload.artifact_id === artifactId
       && payload.candidate_id === candidateId
-      && payload.sha256 === artifactId,
+      && (!artifactSha256 || payload.sha256 === artifactSha256 || payload.sha256 === artifactId),
   )
 }
 
@@ -683,6 +699,22 @@ type ViewportMarqueeRect = { left: number; top: number; width: number; height: n
 const AUTO_LATEST_CANDIDATE = '__auto_latest__'
 
 const HEATMAP_SIZE = 512
+const COMPARE_MODE_LABELS: Record<CompareMode, string> = {
+  split: '分屏',
+  overlay: '叠加',
+  flicker: '闪烁',
+}
+const AOV_PASS_LABELS: Record<AovPass, string> = {
+  beauty: 'beauty',
+  silhouette: '轮廓',
+  depth: '深度',
+  normal: '法线',
+  ao: 'AO',
+  'part-id': '部件ID',
+  'material-id': '材质ID',
+  wireframe: '线框',
+  'uv-stretch': 'UV拉伸',
+}
 
 function drawContainedImage(context: CanvasRenderingContext2D, image: HTMLImageElement) {
   const width = image.naturalWidth || HEATMAP_SIZE
@@ -1302,6 +1334,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const [sceneTreeSearch, setSceneTreeSearch] = useState('')
   const [sceneTreeFilter, setSceneTreeFilter] = useState<SceneTreeVisibilityFilter>('all')
   const [expandedPartIds, setExpandedPartIds] = useState<Record<string, boolean>>({})
+  const [focusedSceneTreeNodeId, setFocusedSceneTreeNodeId] = useState<string | null>(null)
   const [viewportFocused, setViewportFocused] = useState(false)
   const [viewportLightPreset, setViewportLightPreset] = useState<ViewportLightPreset>('neutral')
   const [viewportCameraPreset, setViewportCameraPreset] = useState<ViewportCameraPreset>('front')
@@ -1310,6 +1343,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const contourDrawingRef = useRef(false)
   const comparePanRef = useRef<{ active: boolean; pointerId: number; startX: number; startY: number; originX: number; originY: number }>({ active: false, pointerId: -1, startX: 0, startY: 0, originX: 0, originY: 0 })
   const viewportDragRef = useRef<{ mode: ViewportDragMode; pointerId: number; startX: number; startY: number; endX: number; endY: number }>({ mode: 'idle', pointerId: -1, startX: 0, startY: 0, endX: 0, endY: 0 })
+  const sceneTreeNodeRefs = useRef<Record<string, HTMLElement | null>>({})
   const lastSummarySignatureRef = useRef<string | null>(null)
   const activeCandidateIdRef = useRef<string | null>(null)
   const threeRuntimeRef = useRef<Pick<typeof import('./three-runtime-core'), 'Box3' | 'Vector3'> | null>(null)
@@ -1464,6 +1498,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const artifact = activeCandidate && hasCandidateBoundArtifact(activeCandidate, projectId)
     ? activeCandidate.artifact
     : undefined
+  const activeArtifactSha256 = artifact?.artifact_id ?? null
   const partCount = artifact?.part_ids?.length ?? 0
   const candidateId = activeCandidate?.candidate?.candidate_id
   const candidateRecord = activeCandidate?.candidate
@@ -1503,10 +1538,16 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const normalizedSceneTreeSearch = sceneTreeSearch.trim().toLowerCase()
   const filteredSceneTree = normalizedSceneTreeSearch === ''
     ? viewerSceneTree
-    : viewerSceneTree.filter((part) => {
-      if (part.partId.toLowerCase().includes(normalizedSceneTreeSearch)) return true
-      return part.materials.some((material) => material.materialZoneId.toLowerCase().includes(normalizedSceneTreeSearch))
-    })
+    : viewerSceneTree.map((part) => {
+      const partMatched = part.partId.toLowerCase().includes(normalizedSceneTreeSearch)
+      if (partMatched) return part
+      const matchedMaterials = part.materials.filter((material) => material.materialZoneId.toLowerCase().includes(normalizedSceneTreeSearch))
+      if (matchedMaterials.length === 0) return null
+      return {
+        ...part,
+        materials: matchedMaterials,
+      }
+    }).filter((part): part is SceneTreePartSummary => Boolean(part))
   const filteredSceneTreeByState = filteredSceneTree.filter((part) => {
     if (sceneTreeFilter === 'all') return true
     const partLocked = Boolean(partLockState[part.partId])
@@ -1525,6 +1566,48 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     }
     return null
   }, [selectedObjectId, artifactLoadState, artifactCandidateId, filteredSceneTreeByState])
+  const sceneTreeNavigationNodes = useMemo<SceneTreeNavigationNode[]>(() => {
+    const list: SceneTreeNavigationNode[] = []
+    for (const part of filteredSceneTreeByState) {
+      list.push({
+        id: sceneTreePartNodeId(part.partId),
+        type: 'part',
+        partId: part.partId,
+      })
+      const isPartExpanded = Boolean(expandedPartIds[part.partId])
+      if (!isPartExpanded) continue
+      for (const material of part.materials) {
+        list.push({
+          id: sceneTreeMaterialNodeId(part.partId, material.materialZoneId),
+          type: 'material',
+          partId: part.partId,
+          materialZoneId: material.materialZoneId,
+        })
+      }
+    }
+    return list
+  }, [expandedPartIds, filteredSceneTreeByState])
+  const sceneTreeNodeMap = useMemo(() => {
+    const map = new Map<string, SceneTreeNavigationNode>()
+    for (const node of sceneTreeNavigationNodes) {
+      map.set(node.id, node)
+    }
+    return map
+  }, [sceneTreeNavigationNodes])
+  useEffect(() => {
+    if (sceneTreeNavigationNodes.length === 0) {
+      if (focusedSceneTreeNodeId !== null) {
+        setFocusedSceneTreeNodeId(null)
+      }
+      return
+    }
+    if (!focusedSceneTreeNodeId || !sceneTreeNodeMap.has(focusedSceneTreeNodeId)) {
+      const fallbackNode = sceneTreeNavigationNodes[0]
+      if (fallbackNode) {
+        setFocusedSceneTreeNodeId(fallbackNode.id)
+      }
+    }
+  }, [focusedSceneTreeNodeId, sceneTreeNavigationNodes, sceneTreeNodeMap])
 
   const candidateSnapshots = useMemo<CandidateSnapshotRecord[]>(() => candidateEntries
     .map((entry) => buildCandidateSnapshotRecord(entry, projectId))
@@ -1585,6 +1668,11 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       ? [...VIEWPORT_KEYBOARD_HINTS_ACTIVE, ...VIEWPORT_KEYBOARD_HINTS]
       : VIEWPORT_KEYBOARD_HINTS_NO_FOCUS),
   ], [viewportActionHint, selectedObjectId, selectedSceneObject?.data.partId, viewportFocused])
+  const compareSelectionHint = selectedMaterialZone !== 'all'
+    ? `材质筛选：${selectedMaterialZone}`
+    : selectedPartId !== 'all'
+      ? `部件筛选：${selectedPartId}`
+      : '未设置语义筛选'
   const refreshViewerData = () => setModelRefreshNonce((value) => value + 1)
   const setSceneTreePartExpanded = (partId: string, expanded: boolean) => {
     setExpandedPartIds((current) => {
@@ -1649,6 +1737,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     setHoveredObjectId(null)
     setSelectedPartId('all')
     setSelectedMaterialZone('all')
+    setSelectedPass('beauty')
     setExpandedPartIds({})
   }
   const errorConsoleItems = useMemo<ErrorConsoleItem[]>(() => {
@@ -2005,6 +2094,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   useEffect(() => {
     setSelectedPartId('all')
     setSelectedMaterialZone('all')
+    setSelectedPass('beauty')
     setHoveredObjectId(null)
     setExploded(false)
     setDiffHeatmap(false)
@@ -2220,7 +2310,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         if (disposed) return
         if (payload.status === 'Unavailable') throw new Error(payload.code ?? 'ARTIFACT_BYTES_UNAVAILABLE')
         if (!payload.bytes_base64) throw new Error('ARTIFACT_BYTES_EMPTY')
-        if (!isCandidateBoundArtifactPayload(payload, artifactId, candidateId)) throw new Error('ARTIFACT_BYTES_BINDING_MISMATCH')
+        if (!isCandidateBoundArtifactPayload(payload, artifactId, candidateId, activeArtifactSha256)) throw new Error('ARTIFACT_BYTES_BINDING_MISMATCH')
         const binary = Uint8Array.from(atob(payload.bytes_base64), (character) => character.charCodeAt(0))
         loader.parse(binary.buffer, '', (gltf: import('three/examples/jsm/loaders/GLTFLoader.js').GLTF) => {
           if (disposed || !scene || !renderer) return
@@ -2308,7 +2398,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       }
       if (viewerSceneRef.current === state) viewerSceneRef.current = null
     }
-  }, [artifact?.artifact_id, artifactCandidateId, artifactRetryNonce])
+  }, [artifact?.artifact_id, artifactCandidateId, activeArtifactSha256, artifactRetryNonce])
 
   useEffect(() => {
     const state = viewerSceneRef.current
@@ -2582,6 +2672,8 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       setHoveredObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
+      setSelectedPass('beauty')
+      setFocusedSceneTreeNodeId(null)
       setExpandedPartIds({})
       return
     }
@@ -2589,8 +2681,14 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     setSelectedObjectId(target.uuid)
     const targetState = state.objects.get(target)
     if (targetState) {
-      setSelectedPartId(targetState.partId)
-      setSelectedMaterialZone(targetState.materialZoneId)
+      syncSelectionViewportContext(targetState.partId, targetState.materialZoneId)
+      const targetNodeId = sceneTreeMaterialNodeId(targetState.partId, targetState.materialZoneId)
+      setFocusedSceneTreeNodeId(targetNodeId)
+      const focusButton = sceneTreeNodeRefs.current[targetNodeId]
+      if (focusButton) {
+        focusButton.focus()
+        focusButton.scrollIntoView({ block: 'nearest' })
+      }
       setSceneTreePartExpanded(targetState.partId, true)
       setViewportActionHint(`已选中：${targetState.partId}`)
       focusViewportTarget(target)
@@ -2639,13 +2737,21 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         setSelectedObjectId(null)
         setSelectedPartId('all')
         setSelectedMaterialZone('all')
+        setSelectedPass('beauty')
+        setFocusedSceneTreeNodeId(null)
         setExpandedPartIds({})
       } else {
         const targetState = state.objects.get(target)
         setSelectedObjectId(target.uuid)
         if (targetState) {
-          setSelectedPartId(targetState.partId)
-          setSelectedMaterialZone(targetState.materialZoneId)
+          syncSelectionViewportContext(targetState.partId, targetState.materialZoneId)
+          const targetNodeId = sceneTreeMaterialNodeId(targetState.partId, targetState.materialZoneId)
+          setFocusedSceneTreeNodeId(targetNodeId)
+          const focusButton = sceneTreeNodeRefs.current[targetNodeId]
+          if (focusButton) {
+            focusButton.focus()
+            focusButton.scrollIntoView({ block: 'nearest' })
+          }
           setSceneTreePartExpanded(targetState.partId, true)
           setViewportActionHint(`已命中：${targetState.partId}`)
           focusViewportTarget(target)
@@ -2661,12 +2767,13 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       materialLockState,
       threeRuntimeRef.current,
     )
-    const first = hits[0]
+      const first = hits[0]
     if (!first) {
       setViewportActionHint('框选完成但未命中')
       setSelectedObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
+      setFocusedSceneTreeNodeId(null)
       setExpandedPartIds({})
       return
     }
@@ -2675,8 +2782,14 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     setSelectedObjectId(first.uuid)
     setViewportActionHint(targetPartId ? `框选命中：${targetPartId}` : '框选命中')
     if (targetState) {
-      setSelectedPartId(targetState.partId)
-      setSelectedMaterialZone(targetState.materialZoneId)
+      syncSelectionViewportContext(targetState.partId, targetState.materialZoneId)
+      const targetNodeId = sceneTreeMaterialNodeId(targetState.partId, targetState.materialZoneId)
+      setFocusedSceneTreeNodeId(targetNodeId)
+      const focusButton = sceneTreeNodeRefs.current[targetNodeId]
+      if (focusButton) {
+        focusButton.focus()
+        focusButton.scrollIntoView({ block: 'nearest' })
+      }
       setSceneTreePartExpanded(targetState.partId, true)
       focusViewportTarget(first)
     }
@@ -2696,6 +2809,35 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
     applyViewportViewportSelection(event)
     setViewportMarqueeRect(null)
+  }
+
+  const syncSelectionViewportContext = (partId: string, materialZoneId: string) => {
+    if (materialZoneId !== 'all') {
+      setSelectedPartId(partId)
+      setSelectedMaterialZone(materialZoneId)
+      setSelectedPass('material-id')
+      return
+    }
+    setSelectedPartId(partId)
+    setSelectedMaterialZone('all')
+    setSelectedPass(partId === 'all' ? 'beauty' : 'part-id')
+  }
+
+  const resetCompareSelection = () => {
+    setSelectedPartId('all')
+    setSelectedMaterialZone('all')
+    setSelectedPass('beauty')
+    setFocusedSceneTreeNodeId(null)
+    setSelectedObjectId(null)
+  }
+
+  const setComparePartFilter = (partId: string) => {
+    if (partId === 'all') syncSelectionViewportContext('all', selectedMaterialZone)
+    else syncSelectionViewportContext(partId, 'all')
+  }
+
+  const setCompareMaterialFilter = (materialZoneId: string) => {
+    syncSelectionViewportContext(selectedPartId, materialZoneId)
   }
 
   const handleViewportKeyDown = (event: KeyboardEvent<HTMLCanvasElement>) => {
@@ -2763,10 +2905,16 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   }
 
   const handleSceneTreePartSelect = (partId: string) => {
-    setSelectedPartId(partId)
-    setSelectedMaterialZone('all')
+    syncSelectionViewportContext(partId, 'all')
     toggleSceneTreePartExpanded(partId)
     const object = findSceneTreeObject(partId)
+    const focusNodeId = sceneTreePartNodeId(partId)
+    setFocusedSceneTreeNodeId(focusNodeId)
+    const focusNode = sceneTreeNodeRefs.current[focusNodeId]
+    if (focusNode) {
+      focusNode.focus()
+      focusNode.scrollIntoView({ block: 'nearest' })
+    }
     if (object) {
       setSelectedObjectId(object.uuid)
       focusViewportTarget(object)
@@ -2776,10 +2924,16 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   }
 
   const handleSceneTreeMaterialSelect = (partId: string, materialZoneId: string) => {
-    setSelectedPartId(partId)
-    setSelectedMaterialZone(materialZoneId)
+    syncSelectionViewportContext(partId, materialZoneId)
     setSceneTreePartExpanded(partId, true)
     const object = findSceneTreeObject(partId, materialZoneId)
+    const focusNodeId = sceneTreeMaterialNodeId(partId, materialZoneId)
+    setFocusedSceneTreeNodeId(focusNodeId)
+    const focusNode = sceneTreeNodeRefs.current[focusNodeId]
+    if (focusNode) {
+      focusNode.focus()
+      focusNode.scrollIntoView({ block: 'nearest' })
+    }
     if (object) {
       setSelectedObjectId(object.uuid)
       focusViewportTarget(object)
@@ -2802,6 +2956,97 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
 
   const toggleTreeMaterialLock = (materialZoneId: string) => {
     toggleViewportMaterialLock(materialZoneId)
+  }
+
+  const focusSceneTreeNode = (nodeId: string) => {
+    const nodeElement = sceneTreeNodeRefs.current[nodeId]
+    if (!nodeElement) return
+    setFocusedSceneTreeNodeId(nodeId)
+    nodeElement.focus()
+    nodeElement.scrollIntoView({ block: 'nearest' })
+  }
+  const handleSceneTreeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (sceneTreeNavigationNodes.length === 0) return
+    const currentIndex = focusedSceneTreeNodeId
+      ? sceneTreeNavigationNodes.findIndex((node) => node.id === focusedSceneTreeNodeId)
+      : 0
+    const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0
+    const currentNode = sceneTreeNavigationNodes[safeCurrentIndex]
+    if (!currentNode) return
+    const currentPart = filteredSceneTreeByState.find((part) => part.partId === currentNode.partId)
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      const nextIndex = Math.min(sceneTreeNavigationNodes.length - 1, safeCurrentIndex + 1)
+      focusSceneTreeNode(sceneTreeNavigationNodes[nextIndex]?.id ?? currentNode.id)
+      return
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      const prevIndex = Math.max(0, safeCurrentIndex - 1)
+      focusSceneTreeNode(sceneTreeNavigationNodes[prevIndex]?.id ?? currentNode.id)
+      return
+    }
+    if (event.key === 'Home') {
+      event.preventDefault()
+      if (sceneTreeNavigationNodes[0]) {
+        focusSceneTreeNode(sceneTreeNavigationNodes[0].id)
+      }
+      return
+    }
+    if (event.key === 'End') {
+      event.preventDefault()
+      const tail = sceneTreeNavigationNodes[sceneTreeNavigationNodes.length - 1]
+      if (tail) {
+        focusSceneTreeNode(tail.id)
+      }
+      return
+    }
+    if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      if (currentNode.type === 'part' && currentPart) {
+        const isExpanded = Boolean(expandedPartIds[currentNode.partId])
+        const hasChildren = currentPart.materials.length > 0
+      if (!isExpanded && hasChildren) {
+        setSceneTreePartExpanded(currentNode.partId, true)
+        const firstMaterial = currentPart.materials[0]
+        if (firstMaterial) {
+          window.requestAnimationFrame(() => {
+            const fallbackNodeId = sceneTreeMaterialNodeId(currentNode.partId, firstMaterial.materialZoneId)
+            const fallbackNode = sceneTreeNodeRefs.current[fallbackNodeId]
+            if (!fallbackNode) return
+            focusSceneTreeNode(fallbackNodeId)
+          })
+        }
+        return
+      }
+      }
+      const nextIndex = Math.min(sceneTreeNavigationNodes.length - 1, safeCurrentIndex + 1)
+      focusSceneTreeNode(sceneTreeNavigationNodes[nextIndex]?.id ?? currentNode.id)
+      return
+    }
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      if (currentNode.type === 'material') {
+        const parentId = sceneTreePartNodeId(currentNode.partId)
+        focusSceneTreeNode(parentId)
+        return
+      }
+      if (currentNode.type === 'part' && expandedPartIds[currentNode.partId]) {
+        setSceneTreePartExpanded(currentNode.partId, false)
+        return
+      }
+      const prevIndex = Math.max(0, safeCurrentIndex - 1)
+      focusSceneTreeNode(sceneTreeNavigationNodes[prevIndex]?.id ?? currentNode.id)
+      return
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      if (currentNode.type === 'part') {
+        handleSceneTreePartSelect(currentNode.partId)
+      } else if (currentNode.materialZoneId) {
+        handleSceneTreeMaterialSelect(currentNode.partId, currentNode.materialZoneId)
+      }
+    }
   }
 
   const resetViewport = () => {
@@ -3003,9 +3248,9 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       <div className={`status-pill ${ready ? '' : 'status-pill-muted'}`} role="status"><span className="status-dot" />{ready ? 'Runtime 已就绪 · 只读' : 'Runtime 未连接 · Viewer 模式'}</div>
     </header>
     {errorConsoleItems.length > 0 && (
-    <section className="panel-section error-console" aria-labelledby="error-console-title">
+        <section className="panel-section error-console" aria-labelledby="error-console-title">
         <div className="section-toolbar">
-          <div><p className="section-kicker">ERROR CONSOLE</p><h2 id="error-console-title">统一异常面板</h2></div>
+          <div><p className="section-kicker">异常台</p><h2 id="error-console-title">统一异常面板</h2></div>
           <button type="button" className="viewer-toggle" onClick={() => setModelRefreshNonce((value) => value + 1)} disabled={modelRefreshing}>{modelRefreshing ? '重试中…' : '重试模型读取'}</button>
         </div>
         <div className="error-console-summary" role="status" aria-live="polite">
@@ -3128,20 +3373,22 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             <div className="compare-status"><span className={`status-icon ${visualStatusClass === 'passed' ? 'status-icon-pass' : visualStatusClass === 'failed' ? 'status-icon-error' : visualStatusClass === 'partial' ? 'status-icon-info' : 'status-icon-muted'}`}>{visualStatusIcon}</span><span>{visualStatusLabel}</span><code>{visualStatus}</code></div>
           </div>
           <div className="compare-toolbar">
+            <div className="toolbar-muted">语义联动：{compareSelectionHint}</div>
             <div className="aov-tabs" role="tablist" aria-label="Render AOV passes">
-              {AOV_PASSES.map((pass) => <button key={pass} id={`render-aov-tab-${pass}`} role="tab" aria-controls="render-aov-panel" tabIndex={selectedPass === pass ? 0 : -1} type="button" className={`aov-tab ${selectedPass === pass ? 'aov-tab-active' : ''}`} aria-selected={selectedPass === pass} onClick={() => focusAovTab(pass)} onKeyDown={(event) => handleAovKeyDown(event, pass)}>{pass}</button>)}
-            </div>
-            <div className="mode-tabs" role="group" aria-label="Compare mode">
-              {(['split', 'overlay', 'flicker'] as CompareMode[]).map((mode) => <button key={mode} type="button" className={`mode-tab ${compareMode === mode ? 'mode-tab-active' : ''}`} aria-pressed={compareMode === mode} onClick={() => setCompareMode(mode)}>{mode}</button>)}
-            </div>
+            {AOV_PASSES.map((pass) => <button key={pass} id={`render-aov-tab-${pass}`} role="tab" aria-controls="render-aov-panel" tabIndex={selectedPass === pass ? 0 : -1} type="button" className={`aov-tab ${selectedPass === pass ? 'aov-tab-active' : ''}`} aria-selected={selectedPass === pass} onClick={() => focusAovTab(pass)} onKeyDown={(event) => handleAovKeyDown(event, pass)}>{AOV_PASS_LABELS[pass]}</button>)}
+          </div>
+          <div className="mode-tabs" role="group" aria-label="Compare mode">
+            {(['split', 'overlay', 'flicker'] as CompareMode[]).map((mode) => <button key={mode} type="button" className={`mode-tab ${compareMode === mode ? 'mode-tab-active' : ''}`} aria-pressed={compareMode === mode} onClick={() => setCompareMode(mode)}>{COMPARE_MODE_LABELS[mode]}</button>)}
+          </div>
           </div>
           <div className="viewer-controls" aria-label="Part and material controls">
-            <label>部件<select value={selectedPartId} onChange={(event) => setSelectedPartId(event.target.value)} disabled={partIds.length === 0}><option value="all">全部部件</option>{partIds.map((partId) => <option key={partId} value={partId}>{partId}</option>)}</select></label>
-            <label>材质区<select value={selectedMaterialZone} onChange={(event) => setSelectedMaterialZone(event.target.value)} disabled={materialZoneIds.length === 0}><option value="all">全部材质区</option>{materialZoneIds.map((zoneId) => <option key={zoneId} value={zoneId}>{zoneId}</option>)}</select></label>
+            <label>部件<select value={selectedPartId} onChange={(event) => setComparePartFilter(event.target.value)} disabled={partIds.length === 0}><option value="all">全部部件</option>{partIds.map((partId) => <option key={partId} value={partId}>{partId}</option>)}</select></label>
+            <label>材质区<select value={selectedMaterialZone} onChange={(event) => setCompareMaterialFilter(event.target.value)} disabled={materialZoneIds.length === 0}><option value="all">全部材质区</option>{materialZoneIds.map((zoneId) => <option key={zoneId} value={zoneId}>{zoneId}</option>)}</select></label>
             <button type="button" className={`viewer-toggle ${exploded ? 'viewer-toggle-active' : ''}`} aria-pressed={exploded} onClick={() => setExploded((value) => !value)}>爆炸图</button>
             <button type="button" className={`viewer-toggle ${contourCanvasActive ? 'viewer-toggle-active' : ''}`} aria-pressed={contourCanvasActive} onClick={() => { setSelectedPass('silhouette'); setCompareMode('overlay'); setDiffHeatmap(false) }}>轮廓画布</button>
             <button type="button" className={`viewer-toggle ${diffHeatmap ? 'viewer-toggle-active' : ''}`} aria-pressed={diffHeatmap} onClick={() => setDiffHeatmap((value) => !value)}>差异热图</button>
             <button type="button" className={`viewer-toggle ${measureMode ? 'viewer-toggle-active' : ''}`} aria-pressed={measureMode} onClick={() => { setMeasureMode((value) => !value); setMeasurePoints([]) }}>标尺测量</button>
+            <button type="button" className="viewer-toggle" onClick={resetCompareSelection}>清空语义筛选</button>
             <button type="button" className="viewer-toggle" onClick={resetCompareView}>重置比较视图</button>
             <button type="button" className="viewer-toggle" onClick={() => void exportCompareSnapshot()} disabled={!referenceDataUrl || !renderDataUrl || compareActionStatus === 'exporting'}>{compareActionStatus === 'exporting' ? '导出中…' : compareActionStatus === 'exported' ? '已导出截图' : '导出当前视图'}</button>
           </div>
@@ -3220,20 +3467,35 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               placeholder="输入 part-id 或 material-zone-id"
             />
           </label>
-          <div className="scene-tree-list" role="list">
+          <div
+            className="scene-tree-list"
+            role="list"
+            tabIndex={0}
+            onKeyDown={handleSceneTreeKeyDown}
+            aria-label="场景树可用节点列表，可用方向键导航"
+          >
             {filteredSceneTreeByState.length === 0 ? (
               <div className="panel-copy scene-tree-empty">无匹配节点。可清空搜索并重新加载模型。</div>
             ) : filteredSceneTreeByState.map((part) => {
               const partVisible = partVisibility[part.partId] ?? true
               const partLocked = Boolean(partLockState[part.partId])
+              const partNodeId = sceneTreePartNodeId(part.partId)
               const isPartExpanded = Boolean(expandedPartIds[part.partId])
               const partSelected = selectedPartId === part.partId
               return <div className="scene-tree-part" role="listitem" key={part.partId}>
                 <div className="scene-tree-part-row">
                   <button
                     type="button"
-                    className={`scene-tree-row ${partSelected ? 'scene-tree-row-selected' : ''}`}
+                    className={`scene-tree-row ${partSelected ? 'scene-tree-row-selected' : ''} ${focusedSceneTreeNodeId === partNodeId ? 'scene-tree-row-focused' : ''}`}
+                    ref={(node) => {
+                      if (node) sceneTreeNodeRefs.current[partNodeId] = node
+                      else delete sceneTreeNodeRefs.current[partNodeId]
+                    }}
+                    tabIndex={focusedSceneTreeNodeId === partNodeId || (focusedSceneTreeNodeId === null && sceneTreeNavigationNodes[0]?.id === partNodeId) ? 0 : -1}
                     onClick={() => handleSceneTreePartSelect(part.partId)}
+                    onFocus={() => {
+                      setFocusedSceneTreeNodeId(partNodeId)
+                    }}
                     aria-expanded={isPartExpanded}
                   >
                     <span className="scene-tree-row-title">{part.partId}</span>
@@ -3258,17 +3520,25 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                     aria-label={`切换部件 ${part.partId} 锁定`}
                   >{partLocked ? '🔒' : '🔓'}</button>
                 </div>
-                {isPartExpanded && <div className="scene-tree-material-list" role="list" aria-label={`${part.partId} 的材质区`}>
+                  {isPartExpanded && <div className="scene-tree-material-list" role="list" aria-label={`${part.partId} 的材质区`}>
                   {part.materials.map((material) => {
                     const materialVisible = materialVisibility[material.materialZoneId] ?? true
                     const materialSelected = selectedPartId === part.partId && selectedMaterialZone === material.materialZoneId
                     const materialLocked = Boolean(materialLockState[material.materialZoneId])
+                    const materialNodeId = sceneTreeMaterialNodeId(part.partId, material.materialZoneId)
                     return <div
                       role="button"
-                      tabIndex={0}
                       key={`${part.partId}-${material.materialZoneId}`}
-                      className={`scene-tree-row scene-tree-row-child ${materialSelected ? 'scene-tree-row-selected' : ''}`}
+                      className={`scene-tree-row scene-tree-row-child ${materialSelected ? 'scene-tree-row-selected' : ''} ${focusedSceneTreeNodeId === materialNodeId ? 'scene-tree-row-focused' : ''}`}
                       onClick={() => handleSceneTreeMaterialSelect(part.partId, material.materialZoneId)}
+                      ref={(node) => {
+                        if (node) sceneTreeNodeRefs.current[materialNodeId] = node
+                        else delete sceneTreeNodeRefs.current[materialNodeId]
+                      }}
+                      tabIndex={focusedSceneTreeNodeId === materialNodeId ? 0 : -1}
+                      onFocus={() => {
+                        setFocusedSceneTreeNodeId(materialNodeId)
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()

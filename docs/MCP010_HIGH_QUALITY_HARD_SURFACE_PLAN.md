@@ -8,7 +8,7 @@
 
 Stage 0 机器真值唯一入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。attempt35 只是 provisional retained observation，不是已成立 benchmark：它是 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；packaged Viewer 又是不同 cohort/artifact，绑定为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`。因此 source/read-model/window/control smoke 均不能补写为同一 candidate 的 packaged visual E2E，更不能越过 PBR likeness、独立真人、export/restart 或 360 门。
 
-<!-- forgecad-stage0: schemas=101 schema_set_sha256=a48a823ce7d51b214978c966b4cfb27243857f7e6cf594b7c9f4ec47ad1a0c1e read_tools=35 write_tools=21 total_tools=56 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json latest_completed=real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json -->
+<!-- forgecad-stage0: schemas=101 schema_set_sha256=2b22ee5bc28d3cfa332bd8f2677d07a4eb2405d8f545fcad9d137115101d763d read_tools=35 write_tools=21 total_tools=56 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json latest_completed=real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json -->
 
 本文是 MCP010A–F 的唯一详细执行合同。它不改写 MCP005–009 的历史 evidence，也不把目标 Schema、工具、Skill、库或素材写成当前能力。
 

@@ -783,7 +783,7 @@ fn read_only_tools() -> Vec<Value> {
         ),
         tool(
             "silhouette_fit_prepare",
-            "Run a bounded deterministic camera and SilhouetteRig fit proposal against the reference mask; it never mutates the candidate.",
+            "Run a bounded deterministic camera and SilhouetteRig fit proposal against the reference mask; when a geometry trial strictly improves the authored baseline, return the exact Runtime-validated GeometryProgram proposal for a later user-approved geometry_prepare call. It never mutates or confirms the candidate.",
             json!({
                 "type":"object",
                 "required":["project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],

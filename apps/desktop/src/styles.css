@@ -281,6 +281,7 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .scene-tree-row { display: grid; width: 100%; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #27384a; border-radius: 7px; color: #adc2d0; background: #101a28; font-size: 11px; text-align: left; cursor: pointer; }
 .scene-tree-row:hover { border-color: #5b86a9; color: #d7e7f4; }
 .scene-tree-row:focus-visible { outline: 2px solid #89c4ea; outline-offset: 2px; }
+.scene-tree-row-focused { box-shadow: inset 4px 0 0 #89c4ea; border-color: #5b86a9 !important; color: #eaf3fb !important; }
 .scene-tree-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scene-tree-row-meta { color: #6f8192; font-size: 10px; white-space: nowrap; }
 .scene-tree-row-child { background: #0d1620; grid-template-columns: 1fr auto auto; }

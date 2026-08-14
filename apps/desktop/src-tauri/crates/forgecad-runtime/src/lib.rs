@@ -1368,6 +1368,13 @@ impl Runtime {
             Some(&selected_camera),
         );
         let mut geometry_evaluations = 0usize;
+        // Preserve the exact typed GeometryProgram that produced the winning
+        // geometry trial. Returning only compact parameter deltas forced
+        // Codex to reconstruct the program and could silently diverge from
+        // the Runtime-owned Worker evaluation. This remains a read-only
+        // proposal: the program is returned only when it strictly improves
+        // the authored baseline and is never persisted or confirmed here.
+        let mut selected_geometry_program: Option<Value> = None;
         if let Some(program) = geometry_program_draft.as_ref() {
             // Evaluate the evidence-attributed proposal once, then walk a
             // deterministic coordinate neighborhood around the best actual
@@ -1491,6 +1498,7 @@ impl Runtime {
                     best_geometry_loss = loss;
                     best_geometry_parameters = parameter_values;
                     best_geometry_metrics = variant_metrics;
+                    selected_geometry_program = Some(finalized);
                 }
             }
             if best_geometry_loss + 1e-12 < best_loss {
@@ -1507,9 +1515,10 @@ impl Runtime {
         }
         // The geometry-search incumbent may still be represented by the full
         // SilhouetteRig parameter definitions when the authored baseline wins.
-        // SilhouetteFitResult@1 deliberately exposes only the compact
-        // parameter projection, so normalize at this module boundary before
-        // calculating deltas and validating the result.
+        // SilhouetteFitResult@1 exposes compact parameters plus an optional
+        // Runtime-validated GeometryProgram proposal, so normalize the
+        // parameter projection at this module boundary before calculating
+        // deltas and validating the result.
         let selected_parameters = compact_rig_parameter_values(rig, &selected_parameters);
         let parameter_deltas = rig_parameter_deltas(rig, &selected_parameters);
         let total_evaluations = rows.len().saturating_add(geometry_evaluations);
@@ -1521,6 +1530,7 @@ impl Runtime {
             "selected_camera":selected_camera,
             "selected_parameters":selected_parameters,
             "parameter_deltas":parameter_deltas,
+            "selected_geometry_program":selected_geometry_program,
             "geometry_evaluations":geometry_evaluations,
             "iterations":completed_iterations,
             "evaluations":total_evaluations,
@@ -6425,7 +6435,7 @@ fn validate_extended_silhouette_metrics(value: &Value, context: &str) -> Result<
 }
 
 fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["schema_version", "project_id", "candidate_id", "target_sha256", "selected_camera", "selected_parameters", "parameter_deltas", "geometry_evaluations", "iterations", "evaluations", "metrics", "thresholds", "status", "canonical_sha256"], "SilhouetteFitResult@1")?;
+    let object = exact_object(value, &["schema_version", "project_id", "candidate_id", "target_sha256", "selected_camera", "selected_parameters", "parameter_deltas", "selected_geometry_program", "geometry_evaluations", "iterations", "evaluations", "metrics", "thresholds", "status", "canonical_sha256"], "SilhouetteFitResult@1")?;
     if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteFitResult@1") { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: SilhouetteFitResult@1 schema_version".to_owned())); }
     required_contract_identifier(object, "project_id", "SilhouetteFitResult@1")?;
     required_contract_identifier(object, "candidate_id", "SilhouetteFitResult@1")?;
@@ -6451,6 +6461,40 @@ fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
                 || ["from", "to", "delta"].iter().any(|key| delta.get(*key).and_then(Value::as_f64).is_none_or(|value| !value.is_finite()))
         }) {
             return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: parameter_deltas".to_owned()));
+        }
+    }
+    let project_id = required_contract_identifier(object, "project_id", "SilhouetteFitResult@1")?;
+    let selected_geometry_program = object
+        .get("selected_geometry_program")
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected_geometry_program".to_owned()))?;
+    if !selected_geometry_program.is_null() {
+        let program = selected_geometry_program.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected_geometry_program".to_owned())
+        })?;
+        if program.get("schema_version").and_then(Value::as_str) != Some("GeometryProgram@2")
+            || program.get("project_id").and_then(Value::as_str) != Some(project_id.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: selected_geometry_program project binding".to_owned(),
+            ));
+        }
+        let mut draft = Value::Object(program.clone());
+        draft
+            .as_object_mut()
+            .expect("selected GeometryProgram is an object")
+            .remove("canonical_sha256");
+        let hash = hash_geometry_program_with_runtime_worker(&draft).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: selected_geometry_program validation failed: {error}"
+            ))
+        })?;
+        if hash.get("canonical_sha256").and_then(Value::as_str)
+            != program.get("canonical_sha256").and_then(Value::as_str)
+            || hash.get("operator_catalog_sha256").and_then(Value::as_str).is_none()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: selected_geometry_program hash binding".to_owned(),
+            ));
         }
     }
     if let Some(geometry_evaluations) = object.get("geometry_evaluations") {
@@ -13176,6 +13220,12 @@ mod tests {
         assert!(fit["geometry_evaluations"].as_u64().unwrap() <= 5);
         assert_eq!(fit["parameter_deltas"].as_array().map(Vec::len), Some(1));
         assert!(fit["parameter_deltas"][0]["delta"].as_f64().unwrap().is_finite());
+        assert!(fit.get("selected_geometry_program").is_some());
+        if let Some(program) = fit["selected_geometry_program"].as_object() {
+            assert_eq!(program["schema_version"], "GeometryProgram@2");
+            assert_eq!(program["project_id"], project.project_id);
+            assert!(program["canonical_sha256"].as_str().is_some());
+        }
         assert!(matches!(fit["status"].as_str(), Some("ready" | "quality_target_not_met" | "no_improvement")));
         let part = runtime.part_contour_fit_prepare(&project.project_id, json!({"project_id":project.project_id.clone(),"candidate_id":first_id.clone(),"target_sha256":target["target_sha256"].clone(),"part_id":"shell","rig":rig.clone()})).expect("part proposal");
         validate_part_contour_fit_result(&part).expect("part contract");

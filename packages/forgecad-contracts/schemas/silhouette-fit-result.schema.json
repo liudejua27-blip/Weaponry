@@ -4,7 +4,7 @@
   "title": "SilhouetteFitResult",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "project_id", "candidate_id", "target_sha256", "selected_camera", "selected_parameters", "parameter_deltas", "geometry_evaluations", "iterations", "evaluations", "metrics", "thresholds", "status", "canonical_sha256"],
+  "required": ["schema_version", "project_id", "candidate_id", "target_sha256", "selected_camera", "selected_parameters", "parameter_deltas", "selected_geometry_program", "geometry_evaluations", "iterations", "evaluations", "metrics", "thresholds", "status", "canonical_sha256"],
   "properties": {
     "schema_version": {"const": "SilhouetteFitResult@1"},
     "project_id": {"$ref": "#/$defs/id"},
@@ -13,6 +13,7 @@
     "selected_camera": {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
     "selected_parameters": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/parameter"}},
     "parameter_deltas": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/parameter_delta"}},
+    "selected_geometry_program": {"oneOf": [{"type": "null"}, {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json"}]},
     "geometry_evaluations": {"type": "integer", "minimum": 0, "maximum": 64},
     "iterations": {"type": "integer", "minimum": 0, "maximum": 8},
     "evaluations": {"type": "integer", "minimum": 1, "maximum": 64},
