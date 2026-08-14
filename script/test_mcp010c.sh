@@ -22,8 +22,15 @@ assert "Before any other ForgeCAD tool in this fresh MCP session" in source
 for parameter_id in ("upper-arm-height", "forearm-height", "thigh-height", "shin-height", "elbow-offset-y", "knee-offset-y"):
     assert f'"parameter_id": "{parameter_id}"' in source
 assert '"max_evaluations": 64' in source
+assert "nested bounded silhouette fit and the Geometry Worker/Render Worker compare" in source
+assert 'if options.primary_form_repair:' in source
+assert 'fit_items = run_required_codex_turn(' in source
+assert 'primary_form_runtime_compare = False' in source
+assert 'Consume the typed visual evidence returned by the one' in source
 print("Codex CLI probe Ponytail preflight session boundary PASS")
 print("Codex CLI probe Primary Form 26-control bounded coverage budget PASS")
+print("Codex CLI probe Primary Form route delegates continuous search to one Runtime-owned repair action PASS")
+print("Codex CLI probe consumes Runtime-owned repair comparison evidence without a duplicate Codex compare PASS")
 PY
 
 CARGO_TARGET_DIR="$TARGET_DIR" \

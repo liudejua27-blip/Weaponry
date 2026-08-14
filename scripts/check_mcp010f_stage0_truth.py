@@ -883,6 +883,7 @@ def check_run_inventory(truth: dict[str, Any]) -> None:
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json",
     }:
         require(
             transport_truth["promotion_decision"] == "NOT_PROMOTED_QUALITY_TARGET_NOT_MET_AND_PROVISIONAL_BASELINE_FROZEN",
@@ -1182,12 +1183,12 @@ def check_truth_declared_semantics(truth: dict[str, Any]) -> None:
 
     require(
         truth["latest_attempt"]["source_receipt_path"]
-        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r10.json",
+        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json",
         "frozen latest-attempt path drifted",
     )
     require(
         truth["latest_completed_transport"]["source_receipt_path"]
-        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
+        == "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json",
         "frozen latest-completed path drifted",
     )
     require(

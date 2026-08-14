@@ -56,7 +56,7 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "82488935f3758d1eb50850129cf154c65ebf7eb4805a056b34693f8773665206",
+  "canonical_sha256": "cad185276a67a25dff9048a1b63ad4376f1862b081df306a690580ee341f3a1b",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -157,46 +157,46 @@
     "sha256": "5e0a38ef05d94fdf0ec2d78fa8c3f0b0dddf2dadbe61c51ea11702b4203d41f1"
   },
   "latest_attempt": {
+    "attempt_count_evidence": "VERIFIED_RAW_RECEIPT_10_CODEX_TURNS_ZERO_EXIT_CODES",
     "build_cohorts": {
-      "mcp": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7",
-      "runtime": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7",
-      "worker": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7"
+      "mcp": "1f038d64a97990a5f911895bf4889359445e1240bdccbcaeaad914a1ab1194a9",
+      "runtime": "1f038d64a97990a5f911895bf4889359445e1240bdccbcaeaad914a1ab1194a9",
+      "worker": "1f038d64a97990a5f911895bf4889359445e1240bdccbcaeaad914a1ab1194a9"
     },
-    "attempt_count_evidence": "VERIFIED_SANITIZED_MCP_SETUP_CALLS_ONLY_NO_CODEX_TURN_COUNT",
+    "classification": "REAL_CODEX_COMPLETED_TRANSPORT_WITH_QUALITY_TARGET_NOT_MET",
     "cohort_provenance": "VERIFIED_CURRENT_SOURCE_BUILT_COHORT",
-    "classification": "REAL_CODEX_BLOCKED_SETUP_NO_QUALITY_RESULT",
-    "host_provenance": "VERIFIED_SANITIZED_MCP_SETUP_EVENTS_ONLY",
-    "quality_result": "NOT_PRODUCED",
-    "reason": "Codex did not complete silhouette_fit_prepare",
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-repair-r10.json",
-    "source_receipt_sha256": "93c6b379c958fd8feb651f21fea983f874d449d4fe2a1b06b6857b8db06756da",
-    "status": "BLOCKED"
+    "host_provenance": "VERIFIED_SANITIZED_CLI_EVENTS_AND_EXIT_CODES",
+    "quality_result": "QUALITY_TARGET_NOT_MET",
+    "reason": null,
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json",
+    "source_receipt_sha256": "3b777e6861eaf23c5c2b20c177f0b6897e2c1d94e61f467a3e8891966bed4f2f",
+    "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
   },
   "latest_completed_transport": {
-    "artifact_sha256": "71698275a3d927b09973de243c9db747353d7a66972610e8154b5d4149929933",
+    "artifact_sha256": "2d15760dcd6e25f41116bdb4a158082fd0ce5845d9523dd5822fb28df8b75f55",
     "build_cohorts": {
-      "mcp": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688",
-      "runtime": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688",
-      "worker": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688"
+      "mcp": "1f038d64a97990a5f911895bf4889359445e1240bdccbcaeaad914a1ab1194a9",
+      "runtime": "1f038d64a97990a5f911895bf4889359445e1240bdccbcaeaad914a1ab1194a9",
+      "worker": "1f038d64a97990a5f911895bf4889359445e1240bdccbcaeaad914a1ab1194a9"
     },
-    "candidate_id": "candidate-96744901b5a34d4fa89bd7325bf02eec",
-    "comparison_report_hash": "d4f0b50c5bec92285c43edb40a4f3744704c6d1dac147db9882bba563a920e54",
+    "candidate_id": "candidate-46736e18354e4a0b9e298b6aecc05fa6",
+    "comparison_report_hash": "776d8a9e90e6fb846bd4a4a603d58692c7cb33f637a84995d6feb9f29cfe0fe2",
     "metric_semantics": "CURRENT_SOURCE_BUILT_FULL_VISIBLE_VIEW_METRICS_NOT_PROMOTED",
     "metrics": {
       "bbox_edge_error": 0.00390625,
-      "boundary_f1_4px": 0.339780826338,
-      "centroid_error": 0.004143176227,
-      "critical_region_min_iou": 0.674633403161,
-      "landmark_coverage": 0.139498432602,
-      "landmark_nme": 0.074236521936,
-      "region_median_iou": 0.878654887432,
-      "silhouette_iou": 0.747420807905
+      "boundary_f1_4px": 0.34762334357,
+      "centroid_error": 0.004527285304,
+      "critical_region_min_iou": 1.0,
+      "landmark_coverage": 0.666666666667,
+      "landmark_nme": 0.08630325472,
+      "region_median_iou": 0.0,
+      "silhouette_iou": 0.749122328331
     },
     "promotion_decision": "NOT_PROMOTED_QUALITY_TARGET_NOT_MET_AND_PROVISIONAL_BASELINE_FROZEN",
     "quality_visual_status": "QUALITY_TARGET_NOT_MET",
-    "render_set_hash": "a1d812892088f300c5bbbf8fd86616e5840dbc3f9e7269bc25b8f1a6c22fa04d",
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
-    "source_receipt_sha256": "5ffeac57d67c4566e5b3796d4601b04c671a4d4aa9b8ff0968cf4af379f955b2",
+    "render_set_hash": "4eac3bff13dfbf42f35b43a53422dec47327cd09e4ab18149beb17558ed9a501",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json",
+    "source_receipt_sha256": "3b777e6861eaf23c5c2b20c177f0b6897e2c1d94e61f467a3e8891966bed4f2f",
     "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
   },
   "packaged_viewer": {
@@ -226,8 +226,8 @@
   "real_codex_run_inventory": {
     "path": "docs/evidence/mcp010f/real-codex-run-inventory.json",
     "ordering_confidence": "SNAPSHOT_ONLY_LEGACY_RECEIPTS_LACK_RECORDED_AT",
-    "sha256": "4413a717f6a23e56c9cbaa1ea2c4878ac1da36febba129a6104da51cd49192a6",
-    "run_count": 72
+    "sha256": "b9ccd4de6868e4a2ec8ecad7376dbdff12702d1989ae108726b6310e8fc87176",
+    "run_count": 75
   },
   "recorded_on": "2026-08-14",
   "provisional_retained_observation": {

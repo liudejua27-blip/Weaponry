@@ -95,7 +95,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--primary-form-repair",
         action="store_true",
-        help="After silhouette_fit_prepare, submit its single Runtime-owned intent to primary_form_repair_prepare and compare the staged candidate.",
+        help="After the one-shot observation/camera/Rig turn, submit one Runtime-owned Primary Form repair action and compare its staged candidate.",
     )
     parser.add_argument("--timeout", type=float, default=360.0)
     parser.add_argument("--sandbox", choices=("read-only", "workspace-write"), default="workspace-write")
@@ -722,9 +722,11 @@ def primary_form_repair_prompt(request: dict[str, Any]) -> str:
 primary_form_repair_prepare with this exact JSON object: {request_json}
 
 This is the single Runtime-owned Primary Form repair action. It must consume the
-same target, camera reference, Rig and optimizer intent; do not call
-silhouette_fit_prepare again, do not edit any parameter, and do not call
-geometry_prepare, render, compare, confirm or export separately in this turn.
+same target, camera reference, Rig and optimizer intent. Runtime owns the
+nested bounded silhouette fit and the Geometry Worker/Render Worker compare;
+do not call silhouette_fit_prepare separately, do not edit any parameter, and
+do not call geometry_prepare, render, compare, confirm or export separately in
+this turn.
 Return the typed staged-candidate/evidence result only. A no_improvement result
 must leave the source candidate unchanged; neither result is user approval or a
 visual-quality pass.
@@ -1022,7 +1024,9 @@ def main() -> int:
             primary_form_repair_source_candidate_id: str | None = None
             primary_form_repair_items: list[dict[str, Any]] = []
             selected_camera_for_compare: dict[str, Any] | None = None
+            primary_form_runtime_compare = False
             silhouette_items: list[dict[str, Any]] = []
+            fit_items: list[dict[str, Any]] = []
             if options.silhouette_first:
                 target_turn = run_codex_turn(
                     options,
@@ -1180,39 +1184,15 @@ def main() -> int:
                 # semantic intent so the Runtime can bind either wire form.
                 fit_request["canonical_sha256"] = canonical_hash(normalize_numeric_representation(fit_request))
                 silhouette_fit_intent_sha = fit_request["canonical_sha256"]
-                fit_items = run_required_codex_turn(
-                    options,
-                    environment,
-                    silhouette_fit_prompt(fit_request),
-                    str(root),
-                    ("silhouette_fit_prepare",),
-                    turn_outputs,
-                    "silhouette fit",
-                )
-                silhouette_items.extend(fit_items)
-                silhouette_fit_result = structured_result(fit_items, "silhouette_fit_prepare") or {}
-                if not has_subsequence(call_sequence(fit_items), ("silhouette_fit_prepare",)) or not all_completed(fit_items, ("silhouette_fit_prepare",)):
-                    raise RuntimeError("Codex did not complete silhouette_fit_prepare")
-                fit_selected_camera = field(silhouette_fit_result, "selected_camera")
-                if not isinstance(fit_selected_camera, dict):
-                    raise RuntimeError("silhouette_fit_prepare did not return selected camera evidence")
-                silhouette_fit_camera_hash = field(fit_selected_camera, "camera_hash")
-                silhouette_fit_camera_canonical = field(fit_selected_camera, "canonical_sha256")
-                if (
-                    not isinstance(silhouette_fit_camera_hash, str)
-                    or len(silhouette_fit_camera_hash) != 64
-                    or not isinstance(silhouette_fit_camera_canonical, str)
-                    or len(silhouette_fit_camera_canonical) != 64
-                ):
-                    raise RuntimeError("silhouette_fit_prepare returned an invalid selected camera")
-                # The fit result is the authoritative bounded camera proposal
-                # for the subsequent comparison.  Keeping the initial camera
-                # fit hash separately makes any accidental handoff drift
-                # visible in the receipt instead of silently comparing a
-                # different camera than the one the fit optimized.
-                selected_camera_for_compare = fit_selected_camera
-
                 if options.primary_form_repair:
+                    # Primary Form already owns the nested bounded fit.  Do
+                    # not ask Codex to run a standalone fit first: that would
+                    # duplicate the continuous search, fragment the visual
+                    # context across turns, and make the Runtime repair act
+                    # on a second hidden fit.  The initial camera/Rig turn
+                    # supplies only the exact typed seed; Runtime owns the
+                    # complete fit -> Geometry Worker -> Render Worker ->
+                    # compare action below.
                     authored_candidate_id = candidate_id
                     repair_request = dict(fit_request)
                     repair_request["base_version_id"] = None
@@ -1245,6 +1225,20 @@ def main() -> int:
                         raise RuntimeError(
                             "primary_form_repair_prepare source candidate drifted from authored candidate"
                         )
+                    silhouette_fit_result = field(primary_form_repair_result, "fit_result") or {}
+                    fit_selected_camera = field(silhouette_fit_result, "selected_camera")
+                    if not isinstance(fit_selected_camera, dict):
+                        raise RuntimeError("primary_form_repair_prepare did not return Runtime-selected camera evidence")
+                    silhouette_fit_camera_hash = field(fit_selected_camera, "camera_hash")
+                    silhouette_fit_camera_canonical = field(fit_selected_camera, "canonical_sha256")
+                    if (
+                        not isinstance(silhouette_fit_camera_hash, str)
+                        or len(silhouette_fit_camera_hash) != 64
+                        or not isinstance(silhouette_fit_camera_canonical, str)
+                        or len(silhouette_fit_camera_canonical) != 64
+                    ):
+                        raise RuntimeError("primary_form_repair_prepare returned an invalid Runtime-selected camera")
+                    selected_camera_for_compare = fit_selected_camera
                     repair_status = field(primary_form_repair_result, "status")
                     if repair_status == "prepared":
                         prepared_result = field(primary_form_repair_result, "prepared_candidate") or {}
@@ -1284,31 +1278,92 @@ def main() -> int:
                         raise RuntimeError(
                             "primary_form_repair_prepare returned an unsupported status"
                         )
+                else:
+                    fit_items = run_required_codex_turn(
+                        options,
+                        environment,
+                        silhouette_fit_prompt(fit_request),
+                        str(root),
+                        ("silhouette_fit_prepare",),
+                        turn_outputs,
+                        "silhouette fit",
+                    )
+                    silhouette_items.extend(fit_items)
+                    silhouette_fit_result = structured_result(fit_items, "silhouette_fit_prepare") or {}
+                    if not has_subsequence(call_sequence(fit_items), ("silhouette_fit_prepare",)) or not all_completed(fit_items, ("silhouette_fit_prepare",)):
+                        raise RuntimeError("Codex did not complete silhouette_fit_prepare")
+                    fit_selected_camera = field(silhouette_fit_result, "selected_camera")
+                    if not isinstance(fit_selected_camera, dict):
+                        raise RuntimeError("silhouette_fit_prepare did not return selected camera evidence")
+                    silhouette_fit_camera_hash = field(fit_selected_camera, "camera_hash")
+                    silhouette_fit_camera_canonical = field(fit_selected_camera, "canonical_sha256")
+                    if (
+                        not isinstance(silhouette_fit_camera_hash, str)
+                        or len(silhouette_fit_camera_hash) != 64
+                        or not isinstance(silhouette_fit_camera_canonical, str)
+                        or len(silhouette_fit_camera_canonical) != 64
+                    ):
+                        raise RuntimeError("silhouette_fit_prepare returned an invalid selected camera")
+                    # The fit result is the authoritative bounded camera
+                    # proposal for the subsequent comparison.  Keeping the
+                    # initial camera fit hash separately makes any accidental
+                    # handoff drift visible in the receipt instead of silently
+                    # comparing a different camera than the one the fit optimized.
+                    selected_camera_for_compare = fit_selected_camera
 
             spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
-            third = run_codex_turn(
-                options,
-                environment,
-                compare_prompt(
-                    project_id,
-                    reference_id,
-                    candidate_id,
-                    job_id,
-                    artifact_id,
-                    spec,
-                    selected_camera_for_compare,
-                    silhouette_target_sha,
-                ),
-                str(root),
-            )
-            turn_outputs.append(third)
-            third_items = event_items(third.stdout)
-            comparison = structured_result(third_items, "reference_compare_prepare") or {}
+            third_items: list[dict[str, Any]] = []
+            actual_third: list[str] = []
+            runtime_visual_evidence = field(primary_form_repair_result or {}, "visual_evidence")
+            if (
+                options.primary_form_repair
+                and isinstance(runtime_visual_evidence, dict)
+                and field(runtime_visual_evidence, "candidate_id") == candidate_id
+            ):
+                # primary_form_repair_prepare already performed the complete
+                # Runtime-owned fit -> Geometry Worker -> Render Worker ->
+                # candidate-bound comparison. Re-entering reference_compare_prepare
+                # from Codex would duplicate that compare and would force the
+                # compact camera reference through a new staged-candidate cache
+                # key. Consume the typed visual evidence returned by the one
+                # Runtime action instead.
+                comparison = {
+                    "render_set_object_sha256": field(runtime_visual_evidence, "render_set_hash"),
+                    "comparison_report_object_sha256": field(runtime_visual_evidence, "comparison_report_hash"),
+                    "render_set": field(runtime_visual_evidence, "render_set") or {},
+                    "comparison_report": field(runtime_visual_evidence, "comparison_report") or {},
+                    "camera": {
+                        "camera_hash": field(runtime_visual_evidence, "camera_hash"),
+                        "canonical_sha256": field(
+                            selected_camera_for_compare or {}, "canonical_sha256"
+                        ),
+                    },
+                }
+                primary_form_runtime_compare = True
+            else:
+                third = run_codex_turn(
+                    options,
+                    environment,
+                    compare_prompt(
+                        project_id,
+                        reference_id,
+                        candidate_id,
+                        job_id,
+                        artifact_id,
+                        spec,
+                        selected_camera_for_compare,
+                        silhouette_target_sha,
+                    ),
+                    str(root),
+                )
+                turn_outputs.append(third)
+                third_items = event_items(third.stdout)
+                comparison = structured_result(third_items, "reference_compare_prepare") or {}
+                actual_third = call_sequence(third_items)
             render_set_hash = field(comparison, "render_set_object_sha256") or field(comparison, "render_set_hash")
             comparison_hash = field(comparison, "comparison_report_object_sha256") or field(comparison, "comparison_report_hash")
             render_set = field(comparison, "render_set") or {}
             metrics = field(comparison, "comparison_report", "metrics")
-            actual_third = call_sequence(third_items)
             if not isinstance(render_set_hash, str) or not isinstance(comparison_hash, str):
                 raise RuntimeError("Codex comparison did not return candidate-bound CAS hashes")
             partial_evidence.update({
@@ -1341,7 +1396,10 @@ def main() -> int:
                 comparison_camera_canonical = field(comparison, "camera", "canonical_sha256") or field(comparison, "comparison_report", "camera_canonical_sha256")
             if render_set.get("passes") != list(AOV_ORDER):
                 raise RuntimeError("Codex comparison did not return the fixed nine AOV order")
-            if not has_subsequence(actual_third, COMPARE_SEQUENCE) or not all_completed(third_items, COMPARE_SEQUENCE):
+            if (
+                not primary_form_runtime_compare
+                and (not has_subsequence(actual_third, COMPARE_SEQUENCE) or not all_completed(third_items, COMPARE_SEQUENCE))
+            ):
                 raise RuntimeError("Codex did not complete the readback/compare sequence")
 
             boundary_result: dict[str, Any] | None = None
@@ -1581,6 +1639,7 @@ def main() -> int:
                     "fit_evaluations": field(primary_form_repair_result or {}, "fit_result", "evaluations"),
                     "fit_metrics": field(primary_form_repair_result or {}, "fit_result", "metrics"),
                 } if options.primary_form_repair else None,
+                "primary_form_runtime_compare": primary_form_runtime_compare,
                 "aov_order": list(AOV_ORDER),
                 "render_pass_calls": len(actual_render_passes),
                 "render_pass_order": actual_render_passes,
@@ -1604,7 +1663,7 @@ def main() -> int:
                     "authoring": list(AUTHORING_SEQUENCE),
                     "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE) if options.silhouette_first else [],
                     "silhouette": list(SILHOUETTE_SEQUENCE) if options.silhouette_first else [],
-                    "compare": list(COMPARE_SEQUENCE),
+                    "compare": [] if primary_form_runtime_compare else list(COMPARE_SEQUENCE),
                     "primary_form_repair": list(PRIMARY_FORM_REPAIR_SEQUENCE) if options.primary_form_repair else [],
                     "render": list(RENDER_SEQUENCE),
                     "review": list(REVIEW_SEQUENCE),
