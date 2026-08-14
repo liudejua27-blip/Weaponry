@@ -19,7 +19,10 @@ source = Path(sys.argv[1]).read_text(encoding="utf-8")
 assert 'SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")' in source
 assert 'skill_id' in source and 'ponytail-preflight' in source
 assert "Before any other ForgeCAD tool in this fresh MCP session" in source
+for parameter_id in ("upper-arm-height", "forearm-height", "thigh-height", "shin-height", "elbow-offset-y", "knee-offset-y"):
+    assert f'"parameter_id": "{parameter_id}"' in source
 print("Codex CLI probe Ponytail preflight session boundary PASS")
+print("Codex CLI probe Primary Form limb-length and vertical-placement controls PASS")
 PY
 
 CARGO_TARGET_DIR="$TARGET_DIR" \

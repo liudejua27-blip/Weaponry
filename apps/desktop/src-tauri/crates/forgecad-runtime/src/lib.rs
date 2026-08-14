@@ -14184,18 +14184,24 @@ mod tests {
         });
         let rig = json!({"parameters":[
             {"parameter_id":"shoulder-width","part_id":"shoulder-pair","semantic":"width","value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"ratio"},
-            {"parameter_id":"shoulder-offset-x","part_id":"shoulder-pair","semantic":"offset_x","value":0.0,"min":-0.5,"max":0.5,"step":0.05,"unit":"ratio"}
+            {"parameter_id":"shoulder-height","part_id":"shoulder-pair","semantic":"height","value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"ratio"},
+            {"parameter_id":"shoulder-offset-x","part_id":"shoulder-pair","semantic":"offset_x","value":0.0,"min":-0.5,"max":0.5,"step":0.05,"unit":"meter"},
+            {"parameter_id":"shoulder-offset-y","part_id":"shoulder-pair","semantic":"offset_y","value":0.0,"min":-0.5,"max":0.5,"step":0.05,"unit":"meter"}
         ]});
         let selected = vec![
             json!({"parameter_id":"shoulder-width","part_id":"shoulder-pair","value":1.2}),
+            json!({"parameter_id":"shoulder-height","part_id":"shoulder-pair","value":1.1}),
             json!({"parameter_id":"shoulder-offset-x","part_id":"shoulder-pair","value":0.1}),
+            json!({"parameter_id":"shoulder-offset-y","part_id":"shoulder-pair","value":0.2}),
         ];
         let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
-        assert_eq!(applied, 2);
+        assert_eq!(applied, 4);
         let source = materialized["nodes"].as_array().unwrap().iter().find(|node| node["node_id"] == "shell-left").unwrap();
         assert_eq!(source["parameters"]["size_m"][0], 1.2);
+        assert_eq!(source["parameters"]["size_m"][1], 2.2);
         let transform = materialized["nodes"].as_array().unwrap().iter().find(|node| node["node_id"] == "shell-shaped").unwrap();
         assert_eq!(transform["parameters"]["translation_m"][0], 0.1);
+        assert_eq!(transform["parameters"]["translation_m"][1], 0.2);
         assert_eq!(materialized["nodes"][2]["parameters"]["axis"], "x");
     }
 

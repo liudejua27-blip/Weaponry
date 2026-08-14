@@ -249,7 +249,7 @@ def main() -> int:
 
         listed = client.request("tools/list")
         tools = listed.get("result", {}).get("tools")
-        require(isinstance(tools, list) and len(tools) == 56, "C source tool manifest did not expose 35 read + 21 write tools")
+        require(isinstance(tools, list) and len(tools) == 57, "C source tool manifest did not expose 35 read + 22 write tools")
         render_tool = next((tool for tool in tools if tool.get("name") == "render_pass_get"), None)
         require(isinstance(render_tool, dict) and render_tool.get("annotations", {}).get("readOnlyHint") is True, "render_pass_get was not read-only")
 
@@ -491,7 +491,7 @@ def main() -> int:
             "task_id": "FGC-MCP010C",
             "status": "PASS",
             "protocol_version": MCP_PROTOCOL_VERSION,
-            "tool_count": 56,
+            "tool_count": 57,
             "ponytail_preflight": "PASS",
             "fixed_renderer": "512x512-perspective-zbuffer-deterministic",
             "aov_count": 9,

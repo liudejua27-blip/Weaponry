@@ -22,6 +22,14 @@ assert '"shoulder-armor-right": "shoulder-armor-right"' in source
 assert 'def part_parameter_prefix' in source
 print("MCP010F part-correction probe reads ponytail-preflight before design tools and supports bounded shoulder Parts")
 PY
+python3 - <<'PY'
+from pathlib import Path
+
+source = Path("scripts/probe_mcp010c_codex_cli.py").read_text(encoding="utf-8")
+for parameter_id in ("upper-arm-height", "forearm-height", "thigh-height", "shin-height", "elbow-offset-y", "knee-offset-y"):
+    assert f'"parameter_id": "{parameter_id}"' in source
+print("MCP010F source route includes bounded Primary Form limb-length and vertical-placement controls")
+PY
 
 INVENTORY_ROOT="$F_GATE_TARGET/reference-inventory"
 mkdir -p "$INVENTORY_ROOT"

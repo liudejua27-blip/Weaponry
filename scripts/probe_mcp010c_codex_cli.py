@@ -621,11 +621,15 @@ def silhouette_rig_draft(candidate_id: str) -> dict[str, Any]:
             {"parameter_id": "shoulder-width", "part_id": "shoulder-armor-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "shoulder-height", "part_id": "shoulder-armor-pair", "semantic": "height", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "upper-arm-width", "part_id": "upper-arm-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "upper-arm-height", "part_id": "upper-arm-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "forearm-width", "part_id": "forearm-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "forearm-height", "part_id": "forearm-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "pelvis-width", "part_id": "pelvis", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "pelvis-height", "part_id": "pelvis", "semantic": "height", "value": 1.0, "min": 0.88, "max": 1.12, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "thigh-width", "part_id": "thigh-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "thigh-height", "part_id": "thigh-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "shin-width", "part_id": "shin-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "shin-height", "part_id": "shin-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
             # Landmark ownership is explicit and camera-calibrated in Runtime.
             # These are bounded camera-plane meter offsets, not Codex-side
             # pixel nudges or an open-ended parameter trace.
@@ -635,8 +639,10 @@ def silhouette_rig_draft(candidate_id: str) -> dict[str, Any]:
             {"parameter_id": "shoulder-offset-x", "part_id": "shoulder-armor-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
             {"parameter_id": "shoulder-offset-y", "part_id": "shoulder-armor-pair", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
             {"parameter_id": "elbow-offset-x", "part_id": "elbow-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "elbow-offset-y", "part_id": "elbow-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
             {"parameter_id": "pelvis-offset-y", "part_id": "pelvis", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
             {"parameter_id": "knee-offset-x", "part_id": "knee-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "knee-offset-y", "part_id": "knee-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
         ],
     }
 
