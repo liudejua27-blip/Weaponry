@@ -1243,83 +1243,54 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
         .bundle
         .get("comparison_report")
         .and_then(|report| report.get("metrics"));
+    let gate_checks = metrics
+        .map(super::visible_view_gate_checks)
+        .unwrap_or_default();
     let mut issues = Vec::new();
     let mut failed_metrics = Vec::new();
-    if let Some(metrics) = metrics {
-        let checks = [
-            ("silhouette_iou", "min", 0.90, metrics.get("silhouette_iou")),
-            (
-                "boundary_f1_4px",
-                "min",
-                0.90,
-                metrics.get("boundary_f1_4px"),
-            ),
-            (
-                "bbox_edge_error",
-                "max",
-                0.02,
-                metrics.get("bbox_edge_error"),
-            ),
-            ("centroid_error", "max", 0.02, metrics.get("centroid_error")),
-            (
-                "landmark_coverage",
-                "min",
-                0.80,
-                metrics.get("landmark_coverage"),
-            ),
-            ("landmark_nme", "max", 0.03, metrics.get("landmark_nme")),
-            (
-                "region_median_iou",
-                "min",
-                0.85,
-                metrics.get("region_median_iou"),
-            ),
-            (
-                "critical_region_min_iou",
-                "min",
-                0.85,
-                metrics.get("critical_region_min_iou"),
-            ),
-        ];
-        for (metric_name, direction, threshold, observed) in checks {
-            let Some(observed) = observed.and_then(Value::as_f64) else {
-                continue;
-            };
-            let failed = if direction == "min" {
-                observed < threshold
-            } else {
-                observed > threshold
-            };
-            if failed {
-                failed_metrics.push(json!({
-                    "metric_name":metric_name,
-                    "direction":direction,
-                    "observed":observed,
-                    "threshold":threshold,
-                    "evidence_hash":comparison_hash
-                }));
-                let issue_key = canonical_json_hash(
-                    &json!({"candidate_id":context.candidate.as_ref().map(|candidate| candidate.candidate_id.clone()),"metric_name":metric_name,"observed":observed,"threshold":threshold,"evidence_hash":comparison_hash}),
-                );
-                issues.push(json!({
-                    "issue_id":format!("issue-{}", &issue_key[..24]),
-                    "stage":stage,
-                    "part_id":Value::Null,
-                    "part_id_status":"unknown",
-                    "material_zone_id":Value::Null,
-                    "material_zone_id_status":"unknown",
-                    "metric_name":metric_name,
-                    "threshold":threshold,
-                    "observed":observed,
-                    "evidence_hash":comparison_hash,
-                    "proposed_bounded_action":{"operation":if context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).is_some() {"silhouette_part_error_get"} else {"reference_compare_prepare"},"scope":if context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).is_some() {"candidate-bound-target-diagnostic"} else {"candidate-wide-evidence-recheck"},"part_id":Value::Null,"parameters":context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).map(|target| json!({"target_sha256":target})).unwrap_or_else(|| json!({})),"allowed":true},
-                    "risk":"A global visual metric does not identify a single editable Part; do not apply an unbound geometry patch.",
-                    "status":"fail",
-                    "knowledge_state":"observed",
-                    "lineage":context.lineage.clone()
-                }));
-            }
-        }
+    for check in gate_checks
+        .iter()
+        .filter(|check| check.get("status").and_then(Value::as_str) == Some("failed"))
+    {
+        let Some(metric_name) = check.get("metric_name").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(direction) = check.get("direction").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(threshold) = check.get("threshold").and_then(Value::as_f64) else {
+            continue;
+        };
+        let Some(observed) = check.get("observed").and_then(Value::as_f64) else {
+            continue;
+        };
+        failed_metrics.push(json!({
+            "metric_name":metric_name,
+            "direction":direction,
+            "observed":observed,
+            "threshold":threshold,
+            "evidence_hash":comparison_hash
+        }));
+        let issue_key = canonical_json_hash(
+            &json!({"candidate_id":context.candidate.as_ref().map(|candidate| candidate.candidate_id.clone()),"metric_name":metric_name,"observed":observed,"threshold":threshold,"evidence_hash":comparison_hash}),
+        );
+        issues.push(json!({
+            "issue_id":format!("issue-{}", &issue_key[..24]),
+            "stage":stage,
+            "part_id":Value::Null,
+            "part_id_status":"unknown",
+            "material_zone_id":Value::Null,
+            "material_zone_id_status":"unknown",
+            "metric_name":metric_name,
+            "threshold":threshold,
+            "observed":observed,
+            "evidence_hash":comparison_hash,
+            "proposed_bounded_action":{"operation":if context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).is_some() {"silhouette_part_error_get"} else {"reference_compare_prepare"},"scope":if context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).is_some() {"candidate-bound-target-diagnostic"} else {"candidate-wide-evidence-recheck"},"part_id":Value::Null,"parameters":context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).map(|target| json!({"target_sha256":target})).unwrap_or_else(|| json!({})),"allowed":true},
+            "risk":"A global visual metric does not identify a single editable Part; do not apply an unbound geometry patch.",
+            "status":"fail",
+            "knowledge_state":"observed",
+            "lineage":context.lineage.clone()
+        }));
     }
     if context.candidate.is_none() {
         issues.push(json!({

@@ -11374,26 +11374,52 @@ fn stable_visual_metric(value: f64) -> f64 {
 }
 
 fn visible_view_gate_passes(metrics: &Value) -> bool {
-    let at_least = |key: &str, minimum: f64| {
-        metrics
-            .get(key)
+    visible_view_gate_checks(metrics)
+        .iter()
+        .all(|check| check.get("status").and_then(Value::as_str) == Some("passed"))
+}
+
+/// Return the Runtime-owned visible-view gate records used by both the
+/// QualityReport producer and read-only Agentic critic projections. Keeping the
+/// thresholds and comparison direction here prevents a projection layer from
+/// silently inventing a second quality gate.
+fn visible_view_gate_checks(metrics: &Value) -> Vec<Value> {
+    [
+        ("silhouette_iou", "min", VISIBLE_SILHOUETTE_IOU_MIN),
+        ("boundary_f1_4px", "min", VISIBLE_BOUNDARY_F1_MIN),
+        ("bbox_edge_error", "max", VISIBLE_BBOX_EDGE_ERROR_MAX),
+        ("centroid_error", "max", VISIBLE_CENTROID_ERROR_MAX),
+        ("landmark_coverage", "min", VISIBLE_LANDMARK_COVERAGE_MIN),
+        ("landmark_nme", "max", VISIBLE_LANDMARK_NME_MAX),
+        ("region_median_iou", "min", VISIBLE_REGION_MEDIAN_IOU_MIN),
+        (
+            "critical_region_min_iou",
+            "min",
+            VISIBLE_CRITICAL_REGION_IOU_MIN,
+        ),
+    ]
+    .into_iter()
+    .map(|(metric_name, direction, threshold)| {
+        let observed = metrics
+            .get(metric_name)
             .and_then(Value::as_f64)
-            .is_some_and(|value| value.is_finite() && value >= minimum)
-    };
-    let at_most = |key: &str, maximum: f64| {
-        metrics
-            .get(key)
-            .and_then(Value::as_f64)
-            .is_some_and(|value| value.is_finite() && value <= maximum)
-    };
-    at_least("silhouette_iou", VISIBLE_SILHOUETTE_IOU_MIN)
-        && at_least("boundary_f1_4px", VISIBLE_BOUNDARY_F1_MIN)
-        && at_most("bbox_edge_error", VISIBLE_BBOX_EDGE_ERROR_MAX)
-        && at_most("centroid_error", VISIBLE_CENTROID_ERROR_MAX)
-        && at_least("landmark_coverage", VISIBLE_LANDMARK_COVERAGE_MIN)
-        && at_most("landmark_nme", VISIBLE_LANDMARK_NME_MAX)
-        && at_least("region_median_iou", VISIBLE_REGION_MEDIAN_IOU_MIN)
-        && at_least("critical_region_min_iou", VISIBLE_CRITICAL_REGION_IOU_MIN)
+            .filter(|value| value.is_finite());
+        let passed = observed.is_some_and(|value| {
+            if direction == "min" {
+                value >= threshold
+            } else {
+                value <= threshold
+            }
+        });
+        json!({
+            "metric_name":metric_name,
+            "direction":direction,
+            "observed":observed.map(Value::from).unwrap_or(Value::Null),
+            "threshold":threshold,
+            "status":if observed.is_none() {"not-run"} else if passed {"passed"} else {"failed"}
+        })
+    })
+    .collect()
 }
 
 fn compare_masks(reference: &[bool], model: &[bool], view_spec: &Value) -> Value {
@@ -13170,6 +13196,13 @@ mod tests {
             "critical_region_min_iou": 0.85
         });
         assert!(!visible_view_gate_passes(&exploratory));
+        assert_eq!(
+            visible_view_gate_checks(&exploratory)
+                .iter()
+                .filter(|check| check["status"] == "failed")
+                .count(),
+            4
+        );
 
         let strict = json!({
             "silhouette_iou": 0.90,
@@ -13182,6 +13215,9 @@ mod tests {
             "critical_region_min_iou": 0.85
         });
         assert!(visible_view_gate_passes(&strict));
+        assert!(visible_view_gate_checks(&strict)
+            .iter()
+            .all(|check| check["status"] == "passed"));
     }
 
     #[test]
