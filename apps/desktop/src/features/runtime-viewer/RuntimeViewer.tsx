@@ -20,8 +20,8 @@ import {
 } from './agentic-session'
 
 const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
-const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键框选 · 右键旋转 · 中键平移 · 滚轮缩放 · 1/2/3 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
-const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选', '右键：旋转', '中键：平移', '滚轮：缩放', 'F：聚焦', 'R：重置视角', '1/2/3：视角切换', 'Z/X/C：光照预设']
+const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键框选 · 右键旋转 · 中键平移 · 滚轮缩放 · 1/2/3/4/5/6 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
+const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选', '右键：旋转', '中键：平移', '滚轮：缩放', '1～6：切换视角', 'Z/X/C：光照预设', 'F：聚焦', 'R：重置视角']
 type ThreeRuntimeCore = typeof import('./three-runtime-core')
 type ThreeRuntimeCoreMath = Pick<ThreeRuntimeCore, 'Box3' | 'Vector3'>
 
@@ -218,16 +218,27 @@ type CandidateSnapshotDiffRow = {
   status: 'changed' | 'same' | 'missing'
 }
 
+type ErrorConsoleCategory = '读取失败' | '加载失败' | '绑定不一致' | '未就绪' | '异常'
+
 type ErrorConsoleItem = {
   id: string
   scope: string
   code: string
   title: string
+  category: ErrorConsoleCategory
   summary: string
   meaning: string
   severity: 'error' | 'warn'
   actionLabel?: string
   action?: () => void
+}
+
+function deriveErrorCategory(code: string, fallback: ErrorConsoleCategory): ErrorConsoleCategory {
+  if (/unavailable|request|request_failed|missing/i.test(code)) return '未就绪'
+  if (/binding|mismatch/i.test(code)) return '绑定不一致'
+  if (/glb|artifact|render|reference|parse|decode|load|bytes/i.test(code)) return '加载失败'
+  if (/compare|evidence|runtime|summary|permission|sum|sync/i.test(code)) return '读取失败'
+  return fallback
 }
 
 function buildCandidateSnapshotRecord(entry: CandidateView, projectId?: string): CandidateSnapshotRecord | null {
@@ -390,12 +401,12 @@ function snapshotDeltaClass(direction: CandidateSnapshotDelta['direction']): str
 
 function formatBindingStatusText(binding: SnapshotBindingState): string {
   const chunks = [
-    binding.artifact ? 'GLB' : 'GLB×',
-    binding.reference ? '参考' : '参考×',
-    binding.renderSet ? 'RenderSet' : 'RenderSet×',
-    binding.comparison ? 'Comparison' : 'Comparison×',
-    binding.qualityReport ? 'Quality' : 'Quality×',
-    binding.qualityGate === 'pass' ? 'PASS' : binding.qualityGate === 'fail' ? 'FAIL' : 'PEND',
+    binding.artifact ? 'GLB：已绑定' : 'GLB：未绑定',
+    binding.reference ? '参考：已绑定' : '参考：未绑定',
+    binding.renderSet ? 'RenderSet：已绑定' : 'RenderSet：未绑定',
+    binding.comparison ? 'Comparison：已绑定' : 'Comparison：未绑定',
+    binding.qualityReport ? 'Quality：已绑定' : 'Quality：未绑定',
+    binding.qualityGate === 'pass' ? '质量门：通过' : binding.qualityGate === 'fail' ? '质量门：未通过' : '质量门：待确认',
   ]
   return chunks.join(' ｜ ')
 }
@@ -579,7 +590,7 @@ type AovPass = typeof AOV_PASSES[number]
 type CompareMode = 'split' | 'overlay' | 'flicker'
 type ViewportLightPreset = 'neutral' | 'high-key' | 'dramatic'
 type ViewportDragMode = 'idle' | 'box-select'
-type ViewportCameraPreset = 'front' | 'left' | 'top'
+type ViewportCameraPreset = 'front' | 'left' | 'top' | 'right' | 'rear' | 'three-quarter'
 
 const VIEWPORT_LIGHT_PRESETS: ReadonlyArray<{ id: ViewportLightPreset; label: string }> = [
   { id: 'neutral', label: '中性光' },
@@ -591,6 +602,9 @@ const VIEWPORT_CAMERA_PRESETS: ReadonlyArray<{ id: ViewportCameraPreset; label: 
   { id: 'front', label: '1 前' },
   { id: 'left', label: '2 左' },
   { id: 'top', label: '3 顶' },
+  { id: 'right', label: '4 右' },
+  { id: 'rear', label: '5 后' },
+  { id: 'three-quarter', label: '6 三分之三四' },
 ]
 
 type ViewerModel = {
@@ -1045,6 +1059,9 @@ function clampViewportControlHint(preset: ViewportLightPreset, lockState: {
 function viewportCameraOffset(preset: ViewportCameraPreset): [number, number, number] {
   if (preset === 'left') return [-1.1, 0.26, 0.15]
   if (preset === 'top') return [0.02, 1.2, 0.22]
+  if (preset === 'right') return [1.1, 0.26, -0.15]
+  if (preset === 'rear') return [0.08, 0.25, -1.35]
+  if (preset === 'three-quarter') return [1.0, 0.45, 0.9]
   return [0.08, 0.25, 1.2]
 }
 
@@ -1218,7 +1235,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const [materialLockState, setMaterialLockState] = useState<Record<string, boolean>>({})
   const [sceneTreeSearch, setSceneTreeSearch] = useState('')
   const [sceneTreeFilter, setSceneTreeFilter] = useState<SceneTreeVisibilityFilter>('all')
-  const [expandedPartId, setExpandedPartId] = useState<string | null>(null)
+  const [expandedPartIds, setExpandedPartIds] = useState<Record<string, boolean>>({})
   const [viewportLightPreset, setViewportLightPreset] = useState<ViewportLightPreset>('neutral')
   const [viewportCameraPreset, setViewportCameraPreset] = useState<ViewportCameraPreset>('front')
   const [viewportMarqueeRect, setViewportMarqueeRect] = useState<ViewportMarqueeRect | null>(null)
@@ -1485,6 +1502,34 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     ...VIEWPORT_KEYBOARD_HINTS,
   ], [selectedObjectId, selectedSceneObject?.data.partId])
   const refreshViewerData = () => setModelRefreshNonce((value) => value + 1)
+  const setSceneTreePartExpanded = (partId: string, expanded: boolean) => {
+    setExpandedPartIds((current) => {
+      const next = { ...current }
+      if (expanded) next[partId] = true
+      else delete next[partId]
+      return next
+    })
+  }
+  const toggleSceneTreePartExpanded = (partId: string) => {
+    setExpandedPartIds((current) => {
+      const next = { ...current }
+      if (current[partId]) delete next[partId]
+      else next[partId] = true
+      return next
+    })
+  }
+  const syncSceneTreeExpandedFromScene = (parts: SceneTreePartSummary[]) => {
+    setExpandedPartIds((current) => {
+      const next: Record<string, boolean> = {}
+      for (const part of parts) {
+        if (current[part.partId]) next[part.partId] = true
+      }
+      if (parts.length > 0 && Object.keys(next).length === 0) {
+        next[parts[0]!.partId] = true
+      }
+      return next
+    })
+  }
   const retryArtifactLoad = () => {
     setArtifactError(null)
     setArtifactLoadState('idle')
@@ -1505,7 +1550,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     setSelectedObjectId(null)
     setSelectedPartId('all')
     setSelectedMaterialZone('all')
-    setExpandedPartId(null)
+    setExpandedPartIds({})
   }
   const errorConsoleItems = useMemo<ErrorConsoleItem[]>(() => {
     const result: ErrorConsoleItem[] = []
@@ -1515,6 +1560,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         scope: 'Runtime 模型读取',
         code: modelSyncError,
         title: 'Runtime 会话读取失败',
+        category: deriveErrorCategory(modelSyncError, '读取失败'),
         summary: '无法确认候选与项目元数据',
         meaning: deriveCandidateErrorMeaning(modelSyncError),
         severity: statusClassFromCode(modelSyncError),
@@ -1529,6 +1575,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         scope: '候选证据',
         code: evidenceError,
         title: 'QualityEvidence 读取失败',
+        category: deriveErrorCategory(evidenceError, '未就绪'),
         summary: '固定视图/质量指标无法同步',
         meaning: deriveCandidateErrorMeaning(evidenceError),
         severity: statusClassFromCode(evidenceError, evidenceError === 'VISUAL_EVIDENCE_UNAVAILABLE' || evidenceError === 'REFERENCE_UNAVAILABLE' || evidenceError === 'VISUAL_EVIDENCE_BINDING_MISMATCH'),
@@ -1547,6 +1594,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           : artifactError === 'ARTIFACT_BYTES_BINDING_MISMATCH'
             ? '候选 GLB 绑定冲突'
             : '候选 GLB 加载失败',
+        category: deriveErrorCategory(artifactError, '加载失败'),
         summary: '3D 视图无法使用当前 candidate 的几何体',
         meaning: deriveCandidateErrorMeaning(artifactError),
         severity: statusClassFromCode(artifactError),
@@ -1561,6 +1609,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         scope: `参考对比（${selectedPass}）`,
         code: compareError,
         title: '参考图/Render PNG 对比读取失败',
+        category: deriveErrorCategory(compareError, '读取失败'),
         summary: 'AOV 比较窗口将不可用',
         meaning: deriveCandidateErrorMeaning(compareError),
         severity: statusClassFromCode(compareError),
@@ -1575,6 +1624,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         scope: `当前候选（${candidateId}）`,
         code: 'ARTIFACT_MISSING_FOR_CANDIDATE',
         title: '候选已存在但缺少 GLB 载荷',
+        category: '未就绪',
         summary: '可能为生成中、未完成或数据未可用',
         meaning: '当前候选没有可用的 GLB 绑定，请等待生成完成或手动切换其他候选查看。',
         severity: 'warn',
@@ -1589,6 +1639,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         scope: `当前候选（${candidateId}）`,
         code: 'VISUAL_EVIDENCE_MISSING',
         title: '候选证据未就绪',
+        category: '未就绪',
         summary: '候选已存在，但质量与对比证据尚未全部写回',
         meaning: '数据处于生成或写回窗口内，属于可重试/可等待的“数据未可用”状态。',
         severity: 'warn',
@@ -1616,6 +1667,28 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     dropCurrentCandidate,
     retryEvidenceLoad,
   ])
+  const errorSummaryByCategory = useMemo(() => {
+    const counts = {
+      读取失败: 0,
+      加载失败: 0,
+      绑定不一致: 0,
+      未就绪: 0,
+      异常: 0,
+    }
+    let errorCount = 0
+    let warnCount = 0
+    for (const item of errorConsoleItems) {
+      counts[item.category] += 1
+      if (item.severity === 'error') errorCount += 1
+      else warnCount += 1
+    }
+    return {
+      counts,
+      errorCount,
+      warnCount,
+      total: errorConsoleItems.length,
+    }
+  }, [errorConsoleItems])
   const viewportControlHint = clampViewportControlHint(viewportLightPreset, selectedSceneObjectLockState)
   useEffect(() => {
     const nextCandidateId = activeCandidateId ?? null
@@ -1624,7 +1697,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       setSelectedObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
-      setExpandedPartId(null)
+      setExpandedPartIds({})
       setPartLockState({})
       setMaterialLockState({})
       setViewportMarqueeRect(null)
@@ -1821,7 +1894,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     setSelectedObjectId(null)
     setPartVisibility({})
     setMaterialVisibility({})
-    setExpandedPartId(null)
+    setExpandedPartIds({})
   }, [candidateId, projectId])
 
   useEffect(() => {
@@ -2135,7 +2208,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     })
     setPartVisibility(nextPartVisibility)
     setMaterialVisibility(nextMaterialVisibility)
-    if (viewerSceneTree.length > 0) setExpandedPartId((current) => current && nextPartVisibility[current] === true ? current : viewerSceneTree[0]?.partId ?? null)
+    if (viewerSceneTree.length > 0) syncSceneTreeExpandedFromScene(viewerSceneTree)
   }, [artifactLoadState, artifactCandidateId, artifactRetryNonce, viewerSceneTree])
 
   useEffect(() => {
@@ -2369,7 +2442,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       setSelectedObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
-      setExpandedPartId(null)
+      setExpandedPartIds({})
       return
     }
     setSelectedObjectId(target.uuid)
@@ -2377,7 +2450,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     if (targetState) {
       setSelectedPartId(targetState.partId)
       setSelectedMaterialZone(targetState.materialZoneId)
-      setExpandedPartId(targetState.partId)
+      setSceneTreePartExpanded(targetState.partId, true)
       focusViewportTarget(target)
     }
   }
@@ -2408,14 +2481,14 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         setSelectedObjectId(null)
         setSelectedPartId('all')
         setSelectedMaterialZone('all')
-        setExpandedPartId(null)
+        setExpandedPartIds({})
       } else {
         const targetState = state.objects.get(target)
         setSelectedObjectId(target.uuid)
         if (targetState) {
           setSelectedPartId(targetState.partId)
           setSelectedMaterialZone(targetState.materialZoneId)
-          setExpandedPartId(targetState.partId)
+          setSceneTreePartExpanded(targetState.partId, true)
           focusViewportTarget(target)
         }
       }
@@ -2434,7 +2507,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       setSelectedObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
-      setExpandedPartId(null)
+      setExpandedPartIds({})
       return
     }
     const targetState = state.objects.get(first)
@@ -2442,7 +2515,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     if (targetState) {
       setSelectedPartId(targetState.partId)
       setSelectedMaterialZone(targetState.materialZoneId)
-      setExpandedPartId(targetState.partId)
+      setSceneTreePartExpanded(targetState.partId, true)
       focusViewportTarget(first)
     }
   }
@@ -2477,6 +2550,15 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     } else if (event.key === '3') {
       event.preventDefault()
       moveViewportCameraToPreset('top')
+    } else if (event.key === '4') {
+      event.preventDefault()
+      moveViewportCameraToPreset('right')
+    } else if (event.key === '5') {
+      event.preventDefault()
+      moveViewportCameraToPreset('rear')
+    } else if (event.key === '6') {
+      event.preventDefault()
+      moveViewportCameraToPreset('three-quarter')
     } else if (event.key === 'Escape' && selectedObjectId) {
       event.preventDefault()
       setSelectedObjectId(null)
@@ -2506,7 +2588,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const handleSceneTreePartSelect = (partId: string) => {
     setSelectedPartId(partId)
     setSelectedMaterialZone('all')
-    setExpandedPartId((current) => current === partId ? (current === null ? partId : null) : partId)
+    toggleSceneTreePartExpanded(partId)
     const object = findSceneTreeObject(partId)
     if (object) {
       setSelectedObjectId(object.uuid)
@@ -2519,7 +2601,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const handleSceneTreeMaterialSelect = (partId: string, materialZoneId: string) => {
     setSelectedPartId(partId)
     setSelectedMaterialZone(materialZoneId)
-    setExpandedPartId(partId)
+    setSceneTreePartExpanded(partId, true)
     const object = findSceneTreeObject(partId, materialZoneId)
     if (object) {
       setSelectedObjectId(object.uuid)
@@ -2744,10 +2826,33 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       <div className={`status-pill ${ready ? '' : 'status-pill-muted'}`} role="status"><span className="status-dot" />{ready ? 'Runtime 已就绪 · 只读' : 'Runtime 未连接 · Viewer 模式'}</div>
     </header>
     {errorConsoleItems.length > 0 && (
-      <section className="panel-section error-console" aria-labelledby="error-console-title">
+    <section className="panel-section error-console" aria-labelledby="error-console-title">
         <div className="section-toolbar">
           <div><p className="section-kicker">ERROR CONSOLE</p><h2 id="error-console-title">统一异常面板</h2></div>
           <button type="button" className="viewer-toggle" onClick={() => setModelRefreshNonce((value) => value + 1)} disabled={modelRefreshing}>{modelRefreshing ? '重试中…' : '重试模型读取'}</button>
+        </div>
+        <div className="error-console-summary" role="status" aria-live="polite">
+          <span className="error-summary-chip">
+            <strong>总计</strong><code>{errorSummaryByCategory.total}</code>
+          </span>
+          <span className="error-summary-chip">
+            <strong>错误</strong><code className="error-summary-code-error">{errorSummaryByCategory.errorCount}</code>
+          </span>
+          <span className="error-summary-chip">
+            <strong>警告</strong><code className="error-summary-code-warn">{errorSummaryByCategory.warnCount}</code>
+          </span>
+          <span className="error-summary-chip">
+            <strong>读取失败</strong><code>{errorSummaryByCategory.counts.读取失败}</code>
+          </span>
+          <span className="error-summary-chip">
+            <strong>加载失败</strong><code>{errorSummaryByCategory.counts.加载失败}</code>
+          </span>
+          <span className="error-summary-chip">
+            <strong>绑定不一致</strong><code>{errorSummaryByCategory.counts.绑定不一致}</code>
+          </span>
+          <span className="error-summary-chip">
+            <strong>未就绪</strong><code>{errorSummaryByCategory.counts.未就绪}</code>
+          </span>
         </div>
         <div className="error-console-list">
           {errorConsoleItems.map((item) => (
@@ -2755,6 +2860,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               <div className="error-console-item-title">
                 <span className={`status-icon ${item.severity === 'warn' ? 'status-icon-muted' : 'status-icon-error'}`}>{item.severity === 'warn' ? 'i' : '!'}</span>
                 <strong>{item.title}</strong>
+                <span className="error-console-item-category">{item.category}</span>
                 <code>{item.code}</code>
               </div>
               <p>{item.summary}</p>
@@ -2768,7 +2874,11 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     )}
     <section className="runtime-grid" aria-label="ForgeCAD runtime viewer">
       <div className="viewport-card">
-        <div className="viewport-toolbar"><span>ActiveDesignSnapshot</span><span className="toolbar-muted">{ready ? (project?.record?.head_snapshot_id ? '已读取当前快照' : '暂无已确认快照') : '等待 Runtime'}</span><button type="button" className="viewer-toggle" onClick={resetViewport} disabled={!viewerSceneRef.current}>重置视角</button></div>
+        <div className="viewport-toolbar">
+          <span>ActiveDesignSnapshot</span>
+          <span className="toolbar-muted">{ready ? (project?.record?.head_snapshot_id ? '已读取当前快照' : '暂无已确认快照') : '等待 Runtime'}</span>
+          <button type="button" className="viewer-toggle" onClick={resetViewport} disabled={!viewerSceneRef.current}>重置视角</button>
+        </div>
         <div className="candidate-toolbar" aria-label="候选与历史版本选择">
           <label>当前候选 / 历史<select value={selectedCandidateId ?? AUTO_LATEST_CANDIDATE} onChange={(event) => setSelectedCandidateId(event.target.value === AUTO_LATEST_CANDIDATE ? null : event.target.value)} disabled={candidateSummaries.length === 0}>
             <option value={AUTO_LATEST_CANDIDATE}>自动 · 最新任务 {automaticCandidateId ? `(${automaticCandidateId})` : ''}</option>
@@ -2785,7 +2895,20 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           <button type="button" className="viewer-toggle" onClick={() => setCandidateSortOrder((value) => value === 'newest' ? 'oldest' : 'newest')} disabled={candidateSummaries.length < 2}>{candidateSortOrder === 'newest' ? '最新 → 最旧' : '最旧 → 最新'}</button>
           <span className="candidate-selection-badge"><span className="status-icon status-icon-info">{selectedCandidateIsManual ? 'M' : 'A'}</span>{selectedCandidateIsManual ? '手动候选' : '自动最新候选'} · 任务ID {candidateId ?? 'none'}</span>
         </div>
-          <div className="viewport-stage" aria-label={artifact ? 'GLB artifact readback' : '3D viewport placeholder'}><div className="viewport-crosshair" aria-hidden="true" />{artifact ? <><canvas
+        <div className="viewport-toolbar">
+          <div className="toolbar-segmented" role="group" aria-label="3D 视角预设">
+            {VIEWPORT_CAMERA_PRESETS.map((preset) => <button
+              type="button"
+              key={preset.id}
+              className={`viewer-toggle ${viewportCameraPreset === preset.id ? 'viewer-toggle-active' : ''}`}
+              onClick={() => moveViewportCameraToPreset(preset.id)}
+            >
+              {preset.label}
+            </button>)}
+          </div>
+          <span className="toolbar-muted">当前：{VIEWPORT_CAMERA_PRESETS.find((preset) => preset.id === viewportCameraPreset)?.label ?? '前视角'}</span>
+        </div>
+        <div className="viewport-stage" aria-label={artifact ? 'GLB artifact readback' : '3D viewport placeholder'}><div className="viewport-crosshair" aria-hidden="true" />{artifact ? <><canvas
               ref={canvasRef}
               className="glb-canvas"
               tabIndex={0}
@@ -2828,7 +2951,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           </div>
           <div className="viewer-controls" aria-label="Part and material controls">
             <label>Part<select value={selectedPartId} onChange={(event) => setSelectedPartId(event.target.value)} disabled={partIds.length === 0}><option value="all">全部部件</option>{partIds.map((partId) => <option key={partId} value={partId}>{partId}</option>)}</select></label>
-            <label>MaterialZone<select value={selectedMaterialZone} onChange={(event) => setSelectedMaterialZone(event.target.value)} disabled={materialZoneIds.length === 0}><option value="all">全部材质区</option>{materialZoneIds.map((zoneId) => <option key={zoneId} value={zoneId}>{zoneId}</option>)}</select></label>
+            <label>材质区<select value={selectedMaterialZone} onChange={(event) => setSelectedMaterialZone(event.target.value)} disabled={materialZoneIds.length === 0}><option value="all">全部材质区</option>{materialZoneIds.map((zoneId) => <option key={zoneId} value={zoneId}>{zoneId}</option>)}</select></label>
             <button type="button" className={`viewer-toggle ${exploded ? 'viewer-toggle-active' : ''}`} aria-pressed={exploded} onClick={() => setExploded((value) => !value)}>爆炸图</button>
             <button type="button" className={`viewer-toggle ${contourCanvasActive ? 'viewer-toggle-active' : ''}`} aria-pressed={contourCanvasActive} onClick={() => { setSelectedPass('silhouette'); setCompareMode('overlay'); setDiffHeatmap(false) }}>轮廓画布</button>
             <button type="button" className={`viewer-toggle ${diffHeatmap ? 'viewer-toggle-active' : ''}`} aria-pressed={diffHeatmap} onClick={() => setDiffHeatmap((value) => !value)}>差异热图</button>
@@ -2913,7 +3036,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             ) : filteredSceneTreeByState.map((part) => {
               const partVisible = partVisibility[part.partId] ?? true
               const partLocked = Boolean(partLockState[part.partId])
-              const isPartExpanded = expandedPartId === part.partId
+              const isPartExpanded = Boolean(expandedPartIds[part.partId])
               const partSelected = selectedPartId === part.partId
               return <div className="scene-tree-part" role="listitem" key={part.partId}>
                 <div className="scene-tree-part-row">
@@ -2924,12 +3047,12 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                     aria-expanded={isPartExpanded}
                   >
                     <span className="scene-tree-row-title">{part.partId}</span>
-                    <span className="scene-tree-row-meta">{part.objectCount} obj</span>
+                    <span className="scene-tree-row-meta">{part.objectCount} 对象</span>
                   </button>
                   <button
                     type="button"
                     className={`scene-tree-inline-toggle ${isPartExpanded ? 'scene-tree-inline-toggle-active' : ''}`}
-                    onClick={() => setExpandedPartId((current) => current === part.partId ? null : part.partId)}
+                    onClick={() => toggleSceneTreePartExpanded(part.partId)}
                     aria-label={`${part.partId} 展开/收起`}
                   >{isPartExpanded ? '−' : '+'}</button>
                   <button
@@ -2964,7 +3087,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                       }}
                     >
                       <span className="scene-tree-row-title">▸ {material.materialZoneId}</span>
-                      <span className="scene-tree-row-meta">{material.objectCount} obj</span>
+                    <span className="scene-tree-row-meta">{material.objectCount} 对象</span>
                       <button
                         type="button"
                         className="scene-tree-inline-toggle"
@@ -2994,14 +3117,14 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               <span className="selected-object-icon">◎</span>
               <div>
                 <strong>当前选中</strong>
-                <small>Part：{selectedSceneObject.data.partId}</small>
-                <small>MaterialZone：{selectedSceneObject.data.materialZoneId}</small>
+                <small>部件：{selectedSceneObject.data.partId}</small>
+                <small>材质区：{selectedSceneObject.data.materialZoneId}</small>
                 <small>ID：{selectedSceneObject.object.uuid}</small>
                 <small>
                   锁定：
-                  {selectedSceneObjectLockState.selectedPartLocked ? 'Part 已锁' : 'Part 未锁'}
+                  {selectedSceneObjectLockState.selectedPartLocked ? '部件已锁' : '部件未锁'}
                   /
-                  {selectedSceneObjectLockState.selectedMaterialLocked ? 'Material 已锁' : 'Material 未锁'}
+                  {selectedSceneObjectLockState.selectedMaterialLocked ? '材质区已锁' : '材质区未锁'}
                 </small>
               </div>
               <div className="runtime-selected-object-controls">
@@ -3014,12 +3137,12 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                   type="button"
                   className={`viewer-toggle ${selectedSceneObjectLockState.selectedPartLocked ? 'viewer-toggle-active' : ''}`}
                   onClick={() => toggleTreePartLock(selectedSceneObject.data.partId)}
-                >{selectedSceneObjectLockState.selectedPartLocked ? '解除 Part 锁定' : '锁定 Part'}</button>
+                >{selectedSceneObjectLockState.selectedPartLocked ? '解除部件锁定' : '锁定部件'}</button>
                 <button
                   type="button"
                   className={`viewer-toggle ${selectedSceneObjectLockState.selectedMaterialLocked ? 'viewer-toggle-active' : ''}`}
                   onClick={() => toggleTreeMaterialLock(selectedSceneObject.data.materialZoneId)}
-                >{selectedSceneObjectLockState.selectedMaterialLocked ? '解除 Material 锁定' : '锁定 Material'}</button>
+                >{selectedSceneObjectLockState.selectedMaterialLocked ? '解除材质区锁定' : '锁定材质区'}</button>
               </div>
             </div>
           ) : <p className="panel-copy">未选中对象，单击模型可选中并在此显示。按 F 聚焦高亮对象。</p>}
@@ -3035,8 +3158,8 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                   <code>{activeSnapshot.candidateState}</code>
                 </div>
                 <div className="snapshot-metrics">
-                  <span>part: {activeSnapshot.partCount}</span>
-                  <span>material-zone: {activeSnapshot.materialZoneCount}</span>
+                    <span>部件：{activeSnapshot.partCount}</span>
+                  <span>材质区：{activeSnapshot.materialZoneCount}</span>
                   <span>triangles: {activeSnapshot.triangleCount}</span>
                   <span>UV: {activeSnapshot.uvStatus}</span>
                   <span>tangent: {activeSnapshot.tangentStatus}</span>
@@ -3065,8 +3188,8 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                 </div>
                 {previousCandidateSnapshot ? (
                   <div className="snapshot-metrics">
-                    <span>part: {previousCandidateSnapshot.partCount}</span>
-                    <span>material-zone: {previousCandidateSnapshot.materialZoneCount}</span>
+                    <span>部件：{previousCandidateSnapshot.partCount}</span>
+                    <span>材质区：{previousCandidateSnapshot.materialZoneCount}</span>
                     <span>triangles: {previousCandidateSnapshot.triangleCount}</span>
                     <span>UV: {previousCandidateSnapshot.uvStatus}</span>
                     <span>tangent: {previousCandidateSnapshot.tangentStatus}</span>
@@ -3179,12 +3302,12 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               <strong>{agenticProjection.status === 'ready' ? 'Agentic projection' : visualEvidenceBound ? 'candidate-bound visual evidence' : '未可用'}</strong>
             </div>
             <div className="workflow-gate-row">
-              <span>选中 Part · Runtime</span>
+              <span>Runtime 选中部件</span>
               <strong>{agenticProjection.selectedPartId ?? '未可用'}</strong>
             </div>
             <div className="workflow-gate-row">
-              <span>Viewer selection · ephemeral</span>
-              <strong>{selectedPartId === 'all' ? 'all parts' : selectedPartId}</strong>
+              <span>当前视图选中</span>
+              <strong>{selectedPartId === 'all' ? '全部部件' : selectedPartId}</strong>
             </div>
             <div className="workflow-gates" aria-label="Runtime Agentic stage gates">
               {agenticProjection.gates.map((gate) => <div className="workflow-gate-row" key={gate.id}>

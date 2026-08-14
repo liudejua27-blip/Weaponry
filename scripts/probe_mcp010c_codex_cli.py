@@ -626,6 +626,17 @@ def silhouette_rig_draft(candidate_id: str) -> dict[str, Any]:
             {"parameter_id": "pelvis-height", "part_id": "pelvis", "semantic": "height", "value": 1.0, "min": 0.88, "max": 1.12, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "thigh-width", "part_id": "thigh-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "shin-width", "part_id": "shin-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            # Landmark ownership is explicit and camera-calibrated in Runtime.
+            # These are bounded camera-plane meter offsets, not Codex-side
+            # pixel nudges or an open-ended parameter trace.
+            {"parameter_id": "head-offset-x", "part_id": "head-shell", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "head-offset-y", "part_id": "head-shell", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "chest-offset-y", "part_id": "chest-shell", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "shoulder-offset-x", "part_id": "shoulder-armor-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "shoulder-offset-y", "part_id": "shoulder-armor-pair", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "elbow-offset-x", "part_id": "elbow-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "pelvis-offset-y", "part_id": "pelvis", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "knee-offset-x", "part_id": "knee-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
         ],
     }
 
@@ -1119,7 +1130,7 @@ def main() -> int:
                     "target_sha256": silhouette_target_sha,
                     "rig": rig,
                     "base_camera": camera_ref,
-                    "optimizer": {"algorithm": "coordinate_descent", "max_iterations": 2, "max_evaluations": 24, "step_fraction": 0.1},
+                    "optimizer": {"algorithm": "coordinate_descent", "max_iterations": 2, "max_evaluations": 32, "step_fraction": 0.1},
                     "canonical_sha256": "",
                 }
                 # Codex may serialize an integral float as an integer while

@@ -1359,12 +1359,13 @@ impl Runtime {
         let part_context = selected_part_png
             .as_deref()
             .map(|part_png| (part_png, inspection.part_ids.as_slice()));
-        let mut selected_parameters = fit_rig_parameters_with_part_context(
+        let mut selected_parameters = fit_rig_parameters_with_landmark_context(
             rig,
             &target,
             &target_mask.mask,
             &selected_model_mask,
             part_context,
+            Some(&selected_camera),
         );
         let mut geometry_evaluations = 0usize;
         if let Some(program) = geometry_program_draft.as_ref() {
@@ -1438,7 +1439,12 @@ impl Runtime {
                         row["value"] = Value::from(stable_visual_metric((value + direction * delta).clamp(min, max)));
                     }
                 }
-                let (draft, applied) = materialize_rig_geometry_program(program, rig, &parameter_values)?;
+                let (draft, applied) = materialize_rig_geometry_program(
+                    program,
+                    rig,
+                    &parameter_values,
+                    Some(&selected_camera),
+                )?;
                 if applied == 0 {
                     continue;
                 }
@@ -5732,6 +5738,98 @@ fn camera_vec3(value: Option<&Value>) -> Option<[f64; 3]> {
     ])
 }
 
+/// Return the world-meter span represented by one normalized camera-plane
+/// coordinate.  The fixed renderer uses a square target, so the horizontal
+/// and vertical spans share the calibrated perspective distance/FOV.  Keeping
+/// this conversion in Runtime prevents the Rig from treating image pixels as
+/// arbitrary world-axis translations.
+fn camera_plane_world_scales(camera: &Value) -> Option<(f64, f64)> {
+    let transform = camera.get("transform").and_then(Value::as_object)?;
+    let position = camera_vec3(transform.get("position_m"))?;
+    let target = camera_vec3(transform.get("target_m"))?;
+    let up_input = camera_vec3(transform.get("up"))?;
+    let fov_y_degrees = camera.get("fov_y_degrees").and_then(Value::as_f64)?;
+    let view = [
+        target[0] - position[0],
+        target[1] - position[1],
+        target[2] - position[2],
+    ];
+    let view_length = (view[0] * view[0] + view[1] * view[1] + view[2] * view[2]).sqrt();
+    let forward = [
+        view[0] / view_length.max(1e-9),
+        view[1] / view_length.max(1e-9),
+        view[2] / view_length.max(1e-9),
+    ];
+    let right_raw = [
+        forward[1] * up_input[2] - forward[2] * up_input[1],
+        forward[2] * up_input[0] - forward[0] * up_input[2],
+        forward[0] * up_input[1] - forward[1] * up_input[0],
+    ];
+    let right_length =
+        (right_raw[0] * right_raw[0] + right_raw[1] * right_raw[1] + right_raw[2] * right_raw[2])
+            .sqrt();
+    let fov_half = (fov_y_degrees.to_radians() * 0.5).tan();
+    if !view_length.is_finite()
+        || view_length <= f64::EPSILON
+        || !right_length.is_finite()
+        || right_length <= f64::EPSILON
+        || !fov_half.is_finite()
+        || fov_half <= 0.0
+    {
+        return None;
+    }
+    let half_height = view_length * fov_half;
+    let half_width = half_height;
+    Some((half_width * 2.0, half_height * 2.0))
+}
+
+fn camera_plane_axes(camera: &Value) -> Option<([f64; 3], [f64; 3])> {
+    let transform = camera.get("transform").and_then(Value::as_object)?;
+    let position = camera_vec3(transform.get("position_m"))?;
+    let target = camera_vec3(transform.get("target_m"))?;
+    let up_input = camera_vec3(transform.get("up"))?;
+    let view = [
+        target[0] - position[0],
+        target[1] - position[1],
+        target[2] - position[2],
+    ];
+    let view_length = (view[0] * view[0] + view[1] * view[1] + view[2] * view[2]).sqrt();
+    if !view_length.is_finite() || view_length <= f64::EPSILON {
+        return None;
+    }
+    let forward = [
+        view[0] / view_length,
+        view[1] / view_length,
+        view[2] / view_length,
+    ];
+    let right_raw = [
+        forward[1] * up_input[2] - forward[2] * up_input[1],
+        forward[2] * up_input[0] - forward[0] * up_input[2],
+        forward[0] * up_input[1] - forward[1] * up_input[0],
+    ];
+    let right_length =
+        (right_raw[0] * right_raw[0] + right_raw[1] * right_raw[1] + right_raw[2] * right_raw[2])
+            .sqrt();
+    if !right_length.is_finite() || right_length <= f64::EPSILON {
+        return None;
+    }
+    let right = [
+        right_raw[0] / right_length,
+        right_raw[1] / right_length,
+        right_raw[2] / right_length,
+    ];
+    let up_raw = [
+        right[1] * forward[2] - right[2] * forward[1],
+        right[2] * forward[0] - right[0] * forward[2],
+        right[0] * forward[1] - right[1] * forward[0],
+    ];
+    let up_length = (up_raw[0] * up_raw[0] + up_raw[1] * up_raw[1] + up_raw[2] * up_raw[2]).sqrt();
+    if !up_length.is_finite() || up_length <= f64::EPSILON {
+        return None;
+    }
+    Some((right, [up_raw[0] / up_length, up_raw[1] / up_length, up_raw[2] / up_length]))
+}
+
 fn camera_fit_score(reference: &[bool], model: &[bool]) -> f64 {
     if reference.len() != 512 * 512 || model.len() != 512 * 512 {
         return f64::NEG_INFINITY;
@@ -8004,6 +8102,121 @@ fn fit_rig_parameters_with_part_context(
         .collect()
 }
 
+/// Refine the bounded Part-envelope proposal with image-derived landmark
+/// offsets.  This is intentionally a second, typed evidence projection: the
+/// target landmark vocabulary is mapped to a Runtime-owned semantic Part,
+/// the selected Render Worker Part-ID mask supplies the current anchor, and
+/// the calibrated camera converts the normalized image error to a camera-plane
+/// meter offset.  No free-form region or hidden geometry is guessed.
+fn fit_rig_parameters_with_landmark_context(
+    rig: &Value,
+    target: &Value,
+    target_mask: &[bool],
+    model_mask: &[bool],
+    part_context: Option<(&[u8], &[String])>,
+    camera: Option<&Value>,
+) -> Vec<Value> {
+    let mut selected = fit_rig_parameters_with_part_context(
+        rig,
+        target,
+        target_mask,
+        model_mask,
+        part_context,
+    );
+    let Some(camera) = camera else {
+        return selected;
+    };
+    let Some((part_png, part_ids)) = part_context else {
+        return selected;
+    };
+    let Some(parameters) = rig.get("parameters").and_then(Value::as_array) else {
+        return selected;
+    };
+    let Some(landmarks) = target.get("landmarks").and_then(Value::as_array) else {
+        return selected;
+    };
+    let Some((world_per_screen_x, world_per_screen_y)) = camera_plane_world_scales(camera) else {
+        return selected;
+    };
+    for (index, parameter) in parameters.iter().enumerate() {
+        let semantic = parameter.get("semantic").and_then(Value::as_str).unwrap_or("");
+        if !matches!(semantic, "offset_x" | "offset_y") {
+            continue;
+        }
+        let Some(part_id) = parameter.get("part_id").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(part_mask) = decode_part_mask(part_png, part_id, part_ids) else {
+            continue;
+        };
+        let mut target_x = 0.0;
+        let mut target_y = 0.0;
+        let mut model_x = 0.0;
+        let mut model_y = 0.0;
+        let mut weight_total = 0.0;
+        for landmark in landmarks {
+            if landmark.get("visibility").and_then(Value::as_str) == Some("unknown") {
+                continue;
+            }
+            let Some(landmark_id) = landmark.get("landmark_id").and_then(Value::as_str) else {
+                continue;
+            };
+            let Some((landmark_part_id, anchor)) = landmark_part_hint(landmark_id) else {
+                continue;
+            };
+            if !rig_part_matches_output(part_id, landmark_part_id)
+                && !rig_part_matches_output(landmark_part_id, part_id)
+            {
+                continue;
+            }
+            let target_point = (
+                landmark.get("x").and_then(Value::as_f64).unwrap_or(-1.0),
+                landmark.get("y").and_then(Value::as_f64).unwrap_or(-1.0),
+            );
+            if !(0.0..=1.0).contains(&target_point.0)
+                || !(0.0..=1.0).contains(&target_point.1)
+            {
+                continue;
+            }
+            let Some(model_point) = landmark_anchor_point(&part_mask, anchor) else {
+                continue;
+            };
+            let confidence = landmark
+                .get("confidence")
+                .and_then(Value::as_f64)
+                .unwrap_or(1.0)
+                .clamp(0.25, 1.0);
+            target_x += target_point.0 * confidence;
+            target_y += target_point.1 * confidence;
+            model_x += model_point.0 * confidence;
+            model_y += model_point.1 * confidence;
+            weight_total += confidence;
+        }
+        if weight_total == 0.0 {
+            continue;
+        }
+        let delta = if semantic == "offset_x" {
+            (target_x / weight_total - model_x / weight_total)
+                * world_per_screen_x
+        } else {
+            // Image Y grows downward while the calibrated camera-plane up
+            // basis grows upward.
+            (model_y / weight_total - target_y / weight_total)
+                * world_per_screen_y
+        };
+        let value = parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0);
+        let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
+        let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
+        let Some(selected_row) = selected.get_mut(index) else {
+            continue;
+        };
+        selected_row["value"] = Value::from(stable_visual_metric(
+            (value + delta.clamp(-0.35, 0.35)).clamp(min, max),
+        ));
+    }
+    selected
+}
+
 /// Apply a typed, candidate-bound Rig proposal to the corresponding V2
 /// primitive nodes.  This is deliberately a small projection layer rather
 /// than a general expression evaluator: only dimensions and image-plane
@@ -8013,6 +8226,7 @@ fn materialize_rig_geometry_program(
     program: &Value,
     rig: &Value,
     selected_parameters: &[Value],
+    camera: Option<&Value>,
 ) -> Result<(Value, usize), RuntimeError> {
     let mut materialized = program.clone();
     let outputs = materialized
@@ -8092,7 +8306,16 @@ fn materialize_rig_geometry_program(
                     "width" | "height" | "depth" => is_source_geometry,
                     _ => false,
                 };
-                if should_apply && apply_rig_parameter_to_node(parameters, semantic, unit, value, base_value) {
+                if should_apply
+                    && apply_rig_parameter_to_node(
+                        parameters,
+                        semantic,
+                        unit,
+                        value,
+                        base_value,
+                        camera,
+                    )
+                {
                     changed = true;
                 }
             }
@@ -8156,6 +8379,7 @@ fn apply_rig_parameter_to_node(
     unit: &str,
     value: f64,
     base_value: f64,
+    camera: Option<&Value>,
 ) -> bool {
     if !value.is_finite() || !base_value.is_finite() {
         return false;
@@ -8171,11 +8395,6 @@ fn apply_rig_parameter_to_node(
     }
     match semantic {
         "offset_x" | "offset_y" | "offset_z" => {
-            let axis = match semantic {
-                "offset_x" => 0,
-                "offset_y" => 1,
-                _ => 2,
-            };
             let key = if parameters.contains_key("translation_m") {
                 "translation_m"
             } else {
@@ -8187,8 +8406,28 @@ fn apply_rig_parameter_to_node(
             if vector.len() != 3 {
                 return false;
             }
+            if let Some(camera) = camera.filter(|_| matches!(semantic, "offset_x" | "offset_y")) {
+                let Some((right, up)) = camera_plane_axes(camera) else {
+                    return false;
+                };
+                let basis = if semantic == "offset_x" { right } else { up };
+                for axis in 0..3 {
+                    let old = vector[axis].as_f64().unwrap_or(0.0);
+                    let next = old + basis[axis] * delta;
+                    if !next.is_finite() {
+                        return false;
+                    }
+                    vector[axis] = Value::from(next);
+                }
+                return true;
+            }
+            let axis = match semantic {
+                "offset_x" => 0,
+                "offset_y" => 1,
+                _ => 2,
+            };
             let old = vector[axis].as_f64().unwrap_or(0.0);
-            let next = if unit == "ratio" { old + delta } else { old + delta };
+            let next = old + delta;
             if !next.is_finite() {
                 return false;
             }
@@ -13140,6 +13379,46 @@ mod tests {
     }
 
     #[test]
+    fn landmark_offsets_are_camera_calibrated_and_part_owned() {
+        let mut part_image = RgbaImage::from_pixel(512, 512, Rgba([0, 0, 0, 0]));
+        let part_color = Rgba([73, 119, 91, 255]);
+        for y in 120..220 {
+            for x in 120..220 {
+                part_image.put_pixel(x, y, part_color);
+            }
+        }
+        let mut part_png = Vec::new();
+        part_image
+            .write_to(&mut Cursor::new(&mut part_png), ImageFormat::Png)
+            .expect("part-id png");
+        let target = json!({
+            "landmarks":[
+                {"landmark_id":"chest-center","x":0.38,"y":0.26,"visibility":"observed","confidence":1.0}
+            ]
+        });
+        let rig = json!({
+            "parameters":[
+                {"parameter_id":"chest-offset-x","part_id":"chest-shell","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"},
+                {"parameter_id":"chest-offset-y","part_id":"chest-shell","semantic":"offset_y","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"}
+            ]
+        });
+        let model_mask = vec![false; 512 * 512];
+        let selected = fit_rig_parameters_with_landmark_context(
+            &rig,
+            &target,
+            &model_mask,
+            &model_mask,
+            Some((&part_png, &["chest-shell".to_owned()])),
+            Some(&default_camera_calibration()),
+        );
+        assert_eq!(selected.len(), 2);
+        assert!(selected[0]["value"].as_f64().unwrap() > 0.0);
+        assert!(selected[1]["value"].as_f64().unwrap() > 0.0);
+        assert!(selected[0]["value"].as_f64().unwrap() <= 0.35);
+        assert!(selected[1]["value"].as_f64().unwrap() <= 0.35);
+    }
+
+    #[test]
     fn rig_materialization_traces_mirror_transform_and_profile_sources() {
         let program = json!({
             "schema_version":"GeometryProgram@2",
@@ -13160,13 +13439,48 @@ mod tests {
             json!({"parameter_id":"shoulder-width","part_id":"shoulder-pair","value":1.2}),
             json!({"parameter_id":"shoulder-offset-x","part_id":"shoulder-pair","value":0.1}),
         ];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected).expect("materialize");
+        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
         assert_eq!(applied, 2);
         let source = materialized["nodes"].as_array().unwrap().iter().find(|node| node["node_id"] == "shell-left").unwrap();
         assert_eq!(source["parameters"]["size_m"][0], 1.2);
         let transform = materialized["nodes"].as_array().unwrap().iter().find(|node| node["node_id"] == "shell-shaped").unwrap();
         assert_eq!(transform["parameters"]["translation_m"][0], 0.1);
         assert_eq!(materialized["nodes"][2]["parameters"]["axis"], "x");
+    }
+
+    #[test]
+    fn camera_plane_offset_materialization_preserves_bounded_distance() {
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-camera-offset-test",
+            "nodes":[
+                {"node_id":"shell","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}}
+            ],
+            "part_outputs":[{"part_id":"chest-shell","input_node_ids":["shell"],"material_zone_id":"zone-white-shell","solid":true}],
+            "canonical_sha256":""
+        });
+        let rig = json!({"parameters":[
+            {"parameter_id":"chest-offset-x","part_id":"chest-shell","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"}
+        ]});
+        let selected = vec![json!({"parameter_id":"chest-offset-x","part_id":"chest-shell","value":0.2})];
+        let (materialized, applied) = materialize_rig_geometry_program(
+            &program,
+            &rig,
+            &selected,
+            Some(&default_camera_calibration()),
+        )
+        .expect("camera-plane materialize");
+        assert_eq!(applied, 1);
+        let translation = materialized["nodes"][0]["parameters"]["position_m"]
+            .as_array()
+            .expect("position");
+        let distance = translation
+            .iter()
+            .map(|value| value.as_f64().unwrap().powi(2))
+            .sum::<f64>()
+            .sqrt();
+        assert!((distance - 0.2).abs() < 1e-9);
+        assert_ne!(translation[0], 0.2);
     }
 
     #[test]
@@ -13192,7 +13506,7 @@ mod tests {
             json!({"parameter_id":"vent-width","part_id":"vent","value":1.1}),
             json!({"parameter_id":"profile-height","part_id":"profile","value":0.8}),
         ];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected).expect("materialize");
+        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
         assert_eq!(applied, 2);
         assert_eq!(materialized["nodes"][0]["parameters"]["width_m"], 1.1);
         let profile = materialized["nodes"][1]["parameters"]["profile"].as_array().unwrap();
@@ -13221,7 +13535,7 @@ mod tests {
             {"parameter_id":"shoulder-width","part_id":"shoulder-armor-pair","semantic":"width","value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"ratio"}
         ]});
         let selected = vec![json!({"parameter_id":"shoulder-width","part_id":"shoulder-armor-pair","value":1.2})];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected).expect("materialize");
+        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
         assert_eq!(applied, 1);
         assert_eq!(materialized["nodes"][0]["parameters"]["radius_m"], 0.36);
         assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.36);

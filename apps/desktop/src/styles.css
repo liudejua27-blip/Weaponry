@@ -238,13 +238,20 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 .runtime-alert button { flex: none; }
 .error-console { border: 1px solid #2b3d4d; background: rgba(11, 20, 31, .72); }
 .error-console .section-toolbar { margin-bottom: 8px; }
+.error-console-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 9px; padding: 8px 0; border-bottom: 1px dashed #23394f; color: #7f98ad; font-size: 11px; }
+.error-summary-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid #2d4352; border-radius: 999px; background: #101c2b; color: #90a7bb; }
+.error-summary-chip strong { color: #becede; font-size: 10px; }
+.error-summary-chip code { margin-left: 0; min-width: 18px; text-align: center; border: 1px solid #33495b; border-radius: 999px; color: #b7d0e5; background: #0e1b28; padding: 2px 6px; }
+.error-summary-code-error { color: #ffccb9 !important; }
+.error-summary-code-warn { color: #d8c18f !important; }
 .error-console-list { display: grid; gap: 8px; }
 .error-console-item { padding: 9px 10px; border-radius: 10px; border: 1px solid #3a4f62; background: #101c2a; }
 .error-console-item p { margin: 4px 0; color: #a9bece; font-size: 11px; line-height: 1.45; }
 .error-console-item strong { color: #dce8f3; font-weight: 600; }
 .error-console-item code { color: #8ec9f1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-left: 6px; font-size: 10px; }
-.error-console-item-title { display: grid; gap: 4px; }
-.error-console-item-title strong { display: flex; align-items: center; gap: 8px; color: #f2f8fe; font-size: 12px; }
+.error-console-item-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.error-console-item-title strong { display: inline-flex; align-items: center; gap: 8px; color: #f2f8fe; font-size: 12px; }
+.error-console-item-category { display: inline-grid; margin-left: auto; border: 1px solid #445c72; border-radius: 999px; padding: 2px 6px; background: #122036; color: #9eb3c5; font-size: 10px; }
 .error-console-item .viewer-toggle { margin-top: 6px; }
 .error-console-item-error { border-color: rgba(239, 154, 136, .48); background: rgba(74, 31, 24, .22); }
 .error-console-item-warn { border-color: rgba(138, 186, 214, .48); background: rgba(18, 43, 64, .28); }
