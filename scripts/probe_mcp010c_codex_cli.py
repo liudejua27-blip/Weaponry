@@ -1481,6 +1481,22 @@ def main() -> int:
                     "metrics": field(silhouette_fit_result or {}, "metrics"),
                 } if options.silhouette_first else None,
                 "boundary_error_count": len(field(boundary_result or {}, "segments") or []) if options.silhouette_first else None,
+                # Keep the legacy flat sequence for existing consumers, but
+                # expose the canonical observation as its own typed stage.
+                # This prevents later readers from reconstructing scene state
+                # by interleaving target, camera and fit tool calls.
+                "silhouette_stage_sequences": {
+                    "target": [call.get("tool") for call in mcp_calls(target_items)] if options.silhouette_first else [],
+                    "observation": [call.get("tool") for call in mcp_calls(silhouette_turn_items)] if options.silhouette_first else [],
+                    "fit": [call.get("tool") for call in mcp_calls(fit_items)] if options.silhouette_first else [],
+                },
+                "canonical_observation": {
+                    "schema_version": "AgenticSceneObserveResult@1",
+                    "project_id": project_id,
+                    "candidate_id": candidate_id,
+                    "read_only": True,
+                    "canonical_sha256": silhouette_observation_sha,
+                } if options.silhouette_first else None,
                 "silhouette_sequence": [call.get("tool") for call in mcp_calls(silhouette_items)] if options.silhouette_first else [],
                 "silhouette_gate": "NOT_RUN" if not options.silhouette_first else ("PASS" if field(silhouette_fit_result or {}, "status") == "ready" else "QUALITY_TARGET_NOT_MET"),
                 "detail_material_stages": "LOCKED_UNTIL_SILHOUETTE_GATE" if options.silhouette_first and field(silhouette_fit_result or {}, "status") != "ready" else "NOT_APPLICABLE",

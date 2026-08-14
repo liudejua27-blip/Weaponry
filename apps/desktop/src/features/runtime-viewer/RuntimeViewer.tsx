@@ -21,6 +21,7 @@ import {
 
 const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
 const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键框选 · 右键旋转 · 中键平移 · 滚轮缩放 · 1/2/3 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
+const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选', '右键：旋转', '中键：平移', '滚轮：缩放', 'F：聚焦', 'R：重置视角', '1/2/3：视角切换', 'Z/X/C：光照预设']
 type ThreeRuntimeCore = typeof import('./three-runtime-core')
 type ThreeRuntimeCoreMath = Pick<ThreeRuntimeCore, 'Box3' | 'Vector3'>
 
@@ -105,6 +106,7 @@ type QualityReport = {
   reference_sha256?: string | null
   render_set_hash?: string
   comparison_report_hash?: string
+  quality_report_hash?: string
   visual_status?: string
   hard_gate_passed?: boolean
 }
@@ -160,13 +162,48 @@ type CandidateGenerationTiming = {
   anomaly: boolean
 }
 
+type CandidateSortMode = 'time' | 'id'
+
+type SceneTreeVisibilityFilter = 'all' | 'visible' | 'locked'
+
+type SnapshotBindingState = {
+  artifact: boolean
+  reference: boolean
+  renderSet: boolean
+  comparison: boolean
+  qualityReport: boolean
+  qualityGate: 'pass' | 'fail' | 'pending'
+}
+
+type CandidateSnapshotDelta = {
+  label: string
+  value: string
+  direction: 'up' | 'down' | 'same' | 'unknown'
+}
+
 type CandidateSnapshotRecord = {
   candidateId: string
+  candidateName: string
   candidateState: string
-  createdAtText: string
-  createdAtEpochMs: number
+  createdAtText: string | null
+  createdAtEpochMs: number | null
   updatedAtText: string | null
   updatedAtEpochMs: number | null
+  partCount: number
+  materialZoneCount: number
+  triangleCount: number
+  artifactId: string | null
+  artifactSha256: string | null
+  referenceId: string | null
+  referenceSha256: string | null
+  renderSetHash: string | null
+  comparisonReportHash: string | null
+  qualityReportHash: string | null
+  visualStatus: string
+  qualityPass: boolean
+  uvStatus: string
+  tangentStatus: string
+  validatorStatus: string
   artifact: CandidateView['artifact']
   quality: CandidateView['quality']
   reference: CandidateView['reference']
@@ -191,6 +228,176 @@ type ErrorConsoleItem = {
   severity: 'error' | 'warn'
   actionLabel?: string
   action?: () => void
+}
+
+function buildCandidateSnapshotRecord(entry: CandidateView, projectId?: string): CandidateSnapshotRecord | null {
+  const candidate = entry.candidate
+  if (!candidate?.candidate_id) return null
+  const artifact = entry.artifact
+  const quality = entry.quality
+  const reference = entry.reference?.reference
+  const createdAtText = buildGenerationTimestamp(candidate.created_at)
+  const updatedAtText = buildGenerationTimestamp(candidate.updated_at)
+  const artifactId = artifact?.artifact_id ?? null
+  const artifactSha256 = artifact?.artifact_id ?? null
+  const referenceId = reference?.reference_id ?? null
+  const referenceSha256 = reference?.object_sha256 ?? null
+  const hasArtifactBinding = hasCandidateBoundArtifact(entry, projectId)
+  const candidateId = candidate.candidate_id
+  const visualEvidenceBinding = Boolean(
+    quality
+    && candidateId
+    && projectId
+    && quality.candidate_id === candidateId
+    && quality.artifact_sha256 === artifactSha256
+    && quality.reference_id
+    && quality.reference_id === referenceId
+    && quality.reference_sha256 === referenceSha256
+    && quality.render_set_hash
+    && quality.comparison_report_hash
+    && quality.quality_report_hash,
+  )
+  const qualityReport = quality
+  const qualityVisualStatus = qualityReport?.visual_status ?? 'not-run'
+  const hardGatePassed = qualityReport?.hard_gate_passed ?? null
+
+  return {
+    candidateId: candidate.candidate_id,
+    candidateName: candidate.candidate_id,
+    candidateState: candidate.state ?? '未知',
+    createdAtText,
+    createdAtEpochMs: parseEpochMillis(candidate.created_at),
+    updatedAtText,
+    updatedAtEpochMs: parseEpochMillis(candidate.updated_at),
+    partCount: artifact?.part_ids?.length ?? 0,
+    materialZoneCount: artifact?.material_zone_ids?.length ?? 0,
+    triangleCount: artifact?.triangle_count ?? 0,
+    artifactId,
+    artifactSha256,
+    referenceId,
+    referenceSha256,
+    renderSetHash: qualityReport?.render_set_hash ?? null,
+    comparisonReportHash: qualityReport?.comparison_report_hash ?? null,
+    qualityReportHash: qualityReport?.quality_report_hash ?? null,
+    visualStatus: qualityVisualStatus,
+    qualityPass: hardGatePassed === true,
+    uvStatus: artifact?.uv_status ?? '未知',
+    tangentStatus: artifact?.tangent_status ?? '未知',
+    validatorStatus: artifact?.validator_status ?? '未知',
+    artifact,
+    quality,
+    reference: entry.reference,
+    hasArtifactBinding,
+    hasVisualEvidenceBinding: visualEvidenceBinding,
+  }
+}
+
+function buildSnapshotDiffRows(current: CandidateSnapshotRecord, previous: CandidateSnapshotRecord | null): CandidateSnapshotDiffRow[] {
+  if (!previous) {
+    return [
+      { label: '候选状态', current: current.candidateState, previous: '—', status: 'missing' },
+      { label: 'Part 数', current: String(current.partCount), previous: '—', status: 'missing' },
+      { label: '材质区数', current: String(current.materialZoneCount), previous: '—', status: 'missing' },
+      { label: '三角形', current: String(current.triangleCount), previous: '—', status: 'missing' },
+    ]
+  }
+
+  const build = (label: string, left: string | null | undefined, right: string | null | undefined): CandidateSnapshotDiffRow => {
+    const currentValue = left ?? '未知'
+    const previousValue = right ?? '未知'
+    const status: CandidateSnapshotDiffRow['status'] = currentValue === previousValue ? 'same' : 'changed'
+    return { label, current: currentValue, previous: previousValue, status }
+  }
+
+  const visualCurrent = formatQualityStatus(current.visualStatus)
+  const visualPrevious = formatQualityStatus(previous.visualStatus)
+  const bindCurrent = current.hasVisualEvidenceBinding ? '已绑定' : '未绑定'
+  const bindPrevious = previous.hasVisualEvidenceBinding ? '已绑定' : '未绑定'
+
+  return [
+    build('候选状态', current.candidateState, previous.candidateState),
+    build('Part 数', current.partCount === 0 ? '0' : String(current.partCount), previous.partCount === 0 ? '0' : String(previous.partCount)),
+    build('材质区数', String(current.materialZoneCount), String(previous.materialZoneCount)),
+    build('三角形', String(current.triangleCount), String(previous.triangleCount)),
+    build('UV 状态', current.uvStatus, previous.uvStatus),
+    build('切线状态', current.tangentStatus, previous.tangentStatus),
+    build('Validator', current.validatorStatus, previous.validatorStatus),
+    {
+      label: '可视化状态',
+      current: visualCurrent,
+      previous: visualPrevious,
+      status: visualCurrent === visualPrevious ? 'same' : 'changed',
+    },
+    build('质量门', current.hasVisualEvidenceBinding ? (current.qualityPass ? '通过' : '未通过') : '待绑定',
+      previous.hasVisualEvidenceBinding ? (previous.qualityPass ? '通过' : '未通过') : '待绑定'),
+    {
+      label: '证据绑定',
+      current: bindCurrent,
+      previous: bindPrevious,
+      status: bindCurrent === bindPrevious ? 'same' : 'changed',
+    },
+    {
+      label: '引用比对',
+      current: current.referenceId ? '已加载' : '未加载',
+      previous: previous.referenceId ? '已加载' : '未加载',
+      status: current.referenceId === previous.referenceId ? 'same' : 'changed',
+    },
+  ]
+}
+
+function buildCandidateSnapshotBindingState(record: CandidateSnapshotRecord): SnapshotBindingState {
+  return {
+    artifact: record.hasArtifactBinding && Boolean(record.artifactId),
+    reference: Boolean(record.referenceId),
+    renderSet: Boolean(record.renderSetHash),
+    comparison: Boolean(record.comparisonReportHash),
+    qualityReport: Boolean(record.qualityReportHash),
+    qualityGate: record.hasVisualEvidenceBinding ? (record.qualityPass ? 'pass' : 'fail') : 'pending',
+  }
+}
+
+function snapshotBindingStatusText(state: SnapshotBindingState): string {
+  return `${state.artifact ? 'G' : '×'} ${state.reference ? 'R' : '×'} ${state.renderSet ? 'A' : '×'} ${state.comparison ? 'C' : '×'} ${state.qualityReport ? 'Q' : '×'}`
+}
+
+function numericDeltaStatus(current: number, previous: number | null): CandidateSnapshotDelta['direction'] {
+  if (previous === null) return 'unknown'
+  if (current > previous) return 'up'
+  if (current < previous) return 'down'
+  return 'same'
+}
+
+function buildSnapshotMetricDelta(current: number, previous: number | null, label: string): CandidateSnapshotDelta {
+  return {
+    label,
+    value: `${current}${previous === null ? '' : `（${previous}）`}`,
+    direction: numericDeltaStatus(current, previous),
+  }
+}
+
+function snapshotStatusClass(status: CandidateSnapshotDiffRow['status']): string {
+  if (status === 'changed') return 'workflow-gate-status-failed'
+  if (status === 'missing') return 'workflow-gate-status-not-run'
+  return 'workflow-gate-status-passed'
+}
+
+function snapshotDeltaClass(direction: CandidateSnapshotDelta['direction']): string {
+  if (direction === 'up') return 'workflow-gate-status-failed'
+  if (direction === 'down') return 'workflow-gate-status-passed'
+  if (direction === 'unknown') return 'workflow-gate-status-not-run'
+  return 'workflow-gate-status'
+}
+
+function formatBindingStatusText(binding: SnapshotBindingState): string {
+  const chunks = [
+    binding.artifact ? 'GLB' : 'GLB×',
+    binding.reference ? '参考' : '参考×',
+    binding.renderSet ? 'RenderSet' : 'RenderSet×',
+    binding.comparison ? 'Comparison' : 'Comparison×',
+    binding.qualityReport ? 'Quality' : 'Quality×',
+    binding.qualityGate === 'pass' ? 'PASS' : binding.qualityGate === 'fail' ? 'FAIL' : 'PEND',
+  ]
+  return chunks.join(' ｜ ')
 }
 
 function normalizeStatusText(status: string): string {
@@ -220,6 +427,26 @@ function deriveCandidateErrorMeaning(code: string): string {
   if (code === 'RUNTIME_SUMMARY_UNAVAILABLE') return '模型摘要服务暂时不可用。'
   if (code === 'RUNTIME_REQUEST_FAILED' || code === 'RUNTIME_SUMMARY_REQUEST_FAILED') return 'Runtime 读取失败，当前状态可能为历史缓存。'
   return '请检查 Runtime 会话与当前候选绑定是否可用。'
+}
+
+function isCandidateInProgress(state?: string): boolean {
+  if (!state) return false
+  const normalized = state.toLowerCase()
+  return /(pending|queued|running|processing|in[-_ ]?progress|draft|staged|building|submit|waiting)/.test(normalized)
+}
+
+function summaryPollDelaySeconds(opts: { changed: boolean; hasActiveCandidates: boolean; hasError: boolean; isVisible: boolean; firstRun: boolean }): number {
+  if (!opts.isVisible) return 30000
+  if (opts.changed || opts.hasError || opts.firstRun) return 2000
+  if (opts.hasActiveCandidates) return 4500
+  return 8000
+}
+
+function statusClassFromCode(code: string, isWarning?: boolean): 'error' | 'warn' {
+  if (isWarning) return 'warn'
+  const normalized = code.toLowerCase()
+  if (normalized.includes('unavailable') || normalized.includes('not-run') || normalized === 'not_run') return 'warn'
+  return 'error'
 }
 
 function hasCandidateBoundArtifact(entry: CandidateView, projectId?: string): boolean {
@@ -950,6 +1177,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const [modelRefreshing, setModelRefreshing] = useState(false)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
   const [candidateSortOrder, setCandidateSortOrder] = useState<'newest' | 'oldest'>('newest')
+  const [candidateSortMode, setCandidateSortMode] = useState<CandidateSortMode>('time')
   const [timingSortOrder, setTimingSortOrder] = useState<'desc' | 'asc'>('desc')
   const [selectedPass, setSelectedPass] = useState<AovPass>('beauty')
   const [compareMode, setCompareMode] = useState<CompareMode>('split')
@@ -989,6 +1217,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const [partLockState, setPartLockState] = useState<Record<string, boolean>>({})
   const [materialLockState, setMaterialLockState] = useState<Record<string, boolean>>({})
   const [sceneTreeSearch, setSceneTreeSearch] = useState('')
+  const [sceneTreeFilter, setSceneTreeFilter] = useState<SceneTreeVisibilityFilter>('all')
   const [expandedPartId, setExpandedPartId] = useState<string | null>(null)
   const [viewportLightPreset, setViewportLightPreset] = useState<ViewportLightPreset>('neutral')
   const [viewportCameraPreset, setViewportCameraPreset] = useState<ViewportCameraPreset>('front')
@@ -1031,13 +1260,26 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     }
 
     const pollSummary = async () => {
+      const firstRun = lastSummarySignatureRef.current === null
       let changed = false
+      let hasActiveCandidates = false
+      let nextDelay: number | null = null
+      let hasError = false
       try {
         const summary = await invoke<ViewerModelSummary>('viewer_read_model_summary')
         if (!active) return
         if (summary.status === 'Unavailable') {
+          hasError = true
           setModelSyncError(summary.code ?? 'RUNTIME_SUMMARY_UNAVAILABLE')
+          nextDelay = summaryPollDelaySeconds({
+            changed: true,
+            hasActiveCandidates: false,
+            hasError: true,
+            isVisible: document.visibilityState === 'visible',
+            firstRun,
+          })
         } else {
+          hasActiveCandidates = summary.projects.some((project) => (project.candidates ?? []).some((candidate) => isCandidateInProgress(candidate.state)))
           const signature = viewerSummarySignature(summary)
           changed = lastSummarySignatureRef.current !== null && lastSummarySignatureRef.current !== signature
           if (changed) void refreshFullModel()
@@ -1046,11 +1288,24 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         }
       } catch (error) {
         if (active) setModelSyncError(readErrorCode(error, 'RUNTIME_SUMMARY_REQUEST_FAILED'))
+        if (!active) return
+        hasError = true
+        nextDelay = summaryPollDelaySeconds({
+          changed: true,
+          hasActiveCandidates: false,
+          hasError: true,
+          isVisible: document.visibilityState === 'visible',
+          firstRun,
+        })
       } finally {
         if (!active) return
-        const delay = document.visibilityState === 'hidden'
-          ? 30000
-          : (changed || modelSyncError !== null || lastSummarySignatureRef.current === null ? 1500 : 10000)
+        const delay = nextDelay ?? summaryPollDelaySeconds({
+          changed,
+          hasActiveCandidates,
+          hasError,
+          isVisible: document.visibilityState === 'visible',
+          firstRun,
+        })
         timer = window.setTimeout(() => void pollSummary(), delay)
       }
     }
@@ -1081,13 +1336,20 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     .map((entry) => entry.candidate)
     .filter((candidate): candidate is NonNullable<CandidateView['candidate']> => Boolean(candidate?.candidate_id))
     .sort((left, right) => {
+      if (candidateSortMode === 'id') {
+        const leftId = left.candidate_id ?? ''
+        const rightId = right.candidate_id ?? ''
+        return candidateSortOrder === 'newest'
+          ? rightId.localeCompare(leftId)
+          : leftId.localeCompare(rightId)
+      }
       const leftTime = parseEpochMillis(left.updated_at ?? left.created_at) ?? 0
       const rightTime = parseEpochMillis(right.updated_at ?? right.created_at) ?? 0
       const timeDifference = candidateSortOrder === 'newest' ? rightTime - leftTime : leftTime - rightTime
       return timeDifference || (candidateSortOrder === 'newest'
         ? (right.candidate_id ?? '').localeCompare(left.candidate_id ?? '')
         : (left.candidate_id ?? '').localeCompare(right.candidate_id ?? ''))
-    }), [candidateEntries, candidateSortOrder])
+    }), [candidateEntries, candidateSortMode, candidateSortOrder])
   const automaticCandidateId = candidateSortOrder === 'newest'
     ? candidateSummaries[0]?.candidate_id
     : candidateSummaries[candidateSummaries.length - 1]?.candidate_id
@@ -1148,6 +1410,14 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       if (part.partId.toLowerCase().includes(normalizedSceneTreeSearch)) return true
       return part.materials.some((material) => material.materialZoneId.toLowerCase().includes(normalizedSceneTreeSearch))
     })
+  const filteredSceneTreeByState = filteredSceneTree.filter((part) => {
+    if (sceneTreeFilter === 'all') return true
+    const partLocked = Boolean(partLockState[part.partId])
+    const hasLockedMaterial = part.materials.some((material) => materialLockState[material.materialZoneId])
+    if (sceneTreeFilter === 'locked') return partLocked || hasLockedMaterial
+    const partVisible = partVisibility[part.partId] ?? true
+    return partVisible && !partLocked && !hasLockedMaterial
+  })
   const selectedSceneObject = useMemo(() => {
     const state = viewerSceneRef.current
     if (!selectedObjectId || !state) return null
@@ -1157,7 +1427,44 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       }
     }
     return null
-  }, [selectedObjectId, artifactLoadState, artifactCandidateId, filteredSceneTree])
+  }, [selectedObjectId, artifactLoadState, artifactCandidateId, filteredSceneTreeByState])
+
+  const candidateSnapshots = useMemo<CandidateSnapshotRecord[]>(() => candidateEntries
+    .map((entry) => buildCandidateSnapshotRecord(entry, projectId))
+    .filter((record): record is CandidateSnapshotRecord => Boolean(record))
+    .sort((left, right) => (right.createdAtEpochMs ?? 0) - (left.createdAtEpochMs ?? 0)),
+  [candidateEntries, projectId])
+  const activeSnapshot = useMemo<CandidateSnapshotRecord | null>(() => candidateSnapshots.find((entry) => entry.candidateId === candidateId) ?? null, [candidateSnapshots, candidateId])
+  const candidateSnapshotIndex = useMemo(() => candidateSnapshots.findIndex((entry) => entry.candidateId === candidateId), [candidateSnapshots, candidateId])
+  const previousCandidateSnapshot = useMemo(() => candidateSnapshotIndex >= 0 ? candidateSnapshots[candidateSnapshotIndex + 1] ?? null : null, [candidateSnapshots, candidateSnapshotIndex])
+  const candidateSnapshotDiff = useMemo(() => {
+    if (!activeSnapshot) return [] as CandidateSnapshotDiffRow[]
+    return buildSnapshotDiffRows(activeSnapshot, previousCandidateSnapshot)
+  }, [activeSnapshot, previousCandidateSnapshot])
+  const activeSnapshotBinding = useMemo(() => activeSnapshot ? buildCandidateSnapshotBindingState(activeSnapshot) : null, [activeSnapshot])
+  const previousSnapshotBinding = useMemo(() => previousCandidateSnapshot ? buildCandidateSnapshotBindingState(previousCandidateSnapshot) : null, [previousCandidateSnapshot])
+  const snapshotBindingDelta = useMemo(() => {
+    if (!activeSnapshot || !previousCandidateSnapshot) return [] as CandidateSnapshotDelta[]
+    return [
+      buildSnapshotMetricDelta(activeSnapshot.partCount, previousCandidateSnapshot.partCount, 'Part 数'),
+      buildSnapshotMetricDelta(activeSnapshot.materialZoneCount, previousCandidateSnapshot.materialZoneCount, '材质区数'),
+      buildSnapshotMetricDelta(activeSnapshot.triangleCount, previousCandidateSnapshot.triangleCount, '三角形'),
+      buildSnapshotMetricDelta(activeSnapshot.qualityPass ? 1 : 0, previousCandidateSnapshot.qualityPass ? 1 : 0, '质量门通过'),
+    ]
+  }, [activeSnapshot, previousCandidateSnapshot])
+  const candidateQuickPreview = useMemo(() => {
+    if (!activeSnapshot) return null
+    return {
+      partCount: activeSnapshot.partCount,
+      materialZoneCount: activeSnapshot.materialZoneCount,
+      triangleCount: activeSnapshot.triangleCount,
+      uvStatus: activeSnapshot.uvStatus,
+      tangentStatus: activeSnapshot.tangentStatus,
+      quality: activeSnapshot.qualityPass ? '通过' : activeSnapshot.hasVisualEvidenceBinding ? '未通过' : '待绑定',
+      visualStatus: formatQualityStatus(activeSnapshot.visualStatus),
+      gateStatusClass: activeSnapshot.hasVisualEvidenceBinding ? (activeSnapshot.qualityPass ? 'passed' : 'failed') : 'not-run',
+    }
+  }, [activeSnapshot])
   useEffect(() => {
     if (!selectedSceneObject) return
     if (isViewportObjectLocked(selectedSceneObject.data, partLockState, materialLockState)) {
@@ -1173,6 +1480,142 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       selectedMaterialLocked: Boolean(materialLockState[selectedSceneObject.data.materialZoneId]),
     }
   }, [selectedSceneObject, partLockState, materialLockState])
+  const viewportHintItems = useMemo(() => [
+    `视图状态：${selectedObjectId ? `已选中 ${selectedSceneObject?.data.partId ?? '对象'}` : '未选中'}`,
+    ...VIEWPORT_KEYBOARD_HINTS,
+  ], [selectedObjectId, selectedSceneObject?.data.partId])
+  const refreshViewerData = () => setModelRefreshNonce((value) => value + 1)
+  const retryArtifactLoad = () => {
+    setArtifactError(null)
+    setArtifactLoadState('idle')
+    setArtifactRetryNonce((value) => value + 1)
+  }
+  const retryCompareLoad = () => {
+    setCompareError(null)
+    setCompareLoadState('idle')
+    setCompareRetryNonce((value) => value + 1)
+  }
+  const retryEvidenceLoad = () => {
+    setEvidenceError(null)
+    setEvidence(null)
+    refreshViewerData()
+  }
+  const dropCurrentCandidate = () => {
+    setSelectedCandidateId(null)
+    setSelectedObjectId(null)
+    setSelectedPartId('all')
+    setSelectedMaterialZone('all')
+    setExpandedPartId(null)
+  }
+  const errorConsoleItems = useMemo<ErrorConsoleItem[]>(() => {
+    const result: ErrorConsoleItem[] = []
+    if (modelSyncError) {
+      result.push({
+        id: 'runtime-read-model',
+        scope: 'Runtime 模型读取',
+        code: modelSyncError,
+        title: 'Runtime 会话读取失败',
+        summary: '无法确认候选与项目元数据',
+        meaning: deriveCandidateErrorMeaning(modelSyncError),
+        severity: statusClassFromCode(modelSyncError),
+        actionLabel: '重试读取 Runtime',
+        action: refreshViewerData,
+      })
+    }
+
+    if (evidenceError) {
+      result.push({
+        id: 'runtime-evidence',
+        scope: '候选证据',
+        code: evidenceError,
+        title: 'QualityEvidence 读取失败',
+        summary: '固定视图/质量指标无法同步',
+        meaning: deriveCandidateErrorMeaning(evidenceError),
+        severity: statusClassFromCode(evidenceError, evidenceError === 'VISUAL_EVIDENCE_UNAVAILABLE' || evidenceError === 'REFERENCE_UNAVAILABLE' || evidenceError === 'VISUAL_EVIDENCE_BINDING_MISMATCH'),
+        actionLabel: '重新读取该候选证据',
+        action: retryEvidenceLoad,
+      })
+    }
+
+    if (artifactError && artifactLoadState === 'error' && candidateId) {
+      result.push({
+        id: 'runtime-artifact',
+        scope: `候选 GLB（${candidateId}）`,
+        code: artifactError,
+        title: artifactError === 'ARTIFACT_BYTES_UNAVAILABLE'
+          ? '候选 GLB 尚未就绪'
+          : artifactError === 'ARTIFACT_BYTES_BINDING_MISMATCH'
+            ? '候选 GLB 绑定冲突'
+            : '候选 GLB 加载失败',
+        summary: '3D 视图无法使用当前 candidate 的几何体',
+        meaning: deriveCandidateErrorMeaning(artifactError),
+        severity: statusClassFromCode(artifactError),
+        actionLabel: '重试 GLB',
+        action: retryArtifactLoad,
+      })
+    }
+
+    if (compareError && compareLoadState === 'error' && candidateId) {
+      result.push({
+        id: 'runtime-compare',
+        scope: `参考对比（${selectedPass}）`,
+        code: compareError,
+        title: '参考图/Render PNG 对比读取失败',
+        summary: 'AOV 比较窗口将不可用',
+        meaning: deriveCandidateErrorMeaning(compareError),
+        severity: statusClassFromCode(compareError),
+        actionLabel: '重试比较资源',
+        action: retryCompareLoad,
+      })
+    }
+
+    if (candidateId && !artifact && artifactLoadState === 'idle') {
+      result.push({
+        id: 'runtime-artifact-missing',
+        scope: `当前候选（${candidateId}）`,
+        code: 'ARTIFACT_MISSING_FOR_CANDIDATE',
+        title: '候选已存在但缺少 GLB 载荷',
+        summary: '可能为生成中、未完成或数据未可用',
+        meaning: '当前候选没有可用的 GLB 绑定，请等待生成完成或手动切换其他候选查看。',
+        severity: 'warn',
+        actionLabel: '放弃当前候选（改为自动最新）',
+        action: dropCurrentCandidate,
+      })
+    }
+
+    if (candidateId && !modelSyncError && evidence == null && model.status === 'Ready') {
+      result.push({
+        id: 'runtime-evidence-wait',
+        scope: `当前候选（${candidateId}）`,
+        code: 'VISUAL_EVIDENCE_MISSING',
+        title: '候选证据未就绪',
+        summary: '候选已存在，但质量与对比证据尚未全部写回',
+        meaning: '数据处于生成或写回窗口内，属于可重试/可等待的“数据未可用”状态。',
+        severity: 'warn',
+        actionLabel: '放弃当前候选（改为自动最新）',
+        action: dropCurrentCandidate,
+      })
+    }
+
+    return result
+  }, [
+    artifact,
+    artifactError,
+    artifactLoadState,
+    candidateId,
+    compareError,
+    compareLoadState,
+    evidence,
+    evidenceError,
+    model.status,
+    modelSyncError,
+    refreshViewerData,
+    retryArtifactLoad,
+    retryCompareLoad,
+    selectedPass,
+    dropCurrentCandidate,
+    retryEvidenceLoad,
+  ])
   const viewportControlHint = clampViewportControlHint(viewportLightPreset, selectedSceneObjectLockState)
   useEffect(() => {
     const nextCandidateId = activeCandidateId ?? null
@@ -2300,7 +2743,29 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       <div><p className="eyebrow">FORGECAD RUNTIME</p><h1>3D Runtime Viewer</h1><p className="subtitle">由 Codex 通过 MCP 调用；Viewer 只读取 Runtime 投影，不参与写入。</p></div>
       <div className={`status-pill ${ready ? '' : 'status-pill-muted'}`} role="status"><span className="status-dot" />{ready ? 'Runtime 已就绪 · 只读' : 'Runtime 未连接 · Viewer 模式'}</div>
     </header>
-    {(modelSyncError || evidenceError) && <div className="runtime-alert" role="alert"><span className="status-icon status-icon-error">!</span><div><strong>读取异常</strong><span>{modelSyncError ? `Runtime read model：${modelSyncError}` : `候选证据：${evidenceError}`}</span></div><button type="button" className="viewer-toggle" onClick={() => setModelRefreshNonce((value) => value + 1)} disabled={modelRefreshing}>{modelRefreshing ? '重试中…' : '重试读取'}</button></div>}
+    {errorConsoleItems.length > 0 && (
+      <section className="panel-section error-console" aria-labelledby="error-console-title">
+        <div className="section-toolbar">
+          <div><p className="section-kicker">ERROR CONSOLE</p><h2 id="error-console-title">统一异常面板</h2></div>
+          <button type="button" className="viewer-toggle" onClick={() => setModelRefreshNonce((value) => value + 1)} disabled={modelRefreshing}>{modelRefreshing ? '重试中…' : '重试模型读取'}</button>
+        </div>
+        <div className="error-console-list">
+          {errorConsoleItems.map((item) => (
+            <div key={item.id} className={`error-console-item error-console-item-${item.severity}`}>
+              <div className="error-console-item-title">
+                <span className={`status-icon ${item.severity === 'warn' ? 'status-icon-muted' : 'status-icon-error'}`}>{item.severity === 'warn' ? 'i' : '!'}</span>
+                <strong>{item.title}</strong>
+                <code>{item.code}</code>
+              </div>
+              <p>{item.summary}</p>
+              <p><strong>范围：</strong>{item.scope}</p>
+              <p><strong>处理建议：</strong>{item.meaning}</p>
+              {item.action && item.actionLabel ? <button type="button" className="viewer-toggle" onClick={item.action}>{item.actionLabel}</button> : null}
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
     <section className="runtime-grid" aria-label="ForgeCAD runtime viewer">
       <div className="viewport-card">
         <div className="viewport-toolbar"><span>ActiveDesignSnapshot</span><span className="toolbar-muted">{ready ? (project?.record?.head_snapshot_id ? '已读取当前快照' : '暂无已确认快照') : '等待 Runtime'}</span><button type="button" className="viewer-toggle" onClick={resetViewport} disabled={!viewerSceneRef.current}>重置视角</button></div>
@@ -2309,6 +2774,14 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             <option value={AUTO_LATEST_CANDIDATE}>自动 · 最新任务 {automaticCandidateId ? `(${automaticCandidateId})` : ''}</option>
             {candidateSummaries.map((candidate) => <option key={candidate.candidate_id} value={candidate.candidate_id}>{candidate.candidate_id} · {candidate.state ?? '未知'} · {buildGenerationTimestamp(candidate.updated_at ?? candidate.created_at) ?? '时间缺失'}</option>)}
           </select></label>
+          <div className="toolbar-segmented" role="group" aria-label="候选排序方式">
+            <button type="button" className={`viewer-toggle ${candidateSortMode === 'time' ? 'viewer-toggle-active' : ''}`} onClick={() => setCandidateSortMode('time')} disabled={candidateSummaries.length < 2}>
+              按时间
+            </button>
+            <button type="button" className={`viewer-toggle ${candidateSortMode === 'id' ? 'viewer-toggle-active' : ''}`} onClick={() => setCandidateSortMode('id')} disabled={candidateSummaries.length < 2}>
+              按任务ID
+            </button>
+          </div>
           <button type="button" className="viewer-toggle" onClick={() => setCandidateSortOrder((value) => value === 'newest' ? 'oldest' : 'newest')} disabled={candidateSummaries.length < 2}>{candidateSortOrder === 'newest' ? '最新 → 最旧' : '最旧 → 最新'}</button>
           <span className="candidate-selection-badge"><span className="status-icon status-icon-info">{selectedCandidateIsManual ? 'M' : 'A'}</span>{selectedCandidateIsManual ? '手动候选' : '自动最新候选'} · 任务ID {candidateId ?? 'none'}</span>
         </div>
@@ -2329,7 +2802,11 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               width: `${viewportMarqueeRect.width}px`,
               height: `${viewportMarqueeRect.height}px`,
             }} />}
-            <div className="viewport-help" aria-live="polite">{viewportControlHint}</div><div className="viewport-message"><span className="viewport-icon">◇</span><strong>{artifactLoadState === 'loading' ? '正在加载 GLB…' : artifactLoadState === 'error' ? 'GLB 加载失败' : 'GLB readback 已连接'}</strong><span>{artifactLoadState === 'error' ? `故障码：${artifactError ?? 'ARTIFACT_LOAD_FAILED'}` : `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} triangles · UV ${artifact.uv_status ?? '未知'} · tangent ${artifact.tangent_status ?? '未知'}`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试 GLB</button>}</div></> : <div className="viewport-message"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
+            <ul className="viewport-hints" aria-live="polite">
+              {viewportHintItems.map((hint, index) => <li key={`${hint}-${index}`} className="viewport-hint-item">{hint}</li>)}
+              <li className="viewport-hint-item">{viewportControlHint}</li>
+            </ul>
+            <div className="viewport-message"><span className="viewport-icon">◇</span><strong>{artifactLoadState === 'loading' ? '正在加载 GLB…' : artifactLoadState === 'error' ? 'GLB 加载失败' : 'GLB readback 已连接'}</strong><span>{artifactLoadState === 'error' ? `故障码：${artifactError ?? 'ARTIFACT_LOAD_FAILED'}` : `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} triangles · UV ${artifact.uv_status ?? '未知'} · tangent ${artifact.tangent_status ?? '未知'}`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试 GLB</button>}</div></> : <div className="viewport-message"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
           <div className="viewport-footer">
             <span>Project: {projectName}</span>
             <span>Versions: {versionCount}</span>
@@ -2412,7 +2889,12 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         <section className="panel-section runtime-scene-tree" aria-labelledby="scene-tree-title">
           <div className="section-toolbar">
             <p className="section-kicker">SCENE TREE</p>
-            <span className="scene-tree-summary">当前模型对象：{filteredSceneTree.length} 个部件</span>
+            <span className="scene-tree-summary">当前模型对象：{filteredSceneTreeByState.length} / {viewerSceneTree.length} 个部件</span>
+            <div className="toolbar-segmented" role="group" aria-label="场景树筛选">
+              <button type="button" className={`viewer-toggle ${sceneTreeFilter === 'all' ? 'viewer-toggle-active' : ''}`} onClick={() => setSceneTreeFilter('all')} disabled={viewerSceneTree.length === 0}>全部</button>
+              <button type="button" className={`viewer-toggle ${sceneTreeFilter === 'visible' ? 'viewer-toggle-active' : ''}`} onClick={() => setSceneTreeFilter('visible')} disabled={viewerSceneTree.length === 0}>可见</button>
+              <button type="button" className={`viewer-toggle ${sceneTreeFilter === 'locked' ? 'viewer-toggle-active' : ''}`} onClick={() => setSceneTreeFilter('locked')} disabled={viewerSceneTree.length === 0}>锁定</button>
+            </div>
           </div>
           <h2 id="scene-tree-title">场景树 / 语义筛选</h2>
           <label className="scene-tree-search" htmlFor="scene-tree-query">
@@ -2426,9 +2908,9 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             />
           </label>
           <div className="scene-tree-list" role="list">
-            {filteredSceneTree.length === 0 ? (
+            {filteredSceneTreeByState.length === 0 ? (
               <div className="panel-copy scene-tree-empty">无匹配节点。可清空搜索并重新加载模型。</div>
-            ) : filteredSceneTree.map((part) => {
+            ) : filteredSceneTreeByState.map((part) => {
               const partVisible = partVisibility[part.partId] ?? true
               const partLocked = Boolean(partLockState[part.partId])
               const isPartExpanded = expandedPartId === part.partId
@@ -2541,6 +3023,98 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               </div>
             </div>
           ) : <p className="panel-copy">未选中对象，单击模型可选中并在此显示。按 F 聚焦高亮对象。</p>}
+        </section>
+        <section className="panel-section" aria-labelledby="candidate-snapshot-title">
+          <p className="section-kicker">CANDIDATE SNAPSHOT</p>
+          <h2 id="candidate-snapshot-title">当前候选与上一候选快照比对</h2>
+          {!activeSnapshot ? <p className="panel-copy">当前候选无快照数据，等待候选数据可用。</p> : (
+            <div className="snapshot-compare">
+              <div className="snapshot-card">
+                <div className="snapshot-card-title">
+                  <span>当前候选：{activeSnapshot.candidateName}</span>
+                  <code>{activeSnapshot.candidateState}</code>
+                </div>
+                <div className="snapshot-metrics">
+                  <span>part: {activeSnapshot.partCount}</span>
+                  <span>material-zone: {activeSnapshot.materialZoneCount}</span>
+                  <span>triangles: {activeSnapshot.triangleCount}</span>
+                  <span>UV: {activeSnapshot.uvStatus}</span>
+                  <span>tangent: {activeSnapshot.tangentStatus}</span>
+                  <span>validator: {activeSnapshot.validatorStatus}</span>
+                  <span>可视化: {candidateQuickPreview?.visualStatus}</span>
+                  <span>
+                    质量门：
+                    <strong className={`workflow-gate-status ${candidateQuickPreview ? `workflow-gate-status-${candidateQuickPreview.gateStatusClass}` : ''}`}>
+                      {candidateQuickPreview?.quality ?? '未绑定'}
+                    </strong>
+                  </span>
+                </div>
+                <div className="snapshot-meta">
+                  <span>GLB：{activeSnapshot.artifactId ?? '未就绪'}</span>
+                  <span>参考：{activeSnapshot.referenceId ? '已绑定' : '未绑定'}</span>
+                  <span>RenderSet：{activeSnapshot.renderSetHash ? '已绑定' : '未绑定'}</span>
+                  <span>比对：{activeSnapshot.comparisonReportHash ? '已绑定' : '未绑定'}</span>
+                  <span>QualityReport：{activeSnapshot.qualityReportHash || activeSnapshot.hasVisualEvidenceBinding ? '已绑定' : '未绑定'}</span>
+                  <span>绑定摘要：{activeSnapshotBinding ? formatBindingStatusText(activeSnapshotBinding) : '—'}</span>
+                </div>
+              </div>
+              <div className="snapshot-card">
+                <div className="snapshot-card-title">
+                  <span>上一候选：{previousCandidateSnapshot?.candidateName ?? '无历史候选'}</span>
+                  <code>{previousCandidateSnapshot?.candidateState ?? '—'}</code>
+                </div>
+                {previousCandidateSnapshot ? (
+                  <div className="snapshot-metrics">
+                    <span>part: {previousCandidateSnapshot.partCount}</span>
+                    <span>material-zone: {previousCandidateSnapshot.materialZoneCount}</span>
+                    <span>triangles: {previousCandidateSnapshot.triangleCount}</span>
+                    <span>UV: {previousCandidateSnapshot.uvStatus}</span>
+                    <span>tangent: {previousCandidateSnapshot.tangentStatus}</span>
+                    <span>validator: {previousCandidateSnapshot.validatorStatus}</span>
+                    <span>可视化: {formatQualityStatus(previousCandidateSnapshot.visualStatus)}</span>
+                    <span>
+                      质量门：
+                      <strong className={`workflow-gate-status ${previousCandidateSnapshot.hasVisualEvidenceBinding ? `workflow-gate-status-${previousCandidateSnapshot.qualityPass ? 'passed' : 'failed'}` : 'workflow-gate-status-not-run'}`}>
+                    {previousCandidateSnapshot.hasVisualEvidenceBinding
+                          ? (previousCandidateSnapshot.qualityPass ? '通过' : '未通过')
+                          : '待绑定'}
+                      </strong>
+                    </span>
+                    {previousSnapshotBinding ? <span>绑定摘要：{formatBindingStatusText(previousSnapshotBinding)}</span> : null}
+                  </div>
+                ) : <p className="panel-copy">还没有上一候选用于对比。</p>}
+              </div>
+            </div>
+          )}
+          {candidateSnapshotDiff.length > 0 ? (
+            <>
+              <div className="workflow-gates snapshot-diff-list" aria-label="候选快照差异">
+                {candidateSnapshotDiff.map((row) => (
+                  <div key={row.label} className="workflow-gate-row">
+                    <span>{row.label}</span>
+                    <div>
+                      <strong className={`workflow-gate-status ${snapshotStatusClass(row.status)}`}>
+                        {row.current}
+                      </strong>
+                      <span className="snapshot-diff-prev">↔</span>
+                      <code className={`workflow-gate-status ${snapshotStatusClass(row.status)}`}>{row.previous}</code>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {snapshotBindingDelta.length > 0 ? (
+                <div className="snapshot-binding-delta">
+                  {snapshotBindingDelta.map((delta) => <span key={`${delta.label}-${delta.value}`} className={`snapshot-binding-delta-item ${snapshotDeltaClass(delta.direction)}`}>{`${delta.label}: ${delta.value}`}</span>)}
+                </div>
+              ) : null}
+              <div className="snapshot-diff-controls section-toolbar">
+                <button type="button" className="viewer-toggle" onClick={() => previousCandidateSnapshot && setSelectedCandidateId(previousCandidateSnapshot.candidateId)} disabled={!previousCandidateSnapshot}>
+                  快速回看上一候选
+                </button>
+                <span>当前行高亮即表示已选候选；GLB、对比图与质量面板会随候选自动联动。</span>
+              </div>
+            </>
+          ) : null}
         </section>
         <section className="panel-section" aria-labelledby="generation-timing-title">
           <div className="section-toolbar">

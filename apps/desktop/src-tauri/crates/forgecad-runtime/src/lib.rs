@@ -1174,30 +1174,22 @@ impl Runtime {
             }
             None => None,
         };
-        // Reserve half of the bounded evaluation budget for real geometry
-        // variants when the candidate has V2 evidence.  This prevents the
-        // camera grid from silently consuming the entire budget and turning
-        // the Rig into a proposal-only heuristic.
-        // Geometry variants are materially more expensive than camera-only
-        // rows: each one is a real Worker compile followed by an isolated
-        // render.  Reserve half of the caller's bounded budget for a
-        // Runtime-owned local coordinate descent.  Codex supplies the typed
-        // Rig bounds once; it does not choose a continuous parameter trace or
-        // repeatedly call the Runtime to search one scalar at a time.
-        let geometry_budget = geometry_program_draft
-            .as_ref()
-            .filter(|_| max_evaluations >= 2)
-            .map(|_| (max_evaluations / 2).clamp(1, 8))
-            .unwrap_or(0);
-        // A single fit request must finish within the MCP transport window.
-        // Camera rows are still real Worker renders (not an image-space
-        // heuristic), so cap this inner search independently of the caller's
-        // larger logical budget.  A later bounded retry can refine from the
-        // returned camera/Rig proposal without monopolising Runtime.
-        let camera_budget = max_evaluations
-            .saturating_sub(geometry_budget)
-            .max(1)
-            .min(8);
+        // Give the Runtime-owned Primary Form search the larger share of the
+        // bounded budget.  The previous independent cap of eight evaluations
+        // per phase meant a request for 24 evaluations silently consumed only
+        // 16 and, with a 12-parameter Rig, never reached the later controls.
+        // Each geometry probe is still bounded and goes through the isolated
+        // Geometry Worker plus Render Worker; Codex supplies the typed Rig
+        // bounds once and does not choose a continuous parameter trace.
+        // Camera rows are also real Worker renders, but retain the remainder
+        // of the caller's declared budget instead of applying a second fixed
+        // cap.  The outer optimizer validation still bounds the total request
+        // to 64 evaluations; a later retry remains the explicit refinement
+        // boundary.
+        let (geometry_budget, camera_budget) = primary_form_evaluation_budgets(
+            max_evaluations,
+            geometry_program_draft.is_some(),
+        );
         let requested_iterations = if algorithm == "coordinate_descent" {
             max_iterations as usize
         } else {
@@ -1402,8 +1394,9 @@ impl Runtime {
                     best_geometry_parameters.clone()
                 };
                 if probe_index > 0 && !parameter_indices.is_empty() {
-                    let coordinate = parameter_indices[(probe_index - 1) / 2 % parameter_indices.len()];
-                    let direction = if probe_index % 2 == 1 { 1.0 } else { -1.0 };
+                    let probe_slot = probe_index - 1;
+                    let coordinate = primary_form_probe_coordinate(&parameter_indices, probe_index)
+                        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty".to_owned()))?;
                     let parameter = definitions.get(coordinate).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter index drifted".to_owned()))?;
                     let value = parameter_values
                         .get(coordinate)
@@ -1418,6 +1411,29 @@ impl Runtime {
                         .max(span * step_fraction * 0.25)
                         .min(span * 0.5)
                         .max(1e-6);
+                    // The first coordinate pass follows the direction of the
+                    // evidence-attributed proposal, so a 16-probe default
+                    // reaches all 12 current Primary Form controls.  Only a
+                    // later pass tests the opposite direction.  The old
+                    // +/- pair schedule spent two probes on each early
+                    // parameter and left the rest of the Rig untouched.
+                    let authored_value = parameter.get("value").and_then(Value::as_f64).unwrap_or(value);
+                    let proposal_value = selected_parameters
+                        .get(coordinate)
+                        .and_then(|row| row.get("value"))
+                        .and_then(Value::as_f64)
+                        .unwrap_or(authored_value);
+                    let proposal_direction = (proposal_value - authored_value).signum();
+                    let fallback_direction = if coordinate % 2 == 0 { 1.0 } else { -1.0 };
+                    let direction = (if proposal_direction == 0.0 {
+                        fallback_direction
+                    } else {
+                        proposal_direction
+                    }) * if probe_slot / parameter_indices.len() % 2 == 0 {
+                        1.0
+                    } else {
+                        -1.0
+                    };
                     if let Some(row) = parameter_values.get_mut(coordinate) {
                         row["value"] = Value::from(stable_visual_metric((value + direction * delta).clamp(min, max)));
                     }
@@ -8409,6 +8425,30 @@ fn ranked_rig_parameter_indices(rig: &Value, selected_parameters: &[Value]) -> V
     indices
 }
 
+/// Return the coordinate used by a bounded Primary Form probe.
+///
+/// Probe zero is the complete evidence-attributed proposal.  Subsequent
+/// probes make one deterministic pass over every ranked Rig coordinate before
+/// a second pass tests the opposite direction.  Keeping this schedule as a
+/// small pure function makes the coverage guarantee testable without starting
+/// a Geometry/Render Worker.
+fn primary_form_probe_coordinate(parameter_indices: &[usize], probe_index: usize) -> Option<usize> {
+    if probe_index == 0 || parameter_indices.is_empty() {
+        return None;
+    }
+    parameter_indices.get((probe_index - 1) % parameter_indices.len()).copied()
+}
+
+fn primary_form_evaluation_budgets(max_evaluations: usize, has_geometry_program: bool) -> (usize, usize) {
+    let geometry_budget = if has_geometry_program && max_evaluations >= 2 {
+        (max_evaluations.saturating_mul(2) / 3).clamp(1, 48)
+    } else {
+        0
+    };
+    let camera_budget = max_evaluations.saturating_sub(geometry_budget).max(1).min(32);
+    (geometry_budget, camera_budget)
+}
+
 fn bbox_axis_ratios(target: &[bool], model: &[bool]) -> (f64, f64) {
     let Some(target_box) = bbox(target) else { return (1.0, 1.0); };
     let Some(model_box) = bbox(model) else { return (1.0, 1.0); };
@@ -12889,7 +12929,7 @@ mod tests {
         assert!(fit["iterations"].as_u64().unwrap() >= 1);
         assert!(fit["iterations"].as_u64().unwrap() <= 2);
         assert!(fit["evaluations"].as_u64().unwrap() <= 8);
-        assert!(fit["geometry_evaluations"].as_u64().unwrap() <= 4);
+        assert!(fit["geometry_evaluations"].as_u64().unwrap() <= 5);
         assert_eq!(fit["parameter_deltas"].as_array().map(Vec::len), Some(1));
         assert!(fit["parameter_deltas"][0]["delta"].as_f64().unwrap().is_finite());
         assert!(matches!(fit["status"].as_str(), Some("ready" | "quality_target_not_met" | "no_improvement")));
@@ -12956,6 +12996,27 @@ mod tests {
             {"part_id":"left","start_index":0,"end_index":6,"visibility":"observed"}
         ]);
         assert!(validate_target_part_ranges(&outside, 6, "test").is_err());
+    }
+
+    #[test]
+    fn primary_form_probe_schedule_covers_all_ranked_parameters_before_repeat() {
+        let ranked = (0..12).collect::<Vec<_>>();
+        let first_pass = (1..=ranked.len())
+            .map(|probe_index| primary_form_probe_coordinate(&ranked, probe_index).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(first_pass, ranked);
+        assert_eq!(primary_form_probe_coordinate(&ranked, ranked.len() + 1), Some(0));
+        assert_eq!(primary_form_probe_coordinate(&[], 1), None);
+        assert_eq!(primary_form_probe_coordinate(&ranked, 0), None);
+    }
+
+    #[test]
+    fn primary_form_budget_honors_declared_bound_with_geometry_priority() {
+        assert_eq!(primary_form_evaluation_budgets(24, true), (16, 8));
+        assert_eq!(primary_form_evaluation_budgets(8, true), (5, 3));
+        assert_eq!(primary_form_evaluation_budgets(1, true), (0, 1));
+        assert_eq!(primary_form_evaluation_budgets(64, true), (42, 22));
+        assert_eq!(primary_form_evaluation_budgets(24, false), (0, 24));
     }
 
     #[test]

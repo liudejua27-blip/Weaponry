@@ -73,7 +73,7 @@ def main() -> int:
         "measureMode",
         "exportCompareSnapshot",
         "compare-parameters",
-        "runtime-alert",
+        "error-console",
         "轮廓画布",
         "role=\"tab\"",
         "aria-controls=\"render-aov-panel\"",
@@ -145,7 +145,7 @@ def main() -> int:
         raise SystemExit(f"Viewer must not re-derive Runtime quality gates: {leaked_local_quality_logic}")
     if "visualQualityReport?.hard_gate_passed === true &&" in source:
         raise SystemExit("Viewer must display Runtime hard_gate_passed without adding a local predicate")
-    style_tokens = [".contour-annotation-layer", "touch-action: none", "cursor: crosshair", ".compare-parameters", ".runtime-alert", ".status-icon"]
+    style_tokens = [".contour-annotation-layer", "touch-action: none", "cursor: crosshair", ".compare-parameters", ".error-console", ".status-icon"]
     missing_styles = [token for token in style_tokens if token not in styles]
     if missing_styles:
         raise SystemExit(f"Viewer contour annotation styles are missing required tokens: {missing_styles}")
