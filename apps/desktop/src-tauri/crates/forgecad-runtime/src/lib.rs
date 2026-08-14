@@ -2382,7 +2382,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         let value = parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0);
                         let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
                         let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
-                        let delta = local_part_parameter_delta(parameter, target_envelope, model_envelope);
+                        // This legacy proposal endpoint has no camera payload.
+                        // Keep meter offsets neutral instead of converting image
+                        // error with an arbitrary Rig step; ratio controls remain
+                        // valid because they are unitless.
+                        let delta = local_part_parameter_delta(
+                            parameter,
+                            target_envelope,
+                            model_envelope,
+                            None,
+                        );
                         adjustments.push(json!({
                             "parameter_id":parameter.get("parameter_id").and_then(Value::as_str).unwrap_or("unknown"),
                             "delta":stable_visual_metric(delta),
@@ -9156,6 +9165,7 @@ fn fit_rig_parameters_with_part_context(
     target_mask: &[bool],
     model_mask: &[bool],
     part_context: Option<(&[u8], &[String])>,
+    camera: Option<&Value>,
 ) -> Vec<Value> {
     let Some(parameters) = rig.get("parameters").and_then(Value::as_array) else {
         return Vec::new();
@@ -9197,7 +9207,13 @@ fn fit_rig_parameters_with_part_context(
             let proposed = part_id
                 .and_then(|id| local_envelopes.get(id))
                 .map(|(target_envelope, model_envelope)| {
-                    (value + local_part_parameter_delta(parameter, *target_envelope, *model_envelope))
+                    (value
+                        + local_part_parameter_delta(
+                            parameter,
+                            *target_envelope,
+                            *model_envelope,
+                            camera,
+                        ))
                         .clamp(min, max)
                 })
                 .unwrap_or_else(|| {
@@ -9236,6 +9252,7 @@ fn fit_rig_parameters_with_landmark_context(
         target_mask,
         model_mask,
         part_context,
+        camera,
     );
     let Some(camera) = camera else {
         return selected;
@@ -10278,7 +10295,12 @@ fn mask_envelope(mask: &[bool]) -> Option<MaskEnvelope> {
     })
 }
 
-fn local_part_parameter_delta(parameter: &Value, target: MaskEnvelope, model: MaskEnvelope) -> f64 {
+fn local_part_parameter_delta(
+    parameter: &Value,
+    target: MaskEnvelope,
+    model: MaskEnvelope,
+    camera: Option<&Value>,
+) -> f64 {
     let semantic = parameter.get("semantic").and_then(Value::as_str).unwrap_or("");
     let unit = parameter.get("unit").and_then(Value::as_str).unwrap_or("meter");
     let value = parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0);
@@ -10291,13 +10313,28 @@ fn local_part_parameter_delta(parameter: &Value, target: MaskEnvelope, model: Ma
     let width_ratio = (target_width / model_width.max(1.0)).clamp(0.5, 1.5);
     let height_ratio = (target_height / model_height.max(1.0)).clamp(0.5, 1.5);
     let center_delta_x = (target.centroid_x - model.centroid_x).clamp(-0.5, 0.5);
-    let center_delta_y = (target.centroid_y - model.centroid_y).clamp(-0.5, 0.5);
+    // Image Y grows downward while the calibrated camera-plane up basis grows
+    // upward. Keep this sign aligned with the landmark and boundary projection
+    // paths so a local Part proposal does not move vertically in the opposite
+    // direction from the geometry trial that consumes it.
+    let center_delta_y = (model.centroid_y - target.centroid_y).clamp(-0.5, 0.5);
+    let camera_scale = camera.and_then(camera_plane_world_scales);
     let raw_delta = match semantic {
         "width" => (width_ratio - 1.0) * parameter_scale,
         "height" => (height_ratio - 1.0) * parameter_scale,
         "scale" => (((width_ratio * height_ratio).sqrt()) - 1.0) * parameter_scale,
-        "offset_x" => center_delta_x * if unit == "ratio" { 1.0 } else { parameter_scale },
-        "offset_y" => center_delta_y * if unit == "ratio" { 1.0 } else { parameter_scale },
+        "offset_x" => center_delta_x
+            * if unit == "ratio" {
+                1.0
+            } else {
+                camera_scale.map(|(world_per_screen_x, _)| world_per_screen_x).unwrap_or(0.0)
+            },
+        "offset_y" => center_delta_y
+            * if unit == "ratio" {
+                1.0
+            } else {
+                camera_scale.map(|(_, world_per_screen_y)| world_per_screen_y).unwrap_or(0.0)
+            },
         // Depth and Z offsets cannot be inferred from one view.  Returning a
         // neutral bounded proposal is safer than inventing hidden geometry.
         "depth" | "offset_z" => 0.0,
@@ -15143,14 +15180,50 @@ mod tests {
             "parameter_id":"shell-offset-x","part_id":"shell","semantic":"offset_x",
             "value":0.0,"min":-0.5,"max":0.5,"step":0.05,"unit":"ratio"
         });
-        assert!(local_part_parameter_delta(&width, target, model) > 0.0);
-        assert!(local_part_parameter_delta(&height, target, model) > 0.0);
-        assert!(local_part_parameter_delta(&offset, target, model) > 0.0);
+        assert!(local_part_parameter_delta(&width, target, model, None) > 0.0);
+        assert!(local_part_parameter_delta(&height, target, model, None) > 0.0);
+        assert!(local_part_parameter_delta(&offset, target, model, None) > 0.0);
         let depth = json!({
             "parameter_id":"shell-depth","part_id":"shell","semantic":"depth",
             "value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"meter"
         });
-        assert_eq!(local_part_parameter_delta(&depth, target, model), 0.0);
+        assert_eq!(local_part_parameter_delta(&depth, target, model, None), 0.0);
+    }
+
+    #[test]
+    fn local_part_meter_offsets_use_camera_scale_and_camera_up_y_sign() {
+        let mut target_mask = vec![false; 512 * 512];
+        let mut model_mask = vec![false; 512 * 512];
+        for y in 100..200 {
+            for x in 100..200 {
+                target_mask[y * 512 + x] = true;
+            }
+        }
+        for y in 110..160 {
+            for x in 110..160 {
+                model_mask[y * 512 + x] = true;
+            }
+        }
+        let target = mask_envelope(&target_mask).expect("target envelope");
+        let model = mask_envelope(&model_mask).expect("model envelope");
+        let offset_x = json!({
+            "parameter_id":"shell-offset-x","part_id":"shell","semantic":"offset_x",
+            "value":0.0,"min":-0.5,"max":0.5,"step":0.05,"unit":"meter"
+        });
+        let offset_y = json!({
+            "parameter_id":"shell-offset-y","part_id":"shell","semantic":"offset_y",
+            "value":0.0,"min":-0.5,"max":0.5,"step":0.05,"unit":"meter"
+        });
+        let camera = default_camera_calibration();
+        let calibrated_x = local_part_parameter_delta(&offset_x, target, model, Some(&camera));
+        let calibrated_y = local_part_parameter_delta(&offset_y, target, model, Some(&camera));
+        assert!(calibrated_x > 0.0);
+        // The target is lower in image space than the model. Moving the model
+        // down therefore requires a negative camera-plane-up offset.
+        assert!(calibrated_y < 0.0);
+        assert!(calibrated_x.abs() > 0.05);
+        assert_eq!(local_part_parameter_delta(&offset_x, target, model, None), 0.0);
+        assert_eq!(local_part_parameter_delta(&offset_y, target, model, None), 0.0);
     }
 
     #[test]
@@ -15245,6 +15318,7 @@ mod tests {
             &global_mask,
             &global_mask,
             Some((&part_png, &["shell".to_owned()])),
+            None,
         );
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0]["part_id"], "shell");

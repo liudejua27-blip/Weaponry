@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Primary Form 局部 Part 偏移标定：Runtime 将显式 Part envelope proposal 的米制 `offset_x/offset_y` 统一换算到相机平面世界尺度，并修正 image-Y/down 与 camera-plane/up 的符号；缺少 camera 的 legacy proposal 不再用 Rig step 猜测米制位移。新增 focused regression，`forgecad-runtime` 全部 109 个单元测试通过（99 passed、10 个 worker isolation tests 按要求 ignored）。这是 source/convergence 修复，没有新的授权机器人视觉 receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`、human/PBR/export-restart/360 未运行状态。
+
 2026-08-15 Primary Form same-camera retention：Runtime 在 staged candidate 之前用最终 camera 和 512px Render Worker 对 source/proposal 做同目标 full-resolution weighted-loss compare；未严格改善则返回 `PrimaryFormAcceptance@1.retained_source`，不创建 candidate、不覆盖 source VisualEvidence。contracts、Runtime focused regression 与 Stage 0 checker 通过；本模块不升级真实质量，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Agentic observation→action receipt binding：`DesignActionRun@1` 新增必需的 `observation_sha256`；Runtime action 只记录本回合唯一 `AgenticSceneObserveResult@1` 的 canonical hash，Store/CAS readback、schema positive/negative fixture 与 Runtime idempotent regression 均保持一致。该模块让 Codex 的观察、candidate-bound evidence 和一次 bounded action 可被同一 hash 追溯，但不改变视觉质量状态或解锁后续 stage。
