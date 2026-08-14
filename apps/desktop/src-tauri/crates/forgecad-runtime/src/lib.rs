@@ -1,6 +1,7 @@
 mod geometry_worker;
 mod ipc;
 mod agentic_design;
+mod agentic_action;
 mod agentic_session;
 mod process_lock;
 mod skill_registry;
@@ -5426,12 +5427,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             | "session_get"
             | "checkpoint_prepare"
             | "checkpoint_get"
-            | "checkpoint_restore_prepare" => match method {
+            | "checkpoint_restore_prepare"
+            | "design_action_run_prepare"
+            | "design_action_run_get" => match method {
                 "session_create_or_resume" => self.session_create_or_resume(payload.clone()),
                 "session_get" => self.session_get(payload.clone()),
                 "checkpoint_prepare" => self.checkpoint_prepare(payload.clone()),
                 "checkpoint_get" => self.checkpoint_get(payload.clone()),
                 "checkpoint_restore_prepare" => self.checkpoint_restore_prepare(payload.clone()),
+                "design_action_run_prepare" => self.design_action_run_prepare(payload.clone()),
+                "design_action_run_get" => self.design_action_run_get(payload.clone()),
                 _ => unreachable!("Agentic session IPC method dispatch arm is exhaustive"),
             },
             "capabilities_get" => Ok(serde_json::to_value(self.capabilities())
@@ -16024,5 +16029,159 @@ mod tests {
             .expect("export replay");
         assert!(export_replay.replayed);
         assert_eq!(export_replay.output_sha256, exported.output_sha256);
+    }
+
+    #[test]
+    fn bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("MCP010F bounded action run", json!({"profile":"mvp"}))
+            .expect("project");
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "MCP010F bounded action fixture".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
+        let program = v2_restore_program(&project.project_id);
+        let prepared = runtime
+            .prepare_geometry_candidate(
+                &project.project_id,
+                None,
+                json!({"typed":"geometry","geometry_program":program}),
+            )
+            .expect("candidate");
+        let candidate_id = prepared["candidate"]["candidate_id"]
+            .as_str()
+            .expect("candidate id")
+            .to_owned();
+        let target = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "contour_points":[[0.1,0.1],[0.9,0.1],[0.9,0.9],[0.1,0.9]],
+                    "parts":[{"part_id":"shell","start_index":0,"end_index":3,"visibility":"observed"}]
+                }),
+            )
+            .expect("target");
+        let mut view_spec = json!({
+            "schema_version":"ReferenceViewSpec@1",
+            "reference_id":reference.reference_id.clone(),
+            "reference_sha256":reference.object_sha256.clone(),
+            "view_id":"bounded-action-view",
+            "source_view":"three-quarter",
+            "image":{"width":1,"height":1,"rotation_degrees":0.0,"crop":{"x":0.0,"y":0.0,"width":1.0,"height":1.0}},
+            "landmarks":[],
+            "regions":[],
+            "canonical_sha256":""
+        });
+        view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+        runtime
+            .prepare_reference_comparison(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "candidate_id":candidate_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "view_spec":view_spec,
+                    "target_sha256":target["target_sha256"].clone()
+                }),
+            )
+            .expect("comparison");
+        let visual = runtime.visual_evidence(&candidate_id).expect("visual evidence");
+        let camera_hash = visual["render_set"]["camera_hash"]
+            .as_str()
+            .expect("camera hash")
+            .to_owned();
+        let evidence_sha256 = visual["quality_report_hash"]
+            .as_str()
+            .expect("quality evidence hash")
+            .to_owned();
+        let session_id = "design-session-bounded-action";
+        let session = runtime
+            .session_create_or_resume(json!({
+                "session_id":session_id,
+                "project_id":project.project_id.clone(),
+                "candidate_id":candidate_id.clone(),
+                "idempotency_key":"bounded-action-session",
+                "reference_id":reference.reference_id.clone(),
+                "design_spec_id":"design-spec-bounded-action",
+                "reference_canvas_id":"reference-canvas-bounded-action",
+                "camera_hash":camera_hash,
+                "evidence_sha256":evidence_sha256,
+                "approved":true,
+                "approval_receipt_id":"bounded-action-session-approval",
+                "approval_summary":"Approve bounded action session"
+            }))
+            .expect("session");
+        assert_eq!(session["session"]["current_stage"], "primary-form");
+        let action = json!({
+            "action_id":"bounded-primary-form-adjustment",
+            "action_kind":"bounded-repair",
+            "scope_kind":"part",
+            "target_id":"shell",
+            "operator_id":"forgecad.geometry.transform@2",
+            "parameter_changes":[{"parameter_id":"shell-width","before":1.0,"after":1.05,"minimum":0.5,"maximum":1.5,"unit":"meter"}],
+            "bounded":true,
+            "description":"Adjust one bounded Primary Form width parameter"
+        });
+        let run_id = "action-run-bounded-primary-form";
+        let input_sha256 = canonical_json_hash(&json!({
+            "project_id":project.project_id.clone(),
+            "session_id":session_id,
+            "candidate_id":candidate_id.clone(),
+            "run_id":run_id,
+            "action":action,
+            "requested_stage":"primary-form"
+        }));
+        let before_versions = runtime.versions(Some(&project.project_id)).expect("versions").len();
+        let request = json!({
+            "project_id":project.project_id.clone(),
+            "session_id":session_id,
+            "candidate_id":candidate_id.clone(),
+            "run_id":run_id,
+            "action":action,
+            "input_sha256":input_sha256,
+            "requested_stage":"primary-form",
+            "approved":true,
+            "approval_receipt_id":"bounded-action-run-approval",
+            "approval_summary":"Approve one bounded Primary Form repair",
+            "approval_session_id":session_id,
+            "idempotency_key":"bounded-action-run-once"
+        });
+        let first = runtime
+            .design_action_run_prepare(request.clone())
+            .expect("action run");
+        assert_eq!(first["schema_version"], "DesignActionRun@1");
+        assert!(matches!(first["status"].as_str(), Some("completed" | "blocked")));
+        assert_eq!(first["runtime_write"], false);
+        assert_eq!(first["persistent_user_data_touched"], false);
+        assert!(first["locked_actions"].as_array().unwrap().iter().any(|value| value == "confirm"));
+        assert!(first["locked_actions"].as_array().unwrap().iter().any(|value| value == "export"));
+        let second = runtime
+            .design_action_run_prepare(request)
+            .expect("idempotent action run");
+        assert_eq!(first, second);
+        let read = runtime
+            .design_action_run_get(json!({
+                "project_id":project.project_id,
+                "session_id":session_id,
+                "candidate_id":candidate_id,
+                "run_id":run_id
+            }))
+            .expect("action readback");
+        assert_eq!(read, first);
+        assert_eq!(runtime.versions(Some(session["project_id"].as_str().unwrap())).unwrap().len(), before_versions);
     }
 }

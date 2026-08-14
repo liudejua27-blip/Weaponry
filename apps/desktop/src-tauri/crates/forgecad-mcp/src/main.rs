@@ -1,4 +1,5 @@
 mod agentic_tools;
+mod agentic_action_tools;
 mod agentic_write_tools;
 mod supervisor;
 
@@ -54,6 +55,7 @@ struct Session {
     write_tools_enabled: bool,
     ponytail_preflight_read: bool,
     agentic_binding: agentic_write_tools::Binding,
+    agentic_action_binding: agentic_action_tools::Binding,
 }
 
 impl Session {
@@ -64,6 +66,7 @@ impl Session {
             write_tools_enabled: false,
             ponytail_preflight_read: false,
             agentic_binding: agentic_write_tools::Binding::default(),
+            agentic_action_binding: agentic_action_tools::Binding::default(),
         }
     }
 }
@@ -587,6 +590,10 @@ fn agentic_write_tool_names() -> Vec<String> {
     agentic_write_tools::write_tool_names()
 }
 
+fn agentic_action_write_tool_names() -> Vec<String> {
+    agentic_action_tools::write_tool_names()
+}
+
 fn is_mcp004_write_tool(name: &str) -> bool {
     mcp004_write_tool_names().iter().any(|tool| tool == name)
 }
@@ -624,6 +631,7 @@ fn is_write_tool(name: &str) -> bool {
         || is_mcp010c_write_tool(name)
         || is_mcp010f_write_tool(name)
         || agentic_write_tools::is_write_tool(name)
+        || agentic_action_tools::is_write_tool(name)
 }
 
 fn all_write_tool_names() -> Vec<String> {
@@ -635,6 +643,7 @@ fn all_write_tool_names() -> Vec<String> {
     names.extend(mcp010c_write_tool_names());
     names.extend(mcp010f_write_tool_names());
     names.extend(agentic_write_tool_names());
+    names.extend(agentic_action_write_tool_names());
     names
 }
 
@@ -649,6 +658,7 @@ fn tools_with_writes(writes_enabled: bool) -> Vec<Value> {
         tools.extend(mcp010c_write_tools());
         tools.extend(mcp010f_write_tools());
         tools.extend(agentic_write_tools::write_tools());
+        tools.extend(agentic_action_tools::write_tools());
     }
     tools.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
     tools
@@ -931,6 +941,7 @@ fn read_only_tools() -> Vec<Value> {
     ];
     tools.extend(agentic_tools::read_tools());
     tools.extend(agentic_write_tools::read_tools());
+    tools.extend(agentic_action_tools::read_tools());
     tools
 }
 
@@ -2040,7 +2051,9 @@ fn call_tool(
             .expect("response for request"),
         );
     };
-    if agentic_write_tools::is_tool(name) && !session.ponytail_preflight_read {
+    if (agentic_write_tools::is_tool(name) || agentic_action_tools::is_tool(name))
+        && !session.ponytail_preflight_read
+    {
         return Some(json!({
             "jsonrpc":"2.0",
             "id":id,
@@ -2121,7 +2134,7 @@ fn call_tool(
                 }
             }));
         }
-        if agentic_write_tools::is_write_tool(name) {
+        if agentic_write_tools::is_write_tool(name) || agentic_action_tools::is_write_tool(name) {
             return Some(json!({
                 "jsonrpc":"2.0",
                 "id":id,
@@ -2195,6 +2208,19 @@ fn call_tool(
             }));
         }
     }
+    if agentic_action_tools::is_tool(name) {
+        if let Err(error) = agentic_action_tools::validate_call(
+            name,
+            &arguments,
+            &session.agentic_action_binding,
+        ) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+            }));
+        }
+    }
     match dispatch_tool(backend, name, &arguments, write_tools_enabled) {
         Ok(value) if name == "render_pass_get" => {
             let mut metadata = value.clone();
@@ -2221,6 +2247,23 @@ fn call_tool(
                     name,
                     &value,
                     &mut session.agentic_binding,
+                ) {
+                    return Some(json!({
+                        "jsonrpc":"2.0",
+                        "id":id,
+                        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+                    }));
+                }
+                agentic_action_tools::sync_session_scope(
+                    &session.agentic_binding,
+                    &mut session.agentic_action_binding,
+                );
+            }
+            if agentic_action_tools::is_tool(name) {
+                if let Err(error) = agentic_action_tools::bind_response(
+                    name,
+                    &value,
+                    &mut session.agentic_action_binding,
                 ) {
                     return Some(json!({
                         "jsonrpc":"2.0",
@@ -2309,15 +2352,18 @@ fn dispatch_tool_with_build_cohort(
         });
     }
     if is_write_tool(name) {
-        if agentic_write_tools::is_write_tool(name) {
+        if agentic_write_tools::is_write_tool(name) || agentic_action_tools::is_write_tool(name) {
             return backend_agentic_write_call(backend, name, arguments, local_build_cohort);
         }
         return backend_write_call(backend, name, arguments, local_build_cohort);
     }
-    if agentic_write_tools::is_tool(name) {
+    if agentic_write_tools::is_tool(name) || agentic_action_tools::is_tool(name) {
         return match agentic_write_tools::runtime_method(name) {
             Some(runtime_method) => backend_call(backend, runtime_method, arguments),
-            None => Err(agentic_write_tools::unavailable_error(name)),
+            None => match agentic_action_tools::runtime_method(name) {
+                Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+                None => Err(agentic_action_tools::unavailable_error(name)),
+            },
         };
     }
     if agentic_tools::is_tool(name) {
@@ -2343,7 +2389,11 @@ fn backend_agentic_write_call(
 ) -> Result<Value, String> {
     backend_write_call(backend, name, arguments, local_build_cohort).map_err(|error| {
         if error == "RUNTIME_UNAVAILABLE: Runtime request failed" {
-            return agentic_write_tools::unavailable_error(name);
+            return if agentic_action_tools::is_tool(name) {
+                agentic_action_tools::unavailable_error(name)
+            } else {
+                agentic_write_tools::unavailable_error(name)
+            };
         }
         if error.starts_with("RUNTIME_UNAVAILABLE:") {
             return format!("AGENTIC_RUNTIME_UNAVAILABLE: {error}");
@@ -2807,7 +2857,9 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         | "session_get"
         | "checkpoint_prepare"
         | "checkpoint_get"
-        | "checkpoint_restore_prepare" => match name {
+        | "checkpoint_restore_prepare"
+        | "design_action_run_prepare"
+        | "design_action_run_get" => match name {
             "session_create_or_resume" => runtime
                 .session_create_or_resume(arguments.clone())
                 .map_err(|error| error.to_string()),
@@ -2822,6 +2874,12 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .map_err(|error| error.to_string()),
             "checkpoint_restore_prepare" => runtime
                 .checkpoint_restore_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "design_action_run_prepare" => runtime
+                .design_action_run_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "design_action_run_get" => runtime
+                .design_action_run_get(arguments.clone())
                 .map_err(|error| error.to_string()),
             _ => unreachable!("agentic write tool dispatch arm is exhaustive"),
         },
@@ -3676,11 +3734,11 @@ mod tests {
             summary["schema_version"],
             "ForgeCADMcpToolManifestSummary@1"
         );
-        assert_eq!(summary["read_count"], 35);
-        assert_eq!(summary["write_count"], 22);
-        assert_eq!(summary["total_count"], 57);
-        assert_eq!(summary["read_names"].as_array().unwrap().len(), 35);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 22);
+        assert_eq!(summary["read_count"], 36);
+        assert_eq!(summary["write_count"], 23);
+        assert_eq!(summary["total_count"], 59);
+        assert_eq!(summary["read_names"].as_array().unwrap().len(), 36);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 23);
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -4112,13 +4170,13 @@ mod tests {
     #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 35);
+        assert_eq!(disabled.len(), 36);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 57);
+        assert_eq!(enabled.len(), 59);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -4396,7 +4454,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 57);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 59);
 
         let imported = handle(
             &mut backend,

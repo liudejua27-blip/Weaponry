@@ -1,6 +1,6 @@
 # ADR-0026: Agentic Design Runtime
 
-状态：Accepted as target architecture；observe/plan read-only projection、durable session/checkpoint/RepairIntent prepare/readback slice 与 MCP010F 窄范围 Primary Form 单动作 prepare/evaluate 已落地，通用单动作 orchestrator、Repair 应用和完整视觉 Gate 仍未完成
+状态：Accepted as target architecture；observe/plan read-only projection、durable session/checkpoint/RepairIntent prepare/readback slice 与 MCP010F 窄范围 Primary Form 单动作 prepare/evaluate、bounded action-run/readback 已落地，通用单动作 orchestrator、Repair 应用和完整视觉 Gate 仍未完成
 日期：2026-08-13
 
 ## 背景
@@ -56,6 +56,7 @@ MCP010F 当前包含两个严格受限的 slice：
 - 隔离探针先执行 Ponytail preflight，随后验证空参考 fail closed、动作锁定、project binding 和无用户持久数据写入：`docs/evidence/mcp010f/agentic-runtime-observe-plan-20260813.json`。
 - Runtime 另外提供受批准的 `session_create_or_resume`、`checkpoint_prepare`、`checkpoint_restore_prepare` 写入准备，以及 `session_get`、`checkpoint_get` durable readback；session/checkpoint 记录由 Runtime 写入 SQLite/CAS，恢复只生成 CAS-bound `RepairIntent@1`，不修改 candidate/version/history；
 - MCP010F 另外提供窄范围 `primary_form_repair_prepare`：Codex 只传一次 target/camera/Rig/optimizer typed intent，Runtime 在同一 bounded action 内完成 fit、typed GeometryProgram、strict readback、隔离 Render Worker 九 AOV 和 candidate-bound compare，结果是 staged candidate + Runtime QualityReport；它不 confirm、不创建 version、不 export，且无严格改善时保持 source candidate 不变；
+- MCP010F 另提供 `design_action_run_prepare`/`design_action_run_get` 的窄范围 action-run slice：Codex 只提交一次已批准、单 Part、`primary-form` bounded action，Runtime 绑定 session/project/candidate/reference scope 后复用上述 pipeline，将 `DesignActionRun@1` 与结果写入 SQLite/CAS；结果锁定 confirm/export，幂等 prepare/get 不改变 candidate/version 或用户持久数据。该 slice 不是通用多阶段 orchestrator，也不执行 RepairIntent；
 - Viewer 通过 authenticated IPC 查询 durable session，仍只展示 read model，不提供写入按钮；完整重启后的 session/checkpoint/intent receipt 为 `docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`，合同检查为 `scripts/check_agentic_runtime_receipt.py`。
 
 这里的 `AgenticSceneObserveResult@1` 仍是可丢弃的 source transport envelope；durable session/checkpoint/RepairIntent 只在上述受限 prepare/readback 范围内存在。真实 Runtime 的嵌套只读 projection 已有独立 producer/consumer conformance 回执，但 durable/reference/DesignSpec 的完整 producer 尚未形成。`primary_form_repair_prepare` 只覆盖单一 Primary Form 的 prepare/evaluate slice，尚未形成通用单动作 orchestrator 或 RepairIntent 实际应用。这个区分是本 ADR 的强制状态边界。
@@ -161,7 +162,7 @@ ADR-0026 不改变当前唯一 `in_progress`：`FGC-MCP010F`。observe/plan proj
 
 1. durable/reference/DesignSpec 与剩余 Agentic contract family 的完整 producer/consumer conformance（嵌套只读 projection 已有独立 Gate）；
 2. `DesignSpec@1` / `ReferenceCanvas@1` 的独立 CAS-bound producer/readback 和真实参考覆盖证据；
-3. 单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator；
+3. 从当前 Primary Form 专用 action-run slice 推广为通用单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator；
 4. bounded RepairIntent 执行和用户批准边界；
 5. Parametric Design Kit v0 的 typed macro producer；
 6. 完整 Visual Evidence Bundle 与 critic evidence hash；

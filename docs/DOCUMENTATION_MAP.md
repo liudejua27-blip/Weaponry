@@ -1,6 +1,6 @@
 # ForgeCAD 文档地图
 
-版本：2026-08-13 · 状态：MCP005–MCP009 MVP functional core 已收口；FGC-MCP010A done；FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source + current-cohort packaged CLI read-model in_progress（Tauri packaged UI/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 / Agentic Design Runtime 已完成 observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback source slice；架构模块边界和废弃隔离计划继续作为治理文档。当前为 102 Schema、57 tools，完整 orchestrator/Repair/视觉闭环和 `QUALITY_TARGET_NOT_MET` 事实仍需分层记录。
+版本：2026-08-13 · 状态：MCP005–MCP009 MVP functional core 已收口；FGC-MCP010A done；FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source + current-cohort packaged CLI read-model in_progress（Tauri packaged UI/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 / Agentic Design Runtime 已完成 observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback source slice；架构模块边界和废弃隔离计划继续作为治理文档。当前为 102 Schema、59 tools，完整 orchestrator/Repair/视觉闭环和 `QUALITY_TARGET_NOT_MET` 事实仍需分层记录。
 
 ## 阅读顺序
 
@@ -28,7 +28,7 @@
 22. `CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`：Codex 经 MCP 进入 3D 设计前必须读取的 first-party preflight Skill、会话顺序、边界和维护规则
 23. 任务相关合同：`MCP_RUNTIME_CONTRACT.md`、`CODEX_INTEGRATION.md`、`COMPILER_PIPELINE.md`、`WORKBENCH_VIEWER.md`、`SKILL_PACKAGE_STANDARD.md`、`SCHEMAS.md`、`DATABASE.md`
 24. `MVP_ARCHITECTURE.md`：单用户启动、文件锁和最小运行边界
-25. `MVP_TOOL_CATALOG.md`：当前源码的 35 个只读/21 个写工具（56 个，写工具仍需显式 opt-in），12 个 Skill（含必须先读取的 `ponytail-preflight@0.1.0`，以及 active `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0`）；新增轮廓 target/camera/Rig/Rig-hash/SDF/Part/candidate compare、Agentic observe/plan/critic/evidence projection 和 durable session/checkpoint readback 工具的调用顺序见相关合同。C/D/E/F 的结构 Gate、真实 likeness、人评/PBR/纹理和 360 仍必须另标 planned/unavailable
+25. `MVP_TOOL_CATALOG.md`：当前源码的 36 个只读/23 个写工具（59 个，写工具仍需显式 opt-in），12 个 Skill（含必须先读取的 `ponytail-preflight@0.1.0`，以及 active `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0`）；新增轮廓 target/camera/Rig/Rig-hash/SDF/Part/candidate compare、Agentic observe/plan/critic/evidence projection 和 durable session/checkpoint readback 工具的调用顺序见相关合同。C/D/E/F 的结构 Gate、真实 likeness、人评/PBR/纹理和 360 仍必须另标 planned/unavailable
 ## 生命周期
 
 - `已实现`：当前代码和对应 Gate 通过；

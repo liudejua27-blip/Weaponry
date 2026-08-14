@@ -739,7 +739,7 @@ fn bound_reference<'a>(
     Ok(reference)
 }
 
-fn validate_observation_claims(
+pub(super) fn validate_observation_claims(
     observation: &Value,
     candidate: &CandidateRecord,
     reference: &ReferenceEvidenceRecord,

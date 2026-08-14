@@ -482,6 +482,7 @@ CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --man
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime camera_fit_returns_bounded_hash_bound_candidates_without_mutating_candidate --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime camera_fit_search_covers_global_scale_with_deterministic_budget --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime contour_fit_part_proposal_and_candidate_compare_are_bounded_and_read_only --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --offline silhouette_part_error
 git diff --check
 

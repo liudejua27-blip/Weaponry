@@ -36,6 +36,7 @@ SCHEMA_ROOT = ROOT / "packages/forgecad-contracts/schemas"
 MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs"
 AGENTIC_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_tools.rs"
 AGENTIC_WRITE_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools.rs"
+AGENTIC_ACTION_MCP_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_action_tools.rs"
 RUNTIME_SOURCE = ROOT / "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs"
 VIEWER_SOURCE = ROOT / "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx"
 FIT_PLAN_SOURCE = ROOT / "scripts/build_mcp010f_fit_plan.py"
@@ -70,6 +71,7 @@ WRITE_NAME_FUNCTIONS = (
     "mcp010c_write_tool_names",
     "mcp010f_write_tool_names",
     "agentic_write_tool_names",
+    "agentic_action_write_tool_names",
 )
 
 METRIC_CRITERIA = {
@@ -291,6 +293,21 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             )
             require(name_match is not None, f"agentic read tool variant has no name: {variant}")
             read_names.append(name_match.group(1))
+    if "tools.extend(agentic_action_tools::read_tools());" in source:
+        agentic_action_source = AGENTIC_ACTION_MCP_SOURCE.read_text(encoding="utf-8")
+        read_function = re.search(
+            r"pub fn read_tools\(\) -> Vec<Value> \{(.*?)\n\}",
+            agentic_action_source,
+            flags=re.DOTALL,
+        )
+        require(read_function is not None, "cannot locate agentic action-module read tools")
+        for variant in re.findall(r"AgenticActionTool::([A-Za-z0-9_]+)", read_function.group(1)):
+            name_match = re.search(
+                rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
+                agentic_action_source,
+            )
+            require(name_match is not None, f"agentic action read tool variant has no name: {variant}")
+            read_names.append(name_match.group(1))
 
     write_names: list[str] = []
     for function_name in WRITE_NAME_FUNCTIONS:
@@ -311,6 +328,26 @@ def source_tool_names() -> tuple[list[str], list[str]]:
                     agentic_source,
                 )
                 require(name_match is not None, f"agentic write tool variant has no name: {variant}")
+                names.append(name_match.group(1))
+            write_names.extend(names)
+            continue
+        if function_name == "agentic_action_write_tool_names":
+            agentic_action_source = AGENTIC_ACTION_MCP_SOURCE.read_text(encoding="utf-8")
+            names_function = re.search(
+                r"pub fn write_tool_names\(\) -> Vec<String> \{(.*?)\n\}",
+                agentic_action_source,
+                flags=re.DOTALL,
+            )
+            require(names_function is not None, "cannot locate agentic action write tool names")
+            variants = re.findall(r"AgenticActionTool::([A-Za-z0-9_]+)", names_function.group(1))
+            require(variants, "agentic_action_write_tool_names contains no tool variants")
+            names = []
+            for variant in variants:
+                name_match = re.search(
+                    rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
+                    agentic_action_source,
+                )
+                require(name_match is not None, f"agentic action write tool variant has no name: {variant}")
                 names.append(name_match.group(1))
             write_names.extend(names)
             continue

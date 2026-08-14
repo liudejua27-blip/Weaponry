@@ -249,7 +249,7 @@ def main() -> int:
 
         listed = client.request("tools/list")
         tools = listed.get("result", {}).get("tools")
-        require(isinstance(tools, list) and len(tools) == 57, "C source tool manifest did not expose 35 read + 22 write tools")
+        require(isinstance(tools, list) and len(tools) == 59, "C source tool manifest did not expose 36 read + 23 write tools")
         render_tool = next((tool for tool in tools if tool.get("name") == "render_pass_get"), None)
         require(isinstance(render_tool, dict) and render_tool.get("annotations", {}).get("readOnlyHint") is True, "render_pass_get was not read-only")
 

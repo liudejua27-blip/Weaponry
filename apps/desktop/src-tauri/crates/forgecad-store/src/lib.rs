@@ -161,13 +161,24 @@ pub struct AgenticActionRunRecord {
     pub session_id: String,
     pub project_id: String,
     pub candidate_id: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
     pub input_sha256: String,
+    pub action: Value,
+    pub requested_stage: String,
     pub status: String,
-    pub completed_stage: String,
+    pub completed_stage: Option<String>,
     pub stage_results: Value,
+    pub quality_status: String,
+    pub failed_gates: Vec<String>,
+    pub allowed_actions: Vec<String>,
+    pub locked_actions: Vec<String>,
     pub checkpoint_id: Option<String>,
     pub checkpoint_sha256: Option<String>,
     pub immutable: bool,
+    pub runtime_write: bool,
+    pub persistent_user_data_touched: bool,
     /// SQLite/CAS object containing the canonical record.  It is omitted from
     /// the CAS payload itself to avoid a content-hash cycle.
     pub object_sha256: Option<String>,
@@ -1588,7 +1599,7 @@ impl Store {
                 run.candidate_id,
                 run.input_sha256,
                 run.status,
-                run.completed_stage,
+                run.completed_stage.as_deref().unwrap_or("none"),
                 stage_results_json,
                 run.checkpoint_id,
                 run.checkpoint_sha256,
@@ -3520,20 +3531,37 @@ fn validate_agentic_action_run(run: &AgenticActionRunRecord) -> Result<(), Store
         || !is_opaque_id(&run.session_id)
         || !is_opaque_id(&run.project_id)
         || !is_opaque_id(&run.candidate_id)
+        || !is_opaque_id(&run.reference_id)
+        || !is_sha256(&run.reference_sha256)
+        || !is_sha256(&run.camera_hash)
         || !is_sha256(&run.input_sha256)
+        || !run.action.is_object()
+        || !is_opaque_id(&run.requested_stage)
         || !matches!(
             run.status.as_str(),
-            "queued"
-                | "running"
-                | "waiting_for_input"
-                | "succeeded"
-                | "completed"
-                | "failed"
-                | "cancelled"
-                | "blocked"
+            "prepared" | "running" | "completed" | "failed" | "blocked"
         )
-        || (run.completed_stage != "none" && !is_opaque_id(&run.completed_stage))
+        || run
+            .completed_stage
+            .as_deref()
+            .is_some_and(|stage| !is_opaque_id(stage))
+        || !matches!(
+            run.quality_status.as_str(),
+            "PARTIAL_VISIBLE_VIEW_PASS"
+                | "QUALITY_TARGET_NOT_MET"
+                | "BLOCKED_REFERENCE_COVERAGE"
+                | "not-run"
+                | "unknown"
+        )
+        || run.failed_gates.len() > 24
+        || run.allowed_actions.len() > 24
+        || run.locked_actions.len() < 2
+        || run.failed_gates.iter().any(|gate| !is_opaque_id(gate))
+        || run.allowed_actions.iter().any(|action| !is_opaque_id(action))
+        || run.locked_actions.iter().any(|action| !is_opaque_id(action))
         || !run.immutable
+        || run.runtime_write
+        || run.persistent_user_data_touched
         || run
             .object_sha256
             .as_deref()

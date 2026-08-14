@@ -9,7 +9,7 @@ const DESIGN_STAGES: [&str; 6] = [
     "final-review",
 ];
 
-const BOUNDED_ACTION_KINDS: [&str; 16] = [
+const BOUNDED_ACTION_KINDS: [&str; 15] = [
     "reference-import",
     "coverage-annotation",
     "mark-unknown",
@@ -153,7 +153,7 @@ impl AgenticActionTool {
     }
 
     pub const fn implemented(self) -> bool {
-        false
+        true
     }
 }
 
@@ -180,6 +180,10 @@ impl Binding {
             || self.project_id.is_some()
             || self.candidate_id.is_some()
             || self.run_id.is_some()
+    }
+
+    pub fn has_session_scope(&self) -> bool {
+        self.session_id.is_some() && self.project_id.is_some() && self.candidate_id.is_some()
     }
 }
 
@@ -214,6 +218,12 @@ pub fn unavailable_error(name: &str) -> String {
         tool.name(),
         tool.runtime_method()
     )
+}
+
+pub fn sync_session_scope(source: &super::agentic_write_tools::Binding, target: &mut Binding) {
+    target.session_id = source.session_id.clone();
+    target.project_id = source.project_id.clone();
+    target.candidate_id = source.candidate_id.clone();
 }
 
 pub fn read_tool_names() -> Vec<String> {
@@ -278,10 +288,10 @@ pub fn operator_ids() -> &'static [&'static str] {
 fn tool_definition(tool: AgenticActionTool) -> Value {
     let description = match tool {
         AgenticActionTool::DesignActionRunGet => {
-            "Read one exact-bound DesignActionRun projection. This definition-only slice does not create a run or execute an action."
+            "Read one exact-bound Runtime-owned DesignActionRun projection. The read returns the immutable action receipt and its stage, quality, and lock state."
         }
         AgenticActionTool::DesignActionRunPrepare => {
-            "Prepare one bounded DesignActionRun intent for a bound session and candidate. Approval is required; prepare does not execute, confirm, export, or mutate a candidate version."
+            "Execute one approved, bounded Primary Form DesignActionRun for a bound session and candidate. The Runtime owns the bounded search and staged result; the call never confirms, exports, or mutates a confirmed version."
         }
     };
 
@@ -302,7 +312,7 @@ fn tool_definition(tool: AgenticActionTool) -> Value {
             "runtime_method": tool.runtime_method(),
             "requiresConfirmation": tool.requires_approval(),
             "transaction": "ADR-0026",
-            "definition_only": true
+            "definition_only": false
         }}
     })
 }
@@ -481,6 +491,12 @@ pub fn validate_call(name: &str, arguments: &Value, binding: &Binding) -> Result
 
     validate_scope(object, binding)?;
     if tool.is_write() {
+        if !binding.has_session_scope() {
+            return Err(
+                "AGENTIC_SESSION_BINDING_REQUIRED: call session_create_or_resume successfully before an action run"
+                    .to_owned(),
+            );
+        }
         validate_prepare(object)?;
     }
     Ok(())
@@ -496,6 +512,78 @@ pub fn validate_action_run_call(
     binding: &Binding,
 ) -> Result<(), String> {
     validate_call(name, arguments, binding)
+}
+
+pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result<(), String> {
+    let Some(tool) = AgenticActionTool::from_name(name) else {
+        return Ok(());
+    };
+    if !value.is_object() {
+        return Err("AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response must be an object".to_owned());
+    }
+    if value.get("schema_version").and_then(Value::as_str) != Some("DesignActionRun@1") {
+        return Err(
+            "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response schema_version is not DesignActionRun@1"
+                .to_owned(),
+        );
+    }
+    let project_id = value.get("project_id").and_then(Value::as_str);
+    let session_id = value.get("session_id").and_then(Value::as_str);
+    let candidate_id = value.get("candidate_id").and_then(Value::as_str);
+    let run_id = value.get("run_id").and_then(Value::as_str);
+    if [project_id, session_id, candidate_id, run_id]
+        .into_iter()
+        .any(|value| value.is_none())
+    {
+        return Err(
+            "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response binding is incomplete".to_owned(),
+        );
+    }
+    for (key, expected, actual) in [
+        ("project_id", binding.project_id.as_deref(), project_id.unwrap()),
+        ("session_id", binding.session_id.as_deref(), session_id.unwrap()),
+        (
+            "candidate_id",
+            binding.candidate_id.as_deref(),
+            candidate_id.unwrap(),
+        ),
+        ("run_id", binding.run_id.as_deref(), run_id.unwrap()),
+    ] {
+        if let Some(expected) = expected {
+            if expected != actual {
+                return Err(format!(
+                    "AGENTIC_ACTION_SCOPE_MISMATCH: Runtime response {key} differs from the bound action"
+                ));
+            }
+        }
+    }
+    if tool.kind().is_read() && binding.run_id.is_none() {
+        return Ok(());
+    }
+    Ok(())
+}
+
+pub fn bind_response(name: &str, value: &Value, binding: &mut Binding) -> Result<(), String> {
+    validate_response(name, value, binding)?;
+    if is_tool(name) {
+        binding.run_id = value
+            .get("run_id")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        binding.session_id = value
+            .get("session_id")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        binding.project_id = value
+            .get("project_id")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        binding.candidate_id = value
+            .get("candidate_id")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+    }
+    Ok(())
 }
 
 fn validate_scope(object: &Map<String, Value>, binding: &Binding) -> Result<(), String> {
@@ -527,6 +615,12 @@ fn validate_scope(object: &Map<String, Value>, binding: &Binding) -> Result<(), 
 
 fn validate_prepare(object: &Map<String, Value>) -> Result<(), String> {
     let requested_stage = required_stage(object, "requested_stage")?;
+    if requested_stage != "primary-form" {
+        return Err(
+            "AGENTIC_ACTION_STAGE_UNSUPPORTED: requested stage is not executable in this slice; only primary-form is supported"
+                .to_owned(),
+        );
+    }
     let input_sha256 = required_sha256(object, "input_sha256")?;
     if input_sha256.is_empty() {
         return Err("AGENTIC_ACTION_INVALID_INPUT: input_sha256 is required".to_owned());

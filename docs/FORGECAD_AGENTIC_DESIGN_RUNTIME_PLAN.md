@@ -205,7 +205,7 @@ allowed: true
 
 ## 7. 文档和任务落地
 
-当前源码为 `102 Schema / 35 read + 22 opt-in write = 57 tools`。durable prepare/readback 与 Primary Form 窄范围 prepare/evaluate slice 已有各自 focused/source receipt；建议下一批文档/代码任务：
+当前源码为 `102 Schema / 36 read + 23 opt-in write = 59 tools`。durable prepare/readback 与 Primary Form 窄范围 prepare/evaluate slice 已有各自 focused/source receipt；建议下一批文档/代码任务：
 
 1. 为 durable/reference/DesignSpec producer 增加剩余完整 producer/consumer conformance，避免字段漂移；嵌套只读 projection checker 已完成，回执见 `scripts/check_agentic_projection_receipt.py`；
 2. 将当前 Primary Form 窄范围链路抽象为通用单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator，但仍不绕过用户批准；
