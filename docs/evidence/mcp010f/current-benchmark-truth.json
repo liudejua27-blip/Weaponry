@@ -56,7 +56,7 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "37be6d5a87f39cc035000359fa634377ceb42ac6718180f62c14f1999c5ed105",
+  "canonical_sha256": "4479baec824e85d40c2245c2b60375f0e493fcd03efc8dc09f88ce729eb0fe34",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -145,9 +145,9 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "58878362f3f264d2a3948b410f736c86ea9d136ebf91464bfb4b22598a05ce91",
+      "runtime_source_sha256": "481f1b3c3149168ab975067376d15e98ed0cf13c047643fbf3d022d31e7b982c",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
-      "viewer_projection_sha256": "c5e003ec0aca19891f400e8642d25aa22ada26c098e5e5837cceed27a71a1628"
+      "viewer_projection_sha256": "5beade0d2114acc058f4137d384b9711d90a20673f6245deb06244703bcd6fb3"
     }
   },
   "evidence_status": "INCOMPLETE_TRUTH_BINDING",

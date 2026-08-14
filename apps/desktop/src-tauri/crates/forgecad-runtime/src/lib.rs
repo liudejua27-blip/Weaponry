@@ -1480,7 +1480,12 @@ impl Runtime {
                     target.get("landmarks"),
                     part_context,
                 );
-                let loss = extended_silhouette_loss(&loss_metrics);
+                // Geometry trials must use the same evidence-weighted loss as
+                // the camera rows.  Comparing camera_fit_loss against the
+                // contour-only extended_silhouette_loss allowed a geometry
+                // variant to win by dropping landmark coverage, because the
+                // two values were not comparable.
+                let loss = camera_fit_loss(&loss_metrics);
                 geometry_evaluations += 1;
                 if loss + 1e-12 < best_geometry_loss {
                     best_geometry_loss = loss;
@@ -13416,6 +13421,41 @@ mod tests {
         assert!(selected[1]["value"].as_f64().unwrap() > 0.0);
         assert!(selected[0]["value"].as_f64().unwrap() <= 0.35);
         assert!(selected[1]["value"].as_f64().unwrap() <= 0.35);
+    }
+
+    #[test]
+    fn primary_form_geometry_objective_keeps_landmark_penalty() {
+        let mut model = vec![false; 512 * 512];
+        model[255 * 512 + 255] = true;
+        let base = json!({
+            "silhouette_iou":0.75,
+            "boundary_f1_4px":0.34,
+            "bbox_edge_error":0.01,
+            "centroid_error":0.003,
+            "sdf_chamfer_px":15.0
+        });
+        let aligned = json!([
+            {"landmark_id":"chest-center","x":255.0/511.0,"y":255.0/511.0,"visibility":"observed","confidence":1.0}
+        ]);
+        let misaligned = json!([
+            {"landmark_id":"chest-center","x":0.9,"y":0.9,"visibility":"observed","confidence":1.0}
+        ]);
+        let contour_only = camera_fit_loss(&base);
+        let aligned_loss = camera_fit_loss(&transient_loss_metrics_with_parts(
+            &base,
+            &model,
+            Some(&aligned),
+            None,
+        ));
+        let misaligned_loss = camera_fit_loss(&transient_loss_metrics_with_parts(
+            &base,
+            &model,
+            Some(&misaligned),
+            None,
+        ));
+        assert!(aligned_loss < contour_only);
+        assert!(misaligned_loss > aligned_loss);
+        assert!(misaligned_loss > contour_only);
     }
 
     #[test]

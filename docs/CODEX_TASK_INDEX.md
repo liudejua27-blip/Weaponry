@@ -5,6 +5,8 @@
 
 Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。当前为 101 Schema、35 read + 21 opt-in write = 56 tools，唯一 `in_progress` 为 `FGC-MCP010F`。attempt35 仅是 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING` 的 provisional retained observation，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，camera 绑定 `MISMATCH`；补充 receipt `docs/evidence/mcp010f/primary-form-cas-rerun-20260814.json` 已完成 current-cohort fit/compare/AOV/review 与 packaged Viewer exact lineage binding，但不改变 Stage 0 latest pointer、attempt35 provisional 状态或 benchmark 资格。
 
+2026-08-14 Primary Form objective alignment follow-up：Runtime Geometry trial 统一复用 camera 的 landmark/coverage-aware loss，避免几何搜索用 contour-only loss 绕过观测证据；focused 与完整 Runtime 回归通过。新 cohort 真实 Codex 复跑在 authoring sequence 阻断，未产出新的视觉指标，故不升级当前任务的视觉质量或 benchmark 状态。
+
 <!-- forgecad-stage0: schemas=101 schema_set_sha256=a48a823ce7d51b214978c966b4cfb27243857f7e6cf594b7c9f4ec47ad1a0c1e read_tools=35 write_tools=21 total_tools=56 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json latest_completed=real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json -->
 
 2026-08-14 Primary Form convergence follow-up：Runtime 修复了 `max_evaluations=24` 实际只消费 16 次的预算截断，并让有界坐标 schedule 在反向试探前覆盖当前 12 个 Rig 参数；CLI receipt 新增 canonical observation 的 target/observation/fit 分阶段 projection。`script/test_mcp010f.sh` 当前 source Gate PASS，Stage 0 仍保留 `QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，没有新增视觉 benchmark。

@@ -20,6 +20,7 @@ import {
 } from './agentic-session'
 
 const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
+const VIEWER_HOVER_CACHE = '__forgecad_hover_state_v1'
 const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键：框选 · 右键：旋转 · 中键：平移 · 滚轮：缩放 · 1/2/3/4/5/6 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
 const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选（按住 Shift + 左键拖拽）', '右键：旋转', '中键：平移', '滚轮：缩放', '1～6：切换视角', 'Z/X/C：光照预设', 'F：聚焦', 'R：重置视角', 'Esc：清选']
 const VIEWPORT_KEYBOARD_HINTS_NO_FOCUS = ['请先点击视口后再使用键盘快捷键']
@@ -464,7 +465,7 @@ function summaryPollDelaySeconds(opts: { changed: boolean; hasActiveCandidates: 
   if (!opts.isVisible) return 30000
   if (opts.changed || opts.hasError || opts.firstRun) return 2000
   if (opts.hasActiveCandidates) return 4500
-  return 8000
+  return 15000
 }
 
 function statusClassFromCode(code: string, isWarning?: boolean): 'error' | 'warn' {
@@ -959,6 +960,12 @@ type ForgeSelectionSnapshot = {
   metalness?: number
 }
 
+type ForgeHoverSnapshot = {
+  hasEmissive: boolean
+  emissive?: [number, number, number]
+  emissiveIntensity?: number
+}
+
 function applyMaterialSelectionState(material: THREE.Material, isSelected: boolean): void {
   const cache = (material.userData as Record<string, unknown>)[VIEWER_SELECTION_CACHE] as ForgeSelectionSnapshot | undefined
   const anyMaterial = material as {
@@ -1002,6 +1009,40 @@ function applyMaterialSelectionState(material: THREE.Material, isSelected: boole
   if (anyMaterial.metalness !== undefined) anyMaterial.metalness = Math.min(0.15, anyMaterial.metalness)
 }
 
+function applyMaterialHoverState(material: THREE.Material, isHovered: boolean): void {
+  const cache = (material.userData as Record<string, unknown>)[VIEWER_HOVER_CACHE] as ForgeHoverSnapshot | undefined
+  const anyMaterial = material as {
+    emissive?: { toArray?: () => number[]; set?: (...args: unknown[]) => void }
+    emissiveIntensity?: number
+  }
+
+  if (!isHovered) {
+    if (!cache) return
+    if (cache.hasEmissive && anyMaterial.emissive?.set && cache.emissive) {
+      anyMaterial.emissive.set(cache.emissive[0], cache.emissive[1], cache.emissive[2])
+      if (cache.emissiveIntensity !== undefined && anyMaterial.emissiveIntensity !== undefined) {
+        anyMaterial.emissiveIntensity = cache.emissiveIntensity
+      }
+    }
+    delete (material.userData as Record<string, unknown>)[VIEWER_HOVER_CACHE]
+    return
+  }
+
+  if (cache) return
+  const next: ForgeHoverSnapshot = {
+    hasEmissive: Boolean(anyMaterial.emissive && anyMaterial.emissive.toArray),
+    emissive: anyMaterial.emissive?.toArray?.().map((item) => Number(item.toFixed(6))) as [number, number, number] | undefined,
+    emissiveIntensity: anyMaterial.emissiveIntensity,
+  }
+  ;(material.userData as Record<string, unknown>)[VIEWER_HOVER_CACHE] = next
+  if (next.hasEmissive && anyMaterial.emissive?.set) {
+    anyMaterial.emissive.set(1, 0.85, 0.25)
+  }
+  if (anyMaterial.emissiveIntensity !== undefined) {
+    anyMaterial.emissiveIntensity = Math.max(anyMaterial.emissiveIntensity, 0.55)
+  }
+}
+
 function applyObjectSelectionState(object: THREE.Object3D, isSelected: boolean): void {
   if (!(object as THREE.Mesh).isMesh) return
   const mesh = object as THREE.Mesh
@@ -1009,6 +1050,16 @@ function applyObjectSelectionState(object: THREE.Object3D, isSelected: boolean):
   for (const material of meshMaterials) {
     if (!material) continue
     applyMaterialSelectionState(material, isSelected)
+  }
+}
+
+function applyObjectHoverState(object: THREE.Object3D, isHovered: boolean): void {
+  if (!(object as THREE.Mesh).isMesh) return
+  const mesh = object as THREE.Mesh
+  const meshMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+  for (const material of meshMaterials) {
+    if (!material) continue
+    applyMaterialHoverState(material, isHovered)
   }
 }
 
@@ -1243,6 +1294,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const [artifactError, setArtifactError] = useState<string | null>(null)
   const [artifactRetryNonce, setArtifactRetryNonce] = useState(0)
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null)
+  const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null)
   const [partVisibility, setPartVisibility] = useState<Record<string, boolean>>({})
   const [materialVisibility, setMaterialVisibility] = useState<Record<string, boolean>>({})
   const [partLockState, setPartLockState] = useState<Record<string, boolean>>({})
@@ -1594,6 +1646,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const dropCurrentCandidate = () => {
     setSelectedCandidateId(null)
     setSelectedObjectId(null)
+    setHoveredObjectId(null)
     setSelectedPartId('all')
     setSelectedMaterialZone('all')
     setExpandedPartIds({})
@@ -1741,6 +1794,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     if (activeCandidateIdRef.current !== nextCandidateId) {
       activeCandidateIdRef.current = nextCandidateId
       setSelectedObjectId(null)
+      setHoveredObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
       setExpandedPartIds({})
@@ -1951,6 +2005,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   useEffect(() => {
     setSelectedPartId('all')
     setSelectedMaterialZone('all')
+    setHoveredObjectId(null)
     setExploded(false)
     setDiffHeatmap(false)
     setCompareZoom(1)
@@ -2289,11 +2344,13 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     if (!state) return
     state.objects.forEach((objectState, object) => {
       const isSelected = object.uuid === selectedObjectId
+      const isHovered = object.uuid === hoveredObjectId && !isSelected
       objectState.isSelected = isSelected
       applyObjectSelectionState(object, isSelected)
+      applyObjectHoverState(object, isHovered)
     })
     state.renderer.render(state.scene, state.camera)
-  }, [selectedObjectId, artifactLoadState])
+  }, [hoveredObjectId, selectedObjectId, artifactLoadState])
 
   const referenceDataUrl = referenceImage?.bytes_base64
     ? `data:${referenceImage.mime ?? 'image/png'};base64,${referenceImage.bytes_base64}`
@@ -2486,6 +2543,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     const state = viewerSceneRef.current
     if (!state || artifactLoadState !== 'ready' || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey) {
       setViewportActionHint('请先等待模型就绪后再点选')
+      setHoveredObjectId(null)
       return
     }
     const rect = event.currentTarget.getBoundingClientRect()
@@ -2493,6 +2551,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     if (event.shiftKey) {
       event.preventDefault()
       setViewportActionHint('开始框选')
+      setHoveredObjectId(null)
       setViewportMarqueeRect({
         left: event.clientX,
         top: event.clientY,
@@ -2520,11 +2579,13 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     if (!target) {
       setViewportActionHint('未命中对象')
       setSelectedObjectId(null)
+      setHoveredObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
       setExpandedPartIds({})
       return
     }
+    setHoveredObjectId(target.uuid)
     setSelectedObjectId(target.uuid)
     const targetState = state.objects.get(target)
     if (targetState) {
@@ -2540,15 +2601,30 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     const state = viewerSceneRef.current
     if (!state || artifactLoadState !== 'ready') return
     const drag = viewportDragRef.current
-    if (drag.mode !== 'box-select' || drag.pointerId !== event.pointerId) return
-    drag.endX = event.clientX
-    drag.endY = event.clientY
-    setViewportMarqueeRect({
-      left: Math.min(drag.startX, drag.endX),
-      top: Math.min(drag.startY, drag.endY),
-      width: Math.abs(drag.endX - drag.startX),
-      height: Math.abs(drag.endY - drag.startY),
-    })
+    if (drag.mode === 'box-select' && drag.pointerId === event.pointerId) {
+      drag.endX = event.clientX
+      drag.endY = event.clientY
+      setViewportMarqueeRect({
+        left: Math.min(drag.startX, drag.endX),
+        top: Math.min(drag.startY, drag.endY),
+        width: Math.abs(drag.endX - drag.startX),
+        height: Math.abs(drag.endY - drag.startY),
+      })
+      return
+    }
+    if (drag.mode !== 'idle' || event.buttons !== 0) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return
+    const target = pickViewportObjectFromPointer(state, event, rect, partLockState, materialLockState)
+    if (!target) {
+      setHoveredObjectId(null)
+      return
+    }
+    setHoveredObjectId(target.uuid)
+  }
+
+  const handleViewportPointerLeave = () => {
+    setHoveredObjectId(null)
   }
 
   const applyViewportViewportSelection = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -3026,6 +3102,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               onPointerMove={handleViewportPointerMove}
               onPointerUp={handleViewportPointerUp}
               onPointerCancel={handleViewportPointerUp}
+              onPointerLeave={handleViewportPointerLeave}
               onKeyDown={handleViewportKeyDown}
               onContextMenu={(event) => event.preventDefault()}
             />{viewportMarqueeRect && <div className="viewport-marquee" style={{
