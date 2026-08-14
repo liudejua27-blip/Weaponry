@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-14 Primary Form Part-priority convergence repair：Runtime 现在从 candidate-bound Part-ID boundary segments 聚合主导 Part 的误差分数，并把它作为 bounded Rig 坐标排序的第一优先级；无 Part-ID evidence 时回退到现有提案改变量排序。该修复保持 Geometry/Render Worker、strict readback、authored-baseline fallback 和 Codex 单动作边界不变；新增 Runtime regression 与 MCP010F source Gate 通过。真实视觉复验因授权参考原图字节未保留而 `BLOCKED_REFERENCE_BYTES_NOT_AVAILABLE`，当前仍 `QUALITY_TARGET_NOT_MET`，没有新的 likeness 或 benchmark 证据。
+
 2026-08-14 Primary Form 首轮全控制覆盖修复：detail probe 的 26-control `SilhouetteRig@1` 现在提交 `max_evaluations=64`；Runtime 的三段有界预算为 `32 geometry + 16 initial-camera + 16 geometry-winner-camera-refit`，几何阶段的初始证据提案之后完整覆盖 26 个控制。该修复仍是 Runtime/source 收敛能力，不是 Codex 连续搜索或视觉质量证据；26-control focused regression、full Runtime 回归、MCP010C/F source Gate 通过。没有新的授权机器人 likeness receipt，当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。
 
 2026-08-14 Primary Form 单动作 transport 已有新的 current-cohort 真实 receipt：`real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json` 在一次聚合 observation 后只执行 `primary_form_repair_prepare`，Runtime 内部完成 bounded fit、Geometry/Render Worker 和 candidate-bound compare，CLI 未重复 compare。该 transport 的 camera binding 为 `PASS_SILHOUETTE_FIT_TO_COMPARE`，但视觉状态仍是 `QUALITY_TARGET_NOT_MET`，因此不改变正式质量、人评/PBR/export-restart/360 的未运行账本。

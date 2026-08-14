@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-14 Primary Form Part-priority 修复：Runtime 不再只按 Rig 提案改变量排序 bounded geometry probes；在已有同 candidate 的 Part-ID boundary evidence 时，先按聚合的 Part contour distance 优先覆盖主导可见误差 Part，再按参数 delta 与稳定 ID tie-break。无 Part evidence 仍使用原排序，所有值/边界/Worker 调用保持 Runtime-owned。focused/full Runtime 与 MCP010F source Gate PASS；新的授权参考视觉复验因原图字节不在当前 workspace 而阻断，不能升级 `QUALITY_TARGET_NOT_MET` 或 benchmark 状态。
+
 2026-08-14 Primary Form 首轮全控制覆盖修订：detail route 的 26-control `SilhouetteRig@1` 现在通过 `max_evaluations=64` 进入 Runtime；GeometryProgram 路径的确定性预算为 `32 geometry + 16 initial-camera + 16 geometry-winner-camera-refit`，首轮几何试探覆盖初始证据提案和全部 26 个控制。该 source/convergence 修订有 Runtime focused/full regression，但尚未重新运行授权机器人 reference，因此不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或人评/PBR/export-restart/360 状态。
 
 2026-08-14 Primary Form 单动作真实 transport：同 cohort receipt `docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json` 已验证 Codex 在一次 observation/camera/Rig 回合后只调用一次 `primary_form_repair_prepare`；Runtime 在该动作内完成 24 次 bounded fit、Geometry Worker 编译、严格 GLB 回读、隔离 Render Worker、candidate-bound compare 和九 AOV，随后 CLI 只读取 Runtime 返回的 visual evidence，不再重复发起 Codex compare。相机绑定为 `PASS_SILHOUETTE_FIT_TO_COMPARE`，compare IoU `0.749122`、Boundary F1 `0.347623`，仍为 `QUALITY_TARGET_NOT_MET`；这证明模块边界和证据链收口，不证明 likeness/high-quality PASS。

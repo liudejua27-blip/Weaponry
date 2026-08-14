@@ -2,6 +2,8 @@
 
 版本：2026-08-13
 状态：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D source-focused PASS_WITH_DEFERRED_BOOLEAN_AND_VISUAL_GATES（当前 packaged D 结构性探针 PASS，视觉门 NOT_RUN）`；`FGC-MCP010E source-focused PASS_WITH_DEFERRED_EXTERNAL_GATES（当前 packaged E 结构性探针 PASS，但视觉/人评/导出仍 NOT_RUN）`；唯一 `in_progress` 为 `FGC-MCP010F`（Viewer source、packaged CLI read-model、原生窗口与核心控件 smoke PASS；同一 provisional observation 的 packaged Viewer 绑定、正式 VoiceOver、人评和 360 仍 `NOT_RUN/BLOCKED`）。ADR-0026 已新增 Agentic Design Runtime 目标架构；它不改变当前 F 状态。
+
+2026-08-14 Primary Form Part-priority follow-up：在 Runtime 已产生 candidate-bound Part-ID boundary segments 后，bounded geometry probe 排序优先于主导 Part 的聚合 contour distance，再以 typed proposal delta 和稳定参数 ID 排序；没有 Part-ID evidence 时沿用旧 fallback。此模块修复只改善有限预算的误差覆盖，不是 likeness 门；本轮真实复验因授权参考原图字节不可用而 `BLOCKED_REFERENCE_BYTES_NOT_AVAILABLE`，当前质量与 benchmark 真值不变。
 依赖：`FGC-MCP009 done（MVP host golden path）`
 
 当前账本校正：源码合同为 102 个 JSON Schema，工具面为 35 个默认只读工具和 22 个显式 opt-in write 工具（共 57）。新增 `silhouette_part_error_get` 与 `primary_form_repair_prepare`；后者把一次 bounded fit→typed GeometryProgram→strict readback→Render Worker→compare 收口为 Runtime-owned staged prepare，不 confirm/version/export。Agentic projection 与 durable session/checkpoint/RepairIntent prepare/readback 另有独立 receipt；它们仍是结构/编排能力，不是 likeness 通过。

@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-14 Primary Form Part-priority Gate：Runtime 使用同 candidate Part-ID boundary evidence 为 bounded Rig probes 建立主导 Part 优先级，并保留无 Part evidence 的 deterministic fallback；focused/full Runtime regression 与 MCP010F source Gate PASS。当前没有新的授权参考图视觉 receipt，故仍为 source/convergence PASS、`QUALITY_TARGET_NOT_MET`，不改变 camera `MISMATCH`、benchmark incomplete binding、人评/PBR/export-restart/360 状态。
+
 2026-08-14 Primary Form 全控制覆盖 Gate：26-control detail Rig 的 CLI `silhouette_fit_prepare` budget 已提升为 64；Runtime GeometryProgram schedule 固定为 `32 geometry + 16 initial-camera + 16 geometry-winner-camera-refit`，首轮逐控制覆盖通过 focused/full Runtime regression。该 Gate 只证明 Runtime-owned bounded coverage 与 Codex 单次 typed intent 边界；没有新的真实 likeness receipt，当前 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、human/PBR/export-restart/360 状态不变。
 
 2026-08-14 Primary Form Runtime-owned action Gate：current-cohort real Codex receipt `real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json` 验证一次聚合 observation 后仅有一个 `primary_form_repair_prepare`，其内部完成 Geometry Worker → Render Worker → compare，CLI 消费同一 candidate-bound visual evidence。该 Gate 为 transport/orchestration PASS_WITH_QUALITY_TARGET_NOT_MET；IoU `0.749122`、Boundary F1 `0.347623` 未过视觉门，不能计作 likeness/high-quality PASS。

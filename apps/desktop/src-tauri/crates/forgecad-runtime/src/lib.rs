@@ -1449,7 +1449,11 @@ fn boundary_error_segments_for_masks(
             // mesh found so far.  Every probe goes through the isolated
             // Geometry Worker and Render Worker; this is the Primary Form
             // numeric loop, not an image-space heuristic in Codex.
-            let parameter_indices = ranked_rig_parameter_indices(rig, &selected_parameters);
+            let parameter_indices = ranked_rig_parameter_indices_with_boundary_context(
+                rig,
+                &selected_parameters,
+                &boundary_segments,
+            );
             let definitions = rig
                 .get("parameters")
                 .and_then(Value::as_array)
@@ -9506,6 +9510,87 @@ fn ranked_rig_parameter_indices(rig: &Value, selected_parameters: &[Value]) -> V
     indices
 }
 
+/// Rank the bounded Primary Form coordinates by the candidate-bound boundary
+/// evidence first, then by the size of the Runtime-owned proposal.  The
+/// ordinary ranking is still useful for callers without Part-ID evidence, but
+/// the repair path has already rendered a Part-ID pass and must spend its
+/// small first coordinate pass on the Parts producing the largest visible
+/// error.  This is a priority projection only: it does not choose values,
+/// widen bounds, or expose a continuous search trace to Codex.
+fn ranked_rig_parameter_indices_with_boundary_context(
+    rig: &Value,
+    selected_parameters: &[Value],
+    segments: &[Value],
+) -> Vec<usize> {
+    let mut part_scores: HashMap<String, f64> = HashMap::new();
+    for segment in segments {
+        let Some(part_id) = segment.get("part_id").and_then(Value::as_str) else {
+            continue;
+        };
+        let distance = segment
+            .get("distance_px")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        if distance <= 4.0 || !distance.is_finite() {
+            continue;
+        }
+        // The squared distance makes a few dominant, clearly separated
+        // contour errors win over many near-aligned samples from another
+        // Part, while the fixed segment cap keeps this aggregation bounded.
+        *part_scores.entry(part_id.to_owned()).or_default() += distance * distance;
+    }
+    if part_scores.is_empty() {
+        return ranked_rig_parameter_indices(rig, selected_parameters);
+    }
+    let Some(parameters) = rig.get("parameters").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    let mut indices: Vec<usize> = (0..parameters.len()).collect();
+    indices.sort_by(|left, right| {
+        let part_score = |index: usize| {
+            parameters
+                .get(index)
+                .and_then(|parameter| parameter.get("part_id"))
+                .and_then(Value::as_str)
+                .and_then(|part_id| part_scores.get(part_id))
+                .copied()
+                .unwrap_or(0.0)
+        };
+        part_score(*right)
+            .partial_cmp(&part_score(*left))
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                let delta = |index: usize| {
+                    let from = parameters
+                        .get(index)
+                        .and_then(|parameter| parameter.get("value"))
+                        .and_then(Value::as_f64)
+                        .unwrap_or(0.0);
+                    let to = selected_parameters
+                        .get(index)
+                        .and_then(|parameter| parameter.get("value"))
+                        .and_then(Value::as_f64)
+                        .unwrap_or(from);
+                    (to - from).abs()
+                };
+                delta(*right)
+                    .partial_cmp(&delta(*left))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .then_with(|| {
+                let id = |index: usize| {
+                    parameters
+                        .get(index)
+                        .and_then(|parameter| parameter.get("parameter_id"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                };
+                id(*left).cmp(id(*right))
+            })
+    });
+    indices
+}
+
 /// Return the coordinate used by a bounded Primary Form probe.
 ///
 /// Probe zero is the complete evidence-attributed proposal.  Subsequent
@@ -14476,6 +14561,35 @@ mod tests {
         assert!(projected[0]["value"].as_f64().unwrap() > 1.0);
         assert!(projected[1]["value"].as_f64().unwrap() < 0.0);
         assert_eq!(projected[2]["value"], 1.0);
+    }
+
+    #[test]
+    fn primary_form_ranking_prioritizes_dominant_boundary_part_before_proposal_delta() {
+        let rig = json!({"parameters":[
+            {"parameter_id":"chest-width","part_id":"chest-shell","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"shin-width","part_id":"shin-pair","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"shin-offset-x","part_id":"shin-pair","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"}
+        ]});
+        // The chest proposal is larger, but the candidate-bound contour shows
+        // that the shin is the dominant visible failure.  The bounded search
+        // must spend its first coordinate slots on that Part instead of using
+        // proposal magnitude as a proxy for visual priority.
+        let selected = vec![
+            json!({"parameter_id":"chest-width","part_id":"chest-shell","value":1.18}),
+            json!({"parameter_id":"shin-width","part_id":"shin-pair","value":1.04}),
+            json!({"parameter_id":"shin-offset-x","part_id":"shin-pair","value":-0.08}),
+        ];
+        let segments = vec![
+            json!({"part_id":"shin-pair","distance_px":48.0}),
+            json!({"part_id":"shin-pair","distance_px":38.0}),
+            json!({"part_id":"chest-shell","distance_px":12.0}),
+        ];
+        let ranked = ranked_rig_parameter_indices_with_boundary_context(
+            &rig,
+            &selected,
+            &segments,
+        );
+        assert_eq!(ranked, vec![2, 1, 0]);
     }
 
     #[test]
