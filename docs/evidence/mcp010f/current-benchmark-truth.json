@@ -56,7 +56,7 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "60f82ac92b4279e43d712f525a8590ec438bae01aba722e3fb00bca63c04be82",
+  "canonical_sha256": "565b1ee9ed17be428eefdc1232f87273ae2f535809c68ea219e456ccefe17adf",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -146,9 +146,9 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "d26d8fd28d38c13c9f6d25338c3024045df0d03b90b028f081b00f95dacba6be",
+      "runtime_source_sha256": "1d9e464e14b042ffefb141198e2947aac19d3a3748c9542da5ab041f48953fba",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
-      "viewer_projection_sha256": "4e05b3fdbf2ff692501e4de18c4cbc9e3cd3b5de3f86f6d1aefe4a9af0e0ac07"
+      "viewer_projection_sha256": "ca6dbe28e14cb3064e43f106d621a3ef199538567e1182115e4774567b3b3a3e"
     }
   },
   "evidence_status": "INCOMPLETE_TRUTH_BINDING",
@@ -158,29 +158,29 @@
   },
   "latest_attempt": {
     "build_cohorts": {
-      "mcp": "0619c84b4f86f3dd7a492a2c12347c4c2d076e40919905394275c9b3254451d4",
-      "runtime": "0619c84b4f86f3dd7a492a2c12347c4c2d076e40919905394275c9b3254451d4",
-      "worker": "0619c84b4f86f3dd7a492a2c12347c4c2d076e40919905394275c9b3254451d4"
+      "mcp": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688",
+      "runtime": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688",
+      "worker": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688"
     },
-    "attempt_count_evidence": "VERIFIED_RAW_RECEIPT_10_CODEX_TURNS_ZERO_EXIT_CODES",
+    "attempt_count_evidence": "VERIFIED_RAW_RECEIPT_11_CODEX_TURNS_ZERO_EXIT_CODES",
     "cohort_provenance": "VERIFIED_CURRENT_SOURCE_BUILT_COHORT",
     "classification": "REAL_CODEX_COMPLETED_TRANSPORT_WITH_QUALITY_TARGET_NOT_MET",
     "host_provenance": "VERIFIED_SANITIZED_CLI_EVENTS_AND_EXIT_CODES",
     "quality_result": "QUALITY_TARGET_NOT_MET",
     "reason": null,
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
-    "source_receipt_sha256": "998d180c0c9c0fc0fdddafd85113fefe333b00c61576e196f2e301df19320510",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
+    "source_receipt_sha256": "5ffeac57d67c4566e5b3796d4601b04c671a4d4aa9b8ff0968cf4af379f955b2",
     "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
   },
   "latest_completed_transport": {
-    "artifact_sha256": "db30eb6592fce97dd591a6d268ca59ff2dde7ed3d0851ba42a88064addabdc91",
+    "artifact_sha256": "71698275a3d927b09973de243c9db747353d7a66972610e8154b5d4149929933",
     "build_cohorts": {
-      "mcp": "0619c84b4f86f3dd7a492a2c12347c4c2d076e40919905394275c9b3254451d4",
-      "runtime": "0619c84b4f86f3dd7a492a2c12347c4c2d076e40919905394275c9b3254451d4",
-      "worker": "0619c84b4f86f3dd7a492a2c12347c4c2d076e40919905394275c9b3254451d4"
+      "mcp": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688",
+      "runtime": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688",
+      "worker": "a55dd70bd39f3449b73c86fe0988beb04d2eef25c302c1451fe3bc64d8819688"
     },
-    "candidate_id": "candidate-c93fa9f5ca164c9eb8b458c8125ee860",
-    "comparison_report_hash": "2ed63b8d9a155b01da8aba06df8ec4896f57cace7ac9f6236afa3a8a9cc83ff4",
+    "candidate_id": "candidate-96744901b5a34d4fa89bd7325bf02eec",
+    "comparison_report_hash": "d4f0b50c5bec92285c43edb40a4f3744704c6d1dac147db9882bba563a920e54",
     "metric_semantics": "CURRENT_SOURCE_BUILT_FULL_VISIBLE_VIEW_METRICS_NOT_PROMOTED",
     "metrics": {
       "bbox_edge_error": 0.00390625,
@@ -194,9 +194,9 @@
     },
     "promotion_decision": "NOT_PROMOTED_QUALITY_TARGET_NOT_MET_AND_PROVISIONAL_BASELINE_FROZEN",
     "quality_visual_status": "QUALITY_TARGET_NOT_MET",
-    "render_set_hash": "c94baa4d3b117766a32179023a9e8b86534d0c9048497c3ab3b51d208141dcfc",
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
-    "source_receipt_sha256": "998d180c0c9c0fc0fdddafd85113fefe333b00c61576e196f2e301df19320510",
+    "render_set_hash": "a1d812892088f300c5bbbf8fd86616e5840dbc3f9e7269bc25b8f1a6c22fa04d",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
+    "source_receipt_sha256": "5ffeac57d67c4566e5b3796d4601b04c671a4d4aa9b8ff0968cf4af379f955b2",
     "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
   },
   "packaged_viewer": {
@@ -226,8 +226,8 @@
   "real_codex_run_inventory": {
     "path": "docs/evidence/mcp010f/real-codex-run-inventory.json",
     "ordering_confidence": "SNAPSHOT_ONLY_LEGACY_RECEIPTS_LACK_RECORDED_AT",
-    "sha256": "e0bfc1e792fd25c84e4881db28a061a3f3b9145bbda19e7fba0d1dbb2d87c677",
-    "run_count": 62
+    "sha256": "0577de3b5083d4f055d972cae365bb3418a9cd01bc1219781d208411bdeacebe",
+    "run_count": 63
   },
   "recorded_on": "2026-08-14",
   "provisional_retained_observation": {

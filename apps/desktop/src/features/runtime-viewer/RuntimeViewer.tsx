@@ -380,9 +380,9 @@ function buildCandidateSnapshotRecord(entry: CandidateView, projectId?: string):
     qualityReportHash: qualityReport?.quality_report_hash ?? null,
     visualStatus: qualityVisualStatus,
     qualityPass: hardGatePassed === true,
-    uvStatus: artifact?.uv_status ?? '未知',
-    tangentStatus: artifact?.tangent_status ?? '未知',
-    validatorStatus: artifact?.validator_status ?? '未知',
+    uvStatus: formatArtifactStatus(artifact?.uv_status),
+    tangentStatus: formatArtifactStatus(artifact?.tangent_status),
+    validatorStatus: formatArtifactStatus(artifact?.validator_status),
     pbrStatus: qualityCheckStatus(quality, 'pbr_material_zones'),
     artifact,
     quality,
@@ -397,7 +397,7 @@ function buildCandidateSnapshotRecord(entry: CandidateView, projectId?: string):
 function buildSnapshotDiffRows(current: CandidateSnapshotRecord, previous: CandidateSnapshotRecord | null): CandidateSnapshotDiffRow[] {
   if (!previous) {
     return [
-      { label: '候选状态', current: current.candidateState, previous: '—', status: 'missing' },
+      { label: '候选状态', current: formatCandidateState(current.candidateState), previous: '—', status: 'missing' },
       { label: '结构哈希', current: compactHash(current.candidateCanonicalSha256), previous: '—', status: 'missing' },
       { label: 'GLB 回读哈希', current: compactHash(current.artifactCanonicalSha256), previous: '—', status: 'missing' },
       { label: 'Part 数', current: String(current.partCount), previous: '—', status: 'missing' },
@@ -424,7 +424,7 @@ function buildSnapshotDiffRows(current: CandidateSnapshotRecord, previous: Candi
   const bindPrevious = previous.hasVisualEvidenceBinding ? '已绑定' : '未绑定'
 
   return [
-    build('候选状态', current.candidateState, previous.candidateState),
+    build('候选状态', formatCandidateState(current.candidateState), formatCandidateState(previous.candidateState)),
     build('结构哈希', compactHash(current.candidateCanonicalSha256), compactHash(previous.candidateCanonicalSha256)),
     build('GLB 回读哈希', compactHash(current.artifactCanonicalSha256), compactHash(previous.artifactCanonicalSha256)),
     build('几何程序哈希', compactHash(current.programSha256), compactHash(previous.programSha256)),
@@ -549,6 +549,11 @@ function normalizeStatusText(status: string): string {
   if (normalized.includes('partial') && normalized.includes('pass')) return '部分通过'
   if (normalized.includes('pending') || normalized.includes('running') || normalized.includes('queued') || normalized.includes('in_progress')) return '进行中'
   return '未知'
+}
+
+function formatArtifactStatus(status: string | null | undefined): string {
+  if (!status) return '未运行'
+  return normalizeStatusText(status)
 }
 
 function formatCandidateState(state: string): string {
@@ -844,13 +849,14 @@ type ViewportMarqueeRect = { left: number; top: number; width: number; height: n
 const AUTO_LATEST_CANDIDATE = '__auto_latest__'
 
 const HEATMAP_SIZE = 512
+const COMPARE_WORKER_DEBOUNCE_MS = 120
 const COMPARE_MODE_LABELS: Record<CompareMode, string> = {
   split: '分屏',
   overlay: '叠加',
   flicker: '闪烁',
 }
 const AOV_PASS_LABELS: Record<AovPass, string> = {
-  beauty: '美化 Beauty',
+  beauty: '美化',
   silhouette: '轮廓',
   depth: '深度',
   normal: '法线',
@@ -1144,10 +1150,22 @@ function viewerSummarySignature(summary: ViewerModelSummary): string {
   })))
 }
 
+const AGENTIC_METRIC_LABELS: Record<string, string> = {
+  silhouette_iou: '轮廓 IoU',
+  boundary_f1_4px: '边界 F1（4px）',
+  bbox_edge_error: '包围盒边缘误差',
+  centroid_error: '中心点误差',
+  landmark_coverage: '关键点覆盖率',
+  landmark_nme: '关键点 NME',
+  region_median_iou: '区域中位 IoU',
+  critical_region_min_iou: '关键区域最小 IoU',
+}
+
 function formatAgenticMetric(metric: AgenticMetric): string {
-  const observed = metric.observed ? `observed ${metric.observed}` : null
-  const threshold = metric.threshold ? `threshold ${metric.threshold}` : null
-  return [metric.name, observed, threshold].filter((value): value is string => Boolean(value)).join(' · ')
+  const label = AGENTIC_METRIC_LABELS[metric.name] ?? metric.name
+  const observed = metric.observed ? `观测值 ${metric.observed}` : null
+  const threshold = metric.threshold ? `阈值 ${metric.threshold}` : null
+  return [label, observed, threshold].filter((value): value is string => Boolean(value)).join(' · ')
 }
 
 function agenticSessionStatusClass(status: string): string {
@@ -1449,7 +1467,7 @@ function pickViewportObjectsInMarqueeRect(
 
 function pickViewportObjectFromPointer(
   state: ViewerSceneState,
-  event: PointerEvent<HTMLCanvasElement>,
+  event: { clientX: number; clientY: number },
   rect: DOMRect,
   partLockState: Record<string, boolean>,
   materialLockState: Record<string, boolean>,
@@ -1578,6 +1596,8 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const contourDrawingRef = useRef(false)
   const comparePanRef = useRef<{ active: boolean; pointerId: number; startX: number; startY: number; originX: number; originY: number }>({ active: false, pointerId: -1, startX: 0, startY: 0, originX: 0, originY: 0 })
   const viewportDragRef = useRef<{ mode: ViewportDragMode; pointerId: number; startX: number; startY: number; endX: number; endY: number }>({ mode: 'idle', pointerId: -1, startX: 0, startY: 0, endX: 0, endY: 0 })
+  const viewportHoverFrameRef = useRef<number | null>(null)
+  const viewportHoverPointRef = useRef<{ clientX: number; clientY: number; rect: DOMRect } | null>(null)
   const sceneTreeNodeRefs = useRef<Record<string, HTMLElement | null>>({})
   const lastSummarySignatureRef = useRef<string | null>(null)
   const activeCandidateIdRef = useRef<string | null>(null)
@@ -1585,6 +1605,13 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const contourCanvasActive = selectedPass === 'silhouette' && compareMode === 'overlay' && !diffHeatmap
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const viewerSceneRef = useRef<ViewerSceneState | null>(null)
+  useEffect(() => () => {
+    if (viewportHoverFrameRef.current !== null) {
+      window.cancelAnimationFrame(viewportHoverFrameRef.current)
+      viewportHoverFrameRef.current = null
+    }
+    viewportHoverPointRef.current = null
+  }, [])
   const capabilities = useMemo(() => [
     ['入口', 'Codex → MCP stdio'],
     ['写入模型', 'preview → confirm → immutable snapshot'],
@@ -2039,7 +2066,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         severity: statusClassFromCode(evidenceError, evidenceError === 'VISUAL_EVIDENCE_UNAVAILABLE' || evidenceError === 'REFERENCE_UNAVAILABLE' || evidenceError === 'VISUAL_EVIDENCE_BINDING_MISMATCH'),
         actionLabel: '重新读取该候选证据',
         action: retryEvidenceLoad,
-        secondaryActionLabel: candidateId ? '切换自动候选' : undefined,
+        secondaryActionLabel: candidateId ? '切换自动候选（放弃当前查看）' : undefined,
         secondaryAction: candidateId ? clearManualCandidateSelection : undefined,
       })
     }
@@ -2060,7 +2087,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         severity: statusClassFromCode(artifactError),
         actionLabel: '重试 GLB',
         action: retryArtifactLoad,
-        secondaryActionLabel: '切换自动候选',
+        secondaryActionLabel: '切换自动候选（放弃当前查看）',
         secondaryAction: clearManualCandidateSelection,
       })
     }
@@ -2078,7 +2105,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         severity: statusClassFromCode(compareError),
         actionLabel: '重试比较资源',
         action: retryCompareLoad,
-        secondaryActionLabel: '切换自动候选',
+        secondaryActionLabel: '切换自动候选（放弃当前查看）',
         secondaryAction: clearManualCandidateSelection,
       })
     }
@@ -2095,7 +2122,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         severity: 'warn',
         actionLabel: '刷新当前候选',
         action: refreshCurrentCandidate,
-        secondaryActionLabel: '切换自动候选',
+        secondaryActionLabel: '切换自动候选（放弃当前查看）',
         secondaryAction: clearManualCandidateSelection,
       })
     }
@@ -2112,7 +2139,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         severity: 'warn',
         actionLabel: '刷新当前候选',
         action: refreshCurrentCandidate,
-        secondaryActionLabel: '切换自动候选',
+        secondaryActionLabel: '切换自动候选（放弃当前查看）',
         secondaryAction: clearManualCandidateSelection,
       })
     }
@@ -2783,11 +2810,14 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         if (active) setCompareError(code)
       })
     }
-    void load().catch((error) => {
-      if (active) setCompareError(readErrorCode(error, 'DIFFERENCE_HEATMAP_FAILED'))
-    })
+    const debounceTimer = window.setTimeout(() => {
+      void load().catch((error) => {
+        if (active) setCompareError(readErrorCode(error, 'DIFFERENCE_HEATMAP_FAILED'))
+      })
+    }, COMPARE_WORKER_DEBOUNCE_MS)
     return () => {
       active = false
+      window.clearTimeout(debounceTimer)
       stopWorker()
     }
   }, [diffHeatmap, heatmapSensitivity, referenceDataUrl, renderDataUrl])
@@ -2959,9 +2989,22 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     setViewportActionHint('等待输入')
     event.currentTarget.focus()
     const state = viewerSceneRef.current
-    if (!state || artifactLoadState !== 'ready' || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey) {
+    if (!state || artifactLoadState !== 'ready') {
       setViewportActionHint('请先等待模型就绪后再点选')
       setHoveredObjectId(null)
+      return
+    }
+    if (event.button === 2) {
+      setViewportActionHint('右键拖动：旋转视角')
+      return
+    }
+    if (event.button === 1) {
+      setViewportActionHint('中键拖动：平移视角')
+      return
+    }
+    if (event.button !== 0) return
+    if (event.ctrlKey || event.altKey || event.metaKey) {
+      setViewportActionHint('请使用左键点选，或按住 Shift 加左键框选')
       return
     }
     const rect = event.currentTarget.getBoundingClientRect()
@@ -3027,16 +3070,27 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     if (drag.mode !== 'idle' || event.buttons !== 0) return
     const rect = event.currentTarget.getBoundingClientRect()
     if (rect.width <= 0 || rect.height <= 0) return
-    const target = pickViewportObjectFromPointer(state, event, rect, partLockState, materialLockState)
-    if (!target) {
-      setHoveredObjectId(null)
-      return
+    viewportHoverPointRef.current = { clientX: event.clientX, clientY: event.clientY, rect }
+    if (viewportHoverFrameRef.current === null) {
+      viewportHoverFrameRef.current = window.requestAnimationFrame(() => {
+        viewportHoverFrameRef.current = null
+        const point = viewportHoverPointRef.current
+        const nextState = viewerSceneRef.current
+        if (!point || !nextState || artifactLoadState !== 'ready') return
+        const target = pickViewportObjectFromPointer(nextState, point, point.rect, partLockState, materialLockState)
+        const nextHoveredObjectId = target?.uuid ?? null
+        setHoveredObjectId((current) => current === nextHoveredObjectId ? current : nextHoveredObjectId)
+      })
     }
-    setHoveredObjectId(target.uuid)
   }
 
   const handleViewportPointerLeave = () => {
-    setHoveredObjectId(null)
+    viewportHoverPointRef.current = null
+    if (viewportHoverFrameRef.current !== null) {
+      window.cancelAnimationFrame(viewportHoverFrameRef.current)
+      viewportHoverFrameRef.current = null
+    }
+    setHoveredObjectId((current) => current === null ? current : null)
   }
 
   const applyViewportViewportSelection = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -3109,7 +3163,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     const state = viewerSceneRef.current
     if (drag.mode !== 'box-select' || drag.pointerId !== event.pointerId) {
       drag.mode = 'idle'
-      setViewportActionHint('等待输入')
+      if (event.button === 0) setViewportActionHint('等待输入')
       return
     }
     drag.mode = 'idle'
@@ -3873,7 +3927,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               {viewportHintItems.map((hint, index) => <li key={`${hint}-${index}`} className="viewport-hint-item">{hint}</li>)}
               <li className="viewport-hint-item">{viewportControlHint}</li>
             </ul>
-            <div className="viewport-message" role={artifactLoadState === 'error' ? 'alert' : 'status'} aria-live="polite"><span className="viewport-icon">◇</span><strong>{artifactLoadState === 'loading' ? '正在加载 GLB…' : artifactLoadState === 'error' ? 'GLB 加载失败' : 'GLB 读取通道已连接'}</strong><span>{artifactLoadState === 'error' ? `故障码：${artifactError ?? 'ARTIFACT_LOAD_FAILED'}` : `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} 三角形 · UV ${artifact.uv_status ?? '未知'} · 切线 ${artifact.tangent_status ?? '未知'}`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试 GLB</button>}</div></> : <div className="viewport-message" role="status"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
+            <div className="viewport-message" role={artifactLoadState === 'error' ? 'alert' : 'status'} aria-live="polite"><span className="viewport-icon">◇</span><strong>{artifactLoadState === 'loading' ? '正在加载 GLB…' : artifactLoadState === 'error' ? 'GLB 加载失败' : 'GLB 读取通道已连接'}</strong><span>{artifactLoadState === 'error' ? `故障码：${artifactError ?? 'ARTIFACT_LOAD_FAILED'}` : `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} 三角形 · UV ${formatArtifactStatus(artifact.uv_status)} · 切线 ${formatArtifactStatus(artifact.tangent_status)}`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试 GLB</button>}</div></> : <div className="viewport-message" role="status"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
           <div className="viewport-footer">
             <span>项目：{projectName}</span>
             <span>版本：{versionCount}</span>
@@ -3967,9 +4021,9 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             <span>{selectedSceneObject ? `材质区：${selectedSceneObject.data.materialZoneId}` : '从场景树或 3D 视口选择一个部件'}</span>
           </div>
           <div className="property-list runtime-inspector-properties">
-            <div><span>变换 Transform</span><strong>{selectedSceneObject ? 'Runtime 回读' : '未选中'}</strong></div>
-            <div><span>材质 Material</span><strong>{selectedSceneObject?.data.materialZoneId ?? '未选中'}</strong></div>
-            <div><span>几何 Geometry</span><strong>{artifact ? `${partCount} Part · ${artifact.triangle_count ?? 0} 三角形` : '未绑定 GLB'}</strong></div>
+            <div><span>变换</span><strong>{selectedSceneObject ? 'Runtime 回读' : '未选中'}</strong></div>
+            <div><span>材质</span><strong>{selectedSceneObject?.data.materialZoneId ?? '未选中'}</strong></div>
+            <div><span>几何</span><strong>{artifact ? `${partCount} 个部件 · ${artifact.triangle_count ?? 0} 三角形` : '未绑定 GLB'}</strong></div>
           </div>
           <p className="inspector-note">属性检查器只显示 Runtime 已回读字段；位置、材质和几何修改仍需由 Codex 提交并经过批准。</p>
         </section>
@@ -4307,12 +4361,12 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         </div>
       </aside>
     </section>
-    <section className="runtime-bottom-rail" aria-label="History Versions 与 Codex Activity">
+    <section className="runtime-bottom-rail" aria-label="版本历史与 Codex 活动">
       <section className="runtime-history-panel" aria-labelledby="runtime-history-title">
         <div className="runtime-rail-header">
           <div>
-            <span className="runtime-workbench-panel-eyebrow">HISTORY / VERSIONS</span>
-            <h2 id="runtime-history-title">History / Versions</h2>
+            <span className="runtime-workbench-panel-eyebrow">版本历史</span>
+            <h2 id="runtime-history-title">版本历史</h2>
           </div>
           <span className="runtime-rail-meta">{versionCount} 个版本 · {candidateSnapshots.length} 个候选</span>
         </div>
@@ -4348,8 +4402,8 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
       <section className="runtime-activity-panel" aria-labelledby="runtime-activity-title">
         <div className="runtime-rail-header">
           <div>
-            <span className="runtime-workbench-panel-eyebrow">CODEX ACTIVITY</span>
-            <h2 id="runtime-activity-title">Codex Activity</h2>
+            <span className="runtime-workbench-panel-eyebrow">Codex 活动</span>
+            <h2 id="runtime-activity-title">Codex 活动</h2>
           </div>
           <span className="runtime-rail-meta">只读回读</span>
         </div>

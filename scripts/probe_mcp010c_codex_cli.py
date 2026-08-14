@@ -635,6 +635,12 @@ def silhouette_rig_draft(candidate_id: str) -> dict[str, Any]:
             # pixel nudges or an open-ended parameter trace.
             {"parameter_id": "head-offset-x", "part_id": "head-shell", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
             {"parameter_id": "head-offset-y", "part_id": "head-shell", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            # Boundary attribution can identify visible hand/shin drift even
+            # when the reference target has no explicit Part contour slices.
+            # Keep these as bounded typed camera-plane controls; Codex does
+            # not search their values or issue image-space nudges.
+            {"parameter_id": "hand-offset-x", "part_id": "hand-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "hand-offset-y", "part_id": "hand-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
             {"parameter_id": "chest-offset-y", "part_id": "chest-shell", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
             {"parameter_id": "shoulder-offset-x", "part_id": "shoulder-armor-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
             {"parameter_id": "shoulder-offset-y", "part_id": "shoulder-armor-pair", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
@@ -643,6 +649,8 @@ def silhouette_rig_draft(candidate_id: str) -> dict[str, Any]:
             {"parameter_id": "pelvis-offset-y", "part_id": "pelvis", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
             {"parameter_id": "knee-offset-x", "part_id": "knee-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
             {"parameter_id": "knee-offset-y", "part_id": "knee-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "shin-offset-x", "part_id": "shin-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "shin-offset-y", "part_id": "shin-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
         ],
     }
 

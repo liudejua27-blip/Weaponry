@@ -764,71 +764,27 @@ impl Runtime {
         let silhouette_png = self.render_pass_bytes(&render_set, "silhouette")?;
         let model_mask = decode_binary_mask(&silhouette_png)?;
         let metrics = extended_silhouette_metrics(&target_mask.mask, &model_mask);
-        let target_boundary = boundary_mask(&target_mask.mask);
-        let model_boundary = boundary_mask(&model_mask);
-        let model_points: Vec<(usize, usize)> = model_boundary
-            .iter()
-            .enumerate()
-            .filter_map(|(index, value)| value.then_some((index % 512, index / 512)))
-            .collect();
-        if model_points.is_empty() {
-            return Err(RuntimeError::InvalidInput(
-                "BOUNDARY_ERROR_UNAVAILABLE: model silhouette is empty".to_owned(),
-            ));
-        }
-        let (center_x, center_y) = mask_centroid(&target_mask.mask).unwrap_or((255.5, 255.5));
-        let sample_stride = ((target_boundary.iter().filter(|value| **value).count() / 128).max(1)) as usize;
-        let mut segments = Vec::new();
         let part_png = self.render_pass_bytes(&render_set, "part-id").ok();
         let inspection = candidate
             .manifest_hash
             .as_deref()
             .and_then(|hash| self.cas_read(hash).ok())
             .and_then(|bytes| strict_glb_inspection(&bytes).ok());
-        for (index, value) in target_boundary.iter().enumerate() {
-            let ordinal = index;
-            if !*value || ordinal % sample_stride != 0 {
-                continue;
-            }
-            let tx = index % 512;
-            let ty = index / 512;
-            let (mx, my, distance) = model_points
-                .iter()
-                .map(|(x, y)| {
-                    let dx = *x as f64 - tx as f64;
-                    let dy = *y as f64 - ty as f64;
-                    (*x, *y, (dx * dx + dy * dy).sqrt())
-                })
-                .min_by(|left, right| left.2.partial_cmp(&right.2).unwrap_or(std::cmp::Ordering::Equal))
-                .expect("model points is non-empty");
-            let dx = mx as f64 - tx as f64;
-            let dy = my as f64 - ty as f64;
-            let radial_x = tx as f64 - center_x;
-            let radial_y = ty as f64 - center_y;
-            let direction = if distance <= 4.0 {
-                "aligned"
-            } else if dx * radial_x + dy * radial_y >= 0.0 {
-                "outward"
-            } else {
-                "inward"
-            };
-            let part_id = part_png.as_deref().and_then(|png| {
-                let image = image::load_from_memory(png).ok()?.resize_exact(512, 512, imageops::FilterType::Nearest).to_rgba8();
-                let pixel = image.get_pixel(mx as u32, my as u32).0;
-                let index = part_color_index(pixel)?;
-                inspection.as_ref()?.part_ids.get(index).cloned()
-            });
-            segments.push(json!({
-                "reference":[tx as f64 / 511.0, ty as f64 / 511.0],
-                "model":[mx as f64 / 511.0, my as f64 / 511.0],
-                "delta_px":[stable_visual_metric(dx), stable_visual_metric(dy)],
-                "distance_px":stable_visual_metric(distance),
-                "direction":direction,
-                "part_id":part_id
-            }));
+        let segments = Self::boundary_error_segments_for_masks(
+            &target_mask.mask,
+            &model_mask,
+            part_png.as_deref(),
+            inspection
+                .as_ref()
+                .map(|value| value.part_ids.as_slice())
+                .unwrap_or(&[]),
+            max_segments.unwrap_or(64).clamp(1, 64) as usize,
+        );
+        if segments.is_empty() {
+            return Err(RuntimeError::InvalidInput(
+                "BOUNDARY_ERROR_UNAVAILABLE: model silhouette is empty".to_owned(),
+            ));
         }
-        segments.sort_by(|left, right| right["distance_px"].as_f64().unwrap_or(0.0).partial_cmp(&left["distance_px"].as_f64().unwrap_or(0.0)).unwrap_or(std::cmp::Ordering::Equal));
-        segments.truncate(max_segments.unwrap_or(64).clamp(1, 64) as usize);
         let mut result = json!({
             "schema_version":"BoundaryErrorResult@1",
             "candidate_id":candidate_id,
@@ -842,6 +798,90 @@ impl Runtime {
         validate_boundary_error_result(&result)?;
         Ok(result)
     }
+
+/// Produce the same candidate-bound directional boundary evidence used by
+/// `boundary_error_get`, but from an already-rendered transient Worker result.
+/// Primary Form can therefore attribute local error to a typed Part without a
+/// second Codex observation turn or a caller-owned image-space search.
+fn boundary_error_segments_for_masks(
+    reference: &[bool],
+    model: &[bool],
+    part_png: Option<&[u8]>,
+    part_ids: &[String],
+    max_segments: usize,
+) -> Vec<Value> {
+    let target_boundary = boundary_mask(reference);
+    let model_boundary = boundary_mask(model);
+    let model_points: Vec<(usize, usize)> = model_boundary
+        .iter()
+        .enumerate()
+        .filter_map(|(index, value)| value.then_some((index % 512, index / 512)))
+        .collect();
+    if model_points.is_empty() {
+        return Vec::new();
+    }
+    let (center_x, center_y) = mask_centroid(reference).unwrap_or((255.5, 255.5));
+    let sample_stride = ((target_boundary.iter().filter(|value| **value).count() / 128).max(1)) as usize;
+    let part_image = part_png.and_then(|png| {
+        image::load_from_memory(png)
+            .ok()
+            .map(|image| image.resize_exact(512, 512, imageops::FilterType::Nearest).to_rgba8())
+    });
+    let mut segments = Vec::new();
+    for (index, value) in target_boundary.iter().enumerate() {
+        if !*value || index % sample_stride != 0 {
+            continue;
+        }
+        let tx = index % 512;
+        let ty = index / 512;
+        let (mx, my, distance) = model_points
+            .iter()
+            .map(|(x, y)| {
+                let dx = *x as f64 - tx as f64;
+                let dy = *y as f64 - ty as f64;
+                (*x, *y, (dx * dx + dy * dy).sqrt())
+            })
+            .min_by(|left, right| {
+                left.2
+                    .partial_cmp(&right.2)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .expect("model points is non-empty");
+        let dx = mx as f64 - tx as f64;
+        let dy = my as f64 - ty as f64;
+        let radial_x = tx as f64 - center_x;
+        let radial_y = ty as f64 - center_y;
+        let direction = if distance <= 4.0 {
+            "aligned"
+        } else if dx * radial_x + dy * radial_y >= 0.0 {
+            "outward"
+        } else {
+            "inward"
+        };
+        let part_id = part_image.as_ref().and_then(|image| {
+            let pixel = image.get_pixel(mx as u32, my as u32).0;
+            let index = part_color_index(pixel)?;
+            part_ids.get(index).cloned()
+        });
+        segments.push(json!({
+            "reference":[tx as f64 / 511.0, ty as f64 / 511.0],
+            "model":[mx as f64 / 511.0, my as f64 / 511.0],
+            "delta_px":[stable_visual_metric(dx), stable_visual_metric(dy)],
+            "distance_px":stable_visual_metric(distance),
+            "direction":direction,
+            "part_id":part_id
+        }));
+    }
+    segments.sort_by(|left, right| {
+        right["distance_px"]
+            .as_f64()
+            .unwrap_or(0.0)
+            .partial_cmp(&left["distance_px"].as_f64().unwrap_or(0.0))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    segments.truncate(max_segments.clamp(1, 64));
+    segments
+}
 
     /// Return a deterministic per-Part contour error table for Luna's next
     /// bounded repair round.  This is deliberately read-only: it consumes the
@@ -1368,6 +1408,24 @@ impl Runtime {
             &target_mask.mask,
             &selected_model_mask,
             part_context,
+            Some(&selected_camera),
+        );
+        // Automatic targets do not have caller-supplied contour Part ranges.
+        // Reuse the selected transient Part-ID render to attribute the largest
+        // visible boundary errors before geometry trials. This keeps the
+        // repair local and Runtime-owned while preserving the target's
+        // observed-only boundary semantics.
+        let boundary_segments = Self::boundary_error_segments_for_masks(
+            &target_mask.mask,
+            &selected_model_mask,
+            selected_part_png.as_deref(),
+            &inspection.part_ids,
+            64,
+        );
+        selected_parameters = apply_boundary_part_parameter_projection(
+            rig,
+            &selected_parameters,
+            &boundary_segments,
             Some(&selected_camera),
         );
         let mut geometry_evaluations = 0usize;
@@ -8777,6 +8835,139 @@ fn fit_rig_parameters_with_landmark_context(
     selected
 }
 
+/// Project visible boundary correspondences onto the Rig controls owned by
+/// the corresponding Part. This is deliberately a proposal projection, not
+/// an optimizer: it uses only the bounded Runtime boundary sample and at most
+/// one value per typed parameter. Width/height use the observed screen-space
+/// envelope ratio; offsets use the calibrated camera plane when the Rig uses
+/// meters. A Part with no attributed boundary evidence is left unchanged.
+fn apply_boundary_part_parameter_projection(
+    rig: &Value,
+    selected_parameters: &[Value],
+    segments: &[Value],
+    camera: Option<&Value>,
+) -> Vec<Value> {
+    let mut grouped: HashMap<String, Vec<(f64, f64, f64, f64)>> = HashMap::new();
+    for segment in segments {
+        let Some(part_id) = segment.get("part_id").and_then(Value::as_str) else {
+            continue;
+        };
+        let distance = segment
+            .get("distance_px")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        if distance <= 4.0 {
+            continue;
+        }
+        let Some(reference) = segment.get("reference").and_then(Value::as_array) else {
+            continue;
+        };
+        let Some(model) = segment.get("model").and_then(Value::as_array) else {
+            continue;
+        };
+        let (Some(reference_x), Some(reference_y), Some(model_x), Some(model_y)) = (
+            reference.first().and_then(Value::as_f64),
+            reference.get(1).and_then(Value::as_f64),
+            model.first().and_then(Value::as_f64),
+            model.get(1).and_then(Value::as_f64),
+        ) else {
+            continue;
+        };
+        if [reference_x, reference_y, model_x, model_y]
+            .iter()
+            .any(|value| !value.is_finite())
+        {
+            continue;
+        }
+        grouped
+            .entry(part_id.to_owned())
+            .or_default()
+            .push((reference_x, reference_y, model_x, model_y));
+    }
+    if grouped.is_empty() {
+        return selected_parameters.to_vec();
+    }
+    let camera_scales = camera.and_then(camera_plane_world_scales);
+    let Some(definitions) = rig.get("parameters").and_then(Value::as_array) else {
+        return selected_parameters.to_vec();
+    };
+    let mut projected = selected_parameters.to_vec();
+    for (index, definition) in definitions.iter().enumerate() {
+        let Some(part_id) = definition.get("part_id").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(points) = grouped.get(part_id) else {
+            continue;
+        };
+        if points.len() < 2 {
+            continue;
+        }
+        let target_min_x = points.iter().map(|point| point.0).fold(1.0, f64::min);
+        let target_max_x = points.iter().map(|point| point.0).fold(0.0, f64::max);
+        let target_min_y = points.iter().map(|point| point.1).fold(1.0, f64::min);
+        let target_max_y = points.iter().map(|point| point.1).fold(0.0, f64::max);
+        let model_min_x = points.iter().map(|point| point.2).fold(1.0, f64::min);
+        let model_max_x = points.iter().map(|point| point.2).fold(0.0, f64::max);
+        let model_min_y = points.iter().map(|point| point.3).fold(1.0, f64::min);
+        let model_max_y = points.iter().map(|point| point.3).fold(0.0, f64::max);
+        let target_width = (target_max_x - target_min_x).max(1.0 / 511.0);
+        let model_width = (model_max_x - model_min_x).max(1.0 / 511.0);
+        let target_height = (target_max_y - target_min_y).max(1.0 / 511.0);
+        let model_height = (model_max_y - model_min_y).max(1.0 / 511.0);
+        let width_ratio = (target_width / model_width).clamp(0.5, 1.5);
+        let height_ratio = (target_height / model_height).clamp(0.5, 1.5);
+        let target_center_x = (target_min_x + target_max_x) * 0.5;
+        let model_center_x = (model_min_x + model_max_x) * 0.5;
+        let target_center_y = (target_min_y + target_max_y) * 0.5;
+        let model_center_y = (model_min_y + model_max_y) * 0.5;
+        let center_delta_x = (target_center_x - model_center_x).clamp(-0.5, 0.5);
+        let center_delta_y = (model_center_y - target_center_y).clamp(-0.5, 0.5);
+        let semantic = definition.get("semantic").and_then(Value::as_str).unwrap_or("");
+        let unit = definition.get("unit").and_then(Value::as_str).unwrap_or("meter");
+        let base_value = definition.get("value").and_then(Value::as_f64).unwrap_or(0.0);
+        let min = definition.get("min").and_then(Value::as_f64).unwrap_or(base_value);
+        let max = definition.get("max").and_then(Value::as_f64).unwrap_or(base_value);
+        let desired = match semantic {
+            "width" => Some(base_value * width_ratio),
+            "height" => Some(base_value * height_ratio),
+            "offset_x" => {
+                let delta = if unit == "ratio" {
+                    center_delta_x
+                } else {
+                    let Some((world_per_screen_x, _)) = camera_scales else {
+                        continue;
+                    };
+                    center_delta_x * world_per_screen_x
+                };
+                Some(base_value + delta)
+            }
+            "offset_y" => {
+                let delta = if unit == "ratio" {
+                    center_delta_y
+                } else {
+                    let Some((_, world_per_screen_y)) = camera_scales else {
+                        continue;
+                    };
+                    center_delta_y * world_per_screen_y
+                };
+                Some(base_value + delta)
+            }
+            _ => None,
+        };
+        let Some(desired) = desired else {
+            continue;
+        };
+        let Some(selected) = projected.get_mut(index) else {
+            continue;
+        };
+        if selected.get("parameter_id") != definition.get("parameter_id") {
+            continue;
+        }
+        selected["value"] = Value::from(stable_visual_metric(desired.clamp(min, max)));
+    }
+    projected
+}
+
 /// Apply a typed, candidate-bound Rig proposal to the corresponding V2
 /// primitive nodes.  This is deliberately a small projection layer rather
 /// than a general expression evaluator: only dimensions and image-plane
@@ -14171,6 +14362,29 @@ mod tests {
         assert!(aligned_loss < contour_only);
         assert!(misaligned_loss > aligned_loss);
         assert!(misaligned_loss > contour_only);
+    }
+
+    #[test]
+    fn boundary_projection_prioritizes_attributed_local_part_controls() {
+        let rig = json!({"parameters":[
+            {"parameter_id":"shin-width","part_id":"shin-pair","semantic":"width","value":1.0,"min":0.82,"max":1.18,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"shin-offset-x","part_id":"shin-pair","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"},
+            {"parameter_id":"chest-width","part_id":"chest-shell","semantic":"width","value":1.0,"min":0.82,"max":1.18,"step":0.04,"unit":"ratio"}
+        ]});
+        let selected = rig["parameters"].as_array().unwrap().clone();
+        let segments = vec![
+            json!({"reference":[0.24,0.89],"model":[0.33,0.89],"distance_px":46.0,"part_id":"shin-pair"}),
+            json!({"reference":[0.59,0.89],"model":[0.66,0.89],"distance_px":36.0,"part_id":"shin-pair"}),
+        ];
+        let projected = apply_boundary_part_parameter_projection(
+            &rig,
+            &selected,
+            &segments,
+            Some(&default_camera_calibration()),
+        );
+        assert!(projected[0]["value"].as_f64().unwrap() > 1.0);
+        assert!(projected[1]["value"].as_f64().unwrap() < 0.0);
+        assert_eq!(projected[2]["value"], 1.0);
     }
 
     #[test]
