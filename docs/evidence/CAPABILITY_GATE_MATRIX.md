@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Primary Form metric-priority Gate：Runtime camera/geometry/refit/acceptance/candidate compare 共用确定性 priority ordering：`boundary_f1_4px` → `silhouette_iou` → `bbox_edge_error/centroid_error` → landmark coverage/NME → regions；scalar loss 只在全部高优先级项相等时 tie-break。新增回归证明明显 boundary 改善不会被 IoU/Chamfer 交易掉，Primary Form focused 14 passed。该 Gate 是 Runtime 收敛判定修复，不是视觉 likeness PASS；没有新的真实 receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 或人评/PBR/export-restart/360 未运行状态。
+
 2026-08-15 Primary Form 双向边界证据 Gate：Runtime 在固定 bounded budget 内同时生成 target→model 与 model→target boundary correspondences，并在同一 candidate/camera/Part-ID 作用域下保留模型独有或位移后的边缘；既有 per-Part coverage 与最多 64 条 deterministic retention 继续作为 Codex observation projection。新增 model-owned excess edge regression，`forgecad-runtime` 全量 `103 passed / 12 ignored`。该 Gate 只改善 Runtime-owned Primary Form 收敛信号，不能替代真实 likeness、独立人评、PBR、export/restart 或 360；`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 保持不变。
 
 2026-08-15 Render Worker ownership Gate：`geometry_worker.rs` 仅暴露通用 `execute_sibling_worker`，`render_worker.rs` 独占 `forgecad-render-worker` binary identity 和 fixed/perspective/batch response adapter；Geometry Worker 与 Render Worker 的产品身份和协议 projection 不再交叉。新增真实 sibling isolated conformance tests 覆盖九 AOV、固定 512×512 PNG、重复确定性与 GeometryProgram payload rejection；source boundary checker、Runtime full Gate（`102 passed / 12 ignored`）通过。该 Gate 只证明 Runtime 模块/进程边界，不能替代真实 likeness、独立人评、PBR、export/restart 或 360，现有 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 保持不变。

@@ -559,13 +559,7 @@ impl Runtime {
                 &inspection.part_ids,
             )?);
         }
-        rows.sort_by(|left, right| {
-            left["loss"]
-                .as_f64()
-                .unwrap_or(f64::INFINITY)
-                .partial_cmp(&right["loss"].as_f64().unwrap_or(f64::INFINITY))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        rows.sort_by(primary_form_row_ordering);
         let seeds = rows
             .iter()
             .take(3)
@@ -612,13 +606,7 @@ impl Runtime {
         // the Runtime-owned binding. Include the authored base camera even
         // when it did not make the coarse top-k; it is the fail-safe framing
         // fallback and must remain comparable to every proposed camera.
-        rows.sort_by(|left, right| {
-            left["loss"]
-                .as_f64()
-                .unwrap_or(f64::INFINITY)
-                .partial_cmp(&right["loss"].as_f64().unwrap_or(f64::INFINITY))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        rows.sort_by(primary_form_row_ordering);
         let base_camera_index = rows
             .iter()
             .position(|row| row.get("camera") == Some(&base_camera));
@@ -699,24 +687,12 @@ impl Runtime {
             .iter()
             .find(|row| row.get("camera") == Some(&base_camera))
             .cloned();
-        rows.sort_by(|left, right| {
-            left["loss"]
-                .as_f64()
-                .unwrap_or(f64::INFINITY)
-                .partial_cmp(&right["loss"].as_f64().unwrap_or(f64::INFINITY))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        rows.sort_by(primary_form_row_ordering);
         rows.truncate(4);
         if let Some(base_row) = base_row {
             if !rows.iter().any(|row| row.get("camera") == base_row.get("camera")) {
                 rows.push(base_row);
-                rows.sort_by(|left, right| {
-                    left["loss"]
-                        .as_f64()
-                        .unwrap_or(f64::INFINITY)
-                        .partial_cmp(&right["loss"].as_f64().unwrap_or(f64::INFINITY))
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
+                rows.sort_by(primary_form_row_ordering);
             }
         }
         let selected = rows
@@ -724,20 +700,24 @@ impl Runtime {
             .and_then(|row| row.get("camera"))
             .cloned()
             .ok_or_else(|| RuntimeError::InvalidInput("CAMERA_FIT_UNAVAILABLE".to_owned()))?;
-        let base_loss = rows
+        let base_metrics = rows
             .iter()
             .find(|row| row.get("camera") == Some(&base_camera))
-            .and_then(|row| row.get("loss"))
-            .and_then(Value::as_f64)
-            .unwrap_or(f64::INFINITY);
-        let selected_loss = rows[0]["loss"].as_f64().unwrap_or(f64::INFINITY);
+            .and_then(|row| row.get("metrics"))
+            .cloned()
+            .unwrap_or(Value::Null);
+        let selected_metrics = rows
+            .first()
+            .and_then(|row| row.get("metrics"))
+            .cloned()
+            .unwrap_or(Value::Null);
         let mut result = json!({
             "schema_version":"CameraFitResult@1",
             "candidate_id":candidate_id,
             "target_sha256":target_sha256,
             "selected_camera":selected,
             "candidates":rows,
-            "status":if selected_loss + 1e-12 < base_loss {"ready"} else {"no_improvement"},
+            "status":if primary_form_metrics_improve(&selected_metrics, &base_metrics) {"ready"} else {"no_improvement"},
             "canonical_sha256":""
         });
         result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
@@ -1426,7 +1406,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         // actually won the bounded camera loss.
         let mut camera_model_evidence: Vec<(Value, Vec<bool>, Option<Vec<u8>>)> = Vec::new();
         let mut best_overall: Option<(f64, Value, Value)> = None;
-        let mut previous_best_loss = f64::INFINITY;
+        let mut previous_best_metrics: Option<Value> = None;
         let mut step_offset = 0usize;
         let step_variants = [
             (0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0),
@@ -1528,7 +1508,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 );
                 let loss = camera_fit_loss(&loss_metrics);
                 let row = (loss, candidate_camera, metrics);
-                if iteration_best.as_ref().is_none_or(|best| loss < best.0) {
+                if iteration_best
+                    .as_ref()
+                    .is_none_or(|best| primary_form_metrics_improve(&loss_metrics, &best.2))
+                {
                     iteration_best = Some(row.clone());
                 }
                 rows.push(row);
@@ -1537,11 +1520,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             step_offset = step_offset.saturating_add(iteration_budget);
             completed_iterations += 1;
             let Some(iteration_best) = iteration_best else { break; };
-            let improved = iteration_best.0 + 1e-12 < previous_best_loss;
+            let improved = previous_best_metrics
+                .as_ref()
+                .is_none_or(|best| primary_form_metrics_improve(&iteration_best.2, best));
             if improved {
-                previous_best_loss = iteration_best.0;
+                previous_best_metrics = Some(iteration_best.2.clone());
                 current_camera = iteration_best.1.clone();
-                if best_overall.as_ref().is_none_or(|best| iteration_best.0 < best.0) {
+                if best_overall
+                    .as_ref()
+                    .is_none_or(|best| primary_form_metrics_improve(&iteration_best.2, &best.2))
+                {
                     best_overall = Some(iteration_best);
                 }
             } else {
@@ -1557,7 +1545,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 break;
             }
         }
-        rows.sort_by(|left, right| left.0.partial_cmp(&right.0).unwrap_or(std::cmp::Ordering::Equal));
+        rows.sort_by(|left, right| {
+            primary_form_metric_ordering(&left.2, &right.2).then_with(|| {
+                left.0
+                    .partial_cmp(&right.0)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+        });
         let (mut best_loss, mut selected_camera, mut metrics) = best_overall
             .or_else(|| rows.first().cloned())
             .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_UNAVAILABLE".to_owned()))?;
@@ -1666,7 +1660,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             // current artifact, later coordinate probes must return to the
             // authored parameters instead of walking around a bad proposal.
             let baseline_parameters = definitions.clone();
-            let mut best_geometry_loss = best_loss;
+            let mut best_geometry_loss = camera_fit_loss(&metrics);
             let mut best_geometry_parameters = baseline_parameters.clone();
             let mut best_geometry_metrics = metrics.clone();
             let mut initial_proposal_improved = None;
@@ -1804,16 +1798,19 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let loss = camera_fit_loss(&loss_metrics);
                 geometry_evaluations += 1;
                 if probe_index == 0 {
-                    initial_proposal_improved = Some(loss + 1e-12 < best_loss);
+                    initial_proposal_improved = Some(primary_form_metrics_improve(
+                        &loss_metrics,
+                        &metrics,
+                    ));
                 }
-                if loss + 1e-12 < best_geometry_loss {
+                if primary_form_metrics_improve(&variant_metrics, &best_geometry_metrics) {
                     best_geometry_loss = loss;
                     best_geometry_parameters = parameter_values;
                     best_geometry_metrics = variant_metrics;
                     selected_geometry_program = Some(finalized);
                 }
             }
-            if best_geometry_loss + 1e-12 < best_loss {
+            if primary_form_metrics_improve(&best_geometry_metrics, &metrics) {
                 best_loss = best_geometry_loss;
                 selected_parameters = best_geometry_parameters;
                 metrics = best_geometry_metrics;
@@ -1900,7 +1897,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         );
                         let loss = camera_fit_loss(&loss_metrics);
                         camera_refit_evaluations += 1;
-                        if loss + 1e-12 < best_loss {
+                        if primary_form_metrics_improve(&candidate_metrics, &metrics) {
                             best_loss = loss;
                             selected_camera = camera_candidate;
                             metrics = candidate_metrics;
@@ -1922,7 +1919,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .saturating_add(geometry_evaluations)
             .saturating_add(camera_refit_evaluations);
         let camera_evaluations = rows.len().saturating_add(camera_refit_evaluations);
-        let strict_improvement = best_loss + 1e-12 < base_loss;
+        let strict_improvement = primary_form_metrics_improve(&metrics, &baseline_metrics);
         let mut result = json!({
             "schema_version":"SilhouetteFitResult@1",
             "project_id":project_id,
@@ -1943,7 +1940,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "selected_loss":best_loss,
             "strict_improvement":strict_improvement,
             "thresholds":{"silhouette_iou":0.9,"boundary_f1_4px":0.9},
-            "status":if metrics["silhouette_iou"].as_f64().unwrap_or(0.0) >= 0.9 && metrics["boundary_f1_4px"].as_f64().unwrap_or(0.0) >= 0.9 {"ready"} else if best_loss + 1e-12 < base_loss {"quality_target_not_met"} else {"no_improvement"},
+            "status":if metrics["silhouette_iou"].as_f64().unwrap_or(0.0) >= 0.9 && metrics["boundary_f1_4px"].as_f64().unwrap_or(0.0) >= 0.9 {"ready"} else if strict_improvement {"quality_target_not_met"} else {"no_improvement"},
             "canonical_sha256":""
         });
         result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
@@ -2553,9 +2550,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             let loss = extended_silhouette_loss(&loss_metrics);
             rows.push(json!({"candidate_id":candidate_id,"metrics":metrics,"loss":stable_visual_metric(loss)}));
         }
-        rows.sort_by(|left, right| left["loss"].as_f64().unwrap_or(f64::INFINITY).partial_cmp(&right["loss"].as_f64().unwrap_or(f64::INFINITY)).unwrap_or(std::cmp::Ordering::Equal));
+        rows.sort_by(primary_form_row_ordering);
         let winner = rows.first().and_then(|row| row.get("candidate_id")).cloned().unwrap_or(Value::Null);
-        let tie = rows.len() > 1 && (rows[0]["loss"].as_f64().unwrap_or(0.0) - rows[1]["loss"].as_f64().unwrap_or(0.0)).abs() < 1e-12;
+        let tie = rows.len() > 1
+            && primary_form_metric_ordering(&rows[0]["metrics"], &rows[1]["metrics"])
+                == std::cmp::Ordering::Equal;
         let first_metrics = rows.first().and_then(|row| row.get("metrics")).cloned().unwrap_or(Value::Null);
         let second_metrics = rows.get(1).and_then(|row| row.get("metrics")).cloned().unwrap_or(Value::Null);
         let mut result = json!({"schema_version":"SilhouetteCandidateCompareResult@1","target_sha256":target_sha256,"candidates":rows,"winner_candidate_id":if tie {Value::Null} else {winner},"delta":{"silhouette_iou":stable_visual_metric(second_metrics["silhouette_iou"].as_f64().unwrap_or(0.0)-first_metrics["silhouette_iou"].as_f64().unwrap_or(0.0)),"boundary_f1_4px":stable_visual_metric(second_metrics["boundary_f1_4px"].as_f64().unwrap_or(0.0)-first_metrics["boundary_f1_4px"].as_f64().unwrap_or(0.0)),"sdf_chamfer_px":stable_visual_metric(second_metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0)-first_metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0))},"status":if tie {"tie"} else {"ready"},"canonical_sha256":""});
@@ -9067,13 +9066,12 @@ fn extended_silhouette_loss(metrics: &Value) -> f64 {
     weighted_contour_loss(metrics)
 }
 
-/// Deterministic image-space loss used by camera and candidate ranking.
-/// Chamfer and IoU dominate the fit, while boundary, framing and centroid
-/// keep a candidate from winning by matching only its occupied area.  Landmark
-/// and semantic-Part terms are intentionally optional: the transient camera
-/// batch does not invent them when a target has no typed annotations, but a
-/// future annotated fit can add those bounded penalties without changing the
-/// ranking contract.
+/// Deterministic image-space loss used for receipts and stable tie breaking.
+/// The public quality contract ranks boundary F1 first, then silhouette IoU,
+/// framing/centroid, landmarks and regions. Keep this scalar aligned with that
+/// order for clients that only retain the numeric loss; the optimizer itself
+/// uses `primary_form_metric_ordering` below so a lower-priority metric cannot
+/// trade away a higher-priority boundary result.
 fn weighted_contour_loss(metrics: &Value) -> f64 {
     let chamfer = (metrics
         .get("sdf_chamfer_px")
@@ -9124,22 +9122,82 @@ fn weighted_contour_loss(metrics: &Value) -> f64 {
             .and_then(Value::as_f64)
             .unwrap_or(0.0)
             .clamp(0.0, 1.0);
-        0.315 * chamfer
-            + 0.225 * iou
-            + 0.135 * boundary
-            + 0.09 * bbox
-            + 0.09 * centroid
-            + 0.05 * landmark_nme
-            + 0.05 * (1.0 - landmark_coverage)
-            + 0.045 * regularization
-    } else {
-        0.35 * chamfer
+        0.04 * chamfer
             + 0.25 * iou
-            + 0.15 * boundary
+            + 0.35 * boundary
+            + 0.10 * bbox
+            + 0.10 * centroid
+            + 0.05 * landmark_nme
+            + 0.08 * (1.0 - landmark_coverage)
+            + 0.03 * regularization
+    } else {
+        0.05 * chamfer
+            + 0.25 * iou
+            + 0.40 * boundary
             + 0.10 * bbox
             + 0.10 * centroid
             + 0.05 * regularization
     }
+}
+
+/// Compare two Runtime-owned fit metric sets in the same order as the visible
+/// quality gate. Each tier is compared before considering the next one, so a
+/// lower-priority IoU/Chamfer gain cannot make a boundary regression win. A
+/// small epsilon absorbs deterministic floating-point noise from the fixed
+/// renderer without hiding a real metric change.
+fn primary_form_metric_ordering(candidate: &Value, incumbent: &Value) -> std::cmp::Ordering {
+    let metric = |value: &Value, key: &str, default: f64| {
+        value
+            .get(key)
+            .and_then(Value::as_f64)
+            .unwrap_or(default)
+            .clamp(0.0, 1.0)
+    };
+    let priority = |value: &Value| {
+        [
+            1.0 - metric(value, "boundary_f1_4px", 0.0),
+            1.0 - metric(value, "silhouette_iou", 0.0),
+            metric(value, "bbox_edge_error", 1.0),
+            metric(value, "centroid_error", 1.0),
+            1.0 - metric(value, "landmark_coverage", 0.0),
+            metric(value, "landmark_nme", 1.0),
+            1.0 - metric(value, "region_median_iou", 0.0),
+            1.0 - metric(value, "critical_region_min_iou", 0.0),
+        ]
+    };
+    let candidate_priority = priority(candidate);
+    let incumbent_priority = priority(incumbent);
+    for (candidate_value, incumbent_value) in candidate_priority.into_iter().zip(incumbent_priority) {
+        if (candidate_value - incumbent_value).abs() > 1e-9 {
+            return candidate_value
+                .partial_cmp(&incumbent_value)
+                .unwrap_or(std::cmp::Ordering::Equal);
+        }
+    }
+    weighted_contour_loss(candidate)
+        .partial_cmp(&weighted_contour_loss(incumbent))
+        .unwrap_or(std::cmp::Ordering::Equal)
+}
+
+fn primary_form_metrics_improve(candidate: &Value, incumbent: &Value) -> bool {
+    primary_form_metric_ordering(candidate, incumbent) == std::cmp::Ordering::Less
+}
+
+fn primary_form_row_ordering(left: &Value, right: &Value) -> std::cmp::Ordering {
+    let left_metrics = left.get("metrics").unwrap_or(left);
+    let right_metrics = right.get("metrics").unwrap_or(right);
+    primary_form_metric_ordering(left_metrics, right_metrics).then_with(|| {
+        left.get("loss")
+            .and_then(Value::as_f64)
+            .unwrap_or(f64::INFINITY)
+            .partial_cmp(
+                &right
+                    .get("loss")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(f64::INFINITY),
+            )
+            .unwrap_or(std::cmp::Ordering::Equal)
+    })
 }
 
 fn transient_loss_metrics_with_parts(
@@ -10811,7 +10869,7 @@ fn primary_form_strict_same_camera_improvement(
     source_metrics: &Value,
     proposal_metrics: &Value,
 ) -> bool {
-    camera_fit_loss(proposal_metrics) + 1e-12 < camera_fit_loss(source_metrics)
+    primary_form_metrics_improve(proposal_metrics, source_metrics)
 }
 
 fn part_color_index(pixel: [u8; 4]) -> Option<usize> {
@@ -14754,6 +14812,29 @@ mod tests {
         assert!(weighted_contour_loss(&sparse) > weighted_contour_loss(&covered));
         covered["landmark_coverage"] = json!(1.0);
         assert!(weighted_contour_loss(&covered) < weighted_contour_loss(&sparse));
+    }
+
+    #[test]
+    fn primary_form_metric_ordering_keeps_boundary_ahead_of_iou() {
+        let boundary_first = json!({
+            "silhouette_iou": 0.20,
+            "boundary_f1_4px": 0.60,
+            "bbox_edge_error": 0.10,
+            "centroid_error": 0.10
+        });
+        let iou_first = json!({
+            "silhouette_iou": 0.99,
+            "boundary_f1_4px": 0.59,
+            "bbox_edge_error": 0.10,
+            "centroid_error": 0.10
+        });
+
+        // The scalar summary still reflects a bounded loss, but the Runtime
+        // winner must follow the product gate order: a real boundary gain is
+        // never traded away for a lower-priority IoU gain.
+        assert!(weighted_contour_loss(&boundary_first) > weighted_contour_loss(&iou_first));
+        assert!(primary_form_metrics_improve(&boundary_first, &iou_first));
+        assert!(!primary_form_metrics_improve(&iou_first, &boundary_first));
     }
 
     #[test]
