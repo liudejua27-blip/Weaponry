@@ -155,3 +155,5 @@ Viewer selection 只是提示；prepare 时必须重新绑定当前 snapshot/par
 ## 9. 重启与灾难恢复
 
 重启时 Runtime：取得 OS writer 文件锁 → 验证 DB migration/version → CAS reachability → snapshot/version hashes。MVP 不使用 TTL lease、heartbeat 或 stale takeover；未完成 Job 的跨 MCP 会话恢复暂不承诺，无法安全恢复的 Job 转为 typed failure。已确认版本必须在 MCP/Viewer 不可用时仍可离线备份和校验。
+
+2026-08-14 Agentic observation binding：没有 active snapshot 时，Runtime 仅在项目没有候选或只有一个候选时保留兼容读取；多个候选必须显式绑定 candidate ID，否则 `scene_observe_get` fail closed。该规则只保护 canonical observation lineage，不代表 Agentic orchestrator、Repair execution 或视觉质量通过；证据为 `docs/evidence/mcp010f/agentic-observation-binding-20260814.json`。

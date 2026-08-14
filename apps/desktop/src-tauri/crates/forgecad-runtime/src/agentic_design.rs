@@ -238,8 +238,17 @@ fn select_candidate(
         return Ok((Some(candidate), "active_snapshot"));
     }
 
-    let candidate = runtime.candidates(project_id)?.into_iter().next();
-    Ok((candidate, "latest_candidate_when_no_active_snapshot"))
+    let candidates = runtime.candidates(project_id)?;
+    match candidates.as_slice() {
+        [] => Ok((None, "latest_candidate_when_no_active_snapshot")),
+        [candidate] => Ok((
+            Some(candidate.clone()),
+            "latest_candidate_when_no_active_snapshot",
+        )),
+        _ => Err(binding_error(
+            "multiple candidates require an explicit candidate_id or active snapshot",
+        )),
+    }
 }
 
 fn read_geometry_context(
@@ -1460,6 +1469,33 @@ mod tests {
         assert_eq!(result["design_stage_plan"]["unlocks"]["pbr"], false);
         assert_eq!(result["visual_evidence_bundle"]["status"], "unknown");
         assert!(result["canonical_sha256"].as_str().is_some_and(is_sha256));
+    }
+
+    #[test]
+    fn scene_observe_without_binding_rejects_ambiguous_candidates() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = project(&runtime);
+        runtime
+            .prepare_diagnostic_candidate(
+                &project.project_id,
+                None,
+                json!({"typed":"diagnostic","label":"first"}),
+            )
+            .expect("first candidate");
+        runtime
+            .prepare_diagnostic_candidate(
+                &project.project_id,
+                None,
+                json!({"typed":"diagnostic","label":"second"}),
+            )
+            .expect("second candidate");
+
+        let error = runtime
+            .agentic_scene_observe(&project.project_id, None)
+            .expect_err("ambiguous observation must fail closed");
+        assert!(error
+            .to_string()
+            .contains("multiple candidates require an explicit candidate_id or active snapshot"));
     }
 
     #[test]

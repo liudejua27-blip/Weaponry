@@ -42,3 +42,5 @@ MCP010B/C/D/E/F reconciliation：历史 MCP006 为 44 contracts；保存的 50/5
 | 生产发布 | blocked | MCP001–MCP012 | full packaged Codex E2E | MCP013 + cross-category human gate |
 
 旧 U004/Provider/F026/C111/E005 Gate 不映射为新能力 PASS。只有当前合同、当前工作树、真实运行和对应发布包证据才能升级状态。
+
+2026-08-14 F Agentic observation binding：`scene_observe_get` 对无 active snapshot 的多候选项目改为 fail closed，阻止 Runtime/MCP/Viewer 通过隐式列表顺序拼接错误候选上下文；单候选兼容、零候选 unknown 保持。focused Runtime regression 2/2 PASS，receipt `docs/evidence/mcp010f/agentic-observation-binding-20260814.json`。状态仅为 source binding PASS，视觉质量仍为 `QUALITY_TARGET_NOT_MET`，benchmark eligibility 仍为 `BLOCKED_INCOMPLETE_BINDING`。
