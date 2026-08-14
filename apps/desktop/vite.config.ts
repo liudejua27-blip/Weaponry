@@ -5,16 +5,41 @@ export default defineConfig({
   plugins: [react()],
   clearScreen: false,
   build: {
-    // The remaining Three.js renderer chunk is lazy-loaded only after a
-    // candidate with a GLB is selected; keep the warning threshold aligned
-    // with that intentional desktop-only vendor chunk.
-    chunkSizeWarningLimit: 600,
+    // Keep runtime and renderer chunks bounded so the first-view payload
+    // stays predictable on desktops where the workbench may stay idle.
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('/node_modules/three/examples/jsm/')) return 'three-extras'
-          if (id.includes('/node_modules/three/')) return 'three-core'
+          if (id.includes('/node_modules/three/examples/jsm/utils/')) {
+            const utilRoot = '/node_modules/three/examples/jsm/utils/'
+            const utilIndex = id.indexOf(utilRoot)
+            const file = id.slice(utilIndex + utilRoot.length).split('/')[0].replace('.js', '').replaceAll('-', '_')
+            return `three-extras-utils-${file}`
+          }
+          if (id.includes('/node_modules/three/examples/jsm/controls/')) return 'three-extras-controls'
+          if (id.includes('/node_modules/three/examples/jsm/loaders/')) {
+            const loaderRoot = '/node_modules/three/examples/jsm/loaders/'
+            const loaderIndex = id.indexOf(loaderRoot)
+            const file = id.slice(loaderIndex + loaderRoot.length).split('/')[0].replace('.js', '').replaceAll('-', '_')
+            return `three-extras-loaders-${file}`
+          }
+          if (id.includes('/node_modules/three/examples/jsm/helpers/')) return 'three-extras-helpers'
+          if (id.includes('/node_modules/three/examples/jsm/')) {
+            const threeExamplesPath = '/node_modules/three/examples/jsm/'
+            const examplesIndex = id.indexOf(threeExamplesPath)
+            const segment = id.slice(examplesIndex + threeExamplesPath.length).split('/')[0]
+            const safeSegment = segment.replaceAll('-', '_')
+            return `three-extras-${safeSegment}`
+          }
           if (id.includes('/node_modules/@phosphor-icons/react/')) return 'phosphor-icons'
+          const threeSourceRoot = '/node_modules/three/src/'
+          const sourceIndex = id.indexOf(threeSourceRoot)
+          if (sourceIndex >= 0) {
+            const modulePath = id.slice(sourceIndex + threeSourceRoot.length)
+            const segment = modulePath.split('/')[0]
+            return `three-src-${segment}`
+          }
           return undefined
         },
       },

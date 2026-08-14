@@ -19,6 +19,22 @@ import {
   type AgenticSessionProjection,
 } from './agentic-session'
 
+const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
+const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键框选 · 右键旋转 · 中键平移 · 滚轮缩放 · 1/2/3 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
+type ThreeRuntimeCore = typeof import('./three-runtime-core')
+type ThreeRuntimeCoreMath = Pick<ThreeRuntimeCore, 'Box3' | 'Vector3'>
+
+type SceneTreeMaterialSummary = {
+  materialZoneId: string
+  objectCount: number
+}
+
+type SceneTreePartSummary = {
+  partId: string
+  objectCount: number
+  materials: SceneTreeMaterialSummary[]
+}
+
 type ViewerProject = {
   project?: { project_id?: string; name?: string }
   record?: { head_snapshot_id?: string | null }
@@ -142,6 +158,68 @@ type CandidateGenerationTiming = {
   statusLabel: string
   statusClass: 'passed' | 'failed' | 'not-run'
   anomaly: boolean
+}
+
+type CandidateSnapshotRecord = {
+  candidateId: string
+  candidateState: string
+  createdAtText: string
+  createdAtEpochMs: number
+  updatedAtText: string | null
+  updatedAtEpochMs: number | null
+  artifact: CandidateView['artifact']
+  quality: CandidateView['quality']
+  reference: CandidateView['reference']
+  hasArtifactBinding: boolean
+  hasVisualEvidenceBinding: boolean
+}
+
+type CandidateSnapshotDiffRow = {
+  label: string
+  current: string
+  previous: string
+  status: 'changed' | 'same' | 'missing'
+}
+
+type ErrorConsoleItem = {
+  id: string
+  scope: string
+  code: string
+  title: string
+  summary: string
+  meaning: string
+  severity: 'error' | 'warn'
+  actionLabel?: string
+  action?: () => void
+}
+
+function normalizeStatusText(status: string): string {
+  const normalized = status.trim().toLowerCase()
+  if (normalized === 'pass' || normalized === 'passed' || normalized === 'quality_pass') return '通过'
+  if (normalized === 'fail' || normalized === 'failed' || normalized === 'quality_fail' || normalized.includes('target_not_met')) return '未通过'
+  if (normalized === 'not-run' || normalized === 'not_run' || normalized === 'unavailable' || normalized === '') return '未运行'
+  if (normalized.includes('partial') && normalized.includes('pass')) return '部分通过'
+  if (normalized.includes('pending') || normalized.includes('running') || normalized.includes('queued') || normalized.includes('in_progress')) return '进行中'
+  return '未知'
+}
+
+function deriveCandidateErrorMeaning(code: string): string {
+  if (code === 'ARTIFACT_BYTES_UNAVAILABLE') return '未能读取 GLB 资产。可能资产尚未生成完成或未与候选绑定。'
+  if (code === 'ARTIFACT_BYTES_BINDING_MISMATCH') return 'GLB 绑定到候选 ID 或 SHA 发生不一致，候选已失配。'
+  if (code === 'REFERENCE_BYTES_UNAVAILABLE') return '参考图读取不可用，请确认该候选有有效的可访问 reference。'
+  if (code === 'RENDER_PASS_UNAVAILABLE') return 'RenderPass PNG 缺失或 AOV pass 未生成。'
+  if (code === 'REFERENCE_BYTES_BINDING_MISMATCH') return '候选绑定的 reference 不一致，当前对比不能直接判定。'
+  if (code === 'RENDER_PASS_BINDING_MISMATCH') return 'RenderPass 与当前 RenderSet 不一致。'
+  if (code === 'GLB_PARSE_FAILED') return 'GLB 解析失败，模型文件可能损坏或不完整。'
+  if (code === 'COMPARE_WORKER_FAILED' || code === 'DIFFERENCE_HEATMAP_FAILED') return '异步差异计算失败，当前比较仅保留可读层信息。'
+  if (code === 'COMPARE_IMAGE_DATA_UNAVAILABLE') return '比较图像数据不可用，暂无法生成差异视图。'
+  if (code === 'GLB_EMPTY_SCENE') return 'GLB 场景为空。'
+  if (code === 'REFERENCE_CONTOUR_FAILED') return '轮廓草图分析失败。'
+  if (code === 'VISUAL_EVIDENCE_BINDING_MISMATCH') return '候选的 VisualEvidence 与当前候选/哈希不一致。'
+  if (code === 'VISUAL_EVIDENCE_UNAVAILABLE') return 'Quality/对比证据暂不可读取。'
+  if (code === 'RUNTIME_SUMMARY_UNAVAILABLE') return '模型摘要服务暂时不可用。'
+  if (code === 'RUNTIME_REQUEST_FAILED' || code === 'RUNTIME_SUMMARY_REQUEST_FAILED') return 'Runtime 读取失败，当前状态可能为历史缓存。'
+  return '请检查 Runtime 会话与当前候选绑定是否可用。'
 }
 
 function hasCandidateBoundArtifact(entry: CandidateView, projectId?: string): boolean {
@@ -272,6 +350,21 @@ function isCandidateBoundRenderPayload(
 const AOV_PASSES = ['beauty', 'silhouette', 'depth', 'normal', 'ao', 'part-id', 'material-id', 'wireframe', 'uv-stretch'] as const
 type AovPass = typeof AOV_PASSES[number]
 type CompareMode = 'split' | 'overlay' | 'flicker'
+type ViewportLightPreset = 'neutral' | 'high-key' | 'dramatic'
+type ViewportDragMode = 'idle' | 'box-select'
+type ViewportCameraPreset = 'front' | 'left' | 'top'
+
+const VIEWPORT_LIGHT_PRESETS: ReadonlyArray<{ id: ViewportLightPreset; label: string }> = [
+  { id: 'neutral', label: '中性光' },
+  { id: 'high-key', label: '高亮光' },
+  { id: 'dramatic', label: '轮廓光' },
+]
+
+const VIEWPORT_CAMERA_PRESETS: ReadonlyArray<{ id: ViewportCameraPreset; label: string }> = [
+  { id: 'front', label: '1 前' },
+  { id: 'left', label: '2 左' },
+  { id: 'top', label: '3 顶' },
+]
 
 type ViewerModel = {
   status: 'Ready' | 'Unavailable'
@@ -285,6 +378,7 @@ type ViewerObjectState = {
   direction: THREE.Vector3
   partId: string
   materialZoneId: string
+  isSelected: boolean
 }
 
 type ViewerSceneState = {
@@ -293,7 +387,14 @@ type ViewerSceneState = {
   scene: THREE.Scene
   camera: THREE.PerspectiveCamera
   controls: OrbitControls
+  raycaster: THREE.Raycaster
   objects: Map<THREE.Object3D, ViewerObjectState>
+  lights: {
+    hemi?: THREE.HemisphereLight
+    key?: THREE.DirectionalLight
+    fill?: THREE.DirectionalLight
+    rim?: THREE.DirectionalLight
+  }
 }
 
 type ViewerCandidateSummary = {
@@ -321,6 +422,7 @@ type ViewerModelSummary = {
 type LoadState = 'idle' | 'loading' | 'ready' | 'error'
 type CompareActionStatus = 'idle' | 'exporting' | 'exported' | 'unavailable'
 type Point = { x: number; y: number }
+type ViewportMarqueeRect = { left: number; top: number; width: number; height: number }
 
 const AUTO_LATEST_CANDIDATE = '__auto_latest__'
 
@@ -593,6 +695,212 @@ function qualityStatusClass(status: string): 'passed' | 'failed' | 'not-run' | '
   return 'failed'
 }
 
+type ForgeSelectionSnapshot = {
+  hasEmissive: boolean
+  emissive?: [number, number, number]
+  emissiveIntensity?: number
+  color?: [number, number, number]
+  roughness?: number
+  metalness?: number
+}
+
+function applyMaterialSelectionState(material: THREE.Material, isSelected: boolean): void {
+  const cache = (material.userData as Record<string, unknown>)[VIEWER_SELECTION_CACHE] as ForgeSelectionSnapshot | undefined
+  const anyMaterial = material as {
+    emissive?: { toArray?: () => number[]; set?: (...args: unknown[]) => void }
+    emissiveIntensity?: number
+    color?: { toArray?: () => number[]; set?: (...args: unknown[]) => void }
+    roughness?: number
+    metalness?: number
+  }
+
+  if (!isSelected) {
+    if (!cache) return
+    if (cache.hasEmissive && anyMaterial.emissive?.set && cache.emissive) {
+      anyMaterial.emissive.set(cache.emissive[0], cache.emissive[1], cache.emissive[2])
+      if (cache.emissiveIntensity !== undefined && anyMaterial.emissiveIntensity !== undefined) {
+        anyMaterial.emissiveIntensity = cache.emissiveIntensity
+      }
+    }
+    if (cache.color && anyMaterial.color?.set) anyMaterial.color.set(cache.color[0], cache.color[1], cache.color[2])
+    if (cache.roughness !== undefined && anyMaterial.roughness !== undefined) anyMaterial.roughness = cache.roughness
+    if (cache.metalness !== undefined && anyMaterial.metalness !== undefined) anyMaterial.metalness = cache.metalness
+    delete (material.userData as Record<string, unknown>)[VIEWER_SELECTION_CACHE]
+    return
+  }
+
+  if (cache) return
+  const next: ForgeSelectionSnapshot = {
+    hasEmissive: Boolean(anyMaterial.emissive && anyMaterial.emissive.toArray),
+    emissive: anyMaterial.emissive?.toArray?.().map((item) => Number(item.toFixed(6))) as [number, number, number] | undefined,
+    emissiveIntensity: anyMaterial.emissiveIntensity,
+    color: anyMaterial.color?.toArray?.().map((item) => Number(item.toFixed(6))) as [number, number, number] | undefined,
+    roughness: anyMaterial.roughness,
+    metalness: anyMaterial.metalness,
+  }
+  ;(material.userData as Record<string, unknown>)[VIEWER_SELECTION_CACHE] = next
+  if (next.hasEmissive && anyMaterial.emissive?.set) {
+    anyMaterial.emissive.set(1, 0.74, 0.2)
+  }
+  if (anyMaterial.emissiveIntensity !== undefined) anyMaterial.emissiveIntensity = Math.max(anyMaterial.emissiveIntensity, 0.9)
+  if (anyMaterial.roughness !== undefined) anyMaterial.roughness = Math.max(0, Math.min(0.75, anyMaterial.roughness))
+  if (anyMaterial.metalness !== undefined) anyMaterial.metalness = Math.min(0.15, anyMaterial.metalness)
+}
+
+function applyObjectSelectionState(object: THREE.Object3D, isSelected: boolean): void {
+  if (!(object as THREE.Mesh).isMesh) return
+  const mesh = object as THREE.Mesh
+  const meshMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+  for (const material of meshMaterials) {
+    if (!material) continue
+    applyMaterialSelectionState(material, isSelected)
+  }
+}
+
+function buildSceneTreeSummary(objects: Map<THREE.Object3D, ViewerObjectState>): SceneTreePartSummary[] {
+  const partMap = new Map<string, SceneTreePartSummary>()
+  for (const objectState of objects.values()) {
+    const partId = objectState.partId || 'unknown-part'
+    const materialZoneId = objectState.materialZoneId || 'unknown-material-zone'
+    const partEntry = partMap.get(partId) ?? {
+      partId,
+      objectCount: 0,
+      materials: [],
+    }
+    partEntry.objectCount += 1
+    const zoneIndex = partEntry.materials.findIndex((zone) => zone.materialZoneId === materialZoneId)
+    if (zoneIndex < 0) partEntry.materials.push({ materialZoneId, objectCount: 1 })
+    else partEntry.materials[zoneIndex]!.objectCount += 1
+    partMap.set(partId, partEntry)
+  }
+  return [...partMap.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([_, part]) => ({
+      ...part,
+      materials: [...part.materials].sort((left, right) => left.materialZoneId.localeCompare(right.materialZoneId)),
+    }))
+}
+
+function isViewportObjectLocked(
+  objectState: ViewerObjectState | undefined,
+  partLockState: Record<string, boolean>,
+  materialLockState: Record<string, boolean>,
+): boolean {
+  if (!objectState) return false
+  return Boolean(partLockState[objectState.partId]) || Boolean(materialLockState[objectState.materialZoneId])
+}
+
+function viewportLightPresetValues(preset: ViewportLightPreset) {
+  if (preset === 'high-key') {
+    return { key: 3.0, fill: 1.6, rim: 0.4 }
+  }
+  if (preset === 'dramatic') {
+    return { key: 1.4, fill: 0.6, rim: 1.6 }
+  }
+  return { key: 2.4, fill: 1.1, rim: 1.0 }
+}
+
+function clampViewportControlHint(preset: ViewportLightPreset, lockState: {
+  selectedPartLocked?: boolean
+  selectedMaterialLocked?: boolean
+}) {
+  const lights = preset === 'neutral'
+    ? '中性光'
+    : preset === 'high-key'
+      ? '高亮光'
+      : '轮廓光'
+  const lockHint = lockState.selectedPartLocked || lockState.selectedMaterialLocked
+    ? ' · 当前选中对象已锁定（无法重新拾取）'
+    : ''
+  return `${DEFAULT_VIEWPORT_CONTROL_HINT} · 当前光照：${lights}${lockHint}`
+}
+
+function viewportCameraOffset(preset: ViewportCameraPreset): [number, number, number] {
+  if (preset === 'left') return [-1.1, 0.26, 0.15]
+  if (preset === 'top') return [0.02, 1.2, 0.22]
+  return [0.08, 0.25, 1.2]
+}
+
+function isPointInsideSelectionRect(point: { x: number; y: number }, left: number, top: number, right: number, bottom: number) {
+  return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom
+}
+
+function pickViewportObjectsInMarqueeRect(
+  state: ViewerSceneState,
+  marqueeRect: ViewportMarqueeRect,
+  canvasRect: DOMRect,
+  partLockState: Record<string, boolean>,
+  materialLockState: Record<string, boolean>,
+  threeRuntime: ThreeRuntimeCoreMath | null,
+): THREE.Object3D[] {
+  if (!threeRuntime) return []
+  const box = new threeRuntime.Box3()
+  const Vector3 = threeRuntime.Vector3
+  const vector = new Vector3()
+  const camera = state.camera
+  const left = (marqueeRect.left - canvasRect.left) / canvasRect.width
+  const right = (marqueeRect.left + marqueeRect.width - canvasRect.left) / canvasRect.width
+  const top = (marqueeRect.top - canvasRect.top) / canvasRect.height
+  const bottom = (marqueeRect.top + marqueeRect.height - canvasRect.top) / canvasRect.height
+  const normalized = {
+    left: Math.min(left, right),
+    right: Math.max(left, right),
+    top: Math.min(top, bottom),
+    bottom: Math.max(top, bottom),
+  }
+  const width = normalized.right - normalized.left
+  const height = normalized.bottom - normalized.top
+  if (width <= 0 || height <= 0) return []
+  const hits: THREE.Object3D[] = []
+  state.objects.forEach((objectState, object) => {
+    if (isViewportObjectLocked(objectState, partLockState, materialLockState)) return
+    if (!object.visible) return
+    box.setFromObject(object)
+    if (box.isEmpty()) return
+    const min = box.min
+    const max = box.max
+    const candidates: THREE.Vector3[] = [
+      new Vector3(min.x, min.y, min.z),
+      new Vector3(min.x, min.y, max.z),
+      new Vector3(min.x, max.y, min.z),
+      new Vector3(min.x, max.y, max.z),
+      new Vector3(max.x, min.y, min.z),
+      new Vector3(max.x, min.y, max.z),
+      new Vector3(max.x, max.y, min.z),
+      new Vector3(max.x, max.y, max.z),
+      box.getCenter(vector),
+    ]
+    const hit = candidates.some((candidate) => {
+      const projected = candidate.project(camera)
+      if (projected.z < -1 || projected.z > 1) return false
+      const point = { x: (projected.x + 1) / 2, y: (-projected.y + 1) / 2 }
+      return isPointInsideSelectionRect(point, normalized.left, normalized.top, normalized.right, normalized.bottom)
+    })
+    if (hit) hits.push(object)
+  })
+  return hits
+}
+
+function pickViewportObjectFromPointer(
+  state: ViewerSceneState,
+  event: PointerEvent<HTMLCanvasElement>,
+  rect: DOMRect,
+  partLockState: Record<string, boolean>,
+  materialLockState: Record<string, boolean>,
+): THREE.Object3D | null {
+  const pointer = {
+    x: (event.clientX - rect.left) / rect.width * 2 - 1,
+    y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  }
+  state.raycaster.setFromCamera(pointer as unknown as THREE.Vector2, state.camera)
+  const intersects = state.raycaster.intersectObjects([...state.objects.keys()], true)
+  const hit = intersects.find((candidate) => {
+    const data = state.objects.get(candidate.object)
+    return Boolean(candidate.object && data && !isViewportObjectLocked(data, partLockState, materialLockState))
+  })
+  return hit ? hit.object : null
+}
+
 function disposeObjectResources(root: THREE.Object3D): void {
   const geometries = new Set<THREE.BufferGeometry>()
   const materials = new Set<THREE.Material>()
@@ -642,6 +950,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const [modelRefreshing, setModelRefreshing] = useState(false)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
   const [candidateSortOrder, setCandidateSortOrder] = useState<'newest' | 'oldest'>('newest')
+  const [timingSortOrder, setTimingSortOrder] = useState<'desc' | 'asc'>('desc')
   const [selectedPass, setSelectedPass] = useState<AovPass>('beauty')
   const [compareMode, setCompareMode] = useState<CompareMode>('split')
   const [evidence, setEvidence] = useState<ViewerVisualEvidence | null>(null)
@@ -674,9 +983,22 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const [artifactLoadState, setArtifactLoadState] = useState<LoadState>('idle')
   const [artifactError, setArtifactError] = useState<string | null>(null)
   const [artifactRetryNonce, setArtifactRetryNonce] = useState(0)
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null)
+  const [partVisibility, setPartVisibility] = useState<Record<string, boolean>>({})
+  const [materialVisibility, setMaterialVisibility] = useState<Record<string, boolean>>({})
+  const [partLockState, setPartLockState] = useState<Record<string, boolean>>({})
+  const [materialLockState, setMaterialLockState] = useState<Record<string, boolean>>({})
+  const [sceneTreeSearch, setSceneTreeSearch] = useState('')
+  const [expandedPartId, setExpandedPartId] = useState<string | null>(null)
+  const [viewportLightPreset, setViewportLightPreset] = useState<ViewportLightPreset>('neutral')
+  const [viewportCameraPreset, setViewportCameraPreset] = useState<ViewportCameraPreset>('front')
+  const [viewportMarqueeRect, setViewportMarqueeRect] = useState<ViewportMarqueeRect | null>(null)
   const contourDrawingRef = useRef(false)
   const comparePanRef = useRef<{ active: boolean; pointerId: number; startX: number; startY: number; originX: number; originY: number }>({ active: false, pointerId: -1, startX: 0, startY: 0, originX: 0, originY: 0 })
+  const viewportDragRef = useRef<{ mode: ViewportDragMode; pointerId: number; startX: number; startY: number; endX: number; endY: number }>({ mode: 'idle', pointerId: -1, startX: 0, startY: 0, endX: 0, endY: 0 })
   const lastSummarySignatureRef = useRef<string | null>(null)
+  const activeCandidateIdRef = useRef<string | null>(null)
+  const threeRuntimeRef = useRef<Pick<typeof import('./three-runtime-core'), 'Box3' | 'Vector3'> | null>(null)
   const contourCanvasActive = selectedPass === 'silhouette' && compareMode === 'overlay' && !diffHeatmap
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const viewerSceneRef = useRef<ViewerSceneState | null>(null)
@@ -709,6 +1031,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     }
 
     const pollSummary = async () => {
+      let changed = false
       try {
         const summary = await invoke<ViewerModelSummary>('viewer_read_model_summary')
         if (!active) return
@@ -716,9 +1039,8 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           setModelSyncError(summary.code ?? 'RUNTIME_SUMMARY_UNAVAILABLE')
         } else {
           const signature = viewerSummarySignature(summary)
-          if (lastSummarySignatureRef.current !== null && lastSummarySignatureRef.current !== signature) {
-            void refreshFullModel()
-          }
+          changed = lastSummarySignatureRef.current !== null && lastSummarySignatureRef.current !== signature
+          if (changed) void refreshFullModel()
           lastSummarySignatureRef.current = signature
           setModelSyncError(null)
         }
@@ -726,7 +1048,9 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         if (active) setModelSyncError(readErrorCode(error, 'RUNTIME_SUMMARY_REQUEST_FAILED'))
       } finally {
         if (!active) return
-        const delay = document.visibilityState === 'hidden' ? 15000 : 3000
+        const delay = document.visibilityState === 'hidden'
+          ? 30000
+          : (changed || modelSyncError !== null || lastSummarySignatureRef.current === null ? 1500 : 10000)
         timer = window.setTimeout(() => void pollSummary(), delay)
       }
     }
@@ -812,6 +1136,57 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     artifact?.artifact_id,
     candidateReference?.object_sha256,
   )
+  const viewerSceneTree = useMemo<SceneTreePartSummary[]>(() => {
+    const state = viewerSceneRef.current
+    if (!state) return []
+    return buildSceneTreeSummary(state.objects)
+  }, [artifactLoadState, artifactCandidateId])
+  const normalizedSceneTreeSearch = sceneTreeSearch.trim().toLowerCase()
+  const filteredSceneTree = normalizedSceneTreeSearch === ''
+    ? viewerSceneTree
+    : viewerSceneTree.filter((part) => {
+      if (part.partId.toLowerCase().includes(normalizedSceneTreeSearch)) return true
+      return part.materials.some((material) => material.materialZoneId.toLowerCase().includes(normalizedSceneTreeSearch))
+    })
+  const selectedSceneObject = useMemo(() => {
+    const state = viewerSceneRef.current
+    if (!selectedObjectId || !state) return null
+    for (const [object, data] of state.objects) {
+      if (object.uuid === selectedObjectId) {
+        return { object, data }
+      }
+    }
+    return null
+  }, [selectedObjectId, artifactLoadState, artifactCandidateId, filteredSceneTree])
+  useEffect(() => {
+    if (!selectedSceneObject) return
+    if (isViewportObjectLocked(selectedSceneObject.data, partLockState, materialLockState)) {
+      setSelectedObjectId(null)
+      setSelectedPartId('all')
+      setSelectedMaterialZone('all')
+    }
+  }, [partLockState, materialLockState, selectedSceneObject])
+  const selectedSceneObjectLockState = useMemo(() => {
+    if (!selectedSceneObject) return { selectedPartLocked: false, selectedMaterialLocked: false }
+    return {
+      selectedPartLocked: Boolean(partLockState[selectedSceneObject.data.partId]),
+      selectedMaterialLocked: Boolean(materialLockState[selectedSceneObject.data.materialZoneId]),
+    }
+  }, [selectedSceneObject, partLockState, materialLockState])
+  const viewportControlHint = clampViewportControlHint(viewportLightPreset, selectedSceneObjectLockState)
+  useEffect(() => {
+    const nextCandidateId = activeCandidateId ?? null
+    if (activeCandidateIdRef.current !== nextCandidateId) {
+      activeCandidateIdRef.current = nextCandidateId
+      setSelectedObjectId(null)
+      setSelectedPartId('all')
+      setSelectedMaterialZone('all')
+      setExpandedPartId(null)
+      setPartLockState({})
+      setMaterialLockState({})
+      setViewportMarqueeRect(null)
+    }
+  }, [activeCandidateId])
   const generationTimings = useMemo<CandidateGenerationTiming[]>(() => {
     const timings: CandidateGenerationTiming[] = []
     for (const entry of candidateEntries) {
@@ -911,13 +1286,12 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         anomaly: isAbnormal || missingEndTime,
       })
     }
-    const order = new Map(candidateSummaries.map((candidate, index) => [candidate.candidate_id, index]))
     return timings.sort((a, b) => {
-      const left = order.get(a.candidateId) ?? Number.MAX_SAFE_INTEGER
-      const right = order.get(b.candidateId) ?? Number.MAX_SAFE_INTEGER
-      return left - right || a.candidateId.localeCompare(b.candidateId)
+      const left = a.candidateId ?? ''
+      const right = b.candidateId ?? ''
+      return timingSortOrder === 'desc' ? right.localeCompare(left) : left.localeCompare(right)
     })
-  }, [candidateEntries, candidateSummaries])
+  }, [candidateEntries, timingSortOrder])
   const successfulGenerationTimings = generationTimings.filter((timing) => timing.statusClass === 'passed')
   const averageGenerationSeconds = successfulGenerationTimings.length > 0
     ? successfulGenerationTimings.reduce((sum, timing) => sum + (timing.elapsedSeconds ?? 0), 0) / successfulGenerationTimings.length
@@ -1001,6 +1375,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     setCompareActionStatus('idle')
     setContourPoints([])
     setContourCopyStatus('idle')
+    setSelectedObjectId(null)
+    setPartVisibility({})
+    setMaterialVisibility({})
+    setExpandedPartId(null)
   }, [candidateId, projectId])
 
   useEffect(() => {
@@ -1114,6 +1492,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     let scene: THREE.Scene | null = null
     let renderer: THREE.WebGLRenderer | null = null
     let controls: OrbitControls | null = null
+    let raycaster: THREE.Raycaster | null = null
     let state: ViewerSceneState | null = null
     let resizeObserver: ResizeObserver | null = null
     let resizeListener: (() => void) | null = null
@@ -1122,7 +1501,11 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
 
     const load = async () => {
       try {
-        const THREE = await import('./three-runtime')
+        const [THREE, runtimeLoader] = await Promise.all([
+          import('./three-runtime-core'),
+          import('./three-runtime-loader'),
+        ])
+        if (!disposed) threeRuntimeRef.current = THREE
         if (disposed) return
         scene = new THREE.Scene()
         scene.background = new THREE.Color('#080d14')
@@ -1130,12 +1513,24 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
         renderer.outputColorSpace = THREE.SRGBColorSpace
-        scene.add(new THREE.HemisphereLight('#f1f6ff', '#172536', 2.2))
-        const key = new THREE.DirectionalLight('#ffd39c', 2.4)
-        key.position.set(4, 5, 6)
-        scene.add(key)
+        const hemisphereLight = new THREE.HemisphereLight('#f1f6ff', '#172536', 2.2)
+        const keyLight = new THREE.DirectionalLight('#ffffff', 2.4)
+        keyLight.position.set(4, 6, 6)
+        keyLight.name = 'runtime-key'
+        const fillLight = new THREE.DirectionalLight('#a2d8ff', 1.1)
+        fillLight.position.set(-3, 3, -2)
+        fillLight.name = 'runtime-fill'
+        const rimLight = new THREE.DirectionalLight('#ffdeb5', 1.0)
+        rimLight.position.set(-5, -2, -4)
+        rimLight.name = 'runtime-rim'
+        scene.add(hemisphereLight)
+        scene.add(keyLight)
+        scene.add(fillLight)
+        scene.add(rimLight)
         const nextControls = new THREE.OrbitControls(camera, canvas)
         controls = nextControls
+        const nextRaycaster = new THREE.Raycaster()
+        raycaster = nextRaycaster
         nextControls.enableDamping = false
         nextControls.enablePan = true
         nextControls.screenSpacePanning = true
@@ -1143,7 +1538,16 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         nextControls.maxDistance = 1000
         nextControls.rotateSpeed = 0.8
         nextControls.zoomSpeed = 0.9
+        nextControls.mouseButtons = {
+          LEFT: null,
+          MIDDLE: THREE.MOUSE.PAN,
+          RIGHT: THREE.MOUSE.ROTATE,
+        }
         nextControls.listenToKeyEvents(window)
+        nextControls.touches = {
+          ONE: THREE.TOUCH.ROTATE,
+          TWO: THREE.TOUCH.DOLLY_PAN,
+        }
         const renderScene = () => {
           if (!disposed && renderer && scene) renderer.render(scene, camera)
         }
@@ -1167,7 +1571,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         }
         resize()
 
-        const loader = new THREE.GLTFLoader()
+        const loader = new runtimeLoader.GLTFLoader()
         const payload = await invoke<ArtifactBytes>('viewer_artifact_bytes', { artifactId, candidateId })
         if (disposed) return
         if (payload.status === 'Unavailable') throw new Error(payload.code ?? 'ARTIFACT_BYTES_UNAVAILABLE')
@@ -1210,10 +1614,26 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             const direction = objectCenter.sub(center)
             if (direction.lengthSq() < 1e-8) direction.set(0, 1, 0)
             else direction.normalize()
-            objects.set(mesh, { basePosition: mesh.position.clone(), direction, partId, materialZoneId })
+            objects.set(mesh, { basePosition: mesh.position.clone(), direction, partId, materialZoneId, isSelected: false })
           })
-          state = { root, renderer, scene, camera, controls: nextControls, objects }
+          state = {
+            root,
+            renderer,
+            scene,
+            camera,
+            controls: nextControls,
+            raycaster: nextRaycaster,
+            objects,
+            lights: {
+              hemi: hemisphereLight,
+              key: keyLight,
+              fill: fillLight,
+              rim: rimLight,
+            },
+          }
           viewerSceneRef.current = state
+          applyViewportLightPreset(viewportLightPreset)
+          moveViewportCameraToPreset(viewportCameraPreset)
           setArtifactLoadState('ready')
           renderScene()
         }, (_error: unknown) => {
@@ -1252,12 +1672,39 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     state.objects.forEach((objectState, object) => {
       const partMatches = selectedPartId === 'all' || objectState.partId === selectedPartId
       const materialMatches = selectedMaterialZone === 'all' || objectState.materialZoneId === selectedMaterialZone
-      object.visible = partMatches && materialMatches
+      const partVisible = partVisibility[objectState.partId] ?? true
+      const materialVisible = materialVisibility[objectState.materialZoneId] ?? true
+      object.visible = partMatches && materialMatches && partVisible && materialVisible
       object.position.copy(objectState.basePosition)
       if (exploded && object.visible) object.position.addScaledVector(objectState.direction, 0.18)
     })
     state.renderer.render(state.scene, state.camera)
-  }, [artifactLoadState, selectedPartId, selectedMaterialZone, exploded, diffHeatmap])
+  }, [artifactLoadState, selectedPartId, selectedMaterialZone, exploded, diffHeatmap, partVisibility, materialVisibility])
+
+  useEffect(() => {
+    const state = viewerSceneRef.current
+    if (!state || artifactLoadState !== 'ready') return
+    const nextPartVisibility: Record<string, boolean> = {}
+    const nextMaterialVisibility: Record<string, boolean> = {}
+    state.objects.forEach((objectState) => {
+      nextPartVisibility[objectState.partId] = true
+      nextMaterialVisibility[objectState.materialZoneId] = true
+    })
+    setPartVisibility(nextPartVisibility)
+    setMaterialVisibility(nextMaterialVisibility)
+    if (viewerSceneTree.length > 0) setExpandedPartId((current) => current && nextPartVisibility[current] === true ? current : viewerSceneTree[0]?.partId ?? null)
+  }, [artifactLoadState, artifactCandidateId, artifactRetryNonce, viewerSceneTree])
+
+  useEffect(() => {
+    const state = viewerSceneRef.current
+    if (!state) return
+    state.objects.forEach((objectState, object) => {
+      const isSelected = object.uuid === selectedObjectId
+      objectState.isSelected = isSelected
+      applyObjectSelectionState(object, isSelected)
+    })
+    state.renderer.render(state.scene, state.camera)
+  }, [selectedObjectId, artifactLoadState])
 
   const referenceDataUrl = referenceImage?.bytes_base64
     ? `data:${referenceImage.mime ?? 'image/png'};base64,${referenceImage.bytes_base64}`
@@ -1371,6 +1818,288 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     setHeatmapSensitivity(1)
     setMeasureMode(false)
     setMeasurePoints([])
+  }
+
+  const applyViewportLightPreset = (preset: ViewportLightPreset) => {
+    const state = viewerSceneRef.current
+    if (!state) return
+    const intensity = viewportLightPresetValues(preset)
+    if (state.lights.key) state.lights.key.intensity = intensity.key
+    if (state.lights.fill) state.lights.fill.intensity = intensity.fill
+    if (state.lights.rim) state.lights.rim.intensity = intensity.rim
+    state.renderer.render(state.scene, state.camera)
+  }
+
+  useEffect(() => {
+    applyViewportLightPreset(viewportLightPreset)
+  }, [viewportLightPreset])
+
+  const moveViewportCameraToPreset = (preset: ViewportCameraPreset) => {
+    const state = viewerSceneRef.current
+    const threeRuntime = threeRuntimeRef.current
+    if (!threeRuntime) return
+    if (!state) return
+    const root = state.root
+    const bounds = new threeRuntime.Box3().setFromObject(root)
+    if (!bounds || bounds.isEmpty()) return
+    const center = bounds.getCenter(new threeRuntime.Vector3())
+    const size = bounds.getSize(new threeRuntime.Vector3())
+    const maxExtent = Math.max(size.x, size.y, size.z, 0.1)
+    const offset = viewportCameraOffset(preset)
+    const offsetVector = new threeRuntime.Vector3(offset[0], offset[1], offset[2]).multiplyScalar(maxExtent * 1.65)
+    state.controls.target.copy(center)
+    state.camera.position.copy(center).add(offsetVector)
+    state.camera.near = Math.max(maxExtent / 1200, 0.0002)
+    state.camera.far = Math.max(maxExtent * 220, 120)
+    state.camera.lookAt(center)
+    state.camera.updateProjectionMatrix()
+    state.controls.update()
+    state.controls.saveState()
+    state.renderer.render(state.scene, state.camera)
+    setViewportCameraPreset(preset)
+  }
+
+  const focusViewportTarget = (object?: THREE.Object3D | null) => {
+    const state = viewerSceneRef.current
+    if (!state) return
+    const threeRuntime = threeRuntimeRef.current
+    if (!threeRuntime) return
+    let focusObject: THREE.Object3D | null | undefined = object
+    if (!focusObject) focusObject = state.root
+    if (!focusObject) return
+    const bounds = new threeRuntime.Box3().setFromObject(focusObject)
+    if (bounds.isEmpty()) return
+    const center = bounds.getCenter(new threeRuntime.Vector3())
+    const size = bounds.getSize(new threeRuntime.Vector3())
+    const maxExtent = Math.max(size.x, size.y, size.z, 0.1)
+    const offset = new threeRuntime.Vector3(0.8, 0.6, 1.1).normalize().multiplyScalar(maxExtent * 1.7)
+    state.controls.target.copy(center)
+    state.camera.position.copy(center).add(offset)
+    state.camera.near = Math.max(maxExtent / 1200, 0.0002)
+    state.camera.far = Math.max(maxExtent * 250, 120)
+    state.camera.lookAt(center)
+    state.camera.updateProjectionMatrix()
+    state.controls.update()
+    state.renderer.render(state.scene, state.camera)
+  }
+
+  const toggleViewportPartLock = (partId: string) => {
+    setPartLockState((current) => ({ ...current, [partId]: !current[partId] }))
+  }
+
+  const toggleViewportMaterialLock = (materialZoneId: string) => {
+    setMaterialLockState((current) => ({ ...current, [materialZoneId]: !current[materialZoneId] }))
+  }
+
+  const handleViewportPointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
+    const state = viewerSceneRef.current
+    if (!state || artifactLoadState !== 'ready' || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return
+    if (event.shiftKey) {
+      event.preventDefault()
+      setViewportMarqueeRect({
+        left: event.clientX,
+        top: event.clientY,
+        width: 0,
+        height: 0,
+      })
+      viewportDragRef.current = {
+        mode: 'box-select',
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        endX: event.clientX,
+        endY: event.clientY,
+      }
+      state.controls.enabled = false
+      event.currentTarget.setPointerCapture(event.pointerId)
+      return
+    }
+    viewportDragRef.current = {
+      ...viewportDragRef.current,
+      mode: 'idle',
+      pointerId: event.pointerId,
+    }
+    const target = pickViewportObjectFromPointer(state, event, rect, partLockState, materialLockState)
+    if (!target) {
+      setSelectedObjectId(null)
+      setSelectedPartId('all')
+      setSelectedMaterialZone('all')
+      setExpandedPartId(null)
+      return
+    }
+    setSelectedObjectId(target.uuid)
+    const targetState = state.objects.get(target)
+    if (targetState) {
+      setSelectedPartId(targetState.partId)
+      setSelectedMaterialZone(targetState.materialZoneId)
+      setExpandedPartId(targetState.partId)
+      focusViewportTarget(target)
+    }
+  }
+
+  const handleViewportPointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
+    const state = viewerSceneRef.current
+    if (!state || artifactLoadState !== 'ready') return
+    const drag = viewportDragRef.current
+    if (drag.mode !== 'box-select' || drag.pointerId !== event.pointerId) return
+    drag.endX = event.clientX
+    drag.endY = event.clientY
+    setViewportMarqueeRect({
+      left: Math.min(drag.startX, drag.endX),
+      top: Math.min(drag.startY, drag.endY),
+      width: Math.abs(drag.endX - drag.startX),
+      height: Math.abs(drag.endY - drag.startY),
+    })
+  }
+
+  const applyViewportViewportSelection = (event: PointerEvent<HTMLCanvasElement>) => {
+    const state = viewerSceneRef.current
+    const rect = event.currentTarget.getBoundingClientRect()
+    const drag = viewportDragRef.current
+    if (!state || !rect.width || !rect.height || drag.mode !== 'box-select') return
+    if (!viewportMarqueeRect || viewportMarqueeRect.width < 5 || viewportMarqueeRect.height < 5) {
+      const target = pickViewportObjectFromPointer(state, event, rect, partLockState, materialLockState)
+      if (!target) {
+        setSelectedObjectId(null)
+        setSelectedPartId('all')
+        setSelectedMaterialZone('all')
+        setExpandedPartId(null)
+      } else {
+        const targetState = state.objects.get(target)
+        setSelectedObjectId(target.uuid)
+        if (targetState) {
+          setSelectedPartId(targetState.partId)
+          setSelectedMaterialZone(targetState.materialZoneId)
+          setExpandedPartId(targetState.partId)
+          focusViewportTarget(target)
+        }
+      }
+      return
+    }
+    const hits = pickViewportObjectsInMarqueeRect(
+      state,
+      viewportMarqueeRect,
+      rect,
+      partLockState,
+      materialLockState,
+      threeRuntimeRef.current,
+    )
+    const first = hits[0]
+    if (!first) {
+      setSelectedObjectId(null)
+      setSelectedPartId('all')
+      setSelectedMaterialZone('all')
+      setExpandedPartId(null)
+      return
+    }
+    const targetState = state.objects.get(first)
+    setSelectedObjectId(first.uuid)
+    if (targetState) {
+      setSelectedPartId(targetState.partId)
+      setSelectedMaterialZone(targetState.materialZoneId)
+      setExpandedPartId(targetState.partId)
+      focusViewportTarget(first)
+    }
+  }
+
+  const handleViewportPointerUp = (event: PointerEvent<HTMLCanvasElement>) => {
+    const drag = viewportDragRef.current
+    const state = viewerSceneRef.current
+    if (drag.mode !== 'box-select' || drag.pointerId !== event.pointerId) {
+      drag.mode = 'idle'
+      return
+    }
+    drag.mode = 'idle'
+    if (state) state.controls.enabled = true
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    applyViewportViewportSelection(event)
+    setViewportMarqueeRect(null)
+  }
+
+  const handleViewportKeyDown = (event: KeyboardEvent<HTMLCanvasElement>) => {
+    if (event.key === 'f' || event.key === 'F') {
+      event.preventDefault()
+      focusViewportTarget(selectedSceneObject?.object ?? null)
+    } else if (event.key === 'r' || event.key === 'R') {
+      event.preventDefault()
+      resetViewport()
+    } else if (event.key === '1') {
+      event.preventDefault()
+      moveViewportCameraToPreset('front')
+    } else if (event.key === '2') {
+      event.preventDefault()
+      moveViewportCameraToPreset('left')
+    } else if (event.key === '3') {
+      event.preventDefault()
+      moveViewportCameraToPreset('top')
+    } else if (event.key === 'Escape' && selectedObjectId) {
+      event.preventDefault()
+      setSelectedObjectId(null)
+    } else if (event.key === 'z' || event.key === 'Z') {
+      event.preventDefault()
+      setViewportLightPreset('neutral')
+    } else if (event.key === 'x' || event.key === 'X') {
+      event.preventDefault()
+      setViewportLightPreset('high-key')
+    } else if (event.key === 'c' || event.key === 'C') {
+      event.preventDefault()
+      setViewportLightPreset('dramatic')
+    }
+  }
+
+  const findSceneTreeObject = (partId: string, materialZoneId?: string): THREE.Object3D | null => {
+    const state = viewerSceneRef.current
+    if (!state) return null
+    for (const [object, objectState] of state.objects) {
+      if (objectState.partId !== partId) continue
+      if (materialZoneId && objectState.materialZoneId !== materialZoneId) continue
+      return object
+    }
+    return null
+  }
+
+  const handleSceneTreePartSelect = (partId: string) => {
+    setSelectedPartId(partId)
+    setSelectedMaterialZone('all')
+    setExpandedPartId((current) => current === partId ? (current === null ? partId : null) : partId)
+    const object = findSceneTreeObject(partId)
+    if (object) {
+      setSelectedObjectId(object.uuid)
+      focusViewportTarget(object)
+    } else {
+      setSelectedObjectId(null)
+    }
+  }
+
+  const handleSceneTreeMaterialSelect = (partId: string, materialZoneId: string) => {
+    setSelectedPartId(partId)
+    setSelectedMaterialZone(materialZoneId)
+    setExpandedPartId(partId)
+    const object = findSceneTreeObject(partId, materialZoneId)
+    if (object) {
+      setSelectedObjectId(object.uuid)
+      focusViewportTarget(object)
+    } else {
+      setSelectedObjectId(null)
+    }
+  }
+
+  const toggleTreePartVisibility = (partId: string) => {
+    setPartVisibility((current) => ({ ...current, [partId]: !(current[partId] ?? true) }))
+  }
+
+  const toggleTreeMaterialVisibility = (materialZoneId: string) => {
+    setMaterialVisibility((current) => ({ ...current, [materialZoneId]: !(current[materialZoneId] ?? true) }))
+  }
+
+  const toggleTreePartLock = (partId: string) => {
+    toggleViewportPartLock(partId)
+  }
+
+  const toggleTreeMaterialLock = (materialZoneId: string) => {
+    toggleViewportMaterialLock(materialZoneId)
   }
 
   const resetViewport = () => {
@@ -1583,7 +2312,24 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           <button type="button" className="viewer-toggle" onClick={() => setCandidateSortOrder((value) => value === 'newest' ? 'oldest' : 'newest')} disabled={candidateSummaries.length < 2}>{candidateSortOrder === 'newest' ? '最新 → 最旧' : '最旧 → 最新'}</button>
           <span className="candidate-selection-badge"><span className="status-icon status-icon-info">{selectedCandidateIsManual ? 'M' : 'A'}</span>{selectedCandidateIsManual ? '手动候选' : '自动最新候选'} · 任务ID {candidateId ?? 'none'}</span>
         </div>
-        <div className="viewport-stage" aria-label={artifact ? 'GLB artifact readback' : '3D viewport placeholder'}><div className="viewport-crosshair" aria-hidden="true" />{artifact ? <><canvas ref={canvasRef} className="glb-canvas" tabIndex={0} aria-label="Runtime GLB 3D preview；拖拽旋转，按住修饰键平移，滚轮缩放" /><div className="viewport-help" aria-live="polite">Orbit 旋转 · Pan 平移 · Wheel 缩放</div><div className="viewport-message"><span className="viewport-icon">◇</span><strong>{artifactLoadState === 'loading' ? '正在加载 GLB…' : artifactLoadState === 'error' ? 'GLB 加载失败' : 'GLB readback 已连接'}</strong><span>{artifactLoadState === 'error' ? `故障码：${artifactError ?? 'ARTIFACT_LOAD_FAILED'}` : `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} triangles · UV ${artifact.uv_status ?? '未知'} · tangent ${artifact.tangent_status ?? '未知'}`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试 GLB</button>}</div></> : <div className="viewport-message"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
+          <div className="viewport-stage" aria-label={artifact ? 'GLB artifact readback' : '3D viewport placeholder'}><div className="viewport-crosshair" aria-hidden="true" />{artifact ? <><canvas
+              ref={canvasRef}
+              className="glb-canvas"
+              tabIndex={0}
+              aria-label="Runtime GLB 3D preview；拖拽旋转，按住修饰键平移，滚轮缩放"
+              onPointerDown={handleViewportPointerDown}
+              onPointerMove={handleViewportPointerMove}
+              onPointerUp={handleViewportPointerUp}
+              onPointerCancel={handleViewportPointerUp}
+              onKeyDown={handleViewportKeyDown}
+              onContextMenu={(event) => event.preventDefault()}
+            />{viewportMarqueeRect && <div className="viewport-marquee" style={{
+              left: `${viewportMarqueeRect.left - (canvasRef.current?.getBoundingClientRect().left ?? 0)}px`,
+              top: `${viewportMarqueeRect.top - (canvasRef.current?.getBoundingClientRect().top ?? 0)}px`,
+              width: `${viewportMarqueeRect.width}px`,
+              height: `${viewportMarqueeRect.height}px`,
+            }} />}
+            <div className="viewport-help" aria-live="polite">{viewportControlHint}</div><div className="viewport-message"><span className="viewport-icon">◇</span><strong>{artifactLoadState === 'loading' ? '正在加载 GLB…' : artifactLoadState === 'error' ? 'GLB 加载失败' : 'GLB readback 已连接'}</strong><span>{artifactLoadState === 'error' ? `故障码：${artifactError ?? 'ARTIFACT_LOAD_FAILED'}` : `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} triangles · UV ${artifact.uv_status ?? '未知'} · tangent ${artifact.tangent_status ?? '未知'}`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试 GLB</button>}</div></> : <div className="viewport-message"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
           <div className="viewport-footer">
             <span>Project: {projectName}</span>
             <span>Versions: {versionCount}</span>
@@ -1663,8 +2409,151 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       <aside className="runtime-panel">
         <section className="panel-section"><p className="section-kicker">CALL PATH</p><h2>Codex 是唯一外部 Agent</h2><p className="panel-copy">普通用户在 Codex 中对话并上传授权参考图。Codex 通过 MCP 工具提交类型化请求，ForgeCAD 不内置模型、聊天页或 API Key。</p></section>
         <section className="panel-section"><p className="section-kicker">LIVE CONTRACT</p><div className="capability-list">{capabilities.map(([label, value]) => <div className="capability-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div></section>
+        <section className="panel-section runtime-scene-tree" aria-labelledby="scene-tree-title">
+          <div className="section-toolbar">
+            <p className="section-kicker">SCENE TREE</p>
+            <span className="scene-tree-summary">当前模型对象：{filteredSceneTree.length} 个部件</span>
+          </div>
+          <h2 id="scene-tree-title">场景树 / 语义筛选</h2>
+          <label className="scene-tree-search" htmlFor="scene-tree-query">
+            <span>搜索</span>
+            <input
+              id="scene-tree-query"
+              type="search"
+              value={sceneTreeSearch}
+              onChange={(event) => setSceneTreeSearch(event.target.value)}
+              placeholder="输入 part-id 或 material-zone-id"
+            />
+          </label>
+          <div className="scene-tree-list" role="list">
+            {filteredSceneTree.length === 0 ? (
+              <div className="panel-copy scene-tree-empty">无匹配节点。可清空搜索并重新加载模型。</div>
+            ) : filteredSceneTree.map((part) => {
+              const partVisible = partVisibility[part.partId] ?? true
+              const partLocked = Boolean(partLockState[part.partId])
+              const isPartExpanded = expandedPartId === part.partId
+              const partSelected = selectedPartId === part.partId
+              return <div className="scene-tree-part" role="listitem" key={part.partId}>
+                <div className="scene-tree-part-row">
+                  <button
+                    type="button"
+                    className={`scene-tree-row ${partSelected ? 'scene-tree-row-selected' : ''}`}
+                    onClick={() => handleSceneTreePartSelect(part.partId)}
+                    aria-expanded={isPartExpanded}
+                  >
+                    <span className="scene-tree-row-title">{part.partId}</span>
+                    <span className="scene-tree-row-meta">{part.objectCount} obj</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`scene-tree-inline-toggle ${isPartExpanded ? 'scene-tree-inline-toggle-active' : ''}`}
+                    onClick={() => setExpandedPartId((current) => current === part.partId ? null : part.partId)}
+                    aria-label={`${part.partId} 展开/收起`}
+                  >{isPartExpanded ? '−' : '+'}</button>
+                  <button
+                    type="button"
+                    className="scene-tree-inline-toggle"
+                    onClick={() => toggleTreePartVisibility(part.partId)}
+                    aria-label={`切换部件 ${part.partId} 可见性`}
+                  >{partVisible ? '👁' : '🚫'}</button>
+                  <button
+                    type="button"
+                    className={`scene-tree-inline-toggle ${partLocked ? 'scene-tree-inline-toggle-active' : ''}`}
+                    onClick={() => toggleTreePartLock(part.partId)}
+                    aria-label={`切换部件 ${part.partId} 锁定`}
+                  >{partLocked ? '🔒' : '🔓'}</button>
+                </div>
+                {isPartExpanded && <div className="scene-tree-material-list" role="list" aria-label={`${part.partId} 的材质区`}>
+                  {part.materials.map((material) => {
+                    const materialVisible = materialVisibility[material.materialZoneId] ?? true
+                    const materialSelected = selectedPartId === part.partId && selectedMaterialZone === material.materialZoneId
+                    const materialLocked = Boolean(materialLockState[material.materialZoneId])
+                    return <div
+                      role="button"
+                      tabIndex={0}
+                      key={`${part.partId}-${material.materialZoneId}`}
+                      className={`scene-tree-row scene-tree-row-child ${materialSelected ? 'scene-tree-row-selected' : ''}`}
+                      onClick={() => handleSceneTreeMaterialSelect(part.partId, material.materialZoneId)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          handleSceneTreeMaterialSelect(part.partId, material.materialZoneId)
+                        }
+                      }}
+                    >
+                      <span className="scene-tree-row-title">▸ {material.materialZoneId}</span>
+                      <span className="scene-tree-row-meta">{material.objectCount} obj</span>
+                      <button
+                        type="button"
+                        className="scene-tree-inline-toggle"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleTreeMaterialVisibility(material.materialZoneId)
+                        }}
+                        aria-label={`切换材质区 ${material.materialZoneId} 可见性`}
+                      >{materialVisible ? '👁' : '🚫'}</button>
+                      <button
+                        type="button"
+                        className={`scene-tree-inline-toggle ${materialLocked ? 'scene-tree-inline-toggle-active' : ''}`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleTreeMaterialLock(material.materialZoneId)
+                        }}
+                        aria-label={`切换材质区 ${material.materialZoneId} 锁定`}
+                      >{materialLocked ? '🔒' : '🔓'}</button>
+                    </div>
+                  })}
+                </div>}
+              </div>
+            })}
+          </div>
+          {selectedSceneObject ? (
+            <div className="selected-object-card runtime-selected-object">
+              <span className="selected-object-icon">◎</span>
+              <div>
+                <strong>当前选中</strong>
+                <small>Part：{selectedSceneObject.data.partId}</small>
+                <small>MaterialZone：{selectedSceneObject.data.materialZoneId}</small>
+                <small>ID：{selectedSceneObject.object.uuid}</small>
+                <small>
+                  锁定：
+                  {selectedSceneObjectLockState.selectedPartLocked ? 'Part 已锁' : 'Part 未锁'}
+                  /
+                  {selectedSceneObjectLockState.selectedMaterialLocked ? 'Material 已锁' : 'Material 未锁'}
+                </small>
+              </div>
+              <div className="runtime-selected-object-controls">
+                <button
+                  type="button"
+                  className="viewer-toggle"
+                  onClick={() => focusViewportTarget(selectedSceneObject.object)}
+                >聚焦</button>
+                <button
+                  type="button"
+                  className={`viewer-toggle ${selectedSceneObjectLockState.selectedPartLocked ? 'viewer-toggle-active' : ''}`}
+                  onClick={() => toggleTreePartLock(selectedSceneObject.data.partId)}
+                >{selectedSceneObjectLockState.selectedPartLocked ? '解除 Part 锁定' : '锁定 Part'}</button>
+                <button
+                  type="button"
+                  className={`viewer-toggle ${selectedSceneObjectLockState.selectedMaterialLocked ? 'viewer-toggle-active' : ''}`}
+                  onClick={() => toggleTreeMaterialLock(selectedSceneObject.data.materialZoneId)}
+                >{selectedSceneObjectLockState.selectedMaterialLocked ? '解除 Material 锁定' : '锁定 Material'}</button>
+              </div>
+            </div>
+          ) : <p className="panel-copy">未选中对象，单击模型可选中并在此显示。按 F 聚焦高亮对象。</p>}
+        </section>
         <section className="panel-section" aria-labelledby="generation-timing-title">
-          <p className="section-kicker">GENERATION TIMING</p>
+          <div className="section-toolbar">
+            <p className="section-kicker">GENERATION TIMING</p>
+            <button
+              type="button"
+              className="viewer-toggle"
+              onClick={() => setTimingSortOrder((value) => value === 'desc' ? 'asc' : 'desc')}
+              disabled={generationTimings.length < 2}
+            >
+              按任务ID排序：{timingSortOrder === 'desc' ? '降序 (从新到旧)' : '升序 (从旧到新)'}
+            </button>
+          </div>
           <h2 id="generation-timing-title">任务生成耗时统计</h2>
           <div className="workflow-summary">
             <div className="workflow-current">

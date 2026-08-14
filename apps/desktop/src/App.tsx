@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
+import { lazy, Suspense, useState, type ChangeEvent } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,7 +20,9 @@ import {
   UploadSimple,
   WarningCircle,
 } from '@phosphor-icons/react'
-import { RuntimeViewer } from './features/runtime-viewer/RuntimeViewer'
+const RuntimeViewer = lazy(() => import('./features/runtime-viewer/RuntimeViewer').then((module) => ({
+  default: module.RuntimeViewer,
+})))
 
 export type ForgePage = 'home' | 'create' | 'workbench' | 'check' | 'export'
 
@@ -156,7 +158,14 @@ export default function App() {
     setPage(nextPage)
   }
 
-  if (page === 'workbench') return <RuntimeViewer onNavigate={onNavigate} />
+  if (page === 'workbench') return <Suspense fallback={
+    <main className="runtime-shell">
+      <header className="runtime-header">
+        <div><p className="eyebrow">FORGECAD RUNTIME</p><h1>3D Runtime Viewer</h1><p className="subtitle">工作台代码懒加载中…</p></div>
+      </header>
+      <p className="panel-note">正在加载 Viewer 运行时模块</p>
+    </main>
+  }><RuntimeViewer onNavigate={onNavigate} /></Suspense>
 
   return <ProductShell page={page} onNavigate={onNavigate}>
     {page === 'home' && <HomePage onNavigate={onNavigate} onNotice={setNotice} />}
