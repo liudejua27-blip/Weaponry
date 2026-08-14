@@ -1309,7 +1309,12 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
         "failed_metrics":failed_metrics,
         "target_sha256":target_sha_value,
         "diagnostic_operation":if target_sha256.is_some() {"silhouette_part_error_get"} else if metrics.is_some() {"reference_compare_prepare"} else {"none"},
-        "repair_operation":if target_sha256.is_some() {"silhouette_fit_prepare"} else {"reference_compare_prepare"},
+        // `silhouette_fit_prepare` remains a Runtime read-only primitive, but
+        // it is not the Codex-facing next action. Exposing it here would split
+        // the observation back into a caller-steered search. The Runtime-owned
+        // Primary Form action consumes the same bounded intent and closes
+        // fit -> compile -> readback -> render -> compare itself.
+        "repair_operation":if target_sha256.is_some() {"primary_form_repair_prepare"} else {"reference_compare_prepare"},
         "continuous_search_owner":"runtime",
         "execution_allowed":false
     });

@@ -154,7 +154,7 @@
         },
         "target_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"},
         "diagnostic_operation": {"enum": ["silhouette_part_error_get", "reference_compare_prepare", "none"]},
-        "repair_operation": {"enum": ["silhouette_fit_prepare", "reference_compare_prepare", "none"]},
+        "repair_operation": {"enum": ["primary_form_repair_prepare", "silhouette_fit_prepare", "reference_compare_prepare", "none"]},
         "continuous_search_owner": {"const": "runtime"},
         "execution_allowed": {"const": false}
       }
