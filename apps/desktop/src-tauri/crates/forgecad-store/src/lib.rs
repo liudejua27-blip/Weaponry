@@ -57,6 +57,10 @@ pub struct VisualEvidenceRecord {
     pub candidate_id: String,
     pub project_id: String,
     pub reference_id: String,
+    /// The exact Runtime-owned SilhouetteTarget used for comparison, when
+    /// the comparison was target-bound.  Legacy/default comparisons may not
+    /// have one and must remain explicitly nullable.
+    pub target_sha256: Option<String>,
     pub render_set_object_sha256: String,
     pub comparison_report_object_sha256: Option<String>,
     pub visual_review_object_sha256: Option<String>,
@@ -1092,6 +1096,10 @@ impl Store {
         if !is_opaque_id(&evidence.candidate_id)
             || !is_opaque_id(&evidence.project_id)
             || !is_opaque_id(&evidence.reference_id)
+            || evidence
+                .target_sha256
+                .as_deref()
+                .is_some_and(|value| !is_sha256(value))
             || !is_sha256(&evidence.render_set_object_sha256)
             || !is_sha256(&evidence.quality_report_object_sha256)
             || evidence
@@ -1115,11 +1123,12 @@ impl Store {
         }
         let connection = self.lock_connection()?;
         connection.execute(
-            "INSERT INTO visual_evidence (candidate_id, project_id, reference_id, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) ON CONFLICT(candidate_id) DO UPDATE SET project_id=excluded.project_id, reference_id=excluded.reference_id, render_set_object_sha256=excluded.render_set_object_sha256, comparison_report_object_sha256=excluded.comparison_report_object_sha256, visual_review_object_sha256=excluded.visual_review_object_sha256, quality_report_object_sha256=excluded.quality_report_object_sha256, human_receipt_object_sha256=excluded.human_receipt_object_sha256, updated_at=excluded.updated_at",
+            "INSERT INTO visual_evidence (candidate_id, project_id, reference_id, target_sha256, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) ON CONFLICT(candidate_id) DO UPDATE SET project_id=excluded.project_id, reference_id=excluded.reference_id, target_sha256=excluded.target_sha256, render_set_object_sha256=excluded.render_set_object_sha256, comparison_report_object_sha256=excluded.comparison_report_object_sha256, visual_review_object_sha256=excluded.visual_review_object_sha256, quality_report_object_sha256=excluded.quality_report_object_sha256, human_receipt_object_sha256=excluded.human_receipt_object_sha256, updated_at=excluded.updated_at",
             params![
                 evidence.candidate_id,
                 evidence.project_id,
                 evidence.reference_id,
+                evidence.target_sha256,
                 evidence.render_set_object_sha256,
                 evidence.comparison_report_object_sha256,
                 evidence.visual_review_object_sha256,
@@ -1139,20 +1148,21 @@ impl Store {
         let connection = self.lock_connection()?;
         Ok(connection
             .query_row(
-                "SELECT candidate_id, project_id, reference_id, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at FROM visual_evidence WHERE candidate_id = ?1",
+                "SELECT candidate_id, project_id, reference_id, target_sha256, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at FROM visual_evidence WHERE candidate_id = ?1",
                 params![candidate_id],
                 |row| {
                     Ok(VisualEvidenceRecord {
                         candidate_id: row.get(0)?,
                         project_id: row.get(1)?,
                         reference_id: row.get(2)?,
-                        render_set_object_sha256: row.get(3)?,
-                        comparison_report_object_sha256: row.get(4)?,
-                        visual_review_object_sha256: row.get(5)?,
-                        quality_report_object_sha256: row.get(6)?,
-                        human_receipt_object_sha256: row.get(7)?,
-                        created_at: row.get(8)?,
-                        updated_at: row.get(9)?,
+                        target_sha256: row.get(3)?,
+                        render_set_object_sha256: row.get(4)?,
+                        comparison_report_object_sha256: row.get(5)?,
+                        visual_review_object_sha256: row.get(6)?,
+                        quality_report_object_sha256: row.get(7)?,
+                        human_receipt_object_sha256: row.get(8)?,
+                        created_at: row.get(9)?,
+                        updated_at: row.get(10)?,
                     })
                 },
             )
@@ -2967,6 +2977,7 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
              candidate_id TEXT PRIMARY KEY REFERENCES candidates(candidate_id),
              project_id TEXT NOT NULL REFERENCES projects(project_id),
              reference_id TEXT NOT NULL REFERENCES reference_evidence(reference_id),
+             target_sha256 TEXT REFERENCES objects(sha256),
              render_set_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
              comparison_report_object_sha256 TEXT,
              visual_review_object_sha256 TEXT REFERENCES objects(sha256),
@@ -2984,6 +2995,7 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
         "visual_review_object_sha256",
         "TEXT",
     )?;
+    ensure_column(&transaction, "visual_evidence", "target_sha256", "TEXT")?;
     // Agentic session/checkpoint state is an additive Runtime V1 extension.
     // It creates no rows from existing projects and never opens or migrates a
     // legacy database (that gate ran before this transaction).

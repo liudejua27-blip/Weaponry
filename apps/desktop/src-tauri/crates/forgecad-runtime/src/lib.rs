@@ -2149,8 +2149,9 @@ impl Runtime {
         let target_sha256 = object
             .get("target_sha256")
             .map(|value| required_value_sha(Some(value), "target_sha256"))
-            .transpose()?;
-        if let Some(target_sha256) = target_sha256 {
+            .transpose()?
+            .map(str::to_owned);
+        if let Some(target_sha256) = target_sha256.as_deref() {
             let target = self.read_silhouette_target(target_sha256)?;
             if target.get("reference_id").and_then(Value::as_str) != Some(reference_id) {
                 return Err(RuntimeError::InvalidInput(
@@ -2163,7 +2164,7 @@ impl Runtime {
             Some(value)
                 if value.get("schema_version").and_then(Value::as_str)
                     == Some("CameraCalibrationRef@1") => {
-                let target_sha256 = target_sha256.ok_or_else(|| {
+                let target_sha256 = target_sha256.as_deref().ok_or_else(|| {
                     RuntimeError::InvalidInput(
                         "CAMERA_CALIBRATION_INVALID: CameraCalibrationRef@1 requires target_sha256".to_owned(),
                     )
@@ -2393,6 +2394,7 @@ impl Runtime {
             candidate_id: candidate_id.to_owned(),
             project_id: project_id.to_owned(),
             reference_id: reference_id.to_owned(),
+            target_sha256: target_sha256.clone(),
             render_set_object_sha256: render_set_object.record.sha256.clone(),
             comparison_report_object_sha256: Some(comparison_object.record.sha256.clone()),
             visual_review_object_sha256: None,
@@ -2520,6 +2522,7 @@ impl Runtime {
             "candidate_id":candidate_id,
             "project_id":evidence.project_id,
             "reference_id":evidence.reference_id,
+            "target_sha256":evidence.target_sha256,
             "render_set_hash":evidence.render_set_object_sha256,
             "comparison_report_hash":evidence.comparison_report_object_sha256,
             "quality_report_hash":evidence.quality_report_object_sha256,
@@ -11482,6 +11485,25 @@ mod tests {
         assert_eq!(
             ref_bound_visual["render_set"]["camera_hash"],
             selected_camera["camera_hash"]
+        );
+        let target_bound_viewer = runtime
+            .visual_evidence(&candidate_id)
+            .expect("target-bound Viewer evidence");
+        assert_eq!(target_bound_viewer["target_sha256"], target_sha256);
+        let target_bound_observation = runtime
+            .agentic_scene_observe(&project.project_id, Some(&candidate_id))
+            .expect("target-bound Agentic observation");
+        assert_eq!(
+            target_bound_observation["visual_evidence_bundle"]["hashes"]["target_sha256"],
+            target_sha256
+        );
+        assert_eq!(
+            target_bound_observation["design_critic_report"]["primary_form_directive"]["owner"],
+            "runtime"
+        );
+        assert_eq!(
+            target_bound_observation["design_critic_report"]["primary_form_directive"]["target_sha256"],
+            target_sha256
         );
         // Restore the ordinary compatibility comparison as the active review
         // evidence for the remainder of this legacy renderer fixture. The

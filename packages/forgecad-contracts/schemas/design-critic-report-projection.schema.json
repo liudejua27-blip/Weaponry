@@ -27,6 +27,7 @@
       "uniqueItems": true,
       "items": {"$ref": "https://forgecad.local/contracts/repair-intent-projection.schema.json"}
     },
+    "primary_form_directive": {"$ref": "#/$defs/primary_form_directive"},
     "strict_visual_gate": {"enum": ["passed", "failed", "unknown"]},
     "lineage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/lineage"},
     "canonical_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
@@ -41,6 +42,7 @@
     "status",
     "issues",
     "repair_intents",
+    "primary_form_directive",
     "strict_visual_gate",
     "lineage",
     "canonical_sha256"
@@ -97,8 +99,64 @@
         "operation": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"},
         "scope": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"},
         "part_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
-        "parameters": {"type": "object", "additionalProperties": false},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "target_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"}
+          }
+        },
         "allowed": {"type": "boolean"}
+      }
+    },
+    "primary_form_directive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "owner",
+        "objective",
+        "metric_priority",
+        "failed_metrics",
+        "target_sha256",
+        "diagnostic_operation",
+        "repair_operation",
+        "continuous_search_owner",
+        "execution_allowed"
+      ],
+      "properties": {
+        "status": {"enum": ["ready", "requires-target", "passed", "unknown"]},
+        "owner": {"const": "runtime"},
+        "objective": {"const": "primary-form-convergence"},
+        "metric_priority": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
+        },
+        "failed_metrics": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["metric_name", "direction", "observed", "threshold", "evidence_hash"],
+            "properties": {
+              "metric_name": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"},
+              "direction": {"enum": ["min", "max"]},
+              "observed": {"type": "number", "minimum": 0, "maximum": 1},
+              "threshold": {"type": "number", "minimum": 0, "maximum": 1},
+              "evidence_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"}
+            }
+          }
+        },
+        "target_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"},
+        "diagnostic_operation": {"enum": ["silhouette_part_error_get", "reference_compare_prepare", "none"]},
+        "repair_operation": {"enum": ["silhouette_fit_prepare", "reference_compare_prepare", "none"]},
+        "continuous_search_owner": {"const": "runtime"},
+        "execution_allowed": {"const": false}
       }
     }
   }

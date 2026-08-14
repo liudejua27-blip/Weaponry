@@ -401,6 +401,18 @@ fn read_visual_context(
             return Err(binding_error("visual and geometry references differ"));
         }
     }
+    if let Some(target_sha256) = evidence.target_sha256.as_deref() {
+        let target = runtime.read_silhouette_target(target_sha256)?;
+        if target.get("reference_id").and_then(Value::as_str)
+            != Some(evidence.reference_id.as_str())
+            || target.get("reference_sha256").and_then(Value::as_str)
+                != Some(reference.object_sha256.as_str())
+        {
+            return Err(binding_error(
+                "silhouette target is not bound to the visual reference",
+            ));
+        }
+    }
 
     let render_set = read_json_object(runtime, &evidence.render_set_object_sha256, "RenderSet")?;
     super::validate_render_set_v2_output(&render_set)?;
@@ -505,6 +517,7 @@ fn read_visual_context(
         "comparison_report":comparison,
         "quality_report":quality_report,
         "hashes":{
+            "target_sha256":evidence.target_sha256,
             "render_set_hash":evidence.render_set_object_sha256,
             "comparison_report_hash":evidence.comparison_report_object_sha256,
             "quality_report_hash":evidence.quality_report_object_sha256,
@@ -518,6 +531,7 @@ fn read_visual_context(
             "artifact_sha256":render_set["artifact_sha256"],
             "program_sha256":render_set["program_sha256"],
             "camera_hash":render_set["camera_hash"],
+            "target_sha256":evidence.target_sha256,
             "render_set_hash":evidence.render_set_object_sha256,
             "comparison_report_hash":evidence.comparison_report_object_sha256,
             "quality_report_hash":evidence.quality_report_object_sha256
@@ -552,6 +566,7 @@ fn unknown_visual_context(
             "comparison_report":Value::Null,
             "quality_report":Value::Null,
             "hashes":{
+                "target_sha256":Value::Null,
                 "render_set_hash":Value::Null,
                 "comparison_report_hash":Value::Null,
                 "quality_report_hash":quality_report_hash,
@@ -1152,6 +1167,7 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
         .get("comparison_report")
         .and_then(|report| report.get("metrics"));
     let mut issues = Vec::new();
+    let mut failed_metrics = Vec::new();
     if let Some(metrics) = metrics {
         let checks = [
             ("silhouette_iou", "min", 0.90, metrics.get("silhouette_iou")),
@@ -1198,6 +1214,13 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
                 observed > threshold
             };
             if failed {
+                failed_metrics.push(json!({
+                    "metric_name":metric_name,
+                    "direction":direction,
+                    "observed":observed,
+                    "threshold":threshold,
+                    "evidence_hash":comparison_hash
+                }));
                 let issue_key = canonical_json_hash(
                     &json!({"candidate_id":context.candidate.as_ref().map(|candidate| candidate.candidate_id.clone()),"metric_name":metric_name,"observed":observed,"threshold":threshold,"evidence_hash":comparison_hash}),
                 );
@@ -1212,7 +1235,7 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
                     "threshold":threshold,
                     "observed":observed,
                     "evidence_hash":comparison_hash,
-                    "proposed_bounded_action":{"operation":"reference_compare_prepare","scope":"candidate-wide-evidence-recheck","part_id":Value::Null,"parameters":{},"allowed":true},
+                    "proposed_bounded_action":{"operation":if context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).is_some() {"silhouette_part_error_get"} else {"reference_compare_prepare"},"scope":if context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).is_some() {"candidate-bound-target-diagnostic"} else {"candidate-wide-evidence-recheck"},"part_id":Value::Null,"parameters":context.visual.bundle.get("hashes").and_then(|hashes| hashes.get("target_sha256")).and_then(Value::as_str).map(|target| json!({"target_sha256":target})).unwrap_or_else(|| json!({})),"allowed":true},
                     "risk":"A global visual metric does not identify a single editable Part; do not apply an unbound geometry patch.",
                     "status":"fail",
                     "knowledge_state":"observed",
@@ -1265,6 +1288,31 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
             "lineage":context.lineage.clone()
         }));
     }
+    let target_sha256 = context
+        .visual
+        .bundle
+        .get("hashes")
+        .and_then(|hashes| hashes.get("target_sha256"))
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let target_sha_value = target_sha256
+        .clone()
+        .map(Value::String)
+        .unwrap_or(Value::Null);
+    let primary_form_directive = json!({
+        "status":if failed_metrics.is_empty() {
+            if context.quality.strict_visual_gate == "passed" {"passed"} else {"unknown"}
+        } else if target_sha256.is_some() {"ready"} else {"requires-target"},
+        "owner":"runtime",
+        "objective":"primary-form-convergence",
+        "metric_priority":["boundary_f1_4px","silhouette_iou","bbox_edge_error","centroid_error","landmark_coverage","landmark_nme","region_median_iou","critical_region_min_iou"],
+        "failed_metrics":failed_metrics,
+        "target_sha256":target_sha_value,
+        "diagnostic_operation":if target_sha256.is_some() {"silhouette_part_error_get"} else if metrics.is_some() {"reference_compare_prepare"} else {"none"},
+        "repair_operation":if target_sha256.is_some() {"silhouette_fit_prepare"} else {"reference_compare_prepare"},
+        "continuous_search_owner":"runtime",
+        "execution_allowed":false
+    });
     if context
         .candidate
         .as_ref()
@@ -1298,25 +1346,48 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
     } else {
         "unknown"
     };
-    let repair_intents = issues
-        .iter()
-        .filter_map(|issue| {
-            let issue_id = issue.get("issue_id").and_then(Value::as_str)?;
-            let repair_key = canonical_json_hash(&json!({"issue_id":issue_id,"lineage":context.lineage.clone()}));
-            Some(json!({
-                "repair_intent_id":format!("repair-{}", &repair_key[..24]),
-                "stage":stage,
-                "issue_ids":[issue_id],
-                "scope":{"part_id":Value::Null,"part_id_status":"unknown","material_zone_id":Value::Null,"material_zone_id_status":"unknown"},
-                "bounded_action":{"operation":issue.get("proposed_bounded_action").and_then(|action| action.get("operation")),"parameters":{},"requires_new_candidate":true,"arbitrary_script":false},
-                "status":"proposed",
-                "projection_only":true,
-                "execution_allowed":false,
-                "reason":"RepairIntent is evidence-bound planning output; the existing typed prepare/approval flow must execute any change.",
-                "lineage":context.lineage.clone()
-            }))
-        })
-        .collect::<Vec<_>>();
+    let repair_intents = if !failed_metrics.is_empty() {
+        let issue_ids = issues
+            .iter()
+            .filter(|issue| issue.get("status").and_then(Value::as_str) == Some("fail"))
+            .filter_map(|issue| issue.get("issue_id").and_then(Value::as_str))
+            .take(8)
+            .collect::<Vec<_>>();
+        let repair_key =
+            canonical_json_hash(&json!({"issue_ids":issue_ids,"lineage":context.lineage.clone()}));
+        vec![json!({
+            "repair_intent_id":format!("repair-{}", &repair_key[..24]),
+            "stage":stage,
+            "issue_ids":issue_ids,
+            "scope":{"part_id":Value::Null,"part_id_status":"unknown","material_zone_id":Value::Null,"material_zone_id_status":"unknown"},
+            "bounded_action":{"operation":primary_form_directive["repair_operation"],"parameters":target_sha256.as_ref().map(|target| json!({"target_sha256":target})).unwrap_or_else(|| json!({})),"requires_new_candidate":true,"arbitrary_script":false},
+            "status":"proposed",
+            "projection_only":true,
+            "execution_allowed":false,
+            "reason":"One Runtime-owned bounded Primary Form action covers the priority-ordered failures; Codex selects/approves the next action but does not search continuous parameters.",
+            "lineage":context.lineage.clone()
+        })]
+    } else {
+        issues
+            .iter()
+            .filter_map(|issue| {
+                let issue_id = issue.get("issue_id").and_then(Value::as_str)?;
+                let repair_key = canonical_json_hash(&json!({"issue_id":issue_id,"lineage":context.lineage.clone()}));
+                Some(json!({
+                    "repair_intent_id":format!("repair-{}", &repair_key[..24]),
+                    "stage":stage,
+                    "issue_ids":[issue_id],
+                    "scope":{"part_id":Value::Null,"part_id_status":"unknown","material_zone_id":Value::Null,"material_zone_id_status":"unknown"},
+                    "bounded_action":{"operation":issue.get("proposed_bounded_action").and_then(|action| action.get("operation")),"parameters":{},"requires_new_candidate":true,"arbitrary_script":false},
+                    "status":"proposed",
+                    "projection_only":true,
+                    "execution_allowed":false,
+                    "reason":"RepairIntent is evidence-bound planning output; the existing typed prepare/approval flow must execute any change.",
+                    "lineage":context.lineage.clone()
+                }))
+            })
+            .collect::<Vec<_>>()
+    };
     canonicalize(json!({
         "schema_version":"DesignCriticReport@1",
         "projection_status":AGENTIC_PROJECTION_STATUS,
@@ -1327,6 +1398,7 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
         "status":critic_status,
         "issues":issues,
         "repair_intents":repair_intents,
+        "primary_form_directive":primary_form_directive,
         "strict_visual_gate":context.quality.strict_visual_gate.clone(),
         "lineage":context.lineage.clone(),
         "canonical_sha256":""
@@ -1607,6 +1679,7 @@ mod tests {
                 candidate_id: second.candidate.candidate_id.clone(),
                 project_id: foreign_project.project_id.clone(),
                 reference_id: foreign_reference.reference_id,
+                target_sha256: None,
                 render_set_object_sha256: render_object.record.sha256,
                 comparison_report_object_sha256: None,
                 visual_review_object_sha256: None,
