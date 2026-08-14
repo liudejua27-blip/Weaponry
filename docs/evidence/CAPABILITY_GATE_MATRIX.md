@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Primary Form action budget Gate：修复前 real-Codex receipt 证明 `primary_form_repair_prepare` 把 detail 请求的 `max_evaluations=64` 静默截为 24；Runtime 现恢复固定 64 cap，并以 helper 统一约束 `max_iterations=1`。端到端 Runtime fixture 实际消费 63 次 bounded fit，focused/full source Gate 通过；修复后 real-Codex 复跑在 authoring/hash/prepare 阶段 `BLOCKED`，没有新的 compare/likeness 结果。该 Gate 是 Runtime 收敛预算与 Codex 单动作边界 PASS，不是视觉质量 PASS；仍保留 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark incomplete binding、人评/PBR/export-restart/360 未运行。
+
 2026-08-15 packaged Render Worker landing Gate：同一 current source cohort 的 Dev.app Resource allowlist 精确包含 `forgecad-mcp`、`forgecad-runtime`、`forgecad-geometry-worker`、`forgecad-render-worker`；ad-hoc deep-strict package verify 通过，packaged Runtime 通过 sibling Render Worker 完成九 AOV/固定 512px render/两次 deterministic hash/compare/image-block transport，隔离 probe 无持久用户数据写入。该 Gate 是 packaged process/resource/protocol PASS；输入为 synthetic reference，`structural_visual_claim=NOT_CLAIMED`，不改变 `QUALITY_TARGET_NOT_MET`、human/PBR/export-restart/360 未运行状态。
 
 2026-08-14 Primary Form 联合 proposal 回退 Gate：Runtime 对 dominant Part 的一次性联合 proposal 在严格未改善时固定重试 50% 与 25% authored-baseline interpolation，再进入 deterministic coordinate probes；回退不扩大 bounds、不交给 Codex 连续搜索。focused/full Runtime、contracts、Render Worker boundary PASS；无新的视觉 receipt，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。

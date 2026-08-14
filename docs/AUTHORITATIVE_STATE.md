@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Primary Form action budget truth：修复前真实 receipt `docs/evidence/mcp010f/primary-form-budget-pre-fix-real-codex-20260815.json` 暴露了 `max_evaluations=64 → fit_evaluations=24` 的 Runtime 外层截断；当前源码 cap 已恢复为 64，端到端 focused fixture 证明 `primary_form_repair_prepare` 在 64 请求下完成 63–64 bounded evaluations，`max_iterations` 仍为 1。Dev.app cohort `c521bf28…c4a5` 已安装；修复后 real-Codex receipt 在 authoring/hash/prepare 阶段阻断，没有新的视觉比较或质量结果。该源码修复不改写 retained observation，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 packaged Render Worker 状态：Dev.app 当前 cohort `aa5eaaa2…5827` 已将 MCP、Runtime、Geometry Worker、Render Worker 四个资源一起安装；Resource allowlist、ad-hoc deep-strict 签名、同 cohort identity 与 packaged raw stdio 均通过。Runtime 在 sibling Render Worker 进程边界内完成九 AOV、固定 renderer、两次 deterministic hash、compare 与 image-block transport，且未写持久用户数据。该状态只把 packaged resource/process/protocol boundary 记为 PASS；raw 输入为 synthetic reference，`QUALITY_TARGET_NOT_MET`、`structural_visual_claim=NOT_CLAIMED`、human/PBR/export-restart/360 未运行事实保持不变。
 
 2026-08-14 Primary Form Part-priority 修复：Runtime 不再只按 Rig 提案改变量排序 bounded geometry probes；在已有同 candidate 的 Part-ID boundary evidence 时，先按聚合的 Part contour distance 优先覆盖主导可见误差 Part，再按参数 delta 与稳定 ID tie-break。无 Part evidence 仍使用原排序，所有值/边界/Worker 调用保持 Runtime-owned。focused/full Runtime 与 MCP010F source Gate PASS；新的授权参考视觉复验因原图字节不在当前 workspace 而阻断，不能升级 `QUALITY_TARGET_NOT_MET` 或 benchmark 状态。

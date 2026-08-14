@@ -103,11 +103,30 @@ const CAMERA_FIT_RUNTIME_MAX_EVALUATIONS: usize = 8;
 // binding while keeping the request bounded.
 const CAMERA_FIT_FULL_RESOLUTION_MAX_EVALUATIONS: usize = 5;
 // A Primary Form repair is one MCP action, so its nested Runtime-owned
-// search must have a smaller ceiling than the standalone diagnostic fit. This
-// keeps the typed action inside the MCP tool timeout while leaving continuous
-// parameter search in Runtime/Workers rather than pushing it back into Codex.
-const PRIMARY_FORM_REPAIR_MAX_EVALUATIONS: u64 = 24;
+// search stays within the same fixed 64-evaluation ceiling as the standalone
+// fit. The action remains bounded and keeps continuous parameter search in
+// Runtime/Workers rather than pushing it back into Codex.
+const PRIMARY_FORM_REPAIR_MAX_EVALUATIONS: u64 = 64;
 const PRIMARY_FORM_REPAIR_MAX_ITERATIONS: u64 = 1;
+
+fn normalize_primary_form_repair_optimizer(optimizer: &mut serde_json::Map<String, Value>) {
+    let requested_evaluations = optimizer
+        .get("max_evaluations")
+        .and_then(Value::as_u64)
+        .unwrap_or(PRIMARY_FORM_REPAIR_MAX_EVALUATIONS);
+    let requested_iterations = optimizer
+        .get("max_iterations")
+        .and_then(Value::as_u64)
+        .unwrap_or(PRIMARY_FORM_REPAIR_MAX_ITERATIONS);
+    optimizer.insert(
+        "max_evaluations".to_owned(),
+        Value::from(requested_evaluations.min(PRIMARY_FORM_REPAIR_MAX_EVALUATIONS)),
+    );
+    optimizer.insert(
+        "max_iterations".to_owned(),
+        Value::from(requested_iterations.min(PRIMARY_FORM_REPAIR_MAX_ITERATIONS)),
+    );
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum RuntimeError {
@@ -1865,22 +1884,7 @@ fn boundary_error_segments_for_masks(
             .get_mut("optimizer")
             .and_then(Value::as_object_mut)
         {
-            let requested_evaluations = optimizer
-                .get("max_evaluations")
-                .and_then(Value::as_u64)
-                .unwrap_or(PRIMARY_FORM_REPAIR_MAX_EVALUATIONS);
-            let requested_iterations = optimizer
-                .get("max_iterations")
-                .and_then(Value::as_u64)
-                .unwrap_or(PRIMARY_FORM_REPAIR_MAX_ITERATIONS);
-            optimizer.insert(
-                "max_evaluations".to_owned(),
-                Value::from(requested_evaluations.min(PRIMARY_FORM_REPAIR_MAX_EVALUATIONS)),
-            );
-            optimizer.insert(
-                "max_iterations".to_owned(),
-                Value::from(requested_iterations.min(PRIMARY_FORM_REPAIR_MAX_ITERATIONS)),
-            );
+            normalize_primary_form_repair_optimizer(optimizer);
         }
         fit_request["canonical_sha256"] = Value::String(String::new());
         fit_request["canonical_sha256"] =
@@ -14366,7 +14370,7 @@ mod tests {
             "target_sha256":target["target_sha256"].clone(),
             "rig":rig.clone(),
             "base_camera":default_camera_calibration(),
-            "optimizer":{"algorithm":"coordinate_descent","max_iterations":2,"max_evaluations":8,"step_fraction":0.1},
+            "optimizer":{"algorithm":"coordinate_descent","max_iterations":2,"max_evaluations":64,"step_fraction":0.1},
             "canonical_sha256":""
         });
         primary_form_request["canonical_sha256"] =
@@ -14397,6 +14401,10 @@ mod tests {
             assert_eq!(primary_form["status"], "no_improvement");
             assert_eq!(primary_form["candidate_state"], "unchanged");
         }
+        let primary_form_evaluations = primary_form["fit_result"]["evaluations"]
+            .as_u64()
+            .expect("Primary Form fit evaluation count");
+        assert!((63..=64).contains(&primary_form_evaluations));
         let fit_camera = fit["selected_camera"].clone();
         let fit_camera_ref = json!({
             "schema_version": "CameraCalibrationRef@1",
@@ -14532,6 +14540,30 @@ mod tests {
         assert_eq!(primary_form_probe_coordinate(&ranked, ranked.len() + 1), Some(0));
         assert_eq!(primary_form_probe_coordinate(&[], 1), None);
         assert_eq!(primary_form_probe_coordinate(&ranked, 0), None);
+    }
+
+    #[test]
+    fn primary_form_repair_optimizer_preserves_bounded_detail_budget() {
+        let mut optimizer = json!({
+            "max_evaluations": 64,
+            "max_iterations": 2
+        });
+        normalize_primary_form_repair_optimizer(optimizer.as_object_mut().unwrap());
+        assert_eq!(optimizer["max_evaluations"], 64);
+        assert_eq!(optimizer["max_iterations"], 1);
+
+        let mut oversized = json!({
+            "max_evaluations": 128,
+            "max_iterations": 8
+        });
+        normalize_primary_form_repair_optimizer(oversized.as_object_mut().unwrap());
+        assert_eq!(oversized["max_evaluations"], 64);
+        assert_eq!(oversized["max_iterations"], 1);
+
+        let mut defaults = json!({});
+        normalize_primary_form_repair_optimizer(defaults.as_object_mut().unwrap());
+        assert_eq!(defaults["max_evaluations"], 64);
+        assert_eq!(defaults["max_iterations"], 1);
     }
 
     #[test]
