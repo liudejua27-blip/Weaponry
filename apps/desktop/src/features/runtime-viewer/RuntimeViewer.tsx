@@ -20,8 +20,10 @@ import {
 } from './agentic-session'
 
 const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
-const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键框选 · 右键旋转 · 中键平移 · 滚轮缩放 · 1/2/3/4/5/6 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
-const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选', '右键：旋转', '中键：平移', '滚轮：缩放', '1～6：切换视角', 'Z/X/C：光照预设', 'F：聚焦', 'R：重置视角']
+const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键：框选 · 右键：旋转 · 中键：平移 · 滚轮：缩放 · 1/2/3/4/5/6 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
+const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选（按住 Shift + 左键拖拽）', '右键：旋转', '中键：平移', '滚轮：缩放', '1～6：切换视角', 'Z/X/C：光照预设', 'F：聚焦', 'R：重置视角', 'Esc：清选']
+const VIEWPORT_KEYBOARD_HINTS_NO_FOCUS = ['请先点击视口后再使用键盘快捷键']
+const VIEWPORT_KEYBOARD_HINTS_ACTIVE = ['当前：快捷键生效']
 type ThreeRuntimeCore = typeof import('./three-runtime-core')
 type ThreeRuntimeCoreMath = Pick<ThreeRuntimeCore, 'Box3' | 'Vector3'>
 
@@ -160,6 +162,10 @@ type CandidateGenerationTiming = {
   statusLabel: string
   statusClass: 'passed' | 'failed' | 'not-run'
   anomaly: boolean
+  qualityGate: '通过' | '未通过' | '待绑定'
+  artifactReady: boolean
+  compareReady: boolean
+  qualityReady: boolean
 }
 
 type CandidateSortMode = 'time' | 'id'
@@ -386,6 +392,14 @@ function buildSnapshotMetricDelta(current: number, previous: number | null, labe
   }
 }
 
+function buildSnapshotTextMetricDelta(current: string, previous: string | null, label: string): CandidateSnapshotDelta {
+  return {
+    label,
+    value: `${current}${previous === null ? '' : `（${previous}）`}`,
+    direction: current === previous ? 'same' : 'unknown',
+  }
+}
+
 function snapshotStatusClass(status: CandidateSnapshotDiffRow['status']): string {
   if (status === 'changed') return 'workflow-gate-status-failed'
   if (status === 'missing') return 'workflow-gate-status-not-run'
@@ -403,9 +417,9 @@ function formatBindingStatusText(binding: SnapshotBindingState): string {
   const chunks = [
     binding.artifact ? 'GLB：已绑定' : 'GLB：未绑定',
     binding.reference ? '参考：已绑定' : '参考：未绑定',
-    binding.renderSet ? 'RenderSet：已绑定' : 'RenderSet：未绑定',
-    binding.comparison ? 'Comparison：已绑定' : 'Comparison：未绑定',
-    binding.qualityReport ? 'Quality：已绑定' : 'Quality：未绑定',
+    binding.renderSet ? '渲染集：已绑定' : '渲染集：未绑定',
+    binding.comparison ? '比对：已绑定' : '比对：未绑定',
+    binding.qualityReport ? '质量报告：已绑定' : '质量报告：未绑定',
     binding.qualityGate === 'pass' ? '质量门：通过' : binding.qualityGate === 'fail' ? '质量门：未通过' : '质量门：待确认',
   ]
   return chunks.join(' ｜ ')
@@ -1236,9 +1250,11 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const [sceneTreeSearch, setSceneTreeSearch] = useState('')
   const [sceneTreeFilter, setSceneTreeFilter] = useState<SceneTreeVisibilityFilter>('all')
   const [expandedPartIds, setExpandedPartIds] = useState<Record<string, boolean>>({})
+  const [viewportFocused, setViewportFocused] = useState(false)
   const [viewportLightPreset, setViewportLightPreset] = useState<ViewportLightPreset>('neutral')
   const [viewportCameraPreset, setViewportCameraPreset] = useState<ViewportCameraPreset>('front')
   const [viewportMarqueeRect, setViewportMarqueeRect] = useState<ViewportMarqueeRect | null>(null)
+  const [viewportActionHint, setViewportActionHint] = useState<string>('等待输入')
   const contourDrawingRef = useRef(false)
   const comparePanRef = useRef<{ active: boolean; pointerId: number; startX: number; startY: number; originX: number; originY: number }>({ active: false, pointerId: -1, startX: 0, startY: 0, originX: 0, originY: 0 })
   const viewportDragRef = useRef<{ mode: ViewportDragMode; pointerId: number; startX: number; startY: number; endX: number; endY: number }>({ mode: 'idle', pointerId: -1, startX: 0, startY: 0, endX: 0, endY: 0 })
@@ -1349,27 +1365,39 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const versionCount = project?.versions?.length ?? 0
   const projectId = project?.project?.project_id
   const candidateEntries = project?.candidates ?? []
-  const candidateSummaries = useMemo(() => candidateEntries
-    .map((entry) => entry.candidate)
-    .filter((candidate): candidate is NonNullable<CandidateView['candidate']> => Boolean(candidate?.candidate_id))
+  const sortedCandidateEntries = useMemo(() => candidateEntries
+    .filter((entry): entry is Required<Pick<CandidateView, 'candidate'>> & CandidateView => Boolean(entry.candidate?.candidate_id))
     .sort((left, right) => {
       if (candidateSortMode === 'id') {
-        const leftId = left.candidate_id ?? ''
-        const rightId = right.candidate_id ?? ''
+        const leftId = left.candidate?.candidate_id ?? ''
+        const rightId = right.candidate?.candidate_id ?? ''
         return candidateSortOrder === 'newest'
           ? rightId.localeCompare(leftId)
           : leftId.localeCompare(rightId)
       }
-      const leftTime = parseEpochMillis(left.updated_at ?? left.created_at) ?? 0
-      const rightTime = parseEpochMillis(right.updated_at ?? right.created_at) ?? 0
+      const leftCandidate = left.candidate
+      const rightCandidate = right.candidate
+      const leftTime = parseEpochMillis(leftCandidate?.updated_at ?? leftCandidate?.created_at) ?? 0
+      const rightTime = parseEpochMillis(rightCandidate?.updated_at ?? rightCandidate?.created_at) ?? 0
       const timeDifference = candidateSortOrder === 'newest' ? rightTime - leftTime : leftTime - rightTime
       return timeDifference || (candidateSortOrder === 'newest'
-        ? (right.candidate_id ?? '').localeCompare(left.candidate_id ?? '')
-        : (left.candidate_id ?? '').localeCompare(right.candidate_id ?? ''))
+        ? (right.candidate?.candidate_id ?? '').localeCompare(left.candidate?.candidate_id ?? '')
+        : (left.candidate?.candidate_id ?? '').localeCompare(right.candidate?.candidate_id ?? ''))
     }), [candidateEntries, candidateSortMode, candidateSortOrder])
-  const automaticCandidateId = candidateSortOrder === 'newest'
-    ? candidateSummaries[0]?.candidate_id
-    : candidateSummaries[candidateSummaries.length - 1]?.candidate_id
+  const candidateSummaries = useMemo(() => sortedCandidateEntries
+    .map((entry) => entry.candidate)
+    .filter((candidate): candidate is NonNullable<CandidateView['candidate']> => Boolean(candidate?.candidate_id)),
+  [sortedCandidateEntries])
+  const automaticCandidateId = useMemo(() => {
+    if (sortedCandidateEntries.length === 0) return null
+    const bestBound = sortedCandidateEntries.find((entry) => hasCandidateBoundVisualEvidence(entry, projectId) && hasCandidateBoundArtifact(entry, projectId))
+    if (bestBound?.candidate?.candidate_id) return bestBound.candidate.candidate_id
+    const bestArtifact = sortedCandidateEntries.find((entry) => hasCandidateBoundArtifact(entry, projectId))
+    if (bestArtifact?.candidate?.candidate_id) return bestArtifact.candidate.candidate_id
+    return candidateSortOrder === 'newest'
+      ? sortedCandidateEntries[0]?.candidate?.candidate_id ?? null
+      : sortedCandidateEntries[sortedCandidateEntries.length - 1]?.candidate?.candidate_id ?? null
+  }, [candidateSortOrder, sortedCandidateEntries, projectId])
   const activeCandidateId = selectedCandidateId ?? automaticCandidateId
   const selectedCandidateIsManual = selectedCandidateId !== null
   useEffect(() => {
@@ -1498,15 +1526,33 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     }
   }, [selectedSceneObject, partLockState, materialLockState])
   const viewportHintItems = useMemo(() => [
+    viewportActionHint,
+    viewportFocused ? '视口快捷键已就绪' : '视口未聚焦 · 点击空白区域或画布获取快捷键',
     `视图状态：${selectedObjectId ? `已选中 ${selectedSceneObject?.data.partId ?? '对象'}` : '未选中'}`,
-    ...VIEWPORT_KEYBOARD_HINTS,
-  ], [selectedObjectId, selectedSceneObject?.data.partId])
+    ...(viewportFocused
+      ? [...VIEWPORT_KEYBOARD_HINTS_ACTIVE, ...VIEWPORT_KEYBOARD_HINTS]
+      : VIEWPORT_KEYBOARD_HINTS_NO_FOCUS),
+  ], [viewportActionHint, selectedObjectId, selectedSceneObject?.data.partId, viewportFocused])
   const refreshViewerData = () => setModelRefreshNonce((value) => value + 1)
   const setSceneTreePartExpanded = (partId: string, expanded: boolean) => {
     setExpandedPartIds((current) => {
       const next = { ...current }
       if (expanded) next[partId] = true
       else delete next[partId]
+      return next
+    })
+  }
+  const setAllSceneTreeExpanded = (expanded: boolean) => {
+    if (!expanded) {
+      setExpandedPartIds({})
+      return
+    }
+    setExpandedPartIds((current) => {
+      if (viewerSceneTree.length === 0) return current
+      const next: Record<string, boolean> = {}
+      for (const part of viewerSceneTree) {
+        next[part.partId] = true
+      }
       return next
     })
   }
@@ -1709,6 +1755,13 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       const id = entry.candidate?.candidate_id
       if (!id) continue
       const state = entry.candidate?.state ?? 'unknown'
+      const snapshot = buildCandidateSnapshotRecord(entry, projectId)
+      const qualityGate: CandidateGenerationTiming['qualityGate'] = snapshot?.hasVisualEvidenceBinding
+        ? (snapshot.qualityPass ? '通过' : '未通过')
+        : '待绑定'
+      const artifactReady = Boolean(snapshot?.artifactId)
+      const compareReady = Boolean(snapshot?.comparisonReportHash)
+      const qualityReady = Boolean(snapshot?.qualityReportHash)
       const outcome = candidateGenerationOutcome(state)
       const createdAtRaw = entry.candidate?.created_at
       const createdAtText = buildGenerationTimestamp(createdAtRaw)
@@ -1724,6 +1777,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           statusLabel: '时间缺失',
           statusClass: 'failed',
           anomaly: true,
+          qualityGate,
+          artifactReady,
+          compareReady,
+          qualityReady,
         })
         continue
       }
@@ -1740,6 +1797,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           statusLabel: '时间异常（updated_at 无法解析）',
           statusClass: 'failed',
           anomaly: true,
+          qualityGate,
+          artifactReady,
+          compareReady,
+          qualityReady,
         })
         continue
       }
@@ -1756,6 +1817,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           statusLabel: '时间异常',
           statusClass: 'failed',
           anomaly: true,
+          qualityGate,
+          artifactReady,
+          compareReady,
+          qualityReady,
         })
         continue
       }
@@ -1770,6 +1835,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           statusLabel: '时间异常（未来时间）',
           statusClass: 'failed',
           anomaly: true,
+          qualityGate,
+          artifactReady,
+          compareReady,
+          qualityReady,
         })
         continue
       }
@@ -1800,6 +1869,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                 : durationSource === 'live' ? '实时耗时' : '完成耗时',
         statusClass,
         anomaly: isAbnormal || missingEndTime,
+        qualityGate,
+        artifactReady,
+        compareReady,
+        qualityReady,
       })
     }
     return timings.sort((a, b) => {
@@ -2310,10 +2383,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   const visualGateStatusClass = visualQualityReport ? (visualHardGatePassed ? 'passed' : 'failed') : 'not-run'
   const visualGateLabel = visualQualityReport ? (visualHardGatePassed ? '通过' : '未通过') : '未运行'
   const visualGateSource = agenticProjection.status === 'ready'
-    ? 'Runtime Agentic projection → candidate-bound ReferenceComparisonReport@1 / QualityReport@2'
+    ? 'Runtime Agentic 投影 → 候选绑定 ReferenceComparisonReport@1 / 质量报告@2'
     : visualQualityReport
-      ? 'candidate-bound QualityReport@2'
-      : 'not-run: Runtime QualityReport unavailable'
+      ? '候选绑定 质量报告@2'
+      : '未运行：Runtime 质量报告不可用'
   const metricLabels: Array<[string, string]> = [
     ['silhouette_iou', 'Silhouette IoU'],
     ['boundary_f1_4px', 'Boundary F1'],
@@ -2408,12 +2481,18 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   }
 
   const handleViewportPointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
+    setViewportFocused(true)
+    setViewportActionHint('等待输入')
     const state = viewerSceneRef.current
-    if (!state || artifactLoadState !== 'ready' || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey) return
+    if (!state || artifactLoadState !== 'ready' || event.button !== 0 || event.ctrlKey || event.altKey || event.metaKey) {
+      setViewportActionHint('请先等待模型就绪后再点选')
+      return
+    }
     const rect = event.currentTarget.getBoundingClientRect()
     if (rect.width <= 0 || rect.height <= 0) return
     if (event.shiftKey) {
       event.preventDefault()
+      setViewportActionHint('开始框选')
       setViewportMarqueeRect({
         left: event.clientX,
         top: event.clientY,
@@ -2439,6 +2518,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     }
     const target = pickViewportObjectFromPointer(state, event, rect, partLockState, materialLockState)
     if (!target) {
+      setViewportActionHint('未命中对象')
       setSelectedObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
@@ -2451,6 +2531,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       setSelectedPartId(targetState.partId)
       setSelectedMaterialZone(targetState.materialZoneId)
       setSceneTreePartExpanded(targetState.partId, true)
+      setViewportActionHint(`已选中：${targetState.partId}`)
       focusViewportTarget(target)
     }
   }
@@ -2478,6 +2559,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     if (!viewportMarqueeRect || viewportMarqueeRect.width < 5 || viewportMarqueeRect.height < 5) {
       const target = pickViewportObjectFromPointer(state, event, rect, partLockState, materialLockState)
       if (!target) {
+        setViewportActionHint('框选未命中')
         setSelectedObjectId(null)
         setSelectedPartId('all')
         setSelectedMaterialZone('all')
@@ -2489,6 +2571,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           setSelectedPartId(targetState.partId)
           setSelectedMaterialZone(targetState.materialZoneId)
           setSceneTreePartExpanded(targetState.partId, true)
+          setViewportActionHint(`已命中：${targetState.partId}`)
           focusViewportTarget(target)
         }
       }
@@ -2504,6 +2587,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     )
     const first = hits[0]
     if (!first) {
+      setViewportActionHint('框选完成但未命中')
       setSelectedObjectId(null)
       setSelectedPartId('all')
       setSelectedMaterialZone('all')
@@ -2511,7 +2595,9 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
       return
     }
     const targetState = state.objects.get(first)
+    const targetPartId = targetState?.partId
     setSelectedObjectId(first.uuid)
+    setViewportActionHint(targetPartId ? `框选命中：${targetPartId}` : '框选命中')
     if (targetState) {
       setSelectedPartId(targetState.partId)
       setSelectedMaterialZone(targetState.materialZoneId)
@@ -2525,9 +2611,11 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     const state = viewerSceneRef.current
     if (drag.mode !== 'box-select' || drag.pointerId !== event.pointerId) {
       drag.mode = 'idle'
+      setViewportActionHint('等待输入')
       return
     }
     drag.mode = 'idle'
+    setViewportActionHint('框选结束')
     if (state) state.controls.enabled = true
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
     applyViewportViewportSelection(event)
@@ -2535,42 +2623,55 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
   }
 
   const handleViewportKeyDown = (event: KeyboardEvent<HTMLCanvasElement>) => {
+    if (!viewportFocused) return
     if (event.key === 'f' || event.key === 'F') {
       event.preventDefault()
       focusViewportTarget(selectedSceneObject?.object ?? null)
+      setViewportActionHint('F：已聚焦当前对象')
     } else if (event.key === 'r' || event.key === 'R') {
       event.preventDefault()
       resetViewport()
+      setViewportActionHint('R：已重置视角')
     } else if (event.key === '1') {
       event.preventDefault()
       moveViewportCameraToPreset('front')
+      setViewportActionHint('1：切到前视角')
     } else if (event.key === '2') {
       event.preventDefault()
       moveViewportCameraToPreset('left')
+      setViewportActionHint('2：切到左视角')
     } else if (event.key === '3') {
       event.preventDefault()
       moveViewportCameraToPreset('top')
+      setViewportActionHint('3：切到顶视角')
     } else if (event.key === '4') {
       event.preventDefault()
       moveViewportCameraToPreset('right')
+      setViewportActionHint('4：切到右视角')
     } else if (event.key === '5') {
       event.preventDefault()
       moveViewportCameraToPreset('rear')
+      setViewportActionHint('5：切到后视角')
     } else if (event.key === '6') {
       event.preventDefault()
       moveViewportCameraToPreset('three-quarter')
+      setViewportActionHint('6：切到三分之四视角')
     } else if (event.key === 'Escape' && selectedObjectId) {
       event.preventDefault()
       setSelectedObjectId(null)
+      setViewportActionHint('Esc：已清除选中')
     } else if (event.key === 'z' || event.key === 'Z') {
       event.preventDefault()
       setViewportLightPreset('neutral')
+      setViewportActionHint('Z：切中性光')
     } else if (event.key === 'x' || event.key === 'X') {
       event.preventDefault()
       setViewportLightPreset('high-key')
+      setViewportActionHint('X：切高亮光')
     } else if (event.key === 'c' || event.key === 'C') {
       event.preventDefault()
       setViewportLightPreset('dramatic')
+      setViewportActionHint('C：切轮廓光')
     }
   }
 
@@ -2875,7 +2976,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
     <section className="runtime-grid" aria-label="ForgeCAD runtime viewer">
       <div className="viewport-card">
         <div className="viewport-toolbar">
-          <span>ActiveDesignSnapshot</span>
+          <span>当前活跃快照</span>
           <span className="toolbar-muted">{ready ? (project?.record?.head_snapshot_id ? '已读取当前快照' : '暂无已确认快照') : '等待 Runtime'}</span>
           <button type="button" className="viewer-toggle" onClick={resetViewport} disabled={!viewerSceneRef.current}>重置视角</button>
         </div>
@@ -2893,7 +2994,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             </button>
           </div>
           <button type="button" className="viewer-toggle" onClick={() => setCandidateSortOrder((value) => value === 'newest' ? 'oldest' : 'newest')} disabled={candidateSummaries.length < 2}>{candidateSortOrder === 'newest' ? '最新 → 最旧' : '最旧 → 最新'}</button>
-          <span className="candidate-selection-badge"><span className="status-icon status-icon-info">{selectedCandidateIsManual ? 'M' : 'A'}</span>{selectedCandidateIsManual ? '手动候选' : '自动最新候选'} · 任务ID {candidateId ?? 'none'}</span>
+          <span className="candidate-selection-badge"><span className="status-icon status-icon-info">{selectedCandidateIsManual ? 'M' : 'A'}</span>{selectedCandidateIsManual ? '手动候选' : '自动最新候选'} · 任务ID {candidateId ?? '无'}</span>
         </div>
         <div className="viewport-toolbar">
           <div className="toolbar-segmented" role="group" aria-label="3D 视角预设">
@@ -2913,6 +3014,14 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               className="glb-canvas"
               tabIndex={0}
               aria-label="Runtime GLB 3D preview；拖拽旋转，按住修饰键平移，滚轮缩放"
+              onFocus={() => {
+                setViewportFocused(true)
+                setViewportActionHint('快捷键已激活（F/R/Z/X/C/1-6）')
+              }}
+              onBlur={() => {
+                setViewportFocused(false)
+                setViewportActionHint('视口未聚焦，请点击画布')
+              }}
               onPointerDown={handleViewportPointerDown}
               onPointerMove={handleViewportPointerMove}
               onPointerUp={handleViewportPointerUp}
@@ -2929,16 +3038,16 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               {viewportHintItems.map((hint, index) => <li key={`${hint}-${index}`} className="viewport-hint-item">{hint}</li>)}
               <li className="viewport-hint-item">{viewportControlHint}</li>
             </ul>
-            <div className="viewport-message"><span className="viewport-icon">◇</span><strong>{artifactLoadState === 'loading' ? '正在加载 GLB…' : artifactLoadState === 'error' ? 'GLB 加载失败' : 'GLB readback 已连接'}</strong><span>{artifactLoadState === 'error' ? `故障码：${artifactError ?? 'ARTIFACT_LOAD_FAILED'}` : `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} triangles · UV ${artifact.uv_status ?? '未知'} · tangent ${artifact.tangent_status ?? '未知'}`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试 GLB</button>}</div></> : <div className="viewport-message"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
+            <div className="viewport-message"><span className="viewport-icon">◇</span><strong>{artifactLoadState === 'loading' ? '正在加载 GLB…' : artifactLoadState === 'error' ? 'GLB 加载失败' : 'GLB 读取通道已连接'}</strong><span>{artifactLoadState === 'error' ? `故障码：${artifactError ?? 'ARTIFACT_LOAD_FAILED'}` : `${partCount} 个语义部件 · ${artifact.triangle_count ?? 0} 三角形 · UV ${artifact.uv_status ?? '未知'} · 切线 ${artifact.tangent_status ?? '未知'}`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试 GLB</button>}</div></> : <div className="viewport-message"><span className="viewport-icon">◇</span><strong>等待 Codex 提交设计</strong><span>这里仅查看模型、材质、参考比较和版本状态。</span></div>}</div>
           <div className="viewport-footer">
-            <span>Project: {projectName}</span>
-            <span>Versions: {versionCount}</span>
-            <span>Candidate: {activeCandidate?.candidate?.state ?? 'none'}</span>
-            <span>任务ID: {candidateId ?? 'none'}</span>
+            <span>项目：{projectName}</span>
+            <span>版本：{versionCount}</span>
+            <span>候选：{activeCandidate?.candidate?.state ?? '无'}</span>
+            <span>任务ID：{candidateId ?? '无'}</span>
           </div>
         <section className="compare-panel" aria-label="Reference and fixed render comparison">
           <div className="compare-header">
-            <div><p className="section-kicker">REFERENCE COMPARE</p><h2>固定视图证据</h2></div>
+            <div><p className="section-kicker">参考比较</p><h2>固定视图证据</h2></div>
             <div className="compare-status"><span className={`status-icon ${visualStatusClass === 'passed' ? 'status-icon-pass' : visualStatusClass === 'failed' ? 'status-icon-error' : visualStatusClass === 'partial' ? 'status-icon-info' : 'status-icon-muted'}`}>{visualStatusIcon}</span><span>{visualStatusLabel}</span><code>{visualStatus}</code></div>
           </div>
           <div className="compare-toolbar">
@@ -2950,7 +3059,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             </div>
           </div>
           <div className="viewer-controls" aria-label="Part and material controls">
-            <label>Part<select value={selectedPartId} onChange={(event) => setSelectedPartId(event.target.value)} disabled={partIds.length === 0}><option value="all">全部部件</option>{partIds.map((partId) => <option key={partId} value={partId}>{partId}</option>)}</select></label>
+            <label>部件<select value={selectedPartId} onChange={(event) => setSelectedPartId(event.target.value)} disabled={partIds.length === 0}><option value="all">全部部件</option>{partIds.map((partId) => <option key={partId} value={partId}>{partId}</option>)}</select></label>
             <label>材质区<select value={selectedMaterialZone} onChange={(event) => setSelectedMaterialZone(event.target.value)} disabled={materialZoneIds.length === 0}><option value="all">全部材质区</option>{materialZoneIds.map((zoneId) => <option key={zoneId} value={zoneId}>{zoneId}</option>)}</select></label>
             <button type="button" className={`viewer-toggle ${exploded ? 'viewer-toggle-active' : ''}`} aria-pressed={exploded} onClick={() => setExploded((value) => !value)}>爆炸图</button>
             <button type="button" className={`viewer-toggle ${contourCanvasActive ? 'viewer-toggle-active' : ''}`} aria-pressed={contourCanvasActive} onClick={() => { setSelectedPass('silhouette'); setCompareMode('overlay'); setDiffHeatmap(false) }}>轮廓画布</button>
@@ -2966,11 +3075,11 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             {diffHeatmap && <label>热图敏感度 {heatmapSensitivity.toFixed(1)}×<input type="range" min="0.5" max="2.5" step="0.1" value={heatmapSensitivity} onChange={(event) => setHeatmapSensitivity(Number(event.target.value))} /></label>}
             <span className="compare-parameter-hint">{compareZoom > 1 ? '拖拽画面平移' : '放大后可拖拽平移'}{measureMode ? ' · 点击两点完成测量' : ''}</span>
           </div>
-          <div id="render-aov-panel" role="tabpanel" aria-labelledby={`render-aov-tab-${selectedPass}`} className={`compare-stage compare-${compareMode} ${contourCanvasActive ? 'contour-canvas' : ''} ${diffHeatmap ? 'compare-heatmap' : ''} ${compareZoom > 1 && !measureMode && !contourCanvasActive ? 'compare-pan-ready' : ''}`} aria-label={`${selectedPass} reference comparison`} onPointerDown={handleComparePointerDown} onPointerMove={handleComparePointerMove} onPointerUp={handleComparePointerUp} onPointerCancel={handleComparePointerUp}>
-            {contourCanvasActive && <div className="contour-canvas-badge">CONTOUR CANVAS · SILHOUETTE AOV</div>}
-            {referenceDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && !flickerOn)) && <div className="compare-pane compare-reference"><span>REFERENCE</span><img src={referenceDataUrl} alt="Authorized reference" style={referenceImageStyle} onError={() => { setCompareLoadState('error'); setCompareError('REFERENCE_IMAGE_DECODE_FAILED') }} /></div>}
-            {renderDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && flickerOn)) && <div className="compare-pane compare-render"><span>{selectedPass.toUpperCase()}</span><img src={renderDataUrl} alt={`Fixed render ${selectedPass}`} style={renderImageStyle} onError={() => { setCompareLoadState('error'); setCompareError('RENDER_PASS_IMAGE_DECODE_FAILED') }} /></div>}
-            {contourCanvasActive && referenceContourAidUrl && <div className="reference-contour-aid"><span>REFERENCE CONTOUR AID · VIEWER ONLY</span><img src={referenceContourAidUrl} alt="Deterministic reference contour aid" /></div>}
+          <div id="render-aov-panel" role="tabpanel" aria-labelledby={`render-aov-tab-${selectedPass}`} className={`compare-stage compare-${compareMode} ${contourCanvasActive ? 'contour-canvas' : ''} ${diffHeatmap ? 'compare-heatmap' : ''} ${compareZoom > 1 && !measureMode && !contourCanvasActive ? 'compare-pan-ready' : ''}`} aria-label={`${selectedPass} 参考对比`} onPointerDown={handleComparePointerDown} onPointerMove={handleComparePointerMove} onPointerUp={handleComparePointerUp} onPointerCancel={handleComparePointerUp}>
+            {contourCanvasActive && <div className="contour-canvas-badge">轮廓草图画布 · SILHOUETTE AOV</div>}
+            {referenceDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && !flickerOn)) && <div className="compare-pane compare-reference"><span>参考图</span><img src={referenceDataUrl} alt="授权参考图" style={referenceImageStyle} onError={() => { setCompareLoadState('error'); setCompareError('REFERENCE_IMAGE_DECODE_FAILED') }} /></div>}
+            {renderDataUrl && (compareMode === 'split' || compareMode === 'overlay' || (compareMode === 'flicker' && flickerOn)) && <div className="compare-pane compare-render"><span>{selectedPass}</span><img src={renderDataUrl} alt={`固定渲染 ${selectedPass}`} style={renderImageStyle} onError={() => { setCompareLoadState('error'); setCompareError('RENDER_PASS_IMAGE_DECODE_FAILED') }} /></div>}
+            {contourCanvasActive && referenceContourAidUrl && <div className="reference-contour-aid"><span>参考轮廓引导 · 仅 Viewer</span><img src={referenceContourAidUrl} alt="确定性参考轮廓引导" /></div>}
             {contourCanvasActive && referenceDataUrl && <svg
               className="contour-annotation-layer"
               viewBox="0 0 1 1"
@@ -2990,33 +3099,37 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               {measurePoints.map((point, index) => <circle key={`measure-${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r="0.009" fill="#8bd6ff" stroke="#092031" strokeWidth="0.003" vectorEffect="non-scaling-stroke" />)}
               {measuredPixels !== null && <text x="0.02" y="0.96" fill="#d9f2ff" fontSize="0.035" stroke="#06121c" strokeWidth="0.006" paintOrder="stroke">约 {measuredPixels}px / 512</text>}
             </svg>}
-            {diffHeatmap && differenceHeatmapUrl && <div className="heatmap-layer"><span>PIXEL DIFF · 512×512</span><img className="heatmap-image" src={differenceHeatmapUrl} alt="Reference and render difference heatmap" /></div>}
+            {diffHeatmap && differenceHeatmapUrl && <div className="heatmap-layer"><span>像素差异 · 512×512</span><img className="heatmap-image" src={differenceHeatmapUrl} alt="参考图与渲染图差异热图" /></div>}
             {diffHeatmap && <div className="heatmap-legend" role="status">{differenceHeatmapUrl ? '差异热图已由后台 Worker 生成；数值质量仍以 Runtime QualityReport 为准。' : compareError ? `热图失败：${compareError}` : '正在生成当前参考图与 Render AOV 的差异热图…'}</div>}
-            {compareLoadState === 'loading' && <div className="compare-empty">正在读取 candidate-bound 参考图与 {selectedPass} AOV…</div>}
+            {compareLoadState === 'loading' && <div className="compare-empty">正在读取候选绑定的参考图与 {selectedPass} AOV…</div>}
             {compareLoadState === 'error' && <div className="compare-error" role="alert"><span className="status-icon status-icon-error">!</span><span>比较资源读取失败：{compareError ?? 'COMPARE_ASSET_LOAD_FAILED'}</span><button type="button" className="viewer-toggle" onClick={() => setCompareRetryNonce((value) => value + 1)}>重试比较</button></div>}
-            {compareLoadState === 'idle' && (!referenceDataUrl || !renderDataUrl) ? <div className="compare-empty">等待 candidate-bound 参考图、RenderSet 和 {selectedPass} PNG</div> : null}
+            {compareLoadState === 'idle' && (!referenceDataUrl || !renderDataUrl) ? <div className="compare-empty">等待候选绑定的参考图、RenderSet 和 {selectedPass} PNG</div> : null}
           </div>
           {contourCanvasActive && referenceDataUrl && <div className="contour-draft-toolbar" aria-label="临时轮廓草图工具">
-            <span aria-live="polite">临时轮廓点：{contourPoints.length}/128 · {contourBindingReady ? 'candidate-bound' : '等待 candidate-bound evidence'} · Viewer only</span>
+            <span aria-live="polite">临时轮廓点：{contourPoints.length}/128 · {contourBindingReady ? '候选已绑定' : '等待候选绑定证据'} · 仅 Viewer 显示</span>
             <button type="button" className="viewer-toggle" onClick={undoContourPoint} disabled={contourPoints.length === 0}>撤销上一点</button>
             <button type="button" className="viewer-toggle" onClick={clearContourDraft} disabled={contourPoints.length === 0}>清除草图</button>
-            <button type="button" className="viewer-toggle" onClick={() => void copyContourDraft()} disabled={contourPoints.length < 3 || !contourBindingReady}>{contourCopyStatus === 'copied' ? '已复制给 Codex' : '复制 hash-bound 轮廓点集'}</button>
-            {contourCopyStatus === 'unavailable' && <span role="status">需要至少 3 个点、同一 candidate 的 reference/render/comparison hash 和可用剪贴板；点集仍只保存在 Viewer 内存。</span>}
+            <button type="button" className="viewer-toggle" onClick={() => void copyContourDraft()} disabled={contourPoints.length < 3 || !contourBindingReady}>{contourCopyStatus === 'copied' ? '已复制给 Codex' : '复制哈希绑定轮廓点集'}</button>
+            {contourCopyStatus === 'unavailable' && <span role="status">需要至少 3 个点、同一候选的 reference/render/comparison hash 以及可用剪贴板；点集仅保存在 Viewer 内存。</span>}
           </div>}
-          <div className="compare-footer"><span>Camera lock · 512×512 perspective</span><span>RenderSet: {renderSetHash ?? '未运行'}</span><span>Reference: {referenceId ?? '未运行'}</span>{measuredPixels !== null && <span>临时测量：{measuredPixels}px</span>}{compareActionStatus === 'unavailable' && <span role="status">导出失败或资源不可用</span>}</div>
+          <div className="compare-footer"><span>相机锁定：512×512 固定透视</span><span>RenderSet：{renderSetHash ?? '未运行'}</span><span>参考ID：{referenceId ?? '未运行'}</span>{measuredPixels !== null && <span>临时测量：{measuredPixels}px</span>}{compareActionStatus === 'unavailable' && <span role="status">导出失败或资源不可用</span>}</div>
         </section>
       </div>
       <aside className="runtime-panel">
-        <section className="panel-section"><p className="section-kicker">CALL PATH</p><h2>Codex 是唯一外部 Agent</h2><p className="panel-copy">普通用户在 Codex 中对话并上传授权参考图。Codex 通过 MCP 工具提交类型化请求，ForgeCAD 不内置模型、聊天页或 API Key。</p></section>
-        <section className="panel-section"><p className="section-kicker">LIVE CONTRACT</p><div className="capability-list">{capabilities.map(([label, value]) => <div className="capability-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div></section>
+        <section className="panel-section"><p className="section-kicker">控制路径</p><h2>Codex 是唯一外部 Agent</h2><p className="panel-copy">普通用户在 Codex 中对话并上传授权参考图。Codex 通过 MCP 工具提交类型化请求，ForgeCAD 不内置模型、聊天页或 API Key。</p></section>
+        <section className="panel-section"><p className="section-kicker">实时约束</p><div className="capability-list">{capabilities.map(([label, value]) => <div className="capability-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div></section>
         <section className="panel-section runtime-scene-tree" aria-labelledby="scene-tree-title">
           <div className="section-toolbar">
-            <p className="section-kicker">SCENE TREE</p>
+            <p className="section-kicker">场景树</p>
             <span className="scene-tree-summary">当前模型对象：{filteredSceneTreeByState.length} / {viewerSceneTree.length} 个部件</span>
             <div className="toolbar-segmented" role="group" aria-label="场景树筛选">
               <button type="button" className={`viewer-toggle ${sceneTreeFilter === 'all' ? 'viewer-toggle-active' : ''}`} onClick={() => setSceneTreeFilter('all')} disabled={viewerSceneTree.length === 0}>全部</button>
               <button type="button" className={`viewer-toggle ${sceneTreeFilter === 'visible' ? 'viewer-toggle-active' : ''}`} onClick={() => setSceneTreeFilter('visible')} disabled={viewerSceneTree.length === 0}>可见</button>
               <button type="button" className={`viewer-toggle ${sceneTreeFilter === 'locked' ? 'viewer-toggle-active' : ''}`} onClick={() => setSceneTreeFilter('locked')} disabled={viewerSceneTree.length === 0}>锁定</button>
+            </div>
+            <div className="toolbar-segmented" role="group" aria-label="场景树展开控制">
+              <button type="button" className="viewer-toggle" onClick={() => setAllSceneTreeExpanded(true)} disabled={viewerSceneTree.length === 0}>展开全部</button>
+              <button type="button" className="viewer-toggle" onClick={() => setAllSceneTreeExpanded(false)} disabled={viewerSceneTree.length === 0}>收起全部</button>
             </div>
           </div>
           <h2 id="scene-tree-title">场景树 / 语义筛选</h2>
@@ -3148,7 +3261,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           ) : <p className="panel-copy">未选中对象，单击模型可选中并在此显示。按 F 聚焦高亮对象。</p>}
         </section>
         <section className="panel-section" aria-labelledby="candidate-snapshot-title">
-          <p className="section-kicker">CANDIDATE SNAPSHOT</p>
+          <p className="section-kicker">候选快照</p>
           <h2 id="candidate-snapshot-title">当前候选与上一候选快照比对</h2>
           {!activeSnapshot ? <p className="panel-copy">当前候选无快照数据，等待候选数据可用。</p> : (
             <div className="snapshot-compare">
@@ -3160,10 +3273,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                 <div className="snapshot-metrics">
                     <span>部件：{activeSnapshot.partCount}</span>
                   <span>材质区：{activeSnapshot.materialZoneCount}</span>
-                  <span>triangles: {activeSnapshot.triangleCount}</span>
+                    <span>三角形: {activeSnapshot.triangleCount}</span>
                   <span>UV: {activeSnapshot.uvStatus}</span>
-                  <span>tangent: {activeSnapshot.tangentStatus}</span>
-                  <span>validator: {activeSnapshot.validatorStatus}</span>
+                  <span>切线: {activeSnapshot.tangentStatus}</span>
+                  <span>校验: {activeSnapshot.validatorStatus}</span>
                   <span>可视化: {candidateQuickPreview?.visualStatus}</span>
                   <span>
                     质量门：
@@ -3175,9 +3288,9 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                 <div className="snapshot-meta">
                   <span>GLB：{activeSnapshot.artifactId ?? '未就绪'}</span>
                   <span>参考：{activeSnapshot.referenceId ? '已绑定' : '未绑定'}</span>
-                  <span>RenderSet：{activeSnapshot.renderSetHash ? '已绑定' : '未绑定'}</span>
+                  <span>渲染集：{activeSnapshot.renderSetHash ? '已绑定' : '未绑定'}</span>
                   <span>比对：{activeSnapshot.comparisonReportHash ? '已绑定' : '未绑定'}</span>
-                  <span>QualityReport：{activeSnapshot.qualityReportHash || activeSnapshot.hasVisualEvidenceBinding ? '已绑定' : '未绑定'}</span>
+                  <span>质量报告：{activeSnapshot.qualityReportHash || activeSnapshot.hasVisualEvidenceBinding ? '已绑定' : '未绑定'}</span>
                   <span>绑定摘要：{activeSnapshotBinding ? formatBindingStatusText(activeSnapshotBinding) : '—'}</span>
                 </div>
               </div>
@@ -3190,10 +3303,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                   <div className="snapshot-metrics">
                     <span>部件：{previousCandidateSnapshot.partCount}</span>
                     <span>材质区：{previousCandidateSnapshot.materialZoneCount}</span>
-                    <span>triangles: {previousCandidateSnapshot.triangleCount}</span>
+                    <span>三角形: {previousCandidateSnapshot.triangleCount}</span>
                     <span>UV: {previousCandidateSnapshot.uvStatus}</span>
-                    <span>tangent: {previousCandidateSnapshot.tangentStatus}</span>
-                    <span>validator: {previousCandidateSnapshot.validatorStatus}</span>
+                    <span>切线: {previousCandidateSnapshot.tangentStatus}</span>
+                    <span>校验: {previousCandidateSnapshot.validatorStatus}</span>
                     <span>可视化: {formatQualityStatus(previousCandidateSnapshot.visualStatus)}</span>
                     <span>
                       质量门：
@@ -3233,7 +3346,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               <div className="snapshot-diff-controls section-toolbar">
                 <button type="button" className="viewer-toggle" onClick={() => previousCandidateSnapshot && setSelectedCandidateId(previousCandidateSnapshot.candidateId)} disabled={!previousCandidateSnapshot}>
                   快速回看上一候选
-                </button>
+                    </button>
                 <span>当前行高亮即表示已选候选；GLB、对比图与质量面板会随候选自动联动。</span>
               </div>
             </>
@@ -3241,7 +3354,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
         </section>
         <section className="panel-section" aria-labelledby="generation-timing-title">
           <div className="section-toolbar">
-            <p className="section-kicker">GENERATION TIMING</p>
+            <p className="section-kicker">生成耗时面板</p>
             <button
               type="button"
               className="viewer-toggle"
@@ -3269,7 +3382,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                   <button type="button" className={`workflow-gate-row workflow-gate-row-button ${timing.candidateId === candidateId ? 'workflow-gate-row-current' : ''} ${timing.anomaly ? 'workflow-gate-row-anomaly' : timing.statusClass === 'failed' ? 'workflow-gate-row-failed' : ''}`} aria-pressed={timing.candidateId === candidateId} key={timing.candidateId} onClick={() => setSelectedCandidateId(timing.candidateId)}>
                     <span><span className={`status-icon ${timing.anomaly || timing.statusClass === 'failed' ? 'status-icon-error' : timing.statusClass === 'passed' ? 'status-icon-pass' : 'status-icon-muted'}`}>{timing.anomaly || timing.statusClass === 'failed' ? '!' : timing.statusClass === 'passed' ? '✓' : '·'}</span>任务 {timing.candidateId} · {timing.state}</span>
                     <div>
-                      <code className={`workflow-gate-status ${timing.statusClass === 'failed' ? 'workflow-gate-status-failed' : timing.statusClass === 'passed' ? 'workflow-gate-status-passed' : 'workflow-gate-status-not-run'}`}>
+                    <code className={`workflow-gate-status ${timing.statusClass === 'failed' ? 'workflow-gate-status-failed' : timing.statusClass === 'passed' ? 'workflow-gate-status-passed' : 'workflow-gate-status-not-run'}`}>
                         创建 {timing.createdAtText ?? '时间缺失'}
                       </code>
                       <strong className={`workflow-gate-status workflow-gate-status-${timing.statusClass}`}>
@@ -3277,6 +3390,9 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                           ? timing.elapsedDisplay
                           : timing.statusLabel}
                       </strong>
+                      <span>
+                        {`GLB:${timing.artifactReady ? '已就绪' : '未就绪'} · 比对:${timing.compareReady ? '已就绪' : '未就绪'} · 质量:${timing.qualityReady ? '已就绪' : '未就绪'} · 质量门:${timing.qualityGate}`}
+                      </span>
                     </div>
                   </button>
                 ))}
@@ -3286,20 +3402,20 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
           <p className="workflow-note">点击任一任务可把 GLB、参考比较、质量门和本面板绑定到同一候选；当前耗时为创建时间到最后更新时间/当前时刻的 Viewer 估算。</p>
         </section>
         <section className="panel-section" aria-labelledby="agentic-stage-console-title">
-          <p className="section-kicker">AGENTIC STAGE CONSOLE</p>
+          <p className="section-kicker">阶段现场控制台</p>
           <h2 id="agentic-stage-console-title">阶段现场</h2>
           <div className="workflow-summary" data-stage={agenticProjection.stage.id ?? 'unavailable'}>
             <div className="workflow-current">
-              <span>当前 stage · Runtime</span>
+              <span>当前阶段 · Runtime</span>
               <strong>{agenticProjection.stage.label ?? '未可用'} · {AGENTIC_STATUS_LABELS[agenticProjection.stage.status]}</strong>
             </div>
             <div className="workflow-gate-row">
-              <span>Agentic projection</span>
+              <span>Agentic 投影</span>
               <strong className="workflow-gate-status workflow-gate-status-not-run">{agenticProjection.status === 'ready' ? '已就绪' : '未可用'}</strong>
             </div>
             <div className="workflow-gate-row">
-              <span>Evidence source</span>
-              <strong>{agenticProjection.status === 'ready' ? 'Agentic projection' : visualEvidenceBound ? 'candidate-bound visual evidence' : '未可用'}</strong>
+              <span>证据来源</span>
+              <strong>{agenticProjection.status === 'ready' ? 'Agentic 投影' : visualEvidenceBound ? '候选绑定对比证据' : '未可用'}</strong>
             </div>
             <div className="workflow-gate-row">
               <span>Runtime 选中部件</span>
@@ -3340,32 +3456,32 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               {([
                 ['artifact', stageEvidenceHashes.artifactSha256],
                 ['reference', stageEvidenceHashes.referenceSha256],
-                ['RenderSet', stageEvidenceHashes.renderSetHash],
-                ['comparison', stageEvidenceHashes.comparisonReportHash],
-                ['QualityReport', stageEvidenceHashes.qualityReportHash],
-              ] as const).map(([label, hash]) => <div key={label}><span>{label} hash</span><strong><code style={{ overflowWrap: 'anywhere' }}>{hash ?? '未可用'}</code></strong></div>)}
+                ['渲染集', stageEvidenceHashes.renderSetHash],
+                ['比对报告', stageEvidenceHashes.comparisonReportHash],
+                ['质量报告', stageEvidenceHashes.qualityReportHash],
+              ] as const).map(([label, hash]) => <div key={label}><span>{label} 哈希</span><strong><code style={{ overflowWrap: 'anywhere' }}>{hash ?? '未可用'}</code></strong></div>)}
             </div>
             <p className="workflow-note">来源：Runtime authenticated read-only projection · {agenticProjection.reason ?? '无额外原因'}。Viewer 不调用写工具；未知/未可用不等于视觉通过。</p>
           </div>
         </section>
         <section className="panel-section" aria-labelledby="agentic-session-console-title">
-          <p className="section-kicker">DESIGN SESSION / CHECKPOINT</p>
+          <p className="section-kicker">设计会话 / 里程碑</p>
           <h2 id="agentic-session-console-title">设计阶段回读</h2>
           <div className="workflow-summary" data-session-status={agenticSession.status} data-binding-status={agenticSession.bindingStatus}>
             <div className="workflow-current">
-              <span>DesignSession · Runtime readback</span>
+              <span>DesignSession · Runtime 回读</span>
               <strong>{agenticSession.status === 'ready' ? (agenticSession.sessionId ?? '会话 ID 未知') : '未可用'}</strong>
             </div>
             <div className="workflow-gate-row">
-              <span>当前 stage</span>
+              <span>当前阶段</span>
               <strong>{agenticSession.stage.label ?? '未知'} · {AGENTIC_STATUS_LABELS[agenticSession.stage.status]}</strong>
             </div>
             <div className="workflow-gate-row">
-              <span>Session binding</span>
+              <span>会话绑定</span>
               <strong className={`workflow-gate-status workflow-gate-status-${agenticSessionStatusClass(agenticSession.bindingStatus)}`}>{agenticBindingStatusLabel(agenticSession.bindingStatus)}</strong>
             </div>
             <div className="workflow-gate-row">
-              <span>durable session</span>
+              <span>持久化会话</span>
               <strong className={`workflow-gate-status workflow-gate-status-${agenticSessionStatusClass(agenticSession.durable === true ? 'persisted' : agenticSession.durable === false ? 'locked' : 'unknown')}`}>{agenticSession.durable === true ? '已持久化' : agenticSession.durable === false ? '只读投影 · 未持久化' : '未知'}</strong>
             </div>
             <div className="workflow-gates" aria-label="DesignSession checkpoint state">
@@ -3374,7 +3490,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                 <strong className={`workflow-gate-status workflow-gate-status-${agenticSessionStatusClass(agenticSession.checkpoint.status)}`}>{AGENTIC_CHECKPOINT_STATUS_LABELS[agenticSession.checkpoint.status]}</strong>
               </div>
               <div className="workflow-gate-row">
-                <span>checkpoint durable</span>
+                <span>checkpoint 持久化</span>
                 <strong>{agenticSession.checkpoint.durable === true ? '已持久化' : agenticSession.checkpoint.durable === false ? '未持久化' : '未知'}</strong>
               </div>
               <div className="workflow-gate-row">
@@ -3382,7 +3498,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
                 <strong className={`workflow-gate-status workflow-gate-status-${agenticSessionStatusClass(agenticSession.restore.status)}`}>{AGENTIC_RESTORE_STATUS_LABELS[agenticSession.restore.status]}</strong>
               </div>
               <div className="workflow-gate-row">
-                <span>restore prepare / approval</span>
+              <span>restore 准备 / 批准</span>
                 <strong>{agenticSession.restore.prepareStatus} / {agenticSession.restore.approvalStatus}</strong>
               </div>
             </div>
@@ -3413,7 +3529,7 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
               </div>)}
             </div>
             <div className="correction-metrics" aria-label="DesignSession locked actions">
-              <span>locked actions：</span>
+              <span>锁定动作：</span>
               {agenticSession.lockedActions.map((action) => <code key={`locked-${action.actionId}`}>{action.label}</code>)}
             </div>
             <div className="quality-summary" aria-label="DesignSession evidence hash binding">
@@ -3425,10 +3541,10 @@ export function RuntimeViewer(_props: RuntimeViewerProps = {}) {
             <p className="workflow-note">来源：Runtime authenticated read-only `design-session-checkpoint` readback · {agenticSession.reason ?? '无额外原因'}。只显示已观察/推断/未知，不从 Viewer 推断质量或设计事实。</p>
           </div>
         </section>
-        <section className="panel-section"><p className="section-kicker">QUALITY EVIDENCE</p><div className="status-legend" aria-label="状态图例"><span><span className="status-icon status-icon-pass">✓</span>通过</span><span><span className="status-icon status-icon-info">~</span>部分通过</span><span><span className="status-icon status-icon-error">!</span>未通过/异常</span><span><span className="status-icon status-icon-muted">·</span>未运行/未知</span></div><div className="quality-summary"><div><span>Visual status</span><strong>{visualStatusLabel} <code>{visualStatus}</code></strong></div><div><span>Visual gate</span><strong><span className={`status-icon ${visualGateStatusClass === 'passed' ? 'status-icon-pass' : visualGateStatusClass === 'failed' ? 'status-icon-error' : 'status-icon-muted'}`}>{visualGateStatusClass === 'passed' ? '✓' : visualGateStatusClass === 'failed' ? '!' : '·'}</span>{visualGateLabel}</strong></div><div><span>Gate source</span><strong>{visualGateSource}</strong></div>{metricLabels.map(([key, label]) => <div key={key}><span>{label}</span><strong>{typeof comparisonMetrics[key] === 'number' ? comparisonMetrics[key].toFixed(3) : '—'}</strong></div>)}</div></section>
-        <section className="panel-section" aria-labelledby="runtime-quality-workflow-title"><p className="section-kicker">RUNTIME QUALITY WORKFLOW</p><h2 id="runtime-quality-workflow-title">Runtime 权威质量门</h2><div className="workflow-summary" data-stage={agenticProjection.stage.id ?? 'unavailable'}><div className="workflow-current"><span>当前阶段 · Runtime</span><strong>{agenticProjection.stage.label ?? '未可用'} · {AGENTIC_STATUS_LABELS[agenticProjection.stage.status]}</strong></div><div className="workflow-gates" aria-label="Runtime quality gates">{agenticProjection.gates.map((gate) => <div className="workflow-gate-row" key={gate.id}><span>{gate.label}</span><strong className={`workflow-gate-status workflow-gate-status-${agenticGateStatusClass(gate.status)}`}>{AGENTIC_STATUS_LABELS[gate.status]}</strong></div>)}</div><p className="workflow-note">门状态、阈值和失败指标只从 Runtime authenticated read-only projection / QualityReport 读取；Viewer 不再从 comparison metrics 重新计算质量门。</p></div></section>
-        <section className="panel-section" aria-labelledby="runtime-next-action-title"><p className="section-kicker">RUNTIME NEXT ACTION</p><h2 id="runtime-next-action-title">Runtime 返回的下一步</h2><div className="correction-queue" aria-label="Runtime next actions">{agenticProjection.nextAllowedActions.length > 0 ? agenticProjection.nextAllowedActions.map((action) => <article className="correction-card" key={action.actionId}><div className="correction-card-header"><strong>{action.label}</strong><span>{agenticProjection.stage.label ?? '未知阶段'}</span></div><p>{action.reason ?? '由 Runtime projection 返回的 bounded action；Viewer 仅展示，不执行。'}</p><div className="correction-metrics"><code className={`workflow-gate-status workflow-gate-status-${action.status === 'allowed' ? 'passed' : action.status === 'locked' ? 'locked' : 'not-run'}`}>{action.status === 'allowed' ? '允许' : action.status === 'locked' ? '锁定' : '未可用'}</code></div></article>) : <p className="panel-copy">当前没有 Runtime 返回的可安全动作；等待 candidate-bound evidence 或真人评审。</p>}</div><p className="workflow-note">这是 Runtime 的只读 action projection，不直接调用写工具，也不替代用户批准。</p></section>
-        <section className="panel-section panel-note"><p className="section-kicker">MVP STATUS</p><p className="panel-copy">Viewer 通过受保护的本地 IPC 读取 Runtime 的候选、GLB bytes、版本和当前快照；Three.js 只创建临时 canvas scene，不写数据库、不改变 Runtime artifact。固定渲染证据和 PBR metadata 与 candidate hash 绑定。</p></section>
+        <section className="panel-section"><p className="section-kicker">质量证据</p><div className="status-legend" aria-label="状态图例"><span><span className="status-icon status-icon-pass">✓</span>通过</span><span><span className="status-icon status-icon-info">~</span>部分通过</span><span><span className="status-icon status-icon-error">!</span>未通过/异常</span><span><span className="status-icon status-icon-muted">·</span>未运行/未知</span></div><div className="quality-summary"><div><span>可见性状态</span><strong>{visualStatusLabel} <code>{visualStatus}</code></strong></div><div><span>可见性门</span><strong><span className={`status-icon ${visualGateStatusClass === 'passed' ? 'status-icon-pass' : visualGateStatusClass === 'failed' ? 'status-icon-error' : 'status-icon-muted'}`}>{visualGateStatusClass === 'passed' ? '✓' : visualGateStatusClass === 'failed' ? '!' : '·'}</span>{visualGateLabel}</strong></div><div><span>门来源</span><strong>{visualGateSource}</strong></div>{metricLabels.map(([key, label]) => <div key={key}><span>{label}</span><strong>{typeof comparisonMetrics[key] === 'number' ? comparisonMetrics[key].toFixed(3) : '—'}</strong></div>)}</div></section>
+        <section className="panel-section" aria-labelledby="runtime-quality-workflow-title"><p className="section-kicker">Runtime 质量流程</p><h2 id="runtime-quality-workflow-title">Runtime 权威质量门</h2><div className="workflow-summary" data-stage={agenticProjection.stage.id ?? 'unavailable'}><div className="workflow-current"><span>当前阶段 · Runtime</span><strong>{agenticProjection.stage.label ?? '未可用'} · {AGENTIC_STATUS_LABELS[agenticProjection.stage.status]}</strong></div><div className="workflow-gates" aria-label="Runtime quality gates">{agenticProjection.gates.map((gate) => <div className="workflow-gate-row" key={gate.id}><span>{gate.label}</span><strong className={`workflow-gate-status workflow-gate-status-${agenticGateStatusClass(gate.status)}`}>{AGENTIC_STATUS_LABELS[gate.status]}</strong></div>)}</div><p className="workflow-note">门状态、阈值和失败指标只从 Runtime authenticated read-only projection / QualityReport 读取；Viewer 不再从 comparison metrics 重新计算质量门。</p></div></section>
+        <section className="panel-section" aria-labelledby="runtime-next-action-title"><p className="section-kicker">Runtime 下一步</p><h2 id="runtime-next-action-title">Runtime 返回的下一步</h2><div className="correction-queue" aria-label="Runtime next actions">{agenticProjection.nextAllowedActions.length > 0 ? agenticProjection.nextAllowedActions.map((action) => <article className="correction-card" key={action.actionId}><div className="correction-card-header"><strong>{action.label}</strong><span>{agenticProjection.stage.label ?? '未知阶段'}</span></div><p>{action.reason ?? '由 Runtime projection 返回的 bounded action；Viewer 仅展示，不执行。'}</p><div className="correction-metrics"><code className={`workflow-gate-status workflow-gate-status-${action.status === 'allowed' ? 'passed' : action.status === 'locked' ? 'locked' : 'not-run'}`}>{action.status === 'allowed' ? '允许' : action.status === 'locked' ? '锁定' : '未可用'}</code></div></article>) : <p className="panel-copy">当前没有 Runtime 返回的可安全动作；等待候选绑定证据或真人评审。</p>}</div><p className="workflow-note">这是 Runtime 的只读 action projection，不直接调用写工具，也不替代用户批准。</p></section>
+        <section className="panel-section panel-note"><p className="section-kicker">MVP 状态</p><p className="panel-copy">Viewer 通过受保护的本地 IPC 读取 Runtime 的候选、GLB 数据、版本和当前快照；Three.js 只创建临时 canvas scene，不写数据库、不改变 Runtime artifact。固定渲染证据和 PBR metadata 与候选哈希绑定。</p></section>
       </aside>
     </section>
   </main>

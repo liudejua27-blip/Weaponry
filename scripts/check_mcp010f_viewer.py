@@ -40,9 +40,7 @@ def main() -> int:
         "compare-worker.ts",
         "contourCanvasActive",
         "contour-canvas",
-        "CONTOUR CANVAS",
         "reference-contour-aid",
-        "REFERENCE CONTOUR AID",
         "contourPoints",
         "contour-annotation-layer",
         "ForgeCADViewerContourDraft@2",
@@ -57,7 +55,6 @@ def main() -> int:
         "copyContourDraft",
         "undoContourPoint",
         "撤销上一点",
-        "复制 hash-bound 轮廓点集",
         "临时轮廓草图",
         "runtime_write: false",
         "setPointerCapture",
@@ -101,7 +98,6 @@ def main() -> int:
         "visualQualityReport",
         "visualHardGatePassed",
         "visualGateSource",
-        "Visual gate",
         "correction-queue",
         "agenticProjection",
         "normalizeAgenticDesignProjection",
@@ -131,6 +127,17 @@ def main() -> int:
         "project_id",
     ]
     missing = [token for token in required_tokens if token not in source]
+    required_token_variants = [
+        ("CONTOUR CANVAS", "轮廓画布"),
+        ("REFERENCE CONTOUR AID", "参考轮廓引导"),
+        ("复制 hash-bound 轮廓点集", "复制哈希绑定轮廓点集"),
+        ("Visual gate", "可见性门"),
+    ]
+    missing.extend(
+        f"{canonical} (or localized {localized})"
+        for canonical, localized in required_token_variants
+        if canonical not in source and localized not in source
+    )
     if missing:
         raise SystemExit(f"Viewer source surface is missing required tokens: {missing}")
     forbidden_local_quality_logic = [

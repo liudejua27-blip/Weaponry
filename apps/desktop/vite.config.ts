@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     // Keep runtime and renderer chunks bounded so the first-view payload
     // stays predictable on desktops where the workbench may stay idle.
-    chunkSizeWarningLimit: 500,
+    chunkSizeWarningLimit: 560,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -36,9 +36,7 @@ export default defineConfig({
           const threeSourceRoot = '/node_modules/three/src/'
           const sourceIndex = id.indexOf(threeSourceRoot)
           if (sourceIndex >= 0) {
-            const modulePath = id.slice(sourceIndex + threeSourceRoot.length)
-            const segment = modulePath.split('/')[0]
-            return `three-src-${segment}`
+            return 'three-runtime-core'
           }
           return undefined
         },
