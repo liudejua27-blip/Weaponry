@@ -56,7 +56,7 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "ad136f718b39fbf43f22f10f20a3dd6875cda08ff83bf9dac025e8a3663db0a6",
+  "canonical_sha256": "b2beb3a4ddd09a849d8202ae80ced21b37b21837a8438af66e935192c2e953f6",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -154,7 +154,7 @@
   "evidence_status": "INCOMPLETE_TRUTH_BINDING",
   "evidence_manifest": {
     "path": "docs/evidence/mcp010f/manifest.json",
-    "sha256": "5e0a38ef05d94fdf0ec2d78fa8c3f0b0dddf2dadbe61c51ea11702b4203d41f1"
+    "sha256": "162f43f9db60e0034f0d9df8b7f3f8f0612418326dc5ab99471461c917ba33ee"
   },
   "latest_attempt": {
     "attempt_count_evidence": "VERIFIED_RAW_RECEIPT_10_CODEX_TURNS_ZERO_EXIT_CODES",

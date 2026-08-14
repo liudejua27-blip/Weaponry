@@ -42,7 +42,7 @@ FIT_PLAN_SOURCE = ROOT / "scripts/build_mcp010f_fit_plan.py"
 TOOL_SUMMARY_PATH = ROOT / "docs/evidence/mcp010f/source-tool-manifest-summary.json"
 RUN_INVENTORY_PATH = ROOT / "docs/evidence/mcp010f/real-codex-run-inventory.json"
 EVIDENCE_MANIFEST_PATH = ROOT / "docs/evidence/mcp010f/manifest.json"
-EXPECTED_EVIDENCE_MANIFEST_SHA256 = "5e0a38ef05d94fdf0ec2d78fa8c3f0b0dddf2dadbe61c51ea11702b4203d41f1"
+EXPECTED_EVIDENCE_MANIFEST_SHA256 = "162f43f9db60e0034f0d9df8b7f3f8f0612418326dc5ab99471461c917ba33ee"
 TASK_INDEX = ROOT / "docs/CODEX_TASK_INDEX.md"
 
 AUTHORITY_DOCS = (
@@ -133,12 +133,13 @@ EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
     "strict_visible_view_policy_implemented viewer_accessibility_e2e viewer_browser_dom_smoke "
     "viewer_contour_annotation viewer_contour_real_execution viewer_keyboard_navigation viewer_native_window_smoke "
  "viewer_candidate_artifact_binding viewer_candidate_binding_fixtures viewer_visual_evidence_binding_fixtures viewer_quality_report_contract_alignment viewer_source_contract viewer_tauri_compile viewer_typescript_build viewer_write_boundary "
- "agentic_runtime_observe_plan agentic_runtime_session_checkpoint".split()
+ "agentic_runtime_observe_plan agentic_runtime_session_checkpoint packaged_render_worker_landing".split()
 )
 EXPECTED_EVIDENCE_MANIFEST_GATES = {
     "agentic_runtime_projection_conformance": "PASS_CURRENT_COHORT_NESTED_RUNTIME_MCP_PROJECTION_CONTRACTS",
     "agentic_runtime_session_checkpoint": "PASS_CURRENT_COHORT_ISOLATED_DURABLE_SESSION_CHECKPOINT_READBACK",
     "agentic_runtime_observe_plan": "PASS_CURRENT_COHORT_ISOLATED_READ_ONLY_OBSERVE_PLAN",
+    "packaged_render_worker_landing": "PASS_CURRENT_COHORT_RESOURCE_AND_ISOLATED_RENDER_TRANSPORT",
     "boundary_error_runtime": "PASS_DIRECTIONAL_SDF_SEGMENT_EVIDENCE",
     "camera_fit_runtime": "PASS_BOUNDED_TYPED_CAMERA_SEARCH",
     "codex_correction_queue": "PASS_RUNTIME_ACTION_PROJECTION_READ_ONLY",
@@ -1337,7 +1338,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         require(forbidden not in limitation_text, f"evidence manifest contains a forbidden promotion claim: {forbidden}")
     require(isinstance(manifest["scope"], list) and manifest["scope"], "evidence manifest scope must be a non-empty list")
     require(isinstance(manifest["limitations"], list) and manifest["limitations"], "evidence manifest limitations must be non-empty")
-    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 133, "evidence manifest frozen evidence count drifted")
+    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 136, "evidence manifest frozen evidence count drifted")
     require(len(set(manifest["evidence"])) == len(manifest["evidence"]), "evidence manifest contains duplicate entries")
     for index, entry in enumerate(manifest["evidence"]):
         require(isinstance(entry, str) and entry, f"evidence entry {index} must be a non-empty string")

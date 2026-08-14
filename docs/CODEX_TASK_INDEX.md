@@ -3,6 +3,8 @@
 版本：2026-08-14
 状态：唯一任务状态表；MVP host golden path 与 FGC-MCP010A 已收口；FGC-MCP010B 结构实现已通过、Darwin OS 总内存硬门 deferred；FGC-MCP010C source-focused 已完成；FGC-MCP010D/E source-focused 已通过；FGC-MCP010F source-focused in_progress，packaged/人评/360 子门保留。ADR-0026 的 Agentic Design Runtime 已完成 observe/plan projection、嵌套只读 projection conformance 与 durable session/checkpoint/RepairIntent prepare/readback slice；durable/reference/DesignSpec 完整 producer、单动作 orchestrator 和 Repair 应用 backlog 尚未改变当前唯一任务状态。
 
+2026-08-15 `FGC-MCP010F` packaged Render Worker landing：同 cohort Dev.app 已实际携带并校验 `forgecad-render-worker` Resource；packaged Runtime raw stdio probe 通过 sibling Worker 完成九 AOV、固定 renderer、determinism、compare 和 image-block transport。三份证据已纳入 MCP010F manifest。该模块只关闭 packaged Worker resource/process/protocol 的结构性缺口；synthetic reference 的质量仍 `QUALITY_TARGET_NOT_MET`，不推进人评/PBR/export-restart/360，也不把当前 `in_progress` F 任务标为 done。
+
 2026-08-14 Primary Form 联合 proposal 回退：Runtime 在一次 candidate-bound dominant Part 的联合 width/height/offset proposal 未严格改善时，按固定 `1.0 → 0.5 → 0.25` 比例回退到 authored baseline，再继续 bounded coordinate probes；所有值仍受 Rig min/max、总评估预算和 Worker/readback Gate 约束。新增插值边界 regression 与 focused/full Runtime 通过；无新视觉 receipt，不改变 `QUALITY_TARGET_NOT_MET`、`MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或未运行门。
 
 2026-08-14 Primary Form bilateral Part-ID projection：修复 Runtime boundary proposal 只按精确 Part-ID 查找的问题；`shin-left/right`、`shoulder-armor-left/right` 等 Worker 输出现在会聚合到 `shin-pair`、`shoulder-armor-pair` Rig Part，局部 envelope 才能驱动同一 Part 的宽度/高度/偏移 proposal。pair focused/full Runtime、MCP010C/F source Gate 通过；无新视觉 receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 和未运行门状态不变。

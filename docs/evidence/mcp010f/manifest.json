@@ -39,6 +39,7 @@
     "agentic_runtime_projection_conformance": "PASS_CURRENT_COHORT_NESTED_RUNTIME_MCP_PROJECTION_CONTRACTS",
     "agentic_runtime_session_checkpoint": "PASS_CURRENT_COHORT_ISOLATED_DURABLE_SESSION_CHECKPOINT_READBACK",
     "agentic_runtime_observe_plan": "PASS_CURRENT_COHORT_ISOLATED_READ_ONLY_OBSERVE_PLAN",
+    "packaged_render_worker_landing": "PASS_CURRENT_COHORT_RESOURCE_AND_ISOLATED_RENDER_TRANSPORT",
     "stage0_truth_integrity": "PASS_MACHINE_READABLE_DRIFT_AND_CROSS_RUN_ISOLATION",
     "provisional_observation_truth_binding": "INCOMPLETE_TRUTH_BINDING",
     "provisional_observation_benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
@@ -232,7 +233,10 @@
     "scripts/check_agentic_projection_receipt.py",
     "docs/evidence/mcp010f/real-codex-cli-current-20260814-viewer-bound.json",
     "docs/evidence/mcp010f/reference-view-intake-real-reference.json",
-    "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json"
+    "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
+    "docs/evidence/mcp010f/dev-app-install-render-worker-20260815.json",
+    "docs/evidence/mcp010f/dev-app-package-verify-render-worker-20260815.json",
+    "docs/evidence/mcp010f/packaged-render-worker-raw-20260815.json"
   ],
   "limitations": [
     "Stage 0 machine truth is docs/evidence/mcp010f/current-benchmark-truth.json. Its PASS means the evidence ledger is internally honest and drift-checked; it does not mean the provisional observation passed visual quality or became benchmark-eligible.",
@@ -308,7 +312,8 @@
     "The automatic Runtime mask-to-contour conversion now follows directed foreground grid edges, selects the largest deterministic outer loop and down-samples it; detached components are not merged into the comparison mask. Runtime regression `automatic_contour_points_are_ordered_and_follow_outer_mask_boundary` reconstructs the rectangle at IoU > 0.94. The binary mask remains the comparison truth and explicit user contour/Part annotations are still required for detached or partial regions.",
     "The 2026-08-13 semantic landmark hardening makes the product-owned robot landmark vocabulary use fixed Part-ID anchors (head/visor/neck/chest/shoulder/elbow/pelvis/knee/hand) whenever the fixed renderer supplies a matching part-id AOV; unknown landmark IDs retain the bounded global-silhouette fallback. Camera search, Rig/geometry fit, candidate comparison and the persisted reference comparison now share this same transient anchor loss, while public metric contracts remain unchanged. The source-built compare receipt `real-codex-cli-semantic-landmark-compare-20260813.json` is a metric-semantics checkpoint (IoU 0.741047, boundary F1 0.328765, semantic landmark coverage 0.139498, NME 0.087015) and is not promoted over the retained attempt35 baseline. The follow-up camera/Rig retry `real-codex-cli-semantic-camera-landmark-20260813.json` is BLOCKED after three bounded Runtime-unavailable retries; it has no quality metrics. Neither receipt unlocks materials, confirmation, export, human review or 360°.",
     "The 2026-08-14 same-cohort max64 Primary Form receipt used a closed 15-landmark/8-region intake adapter and one canonical observation. Runtime evaluated 63 bounded SilhouetteRig candidates through Geometry Worker and Render Worker, then completed candidate-bound compare, nine AOV reads, typed review and quality readback with zero exit-code failures. The proposal reached silhouette IoU 0.750323, but the actual candidate compare remained IoU 0.747421, boundary F1 0.339781, bbox edge error 0.003906, centroid error 0.004143, landmark coverage 0.139498, landmark NME 0.074237, region median IoU 0.878655 and critical-region minimum 0.674633; it is PASS_WITH_QUALITY_TARGET_NOT_MET and not a likeness, confirmation, PBR, export/restart or 360 result. The closed intake adapter copies only the existing ReferenceViewSpec coordinates and does not infer hidden or cropped areas.",
-    "A single three-quarter reference cannot establish HQ_360_PASS."
+    "A single three-quarter reference cannot establish HQ_360_PASS.",
+    "The 2026-08-15 same-cohort Dev.app package includes forgecad-render-worker as an ad-hoc deep-strict signed Resource alongside MCP, Runtime and Geometry Worker; package verification and the packaged raw stdio probe passed. The packaged Runtime completed the nine-AOV deterministic render/compare transport through the sibling Render Worker with no persistent user-data write. The raw probe uses a synthetic reference and therefore proves packaged resource/process/protocol transport only: quality remains QUALITY_TARGET_NOT_MET, structural_visual_claim is NOT_CLAIMED, human review is NOT_RUN and HQ_360 is BLOCKED_REFERENCE_COVERAGE."
   ],
   "persistent_user_data_touched": false
 }

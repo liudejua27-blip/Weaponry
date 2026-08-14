@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 packaged Render Worker landing：同一 source revision `cb1a6981…f805d` 重新构建并安装 Dev.app；MCP、Runtime、Geometry Worker 与 Render Worker 共用 cohort `aa5eaaa2…5827`，四个资源均通过 ad-hoc deep-strict 签名/包校验。隔离 packaged Runtime 通过同包兄弟 Render Worker 完成九 AOV、`512x512-perspective-zbuffer-deterministic`、两次确定性 hash 复跑、candidate-bound compare 和 MCP image-block transport，且 `persistent_user_data_touched=false`。证据为 `docs/evidence/mcp010f/dev-app-install-render-worker-20260815.json`、`dev-app-package-verify-render-worker-20260815.json`、`packaged-render-worker-raw-20260815.json`；raw probe 使用 synthetic reference，故只证明 packaged resource/process/protocol landing，`structural_visual_claim=NOT_CLAIMED`，质量仍为 `QUALITY_TARGET_NOT_MET`，human/PBR/export-restart/360 不升级。
+
 2026-08-14 Primary Form 联合 proposal 回退修复：当 candidate-bound dominant Part 的一次性 width/height/offset 联合提案未严格优于 authored baseline 时，Runtime 在继续坐标探测前按 `1.0 → 0.5 → 0.25` 的固定比例回退重试；仍受同一 bounded budget、Rig bounds、Geometry Worker、strict GLB readback 和隔离 Render Worker 约束。focused/full Runtime 与 contracts 通过；没有新的授权参考字节或视觉 receipt，质量真值仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-14 Primary Form bilateral Part-ID projection repair：Runtime boundary proposal 现在把 Worker 的固定 `*-left`/`*-right` Part-ID 聚合到 Rig 的 `*-pair` semantic Part，再计算同一局部 envelope 的 width/height/offset proposal；此前只能选中 dominant pair，但 proposal 可能保持 authored baseline。pair alias focused regression、full Runtime、MCP010C/F source Gate 通过；没有新的授权参考字节或视觉 receipt，质量真值不变。

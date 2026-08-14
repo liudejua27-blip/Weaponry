@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 packaged Render Worker landing handoff：当前 source revision `cb1a6981…f805d` 的 Dev.app 已将 `forgecad-render-worker` 作为同 cohort Resource 实际打包、安装并通过 ad-hoc deep-strict package verify；MCP/Runtime/Geometry/Render 四个组件 cohort 均为 `aa5eaaa2…5827`。packaged Runtime 在短路径隔离临时根目录中通过兄弟 Render Worker 完成九 AOV、固定 512px renderer、两次 deterministic hash、compare 和 image-block transport，未触碰持久用户数据。三份 receipt 已纳入 MCP010F manifest；由于输入是 synthetic reference，receipt 只证明 packaged Worker 进程/资源/协议落地，仍是 `QUALITY_TARGET_NOT_MET`、`structural_visual_claim=NOT_CLAIMED`，不升级真人 likeness、PBR、人评、export/restart 或 360。
+
 2026-08-14 Primary Form 联合 proposal 回退 handoff：Runtime 现在在同一 dominant Part 内对证据提案执行固定 `1.0 → 0.5 → 0.25` 回退；只有严格改善才更新 Geometry incumbent，之后才进入单坐标探测。回退值始终从 authored baseline 插值且不扩大 `SilhouetteRig@1` bounds，所有试算继续经 Geometry Worker、strict readback 和隔离 Render Worker。focused/full Runtime 与 contracts 通过；没有新的授权参考字节或视觉 receipt，仍保持 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，不代表 Repair 已执行。
 
 2026-08-14 Primary Form bilateral Part-ID projection handoff：Runtime 已把 Render Worker 的左右显式 Part-ID 聚合到同一 Rig `*-pair` semantic Part，再计算局部 envelope proposal；这补上了“主导 Part 已选中但 pair proposal 未被投影”的收敛缺口。focused/full Runtime、MCP010C/F source 与 Render Worker boundary Gate 通过；没有新的授权参考字节或视觉 receipt，当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
