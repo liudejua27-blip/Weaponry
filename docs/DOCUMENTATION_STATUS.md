@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Primary Form evidence-magnitude handoff：Runtime 在第一轮 coordinate probes 中优先使用同一 boundary observation 对当前坐标给出的 bounded proposal magnitude，单次最多半个 authored bound；当前已处于 proposal 或进入反向 pass 时仍使用小步。该模块让一次聚合观察能对 secondary Part 产生有意义的有限修正，Codex 不承担连续搜索。新增 regression，`forgecad-runtime` 全量 102 passed、10 ignored；没有新的真实 likeness receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 或 human/PBR/export-restart/360 未运行状态。
+
 2026-08-15 Primary Form boundary evidence coverage：Runtime 将 boundary observation 的固定 top-N 选择改为“每个有 `part_id` 的可见 Part 先取一条最高误差 evidence，再按距离补齐”，最大仍为 64 条，最终顺序仍为距离降序且确定性。这样 Codex 的一次聚合观察不会被 shin 等单一部件占满，后续 bounded multi-Part Rig probes 能读取 head/hand 等 secondary Part 的真实方向证据。新增 coverage regression，`forgecad-runtime` 全量 101 passed、10 ignored；无新的真实 likeness receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 或 human/PBR/export-restart/360 未运行状态。
 
 2026-08-15 Primary Form proposal-direction retention：Runtime 保留完整 boundary evidence proposal 作为后续坐标探测的方向来源；dominant Part 的局部 seed 只作用于首个联合 probe，secondary Part 不再使用参数索引猜方向。显式 `-1/0/+1` regression 和完整 `forgecad-runtime` 通过（100 passed、10 ignored）。该 source/convergence 修复没有新视觉 receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`、human/PBR/export-restart/360 未运行状态。

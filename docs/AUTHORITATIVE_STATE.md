@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Primary Form evidence-magnitude handoff 状态：Runtime 第一轮坐标 probe 在当前值与 candidate-bound evidence proposal 不同的时候，复用该坐标的 evidence-derived magnitude；单步上限为 authored Rig span 的 50%，proposal 已到达或后续反向 pass 则使用原有小步。该模块只改变 Runtime 内部 bounded search 的步长，不改 schema、tool manifest、Runtime 唯一写者、Worker 协议或 Viewer quality authority。`forgecad-runtime` 全量 102 passed、10 ignored；没有新的真实视觉 receipt，Stage 0 仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 Primary Form boundary evidence coverage 状态：Runtime-owned `boundary_error_segments_for_masks` 现在在固定 64 条上限内先覆盖每个有 Part-ID 的可见部件，再按最大距离填充；输出仍按 distance descending，未归属 segment 只参与填充阶段。该修复让同一观察能同时提供 shin/head/hand 等部件的局部方向证据，供后续 bounded Rig sweep 使用，不改变 schema、tool manifest、Runtime 唯一写者、Viewer read-only authority 或 Agentic 单 Part action scope。coverage regression 与 `forgecad-runtime` 全量 101 passed、10 ignored；没有新的真实视觉 receipt，Stage 0 仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Primary Form proposal-direction retention 状态：Runtime 现在将完整 candidate-bound boundary proposal 与 dominant-Part 的局部 probe-zero seed 分离；secondary Part coordinate probe 使用其 evidence-derived bounded direction，零改变量才回退到稳定方向。新增显式 `-1/0/+1` 回归，避免正零被误当成正向。全量 Runtime 为 100 passed、10 ignored；没有新的真实视觉 receipt，Stage 0 继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，Agentic action-run 单 Part scope 和 Viewer read-only authority 不变。

@@ -1707,8 +1707,17 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     } else {
                         -1.0
                     };
+                    let probe_pass = probe_slot / parameter_indices.len();
+                    let magnitude = primary_form_probe_magnitude(
+                        definitions,
+                        &evidence_parameters,
+                        &parameter_values,
+                        coordinate,
+                        delta,
+                        probe_pass,
+                    );
                     if let Some(row) = parameter_values.get_mut(coordinate) {
-                        row["value"] = Value::from(stable_visual_metric((value + direction * delta).clamp(min, max)));
+                        row["value"] = Value::from(stable_visual_metric((value + direction * magnitude).clamp(min, max)));
                     }
                 }
                 let (draft, applied) = materialize_rig_geometry_program(
@@ -10237,6 +10246,59 @@ fn primary_form_proposal_direction(
     }
 }
 
+/// Choose the bounded step size for one Runtime-owned coordinate probe.  The
+/// first pass may reuse the evidence projection's magnitude when the current
+/// trial is still at a different value; otherwise it falls back to the small
+/// optimizer step.  This lets a secondary Part receive the correction that
+/// the same observation already justified without exposing a continuous
+/// search to Codex or allowing a single probe to cross half its authored
+/// range. Later passes remain deliberately conservative and use the original
+/// optimizer step.
+fn primary_form_probe_magnitude(
+    definitions: &[Value],
+    evidence_parameters: &[Value],
+    current_parameters: &[Value],
+    coordinate: usize,
+    fallback_delta: f64,
+    probe_pass: usize,
+) -> f64 {
+    let Some(definition) = definitions.get(coordinate) else {
+        return fallback_delta;
+    };
+    let authored = definition
+        .get("value")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let min = definition
+        .get("min")
+        .and_then(Value::as_f64)
+        .unwrap_or(authored);
+    let max = definition
+        .get("max")
+        .and_then(Value::as_f64)
+        .unwrap_or(authored);
+    let half_span = ((max - min).abs() * 0.5).max(fallback_delta);
+    if probe_pass > 0 {
+        return fallback_delta.min(half_span);
+    }
+    let current = current_parameters
+        .get(coordinate)
+        .and_then(|row| row.get("value"))
+        .and_then(Value::as_f64)
+        .unwrap_or(authored);
+    let evidence = evidence_parameters
+        .get(coordinate)
+        .and_then(|row| row.get("value"))
+        .and_then(Value::as_f64)
+        .unwrap_or(authored);
+    let evidence_delta = (evidence - current).abs();
+    if !evidence_delta.is_finite() || evidence_delta <= 1e-9 {
+        fallback_delta.min(half_span)
+    } else {
+        evidence_delta.max(fallback_delta).min(half_span)
+    }
+}
+
 /// Backtrack one evidence-attributed joint proposal toward the authored Rig
 /// baseline without widening any typed bound. This is used only inside the
 /// Runtime-owned Primary Form search: it gives coupled width/height/offset
@@ -15697,6 +15759,57 @@ mod tests {
         assert_eq!(
             primary_form_proposal_direction(rig["parameters"].as_array().unwrap(), &selected, 2),
             1.0
+        );
+    }
+
+    #[test]
+    fn primary_form_first_coordinate_probe_reuses_evidence_magnitude_once() {
+        let definitions = vec![json!({
+            "parameter_id":"head-width",
+            "part_id":"head-shell",
+            "value":1.0,
+            "min":0.5,
+            "max":1.5
+        })];
+        let evidence = vec![json!({"parameter_id":"head-width","value":1.30})];
+        let authored = definitions.clone();
+        let fallback = 0.01;
+
+        assert!((
+            primary_form_probe_magnitude(&definitions, &evidence, &authored, 0, fallback, 0)
+                - 0.30
+        )
+        .abs()
+            < 1e-12);
+        assert_eq!(
+            primary_form_probe_magnitude(&definitions, &evidence, &authored, 0, fallback, 1),
+            fallback
+        );
+
+        let already_at_evidence = vec![json!({"parameter_id":"head-width","value":1.30})];
+        assert_eq!(
+            primary_form_probe_magnitude(
+                &definitions,
+                &evidence,
+                &already_at_evidence,
+                0,
+                fallback,
+                0,
+            ),
+            fallback
+        );
+
+        let bounded = vec![json!({
+            "parameter_id":"head-width",
+            "part_id":"head-shell",
+            "value":1.0,
+            "min":0.9,
+            "max":1.1
+        })];
+        assert!(
+            (primary_form_probe_magnitude(&bounded, &evidence, &authored, 0, fallback, 0) - 0.1)
+                .abs()
+                < 1e-12
         );
     }
 
