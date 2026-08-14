@@ -353,10 +353,10 @@
             "stage_results": {
               "properties": {
                 "prepare": {"properties": {"status": {"const": "blocked"}}},
-                "compile": {"properties": {"status": {"const": "not-run"}}},
-                "readback": {"properties": {"status": {"const": "not-run"}}},
-                "render": {"properties": {"status": {"const": "not-run"}}},
-                "evaluate": {"properties": {"status": {"const": "not-run"}}}
+                "compile": {"properties": {"status": {"enum": ["not-run", "skipped"]}}},
+                "readback": {"properties": {"status": {"enum": ["not-run", "skipped"]}}},
+                "render": {"properties": {"status": {"enum": ["not-run", "skipped"]}}},
+                "evaluate": {"properties": {"status": {"enum": ["not-run", "skipped"]}}}
               }
             }
           }
@@ -369,9 +369,9 @@
               "properties": {
                 "prepare": {"properties": {"status": {"const": "completed"}}},
                 "compile": {"properties": {"status": {"const": "blocked"}}},
-                "readback": {"properties": {"status": {"const": "not-run"}}},
-                "render": {"properties": {"status": {"const": "not-run"}}},
-                "evaluate": {"properties": {"status": {"const": "not-run"}}}
+                "readback": {"properties": {"status": {"enum": ["not-run", "skipped"]}}},
+                "render": {"properties": {"status": {"enum": ["not-run", "skipped"]}}},
+                "evaluate": {"properties": {"status": {"enum": ["not-run", "skipped"]}}}
               }
             }
           }
@@ -385,8 +385,8 @@
                 "prepare": {"properties": {"status": {"const": "completed"}}},
                 "compile": {"properties": {"status": {"const": "completed"}}},
                 "readback": {"properties": {"status": {"const": "blocked"}}},
-                "render": {"properties": {"status": {"const": "not-run"}}},
-                "evaluate": {"properties": {"status": {"const": "not-run"}}}
+                "render": {"properties": {"status": {"enum": ["not-run", "skipped"]}}},
+                "evaluate": {"properties": {"status": {"enum": ["not-run", "skipped"]}}}
               }
             }
           }
@@ -401,7 +401,7 @@
                 "compile": {"properties": {"status": {"const": "completed"}}},
                 "readback": {"properties": {"status": {"const": "completed"}}},
                 "render": {"properties": {"status": {"const": "blocked"}}},
-                "evaluate": {"properties": {"status": {"const": "not-run"}}}
+                "evaluate": {"properties": {"status": {"enum": ["not-run", "skipped"]}}}
               }
             }
           }
@@ -494,7 +494,7 @@
       "enum": ["prepared", "running", "completed", "failed", "blocked"]
     },
     "stage_status": {
-      "enum": ["not-run", "running", "completed", "failed", "blocked"]
+      "enum": ["not-run", "running", "completed", "failed", "blocked", "skipped"]
     },
     "quality_status": {
       "enum": [
@@ -659,40 +659,29 @@
     "stage_result": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "hash", "reason"],
+      "required": ["status"],
       "properties": {
         "status": {"$ref": "#/$defs/stage_status"},
-        "hash": {"$ref": "#/$defs/nullable_sha256"},
-        "reason": {
-          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/safe_text"}]
-        }
+        "result_sha256": {"$ref": "#/$defs/sha256"},
+        "output_sha256": {"$ref": "#/$defs/sha256"},
+        "summary_sha256": {"$ref": "#/$defs/sha256"},
+        "error_code": {"$ref": "#/$defs/identifier"},
+        "checkpoint_id": {"$ref": "#/$defs/identifier"},
+        "checkpoint_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "completed_at": {"type": "string", "minLength": 1, "maxLength": 64}
       },
       "allOf": [
         {
           "if": {
-            "properties": {"status": {"const": "completed"}},
-            "required": ["status"]
-          },
-          "then": {"properties": {"hash": {"$ref": "#/$defs/sha256"}}}
-        },
-        {
-          "if": {
-            "properties": {"status": {"enum": ["not-run", "running"]}},
-            "required": ["status"]
+            "properties": {"checkpoint_id": {"type": "string"}},
+            "required": ["checkpoint_id"]
           },
           "then": {
-            "properties": {
-              "hash": {"const": null},
-              "reason": {"$ref": "#/$defs/safe_text"}
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {"status": {"enum": ["failed", "blocked"]}},
-            "required": ["status"]
+            "required": ["checkpoint_sha256"],
+            "properties": {"checkpoint_sha256": {"$ref": "#/$defs/sha256"}}
           },
-          "then": {"properties": {"reason": {"$ref": "#/$defs/safe_text"}}}
+          "else": {"properties": {"checkpoint_sha256": {"const": null}}}
         }
       ]
     },

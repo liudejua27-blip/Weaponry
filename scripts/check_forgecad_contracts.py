@@ -759,6 +759,19 @@ def check_mcp010f_silhouette_contracts() -> None:
         and fit["$defs"]["thresholds"]["properties"]["silhouette_iou"].get("const") == 0.9,
         "SilhouetteFitResult@1 must expose bounded optimizer evidence and strict thresholds",
     )
+    require(
+        set(
+            [
+                "baseline_camera",
+                "baseline_metrics",
+                "camera_evaluations",
+                "baseline_loss",
+                "selected_loss",
+                "strict_improvement",
+            ]
+        ).issubset(set(fit.get("required", []))),
+        "SilhouetteFitResult@1 must retain Runtime-owned baseline and strict-improvement evidence",
+    )
     selected_geometry_program = fit["properties"].get("selected_geometry_program", {})
     require(
         "selected_geometry_program" in fit.get("required", [])

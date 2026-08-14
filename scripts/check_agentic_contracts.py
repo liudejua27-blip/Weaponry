@@ -251,6 +251,12 @@ def validate(
         if "items" in schema:
             for index, child in enumerate(value):
                 validate(schema["items"], child, root, f"{path}[{index}]", registry)
+        if "contains" in schema:
+            if not any(
+                is_valid(schema["contains"], item, registry)
+                for item in value
+            ):
+                raise ContractError(f"{path} does not contain a matching item")
 
 
 def is_valid(
@@ -912,6 +918,84 @@ def make_fixtures() -> dict[str, dict[str, Any]]:
     return fixtures
 
 
+def make_action_run_fixture() -> dict[str, Any]:
+    """Mirror the Runtime's blocked Primary Form action receipt shape."""
+    return {
+        "schema_version": "DesignActionRun@1",
+        "run_id": "action-run-contract",
+        "session_id": "session-1",
+        "project_id": "project-1",
+        "candidate_id": "candidate-1",
+        "reference_id": "reference-1",
+        "reference_sha256": REFERENCE_HASH,
+        "camera_hash": CAMERA_HASH,
+        "input_sha256": HASH,
+        "action": {
+            "action_id": "action-primary",
+            "action_kind": "bounded-repair",
+            "scope_kind": "part",
+            "target_id": "main-body",
+            "operator_id": "forgecad.geometry.transform@2",
+            "parameter_changes": [{
+                "parameter_id": "body-width",
+                "before": 1.0,
+                "after": 1.05,
+                "minimum": 0.5,
+                "maximum": 1.5,
+                "unit": "meter",
+            }],
+            "bounded": True,
+            "description": "Adjust one bounded Primary Form parameter.",
+        },
+        "requested_stage": "primary-form",
+        "status": "blocked",
+        "completed_stage": "prepare",
+        "stage_results": {
+            "prepare": {"status": "completed", "output_sha256": HASH},
+            "compile": {"status": "blocked", "error_code": "QUALITY_TARGET_NOT_MET"},
+            "readback": {"status": "skipped"},
+            "render": {"status": "skipped"},
+            "evaluate": {"status": "skipped"},
+        },
+        "quality_status": "QUALITY_TARGET_NOT_MET",
+        "failed_gates": ["primary-silhouette"],
+        "allowed_actions": ["inspect", "retry", "bounded-repair", "checkpoint"],
+        "locked_actions": ["confirm", "export", "next-stage"],
+        "checkpoint_id": None,
+        "checkpoint_hash": None,
+        "runtime_write": False,
+        "persistent_user_data_touched": False,
+        "canonical_sha256": CANONICAL_HASH,
+    }
+
+
+def check_action_run_contract(manifest: dict[str, Any]) -> None:
+    filename = "design-action-run.schema.json"
+    schema = load_json(SCHEMA_ROOT / filename)
+    require(schema.get("type") == "object" and schema.get("additionalProperties") is False, f"{filename} root is not closed")
+    require(schema.get("properties", {}).get("schema_version", {}).get("const") == "DesignActionRun@1", f"{filename} version drifted")
+    stage_status = schema.get("$defs", {}).get("stage_status", {}).get("enum", [])
+    require("skipped" in stage_status, "DesignActionRun@1 omitted the Runtime skipped stage status")
+    stage_result = schema.get("$defs", {}).get("stage_result", {})
+    require(set(stage_result.get("required", [])) == {"status"}, "DesignActionRun@1 stage result required fields drifted")
+    require("output_sha256" in stage_result.get("properties", {}), "DesignActionRun@1 omitted output_sha256")
+    require("summary_sha256" in stage_result.get("properties", {}), "DesignActionRun@1 omitted summary_sha256")
+    fixture = make_action_run_fixture()
+    require(is_valid(schema, fixture), "Runtime-shaped blocked DesignActionRun fixture rejected")
+
+    legacy = copy.deepcopy(fixture)
+    legacy["stage_results"]["prepare"] = {"status": "completed", "hash": HASH, "reason": None}
+    require(not is_valid(schema, legacy), "legacy hash/reason stage result was accepted")
+
+    invalid_output = copy.deepcopy(fixture)
+    invalid_output["stage_results"]["prepare"]["output_sha256"] = "not-a-sha256"
+    require(not is_valid(schema, invalid_output), "invalid stage output hash was accepted")
+
+    unpaired_checkpoint = copy.deepcopy(fixture)
+    unpaired_checkpoint["stage_results"]["prepare"]["checkpoint_sha256"] = HASH
+    require(not is_valid(schema, unpaired_checkpoint), "unpaired stage checkpoint hash was accepted")
+
+
 def set_path(value: Any, path: tuple[Any, ...], replacement: Any) -> None:
     cursor = value
     for key in path[:-1]:
@@ -939,6 +1023,8 @@ def main() -> int:
     manifest = load_json(MANIFEST)
     declared = set(manifest.get("schemas", []))
     require(set(EXPECTED) <= declared, "manifest is missing one or more agentic schemas")
+    require("design-action-run.schema.json" in declared, "manifest is missing DesignActionRun@1")
+    check_action_run_contract(manifest)
 
     schemas: dict[str, dict[str, Any]] = {}
     for filename, version in EXPECTED.items():
@@ -1010,7 +1096,7 @@ def main() -> int:
     repair["recompute"]["confirm_allowed"] = True
     require(not is_valid(schemas["repair-intent.schema.json"], repair), "repair intent can confirm before recompute")
 
-    print(f"Agentic contracts OK: {len(EXPECTED)} schemas; positive and negative fixtures passed")
+    print(f"Agentic contracts OK: {len(EXPECTED) + 1} schemas; positive and negative fixtures passed")
     return 0
 
 

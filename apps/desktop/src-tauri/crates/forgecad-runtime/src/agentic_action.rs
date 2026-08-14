@@ -492,6 +492,7 @@ fn action_stage_results(result: &Value, result_sha256: &str, prepared: bool) -> 
 
         let mut evaluate = Map::new();
         evaluate.insert("status".to_owned(), Value::String("completed".to_owned()));
+        evaluate.insert("result_sha256".to_owned(), Value::String(result_sha256.to_owned()));
         if let Some(hash) = quality_hash {
             evaluate.insert("output_sha256".to_owned(), Value::String(hash.to_owned()));
         }

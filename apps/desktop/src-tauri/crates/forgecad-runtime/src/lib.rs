@@ -1461,6 +1461,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .find(|(_, value, _)| *value == camera)
             .map(|(loss, _, _)| *loss)
             .unwrap_or(best_loss);
+        let baseline_metrics = rows
+            .iter()
+            .find(|(_, value, _)| *value == camera)
+            .map(|(_, _, metrics)| metrics.clone())
+            .unwrap_or_else(|| metrics.clone());
         let (selected_model_mask, selected_part_png) = camera_model_evidence
             .iter()
             .find(|(candidate_camera, _, _)| candidate_camera == &selected_camera)
@@ -1815,19 +1820,27 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .len()
             .saturating_add(geometry_evaluations)
             .saturating_add(camera_refit_evaluations);
+        let camera_evaluations = rows.len().saturating_add(camera_refit_evaluations);
+        let strict_improvement = best_loss + 1e-12 < base_loss;
         let mut result = json!({
             "schema_version":"SilhouetteFitResult@1",
             "project_id":project_id,
             "candidate_id":candidate_id,
             "target_sha256":target_sha256,
+            "baseline_camera":camera,
             "selected_camera":selected_camera,
             "selected_parameters":selected_parameters,
             "parameter_deltas":parameter_deltas,
             "selected_geometry_program":selected_geometry_program,
+            "baseline_metrics":baseline_metrics,
             "geometry_evaluations":geometry_evaluations,
+            "camera_evaluations":camera_evaluations,
             "iterations":completed_iterations,
             "evaluations":total_evaluations,
             "metrics":metrics,
+            "baseline_loss":base_loss,
+            "selected_loss":best_loss,
+            "strict_improvement":strict_improvement,
             "thresholds":{"silhouette_iou":0.9,"boundary_f1_4px":0.9},
             "status":if metrics["silhouette_iou"].as_f64().unwrap_or(0.0) >= 0.9 && metrics["boundary_f1_4px"].as_f64().unwrap_or(0.0) >= 0.9 {"ready"} else if best_loss + 1e-12 < base_loss {"quality_target_not_met"} else {"no_improvement"},
             "canonical_sha256":""
@@ -7234,11 +7247,12 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
 }
 
 fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["schema_version", "project_id", "candidate_id", "target_sha256", "selected_camera", "selected_parameters", "parameter_deltas", "selected_geometry_program", "geometry_evaluations", "iterations", "evaluations", "metrics", "thresholds", "status", "canonical_sha256"], "SilhouetteFitResult@1")?;
+    let object = exact_object(value, &["schema_version", "project_id", "candidate_id", "target_sha256", "baseline_camera", "selected_camera", "selected_parameters", "parameter_deltas", "selected_geometry_program", "baseline_metrics", "geometry_evaluations", "camera_evaluations", "iterations", "evaluations", "metrics", "baseline_loss", "selected_loss", "strict_improvement", "thresholds", "status", "canonical_sha256"], "SilhouetteFitResult@1")?;
     if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteFitResult@1") { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: SilhouetteFitResult@1 schema_version".to_owned())); }
     required_contract_identifier(object, "project_id", "SilhouetteFitResult@1")?;
     required_contract_identifier(object, "candidate_id", "SilhouetteFitResult@1")?;
     required_contract_sha256(object, "target_sha256", "SilhouetteFitResult@1")?;
+    validate_camera_calibration(object.get("baseline_camera").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: baseline camera".to_owned()))?)?;
     validate_camera_calibration(object.get("selected_camera").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected camera".to_owned()))?)?;
     let parameters = object.get("selected_parameters").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit parameters".to_owned()))?;
     if parameters.len() > 64 || parameters.iter().any(|parameter| {
@@ -7301,7 +7315,21 @@ fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
             return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: geometry_evaluations".to_owned()));
         }
     }
+    validate_extended_silhouette_metrics(object.get("baseline_metrics").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: baseline metrics".to_owned()))?, "SilhouetteFitResult@1.baseline_metrics")?;
     validate_extended_silhouette_metrics(object.get("metrics").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit metrics".to_owned()))?, "SilhouetteFitResult@1.metrics")?;
+    for key in ["baseline_loss", "selected_loss"] {
+        let loss = object.get(key).and_then(Value::as_f64).ok_or_else(|| RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {key}")))?;
+        if !loss.is_finite() || loss < 0.0 {
+            return Err(RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {key}")));
+        }
+    }
+    if object.get("strict_improvement").and_then(Value::as_bool).is_none() {
+        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: strict_improvement".to_owned()));
+    }
+    let camera_evaluations = object.get("camera_evaluations").and_then(Value::as_u64).unwrap_or(99);
+    if camera_evaluations == 0 || camera_evaluations > 64 {
+        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: camera_evaluations".to_owned()));
+    }
     let iterations = object.get("iterations").and_then(Value::as_u64).unwrap_or(99);
     let evaluations = object.get("evaluations").and_then(Value::as_u64).unwrap_or(99);
     if iterations > 8 || evaluations == 0 || evaluations > 64 || !matches!(object.get("status").and_then(Value::as_str), Some("ready" | "no_improvement" | "quality_target_not_met" | "unavailable")) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit bounds/status".to_owned())); }
@@ -14454,6 +14482,13 @@ mod tests {
         fit_request["canonical_sha256"] = Value::String(canonical_json_hash(&fit_request));
         let fit = runtime.silhouette_fit_prepare(&project.project_id, fit_request).expect("fit");
         validate_silhouette_fit_result(&fit).expect("fit contract");
+        assert!(fit["baseline_camera"]["camera_hash"].as_str().is_some());
+        assert!(fit["selected_camera"]["camera_hash"].as_str().is_some());
+        assert!(fit["baseline_metrics"].is_object());
+        assert!(fit["baseline_loss"].as_f64().unwrap().is_finite());
+        assert!(fit["selected_loss"].as_f64().unwrap().is_finite());
+        assert!(fit["camera_evaluations"].as_u64().unwrap() >= 1);
+        assert!(fit["evaluations"].as_u64().unwrap() >= fit["camera_evaluations"].as_u64().unwrap());
         let before_primary_form_versions = runtime.versions(Some(&project.project_id)).unwrap().len();
         let mut primary_form_request = json!({
             "project_id":project.project_id.clone(),
@@ -14496,6 +14531,8 @@ mod tests {
             .as_u64()
             .expect("Primary Form fit evaluation count");
         assert!((63..=64).contains(&primary_form_evaluations));
+        assert!(primary_form["fit_result"]["strict_improvement"].is_boolean());
+        assert!(primary_form["fit_result"]["baseline_metrics"].is_object());
         let fit_camera = fit["selected_camera"].clone();
         let fit_camera_ref = json!({
             "schema_version": "CameraCalibrationRef@1",
