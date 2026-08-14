@@ -1398,15 +1398,19 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         let mut current_camera = camera.clone();
         let mut remaining_budget = camera_budget;
         let mut completed_iterations = 0usize;
-        let mut rows: Vec<(f64, Value, Value)> = Vec::new();
+        // Keep the public five-field silhouette metrics separate from the
+        // internal ranking snapshot.  The latter may include transient,
+        // candidate-bound landmark evidence used by the bounded optimizer;
+        // exposing those fields here would drift SilhouetteFitResult@1.
+        let mut rows: Vec<(f64, Value, Value, Value)> = Vec::new();
         // Keep the transient silhouette/Part-ID evidence alongside each
         // camera row.  Re-rendering the selected camera after the search
         // would consume an unreported evaluation and, more importantly,
         // could let the proposal use a different image than the row that
         // actually won the bounded camera loss.
         let mut camera_model_evidence: Vec<(Value, Vec<bool>, Option<Vec<u8>>)> = Vec::new();
-        let mut best_overall: Option<(f64, Value, Value)> = None;
-        let mut previous_best_metrics: Option<Value> = None;
+        let mut best_overall: Option<(f64, Value, Value, Value)> = None;
+        let mut previous_best_ranking_metrics: Option<Value> = None;
         let mut step_offset = 0usize;
         let step_variants = [
             (0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0),
@@ -1477,7 +1481,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     "SILHOUETTE_FIT_RENDER_FAILED: batch result count mismatch".to_owned(),
                 ));
             }
-            let mut iteration_best: Option<(f64, Value, Value)> = None;
+            let mut iteration_best: Option<(f64, Value, Value, Value)> = None;
             for (candidate_camera, passes) in candidate_cameras.into_iter().zip(batch_passes) {
                 let silhouette = passes
                     .iter()
@@ -1500,17 +1504,17 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .iter()
                     .find(|pass| pass.pass == "part-id")
                     .map(|pass| (pass.png.as_slice(), inspection.part_ids.as_slice()));
-                let loss_metrics = transient_loss_metrics_with_parts(
+                let loss_metrics = primary_form_ranking_metrics(
                     &metrics,
                     &model_mask,
                     target.get("landmarks"),
                     part_context,
                 );
                 let loss = camera_fit_loss(&loss_metrics);
-                let row = (loss, candidate_camera, metrics);
+                let row = (loss, candidate_camera, metrics, loss_metrics);
                 if iteration_best
                     .as_ref()
-                    .is_none_or(|best| primary_form_metrics_improve(&loss_metrics, &best.2))
+                    .is_none_or(|best| primary_form_metrics_improve(&row.3, &best.3))
                 {
                     iteration_best = Some(row.clone());
                 }
@@ -1520,15 +1524,15 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             step_offset = step_offset.saturating_add(iteration_budget);
             completed_iterations += 1;
             let Some(iteration_best) = iteration_best else { break; };
-            let improved = previous_best_metrics
+            let improved = previous_best_ranking_metrics
                 .as_ref()
-                .is_none_or(|best| primary_form_metrics_improve(&iteration_best.2, best));
+                .is_none_or(|best| primary_form_metrics_improve(&iteration_best.3, best));
             if improved {
-                previous_best_metrics = Some(iteration_best.2.clone());
+                previous_best_ranking_metrics = Some(iteration_best.3.clone());
                 current_camera = iteration_best.1.clone();
                 if best_overall
                     .as_ref()
-                    .is_none_or(|best| primary_form_metrics_improve(&iteration_best.2, &best.2))
+                    .is_none_or(|best| primary_form_metrics_improve(&iteration_best.3, &best.3))
                 {
                     best_overall = Some(iteration_best);
                 }
@@ -1546,24 +1550,24 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             }
         }
         rows.sort_by(|left, right| {
-            primary_form_metric_ordering(&left.2, &right.2).then_with(|| {
+            primary_form_metric_ordering(&left.3, &right.3).then_with(|| {
                 left.0
                     .partial_cmp(&right.0)
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
         });
-        let (mut best_loss, mut selected_camera, mut metrics) = best_overall
+        let (mut best_loss, mut selected_camera, mut metrics, mut selected_ranking_metrics) = best_overall
             .or_else(|| rows.first().cloned())
             .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_UNAVAILABLE".to_owned()))?;
         let base_loss = rows
             .iter()
-            .find(|(_, value, _)| *value == camera)
-            .map(|(loss, _, _)| *loss)
+            .find(|(_, value, _, _)| *value == camera)
+            .map(|(loss, _, _, _)| *loss)
             .unwrap_or(best_loss);
         let baseline_metrics = rows
             .iter()
-            .find(|(_, value, _)| *value == camera)
-            .map(|(_, _, metrics)| metrics.clone())
+            .find(|(_, value, _, _)| *value == camera)
+            .map(|(_, _, metrics, _)| metrics.clone())
             .unwrap_or_else(|| metrics.clone());
         let (selected_model_mask, selected_part_png) = camera_model_evidence
             .iter()
@@ -1574,6 +1578,25 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     "SILHOUETTE_FIT_RENDER_FAILED: selected camera result missing".to_owned(),
                 )
             })?;
+        let baseline_ranking_metrics = rows
+            .iter()
+            .find(|(_, value, _, _)| *value == camera)
+            .map(|(_, _, _, ranking_metrics)| ranking_metrics.clone())
+            .unwrap_or_else(|| {
+                let part_context = selected_part_png
+                    .as_deref()
+                    .map(|part_png| (part_png, inspection.part_ids.as_slice()));
+                primary_form_ranking_metrics(
+                    &metrics,
+                    &selected_model_mask,
+                    target.get("landmarks"),
+                    part_context,
+                )
+            });
+        // Geometry trials run at the selected camera, not necessarily the
+        // authored base camera. Keep that local incumbent separate from the
+        // public fit-level baseline used for the final camera improvement.
+        let selected_camera_ranking_metrics = selected_ranking_metrics.clone();
         // A Rig proposal is only useful to Luna when a parameter is attributed
         // to the same visible Part that produced the boundary evidence.  The
         // coarse camera batch intentionally renders silhouette only; when the
@@ -1660,9 +1683,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             // current artifact, later coordinate probes must return to the
             // authored parameters instead of walking around a bad proposal.
             let baseline_parameters = definitions.clone();
-            let mut best_geometry_loss = camera_fit_loss(&metrics);
+            let mut best_geometry_loss = camera_fit_loss(&selected_camera_ranking_metrics);
             let mut best_geometry_parameters = baseline_parameters.clone();
             let mut best_geometry_metrics = metrics.clone();
+            let mut best_geometry_ranking_metrics = selected_camera_ranking_metrics.clone();
             let mut initial_proposal_improved = None;
             for probe_index in 0..geometry_budget {
                 let backtrack_fraction = if initial_proposal_improved == Some(false) {
@@ -1784,7 +1808,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .first()
                     .and_then(|batch| batch.iter().find(|pass| pass.pass == "part-id"))
                     .map(|pass| (pass.png.as_slice(), variant_inspection.part_ids.as_slice()));
-                let loss_metrics = transient_loss_metrics_with_parts(
+                let loss_metrics = primary_form_ranking_metrics(
                     &variant_metrics,
                     &model_mask,
                     target.get("landmarks"),
@@ -1800,20 +1824,25 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 if probe_index == 0 {
                     initial_proposal_improved = Some(primary_form_metrics_improve(
                         &loss_metrics,
-                        &metrics,
+                        &selected_camera_ranking_metrics,
                     ));
                 }
-                if primary_form_metrics_improve(&variant_metrics, &best_geometry_metrics) {
+                if primary_form_metrics_improve(&loss_metrics, &best_geometry_ranking_metrics) {
                     best_geometry_loss = loss;
                     best_geometry_parameters = parameter_values;
                     best_geometry_metrics = variant_metrics;
+                    best_geometry_ranking_metrics = loss_metrics;
                     selected_geometry_program = Some(finalized);
                 }
             }
-            if primary_form_metrics_improve(&best_geometry_metrics, &metrics) {
+            if primary_form_metrics_improve(
+                &best_geometry_ranking_metrics,
+                &selected_camera_ranking_metrics,
+            ) {
                 best_loss = best_geometry_loss;
                 selected_parameters = best_geometry_parameters;
                 metrics = best_geometry_metrics;
+                selected_ranking_metrics = best_geometry_ranking_metrics;
             } else {
                 // Do not return a visually worse evidence proposal as if it
                 // were the Runtime winner.  A no-improvement result carries
@@ -1889,7 +1918,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                             .map(|pass| (pass.png.as_slice(), inspection.part_ids.as_slice()));
                         let candidate_metrics =
                             extended_silhouette_metrics(&target_mask.mask, &model_mask);
-                        let loss_metrics = transient_loss_metrics_with_parts(
+                        let loss_metrics = primary_form_ranking_metrics(
                             &candidate_metrics,
                             &model_mask,
                             target.get("landmarks"),
@@ -1897,10 +1926,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         );
                         let loss = camera_fit_loss(&loss_metrics);
                         camera_refit_evaluations += 1;
-                        if primary_form_metrics_improve(&candidate_metrics, &metrics) {
+                        if primary_form_metrics_improve(&loss_metrics, &selected_ranking_metrics) {
                             best_loss = loss;
                             selected_camera = camera_candidate;
                             metrics = candidate_metrics;
+                            selected_ranking_metrics = loss_metrics;
                         }
                     }
                 }
@@ -1919,7 +1949,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .saturating_add(geometry_evaluations)
             .saturating_add(camera_refit_evaluations);
         let camera_evaluations = rows.len().saturating_add(camera_refit_evaluations);
-        let strict_improvement = primary_form_metrics_improve(&metrics, &baseline_metrics);
+        let strict_improvement = primary_form_metrics_improve(
+            &selected_ranking_metrics,
+            &baseline_ranking_metrics,
+        );
         let mut result = json!({
             "schema_version":"SilhouetteFitResult@1",
             "project_id":project_id,
@@ -9200,7 +9233,11 @@ fn primary_form_row_ordering(left: &Value, right: &Value) -> std::cmp::Ordering 
     })
 }
 
-fn transient_loss_metrics_with_parts(
+/// Produce the internal Primary Form ranking snapshot from the exact same
+/// public contour metrics and transient landmark evidence for both baseline
+/// and candidate renders. The extra fields stay internal to the bounded fit;
+/// `SilhouetteFitResult@1` continues to expose its fixed five-field metrics.
+fn primary_form_ranking_metrics(
     base: &Value,
     model: &[bool],
     landmarks: Option<&Value>,
@@ -9220,6 +9257,15 @@ fn transient_loss_metrics_with_parts(
         object.insert("landmark_nme".to_owned(), Value::from(stable_visual_metric(nme)));
     }
     metrics
+}
+
+fn transient_loss_metrics_with_parts(
+    base: &Value,
+    model: &[bool],
+    landmarks: Option<&Value>,
+    part_context: Option<(&[u8], &[String])>,
+) -> Value {
+    primary_form_ranking_metrics(base, model, landmarks, part_context)
 }
 
 #[cfg(test)]
@@ -14871,6 +14917,40 @@ mod tests {
         assert!(weighted_contour_loss(&boundary_first) > weighted_contour_loss(&iou_first));
         assert!(primary_form_metrics_improve(&boundary_first, &iou_first));
         assert!(!primary_form_metrics_improve(&iou_first, &boundary_first));
+    }
+
+    #[test]
+    fn primary_form_ranking_snapshot_binds_landmarks_to_baseline_and_candidate() {
+        let mut baseline_mask = vec![false; 512 * 512];
+        baseline_mask[255 * 512 + 255] = true;
+        let candidate_mask = vec![false; 512 * 512];
+        let base = json!({
+            "silhouette_iou": 0.8,
+            "boundary_f1_4px": 0.8,
+            "bbox_edge_error": 0.1,
+            "centroid_error": 0.1,
+            "sdf_chamfer_px": 10.0
+        });
+        let landmarks = json!([
+            {"landmark_id":"chest-center","x":0.5,"y":0.5,"visibility":"observed"}
+        ]);
+        let baseline = primary_form_ranking_metrics(
+            &base,
+            &baseline_mask,
+            Some(&landmarks),
+            None,
+        );
+        let candidate = primary_form_ranking_metrics(
+            &base,
+            &candidate_mask,
+            Some(&landmarks),
+            None,
+        );
+
+        assert_eq!(baseline["landmark_coverage"], 1.0);
+        assert_eq!(candidate["landmark_coverage"], 0.0);
+        assert!(primary_form_metrics_improve(&baseline, &candidate));
+        assert!(!primary_form_metrics_improve(&candidate, &baseline));
     }
 
     #[test]

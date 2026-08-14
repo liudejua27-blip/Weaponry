@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Primary Form ranking snapshot 已落地：camera batch、geometry probes、geometry-winner refit 不再把带 landmark 的 transient loss 与不带 landmark 的 public baseline 混排；Runtime 为两者建立同一 candidate-bound ranking snapshot，公开 `SilhouetteFitResult@1` 仍保持固定五项 metrics。新增 regression，Runtime 全量 `105 passed / 12 ignored`；该模块没有新的 likeness 证据，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 observation/camera handoff 已落地：MCP 的 `design_action_run_prepare` schema 要求 Codex 提供 observation hash，Runtime 将其纳入 action input binding、重新生成并校验观察；stale observation 和未命中的 session camera hash 均 fail closed。Primary Form action 复用同一 candidate/target-bound camera fit evidence，不再把 default camera 当作隐式 handoff。该模块有 MCP schema/负向 fixture、Runtime stale-observation 和 action round-trip 回归；它不产生新的 likeness 证据，当前 benchmark 仍 `BLOCKED_INCOMPLETE_BINDING`、camera `MISMATCH`、visible-view `QUALITY_TARGET_NOT_MET`，人评/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Runtime quality-authority projection：Runtime 新增统一的 `visible_view_gate_checks`，由 Quality gate 布尔判断和 Agentic critic 的 failed metrics 共同消费；删除 Agentic critic 内重复阈值，避免 Viewer/Agentic projection 与 Runtime 质量结论漂移。focused Runtime、完整 `104 passed / 12 ignored` 和 MCP010F source Gate 通过。此模块不产生新的 likeness 证据，Stage 0 继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。

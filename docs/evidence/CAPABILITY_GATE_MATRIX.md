@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Primary Form ranking snapshot Gate：Runtime camera/geometry/refit 每次 render 同时形成五项 public contour metrics 和 candidate-bound transient landmark ranking snapshot；baseline、winner、geometry local incumbent 与最终 strict-improvement 使用同一 ranking projection，selected-camera geometry trial 不再拿 base-camera raw metrics 直接比较。公开 `SilhouetteFitResult@1`、MCP manifest 和 Viewer quality authority 不变；snapshot regression 与 Runtime full Gate（`105 passed / 12 ignored`）通过。该 Gate 只修复 Runtime 收敛排序，不产生新的真实 likeness 证据，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 Agentic observation/camera handoff Gate：MCP `design_action_run_prepare` 必须接收 Codex 消费的 `observation_sha256`，并把它绑定进 `input_sha256`；Runtime 只接受当前 candidate-bound `AgenticSceneObserveResult@1` 的同 hash，stale observation fail closed。Primary Form action 的 `base_camera` 由 session `camera_hash` 在同一 candidate/target-bound Runtime camera-fit evidence 中解析，未命中返回 camera binding mismatch，不回退 default camera。MCP schema/negative fixture、Runtime stale-observation/action round-trip focused Gate 通过；该 Gate 只证明 observation/camera lineage，不替代 orchestrator、Repair、真实 Codex loop、likeness、人评或 Viewer 质量权威。
 
 2026-08-15 Runtime quality-authority Gate：`visible_view_gate_checks` 统一定义 visible-view metric 的方向、阈值和状态；`visible_view_gate_passes` 与 Agentic critic 的 `failed_metrics` 共用同一 Runtime projection，避免 Agentic/Viewer 层重新推导质量门。focused regression、Runtime 全量 `104 passed / 12 ignored` 和 MCP010F source Gate 通过；该 Gate 只证明质量权威边界，不是 likeness PASS，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
