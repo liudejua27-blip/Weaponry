@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Primary Form boundary evidence coverage Gate：Runtime 的 candidate-bound boundary segments 在 `max_segments<=64` 内先为每个有 `part_id` 的可见 Part 保留一条最高误差记录，再按全局距离填充，最后按距离降序稳定输出；新增 regression 与完整 `forgecad-runtime` Gate 通过（101 passed、10 ignored）。该 Gate 关闭“单一 dominant Part 占满观察表、secondary Part 不可见”的证据覆盖缺口，但不宣称视觉 likeness 或高质量 PASS；没有新的真实 receipt，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 Primary Form proposal-direction retention Gate：Runtime 将完整 boundary projection 保留为 Runtime-owned coordinate direction source，同时仅把 dominant Part 的投影值用于 probe zero；secondary Part 仍按自身 boundary evidence 进入有界坐标探测，零改变量才使用稳定 fallback。显式 `-1/0/+1` regression、完整 Runtime Gate 通过（100 passed、10 ignored）；无新的真实 likeness receipt，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Primary Form bounded multi-Part sweep Gate：Runtime 保留 candidate-bound dominant Part 的局部 seed，但不再把后续 coordinate probes 限制在该 Part；固定 bounded schedule 会按 boundary score、proposal delta 和稳定 ID 排序后覆盖完整 typed Rig。新增 seed/sweep coverage regression 与完整 `forgecad-runtime` Gate 通过（100 passed、10 ignored）；无新的真实 likeness receipt，仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，human/PBR/export-restart/360 未运行或阻断。该 Gate 不改变 Agentic action-run 当前单 Part scope。

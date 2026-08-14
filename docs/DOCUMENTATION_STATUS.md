@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Primary Form boundary evidence coverage：Runtime 将 boundary observation 的固定 top-N 选择改为“每个有 `part_id` 的可见 Part 先取一条最高误差 evidence，再按距离补齐”，最大仍为 64 条，最终顺序仍为距离降序且确定性。这样 Codex 的一次聚合观察不会被 shin 等单一部件占满，后续 bounded multi-Part Rig probes 能读取 head/hand 等 secondary Part 的真实方向证据。新增 coverage regression，`forgecad-runtime` 全量 101 passed、10 ignored；无新的真实 likeness receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 或 human/PBR/export-restart/360 未运行状态。
+
 2026-08-15 Primary Form proposal-direction retention：Runtime 保留完整 boundary evidence proposal 作为后续坐标探测的方向来源；dominant Part 的局部 seed 只作用于首个联合 probe，secondary Part 不再使用参数索引猜方向。显式 `-1/0/+1` regression 和完整 `forgecad-runtime` 通过（100 passed、10 ignored）。该 source/convergence 修复没有新视觉 receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`、human/PBR/export-restart/360 未运行状态。
 
 2026-08-15 Primary Form bounded multi-Part sweep：修复 Runtime 在 dominant boundary Part 存在时把完整 Rig coordinate schedule 过滤成单一 Part 的缺口。dominant Part 仍只用于 seed proposal；后续 fixed bounded probes 覆盖所有 supplied typed Rig controls，新增 seed/sweep regression，`forgecad-runtime` 全量 100 passed、10 ignored。无新的真实 likeness receipt，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`、human/PBR/export-restart/360 未运行状态；Agentic action-run 仍是单 Part。

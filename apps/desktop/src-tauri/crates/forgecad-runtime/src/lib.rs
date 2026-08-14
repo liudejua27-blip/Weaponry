@@ -830,6 +830,87 @@ impl Runtime {
 /// `boundary_error_get`, but from an already-rendered transient Worker result.
 /// Primary Form can therefore attribute local error to a typed Part without a
 /// second Codex observation turn or a caller-owned image-space search.
+///
+/// Keep one high-error sample for every attributed visible Part before filling
+/// the bounded result by global distance.  A distance-only top-N selection can
+/// otherwise let a single dominant Part consume the entire observation table,
+/// which makes the next bounded sweep blind to the other visible Parts.
+fn retain_boundary_segments_with_part_coverage(segments: &[Value], max_segments: usize) -> Vec<Value> {
+    let limit = max_segments.clamp(1, 64).min(segments.len());
+    if limit == 0 {
+        return Vec::new();
+    }
+
+    let mut ranked_indices: Vec<usize> = (0..segments.len()).collect();
+    ranked_indices.sort_by(|left, right| {
+        segments[*right]["distance_px"]
+            .as_f64()
+            .unwrap_or(0.0)
+            .partial_cmp(
+                &segments[*left]["distance_px"]
+                    .as_f64()
+                    .unwrap_or(0.0),
+            )
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                segments[*right]["part_id"]
+                    .as_str()
+                    .unwrap_or("")
+                    .cmp(segments[*left]["part_id"].as_str().unwrap_or(""))
+            })
+            .then_with(|| right.cmp(left))
+    });
+
+    let mut selected = vec![false; segments.len()];
+    let mut covered_parts = HashSet::new();
+    let mut selected_count = 0usize;
+    for index in &ranked_indices {
+        let Some(part_id) = segments[*index]["part_id"].as_str() else {
+            continue;
+        };
+        if part_id.is_empty() || !covered_parts.insert(part_id.to_owned()) {
+            continue;
+        }
+        selected[*index] = true;
+        selected_count += 1;
+        if selected_count == limit {
+            break;
+        }
+    }
+    for index in ranked_indices {
+        if selected_count == limit {
+            break;
+        }
+        if selected[index] {
+            continue;
+        }
+        selected[index] = true;
+        selected_count += 1;
+    }
+
+    // Preserve the existing distance-descending contract for callers while
+    // making the coverage choice above the only new selection policy.
+    let mut output: Vec<Value> = selected
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, keep)| keep.then_some(segments[index].clone()))
+        .collect();
+    output.sort_by(|left, right| {
+        right["distance_px"]
+            .as_f64()
+            .unwrap_or(0.0)
+            .partial_cmp(&left["distance_px"].as_f64().unwrap_or(0.0))
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                right["part_id"]
+                    .as_str()
+                    .unwrap_or("")
+                    .cmp(left["part_id"].as_str().unwrap_or(""))
+            })
+    });
+    output
+}
+
 fn boundary_error_segments_for_masks(
     reference: &[bool],
     model: &[bool],
@@ -899,15 +980,7 @@ fn boundary_error_segments_for_masks(
             "part_id":part_id
         }));
     }
-    segments.sort_by(|left, right| {
-        right["distance_px"]
-            .as_f64()
-            .unwrap_or(0.0)
-            .partial_cmp(&left["distance_px"].as_f64().unwrap_or(0.0))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    segments.truncate(max_segments.clamp(1, 64));
-    segments
+    Self::retain_boundary_segments_with_part_coverage(&segments, max_segments)
 }
 
 /// Project automatic silhouette boundary evidence onto one semantic Part.
@@ -15257,6 +15330,35 @@ mod tests {
         assert_eq!(Runtime::projected_part_boundary_error(&segments, "shin-pair"), Some(40.0));
         assert!(Runtime::projected_part_boundary_mask(&segments, "missing").is_none());
         assert!(Runtime::projected_part_boundary_error(&segments, "missing").is_none());
+    }
+
+    #[test]
+    fn boundary_segments_preserve_visible_part_coverage_before_distance_fill() {
+        let segments = vec![
+            json!({"part_id":"shin-pair","distance_px":60.0}),
+            json!({"part_id":"shin-pair","distance_px":58.0}),
+            json!({"part_id":"head-shell","distance_px":45.0}),
+            json!({"part_id":"hand-pair","distance_px":44.0}),
+            json!({"part_id":null,"distance_px":43.0}),
+        ];
+
+        let selected = Runtime::retain_boundary_segments_with_part_coverage(&segments, 4);
+        assert_eq!(selected.len(), 4);
+        assert_eq!(
+            selected
+                .iter()
+                .filter_map(|segment| segment["part_id"].as_str())
+                .collect::<Vec<_>>(),
+            vec!["shin-pair", "shin-pair", "head-shell", "hand-pair"]
+        );
+        assert_eq!(selected[0]["distance_px"], 60.0);
+        assert_eq!(selected[1]["distance_px"], 58.0);
+        assert_eq!(selected[2]["distance_px"], 45.0);
+        assert_eq!(selected[3]["distance_px"], 44.0);
+
+        let expanded = Runtime::retain_boundary_segments_with_part_coverage(&segments, 5);
+        assert_eq!(expanded.len(), 5);
+        assert_eq!(expanded[4]["part_id"], Value::Null);
     }
 
     #[test]
