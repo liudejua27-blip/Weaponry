@@ -1175,6 +1175,23 @@ def main() -> int:
             "render_pass_get",
         }
         require(required_tools.issubset(tool_names), "MCP010E required tool set was incomplete")
+        preflight = client.tool(
+            "skill_get",
+            {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+        )
+        preflight_skill = preflight.get("skill") if isinstance(preflight, dict) else None
+        preflight_knowledge = preflight.get("knowledge") if isinstance(preflight, dict) else None
+        require(
+            isinstance(preflight_skill, dict)
+            and preflight_skill.get("skill_id") == "ponytail-preflight"
+            and preflight_skill.get("version") == "0.1.0"
+            and isinstance(preflight_skill.get("canonical_sha256"), str)
+            and len(preflight_skill["canonical_sha256"]) == 64
+            and isinstance(preflight_knowledge, dict)
+            and isinstance(preflight_knowledge.get("canonical_sha256"), str)
+            and len(preflight_knowledge["canonical_sha256"]) == 64,
+            "ponytail preflight was not read before ForgeCAD design tools",
+        )
         pack = client.tool("material_pack_get")
         require(
             isinstance(pack, dict)
@@ -1273,7 +1290,11 @@ def main() -> int:
             },
         )
         if isinstance(appearance_response.get("result"), dict) and appearance_response["result"].get("isError"):
-            raise GateFailure("appearance_prepare rejected")
+            error_result = appearance_response["result"]
+            error_payload = error_result.get("structuredContent") or error_result.get("content") or "untyped error"
+            raise GateFailure(
+                f"appearance_prepare rejected: {json.dumps(error_payload, ensure_ascii=False, sort_keys=True)[:2048]}"
+            )
         prepared = appearance_response.get("result", {}).get("structuredContent")
         artifact = prepared.get("artifact") if isinstance(prepared, dict) else None
         render_set = prepared.get("render_set") if isinstance(prepared, dict) else None
@@ -1525,6 +1546,7 @@ def main() -> int:
             "geometry_part_count": len(geometry_artifact.get("part_ids") or []),
             "geometry_triangle_count": geometry_artifact.get("triangle_count"),
             "tool_count": "21 read + 16 write",
+            "ponytail_preflight": "PASS",
             "pack_id": pack["pack_id"],
             "pack_manifest_sha256": pack_hash,
             "texture_manifest_count": len(textures),

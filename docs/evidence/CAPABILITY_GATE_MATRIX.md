@@ -3,6 +3,10 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 QualityReport/packaged F Gate：Runtime `AppearancePrepare` 现在严格输出 `visual_status=not-run`、`hard_gate_passed=false`；同一 packaged cohort `fee79807…` raw F probe 通过 detail geometry/readback、7 material zones、九 AOV、embedded textures、Render Worker same-cohort binding 和 Viewer read-model。该 Gate 是 structural/read-model PASS，不是视觉 likeness PASS，故真实 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 与人评/PBR/export/restart/360 的 `NOT_RUN/BLOCKED` 状态保持不变。
+
+2026-08-15 Primary Form 多尺度 geometry convergence Gate：Runtime 在固定 64 evaluation ceiling 内把 `GeometryProgram` bounded search 分配为 `40 geometry + 16 initial camera + 8 geometry-winner refit`；coordinate probe 后续 pass 采用 `1.0 → 0.5 → 0.25` deterministic scales，使 26-control detail Rig 能在完整 evidence pass 后继续 reverse/fine refinement。focused budget/scale regression 通过；该 Gate 只证明 Runtime-owned 收敛搜索结构，不产生新的真实 likeness、人评、PBR、export/restart 或 360 证据，现有 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 保持不变。
+
 2026-08-15 Runtime camera-fit→compare handoff Gate：同一 Runtime 进程内，`camera_fit_prepare` 的 selected camera 现在按 `project/candidate/target` 三元组缓存；后续 `reference_compare_prepare` 未显式携带 camera 时复用该 exact calibration，并跳过 default framing 的二次推导。无 exact cache 或无 target 时才使用原有 bounded fallback；新增 Runtime regression 通过。该 Gate 只修复 source-level camera lineage，不替代历史真实 receipt 的重新运行，不改变当前 `camera=MISMATCH`、`QUALITY_TARGET_NOT_MET`、`BLOCKED_INCOMPLETE_BINDING` 或 human/PBR/export/restart/360 状态。
 
 2026-08-15 Primary Form bounded continuation Gate：`primary_form_repair_prepare` 与异步 Job 在固定 64 evaluation ceiling 内最多执行两轮 Runtime-owned camera/geometry continuation；第二轮围绕第一轮 incumbent，不把连续参数轨迹交还 Codex。optimizer normalization regression 与端到端 fixture 通过（`iterations=2`、63–64 evaluations）；该 Gate 只增强 bounded convergence path，不产生新的真实 likeness receipt，现有 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING` 与未运行的人评/PBR/export/restart/360 状态保持不变。

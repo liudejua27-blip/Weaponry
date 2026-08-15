@@ -1,5 +1,9 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 QualityReport 质量权威一致性与 packaged F 状态：`AppearancePrepare` 的结构性产物在 `visual_status=not-run` 时现在明确写入 `hard_gate_passed=false`，与 Runtime `QualityReport@2` validator 和 Viewer 只读消费规则一致；同一 packaged cohort `fee79807…` 的隔离 F probe 已验证 26 parts/4704 triangles、7 material zones、九 AOV、embedded textures、Render Worker cohort binding 与 Viewer read-model PASS。该证据仍是 structural/read-model PASS，不是 likeness 或视觉质量 PASS；真实质量继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR likeness/export-restart/360 未运行或阻断。
+
+2026-08-15 Primary Form 多尺度几何收敛状态：Runtime-owned `GeometryProgram` 搜索在固定 `max_evaluations=64` 上限内调整为 `geometry=40`、初始 camera=16、geometry-winner refit=8；较小预算按同一有界比例分配，三者总和仍不超过调用者上限。coordinate probe 的后续 pass 使用确定性 `1.0 → 0.5 → 0.25` 步长，形成一次完整 evidence-directed pass 后的 reverse/fine refinement，不把连续参数轨迹交给 Codex。该 source/focused 修复不改变 Schema、Worker/readback、same-camera acceptance、Viewer quality authority 或历史 receipt；当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 camera-fit→compare handoff 状态：`reference_compare_prepare` 在没有显式 camera、但存在同一 `project_id/candidate_id/target_sha256` 的 Runtime camera-fit cache 时，复用该 `selected_camera`，不再重新从 default camera 推导 framing；无 cache/target 仍走原有 bounded fallback。新增自动复用 regression 通过。该源码 Gate 尚未替换历史真实 Codex receipt，因此当前账本仍保留 `camera=MISMATCH`、`QUALITY_TARGET_NOT_MET` 与 `BLOCKED_INCOMPLETE_BINDING`，不得写成视觉质量通过。
 
 2026-08-15 Primary Form bounded continuation 状态：`primary_form_repair_prepare` 与异步 Job 的 Runtime optimizer 现在最多允许 2 个 continuation iterations；总 `max_evaluations` 仍为 64，第二轮只复用第一轮 Runtime incumbent 的相机/几何上下文。focused fixture 已验证 63–64 次 bounded evaluations 与 `iterations=2`，但没有新真实视觉 receipt，因此历史 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH` 和 benchmark incomplete binding 不变。

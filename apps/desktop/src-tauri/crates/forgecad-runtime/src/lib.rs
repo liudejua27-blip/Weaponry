@@ -4897,7 +4897,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "human_receipt_hash":Value::Null,
             "structural_status":"passed",
             "visual_status":"not-run",
-            "hard_gate_passed":true,
+            "hard_gate_passed":false,
             "limitations":["MCP010E material/UV/PBR structural gate; reference comparison and human visual review are separate MCP010C evidence."],
             "canonical_sha256":""
         });
@@ -10833,8 +10833,17 @@ fn primary_form_proposal_direction(
 /// optimizer step.  This lets a secondary Part receive the correction that
 /// the same observation already justified without exposing a continuous
 /// search to Codex or allowing a single probe to cross half its authored
-/// range. Later passes remain deliberately conservative and use the original
-/// optimizer step.
+/// range. Later passes deliberately use a deterministic multi-scale schedule
+/// so the Runtime can refine an accepted incumbent instead of repeating the
+/// same coarse displacement.
+fn primary_form_probe_scale(probe_pass: usize) -> f64 {
+    match probe_pass {
+        0 => 1.0,
+        1 => 0.5,
+        _ => 0.25,
+    }
+}
+
 fn primary_form_probe_magnitude(
     definitions: &[Value],
     evidence_parameters: &[Value],
@@ -10860,7 +10869,7 @@ fn primary_form_probe_magnitude(
         .unwrap_or(authored);
     let half_span = ((max - min).abs() * 0.5).max(fallback_delta);
     if probe_pass > 0 {
-        return fallback_delta.min(half_span);
+        return (fallback_delta * primary_form_probe_scale(probe_pass)).min(half_span);
     }
     let current = current_parameters
         .get(coordinate)
@@ -10931,12 +10940,13 @@ fn primary_form_evaluation_budgets(
     if max_evaluations < 3 {
         return (0, max_evaluations.clamp(1, 64), 0);
     }
-    // Reserve a first-class budget for the coupled geometry -> camera
-    // convergence pass.  A geometry-only 2/3 split made the final camera
-    // implicit and could spend every evaluation before the winner was
-    // re-framed.  The three budgets always sum to the caller's hard cap.
-    let geometry_budget = (max_evaluations / 2).clamp(1, 40);
-    let camera_budget = (max_evaluations / 4).clamp(1, 24);
+    // Reserve the largest bounded slice for Runtime-owned geometry convergence:
+    // a 26-control detail Rig needs one full evidence-directed pass plus a
+    // meaningful reverse/fine pass. Keep the initial camera neighborhood wide
+    // enough to cover its fixed axes, then retain a smaller geometry-winner
+    // refit. The three budgets always sum to the caller's hard cap.
+    let geometry_budget = (max_evaluations.saturating_mul(5) / 8).clamp(1, 40);
+    let camera_budget = (max_evaluations / 4).clamp(1, 16);
     let camera_refit_budget = max_evaluations
         .saturating_sub(geometry_budget)
         .saturating_sub(camera_budget)
@@ -14699,6 +14709,31 @@ mod tests {
     }
 
     #[test]
+    fn quality_report_not_run_never_claims_hard_gate() {
+        let mut quality = json!({
+            "schema_version":"QualityReport@2",
+            "quality_report_id":"quality-not-run-test",
+            "candidate_id":"candidate-not-run-test",
+            "artifact_sha256":"a".repeat(64),
+            "program_sha256":"b".repeat(64),
+            "reference_id":"reference-not-run-test",
+            "reference_sha256":"c".repeat(64),
+            "render_set_hash":"d".repeat(64),
+            "comparison_report_hash":"e".repeat(64),
+            "human_receipt_hash":Value::Null,
+            "structural_status":"passed",
+            "visual_status":"not-run",
+            "hard_gate_passed":false,
+            "limitations":["reference_compare_not_run"],
+            "canonical_sha256":""
+        });
+        quality["canonical_sha256"] = Value::String(canonical_json_hash(&quality));
+        validate_quality_report_v2_output(&quality).expect("not-run quality is structurally valid");
+        quality["hard_gate_passed"] = Value::Bool(true);
+        assert!(validate_quality_report_v2_output(&quality).is_err());
+    }
+
+    #[test]
     fn geometry_program_hash_is_read_only_and_compiler_compatible() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
@@ -16060,10 +16095,10 @@ mod tests {
 
     #[test]
     fn primary_form_budget_honors_declared_bound_with_geometry_priority() {
-        assert_eq!(primary_form_evaluation_budgets(24, true), (12, 6, 6));
-        assert_eq!(primary_form_evaluation_budgets(8, true), (4, 2, 2));
+        assert_eq!(primary_form_evaluation_budgets(24, true), (15, 6, 3));
+        assert_eq!(primary_form_evaluation_budgets(8, true), (5, 2, 1));
         assert_eq!(primary_form_evaluation_budgets(1, true), (0, 1, 0));
-        assert_eq!(primary_form_evaluation_budgets(64, true), (32, 16, 16));
+        assert_eq!(primary_form_evaluation_budgets(64, true), (40, 16, 8));
         assert_eq!(primary_form_evaluation_budgets(24, false), (0, 24, 0));
         let detail_rig_parameter_count = 26;
         let detail_budgets = primary_form_evaluation_budgets(64, true);
@@ -16071,7 +16106,7 @@ mod tests {
         for max_evaluations in 1..=64 {
             let budgets = primary_form_evaluation_budgets(max_evaluations, true);
             assert!(budgets.0 + budgets.1 + budgets.2 <= max_evaluations);
-            assert!(budgets.0 <= 40 && budgets.1 <= 24 && budgets.2 <= 24);
+            assert!(budgets.0 <= 40 && budgets.1 <= 16 && budgets.2 <= 24);
         }
     }
 
@@ -16610,7 +16645,11 @@ mod tests {
             < 1e-12);
         assert_eq!(
             primary_form_probe_magnitude(&definitions, &evidence, &authored, 0, fallback, 1),
-            fallback
+            fallback * 0.5
+        );
+        assert_eq!(
+            primary_form_probe_magnitude(&definitions, &evidence, &authored, 0, fallback, 2),
+            fallback * 0.25
         );
 
         let already_at_evidence = vec![json!({"parameter_id":"head-width","value":1.30})];
