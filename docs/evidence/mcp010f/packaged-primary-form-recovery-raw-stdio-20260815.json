@@ -25,5 +25,16 @@
   "semantic_part_sink_multi_input": "PASS",
   "skill_registry_count": 12,
   "status": "PASS",
-  "task_id": "FGC-MCP010B"
+  "task_id": "FGC-MCP010B",
+  "tool_manifest": {
+    "schema_version": "ForgeCADMcpToolManifestSummary@1",
+    "build_cohort_sha256": "04bbb4d60c67c2a7aa58c4fada091e2ed4477e495e92ffac988f5113bdce81f3",
+    "read_count": 37,
+    "write_count": 24,
+    "total_count": 61,
+    "read_manifest_sha256": "1304201553d9144a94961f6d198bd8515086d616752cf838378a7f4472a29dc1",
+    "write_enabled_manifest_sha256": "aa6da7e46b20a637f3c7383d8f623c8ddef8679439599b09f277852c28840a0d",
+    "canonical_sha256": "c654ed231b88e98792e5dffbdfd68fe4e9a6d212dfbd2f67a1259220857e9aa6",
+    "source_package_exact_match": true
+  }
 }
