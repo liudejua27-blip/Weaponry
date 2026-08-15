@@ -341,7 +341,21 @@ def wait_for_ready(path: Path, process: subprocess.Popen[str], timeout: float) -
 
 
 def call_sequence(items: list[dict[str, Any]]) -> list[str]:
-    return [str(call.get("tool")) for call in mcp_calls(items) if call.get("server") == "forgecad"]
+    """Return the successful raw ForgeCAD call order for stage validation.
+
+    ``mcp_calls`` is intentionally a compact receipt projection grouped by
+    call id.  A fresh Codex retry can reuse a logical call id, so using that
+    projection for ordering can hide a completed suffix behind an earlier
+    partial call.  Stage gates must consume the raw completed events; the
+    compact projection remains reserved for transport receipts.
+    """
+    return [
+        str(item.get("tool"))
+        for item in items
+        if item.get("type") == "mcp_tool_call"
+        and item.get("server") == "forgecad"
+        and item.get("status") == "completed"
+    ]
 
 
 def has_subsequence(actual: list[str], expected: tuple[str, ...]) -> bool:
@@ -353,11 +367,8 @@ def has_subsequence(actual: list[str], expected: tuple[str, ...]) -> bool:
 
 
 def all_completed(items: list[dict[str, Any]], expected: tuple[str, ...]) -> bool:
-    calls = [call for call in mcp_calls(items) if call.get("server") == "forgecad"]
-    by_tool: dict[str, list[dict[str, Any]]] = {}
-    for call in calls:
-        by_tool.setdefault(str(call.get("tool")), []).append(call)
-    return all(any(call.get("status") == "completed" for call in by_tool.get(name, [])) for name in expected)
+    completed = set(call_sequence(items))
+    return all(name in completed for name in expected)
 
 
 def completed_tool_sequence(items: list[dict[str, Any]]) -> list[str]:
