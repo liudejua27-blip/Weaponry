@@ -1,5 +1,7 @@
 # ForgeCAD 当前原子任务索引
 
+2026-08-15 `FGC-MCP010F` Primary Form profile-loft height sink correction：Runtime `materialize_rig_geometry_program` 现在把 `height` 正确映射到 `forgecad.geometry.profile-loft@1` 的 `profiles[*].height_m` 跨度；不再把高度提案错误写入截面点的局部深度坐标，`profile-extrude` 既有行为保持不变。新增回归与全部 7 个 Rig materialization tests、Runtime `122 passed / 0 failed / 12 ignored`、MCP010F full Gate 通过；Stage 0 truth hash 已同步。该 source Gate 不产生新的真实 likeness receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 与人评/PBR/export-restart/360 状态保持不变。
+
 2026-08-15 `FGC-MCP010F` Durable Agentic observation lineage hardening：`session_create_or_resume`、`session_get`、`checkpoint_prepare` 与 bounded action 现在要求观察中的 candidate/reference ID、candidate canonical hash、reference object hash 与 reference canonical hash 全部等于当前 Runtime 记录；缺失或漂移均返回明确的 fail-closed binding error。新增 exact-lineage regression、Agentic projection 回归和 bounded action 回归通过。该修复不新增 Schema/tool/CAS 用户数据，不执行 Repair/confirm/version/export，也不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或人评/PBR/export-restart/360 未运行状态。
 
 2026-08-15 `FGC-MCP010F` Agentic observation cache：Runtime 按 `AgenticSceneObserveResult@1.canonical_sha256` 保留同一进程内的完整只读观察；bound plan/critic/evidence/action follow-up 优先消费原对象，避免 Codex 在一次观察后重新拼接多个投影。Runtime 重启时 cache 不持久化，只有重新构建并通过 canonical hash/scope 校验才可继续；cache ambiguity regression 与 bounded action regression 通过。该修复不改变唯一 `in_progress`、工具/Schema 数或真实视觉真值：仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。

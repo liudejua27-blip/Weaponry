@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Primary Form profile-loft height sink Gate：Runtime 将 `height` proposal 映射到 `forgecad.geometry.profile-loft@1` 的 `profiles[*].height_m` station span，保持首站锚点并不修改 profile point depth；`profile-extrude` 既有行为回归通过。7 个 materialization tests、Runtime `122 passed / 0 failed / 12 ignored`、MCP010F full Gate 与 Stage 0 source-truth checker PASS。该 Gate 只修复 typed geometry sink，不产生新的真实 likeness/quality receipt；`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态保持不变。
+
 2026-08-15 Durable Agentic lineage Gate：session/checkpoint/action 的 observation claims 现在必须同时匹配 current candidate/reference 的 ID、candidate canonical hash、reference object hash 与 reference canonical hash；缺失或漂移返回 fail-closed binding error。exact-lineage unit、Agentic projection 与 bounded action regressions PASS；不新增 Schema/tool/CAS，不产生 Repair/confirm/version/export 或视觉质量结论，仍为 `QUALITY_TARGET_NOT_MET` / `MISMATCH` / `BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Agentic observation cache Gate：Runtime 进程内按 canonical observation hash 缓存完整只读 projection；bound plan/critic/evidence/action 在同一 Runtime 会话消费原对象，缓存丢失时执行重建 + hash/scope fail-closed 校验。focused Runtime cache/ambiguity 与 bounded action tests PASS；无新增 Schema、tool、CAS 用户数据或视觉质量结论，仍为 `QUALITY_TARGET_NOT_MET` / `MISMATCH` / `BLOCKED_INCOMPLETE_BINDING`。

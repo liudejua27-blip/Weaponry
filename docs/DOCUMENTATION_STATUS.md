@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Primary Form profile-loft height sink Gate：Runtime 将 `profile-loft@1` 的 Rig `height` 绑定到 `profiles[*].height_m` 的真实纵向站点，并保留截面点深度；`profile-extrude` 路径未改变。7 个 materialization tests、Runtime 全量 `122 passed / 0 failed / 12 ignored`、MCP010F full Gate 与 Stage 0 checker 通过。该修复只关闭 typed 参数落点缺口，不升级视觉质量：当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`INCOMPLETE_TRUTH_BINDING`/`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 Agentic durable lineage binding：`validate_observation_claims` 现在逐项校验 observation lineage 与当前 Candidate/Reference canonical records；session/checkpoint/action 不能拿缺失或漂移的参考/候选观察继续执行。exact-lineage、Agentic projection 和 bounded action 回归通过；无新增 Schema/tool/CAS 写入，视觉真值保持 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Agentic observation consolidation status：`AgenticSceneObserveResult@1` 现在由 Runtime 进程内 bounded hash cache 保持为一次完整只读快照；bound plan/critic/evidence/action 不再在同一 Runtime 会话重新构建观察。cache 只存在内存，重启后重建仍须通过 canonical hash/scope 校验；没有新增 Schema、tool 或 durable user-data 写入。focused Runtime tests 通过，真实视觉状态仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。

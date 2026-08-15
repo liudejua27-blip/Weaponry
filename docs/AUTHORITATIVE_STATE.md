@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Primary Form profile-loft height truth：Runtime 的 typed Rig `height` 对 `forgecad.geometry.profile-loft@1` 现在只缩放 `profiles[*].height_m` 的纵向跨度，并以首站为稳定锚点；二维 profile points 的局部深度不再被误写。focused/full Runtime 与 MCP010F Gate 通过，Stage 0 Runtime source hash 已同步；没有新的真实视觉 receipt，权威状态仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，未解锁确认、PBR、人评、export/restart 或 360。
+
 2026-08-15 Durable Agentic observation lineage truth：Runtime 在 durable session/checkpoint/action 的观察声明上增加 candidate/reference lineage 等值校验：观察必须同时绑定当前 candidate ID/hash、reference ID/object hash/canonical hash；不完整或状态漂移立即 fail closed。该校验只保护现有 Runtime-owned durable prepare/readback，不把 durable slice 扩写成完整 orchestrator 或 Repair execution；无新的视觉 receipt，`QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态不变。
 
 2026-08-15 Agentic observation cache truth：Runtime 现在在进程内按 `AgenticSceneObserveResult@1.canonical_sha256` 缓存一次完整只读观察；bound plan/critic/visual-evidence/action follow-up 优先读取同一对象，不再在正常同一 Runtime 会话中重新拆分推导。缓存不是 SQLite/CAS 用户数据；Runtime 重启后仍允许一次重新构建，但必须通过请求 hash、project/candidate scope 与 canonical hash 校验。新增 cache/ambiguity regression 和 bounded action regression 通过；没有新的视觉 receipt，`QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态不变。

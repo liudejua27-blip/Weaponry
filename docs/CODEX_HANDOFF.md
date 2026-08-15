@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 Primary Form profile-loft height sink handoff：`materialize_rig_geometry_program` 已按 operator-aware typed sink 修复 `profile-loft@1` 的 `height` 语义：目标高度按 profile station span 写入 `height_m`，首站保持锚定，截面点深度保持不变；`profile-extrude` 的二维高度缩放保持原行为。新增 regression、Rig materialization 7 tests、Runtime `122 passed / 0 failed / 12 ignored`、MCP010F full Gate 与 Stage 0 checker 通过。该模块没有新真实参考/likeness receipt，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`INCOMPLETE_TRUTH_BINDING`/`BLOCKED_INCOMPLETE_BINDING`；后续仍需用户授权参考字节和真实视觉闭环，不能把 source Gate 写成高质量 PASS。
+
 2026-08-15 Durable observation lineage handoff：本轮把 Agentic durable prepare/readback 的 binding 从 project/candidate scope 扩展为 exact candidate/reference lineage。`session_*`、`checkpoint_*` 和 bounded action 在使用观察时会核对 candidate ID/hash、reference ID/object hash/canonical hash；缺失/漂移不会继续执行。focused exact-lineage、Agentic projection 与 bounded action tests PASS。该修复没有改变 Runtime 唯一写者、Viewer 只读边界或当前视觉真值；下一步仍是用真实授权参考复跑视觉闭环，不能把结构 Gate 写成 likeness PASS。
 
 2026-08-15 Agentic observation handoff：Runtime 进程内新增以 `AgenticSceneObserveResult@1.canonical_sha256` 为 key 的 bounded read-only cache；同一次 `scene_observe_get` 后的 plan/critic/evidence/action follow-up 读取原观察对象，缓存丢失时才重建并严格做 hash/scope 校验。它不写 SQLite/CAS，也不替代 durable session/checkpoint；新增 ambiguity/cache regression 与 bounded action regression 通过。没有新的授权 PNG 或 likeness 证据，质量仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。

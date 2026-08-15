@@ -10385,6 +10385,7 @@ fn materialize_rig_geometry_program(
                 if should_apply
                     && apply_rig_parameter_to_node(
                         parameters,
+                        &operator_id,
                         semantic,
                         unit,
                         value,
@@ -10471,6 +10472,7 @@ fn collect_geometry_node_indices(
 
 fn apply_rig_parameter_to_node(
     parameters: &mut serde_json::Map<String, Value>,
+    operator_id: &str,
     semantic: &str,
     unit: &str,
     value: f64,
@@ -10531,6 +10533,72 @@ fn apply_rig_parameter_to_node(
             true
         }
         "width" | "height" | "depth" => {
+            if operator_id == "forgecad.geometry.profile-loft@1" && semantic == "height" {
+                // A profile-loft's vertical axis is represented by each
+                // profile's `height_m`; points[*][1] is the authored local
+                // profile depth coordinate.  Keep the first profile as the
+                // anchor and scale the loft span so a Primary Form height
+                // proposal cannot silently change depth instead.
+                let (first_height, last_height) = {
+                    let Some(profiles) = parameters.get("profiles").and_then(Value::as_array) else {
+                        return false;
+                    };
+                    if profiles.len() < 2 {
+                        return false;
+                    }
+                    let Some(first_height) = profiles
+                        .first()
+                        .and_then(|profile| profile.get("height_m"))
+                        .and_then(Value::as_f64)
+                    else {
+                        return false;
+                    };
+                    let Some(last_height) = profiles
+                        .last()
+                        .and_then(|profile| profile.get("height_m"))
+                        .and_then(Value::as_f64)
+                    else {
+                        return false;
+                    };
+                    (first_height, last_height)
+                };
+                let authored_span = last_height - first_height;
+                if !first_height.is_finite() || !last_height.is_finite() || authored_span <= 0.0 {
+                    return false;
+                }
+                let target_span = if unit == "ratio" {
+                    authored_span * ratio
+                } else {
+                    value
+                };
+                let span_scale = target_span / authored_span;
+                if !target_span.is_finite() || target_span <= 0.0 || !span_scale.is_finite() || span_scale <= 0.0 {
+                    return false;
+                }
+                let next_heights = {
+                    let Some(profiles) = parameters.get("profiles").and_then(Value::as_array) else {
+                        return false;
+                    };
+                    profiles
+                        .iter()
+                        .map(|profile| {
+                            let old_height = profile.get("height_m").and_then(Value::as_f64)?;
+                            let next = first_height + (old_height - first_height) * span_scale;
+                            next.is_finite().then_some(next)
+                        })
+                        .collect::<Option<Vec<_>>>()
+                };
+                let Some(next_heights) = next_heights else {
+                    return false;
+                };
+                let Some(profiles) = parameters.get_mut("profiles").and_then(Value::as_array_mut) else {
+                    return false;
+                };
+                for (profile, next_height) in profiles.iter_mut().zip(next_heights) {
+                    profile["height_m"] = Value::from(next_height);
+                }
+                return true;
+            }
             let axis = match semantic {
                 "width" => 0,
                 "height" => 1,
@@ -17503,6 +17571,32 @@ mod tests {
         let y2 = profile[2][1].as_f64().unwrap();
         assert!((y0 + 0.4).abs() < 1e-9);
         assert!((y2 - 0.6).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rig_materialization_maps_profile_loft_height_to_profile_stations() {
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-profile-loft-height",
+            "nodes":[
+                {"node_id":"pelvis-shell","operator_id":"forgecad.geometry.profile-loft@1","inputs":[],"parameters":{"shape":"profile-loft","profiles":[{"height_m":0.0,"points":[[-0.48,-0.24],[0.48,-0.24],[0.48,0.24],[-0.48,0.24]]},{"height_m":0.4,"points":[[-0.36,-0.2],[0.36,-0.2],[0.36,0.2],[-0.36,0.2]]},{"height_m":0.8,"points":[[-0.30,-0.16],[0.30,-0.16],[0.30,0.16],[-0.30,0.16]]}],"position_m":[0.0,1.2,0.0],"rotation_rad":[0.0,0.0,0.0]}}
+            ],
+            "part_outputs":[{"part_id":"pelvis","input_node_ids":["pelvis-shell"],"material_zone_id":"zone-white-shell","solid":true}],
+            "canonical_sha256":""
+        });
+        let rig = json!({"parameters":[
+            {"parameter_id":"pelvis-height","part_id":"pelvis","semantic":"height","value":1.0,"min":0.75,"max":1.5,"step":0.05,"unit":"ratio"}
+        ]});
+        let selected = vec![json!({"parameter_id":"pelvis-height","part_id":"pelvis","value":1.25})];
+        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize profile-loft height");
+        assert_eq!(applied, 1);
+        let profiles = materialized["nodes"][0]["parameters"]["profiles"].as_array().expect("profiles");
+        assert_eq!(profiles[0]["height_m"], 0.0);
+        assert!((profiles[1]["height_m"].as_f64().unwrap() - 0.5).abs() < 1e-12);
+        assert!((profiles[2]["height_m"].as_f64().unwrap() - 1.0).abs() < 1e-12);
+        assert_eq!(profiles[0]["points"][0][1], -0.24);
+        assert_eq!(profiles[1]["points"][0][1], -0.2);
+        assert_eq!(profiles[2]["points"][0][1], -0.16);
     }
 
     #[test]
