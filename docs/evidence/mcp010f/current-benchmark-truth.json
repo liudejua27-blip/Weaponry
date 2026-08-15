@@ -56,13 +56,13 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "981a4825bd60dc3d6be27451c3d95d4a36180c7d78f276eaeaa5d85575b0cf0d",
+  "canonical_sha256": "24e73cdd0867220123150393689da948ea4a41ff4804def915224f5f45ea7c0b",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
       "manifest_sha256": "0fa7fafdd643a3e034845f1b071983ecfdb81dbadf7a2178895bd5d9c13a90bc",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-      "schema_content_set_sha256": "145c98ac7b788bb8d7cc2e82b2091ddce8bd4aa5f485a2740f4135b2898627bd",
+      "schema_content_set_sha256": "01218d921dd05574835d5762c8b64c72332b61a58eba6cdb20d0190d4b658a47",
       "schema_count": 103
     },
     "mcp_tools": {
@@ -108,12 +108,12 @@
         "visual_evidence_bundle_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "a070b6f7368fe5b58887bc170462efb81740641f6e236d4b40db50f72a8ad470",
+      "source_sha256": "367800d4eedad46a8c262bd4b8fa338bfc0623c5b4f755e50c23dfe265542c41",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
-      "summary_receipt_sha256": "4aa403277a875961877726849205730c6b22540b299a68b0a83f3d1d7de0f658",
+      "summary_receipt_sha256": "cd8b5930cdf173322d2e61ab54831dfbaab3d00877b74450cc2730e85472b220",
       "total_count": 61,
       "write_count": 24,
-      "write_enabled_manifest_sha256": "c9d615d5155f936170d26d26db3c8ddbdf81ea1d2c50502ff5829fca9dba9fcb",
+      "write_enabled_manifest_sha256": "aa6da7e46b20a637f3c7383d8f623c8ddef8679439599b09f277852c28840a0d",
       "write_names": [
         "appearance_prepare",
         "candidate_confirm",
@@ -150,7 +150,7 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "946fa07b4917b6ee53c7a3baaf695a3a0a6fb060d852aa0d384e995aafaf59bd",
+      "runtime_source_sha256": "1198d398fc8d1b39c07111990d3305432ae0fb54092317cbce5592da603be025",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "57dbdabc0cc6df77f5870d6b4f01d5e2f1676b17121f48112c44aea85cf755f5"
     }

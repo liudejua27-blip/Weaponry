@@ -27,6 +27,7 @@
     "source_candidate_id": {"$ref": "#/$defs/identifier"},
     "target_sha256": {"$ref": "#/$defs/sha256"},
     "reference_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
     "fit_result": {"$ref": "https://forgecad.local/contracts/silhouette-fit-result.schema.json"},
     "prepared_candidate": {
       "oneOf": [

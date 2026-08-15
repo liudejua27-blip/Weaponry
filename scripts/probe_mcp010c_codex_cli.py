@@ -114,11 +114,22 @@ def parse_args() -> argparse.Namespace:
         "--part-contour-part",
         help="after boundary_error_get, request one Runtime-owned PartContourFitResult@1 for this exact semantic Part ID",
     )
+    parser.add_argument(
+        "--part-contour-trial",
+        action="store_true",
+        help="scope one Runtime-owned primary_form_repair_prepare candidate trial to --part-contour-part and keep the same-camera acceptance gate",
+    )
     options = parser.parse_args()
     if options.primary_form_repair and not options.silhouette_first:
         parser.error("--primary-form-repair requires --silhouette-first")
     if options.part_contour_part and not options.silhouette_first:
         parser.error("--part-contour-part requires --silhouette-first")
+    if options.part_contour_trial and not options.part_contour_part:
+        parser.error("--part-contour-trial requires --part-contour-part")
+    if options.part_contour_trial and not options.silhouette_first:
+        parser.error("--part-contour-trial requires --silhouette-first")
+    if options.part_contour_trial:
+        options.primary_form_repair = True
     return options
 
 
@@ -1229,6 +1240,8 @@ def main() -> int:
                     "optimizer": {"algorithm": "coordinate_descent", "max_iterations": 2, "max_evaluations": 64, "step_fraction": 0.1},
                     "canonical_sha256": "",
                 }
+                if options.part_contour_trial:
+                    fit_request["part_id"] = options.part_contour_part
                 # Codex may serialize an integral float as an integer while
                 # preserving its typed value. Hash the numeric-normalized
                 # semantic intent so the Runtime can bind either wire form.
@@ -1557,6 +1570,20 @@ def main() -> int:
                     "boundary_error": boundary_summary,
                     "boundary_error_count": len(field(boundary_result or {}, "segments") or []),
                     "part_contour_part_id": options.part_contour_part,
+                    "part_contour_trial_requested": options.part_contour_trial,
+                    "part_contour_trial": {
+                        "part_id": field(primary_form_repair_result or {}, "part_id"),
+                        "status": field(primary_form_repair_result or {}, "status"),
+                        "quality_status": field(primary_form_repair_result or {}, "quality_status"),
+                        "candidate_state": field(primary_form_repair_result or {}, "candidate_state"),
+                        "source_candidate_id": field(primary_form_repair_result or {}, "source_candidate_id"),
+                        "prepared_candidate_id": field(primary_form_repair_result or {}, "visual_evidence", "candidate_id"),
+                        "acceptance_status": field(primary_form_repair_result or {}, "acceptance", "status"),
+                        "acceptance_strict_improvement": field(primary_form_repair_result or {}, "acceptance", "strict_improvement"),
+                        "acceptance_source_loss": field(primary_form_repair_result or {}, "acceptance", "source_loss"),
+                        "acceptance_proposal_loss": field(primary_form_repair_result or {}, "acceptance", "proposal_loss"),
+                        "acceptance_camera_hash": field(primary_form_repair_result or {}, "acceptance", "camera_hash"),
+                    } if options.part_contour_trial else None,
                     "part_contour_rig_sha256": part_contour_rig_sha256,
                     "part_contour_fit": part_contour_result,
                     "quality_claim": "NO_LIKENESS_PASS_CLAIM; BOUNDARY_EVIDENCE_ONLY",
@@ -1691,8 +1718,10 @@ def main() -> int:
                 "render_set_hash": render_set_hash,
                 "comparison_report_hash": comparison_hash,
                 "primary_form_repair_requested": options.primary_form_repair,
+                "part_contour_trial_requested": options.part_contour_trial,
                 "primary_form_repair_intent_sha256": primary_form_repair_intent_sha,
                 "primary_form_repair": {
+                    "part_id": field(primary_form_repair_result or {}, "part_id"),
                     "status": field(primary_form_repair_result or {}, "status"),
                     "quality_status": field(primary_form_repair_result or {}, "quality_status"),
                     "candidate_state": field(primary_form_repair_result or {}, "candidate_state"),

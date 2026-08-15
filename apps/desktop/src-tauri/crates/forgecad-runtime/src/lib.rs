@@ -2153,6 +2153,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "project_id",
                 "candidate_id",
                 "target_sha256",
+                "part_id",
                 "rig",
                 "base_camera",
                 "optimizer",
@@ -2166,6 +2167,30 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "PROJECT_SCOPE_DENIED: Primary Form repair project differs".to_owned(),
             ));
         }
+        let request_candidate_id = required_value_id(object.get("candidate_id"), "candidate_id")?;
+        let scoped_part_id = object
+            .get("part_id")
+            .map(|value| required_value_id(Some(value), "part_id"))
+            .transpose()?;
+        let scoped_rig = if let Some(part_id) = scoped_part_id.as_deref() {
+            let rig = object.get("rig").ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_REPAIR_INVALID: rig is required".to_owned(),
+                )
+            })?;
+            let scoped = scope_silhouette_rig_to_part(rig, request_candidate_id, part_id)?;
+            // Do not require a prior PartContourFitResult here. Primary Form
+            // is the first write-side action in the real silhouette turn, so
+            // the source candidate may not have a candidate-bound RenderSet
+            // yet. The scoped Rig is sufficient to keep the numeric search
+            // on the requested Part; the existing source/proposal compare
+            // below remains the same-camera acceptance authority. The later
+            // read-only Part contour step can consume the new candidate's
+            // RenderSet after this action returns.
+            Some(scoped)
+        } else {
+            None
+        };
         let request_base_version_id = object
             .get("base_version_id")
             .and_then(Value::as_str);
@@ -2206,6 +2231,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .as_object_mut()
             .expect("Primary Form request object")
             .remove("base_version_id");
+        fit_request
+            .as_object_mut()
+            .expect("Primary Form request object")
+            .remove("part_id");
+        if let Some(scoped_rig) = scoped_rig {
+            fit_request["rig"] = scoped_rig;
+        }
         if let Some(optimizer) = fit_request
             .get_mut("optimizer")
             .and_then(Value::as_object_mut)
@@ -2245,6 +2277,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "version_created":false,
             "canonical_sha256":""
         });
+        if let Some(part_id) = scoped_part_id.as_deref() {
+            result["part_id"] = Value::String(part_id.to_owned());
+        }
         let Some(program) = result["fit_result"]["selected_geometry_program"]
             .as_object()
             .cloned()
@@ -3885,6 +3920,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "project_id",
                 "candidate_id",
                 "target_sha256",
+                "part_id",
                 "rig",
                 "base_camera",
                 "optimizer",
@@ -7799,26 +7835,33 @@ fn primary_form_view_spec(
 }
 
 fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(
-        value,
-        &[
-            "schema_version",
-            "project_id",
-            "source_candidate_id",
-            "target_sha256",
-            "reference_id",
-            "fit_result",
-            "prepared_candidate",
-            "visual_evidence",
-            "acceptance",
-            "status",
-            "quality_status",
-            "candidate_state",
-            "version_created",
-            "canonical_sha256",
-        ],
-        "PrimaryFormRepairPrepareResult@1",
-    )?;
+    let mut keys = vec![
+        "schema_version",
+        "project_id",
+        "source_candidate_id",
+        "target_sha256",
+        "reference_id",
+        "fit_result",
+        "prepared_candidate",
+        "visual_evidence",
+        "acceptance",
+        "status",
+        "quality_status",
+        "candidate_state",
+        "version_created",
+        "canonical_sha256",
+    ];
+    if value.get("part_id").is_some() {
+        keys.push("part_id");
+    }
+    let object = exact_object(value, &keys, "PrimaryFormRepairPrepareResult@1")?;
+    if object.get("part_id").is_some() {
+        required_contract_identifier(
+            object,
+            "part_id",
+            "PrimaryFormRepairPrepareResult@1",
+        )?;
+    }
     if object.get("schema_version").and_then(Value::as_str)
         != Some("PrimaryFormRepairPrepareResult@1")
         || !matches!(
@@ -10882,6 +10925,67 @@ fn focus_rig_parameters_to_part(
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Derive the exact bounded Rig scope for a single-Part candidate trial.
+///
+/// Codex may provide the already-hashed bilateral authoring Rig, but it must
+/// not be allowed to keep the other Parts in the numeric search. Prefer
+/// parameters authored for the exact semantic Part. If the authored Rig only
+/// has a bilateral `*-pair` control, clone that typed control into the exact
+/// observed Part-ID; materialization then changes only that explicit side.
+/// The derived Rig is Runtime-owned and gets a fresh canonical hash.
+fn scope_silhouette_rig_to_part(
+    rig: &Value,
+    candidate_id: &str,
+    part_id: &str,
+) -> Result<Value, RuntimeError> {
+    validate_silhouette_rig(rig, candidate_id)?;
+    let parameters = rig
+        .get("parameters")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_REPAIR_INVALID: Rig parameters are missing".to_owned(),
+            )
+        })?;
+    let exact = parameters
+        .iter()
+        .filter(|parameter| parameter.get("part_id").and_then(Value::as_str) == Some(part_id))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut scoped_parameters = if exact.is_empty() {
+        parameters
+            .iter()
+            .filter(|parameter| {
+                parameter
+                    .get("part_id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|authored_part| rig_part_matches_observed_part(authored_part, part_id))
+            })
+            .map(|parameter| {
+                let mut scoped = parameter.clone();
+                scoped["part_id"] = Value::String(part_id.to_owned());
+                scoped
+            })
+            .collect::<Vec<_>>()
+    } else {
+        exact
+    };
+    if scoped_parameters.is_empty() {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PRIMARY_FORM_REPAIR_INVALID: Rig has no bounded controls for Part {part_id}"
+        )));
+    }
+    // Preserve authored parameter ordering and IDs; only the semantic Part
+    // scope changes for a bilateral-to-explicit-side projection.
+    scoped_parameters.truncate(16);
+    let mut scoped = rig.clone();
+    scoped["parameters"] = Value::Array(scoped_parameters);
+    scoped["canonical_sha256"] = Value::String(String::new());
+    scoped["canonical_sha256"] = Value::String(canonical_json_hash(&scoped));
+    validate_silhouette_rig(&scoped, candidate_id)?;
+    Ok(scoped)
 }
 
 fn rig_part_matches_observed_part(rig_part_id: &str, observed_part_id: &str) -> bool {
@@ -15907,7 +16011,7 @@ mod tests {
         primary_form_request["canonical_sha256"] =
             Value::String(canonical_json_hash(&primary_form_request));
         let primary_form = runtime
-            .primary_form_repair_prepare(&project.project_id, None, primary_form_request)
+            .primary_form_repair_prepare(&project.project_id, None, primary_form_request.clone())
             .expect("Primary Form repair prepare");
         validate_primary_form_repair_prepare_result(&primary_form)
             .expect("Primary Form repair contract");
@@ -15954,6 +16058,43 @@ mod tests {
         assert_eq!(primary_form["fit_result"]["iterations"], 2);
         assert!(primary_form["fit_result"]["strict_improvement"].is_boolean());
         assert!(primary_form["fit_result"]["baseline_metrics"].is_object());
+
+        // The explicit single-Part trial reuses the same Runtime acceptance
+        // path with a derived exact Part Rig. It must not expose the other
+        // authored controls to the bounded search or create a version.
+        let mut scoped_request = primary_form_request.clone();
+        scoped_request["part_id"] = json!("shell");
+        scoped_request["optimizer"] = json!({
+            "algorithm":"coordinate_descent",
+            "max_iterations":1,
+            "max_evaluations":8,
+            "step_fraction":0.1
+        });
+        scoped_request["canonical_sha256"] = Value::String(String::new());
+        scoped_request["canonical_sha256"] =
+            Value::String(canonical_json_hash(&scoped_request));
+        let scoped_trial = runtime
+            .primary_form_repair_prepare(&project.project_id, None, scoped_request)
+            .expect("scoped single-Part trial");
+        validate_primary_form_repair_prepare_result(&scoped_trial)
+            .expect("scoped trial contract");
+        assert_eq!(scoped_trial["part_id"], "shell");
+        assert!(scoped_trial["fit_result"]["selected_parameters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|parameter| parameter["part_id"] == "shell"));
+        assert!(matches!(
+            scoped_trial["status"].as_str(),
+            Some("prepared" | "no_improvement")
+        ));
+        if scoped_trial["acceptance"].is_object() {
+            assert!(scoped_trial["acceptance"]["camera_hash"]
+                .as_str()
+                .is_some());
+            assert!(scoped_trial["acceptance"]["strict_improvement"]
+                .is_boolean());
+        }
         let fit_camera = fit["selected_camera"].clone();
         let fit_camera_ref = json!({
             "schema_version": "CameraCalibrationRef@1",
@@ -16729,6 +16870,60 @@ mod tests {
         assert!(rig_part_matches_observed_part("shin-pair", "shin-left"));
         assert!(rig_part_matches_observed_part("shin-pair", "shin-right"));
         assert!(!rig_part_matches_observed_part("chest-shell", "shin-left"));
+    }
+
+    #[test]
+    fn scoped_rig_projection_clones_bilateral_control_to_exact_side() {
+        let rig = json!({
+            "schema_version":"SilhouetteRig@1",
+            "rig_id":"scoped-side-rig",
+            "candidate_id":"candidate-scoped-side",
+            "parameters":[
+                {"parameter_id":"hip-width","part_id":"hip-pair","semantic":"width","value":1.0,"min":0.84,"max":1.16,"step":0.04,"unit":"ratio"}
+            ],
+            "canonical_sha256":""
+        });
+        let mut rig = rig;
+        rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
+        let scoped = scope_silhouette_rig_to_part(
+            &rig,
+            "candidate-scoped-side",
+            "hip-left",
+        )
+        .expect("exact side scope");
+        assert_eq!(scoped["parameters"].as_array().unwrap().len(), 1);
+        assert_eq!(scoped["parameters"][0]["part_id"], "hip-left");
+        validate_silhouette_rig(&scoped, "candidate-scoped-side").expect("scoped Rig contract");
+
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-scoped-side",
+            "nodes":[
+                {"node_id":"hip-left","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"cylinder","radius_m":0.2,"height_m":0.24,"radial_segments":16,"position_m":[-0.48,1.1,0.24],"rotation_rad":[1.5708,0.0,0.0]}},
+                {"node_id":"hip-right","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"cylinder","radius_m":0.2,"height_m":0.24,"radial_segments":16,"position_m":[0.48,1.1,0.24],"rotation_rad":[1.5708,0.0,0.0]}}
+            ],
+            "part_outputs":[
+                {"part_id":"hip-left","input_node_ids":["hip-left"],"material_zone_id":"zone-brushed-steel","solid":true},
+                {"part_id":"hip-right","input_node_ids":["hip-right"],"material_zone_id":"zone-brushed-steel","solid":true}
+            ],
+            "canonical_sha256":""
+        });
+        let selected = vec![json!({"parameter_id":"hip-width","part_id":"hip-left","value":1.1})];
+        let (materialized, applied) = materialize_rig_geometry_program(
+            &program,
+            &scoped,
+            &selected,
+            None,
+        )
+        .expect("materialize exact side scope");
+        assert_eq!(applied, 1);
+        assert!((materialized["nodes"][0]["parameters"]["radius_m"]
+            .as_f64()
+            .unwrap()
+            - 0.22)
+            .abs()
+            < 1e-12);
+        assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.2);
     }
 
     #[test]
