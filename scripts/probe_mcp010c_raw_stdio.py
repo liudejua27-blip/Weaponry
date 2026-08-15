@@ -249,7 +249,37 @@ def main() -> int:
 
         listed = client.request("tools/list")
         tools = listed.get("result", {}).get("tools")
-        require(isinstance(tools, list) and len(tools) == 59, "C source tool manifest did not expose 36 read + 23 write tools")
+        manifest_process = subprocess.run(
+            [str(args.mcp), "--tool-manifest-summary"],
+            capture_output=True,
+            text=True,
+            timeout=args.timeout,
+            check=False,
+        )
+        require(manifest_process.returncode == 0, "C source tool manifest summary command failed")
+        try:
+            manifest_summary = json.loads(manifest_process.stdout)
+        except json.JSONDecodeError as error:
+            raise GateFailure("C source tool manifest summary was not JSON") from error
+        require(
+            isinstance(manifest_summary, dict)
+            and manifest_summary.get("schema_version") == "ForgeCADMcpToolManifestSummary@1"
+            and isinstance(manifest_summary.get("read_count"), int)
+            and isinstance(manifest_summary.get("write_count"), int)
+            and manifest_summary.get("total_count") == manifest_summary["read_count"] + manifest_summary["write_count"],
+            "C source tool manifest summary was incomplete",
+        )
+        observed_read_count = sum(
+            1
+            for tool in (tools if isinstance(tools, list) else [])
+            if isinstance(tool, dict) and tool.get("annotations", {}).get("readOnlyHint") is True
+        )
+        require(
+            isinstance(tools, list)
+            and len(tools) == manifest_summary["total_count"]
+            and observed_read_count == manifest_summary["read_count"],
+            "C source tool manifest did not match its Runtime-owned manifest summary",
+        )
         render_tool = next((tool for tool in tools if tool.get("name") == "render_pass_get"), None)
         require(isinstance(render_tool, dict) and render_tool.get("annotations", {}).get("readOnlyHint") is True, "render_pass_get was not read-only")
 
@@ -507,7 +537,9 @@ def main() -> int:
             "task_id": "FGC-MCP010C",
             "status": "PASS",
             "protocol_version": MCP_PROTOCOL_VERSION,
-            "tool_count": 57,
+            "tool_count": manifest_summary["total_count"],
+            "read_tool_count": manifest_summary["read_count"],
+            "write_tool_count": manifest_summary["write_count"],
             "ponytail_preflight": "PASS",
             "fixed_renderer": "512x512-perspective-zbuffer-deterministic",
             "aov_count": 9,

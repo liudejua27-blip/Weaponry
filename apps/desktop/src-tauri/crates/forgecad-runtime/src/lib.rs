@@ -16129,6 +16129,73 @@ mod tests {
         assert!(primary_form["fit_result"]["strict_improvement"].is_boolean());
         assert!(primary_form["fit_result"]["baseline_metrics"].is_object());
 
+        // A staged candidate is a valid Runtime-owned source for the next
+        // modular repair step.  The second action must consume that exact
+        // candidate's persisted GeometryProgram, keep the same project and
+        // target binding, and still never create a version or ask Codex to
+        // compose mesh state.
+        let continuation_source_id = if primary_form["status"] == "prepared" {
+            primary_form["visual_evidence"]["candidate_id"]
+                .as_str()
+                .expect("staged Primary Form candidate")
+                .to_owned()
+        } else {
+            let seeded = prepare(&runtime);
+            seeded["candidate"]["candidate_id"]
+                .as_str()
+                .expect("continuation seed candidate")
+                .to_owned()
+        };
+        let before_continuation_versions = runtime.versions(Some(&project.project_id)).unwrap().len();
+        let before_continuation_candidates = runtime.candidates(&project.project_id).unwrap().len();
+        let mut continuation_request = primary_form_request.clone();
+        continuation_request["candidate_id"] = Value::String(continuation_source_id.clone());
+        continuation_request["rig"]["candidate_id"] = Value::String(continuation_source_id.clone());
+        continuation_request["rig"]["canonical_sha256"] = Value::String(String::new());
+        continuation_request["rig"]["canonical_sha256"] =
+            Value::String(canonical_json_hash(&continuation_request["rig"]));
+        continuation_request["canonical_sha256"] = Value::String(String::new());
+        continuation_request["canonical_sha256"] =
+            Value::String(canonical_json_hash(&continuation_request));
+        let continuation = runtime
+            .primary_form_repair_prepare(&project.project_id, None, continuation_request)
+            .expect("sequential Primary Form repair prepare");
+        validate_primary_form_repair_prepare_result(&continuation)
+            .expect("sequential Primary Form repair contract");
+        assert_eq!(continuation["project_id"], project.project_id);
+        assert_eq!(continuation["source_candidate_id"], continuation_source_id);
+        assert_eq!(continuation["target_sha256"], target["target_sha256"]);
+        assert_eq!(continuation["version_created"], false);
+        assert_eq!(
+            runtime.versions(Some(&project.project_id)).unwrap().len(),
+            before_continuation_versions
+        );
+        assert!(matches!(
+            continuation["status"].as_str(),
+            Some("prepared" | "no_improvement")
+        ));
+        if continuation["status"] == "prepared" {
+            assert_eq!(continuation["candidate_state"], "staged_new_candidate");
+            assert_ne!(
+                continuation["visual_evidence"]["candidate_id"],
+                continuation_source_id
+            );
+            assert_eq!(
+                continuation["visual_evidence"]["quality_report"]["candidate_id"],
+                continuation["visual_evidence"]["candidate_id"]
+            );
+            assert_eq!(
+                runtime.candidates(&project.project_id).unwrap().len(),
+                before_continuation_candidates + 1
+            );
+        } else {
+            assert_eq!(continuation["candidate_state"], "unchanged");
+            assert_eq!(
+                runtime.candidates(&project.project_id).unwrap().len(),
+                before_continuation_candidates
+            );
+        }
+
         // The explicit single-Part trial reuses the same Runtime acceptance
         // path with a derived exact Part Rig. It must not expose the other
         // authored controls to the bounded search or create a version.
