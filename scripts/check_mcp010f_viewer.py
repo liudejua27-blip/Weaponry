@@ -18,6 +18,7 @@ APP = ROOT / "apps/desktop/src/App.tsx"
 STYLES = ROOT / "apps/desktop/src/styles.css"
 TAURI_VIEWER = ROOT / "apps/desktop/src-tauri/src/viewer.rs"
 COMPARE_WORKER = ROOT / "apps/desktop/src/features/runtime-viewer/compare-worker.ts"
+AGENTIC_DESIGN = ROOT / "apps/desktop/src/features/runtime-viewer/agentic-design.ts"
 
 
 def main() -> int:
@@ -25,6 +26,7 @@ def main() -> int:
     app_source = APP.read_text(encoding="utf-8")
     styles = STYLES.read_text(encoding="utf-8")
     tauri_source = TAURI_VIEWER.read_text(encoding="utf-8")
+    agentic_source = AGENTIC_DESIGN.read_text(encoding="utf-8")
     required_tokens = [
         "viewer_read_model",
         "viewer_read_model_summary",
@@ -42,9 +44,7 @@ def main() -> int:
         "compare-worker.ts",
         "contourCanvasActive",
         "contour-canvas",
-        "CONTOUR CANVAS",
         "reference-contour-aid",
-        "REFERENCE CONTOUR AID",
         "contourPoints",
         "contour-annotation-layer",
         "ForgeCADViewerContourDraft@2",
@@ -59,23 +59,46 @@ def main() -> int:
         "copyContourDraft",
         "undoContourPoint",
         "撤销上一点",
-        "复制 hash-bound 轮廓点集",
         "临时轮廓草图",
         "runtime_write: false",
         "setPointerCapture",
         "OrbitControls",
+        "Raycaster",
+        "pickViewportObjectFromPointer",
+        "mouseButtons",
+        "RIGHT: THREE.MOUSE.ROTATE",
+        "MIDDLE: THREE.MOUSE.PAN",
+        "右键拖动：旋转视角",
+        "中键拖动：平移视角",
+        "aria-keyshortcuts",
+        "Shift 加左键框选",
         "ResizeObserver",
         "disposeObjectResources",
-        "forceContextLoss",
+        "renderer.dispose()",
         "selectedCandidateId",
         "AUTO_LATEST_CANDIDATE",
+        "selectedObjectIds",
+        "replaceViewportSelection",
+        "viewportHoverFrameRef",
+        "requestAnimationFrame",
+        'role="treeitem"',
+        "sceneTreeFilter",
         "candidateSortOrder",
         "compareZoom",
         "comparePan",
         "measureMode",
         "exportCompareSnapshot",
         "compare-parameters",
-        "runtime-alert",
+        "dataUrlToBlob",
+        "createImageBitmap",
+        "OffscreenCanvas",
+        "COMPARE_WORKER_DEBOUNCE_MS",
+        "error-console",
+        "refreshCurrentCandidate",
+        "secondaryActionLabel",
+        "切换自动候选",
+        "pbrStatus",
+        "PBR 材质区",
         "轮廓画布",
         "role=\"tab\"",
         "aria-controls=\"render-aov-panel\"",
@@ -103,7 +126,6 @@ def main() -> int:
         "visualQualityReport",
         "visualHardGatePassed",
         "visualGateSource",
-        "Visual gate",
         "correction-queue",
         "agenticProjection",
         "normalizeAgenticDesignProjection",
@@ -133,6 +155,17 @@ def main() -> int:
         "project_id",
     ]
     missing = [token for token in required_tokens if token not in source]
+    required_token_variants = [
+        ("CONTOUR CANVAS", "轮廓画布"),
+        ("REFERENCE CONTOUR AID", "参考轮廓引导"),
+        ("复制 hash-bound 轮廓点集", "复制哈希绑定轮廓点集"),
+        ("Visual gate", "可见性门"),
+    ]
+    missing.extend(
+        f"{canonical} (or localized {localized})"
+        for canonical, localized in required_token_variants
+        if canonical not in source and localized not in source
+    )
     if missing:
         raise SystemExit(f"Viewer source surface is missing required tokens: {missing}")
     if "<RuntimeViewer" not in app_source or "from './features/runtime-viewer/RuntimeViewer'" not in app_source:
@@ -160,7 +193,16 @@ def main() -> int:
         raise SystemExit(f"Viewer must not re-derive Runtime quality gates: {leaked_local_quality_logic}")
     if "visualQualityReport?.hard_gate_passed === true &&" in source:
         raise SystemExit("Viewer must display Runtime hard_gate_passed without adding a local predicate")
-    style_tokens = [".contour-annotation-layer", "touch-action: none", "cursor: crosshair", ".compare-parameters", ".runtime-alert", ".status-icon"]
+    style_tokens = [
+        ".contour-annotation-layer",
+        "touch-action: none",
+        "cursor: crosshair",
+        ".compare-parameters",
+        ".error-console",
+        ".status-icon",
+        ".viewport-crosshair",
+        ".runtime-shell .viewport-hints",
+    ]
     missing_styles = [token for token in style_tokens if token not in styles]
     if missing_styles:
         raise SystemExit(f"Viewer contour annotation styles are missing required tokens: {missing_styles}")
@@ -178,7 +220,7 @@ def main() -> int:
     if "read-only IPC client" not in tauri_source or "read_model" not in tauri_source:
         raise SystemExit("Viewer Tauri bridge is missing its read-only projection boundary")
     worker_source = COMPARE_WORKER.read_text(encoding="utf-8")
-    worker_tokens = ["createDifferenceImage", "createContourImage", "onmessage", "postMessage"]
+    worker_tokens = ["createDifferenceImage", "createContourImage", "decodeBlobToBuffer", "createImageBitmap", "OffscreenCanvas", "onmessage", "postMessage"]
     missing_worker_tokens = [token for token in worker_tokens if token not in worker_source]
     if missing_worker_tokens:
         raise SystemExit(f"Viewer compare worker is missing required tokens: {missing_worker_tokens}")
@@ -200,6 +242,10 @@ def main() -> int:
         raise SystemExit("Viewer must not fall back to an unverified candidate quality projection for visual evidence")
     if "quality.project_id" in source or "quality?.project_id" in source:
         raise SystemExit("QualityReport@2 does not provide project_id; project binding must use the evidence envelope")
+    if "if (binding.visualEvidenceBound) return actual === expected" not in agentic_source:
+        raise SystemExit("Agentic Viewer binding must require exact evidence hashes when visual evidence is bound")
+    if "actual === null || Boolean(expected && actual === expected)" in agentic_source:
+        raise SystemExit("Agentic Viewer binding must not accept missing Runtime evidence hashes")
     def candidate_binding_is_valid(entry: dict, project_id: str) -> bool:
         candidate = entry.get("candidate") or {}
         candidate_id = candidate.get("candidate_id")
@@ -326,6 +372,7 @@ def main() -> int:
         "contour_annotation": "PASS_EPHEMERAL_NORMALIZED_POINTER_DRAFT",
         "visual_gate_source": "PASS_RUNTIME_AGENTIC_QUALITY_REPORT_ONLY",
         "visual_report_fallback": "PASS_NO_UNVERIFIED_CANDIDATE_QUALITY_FALLBACK",
+        "agentic_evidence_binding": "PASS_FAIL_CLOSED_MISSING_OR_DRIFTED_HASH",
         "candidate_artifact_binding": "PASS_FAIL_CLOSED_SAME_CANDIDATE_ONLY",
         "candidate_binding_fixtures": "PASS_SAME_CANDIDATE_POSITIVE_CROSS_CANDIDATE_NEGATIVE_MISSING_EVIDENCE_NEGATIVE",
         "visual_evidence_binding_fixtures": "PASS_NO_QUALITY_PROJECT_ID_CROSS_CANDIDATE_RENDER_NEGATIVE_MISSING_REFERENCE_HASH_NEGATIVE",

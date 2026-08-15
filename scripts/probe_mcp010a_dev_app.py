@@ -336,6 +336,23 @@ def main() -> int:
                 raise SystemExit("Runtime build cohort differs from installed manifest")
             if capabilities.get("mcp_build_cohort_sha256") != cohort:
                 raise SystemExit("MCP build cohort differs from installed manifest")
+            preflight = client.tool(
+                "skill_get",
+                {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+            )
+            preflight_skill = preflight.get("skill") if isinstance(preflight, dict) else None
+            preflight_knowledge = preflight.get("knowledge") if isinstance(preflight, dict) else None
+            if not (
+                isinstance(preflight_skill, dict)
+                and preflight_skill.get("skill_id") == "ponytail-preflight"
+                and preflight_skill.get("version") == "0.1.0"
+                and isinstance(preflight_skill.get("canonical_sha256"), str)
+                and len(preflight_skill["canonical_sha256"]) == 64
+                and isinstance(preflight_knowledge, dict)
+                and isinstance(preflight_knowledge.get("canonical_sha256"), str)
+                and len(preflight_knowledge["canonical_sha256"]) == 64
+            ):
+                raise SystemExit("ponytail preflight was not verified before project_create")
             project = client.tool(
                 "project_create",
                 {"name": "MCP010A isolated activation probe", "policy": {"profile": "mvp"}},
@@ -363,6 +380,7 @@ def main() -> int:
         "runtime_state": "Ready",
         "build_cohort_sha256": cohort,
         "build_cohort_match": True,
+        "ponytail_preflight": "PASS",
         "isolated_project_create": "PASS",
         "persistent_user_data_touched": False,
         "codex_desktop_restart_gate": "NOT_RUN",

@@ -1,12 +1,6 @@
 # ForgeCAD 文档地图
 
-2026-08-15 最新计数覆盖：当前为 120 个 JSON Schema、38 read + 30 opt-in write = 68 tools。只读 `visual_surface_get` 已接入 VisualSurface contract/Runtime/MCP，surface backend 为 `NOT_RUN`；单视图 `repair_apply_confirm` 已接入 source contract/Runtime/MCP/Store；`design_action_optimization_proposal_prepare` 已接入 source contract/Runtime/MCP，严格改进不足或视觉门失败时保持 blocked，不自动 Repair/Confirm。合同/negative gate、Rust focused test 与 Stage 0 truth 已通过；多视图仍走 `cross_view_promotion_confirm`，不改变视觉质量和 benchmark 阻断事实。
-
-计数校正：下方旧状态行中的 115 Schema、37 read + 28 opt-in write = 65 是历史快照；当前文档地图以 120 / 38 + 30 = 68 为准。
-
-当前增量：ActionRun→CADFit proposal continuation、Manifold 隔离 determinism/resource/negative Gate 已单独记录；Visual Surface typed source boundary/negative Gate 已通过，backend 仍 `NOT_RUN`，证据见 `docs/evidence/mcp010f/visual-surface-contract-gate-20260815.json`。
-
-版本：2026-08-15 · 状态：MCP005–MCP009 MVP functional core 已收口；FGC-MCP010A done；FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D source-focused PASS（固定 Manifold C API Worker 的同一 Part union/difference/intersection 已 active，current packaged rebuild/视觉子门仍 deferred）；MCP010E source-focused PASS；FGC-MCP010F source + current-cohort packaged CLI read-model in_progress（Tauri packaged UI/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 / Agentic Design Runtime 已完成 observe/plan projection、durable session/checkpoint/RepairIntent prepare/readback、bounded single-Part Repair proposal、CADFit checkpoint/resume、逐视图 evidence inventory、`CrossViewEvidenceBundle@1` boundary、2–6 项 ordered composition proposal、`cumulative-program` merge prepare、`repair_apply_prepare` CAS-backed apply-intent、跨视图 promotion fail-closed boundary 和有界同阶段独立动作 batch；架构模块边界和废弃隔离计划继续作为治理文档。当前为 115 Schema、65 tools（37 read + 28 opt-in write），positive merge、Repair 实际应用、用户批准后的候选变更、通用 mesh Boolean、视觉闭环和 `QUALITY_TARGET_NOT_MET` 事实仍需分层记录；同一 Part 的 Boolean intersection 已有 current raw Worker Gate。
+版本：2026-08-13 · 状态：MCP005–MCP009 MVP functional core 已收口；FGC-MCP010A done；FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source + current-cohort packaged CLI read-model in_progress（Tauri packaged UI/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 / Agentic Design Runtime 已完成 observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback source slice；架构模块边界和废弃隔离计划继续作为治理文档。当前为 102 Schema、59 tools，完整 orchestrator/Repair/视觉闭环和 `QUALITY_TARGET_NOT_MET` 事实仍需分层记录。
 
 ## 阅读顺序
 
@@ -31,11 +25,10 @@
 19. `LUNA_GOAL_EXECUTION_GUIDE.md`：Goal 执行协议、当前可调用工具和真实 host 验收动作
 20. `LUNA_GITHUB_REPLICATION_PLAYBOOK.md`：Luna 研究 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 的冻结 revision、选择性源文件复刻、quarantine、审查和接受流程
 21. `EXTERNAL_PROJECT_ADOPTION.md`：第三方采用状态、research receipt 和 accepted 入口
-22. `IMG2THREEJS_PIPELINE_ADOPTION_PLAN.md`：img2threejs 的分阶段 image→spec→code→review 思想到 ForgeCAD typed Runtime、Visual Surface 和证据门的受控映射
-23. `CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`：Codex 经 MCP 进入 3D 设计前必须读取的 first-party preflight Skill、会话顺序、边界和维护规则
-24. 任务相关合同：`MCP_RUNTIME_CONTRACT.md`、`CODEX_INTEGRATION.md`、`COMPILER_PIPELINE.md`、`WORKBENCH_VIEWER.md`、`SKILL_PACKAGE_STANDARD.md`、`SCHEMAS.md`、`DATABASE.md`
-25. `MVP_ARCHITECTURE.md`：单用户启动、文件锁和最小运行边界
-26. `MVP_TOOL_CATALOG.md`：当前源码的 37 个只读/30 个写工具（67 个，写工具仍需显式 opt-in），12 个 Skill（含必须先读取的 `ponytail-preflight@0.1.0`，以及 active `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0`）；新增轮廓 target/camera/Rig/Rig-hash/SDF/Part/candidate compare、Agentic observe/plan/critic/evidence projection、durable session/checkpoint readback、bounded stage batch、带累计程序链的 ordered composition merge prepare、ActionRun→CADFit proposal continuation 和 cross-view promotion 工具的调用顺序见相关合同。C/D/E/F 的结构 Gate、真实 likeness、人评/PBR/纹理和 360 仍必须另标 planned/unavailable
+22. `CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`：Codex 经 MCP 进入 3D 设计前必须读取的 first-party preflight Skill、会话顺序、边界和维护规则
+23. 任务相关合同：`MCP_RUNTIME_CONTRACT.md`、`CODEX_INTEGRATION.md`、`COMPILER_PIPELINE.md`、`WORKBENCH_VIEWER.md`、`SKILL_PACKAGE_STANDARD.md`、`SCHEMAS.md`、`DATABASE.md`
+24. `MVP_ARCHITECTURE.md`：单用户启动、文件锁和最小运行边界
+25. `MVP_TOOL_CATALOG.md`：当前源码的 36 个只读/23 个写工具（59 个，写工具仍需显式 opt-in），12 个 Skill（含必须先读取的 `ponytail-preflight@0.1.0`，以及 active `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0`）；新增轮廓 target/camera/Rig/Rig-hash/SDF/Part/candidate compare、Agentic observe/plan/critic/evidence projection 和 durable session/checkpoint readback 工具的调用顺序见相关合同。C/D/E/F 的结构 Gate、真实 likeness、人评/PBR/纹理和 360 仍必须另标 planned/unavailable
 ## 生命周期
 
 - `已实现`：当前代码和对应 Gate 通过；
@@ -45,7 +38,7 @@
 - `blocked`：退出条件因环境、授权或外部事实失败；
 - `superseded`：不再属于当前产品。
 
-目标设计不能覆盖事实，历史 Git 内容不能证明当前能力。`scene_observe_get` 等 projection 已有 source/runtime/MCP/Viewer 证据，`session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare` 已有 durable prepare/readback 与重启 receipt；bounded multi-view authoring、single-action geometry ActionRun、独立 stage batch、逐视图 evidence inventory 与 CADFit checkpoint/resume 另有独立证据，但这些切片仍不能等同于完整组合式多动作 orchestrator、自动 Repair 应用、用户批准后的候选变更、跨视图视觉 PASS 或完整独立 schema conformance。每个任务结束必须同步状态账本、任务索引、能力矩阵、handoff 和受影响合同；用户指南只能写已实现或当前 Viewer 能力。`functional-core PASS` 不能升级成 `high-quality/reference PASS`。
+目标设计不能覆盖事实，历史 Git 内容不能证明当前能力。`scene_observe_get` 等 projection 已有 source/runtime/MCP/Viewer 证据，`session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare` 已有 durable prepare/readback 与重启 receipt；后者仍不能等同于单动作 orchestrator、Critic/Repair 执行或完整 schema conformance。每个任务结束必须同步状态账本、任务索引、能力矩阵、handoff 和受影响合同；用户指南只能写已实现或当前 Viewer 能力。`functional-core PASS` 不能升级成 `high-quality/reference PASS`。
 
 ## 当前权威文件
 

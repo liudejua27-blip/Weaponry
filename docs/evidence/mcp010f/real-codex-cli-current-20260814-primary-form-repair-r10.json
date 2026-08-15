@@ -1,0 +1,460 @@
+{
+  "build_cohorts": {
+    "mcp": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7",
+    "runtime": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7",
+    "worker": "c7b0f1c8e2c5a5b6d4e0a7c9f3b2d1e8f6a4c2b0d9e7f5a3c1b8d6e4f2a0c9e7"
+  },
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "mcp_tool_calls": [
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "00917371677ff95808ea852be068ec6ca9c71888cf77096a63e0963fc5af2124",
+      "project_id": "project-29f9c53733084716937d3a4c90d3ac74",
+      "schema_version": "Project@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "active_snapshot_revision",
+        "canonical_sha256",
+        "created_at",
+        "head_snapshot_id",
+        "name",
+        "policy",
+        "project_id",
+        "schema_version",
+        "updated_at"
+      ],
+      "tool": "project_create"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "ed24cde4e528ca4a1f2e0d87b41403450ec490b2d6b8ce8f1257703887e2a8ca",
+      "project_id": "project-29f9c53733084716937d3a4c90d3ac74",
+      "schema_version": "ReferenceMaskPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "mask_sha256",
+        "project_id",
+        "reference_id",
+        "schema_version",
+        "target",
+        "target_sha256"
+      ],
+      "target_sha256": "a5bd1307afff6781be7abf7a4a10db36be2fd189d8e847c4917e52b06eb9dcd9",
+      "tool": "reference_mask_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "build_cohort_match",
+        "build_cohort_sha256",
+        "contract_set",
+        "contract_versions",
+        "ipc_transport",
+        "limitations",
+        "mcp_build_cohort_sha256",
+        "mcp_protocol_versions",
+        "mcp_transport",
+        "mcp_write_tool_names",
+        "mcp_write_tools_enabled",
+        "operator_catalog_sha256",
+        "resource_uris",
+        "runtime_version",
+        "status",
+        "supports_authenticated_ipc",
+        "supports_cas",
+        "supports_geometry_execution",
+        "supports_job_read",
+        "supports_reference_import",
+        "supports_render_execution",
+        "supports_resource_read",
+        "supports_skill_registry",
+        "supports_snapshot_read",
+        "tool_manifest_hash",
+        "write_model"
+      ],
+      "tool": "capabilities_get"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeSupervisorStatus@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "retryable",
+        "schema_version",
+        "source",
+        "state"
+      ],
+      "tool": "runtime_status"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeDoctor@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "checks",
+        "retryable",
+        "runtime",
+        "schema_version",
+        "scope",
+        "state"
+      ],
+      "tool": "doctor"
+    },
+    {
+      "canonical_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+      "schema_version": "OperatorCatalog@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "catalog_id",
+        "geometry_program_schema_version",
+        "operators",
+        "schema_version"
+      ],
+      "tool": "operator_catalog_get"
+    },
+    {
+      "schema_version": "SkillListResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "schema_version",
+        "skills"
+      ],
+      "tool": "skill_list"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "4cb4103ae3d1617bcf0b4e63f0341675ad0f142b7393f5bcd9695c7428f4bfb0",
+      "schema_version": "GeometryProgramHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "geometry_program_schema_version",
+        "operator_catalog_sha256",
+        "schema_version",
+        "validation_status"
+      ],
+      "tool": "geometry_program_hash"
+    },
+    {
+      "artifact": {
+        "artifact_id": "6c38729812cdd1a00f97e1baa57ad7e4dcc749c2aadb4c1c16145459c2ead7a5",
+        "candidate_id": "candidate-ce654ce6e1474b10a31b4e8c6e04a873",
+        "mime": "model/gltf-binary",
+        "part_ids": [
+          "head-shell",
+          "visor",
+          "neck",
+          "chest-shell",
+          "chest-core",
+          "chest-light",
+          "shoulder-left",
+          "shoulder-right",
+          "upper-arm-left",
+          "upper-arm-right",
+          "elbow-left",
+          "elbow-right",
+          "forearm-left",
+          "forearm-right",
+          "hand-left",
+          "hand-right",
+          "pelvis",
+          "hip-left",
+          "hip-right",
+          "thigh-left",
+          "thigh-right",
+          "knee-left",
+          "knee-right",
+          "shin-left",
+          "shin-right",
+          "foot-left",
+          "foot-right"
+        ],
+        "size_bytes": 686168,
+        "triangle_count": 4100,
+        "validator_status": "passed"
+      },
+      "schema_version": "GeometryPrepareResult@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact",
+        "candidate",
+        "job",
+        "operator_catalog",
+        "schema_version"
+      ],
+      "tool": "geometry_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "ac0aa293c27919edfc2d405f909b407aa9fb3ebe7fd308ad4536ee28fd79be9a",
+      "schema_version": "SilhouetteTarget@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "contour_points",
+        "coordinate_space",
+        "height",
+        "landmarks",
+        "mask_sha256",
+        "parts",
+        "reference_id",
+        "reference_sha256",
+        "schema_version",
+        "source",
+        "target_id",
+        "width"
+      ],
+      "tool": "silhouette_target_get"
+    },
+    {
+      "candidate_id": "candidate-ce654ce6e1474b10a31b4e8c6e04a873",
+      "canonical_sha256": "1c4f14496def2a66f35ac57ded962795099ee7819fbdb40e7e697b356de3bfb1",
+      "project_id": "project-29f9c53733084716937d3a4c90d3ac74",
+      "schema_version": "AgenticSceneObserveResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate",
+        "candidate_id",
+        "candidate_selection",
+        "canonical_sha256",
+        "design_critic_report",
+        "design_session",
+        "design_stage_plan",
+        "lineage",
+        "model_understanding_bundle",
+        "project",
+        "project_id",
+        "projection_status",
+        "quality",
+        "read_only",
+        "reference_canvas",
+        "schema_version",
+        "semantic_scene_graph",
+        "snapshot",
+        "visual_evidence_bundle"
+      ],
+      "tool": "scene_observe_get"
+    },
+    {
+      "candidate_id": "candidate-ce654ce6e1474b10a31b4e8c6e04a873",
+      "canonical_sha256": "bfb9a8549fd6b044b7157d489aed3da79b56b5bba7956f5a81bb8e3ff2041da2",
+      "schema_version": "CameraFitResult@1",
+      "selected_camera": {
+        "camera_hash": "d263d9cfcde740cad33505ad197edceea0dda0d35ca05d6f8837a076446f7da0",
+        "canonical_sha256": "0ab53045e3b4c6427b07235156aca6c42e15482d8ee6ad26c6eb353e8e15f581"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "candidates",
+        "canonical_sha256",
+        "schema_version",
+        "selected_camera",
+        "status",
+        "target_sha256"
+      ],
+      "target_sha256": "a5bd1307afff6781be7abf7a4a10db36be2fd189d8e847c4917e52b06eb9dcd9",
+      "tool": "camera_fit_prepare"
+    },
+    {
+      "canonical_sha256": "10ffcea57617c4319ef364c094ca8e0ced93e5b2795ab6ebef48ec6e0d28151b",
+      "schema_version": "SilhouetteRigHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "schema_version",
+        "silhouette_rig_schema_version",
+        "validation_status"
+      ],
+      "tool": "silhouette_rig_hash"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-ce654ce6e1474b10a31b4e8c6e04a873",
+      "canonical_sha256": "5afca490a599f38e655644184bce56031cd3bedf0d428dbba106d4fb75e1dbd2",
+      "fit_argument_camera_canonical_sha256": "0ab53045e3b4c6427b07235156aca6c42e15482d8ee6ad26c6eb353e8e15f581",
+      "fit_argument_camera_hash": "d263d9cfcde740cad33505ad197edceea0dda0d35ca05d6f8837a076446f7da0",
+      "fit_argument_candidate_id": "candidate-ce654ce6e1474b10a31b4e8c6e04a873",
+      "fit_argument_canonical_sha256": "80cb0c704dfb784f81402139bfa772420857c85f561df56395ddebffd2bb450e",
+      "fit_argument_keys": [
+        "base_camera",
+        "candidate_id",
+        "canonical_sha256",
+        "optimizer",
+        "project_id",
+        "rig",
+        "target_sha256"
+      ],
+      "fit_argument_optimizer": {
+        "algorithm": "coordinate_descent",
+        "max_evaluations": 64,
+        "max_iterations": 2,
+        "step_fraction": 0.1
+      },
+      "fit_argument_optimizer_type": "dict",
+      "fit_argument_project_id": "project-29f9c53733084716937d3a4c90d3ac74",
+      "fit_argument_rig_canonical_sha256": "10ffcea57617c4319ef364c094ca8e0ced93e5b2795ab6ebef48ec6e0d28151b",
+      "fit_argument_target_sha256": "a5bd1307afff6781be7abf7a4a10db36be2fd189d8e847c4917e52b06eb9dcd9",
+      "project_id": "project-29f9c53733084716937d3a4c90d3ac74",
+      "schema_version": "SilhouetteFitResult@1",
+      "selected_camera": {
+        "camera_hash": "b14f30897af1fc000f1e45ee2145239a0231669d60a205bfc0cc5ca75463da50",
+        "canonical_sha256": "ffa49fdbba68fd7d24f4019390c77115c02ec7bbbde01c403dbd6368dca7c371"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "canonical_sha256",
+        "evaluations",
+        "geometry_evaluations",
+        "iterations",
+        "metrics",
+        "parameter_deltas",
+        "project_id",
+        "schema_version",
+        "selected_camera",
+        "selected_geometry_program",
+        "selected_parameters",
+        "status",
+        "target_sha256",
+        "thresholds"
+      ],
+      "target_sha256": "a5bd1307afff6781be7abf7a4a10db36be2fd189d8e847c4917e52b06eb9dcd9",
+      "tool": "silhouette_fit_prepare"
+    }
+  ],
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "reason": "Codex did not complete silhouette_fit_prepare",
+  "recorded_at": "2026-08-14T13:32:21Z",
+  "reference_path_recorded": false,
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "silhouette_fit_intent_sha256": "80cb0c704dfb784f81402139bfa772420857c85f561df56395ddebffd2bb450e",
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010C",
+  "visual_quality_claim": "NOT_CLAIMED"
+}

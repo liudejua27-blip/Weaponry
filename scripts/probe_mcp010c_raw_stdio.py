@@ -249,22 +249,36 @@ def main() -> int:
 
         listed = client.request("tools/list")
         tools = listed.get("result", {}).get("tools")
-        require(isinstance(tools, list), "C source tool manifest was not a list")
-        read_tool_count = sum(
-            1
-            for tool in tools
-            if isinstance(tool, dict)
-            and tool.get("annotations", {}).get("readOnlyHint") is True
+        manifest_process = subprocess.run(
+            [str(args.mcp), "--tool-manifest-summary"],
+            capture_output=True,
+            text=True,
+            timeout=args.timeout,
+            check=False,
         )
-        write_tool_count = sum(
+        require(manifest_process.returncode == 0, "C source tool manifest summary command failed")
+        try:
+            manifest_summary = json.loads(manifest_process.stdout)
+        except json.JSONDecodeError as error:
+            raise GateFailure("C source tool manifest summary was not JSON") from error
+        require(
+            isinstance(manifest_summary, dict)
+            and manifest_summary.get("schema_version") == "ForgeCADMcpToolManifestSummary@1"
+            and isinstance(manifest_summary.get("read_count"), int)
+            and isinstance(manifest_summary.get("write_count"), int)
+            and manifest_summary.get("total_count") == manifest_summary["read_count"] + manifest_summary["write_count"],
+            "C source tool manifest summary was incomplete",
+        )
+        observed_read_count = sum(
             1
-            for tool in tools
-            if isinstance(tool, dict)
-            and tool.get("annotations", {}).get("readOnlyHint") is not True
+            for tool in (tools if isinstance(tools, list) else [])
+            if isinstance(tool, dict) and tool.get("annotations", {}).get("readOnlyHint") is True
         )
         require(
-            len(tools) == 65 and read_tool_count == 37 and write_tool_count == 28,
-            "C source tool manifest did not expose current 37 read + 28 write tools",
+            isinstance(tools, list)
+            and len(tools) == manifest_summary["total_count"]
+            and observed_read_count == manifest_summary["read_count"],
+            "C source tool manifest did not match its Runtime-owned manifest summary",
         )
         render_tool = next((tool for tool in tools if tool.get("name") == "render_pass_get"), None)
         require(isinstance(render_tool, dict) and render_tool.get("annotations", {}).get("readOnlyHint") is True, "render_pass_get was not read-only")
@@ -356,6 +370,22 @@ def main() -> int:
         render_set = comparison.get("render_set") if isinstance(comparison, dict) else None
         require(isinstance(render_set, dict) and render_set.get("schema_version") == "RenderSet@2", "reference_compare_prepare omitted RenderSet@2")
         require(render_set.get("passes") == ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"], "RenderSet did not contain the fixed nine AOV order")
+        require(
+            render_set.get("render_worker_binding_status") in ("same_cohort_verified", "cohort_unavailable"),
+            "RenderSet omitted the Runtime-owned Render Worker binding status",
+        )
+        if args.expected_build_cohort:
+            require(
+                render_set.get("render_worker_binding_status") == "same_cohort_verified"
+                and render_set.get("render_worker_build_cohort_sha256") == args.expected_build_cohort,
+                "RenderSet Worker cohort was not bound to the expected packaged cohort",
+            )
+        else:
+            require(
+                render_set.get("render_worker_binding_status") == "cohort_unavailable"
+                and render_set.get("render_worker_build_cohort_sha256") is None,
+                "source RenderSet must make unavailable Worker cohort explicit",
+            )
         render_set_hash = comparison.get("render_set_object_sha256")
         comparison_hash = comparison.get("comparison_report_object_sha256")
         quality_report_object_sha256 = comparison.get("quality_report_object_sha256")
@@ -507,9 +537,9 @@ def main() -> int:
             "task_id": "FGC-MCP010C",
             "status": "PASS",
             "protocol_version": MCP_PROTOCOL_VERSION,
-            "tool_count": len(tools),
-            "read_tool_count": read_tool_count,
-            "write_tool_count": write_tool_count,
+            "tool_count": manifest_summary["total_count"],
+            "read_tool_count": manifest_summary["read_count"],
+            "write_tool_count": manifest_summary["write_count"],
             "ponytail_preflight": "PASS",
             "fixed_renderer": "512x512-perspective-zbuffer-deterministic",
             "aov_count": 9,
@@ -545,6 +575,8 @@ def main() -> int:
             "expected_build_cohort_sha256": args.expected_build_cohort,
             "mcp_build_cohort_sha256": mcp_identity.get("build_cohort_sha256") if mcp_identity else None,
             "runtime_build_cohort_sha256": runtime_identity.get("build_cohort_sha256") if runtime_identity else None,
+            "render_worker_binding_status": render_set.get("render_worker_binding_status"),
+            "render_worker_build_cohort_sha256": render_set.get("render_worker_build_cohort_sha256"),
             "persistent_user_data_touched": False,
         }
         if export_restart_receipt is not None:

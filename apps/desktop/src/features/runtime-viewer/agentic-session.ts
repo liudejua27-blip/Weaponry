@@ -83,7 +83,7 @@ export type AgenticSessionProjection = {
 
 const CHECKPOINT_STATUS_LABELS: Record<AgenticCheckpointStatus, string> = {
   persisted: '已持久化',
-  prepare: 'prepare',
+  prepare: '准备中',
   'awaiting-approval': '等待批准',
   approved: '已批准',
   unknown: '未知',
@@ -93,9 +93,24 @@ const CHECKPOINT_STATUS_LABELS: Record<AgenticCheckpointStatus, string> = {
 export const AGENTIC_CHECKPOINT_STATUS_LABELS = CHECKPOINT_STATUS_LABELS
 
 export const AGENTIC_RESTORE_STATUS_LABELS: Record<AgenticRestoreStatus, string> = {
-  prepare: 'prepare',
+  prepare: '准备中',
   'awaiting-approval': '等待批准',
   approved: '已批准（仍需用户确认）',
+  unknown: '未知',
+  locked: '锁定',
+}
+
+export const AGENTIC_RESTORE_PREPARE_STATUS_LABELS: Record<AgenticRestoreState['prepareStatus'], string> = {
+  prepared: '已准备',
+  'not-prepared': '未准备',
+  unknown: '未知',
+  locked: '锁定',
+}
+
+export const AGENTIC_RESTORE_APPROVAL_STATUS_LABELS: Record<AgenticRestoreState['approvalStatus'], string> = {
+  'not-requested': '未请求批准',
+  'awaiting-approval': '等待批准',
+  approved: '已批准',
   unknown: '未知',
   locked: '锁定',
 }
@@ -109,15 +124,15 @@ const EVIDENCE_BINDINGS: Array<[keyof AgenticEvidenceHashes, string]> = [
 ]
 
 const LOCKED_SESSION_ACTIONS: AgenticAction[] = [
-  { actionId: 'checkpoint', label: '创建 checkpoint', status: 'locked', reason: 'Viewer is read-only; checkpoint writes require Runtime approval flow' },
-  { actionId: 'restore', label: 'restore', status: 'locked', reason: 'Viewer only displays prepare/approval state' },
+  { actionId: 'checkpoint', label: '创建检查点', status: 'locked', reason: 'Viewer is read-only; checkpoint writes require Runtime approval flow' },
+  { actionId: 'restore', label: '恢复版本', status: 'locked', reason: 'Viewer only displays prepare/approval state' },
   { actionId: 'candidate_confirm', label: '确认版本', status: 'locked', reason: 'Viewer cannot confirm or bypass user approval' },
   { actionId: 'export_confirm', label: '导出', status: 'locked', reason: 'Viewer cannot export or bypass user approval' },
 ]
 
 const ACTION_LABELS: Record<string, string> = {
   read_reference_evidence: '读取参考证据',
-  prepare_candidate: 'prepare candidate',
+  prepare_candidate: '准备候选版本',
   inspect_failed_gate: '检查失败门',
   repair_bounded_part_or_camera: '准备有界局部修正',
   rerun_readback_render_compare: '重新回读 / 渲染 / 比较',
@@ -127,10 +142,10 @@ const ACTION_LABELS: Record<string, string> = {
   advance_one_stage: '推进一个阶段',
   inspect_part_lineage: '检查部件 lineage',
   prepare_bounded_action: 'prepare 有界动作',
-  pbr_prepare: 'prepare PBR',
+  pbr_prepare: '准备 PBR',
   candidate_confirm: '确认版本',
   export_confirm: '导出',
-  restore: 'restore',
+  restore: '恢复版本',
 }
 
 function asObject(value: unknown): JsonObject | null {

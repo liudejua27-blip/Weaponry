@@ -1,0 +1,28 @@
+{
+  "schema_version": "AgenticObservationBindingReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_FAIL_CLOSED_AMBIGUOUS_CANDIDATE",
+  "scope": "Runtime-owned AgenticSceneObserveResult@1 candidate selection",
+  "source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/agentic_design.rs",
+  "source_sha256": "b042b57bc6cd72fa44a2675d4b6b49001807b88bc19bc61efed43baa8eefd54a",
+  "base_commit": "22cb4ed0c685435b11d6f52443f9b5b0334d21ab",
+  "selection_policy": {
+    "explicit_candidate_id": "selected and project-bound",
+    "active_snapshot": "selected and project-bound",
+    "no_active_snapshot_zero_candidates": "returns an unknown read-only observation",
+    "no_active_snapshot_one_candidate": "retains the bounded compatibility fallback",
+    "no_active_snapshot_multiple_candidates": "returns AGENTIC_BINDING_FAIL_CLOSED and requires explicit binding"
+  },
+  "regression": {
+    "test_filter": "scene_observe_without_binding",
+    "passed": 2,
+    "failed": 0,
+    "persistent_user_data_touched": false
+  },
+  "quality_boundary": {
+    "changed": false,
+    "visual_quality_status": "QUALITY_TARGET_NOT_MET",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "viewer_quality_authority": "Runtime projection only"
+  }
+}

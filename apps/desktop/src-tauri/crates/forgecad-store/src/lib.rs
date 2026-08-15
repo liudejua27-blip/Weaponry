@@ -57,6 +57,7 @@ pub struct VisualEvidenceRecord {
     pub candidate_id: String,
     pub project_id: String,
     pub reference_id: String,
+    pub target_sha256: Option<String>,
     pub render_set_object_sha256: String,
     pub comparison_report_object_sha256: Option<String>,
     pub visual_review_object_sha256: Option<String>,
@@ -122,6 +123,7 @@ pub struct AgenticSessionRecord {
     pub reference_sha256: String,
     pub camera_hash: String,
     pub evidence_sha256: String,
+    pub observation_sha256: String,
     pub current_version_id: Option<String>,
     pub current_version_sha256: Option<String>,
     pub current_stage: String,
@@ -163,6 +165,7 @@ pub struct AgenticCheckpointRecord {
     pub camera_hash: String,
     pub input_sha256: String,
     pub evidence_sha256: String,
+    pub observation_sha256: String,
     pub version_id: Option<String>,
     pub version_sha256: Option<String>,
     pub parent_checkpoint_id: Option<String>,
@@ -878,6 +881,48 @@ impl Store {
     /// is intentionally built on this existing RuntimeJob table rather than
     /// introducing a second job state machine.  A repeated job id is an
     /// idempotent read only when its project/kind/request binding is exact.
+    pub fn insert_job_with_event(
+        &self,
+        job: &JobRecord,
+        event: &JobEventRecord,
+    ) -> Result<(), StoreError> {
+        self.insert_job_with_event_if_absent(job, event, &[])?;
+        Ok(())
+    }
+
+    /// Compatibility terminal update for Runtime-owned bounded jobs.  The
+    /// newer store path also records reachable CAS hashes; this wrapper keeps
+    /// the older Primary Form worker contract on the same durable state table.
+    pub fn finish_job_with_event(
+        &self,
+        job_id: &str,
+        status: &str,
+        progress: u8,
+        error_code: Option<&str>,
+        event_kind: &str,
+        payload: &Value,
+        updated_at: &str,
+    ) -> Result<JobSummary, StoreError> {
+        let mut job = self
+            .get_job_record(job_id)?
+            .ok_or_else(|| StoreError::Contract {
+                code: "NOT_FOUND".to_owned(),
+                message: "job not found".to_owned(),
+            })?;
+        if matches!(job.status.as_str(), "succeeded" | "failed" | "cancelled") {
+            return self
+                .get_job(job_id)?
+                .ok_or_else(|| StoreError::InvalidData("job disappeared".to_owned()));
+        }
+        job.status = status.to_owned();
+        job.progress = progress;
+        job.error_code = error_code.map(str::to_owned);
+        job.updated_at = updated_at.to_owned();
+        self.update_job_with_event(&job, event_kind, payload, &[])?;
+        self.get_job(job_id)?
+            .ok_or_else(|| StoreError::InvalidData("job disappeared after update".to_owned()))
+    }
+
     pub fn insert_job_with_event_if_absent(
         &self,
         job: &JobRecord,
@@ -1407,6 +1452,10 @@ impl Store {
         if !is_opaque_id(&evidence.candidate_id)
             || !is_opaque_id(&evidence.project_id)
             || !is_opaque_id(&evidence.reference_id)
+            || evidence
+                .target_sha256
+                .as_deref()
+                .is_some_and(|value| !is_sha256(value))
             || !is_sha256(&evidence.render_set_object_sha256)
             || !is_sha256(&evidence.quality_report_object_sha256)
             || evidence
@@ -1430,11 +1479,12 @@ impl Store {
         }
         let connection = self.lock_connection()?;
         connection.execute(
-            "INSERT INTO visual_evidence (candidate_id, project_id, reference_id, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) ON CONFLICT(candidate_id) DO UPDATE SET project_id=excluded.project_id, reference_id=excluded.reference_id, render_set_object_sha256=excluded.render_set_object_sha256, comparison_report_object_sha256=excluded.comparison_report_object_sha256, visual_review_object_sha256=excluded.visual_review_object_sha256, quality_report_object_sha256=excluded.quality_report_object_sha256, human_receipt_object_sha256=excluded.human_receipt_object_sha256, updated_at=excluded.updated_at",
+            "INSERT INTO visual_evidence (candidate_id, project_id, reference_id, target_sha256, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) ON CONFLICT(candidate_id) DO UPDATE SET project_id=excluded.project_id, reference_id=excluded.reference_id, target_sha256=excluded.target_sha256, render_set_object_sha256=excluded.render_set_object_sha256, comparison_report_object_sha256=excluded.comparison_report_object_sha256, visual_review_object_sha256=excluded.visual_review_object_sha256, quality_report_object_sha256=excluded.quality_report_object_sha256, human_receipt_object_sha256=excluded.human_receipt_object_sha256, updated_at=excluded.updated_at",
             params![
                 evidence.candidate_id,
                 evidence.project_id,
                 evidence.reference_id,
+                evidence.target_sha256,
                 evidence.render_set_object_sha256,
                 evidence.comparison_report_object_sha256,
                 evidence.visual_review_object_sha256,
@@ -1454,20 +1504,21 @@ impl Store {
         let connection = self.lock_connection()?;
         Ok(connection
             .query_row(
-                "SELECT candidate_id, project_id, reference_id, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at FROM visual_evidence WHERE candidate_id = ?1",
+                "SELECT candidate_id, project_id, reference_id, target_sha256, render_set_object_sha256, comparison_report_object_sha256, visual_review_object_sha256, quality_report_object_sha256, human_receipt_object_sha256, created_at, updated_at FROM visual_evidence WHERE candidate_id = ?1",
                 params![candidate_id],
                 |row| {
                     Ok(VisualEvidenceRecord {
                         candidate_id: row.get(0)?,
                         project_id: row.get(1)?,
                         reference_id: row.get(2)?,
-                        render_set_object_sha256: row.get(3)?,
-                        comparison_report_object_sha256: row.get(4)?,
-                        visual_review_object_sha256: row.get(5)?,
-                        quality_report_object_sha256: row.get(6)?,
-                        human_receipt_object_sha256: row.get(7)?,
-                        created_at: row.get(8)?,
-                        updated_at: row.get(9)?,
+                        target_sha256: row.get(3)?,
+                        render_set_object_sha256: row.get(4)?,
+                        comparison_report_object_sha256: row.get(5)?,
+                        visual_review_object_sha256: row.get(6)?,
+                        quality_report_object_sha256: row.get(7)?,
+                        human_receipt_object_sha256: row.get(8)?,
+                        created_at: row.get(9)?,
+                        updated_at: row.get(10)?,
                     })
                 },
             )
@@ -1771,6 +1822,7 @@ impl Store {
             || checkpoint.candidate_id != session.candidate_id
             || checkpoint.revision != session.revision
             || checkpoint.candidate_state_sha256 != session.candidate_state_sha256
+            || checkpoint.observation_sha256 != session.observation_sha256
         {
             return Err(StoreError::Contract {
                 code: "AGENTIC_CHECKPOINT_BINDING_MISMATCH".to_owned(),
@@ -3744,6 +3796,7 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
              candidate_id TEXT PRIMARY KEY REFERENCES candidates(candidate_id),
              project_id TEXT NOT NULL REFERENCES projects(project_id),
              reference_id TEXT NOT NULL REFERENCES reference_evidence(reference_id),
+             target_sha256 TEXT REFERENCES objects(sha256),
              render_set_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
              comparison_report_object_sha256 TEXT,
              visual_review_object_sha256 TEXT REFERENCES objects(sha256),
@@ -3761,6 +3814,7 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
         "visual_review_object_sha256",
         "TEXT",
     )?;
+    ensure_column(&transaction, "visual_evidence", "target_sha256", "TEXT")?;
     transaction.execute_batch(
         "CREATE TABLE IF NOT EXISTS visual_evidence_views (
              candidate_id TEXT NOT NULL REFERENCES candidates(candidate_id),
@@ -4279,6 +4333,7 @@ fn validate_agentic_session(session: &AgenticSessionRecord) -> Result<(), StoreE
         || !is_sha256(&session.reference_sha256)
         || !is_sha256(&session.camera_hash)
         || !is_sha256(&session.evidence_sha256)
+        || !is_sha256(&session.observation_sha256)
         || !is_opaque_id(&session.current_stage)
         || !is_opaque_id(&session.status)
         || !is_opaque_id(&session.quality_status)
@@ -4344,6 +4399,7 @@ fn validate_agentic_checkpoint(checkpoint: &AgenticCheckpointRecord) -> Result<(
         || !is_sha256(&checkpoint.camera_hash)
         || !is_sha256(&checkpoint.input_sha256)
         || !is_sha256(&checkpoint.evidence_sha256)
+        || !is_sha256(&checkpoint.observation_sha256)
         || !is_sha256(&checkpoint.canonical_sha256)
         || checkpoint
             .object_sha256
@@ -4454,6 +4510,7 @@ fn validate_design_action_run_value(value: &Value) -> Result<(), StoreError> {
         "reference_sha256",
         "camera_hash",
         "input_sha256",
+        "observation_sha256",
         "action",
         "requested_stage",
         "status",
@@ -4509,6 +4566,7 @@ fn validate_design_action_run_value(value: &Value) -> Result<(), StoreError> {
         "reference_sha256",
         "camera_hash",
         "input_sha256",
+        "observation_sha256",
         "canonical_sha256",
     ] {
         if object

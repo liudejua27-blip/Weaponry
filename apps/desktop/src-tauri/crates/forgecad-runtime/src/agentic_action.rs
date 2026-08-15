@@ -87,6 +87,7 @@ struct VisualBindings {
     quality_status: String,
     metrics: Value,
     camera: Value,
+    target_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -909,6 +910,7 @@ impl Runtime {
                 "proposal",
                 "optimization_intent",
                 "view_spec",
+                "observation_sha256",
             ],
         )?;
         validate_approval(object)?;
@@ -919,6 +921,7 @@ impl Runtime {
         let run_id = required_id(object, "run_id")?;
         let requested_stage = required_stage(object, "requested_stage")?;
         let input_sha256 = required_sha(object, "input_sha256")?;
+        let observation_sha256 = required_sha(object, "observation_sha256")?;
         let action = object
             .get("action")
             .ok_or_else(|| RuntimeError::InvalidInput("action is required".to_owned()))?;
@@ -937,6 +940,7 @@ impl Runtime {
             "run_id": run_id,
             "action": action,
             "requested_stage": requested_stage,
+            "observation_sha256": observation_sha256,
         });
         if let Some(proposal) = object.get("proposal") {
             input_binding["proposal"] = proposal.clone();
@@ -972,6 +976,27 @@ impl Runtime {
             "project_id": project_id,
             "candidate_id": candidate_id
         }))?;
+        if !is_sha256(&session.observation_sha256)
+            || session.observation_sha256 != observation_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_OBSERVATION_STALE: supplied observation is not the durable session observation"
+                    .to_owned(),
+            ));
+        }
+        let bound_observation = self.bound_agentic_observation(
+            project_id,
+            Some(candidate_id),
+            observation_sha256,
+        )?;
+        if bound_observation.get("canonical_sha256").and_then(Value::as_str)
+            != Some(observation_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_OBSERVATION_STALE: supplied observation does not match the current Runtime projection"
+                    .to_owned(),
+            ));
+        }
         let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
             RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
         })?;
@@ -1008,6 +1033,7 @@ impl Runtime {
             input_sha256,
             action,
             requested_stage,
+            observation_sha256,
         );
 
         // A reference request is an orchestration boundary, not a geometry
@@ -1100,6 +1126,30 @@ impl Runtime {
         };
         set_stage_completed(&mut run, "render", &visual.render_set_sha256);
         set_stage_completed(&mut run, "evaluate", &visual.quality_sha256);
+
+        // The mainline Primary Form action is intentionally a separate,
+        // Runtime-owned path from the generic proposal executor.  It accepts
+        // only the already validated bounded parameter changes, derives a
+        // SilhouetteRig, and delegates the search/compile/readback/compare
+        // loop to `primary_form_repair_prepare`.  No caller-supplied
+        // GeometryProgram or view payload is admitted on this path.
+        if matches!(
+            action.get("action_kind").and_then(Value::as_str),
+            Some("primary-form-adjustment" | "bounded-repair")
+        )
+            && object.get("proposal").is_none_or(Value::is_null)
+            && object.get("optimization_intent").is_none()
+            && object.get("view_spec").is_none_or(Value::is_null)
+        {
+            return execute_direct_primary_form_action(
+                self,
+                run,
+                action,
+                &session,
+                &candidate,
+                &visual,
+            );
+        }
 
         if object.get("optimization_intent").is_some()
             && object.get("proposal").is_some_and(|value| !value.is_null())
@@ -1345,6 +1395,7 @@ fn initial_run(
     input_sha256: &str,
     action: &Value,
     requested_stage: &str,
+    observation_sha256: &str,
 ) -> Value {
     json!({
         "schema_version":"DesignActionRun@1",
@@ -1356,6 +1407,7 @@ fn initial_run(
         "reference_sha256":session.reference_sha256,
         "camera_hash":session.camera_hash,
         "input_sha256":input_sha256,
+        "observation_sha256":observation_sha256,
         "action":action,
         "requested_stage":requested_stage,
         "status":"running",
@@ -2644,6 +2696,133 @@ fn execute_bounded_repair_proposal(
     persist_run(runtime, &run)
 }
 
+/// Execute the canonical direct Primary Form ActionRun shape used by the
+/// Agentic Runtime contract.  The action is converted into a typed
+/// `SilhouetteRig@1`; the existing Runtime pipeline remains the only writer
+/// of geometry and the result is persisted as an immutable receipt only.
+fn execute_direct_primary_form_action(
+    runtime: &Runtime,
+    mut run: Value,
+    action: &Value,
+    session: &AgenticSessionRecord,
+    candidate: &CandidateRecord,
+    visual: &VisualBindings,
+) -> Result<Value, RuntimeError> {
+    let input_sha256 = run
+        .get("input_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| RuntimeError::InvalidInput("DESIGN_ACTION_INPUT_HASH_MISSING".to_owned()))?;
+    let part_id = action
+        .get("target_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_ACTION_PART_REQUIRED".to_owned()))?;
+    let target_sha256 = visual.target_sha256.as_deref().ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "PRIMARY_FORM_ACTION_TARGET_REQUIRED: visual evidence has no bound silhouette target"
+                .to_owned(),
+        )
+    })?;
+    let rig = rig_from_action(&candidate.candidate_id, input_sha256, part_id, action)?;
+    let base_version_id = session.current_version_id.as_deref();
+    let mut request = json!({
+        "project_id":session.project_id,
+        "candidate_id":candidate.candidate_id,
+        "target_sha256":target_sha256,
+        "part_id":part_id,
+        "rig":rig,
+        "base_camera":visual.camera,
+        "optimizer":{
+            "algorithm":"coordinate_descent",
+            "max_iterations":1,
+            "max_evaluations":64,
+            "step_fraction":0.1
+        },
+        "base_version_id":base_version_id,
+        "canonical_sha256":""
+    });
+    request["canonical_sha256"] = Value::String(canonical_json_hash(&request));
+    let result = runtime.primary_form_repair_prepare(
+        &session.project_id,
+        base_version_id,
+        request,
+    )?;
+    let result_object = runtime.put_object(
+        &canonical_json_bytes(&result)
+            .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
+        None,
+        "application/json",
+        "agentic-action-primary-form-result",
+    )?;
+    let prepared = result.get("status").and_then(Value::as_str) == Some("prepared");
+    let quality_status = if prepared {
+        result
+            .get("quality_status")
+            .and_then(Value::as_str)
+            .unwrap_or("QUALITY_TARGET_NOT_MET")
+            .to_owned()
+    } else {
+        visual.quality_status.clone()
+    };
+    run["status"] = Value::String(if prepared { "completed" } else { "blocked" }.to_owned());
+    run["completed_stage"] = Value::String(if prepared { "evaluate" } else { "prepare" }.to_owned());
+    run["stage_results"] = direct_primary_form_stage_results(
+        &result,
+        &result_object.record.sha256,
+        prepared,
+    );
+    run["quality_status"] = Value::String(quality_status.clone());
+    run["failed_gates"] = json!(if prepared {
+        if quality_status == "PARTIAL_VISIBLE_VIEW_PASS" {
+            Vec::<&str>::new()
+        } else {
+            vec!["visible-view"]
+        }
+    } else {
+        vec!["prepare", "primary-silhouette"]
+    });
+    run["allowed_actions"] = json!(["inspect", "retry", "bounded-repair"]);
+    run["locked_actions"] = json!(["confirm", "export", "next-stage"]);
+    run["checkpoint_id"] = Value::Null;
+    run["checkpoint_hash"] = Value::Null;
+    finalize_run(&mut run);
+    persist_run(runtime, &run)
+}
+
+fn direct_primary_form_stage_results(
+    result: &Value,
+    result_sha256: &str,
+    prepared: bool,
+) -> Value {
+    let mut stages = initial_stage_results();
+    stages["prepare"] = stage_result("completed", Some(result_sha256), None);
+    if prepared {
+        let prepared_candidate = result.pointer("/prepared_candidate/candidate");
+        let artifact_sha256 = prepared_candidate
+            .and_then(|candidate| candidate.get("prepared_object_sha256"))
+            .and_then(Value::as_str);
+        let render_set_hash = result
+            .pointer("/visual_evidence/render_set_hash")
+            .and_then(Value::as_str);
+        let quality_hash = result
+            .pointer("/visual_evidence/quality_report_hash")
+            .and_then(Value::as_str);
+        stages["compile"] = stage_result("completed", artifact_sha256, None);
+        stages["readback"] = stage_result("completed", artifact_sha256, None);
+        stages["render"] = stage_result("completed", render_set_hash, None);
+        stages["evaluate"] = stage_result("completed", quality_hash, None);
+    } else {
+        stages["compile"] = stage_result(
+            "blocked",
+            None,
+            Some("primary-form-no-improvement"),
+        );
+        stages["readback"] = stage_result("blocked", None, Some("primary-form-not-prepared"));
+        stages["render"] = stage_result("blocked", None, Some("primary-form-not-prepared"));
+        stages["evaluate"] = stage_result("blocked", None, Some("primary-form-not-prepared"));
+    }
+    stages
+}
+
 fn validate_view_evaluations(
     runtime: &Runtime,
     proposal: &Map<String, Value>,
@@ -3741,6 +3920,21 @@ fn verify_visual_bindings(
             "QUALITY_STATUS_UNAVAILABLE".to_owned(),
         ));
     }
+    if let Some(target_sha256) = evidence.target_sha256.as_deref() {
+        if !is_sha256(target_sha256) {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_TARGET_BINDING_INVALID".to_owned(),
+            ));
+        }
+        let target = runtime.read_silhouette_target(target_sha256)?;
+        if target.get("reference_id").and_then(Value::as_str)
+            != Some(session.reference_id.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_TARGET_REFERENCE_MISMATCH".to_owned(),
+            ));
+        }
+    }
     Ok(VisualBindings {
         render_set_sha256: evidence.render_set_object_sha256,
         quality_sha256: evidence.quality_report_object_sha256,
@@ -3750,6 +3944,7 @@ fn verify_visual_bindings(
             .cloned()
             .unwrap_or_else(|| json!({})),
         camera,
+        target_sha256: evidence.target_sha256,
     })
 }
 
@@ -4160,6 +4355,15 @@ fn validate_execution_payload(
             ))
         }
         (
+            "primary-form-adjustment" | "bounded-repair",
+            None,
+            None,
+        ) if action
+            .get("parameter_changes")
+            .and_then(Value::as_array)
+            .is_some_and(|changes| !changes.is_empty())
+            && view_spec.is_none_or(Value::is_null) => Ok(()),
+        (
             "bounded-repair"
             | "primary-blockout"
             | "primary-form-adjustment"
@@ -4229,6 +4433,134 @@ fn validate_execution_payload(
             "DESIGN_ACTION_EXECUTION_UNAVAILABLE: action kind {kind} has no Runtime executor"
         ))),
     }
+}
+
+fn rig_from_action(
+    candidate_id: &str,
+    input_sha256: &str,
+    part_id: &str,
+    action: &Value,
+) -> Result<Value, RuntimeError> {
+    let changes = action
+        .get("parameter_changes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_ACTION_PARAMETER_CHANGES_REQUIRED".to_owned(),
+            )
+        })?;
+    let mut parameters = Vec::with_capacity(changes.len());
+    for change in changes {
+        let object = change.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_ACTION_PARAMETER_CHANGE_INVALID".to_owned(),
+            )
+        })?;
+        let parameter_id = object
+            .get("parameter_id")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_ACTION_PARAMETER_ID_REQUIRED".to_owned(),
+                )
+            })?;
+        if !is_opaque_id(parameter_id) {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_ACTION_PARAMETER_ID_INVALID".to_owned(),
+            ));
+        }
+        let semantic = primary_form_parameter_semantic(parameter_id).ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_ACTION_PARAMETER_UNSUPPORTED".to_owned(),
+            )
+        })?;
+        let unit = object
+            .get("unit")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_ACTION_PARAMETER_UNIT_REQUIRED".to_owned(),
+                )
+            })?;
+        if !matches!(unit, "meter" | "ratio") {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_ACTION_PARAMETER_UNIT_UNSUPPORTED".to_owned(),
+            ));
+        }
+        let before = primary_form_finite_number(object, "before")?;
+        let after = primary_form_finite_number(object, "after")?;
+        let minimum = primary_form_finite_number(object, "minimum")?;
+        let maximum = primary_form_finite_number(object, "maximum")?;
+        if minimum >= maximum
+            || before < minimum
+            || before > maximum
+            || after < minimum
+            || after > maximum
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_ACTION_PARAMETER_OUT_OF_BOUNDS".to_owned(),
+            ));
+        }
+        let span = maximum - minimum;
+        let step = (after - before).abs().max((span / 20.0).max(0.0001));
+        parameters.push(json!({
+            "parameter_id":parameter_id,
+            "part_id":part_id,
+            "semantic":semantic,
+            "value":after,
+            "min":minimum,
+            "max":maximum,
+            "step":step,
+            "unit":unit
+        }));
+    }
+    let mut rig = json!({
+        "schema_version":"SilhouetteRig@1",
+        "rig_id":format!("action-rig-{}", &input_sha256[..24]),
+        "candidate_id":candidate_id,
+        "parameters":parameters,
+        "canonical_sha256":""
+    });
+    rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
+    Ok(rig)
+}
+
+fn primary_form_parameter_semantic(parameter_id: &str) -> Option<&'static str> {
+    [
+        ("offset-x", "offset_x"),
+        ("offset_x", "offset_x"),
+        ("offset-y", "offset_y"),
+        ("offset_y", "offset_y"),
+        ("offset-z", "offset_z"),
+        ("offset_z", "offset_z"),
+        ("width", "width"),
+        ("height", "height"),
+        ("depth", "depth"),
+        ("scale", "scale"),
+    ]
+    .into_iter()
+    .find_map(|(suffix, semantic)| {
+        (parameter_id == suffix
+            || parameter_id.ends_with(&format!("-{suffix}"))
+            || parameter_id.ends_with(&format!("_{suffix}")))
+            .then_some(semantic)
+    })
+}
+
+fn primary_form_finite_number(
+    object: &Map<String, Value>,
+    key: &str,
+) -> Result<f64, RuntimeError> {
+    let value = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!("PRIMARY_FORM_ACTION_PARAMETER_{key}_INVALID"))
+    })?;
+    if !value.is_finite() || !(-1000.0..=1000.0).contains(&value) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PRIMARY_FORM_ACTION_PARAMETER_{key}_OUT_OF_BOUNDS"
+        )));
+    }
+    Ok(value)
 }
 
 /// Keep the outer ActionRun idempotency envelope stable across JSON clients

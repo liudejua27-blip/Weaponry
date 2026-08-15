@@ -1,0 +1,33 @@
+{
+  "schema_version": "ForgeCADRobotReferenceIntake@1",
+  "status": "provided_from_reference_view_spec",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_view_spec": "docs/evidence/mcp010f/lineflow-fit-input-20260812/view-spec.json",
+  "landmarks": [
+    {"landmark_id":"crown","x":0.507,"y":0.026,"visibility":"observed","confidence":0.96},
+    {"landmark_id":"visor-front-tip","x":0.383,"y":0.171,"visibility":"observed","confidence":0.92},
+    {"landmark_id":"visor-lower-front","x":0.397,"y":0.244,"visibility":"observed","confidence":0.9},
+    {"landmark_id":"neck-base","x":0.502,"y":0.324,"visibility":"observed","confidence":0.86},
+    {"landmark_id":"left-shoulder-outer","x":0.337,"y":0.349,"visibility":"observed","confidence":0.88},
+    {"landmark_id":"right-shoulder-outer","x":0.766,"y":0.271,"visibility":"observed","confidence":0.88},
+    {"landmark_id":"chest-center","x":0.509,"y":0.397,"visibility":"observed","confidence":0.9},
+    {"landmark_id":"chest-lower","x":0.5,"y":0.535,"visibility":"observed","confidence":0.84},
+    {"landmark_id":"left-elbow","x":0.333,"y":0.535,"visibility":"observed","confidence":0.8},
+    {"landmark_id":"right-elbow","x":0.768,"y":0.492,"visibility":"observed","confidence":0.8},
+    {"landmark_id":"pelvis-center","x":0.508,"y":0.641,"visibility":"observed","confidence":0.82},
+    {"landmark_id":"left-knee","x":0.365,"y":0.785,"visibility":"observed","confidence":0.78},
+    {"landmark_id":"right-knee","x":0.672,"y":0.753,"visibility":"observed","confidence":0.78},
+    {"landmark_id":"left-hand","x":0.292,"y":0.823,"visibility":"observed","confidence":0.82},
+    {"landmark_id":"right-hand","x":0.793,"y":0.793,"visibility":"observed","confidence":0.82}
+  ],
+  "regions": [
+    {"region_id":"head-visor","x":0.36,"y":0.018,"width":0.275,"height":0.292,"visibility":"observed","confidence":0.92},
+    {"region_id":"neck-mechanism","x":0.405,"y":0.26,"width":0.205,"height":0.145,"visibility":"observed","confidence":0.82},
+    {"region_id":"chest-armor","x":0.292,"y":0.285,"width":0.435,"height":0.285,"visibility":"observed","confidence":0.9},
+    {"region_id":"left-shoulder-arm","x":0.245,"y":0.28,"width":0.205,"height":0.4,"visibility":"observed","confidence":0.84},
+    {"region_id":"right-shoulder-arm","x":0.61,"y":0.215,"width":0.235,"height":0.405,"visibility":"observed","confidence":0.84},
+    {"region_id":"pelvis-core","x":0.315,"y":0.53,"width":0.39,"height":0.185,"visibility":"observed","confidence":0.8},
+    {"region_id":"left-thigh-knee","x":0.245,"y":0.64,"width":0.245,"height":0.335,"visibility":"observed","confidence":0.76},
+    {"region_id":"right-thigh-knee","x":0.485,"y":0.625,"width":0.27,"height":0.35,"visibility":"observed","confidence":0.76}
+  ]
+}

@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
 const AGENTIC_PROJECTION_STATUS: &str = "projection/read-only";
+const AGENTIC_OBSERVATION_CACHE_CAPACITY: usize = 32;
 const STAGES: [&str; 6] = [
     "reference-canvas",
     "primary-form",
@@ -60,6 +61,7 @@ struct ProjectionContext {
     candidate_selection: &'static str,
     geometry: GeometryContext,
     visual: VisualContext,
+    primary_form_target_sha256: Option<String>,
     quality: QualityContext,
     reference_canvas: Value,
     lineage: Value,
@@ -81,7 +83,7 @@ impl Runtime {
         let critic = build_critic_report(&context, &stage_plan);
         let session = build_design_session(&context, &scene_graph, &stage_plan, &critic);
 
-        Ok(canonicalize(json!({
+        let observation = canonicalize(json!({
             "schema_version":"AgenticSceneObserveResult@1",
             "projection_status":AGENTIC_PROJECTION_STATUS,
             "read_only":true,
@@ -101,7 +103,9 @@ impl Runtime {
             "design_critic_report":critic,
             "lineage":context.lineage,
             "canonical_sha256":""
-        })))
+        }));
+        self.remember_agentic_observation(&observation);
+        Ok(observation)
     }
 
     /// Return only the derived stage plan.  Stage advancement and unlocks are
@@ -113,6 +117,28 @@ impl Runtime {
     ) -> Result<Value, RuntimeError> {
         let context = build_context(self, project_id, candidate_id)?;
         Ok(build_stage_plan(&context))
+    }
+
+    pub fn agentic_stage_plan_bound(
+        &self,
+        project_id: &str,
+        candidate_id: Option<&str>,
+        observation_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
+        let observation = self.bound_agentic_observation(
+            project_id,
+            candidate_id,
+            observation_sha256,
+        )?;
+        observation
+            .get("design_stage_plan")
+            .cloned()
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_PROJECTION_INVALID: observation omitted design_stage_plan"
+                        .to_owned(),
+                )
+            })
     }
 
     /// Return the optional evidence-bound critic projection without executing a
@@ -139,9 +165,32 @@ impl Runtime {
                 }),
             )?;
             context.visual.part_error = Some(part_error);
+            context.primary_form_target_sha256 = Some(target_sha256.to_owned());
         }
         let stage_plan = build_stage_plan(&context);
         Ok(build_critic_report(&context, &stage_plan))
+    }
+
+    pub fn agentic_critic_projection_bound(
+        &self,
+        project_id: &str,
+        candidate_id: Option<&str>,
+        observation_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
+        let observation = self.bound_agentic_observation(
+            project_id,
+            candidate_id,
+            observation_sha256,
+        )?;
+        observation
+            .get("design_critic_report")
+            .cloned()
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_PROJECTION_INVALID: observation omitted design_critic_report"
+                        .to_owned(),
+                )
+            })
     }
 
     /// Return the same Runtime-owned VisualEvidenceBundle used by
@@ -157,6 +206,85 @@ impl Runtime {
     ) -> Result<Value, RuntimeError> {
         let context = build_context(self, project_id, candidate_id)?;
         Ok(context.visual.bundle)
+    }
+
+    pub fn agentic_visual_evidence_bundle_bound(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+        observation_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
+        let observation = self.bound_agentic_observation(
+            project_id,
+            Some(candidate_id),
+            observation_sha256,
+        )?;
+        observation
+            .get("visual_evidence_bundle")
+            .cloned()
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_PROJECTION_INVALID: observation omitted visual_evidence_bundle"
+                        .to_owned(),
+                )
+            })
+    }
+
+    pub(crate) fn bound_agentic_observation(
+        &self,
+        project_id: &str,
+        candidate_id: Option<&str>,
+        observation_sha256: &str,
+    ) -> Result<Value, RuntimeError> {
+        if !is_sha256(observation_sha256) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_OBSERVATION_BINDING_INVALID: observation_sha256 is not a SHA-256"
+                    .to_owned(),
+            ));
+        }
+        let cached_observation = self
+            .agentic_observation_cache
+            .lock()
+            .ok()
+            .and_then(|cache| cache.get(observation_sha256).cloned());
+        let observation = match cached_observation {
+            Some(observation) => observation,
+            None => self.agentic_scene_observe(project_id, candidate_id)?,
+        };
+        if observation.get("project_id").and_then(Value::as_str) != Some(project_id) {
+            return Err(binding_error("cached observation project differs"));
+        }
+        let observed_candidate_id = observation.get("candidate_id").and_then(Value::as_str);
+        if candidate_id.is_some() && observed_candidate_id != candidate_id {
+            return Err(binding_error("cached observation candidate differs"));
+        }
+        if observation.get("canonical_sha256").and_then(Value::as_str)
+            != Some(observation_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_OBSERVATION_STALE: follow-up projection does not match scene_observe_get"
+                    .to_owned(),
+            ));
+        }
+        Ok(observation)
+    }
+
+    fn remember_agentic_observation(&self, observation: &Value) {
+        let Some(hash) = observation
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+        else {
+            return;
+        };
+        if let Ok(mut cache) = self.agentic_observation_cache.lock() {
+            cache.insert(hash.to_owned(), observation.clone());
+            if cache.len() > AGENTIC_OBSERVATION_CACHE_CAPACITY {
+                if let Some(key) = cache.keys().next().cloned() {
+                    cache.remove(&key);
+                }
+            }
+        }
     }
 
     /// Return a candidate-bound visual-surface diagnostic projection.  Fixed
@@ -2189,6 +2317,40 @@ fn validate_visual_surface_result(value: &Value) -> Result<(), RuntimeError> {
     super::verify_output_canonical_hash(value, "VisualSurfaceResult@1")
 }
 
+fn read_primary_form_error_context(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate: Option<&CandidateRecord>,
+    visual: &VisualContext,
+) -> Result<Option<Value>, RuntimeError> {
+    let Some(candidate) = candidate else {
+        return Ok(None);
+    };
+    if visual.bundle.get("available").and_then(Value::as_bool) != Some(true) {
+        return Ok(None);
+    }
+    let Some(target_sha256) = visual
+        .bundle
+        .get("hashes")
+        .and_then(|hashes| hashes.get("target_sha256"))
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+    else {
+        return Ok(None);
+    };
+    let request = json!({
+        "project_id": project_id,
+        "candidate_id": candidate.candidate_id,
+        "target_sha256": target_sha256
+    });
+    match runtime.silhouette_part_error(project_id, request) {
+        Ok(result) => Ok(Some(result)),
+        Err(RuntimeError::InvalidInput(detail))
+            if detail.starts_with("SILHOUETTE_PART_ERROR_UNAVAILABLE:") => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
 fn build_context(
     runtime: &Runtime,
     project_id: &str,
@@ -2225,10 +2387,15 @@ fn build_context(
             artifact: None,
         },
     };
-    let visual = match candidate.as_ref() {
+    let mut visual = match candidate.as_ref() {
         Some(candidate) => read_visual_context(runtime, candidate, &geometry)?,
         None => unknown_visual_context(None, None, None),
     };
+    if let Some(part_error) =
+        read_primary_form_error_context(runtime, project_id, candidate.as_ref(), &visual)?
+    {
+        visual.part_error = Some(part_error);
+    }
     let reference_id = visual.reference_id.clone().or_else(|| {
         geometry
             .evidence
@@ -2243,7 +2410,6 @@ fn build_context(
             .as_ref()
             .map(|candidate| candidate.candidate_id.as_str()),
     )?;
-    let mut visual = visual;
     enrich_visual_context(
         runtime,
         &mut visual,
@@ -2272,8 +2438,15 @@ fn build_context(
         "snapshot_revision":snapshot.as_ref().map(|snapshot| snapshot.revision),
         "candidate_id":candidate.as_ref().map(|candidate| candidate.candidate_id.clone()),
         "candidate_canonical_sha256":candidate.as_ref().map(|candidate| candidate.canonical_sha256.clone()),
-        "lineage":lineage
+        "lineage":lineage,
+        "primary_form_error_hash":visual.part_error.as_ref().and_then(|error| error.get("canonical_sha256").and_then(Value::as_str))
     }));
+    let primary_form_target_sha256 = visual
+        .bundle
+        .pointer("/hashes/target_sha256")
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+        .map(str::to_owned);
 
     let mut context = ProjectionContext {
         project,
@@ -2282,6 +2455,7 @@ fn build_context(
         candidate_selection,
         geometry,
         visual,
+        primary_form_target_sha256,
         quality,
         reference_canvas,
         lineage,
@@ -2474,6 +2648,18 @@ fn read_visual_context(
             return Err(binding_error("visual and geometry references differ"));
         }
     }
+    if let Some(target_sha256) = evidence.target_sha256.as_deref() {
+        let target = runtime.read_silhouette_target(target_sha256)?;
+        if target.get("reference_id").and_then(Value::as_str)
+            != Some(evidence.reference_id.as_str())
+            || target.get("reference_sha256").and_then(Value::as_str)
+                != Some(reference.object_sha256.as_str())
+        {
+            return Err(binding_error(
+                "silhouette target is not bound to the visual reference",
+            ));
+        }
+    }
 
     let render_set = read_json_object(runtime, &evidence.render_set_object_sha256, "RenderSet")?;
     super::validate_render_set_v2_output(&render_set)?;
@@ -2578,6 +2764,7 @@ fn read_visual_context(
         "comparison_report":comparison,
         "quality_report":quality_report,
         "hashes":{
+            "target_sha256":evidence.target_sha256,
             "render_set_hash":evidence.render_set_object_sha256,
             "comparison_report_hash":evidence.comparison_report_object_sha256,
             "quality_report_hash":evidence.quality_report_object_sha256,
@@ -2588,6 +2775,7 @@ fn read_visual_context(
             "candidate_id":candidate.candidate_id,
             "reference_id":evidence.reference_id,
             "reference_sha256":reference.object_sha256,
+            "target_sha256":evidence.target_sha256,
             "artifact_sha256":render_set["artifact_sha256"],
             "program_sha256":render_set["program_sha256"],
             "camera_hash":render_set["camera_hash"],
@@ -2651,6 +2839,7 @@ fn unknown_visual_context(
             "comparison_report":Value::Null,
             "quality_report":Value::Null,
             "hashes":{
+                "target_sha256":Value::Null,
                 "render_set_hash":Value::Null,
                 "comparison_report_hash":Value::Null,
                 "quality_report_hash":quality_report_hash,
@@ -3424,6 +3613,44 @@ fn build_design_session(
     }))
 }
 
+fn primary_form_focus(part_error: Option<&Value>) -> (Option<String>, &'static str) {
+    let Some(part_error) = part_error else {
+        return (None, "unknown");
+    };
+    let focus_part_id = part_error
+        .get("recommended_part_ids")
+        .and_then(Value::as_array)
+        .and_then(|parts| parts.first())
+        .and_then(Value::as_str)
+        .or_else(|| {
+            part_error
+                .get("parts")
+                .and_then(Value::as_array)
+                .and_then(|parts| parts.first())
+                .and_then(|part| part.get("part_id"))
+                .and_then(Value::as_str)
+        });
+    let Some(focus_part_id) = focus_part_id else {
+        return (None, "unknown");
+    };
+    let focus_part_status = part_error
+        .get("parts")
+        .and_then(Value::as_array)
+        .and_then(|parts| {
+            parts.iter().find(|part| {
+                part.get("part_id").and_then(Value::as_str) == Some(focus_part_id)
+            })
+        })
+        .and_then(|part| part.get("visibility").and_then(Value::as_str))
+        .map(|visibility| match visibility {
+            "observed" => "observed",
+            "inferred" => "inferred",
+            _ => "unknown",
+        })
+        .unwrap_or("unknown");
+    (Some(focus_part_id.to_owned()), focus_part_status)
+}
+
 fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value {
     let stage = stage_plan
         .get("current_stage")
@@ -3449,6 +3676,7 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
         .get("comparison_report")
         .and_then(|report| report.get("metrics"));
     let mut issues = Vec::new();
+    let mut failed_metrics = Vec::new();
     if let Some(metrics) = metrics {
         let checks = [
             ("silhouette_iou", "min", 0.90, metrics.get("silhouette_iou")),
@@ -3495,6 +3723,13 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
                 observed > threshold
             };
             if failed {
+                failed_metrics.push(json!({
+                    "metric_name":metric_name,
+                    "direction":direction,
+                    "observed":observed,
+                    "threshold":threshold,
+                    "evidence_hash":comparison_hash
+                }));
                 let issue_key = canonical_json_hash(
                     &json!({"candidate_id":context.candidate.as_ref().map(|candidate| candidate.candidate_id.clone()),"metric_name":metric_name,"observed":observed,"threshold":threshold,"evidence_hash":comparison_hash}),
                 );
@@ -3611,6 +3846,33 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
             "lineage":context.lineage.clone()
         }));
     }
+    let target_sha256 = context.primary_form_target_sha256.clone();
+    let target_sha_value = target_sha256
+        .clone()
+        .map(Value::String)
+        .unwrap_or(Value::Null);
+    let (focus_part_id, focus_part_status) = primary_form_focus(context.visual.part_error.as_ref());
+    let focus_part_value = focus_part_id
+        .clone()
+        .map(Value::String)
+        .unwrap_or(Value::Null);
+    let primary_form_directive = json!({
+        "status":if failed_metrics.is_empty() {
+            if context.quality.strict_visual_gate == "passed" {"passed"} else {"unknown"}
+        } else if target_sha256.is_some() {"ready"} else {"requires-target"},
+        "owner":"runtime",
+        "objective":"primary-form-convergence",
+        "metric_priority":["boundary_f1_4px","silhouette_iou","bbox_edge_error","centroid_error","landmark_coverage","landmark_nme","region_median_iou","critical_region_min_iou"],
+        "failed_metrics":failed_metrics.clone(),
+        "target_sha256":target_sha_value,
+        "part_error":context.visual.part_error.clone().unwrap_or(Value::Null),
+        "focus_part_id":focus_part_value.clone(),
+        "focus_part_status":focus_part_status,
+        "diagnostic_operation":if target_sha256.is_some() {"silhouette_part_error_get"} else if metrics.is_some() {"reference_compare_prepare"} else {"none"},
+        "repair_operation":if target_sha256.is_some() {"primary_form_repair_prepare"} else {"reference_compare_prepare"},
+        "continuous_search_owner":"runtime",
+        "execution_allowed":false
+    });
     if context
         .candidate
         .as_ref()
@@ -3644,7 +3906,30 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
     } else {
         "unknown"
     };
-    let repair_intents = issues
+    let repair_intents = if !failed_metrics.is_empty() {
+        let issue_ids = issues
+            .iter()
+            .filter(|issue| issue.get("status").and_then(Value::as_str) == Some("fail"))
+            .filter_map(|issue| issue.get("issue_id").and_then(Value::as_str))
+            .take(8)
+            .collect::<Vec<_>>();
+        let repair_key = canonical_json_hash(
+            &json!({"issue_ids":issue_ids,"lineage":context.lineage.clone()}),
+        );
+        vec![json!({
+            "repair_intent_id":format!("repair-{}", &repair_key[..24]),
+            "stage":stage,
+            "issue_ids":issue_ids,
+            "scope":{"part_id":focus_part_value.clone(),"part_id_status":focus_part_status,"material_zone_id":Value::Null,"material_zone_id_status":"unknown"},
+            "bounded_action":{"operation":primary_form_directive["repair_operation"],"parameters":target_sha256.as_ref().map(|target| json!({"target_sha256":target})).unwrap_or_else(|| json!({})),"requires_new_candidate":true,"arbitrary_script":false},
+            "status":"proposed",
+            "projection_only":true,
+            "execution_allowed":false,
+            "reason":"One Runtime-owned bounded Primary Form action covers the priority-ordered failures; Codex selects/approves the next action but does not search continuous parameters.",
+            "lineage":context.lineage.clone()
+        })]
+    } else {
+        issues
         .iter()
         // A global comparison metric is useful critic evidence, but it does
         // not identify an editable Part or MaterialZone.  Only the optional
@@ -3681,7 +3966,8 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
                 "lineage":context.lineage.clone()
             }))
         })
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>()
+    };
     canonicalize(json!({
         "schema_version":"DesignCriticReport@1",
         "projection_status":AGENTIC_PROJECTION_STATUS,
@@ -3694,6 +3980,7 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
         "repair_intents":repair_intents,
         "part_error":context.visual.part_error.clone().unwrap_or(Value::Null),
         "visual_surface":visual_surface,
+        "primary_form_directive":primary_form_directive,
         "strict_visual_gate":context.quality.strict_visual_gate.clone(),
         "lineage":context.lineage.clone(),
         "canonical_sha256":""
@@ -3958,6 +4245,7 @@ mod tests {
                 candidate_id: second.candidate.candidate_id.clone(),
                 project_id: foreign_project.project_id.clone(),
                 reference_id: foreign_reference.reference_id,
+                target_sha256: None,
                 render_set_object_sha256: render_object.record.sha256,
                 comparison_report_object_sha256: None,
                 visual_review_object_sha256: None,

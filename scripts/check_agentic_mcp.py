@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MAIN = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs"
 AGENTIC = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_tools.rs"
 AGENTIC_WRITE = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools.rs"
+AGENTIC_ACTION = ROOT / "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_action_tools.rs"
 
 TOOLS = {
     "scene_observe_get": True,
@@ -18,12 +19,14 @@ TOOLS = {
     "visual_evidence_bundle_get": True,
     "session_get": True,
     "checkpoint_get": True,
+    "design_action_run_get": True,
 }
 
 WRITE_TOOLS = {
     "session_create_or_resume",
     "checkpoint_prepare",
     "checkpoint_restore_prepare",
+    "design_action_run_prepare",
 }
 
 
@@ -96,20 +99,25 @@ def check_manifest(tools: list[dict], write_enabled: bool) -> None:
 
 
 def check_sources() -> None:
-    if not MAIN.is_file() or not AGENTIC.is_file() or not AGENTIC_WRITE.is_file():
+    if not MAIN.is_file() or not AGENTIC.is_file() or not AGENTIC_WRITE.is_file() or not AGENTIC_ACTION.is_file():
         fail("agentic adapter source is missing")
     main = MAIN.read_text(encoding="utf-8")
     agentic = AGENTIC.read_text(encoding="utf-8")
     agentic_write = AGENTIC_WRITE.read_text(encoding="utf-8")
+    agentic_action = AGENTIC_ACTION.read_text(encoding="utf-8")
 
     for marker in (
         "mod agentic_tools;",
+        "mod agentic_action_tools;",
         "mod agentic_write_tools;",
         "tools.extend(agentic_tools::read_tools());",
         "tools.extend(agentic_write_tools::read_tools());",
+        "tools.extend(agentic_action_tools::read_tools());",
         "agentic_write_tools::write_tools()",
+        "agentic_action_tools::write_tools()",
         "if agentic_tools::is_tool(name)",
         "agentic_write_tools::validate_call",
+        "agentic_action_tools::validate_call",
         "agentic_tools::runtime_method(name)",
         "requires_ponytail_preflight",
     ):
@@ -118,12 +126,12 @@ def check_sources() -> None:
 
     for name in TOOLS:
         if f'"{name}"' not in agentic:
-            if f'"{name}"' not in agentic_write:
+            if f'"{name}"' not in agentic_write and f'"{name}"' not in agentic_action:
                 fail(f"Agentic adapter is missing {name}")
     if 'Some("agentic_critic_projection")' not in agentic:
         fail("critic projection is not bound to the Runtime projection method")
-    if 'Some("visual_evidence_bundle_get")' not in agentic:
-        fail("evidence projection is not bound to the existing Runtime read method")
+    if 'Some("agentic_visual_evidence_bundle")' not in agentic:
+        fail("evidence projection is not bound to the canonical Runtime observation slice")
     for method in ("agentic_scene_observe", "agentic_stage_plan"):
         if f'"{method}"' not in agentic:
             fail(f"unimplemented Runtime method is not recorded: {method}")
@@ -147,6 +155,16 @@ def check_sources() -> None:
     ):
         if marker not in agentic_write:
             fail(f"agentic_write_tools.rs is missing boundary marker: {marker}")
+    for marker in (
+        "design_action_run_get",
+        "design_action_run_prepare",
+        "DesignActionRun@1",
+        "AGENTIC_ACTION_STAGE_UNSUPPORTED",
+        "AGENTIC_ACTION_SCOPE_MISMATCH",
+        "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID",
+    ):
+        if marker not in agentic_action:
+            fail(f"agentic_action_tools.rs is missing boundary marker: {marker}")
     forbidden_adapter_tokens = (
         "forgecad_runtime",
         "rusqlite",

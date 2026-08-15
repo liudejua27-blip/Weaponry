@@ -25,6 +25,9 @@ from typing import Any
 
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 MCP_PROTOCOL_VERSION = "2025-06-18"
+SKILL_REGISTRY_PATH = (
+    Path(__file__).resolve().parents[1] / "packages" / "forgecad-skills" / "registry.json"
+)
 
 
 class GateFailure(RuntimeError):
@@ -161,6 +164,26 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--timeout", type=float, default=20.0)
     return parser.parse_args()
+
+
+def expected_skill_keys() -> set[tuple[str, str]]:
+    try:
+        document = json.loads(SKILL_REGISTRY_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise GateFailure("first-party Skill registry was unreadable") from error
+    skills = document.get("skills") if isinstance(document, dict) else None
+    if not isinstance(skills, list):
+        raise GateFailure("first-party Skill registry did not contain a skills array")
+    keys: set[tuple[str, str]] = set()
+    for skill in skills:
+        if not isinstance(skill, dict):
+            raise GateFailure("first-party Skill registry contained a non-object entry")
+        skill_id = skill.get("skill_id")
+        version = skill.get("version")
+        if not isinstance(skill_id, str) or not isinstance(version, str):
+            raise GateFailure("first-party Skill registry entry lacked an id or version")
+        keys.add((skill_id, version))
+    return keys
 
 
 def build_identity(path: Path) -> dict[str, Any]:
@@ -367,40 +390,6 @@ def require(condition: bool, message: str) -> None:
         raise GateFailure(message)
 
 
-def read_ponytail_preflight(client: McpClient) -> dict[str, str]:
-    """Read the mandatory first-party planning Skill before other Skill calls."""
-    result = client.tool(
-        "skill_get",
-        {"skill_id": "ponytail-preflight", "version": "0.1.0"},
-    )
-    require(isinstance(result, dict), "ponytail preflight returned no typed result")
-    skill = result.get("skill")
-    knowledge = result.get("knowledge")
-    require(
-        isinstance(skill, dict)
-        and skill.get("skill_id") == "ponytail-preflight"
-        and skill.get("version") == "0.1.0"
-        and isinstance(skill.get("canonical_sha256"), str)
-        and len(skill["canonical_sha256"]) == 64,
-        "ponytail preflight manifest was not verified",
-    )
-    require(
-        isinstance(knowledge, dict)
-        and isinstance(knowledge.get("canonical_sha256"), str)
-        and len(knowledge["canonical_sha256"]) == 64
-        and isinstance(knowledge.get("overview"), str)
-        and isinstance(knowledge.get("constraints"), str),
-        "ponytail preflight knowledge was not returned",
-    )
-    return {
-        "skill_id": skill["skill_id"],
-        "version": skill["version"],
-        "skill_manifest_sha256": skill["canonical_sha256"],
-        "knowledge_sha256": knowledge["canonical_sha256"],
-        "status": "PASS",
-    }
-
-
 def require_invalid_input(error: dict[str, Any], message: str) -> None:
     require(
         error.get("schema_version") == "RuntimeError@1"
@@ -415,6 +404,7 @@ def main() -> int:
     if args.timeout <= 0 or not args.mcp.is_file() or not args.runtime.is_file():
         raise GateFailure("source MCP010B binaries were unavailable")
     expected_cohort = args.expected_build_cohort
+    expected_skills = expected_skill_keys()
     if expected_cohort is not None and re.fullmatch(r"[0-9a-f]{64}", expected_cohort) is None:
         raise GateFailure("expected build cohort was not a lowercase SHA-256")
     mcp_identity = build_identity(args.mcp) if expected_cohort is not None else None
@@ -453,7 +443,6 @@ def main() -> int:
     )
     client: McpClient | None = None
     ready: dict[str, Any] | None = None
-    preflight: dict[str, str] | None = None
     try:
         ready = wait_for_ready(ready_path, runtime, args.timeout)
         socket_path = ready.get("socket_path")
@@ -488,6 +477,24 @@ def main() -> int:
         )
         client.notify("notifications/initialized")
 
+        preflight = client.tool(
+            "skill_get",
+            {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+        )
+        preflight_skill = preflight.get("skill") if isinstance(preflight, dict) else None
+        preflight_knowledge = preflight.get("knowledge") if isinstance(preflight, dict) else None
+        require(
+            isinstance(preflight_skill, dict)
+            and preflight_skill.get("skill_id") == "ponytail-preflight"
+            and preflight_skill.get("version") == "0.1.0"
+            and isinstance(preflight_skill.get("canonical_sha256"), str)
+            and len(preflight_skill["canonical_sha256"]) == 64
+            and isinstance(preflight_knowledge, dict)
+            and isinstance(preflight_knowledge.get("canonical_sha256"), str)
+            and len(preflight_knowledge["canonical_sha256"]) == 64,
+            "ponytail-preflight@0.1.0 was not read before the Skill registry",
+        )
+
         tools_response = client.request("tools/list")
         tools = tools_response.get("result", {}).get("tools")
         require(isinstance(tools, list), "MCP tools/list did not return tools")
@@ -510,14 +517,18 @@ def main() -> int:
             "operator_catalog_get was not exposed as a read-only MCP tool",
         )
 
-        preflight = read_ponytail_preflight(client)
         skills = client.tool("skill_list")
+        reported_skill_keys = {
+            (skill.get("skill_id"), skill.get("version"))
+            for skill in (skills.get("skills", []) if isinstance(skills, dict) else [])
+            if isinstance(skill, dict)
+        }
         require(
             isinstance(skills, dict)
             and skills.get("schema_version") == "SkillListResult@1"
             and isinstance(skills.get("skills"), list)
-            and len(skills["skills"]) == 12,
-            "current source/package did not expose the twelve first-party Skill manifests",
+            and reported_skill_keys == expected_skills,
+            "current source/package Skill registry did not match the checked-in first-party registry",
         )
         primitive_skill = next(
             (
@@ -554,11 +565,11 @@ def main() -> int:
         operators = catalog.get("operators")
         require(
             isinstance(operators, list)
-            and len(operators) == 16
+            and len(operators) == 13
             and isinstance(operators[0], dict)
             and operators[0].get("operator_id") == "forgecad.geometry.primitive@2"
             and operators[0].get("status") == "active",
-            "catalog did not expose the current MCP010D/SurfaceProgram operator set with primitive@2 first",
+            "catalog did not expose the current MCP010D operator set with primitive@2 first",
         )
 
         project = client.tool(
@@ -813,8 +824,7 @@ def main() -> int:
         "protocol_version": MCP_PROTOCOL_VERSION,
         "operator_catalog_hash_match": True,
         "operator_catalog_tool_resource_match": "PASS",
-        "skill_registry_count": 12,
-        "ponytail_preflight": preflight,
+        "skill_registry_count": len(expected_skills),
         "primitive_blockout_skill": "active",
         "geometry_program_hash": "PASS",
         "geometry_program": "GeometryProgram@2",

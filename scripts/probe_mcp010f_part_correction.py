@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Run one bounded, hash-bound silhouette Part correction round.
+"""Run one Runtime-owned, hash-bound silhouette Part correction round.
 
-This is an orchestration probe for the F contour loop.  Runtime remains the
-source of masks, Part-ID evidence, adjustment proposals and comparison
-metrics; this script only copies a bounded proposal into a local typed draft
-and asks Runtime to compile/read/compare each candidate.  It never confirms,
-exports or writes persistent user data.
+This is an orchestration probe for the F contour loop.  The script prepares
+one authored baseline, consolidates its candidate-bound observation, then
+submits exactly one typed ``primary_form_repair_prepare`` intent.  Runtime
+owns the bounded continuous search, Geometry Worker compilation, strict
+readback, Render Worker comparison and same-camera retention decision.  The
+probe never edits parameters locally, confirms, exports or writes persistent
+user data.
 """
 
 from __future__ import annotations
@@ -15,7 +17,6 @@ import base64
 import copy
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,7 +36,8 @@ from probe_mcp010b_raw_stdio import (  # noqa: E402
 )
 from probe_mcp010c_codex_cli import (  # noqa: E402
     canonical_hash,
-    silhouette_rig_draft,
+    normalize_numeric_representation,
+    part_contour_rig_draft,
     view_spec,
 )
 from probe_mcp010e_raw_stdio import (  # noqa: E402
@@ -101,9 +103,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--geometry-variant", default="surface-linework")
     parser.add_argument("--part-id", default="chest-shell")
+    parser.add_argument(
+        "--target-mode",
+        choices=("contour", "automatic"),
+        default="contour",
+        help="Use an explicit Part contour or let Runtime attribute an automatic silhouette boundary through Part-ID evidence.",
+    )
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--timeout", type=float, default=90.0)
-    parser.add_argument("--expected-build-cohort")
     return parser.parse_args()
 
 
@@ -193,12 +200,8 @@ def compare_candidate(
         "view_spec": spec,
     }
     if camera is not None:
-        require(isinstance(target_sha256, str) and len(target_sha256) == 64, "camera-bound comparison target is unavailable")
-        request["camera"] = {
-            "schema_version": "CameraCalibrationRef@1",
-            "camera_hash": camera["camera_hash"],
-            "canonical_sha256": camera["canonical_sha256"],
-        }
+        request["camera"] = camera
+    if target_sha256 is not None:
         request["target_sha256"] = target_sha256
     result = client.tool("reference_compare_prepare", request)
     report = result.get("comparison_report") if isinstance(result, dict) else None
@@ -209,68 +212,23 @@ def compare_candidate(
         "candidate_id": candidate["candidate_id"],
         "render_set_hash": result.get("render_set_object_sha256"),
         "comparison_report_hash": result.get("comparison_report_object_sha256"),
-        "camera_hash": report.get("camera_hash"),
         "metrics": metrics,
         "status": report.get("status"),
     }
 
 
-def resolve_camera(camera_result: dict[str, Any]) -> dict[str, Any]:
-    selected = camera_result.get("selected_camera") or camera_result.get("camera")
-    require(isinstance(selected, dict), "camera fit omitted selected camera")
-    required = {
-        "schema_version",
-        "camera_hash",
-        "projection",
-        "transform",
-        "fov_y_degrees",
-        "near_m",
-        "far_m",
-        "resolution",
-        "coordinate_system",
-        "renderer_revision",
-        "canonical_sha256",
-    }
-    if required.issubset(selected):
-        return selected
-    selected_hash = selected.get("camera_hash")
-    selected_canonical = selected.get("canonical_sha256")
-    for row in camera_result.get("candidates", []):
-        candidate = row.get("camera") if isinstance(row, dict) else None
-        if not isinstance(candidate, dict):
-            continue
-        if (
-            isinstance(selected_hash, str)
-            and candidate.get("camera_hash") == selected_hash
-        ) or (
-            isinstance(selected_canonical, str)
-            and candidate.get("canonical_sha256") == selected_canonical
-        ):
-            require(required.issubset(candidate), "camera candidate was not a complete calibration")
-            return candidate
-    raise ProbeFailure("camera fit returned only an unresolvable camera reference")
-
-
-def adjustment_map(result: dict[str, Any]) -> dict[str, float]:
-    rows = result.get("adjustments")
-    require(isinstance(rows, list), "part_contour_fit_prepare omitted adjustments")
-    output: dict[str, float] = {}
-    for row in rows:
-        if isinstance(row, dict) and isinstance(row.get("parameter_id"), str) and isinstance(row.get("delta"), (int, float)):
-            output[row["parameter_id"]] = float(row["delta"])
-    return output
-
-
-PART_NODE_IDS = {
+PART_EVIDENCE_ALIASES = {
     "chest-shell": "chest-panel",
     "shoulder-armor-left": "shoulder-armor-left",
     "shoulder-armor-right": "shoulder-armor-right",
+    "shin-pair": "shin-left",
 }
 
 PART_PARAMETER_PREFIXES = {
     "chest-shell": "chest",
     "shoulder-armor-left": "shoulder",
     "shoulder-armor-right": "shoulder",
+    "shin-pair": "shin",
 }
 
 
@@ -280,66 +238,16 @@ def part_parameter_prefix(part_id: str) -> str:
     return prefix
 
 
-def apply_part_adjustment(draft: dict[str, Any], part_id: str, parameter_id: str, delta: float) -> dict[str, Any]:
-    """Apply only one bounded semantic adjustment to the local typed draft."""
-    result = copy.deepcopy(draft)
-    nodes = result.get("nodes")
-    require(isinstance(nodes, list), "GeometryProgram nodes are missing")
-    node_id = PART_NODE_IDS.get(part_id)
-    require(isinstance(node_id, str), f"no deterministic patch route for Part {part_id}")
-    node = next((item for item in nodes if isinstance(item, dict) and item.get("node_id") == node_id), None)
-    require(isinstance(node, dict), f"no deterministic patch route for Part {part_id}")
-    parameters = node.get("parameters")
-    require(isinstance(parameters, dict), "Part parameters are missing")
-    prefix = part_parameter_prefix(part_id)
-    semantic = parameter_id.removeprefix(f"{prefix}-")
-    shape = parameters.get("shape")
-    if shape == "panel":
-        size = parameters.get("size_m")
-        position = parameters.get("position_m")
-        require(isinstance(size, list) and len(size) == 3, "panel size is missing")
-        require(isinstance(position, list) and len(position) == 3, "panel position is missing")
-        if semantic == "width":
-            size[0] = float(size[0]) * (1.0 + max(-0.25, min(0.25, delta)))
-        elif semantic == "height":
-            size[1] = float(size[1]) * (1.0 + max(-0.25, min(0.25, delta)))
-        elif semantic == "offset-x":
-            position[0] = float(position[0]) + float(delta) * float(size[0])
-        elif semantic == "offset-y":
-            position[1] = float(position[1]) + float(delta) * float(size[1])
-        else:
-            raise ProbeFailure(f"unsupported {part_id} adjustment {parameter_id}")
-    elif shape in {"profile-extrude", "profile-loft"}:
-        # Keep the patch intentionally conservative.  Profile coordinates are
-        # scaled in the visible local plane; depth is never inferred from one
-        # image and therefore is not exposed by this probe.
-        if semantic == "width":
-            factor = 1.0 + max(-0.25, min(0.25, delta))
-            if shape == "profile-extrude":
-                points = parameters.get("profile")
-                require(isinstance(points, list), "profile points are missing")
-                for point in points:
-                    point[0] = float(point[0]) * factor
-            else:
-                profiles = parameters.get("profiles")
-                require(isinstance(profiles, list), "loft profiles are missing")
-                for profile in profiles:
-                    for point in profile.get("points", []):
-                        point[0] = float(point[0]) * factor
-        else:
-            raise ProbeFailure(f"unsupported profile adjustment {parameter_id}")
-    else:
-        raise ProbeFailure(f"unsupported Part shape {shape}")
-    return result
-
-
 def main() -> int:
     args = parse_args()
     source = args.reference.expanduser().resolve()
     require(source.is_file() and not source.is_symlink(), "reference must be a regular file")
     require(args.mcp.is_file() and args.runtime.is_file(), "MCP/Runtime binaries are unavailable")
     require(args.timeout > 0, "timeout must be positive")
-    contour, parts = load_contour(args.contour_draft, args.part_id)
+    contour: list[list[float]] = []
+    parts: list[dict[str, Any]] = []
+    if args.target_mode == "contour":
+        contour, parts = load_contour(args.contour_draft, args.part_id)
     source_bytes = source.read_bytes()
     width, height = png_dimensions(source_bytes)
     result: dict[str, Any] = {
@@ -347,6 +255,7 @@ def main() -> int:
         "status": "BLOCKED",
         "geometry_variant": args.geometry_variant,
         "part_id": args.part_id,
+        "target_mode": args.target_mode,
         "reference_sha256": __import__("hashlib").sha256(source_bytes).hexdigest(),
         "persistent_user_data_touched": False,
     }
@@ -357,32 +266,18 @@ def main() -> int:
     try:
         mcp_identity = build_identity(args.mcp)
         runtime_identity = build_identity(args.runtime)
-        build_cohort = mcp_identity.get("build_cohort_sha256")
-        worker_identities: dict[str, dict[str, Any]] = {}
-        for component in ("forgecad-geometry-worker", "forgecad-render-worker"):
-            executable = shutil.which(component, path=os.environ.get("PATH"))
-            worker_identities[component] = (
-                build_identity(Path(executable))
-                if executable is not None
-                else {"build_cohort_sha256": None}
-            )
-        build_cohorts = {
-            "mcp": mcp_identity.get("build_cohort_sha256"),
-            "runtime": runtime_identity.get("build_cohort_sha256"),
-            "geometry_worker": worker_identities["forgecad-geometry-worker"].get("build_cohort_sha256"),
-            "render_worker": worker_identities["forgecad-render-worker"].get("build_cohort_sha256"),
-        }
-        if args.expected_build_cohort:
-            require(
-                all(value == args.expected_build_cohort for value in build_cohorts.values()),
-                "MCP/Runtime/Geometry Worker/Render Worker build cohort mismatch",
-            )
-        result["build_cohort_sha256"] = build_cohort
-        result["expected_build_cohort_sha256"] = args.expected_build_cohort
-        result["build_cohorts"] = build_cohorts
+        require(
+            isinstance(mcp_identity, dict)
+            and isinstance(runtime_identity, dict)
+            and mcp_identity.get("build_cohort_sha256") == runtime_identity.get("build_cohort_sha256")
+            and isinstance(mcp_identity.get("build_cohort_sha256"), str),
+            "MCP/Runtime build cohorts do not match",
+        )
+        result["build_cohort_sha256"] = mcp_identity["build_cohort_sha256"]
         data_root = args.data_root.expanduser().resolve()
         require(not data_root.exists(), "data root must not pre-exist")
         data_root.mkdir(mode=0o700, parents=True)
+        (data_root / "ipc").mkdir(mode=0o700)
         ready_path = data_root / "ipc" / "ready.json"
         environment = os.environ.copy()
         for key in ("FORGECAD_RUNTIME_SOCKET", "FORGECAD_RUNTIME_TOKEN", "FORGECAD_RUNTIME_DATA_DIR", "FORGECAD_RUNTIME_COMMAND"):
@@ -406,7 +301,20 @@ def main() -> int:
         client.notify("notifications/initialized")
         preflight = read_ponytail_preflight(client)
         names = {item.get("name") for item in client.request("tools/list").get("result", {}).get("tools", []) if isinstance(item, dict)}
-        required = {"project_create", "reference_import", "operator_catalog_get", "geometry_program_hash", "geometry_prepare", "reference_mask_prepare", "reference_mask_refine_prepare", "reference_compare_prepare", "camera_fit_prepare", "silhouette_rig_hash", "part_contour_fit_prepare", "silhouette_part_error_get", "silhouette_candidate_compare", "silhouette_evaluation_objective_prepare", "silhouette_objective_compare"}
+        required = {
+            "project_create",
+            "reference_import",
+            "operator_catalog_get",
+            "geometry_program_hash",
+            "geometry_prepare",
+            "reference_mask_prepare",
+            "reference_mask_refine_prepare",
+            "camera_fit_prepare",
+            "reference_compare_prepare",
+            "scene_observe_get",
+            "silhouette_rig_hash",
+            "primary_form_repair_prepare",
+        }
         require(required.issubset(names), "required contour tools are unavailable")
         project = client.tool("project_create", {"name": "MCP010F single Part contour correction", "policy": {"profile": "mvp"}})
         project_id = project.get("project_id")
@@ -420,213 +328,188 @@ def main() -> int:
         automatic_target = client.tool("reference_mask_prepare", {"project_id": project_id, "reference_id": reference["reference_id"]})
         automatic_target_sha = automatic_target.get("target_sha256")
         require(isinstance(automatic_target_sha, str) and len(automatic_target_sha) == 64, "automatic target is unavailable")
-        refined_target = client.tool("reference_mask_refine_prepare", {"project_id": project_id, "base_target_sha256": automatic_target_sha, "contour_points": contour, "landmarks": clean_target_landmarks(), "parts": parts})
-        refined_target_sha = refined_target.get("target_sha256")
-        require(isinstance(refined_target_sha, str) and len(refined_target_sha) == 64, "refined Part target is unavailable")
+        if args.target_mode == "contour":
+            refined_target = client.tool("reference_mask_refine_prepare", {"project_id": project_id, "base_target_sha256": automatic_target_sha, "contour_points": contour, "landmarks": clean_target_landmarks(), "parts": parts})
+            refined_target_sha = refined_target.get("target_sha256")
+            require(isinstance(refined_target_sha, str) and len(refined_target_sha) == 64, "refined Part target is unavailable")
+        else:
+            refined_target_sha = automatic_target_sha
         baseline = build_geometry(client, project_id, reference["reference_id"], catalog_hash, draft)
-        camera_result = client.tool(
+        camera_fit = client.tool(
             "camera_fit_prepare",
             {
                 "project_id": project_id,
                 "candidate_id": baseline["candidate_id"],
-                "target_sha256": automatic_target_sha,
+                "target_sha256": refined_target_sha,
                 "camera": None,
             },
         )
-        camera = resolve_camera(camera_result)
         require(
-            isinstance(camera.get("camera_hash"), str)
-            and len(camera["camera_hash"]) == 64
-            and isinstance(camera.get("canonical_sha256"), str)
-            and len(camera["canonical_sha256"]) == 64,
-            "camera fit did not return a complete calibration",
+            isinstance(camera_fit, dict)
+            and camera_fit.get("schema_version") == "CameraFitResult@1"
+            and camera_fit.get("candidate_id") == baseline["candidate_id"]
+            and camera_fit.get("target_sha256") == refined_target_sha,
+            "camera_fit_prepare returned unbound evidence",
         )
-        baseline_compare = compare_candidate(client, project_id, reference, baseline, width, height, camera, automatic_target_sha)
+        selected_camera = camera_fit.get("selected_camera")
+        require(isinstance(selected_camera, dict), "camera_fit_prepare omitted selected camera")
+        camera_hash = selected_camera.get("camera_hash")
+        camera_canonical = selected_camera.get("canonical_sha256")
         require(
-            baseline_compare.get("camera_hash") == camera["camera_hash"],
-            "baseline comparison camera did not bind to camera-fit camera",
+            isinstance(camera_hash, str)
+            and len(camera_hash) == 64
+            and isinstance(camera_canonical, str)
+            and len(camera_canonical) == 64,
+            "camera_fit_prepare returned invalid camera hashes",
         )
-        part_error = client.tool(
-            "silhouette_part_error_get",
-            {
-                "project_id": project_id,
-                "candidate_id": baseline["candidate_id"],
-                "target_sha256": refined_target_sha,
-            },
+        camera_ref = {
+            "schema_version": "CameraCalibrationRef@1",
+            "camera_hash": camera_hash,
+            "canonical_sha256": camera_canonical,
+        }
+        baseline_compare = compare_candidate(
+            client,
+            project_id,
+            reference,
+            baseline,
+            width,
+            height,
+            camera=selected_camera,
+            target_sha256=refined_target_sha,
+        )
+        observation = client.tool(
+            "scene_observe_get",
+            {"project_id": project_id, "candidate_id": baseline["candidate_id"]},
         )
         require(
-            isinstance(part_error, dict)
-            and part_error.get("schema_version") == "SilhouettePartErrorResult@1"
-            and isinstance(part_error.get("parts"), list)
-            and any(
-                row.get("part_id") == args.part_id
-                for row in part_error["parts"]
-                if isinstance(row, dict)
-            ),
-            "silhouette_part_error_get omitted the selected Part row",
+            isinstance(observation, dict)
+            and observation.get("schema_version") == "AgenticSceneObserveResult@1"
+            and observation.get("read_only") is True
+            and observation.get("project_id") == project_id
+            and observation.get("candidate_id") == baseline["candidate_id"]
+            and isinstance(observation.get("canonical_sha256"), str)
+            and len(observation["canonical_sha256"]) == 64,
+            "scene_observe_get returned an unbound canonical observation",
         )
-        objective_prepared = client.tool(
-            "silhouette_evaluation_objective_prepare",
-            {
-                "project_id": project_id,
-                "baseline_candidate_id": baseline["candidate_id"],
-                "global_target_sha256": automatic_target_sha,
-                "part_target_sha256": refined_target_sha,
-                "part_id": args.part_id,
-                "source_part_error_sha256": part_error["canonical_sha256"],
-                "camera": {
-                    "schema_version": "CameraCalibrationRef@1",
-                    "camera_hash": camera["camera_hash"],
-                    "canonical_sha256": camera["canonical_sha256"],
-                },
-            },
-        )
-        objective_sha = objective_prepared.get("objective_sha256")
-        require(
-            isinstance(objective_sha, str) and len(objective_sha) == 64,
-            "Runtime unified evaluation objective is unavailable",
-        )
-        rig = silhouette_rig_draft(baseline["candidate_id"])
-        parameter_prefix = part_parameter_prefix(args.part_id)
-        rig["parameters"] = [
-            {"parameter_id": f"{parameter_prefix}-width", "part_id": args.part_id, "semantic": "width", "value": 1.0, "min": 0.75, "max": 1.25, "step": 0.04, "unit": "ratio"},
-            {"parameter_id": f"{parameter_prefix}-height", "part_id": args.part_id, "semantic": "height", "value": 1.0, "min": 0.75, "max": 1.25, "step": 0.04, "unit": "ratio"},
-            {"parameter_id": f"{parameter_prefix}-offset-x", "part_id": args.part_id, "semantic": "offset_x", "value": 0.0, "min": -0.25, "max": 0.25, "step": 0.02, "unit": "ratio"},
-            {"parameter_id": f"{parameter_prefix}-offset-y", "part_id": args.part_id, "semantic": "offset_y", "value": 0.0, "min": -0.25, "max": 0.25, "step": 0.02, "unit": "ratio"},
-        ]
-        rig["canonical_sha256"] = ""
-        rig_hash = client.tool(
+
+        # The Part Rig is an intent only.  Runtime returns its canonical hash;
+        # the probe never derives or mutates a geometry parameter locally.
+        part_parameter_prefix(args.part_id)
+        rig = part_contour_rig_draft(baseline["candidate_id"], args.part_id)
+        rig_hash_result = client.tool(
             "silhouette_rig_hash",
             {
                 "schema_version": "SilhouetteRigHashRequest@1",
                 "project_id": project_id,
                 "candidate_id": baseline["candidate_id"],
-                "rig_draft": {key: value for key, value in rig.items() if key != "canonical_sha256"},
-            },
-        ).get("canonical_sha256")
-        require(isinstance(rig_hash, str) and len(rig_hash) == 64, "Runtime Rig hash unavailable")
-        rig["canonical_sha256"] = rig_hash
-        part_fit = client.tool("part_contour_fit_prepare", {"project_id": project_id, "candidate_id": baseline["candidate_id"], "target_sha256": refined_target_sha, "part_id": args.part_id, "rig": rig})
-        adjustments = adjustment_map(part_fit)
-        candidates = [baseline]
-        comparisons = [baseline_compare]
-        comparisons[0]["proposal"] = None
-        # Use the proposal as a direction, then probe a small local line
-        # search.  Trying only the clamped endpoint can overshoot a visible
-        # Part; three fractions are still bounded and keep the round cheap.
-        priority = {"height": 0, "width": 1, "scale": 2, "offset_x": 3, "offset_y": 4}
-        ordered = sorted(
-            adjustments.items(),
-            key=lambda item: (priority.get(item[0].removeprefix(f"{parameter_prefix}-"), 9), -abs(item[1])),
-        )
-        proposals: list[tuple[str, float]] = []
-        if ordered:
-            primary_id, primary_delta = ordered[0]
-            for fraction in (0.4, 0.7, 1.0):
-                proposals.append((primary_id, primary_delta * fraction))
-            for parameter_id, delta in ordered[1:]:
-                if abs(delta) >= 1e-9:
-                    proposals.append((parameter_id, delta))
-                    break
-        for parameter_id, delta in proposals[:4]:
-            if abs(delta) < 1e-9:
-                continue
-            patched = apply_part_adjustment(draft, args.part_id, parameter_id, delta)
-            candidate = build_geometry(client, project_id, reference["reference_id"], catalog_hash, patched)
-            comparison = compare_candidate(client, project_id, reference, candidate, width, height, camera, automatic_target_sha)
-            require(
-                comparison.get("camera_hash") == camera["camera_hash"],
-                "candidate comparison camera drifted from camera-fit camera",
-            )
-            comparison["proposal"] = {
-                "parameter_id": parameter_id,
-                "delta": delta,
-                "source": "part_contour_fit_prepare",
-            }
-            candidates.append(candidate)
-            comparisons.append(comparison)
-            if len(candidates) >= 5:
-                break
-        objective_compare = client.tool(
-            "silhouette_objective_compare",
-            {
-                "project_id": project_id,
-                "objective_sha256": objective_sha,
-                "candidate_ids": [item["candidate_id"] for item in candidates],
+                "rig_draft": rig,
             },
         )
+        rig_sha256 = rig_hash_result.get("canonical_sha256") if isinstance(rig_hash_result, dict) else None
         require(
-            objective_compare.get("schema_version") == "SilhouetteEvaluationCompareResult@1",
-            "Runtime unified evaluation compare omitted its typed result",
+            isinstance(rig_sha256, str) and len(rig_sha256) == 64,
+            "silhouette_rig_hash did not return a Runtime-owned SHA-256",
         )
-        winner_id = objective_compare.get("winner_candidate_id")
-        winner_row = next(
-            (
-                row
-                for row in objective_compare.get("candidates", [])
-                if isinstance(row, dict) and row.get("candidate_id") == winner_id
-            ),
-            None,
+        rig["canonical_sha256"] = rig_sha256
+        repair_request: dict[str, Any] = {
+            "project_id": project_id,
+            "candidate_id": baseline["candidate_id"],
+            "target_sha256": refined_target_sha,
+            "part_id": args.part_id,
+            "rig": rig,
+            "base_camera": camera_ref,
+            "optimizer": {
+                "algorithm": "coordinate_descent",
+                "max_iterations": 2,
+                "max_evaluations": 64,
+                "step_fraction": 0.1,
+            },
+            "base_version_id": None,
+            "canonical_sha256": "",
+        }
+        repair_request["canonical_sha256"] = canonical_hash(
+            normalize_numeric_representation(repair_request)
         )
-        baseline_row = next(
-            (
-                row
-                for row in objective_compare.get("candidates", [])
-                if isinstance(row, dict) and row.get("candidate_id") == baseline["candidate_id"]
-            ),
-            None,
+        repair = client.tool("primary_form_repair_prepare", repair_request)
+        require(
+            isinstance(repair, dict)
+            and repair.get("schema_version") == "PrimaryFormRepairPrepareResult@1"
+            and repair.get("project_id") == project_id
+            and repair.get("source_candidate_id") == baseline["candidate_id"]
+            and repair.get("target_sha256") == refined_target_sha
+            and repair.get("part_id") == args.part_id
+            and repair.get("version_created") is False
+            and repair.get("status") in {"prepared", "no_improvement"},
+            "primary_form_repair_prepare returned an invalid bound result",
         )
-        strict_improvement = objective_compare.get("strict_improvement") is True
-        part_strict_improvement = bool(
-            isinstance(winner_row, dict)
-            and winner_row.get("part_strict_improvement") is True
-            and winner_row.get("global_non_regressing") is True
-        )
-        part_winner_id = winner_id if part_strict_improvement else None
-        part_winner_row = winner_row if part_strict_improvement else None
+        fit_result = repair.get("fit_result")
+        require(isinstance(fit_result, dict), "Primary Form result omitted fit_result")
+        repair_camera = fit_result.get("selected_camera")
+        require(isinstance(repair_camera, dict), "Primary Form result omitted selected camera")
+        runtime_comparison: dict[str, Any] | None = None
+        prepared = repair.get("prepared_candidate")
+        visual_evidence = repair.get("visual_evidence")
+        if repair.get("status") == "prepared":
+            require(isinstance(prepared, dict) and isinstance(visual_evidence, dict), "prepared repair omitted staged evidence")
+            prepared_candidate = prepared.get("candidate")
+            require(isinstance(prepared_candidate, dict), "prepared repair omitted staged candidate")
+            prepared_candidate_id = prepared_candidate.get("candidate_id")
+            require(isinstance(prepared_candidate_id, str) and prepared_candidate_id, "prepared repair omitted candidate id")
+            require(visual_evidence.get("candidate_id") == prepared_candidate_id, "staged visual evidence drifted from candidate")
+            comparison_report = visual_evidence.get("comparison_report")
+            require(isinstance(comparison_report, dict), "prepared repair omitted comparison report")
+            runtime_comparison = {
+                "candidate_id": prepared_candidate_id,
+                "render_set_hash": visual_evidence.get("render_set_hash"),
+                "comparison_report_hash": visual_evidence.get("comparison_report_hash"),
+                "metrics": comparison_report.get("metrics"),
+                "status": comparison_report.get("status"),
+                "source": "Runtime.primary_form_repair_prepare",
+            }
+        else:
+            require(prepared is None and visual_evidence is None, "no-improvement repair staged a candidate")
+        comparisons = [baseline_compare]
+        if runtime_comparison is not None:
+            comparisons.append(runtime_comparison)
+        staged_candidate_id = runtime_comparison.get("candidate_id") if runtime_comparison else None
         result.update({
             "status": "PASS_TRANSPORT_WITH_METRICS",
             "ponytail_preflight": preflight,
+            "build_cohort_sha256": result["build_cohort_sha256"],
             "project_id": project_id,
             "reference_id": reference["reference_id"],
-            "reference": {
-                "reference_id": reference["reference_id"],
-                "reference_sha256": result["reference_sha256"],
-            },
             "catalog_sha256": catalog_hash,
             "automatic_target_sha256": automatic_target_sha,
             "refined_part_target_sha256": refined_target_sha,
-            "part_fit": {"status": part_fit.get("status"), "metrics": part_fit.get("metrics"), "adjustments": part_fit.get("adjustments")},
-            "part_error": part_error,
-            "evaluation_objective": objective_prepared,
-            "evaluation_objective_sha256": objective_sha,
+            "camera_fit": {"status": camera_fit.get("status"), "selected_camera_hash": camera_hash, "selected_camera_canonical_sha256": camera_canonical},
+            "scene_observation": observation,
+            "rig_sha256": rig_sha256,
+            "runtime_search_owner": "forgecad-runtime",
+            "primary_form_repair": repair,
             "candidate_comparisons": comparisons,
-            "camera": {
-                "camera_hash": camera["camera_hash"],
-                "canonical_sha256": camera["canonical_sha256"],
-                "source": "camera_fit_prepare",
-                "binding_status": "PASS_ALL_CANDIDATES_SAME_CAMERA",
+            "candidate_count": len(comparisons),
+            "retention": {
+                "baseline_candidate_id": baseline["candidate_id"],
+                "staged_candidate_id": staged_candidate_id,
+                "status": (
+                    "RUNTIME_STAGED_CANDIDATE_REQUIRES_USER_APPROVAL"
+                    if staged_candidate_id
+                    else "BASELINE_RETAINED_NO_RUNTIME_IMPROVEMENT"
+                ),
+                "runtime_acceptance": repair.get("acceptance"),
+                "policy": "Runtime owns priority-ordered bounded search and same-camera retention; staged candidates remain unconfirmed until user approval",
             },
-            "comparison_camera_hashes": sorted({item.get("camera_hash") for item in comparisons}),
-            "same_camera": all(item.get("camera_hash") == camera["camera_hash"] for item in comparisons),
-            "comparison_render_set_hashes": [item.get("render_set_hash") for item in comparisons],
-            "winner": objective_compare,
-            "objective_compare": objective_compare,
-            "baseline_metrics": comparisons[0].get("metrics"),
-            "winner_candidate_id": winner_id,
-            "winner_metrics": winner_row.get("global_metrics") if isinstance(winner_row, dict) else None,
-            "strict_improvement": strict_improvement,
-            "part_winner_candidate_id": part_winner_id,
-            "part_winner_metrics": winner_row.get("part_metrics") if isinstance(part_winner_row, dict) else None,
-            "part_strict_improvement": part_strict_improvement,
-            "target_ranking_consistent": True,
-            "target_consistency_status": "PASS_UNIFIED_GLOBAL_PART_OBJECTIVE",
-            "promotion_status": objective_compare.get("promotion_status"),
-            "candidate_count": len(candidates),
-            "quality_claim": "NO_LIKENESS_PASS_CLAIM; SINGLE_PART_CORRECTION_TRANSPORT_ONLY",
+            "quality_claim": "NO_LIKENESS_PASS_CLAIM; RUNTIME_PRIMARY_FORM_TRANSPORT_ONLY",
         })
     except (GateFailure, OSError, ProbeFailure, ValueError, json.JSONDecodeError, subprocess.SubprocessError) as error:
         result["reason"] = str(error)[:2000]
+        if runtime is not None and runtime.stderr is not None:
+            try:
+                stderr = runtime.stderr.read()
+            except OSError:
+                stderr = ""
+            if stderr:
+                result["runtime_stderr"] = stderr[-2000:]
     finally:
         if client is not None:
             try:

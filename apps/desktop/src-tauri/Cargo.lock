@@ -864,8 +864,8 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "cc",
+ "forgecad-core",
  "forgecad-worker-protocol",
- "image",
  "libc",
  "mikktspace",
  "serde_json",
@@ -883,6 +883,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "forgecad-render-core"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "forgecad-runtime"
 version = "0.1.0"
 dependencies = [
@@ -890,6 +899,7 @@ dependencies = [
  "forgecad-contracts",
  "forgecad-core",
  "forgecad-geometry-worker",
+ "forgecad-render-core",
  "forgecad-store",
  "forgecad-worker-protocol",
  "image",

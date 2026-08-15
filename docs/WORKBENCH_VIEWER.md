@@ -1,15 +1,11 @@
 # ForgeCAD Runtime Viewer
 
-2026-08-15 Codex-only 入口收口：`apps/desktop/src/App.tsx` 现在只挂载 `RuntimeViewer`，不再提供本地图片上传、聊天式需求输入或断开 Runtime 的“准备生成/让 Codex 检查”假动作；参考附件、设计意图、审批和永久写入仍由 Codex → MCP → Runtime 驱动。新增 `scripts/check_mcp010f_viewer.py` 对 App 入口做负向检查；这只修正产品边界，不升级任何视觉质量、确认或导出 Gate。
-
-2026-08-15 最新源代码覆盖：当前为 120 Schema、38 read + 30 opt-in write = 68 tools。Viewer 仍只读；新增 `visual_surface_get` 只返回 candidate-bound VisualSurfaceResult@1 诊断投影，并可展示同一 RenderSet 的 `VisualSurfaceReadback@1` mask/edge/ROI/AOV 证据，不增加 Viewer 写权限；`repair_apply_confirm` 不向 Viewer 增加写权限，仅由 Runtime 消费单视图 apply intent；`design_action_optimization_proposal_prepare` 生成的候选也只通过 Viewer read model 审查，不增加 Viewer 写权限，多视图仍由 `cross_view_promotion_confirm` 处理。合同/negative gate、真实 CAS readback focused test 与 Critic/CADFit binding 已通过，Viewer/视觉 Gate 不因此升级。
-
 版本：2026-08-14
-状态：当前源码口径为 118 Schema、37 read + 30 opt-in write = 67；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。第一阶段又接入 Runtime-authenticated Agentic projection，Viewer 可归一化显示 stage/gate/action/evidence hash，并按 project/candidate 读取 durable DesignSession/Checkpoint read model；逐视图 Visual Evidence inventory 会对未绑定 view 显式显示 `unknown/not-run`，已新增 hash-bound `CrossViewEvidenceBundle@1` 及跨视图 Promotion fail-closed boundary；唯一 `in_progress` 为 `FGC-MCP010F`。current-cohort provisional observation 的 packaged Viewer CLI read-model binding 已通过，但正式 VoiceOver、真人/PBR/360 与发布级 packaged UI E2E 仍 `NOT_RUN/BLOCKED`；Viewer 不提供 durable 写入，Runtime 已有 bounded single-action geometry ActionRun、独立 stage batch、带 `cumulative-program` 合并准备的 composition proposal、`design_action_optimization_proposal_prepare` 独立 CADFit review-candidate continuation、`repair_apply_prepare` CAS-backed apply-intent 和显式 promotion transaction boundary，但 positive merge、Repair 实际应用、跨视图同 cohort conformance 和 promotion 正向成功仍未完成。
+状态：当前源码口径为 103 Schema、37 read + 24 opt-in write = 61；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。第一阶段又接入 Runtime-authenticated Agentic projection，Viewer 可归一化显示 stage/gate/action/evidence hash，并按 project/candidate 读取 durable DesignSession/Checkpoint read model；唯一 `in_progress` 为 `FGC-MCP010F`。Runtime-owned `primary_form_repair_prepare` 现在先执行 `PrimaryFormAcceptance@1` same-camera retention，再产生 staged candidate/evidence；长时间搜索另由 `primary_form_repair_job_prepare` 排队，并通过 `job_get`/`job_events_read`/`job_result_get` 读取终态 CAS 结果，Viewer 仍只读、不重算质量。provisional observation 的 packaged Viewer binding、正式 VoiceOver、真人/PBR/360 与发布级 packaged E2E 仍 `NOT_RUN/BLOCKED`；Viewer 不提供 durable 写入，通用单动作 orchestrator 与 Repair 应用尚未实现。
 
-Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；current-cohort packaged Viewer CLI read-model 已绑定 project/candidate/artifact/reference/render-set/comparison lineage，但正式 UI/accessibility E2E 未运行。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
+Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
 
-<!-- forgecad-stage0: schemas=123 schema_set_sha256=583fd0d2615f09e66d16c58fca8d4ab60f1856d1de427b5b9e390c8c8b137f67 read_tools=40 write_tools=30 total_tools=70 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=125 schema_set_sha256=0d036f0a9f9951b665adb593b362feabfa90ca0ed21b73d54169ce2a7b36228a read_tools=40 write_tools=30 total_tools=70 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 ## 1. 产品角色
 
@@ -80,13 +76,12 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 ### 5.1 MCP010F 当前实现与剩余门
 
 - 已实现 source surface：reference/render split、透明 overlay、flicker、diff heatmap；
-- 已实现 Runtime/MCP read-only surface：`visual_surface_get` 返回 candidate-bound `VisualSurfaceResult@1` 与 `VisualSurfaceReadback@1` 诊断投影；从同一 `RenderSet@2`/CAS 解码九个 AOV、mask、4px edge/SDF 和 Part-ID ROI，并从同一已通过 ArtifactReadback@2 的 candidate GLB 提供 bounded mesh-derived curvature/feature-line summary；不创建 candidate/version，不设置质量 Gate；SubD/NURBS principal curvature、zebra 和真人视觉门仍未实现；
 - 已实现 source surface：beauty/silhouette/depth/normal/AO/part-ID/material-ID/wireframe/UV-stretch 九 AOV；
 - 已实现 ephemeral surface：Part/MaterialZone 筛选、临时 explosion、轮廓画布、hash-bound 草图复制与只读 correction queue；
 - 已有证据：TypeScript/Vite/Tauri source Gate、packaged CLI read-model、原生窗口以及 AOV/Home/End/overlay/flicker/轮廓/热图/爆炸图核心控件 smoke；
 - 尚未关闭：full issue editing/candidate undo-redo、正式 VoiceOver、同一 provisional observation 的 packaged Viewer binding、独立真人评分、PBR likeness、export/restart 同 hash 与 360。
 
-这些 UI 只消费 Runtime 的 `RenderSet@2`、QualityReport 和 selection projection。屏幕图像、Three.js scene 或本地交互状态不能回写质量 PASS。当前 high-quality inspection 路径是 `GeometryProgram@2` detail → strict readback → `RenderSet@2` 九 AOV → candidate-bound strict compare → typed visual review；`[transition-v1]` `GeometryProgram@1` primitive-only / `RenderSet@1` 四 pass 仅用于历史兼容。正式 VoiceOver 与 provisional observation package binding 属 MCP010F 未关闭子门；Developer ID、clean install、发布级 packaged WebView/GPU/Codex E2E 仍属 MCP013。
+这些 UI 只消费 Runtime 的 `RenderSet@2`、QualityReport 和 selection projection。`RenderSet@2` 内的 Render Worker cohort/status 只作为 Runtime 认证后的只读绑定信息展示，Viewer 不重算或晋级质量门。屏幕图像、Three.js scene 或本地交互状态不能回写质量 PASS。当前 high-quality inspection 路径是 `GeometryProgram@2` detail → strict readback → `RenderSet@2` 九 AOV → candidate-bound strict compare → typed visual review；`[transition-v1]` `GeometryProgram@1` primitive-only / `RenderSet@1` 四 pass 仅用于历史兼容。正式 VoiceOver 与 provisional observation package binding 属 MCP010F 未关闭子门；Developer ID、clean install、发布级 packaged WebView/GPU/Codex E2E 仍属 MCP013。
 
 ### 5.2 ADR-0026 目标 Viewer 面
 
@@ -101,14 +96,22 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 - Critic issue 列表和单 Part/MaterialZone repair intent；
 - checkpoint/version/candidate 关系。
 
-当前已实现的是 source/read-only projection surface，真实 Runtime 的 scene/stage 嵌套只读 projection conformance 也已有独立回执，但不是完整 durable target。DesignSession/Checkpoint 虽已具备受批准的持久化 readback，显式 bounded authoring_context 与 primary-form/secondary-structure/tertiary-detail proposal 也已进入 Runtime，但跨阶段写入 orchestrator、跨视图质量评估、MaterialZone/UV-PBR/Repair 应用、同 observation packaged binding 和正式无障碍/真人门仍为 `NOT_RUN` 或后续任务。在这些 Gate 关闭前，Viewer 只能把投影标为可重建观察，不能把本地 UI 推导成 DesignSession 真值。
+当前已实现的是 source/read-only projection surface，真实 Runtime 的 scene/stage 嵌套只读 projection conformance 也已有独立回执，但不是完整 durable target。DesignSession/Checkpoint 虽已具备受批准的持久化 readback，跨阶段写入 orchestrator、durable/reference/DesignSpec 完整 producer、Critic/Repair 执行、同 observation packaged binding 和正式无障碍/真人门仍为 `NOT_RUN` 或后续任务。在这些 Gate 关闭前，Viewer 只能把投影标为可重建观察，不能把本地 UI 推导成 DesignSession 真值。
 
 ### 5.3 2026-08-14 前端交互与诊断加固
 
-- 3D viewport 使用懒加载的 Three runtime 与 `OrbitControls`，支持 orbit/pan/zoom；`ResizeObserver` 同步容器宽高、camera aspect、projection matrix 和 renderer size，不再固定为初始化时的 `aspect=1`。
+- 3D viewport 使用懒加载的 Three runtime 与 `OrbitControls`，明确采用左键选中、右键拖动旋转、中键拖动平移、滚轮缩放；`ResizeObserver` 同步容器宽高、camera aspect、projection matrix 和 renderer size，不再固定为初始化时的 `aspect=1`。
 - 候选选择从自动绑定扩展为显式“自动·最新任务 / 手动候选·历史”选择，并按最新/最旧切换；候选选择、GLB、参考比较、质量投影和生成耗时共用同一 candidate ID。
-- 候选切换和 GLB 重试会完整释放 controls、scene、geometry、material、texture、renderer/context；轮廓边界与差异热图通过 `compare-worker.ts` 在 Worker 中计算，避免大图像循环阻塞主线程。
+- 候选快照卡片同时展示耗时、GLB/参考/RenderSet/比对/质量绑定、Part/材质区、GLB 回读 canonical、Part→MaterialZone 绑定、UV、切线、PBR 材质区 check 和 Validator；当前候选与上一候选的 diff 快览不再只比较时间和状态，缺少 QualityReport check 时显示“未运行”。
+- 候选切换和 GLB 重试会完整释放 controls、scene、geometry、material、texture、renderer；不在仍复用的 canvas 上强制丢失 WebGL context，避免历史候选切换后 renderer 无法重新初始化。轮廓边界与差异热图通过 `compare-worker.ts` 在 Worker 中计算，避免大图像循环阻塞主线程。
+- Scene Tree 只在左侧工作台列渲染一份；Part/MaterialZone 选择按钮自身承担 `treeitem` 语义，支持搜索、过滤、显隐、锁定和方向键导航。GLB 回读时为每个 Mesh 隔离临时 Material 实例（纹理仍共享），避免共享材质导致跨部件高亮或重复 DOM/ID；Shift+左键框选可同时高亮多个对象，主对象仍用于 Inspector/聚焦；悬停 Raycaster 按 `requestAnimationFrame` 节流，避免大模型 pointermove 触发连续 React 更新。
 - Runtime、GLB、candidate-bound evidence、AOV 和比较资源失败均显示可复制的故障码及重试入口；比较面板增加缩放、亮度、双层透明度、热图敏感度、标尺、平移和当前视图导出。
+- Error Console 对候选缺载荷/证据未就绪同时提供“刷新当前候选”和“切换自动候选（放弃当前查看）”动作；GLB/比较故障提供重试与切换动作。Viewer 不执行 reject/confirm/删除等 Runtime 写入，“放弃当前查看”只是切换临时选择，不改变候选数据。
+- Error Console 默认只保留摘要，详情可展开；真正的阻断错误自动展开。中心工作区保持 Scene / Viewport / Inspector 的固定关系，中心列在小窗口中纵向滚动以保证参考比较不会被裁切；场景树声明真实多选语义，框选取消会恢复 OrbitControls。
+- 新手基础模式将右侧 Inspector 限定为当前选中对象、当前候选和三项基础状态；耗时、证据哈希、Agentic 阶段和质量细节收进“专业检查”抽屉。参考比较默认只显示状态与基础画面，AOV、热图、标尺、筛选和导出收进可展开的“专业对比”区域。
+- 基础模式的工作台术语改为“模型、3D 视口、对象信息、当前版本、检查结果”；Part/MaterialZone、RenderSet 等内部字段只在专业面板或任务详情中出现。无项目/无候选时隐藏无效的版本排序和视角按钮，视口提供“描述需求 → 等待版本 → 查看确认”的三步空状态引导。
+- 项目首页、创建、检查确认和导出页沿用同一新手路径：先用自然语言描述，再查看模型版本，最后检查和导出；candidate-bound、confirmed head、Camera lock 等内部状态在普通页面改为用户可读文案。
+- 差异热图与轮廓 Worker 的图像解码、512×512 重采样和像素循环优先在 `OffscreenCanvas/createImageBitmap` Worker 路径执行；旧 WebView 自动回退到主线程解码后仍把差异/轮廓循环放在 Worker。热图敏感度滑杆有 120ms 有界防抖，避免连续拖动启动无效 Worker。失败也会投影到全局 Error Console；成功重试会清除旧的辅助计算故障码，原始 AOV 与 Runtime `QualityReport` 仍保持独立。
 - Viewer 轮询改为首次完整读取 + 变更摘要读取；仅在 project/head/candidate/version 相关摘要签名变化时重新拉取大 payload，后台页将摘要间隔放宽至 15 秒。
 - 生成耗时独立面板按任务 ID 展示平均耗时、候选状态成功率和异常计数；缺失、未来时间、无法解析和超长耗时使用图标、文本和边框共同提示。状态图例统一区分通过、未通过/异常、未运行/未知。
 

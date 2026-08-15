@@ -3,8 +3,10 @@ type CompareWorkerRequest = {
   kind: 'difference' | 'contour'
   width: number
   height: number
-  referenceBuffer: ArrayBuffer
+  referenceBuffer?: ArrayBuffer
   renderBuffer?: ArrayBuffer
+  referenceBlob?: Blob
+  renderBlob?: Blob
   sensitivity?: number
 }
 
@@ -121,12 +123,49 @@ function createContourImage(reference: Uint8ClampedArray, width: number, height:
   return output
 }
 
-workerScope.onmessage = (event) => {
+function drawContainedImage(
+  context: OffscreenCanvasRenderingContext2D,
+  image: ImageBitmap,
+  width: number,
+  height: number,
+): ImageData {
+  const scale = Math.min(width / image.width, height / image.height)
+  const drawWidth = image.width * scale
+  const drawHeight = image.height * scale
+  const offsetX = (width - drawWidth) / 2
+  const offsetY = (height - drawHeight) / 2
+  context.fillStyle = '#000'
+  context.fillRect(0, 0, width, height)
+  context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight)
+  return context.getImageData(0, 0, width, height)
+}
+
+async function decodeBlobToBuffer(blob: Blob, width: number, height: number): Promise<ArrayBuffer> {
+  if (typeof createImageBitmap === 'undefined' || typeof OffscreenCanvas === 'undefined') {
+    throw new Error('COMPARE_WORKER_IMAGE_DECODE_UNAVAILABLE')
+  }
+  const image = await createImageBitmap(blob)
+  try {
+    const canvas = new OffscreenCanvas(width, height)
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    if (!context) throw new Error('COMPARE_WORKER_IMAGE_DATA_UNAVAILABLE')
+    return drawContainedImage(context, image, width, height).data.buffer
+  } finally {
+    image.close()
+  }
+}
+
+workerScope.onmessage = async (event) => {
   const request = event.data
   try {
-    const reference = new Uint8ClampedArray(request.referenceBuffer)
+    const referenceBuffer = request.referenceBuffer
+      ?? (request.referenceBlob ? await decodeBlobToBuffer(request.referenceBlob, request.width, request.height) : null)
+    if (!referenceBuffer) throw new Error('COMPARE_IMAGE_DATA_UNAVAILABLE')
+    const reference = new Uint8ClampedArray(referenceBuffer)
+    const renderBuffer = request.renderBuffer
+      ?? (request.renderBlob ? await decodeBlobToBuffer(request.renderBlob, request.width, request.height) : null)
     const output = request.kind === 'difference'
-      ? createDifferenceImage(reference, new Uint8ClampedArray(request.renderBuffer ?? new ArrayBuffer(reference.byteLength)), request.sensitivity ?? 1)
+      ? createDifferenceImage(reference, new Uint8ClampedArray(renderBuffer ?? new ArrayBuffer(reference.byteLength)), request.sensitivity ?? 1)
       : createContourImage(reference, request.width, request.height)
     workerScope.postMessage({ id: request.id, ok: true, width: request.width, height: request.height, buffer: output.buffer as ArrayBuffer }, [output.buffer])
   } catch (error) {

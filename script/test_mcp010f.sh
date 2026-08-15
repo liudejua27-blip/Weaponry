@@ -21,8 +21,100 @@ assert preflight < project_create
 assert '"skill_id": "ponytail-preflight"' in source
 assert '"version": "0.1.0"' in source
 assert '"shoulder-armor-right": "shoulder-armor-right"' in source
+assert '"shin-pair": "shin-left"' in source
+assert '--target-mode' in source
 assert 'def part_parameter_prefix' in source
-print("MCP010F part-correction probe reads ponytail-preflight before design tools and supports bounded shoulder Parts")
+assert 'primary_form_repair_prepare' in source
+assert 'scene_observe_get' in source
+assert 'silhouette_rig_hash' in source
+assert 'runtime_search_owner": "forgecad-runtime"' in source
+assert 'for fraction in (0.4, 0.7, 1.0)' not in source
+assert 'apply_part_adjustment' not in source
+assert 'silhouette_candidate_compare' not in source
+assert 'part_contour_fit_prepare' not in source
+print("MCP010F part-correction probe uses one Runtime-owned Primary Form repair and consolidated observation")
+PY
+python3 - <<'PY'
+from pathlib import Path
+
+source = Path("scripts/probe_mcp010c_codex_cli.py").read_text(encoding="utf-8")
+for parameter_id in ("upper-arm-height", "forearm-height", "thigh-height", "shin-height", "elbow-offset-y", "knee-offset-y"):
+    assert f'"parameter_id": "{parameter_id}"' in source
+assert '"max_evaluations": 64' in source
+assert '"--part-contour-sequence"' in source
+assert 'def parse_bound_silhouette_turn' in source
+assert 'def run_primary_form_repair_step' in source
+assert 'primary_form_repair_steps' in source
+assert 'def build_primary_form_composition_lineage' in source
+assert 'primary_form_composition_lineage' in source
+assert 'lineage did not authorize candidate advance' in source
+assert 'PRIMARY_FORM_COMPOSITION_INVALID: lineage was not consumed' in source
+assert 'silhouette observation before composition step' in source
+print("MCP010F source route includes bounded Primary Form controls and candidate-bound composition sequence")
+PY
+python3 - <<'PY'
+import sys
+
+sys.path.insert(0, "scripts")
+from probe_mcp010c_codex_cli import build_primary_form_composition_lineage, canonical_hash
+
+def hash_value(fill):
+    return fill * 64
+
+steps = [
+    {
+        "step": 1,
+        "part_id": "chest-shell",
+        "source_candidate_id": "candidate-0",
+        "observation_candidate_id": "candidate-0",
+        "observation_sha256": hash_value("a"),
+        "target_sha256": hash_value("t"),
+        "camera_hash": hash_value("b"),
+        "camera_canonical_sha256": hash_value("c"),
+        "rig_sha256": hash_value("d"),
+        "intent_sha256": hash_value("e"),
+        "fit_camera_hash": hash_value("f"),
+        "status": "prepared",
+        "acceptance": {"status": "accepted", "strict_improvement": True},
+        "prepared_candidate_id": "candidate-1",
+    },
+    {
+        "step": 2,
+        "part_id": "hip-pair",
+        "source_candidate_id": "candidate-1",
+        "observation_candidate_id": "candidate-1",
+        "observation_sha256": hash_value("g"),
+        "target_sha256": hash_value("t"),
+        "camera_hash": hash_value("h"),
+        "camera_canonical_sha256": hash_value("i"),
+        "rig_sha256": hash_value("j"),
+        "intent_sha256": hash_value("k"),
+        "fit_camera_hash": hash_value("l"),
+        "status": "no_improvement",
+        "acceptance": {"status": "retained_source", "strict_improvement": False},
+        "prepared_candidate_id": None,
+    },
+]
+lineage = build_primary_form_composition_lineage(
+    "project-0", "candidate-0", "candidate-1", hash_value("t"), ("chest-shell", "hip-pair"), steps
+)
+assert lineage["schema_version"] == "ForgeCADPrimaryFormCompositionLineage@1"
+assert lineage["accepted_step_count"] == 1
+assert lineage["final_candidate_id"] == "candidate-1"
+canonical_input = dict(lineage)
+canonical_input["canonical_sha256"] = ""
+assert lineage["canonical_sha256"] == canonical_hash(canonical_input)
+broken = [dict(step) for step in steps]
+broken[1] = dict(broken[1], source_candidate_id="candidate-0")
+try:
+    build_primary_form_composition_lineage(
+        "project-0", "candidate-0", "candidate-1", hash_value("t"), ("chest-shell", "hip-pair"), broken
+    )
+except RuntimeError as error:
+    assert "source candidate chain drifted" in str(error)
+else:
+    raise AssertionError("stale composition source unexpectedly passed")
+print("MCP010F composition lineage binds observation, target, Runtime search and candidate transitions")
 PY
 
 INVENTORY_ROOT="$F_GATE_TARGET/reference-inventory"
@@ -467,13 +559,14 @@ require_equal(actual, expected)
 PY
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp tool_manifest_summary_is_derived_from_the_actual_enabled_manifests --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime visible_view_gate_rejects_exploratory_thresholds_and_accepts_strict_metrics --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime silhouette_target_is_hash_bound_and_refinement_is_immutable --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime automatic_silhouette_target_round_trips_float_contour_hash --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime camera_fit_returns_bounded_hash_bound_candidates_without_mutating_candidate --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime camera_fit_search_covers_global_scale_with_deterministic_budget --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime contour_fit_part_proposal_and_candidate_compare_are_bounded_and_read_only --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --offline silhouette_part_error
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback visible_view_gate_rejects_exploratory_thresholds_and_accepts_strict_metrics --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback silhouette_target_is_hash_bound_and_refinement_is_immutable --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback automatic_silhouette_target_round_trips_float_contour_hash --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback camera_fit_returns_bounded_hash_bound_candidates_without_mutating_candidate --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback camera_fit_search_covers_global_scale_with_deterministic_budget --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback contour_fit_part_proposal_and_candidate_compare_are_bounded_and_read_only --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback --offline silhouette_part_error
 git diff --check
 
 python3 - docs/evidence/mcp010f/current-benchmark-truth.json <<'PY'

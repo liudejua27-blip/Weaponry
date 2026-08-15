@@ -59,6 +59,7 @@ impl Runtime {
         let candidate = bound_candidate(self, project_id, candidate_id)?;
         let reference = bound_reference(self, project_id, reference_id)?;
         let observation = self.agentic_scene_observe(project_id, Some(candidate_id))?;
+        let observation_sha256 = observation_hash(&observation)?;
         validate_observation_claims(
             &observation,
             &candidate,
@@ -88,6 +89,7 @@ impl Runtime {
                 reference_id,
                 camera_hash,
                 evidence_sha256,
+                &observation_sha256,
             )?;
             if existing.design_spec_id != design_spec_id
                 || existing.reference_canvas_id != reference_canvas_id
@@ -157,6 +159,7 @@ impl Runtime {
             &canvas_object.record.sha256,
             camera_hash,
             evidence_sha256,
+            &observation_sha256,
         )?;
         let mut session = with_session_canonical(session)?;
         let session_bytes = forgecad_store::agentic_session_payload_bytes(&session)?;
@@ -170,7 +173,38 @@ impl Runtime {
         let stored = self
             .store
             .agentic_session_create_or_resume(&session, &session_object.record)?;
-        session_result_with_authoring(self, &stored, "created")
+        // Creating the durable authoring documents changes the read-only
+        // ReferenceCanvas projection from its pre-session conservative view
+        // to the exact CAS-bound document. Rebind the session to that stable
+        // post-create observation so a subsequent scene_observe_get returns
+        // the same one-shot hash instead of a false stale-session error.
+        let stable_observation = self.agentic_scene_observe(project_id, Some(candidate_id))?;
+        let stable_observation_sha256 = observation_hash(&stable_observation)?;
+        if stable_observation_sha256 == stored.observation_sha256 {
+            return session_result_with_authoring(self, &stored, "created");
+        }
+        let mut rebound = stored;
+        rebound.observation_sha256 = stable_observation_sha256;
+        rebound.lineage = stable_observation
+            .get("lineage")
+            .cloned()
+            .unwrap_or(rebound.lineage);
+        rebound.updated_at = agentic_timestamp();
+        rebound.object_sha256 = Some("0".repeat(64));
+        rebound.canonical_sha256 = "0".repeat(64);
+        rebound = with_session_canonical(rebound)?;
+        let rebound_bytes = forgecad_store::agentic_session_payload_bytes(&rebound)?;
+        let rebound_object = self.put_object(
+            &rebound_bytes,
+            None,
+            "application/json",
+            "agentic-design-session",
+        )?;
+        rebound.object_sha256 = Some(rebound_object.record.sha256.clone());
+        let rebound_stored = self
+            .store
+            .agentic_session_create_or_resume(&rebound, &rebound_object.record)?;
+        session_result_with_authoring(self, &rebound_stored, "created")
     }
 
     pub fn session_get(&self, request: Value) -> Result<Value, RuntimeError> {
@@ -183,6 +217,17 @@ impl Runtime {
             .store
             .get_agentic_session(session_id)?
             .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: session not found".to_owned()))?;
+        let candidate = bound_candidate(self, project_id, candidate_id)?;
+        let reference = bound_reference(self, project_id, &session.reference_id)?;
+        let observation = self.agentic_scene_observe(project_id, Some(candidate_id))?;
+        let observation_sha256 = observation_hash(&observation)?;
+        validate_observation_claims(
+            &observation,
+            &candidate,
+            &reference,
+            &session.camera_hash,
+            &session.evidence_sha256,
+        )?;
         validate_session_binding(
             &session,
             session_id,
@@ -191,6 +236,7 @@ impl Runtime {
             &session.reference_id,
             &session.camera_hash,
             &session.evidence_sha256,
+            &observation_sha256,
         )?;
         session_result_with_authoring(self, &session, "read")
     }
@@ -252,10 +298,17 @@ impl Runtime {
             &session.reference_id,
             &session.camera_hash,
             &session.evidence_sha256,
+            &session.observation_sha256,
         )?;
         let candidate = bound_candidate(self, project_id, candidate_id)?;
         let reference = bound_reference(self, project_id, &session.reference_id)?;
         let observation = self.agentic_scene_observe(project_id, Some(candidate_id))?;
+        let observation_sha256 = observation_hash(&observation)?;
+        if observation_sha256 != session.observation_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_SESSION_STALE: current observation differs from the session".to_owned(),
+            ));
+        }
         let requested_evidence = required_sha(object, "evidence_sha256")?;
         validate_observation_claims(
             &observation,
@@ -379,8 +432,10 @@ impl Runtime {
                 "reference_sha256":reference_sha256,
                 "camera_hash":required_sha(object, "camera_hash")?,
                 "evidence_sha256":requested_evidence,
+                "observation_sha256":observation_sha256,
             })),
             evidence_sha256: requested_evidence.to_owned(),
+            observation_sha256: observation_sha256.clone(),
             version_id: session.current_version_id.clone(),
             version_sha256: session.current_version_sha256.clone(),
             parent_checkpoint_id: session.current_checkpoint_id.clone(),
@@ -507,6 +562,7 @@ impl Runtime {
             &session.reference_id,
             &session.camera_hash,
             &session.evidence_sha256,
+            &session.observation_sha256,
         )?;
         Ok(checkpoint_result(&checkpoint, &session, "read"))
     }
@@ -558,6 +614,7 @@ impl Runtime {
             &session.reference_id,
             &session.camera_hash,
             &session.evidence_sha256,
+            &session.observation_sha256,
         )?;
         let checkpoint = self
             .store
@@ -567,6 +624,7 @@ impl Runtime {
             || checkpoint.session_id != session_id
             || checkpoint.project_id != project_id
             || checkpoint.candidate_id != candidate_id
+            || checkpoint.observation_sha256 != session.observation_sha256
         {
             return Err(RuntimeError::InvalidInput(
                 "AGENTIC_CHECKPOINT_BINDING_MISMATCH: restore source differs".to_owned(),
@@ -590,6 +648,7 @@ impl Runtime {
             "reference_id":checkpoint.reference_id,
             "reference_sha256":checkpoint.reference_sha256,
             "camera_hash":checkpoint.camera_hash,
+            "observation_sha256":checkpoint.observation_sha256,
             "source_evidence_sha256":checkpoint.evidence_sha256,
             "source_critic_report_id":format!("checkpoint-critic-{}",checkpoint.checkpoint_id),
             "source_critic_report_sha256":checkpoint.canonical_sha256,
@@ -689,7 +748,18 @@ fn session_result_with_authoring(
     status: &str,
 ) -> Result<Value, RuntimeError> {
     let authoring_context = read_authoring_context(runtime, session)?;
+    let documents = json!({
+        "reference_canvas": {
+            "object_sha256": session.reference_canvas_sha256,
+            "document": authoring_context["reference_canvas"].clone()
+        },
+        "design_spec": {
+            "object_sha256": session.design_spec_sha256,
+            "document": authoring_context["design_spec"].clone()
+        }
+    });
     let mut result = session_result(session, status);
+    result["documents"] = documents;
     result["authoring_context"] = authoring_context;
     Ok(result)
 }
@@ -1071,6 +1141,7 @@ fn session_from_observation(
     reference_canvas_sha256: &str,
     camera_hash: &str,
     evidence_sha256: &str,
+    observation_sha256: &str,
 ) -> Result<AgenticSessionRecord, RuntimeError> {
     let stage_plan = observation.get("design_stage_plan").ok_or_else(|| {
         RuntimeError::InvalidInput("AGENTIC_PROJECTION_INVALID: stage plan missing".to_owned())
@@ -1111,6 +1182,7 @@ fn session_from_observation(
         reference_sha256: reference.object_sha256.clone(),
         camera_hash: camera_hash.to_owned(),
         evidence_sha256: evidence_sha256.to_owned(),
+        observation_sha256: observation_sha256.to_owned(),
         current_version_id: None,
         current_version_sha256: None,
         current_stage: stage.to_owned(),
@@ -1410,6 +1482,7 @@ fn validate_session_binding(
     reference_id: &str,
     camera_hash: &str,
     evidence_sha256: &str,
+    observation_sha256: &str,
 ) -> Result<(), RuntimeError> {
     if session.session_id != session_id
         || session.project_id != project_id
@@ -1417,12 +1490,26 @@ fn validate_session_binding(
         || session.reference_id != reference_id
         || session.camera_hash != camera_hash
         || session.evidence_sha256 != evidence_sha256
+        || session.observation_sha256 != observation_sha256
     {
         return Err(RuntimeError::InvalidInput(
             "AGENTIC_SESSION_BINDING_MISMATCH: session scope or evidence differs".to_owned(),
         ));
     }
     Ok(())
+}
+
+fn observation_hash(observation: &Value) -> Result<String, RuntimeError> {
+    observation
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|value| is_sha256(value))
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_PROJECTION_INVALID: observation canonical hash is missing".to_owned(),
+            )
+        })
 }
 
 fn with_session_canonical(

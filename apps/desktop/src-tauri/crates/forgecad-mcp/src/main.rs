@@ -3290,30 +3290,32 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         }
         "agentic_stage_plan" => {
             let project_id = required_id(arguments, "project_id")?;
+            let observation_sha256 = required_sha256(arguments, "observation_sha256")?;
             runtime
-                .agentic_stage_plan(
+                .agentic_stage_plan_bound(
                     project_id,
                     arguments.get("candidate_id").and_then(Value::as_str),
+                    observation_sha256,
                 )
                 .map_err(|error| error.to_string())
         }
         "agentic_critic_projection" => {
             let project_id = required_id(arguments, "project_id")?;
+            let observation_sha256 = required_sha256(arguments, "observation_sha256")?;
             runtime
-                .agentic_critic_projection(
+                .agentic_critic_projection_bound(
                     project_id,
                     arguments.get("candidate_id").and_then(Value::as_str),
-                    arguments.get("target_sha256").and_then(Value::as_str),
+                    observation_sha256,
                 )
                 .map_err(|error| error.to_string())
         }
-        "visual_evidence_bundle_get" => {
+        "agentic_visual_evidence_bundle" => {
             let project_id = required_id(arguments, "project_id")?;
+            let candidate_id = required_id(arguments, "candidate_id")?;
+            let observation_sha256 = required_sha256(arguments, "observation_sha256")?;
             runtime
-                .visual_evidence_bundle_get(
-                    project_id,
-                    arguments.get("candidate_id").and_then(Value::as_str),
-                )
+                .agentic_visual_evidence_bundle_bound(project_id, candidate_id, observation_sha256)
                 .map_err(|error| error.to_string())
         }
         "visual_surface_get" => runtime

@@ -11,6 +11,7 @@
     "candidate_id": {"$ref": "#/$defs/id"},
     "target_sha256": {"$ref": "#/$defs/sha256"},
     "rig": {"$ref": "https://forgecad.local/contracts/silhouette-rig.schema.json"},
+    "view_spec": {"$ref": "https://forgecad.local/contracts/reference-view-spec.schema.json"},
     "base_camera": {
       "oneOf": [
         {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},

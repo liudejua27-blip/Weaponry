@@ -136,17 +136,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "forgecad-core"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
 name = "forgecad-geometry-worker"
 version = "0.1.0"
 dependencies = [
  "base64",
  "cc",
+ "forgecad-core",
+ "forgecad-render-core",
  "forgecad-worker-protocol",
- "image",
  "libc",
  "mikktspace",
  "serde_json",
  "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "forgecad-render-core"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "serde_json",
  "thiserror",
 ]
 

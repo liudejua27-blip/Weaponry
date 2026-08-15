@@ -81,7 +81,7 @@
     "visual_lineage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["candidate_id", "reference_id", "reference_sha256", "artifact_sha256", "program_sha256", "camera_hash", "render_set_hash", "comparison_report_hash", "quality_report_hash"],
+      "required": ["candidate_id", "reference_id", "reference_sha256", "artifact_sha256", "program_sha256", "camera_hash", "target_sha256", "render_set_hash", "comparison_report_hash", "quality_report_hash"],
       "properties": {
         "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
         "reference_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
@@ -89,6 +89,7 @@
         "artifact_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
         "program_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
         "camera_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+        "target_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"},
         "render_set_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
         "comparison_report_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"},
         "quality_report_hash": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}

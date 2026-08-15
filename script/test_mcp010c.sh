@@ -9,6 +9,7 @@ DATA_ROOT="$TEMP_ROOT/runtime-data"
 EXPORT_DATA_ROOT="$TEMP_ROOT/export-restart-runtime-data"
 
 python3 "$PROJECT_ROOT/scripts/check_forgecad_contracts.py"
+python3 "$PROJECT_ROOT/scripts/check_render_worker_boundary.py"
 python3 -m py_compile "$PROJECT_ROOT/scripts/probe_mcp010c_raw_stdio.py"
 python3 - "$PROJECT_ROOT/scripts/probe_mcp010c_codex_cli.py" <<'PY'
 from pathlib import Path
@@ -18,7 +19,18 @@ source = Path(sys.argv[1]).read_text(encoding="utf-8")
 assert 'SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")' in source
 assert 'skill_id' in source and 'ponytail-preflight' in source
 assert "Before any other ForgeCAD tool in this fresh MCP session" in source
+for parameter_id in ("upper-arm-height", "forearm-height", "thigh-height", "shin-height", "elbow-offset-y", "knee-offset-y"):
+    assert f'"parameter_id": "{parameter_id}"' in source
+assert '"max_evaluations": 64' in source
+assert "nested bounded silhouette fit and the Geometry Worker/Render Worker compare" in source
+assert 'if options.primary_form_repair:' in source
+assert 'fit_items = run_required_codex_turn(' in source
+assert 'primary_form_runtime_compare = False' in source
+assert 'Consume the typed visual evidence returned by the one' in source
 print("Codex CLI probe Ponytail preflight session boundary PASS")
+print("Codex CLI probe Primary Form 26-control bounded coverage budget PASS")
+print("Codex CLI probe Primary Form route delegates continuous search to one Runtime-owned repair action PASS")
+print("Codex CLI probe consumes Runtime-owned repair comparison evidence without a duplicate Codex compare PASS")
 PY
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
@@ -58,15 +70,44 @@ assert response["error"]["code"] == "PARSE_ERROR"
 print("Render Worker strict one-request lifecycle PASS")
 PY
 
-CARGO_TARGET_DIR="$TARGET_DIR" \
-  "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
-  --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
-  -p forgecad-runtime c_fixed_renderer_persists_nine_aovs_and_review_chain --offline
+python3 - "$TARGET_DIR/debug/forgecad-render-worker" <<'PY'
+import json
+import subprocess
+import sys
+
+worker = sys.argv[1]
+request = {
+    "protocol": "forgecad-worker-protocol@1",
+    "request_id": "render-boundary-test-1",
+    "operation": "render_fixed",
+    "payload": {"geometry_program": {}, "appearance_program": {}},
+}
+process = subprocess.run(
+    [worker, "--isolated-once"],
+    input=json.dumps(request),
+    text=True,
+    capture_output=True,
+    check=False,
+)
+assert process.returncode != 0
+response = json.loads(process.stdout)
+assert response["ok"] is False
+assert response["error"]["code"] == "RENDER_REJECTED"
+assert "unknown field" in response["error"]["message"]
+print("Render Worker compiled-GLB input boundary PASS")
+PY
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
   --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
-  -p forgecad-runtime v2_runtime_output_validators_fail_closed_on_mutated_receipts --offline
+  -p forgecad-runtime --features test-render-worker-fallback \
+  c_fixed_renderer_persists_nine_aovs_and_review_chain --offline
+
+CARGO_TARGET_DIR="$TARGET_DIR" \
+  "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
+  --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
+  -p forgecad-runtime --features test-render-worker-fallback \
+  v2_runtime_output_validators_fail_closed_on_mutated_receipts --offline
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \

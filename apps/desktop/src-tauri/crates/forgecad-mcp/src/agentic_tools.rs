@@ -43,7 +43,7 @@ impl AgenticReadTool {
             Self::SceneObserve => Some("agentic_scene_observe"),
             Self::StagePlan => Some("agentic_stage_plan"),
             Self::CriticReport => Some("agentic_critic_projection"),
-            Self::VisualEvidenceBundle => Some("visual_evidence_bundle_get"),
+            Self::VisualEvidenceBundle => Some("agentic_visual_evidence_bundle"),
             Self::VisualSurface => Some("visual_surface_get"),
         }
     }
@@ -57,7 +57,7 @@ impl AgenticReadTool {
             Self::SceneObserve => "agentic_scene_observe",
             Self::StagePlan => "agentic_stage_plan",
             Self::CriticReport => "agentic_critic_projection",
-            Self::VisualEvidenceBundle => "visual_evidence_bundle_get",
+            Self::VisualEvidenceBundle => "agentic_visual_evidence_bundle",
             Self::VisualSurface => "visual_surface_get",
         }
     }
@@ -110,16 +110,16 @@ fn tool_definition(tool: AgenticReadTool) -> Value {
             project_candidate_schema(),
         ),
         AgenticReadTool::StagePlan => (
-            "Read the Runtime-owned Agentic design stage plan. Stage unlocks are fail-closed on the available evidence and this tool never advances a stage, creates a checkpoint, or invokes approval.",
-            project_candidate_schema(),
+            "Read the stage plan slice from the exact Runtime-owned scene observation identified by observation_sha256. Call scene_observe_get first; this tool never rebuilds a second observation, advances a stage, creates a checkpoint, or invokes approval.",
+            project_candidate_observation_schema(),
         ),
         AgenticReadTool::CriticReport => (
-            "Read the Runtime-owned evidence-bound critic projection. Optionally provide an explicit SilhouetteTarget hash to add candidate-bound PartError rows and scoped repair intents; execution remains in the existing prepare and approval flow.",
-            project_candidate_target_schema(),
+            "Read the critic slice from the exact Runtime-owned scene observation identified by observation_sha256. It returns DesignCriticReport@1 with bounded repair intents for inspection only; execution remains in the existing prepare and approval flow.",
+            project_candidate_observation_schema(),
         ),
         AgenticReadTool::VisualEvidenceBundle => (
-            "Read the Runtime-owned VisualEvidenceBundle@1 projection. It exposes candidate-bound render/comparison/quality hashes and, when a durable ReferenceCanvas exists, a per-view evidence inventory. Unrendered or view-unbound references remain explicitly not-run; the call never creates a render, candidate, version, or CAS object.",
-            project_candidate_schema(),
+            "Read the canonical VisualEvidenceBundle@1 slice from the exact Runtime-owned scene observation identified by observation_sha256. This is the Agentic evidence view; the separate ViewerVisualEvidence@1 transport remains internal to the Viewer path.",
+            candidate_observation_schema(),
         ),
         AgenticReadTool::VisualSurface => (
             "Read the Runtime-owned VisualSurfaceResult@1 diagnostic projection. It binds requested silhouette/boundary/AOV signals and bounded mesh-derived curvature/feature-line summaries to one explicit candidate, reference, artifact, RenderSet and camera. The surface summaries are not SubD/NURBS principal curvature and do not unlock visual quality. The call is read-only and never creates a candidate, version, or CAS object.",
@@ -160,14 +160,27 @@ fn project_candidate_schema() -> Value {
     })
 }
 
-fn project_candidate_target_schema() -> Value {
+fn project_candidate_observation_schema() -> Value {
     json!({
         "type": "object",
-        "required": ["project_id"],
+        "required": ["project_id", "observation_sha256"],
         "properties": {
             "project_id": id_property(),
             "candidate_id": id_property(),
-            "target_sha256": sha_property()
+            "observation_sha256": sha_property()
+        },
+        "additionalProperties": false
+    })
+}
+
+fn candidate_observation_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["project_id", "candidate_id", "observation_sha256"],
+        "properties": {
+            "project_id": id_property(),
+            "candidate_id": id_property(),
+            "observation_sha256": sha_property()
         },
         "additionalProperties": false
     })
@@ -279,7 +292,7 @@ mod tests {
             AgenticReadTool::from_name("visual_evidence_bundle_get")
                 .expect("evidence tool")
                 .runtime_method(),
-            Some("visual_evidence_bundle_get")
+            Some("agentic_visual_evidence_bundle")
         );
         assert_eq!(
             AgenticReadTool::from_name("critic_report_get")
@@ -293,19 +306,30 @@ mod tests {
                 .runtime_method(),
             Some("visual_surface_get")
         );
-        let critic = read_tools()
+        for name in ["design_stage_plan_get", "critic_report_get"] {
+            let tool = read_tools()
+                .into_iter()
+                .find(|tool| tool["name"] == name)
+                .expect("bound follow-up tool");
+            assert!(tool["inputSchema"]["required"]
+                .as_array()
+                .expect("required fields")
+                .iter()
+                .any(|field| field == "observation_sha256"));
+        }
+        let evidence = read_tools()
             .into_iter()
-            .find(|tool| tool["name"] == "critic_report_get")
-            .expect("critic definition");
+            .find(|tool| tool["name"] == "visual_evidence_bundle_get")
+            .expect("evidence definition");
         assert_eq!(
-            critic["inputSchema"]["properties"]["target_sha256"]["pattern"],
-            "^[0-9a-f]{64}$"
+            evidence["_meta"]["forgecad"]["runtime_method"],
+            "agentic_visual_evidence_bundle"
         );
-        assert!(!critic["inputSchema"]["required"]
+        assert!(evidence["inputSchema"]["required"]
             .as_array()
-            .expect("critic required")
+            .expect("evidence required")
             .iter()
-            .any(|value| value == "target_sha256"));
+            .any(|value| value == "observation_sha256"));
         let surface = read_tools()
             .into_iter()
             .find(|tool| tool["name"] == "visual_surface_get")

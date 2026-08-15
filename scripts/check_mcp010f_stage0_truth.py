@@ -46,7 +46,7 @@ FIT_PLAN_SOURCE = ROOT / "scripts/build_mcp010f_fit_plan.py"
 TOOL_SUMMARY_PATH = ROOT / "docs/evidence/mcp010f/source-tool-manifest-summary.json"
 RUN_INVENTORY_PATH = ROOT / "docs/evidence/mcp010f/real-codex-run-inventory.json"
 EVIDENCE_MANIFEST_PATH = ROOT / "docs/evidence/mcp010f/manifest.json"
-EXPECTED_EVIDENCE_MANIFEST_SHA256 = "af92319bea9a1886ab522cc1b82266534fe61bb05d76f75001d23d63a0b9e8e8"
+EXPECTED_EVIDENCE_MANIFEST_SHA256 = "f290dea38213c999a9d998c0924ab178c8f7c8f0a7ee05329b75a7ec59700ea8"
 TASK_INDEX = ROOT / "docs/CODEX_TASK_INDEX.md"
 
 AUTHORITY_DOCS = (
@@ -74,9 +74,9 @@ WRITE_NAME_FUNCTIONS = (
     "mcp010c_write_tool_names",
     "mcp010f_write_tool_names",
     "optimization_write_tool_names",
-    "agentic_action_write_tool_names",
     "agentic_orchestrator_write_tool_names",
     "agentic_write_tool_names",
+    "agentic_action_write_tool_names",
     "cross_view_promotion_write_tool_names",
 )
 
@@ -141,12 +141,13 @@ EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
     "strict_visible_view_policy_implemented viewer_accessibility_e2e viewer_browser_dom_smoke "
     "viewer_contour_annotation viewer_contour_real_execution viewer_keyboard_navigation viewer_native_window_smoke "
  "viewer_candidate_artifact_binding viewer_candidate_binding_fixtures viewer_visual_evidence_binding_fixtures viewer_quality_report_contract_alignment viewer_source_contract viewer_tauri_compile viewer_typescript_build viewer_write_boundary "
- "agentic_runtime_observe_plan agentic_runtime_session_checkpoint".split()
+ "agentic_runtime_observe_plan agentic_runtime_session_checkpoint packaged_render_worker_landing".split()
 )
 EXPECTED_EVIDENCE_MANIFEST_GATES = {
     "agentic_runtime_projection_conformance": "PASS_CURRENT_COHORT_NESTED_RUNTIME_MCP_PROJECTION_CONTRACTS",
     "agentic_runtime_session_checkpoint": "PASS_CURRENT_COHORT_ISOLATED_DURABLE_SESSION_CHECKPOINT_READBACK",
     "agentic_runtime_observe_plan": "PASS_CURRENT_COHORT_ISOLATED_READ_ONLY_OBSERVE_PLAN",
+    "packaged_render_worker_landing": "PASS_CURRENT_COHORT_RESOURCE_AND_ISOLATED_RENDER_TRANSPORT",
     "boundary_error_runtime": "PASS_DIRECTIONAL_SDF_SEGMENT_EVIDENCE",
     "camera_fit_runtime": "PASS_BOUNDED_TYPED_CAMERA_SEARCH",
     "codex_correction_queue": "PASS_RUNTIME_ACTION_PROJECTION_READ_ONLY",
@@ -283,18 +284,33 @@ def source_tool_names() -> tuple[list[str], list[str]]:
                 agentic_source[agentic_start:agentic_end],
             )
         )
-    if "tools.extend(agentic_action_tools::read_tools());" in source:
-        action_source = AGENTIC_ACTION_MCP_SOURCE.read_text(encoding="utf-8")
+    if "tools.extend(agentic_write_tools::read_tools());" in source:
+        agentic_write_source = AGENTIC_WRITE_MCP_SOURCE.read_text(encoding="utf-8")
         read_function = re.search(
             r"pub fn read_tools\(\) -> Vec<Value> \{(.*?)\n\}",
-            action_source,
+            agentic_write_source,
             flags=re.DOTALL,
         )
-        require(read_function is not None, "cannot locate agentic action read tools")
+        require(read_function is not None, "cannot locate agentic write-module read tools")
+        for variant in re.findall(r"AgenticTool::([A-Za-z0-9_]+)", read_function.group(1)):
+            name_match = re.search(
+                rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
+                agentic_write_source,
+            )
+            require(name_match is not None, f"agentic read tool variant has no name: {variant}")
+            read_names.append(name_match.group(1))
+    if "tools.extend(agentic_action_tools::read_tools());" in source:
+        agentic_action_source = AGENTIC_ACTION_MCP_SOURCE.read_text(encoding="utf-8")
+        read_function = re.search(
+            r"pub fn read_tools\(\) -> Vec<Value> \{(.*?)\n\}",
+            agentic_action_source,
+            flags=re.DOTALL,
+        )
+        require(read_function is not None, "cannot locate agentic action-module read tools")
         for variant in re.findall(r"AgenticActionTool::([A-Za-z0-9_]+)", read_function.group(1)):
             name_match = re.search(
-                rf"Self::{re.escape(variant)}\s*=>\s*(?:\{{\s*)?\"([a-z0-9_]+)\"",
-                action_source,
+                rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
+                agentic_action_source,
             )
             require(name_match is not None, f"agentic action read tool variant has no name: {variant}")
             read_names.append(name_match.group(1))
@@ -313,43 +329,9 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             )
             require(name_match is not None, f"optimization read tool variant has no name: {variant}")
             read_names.append(name_match.group(1))
-    if "tools.extend(agentic_write_tools::read_tools());" in source:
-        agentic_write_source = AGENTIC_WRITE_MCP_SOURCE.read_text(encoding="utf-8")
-        read_function = re.search(
-            r"pub fn read_tools\(\) -> Vec<Value> \{(.*?)\n\}",
-            agentic_write_source,
-            flags=re.DOTALL,
-        )
-        require(read_function is not None, "cannot locate agentic write-module read tools")
-        for variant in re.findall(r"AgenticTool::([A-Za-z0-9_]+)", read_function.group(1)):
-            name_match = re.search(
-                rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
-                agentic_write_source,
-            )
-            require(name_match is not None, f"agentic read tool variant has no name: {variant}")
-            read_names.append(name_match.group(1))
 
     write_names: list[str] = []
     for function_name in WRITE_NAME_FUNCTIONS:
-        if function_name == "agentic_action_write_tool_names":
-            action_source = AGENTIC_ACTION_MCP_SOURCE.read_text(encoding="utf-8")
-            names_function = re.search(
-                r"pub fn write_tool_names\(\) -> Vec<String> \{(.*?)\n\}",
-                action_source,
-                flags=re.DOTALL,
-            )
-            require(names_function is not None, "cannot locate agentic action write tools")
-            variants = re.findall(r"AgenticActionTool::([A-Za-z0-9_]+)", names_function.group(1))
-            names = []
-            for variant in variants:
-                name_match = re.search(
-                    rf"Self::{re.escape(variant)}\s*=>\s*(?:\{{\s*)?\"([a-z0-9_]+)\"",
-                    action_source,
-                )
-                require(name_match is not None, f"agentic action write tool variant has no name: {variant}")
-                names.append(name_match.group(1))
-            write_names.extend(names)
-            continue
         if function_name == "optimization_write_tool_names":
             optimization_source = OPTIMIZATION_MCP_SOURCE.read_text(encoding="utf-8")
             names_function = re.search(
@@ -423,6 +405,26 @@ def source_tool_names() -> tuple[list[str], list[str]]:
                 names.append(name_match.group(1))
             write_names.extend(names)
             continue
+        if function_name == "agentic_action_write_tool_names":
+            agentic_action_source = AGENTIC_ACTION_MCP_SOURCE.read_text(encoding="utf-8")
+            names_function = re.search(
+                r"pub fn write_tool_names\(\) -> Vec<String> \{(.*?)\n\}",
+                agentic_action_source,
+                flags=re.DOTALL,
+            )
+            require(names_function is not None, "cannot locate agentic action write tool names")
+            variants = re.findall(r"AgenticActionTool::([A-Za-z0-9_]+)", names_function.group(1))
+            require(variants, "agentic_action_write_tool_names contains no tool variants")
+            names = []
+            for variant in variants:
+                name_match = re.search(
+                    rf"Self::{re.escape(variant)}\s*=>\s*(?:\{{\s*)?\"([a-z0-9_]+)\"",
+                    agentic_action_source,
+                )
+                require(name_match is not None, f"agentic action write tool variant has no name: {variant}")
+                names.append(name_match.group(1))
+            write_names.extend(names)
+            continue
         match = re.search(
             rf"fn {re.escape(function_name)}\(\) -> Vec<String> \{{(.*?)\n\}}",
             source,
@@ -466,8 +468,6 @@ def fit_plan_visible_view_thresholds() -> dict[str, float]:
 
 def viewer_visible_view_thresholds() -> dict[str, float]:
     source = VIEWER_SOURCE.read_text(encoding="utf-8")
-    if "Viewer 不再从 comparison metrics 重新计算质量门" in source:
-        return runtime_visible_view_thresholds()
     thresholds: dict[str, float] = {}
     for metric_name, (direction, threshold_name) in METRIC_CRITERIA.items():
         expected_operator = ">=" if direction == "min" else "<="
@@ -910,15 +910,15 @@ def check_run_inventory(truth: dict[str, Any]) -> None:
             "completed latest attempt host provenance drifted",
         )
         turn_count = attempt.get("codex_turn_count")
+        exit_codes = attempt.get("codex_exit_codes")
         require(
-            attempt_truth["attempt_count_evidence"]
-            == f"VERIFIED_RAW_RECEIPT_{turn_count}_CODEX_TURNS_ZERO_EXIT_CODES",
+            attempt_truth["attempt_count_evidence"] == f"VERIFIED_RAW_RECEIPT_{turn_count}_CODEX_TURNS_ZERO_EXIT_CODES",
             "completed latest attempt count evidence drifted",
         )
         require(len(set(attempt_truth["build_cohorts"].values())) == 1, "completed latest attempt cohorts diverged")
         require(attempt_truth["quality_result"] == "QUALITY_TARGET_NOT_MET", "completed latest attempt quality result drifted")
         require(isinstance(turn_count, int) and turn_count > 0, "completed latest attempt Codex turn count drifted")
-        require(attempt.get("codex_exit_codes") == [0] * turn_count, "completed latest attempt exit-code evidence drifted")
+        require(exit_codes == [0] * turn_count, "completed latest attempt exit-code evidence drifted")
         require(attempt.get("unrelated_side_effects") is False, "completed latest attempt reports unrelated side effects")
         require(attempt.get("persistent_user_data_touched") is False, "completed latest attempt reports persistent user data")
         require(attempt.get("camera_binding_status") == "PASS_SILHOUETTE_FIT_TO_COMPARE", "completed latest attempt camera binding drifted")
@@ -993,7 +993,9 @@ def check_run_inventory(truth: dict[str, Any]) -> None:
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-viewer-bound.json",
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-canonical-intake-viewer-bound.json",
         "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
-        "docs/evidence/mcp010f/real-codex-cli-current-20260814-retry-camera-bound-v2.json",
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-boundary-projection.json",
+        "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json",
         "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto-v3.json",
     }:
         require(
@@ -1448,7 +1450,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         require(forbidden not in limitation_text, f"evidence manifest contains a forbidden promotion claim: {forbidden}")
     require(isinstance(manifest["scope"], list) and manifest["scope"], "evidence manifest scope must be a non-empty list")
     require(isinstance(manifest["limitations"], list) and manifest["limitations"], "evidence manifest limitations must be non-empty")
-    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 131, "evidence manifest frozen evidence count drifted")
+    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 138, "evidence manifest frozen evidence count drifted")
     require(len(set(manifest["evidence"])) == len(manifest["evidence"]), "evidence manifest contains duplicate entries")
     for index, entry in enumerate(manifest["evidence"]):
         require(isinstance(entry, str) and entry, f"evidence entry {index} must be a non-empty string")

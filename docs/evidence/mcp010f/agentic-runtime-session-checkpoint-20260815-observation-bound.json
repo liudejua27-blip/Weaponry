@@ -1,0 +1,1957 @@
+{
+  "allowed_action_count": 2,
+  "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+  "checkpoint_canonical_sha256": "e4549f77eec54772dd7cd40e5ed55ce57f2ec7dcc5c180b333f60402ecbc25e9",
+  "checkpoint_id": "checkpoint-a9f1a8735bc321785cedb08391c58a81",
+  "durable_records": {
+    "checkpoint": {
+      "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+      "camera_hash": "ee161971b65cd49b3a2c756366f22e8179017558f1678fb129d77b3388c2fb21",
+      "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+      "candidate_state_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+      "canonical_sha256": "e4549f77eec54772dd7cd40e5ed55ce57f2ec7dcc5c180b333f60402ecbc25e9",
+      "checkpoint_id": "checkpoint-a9f1a8735bc321785cedb08391c58a81",
+      "checkpoint_type": "stage-fail",
+      "created_at": "2026-08-14T21:36:49Z",
+      "evidence_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+      "immutable": true,
+      "observation_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+      "parent_checkpoint_id": null,
+      "parent_checkpoint_sha256": null,
+      "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+      "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+      "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+      "rollback": {
+        "reason": null,
+        "relation": "none",
+        "target_checkpoint_id": null,
+        "target_checkpoint_sha256": null,
+        "target_version_id": null,
+        "target_version_sha256": null
+      },
+      "runtime_write": false,
+      "schema_version": "DesignCheckpoint@1",
+      "session_id": "session-agentic-probe",
+      "stage": "primary-form",
+      "stage_gate": {
+        "evidence_hashes": [
+          "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82"
+        ],
+        "failed_checks": [
+          "visible-view"
+        ],
+        "locks": [
+          "tertiary-detail",
+          "uv-pbr",
+          "confirm",
+          "export",
+          "next-stage"
+        ],
+        "required_checks": [
+          "primary-silhouette",
+          "primary-proportion",
+          "visible-view"
+        ],
+        "stage": "primary-form",
+        "status": "fail",
+        "unlocks": [
+          "checkpoint",
+          "bounded-repair"
+        ]
+      },
+      "version_id": null,
+      "version_sha256": null
+    },
+    "repair_intent": {
+      "action": {
+        "action_kind": "bounded-repair",
+        "bounded": true,
+        "description": "Prepare a new candidate from the selected checkpoint; no history is rewritten",
+        "kit_id": "forgecad.kit.housing@1",
+        "operation": "rebuild-part",
+        "operator_id": "forgecad.geometry.primitive@2",
+        "parameter_changes": [
+          {
+            "after": 1.0,
+            "before": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "parameter_id": "restore-source",
+            "unit": "count"
+          }
+        ]
+      },
+      "approval_required": true,
+      "camera_hash": "ee161971b65cd49b3a2c756366f22e8179017558f1678fb129d77b3388c2fb21",
+      "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+      "candidate_state_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+      "canonical_sha256": "b83111fc4a478fc3ee2c6e79035147d2083efd5de638052cb28104b4147ffa7b",
+      "intent_id": "repair-intent-8b01be4f07eb1139bce992f4aa5c70e8",
+      "observation_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+      "precondition": {
+        "current_candidate_state_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+        "evidence_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+        "failed_gate_id": "visible-view",
+        "quality_status": "QUALITY_TARGET_NOT_MET",
+        "status": "failed"
+      },
+      "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+      "recompute": {
+        "confirm_allowed": false,
+        "must_rebind_camera": true,
+        "must_rebind_reference": true,
+        "steps": [
+          "compile",
+          "readback",
+          "render",
+          "compare"
+        ]
+      },
+      "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+      "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+      "rollback": {
+        "on_failure": "request-user",
+        "reason": "Restore is a new candidate intent and never rewrites historical state",
+        "relation": "restore-checkpoint",
+        "target_checkpoint_id": "checkpoint-a9f1a8735bc321785cedb08391c58a81",
+        "target_checkpoint_sha256": "e4549f77eec54772dd7cd40e5ed55ce57f2ec7dcc5c180b333f60402ecbc25e9",
+        "target_version_id": null,
+        "target_version_sha256": null
+      },
+      "runtime_write": false,
+      "schema_version": "RepairIntent@1",
+      "scope": {
+        "kind": "part",
+        "part_id": "scene"
+      },
+      "session_id": "session-agentic-probe",
+      "source_critic_report_id": "checkpoint-critic-checkpoint-a9f1a8735bc321785cedb08391c58a81",
+      "source_critic_report_sha256": "e4549f77eec54772dd7cd40e5ed55ce57f2ec7dcc5c180b333f60402ecbc25e9",
+      "source_evidence_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+      "stage": "primary-form",
+      "status": "proposed"
+    },
+    "session": {
+      "camera_hash": "ee161971b65cd49b3a2c756366f22e8179017558f1678fb129d77b3388c2fb21",
+      "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+      "candidate_state_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+      "canonical_sha256": "edd4df1649a0f7e19c31bd6b8527288f4e647d660e197b4ade1a299d29ecf8ba",
+      "checkpoint_ids": [
+        "checkpoint-a9f1a8735bc321785cedb08391c58a81"
+      ],
+      "created_at": "2026-08-14T21:36:49Z",
+      "current_checkpoint_id": "checkpoint-a9f1a8735bc321785cedb08391c58a81",
+      "current_checkpoint_sha256": "e4549f77eec54772dd7cd40e5ed55ce57f2ec7dcc5c180b333f60402ecbc25e9",
+      "current_stage": "primary-form",
+      "current_version_id": null,
+      "current_version_sha256": null,
+      "design_spec_id": "design-spec-agentic-probe",
+      "design_spec_sha256": "7829672a5342bdddcca4296d9006a0d26724f995bea371be25ce6cd32601fc30",
+      "evidence_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+      "next_actions": [
+        {
+          "action_id": "bounded-repair-537f5a76222f5ecf",
+          "action_kind": "bounded-repair",
+          "bounded": true,
+          "description": "Prepare one bounded repair and rerun compile/readback/render/compare",
+          "evidence_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+          "scope_kind": "session",
+          "stage": "primary-form",
+          "target_id": "session-agentic-probe"
+        }
+      ],
+      "observation_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+      "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+      "quality_status": "QUALITY_TARGET_NOT_MET",
+      "reference_canvas_id": "reference-canvas-agentic-probe",
+      "reference_canvas_sha256": "020cdf51369616f4eaf421e6ae5f65a42b4d6901f2c791af07cf8f49938bcbaa",
+      "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+      "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+      "rollback": {
+        "reason": null,
+        "relation": "none",
+        "runtime_confirm_allowed": false,
+        "target_checkpoint_id": null,
+        "target_checkpoint_sha256": null,
+        "target_version_id": null,
+        "target_version_sha256": null
+      },
+      "schema_version": "DesignSession@1",
+      "session_id": "session-agentic-probe",
+      "stage_gate": {
+        "evidence_hashes": [
+          "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82"
+        ],
+        "failed_checks": [
+          "visible-view"
+        ],
+        "locks": [
+          "tertiary-detail",
+          "uv-pbr",
+          "confirm",
+          "export",
+          "next-stage"
+        ],
+        "required_checks": [
+          "primary-silhouette",
+          "primary-proportion",
+          "visible-view"
+        ],
+        "stage": "primary-form",
+        "status": "fail",
+        "unlocks": [
+          "checkpoint",
+          "bounded-repair"
+        ]
+      },
+      "status": "awaiting-review",
+      "updated_at": "2026-08-14T21:36:49Z"
+    }
+  },
+  "empty_reference_stage_fail_closed": true,
+  "locked_action_count": 3,
+  "persistent_user_data_touched": false,
+  "preflight": {
+    "skill_id": "ponytail-preflight",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+  "projection_records": {
+    "scene_observe": {
+      "candidate": {
+        "base_version_id": null,
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+        "created_at": "1786743409",
+        "error_code": null,
+        "manifest_hash": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+        "prepared_object_id": "geometry-object-082b334c64ce4c58d02a46e3e4d103c1",
+        "prepared_object_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "quality_hard_gate_passed": true,
+        "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+        "request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+        "schema_version": "Candidate@1",
+        "source_version_id": null,
+        "state": "reviewable",
+        "updated_at": "1786743409"
+      },
+      "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+      "candidate_selection": "explicit_candidate_id",
+      "canonical_sha256": "693f9c7edd0e79b7c839384b9b88a35b85c02f5e8a857a3e8ee6113357a34f82",
+      "design_critic_report": {
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "canonical_sha256": "caabb1656be66041c31e2d0896b31c1456de287bd68ad9b4f20c75f79f676e5c",
+        "issues": [
+          {
+            "evidence_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+            "issue_id": "visual-evidence-missing",
+            "knowledge_state": "unknown",
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "material_zone_id": null,
+            "material_zone_id_status": "unknown",
+            "metric_name": "strict_visual_gate",
+            "observed": null,
+            "part_id": null,
+            "part_id_status": "unknown",
+            "proposed_bounded_action": {
+              "allowed": true,
+              "operation": "reference_compare_prepare",
+              "parameters": {},
+              "part_id": null,
+              "scope": "candidate"
+            },
+            "risk": "PBR, confirm and export remain locked until candidate-bound visual evidence exists.",
+            "stage": "primary-form",
+            "status": "unknown",
+            "threshold": "PARTIAL_VISIBLE_VIEW_PASS"
+          }
+        ],
+        "lineage": {
+          "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+          "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+          "camera_hash": null,
+          "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+          "comparison_report_hash": null,
+          "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+          "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+          "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+          "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+          "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+          "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+          "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+          "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+          "render_set_hash": null,
+          "snapshot_id": null,
+          "snapshot_manifest_hash": null,
+          "snapshot_revision": null
+        },
+        "primary_form_directive": {
+          "continuous_search_owner": "runtime",
+          "diagnostic_operation": "none",
+          "execution_allowed": false,
+          "failed_metrics": [],
+          "focus_part_id": null,
+          "focus_part_status": "unknown",
+          "metric_priority": [
+            "boundary_f1_4px",
+            "silhouette_iou",
+            "bbox_edge_error",
+            "centroid_error",
+            "landmark_coverage",
+            "landmark_nme",
+            "region_median_iou",
+            "critical_region_min_iou"
+          ],
+          "objective": "primary-form-convergence",
+          "owner": "runtime",
+          "part_error": null,
+          "repair_operation": "reference_compare_prepare",
+          "status": "unknown",
+          "target_sha256": null
+        },
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "projection_status": "projection/read-only",
+        "read_only": true,
+        "repair_intents": [
+          {
+            "bounded_action": {
+              "arbitrary_script": false,
+              "operation": "reference_compare_prepare",
+              "parameters": {},
+              "requires_new_candidate": true
+            },
+            "execution_allowed": false,
+            "issue_ids": [
+              "visual-evidence-missing"
+            ],
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "projection_only": true,
+            "reason": "RepairIntent is evidence-bound planning output; the existing typed prepare/approval flow must execute any change.",
+            "repair_intent_id": "repair-c3a19af981a416e0f3ecd57f",
+            "scope": {
+              "material_zone_id": null,
+              "material_zone_id_status": "unknown",
+              "part_id": null,
+              "part_id_status": "unknown"
+            },
+            "stage": "primary-form",
+            "status": "proposed"
+          }
+        ],
+        "schema_version": "DesignCriticReport@1",
+        "stage": "primary-form",
+        "status": "unknown",
+        "strict_visual_gate": "unknown"
+      },
+      "design_session": {
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "canonical_sha256": "0d85648d057290fc9f7a0bf4cd8232a319a1de9880b406872aaf6853ee5336c9",
+        "checkpoint": {
+          "durable": false,
+          "status": "not-persisted"
+        },
+        "critic_report_hash": "caabb1656be66041c31e2d0896b31c1456de287bd68ad9b4f20c75f79f676e5c",
+        "current_stage": "primary-form",
+        "durable": false,
+        "lineage": {
+          "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+          "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+          "camera_hash": null,
+          "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+          "comparison_report_hash": null,
+          "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+          "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+          "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+          "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+          "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+          "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+          "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+          "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+          "render_set_hash": null,
+          "snapshot_id": null,
+          "snapshot_manifest_hash": null,
+          "snapshot_revision": null
+        },
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "projection_status": "projection/read-only",
+        "read_only": true,
+        "rollback_intent": {
+          "durable": false,
+          "status": "not-persisted"
+        },
+        "scene_graph_hash": "5a1ad60b38aafad9fbec25a5d241af63db31832fa418b2b33aff56369737cac8",
+        "schema_version": "DesignSession@1",
+        "session_id": "design-session-projection-77ad46b0ca53af0a0acb3ade9fc0db3c",
+        "stage_plan_hash": "f457d5c1aab28a5adc173cd261d6c74e5270b21d27129971f0cb5e871a0c95bb"
+      },
+      "design_stage_plan": {
+        "allowed_actions": [
+          "inspect_artifact",
+          "render_reference_comparison",
+          "evaluate_quality"
+        ],
+        "blocked_actions": [
+          "pbr_prepare",
+          "candidate_confirm",
+          "export_confirm"
+        ],
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "canonical_sha256": "f457d5c1aab28a5adc173cd261d6c74e5270b21d27129971f0cb5e871a0c95bb",
+        "checkpoint": {
+          "durable": false,
+          "reason": "DesignSession is a recomputable projection; checkpoint writes remain outside this phase",
+          "status": "not-persisted"
+        },
+        "current_stage": "primary-form",
+        "current_stage_status": "awaiting-evidence",
+        "design_session_id": "design-session-projection-77ad46b0ca53af0a0acb3ade9fc0db3c",
+        "durable_checkpoint": false,
+        "lineage": {
+          "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+          "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+          "camera_hash": null,
+          "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+          "comparison_report_hash": null,
+          "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+          "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+          "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+          "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+          "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+          "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+          "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+          "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+          "render_set_hash": null,
+          "snapshot_id": null,
+          "snapshot_manifest_hash": null,
+          "snapshot_revision": null
+        },
+        "next_stage": null,
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "projection_status": "projection/read-only",
+        "quality_gate": {
+          "candidate_quality_hard_gate_passed": true,
+          "structural_status": "passed"
+        },
+        "read_only": true,
+        "rollback": {
+          "reason": "restore remains an existing Runtime write flow and is not invoked by observe/plan",
+          "status": "not-available-in-projection"
+        },
+        "schema_version": "DesignStagePlan@1",
+        "stage_advance_allowed": false,
+        "stage_order": [
+          "reference-canvas",
+          "primary-form",
+          "secondary-structure",
+          "tertiary-detail",
+          "uv-pbr",
+          "final-review"
+        ],
+        "strict_visual_gate": {
+          "comparison_status": "unknown",
+          "reason": "strict visual evidence is unavailable",
+          "status": "unknown",
+          "visual_status": "unknown"
+        },
+        "unlocks": {
+          "confirm": false,
+          "export": false,
+          "pbr": false
+        }
+      },
+      "lineage": {
+        "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+        "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+        "camera_hash": null,
+        "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+        "comparison_report_hash": null,
+        "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+        "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+        "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+        "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+        "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+        "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+        "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+        "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+        "render_set_hash": null,
+        "snapshot_id": null,
+        "snapshot_manifest_hash": null,
+        "snapshot_revision": null
+      },
+      "model_understanding_bundle": {
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "canonical_sha256": "51a3d43625b51876e786ebc63352ae711c8410506c9f20dc7f6c00b9796e5dd4",
+        "lineage": {
+          "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+          "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+          "camera_hash": null,
+          "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+          "comparison_report_hash": null,
+          "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+          "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+          "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+          "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+          "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+          "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+          "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+          "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+          "render_set_hash": null,
+          "snapshot_id": null,
+          "snapshot_manifest_hash": null,
+          "snapshot_revision": null
+        },
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "projection_status": "projection/read-only",
+        "quality": {
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "candidate_quality_hard_gate_passed": true,
+          "canonical_sha256": "823c5195ff0901c7d00c7ec7c1b2380207086246a253121a1483472802817dc4",
+          "confirm_unlocked": false,
+          "export_unlocked": false,
+          "pbr_unlocked": false,
+          "projection_status": "projection/read-only",
+          "quality_report": {
+            "artifact": {
+              "artifact_id": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "canonical_sha256": "bb943318c1e34dfea25672c46878d5453ef26e1dc084fd577c69cf57dede7eba",
+              "hard_gate_passed": true,
+              "integrity": {
+                "boundary_edge_count": 0,
+                "degenerate_triangle_count": 0,
+                "external_uri_count": 0,
+                "glb_parse_status": "passed",
+                "invalid_index_count": 0,
+                "material_zone_coverage": 1.0,
+                "metadata_mismatch_count": 0,
+                "non_finite_count": 0,
+                "non_manifold_edge_count": 0,
+                "part_coverage": 1.0,
+                "source_coverage": 1.0,
+                "tangent_handedness_error_count": 0,
+                "tangent_non_finite_count": 0,
+                "tangent_orthogonality_error_count": 0,
+                "uv_non_finite_count": 0,
+                "winding_error_count": 0,
+                "zero_area_uv_triangle_count": 0
+              },
+              "material_zone_ids": [
+                "zone-white-shell",
+                "zone-black-mechanical",
+                "zone-emissive-amber"
+              ],
+              "mime": "model/gltf-binary",
+              "object_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "operator_catalog_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+              "part_bindings": [
+                {
+                  "material_zone_id": "zone-white-shell",
+                  "part_id": "shell",
+                  "solid": true,
+                  "source_node_id": "shell",
+                  "triangle_count": 12
+                },
+                {
+                  "material_zone_id": "zone-white-shell",
+                  "part_id": "shell",
+                  "solid": true,
+                  "source_node_id": "accent",
+                  "triangle_count": 224
+                },
+                {
+                  "material_zone_id": "zone-black-mechanical",
+                  "part_id": "joint",
+                  "solid": true,
+                  "source_node_id": "joint",
+                  "triangle_count": 64
+                },
+                {
+                  "material_zone_id": "zone-emissive-amber",
+                  "part_id": "sensor",
+                  "solid": true,
+                  "source_node_id": "sensor",
+                  "triangle_count": 224
+                }
+              ],
+              "part_ids": [
+                "shell",
+                "joint",
+                "sensor"
+              ],
+              "program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "readback_config_sha256": "e012a66b040f0b653b594e1c52e9fc2b1683751419962c0235d1f5cbffda4400",
+              "schema_version": "ArtifactReadback@2",
+              "size_bytes": 88424,
+              "source_node_ids": [
+                "shell",
+                "accent",
+                "joint",
+                "sensor"
+              ],
+              "triangle_count": 524,
+              "validator_status": "passed"
+            },
+            "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+            "canonical_sha256": "a77acd0839b43b0f6e59a221cd6c958e50bf492e7cd402f1bd04e577b85023b0",
+            "checks": [
+              {
+                "check_id": "candidate_state",
+                "message": "candidate state is reviewable",
+                "status": "passed"
+              },
+              {
+                "check_id": "glb_readback",
+                "message": "Runtime artifact readback is hash-bound",
+                "status": "passed"
+              },
+              {
+                "check_id": "uv_tangent",
+                "message": "UV and tangent attributes are read back from the GLB BIN",
+                "status": "passed"
+              },
+              {
+                "check_id": "pbr_material_zones",
+                "message": "typed material zones are bound in GLB lineage",
+                "status": "passed"
+              },
+              {
+                "check_id": "reference_aspect_ratio",
+                "message": "bounded reference/model aspect comparison",
+                "status": "failed",
+                "threshold": 0.55,
+                "value": 0.42105266239944794
+              }
+            ],
+            "hard_gate_passed": false,
+            "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+            "reference_compare": {
+              "aspect_score": 0.42105266239944794,
+              "limitation": "MVP does not infer pixel silhouette or semantic correspondence from one reference image; this is an aspect-ratio evidence check only.",
+              "model_aspect_ratio": 0.421052662399448,
+              "reference_aspect_ratio": 1.0,
+              "reference_bytes_verified": true,
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "status": "limited"
+            },
+            "schema_version": "QualityReport@1"
+          },
+          "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+          "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+          "read_only": true,
+          "schema_version": "AgenticQualityProjection@1",
+          "strict_visual_gate": "unknown",
+          "structural_status": "passed",
+          "visual_status": "unknown"
+        },
+        "read_only": true,
+        "reference_canvas": {
+          "canonical_sha256": "b0273a828386b1653c4af5ce620f8cfececade79d08ab30f789661dcee849fee",
+          "coverage": {
+            "missing_views": [
+              "front",
+              "back",
+              "left",
+              "right",
+              "top",
+              "three-quarter"
+            ],
+            "observed_views": [],
+            "reason": "ReferenceEvidence does not carry a complete view-coverage contract",
+            "status": "unknown"
+          },
+          "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+          "projection_status": "projection/read-only",
+          "read_only": true,
+          "references": [
+            {
+              "authorization": {
+                "status": "observed",
+                "user_authorized": true
+              },
+              "frame_count": 1,
+              "height": 1,
+              "import_mode": "inline_content",
+              "lineage": {
+                "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+                "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+                "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
+              },
+              "mime": "image/png",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "size_bytes": 68,
+              "view_claim": {
+                "status": "unknown",
+                "value": null
+              },
+              "width": 1
+            }
+          ],
+          "schema_version": "ReferenceCanvasProjection@1",
+          "selected_reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+          "unknowns": [
+            "view_coverage",
+            "reference_camera_claim",
+            "hidden_geometry",
+            "material_detail_coverage"
+          ]
+        },
+        "schema_version": "ModelUnderstandingBundle@1",
+        "semantic_scene_graph": {
+          "cameras": [],
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "canonical_sha256": "5a1ad60b38aafad9fbec25a5d241af63db31832fa418b2b33aff56369737cac8",
+          "evidence": {
+            "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+            "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+            "camera_hash": null,
+            "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+            "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+            "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+            "comparison_report_hash": null,
+            "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+            "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+            "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+            "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+            "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+            "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+            "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+            "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+            "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+            "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+            "render_set_hash": null,
+            "snapshot_id": null,
+            "snapshot_manifest_hash": null,
+            "snapshot_revision": null
+          },
+          "geometry": {
+            "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+            "bbox": "unknown",
+            "dimensions": "unknown",
+            "triangle_count": 524,
+            "triangle_count_status": "observed"
+          },
+          "materials": [
+            {
+              "channels": {
+                "ao": "unknown",
+                "base_color": "unknown",
+                "emissive": "unknown",
+                "metallic_roughness": "unknown",
+                "normal": "unknown"
+              },
+              "lineage": {
+                "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+                "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+                "camera_hash": null,
+                "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+                "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+                "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+                "comparison_report_hash": null,
+                "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+                "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+                "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+                "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+                "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+                "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+                "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+                "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+                "render_set_hash": null,
+                "snapshot_id": null,
+                "snapshot_manifest_hash": null,
+                "snapshot_revision": null
+              },
+              "material_zone_id": "zone-white-shell",
+              "status": "observed"
+            },
+            {
+              "channels": {
+                "ao": "unknown",
+                "base_color": "unknown",
+                "emissive": "unknown",
+                "metallic_roughness": "unknown",
+                "normal": "unknown"
+              },
+              "lineage": {
+                "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+                "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+                "camera_hash": null,
+                "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+                "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+                "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+                "comparison_report_hash": null,
+                "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+                "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+                "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+                "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+                "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+                "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+                "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+                "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+                "render_set_hash": null,
+                "snapshot_id": null,
+                "snapshot_manifest_hash": null,
+                "snapshot_revision": null
+              },
+              "material_zone_id": "zone-black-mechanical",
+              "status": "observed"
+            },
+            {
+              "channels": {
+                "ao": "unknown",
+                "base_color": "unknown",
+                "emissive": "unknown",
+                "metallic_roughness": "unknown",
+                "normal": "unknown"
+              },
+              "lineage": {
+                "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+                "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+                "camera_hash": null,
+                "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+                "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+                "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+                "comparison_report_hash": null,
+                "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+                "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+                "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+                "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+                "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+                "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+                "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+                "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+                "render_set_hash": null,
+                "snapshot_id": null,
+                "snapshot_manifest_hash": null,
+                "snapshot_revision": null
+              },
+              "material_zone_id": "zone-emissive-amber",
+              "status": "observed"
+            }
+          ],
+          "parts": [
+            {
+              "bbox": null,
+              "bbox_status": "unknown",
+              "children": null,
+              "children_status": "unknown",
+              "dimensions": null,
+              "dimensions_status": "unknown",
+              "display_name": "shell",
+              "display_name_status": "inferred",
+              "editability": null,
+              "editability_status": "unknown",
+              "lineage": {
+                "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+                "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+                "camera_hash": null,
+                "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+                "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+                "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+                "comparison_report_hash": null,
+                "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+                "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+                "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+                "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+                "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+                "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+                "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+                "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+                "render_set_hash": null,
+                "snapshot_id": null,
+                "snapshot_manifest_hash": null,
+                "snapshot_revision": null
+              },
+              "material_zone_id": "zone-white-shell",
+              "material_zone_id_status": "observed",
+              "parent_part_id": null,
+              "parent_part_id_status": "unknown",
+              "part_id": "shell",
+              "part_id_status": "observed",
+              "role": null,
+              "role_status": "unknown",
+              "solid": true,
+              "solid_status": "observed",
+              "source_node_id": "shell",
+              "source_node_id_status": "observed",
+              "source_operator_id": "forgecad.geometry.primitive@2",
+              "source_operator_id_status": "observed",
+              "symmetry_partner": null,
+              "symmetry_partner_status": "unknown",
+              "triangle_count": 12,
+              "triangle_count_status": "observed",
+              "visibility": null,
+              "visibility_status": "unknown"
+            },
+            {
+              "bbox": null,
+              "bbox_status": "unknown",
+              "children": null,
+              "children_status": "unknown",
+              "dimensions": null,
+              "dimensions_status": "unknown",
+              "display_name": "shell",
+              "display_name_status": "inferred",
+              "editability": null,
+              "editability_status": "unknown",
+              "lineage": {
+                "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+                "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+                "camera_hash": null,
+                "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+                "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+                "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+                "comparison_report_hash": null,
+                "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+                "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+                "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+                "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+                "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+                "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+                "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+                "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+                "render_set_hash": null,
+                "snapshot_id": null,
+                "snapshot_manifest_hash": null,
+                "snapshot_revision": null
+              },
+              "material_zone_id": "zone-white-shell",
+              "material_zone_id_status": "observed",
+              "parent_part_id": null,
+              "parent_part_id_status": "unknown",
+              "part_id": "shell",
+              "part_id_status": "observed",
+              "role": null,
+              "role_status": "unknown",
+              "solid": true,
+              "solid_status": "observed",
+              "source_node_id": "accent",
+              "source_node_id_status": "observed",
+              "source_operator_id": "forgecad.geometry.primitive@2",
+              "source_operator_id_status": "observed",
+              "symmetry_partner": null,
+              "symmetry_partner_status": "unknown",
+              "triangle_count": 224,
+              "triangle_count_status": "observed",
+              "visibility": null,
+              "visibility_status": "unknown"
+            },
+            {
+              "bbox": null,
+              "bbox_status": "unknown",
+              "children": null,
+              "children_status": "unknown",
+              "dimensions": null,
+              "dimensions_status": "unknown",
+              "display_name": "joint",
+              "display_name_status": "inferred",
+              "editability": null,
+              "editability_status": "unknown",
+              "lineage": {
+                "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+                "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+                "camera_hash": null,
+                "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+                "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+                "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+                "comparison_report_hash": null,
+                "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+                "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+                "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+                "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+                "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+                "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+                "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+                "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+                "render_set_hash": null,
+                "snapshot_id": null,
+                "snapshot_manifest_hash": null,
+                "snapshot_revision": null
+              },
+              "material_zone_id": "zone-black-mechanical",
+              "material_zone_id_status": "observed",
+              "parent_part_id": null,
+              "parent_part_id_status": "unknown",
+              "part_id": "joint",
+              "part_id_status": "observed",
+              "role": null,
+              "role_status": "unknown",
+              "solid": true,
+              "solid_status": "observed",
+              "source_node_id": "joint",
+              "source_node_id_status": "observed",
+              "source_operator_id": "forgecad.geometry.primitive@2",
+              "source_operator_id_status": "observed",
+              "symmetry_partner": null,
+              "symmetry_partner_status": "unknown",
+              "triangle_count": 64,
+              "triangle_count_status": "observed",
+              "visibility": null,
+              "visibility_status": "unknown"
+            },
+            {
+              "bbox": null,
+              "bbox_status": "unknown",
+              "children": null,
+              "children_status": "unknown",
+              "dimensions": null,
+              "dimensions_status": "unknown",
+              "display_name": "sensor",
+              "display_name_status": "inferred",
+              "editability": null,
+              "editability_status": "unknown",
+              "lineage": {
+                "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+                "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+                "camera_hash": null,
+                "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+                "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+                "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+                "comparison_report_hash": null,
+                "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+                "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+                "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+                "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+                "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+                "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+                "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+                "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+                "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+                "render_set_hash": null,
+                "snapshot_id": null,
+                "snapshot_manifest_hash": null,
+                "snapshot_revision": null
+              },
+              "material_zone_id": "zone-emissive-amber",
+              "material_zone_id_status": "observed",
+              "parent_part_id": null,
+              "parent_part_id_status": "unknown",
+              "part_id": "sensor",
+              "part_id_status": "observed",
+              "role": null,
+              "role_status": "unknown",
+              "solid": true,
+              "solid_status": "observed",
+              "source_node_id": "sensor",
+              "source_node_id_status": "observed",
+              "source_operator_id": "forgecad.geometry.primitive@2",
+              "source_operator_id_status": "observed",
+              "symmetry_partner": null,
+              "symmetry_partner_status": "unknown",
+              "triangle_count": 224,
+              "triangle_count_status": "observed",
+              "visibility": null,
+              "visibility_status": "unknown"
+            }
+          ],
+          "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+          "projection_status": "projection/read-only",
+          "read_only": true,
+          "schema_version": "SemanticSceneGraph@1",
+          "selection": {
+            "part_ids": [],
+            "reason": "Viewer selection is not part of the authoritative Runtime read model",
+            "status": "unknown"
+          },
+          "uncertainty": {
+            "inferred": [
+              "display_name_from_stable_part_id",
+              "current_stage_from_evidence_gate"
+            ],
+            "observed": [
+              "candidate_selection",
+              "material_zone_id",
+              "part_id",
+              "project_canonical_sha256",
+              "project_id",
+              "source_node_id",
+              "source_operator_id",
+              "triangle_count"
+            ],
+            "unknown": [
+              "editability_parameters",
+              "part_bbox",
+              "part_dimensions",
+              "part_parent",
+              "part_role",
+              "reference_view_coverage",
+              "symmetry_partner"
+            ]
+          }
+        },
+        "uncertainty": {
+          "inferred": [
+            "display_names",
+            "stage_signal"
+          ],
+          "observed": [
+            "project",
+            "candidate",
+            "artifact_readback",
+            "reference_metadata",
+            "visual_hashes"
+          ],
+          "unknown": [
+            "hidden_geometry",
+            "complete_reference_coverage",
+            "semantic_roles",
+            "editable_parameters"
+          ]
+        },
+        "visual_evidence_bundle": {
+          "available": false,
+          "camera": {
+            "camera_hash": null,
+            "status": "unknown"
+          },
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "canonical_sha256": "d7ecc28266a04cd01b364158473177b60414f68e2a9a27aa970c7718e6aea74c",
+          "comparison_report": null,
+          "hashes": {
+            "comparison_report_hash": null,
+            "human_receipt_hash": null,
+            "quality_report_hash": null,
+            "render_set_hash": null,
+            "target_sha256": null,
+            "visual_review_hash": null
+          },
+          "projection_status": "projection/read-only",
+          "quality_report": null,
+          "read_only": true,
+          "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+          "render_set": null,
+          "schema_version": "VisualEvidenceBundle@1",
+          "status": "unknown",
+          "unknowns": [
+            "render_set",
+            "comparison_report",
+            "camera",
+            "visual_gate"
+          ]
+        }
+      },
+      "project": {
+        "active_snapshot_revision": 0,
+        "canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+        "created_at": "1786743409",
+        "head_snapshot_id": null,
+        "name": "Agentic Runtime isolated observe probe",
+        "policy": {
+          "profile": "mvp"
+        },
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "schema_version": "Project@1",
+        "updated_at": "1786743409"
+      },
+      "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+      "projection_status": "projection/read-only",
+      "quality": {
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "candidate_quality_hard_gate_passed": true,
+        "canonical_sha256": "823c5195ff0901c7d00c7ec7c1b2380207086246a253121a1483472802817dc4",
+        "confirm_unlocked": false,
+        "export_unlocked": false,
+        "pbr_unlocked": false,
+        "projection_status": "projection/read-only",
+        "quality_report": {
+          "artifact": {
+            "artifact_id": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+            "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+            "canonical_sha256": "bb943318c1e34dfea25672c46878d5453ef26e1dc084fd577c69cf57dede7eba",
+            "hard_gate_passed": true,
+            "integrity": {
+              "boundary_edge_count": 0,
+              "degenerate_triangle_count": 0,
+              "external_uri_count": 0,
+              "glb_parse_status": "passed",
+              "invalid_index_count": 0,
+              "material_zone_coverage": 1.0,
+              "metadata_mismatch_count": 0,
+              "non_finite_count": 0,
+              "non_manifold_edge_count": 0,
+              "part_coverage": 1.0,
+              "source_coverage": 1.0,
+              "tangent_handedness_error_count": 0,
+              "tangent_non_finite_count": 0,
+              "tangent_orthogonality_error_count": 0,
+              "uv_non_finite_count": 0,
+              "winding_error_count": 0,
+              "zero_area_uv_triangle_count": 0
+            },
+            "material_zone_ids": [
+              "zone-white-shell",
+              "zone-black-mechanical",
+              "zone-emissive-amber"
+            ],
+            "mime": "model/gltf-binary",
+            "object_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+            "operator_catalog_sha256": "1e6c544551984a9cbb8ad0610b3bee20650d8533221019f243cfb7826084d760",
+            "part_bindings": [
+              {
+                "material_zone_id": "zone-white-shell",
+                "part_id": "shell",
+                "solid": true,
+                "source_node_id": "shell",
+                "triangle_count": 12
+              },
+              {
+                "material_zone_id": "zone-white-shell",
+                "part_id": "shell",
+                "solid": true,
+                "source_node_id": "accent",
+                "triangle_count": 224
+              },
+              {
+                "material_zone_id": "zone-black-mechanical",
+                "part_id": "joint",
+                "solid": true,
+                "source_node_id": "joint",
+                "triangle_count": 64
+              },
+              {
+                "material_zone_id": "zone-emissive-amber",
+                "part_id": "sensor",
+                "solid": true,
+                "source_node_id": "sensor",
+                "triangle_count": 224
+              }
+            ],
+            "part_ids": [
+              "shell",
+              "joint",
+              "sensor"
+            ],
+            "program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+            "readback_config_sha256": "e012a66b040f0b653b594e1c52e9fc2b1683751419962c0235d1f5cbffda4400",
+            "schema_version": "ArtifactReadback@2",
+            "size_bytes": 88424,
+            "source_node_ids": [
+              "shell",
+              "accent",
+              "joint",
+              "sensor"
+            ],
+            "triangle_count": 524,
+            "validator_status": "passed"
+          },
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "canonical_sha256": "a77acd0839b43b0f6e59a221cd6c958e50bf492e7cd402f1bd04e577b85023b0",
+          "checks": [
+            {
+              "check_id": "candidate_state",
+              "message": "candidate state is reviewable",
+              "status": "passed"
+            },
+            {
+              "check_id": "glb_readback",
+              "message": "Runtime artifact readback is hash-bound",
+              "status": "passed"
+            },
+            {
+              "check_id": "uv_tangent",
+              "message": "UV and tangent attributes are read back from the GLB BIN",
+              "status": "passed"
+            },
+            {
+              "check_id": "pbr_material_zones",
+              "message": "typed material zones are bound in GLB lineage",
+              "status": "passed"
+            },
+            {
+              "check_id": "reference_aspect_ratio",
+              "message": "bounded reference/model aspect comparison",
+              "status": "failed",
+              "threshold": 0.55,
+              "value": 0.42105266239944794
+            }
+          ],
+          "hard_gate_passed": false,
+          "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+          "reference_compare": {
+            "aspect_score": 0.42105266239944794,
+            "limitation": "MVP does not infer pixel silhouette or semantic correspondence from one reference image; this is an aspect-ratio evidence check only.",
+            "model_aspect_ratio": 0.421052662399448,
+            "reference_aspect_ratio": 1.0,
+            "reference_bytes_verified": true,
+            "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+            "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+            "status": "limited"
+          },
+          "schema_version": "QualityReport@1"
+        },
+        "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+        "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+        "read_only": true,
+        "schema_version": "AgenticQualityProjection@1",
+        "strict_visual_gate": "unknown",
+        "structural_status": "passed",
+        "visual_status": "unknown"
+      },
+      "read_only": true,
+      "reference_canvas": {
+        "canonical_sha256": "b0273a828386b1653c4af5ce620f8cfececade79d08ab30f789661dcee849fee",
+        "coverage": {
+          "missing_views": [
+            "front",
+            "back",
+            "left",
+            "right",
+            "top",
+            "three-quarter"
+          ],
+          "observed_views": [],
+          "reason": "ReferenceEvidence does not carry a complete view-coverage contract",
+          "status": "unknown"
+        },
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "projection_status": "projection/read-only",
+        "read_only": true,
+        "references": [
+          {
+            "authorization": {
+              "status": "observed",
+              "user_authorized": true
+            },
+            "frame_count": 1,
+            "height": 1,
+            "import_mode": "inline_content",
+            "lineage": {
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
+            },
+            "mime": "image/png",
+            "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+            "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+            "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+            "size_bytes": 68,
+            "view_claim": {
+              "status": "unknown",
+              "value": null
+            },
+            "width": 1
+          }
+        ],
+        "schema_version": "ReferenceCanvasProjection@1",
+        "selected_reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+        "unknowns": [
+          "view_coverage",
+          "reference_camera_claim",
+          "hidden_geometry",
+          "material_detail_coverage"
+        ]
+      },
+      "schema_version": "AgenticSceneObserveResult@1",
+      "semantic_scene_graph": {
+        "cameras": [],
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "canonical_sha256": "5a1ad60b38aafad9fbec25a5d241af63db31832fa418b2b33aff56369737cac8",
+        "evidence": {
+          "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+          "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+          "camera_hash": null,
+          "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+          "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+          "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+          "comparison_report_hash": null,
+          "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+          "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+          "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+          "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+          "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+          "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+          "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+          "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+          "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+          "render_set_hash": null,
+          "snapshot_id": null,
+          "snapshot_manifest_hash": null,
+          "snapshot_revision": null
+        },
+        "geometry": {
+          "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+          "bbox": "unknown",
+          "dimensions": "unknown",
+          "triangle_count": 524,
+          "triangle_count_status": "observed"
+        },
+        "materials": [
+          {
+            "channels": {
+              "ao": "unknown",
+              "base_color": "unknown",
+              "emissive": "unknown",
+              "metallic_roughness": "unknown",
+              "normal": "unknown"
+            },
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "material_zone_id": "zone-white-shell",
+            "status": "observed"
+          },
+          {
+            "channels": {
+              "ao": "unknown",
+              "base_color": "unknown",
+              "emissive": "unknown",
+              "metallic_roughness": "unknown",
+              "normal": "unknown"
+            },
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "material_zone_id": "zone-black-mechanical",
+            "status": "observed"
+          },
+          {
+            "channels": {
+              "ao": "unknown",
+              "base_color": "unknown",
+              "emissive": "unknown",
+              "metallic_roughness": "unknown",
+              "normal": "unknown"
+            },
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "material_zone_id": "zone-emissive-amber",
+            "status": "observed"
+          }
+        ],
+        "parts": [
+          {
+            "bbox": null,
+            "bbox_status": "unknown",
+            "children": null,
+            "children_status": "unknown",
+            "dimensions": null,
+            "dimensions_status": "unknown",
+            "display_name": "shell",
+            "display_name_status": "inferred",
+            "editability": null,
+            "editability_status": "unknown",
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "material_zone_id": "zone-white-shell",
+            "material_zone_id_status": "observed",
+            "parent_part_id": null,
+            "parent_part_id_status": "unknown",
+            "part_id": "shell",
+            "part_id_status": "observed",
+            "role": null,
+            "role_status": "unknown",
+            "solid": true,
+            "solid_status": "observed",
+            "source_node_id": "shell",
+            "source_node_id_status": "observed",
+            "source_operator_id": "forgecad.geometry.primitive@2",
+            "source_operator_id_status": "observed",
+            "symmetry_partner": null,
+            "symmetry_partner_status": "unknown",
+            "triangle_count": 12,
+            "triangle_count_status": "observed",
+            "visibility": null,
+            "visibility_status": "unknown"
+          },
+          {
+            "bbox": null,
+            "bbox_status": "unknown",
+            "children": null,
+            "children_status": "unknown",
+            "dimensions": null,
+            "dimensions_status": "unknown",
+            "display_name": "shell",
+            "display_name_status": "inferred",
+            "editability": null,
+            "editability_status": "unknown",
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "material_zone_id": "zone-white-shell",
+            "material_zone_id_status": "observed",
+            "parent_part_id": null,
+            "parent_part_id_status": "unknown",
+            "part_id": "shell",
+            "part_id_status": "observed",
+            "role": null,
+            "role_status": "unknown",
+            "solid": true,
+            "solid_status": "observed",
+            "source_node_id": "accent",
+            "source_node_id_status": "observed",
+            "source_operator_id": "forgecad.geometry.primitive@2",
+            "source_operator_id_status": "observed",
+            "symmetry_partner": null,
+            "symmetry_partner_status": "unknown",
+            "triangle_count": 224,
+            "triangle_count_status": "observed",
+            "visibility": null,
+            "visibility_status": "unknown"
+          },
+          {
+            "bbox": null,
+            "bbox_status": "unknown",
+            "children": null,
+            "children_status": "unknown",
+            "dimensions": null,
+            "dimensions_status": "unknown",
+            "display_name": "joint",
+            "display_name_status": "inferred",
+            "editability": null,
+            "editability_status": "unknown",
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "material_zone_id": "zone-black-mechanical",
+            "material_zone_id_status": "observed",
+            "parent_part_id": null,
+            "parent_part_id_status": "unknown",
+            "part_id": "joint",
+            "part_id_status": "observed",
+            "role": null,
+            "role_status": "unknown",
+            "solid": true,
+            "solid_status": "observed",
+            "source_node_id": "joint",
+            "source_node_id_status": "observed",
+            "source_operator_id": "forgecad.geometry.primitive@2",
+            "source_operator_id_status": "observed",
+            "symmetry_partner": null,
+            "symmetry_partner_status": "unknown",
+            "triangle_count": 64,
+            "triangle_count_status": "observed",
+            "visibility": null,
+            "visibility_status": "unknown"
+          },
+          {
+            "bbox": null,
+            "bbox_status": "unknown",
+            "children": null,
+            "children_status": "unknown",
+            "dimensions": null,
+            "dimensions_status": "unknown",
+            "display_name": "sensor",
+            "display_name_status": "inferred",
+            "editability": null,
+            "editability_status": "unknown",
+            "lineage": {
+              "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+              "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+              "camera_hash": null,
+              "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+              "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+              "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+              "comparison_report_hash": null,
+              "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+              "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+              "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+              "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+              "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+              "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+              "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+              "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+              "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "render_set_hash": null,
+              "snapshot_id": null,
+              "snapshot_manifest_hash": null,
+              "snapshot_revision": null
+            },
+            "material_zone_id": "zone-emissive-amber",
+            "material_zone_id_status": "observed",
+            "parent_part_id": null,
+            "parent_part_id_status": "unknown",
+            "part_id": "sensor",
+            "part_id_status": "observed",
+            "role": null,
+            "role_status": "unknown",
+            "solid": true,
+            "solid_status": "observed",
+            "source_node_id": "sensor",
+            "source_node_id_status": "observed",
+            "source_operator_id": "forgecad.geometry.primitive@2",
+            "source_operator_id_status": "observed",
+            "symmetry_partner": null,
+            "symmetry_partner_status": "unknown",
+            "triangle_count": 224,
+            "triangle_count_status": "observed",
+            "visibility": null,
+            "visibility_status": "unknown"
+          }
+        ],
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "projection_status": "projection/read-only",
+        "read_only": true,
+        "schema_version": "SemanticSceneGraph@1",
+        "selection": {
+          "part_ids": [],
+          "reason": "Viewer selection is not part of the authoritative Runtime read model",
+          "status": "unknown"
+        },
+        "uncertainty": {
+          "inferred": [
+            "display_name_from_stable_part_id",
+            "current_stage_from_evidence_gate"
+          ],
+          "observed": [
+            "candidate_selection",
+            "material_zone_id",
+            "part_id",
+            "project_canonical_sha256",
+            "project_id",
+            "source_node_id",
+            "source_operator_id",
+            "triangle_count"
+          ],
+          "unknown": [
+            "editability_parameters",
+            "part_bbox",
+            "part_dimensions",
+            "part_parent",
+            "part_role",
+            "reference_view_coverage",
+            "symmetry_partner"
+          ]
+        }
+      },
+      "snapshot": null,
+      "visual_evidence_bundle": {
+        "available": false,
+        "camera": {
+          "camera_hash": null,
+          "status": "unknown"
+        },
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "canonical_sha256": "d7ecc28266a04cd01b364158473177b60414f68e2a9a27aa970c7718e6aea74c",
+        "comparison_report": null,
+        "hashes": {
+          "comparison_report_hash": null,
+          "human_receipt_hash": null,
+          "quality_report_hash": null,
+          "render_set_hash": null,
+          "target_sha256": null,
+          "visual_review_hash": null
+        },
+        "projection_status": "projection/read-only",
+        "quality_report": null,
+        "read_only": true,
+        "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+        "render_set": null,
+        "schema_version": "VisualEvidenceBundle@1",
+        "status": "unknown",
+        "unknowns": [
+          "render_set",
+          "comparison_report",
+          "camera",
+          "visual_gate"
+        ]
+      }
+    },
+    "stage_plan": {
+      "allowed_actions": [
+        "inspect_artifact",
+        "render_reference_comparison",
+        "evaluate_quality"
+      ],
+      "blocked_actions": [
+        "pbr_prepare",
+        "candidate_confirm",
+        "export_confirm"
+      ],
+      "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+      "canonical_sha256": "f457d5c1aab28a5adc173cd261d6c74e5270b21d27129971f0cb5e871a0c95bb",
+      "checkpoint": {
+        "durable": false,
+        "reason": "DesignSession is a recomputable projection; checkpoint writes remain outside this phase",
+        "status": "not-persisted"
+      },
+      "current_stage": "primary-form",
+      "current_stage_status": "awaiting-evidence",
+      "design_session_id": "design-session-projection-77ad46b0ca53af0a0acb3ade9fc0db3c",
+      "durable_checkpoint": false,
+      "lineage": {
+        "artifact_readback_sha256": "75651f5982bcef9208874b1e9d8850589cecc70fadd9ee2709b2e9072431dc0f",
+        "artifact_sha256": "082b334c64ce4c58d02a46e3e4d103c1e7a53f5b30fb48e5dc9afe8d43d4e773",
+        "camera_hash": null,
+        "candidate_canonical_sha256": "b740c2ff2368963ea06acb6d9a34ae2efb8669adc9d515a8d0395e30b8b312c2",
+        "candidate_id": "candidate-311ae554ed194af987cb412656c25947",
+        "candidate_request_sha256": "695e210d37114f0aa1aed6b95d70361fe2d9eb658f6a2f58bc62ca9daf3d7dc9",
+        "comparison_report_hash": null,
+        "geometry_program_object_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+        "geometry_program_sha256": "ef0d2d8cdfa6cfb381a40533c85c3f23f37aefdbb6dc203dcfa65ac00db2c148",
+        "lineage_status": "hash-bound where evidence exists; missing values remain unknown",
+        "project_canonical_sha256": "55565f16e76b180abdd5e9a56ac7e767bc14393eaceb65a4fabaf255f0369469",
+        "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+        "quality_report_hash": "bcb64f61907e37a049caa03d1fffbaf34f704ff1b93dbb763d663a740c200194",
+        "quality_report_id": "quality-geometry-6cb9078de3114cbeabc5e196b716bf7a",
+        "reference_canonical_sha256": "01c71a1726526b730de74fc11cc46eb8bfcdaf8359dbe0e3633a1f119778502d",
+        "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+        "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+        "render_set_hash": null,
+        "snapshot_id": null,
+        "snapshot_manifest_hash": null,
+        "snapshot_revision": null
+      },
+      "next_stage": null,
+      "project_id": "project-f04f89911dc2499abcd4f5db000bd776",
+      "projection_status": "projection/read-only",
+      "quality_gate": {
+        "candidate_quality_hard_gate_passed": true,
+        "structural_status": "passed"
+      },
+      "read_only": true,
+      "rollback": {
+        "reason": "restore remains an existing Runtime write flow and is not invoked by observe/plan",
+        "status": "not-available-in-projection"
+      },
+      "schema_version": "DesignStagePlan@1",
+      "stage_advance_allowed": false,
+      "stage_order": [
+        "reference-canvas",
+        "primary-form",
+        "secondary-structure",
+        "tertiary-detail",
+        "uv-pbr",
+        "final-review"
+      ],
+      "strict_visual_gate": {
+        "comparison_status": "unknown",
+        "reason": "strict visual evidence is unavailable",
+        "status": "unknown",
+        "visual_status": "unknown"
+      },
+      "unlocks": {
+        "confirm": false,
+        "export": false,
+        "pbr": false
+      }
+    }
+  },
+  "protocol_version": "2025-06-18",
+  "reference_id": "reference-f199804d7d1a47bab34d7277287cf5e8",
+  "restart_readback": true,
+  "restore_intent_object_sha256": "1bb8cd9971bf6728252546ae8673a45350a66643d2ab74b0385c8a3e1cfd1664",
+  "runtime_write_scope": "isolated temporary project only",
+  "scene_observe_schema": "AgenticSceneObserveResult@1",
+  "schema_version": "ForgeCADAgenticRuntimeProbe@1",
+  "session_canonical_sha256": "edd4df1649a0f7e19c31bd6b8527288f4e647d660e197b4ade1a299d29ecf8ba",
+  "session_id": "session-agentic-probe",
+  "stage": "reference-canvas",
+  "stage_plan_schema": "DesignStagePlan@1",
+  "status": "PASS",
+  "task_id": "FGC-MCP010F",
+  "tool_manifest": {
+    "candidate_stage_plan_get": "read-only candidate-bound projection",
+    "checkpoint_get": "read-only durable lookup",
+    "checkpoint_prepare": "approved Runtime write",
+    "checkpoint_restore_prepare": "approved CAS-only intent",
+    "design_stage_plan_get": "read-only",
+    "scene_observe_get": "read-only",
+    "session_create_or_resume": "approved Runtime write",
+    "session_get": "read-only durable lookup"
+  }
+}

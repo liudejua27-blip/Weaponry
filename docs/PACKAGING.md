@@ -1,5 +1,7 @@
 # ForgeCAD Runtime 打包合同
 
+2026-08-15 live/package cohort refresh：当前 `abae43f3` 已重建并安装用户级 `ForgeCAD Runtime Dev.app`，MCP/Runtime/Geometry Worker/Render Worker 四资源 cohort `5a1f108a…e2dd2f` exact-match；ad-hoc deep-strict、resource allowlist、隔离 Runtime/project/preflight probe 均 PASS，旧包以 timestamped backup 保留。新包 manifest 为 37 read + 24 opt-in write；安装与 probe receipt 位于 `docs/evidence/mcp010f/dev-app-install-live-cohort-20260815.json` 和 `docs/evidence/mcp010f/dev-app-live-cohort-probe-20260815.json`。当前 Codex MCP 会话仍缓存旧 `7f9e4c…ee518`/旧 manifest `05fca3…d4d0a`，必须重新建立会话才能验证 live tool surface；本次不升级真实 likeness、PBR、人评、export/restart 或 360。
+
 版本：2026-08-09
 状态：MCP013 正式发布合同；不阻塞 MCP005–009 开发 MVP，当前不可外部分发
 
@@ -29,7 +31,7 @@ MCP005–009 使用本地开发构建验证真实 3D，不要求 Developer ID/no
 
 Codex MCP 配置只写本机签名二进制路径、timeout 和 write approval policy，不包含 secret 或项目绝对路径。卸载默认保留用户 Library，数据删除需独立选择。
 
-当前 `forgecad-runtime serve` 用于独立诊断，正常入口是 `forgecad-mcp`：MCP 先完成 stdio initialize，再异步启动同包 Runtime，并通过受保护的 `ready.json`/status handoff 连接 authenticated local IPC。生命周期回归已通过；移除独立 Host 后，当前两二进制 Tauri resource probe 尚未重跑，旧 Host bundle probe 仅是 `SUPERSEDED` 历史证据。本机可见 1 个有效 codesigning certificate，但以名称和 SHA-1 选择身份的只读签名探针均返回 `errSecInternalComponent`，keychain settings 读取还返回 passphrase error，且没有修改 keychain；因此 distribution signing Gate 保持 BLOCKED，详见 `docs/evidence/mcp004/macos-signing-diagnostic.json`。`docs/evidence/mcp004/codex-cli-write-e2e.json` 只证明真实 Codex CLI 对开发诊断入口的事务交接。
+当前 `forgecad-runtime serve` 用于独立诊断，正常入口是 `forgecad-mcp`：MCP 先完成 stdio initialize，再异步启动同包 Runtime，并通过受保护的 `ready.json`/status handoff 连接 authenticated local IPC。生命周期回归已通过；2026-08-15 同 cohort Dev.app 的四资源 Resource allowlist、ad-hoc deep-strict package verify 和 packaged Runtime → sibling Render Worker 九 AOV raw transport 已通过，证据见 `docs/evidence/mcp010f/dev-app-install-render-worker-20260815.json`、`dev-app-package-verify-render-worker-20260815.json`、`packaged-render-worker-raw-20260815.json`。该 raw probe 使用 synthetic reference，只证明 packaged resource/process/protocol；distribution signing Gate 仍保持 BLOCKED，正式 notarization、packaged UI E2E、真实 likeness/PBR/人评和 360 不由此升级。本机可见 1 个有效 codesigning certificate，但以名称和 SHA-1 选择身份的只读签名探针均返回 `errSecInternalComponent`，keychain settings 读取还返回 passphrase error，且没有修改 keychain；详见 `docs/evidence/mcp004/macos-signing-diagnostic.json`。`docs/evidence/mcp004/codex-cli-write-e2e.json` 只证明真实 Codex CLI 对开发诊断入口的事务交接。
 
 本地打包命令要求调用方显式提供签名身份；没有身份时命令直接失败，不自动退回 unsigned：
 

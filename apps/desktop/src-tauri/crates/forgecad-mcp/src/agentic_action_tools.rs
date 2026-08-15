@@ -191,9 +191,7 @@ impl AgenticActionTool {
         match self {
             Self::DesignActionRunGet => "design_action_run_get",
             Self::DesignActionRunPrepare => "design_action_run_prepare",
-            Self::DesignActionOptimizationProposalPrepare => {
-                "design_action_optimization_proposal_prepare"
-            }
+            Self::DesignActionOptimizationProposalPrepare => "design_action_optimization_proposal_prepare",
             Self::RepairApplyPrepare => "repair_apply_prepare",
             Self::RepairApplyConfirm => "repair_apply_confirm",
         }
@@ -779,7 +777,7 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
     }
     let object = value
         .as_object()
-        .ok_or_else(|| "AGENTIC_ACTION_RESPONSE_INVALID: response must be an object".to_owned())?;
+        .ok_or_else(|| "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response must be an object".to_owned())?;
     for (key, expected) in [
         ("project_id", binding.project_id.as_deref()),
         ("session_id", binding.session_id.as_deref()),
@@ -798,7 +796,7 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
         && object.get("schema_version").and_then(Value::as_str) != Some("DesignActionRun@1")
     {
         return Err(
-            "AGENTIC_ACTION_RESPONSE_INVALID: prepare response is not DesignActionRun@1".to_owned(),
+            "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: prepare response is not DesignActionRun@1".to_owned(),
         );
     }
     if name == "design_action_optimization_proposal_prepare"
@@ -806,7 +804,7 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
             != Some("OptimizationProposalPrepareResult@1")
     {
         return Err(
-            "AGENTIC_ACTION_RESPONSE_INVALID: optimization proposal response has an invalid schema"
+                "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: optimization proposal response has an invalid schema"
                 .to_owned(),
         );
     }
@@ -821,7 +819,7 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
                 != object.get("candidate_id").and_then(Value::as_str)
         {
             return Err(
-                "AGENTIC_ACTION_RESPONSE_INVALID: repair apply response is not source-bound"
+                "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: repair apply response is not source-bound"
                     .to_owned(),
             );
         }
@@ -833,15 +831,15 @@ pub fn bind_response(name: &str, value: &Value, binding: &mut Binding) -> Result
     validate_response(name, value, binding)?;
     let object = value
         .as_object()
-        .ok_or_else(|| "AGENTIC_ACTION_RESPONSE_INVALID: response must be an object".to_owned())?;
+        .ok_or_else(|| "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response must be an object".to_owned())?;
     for key in ["project_id", "session_id", "candidate_id", "run_id"] {
         let value = object
             .get(key)
             .and_then(Value::as_str)
-            .ok_or_else(|| format!("AGENTIC_ACTION_RESPONSE_INVALID: {key} is missing"))?;
+            .ok_or_else(|| format!("AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: {key} is missing"))?;
         if !is_opaque_id(value) {
             return Err(format!(
-                "AGENTIC_ACTION_RESPONSE_INVALID: {key} is malformed"
+                "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: {key} is malformed"
             ));
         }
         let slot = match key {
@@ -949,6 +947,12 @@ fn validate_repair_apply(
 
 fn validate_prepare(object: &Map<String, Value>) -> Result<(), String> {
     let requested_stage = required_stage(object, "requested_stage")?;
+    if requested_stage != "primary-form" {
+        return Err(
+            "AGENTIC_ACTION_STAGE_UNSUPPORTED: requested stage is not executable in this slice; only primary-form is supported"
+                .to_owned(),
+        );
+    }
     let input_sha256 = required_sha256(object, "input_sha256")?;
     if input_sha256.is_empty() {
         return Err("AGENTIC_ACTION_INVALID_INPUT: input_sha256 is required".to_owned());

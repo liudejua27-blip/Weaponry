@@ -28,7 +28,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from probe_mcp007_codex_cli import (  # noqa: E402
-    config_override as base_config_override,
+    config_override,
     event_items,
     mcp_calls,
     structured_result,
@@ -39,52 +39,31 @@ from probe_mcp010e_raw_stdio import robot_detail_program_draft  # noqa: E402
 
 
 AOV_ORDER = ("beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch")
-METRIC_CRITERIA = {
-    "silhouette_iou": ("min", "silhouette_iou_min", "VISIBLE_SILHOUETTE_IOU_MIN"),
-    "boundary_f1_4px": ("min", "boundary_f1_4px_min", "VISIBLE_BOUNDARY_F1_MIN"),
-    "bbox_edge_error": ("max", "bbox_edge_error_max", "VISIBLE_BBOX_EDGE_ERROR_MAX"),
-    "centroid_error": ("max", "centroid_error_max", "VISIBLE_CENTROID_ERROR_MAX"),
-    "landmark_coverage": ("min", "landmark_coverage_min", "VISIBLE_LANDMARK_COVERAGE_MIN"),
-    "landmark_nme": ("max", "landmark_nme_max", "VISIBLE_LANDMARK_NME_MAX"),
-    "region_median_iou": ("min", "region_median_iou_min", "VISIBLE_REGION_MEDIAN_IOU_MIN"),
-    "critical_region_min_iou": ("min", "critical_region_min_iou_min", "VISIBLE_CRITICAL_REGION_IOU_MIN"),
-}
 SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")
 AUTHORING_SEQUENCE = ("capabilities_get", "runtime_status", "doctor", "operator_catalog_get", "skill_list", "geometry_program_hash", "geometry_prepare")
 COMPARE_SEQUENCE = ("job_get", "candidate_get", "artifact_readback_get", "reference_compare_prepare")
+PRIMARY_FORM_REPAIR_SEQUENCE = ("primary_form_repair_prepare",)
 RENDER_SEQUENCE = AOV_ORDER
 REVIEW_SEQUENCE = ("visual_review_submit", "quality_get")
 SILHOUETTE_TARGET_SEQUENCE = ("reference_mask_prepare",)
-CADFIT_COARSE_EVALUATIONS = 32
-CADFIT_MID_TOP_K = 4
-CADFIT_FINAL_TOP_K = 2
-CADFIT_EXPECTED_EVALUATIONS = CADFIT_COARSE_EVALUATIONS + CADFIT_MID_TOP_K + CADFIT_FINAL_TOP_K + 1
-CADFIT_TERMINAL_STATUSES = {"succeeded", "failed", "cancelled"}
 # Keep the visual turn as one bounded observe -> decide -> prepare surface.
 # scene_observe_get is deliberately inside the same ephemeral Codex turn as
 # target/camera/Rig, so the model does not stitch a design decision from
 # unrelated fragmented reads or silently re-observe after a state change.
-SILHOUETTE_SEQUENCE = ("silhouette_target_get", "scene_observe_get", "camera_fit_prepare", "silhouette_rig_hash")
+SILHOUETTE_SEQUENCE = (
+    "silhouette_target_get",
+    "camera_fit_prepare",
+    "job_get",
+    "candidate_get",
+    "artifact_readback_get",
+    "reference_compare_prepare",
+    "scene_observe_get",
+    "silhouette_rig_hash",
+)
 
 
 class BoundaryOnlyComplete(RuntimeError):
     """Internal control flow for the evidence-only boundary route."""
-
-
-def config_override(command: str, approval_mode: str = "writes") -> str:
-    """Build the MCP override, with an explicit isolated-probe opt-in.
-
-    Product defaults keep write approval enabled.  The opt-in is only used by
-    this probe against a temporary Runtime/CAS and the prompts never request
-    candidate confirmation or export.
-    """
-    if approval_mode not in {"writes", "approve"}:
-        raise ValueError(f"unsupported isolated probe approval mode: {approval_mode}")
-    value = base_config_override(command)
-    return value.replace(
-        'default_tools_approval_mode="writes"',
-        f'default_tools_approval_mode="{approval_mode}"',
-    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -94,11 +73,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--runtime-command", required=True)
     parser.add_argument("--mcp-command", required=True)
     parser.add_argument("--codex-command", default="codex")
-    parser.add_argument(
-        "--auto-approve-isolated-writes",
-        action="store_true",
-        help="For this probe's temporary Runtime only, approve setup writes; candidate confirm/export are never requested.",
-    )
     parser.add_argument("--evidence", type=Path, help="JSON receipt below docs/evidence")
     parser.add_argument(
         "--intake",
@@ -128,9 +102,9 @@ def parse_args() -> argparse.Namespace:
         help="Run the Runtime-owned reference mask, camera fit and bounded SilhouetteRig proposal before comparison.",
     )
     parser.add_argument(
-        "--cadfit-optimization",
+        "--primary-form-repair",
         action="store_true",
-        help="After the bounded silhouette fit, run a real Codex-driven asynchronous one-Part CADFit OptimizationJob; it records a proposal only and never confirms or exports.",
+        help="After the one-shot observation/camera/Rig turn, submit one Runtime-owned Primary Form repair action and compare its staged candidate.",
     )
     parser.add_argument("--timeout", type=float, default=360.0)
     parser.add_argument("--sandbox", choices=("read-only", "workspace-write"), default="workspace-write")
@@ -145,7 +119,46 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="stop after candidate-bound boundary_error_get and persist its typed Part summary; skip AOV/review calls",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--part-contour-part",
+        help="after boundary_error_get, request one Runtime-owned PartContourFitResult@1 for this exact semantic Part ID",
+    )
+    parser.add_argument(
+        "--part-contour-trial",
+        action="store_true",
+        help="scope one Runtime-owned primary_form_repair_prepare candidate trial to --part-contour-part and keep the same-camera acceptance gate",
+    )
+    parser.add_argument(
+        "--part-contour-sequence",
+        help="run 2-3 exact Part repairs serially in one project; each accepted staged candidate becomes the next step source",
+    )
+    options = parser.parse_args()
+    if options.primary_form_repair and not options.silhouette_first:
+        parser.error("--primary-form-repair requires --silhouette-first")
+    if options.part_contour_part and not options.silhouette_first:
+        parser.error("--part-contour-part requires --silhouette-first")
+    if options.part_contour_trial and not options.part_contour_part:
+        parser.error("--part-contour-trial requires --part-contour-part")
+    if options.part_contour_trial and not options.silhouette_first:
+        parser.error("--part-contour-trial requires --silhouette-first")
+    if options.part_contour_sequence:
+        if options.part_contour_trial or options.part_contour_part:
+            parser.error("--part-contour-sequence cannot be combined with --part-contour-part or --part-contour-trial")
+        parts = tuple(part.strip() for part in options.part_contour_sequence.split(",") if part.strip())
+        if not 2 <= len(parts) <= 3:
+            parser.error("--part-contour-sequence requires 2 or 3 comma-separated Part IDs")
+        if len(set(parts)) != len(parts):
+            parser.error("--part-contour-sequence must not repeat a Part ID")
+        if any(len(part) > 128 or not re.fullmatch(r"[A-Za-z0-9_.:-]+", part) for part in parts):
+            parser.error("--part-contour-sequence contains an invalid Part ID")
+        options.part_contour_sequence_parts = parts
+        options.silhouette_first = True
+        options.primary_form_repair = True
+    else:
+        options.part_contour_sequence_parts = ()
+    if options.part_contour_trial:
+        options.primary_form_repair = True
+    return options
 
 
 def write_receipt(path: Path | None, receipt: dict[str, Any]) -> None:
@@ -171,130 +184,6 @@ def build_cohort(command: str, component: str) -> str:
     if identity.get("component") != component or not isinstance(cohort, str) or len(cohort) != 64:
         raise ValueError(f"invalid {component} build identity")
     return cohort
-
-
-def runtime_visible_view_policy(repo_root: Path) -> dict[str, Any]:
-    """Read the threshold policy from the source used to build this cohort.
-
-    QualityReport@2 intentionally remains a closed evidence contract and does
-    not duplicate the product threshold table. The real-Codex receipt must
-    still make the policy used for its metric interpretation explicit, so bind
-    the parsed values to the exact Runtime source hash rather than repeating a
-    second hand-maintained table in the probe.
-    """
-    runtime_source = repo_root / "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs"
-    source_bytes = runtime_source.read_bytes()
-    source = source_bytes.decode("utf-8")
-    thresholds: dict[str, float] = {}
-    for _metric, (_direction, threshold_name, constant_name) in METRIC_CRITERIA.items():
-        match = re.search(
-            rf"const {re.escape(constant_name)}: f64 = ([0-9]+(?:\.[0-9]+)?);",
-            source,
-        )
-        if match is None:
-            raise RuntimeError(f"Runtime visible-view threshold is missing: {constant_name}")
-        thresholds[threshold_name] = float(match.group(1))
-    source_sha256 = hashlib.sha256(source_bytes).hexdigest()
-    return {
-        "authority": "forgecad-runtime-source",
-        "source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-        "source_sha256": source_sha256,
-        "revision": f"FORGECAD_VISIBLE_VIEW_POLICY@1:{source_sha256}",
-        "thresholds": thresholds,
-    }
-
-
-def metric_gate_results(metrics: Any, thresholds: dict[str, float]) -> dict[str, str]:
-    if not isinstance(metrics, dict):
-        raise RuntimeError("comparison did not return a metric object")
-    results: dict[str, str] = {}
-    for metric_name, (direction, threshold_name, _constant_name) in METRIC_CRITERIA.items():
-        measured = metrics.get(metric_name)
-        threshold = thresholds.get(threshold_name)
-        if not isinstance(measured, (int, float)) or not math.isfinite(float(measured)):
-            raise RuntimeError(f"comparison metric is invalid: {metric_name}")
-        if threshold is None:
-            raise RuntimeError(f"Runtime threshold is missing: {threshold_name}")
-        results[metric_name] = (
-            "PASS"
-            if (float(measured) >= threshold if direction == "min" else float(measured) <= threshold)
-            else "FAIL"
-        )
-    return results
-
-
-def complete_transport_receipt_fields(
-    metrics: Any,
-    typed_evidence_bindings: dict[str, Any],
-    quality_visual_status: Any,
-    quality_hard_gate_passed: Any,
-    visual_review_status: Any,
-    camera_binding_status: str,
-    policy: dict[str, Any],
-) -> dict[str, Any]:
-    """Return explicit truth-binding fields for a completed transport.
-
-    These fields describe evidence completeness only. They deliberately do
-    not turn a failed visual candidate, an unrun human/PBR gate, or an absent
-    export/restart proof into a pass.
-    """
-    render_artifacts = typed_evidence_bindings.get("render_pass_artifacts")
-    comparison_bindings = typed_evidence_bindings.get("comparison_bindings") or {}
-    mask_binding = typed_evidence_bindings.get("mask_binding") or {}
-    visual_review = typed_evidence_bindings.get("visual_review") or {}
-    quality_readback = typed_evidence_bindings.get("quality_readback") or {}
-    thresholds = policy["thresholds"]
-    return {
-        "thresholds": thresholds,
-        "threshold_revision": policy["revision"],
-        "threshold_source_sha256": policy["source_sha256"],
-        "metric_gate_results": metric_gate_results(metrics, thresholds),
-        "receipt_completeness": {
-            "artifact_readback_integrity_counters": "PASS_ARTIFACT_READBACK_HASH_AND_VALIDATOR",
-            "camera_binding": camera_binding_status,
-            "candidate_confirm": "NOT_RUN_EXPLICIT",
-            "candidate_state": "PASS_CANDIDATE_BOUND_READBACK",
-            "comparison_canonical_vs_object_hashes": "PASS"
-            if comparison_bindings.get("comparison_report", {}).get("binding_status") == "PASS"
-            else "MISSING",
-            "export": "NOT_RUN_EXPLICIT",
-            "mask_sha256_and_revision": "PASS"
-            if mask_binding.get("binding_status") == "PASS"
-            else "MISSING",
-            "metric_revision": "ReferenceComparisonReport@1",
-            "per_aov_hashes_and_dimensions": "PASS_9_TYPED_RENDER_SET_PASSES"
-            if isinstance(render_artifacts, list)
-            and len(render_artifacts) == len(AOV_ORDER)
-            and all(item.get("binding_status") == "PASS_TYPED_RENDER_SET_PASS_ARTIFACT" for item in render_artifacts)
-            else "MISSING",
-            "render_canonical_vs_object_hashes": "PASS"
-            if comparison_bindings.get("render_set", {}).get("binding_status") == "PASS"
-            else "MISSING",
-            "restart_hash": "NOT_RUN_EXPLICIT",
-            "status": "COMPLETE_TRANSPORT_WITH_QUALITY_TARGET_NOT_MET"
-            if quality_visual_status == "QUALITY_TARGET_NOT_MET" and quality_hard_gate_passed is False
-            else "INCOMPLETE_TRUTH_BINDING",
-            "structured_thresholds": "PASS_RUNTIME_SOURCE_POLICY",
-            "threshold_revision": "PASS_RUNTIME_SOURCE_SHA256",
-            "visual_review_receipt_hash": "PASS"
-            if visual_review.get("binding_status") == "PASS"
-            and isinstance(quality_readback.get("object_sha256"), str)
-            else "MISSING",
-        },
-        "downstream_status": {
-            "candidate_confirm": "NOT_RUN",
-            "export": "NOT_RUN",
-            "restart_hash": "NOT_RUN",
-            "packaged_reference_visual_e2e": "NOT_RUN",
-            "viewer_accessibility_e2e": "NOT_RUN",
-        },
-        "quality_status_derivation": {
-            "metric_gate_results": "RUNTIME_POLICY_BOUND",
-            "quality_visual_status": quality_visual_status,
-            "quality_hard_gate_passed": quality_hard_gate_passed,
-            "visual_review_status": visual_review_status,
-        },
-    }
 
 
 def read_bound_viewer_projection(
@@ -452,7 +341,21 @@ def wait_for_ready(path: Path, process: subprocess.Popen[str], timeout: float) -
 
 
 def call_sequence(items: list[dict[str, Any]]) -> list[str]:
-    return [str(call.get("tool")) for call in mcp_calls(items) if call.get("server") == "forgecad"]
+    """Return the successful raw ForgeCAD call order for stage validation.
+
+    ``mcp_calls`` is intentionally a compact receipt projection grouped by
+    call id.  A fresh Codex retry can reuse a logical call id, so using that
+    projection for ordering can hide a completed suffix behind an earlier
+    partial call.  Stage gates must consume the raw completed events; the
+    compact projection remains reserved for transport receipts.
+    """
+    return [
+        str(item.get("tool"))
+        for item in items
+        if item.get("type") == "mcp_tool_call"
+        and item.get("server") == "forgecad"
+        and item.get("status") == "completed"
+    ]
 
 
 def has_subsequence(actual: list[str], expected: tuple[str, ...]) -> bool:
@@ -464,11 +367,8 @@ def has_subsequence(actual: list[str], expected: tuple[str, ...]) -> bool:
 
 
 def all_completed(items: list[dict[str, Any]], expected: tuple[str, ...]) -> bool:
-    calls = [call for call in mcp_calls(items) if call.get("server") == "forgecad"]
-    by_tool: dict[str, list[dict[str, Any]]] = {}
-    for call in calls:
-        by_tool.setdefault(str(call.get("tool")), []).append(call)
-    return all(any(call.get("status") == "completed" for call in by_tool.get(name, [])) for name in expected)
+    completed = set(call_sequence(items))
+    return all(name in completed for name in expected)
 
 
 def completed_tool_sequence(items: list[dict[str, Any]]) -> list[str]:
@@ -521,7 +421,6 @@ def run_required_codex_turn(
     inventing or replaying any Runtime state in the probe.
     """
     aggregate: list[dict[str, Any]] = []
-    last_process_error: str | None = None
     for attempt in range(max_attempts):
         retry_note = ""
         if attempt:
@@ -530,14 +429,7 @@ def run_required_codex_turn(
                 "after a partial sequence; do not explain, recompute hashes, or call unrelated "
                 "tools. Complete the exact remaining sequence now.\n"
             )
-        try:
-            turn = run_codex_turn(options, environment, prompt_text + retry_note, workspace_root)
-        except (OSError, subprocess.SubprocessError) as error:
-            # A host can fail before emitting JSONL (for example a transient
-            # Codex process exit).  Treat that as a bounded retryable stage
-            # failure instead of discarding the whole isolated Runtime run.
-            last_process_error = str(error)[:500]
-            continue
+        turn = run_codex_turn(options, environment, prompt_text + retry_note, workspace_root)
         turn_outputs.append(turn)
         items = event_items(turn.stdout)
         aggregate.extend(items)
@@ -554,8 +446,7 @@ def run_required_codex_turn(
         ]
         if has_subsequence(completed, expected) and all(name in completed for name in expected):
             return aggregate
-    suffix = f"; last process error: {last_process_error}" if last_process_error else ""
-    raise RuntimeError(f"Codex did not complete {label} after {max_attempts} bounded attempts{suffix}")
+    raise RuntimeError(f"Codex did not complete {label} after {max_attempts} bounded attempts")
 
 
 def render_pass_names(items: list[dict[str, Any]]) -> list[str]:
@@ -590,31 +481,12 @@ def side_effect_summary(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             command_text = command
         else:
             command_text = ""
-        tokens: list[str] = []
-        if command_text:
-            try:
-                tokens = [token.rsplit("/", 1)[-1] for token in shlex.split(command_text)[:3]]
-            except ValueError:
-                tokens = []
         normalized_command = command_text.lower()
         forbidden_tokens = (
             "rm ", "mv ", "cp ", "chmod ", "chown ", "tee ", "install ",
             "python", "node ", "git ", "curl ", "wget ", "http://", "https://",
         )
-        # Codex may use a read-only shell pipeline (for example `cat .../SKILL.md
-        # | sed ...`) to inspect a first-party Skill.  Pipes and stderr
-        # redirection to /dev/null are not writes by themselves; reject actual
-        # command chaining, mutating commands, network access, or redirection
-        # to a real file before classifying the event as harmless.
-        mutating_command = bool(
-            re.search(
-                r"(?:^|[\s;&|])(?:rm|mv|cp|chmod|chown|tee|install|python(?:\d+(?:\.\d+)*)?|node|git|curl|wget|osascript|open|defaults|xcrun|cargo|npm|make)(?:[\s;&|]|$)",
-                normalized_command,
-            )
-        )
-        command_chain = bool(re.search(r";|&&|\|\|", command_text))
-        real_file_redirect = bool(re.search(r"(?<![0-9])>{1,2}\s*(?!/dev/null\b)", normalized_command))
-        skill_basename_lookup = any(token.casefold() == "skill.md" for token in tokens)
+        shell_mutation = bool(re.search(r"[;&|<>]", command_text))
         read_only_skill_lookup = (
             item_type == "command_execution"
             and (
@@ -624,13 +496,16 @@ def side_effect_summary(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     and "/skills/" in normalized_command
                     and normalized_command.endswith(".md")
                 )
-                or skill_basename_lookup
             )
-            and not mutating_command
-            and not command_chain
-            and not real_file_redirect
+            and not shell_mutation
             and not any(token in normalized_command for token in forbidden_tokens)
         )
+        tokens: list[str] = []
+        if command_text:
+            try:
+                tokens = [token.rsplit("/", 1)[-1] for token in shlex.split(command_text)[:3]]
+            except ValueError:
+                tokens = []
         summary.append({
             "type": item_type,
             "status": item.get("status"),
@@ -669,10 +544,7 @@ def run_codex_turn(options: argparse.Namespace, environment: dict[str, str], pro
             "-C",
             workspace,
             "-c",
-            config_override(
-                options.mcp_command,
-                "approve" if options.auto_approve_isolated_writes else "writes",
-            ),
+            config_override(options.mcp_command),
             "-c",
             'mcp_servers.cloudflare-api={url="http://127.0.0.1:1",enabled=false,required=false}',
         ]
@@ -696,245 +568,190 @@ def field(result: Any, *names: str) -> Any:
     return current
 
 
-SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-
-
-def typed_sha256(value: Any) -> str | None:
-    """Keep only contract-shaped hashes in the durable evidence projection."""
-    return value if isinstance(value, str) and SHA256_RE.fullmatch(value) else None
-
-
-def structured_payload(item: dict[str, Any]) -> dict[str, Any] | None:
-    result = item.get("result")
-    if not isinstance(result, dict):
-        return None
-    structured = result.get("structured_content")
-    if not isinstance(structured, dict):
-        structured = result.get("structuredContent")
-    return structured if isinstance(structured, dict) else None
-
-
-def completed_structured_results(items: list[dict[str, Any]], tool_name: str) -> list[dict[str, Any]]:
-    """Return successful typed payloads without retaining prompts or images."""
-    values: list[dict[str, Any]] = []
-    for item in items:
-        if (
-            item.get("type") != "mcp_tool_call"
-            or item.get("tool") != tool_name
-            or item.get("status") not in (None, "completed")
-        ):
-            continue
-        payload = structured_payload(item)
-        if payload is not None:
-            values.append(payload)
-    return values
-
-
-def compact_render_set_pass_artifacts(render_set: Any) -> list[dict[str, Any]]:
-    """Project RenderSet@2 pass artifacts into hash-only, bounded evidence."""
-    pass_artifacts = field(render_set, "pass_artifacts")
-    if not isinstance(pass_artifacts, dict):
-        return []
-    result: list[dict[str, Any]] = []
-    for pass_name in AOV_ORDER:
-        artifact = pass_artifacts.get(pass_name)
-        if not isinstance(artifact, dict):
-            continue
-        entry: dict[str, Any] = {"pass": pass_name}
-        for key in ("mime", "size_bytes", "width", "height", "channels", "color_space"):
-            value = artifact.get(key)
-            if isinstance(value, (str, int, float, bool)):
-                entry[key] = value
-        sha256 = typed_sha256(artifact.get("sha256"))
-        if sha256 is not None:
-            entry["sha256"] = sha256
-        entry["binding_status"] = (
-            "PASS_TYPED_RENDER_SET_PASS_ARTIFACT"
-            if sha256 is not None and all(key in entry for key in ("mime", "size_bytes", "width", "height", "channels", "color_space"))
-            else "INCOMPLETE_TYPED_PASS_ARTIFACT"
-        )
-        result.append(entry)
-    return result
-
-
-def compact_render_pass_readbacks(items: list[dict[str, Any]], render_set_hash: str) -> tuple[list[dict[str, Any]], str]:
-    """Bind each render_pass_get readback to the exact RenderSet hash.
-
-    The MCP image block is intentionally not copied.  Only its typed result
-    metadata is retained, so the receipt can prove the readback contract
-    without becoming an image cache or leaking image bytes.
-    """
-    by_pass: dict[str, dict[str, Any]] = {}
-    image_block_passes: set[str] = set()
-    for item in items:
-        if (
-            item.get("type") != "mcp_tool_call"
-            or item.get("tool") != "render_pass_get"
-            or item.get("status") not in (None, "completed")
-        ):
-            continue
-        payload = structured_payload(item) or {}
-        arguments = item.get("arguments")
-        argument_pass = arguments.get("pass") if isinstance(arguments, dict) else None
-        pass_name = payload.get("pass") if isinstance(payload.get("pass"), str) else argument_pass
-        if pass_name not in AOV_ORDER or pass_name in by_pass:
-            continue
-        entry: dict[str, Any] = {"pass": pass_name}
-        for key in ("sha256", "mime", "width", "height", "render_set_hash", "candidate_id"):
-            value = payload.get(key)
-            if key == "sha256":
-                value = typed_sha256(value)
-            if isinstance(value, (str, int, float, bool)):
-                entry[key] = value
-        entry["expected_render_set_hash"] = render_set_hash
-        entry["render_set_binding"] = (
-            "PASS"
-            if entry.get("render_set_hash") == render_set_hash
-            else "FAIL_OR_NOT_EMITTED"
-        )
-        result = item.get("result")
-        content = result.get("content") if isinstance(result, dict) else None
-        if isinstance(content, list):
-            image_blocks = [
-                block
-                for block in content
-                if isinstance(block, dict) and block.get("type") == "image"
-            ]
-            if image_blocks:
-                image_block_passes.add(pass_name)
-                entry["image_block_count"] = len(image_blocks)
-                entry["image_block_mime_types"] = sorted(
-                    {
-                        str(block.get("mimeType"))
-                        for block in image_blocks
-                        if isinstance(block.get("mimeType"), str)
-                    }
-                )
-                entry["image_block_nonempty"] = all(
-                    isinstance(block.get("data"), str) and bool(block.get("data"))
-                    for block in image_blocks
-                )
-        by_pass[pass_name] = entry
-    ordered = [by_pass[name] for name in AOV_ORDER if name in by_pass]
-    image_status = (
-        "PASS_TYPED_IMAGE_BLOCKS_OBSERVED"
-        if len(image_block_passes) == len(AOV_ORDER)
-        else "PARTIAL_TYPED_IMAGE_BLOCKS_OBSERVED"
-        if image_block_passes
-        else "NOT_OBSERVED_IN_SANITIZED_CLI_EVENTS"
-    )
-    return ordered, image_status
-
-
-def compact_object_binding(value: Any, object_sha256: Any = None) -> dict[str, Any]:
-    """Return a stable identity binding for a nested contract object."""
-    result: dict[str, Any] = {}
-    if isinstance(value, dict):
-        for key in ("schema_version", "camera_hash", "canonical_sha256", "render_set_hash", "comparison_report_hash", "status"):
-            candidate = value.get(key)
-            if key.endswith("sha256") or key.endswith("_hash"):
-                candidate = typed_sha256(candidate)
-            if isinstance(candidate, (str, int, float, bool)):
-                result[key] = candidate
-    object_hash = typed_sha256(object_sha256)
-    if object_hash is not None:
-        result["object_sha256"] = object_hash
-    result["binding_status"] = "PASS" if object_hash is not None else "MISSING_OBJECT_HASH"
-    return result
-
-
-def build_typed_evidence_bindings(
-    comparison: dict[str, Any],
-    artifact_readback: dict[str, Any],
-    render_items: list[dict[str, Any]],
-    review: dict[str, Any],
-    quality: dict[str, Any],
-    render_set_hash: str,
+def parse_bound_silhouette_turn(
+    items: list[dict[str, Any]],
+    project_id: str,
+    candidate_id: str,
 ) -> dict[str, Any]:
-    """Build the candidate-bound evidence projection used by later stages."""
-    render_set = field(comparison, "render_set") or {}
-    comparison_report = field(comparison, "comparison_report") or {}
-    quality_report = field(comparison, "quality_report") or {}
-    review_report = field(review, "review") or {}
-    render_pass_artifacts = compact_render_set_pass_artifacts(render_set)
-    render_pass_readbacks, image_block_status = compact_render_pass_readbacks(render_items, render_set_hash)
-    artifact_binding = {
-        key: artifact_readback.get(key)
-        for key in (
-            "schema_version",
-            "artifact_id",
-            "candidate_id",
-            "object_sha256",
-            "program_sha256",
-            "triangle_count",
-            "validator_status",
-        )
-        if isinstance(artifact_readback.get(key), (str, int, float, bool))
+    """Validate one consolidated observation turn and return Runtime-owned refs.
+
+    A composition step must never reuse a camera, observation or baseline
+    compare from the previous candidate.  This parser is shared by the first
+    step and every later step so the sequence stays candidate-bound while the
+    continuous fit remains inside Runtime.
+    """
+    camera_result = structured_result(items, "camera_fit_prepare") or {}
+    rig_result = structured_result(items, "silhouette_rig_hash") or {}
+    comparison = structured_result(items, "reference_compare_prepare") or {}
+    observation = structured_result(items, "scene_observe_get") or {}
+    if (
+        observation.get("schema_version") != "AgenticSceneObserveResult@1"
+        or observation.get("read_only") is not True
+        or observation.get("project_id") != project_id
+        or observation.get("candidate_id") != candidate_id
+        or not isinstance(observation.get("canonical_sha256"), str)
+        or len(observation["canonical_sha256"]) != 64
+    ):
+        raise RuntimeError("scene_observe_get did not return the bound canonical Agentic observation")
+    if field(comparison, "candidate_id") not in (None, candidate_id):
+        raise RuntimeError("reference_compare_prepare drifted from the observed candidate")
+    if not isinstance(
+        field(comparison, "render_set_object_sha256") or field(comparison, "render_set_hash"),
+        str,
+    ):
+        raise RuntimeError("Codex silhouette turn did not return baseline compare evidence")
+    selected_camera = field(camera_result, "selected_camera") or field(camera_result, "camera")
+    # Codex can summarize selected_camera as only two hashes even though the
+    # typed result carries the complete calibration in candidates[]. Recover
+    # the exact Runtime object; never synthesize camera fields from hashes.
+    required_camera_keys = {
+        "schema_version", "camera_hash", "projection", "transform",
+        "fov_y_degrees", "near_m", "far_m", "resolution",
+        "coordinate_system", "renderer_revision", "canonical_sha256",
     }
-    artifact_binding["object_sha256"] = typed_sha256(artifact_readback.get("object_sha256"))
-    artifact_binding["binding_status"] = "PASS" if artifact_binding["object_sha256"] is not None else "MISSING_OBJECT_HASH"
+    if isinstance(selected_camera, dict) and not required_camera_keys.issubset(selected_camera):
+        selected_hash = selected_camera.get("camera_hash")
+        selected_canonical = selected_camera.get("canonical_sha256")
+        for row in camera_result.get("candidates", []):
+            candidate_camera = row.get("camera") if isinstance(row, dict) else None
+            if not isinstance(candidate_camera, dict):
+                continue
+            if (
+                (isinstance(selected_hash, str) and candidate_camera.get("camera_hash") == selected_hash)
+                or (isinstance(selected_canonical, str) and candidate_camera.get("canonical_sha256") == selected_canonical)
+            ):
+                selected_camera = candidate_camera
+                break
+    camera_hash = (
+        field(selected_camera or {}, "camera_hash")
+        or field(camera_result, "selected_camera_hash")
+        or field(camera_result, "camera_hash")
+    )
+    rig_sha = field(rig_result, "canonical_sha256")
+    if not isinstance(selected_camera, dict) or not isinstance(camera_hash, str) or len(camera_hash) != 64:
+        raise RuntimeError("Codex silhouette turn did not return selected camera evidence")
+    camera_canonical = selected_camera.get("canonical_sha256")
+    if not isinstance(camera_canonical, str) or len(camera_canonical) != 64:
+        raise RuntimeError("Codex silhouette turn did not return selected camera canonical evidence")
+    if not isinstance(rig_sha, str) or len(rig_sha) != 64:
+        raise RuntimeError("Codex silhouette turn did not return Runtime-owned Rig hash")
+    if not has_subsequence(call_sequence(items), SILHOUETTE_SEQUENCE) or not all_completed(items, SILHOUETTE_SEQUENCE):
+        raise RuntimeError("Codex did not complete target/camera/compare/observation/Rig sequence")
     return {
-        "binding_schema": "ForgeCADMCP010CReceiptBinding@1",
-        "artifact_readback": artifact_binding,
-        "comparison_bindings": {
-            "camera": compact_object_binding(
-                field(comparison, "camera") or comparison_report,
-                field(comparison, "camera_object_sha256"),
-            ),
-            "render_set": compact_object_binding(
-                render_set,
-                field(comparison, "render_set_object_sha256") or field(comparison, "render_set_hash"),
-            ),
-            "comparison_report": compact_object_binding(
-                comparison_report,
-                field(comparison, "comparison_report_object_sha256") or field(comparison, "comparison_report_hash"),
-            ),
-            "quality_report": compact_object_binding(
-                quality_report,
-                field(comparison, "quality_report_object_sha256") or field(quality, "quality_report_object_sha256"),
-            ),
+        "camera": selected_camera,
+        "camera_ref": {
+            "schema_version": "CameraCalibrationRef@1",
+            "camera_hash": camera_hash,
+            "canonical_sha256": camera_canonical,
         },
-        "mask_binding": {
-            key: field(comparison_report, "mask", key)
-            for key in ("method", "revision", "width", "height")
-            if isinstance(field(comparison_report, "mask", key), (str, int, float, bool))
-        }
-        | {
-            "sha256": typed_sha256(field(comparison_report, "mask", "sha256")),
-            "binding_status": "PASS"
-            if typed_sha256(field(comparison_report, "mask", "sha256")) is not None
-            else "MISSING_MASK_HASH",
-        },
-        "metric_binding": {
-            "schema_version": comparison_report.get("schema_version"),
-            "metrics": field(comparison_report, "metrics"),
-            "threshold_binding": "NOT_EMITTED_BY_QUALITY_REPORT_V2",
-        },
-        "render_pass_artifacts": render_pass_artifacts,
-        "render_pass_readbacks": render_pass_readbacks,
-        "render_pass_image_blocks": image_block_status,
-        "visual_review": {
-            "object_sha256": typed_sha256(field(review, "review_object_sha256")),
-            "canonical_sha256": typed_sha256(field(review_report, "canonical_sha256")),
-            "status": review_report.get("status"),
-            "binding_status": "PASS"
-            if typed_sha256(field(review, "review_object_sha256")) is not None
-            else "MISSING_REVIEW_OBJECT_HASH",
-        },
-        "quality_readback": {
-            "object_sha256": typed_sha256(field(comparison, "quality_report_object_sha256")),
-            "canonical_sha256": typed_sha256(field(quality_report, "canonical_sha256") or field(quality, "canonical_sha256")),
-            "visual_status": field(quality_report, "visual_status") or field(quality, "visual_status"),
-            "hard_gate_passed": field(quality_report, "hard_gate_passed") if "hard_gate_passed" in quality_report else field(quality, "hard_gate_passed"),
-        },
-        "downstream_status": {
-            "candidate_confirm": "NOT_RUN",
-            "export": "NOT_RUN",
-            "restart_hash": "NOT_RUN",
-            "packaged_reference_visual_e2e": "NOT_RUN",
-            "viewer_accessibility_e2e": "NOT_RUN",
-        },
+        "camera_hash": camera_hash,
+        "camera_canonical": camera_canonical,
+        "rig_sha": rig_sha,
+        "comparison": comparison,
+        "observation": observation,
+        "observation_sha": observation["canonical_sha256"],
     }
+
+
+def build_primary_form_composition_lineage(
+    project_id: str,
+    initial_candidate_id: str,
+    final_candidate_id: str,
+    target_sha256: str,
+    requested_part_ids: tuple[str, ...],
+    steps: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Collapse a serial Primary Form run into one validated hash-bound receipt.
+
+    Raw Codex/MCP events remain available for transport auditing, but the
+    next decision must consume this compact lineage instead of reconstructing
+    state from scattered turns.  Candidate advancement is deliberately
+    fail-closed: only an accepted staged candidate can become the next step's
+    source; a retained source keeps the chain on the same candidate.
+    """
+    if not 2 <= len(requested_part_ids) <= 3 or len(steps) != len(requested_part_ids):
+        raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: sequence length drifted")
+    current_candidate_id = initial_candidate_id
+    normalized_steps: list[dict[str, Any]] = []
+    accepted_step_count = 0
+    for expected_step, requested_part_id in enumerate(requested_part_ids, start=1):
+        step = steps[expected_step - 1]
+        if step.get("step") != expected_step or step.get("part_id") != requested_part_id:
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: step identity drifted")
+        if step.get("source_candidate_id") != current_candidate_id:
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: source candidate chain drifted")
+        if step.get("observation_candidate_id") != current_candidate_id:
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: observation candidate is stale")
+        if step.get("target_sha256") != target_sha256:
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: target binding drifted")
+        for key in (
+            "observation_sha256",
+            "camera_hash",
+            "camera_canonical_sha256",
+            "rig_sha256",
+            "intent_sha256",
+            "fit_camera_hash",
+        ):
+            value = step.get(key)
+            if not isinstance(value, str) or len(value) != 64:
+                raise RuntimeError(f"PRIMARY_FORM_COMPOSITION_INVALID: {key} is not hash-bound")
+        status = step.get("status")
+        acceptance = step.get("acceptance")
+        if status not in {"prepared", "no_improvement"} or not isinstance(acceptance, dict):
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: unsupported step status")
+        prepared_candidate_id = step.get("prepared_candidate_id")
+        if status == "prepared":
+            if not isinstance(prepared_candidate_id, str) or not prepared_candidate_id:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: accepted step has no staged candidate")
+            if prepared_candidate_id == current_candidate_id:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: staged candidate did not advance")
+            if acceptance.get("status") != "accepted" or acceptance.get("strict_improvement") is not True:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: accepted step lacks strict acceptance")
+            accepted_step_count += 1
+            next_candidate_id = prepared_candidate_id
+        else:
+            if prepared_candidate_id is not None:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: retained step advanced candidate")
+            if acceptance.get("status") != "retained_source" or acceptance.get("strict_improvement") is not False:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: retained step acceptance drifted")
+            next_candidate_id = current_candidate_id
+        normalized_steps.append({
+            "step": expected_step,
+            "part_id": requested_part_id,
+            "source_candidate_id": current_candidate_id,
+            "observation_candidate_id": step["observation_candidate_id"],
+            "observation_sha256": step["observation_sha256"],
+            "target_sha256": target_sha256,
+            "camera_hash": step["camera_hash"],
+            "camera_canonical_sha256": step["camera_canonical_sha256"],
+            "rig_sha256": step["rig_sha256"],
+            "intent_sha256": step["intent_sha256"],
+            "fit_camera_hash": step["fit_camera_hash"],
+            "status": status,
+            "acceptance_status": acceptance["status"],
+            "acceptance_strict_improvement": acceptance["strict_improvement"],
+            "prepared_candidate_id": prepared_candidate_id,
+            "next_candidate_id": next_candidate_id,
+        })
+        current_candidate_id = next_candidate_id
+    if current_candidate_id != final_candidate_id:
+        raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: final candidate drifted")
+    lineage: dict[str, Any] = {
+        "schema_version": "ForgeCADPrimaryFormCompositionLineage@1",
+        "project_id": project_id,
+        "initial_candidate_id": initial_candidate_id,
+        "final_candidate_id": final_candidate_id,
+        "target_sha256": target_sha256,
+        "requested_part_ids": list(requested_part_ids),
+        "step_count": len(normalized_steps),
+        "accepted_step_count": accepted_step_count,
+        "search_owner": "forgecad-runtime",
+        "observation_policy": "one_candidate_bound_agentic_observation_per_step",
+        "steps": normalized_steps,
+        "canonical_sha256": "",
+    }
+    lineage["canonical_sha256"] = canonical_hash(lineage)
+    return lineage
 
 
 def reference_dimensions(path: Path) -> tuple[int, int]:
@@ -1055,26 +872,92 @@ def silhouette_rig_draft(candidate_id: str) -> dict[str, Any]:
             {"parameter_id": "shoulder-width", "part_id": "shoulder-armor-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "shoulder-height", "part_id": "shoulder-armor-pair", "semantic": "height", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "upper-arm-width", "part_id": "upper-arm-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "upper-arm-height", "part_id": "upper-arm-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "forearm-width", "part_id": "forearm-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "forearm-height", "part_id": "forearm-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "pelvis-width", "part_id": "pelvis", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "pelvis-height", "part_id": "pelvis", "semantic": "height", "value": 1.0, "min": 0.88, "max": 1.12, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "hip-width", "part_id": "hip-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "hip-height", "part_id": "hip-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "thigh-width", "part_id": "thigh-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "thigh-height", "part_id": "thigh-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
             {"parameter_id": "shin-width", "part_id": "shin-pair", "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": "shin-height", "part_id": "shin-pair", "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
+            # Landmark ownership is explicit and camera-calibrated in Runtime.
+            # These are bounded camera-plane meter offsets, not Codex-side
+            # pixel nudges or an open-ended parameter trace.
+            {"parameter_id": "head-offset-x", "part_id": "head-shell", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "head-offset-y", "part_id": "head-shell", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            # Boundary attribution can identify visible hand/shin drift even
+            # when the reference target has no explicit Part contour slices.
+            # Keep these as bounded typed camera-plane controls; Codex does
+            # not search their values or issue image-space nudges.
+            {"parameter_id": "hand-offset-x", "part_id": "hand-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "hand-offset-y", "part_id": "hand-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "chest-offset-y", "part_id": "chest-shell", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "chest-offset-x", "part_id": "chest-shell", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "shoulder-offset-x", "part_id": "shoulder-armor-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "shoulder-offset-y", "part_id": "shoulder-armor-pair", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "elbow-offset-x", "part_id": "elbow-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "elbow-offset-y", "part_id": "elbow-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "pelvis-offset-y", "part_id": "pelvis", "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "pelvis-offset-x", "part_id": "pelvis", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "hip-offset-x", "part_id": "hip-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "hip-offset-y", "part_id": "hip-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "knee-offset-x", "part_id": "knee-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "knee-offset-y", "part_id": "knee-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "shin-offset-x", "part_id": "shin-pair", "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": "shin-offset-y", "part_id": "shin-pair", "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
         ],
     }
 
 
-def silhouette_prompt(project_id: str, candidate_id: str, target_sha256: str) -> str:
+def part_contour_rig_draft(candidate_id: str, part_id: str) -> dict[str, Any]:
+    """Build one exact-Part typed Rig for the bounded contour proposal route.
+
+    Explicit left/right IDs are intentional: a pair Rig remains bilateral,
+    while this route can only move the semantic Part that the Runtime
+    Part-ID evidence selected.  Runtime still validates the candidate-bound
+    hash and returns a read-only proposal; it never edits or confirms a mesh.
+    """
+    safe_part_id = re.sub(r"[^A-Za-z0-9_.-]", "-", part_id).strip("-") or "part"
+    return {
+        "schema_version": "SilhouetteRig@1",
+        "rig_id": f"part-contour-{safe_part_id}",
+        "candidate_id": candidate_id,
+        "parameters": [
+            {"parameter_id": f"{safe_part_id}-width", "part_id": part_id, "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": f"{safe_part_id}-height", "part_id": part_id, "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": f"{safe_part_id}-offset-x", "part_id": part_id, "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": f"{safe_part_id}-offset-y", "part_id": part_id, "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
+        ],
+    }
+
+
+def silhouette_prompt(
+    project_id: str,
+    reference_id: str,
+    candidate_id: str,
+    job_id: str,
+    artifact_id: str,
+    target_sha256: str,
+    view: dict[str, Any],
+) -> str:
     rig = json.dumps(silhouette_rig_draft(candidate_id), ensure_ascii=False, separators=(",", ":"))
+    view_json = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
     return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
 
-Call exactly these four ForgeCAD tools in order, then stop:
+Call exactly these eight ForgeCAD tools in order, then stop:
 1) silhouette_target_get with {{"target_sha256":{json.dumps(target_sha256)}}}; verify it is the target for project {json.dumps(project_id)}.
-2) scene_observe_get with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)}}}; treat the complete returned AgenticSceneObserveResult@1 as the only canonical scene/model/reference/quality context for this visual turn. Verify its project/candidate binding, read_only flag and canonical_sha256; do not replace it with a sequence of fragmented project/candidate/artifact/quality reads.
-3) camera_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"camera":null}}; use the one-shot observation as context and save the complete returned selected_camera calibration object (not only camera_hash/canonical_sha256) and its hash.
-4) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; copy only the returned canonical_sha256 into the unchanged rig for the next turn.
+2) camera_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"camera":null}}; save the complete returned selected_camera calibration object (not only camera_hash/canonical_sha256) and its hashes.
+3) job_get with {{"job_id":{json.dumps(job_id)}}}.
+4) candidate_get with {{"candidate_id":{json.dumps(candidate_id)}}}.
+5) artifact_readback_get with {{"artifact_id":{json.dumps(artifact_id)},"candidate_id":{json.dumps(candidate_id)}}}.
+6) reference_compare_prepare with this exact JSON object: {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"reference_id":{json.dumps(reference_id)},"view_spec":{view_json},"camera":{{"schema_version":"CameraCalibrationRef@1","camera_hash":<copy the selected camera_hash from step 2>,"canonical_sha256":<copy the selected camera canonical_sha256 from step 2>}},"target_sha256":{json.dumps(target_sha256)}}}. Copy the view_spec byte-for-byte and do not reconstruct camera fields.
+7) scene_observe_get with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)}}}; call this only after the baseline compare. Treat the complete returned AgenticSceneObserveResult@1 as the only canonical scene/model/reference/quality/Part-error context for this visual turn. Verify its project/candidate binding, read_only flag and canonical_sha256; do not replace it with fragmented boundary or quality reads.
+8) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; copy only the returned canonical_sha256 into the unchanged rig for the next turn.
 
-Do not call silhouette_fit_prepare yet because the next turn will bind its request hash to the exact selected camera. Do not call geometry, appearance, compare, confirm or export. Return only target/camera/Rig hashes and opaque IDs; do not claim visual quality.
+Do not call silhouette_fit_prepare yet because the next turn will bind its request hash to the exact selected camera. Do not call render_pass_get, review, confirm or export. Return only target/camera/compare/observation/Rig hashes and opaque IDs; do not claim visual quality.
 """
 
 
@@ -1086,142 +969,6 @@ silhouette_fit_prepare with this exact JSON object: {request_json}
 
 Do not change any value, recompute any hash, call another tool, or claim that the model matches the reference. Return only the actual iterations, evaluations, selected camera/parameters, loss and status.
 """
-
-
-def single_part_optimization_rig_draft(candidate_id: str, part_id: str = "chest-shell") -> dict[str, Any]:
-    """Build the bounded CADFit search space for one semantic Part.
-
-    The global silhouette rig is intentionally not reused here: OptimizationJob
-    is a local Part job and Runtime rejects mixed-Part parameter sets.  Width,
-    height, depth and image-plane offsets give the optimizer a useful six
-    dimensional envelope while remaining typed, deterministic and bounded.
-    Offset parameters use meters because the Runtime's ratio path requires a
-    positive scale and therefore cannot represent a negative image-plane delta.
-    """
-    return {
-        "schema_version": "SilhouetteRig@1",
-        "rig_id": "robot-chest-shell-cadfit-rig",
-        "candidate_id": candidate_id,
-        "parameters": [
-            {"parameter_id": "chest-shell-width", "part_id": part_id, "semantic": "width", "value": 1.0, "min": 0.72, "max": 1.28, "step": 0.04, "unit": "ratio"},
-            {"parameter_id": "chest-shell-height", "part_id": part_id, "semantic": "height", "value": 1.0, "min": 0.72, "max": 1.28, "step": 0.04, "unit": "ratio"},
-            {"parameter_id": "chest-shell-depth", "part_id": part_id, "semantic": "depth", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
-            {"parameter_id": "chest-shell-offset-x", "part_id": part_id, "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
-            {"parameter_id": "chest-shell-offset-y", "part_id": part_id, "semantic": "offset_y", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
-            {"parameter_id": "chest-shell-scale", "part_id": part_id, "semantic": "scale", "value": 1.0, "min": 0.85, "max": 1.15, "step": 0.05, "unit": "ratio"},
-        ],
-    }
-
-
-def cadfit_rig_hash_prompt(project_id: str, candidate_id: str, rig: dict[str, Any]) -> str:
-    rig_draft = {key: value for key, value in rig.items() if key != "canonical_sha256"}
-    request = {
-        "schema_version": "SilhouetteRigHashRequest@1",
-        "project_id": project_id,
-        "candidate_id": candidate_id,
-        "rig_draft": rig_draft,
-    }
-    return f"""Use only the ForgeCAD MCP server. Call exactly one read-only tool, then stop:
-silhouette_rig_hash with this exact JSON object: {json.dumps(request, ensure_ascii=False, separators=(',', ':'))}
-Return only the Runtime-owned canonical_sha256. Do not call optimization, geometry, compare, confirm or export, and do not claim visual quality.
-"""
-
-
-def cadfit_optimization_intent(
-    project_id: str,
-    candidate_id: str,
-    reference_id: str,
-    reference_sha256: str,
-    program_sha256: str,
-    target_sha256: str,
-    camera: dict[str, Any],
-    rig: dict[str, Any],
-) -> dict[str, Any]:
-    """Create the exact standalone OptimizationIntent sent through Codex MCP."""
-    intent: dict[str, Any] = {
-        "schema_version": "OptimizationIntent@1",
-        "intent_id": "real-codex-cadfit-chest-shell-intent",
-        "job_id": "real-codex-cadfit-chest-shell-job",
-        "project_id": project_id,
-        "candidate_id": candidate_id,
-        "reference_id": reference_id,
-        "reference_sha256": reference_sha256,
-        "program_sha256": program_sha256,
-        "target_sha256": target_sha256,
-        "camera": camera,
-        "camera_hash": camera.get("camera_hash"),
-        "part_id": "chest-shell",
-        "stage": "primary-form",
-        "rig": rig,
-        "fidelity": {
-            "coarse_resolution": 128,
-            "mid_resolution": 256,
-            "final_resolution": 512,
-            "coarse_evaluations": CADFIT_COARSE_EVALUATIONS,
-            "mid_top_k": CADFIT_MID_TOP_K,
-            "final_top_k": CADFIT_FINAL_TOP_K,
-        },
-        "budget": {
-            "max_evaluations": 42,
-            "max_runtime_ms": 120000,
-            "max_output_triangles": 250000,
-            "max_worker_memory_bytes": 536870912,
-        },
-        "objective": {
-            "silhouette_iou": 0.40,
-            "boundary_f1_4px": 0.30,
-            "landmark_coverage": 0.10,
-            "landmark_nme": 0.10,
-            "part_region": 0.05,
-            "program_complexity": 0.05,
-        },
-        "canonical_sha256": "",
-    }
-    intent["canonical_sha256"] = canonical_hash(intent)
-    return intent
-
-
-def cadfit_prepare_prompt(request: dict[str, Any]) -> str:
-    return f"""Use only the ForgeCAD MCP server. Call exactly one approved write tool, then stop:
-optimization_job_prepare with this exact JSON object: {json.dumps(request, ensure_ascii=False, separators=(',', ':'))}
-This is a standalone Runtime-owned CADFit proposal for one Part. Preserve every field and hash exactly. Return only the typed OptimizationJobResult@1 status and hashes. Do not call optimization_job_get in this turn, do not confirm a candidate, do not export, and do not claim likeness or high quality.
-"""
-
-
-def cadfit_get_prompt(project_id: str, candidate_id: str, job_id: str) -> str:
-    request = {"project_id": project_id, "candidate_id": candidate_id, "job_id": job_id}
-    return f"""Use only the ForgeCAD MCP server. Call exactly one read-only tool, then stop:
-optimization_job_get with this exact JSON object: {json.dumps(request, ensure_ascii=False, separators=(',', ':'))}
-Return only the latest typed job/result/checkpoint status. Do not call another tool, confirm a candidate, export, or claim visual quality.
-"""
-
-
-def compact_cadfit_result(payload: dict[str, Any] | None) -> dict[str, Any]:
-    payload = payload or {}
-    job = field(payload, "job") or {}
-    result = field(payload, "result") or {}
-    return {
-        "schema_version": payload.get("schema_version"),
-        "job_status": field(job, "status"),
-        "job_progress": field(job, "progress"),
-        "result_status": field(result, "status"),
-        "search_strategy": field(result, "search_strategy"),
-        "evaluations_count": field(result, "evaluations_count"),
-        "fidelity_counts": field(result, "fidelity_counts"),
-        "checkpoint_sequence": field(result, "checkpoint_sequence"),
-        "next_stage": field(result, "next_stage"),
-        "proposal_status": field(result, "proposal_status"),
-        "strict_improvement": field(result, "strict_improvement"),
-        "baseline_loss": field(result, "baseline_loss"),
-        "best_loss": field(result, "best_loss"),
-        "best_evaluation_id": field(result, "best_evaluation_id"),
-        "best_evaluation_fidelity": field(result, "best_evaluation_fidelity"),
-        "best_program_object_sha256": typed_sha256(field(result, "best_program_object_sha256")),
-        "best_artifact_sha256": typed_sha256(field(result, "best_artifact_sha256")),
-        "proposal_program_object_sha256": typed_sha256(field(result, "proposal_program_object_sha256")),
-        "proposal_artifact_sha256": typed_sha256(field(result, "proposal_artifact_sha256")),
-        "result_object_sha256": typed_sha256(field(payload, "result_object_sha256")),
-    }
 
 
 def normalize_numeric_representation(value: Any) -> Any:
@@ -1250,6 +997,137 @@ def boundary_error_prompt(project_id: str, candidate_id: str, target_sha256: str
 boundary_error_get with {{"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"max_segments":16}}.
 This is candidate-bound evidence for project {json.dumps(project_id)}. Return only the largest directional segments and their Part IDs. Do not edit geometry or claim a likeness pass.
 """
+
+
+def part_contour_prompt(project_id: str, candidate_id: str, target_sha256: str, part_id: str) -> str:
+    rig_draft = part_contour_rig_draft(candidate_id, part_id)
+    rig = json.dumps(rig_draft, ensure_ascii=False, separators=(",", ":"))
+    rig_with_placeholder = dict(rig_draft)
+    rig_with_placeholder["canonical_sha256"] = "RUNTIME_HASH"
+    rig_payload = json.dumps(rig_with_placeholder, ensure_ascii=False, separators=(",", ":"))
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
+
+This is one bounded single-Part contour decision for project {json.dumps(project_id)} and candidate {json.dumps(candidate_id)}. The exact semantic Part selected by Runtime boundary evidence is {json.dumps(part_id)}.
+Call exactly these two tools in order, then stop:
+1) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; save the Runtime-returned canonical_sha256.
+2) part_contour_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"part_id":{json.dumps(part_id)},"rig":{rig_payload}}}.
+In step 2 replace the literal RUNTIME_HASH inside rig.canonical_sha256 with the exact hash from step 1. Do not call silhouette_fit_prepare, geometry_prepare, render, compare, confirm or export. Return only the typed PartContourFitResult@1. This is a read-only proposal and is not a likeness or quality pass.
+"""
+
+
+def primary_form_repair_prompt(request: dict[str, Any]) -> str:
+    request_json = json.dumps(request, ensure_ascii=False, separators=(",", ":"))
+    return f"""Use the ForgeCAD MCP server now. Call exactly one tool, then stop:
+primary_form_repair_prepare with this exact JSON object: {request_json}
+
+This is the single Runtime-owned Primary Form repair action. It must consume the
+same target, canonical ReferenceViewSpec, camera reference, Rig and optimizer intent. Runtime owns the
+nested bounded silhouette fit and the Geometry Worker/Render Worker compare;
+do not call silhouette_fit_prepare separately, do not edit any parameter, and
+do not call geometry_prepare, render, compare, confirm or export separately in
+this turn.
+Return the typed staged-candidate/evidence result only. A no_improvement result
+must leave the source candidate unchanged; neither result is user approval or a
+visual-quality pass.
+"""
+
+
+def run_primary_form_repair_step(
+    options: argparse.Namespace,
+    environment: dict[str, str],
+    workspace_root: str,
+    turn_outputs: list[subprocess.CompletedProcess[str]],
+    project_id: str,
+    candidate_id: str,
+    target_sha256: str,
+    camera_ref: dict[str, Any],
+    rig_sha256: str,
+    view_spec: dict[str, Any],
+    part_id: str | None,
+    label: str,
+) -> dict[str, Any]:
+    """Run one Runtime-owned repair step and return its typed lineage."""
+    rig = silhouette_rig_draft(candidate_id)
+    rig["canonical_sha256"] = rig_sha256
+    request: dict[str, Any] = {
+        "project_id": project_id,
+        "candidate_id": candidate_id,
+        "target_sha256": target_sha256,
+        "rig": rig,
+        "base_camera": camera_ref,
+        "view_spec": view_spec,
+        "optimizer": {
+            "algorithm": "coordinate_descent",
+            "max_iterations": 2,
+            "max_evaluations": 64,
+            "step_fraction": 0.1,
+        },
+        "base_version_id": None,
+        "canonical_sha256": "",
+    }
+    if part_id is not None:
+        request["part_id"] = part_id
+    request["canonical_sha256"] = canonical_hash(normalize_numeric_representation(request))
+    repair_items = run_required_codex_turn(
+        options,
+        environment,
+        primary_form_repair_prompt(request),
+        workspace_root,
+        PRIMARY_FORM_REPAIR_SEQUENCE,
+        turn_outputs,
+        label,
+    )
+    result = structured_result(repair_items, "primary_form_repair_prepare") or {}
+    if not has_subsequence(call_sequence(repair_items), PRIMARY_FORM_REPAIR_SEQUENCE) or not all_completed(
+        repair_items, PRIMARY_FORM_REPAIR_SEQUENCE
+    ):
+        raise RuntimeError("Codex did not complete primary_form_repair_prepare")
+    if field(result, "source_candidate_id") != candidate_id:
+        raise RuntimeError("primary_form_repair_prepare source candidate drifted from the observed candidate")
+    fit_result = field(result, "fit_result") or {}
+    fit_camera = field(fit_result, "selected_camera")
+    if not isinstance(fit_camera, dict):
+        raise RuntimeError("primary_form_repair_prepare did not return Runtime-selected camera evidence")
+    fit_camera_hash = field(fit_camera, "camera_hash")
+    fit_camera_canonical = field(fit_camera, "canonical_sha256")
+    if (
+        not isinstance(fit_camera_hash, str)
+        or len(fit_camera_hash) != 64
+        or not isinstance(fit_camera_canonical, str)
+        or len(fit_camera_canonical) != 64
+    ):
+        raise RuntimeError("primary_form_repair_prepare returned an invalid Runtime-selected camera")
+    status = field(result, "status")
+    if status not in {"prepared", "no_improvement"}:
+        raise RuntimeError("primary_form_repair_prepare returned an unsupported status")
+    prepared = field(result, "prepared_candidate") or {}
+    prepared_candidate = field(prepared, "candidate") or {}
+    prepared_job = field(prepared, "job") or {}
+    prepared_artifact = field(prepared, "artifact") or {}
+    staged = {
+        "candidate_id": field(prepared_candidate, "candidate_id"),
+        "job_id": field(prepared_job, "job_id"),
+        "artifact_id": field(prepared_artifact, "artifact_id"),
+        "artifact": prepared_artifact,
+        "program_sha256": field(prepared_artifact, "program_sha256")
+        or field(fit_result, "selected_geometry_program", "canonical_sha256"),
+    }
+    if status == "prepared" and not all(
+        isinstance(value, str) and value
+        for value in (staged["candidate_id"], staged["job_id"], staged["artifact_id"], staged["program_sha256"])
+    ):
+        raise RuntimeError("primary_form_repair_prepare did not return a complete staged candidate")
+    return {
+        "request": request,
+        "items": repair_items,
+        "result": result,
+        "fit_result": fit_result,
+        "fit_camera": fit_camera,
+        "fit_camera_hash": fit_camera_hash,
+        "fit_camera_canonical": fit_camera_canonical,
+        "status": status,
+        "staged": staged,
+    }
 
 
 def authoring_draft(geometry_route: str, project_id: str, geometry_variant: str, material_variant: str) -> tuple[dict[str, Any], str]:
@@ -1410,18 +1288,12 @@ def base_receipt(source_sha: str, source_size: int) -> dict[str, Any]:
 
 def main() -> int:
     options = parse_args()
-    # CADFit is intentionally downstream of the target/camera gate.  Make the
-    # dependency explicit for callers instead of allowing a job with no
-    # candidate-bound visual target or camera to be submitted.
-    if options.cadfit_optimization:
-        options.silhouette_first = True
     source = Path(options.reference).expanduser()
     if not source.is_file() or source.is_symlink():
         receipt = base_receipt("", 0) | {"status": "BLOCKED", "reason": "reference is not a regular file"}
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 3
-    source = source.resolve()
     source_bytes = source.read_bytes()
     source_sha = hashlib.sha256(source_bytes).hexdigest()
     try:
@@ -1446,12 +1318,6 @@ def main() -> int:
 
     runtime_command = str(Path(options.runtime_command).expanduser().resolve())
     mcp_command = str(Path(options.mcp_command).expanduser().resolve())
-    # Codex runs each turn from an ephemeral directory.  Keep the resolved
-    # paths in the options object used by run_codex_turn; otherwise a relative
-    # command works for the host wrapper but fails when the MCP session starts
-    # inside that temporary directory.
-    options.runtime_command = runtime_command
-    options.mcp_command = mcp_command
     worker_command = str(Path(runtime_command).with_name("forgecad-geometry-worker"))
     viewer_command = options.viewer_executable.expanduser().resolve() if options.viewer_executable else None
     if (
@@ -1482,17 +1348,6 @@ def main() -> int:
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 3
-    try:
-        policy = runtime_visible_view_policy(Path(__file__).resolve().parents[1])
-    except (OSError, RuntimeError) as error:
-        receipt = base_receipt(source_sha, len(source_bytes)) | {
-            "status": "BLOCKED",
-            "reason": f"Runtime visible-view policy unavailable: {str(error)[:240]}",
-            "build_cohorts": cohorts,
-        }
-        write_receipt(options.evidence, receipt)
-        print(json.dumps(receipt, sort_keys=True))
-        return 3
 
     environment = os.environ.copy()
     for key in ("CODEX_MCP_PROTOCOL_VERSION", "FORGECAD_RUNTIME_SOCKET", "FORGECAD_RUNTIME_TOKEN", "FORGECAD_RUNTIME_DATA_DIR", "FORGECAD_RUNTIME_COMMAND", "FORGECAD_RUNTIME_READY_FILE", "FORGECAD_RUNTIME_STATUS_FILE"):
@@ -1504,12 +1359,10 @@ def main() -> int:
     runtime: subprocess.Popen[str] | None = None
     turn_outputs: list[subprocess.CompletedProcess[str]] = []
     silhouette_fit_intent_sha: str | None = None
-    cadfit_rig_sha: str | None = None
-    cadfit_intent_sha: str | None = None
-    cadfit_job_id: str | None = None
-    cadfit_result: dict[str, Any] | None = None
-    cadfit_items: list[dict[str, Any]] = []
+    primary_form_repair_intent_sha: str | None = None
     partial_evidence: dict[str, Any] = {}
+    primary_form_composition_lineage: dict[str, Any] | None = None
+    primary_form_composition_initial_candidate_id: str | None = None
     try:
         with tempfile.TemporaryDirectory(dir="/tmp", prefix="fc10c-codex-") as temporary:
             root = Path(temporary)
@@ -1557,6 +1410,7 @@ def main() -> int:
             if not (has_subsequence(setup_tool_names, SETUP_SEQUENCE) and all(call.get("status") == "completed" for call in setup_calls)):
                 raise RuntimeError("Codex setup did not complete the required MCP sequence")
 
+            spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
             silhouette_target_sha: str | None = None
             silhouette_camera_hash: str | None = None
             silhouette_fit_camera_hash: str | None = None
@@ -1566,8 +1420,18 @@ def main() -> int:
             comparison_camera_canonical: str | None = None
             silhouette_rig_sha: str | None = None
             silhouette_fit_result: dict[str, Any] | None = None
+            primary_form_repair_result: dict[str, Any] | None = None
+            primary_form_repair_source_candidate_id: str | None = None
+            primary_form_repair_items: list[dict[str, Any]] = []
+            primary_form_repair_steps: list[dict[str, Any]] = []
+            canonical_observation_result: dict[str, Any] | None = None
+            canonical_observation_candidate_id: str | None = None
+            silhouette_comparison_result: dict[str, Any] | None = None
             selected_camera_for_compare: dict[str, Any] | None = None
+            primary_form_runtime_compare = False
+            canonical_compare_in_silhouette = False
             silhouette_items: list[dict[str, Any]] = []
+            fit_items: list[dict[str, Any]] = []
             if options.silhouette_first:
                 target_turn = run_codex_turn(
                     options,
@@ -1636,251 +1500,291 @@ def main() -> int:
                 silhouette_turn_items = run_required_codex_turn(
                     options,
                     environment,
-                    silhouette_prompt(project_id, candidate_id, silhouette_target_sha or ""),
+                    silhouette_prompt(
+                        project_id,
+                        reference_id,
+                        candidate_id,
+                        job_id,
+                        artifact_id,
+                        silhouette_target_sha or "",
+                        spec,
+                    ),
                     str(root),
                     SILHOUETTE_SEQUENCE,
                     turn_outputs,
-                    "silhouette target/camera/Rig",
+                    "silhouette target/camera/compare/observation/Rig",
                 )
                 silhouette_items.extend(silhouette_turn_items)
-                camera_result = structured_result(silhouette_turn_items, "camera_fit_prepare") or {}
-                rig_result = structured_result(silhouette_turn_items, "silhouette_rig_hash") or {}
-                observation_result = structured_result(silhouette_turn_items, "scene_observe_get") or {}
-                if (
-                    observation_result.get("schema_version") != "AgenticSceneObserveResult@1"
-                    or observation_result.get("read_only") is not True
-                    or observation_result.get("project_id") != project_id
-                    or observation_result.get("candidate_id") != candidate_id
-                    or not isinstance(observation_result.get("canonical_sha256"), str)
-                    or len(observation_result["canonical_sha256"]) != 64
-                ):
-                    raise RuntimeError("scene_observe_get did not return the bound canonical Agentic observation")
-                silhouette_observation_sha = observation_result["canonical_sha256"]
-                selected_camera = field(camera_result, "selected_camera") or field(camera_result, "camera")
-                # A real Codex turn can summarize a nested selected_camera as
-                # only its two hashes even though CameraFitResult also carries
-                # the complete calibration in candidates[]. Recover the exact
-                # Runtime-owned object from that same result; never synthesize
-                # camera fields from the hashes.
-                required_camera_keys = {
-                    "schema_version", "camera_hash", "projection", "transform",
-                    "fov_y_degrees", "near_m", "far_m", "resolution",
-                    "coordinate_system", "renderer_revision", "canonical_sha256",
-                }
-                if isinstance(selected_camera, dict) and not required_camera_keys.issubset(selected_camera):
-                    selected_hash = selected_camera.get("camera_hash")
-                    selected_canonical = selected_camera.get("canonical_sha256")
-                    for row in camera_result.get("candidates", []):
-                        candidate_camera = row.get("camera") if isinstance(row, dict) else None
-                        if not isinstance(candidate_camera, dict):
-                            continue
-                        if (
-                            (isinstance(selected_hash, str) and candidate_camera.get("camera_hash") == selected_hash)
-                            or (isinstance(selected_canonical, str) and candidate_camera.get("canonical_sha256") == selected_canonical)
-                        ):
-                            selected_camera = candidate_camera
-                            break
-                # CameraFitResult@1 binds the selected camera as an object;
-                # older Runtime receipts also exposed a top-level hash.  Read
-                # the typed nested field first and retain the legacy fallback
-                # so a successful camera solve cannot be misclassified as a
-                # transport failure.
-                silhouette_camera_hash = (
-                    field(selected_camera or {}, "camera_hash")
-                    or field(camera_result, "selected_camera_hash")
-                    or field(camera_result, "camera_hash")
+                silhouette_turn = parse_bound_silhouette_turn(
+                    silhouette_turn_items,
+                    project_id,
+                    candidate_id,
                 )
-                silhouette_rig_sha = field(rig_result, "canonical_sha256")
-                if not isinstance(selected_camera, dict) or not isinstance(silhouette_camera_hash, str) or len(silhouette_camera_hash) != 64:
-                    raise RuntimeError("Codex silhouette turn did not return selected camera evidence")
-                if not isinstance(silhouette_rig_sha, str) or len(silhouette_rig_sha) != 64:
-                    raise RuntimeError("Codex silhouette turn did not return Runtime-owned Rig hash")
-                if not has_subsequence(call_sequence(silhouette_turn_items), SILHOUETTE_SEQUENCE) or not all_completed(silhouette_turn_items, SILHOUETTE_SEQUENCE):
-                    raise RuntimeError("Codex did not complete target/camera/Rig sequence")
+                silhouette_comparison_result = silhouette_turn["comparison"]
+                canonical_observation_result = silhouette_turn["observation"]
+                silhouette_observation_sha = silhouette_turn["observation_sha"]
+                canonical_observation_candidate_id = candidate_id
+                selected_camera = silhouette_turn["camera"]
+                silhouette_camera_hash = silhouette_turn["camera_hash"]
+                silhouette_rig_sha = silhouette_turn["rig_sha"]
                 rig = silhouette_rig_draft(candidate_id)
                 rig["canonical_sha256"] = silhouette_rig_sha
-                # Keep the full calibration in Runtime's result evidence, but
-                # send only its two Runtime-owned hashes through the next
-                # Codex turn.  This avoids model-side float rounding while
-                # preserving an exact candidate/target camera binding.
-                camera_ref = {
-                    "schema_version": "CameraCalibrationRef@1",
-                    "camera_hash": silhouette_camera_hash,
-                    "canonical_sha256": selected_camera.get("canonical_sha256"),
-                }
-                if not isinstance(camera_ref["canonical_sha256"], str) or len(camera_ref["canonical_sha256"]) != 64:
-                    raise RuntimeError("Codex silhouette turn did not return selected camera canonical evidence")
+                camera_ref = silhouette_turn["camera_ref"]
                 selected_camera_for_compare = selected_camera
-                fit_request: dict[str, Any] = {
-                    "project_id": project_id,
-                    "candidate_id": candidate_id,
-                    "target_sha256": silhouette_target_sha,
-                    "rig": rig,
-                    "base_camera": camera_ref,
-                    "optimizer": {"algorithm": "coordinate_descent", "max_iterations": 2, "max_evaluations": 24, "step_fraction": 0.1},
-                    "canonical_sha256": "",
-                }
-                # Codex may serialize an integral float as an integer while
-                # preserving its typed value. Hash the numeric-normalized
-                # semantic intent so the Runtime can bind either wire form.
-                fit_request["canonical_sha256"] = canonical_hash(normalize_numeric_representation(fit_request))
-                silhouette_fit_intent_sha = fit_request["canonical_sha256"]
-                fit_items = run_required_codex_turn(
-                    options,
-                    environment,
-                    silhouette_fit_prompt(fit_request),
-                    str(root),
-                    ("silhouette_fit_prepare",),
-                    turn_outputs,
-                    "silhouette fit",
-                )
-                silhouette_items.extend(fit_items)
-                silhouette_fit_result = structured_result(fit_items, "silhouette_fit_prepare") or {}
-                if not has_subsequence(call_sequence(fit_items), ("silhouette_fit_prepare",)) or not all_completed(fit_items, ("silhouette_fit_prepare",)):
-                    raise RuntimeError("Codex did not complete silhouette_fit_prepare")
-                fit_selected_camera = field(silhouette_fit_result, "selected_camera")
-                if not isinstance(fit_selected_camera, dict):
-                    raise RuntimeError("silhouette_fit_prepare did not return selected camera evidence")
-                silhouette_fit_camera_hash = field(fit_selected_camera, "camera_hash")
-                silhouette_fit_camera_canonical = field(fit_selected_camera, "canonical_sha256")
-                if (
-                    not isinstance(silhouette_fit_camera_hash, str)
-                    or len(silhouette_fit_camera_hash) != 64
-                    or not isinstance(silhouette_fit_camera_canonical, str)
-                    or len(silhouette_fit_camera_canonical) != 64
-                ):
-                    raise RuntimeError("silhouette_fit_prepare returned an invalid selected camera")
-                # The fit result is the authoritative bounded camera proposal
-                # for the subsequent comparison.  Keeping the initial camera
-                # fit hash separately makes any accidental handoff drift
-                # visible in the receipt instead of silently comparing a
-                # different camera than the one the fit optimized.
-                selected_camera_for_compare = fit_selected_camera
-
-            if options.cadfit_optimization:
-                # The async CADFit job is deliberately a separate local-Part
-                # proposal.  It consumes the exact camera selected by the
-                # preceding silhouette fit and never mutates the source
-                # candidate; promotion remains a separate approved action.
-                if not isinstance(selected_camera_for_compare, dict):
-                    raise RuntimeError("CADFit requires a complete silhouette-fit camera")
-                cadfit_rig = single_part_optimization_rig_draft(candidate_id)
-                rig_hash_items = run_required_codex_turn(
-                    options,
-                    environment,
-                    cadfit_rig_hash_prompt(project_id, candidate_id, cadfit_rig),
-                    str(root),
-                    ("silhouette_rig_hash",),
-                    turn_outputs,
-                    "CADFit one-Part Rig hash",
-                )
-                cadfit_items.extend(rig_hash_items)
-                cadfit_rig_sha = field(structured_result(rig_hash_items, "silhouette_rig_hash") or {}, "canonical_sha256")
-                if not isinstance(cadfit_rig_sha, str) or len(cadfit_rig_sha) != 64:
-                    raise RuntimeError("CADFit Rig hash was not Runtime-owned")
-                cadfit_rig["canonical_sha256"] = cadfit_rig_sha
-                optimization_intent = cadfit_optimization_intent(
-                    project_id,
-                    candidate_id,
-                    reference_id,
-                    reference_sha,
-                    program_hash,
-                    silhouette_target_sha or "",
-                    selected_camera_for_compare,
-                    cadfit_rig,
-                )
-                cadfit_intent_sha = optimization_intent["canonical_sha256"]
-                cadfit_job_id = optimization_intent["job_id"]
-                approval = {
-                    "approved": True,
-                    "approval_receipt_id": "real-codex-cadfit-chest-shell-approval",
-                    "approval_summary": "Run an isolated one-Part multi-fidelity CADFit search and return a proposal only",
-                    "approval_expires_at": "9999999999",
-                    "approval_session_id": "real-codex-cadfit-chest-shell-session",
-                    "idempotency_key": "real-codex-cadfit-chest-shell-idempotency",
-                }
-                prepare_items = run_required_codex_turn(
-                    options,
-                    environment,
-                    cadfit_prepare_prompt({
+                if options.primary_form_repair:
+                    sequence_parts = options.part_contour_sequence_parts or (
+                        (options.part_contour_part,) if options.part_contour_trial else (None,)
+                    )
+                    if options.part_contour_sequence_parts:
+                        primary_form_composition_initial_candidate_id = candidate_id
+                    for step_index, part_id in enumerate(sequence_parts):
+                        if step_index:
+                            # Never carry the previous candidate's observation
+                            # into the next repair.  Re-read target/camera,
+                            # baseline compare, canonical observation and Rig
+                            # after every accepted staged candidate.
+                            next_silhouette_items = run_required_codex_turn(
+                                options,
+                                environment,
+                                silhouette_prompt(
+                                    project_id,
+                                    reference_id,
+                                    candidate_id,
+                                    job_id,
+                                    artifact_id,
+                                    silhouette_target_sha or "",
+                                    spec,
+                                ),
+                                str(root),
+                                SILHOUETTE_SEQUENCE,
+                                turn_outputs,
+                                f"silhouette observation before composition step {step_index + 1}",
+                            )
+                            silhouette_items.extend(next_silhouette_items)
+                            silhouette_turn = parse_bound_silhouette_turn(
+                                next_silhouette_items,
+                                project_id,
+                                candidate_id,
+                            )
+                            silhouette_comparison_result = silhouette_turn["comparison"]
+                            canonical_observation_result = silhouette_turn["observation"]
+                            silhouette_observation_sha = silhouette_turn["observation_sha"]
+                            canonical_observation_candidate_id = candidate_id
+                            selected_camera = silhouette_turn["camera"]
+                            silhouette_camera_hash = silhouette_turn["camera_hash"]
+                            silhouette_rig_sha = silhouette_turn["rig_sha"]
+                            camera_ref = silhouette_turn["camera_ref"]
+                            selected_camera_for_compare = selected_camera
+                        step = run_primary_form_repair_step(
+                            options,
+                            environment,
+                            str(root),
+                            turn_outputs,
+                            project_id,
+                            candidate_id,
+                            silhouette_target_sha or "",
+                            camera_ref,
+                            silhouette_rig_sha,
+                            spec,
+                            part_id,
+                            f"Primary Form composition step {step_index + 1}",
+                        )
+                        primary_form_repair_items.extend(step["items"])
+                        primary_form_repair_steps.append({
+                            "step": step_index + 1,
+                            "part_id": part_id,
+                            "source_candidate_id": candidate_id,
+                            "observation_candidate_id": canonical_observation_candidate_id,
+                            "target_sha256": silhouette_target_sha,
+                            "observation_sha256": silhouette_observation_sha,
+                            "camera_hash": camera_ref["camera_hash"],
+                            "camera_canonical_sha256": camera_ref["canonical_sha256"],
+                            "rig_sha256": silhouette_rig_sha,
+                            "intent_sha256": step["request"]["canonical_sha256"],
+                            "status": step["status"],
+                            "fit_evaluations": field(step["fit_result"], "evaluations"),
+                            "fit_loss": field(step["fit_result"], "selected_loss"),
+                            "fit_camera_hash": step["fit_camera_hash"],
+                            "acceptance": {
+                                "status": field(step["result"], "acceptance", "status"),
+                                "strict_improvement": field(step["result"], "acceptance", "strict_improvement"),
+                                "source_loss": field(step["result"], "acceptance", "source_loss"),
+                                "proposal_loss": field(step["result"], "acceptance", "proposal_loss"),
+                                "camera_hash": field(step["result"], "acceptance", "camera_hash"),
+                            },
+                            "prepared_candidate_id": step["staged"]["candidate_id"] if step["status"] == "prepared" else None,
+                        })
+                        partial_evidence["primary_form_repair_steps"] = primary_form_repair_steps
+                        primary_form_repair_result = step["result"]
+                        primary_form_repair_source_candidate_id = candidate_id
+                        primary_form_repair_intent_sha = step["request"]["canonical_sha256"]
+                        silhouette_fit_result = step["fit_result"]
+                        silhouette_fit_camera_hash = step["fit_camera_hash"]
+                        silhouette_fit_camera_canonical = step["fit_camera_canonical"]
+                        next_candidate_id = candidate_id
+                        if options.part_contour_sequence_parts:
+                            if step["status"] == "prepared":
+                                staged_payload = step.get("staged")
+                                staged_candidate_id = (
+                                    staged_payload.get("candidate_id")
+                                    if isinstance(staged_payload, dict)
+                                    else None
+                                )
+                                if not isinstance(staged_candidate_id, str) or not staged_candidate_id:
+                                    raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: staged candidate is missing")
+                                next_candidate_id = staged_candidate_id
+                            elif step["status"] != "no_improvement":
+                                raise RuntimeError(
+                                    "PRIMARY_FORM_COMPOSITION_INVALID: unsupported step status before candidate advance"
+                                )
+                            # Once a two-step prefix exists, the compact
+                            # lineage is the authoritative chain projection
+                            # for the next step.  Do not advance from the raw
+                            # event list if its candidate/observation/hash
+                            # bindings fail closed.
+                            if step_index >= 1:
+                                if primary_form_composition_initial_candidate_id is None:
+                                    raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: initial candidate is missing")
+                                primary_form_composition_lineage = build_primary_form_composition_lineage(
+                                    project_id,
+                                    primary_form_composition_initial_candidate_id,
+                                    next_candidate_id,
+                                    silhouette_target_sha or "",
+                                    options.part_contour_sequence_parts[: step_index + 1],
+                                    primary_form_repair_steps,
+                                )
+                                if primary_form_composition_lineage["final_candidate_id"] != next_candidate_id:
+                                    raise RuntimeError(
+                                        "PRIMARY_FORM_COMPOSITION_INVALID: lineage did not authorize candidate advance"
+                                    )
+                                partial_evidence["primary_form_composition_lineage"] = primary_form_composition_lineage
+                        if step["status"] == "prepared":
+                            selected_camera_for_compare = step["fit_camera"]
+                            staged = step["staged"]
+                            candidate_id = staged["candidate_id"]
+                            job_id = staged["job_id"]
+                            artifact_id = staged["artifact_id"]
+                            artifact = staged["artifact"]
+                            program_hash = staged["program_sha256"]
+                        elif options.part_contour_sequence_parts:
+                            candidate_id = next_candidate_id
+                    if options.part_contour_sequence_parts:
+                        if primary_form_composition_lineage is None:
+                            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: lineage was not consumed")
+                        if primary_form_composition_lineage["final_candidate_id"] != candidate_id:
+                            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: final candidate is not lineage-bound")
+                else:
+                    fit_request: dict[str, Any] = {
                         "project_id": project_id,
                         "candidate_id": candidate_id,
-                        "intent": optimization_intent,
-                        **approval,
-                    }),
-                    str(root),
-                    ("optimization_job_prepare",),
-                    turn_outputs,
-                    "CADFit OptimizationJob prepare",
-                )
-                cadfit_items.extend(prepare_items)
-                latest_cadfit = structured_result(prepare_items, "optimization_job_prepare") or {}
-                if latest_cadfit.get("schema_version") != "OptimizationJobResult@1":
-                    raise RuntimeError("CADFit prepare did not return OptimizationJobResult@1")
-                deadline = time.monotonic() + options.timeout
-                while True:
-                    job_status = field(latest_cadfit, "job", "status")
-                    if job_status in CADFIT_TERMINAL_STATUSES:
-                        break
-                    if time.monotonic() >= deadline:
-                        raise RuntimeError("CADFit OptimizationJob polling exceeded the probe timeout")
-                    time.sleep(0.25)
-                    poll_items = run_required_codex_turn(
+                        "target_sha256": silhouette_target_sha,
+                        "rig": rig,
+                        "base_camera": camera_ref,
+                        "optimizer": {"algorithm": "coordinate_descent", "max_iterations": 2, "max_evaluations": 64, "step_fraction": 0.1},
+                        "canonical_sha256": "",
+                    }
+                    if options.part_contour_trial:
+                        fit_request["part_id"] = options.part_contour_part
+                    # Codex may serialize an integral float as an integer while
+                    # preserving its typed value. Hash the numeric-normalized
+                    # semantic intent so the Runtime can bind either wire form.
+                    fit_request["canonical_sha256"] = canonical_hash(normalize_numeric_representation(fit_request))
+                    silhouette_fit_intent_sha = fit_request["canonical_sha256"]
+                    fit_items = run_required_codex_turn(
                         options,
                         environment,
-                        cadfit_get_prompt(project_id, candidate_id, cadfit_job_id),
+                        silhouette_fit_prompt(fit_request),
                         str(root),
-                        ("optimization_job_get",),
+                        ("silhouette_fit_prepare",),
                         turn_outputs,
-                        "CADFit OptimizationJob readback",
+                        "silhouette fit",
                     )
-                    cadfit_items.extend(poll_items)
-                    latest_cadfit = structured_result(poll_items, "optimization_job_get") or latest_cadfit
-                cadfit_result = compact_cadfit_result(latest_cadfit)
-                if cadfit_result["job_status"] != "succeeded" or cadfit_result["result_status"] != "succeeded":
-                    raise RuntimeError(f"CADFit OptimizationJob did not succeed: {cadfit_result['job_status']}/{cadfit_result['result_status']}")
-                if cadfit_result["evaluations_count"] != CADFIT_EXPECTED_EVALUATIONS:
-                    raise RuntimeError("CADFit OptimizationJob did not complete the bounded 32+4+2+1 evaluation chain")
-                if cadfit_result["fidelity_counts"] != {"coarse": CADFIT_COARSE_EVALUATIONS, "mid": CADFIT_MID_TOP_K, "final": CADFIT_FINAL_TOP_K + 1}:
-                    raise RuntimeError("CADFit OptimizationJob fidelity counts drifted")
-                if cadfit_result["checkpoint_sequence"] != CADFIT_EXPECTED_EVALUATIONS or cadfit_result["next_stage"] != "done":
-                    raise RuntimeError("CADFit OptimizationJob checkpoint chain was incomplete")
-                if cadfit_result["best_evaluation_fidelity"] != "final":
-                    raise RuntimeError("CADFit best-so-far did not survive to the final fidelity")
-                partial_evidence.update({
-                    "cadfit_optimization_requested": True,
-                    "cadfit_rig_sha256": cadfit_rig_sha,
-                    "cadfit_intent_sha256": cadfit_intent_sha,
-                    "cadfit_job_id": cadfit_job_id,
-                    "cadfit_optimization": cadfit_result,
-                    "cadfit_sequence": [call.get("tool") for call in mcp_calls(cadfit_items)],
-                })
+                    silhouette_items.extend(fit_items)
+                    silhouette_fit_result = structured_result(fit_items, "silhouette_fit_prepare") or {}
+                    if not has_subsequence(call_sequence(fit_items), ("silhouette_fit_prepare",)) or not all_completed(fit_items, ("silhouette_fit_prepare",)):
+                        raise RuntimeError("Codex did not complete silhouette_fit_prepare")
+                    fit_selected_camera = field(silhouette_fit_result, "selected_camera")
+                    if not isinstance(fit_selected_camera, dict):
+                        raise RuntimeError("silhouette_fit_prepare did not return selected camera evidence")
+                    silhouette_fit_camera_hash = field(fit_selected_camera, "camera_hash")
+                    silhouette_fit_camera_canonical = field(fit_selected_camera, "canonical_sha256")
+                    if (
+                        not isinstance(silhouette_fit_camera_hash, str)
+                        or len(silhouette_fit_camera_hash) != 64
+                        or not isinstance(silhouette_fit_camera_canonical, str)
+                        or len(silhouette_fit_camera_canonical) != 64
+                    ):
+                        raise RuntimeError("silhouette_fit_prepare returned an invalid selected camera")
+                    # The fit result is the authoritative bounded camera
+                    # proposal for the subsequent comparison.  Keeping the
+                    # initial camera fit hash separately makes any accidental
+                    # handoff drift visible in the receipt instead of silently
+                    # comparing a different camera than the one the fit optimized.
+                    selected_camera_for_compare = fit_selected_camera
 
-            spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
-            third = run_codex_turn(
-                options,
-                environment,
-                compare_prompt(
-                    project_id,
-                    reference_id,
-                    candidate_id,
-                    job_id,
-                    artifact_id,
-                    spec,
-                    selected_camera_for_compare,
-                    silhouette_target_sha,
-                ),
-                str(root),
-            )
-            turn_outputs.append(third)
-            third_items = event_items(third.stdout)
-            comparison = structured_result(third_items, "reference_compare_prepare") or {}
-            artifact_readback = structured_result(third_items, "artifact_readback_get") or {}
+            third_items: list[dict[str, Any]] = []
+            actual_third: list[str] = []
+            runtime_visual_evidence = field(primary_form_repair_result or {}, "visual_evidence")
+            if (
+                options.primary_form_repair
+                and isinstance(runtime_visual_evidence, dict)
+                and field(runtime_visual_evidence, "candidate_id") == candidate_id
+            ):
+                # primary_form_repair_prepare already performed the complete
+                # Runtime-owned fit -> Geometry Worker -> Render Worker ->
+                # candidate-bound comparison. Re-entering reference_compare_prepare
+                # from Codex would duplicate that compare and would force the
+                # compact camera reference through a new staged-candidate cache
+                # key. Consume the typed visual evidence returned by the one
+                # Runtime action instead.
+                comparison = {
+                    "render_set_object_sha256": field(runtime_visual_evidence, "render_set_hash"),
+                    "comparison_report_object_sha256": field(runtime_visual_evidence, "comparison_report_hash"),
+                    "render_set": field(runtime_visual_evidence, "render_set") or {},
+                    "comparison_report": field(runtime_visual_evidence, "comparison_report") or {},
+                    "camera": {
+                        "camera_hash": field(runtime_visual_evidence, "camera_hash"),
+                        "canonical_sha256": field(
+                            selected_camera_for_compare or {}, "canonical_sha256"
+                        ),
+                    },
+                }
+                primary_form_runtime_compare = True
+            elif (
+                options.primary_form_repair
+                and isinstance(silhouette_comparison_result, dict)
+                and field(silhouette_comparison_result, "candidate_id") == candidate_id
+            ):
+                # Primary Form retained the source candidate. Reuse the
+                # baseline compare that was part of the canonical silhouette
+                # turn; do not issue another fragmented compare or boundary
+                # diagnostic call.
+                comparison = silhouette_comparison_result
+                canonical_compare_in_silhouette = True
+            else:
+                third = run_codex_turn(
+                    options,
+                    environment,
+                    compare_prompt(
+                        project_id,
+                        reference_id,
+                        candidate_id,
+                        job_id,
+                        artifact_id,
+                        spec,
+                        selected_camera_for_compare,
+                        silhouette_target_sha,
+                    ),
+                    str(root),
+                )
+                turn_outputs.append(third)
+                third_items = event_items(third.stdout)
+                comparison = structured_result(third_items, "reference_compare_prepare") or {}
+                actual_third = call_sequence(third_items)
             render_set_hash = field(comparison, "render_set_object_sha256") or field(comparison, "render_set_hash")
             comparison_hash = field(comparison, "comparison_report_object_sha256") or field(comparison, "comparison_report_hash")
             render_set = field(comparison, "render_set") or {}
             metrics = field(comparison, "comparison_report", "metrics")
-            actual_third = call_sequence(third_items)
             if not isinstance(render_set_hash, str) or not isinstance(comparison_hash, str):
                 raise RuntimeError("Codex comparison did not return candidate-bound CAS hashes")
             partial_evidence.update({
@@ -1901,9 +1805,6 @@ def main() -> int:
                 "render_set_hash": render_set_hash,
                 "comparison_report_hash": comparison_hash,
                 "comparison_metrics": metrics,
-                "artifact_readback_object_sha256": typed_sha256(field(artifact_readback, "object_sha256")),
-                "comparison_mask_sha256": typed_sha256(field(comparison, "comparison_report", "mask", "sha256")),
-                "quality_report_object_sha256": typed_sha256(field(comparison, "quality_report_object_sha256")),
             })
             if selected_camera_for_compare is not None:
                 compared_camera_hash = field(comparison, "camera", "camera_hash") or field(comparison, "comparison_report", "camera_hash")
@@ -1916,38 +1817,94 @@ def main() -> int:
                 comparison_camera_canonical = field(comparison, "camera", "canonical_sha256") or field(comparison, "comparison_report", "camera_canonical_sha256")
             if render_set.get("passes") != list(AOV_ORDER):
                 raise RuntimeError("Codex comparison did not return the fixed nine AOV order")
-            if not has_subsequence(actual_third, COMPARE_SEQUENCE) or not all_completed(third_items, COMPARE_SEQUENCE):
+            if (
+                not primary_form_runtime_compare
+                and not canonical_compare_in_silhouette
+                and (not has_subsequence(actual_third, COMPARE_SEQUENCE) or not all_completed(third_items, COMPARE_SEQUENCE))
+            ):
                 raise RuntimeError("Codex did not complete the readback/compare sequence")
 
             boundary_result: dict[str, Any] | None = None
+            canonical_part_error: dict[str, Any] | None = None
+            boundary_summary = None
             if options.silhouette_first:
-                boundary_turn = run_codex_turn(
+                observed_part_error = field(
+                    canonical_observation_result or {},
+                    "design_critic_report",
+                    "primary_form_directive",
+                    "part_error",
+                )
+                if (
+                    isinstance(observed_part_error, dict)
+                    and observed_part_error.get("schema_version") == "SilhouettePartErrorResult@1"
+                    and isinstance(observed_part_error.get("parts"), list)
+                ):
+                    # The complete Part error table is already part of the
+                    # canonical scene observation.  Do not make Codex issue a
+                    # second boundary read that can drift from the scene,
+                    # camera or candidate it just observed.
+                    canonical_part_error = observed_part_error
+                    boundary_summary = {
+                        "source": "canonical_observation",
+                        "metrics": field(observed_part_error, "metrics"),
+                        "parts": observed_part_error.get("parts", []),
+                        "recommended_part_ids": observed_part_error.get("recommended_part_ids", []),
+                    }
+                else:
+                    # Compatibility fallback for older Runtime cohorts whose
+                    # automatic silhouette target cannot yet project a Part
+                    # table.  New cohorts must take the canonical branch.
+                    boundary_turn = run_codex_turn(
+                        options,
+                        environment,
+                        boundary_error_prompt(project_id, candidate_id, silhouette_target_sha or ""),
+                        str(root),
+                    )
+                    turn_outputs.append(boundary_turn)
+                    boundary_items = event_items(boundary_turn.stdout)
+                    boundary_result = structured_result(boundary_items, "boundary_error_get") or {}
+                    if not has_subsequence(call_sequence(boundary_items), ("boundary_error_get",)) or not all_completed(boundary_items, ("boundary_error_get",)):
+                        raise RuntimeError("Codex did not complete boundary_error_get")
+                    boundary_summary = {
+                        "source": "boundary_error_get_compatibility_fallback",
+                        "metrics": field(boundary_result or {}, "metrics"),
+                        "segments": [
+                            {
+                                key: segment.get(key)
+                                for key in ("reference", "model", "delta_px", "distance_px", "direction", "part_id")
+                            }
+                            for segment in (field(boundary_result or {}, "segments") or [])
+                            if isinstance(segment, dict)
+                        ],
+                    }
+            part_contour_result: dict[str, Any] | None = None
+            part_contour_rig_sha256: str | None = None
+            part_contour_items: list[dict[str, Any]] = []
+            if options.part_contour_part:
+                part_contour_turn = run_codex_turn(
                     options,
                     environment,
-                    boundary_error_prompt(project_id, candidate_id, silhouette_target_sha or ""),
+                    part_contour_prompt(
+                        project_id,
+                        candidate_id,
+                        silhouette_target_sha or "",
+                        options.part_contour_part,
+                    ),
                     str(root),
                 )
-                turn_outputs.append(boundary_turn)
-                boundary_items = event_items(boundary_turn.stdout)
-                boundary_result = structured_result(boundary_items, "boundary_error_get") or {}
-                if not has_subsequence(call_sequence(boundary_items), ("boundary_error_get",)) or not all_completed(boundary_items, ("boundary_error_get",)):
-                    raise RuntimeError("Codex did not complete boundary_error_get")
-
-            boundary_summary = (
-                {
-                    "metrics": field(boundary_result or {}, "metrics"),
-                    "segments": [
-                        {
-                            key: segment.get(key)
-                            for key in ("reference", "model", "delta_px", "distance_px", "direction", "part_id")
-                        }
-                        for segment in (field(boundary_result or {}, "segments") or [])
-                        if isinstance(segment, dict)
-                    ],
-                }
-                if options.silhouette_first
-                else None
-            )
+                turn_outputs.append(part_contour_turn)
+                part_contour_items = event_items(part_contour_turn.stdout)
+                part_contour_rig_result = structured_result(part_contour_items, "silhouette_rig_hash") or {}
+                part_contour_result = structured_result(part_contour_items, "part_contour_fit_prepare") or {}
+                part_contour_rig_sha256 = field(part_contour_rig_result, "canonical_sha256")
+                if not has_subsequence(
+                    call_sequence(part_contour_items),
+                    ("silhouette_rig_hash", "part_contour_fit_prepare"),
+                ) or not all_completed(
+                    part_contour_items,
+                    ("silhouette_rig_hash", "part_contour_fit_prepare"),
+                ):
+                    raise RuntimeError("Codex did not complete the single-Part contour sequence")
             if options.boundary_only:
                 all_items = [item for turn in turn_outputs for item in event_items(turn.stdout)]
                 side_effects = side_effect_summary(all_items)
@@ -1994,7 +1951,33 @@ def main() -> int:
                     "comparison_report_hash": field(comparison, "comparison_report_object_sha256") or field(comparison, "comparison_report_hash"),
                     "comparison_metrics": metrics,
                     "boundary_error": boundary_summary,
-                    "boundary_error_count": len(field(boundary_result or {}, "segments") or []),
+                    "canonical_part_error": canonical_part_error,
+                    "boundary_error_count": (
+                        len(field(boundary_result or {}, "segments") or [])
+                        if boundary_result is not None
+                        else len(field(canonical_part_error or {}, "parts") or [])
+                    ),
+                    "part_contour_part_id": options.part_contour_part,
+                    "part_contour_trial_requested": options.part_contour_trial,
+                    "part_contour_sequence_requested": bool(options.part_contour_sequence_parts),
+                    "part_contour_sequence_parts": list(options.part_contour_sequence_parts),
+                    "primary_form_repair_steps": primary_form_repair_steps,
+                    "primary_form_composition_lineage": primary_form_composition_lineage,
+                    "part_contour_trial": {
+                        "part_id": field(primary_form_repair_result or {}, "part_id"),
+                        "status": field(primary_form_repair_result or {}, "status"),
+                        "quality_status": field(primary_form_repair_result or {}, "quality_status"),
+                        "candidate_state": field(primary_form_repair_result or {}, "candidate_state"),
+                        "source_candidate_id": field(primary_form_repair_result or {}, "source_candidate_id"),
+                        "prepared_candidate_id": field(primary_form_repair_result or {}, "visual_evidence", "candidate_id"),
+                        "acceptance_status": field(primary_form_repair_result or {}, "acceptance", "status"),
+                        "acceptance_strict_improvement": field(primary_form_repair_result or {}, "acceptance", "strict_improvement"),
+                        "acceptance_source_loss": field(primary_form_repair_result or {}, "acceptance", "source_loss"),
+                        "acceptance_proposal_loss": field(primary_form_repair_result or {}, "acceptance", "proposal_loss"),
+                        "acceptance_camera_hash": field(primary_form_repair_result or {}, "acceptance", "camera_hash"),
+                    } if options.part_contour_trial else None,
+                    "part_contour_rig_sha256": part_contour_rig_sha256,
+                    "part_contour_fit": part_contour_result,
                     "quality_claim": "NO_LIKENESS_PASS_CLAIM; BOUNDARY_EVIDENCE_ONLY",
                     "geometry_route": options.geometry_route,
                     "geometry_variant": options.geometry_variant if options.geometry_route == "detail" else None,
@@ -2002,20 +1985,15 @@ def main() -> int:
                     "silhouette_first": options.silhouette_first,
                     "silhouette_gate": "QUALITY_TARGET_NOT_MET" if field(silhouette_fit_result or {}, "status") != "ready" else "PASS",
                     "detail_material_stages": "LOCKED_UNTIL_SILHOUETTE_GATE",
-                    "cadfit_optimization_requested": options.cadfit_optimization,
-                    "cadfit_rig_sha256": cadfit_rig_sha,
-                    "cadfit_intent_sha256": cadfit_intent_sha,
-                    "cadfit_job_id": cadfit_job_id,
-                    "cadfit_optimization": cadfit_result,
-                    "cadfit_sequence": [call.get("tool") for call in mcp_calls(cadfit_items)] if options.cadfit_optimization else [],
                     "mcp_tool_calls": [call for turn in turn_outputs for call in mcp_calls(event_items(turn.stdout))],
                     "expected_sequences": {
                         "setup": list(SETUP_SEQUENCE),
                         "authoring": list(AUTHORING_SEQUENCE),
                         "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE),
                         "silhouette": list(SILHOUETTE_SEQUENCE),
-                        "compare": list(COMPARE_SEQUENCE),
-                        "boundary": ["boundary_error_get"],
+                        "compare": [] if silhouette_comparison_result else list(COMPARE_SEQUENCE),
+                        "boundary": ["boundary_error_get"] if boundary_result is not None else [],
+                        "part_contour": ["silhouette_rig_hash", "part_contour_fit_prepare"] if options.part_contour_part else [],
                         "render": [],
                         "review": [],
                     },
@@ -2080,14 +2058,6 @@ def main() -> int:
             review_report = field(review, "review") or review
             if not review_stage_completed(fifth_items) or successful_human_review(fifth_items):
                 raise RuntimeError("Codex did not complete typed review and quality readback")
-            typed_evidence_bindings = build_typed_evidence_bindings(
-                comparison,
-                artifact_readback,
-                fourth_items,
-                review,
-                quality,
-                render_set_hash,
-            )
             packaged_viewer = None
             if viewer_command is not None:
                 packaged_viewer = read_bound_viewer_projection(
@@ -2139,20 +2109,55 @@ def main() -> int:
                 "validator_status": field(artifact, "validator_status"),
                 "render_set_hash": render_set_hash,
                 "comparison_report_hash": comparison_hash,
+                "primary_form_repair_requested": options.primary_form_repair,
+                "part_contour_trial_requested": options.part_contour_trial,
+                "part_contour_sequence_requested": bool(options.part_contour_sequence_parts),
+                "part_contour_sequence_parts": list(options.part_contour_sequence_parts),
+                "primary_form_repair_intent_sha256": primary_form_repair_intent_sha,
+                "primary_form_repair_steps": primary_form_repair_steps,
+                "primary_form_composition_lineage": primary_form_composition_lineage,
+                "primary_form_repair": {
+                    "part_id": field(primary_form_repair_result or {}, "part_id"),
+                    "status": field(primary_form_repair_result or {}, "status"),
+                    "quality_status": field(primary_form_repair_result or {}, "quality_status"),
+                    "candidate_state": field(primary_form_repair_result or {}, "candidate_state"),
+                    "source_candidate_id": primary_form_repair_source_candidate_id,
+                    "prepared_candidate_id": field(
+                        primary_form_repair_result or {},
+                        "visual_evidence",
+                        "candidate_id",
+                    ),
+                    "staged_render_set_hash": field(
+                        primary_form_repair_result or {},
+                        "visual_evidence",
+                        "render_set_hash",
+                    ),
+                    "staged_comparison_report_hash": field(
+                        primary_form_repair_result or {},
+                        "visual_evidence",
+                        "comparison_report_hash",
+                    ),
+                    "staged_quality_report_hash": field(
+                        primary_form_repair_result or {},
+                        "visual_evidence",
+                        "quality_report_hash",
+                    ),
+                    "fit_status": field(primary_form_repair_result or {}, "fit_result", "status"),
+                    "fit_evaluations": field(primary_form_repair_result or {}, "fit_result", "evaluations"),
+                    "fit_metrics": field(primary_form_repair_result or {}, "fit_result", "metrics"),
+                    "acceptance_status": field(primary_form_repair_result or {}, "acceptance", "status"),
+                    "acceptance_strict_improvement": field(primary_form_repair_result or {}, "acceptance", "strict_improvement"),
+                    "acceptance_source_loss": field(primary_form_repair_result or {}, "acceptance", "source_loss"),
+                    "acceptance_proposal_loss": field(primary_form_repair_result or {}, "acceptance", "proposal_loss"),
+                    "acceptance_camera_hash": field(primary_form_repair_result or {}, "acceptance", "camera_hash"),
+                } if options.primary_form_repair else None,
+                "primary_form_runtime_compare": primary_form_runtime_compare,
+                "canonical_compare_in_silhouette": canonical_compare_in_silhouette,
                 "aov_order": list(AOV_ORDER),
                 "render_pass_calls": len(actual_render_passes),
                 "render_pass_order": actual_render_passes,
-                "render_pass_image_blocks": typed_evidence_bindings["render_pass_image_blocks"],
+                "render_pass_image_blocks": "NOT_OBSERVED_IN_SANITIZED_CLI_EVENTS",
                 "comparison_metrics": metrics,
-                "typed_evidence_bindings": typed_evidence_bindings,
-                "comparison_bindings": typed_evidence_bindings["comparison_bindings"],
-                "mask_binding": typed_evidence_bindings["mask_binding"],
-                "render_pass_artifacts": typed_evidence_bindings["render_pass_artifacts"],
-                "render_pass_readbacks": typed_evidence_bindings["render_pass_readbacks"],
-                "metric_binding": typed_evidence_bindings["metric_binding"],
-                "visual_review_receipt_hash": typed_evidence_bindings["visual_review"].get("object_sha256"),
-                "quality_report_object_sha256": typed_evidence_bindings["quality_readback"].get("object_sha256"),
-                "downstream_status": typed_evidence_bindings["downstream_status"],
                 # Preserve only the typed, candidate-bound boundary evidence
                 # needed for the next single-Part decision.  The MCP result
                 # contains normalized points, pixel deltas, direction and
@@ -2161,6 +2166,10 @@ def main() -> int:
                 # next round from guessing a Part after the Runtime process
                 # is torn down.
                 "boundary_error": boundary_summary,
+                "canonical_part_error": canonical_part_error,
+                "part_contour_part_id": options.part_contour_part,
+                "part_contour_rig_sha256": part_contour_rig_sha256,
+                "part_contour_fit": part_contour_result,
                 "visual_review_status": field(review_report, "status"),
                 "quality_visual_status": field(quality_report, "visual_status"),
                 "quality_hard_gate_passed": field(quality_report, "hard_gate_passed"),
@@ -2169,10 +2178,14 @@ def main() -> int:
                 "expected_sequences": {
                     "setup": list(SETUP_SEQUENCE),
                     "authoring": list(AUTHORING_SEQUENCE),
-                        "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE) if options.silhouette_first else [],
-                        "silhouette": list(SILHOUETTE_SEQUENCE) if options.silhouette_first else [],
-                        "cadfit": ["silhouette_rig_hash", "optimization_job_prepare", "optimization_job_get"] if options.cadfit_optimization else [],
-                        "compare": list(COMPARE_SEQUENCE),
+                    "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE) if options.silhouette_first else [],
+                    "silhouette": list(SILHOUETTE_SEQUENCE) if options.silhouette_first else [],
+                    "compare": []
+                    if primary_form_runtime_compare or canonical_compare_in_silhouette
+                    else list(COMPARE_SEQUENCE),
+                    "boundary": ["boundary_error_get"] if boundary_result is not None else [],
+                    "part_contour": ["silhouette_rig_hash", "part_contour_fit_prepare"] if options.part_contour_part else [],
+                    "primary_form_repair": list(PRIMARY_FORM_REPAIR_SEQUENCE) if options.primary_form_repair else [],
                     "render": list(RENDER_SEQUENCE),
                     "review": list(REVIEW_SEQUENCE),
                 },
@@ -2205,28 +2218,35 @@ def main() -> int:
                     "loss": field(silhouette_fit_result or {}, "loss"),
                     "metrics": field(silhouette_fit_result or {}, "metrics"),
                 } if options.silhouette_first else None,
-                "boundary_error_count": len(field(boundary_result or {}, "segments") or []) if options.silhouette_first else None,
+                "boundary_error_count": (
+                    len(field(boundary_result or {}, "segments") or [])
+                    if boundary_result is not None
+                    else len(field(canonical_part_error or {}, "parts") or [])
+                    if options.silhouette_first
+                    else None
+                ),
+                # Keep the legacy flat sequence for existing consumers, but
+                # expose the canonical observation as its own typed stage.
+                # This prevents later readers from reconstructing scene state
+                # by interleaving target, camera and fit tool calls.
+                "silhouette_stage_sequences": {
+                    "target": [call.get("tool") for call in mcp_calls(target_items)] if options.silhouette_first else [],
+                    "observation": [call.get("tool") for call in mcp_calls(silhouette_turn_items)] if options.silhouette_first else [],
+                    "fit": [call.get("tool") for call in mcp_calls(fit_items)] if options.silhouette_first else [],
+                    "part_contour": [call.get("tool") for call in mcp_calls(part_contour_items)] if options.part_contour_part else [],
+                    "repair": [call.get("tool") for call in mcp_calls(primary_form_repair_items)] if options.primary_form_repair else [],
+                },
+                "canonical_observation": {
+                    "schema_version": "AgenticSceneObserveResult@1",
+                    "project_id": project_id,
+                    "candidate_id": canonical_observation_candidate_id,
+                    "read_only": True,
+                    "canonical_sha256": silhouette_observation_sha,
+                } if options.silhouette_first else None,
                 "silhouette_sequence": [call.get("tool") for call in mcp_calls(silhouette_items)] if options.silhouette_first else [],
-                    "silhouette_gate": "NOT_RUN" if not options.silhouette_first else ("PASS" if field(silhouette_fit_result or {}, "status") == "ready" else "QUALITY_TARGET_NOT_MET"),
-                    "detail_material_stages": "LOCKED_UNTIL_SILHOUETTE_GATE" if options.silhouette_first and field(silhouette_fit_result or {}, "status") != "ready" else "NOT_APPLICABLE",
-                    "cadfit_optimization_requested": options.cadfit_optimization,
-                    "cadfit_rig_sha256": cadfit_rig_sha,
-                    "cadfit_intent_sha256": cadfit_intent_sha,
-                    "cadfit_job_id": cadfit_job_id,
-                    "cadfit_optimization": cadfit_result,
-                    "cadfit_sequence": [call.get("tool") for call in mcp_calls(cadfit_items)] if options.cadfit_optimization else [],
-                })
-            receipt.update(
-                complete_transport_receipt_fields(
-                    metrics,
-                    typed_evidence_bindings,
-                    field(quality_report, "visual_status"),
-                    field(quality_report, "hard_gate_passed"),
-                    field(review_report, "status"),
-                    receipt.get("camera_binding_status", "NOT_RUN"),
-                    policy,
-                )
-            )
+                "silhouette_gate": "NOT_RUN" if not options.silhouette_first else ("PASS" if field(silhouette_fit_result or {}, "status") == "ready" else "QUALITY_TARGET_NOT_MET"),
+                "detail_material_stages": "LOCKED_UNTIL_SILHOUETTE_GATE" if options.silhouette_first and field(silhouette_fit_result or {}, "status") != "ready" else "NOT_APPLICABLE",
+            })
             if packaged_viewer is not None:
                 receipt["packaged_viewer"] = packaged_viewer
             if options.debug:
@@ -2238,14 +2258,6 @@ def main() -> int:
     except (OSError, RuntimeError, subprocess.SubprocessError, json.JSONDecodeError) as error:
         receipt["reason"] = str(error)[:2000]
         receipt["silhouette_fit_intent_sha256"] = silhouette_fit_intent_sha
-        receipt.update({
-            "cadfit_optimization_requested": options.cadfit_optimization,
-            "cadfit_rig_sha256": cadfit_rig_sha,
-            "cadfit_intent_sha256": cadfit_intent_sha,
-            "cadfit_job_id": cadfit_job_id,
-            "cadfit_optimization": cadfit_result,
-            "cadfit_sequence": [call.get("tool") for call in mcp_calls(cadfit_items)] if options.cadfit_optimization else [],
-        })
         receipt.update(partial_evidence)
         receipt["mcp_tool_calls"] = [call for turn in turn_outputs for call in mcp_calls(event_items(turn.stdout))]
         if options.debug:

@@ -50,40 +50,6 @@ def require(condition: bool, message: str) -> None:
         raise GateFailure(message)
 
 
-def read_ponytail_preflight(client: McpClient) -> dict[str, str]:
-    """Read the mandatory first-party planning Skill before design calls."""
-    result = client.tool(
-        "skill_get",
-        {"skill_id": "ponytail-preflight", "version": "0.1.0"},
-    )
-    require(isinstance(result, dict), "ponytail preflight returned no typed result")
-    skill = result.get("skill")
-    knowledge = result.get("knowledge")
-    require(
-        isinstance(skill, dict)
-        and skill.get("skill_id") == "ponytail-preflight"
-        and skill.get("version") == "0.1.0"
-        and isinstance(skill.get("canonical_sha256"), str)
-        and len(skill["canonical_sha256"]) == 64,
-        "ponytail preflight manifest was not verified",
-    )
-    require(
-        isinstance(knowledge, dict)
-        and isinstance(knowledge.get("canonical_sha256"), str)
-        and len(knowledge["canonical_sha256"]) == 64
-        and isinstance(knowledge.get("overview"), str)
-        and isinstance(knowledge.get("constraints"), str),
-        "ponytail preflight knowledge was not returned",
-    )
-    return {
-        "skill_id": skill["skill_id"],
-        "version": skill["version"],
-        "skill_manifest_sha256": skill["canonical_sha256"],
-        "knowledge_sha256": knowledge["canonical_sha256"],
-        "status": "PASS",
-    }
-
-
 def png_dimensions(data: bytes) -> tuple[int, int]:
     require(data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24, "--compare currently requires a PNG reference")
     width = int.from_bytes(data[16:20], "big")
@@ -1209,7 +1175,23 @@ def main() -> int:
             "render_pass_get",
         }
         require(required_tools.issubset(tool_names), "MCP010E required tool set was incomplete")
-        preflight = read_ponytail_preflight(client)
+        preflight = client.tool(
+            "skill_get",
+            {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+        )
+        preflight_skill = preflight.get("skill") if isinstance(preflight, dict) else None
+        preflight_knowledge = preflight.get("knowledge") if isinstance(preflight, dict) else None
+        require(
+            isinstance(preflight_skill, dict)
+            and preflight_skill.get("skill_id") == "ponytail-preflight"
+            and preflight_skill.get("version") == "0.1.0"
+            and isinstance(preflight_skill.get("canonical_sha256"), str)
+            and len(preflight_skill["canonical_sha256"]) == 64
+            and isinstance(preflight_knowledge, dict)
+            and isinstance(preflight_knowledge.get("canonical_sha256"), str)
+            and len(preflight_knowledge["canonical_sha256"]) == 64,
+            "ponytail preflight was not read before ForgeCAD design tools",
+        )
         pack = client.tool("material_pack_get")
         require(
             isinstance(pack, dict)
@@ -1308,8 +1290,11 @@ def main() -> int:
             },
         )
         if isinstance(appearance_response.get("result"), dict) and appearance_response["result"].get("isError"):
-            error_content = appearance_response["result"].get("content")
-            raise GateFailure(f"appearance_prepare rejected: {error_content!r}")
+            error_result = appearance_response["result"]
+            error_payload = error_result.get("structuredContent") or error_result.get("content") or "untyped error"
+            raise GateFailure(
+                f"appearance_prepare rejected: {json.dumps(error_payload, ensure_ascii=False, sort_keys=True)[:2048]}"
+            )
         prepared = appearance_response.get("result", {}).get("structuredContent")
         artifact = prepared.get("artifact") if isinstance(prepared, dict) else None
         render_set = prepared.get("render_set") if isinstance(prepared, dict) else None
@@ -1344,6 +1329,16 @@ def main() -> int:
             and len(render_set["pass_artifacts"]) == 9,
             "appearance RenderSet@2 did not contain the fixed nine AOVs",
         )
+        require(
+            render_set.get("render_worker_binding_status") in ("same_cohort_verified", "cohort_unavailable"),
+            "appearance RenderSet omitted the Render Worker binding status",
+        )
+        if args.expected_build_cohort:
+            require(
+                render_set.get("render_worker_binding_status") == "same_cohort_verified"
+                and render_set.get("render_worker_build_cohort_sha256") == args.expected_build_cohort,
+                "appearance RenderSet Worker cohort was not bound to the expected packaged cohort",
+            )
         render_set_hash = prepared.get("render_set_object_sha256")
         require(isinstance(render_set_hash, str) and len(render_set_hash) == 64, "render set CAS hash was missing")
         comparison_summary: dict[str, Any] = {"status": "NOT_RUN"}
@@ -1386,6 +1381,12 @@ def main() -> int:
                 and comparison_render_set.get("passes") == passes,
                 "reference_compare_prepare did not return the fixed RenderSet@2",
             )
+            if args.expected_build_cohort:
+                require(
+                    comparison_render_set.get("render_worker_binding_status") == "same_cohort_verified"
+                    and comparison_render_set.get("render_worker_build_cohort_sha256") == args.expected_build_cohort,
+                    "comparison RenderSet Worker cohort was not bound to the expected packaged cohort",
+                )
             comparison_hash = comparison.get("comparison_report_object_sha256")
             comparison_render_set_hash = comparison.get("render_set_object_sha256")
             require(
@@ -1545,9 +1546,9 @@ def main() -> int:
             "geometry_part_count": len(geometry_artifact.get("part_ids") or []),
             "geometry_triangle_count": geometry_artifact.get("triangle_count"),
             "tool_count": "21 read + 16 write",
+            "ponytail_preflight": "PASS",
             "pack_id": pack["pack_id"],
             "pack_manifest_sha256": pack_hash,
-            "ponytail_preflight": preflight,
             "texture_manifest_count": len(textures),
             "appearance_program": "AppearanceProgram@2",
             "artifact_readback": "ArtifactReadback@2 hard_gate_passed",

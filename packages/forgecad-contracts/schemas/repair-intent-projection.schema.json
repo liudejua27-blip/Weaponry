@@ -55,7 +55,13 @@
       "required": ["operation", "parameters", "requires_new_candidate", "arbitrary_script"],
       "properties": {
         "operation": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"},
-        "parameters": {"type": "object", "additionalProperties": false},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "target_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_sha256"}
+          }
+        },
         "requires_new_candidate": {"const": true},
         "arbitrary_script": {"const": false}
       }

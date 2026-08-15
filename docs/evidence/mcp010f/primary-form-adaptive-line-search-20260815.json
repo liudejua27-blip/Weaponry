@@ -1,0 +1,37 @@
+{
+  "schema_version": "ForgeCADMCP010FPrimaryFormAdaptiveLineSearchGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_at": "2026-08-15",
+  "source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+  "runtime_source_sha256": "f999d6f4becea94fad387fa572c6154a5492444d2b55798b3f399dbefa25fbe8",
+  "bounded_schedule": {
+    "max_evaluations": 64,
+    "geometry_budget": 40,
+    "initial_camera_budget": 15,
+    "camera_refit_budget": 9,
+    "detail_rig_controls": 36,
+    "joint_recovery_groups": 1,
+    "large_rig_whole_proposal_backtracks": [0.5],
+    "large_rig_coupled_recovery_fractions": [0.5, 1.0],
+    "failed_joint_proposal_scalar_probe_coverage": "36/36"
+  },
+  "change": "When the joint evidence proposal fails, the Runtime now performs a bounded half/full line search on the boundary-dominant Part, retains one whole-proposal backtrack, and still reserves a complete scalar probe pass for the 36-control detail Rig.",
+  "focused_tests": [
+    "primary_form_recovery_reserves_full_scalar_control_coverage",
+    "primary_form_joint_proposal_backtracks_inside_authored_bounds",
+    "primary_form_bounded_sweep_keeps_secondary_parts_after_dominant_seed",
+    "bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably"
+  ],
+  "runtime_focused_tests": "22 passed",
+  "aggregate_gate": "PASS_SOURCE_ADAPTIVE_BOUNDED_CONVERGENCE",
+  "mcp010f_full_gate": "PASS",
+  "persistent_user_data_touched": false,
+  "visual_quality_status": "QUALITY_TARGET_NOT_MET",
+  "camera_binding": "MISMATCH",
+  "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+  "human_review": "NOT_RUN",
+  "pbr_likeness": "NOT_RUN",
+  "export_restart_hash": "NOT_RUN",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "canonical_sha256": "d3c7fe15a10e02de9b79ae1e1de5c9bf8739515952df3c571e335762e11efe7f"
+}

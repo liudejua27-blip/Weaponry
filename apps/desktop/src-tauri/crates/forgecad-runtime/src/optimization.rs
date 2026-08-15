@@ -12,8 +12,8 @@
 use super::{
     canonical_json_bytes, canonical_json_hash, decode_binary_mask,
     decode_binary_mask_at_resolution, downsample_mask, finalize_v2_geometry_program,
-    geometry_worker, hash_geometry_program_with_runtime_worker, materialize_rig_geometry_program,
-    now_string, render_glb_with_runtime_worker, sha256_hex, stable_visual_metric,
+    hash_geometry_program_with_runtime_worker, materialize_rig_geometry_program,
+    now_string, render_glb_with_runtime_worker, render_worker, sha256_hex, stable_visual_metric,
     strict_glb_inspection, transient_loss_metrics_at_resolution, validate_camera_calibration,
     validate_silhouette_rig, validate_worker_metadata, Runtime, RuntimeError,
 };
@@ -3970,8 +3970,12 @@ fn compile_candidate(
     parameters: Vec<Value>,
     residual: Option<&Value>,
 ) -> Result<CompiledCandidate, RuntimeError> {
-    let (mut draft, _applied) =
-        materialize_rig_geometry_program(&context.program, &context.rig, &parameters)?;
+    let (mut draft, _applied) = materialize_rig_geometry_program(
+        &context.program,
+        &context.rig,
+        &parameters,
+        Some(&context.camera),
+    )?;
     if let Some(residual) = residual {
         apply_boolean_residual(&mut draft, residual, &context.part_id)?;
     }
@@ -4046,7 +4050,7 @@ fn evaluate_candidate(
             RuntimeError::InvalidInput(format!("OPTIMIZATION_RENDER_FAILED: {error}"))
         })?
     } else {
-        let batches = geometry_worker::render_glb_fit_batch_at_resolution(
+        let batches = render_worker::render_glb_fit_batch_at_resolution(
             &candidate.glb,
             std::slice::from_ref(&context.camera),
             resolution,
@@ -4057,6 +4061,17 @@ fn evaluate_candidate(
         batches
             .into_iter()
             .next()
+            .map(|passes| {
+                passes
+                    .into_iter()
+                    .map(|pass| render_worker::RenderPass {
+                        pass: pass.pass,
+                        png: pass.png,
+                        width: pass.width,
+                        height: pass.height,
+                    })
+                    .collect::<Vec<_>>()
+            })
             .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_RENDER_EMPTY".to_owned()))?
     };
     let silhouette = passes
