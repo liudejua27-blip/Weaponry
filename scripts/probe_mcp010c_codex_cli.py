@@ -50,7 +50,16 @@ SILHOUETTE_TARGET_SEQUENCE = ("reference_mask_prepare",)
 # scene_observe_get is deliberately inside the same ephemeral Codex turn as
 # target/camera/Rig, so the model does not stitch a design decision from
 # unrelated fragmented reads or silently re-observe after a state change.
-SILHOUETTE_SEQUENCE = ("silhouette_target_get", "scene_observe_get", "camera_fit_prepare", "silhouette_rig_hash")
+SILHOUETTE_SEQUENCE = (
+    "silhouette_target_get",
+    "camera_fit_prepare",
+    "job_get",
+    "candidate_get",
+    "artifact_readback_get",
+    "reference_compare_prepare",
+    "scene_observe_get",
+    "silhouette_rig_hash",
+)
 
 
 class BoundaryOnlyComplete(RuntimeError):
@@ -709,17 +718,30 @@ def part_contour_rig_draft(candidate_id: str, part_id: str) -> dict[str, Any]:
     }
 
 
-def silhouette_prompt(project_id: str, candidate_id: str, target_sha256: str) -> str:
+def silhouette_prompt(
+    project_id: str,
+    reference_id: str,
+    candidate_id: str,
+    job_id: str,
+    artifact_id: str,
+    target_sha256: str,
+    view: dict[str, Any],
+) -> str:
     rig = json.dumps(silhouette_rig_draft(candidate_id), ensure_ascii=False, separators=(",", ":"))
+    view_json = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
     return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
 
-Call exactly these four ForgeCAD tools in order, then stop:
+Call exactly these eight ForgeCAD tools in order, then stop:
 1) silhouette_target_get with {{"target_sha256":{json.dumps(target_sha256)}}}; verify it is the target for project {json.dumps(project_id)}.
-2) scene_observe_get with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)}}}; treat the complete returned AgenticSceneObserveResult@1 as the only canonical scene/model/reference/quality context for this visual turn. Verify its project/candidate binding, read_only flag and canonical_sha256; do not replace it with a sequence of fragmented project/candidate/artifact/quality reads.
-3) camera_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"camera":null}}; use the one-shot observation as context and save the complete returned selected_camera calibration object (not only camera_hash/canonical_sha256) and its hash.
-4) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; copy only the returned canonical_sha256 into the unchanged rig for the next turn.
+2) camera_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"camera":null}}; save the complete returned selected_camera calibration object (not only camera_hash/canonical_sha256) and its hashes.
+3) job_get with {{"job_id":{json.dumps(job_id)}}}.
+4) candidate_get with {{"candidate_id":{json.dumps(candidate_id)}}}.
+5) artifact_readback_get with {{"artifact_id":{json.dumps(artifact_id)},"candidate_id":{json.dumps(candidate_id)}}}.
+6) reference_compare_prepare with this exact JSON object: {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"reference_id":{json.dumps(reference_id)},"view_spec":{view_json},"camera":{{"schema_version":"CameraCalibrationRef@1","camera_hash":<copy the selected camera_hash from step 2>,"canonical_sha256":<copy the selected camera canonical_sha256 from step 2>}},"target_sha256":{json.dumps(target_sha256)}}}. Copy the view_spec byte-for-byte and do not reconstruct camera fields.
+7) scene_observe_get with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)}}}; call this only after the baseline compare. Treat the complete returned AgenticSceneObserveResult@1 as the only canonical scene/model/reference/quality/Part-error context for this visual turn. Verify its project/candidate binding, read_only flag and canonical_sha256; do not replace it with fragmented boundary or quality reads.
+8) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; copy only the returned canonical_sha256 into the unchanged rig for the next turn.
 
-Do not call silhouette_fit_prepare yet because the next turn will bind its request hash to the exact selected camera. Do not call geometry, appearance, compare, confirm or export. Return only target/camera/Rig hashes and opaque IDs; do not claim visual quality.
+Do not call silhouette_fit_prepare yet because the next turn will bind its request hash to the exact selected camera. Do not call render_pass_get, review, confirm or export. Return only target/camera/compare/observation/Rig hashes and opaque IDs; do not claim visual quality.
 """
 
 
@@ -1072,6 +1094,7 @@ def main() -> int:
             if not (has_subsequence(setup_tool_names, SETUP_SEQUENCE) and all(call.get("status") == "completed" for call in setup_calls)):
                 raise RuntimeError("Codex setup did not complete the required MCP sequence")
 
+            spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
             silhouette_target_sha: str | None = None
             silhouette_camera_hash: str | None = None
             silhouette_fit_camera_hash: str | None = None
@@ -1084,8 +1107,11 @@ def main() -> int:
             primary_form_repair_result: dict[str, Any] | None = None
             primary_form_repair_source_candidate_id: str | None = None
             primary_form_repair_items: list[dict[str, Any]] = []
+            canonical_observation_result: dict[str, Any] | None = None
+            silhouette_comparison_result: dict[str, Any] | None = None
             selected_camera_for_compare: dict[str, Any] | None = None
             primary_form_runtime_compare = False
+            canonical_compare_in_silhouette = False
             silhouette_items: list[dict[str, Any]] = []
             fit_items: list[dict[str, Any]] = []
             if options.silhouette_first:
@@ -1156,15 +1182,26 @@ def main() -> int:
                 silhouette_turn_items = run_required_codex_turn(
                     options,
                     environment,
-                    silhouette_prompt(project_id, candidate_id, silhouette_target_sha or ""),
+                    silhouette_prompt(
+                        project_id,
+                        reference_id,
+                        candidate_id,
+                        job_id,
+                        artifact_id,
+                        silhouette_target_sha or "",
+                        spec,
+                    ),
                     str(root),
                     SILHOUETTE_SEQUENCE,
                     turn_outputs,
-                    "silhouette target/camera/Rig",
+                    "silhouette target/camera/compare/observation/Rig",
                 )
                 silhouette_items.extend(silhouette_turn_items)
                 camera_result = structured_result(silhouette_turn_items, "camera_fit_prepare") or {}
                 rig_result = structured_result(silhouette_turn_items, "silhouette_rig_hash") or {}
+                silhouette_comparison_result = structured_result(
+                    silhouette_turn_items, "reference_compare_prepare"
+                ) or {}
                 observation_result = structured_result(silhouette_turn_items, "scene_observe_get") or {}
                 if (
                     observation_result.get("schema_version") != "AgenticSceneObserveResult@1"
@@ -1175,6 +1212,7 @@ def main() -> int:
                     or len(observation_result["canonical_sha256"]) != 64
                 ):
                     raise RuntimeError("scene_observe_get did not return the bound canonical Agentic observation")
+                canonical_observation_result = observation_result
                 silhouette_observation_sha = observation_result["canonical_sha256"]
                 selected_camera = field(camera_result, "selected_camera") or field(camera_result, "camera")
                 # A real Codex turn can summarize a nested selected_camera as
@@ -1215,8 +1253,14 @@ def main() -> int:
                     raise RuntimeError("Codex silhouette turn did not return selected camera evidence")
                 if not isinstance(silhouette_rig_sha, str) or len(silhouette_rig_sha) != 64:
                     raise RuntimeError("Codex silhouette turn did not return Runtime-owned Rig hash")
+                if not isinstance(
+                    field(silhouette_comparison_result, "render_set_object_sha256")
+                    or field(silhouette_comparison_result, "render_set_hash"),
+                    str,
+                ):
+                    raise RuntimeError("Codex silhouette turn did not return baseline compare evidence")
                 if not has_subsequence(call_sequence(silhouette_turn_items), SILHOUETTE_SEQUENCE) or not all_completed(silhouette_turn_items, SILHOUETTE_SEQUENCE):
-                    raise RuntimeError("Codex did not complete target/camera/Rig sequence")
+                    raise RuntimeError("Codex did not complete target/camera/compare/observation/Rig sequence")
                 rig = silhouette_rig_draft(candidate_id)
                 rig["canonical_sha256"] = silhouette_rig_sha
                 # Keep the full calibration in Runtime's result evidence, but
@@ -1374,7 +1418,6 @@ def main() -> int:
                     # comparing a different camera than the one the fit optimized.
                     selected_camera_for_compare = fit_selected_camera
 
-            spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
             third_items: list[dict[str, Any]] = []
             actual_third: list[str] = []
             runtime_visual_evidence = field(primary_form_repair_result or {}, "visual_evidence")
@@ -1403,6 +1446,17 @@ def main() -> int:
                     },
                 }
                 primary_form_runtime_compare = True
+            elif (
+                options.primary_form_repair
+                and isinstance(silhouette_comparison_result, dict)
+                and field(silhouette_comparison_result, "candidate_id") == candidate_id
+            ):
+                # Primary Form retained the source candidate. Reuse the
+                # baseline compare that was part of the canonical silhouette
+                # turn; do not issue another fragmented compare or boundary
+                # diagnostic call.
+                comparison = silhouette_comparison_result
+                canonical_compare_in_silhouette = True
             else:
                 third = run_codex_turn(
                     options,
@@ -1461,39 +1515,64 @@ def main() -> int:
                 raise RuntimeError("Codex comparison did not return the fixed nine AOV order")
             if (
                 not primary_form_runtime_compare
+                and not canonical_compare_in_silhouette
                 and (not has_subsequence(actual_third, COMPARE_SEQUENCE) or not all_completed(third_items, COMPARE_SEQUENCE))
             ):
                 raise RuntimeError("Codex did not complete the readback/compare sequence")
 
             boundary_result: dict[str, Any] | None = None
+            canonical_part_error: dict[str, Any] | None = None
+            boundary_summary = None
             if options.silhouette_first:
-                boundary_turn = run_codex_turn(
-                    options,
-                    environment,
-                    boundary_error_prompt(project_id, candidate_id, silhouette_target_sha or ""),
-                    str(root),
+                observed_part_error = field(
+                    canonical_observation_result or {},
+                    "design_critic_report",
+                    "primary_form_directive",
+                    "part_error",
                 )
-                turn_outputs.append(boundary_turn)
-                boundary_items = event_items(boundary_turn.stdout)
-                boundary_result = structured_result(boundary_items, "boundary_error_get") or {}
-                if not has_subsequence(call_sequence(boundary_items), ("boundary_error_get",)) or not all_completed(boundary_items, ("boundary_error_get",)):
-                    raise RuntimeError("Codex did not complete boundary_error_get")
-
-            boundary_summary = (
-                {
-                    "metrics": field(boundary_result or {}, "metrics"),
-                    "segments": [
-                        {
-                            key: segment.get(key)
-                            for key in ("reference", "model", "delta_px", "distance_px", "direction", "part_id")
-                        }
-                        for segment in (field(boundary_result or {}, "segments") or [])
-                        if isinstance(segment, dict)
-                    ],
-                }
-                if options.silhouette_first
-                else None
-            )
+                if (
+                    isinstance(observed_part_error, dict)
+                    and observed_part_error.get("schema_version") == "SilhouettePartErrorResult@1"
+                    and isinstance(observed_part_error.get("parts"), list)
+                ):
+                    # The complete Part error table is already part of the
+                    # canonical scene observation.  Do not make Codex issue a
+                    # second boundary read that can drift from the scene,
+                    # camera or candidate it just observed.
+                    canonical_part_error = observed_part_error
+                    boundary_summary = {
+                        "source": "canonical_observation",
+                        "metrics": field(observed_part_error, "metrics"),
+                        "parts": observed_part_error.get("parts", []),
+                        "recommended_part_ids": observed_part_error.get("recommended_part_ids", []),
+                    }
+                else:
+                    # Compatibility fallback for older Runtime cohorts whose
+                    # automatic silhouette target cannot yet project a Part
+                    # table.  New cohorts must take the canonical branch.
+                    boundary_turn = run_codex_turn(
+                        options,
+                        environment,
+                        boundary_error_prompt(project_id, candidate_id, silhouette_target_sha or ""),
+                        str(root),
+                    )
+                    turn_outputs.append(boundary_turn)
+                    boundary_items = event_items(boundary_turn.stdout)
+                    boundary_result = structured_result(boundary_items, "boundary_error_get") or {}
+                    if not has_subsequence(call_sequence(boundary_items), ("boundary_error_get",)) or not all_completed(boundary_items, ("boundary_error_get",)):
+                        raise RuntimeError("Codex did not complete boundary_error_get")
+                    boundary_summary = {
+                        "source": "boundary_error_get_compatibility_fallback",
+                        "metrics": field(boundary_result or {}, "metrics"),
+                        "segments": [
+                            {
+                                key: segment.get(key)
+                                for key in ("reference", "model", "delta_px", "distance_px", "direction", "part_id")
+                            }
+                            for segment in (field(boundary_result or {}, "segments") or [])
+                            if isinstance(segment, dict)
+                        ],
+                    }
             part_contour_result: dict[str, Any] | None = None
             part_contour_rig_sha256: str | None = None
             part_contour_items: list[dict[str, Any]] = []
@@ -1568,7 +1647,12 @@ def main() -> int:
                     "comparison_report_hash": field(comparison, "comparison_report_object_sha256") or field(comparison, "comparison_report_hash"),
                     "comparison_metrics": metrics,
                     "boundary_error": boundary_summary,
-                    "boundary_error_count": len(field(boundary_result or {}, "segments") or []),
+                    "canonical_part_error": canonical_part_error,
+                    "boundary_error_count": (
+                        len(field(boundary_result or {}, "segments") or [])
+                        if boundary_result is not None
+                        else len(field(canonical_part_error or {}, "parts") or [])
+                    ),
                     "part_contour_part_id": options.part_contour_part,
                     "part_contour_trial_requested": options.part_contour_trial,
                     "part_contour_trial": {
@@ -1599,8 +1683,8 @@ def main() -> int:
                         "authoring": list(AUTHORING_SEQUENCE),
                         "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE),
                         "silhouette": list(SILHOUETTE_SEQUENCE),
-                        "compare": list(COMPARE_SEQUENCE),
-                        "boundary": ["boundary_error_get"],
+                        "compare": [] if silhouette_comparison_result else list(COMPARE_SEQUENCE),
+                        "boundary": ["boundary_error_get"] if boundary_result is not None else [],
                         "part_contour": ["silhouette_rig_hash", "part_contour_fit_prepare"] if options.part_contour_part else [],
                         "render": [],
                         "review": [],
@@ -1756,6 +1840,7 @@ def main() -> int:
                     "acceptance_camera_hash": field(primary_form_repair_result or {}, "acceptance", "camera_hash"),
                 } if options.primary_form_repair else None,
                 "primary_form_runtime_compare": primary_form_runtime_compare,
+                "canonical_compare_in_silhouette": canonical_compare_in_silhouette,
                 "aov_order": list(AOV_ORDER),
                 "render_pass_calls": len(actual_render_passes),
                 "render_pass_order": actual_render_passes,
@@ -1769,6 +1854,7 @@ def main() -> int:
                 # next round from guessing a Part after the Runtime process
                 # is torn down.
                 "boundary_error": boundary_summary,
+                "canonical_part_error": canonical_part_error,
                 "part_contour_part_id": options.part_contour_part,
                 "part_contour_rig_sha256": part_contour_rig_sha256,
                 "part_contour_fit": part_contour_result,
@@ -1782,7 +1868,10 @@ def main() -> int:
                     "authoring": list(AUTHORING_SEQUENCE),
                     "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE) if options.silhouette_first else [],
                     "silhouette": list(SILHOUETTE_SEQUENCE) if options.silhouette_first else [],
-                    "compare": [] if primary_form_runtime_compare else list(COMPARE_SEQUENCE),
+                    "compare": []
+                    if primary_form_runtime_compare or canonical_compare_in_silhouette
+                    else list(COMPARE_SEQUENCE),
+                    "boundary": ["boundary_error_get"] if boundary_result is not None else [],
                     "part_contour": ["silhouette_rig_hash", "part_contour_fit_prepare"] if options.part_contour_part else [],
                     "primary_form_repair": list(PRIMARY_FORM_REPAIR_SEQUENCE) if options.primary_form_repair else [],
                     "render": list(RENDER_SEQUENCE),
@@ -1817,7 +1906,13 @@ def main() -> int:
                     "loss": field(silhouette_fit_result or {}, "loss"),
                     "metrics": field(silhouette_fit_result or {}, "metrics"),
                 } if options.silhouette_first else None,
-                "boundary_error_count": len(field(boundary_result or {}, "segments") or []) if options.silhouette_first else None,
+                "boundary_error_count": (
+                    len(field(boundary_result or {}, "segments") or [])
+                    if boundary_result is not None
+                    else len(field(canonical_part_error or {}, "parts") or [])
+                    if options.silhouette_first
+                    else None
+                ),
                 # Keep the legacy flat sequence for existing consumers, but
                 # expose the canonical observation as its own typed stage.
                 # This prevents later readers from reconstructing scene state

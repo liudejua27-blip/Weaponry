@@ -1112,12 +1112,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         let target_parts = target
             .get("parts")
             .and_then(Value::as_array)
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "SILHOUETTE_PART_ERROR_UNAVAILABLE: target has no typed parts".to_owned(),
-                )
-            })?;
-        if target_parts.is_empty() || target_parts.len() > 64 {
+            .cloned()
+            .unwrap_or_default();
+        if target_parts.len() > 64 {
             return Err(RuntimeError::InvalidInput(
                 "SILHOUETTE_PART_ERROR_UNAVAILABLE: target Part budget".to_owned(),
             ));
@@ -1158,9 +1155,45 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .and_then(|bytes| strict_glb_inspection(&bytes).ok())
             .map(|inspection| inspection.part_ids)
             .unwrap_or_default();
+        let automatic_target = target_parts.is_empty();
+        let automatic_boundary_segments = if automatic_target {
+            Self::boundary_error_segments_for_masks(
+                &target_mask.mask,
+                &model_mask,
+                part_png.as_deref(),
+                &part_ids,
+                64,
+            )
+        } else {
+            Vec::new()
+        };
+        let target_parts = if automatic_target {
+            let mut seen = std::collections::HashSet::new();
+            part_ids
+                .iter()
+                .filter(|part_id| seen.insert((*part_id).clone()))
+                .take(64)
+                .map(|part_id| {
+                    json!({
+                        "part_id":part_id,
+                        "start_index":0,
+                        "end_index":1,
+                        "visibility":"inferred"
+                    })
+                })
+                .collect::<Vec<_>>()
+        } else {
+            target_parts
+        };
+        if target_parts.is_empty() {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_PART_ERROR_UNAVAILABLE: candidate has no readable Part-ID outputs"
+                    .to_owned(),
+            ));
+        }
         let mut rows = Vec::with_capacity(target_parts.len());
         let mut ranked = Vec::<(f64, String)>::new();
-        for part in target_parts {
+        for part in &target_parts {
             let part_object = exact_object(
                 part,
                 &["part_id", "start_index", "end_index", "visibility"],
@@ -1175,7 +1208,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 .get("visibility")
                 .and_then(Value::as_str)
                 .unwrap_or("unknown");
-            let target_boundary = target_part_boundary_mask(&target, &part_id);
+            // An automatic target has no user-declared Part contour.  Its
+            // local target boundary is therefore a Runtime inference from
+            // the same candidate-bound boundary segments and must remain
+            // visibly `inferred` in the observation.  Explicit target
+            // ranges keep their authored contour semantics unchanged.
+            let target_boundary = if automatic_target {
+                Self::projected_part_boundary_mask(&automatic_boundary_segments, &part_id)
+            } else {
+                target_part_boundary_mask(&target, &part_id)
+            };
             let target_envelope = target_boundary.as_deref().and_then(mask_envelope);
             let target_boundary_pixels = target_boundary
                 .as_deref()
@@ -1211,18 +1253,26 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     let model_width = (model_envelope.max_x - model_envelope.min_x + 1) as f64;
                     let target_height = (target_envelope.max_y - target_envelope.min_y + 1) as f64;
                     let model_height = (model_envelope.max_y - model_envelope.min_y + 1) as f64;
-                    let boundary_error_px = part_png
-                        .as_deref()
-                        .map(|png| {
-                            part_boundary_error(
-                                png,
-                                &target_mask.mask,
-                                &target,
-                                &part_id,
-                                &part_ids,
-                            )
-                        })
-                        .unwrap_or(512.0);
+                    let boundary_error_px = if automatic_target {
+                        Self::projected_part_boundary_error(
+                            &automatic_boundary_segments,
+                            &part_id,
+                        )
+                        .unwrap_or(512.0)
+                    } else {
+                        part_png
+                            .as_deref()
+                            .map(|png| {
+                                part_boundary_error(
+                                    png,
+                                    &target_mask.mask,
+                                    &target,
+                                    &part_id,
+                                    &part_ids,
+                                )
+                            })
+                            .unwrap_or(512.0)
+                    };
                     (
                         (target_envelope.centroid_x - model_envelope.centroid_x) * 511.0,
                         (target_envelope.centroid_y - model_envelope.centroid_y) * 511.0,
@@ -16185,6 +16235,44 @@ mod tests {
         assert!(recommended.iter().any(|id| id == "visor"));
         assert_eq!(part_errors["parts"][1]["part_id"], "visor");
         assert!(part_errors["parts"][1]["status"] == "ready");
+        // An intake that has no authored Part ranges must still produce the
+        // complete Part error table inside the canonical observation path.
+        // The rows are Runtime-inferred and must not require a second
+        // boundary_error_get call from Codex.
+        let automatic_target = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "contour_points":[[0.1,0.1],[0.5,0.1],[0.9,0.1],[0.9,0.5],[0.9,0.9],[0.5,0.9],[0.1,0.9],[0.1,0.5]],
+                    "parts":[]
+                }),
+            )
+            .expect("automatic target");
+        let automatic_part_errors = runtime
+            .silhouette_part_error(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "candidate_id":first_id.clone(),
+                    "target_sha256":automatic_target["target_sha256"].clone()
+                }),
+            )
+            .expect("automatic per-Part contour error");
+        validate_silhouette_part_error_result(&automatic_part_errors)
+            .expect("automatic per-Part contour contract");
+        let automatic_parts = automatic_part_errors["parts"]
+            .as_array()
+            .expect("inferred Part error rows");
+        assert!(!automatic_parts.is_empty());
+        assert!(automatic_parts
+            .iter()
+            .all(|part| part["visibility"] == "inferred"));
+        assert!(!automatic_part_errors["recommended_part_ids"]
+            .as_array()
+            .expect("inferred recommendations")
+            .is_empty());
         let observation = runtime
             .agentic_scene_observe(&project.project_id, Some(&first_id))
             .expect("Agentic observation includes Runtime Part error context");
