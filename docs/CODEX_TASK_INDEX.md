@@ -1,5 +1,7 @@
 # ForgeCAD 当前原子任务索引
 
+2026-08-15 `FGC-MCP010F` Primary Form 36-control Rig 真实复放：packaged cohort `106a2889…67b08e` 的 supplemental r7 完成 56 次 bounded fit；新增 hip width/height、hip/pelvis/chest offset 控制后仍为 `acceptance_status=retained_source`，source/proposal loss `0.40710507361`/`0.413276643194`，未创建 candidate/version，`persistent_user_data_touched=false`。Viewer current-cohort read-model 与 camera/Render Worker 结构绑定通过，但 final IoU `0.746739614479`、boundary F1 `0.34284083431`，质量仍 `QUALITY_TARGET_NOT_MET`；F 继续唯一 `in_progress`。
+
 2026-08-15 `FGC-MCP010F` Primary Form same-camera acceptance 真实复放：新 packaged cohort `e7e466f6…b7cc` 的 supplemental r6 经过 56 次 bounded fit evaluations；最终 paired acceptance 比较 source loss `0.40710507361` 与 proposal loss `0.412782572291`，Runtime 保留 source、未创建 candidate/version。r6 顶层 `BLOCKED` 由无关 side-effect 账本触发，不能作为 transport PASS；camera binding、Render Worker cohort 与 Viewer read-model 绑定仍为结构 PASS，质量继续 `QUALITY_TARGET_NOT_MET`，F 仍唯一 `in_progress`。
 
 版本：2026-08-15

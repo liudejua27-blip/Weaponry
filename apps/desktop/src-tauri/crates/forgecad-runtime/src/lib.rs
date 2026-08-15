@@ -11038,7 +11038,7 @@ fn primary_form_evaluation_budgets(
         return (0, max_evaluations.clamp(1, 64), 0);
     }
     // Reserve the largest bounded slice for Runtime-owned geometry convergence:
-    // a 26-control detail Rig needs one full evidence-directed pass plus a
+    // a 36-control detail Rig needs one full evidence-directed pass plus a
     // meaningful reverse/fine pass. Keep the initial camera neighborhood wide
     // enough to cover its fixed axes, then retain a smaller geometry-winner
     // refit. The three budgets always sum to the caller's hard cap.
@@ -16197,7 +16197,7 @@ mod tests {
         assert_eq!(primary_form_evaluation_budgets(1, true), (0, 1, 0));
         assert_eq!(primary_form_evaluation_budgets(64, true), (40, 16, 8));
         assert_eq!(primary_form_evaluation_budgets(24, false), (0, 24, 0));
-        let detail_rig_parameter_count = 26;
+        let detail_rig_parameter_count = 36;
         let detail_budgets = primary_form_evaluation_budgets(64, true);
         assert!(detail_budgets.0 >= detail_rig_parameter_count + 1);
         for max_evaluations in 1..=64 {
@@ -16932,6 +16932,54 @@ mod tests {
         assert_eq!(applied, 1);
         assert_eq!(materialized["nodes"][0]["parameters"]["radius_m"], 0.36);
         assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.36);
+    }
+
+    #[test]
+    fn rig_materialization_covers_hip_pelvis_and_chest_primary_form_controls() {
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-primary-form-controls",
+            "nodes":[
+                {"node_id":"hip-left","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"cylinder","radius_m":0.2,"height_m":0.24,"radial_segments":16,"position_m":[-0.48,1.1,0.24],"rotation_rad":[1.5708,0.0,0.0]}},
+                {"node_id":"hip-pair","operator_id":"forgecad.geometry.mirror@1","inputs":["hip-left"],"parameters":{"shape":"mirror","axis":"x","offset_m":0.0}},
+                {"node_id":"pelvis-shell","operator_id":"forgecad.geometry.profile-loft@1","inputs":[],"parameters":{"shape":"profile-loft","profiles":[{"height_m":0.0,"points":[[-0.48,-0.24],[0.48,-0.24],[0.48,0.24],[-0.48,0.24]]},{"height_m":0.4,"points":[[-0.36,-0.2],[0.36,-0.2],[0.36,0.2],[-0.36,0.2]]}],"position_m":[0.0,1.2,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"chest-panel","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[1.66,1.12,0.68],"thickness_m":0.18,"bevel_m":0.12,"position_m":[0.0,1.98,0.04],"rotation_rad":[0.0,0.0,0.0]}}
+            ],
+            "part_outputs":[
+                {"part_id":"hip-pair","input_node_ids":["hip-pair"],"material_zone_id":"zone-brushed-steel","solid":true},
+                {"part_id":"pelvis","input_node_ids":["pelvis-shell"],"material_zone_id":"zone-white-shell","solid":true},
+                {"part_id":"chest-shell","input_node_ids":["chest-panel"],"material_zone_id":"zone-white-shell","solid":true}
+            ],
+            "canonical_sha256":""
+        });
+        let rig = json!({"parameters":[
+            {"parameter_id":"hip-width","part_id":"hip-pair","semantic":"width","value":1.0,"min":0.84,"max":1.16,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"hip-height","part_id":"hip-pair","semantic":"height","value":1.0,"min":0.80,"max":1.20,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"hip-offset-x","part_id":"hip-pair","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"},
+            {"parameter_id":"hip-offset-y","part_id":"hip-pair","semantic":"offset_y","value":0.0,"min":-0.45,"max":0.45,"step":0.05,"unit":"meter"},
+            {"parameter_id":"pelvis-offset-x","part_id":"pelvis","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"},
+            {"parameter_id":"chest-offset-x","part_id":"chest-shell","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"}
+        ]});
+        let selected = vec![
+            json!({"parameter_id":"hip-width","part_id":"hip-pair","value":1.1}),
+            json!({"parameter_id":"hip-height","part_id":"hip-pair","value":1.1}),
+            json!({"parameter_id":"hip-offset-x","part_id":"hip-pair","value":0.1}),
+            json!({"parameter_id":"hip-offset-y","part_id":"hip-pair","value":0.1}),
+            json!({"parameter_id":"pelvis-offset-x","part_id":"pelvis","value":0.1}),
+            json!({"parameter_id":"chest-offset-x","part_id":"chest-shell","value":0.1})
+        ];
+        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize primary form controls");
+        assert_eq!(applied, 6);
+        let nodes = materialized["nodes"].as_array().expect("nodes");
+        let hip = nodes.iter().find(|node| node["node_id"] == "hip-left").expect("hip source");
+        assert_eq!(hip["parameters"]["radius_m"], 0.24200000000000005);
+        assert_eq!(hip["parameters"]["height_m"], 0.264);
+        assert_eq!(hip["parameters"]["position_m"][0], -0.38);
+        assert!((hip["parameters"]["position_m"][1].as_f64().unwrap() - 1.2).abs() < 1e-12);
+        let pelvis = nodes.iter().find(|node| node["node_id"] == "pelvis-shell").expect("pelvis source");
+        assert!((pelvis["parameters"]["position_m"][0].as_f64().unwrap() - 0.1).abs() < 1e-12);
+        let chest = nodes.iter().find(|node| node["node_id"] == "chest-panel").expect("chest source");
+        assert!((chest["parameters"]["position_m"][0].as_f64().unwrap() - 0.1).abs() < 1e-12);
     }
 
     #[test]
