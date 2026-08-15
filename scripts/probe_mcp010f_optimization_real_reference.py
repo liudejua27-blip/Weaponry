@@ -15,7 +15,6 @@ import base64
 import copy
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -65,6 +64,27 @@ def tool_value(client: McpClient, name: str, arguments: dict[str, Any]) -> dict[
     value = client.tool(name, arguments)
     require(isinstance(value, dict), f"{name} did not return a typed object")
     return value
+
+
+def read_agentic_observation(client: McpClient, project_id: str, candidate_id: str) -> str:
+    observation = tool_value(
+        client,
+        "scene_observe_get",
+        {"project_id": project_id, "candidate_id": candidate_id},
+    )
+    require(
+        observation.get("schema_version") == "AgenticSceneObserveResult@1"
+        and observation.get("read_only") is True
+        and observation.get("project_id") == project_id
+        and observation.get("candidate_id") == candidate_id,
+        "Agentic observation was not candidate-bound and read-only",
+    )
+    observation_sha256 = observation.get("canonical_sha256")
+    require(
+        isinstance(observation_sha256, str) and len(observation_sha256) == 64,
+        "Agentic observation hash unavailable",
+    )
+    return observation_sha256
 
 
 def write_evidence(path: Path | None, value: dict[str, Any]) -> None:
@@ -251,6 +271,16 @@ def main() -> int:
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--reference", type=Path, required=True)
+    parser.add_argument(
+        "--geometry-worker",
+        type=Path,
+        help="Explicit Geometry Worker binary used by the Runtime cohort; defaults to the MCP binary directory.",
+    )
+    parser.add_argument(
+        "--render-worker",
+        type=Path,
+        help="Explicit Render Worker binary used by the Runtime cohort; defaults to the MCP binary directory.",
+    )
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--expected-build-cohort")
@@ -280,13 +310,15 @@ def main() -> int:
     reference_sha256 = hashlib.sha256(reference_bytes).hexdigest()
     mcp_identity = build_identity(args.mcp)
     runtime_identity = build_identity(args.runtime)
+    worker_paths = {
+        "forgecad-geometry-worker": args.geometry_worker or args.mcp.parent / "forgecad-geometry-worker",
+        "forgecad-render-worker": args.render_worker or args.mcp.parent / "forgecad-render-worker",
+    }
     worker_identities: dict[str, dict[str, Any]] = {}
-    for component in ("forgecad-geometry-worker", "forgecad-render-worker"):
-        executable = shutil.which(component, path=os.environ.get("PATH"))
-        if executable is None:
-            worker_identities[component] = {"build_cohort_sha256": None}
-        else:
-            worker_identities[component] = build_identity(Path(executable))
+    for component, worker_path in worker_paths.items():
+        executable = worker_path.expanduser().resolve()
+        require(executable.is_file() and not executable.is_symlink(), f"{component} binary was unavailable")
+        worker_identities[component] = build_identity(executable)
     build_cohorts = {
         "mcp": mcp_identity.get("build_cohort_sha256"),
         "runtime": runtime_identity.get("build_cohort_sha256"),
@@ -576,13 +608,14 @@ def main() -> int:
                 and len(comparison_render_set_hash) == 64,
                 "reference comparison camera/render binding is incomplete",
             )
+            observation_sha256 = read_agentic_observation(client, project_id, candidate_id)
             critic = tool_value(
                 client,
                 "critic_report_get",
                 {
                     "project_id": project_id,
                     "candidate_id": candidate_id,
-                    "target_sha256": target_sha256,
+                    "observation_sha256": observation_sha256,
                 },
             )
             critic_report_sha256 = critic.get("canonical_sha256")
@@ -641,16 +674,7 @@ def main() -> int:
             }
             residual["canonical_sha256"] = canonical_hash(residual)
 
-        observation = tool_value(client, "scene_observe_get", {"project_id": project_id, "candidate_id": candidate_id})
-        require(
-            observation.get("schema_version") == "AgenticSceneObserveResult@1"
-            and observation.get("read_only") is True
-            and observation.get("project_id") == project_id
-            and observation.get("candidate_id") == candidate_id,
-            "Agentic observation was not candidate-bound and read-only",
-        )
-        observation_sha256 = observation.get("canonical_sha256")
-        require(isinstance(observation_sha256, str) and len(observation_sha256) == 64, "Agentic observation hash unavailable")
+        observation_sha256 = read_agentic_observation(client, project_id, candidate_id)
 
         camera_result = tool_value(
             client,
@@ -781,13 +805,14 @@ def main() -> int:
                 and len(comparison_render_set_hash) == 64,
                 "camera-rebound comparison was not bound to the silhouette-fit camera",
             )
+            observation_sha256 = read_agentic_observation(client, project_id, candidate_id)
             critic = tool_value(
                 client,
                 "critic_report_get",
                 {
                     "project_id": project_id,
                     "candidate_id": candidate_id,
-                    "target_sha256": target_sha256,
+                    "observation_sha256": observation_sha256,
                 },
             )
             critic_report_sha256 = critic.get("canonical_sha256")

@@ -572,9 +572,36 @@ mod platform {
     }
 }
 
+fn primary_form_invalid_code(detail: &str) -> &'static str {
+    let reason = detail
+        .strip_prefix("PRIMARY_FORM_REPAIR_INVALID:")
+        .map(str::trim)
+        .unwrap_or("");
+    if reason == "request must be an object" {
+        "PRIMARY_FORM_REPAIR_INVALID_REQUEST_SHAPE"
+    } else if reason == "Primary Form repair project differs" {
+        "PRIMARY_FORM_REPAIR_INVALID_PROJECT_SCOPE"
+    } else if reason == "base_version_id argument is not bound to intent"
+        || reason.starts_with("base_version_id must be ")
+    {
+        "PRIMARY_FORM_REPAIR_INVALID_BASE_VERSION"
+    } else if reason == "canonical_sha256 does not bind intent" {
+        "PRIMARY_FORM_REPAIR_INVALID_CANONICAL"
+    } else if reason == "target landmarks are missing" {
+        "PRIMARY_FORM_REPAIR_INVALID_TARGET"
+    } else if reason.starts_with("view_spec:") {
+        "PRIMARY_FORM_REPAIR_INVALID_VIEW_SPEC"
+    } else {
+        "PRIMARY_FORM_REPAIR_INVALID"
+    }
+}
+
 fn runtime_error_code(error: &RuntimeError) -> String {
     match error {
         RuntimeError::InvalidInput(detail) => {
+            if detail.starts_with("PRIMARY_FORM_REPAIR_INVALID:") {
+                return primary_form_invalid_code(detail).to_owned();
+            }
             if detail.starts_with("SILHOUETTE_FIT_REJECTED:") {
                 let reason = detail.trim_start_matches("SILHOUETTE_FIT_REJECTED:").trim();
                 let code = if reason.starts_with("STRICT_GLB_READBACK_FAILED")
@@ -603,7 +630,12 @@ fn runtime_error_code(error: &RuntimeError) -> String {
                     || value.starts_with("SILHOUETTE_FIT_GEOMETRY_")
                     || value.starts_with("SILHOUETTE_FIT_RENDER_FAILED")
                     || value.starts_with("CAMERA_FIT_")
+                    || value.starts_with("CAMERA_CALIBRATION_")
                     || value.starts_with("SILHOUETTE_FIT_")
+                    || value.starts_with("SILHOUETTE_RIG_")
+                    || value.starts_with("SILHOUETTE_PART_ERROR_")
+                    || value.starts_with("SILHOUETTE_OBJECTIVE_")
+                    || value.starts_with("OPTIMIZATION_")
                     || value.starts_with("CANDIDATE_ARTIFACT_UNAVAILABLE")
                 })
             .map(str::to_owned)
@@ -740,13 +772,19 @@ mod tests {
             runtime_error_code(&RuntimeError::InvalidInput(
                 "PRIMARY_FORM_REPAIR_INVALID: canonical_sha256 does not bind intent".to_owned(),
             )),
-            "PRIMARY_FORM_REPAIR_INVALID"
+            "PRIMARY_FORM_REPAIR_INVALID_CANONICAL"
         );
         assert_eq!(
             runtime_error_code(&RuntimeError::InvalidInput(
                 "PRIMARY_FORM_REPAIR_REJECTED: selected GeometryProgram project differs".to_owned(),
             )),
             "PRIMARY_FORM_REPAIR_REJECTED"
+        );
+        assert_eq!(
+            runtime_error_code(&RuntimeError::InvalidInput(
+                "OPTIMIZATION_INTENT_CANONICAL_HASH_MISMATCH: canonical_sha256 does not bind intent".to_owned(),
+            )),
+            "OPTIMIZATION_INTENT_CANONICAL_HASH_MISMATCH"
         );
     }
 

@@ -1,5 +1,7 @@
 # img2threejs Pipeline 受控学习与 ForgeCAD 落地计划
 
+2026-08-16 当前映射再收口一层：img2threejs 的 `image → spec → action → render/review` 现在先落到 `ReferenceCanvas@1 + DesignSpec@1 → consolidated AgenticSceneObserveResult@1`，再进入 typed action/CADFit；真实 Codex 编排层会把单张参考的 coverage unknowns 和 primary-form/detail locks 一起持久化，Runtime 重新生成 observation 后才允许后续 Rig/Repair 消费。源码/合同 Gate 已通过，但本轮 live boundary probe 未返回 typed authoring receipt，不能称为完整 Agent loop 或视觉质量 PASS；single-view 仍为 `BLOCKED_REFERENCE_COVERAGE`。
+
 2026-08-15 当前映射新增一条可验证边界：img2threejs 的 staged `image → spec → action → render/review` 思路现在对应 ForgeCAD 的 `design_stage_run_prepare` action entry；entry 可带 typed `parameter_changes` 和 hash-bound `view_spec`，Runtime 负责物化受限参数补丁、编译、回读、渲染、评估和独立 review candidate。真实 receipt `docs/evidence/mcp010f/design-action-run-real-reference-stage-view-spec-20260815-b37.json` 已验证该传输链，但质量门仍阻断，不能称为完整 Agent loop、自动 Repair 或 likeness PASS。
 
 版本：2026-08-15

@@ -121,7 +121,7 @@ def main() -> int:
 
         listed = client.request("tools/list")
         tools = listed.get("result", {}).get("tools")
-        require(isinstance(tools, list) and len(tools) == 67, "current MCP tool manifest was not 67 tools")
+        require(isinstance(tools, list) and len(tools) == 73, "current MCP tool manifest was not 73 tools")
         preflight = tool_value(client, "skill_get", {"skill_id": "ponytail-preflight", "version": "0.1.0"})
         require(preflight.get("skill", {}).get("skill_id") == "ponytail-preflight", "Ponytail preflight did not bind")
 
@@ -152,6 +152,11 @@ def main() -> int:
         catalog_sha256 = catalog.get("canonical_sha256")
         require(isinstance(catalog_sha256, str) and len(catalog_sha256) == 64, "operator catalog hash unavailable")
         draft = v2_program_draft(project_id, catalog_sha256)
+        # The Runtime-owned Rig scale sink is materialized after the complete
+        # Part output graph. This fixture has two shell inputs, so reserve two
+        # bounded transform nodes in the derived GeometryProgram budget rather
+        # than accidentally testing a source-only node budget.
+        draft["budgets"]["max_nodes"] = len(draft["nodes"]) + 2
         hashed = tool_value(client, "geometry_program_hash", {"schema_version": "GeometryProgramHashRequest@1", "geometry_program_draft": draft})
         program_sha256 = hashed.get("canonical_sha256")
         require(isinstance(program_sha256, str) and len(program_sha256) == 64, "geometry program hash unavailable")
@@ -338,6 +343,10 @@ def main() -> int:
         elif runtime.poll() is None:
             runtime.kill()
             runtime.wait(timeout=5)
+        if runtime.stderr is not None:
+            stderr = runtime.stderr.read(8192)
+            if stderr:
+                print(stderr, file=sys.stderr, end="" if stderr.endswith("\n") else "\n")
         if cleanup_error is not None and sys.exc_info()[0] is None:
             raise cleanup_error
 

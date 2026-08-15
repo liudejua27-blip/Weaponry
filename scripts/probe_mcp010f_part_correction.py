@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -313,7 +314,9 @@ def main() -> int:
             "reference_compare_prepare",
             "scene_observe_get",
             "silhouette_rig_hash",
-            "primary_form_repair_prepare",
+            "primary_form_repair_job_prepare",
+            "job_get",
+            "job_result_get",
         }
         require(required.issubset(names), "required contour tools are unavailable")
         project = client.tool("project_create", {"name": "MCP010F single Part contour correction", "policy": {"profile": "mvp"}})
@@ -430,7 +433,33 @@ def main() -> int:
         repair_request["canonical_sha256"] = canonical_hash(
             normalize_numeric_representation(repair_request)
         )
-        repair = client.tool("primary_form_repair_prepare", repair_request)
+        repair_job = client.tool("primary_form_repair_job_prepare", repair_request)
+        require(
+            isinstance(repair_job, dict)
+            and isinstance(repair_job.get("job_id"), str)
+            and repair_job.get("status") in {"queued", "running"},
+            "primary_form_repair_job_prepare did not return a queued Runtime job",
+        )
+        job_id = repair_job["job_id"]
+        deadline = time.monotonic() + args.timeout
+        terminal_job = repair_job
+        while terminal_job.get("status") in {"queued", "running"}:
+            if time.monotonic() >= deadline:
+                raise ProbeFailure("Primary Form job did not reach a terminal state within the bounded probe window")
+            time.sleep(0.25)
+            terminal_job = client.tool("job_get", {"job_id": job_id})
+            require(isinstance(terminal_job, dict), "job_get returned no typed Runtime job")
+        require(
+            terminal_job.get("status") == "succeeded",
+            f"Primary Form job failed: {terminal_job.get('error_code') or terminal_job.get('status')}",
+        )
+        job_result = client.tool("job_result_get", {"job_id": job_id})
+        require(
+            isinstance(job_result, dict)
+            and isinstance(job_result.get("result"), dict),
+            "job_result_get omitted the Primary Form result",
+        )
+        repair = job_result["result"]
         require(
             isinstance(repair, dict)
             and repair.get("schema_version") == "PrimaryFormRepairPrepareResult@1"
@@ -485,6 +514,12 @@ def main() -> int:
             "scene_observation": observation,
             "rig_sha256": rig_sha256,
             "runtime_search_owner": "forgecad-runtime",
+            "primary_form_job": {
+                "job_id": job_id,
+                "status": terminal_job.get("status"),
+                "progress": terminal_job.get("progress"),
+                "result_sha256": job_result.get("result_sha256"),
+            },
             "primary_form_repair": repair,
             "candidate_comparisons": comparisons,
             "candidate_count": len(comparisons),
@@ -504,6 +539,16 @@ def main() -> int:
     except (GateFailure, OSError, ProbeFailure, ValueError, json.JSONDecodeError, subprocess.SubprocessError) as error:
         result["reason"] = str(error)[:2000]
         if runtime is not None and runtime.stderr is not None:
+            # The Runtime stays alive while the MCP client reports a typed
+            # failure.  Reading stderr before stopping it blocks forever and
+            # hides the actual MCP/Runtime error from the diagnostic receipt.
+            if runtime.poll() is None:
+                runtime.terminate()
+                try:
+                    runtime.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    runtime.kill()
+                    runtime.wait(timeout=5)
             try:
                 stderr = runtime.stderr.read()
             except OSError:

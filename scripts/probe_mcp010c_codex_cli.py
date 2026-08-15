@@ -18,6 +18,7 @@ import math
 import os
 import re
 import shlex
+import signal
 import subprocess
 import sys
 import tempfile
@@ -42,13 +43,19 @@ AOV_ORDER = ("beauty", "silhouette", "depth", "normal", "ao", "part-id", "materi
 SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")
 AUTHORING_SEQUENCE = ("capabilities_get", "runtime_status", "doctor", "operator_catalog_get", "skill_list", "geometry_program_hash", "geometry_prepare")
 COMPARE_SEQUENCE = ("job_get", "candidate_get", "artifact_readback_get", "reference_compare_prepare")
-PRIMARY_FORM_REPAIR_SEQUENCE = ("primary_form_repair_prepare",)
+# The synchronous Primary Form endpoint is intentionally not used by the
+# real-client probe: a bounded 64-evaluation Geometry/Render Worker search can
+# outlive one MCP request deadline.  The durable Job path keeps the same
+# Runtime-owned action and lets Codex observe completion before reading the
+# CAS-backed typed result.
+PRIMARY_FORM_REPAIR_SEQUENCE = ("primary_form_repair_job_prepare", "job_get", "job_result_get")
 RENDER_SEQUENCE = AOV_ORDER
 REVIEW_SEQUENCE = ("visual_review_submit", "quality_get")
 SILHOUETTE_TARGET_SEQUENCE = ("reference_mask_prepare",)
-# Keep the visual turn as one bounded observe -> decide -> prepare surface.
-# scene_observe_get is deliberately inside the same ephemeral Codex turn as
-# target/camera/Rig, so the model does not stitch a design decision from
+# Keep the visual turn as one bounded observe -> decide -> author -> observe
+# surface.  The explicit ReferenceCanvas/DesignSpec authoring step occurs
+# after target/camera/compare; scene_observe_get then reads the Runtime-owned
+# post-authoring snapshot, so the model does not stitch a design decision from
 # unrelated fragmented reads or silently re-observe after a state change.
 SILHOUETTE_SEQUENCE = (
     "silhouette_target_get",
@@ -57,6 +64,7 @@ SILHOUETTE_SEQUENCE = (
     "candidate_get",
     "artifact_readback_get",
     "reference_compare_prepare",
+    "session_create_or_resume",
     "scene_observe_get",
     "silhouette_rig_hash",
 )
@@ -421,7 +429,11 @@ def run_required_codex_turn(
     inventing or replaying any Runtime state in the probe.
     """
     aggregate: list[dict[str, Any]] = []
-    for attempt in range(max_attempts):
+    # Boundary-only runs intentionally never retry a potentially mutating
+    # authoring session.  They are meant to prove the observation boundary,
+    # not to spend several timeout windows replaying the same external host.
+    attempt_limit = 1 if options.boundary_only else max_attempts
+    for attempt in range(attempt_limit):
         retry_note = ""
         if attempt:
             retry_note = (
@@ -446,7 +458,7 @@ def run_required_codex_turn(
         ]
         if has_subsequence(completed, expected) and all(name in completed for name in expected):
             return aggregate
-    raise RuntimeError(f"Codex did not complete {label} after {max_attempts} bounded attempts")
+    raise RuntimeError(f"Codex did not complete {label} after {attempt_limit} bounded attempts")
 
 
 def render_pass_names(items: list[dict[str, Any]]) -> list[str]:
@@ -521,6 +533,48 @@ def blocking_side_effects(summary: list[dict[str, Any]]) -> list[dict[str, Any]]
     return [event for event in summary if event.get("classification") != "codex_skill_read_only"]
 
 
+def run_codex_process(
+    command: list[str],
+    environment: dict[str, str],
+    timeout: float,
+    input_text: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run Codex in a private process group and terminate the whole group on timeout.
+
+    The visual probe may start an MCP server and a code-mode host as children.
+    ``subprocess.run(timeout=...)`` only guarantees that the parent call raises;
+    it does not make a stale child session disappear.  A private process group
+    keeps timeout cleanup isolated to this probe and prevents a retry from
+    inheriting a hung MCP session.
+    """
+    process = subprocess.Popen(
+        command,
+        env=environment,
+        text=True,
+        stdin=subprocess.PIPE if input_text is not None else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(input=input_text, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            stdout, stderr = process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            stdout, stderr = process.communicate(timeout=5)
+        raise
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
 def run_codex_turn(options: argparse.Namespace, environment: dict[str, str], prompt_text: str, workspace_root: str, image_path: str | None = None) -> subprocess.CompletedProcess[str]:
     """Run one short Codex turn with an explicit, inspectable shell sandbox."""
     prompt_text = (
@@ -554,9 +608,9 @@ def run_codex_turn(options: argparse.Namespace, environment: dict[str, str], pro
             command[8:8] = ["--approve-for-me"]
         if image_path:
             command.extend(["--image", image_path])
-            return subprocess.run(command, input=prompt_text + "\n", env=environment, text=True, capture_output=True, timeout=options.timeout, check=False)
+            return run_codex_process(command, environment, options.timeout, prompt_text + "\n")
         command.append(prompt_text)
-        return subprocess.run(command, env=environment, text=True, capture_output=True, timeout=options.timeout, check=False)
+        return run_codex_process(command, environment, options.timeout)
 
 
 def field(result: Any, *names: str) -> Any:
@@ -583,6 +637,7 @@ def parse_bound_silhouette_turn(
     camera_result = structured_result(items, "camera_fit_prepare") or {}
     rig_result = structured_result(items, "silhouette_rig_hash") or {}
     comparison = structured_result(items, "reference_compare_prepare") or {}
+    session_result = structured_result(items, "session_create_or_resume") or {}
     observation = structured_result(items, "scene_observe_get") or {}
     if (
         observation.get("schema_version") != "AgenticSceneObserveResult@1"
@@ -600,6 +655,20 @@ def parse_bound_silhouette_turn(
         str,
     ):
         raise RuntimeError("Codex silhouette turn did not return baseline compare evidence")
+    session = session_result.get("session") if isinstance(session_result, dict) else None
+    authoring = session_result.get("authoring_context") if isinstance(session_result, dict) else None
+    if (
+        session_result.get("schema_version") != "AgenticSessionResult@1"
+        or session_result.get("durable") is not True
+        or not isinstance(session, dict)
+        or session.get("schema_version") != "DesignSession@1"
+        or not isinstance(authoring, dict)
+        or authoring.get("schema_version") != "AgenticAuthoringContext@1"
+        or authoring.get("durable") is not True
+        or authoring.get("read_only") is not True
+        or session.get("observation_sha256") != observation.get("canonical_sha256")
+    ):
+        raise RuntimeError("session_create_or_resume did not return the post-authoring bound observation")
     selected_camera = field(camera_result, "selected_camera") or field(camera_result, "camera")
     # Codex can summarize selected_camera as only two hashes even though the
     # typed result carries the complete calibration in candidates[]. Recover
@@ -648,8 +717,35 @@ def parse_bound_silhouette_turn(
         "camera_canonical": camera_canonical,
         "rig_sha": rig_sha,
         "comparison": comparison,
+        "session_result": session_result,
         "observation": observation,
         "observation_sha": observation["canonical_sha256"],
+    }
+
+
+def authoring_binding_summary(result: dict[str, Any] | None) -> dict[str, Any]:
+    """Keep the durable authoring proof compact and free of image/path data."""
+    if not isinstance(result, dict):
+        return {"status": "NOT_RUN"}
+    session = result.get("session") if isinstance(result.get("session"), dict) else {}
+    context = result.get("authoring_context") if isinstance(result.get("authoring_context"), dict) else {}
+    canvas = context.get("reference_canvas") if isinstance(context.get("reference_canvas"), dict) else {}
+    coverage = canvas.get("coverage") if isinstance(canvas.get("coverage"), dict) else {}
+    documents = result.get("documents") if isinstance(result.get("documents"), dict) else {}
+    canvas_document = documents.get("reference_canvas") if isinstance(documents.get("reference_canvas"), dict) else {}
+    spec_document = documents.get("design_spec") if isinstance(documents.get("design_spec"), dict) else {}
+    return {
+        "status": "PASS_DURABLE_REFERENCE_CANVAS_DESIGN_SPEC" if result.get("durable") is True else "BLOCKED",
+        "session_id": session.get("session_id"),
+        "observation_sha256": session.get("observation_sha256"),
+        "reference_canvas_id": canvas.get("canvas_id"),
+        "reference_canvas_object_sha256": canvas_document.get("object_sha256"),
+        "design_spec_id": (context.get("design_spec") or {}).get("spec_id") if isinstance(context.get("design_spec"), dict) else None,
+        "design_spec_object_sha256": spec_document.get("object_sha256"),
+        "coverage_status": coverage.get("coverage_status"),
+        "supplied_views": coverage.get("supplied_views"),
+        "missing_views": coverage.get("missing_views"),
+        "hq_360_status": coverage.get("hq_360_status"),
     }
 
 
@@ -819,6 +915,264 @@ def view_spec(reference_id: str, reference_sha: str, width: int, height: int, in
     return value
 
 
+def reference_canvas_authoring_context(
+    project_id: str,
+    reference_id: str,
+    reference_sha: str,
+    width: int,
+    height: int,
+    intake: dict[str, list[dict[str, Any]]] | None = None,
+) -> dict[str, Any]:
+    """Build one explicit, hash-bound authoring context for the visual turn.
+
+    The Runtime remains the producer and validator.  This helper only builds
+    the closed typed facts that the real Codex turn is allowed to submit.  It
+    intentionally records one supplied perspective view plus missing coverage
+    instead of letting the observation projection fall back to an unqualified
+    "unknown" canvas.  The CAS object hash of the finalized canvas is computed
+    locally solely so DesignSpec@1 can bind to the Runtime-created canvas
+    object; the Runtime recomputes and verifies both canonical hashes.
+    """
+    intake = intake or {"landmarks": [], "regions": []}
+    evidence = {"kind": "reference", "sha256": reference_sha}
+
+    def state(visibility: str, confidence: float) -> dict[str, Any]:
+        return {
+            "visibility": visibility,
+            "confidence": confidence,
+            "evidence_refs": [dict(evidence)],
+        }
+
+    visible_regions: list[dict[str, Any]] = []
+    for region in intake.get("regions", []):
+        region_id = str(region["region_id"])
+        visibility = region["visibility"] if region["visibility"] in {"observed", "inferred", "unknown"} else "unknown"
+        confidence = float(region["confidence"]) if visibility != "unknown" else 0.0
+        visible_regions.append({
+            "region_id": region_id,
+            "label": region_id.replace("-", " "),
+            "state": state(visibility, max(0.0, min(1.0, confidence))),
+        })
+
+    canvas_id = "reference-canvas-real-codex"
+    spec_id = "design-spec-real-codex"
+    created_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    canvas: dict[str, Any] = {
+        "schema_version": "ReferenceCanvas@1",
+        "canvas_id": canvas_id,
+        "project_id": project_id,
+        "reference_set_sha256": reference_sha,
+        "views": [{
+            "view_id": "three-quarter-user-reference",
+            "reference_id": reference_id,
+            "reference_sha256": reference_sha,
+            "kind": "perspective",
+            "authorization": {
+                "user_authorized": True,
+                "declaration": "The user supplied and authorized this reference for local ForgeCAD modeling.",
+                "evidence_refs": [dict(evidence)],
+            },
+            "image_dimensions": {"width": width, "height": height},
+            "camera_claim": {
+                "visibility": "unknown",
+                "camera_hash": None,
+                "claim": "Camera parameters are unknown for this supplied perspective reference.",
+                "evidence_refs": [dict(evidence)],
+            },
+            "visible_regions": visible_regions,
+            "unknown_regions": [
+                {
+                    "region_id": "unknown-hidden-side-geometry",
+                    "question": "Which forms continue around the hidden side and rear surfaces?",
+                    "state": state("unknown", 0.0),
+                },
+                {
+                    "region_id": "unknown-camera-calibration",
+                    "question": "What physical camera and focal length produced this perspective?",
+                    "state": state("unknown", 0.0),
+                },
+            ],
+        }],
+        "coverage": {
+            "required_views": ["front", "back", "left", "right", "perspective", "rear-three-quarter"],
+            "supplied_views": ["perspective"],
+            "missing_views": ["front", "back", "left", "right", "rear-three-quarter"],
+            "coverage_status": "blocked",
+            "hq_360_status": "BLOCKED_REFERENCE_COVERAGE",
+            "evidence_refs": [dict(evidence)],
+        },
+        "unknowns": [
+            {
+                "unknown_id": "unknown-reference-coverage",
+                "scope_kind": "scene",
+                "scope_id": "scene",
+                "question": "Are front, back, side and rear-three-quarter references available?",
+                "state": state("unknown", 0.0),
+            },
+            {
+                "unknown_id": "unknown-hidden-depth",
+                "scope_kind": "scene",
+                "scope_id": "scene",
+                "question": "What is the true depth and hidden assembly behind the supplied view?",
+                "state": state("unknown", 0.0),
+            },
+        ],
+        "claims": [{
+            "claim_id": "claim-supplied-perspective",
+            "subject_kind": "view",
+            "subject_id": "three-quarter-user-reference",
+            "statement": "The supplied image is one user-authorized perspective view; hidden coverage remains unknown.",
+            "state": state("observed", 0.98),
+        }],
+        "canonical_sha256": "",
+        "created_at": created_at,
+    }
+    canvas["canonical_sha256"] = canonical_hash(canvas)
+    canvas_object_sha256 = canonical_hash(canvas)
+
+    def gate(
+        stage: str,
+        required_checks: list[str],
+        failed_checks: list[str],
+        locks: list[str],
+    ) -> dict[str, Any]:
+        return {
+            "stage": stage,
+            "status": "unknown",
+            "required_checks": required_checks,
+            "failed_checks": failed_checks,
+            "evidence_hashes": [reference_sha],
+            "unlocks": ["checkpoint", "mark-unknown"],
+            "locks": locks,
+        }
+
+    spec: dict[str, Any] = {
+        "schema_version": "DesignSpec@1",
+        "spec_id": spec_id,
+        "project_id": project_id,
+        "reference_canvas_id": canvas_id,
+        "reference_canvas_sha256": canvas_object_sha256,
+        "category": "hard-surface humanoid visual asset",
+        "style": "white shell with dark mechanical understructure, inferred from one perspective view",
+        "primary_forms": [{
+            "form_id": "humanoid-primary-form",
+            "name": "Humanoid primary form",
+            "role": "main-body",
+            "description": "The visible body envelope is an inferred primary form; hidden depth remains unknown.",
+            "state": state("inferred", 0.82),
+        }],
+        "proportions": [],
+        "semantic_parts": [{
+            "part_id": "scene",
+            "role": "root",
+            "parent_id": None,
+            "symmetry": "unknown",
+            "material_zone_ids": ["zone-white-shell", "zone-black-mechanical"],
+            "state": state("inferred", 0.72),
+        }],
+        "material_language": [
+            {
+                "material_zone_id": "zone-white-shell",
+                "surface_language": "painted light shell with controlled highlights",
+                "color_family": "white and cool gray",
+                "channels": ["base-color", "metallic", "roughness", "normal"],
+                "state": state("inferred", 0.78),
+            },
+            {
+                "material_zone_id": "zone-black-mechanical",
+                "surface_language": "dark mechanical structure with recessed detail",
+                "color_family": "black graphite",
+                "channels": ["base-color", "metallic", "roughness", "normal"],
+                "state": state("inferred", 0.76),
+            },
+        ],
+        "stage_goals": [
+            {
+                "stage": "reference-canvas",
+                "objective": "Bind the supplied perspective and record coverage unknowns before primary form work.",
+                "allowed_action_kinds": ["reference-import", "coverage-annotation", "mark-unknown", "checkpoint"],
+                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
+                "exit_gate": gate("reference-canvas", ["reference-authorized", "reference-coverage"], ["reference-coverage"], ["tertiary-detail", "uv-pbr", "export"]),
+            },
+            {
+                "stage": "primary-form",
+                "objective": "Converge the visible primary silhouette and proportions with bounded Runtime-owned actions.",
+                "allowed_action_kinds": ["primary-blockout", "primary-form-adjustment", "bounded-repair", "checkpoint"],
+                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
+                "exit_gate": gate("primary-form", ["primary-silhouette", "primary-proportion", "visible-view"], ["primary-silhouette", "primary-proportion"], ["tertiary-detail", "uv-pbr", "export"]),
+            },
+            {
+                "stage": "secondary-structure",
+                "objective": "Add semantic secondary structure only after the primary visible form is accepted.",
+                "allowed_action_kinds": ["secondary-structure", "bounded-repair", "checkpoint"],
+                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
+                "exit_gate": gate("secondary-structure", ["secondary-structure", "visible-view"], ["visible-view"], ["tertiary-detail", "uv-pbr", "export"]),
+            },
+            {
+                "stage": "tertiary-detail",
+                "objective": "Keep tertiary detail locked until the visible form and reference coverage are sufficient.",
+                "allowed_action_kinds": ["tertiary-detail", "checkpoint"],
+                "forbidden_action_kinds": ["uv-pbr", "export"],
+                "exit_gate": gate("tertiary-detail", ["tertiary-detail", "visible-view"], ["visible-view"], ["uv-pbr", "export"]),
+            },
+            {
+                "stage": "uv-pbr",
+                "objective": "Bind UV, tangent and PBR evidence after geometry gates are complete.",
+                "allowed_action_kinds": ["material-zone", "uv-pbr", "checkpoint"],
+                "forbidden_action_kinds": ["export"],
+                "exit_gate": gate("uv-pbr", ["uv-tangent-pbr", "visible-view"], ["uv-tangent-pbr"], ["export"]),
+            },
+            {
+                "stage": "final-review",
+                "objective": "Require multi-view comparison, typed review, human review and restart-safe export evidence.",
+                "allowed_action_kinds": ["final-review", "human-review", "export", "checkpoint"],
+                "forbidden_action_kinds": [],
+                "exit_gate": gate("final-review", ["multi-view-compare", "codex-typed-review", "human-review", "export-restart-hash"], ["multi-view-compare", "human-review", "export-restart-hash"], ["export"]),
+            },
+        ],
+        "risks": [
+            {
+                "risk_id": "risk-reference-coverage",
+                "kind": "reference-coverage",
+                "severity": "blocking",
+                "description": "A single perspective cannot support a 360-degree likeness claim.",
+                "state": state("unknown", 0.0),
+            },
+            {
+                "risk_id": "risk-primary-proportion",
+                "kind": "proportion",
+                "severity": "high",
+                "description": "Primary proportions must be evaluated under the same calibrated view before detail work.",
+                "state": state("unknown", 0.0),
+            },
+        ],
+        "unknowns": [
+            {
+                "unknown_id": "unknown-design-depth",
+                "question": "What is the true depth and hidden structure outside the supplied view?",
+                "scope_kind": "scene",
+                "scope_id": "scene",
+                "state": state("unknown", 0.0),
+                "blocked_stages": ["secondary-structure", "tertiary-detail", "uv-pbr", "final-review"],
+            },
+            {
+                "unknown_id": "unknown-material-physicality",
+                "question": "Which physical material parameters are intended beyond the visible color and highlight cues?",
+                "scope_kind": "material-zone",
+                "scope_id": "zone-white-shell",
+                "state": state("unknown", 0.0),
+                "blocked_stages": ["uv-pbr", "final-review"],
+            },
+        ],
+        "canonical_sha256": "",
+        "created_at": created_at,
+    }
+    return {
+        "reference_canvas": canvas,
+        "design_spec": spec,
+    }
+
+
 def setup_prompt(reference_path: str) -> str:
     return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers, or arbitrary code.
 
@@ -942,22 +1296,25 @@ def silhouette_prompt(
     artifact_id: str,
     target_sha256: str,
     view: dict[str, Any],
+    authoring_context: dict[str, Any],
 ) -> str:
     rig = json.dumps(silhouette_rig_draft(candidate_id), ensure_ascii=False, separators=(",", ":"))
     view_json = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
+    authoring_json = json.dumps(authoring_context, ensure_ascii=False, separators=(",", ":"))
     return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
 
-Call exactly these eight ForgeCAD tools in order, then stop:
+Call exactly these nine ForgeCAD tools in order, then stop:
 1) silhouette_target_get with {{"target_sha256":{json.dumps(target_sha256)}}}; verify it is the target for project {json.dumps(project_id)}.
 2) camera_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"camera":null}}; save the complete returned selected_camera calibration object (not only camera_hash/canonical_sha256) and its hashes.
 3) job_get with {{"job_id":{json.dumps(job_id)}}}.
 4) candidate_get with {{"candidate_id":{json.dumps(candidate_id)}}}.
 5) artifact_readback_get with {{"artifact_id":{json.dumps(artifact_id)},"candidate_id":{json.dumps(candidate_id)}}}.
 6) reference_compare_prepare with this exact JSON object: {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"reference_id":{json.dumps(reference_id)},"view_spec":{view_json},"camera":{{"schema_version":"CameraCalibrationRef@1","camera_hash":<copy the selected camera_hash from step 2>,"canonical_sha256":<copy the selected camera canonical_sha256 from step 2>}},"target_sha256":{json.dumps(target_sha256)}}}. Copy the view_spec byte-for-byte and do not reconstruct camera fields.
-7) scene_observe_get with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)}}}; call this only after the baseline compare. Treat the complete returned AgenticSceneObserveResult@1 as the only canonical scene/model/reference/quality/Part-error context for this visual turn. Verify its project/candidate binding, read_only flag and canonical_sha256; do not replace it with fragmented boundary or quality reads.
-8) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; copy only the returned canonical_sha256 into the unchanged rig for the next turn.
+7) session_create_or_resume with {{"session_id":null,"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"idempotency_key":{json.dumps("reference-canvas-" + candidate_id)},"reference_id":{json.dumps(reference_id)},"design_spec_id":"design-spec-real-codex","reference_canvas_id":"reference-canvas-real-codex","camera_hash":<copy the selected camera_hash from step 2>,"evidence_sha256":<copy the comparison_report_object_sha256 from step 6>,"approved":true,"approval_receipt_id":"mcp010c-reference-canvas-approval","approval_summary":"Create isolated reference canvas context","authoring_context":{authoring_json}}}. This is an isolated Runtime metadata write only: it must not confirm, version, export or mutate the candidate. Copy the authoring_context byte-for-byte.
+8) scene_observe_get with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)}}}; call this only after session_create_or_resume. Treat the complete returned AgenticSceneObserveResult@1 as the only canonical scene/model/reference/quality/Part-error context for this visual turn. Verify its project/candidate binding, read_only flag and canonical_sha256, and verify its canonical_sha256 equals the session.session.observation_sha256 returned by step 7; do not replace it with fragmented boundary or quality reads.
+9) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; copy only the returned canonical_sha256 into the unchanged rig for the next turn.
 
-Do not call silhouette_fit_prepare yet because the next turn will bind its request hash to the exact selected camera. Do not call render_pass_get, review, confirm or export. Return only target/camera/compare/observation/Rig hashes and opaque IDs; do not claim visual quality.
+Do not call silhouette_fit_prepare yet because the next turn will bind its request hash to the exact selected camera. Do not call render_pass_get, review, confirm or export. Return only target/camera/compare/session/observation/Rig hashes and opaque IDs; do not claim visual quality.
 """
 
 
@@ -1017,18 +1374,20 @@ In step 2 replace the literal RUNTIME_HASH inside rig.canonical_sha256 with the 
 
 def primary_form_repair_prompt(request: dict[str, Any]) -> str:
     request_json = json.dumps(request, ensure_ascii=False, separators=(",", ":"))
-    return f"""Use the ForgeCAD MCP server now. Call exactly one tool, then stop:
-primary_form_repair_prepare with this exact JSON object: {request_json}
+    return f"""Use the ForgeCAD MCP server now. Complete this one bounded asynchronous action, then stop:
+1) Call primary_form_repair_job_prepare with this exact JSON object: {request_json}
+2) Poll job_get with the returned job_id until the Runtime job is terminal. Do not stop while it is queued or running.
+3) When the job status is succeeded, call job_result_get with the exact job_id and return its typed result.
 
 This is the single Runtime-owned Primary Form repair action. It must consume the
 same target, canonical ReferenceViewSpec, camera reference, Rig and optimizer intent. Runtime owns the
 nested bounded silhouette fit and the Geometry Worker/Render Worker compare;
-do not call silhouette_fit_prepare separately, do not edit any parameter, and
-do not call geometry_prepare, render, compare, confirm or export separately in
-this turn.
-Return the typed staged-candidate/evidence result only. A no_improvement result
-must leave the source candidate unchanged; neither result is user approval or a
-visual-quality pass.
+do not call the synchronous primary_form_repair_prepare endpoint, do not call
+silhouette_fit_prepare separately, do not edit any parameter, and do not call
+geometry_prepare, render, compare, confirm or export separately in this turn.
+Read the result field from job_result_get and return the typed
+PrimaryFormRepairPrepareResult@1. A no_improvement result must leave the source
+candidate unchanged; neither result is user approval or a visual-quality pass.
 """
 
 
@@ -1077,17 +1436,29 @@ def run_primary_form_repair_step(
         turn_outputs,
         label,
     )
-    result = structured_result(repair_items, "primary_form_repair_prepare") or {}
+    job_prepare = structured_result(repair_items, "primary_form_repair_job_prepare") or {}
+    terminal_job = structured_result(repair_items, "job_get") or {}
+    job_result = structured_result(repair_items, "job_result_get") or {}
+    result = field(job_result, "result") or {}
     if not has_subsequence(call_sequence(repair_items), PRIMARY_FORM_REPAIR_SEQUENCE) or not all_completed(
         repair_items, PRIMARY_FORM_REPAIR_SEQUENCE
     ):
-        raise RuntimeError("Codex did not complete primary_form_repair_prepare")
+        raise RuntimeError("Codex did not complete the asynchronous Primary Form job/result sequence")
+    job_id = field(job_prepare, "job_id")
+    if not isinstance(job_id, str) or not job_id:
+        raise RuntimeError("primary_form_repair_job_prepare did not return a job_id")
+    if field(terminal_job, "job_id") != job_id or field(terminal_job, "status") != "succeeded":
+        raise RuntimeError("Primary Form Runtime Job did not reach succeeded")
+    if field(job_result, "job", "job_id") != job_id or not isinstance(field(job_result, "result_sha256"), str):
+        raise RuntimeError("job_result_get did not return the hash-bound Primary Form result")
+    if not isinstance(result, dict) or result.get("schema_version") != "PrimaryFormRepairPrepareResult@1":
+        raise RuntimeError("job_result_get did not return PrimaryFormRepairPrepareResult@1")
     if field(result, "source_candidate_id") != candidate_id:
-        raise RuntimeError("primary_form_repair_prepare source candidate drifted from the observed candidate")
+        raise RuntimeError("Primary Form Job source candidate drifted from the observed candidate")
     fit_result = field(result, "fit_result") or {}
     fit_camera = field(fit_result, "selected_camera")
     if not isinstance(fit_camera, dict):
-        raise RuntimeError("primary_form_repair_prepare did not return Runtime-selected camera evidence")
+        raise RuntimeError("Primary Form Job did not return Runtime-selected camera evidence")
     fit_camera_hash = field(fit_camera, "camera_hash")
     fit_camera_canonical = field(fit_camera, "canonical_sha256")
     if (
@@ -1096,10 +1467,10 @@ def run_primary_form_repair_step(
         or not isinstance(fit_camera_canonical, str)
         or len(fit_camera_canonical) != 64
     ):
-        raise RuntimeError("primary_form_repair_prepare returned an invalid Runtime-selected camera")
+        raise RuntimeError("Primary Form Job returned an invalid Runtime-selected camera")
     status = field(result, "status")
     if status not in {"prepared", "no_improvement"}:
-        raise RuntimeError("primary_form_repair_prepare returned an unsupported status")
+        raise RuntimeError("Primary Form Job returned an unsupported status")
     prepared = field(result, "prepared_candidate") or {}
     prepared_candidate = field(prepared, "candidate") or {}
     prepared_job = field(prepared, "job") or {}
@@ -1116,11 +1487,17 @@ def run_primary_form_repair_step(
         isinstance(value, str) and value
         for value in (staged["candidate_id"], staged["job_id"], staged["artifact_id"], staged["program_sha256"])
     ):
-        raise RuntimeError("primary_form_repair_prepare did not return a complete staged candidate")
+        raise RuntimeError("Primary Form Job did not return a complete staged candidate")
     return {
         "request": request,
         "items": repair_items,
         "result": result,
+        "job": {
+            "job_id": job_id,
+            "status": field(terminal_job, "status"),
+            "progress": field(terminal_job, "progress"),
+            "result_sha256": field(job_result, "result_sha256"),
+        },
         "fit_result": fit_result,
         "fit_camera": fit_camera,
         "fit_camera_hash": fit_camera_hash,
@@ -1411,6 +1788,14 @@ def main() -> int:
                 raise RuntimeError("Codex setup did not complete the required MCP sequence")
 
             spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
+            authoring_context = reference_canvas_authoring_context(
+                project_id,
+                reference_id,
+                reference_sha,
+                width,
+                height,
+                visual_intake,
+            )
             silhouette_target_sha: str | None = None
             silhouette_camera_hash: str | None = None
             silhouette_fit_camera_hash: str | None = None
@@ -1427,6 +1812,7 @@ def main() -> int:
             canonical_observation_result: dict[str, Any] | None = None
             canonical_observation_candidate_id: str | None = None
             silhouette_comparison_result: dict[str, Any] | None = None
+            authoring_session_result: dict[str, Any] | None = None
             selected_camera_for_compare: dict[str, Any] | None = None
             primary_form_runtime_compare = False
             canonical_compare_in_silhouette = False
@@ -1508,11 +1894,12 @@ def main() -> int:
                         artifact_id,
                         silhouette_target_sha or "",
                         spec,
+                        authoring_context,
                     ),
                     str(root),
                     SILHOUETTE_SEQUENCE,
                     turn_outputs,
-                    "silhouette target/camera/compare/observation/Rig",
+                    "silhouette target/camera/compare/authoring/observation/Rig",
                 )
                 silhouette_items.extend(silhouette_turn_items)
                 silhouette_turn = parse_bound_silhouette_turn(
@@ -1521,6 +1908,7 @@ def main() -> int:
                     candidate_id,
                 )
                 silhouette_comparison_result = silhouette_turn["comparison"]
+                authoring_session_result = silhouette_turn["session_result"]
                 canonical_observation_result = silhouette_turn["observation"]
                 silhouette_observation_sha = silhouette_turn["observation_sha"]
                 canonical_observation_candidate_id = candidate_id
@@ -1554,6 +1942,7 @@ def main() -> int:
                                     artifact_id,
                                     silhouette_target_sha or "",
                                     spec,
+                                    authoring_context,
                                 ),
                                 str(root),
                                 SILHOUETTE_SEQUENCE,
@@ -1567,6 +1956,7 @@ def main() -> int:
                                 candidate_id,
                             )
                             silhouette_comparison_result = silhouette_turn["comparison"]
+                            authoring_session_result = silhouette_turn["session_result"]
                             canonical_observation_result = silhouette_turn["observation"]
                             silhouette_observation_sha = silhouette_turn["observation_sha"]
                             canonical_observation_candidate_id = candidate_id
@@ -1805,6 +2195,7 @@ def main() -> int:
                 "render_set_hash": render_set_hash,
                 "comparison_report_hash": comparison_hash,
                 "comparison_metrics": metrics,
+                "authoring_context_binding": authoring_binding_summary(authoring_session_result),
             })
             if selected_camera_for_compare is not None:
                 compared_camera_hash = field(comparison, "camera", "camera_hash") or field(comparison, "comparison_report", "camera_hash")
@@ -1950,6 +2341,7 @@ def main() -> int:
                     "render_set_hash": field(comparison, "render_set_object_sha256") or field(comparison, "render_set_hash"),
                     "comparison_report_hash": field(comparison, "comparison_report_object_sha256") or field(comparison, "comparison_report_hash"),
                     "comparison_metrics": metrics,
+                    "authoring_context_binding": authoring_binding_summary(authoring_session_result),
                     "boundary_error": boundary_summary,
                     "canonical_part_error": canonical_part_error,
                     "boundary_error_count": (
@@ -2109,6 +2501,7 @@ def main() -> int:
                 "validator_status": field(artifact, "validator_status"),
                 "render_set_hash": render_set_hash,
                 "comparison_report_hash": comparison_hash,
+                "authoring_context_binding": authoring_binding_summary(authoring_session_result),
                 "primary_form_repair_requested": options.primary_form_repair,
                 "part_contour_trial_requested": options.part_contour_trial,
                 "part_contour_sequence_requested": bool(options.part_contour_sequence_parts),

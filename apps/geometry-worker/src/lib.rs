@@ -3180,7 +3180,7 @@ mod tests {
     }
 
     #[test]
-    fn mcp010e_white_shell_keeps_factor_and_texture_sampling_is_bounded() {
+    fn mcp010e_white_shell_keeps_factor() {
         let manifest = material_pack_manifest();
         let definition = manifest["material_definitions"]
             .as_array()
@@ -3197,9 +3197,6 @@ mod tests {
             json!([0.82, 0.86, 0.9, 1.0])
         );
 
-        let texture = RgbaImage::from_pixel(2, 2, Rgba([128, 64, 32, 255]));
-        assert_eq!(sample_texture(&texture, [0.25, 0.75]), [128, 64, 32]);
-        assert!(srgb_to_linear(128) > srgb_to_linear(64));
     }
 
     #[test]

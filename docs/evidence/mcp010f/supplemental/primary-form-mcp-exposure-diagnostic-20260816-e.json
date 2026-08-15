@@ -1,0 +1,12 @@
+{
+  "build_cohort_sha256": "487ed17087c06be2516668815f7b816a3573c3b454bc9b30e86e4abb4ceb92e9",
+  "geometry_variant": "surface-linework",
+  "part_id": "chest-shell",
+  "persistent_user_data_touched": false,
+  "reason": "MCP tool failed for primary_form_repair_prepare: {\"code\": \"PRIMARY_FORM_REPAIR_INVALID_CANONICAL\", \"evidence_ids\": [], \"message\": \"Runtime Primary Form request rejected\", \"next_action\": \"Read capabilities_get and correct the request or wait for the required MCP task.\", \"retryable\": false, \"schema_version\": \"RuntimeError@1\"}",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "runtime_stderr": "forgecad-runtime: ready\n",
+  "schema_version": "ForgeCADMCP010FPartCorrectionProbe@1",
+  "status": "BLOCKED",
+  "target_mode": "automatic"
+}

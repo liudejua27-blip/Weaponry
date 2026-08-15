@@ -337,7 +337,7 @@ fn render_perspective_glb_at_resolution_with_passes(
             resolution * 2
         } else {
             // A 64px binary raster is sufficient for ranking a bounded
-            // 128px camera neighborhood; the result is deterministically
+            // 128px/256px camera neighborhood; the result is deterministically
             // upsampled to the transient contract and is never persisted.
             (resolution / 2).max(64)
         }

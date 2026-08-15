@@ -843,6 +843,77 @@ impl Runtime {
         Ok(response)
     }
 
+    /// Resolve a Runtime-owned CameraCalibrationRef before persisting an
+    /// OptimizationIntent.  The asynchronous Worker is deliberately created
+    /// from a fresh Runtime instance, so an in-memory camera-fit cache cannot
+    /// be the only source of truth for a queued job.  The durable intent must
+    /// carry the exact calibration that was selected by the current Runtime.
+    fn materialize_optimization_camera(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+        intent: &mut Value,
+    ) -> Result<(), RuntimeError> {
+        let camera_input = intent
+            .get("camera")
+            .cloned()
+            .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_INTENT_CAMERA_REQUIRED".to_owned()))?;
+        if camera_input.get("schema_version").and_then(Value::as_str)
+            != Some("CameraCalibrationRef@1")
+        {
+            // The caller may still provide a complete calibration from an
+            // older MCP cohort. Normalize it before persisting as well; the
+            // durable intent must not depend on which adapter form arrived.
+            intent["camera"] = super::normalize_json_numbers(&camera_input);
+            durable_optimization_intent_hash(intent)?;
+            return Ok(());
+        }
+        let target_sha256 = intent
+            .get("target_sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_TARGET_REQUIRED".to_owned()))?;
+        let camera = match self.resolve_silhouette_fit_camera(
+            project_id,
+            candidate_id,
+            target_sha256,
+            &camera_input,
+        ) {
+            Ok(camera) => camera,
+            Err(global_error) => {
+                let Some(objective_sha256) = intent
+                    .get("evaluation_objective_sha256")
+                    .and_then(Value::as_str)
+                else {
+                    return Err(global_error);
+                };
+                let objective = read_evaluation_objective(self, objective_sha256)?;
+                let part_target_sha256 = objective
+                    .get("part_target_sha256")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput(
+                            "OPTIMIZATION_EVALUATION_OBJECTIVE_PART_TARGET_MISSING".to_owned(),
+                        )
+                    })?;
+                self.resolve_silhouette_fit_camera(
+                    project_id,
+                    candidate_id,
+                    part_target_sha256,
+                    &camera_input,
+                )
+                .map_err(|_| global_error)?
+            }
+        };
+        // Canonicalize the f64 spelling before writing the intent.  A
+        // serde_json parse/serialize round-trip may shorten a non-minimal
+        // decimal such as `0.10380825814029421` to `0.1038082581402942`;
+        // hashing the pre-CAS lexical spelling would make the durable intent
+        // fail its own readback validation in the Worker Runtime.
+        intent["camera"] = super::normalize_json_numbers(&camera);
+        durable_optimization_intent_hash(intent)?;
+        Ok(())
+    }
+
     pub fn optimization_job_prepare(&self, request: Value) -> Result<Value, RuntimeError> {
         let object = request_object(&request, "optimization_job_prepare")?;
         reject_unknown_keys(
@@ -862,14 +933,15 @@ impl Runtime {
         validate_approval(object)?;
         let project_id = required_id(object, "project_id")?;
         let candidate_id = required_id(object, "candidate_id")?;
-        let intent = object
+        let mut intent = object
             .get("intent")
             .ok_or_else(|| RuntimeError::InvalidInput("intent is required".to_owned()))?
             .clone();
         let job_id = intent
             .get("job_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| RuntimeError::InvalidInput("intent.job_id is required".to_owned()))?;
+            .ok_or_else(|| RuntimeError::InvalidInput("intent.job_id is required".to_owned()))?
+            .to_owned();
         let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
             RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
         })?;
@@ -878,6 +950,7 @@ impl Runtime {
                 "PROJECT_SCOPE_DENIED: candidate is outside the requested project".to_owned(),
             ));
         }
+        self.materialize_optimization_camera(project_id, candidate_id, &mut intent)?;
         let intent_bytes = canonical_json_bytes(&intent)
             .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
         if intent_bytes.len() > MAX_INTENT_BYTES {
@@ -892,9 +965,12 @@ impl Runtime {
             "optimization-intent",
         )?;
         let intent_sha256 = intent_object.record.sha256.clone();
-        let _context = validate_intent(self, &intent, &intent_sha256, project_id, candidate_id)?;
+        // Only validate the durable envelope on the MCP request path.  Full
+        // lineage, target-mask and Worker validation runs after the job has
+        // been queued, inside `run_optimization_job`.
+        validate_intent_control_plane(&intent, &intent_sha256, project_id, candidate_id)?;
 
-        let existing = self.store.get_job_record(job_id)?;
+        let existing = self.store.get_job_record(&job_id)?;
         let job = if let Some(existing) = existing {
             if existing.kind != OPTIMIZATION_KIND
                 || existing.project_id != project_id
@@ -909,7 +985,7 @@ impl Runtime {
             let now = now_string();
             let job = JobRecord {
                 schema_version: "RuntimeJob@1".to_owned(),
-                job_id: job_id.to_owned(),
+                job_id: job_id.clone(),
                 project_id: project_id.to_owned(),
                 kind: OPTIMIZATION_KIND.to_owned(),
                 status: "queued".to_owned(),
@@ -939,18 +1015,17 @@ impl Runtime {
             )?
         };
 
-        // Build the initial queued readback before spawning the Worker.  The
-        // Worker owns the same SQLite/CAS store and may immediately hold a
-        // write transaction while compiling its first evaluation; reading
-        // after `spawn_optimization_job` made this supposedly asynchronous
-        // prepare call block until the whole CADFit search finished.
+        // Read the queued snapshot before spawning the Worker.  The Worker
+        // owns the same SQLite/CAS store and may immediately hold a write
+        // transaction while compiling its first evaluation; the control-plane
+        // readback must never invoke the expensive execution validator.
         let initial = self.optimization_job_get(json!({
             "project_id":project_id,
             "candidate_id":candidate_id,
             "job_id":job_id
         }))?;
         if job.status == "queued" {
-            spawn_optimization_job(self, job_id);
+            spawn_optimization_job(self, &job_id);
         }
         Ok(initial)
     }
@@ -1063,7 +1138,10 @@ impl Runtime {
             ));
         }
         let intent = read_json_object(self, &job.request_sha256, "optimization-intent")?;
-        validate_intent(self, &intent, &job.request_sha256, project_id, candidate_id)?;
+        // `optimization_job_get` is a control-plane read.  It verifies the
+        // immutable envelope and CAS/result links, while the Worker owns the
+        // full geometry/render validation that produced the result.
+        validate_intent_control_plane(&intent, &job.request_sha256, project_id, candidate_id)?;
         let result = job
             .checkpoint_sha256
             .as_deref()
@@ -1105,6 +1183,24 @@ impl Runtime {
         response["canonical_sha256"] = Value::String(canonical_json_hash(&response));
         Ok(response)
     }
+}
+
+/// Hash the representation that a fresh Runtime will actually read from
+/// CAS.  serde_json can shorten a non-minimal f64 spelling while parsing the
+/// object, so hashing the pre-serialization `Value` is not sufficient for a
+/// durable intent contract.
+fn durable_optimization_intent_hash(intent: &mut Value) -> Result<String, RuntimeError> {
+    intent["canonical_sha256"] = Value::String(String::new());
+    let bytes = canonical_json_bytes(intent)
+        .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
+    let mut roundtripped: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!("OPTIMIZATION_INTENT_CANONICALIZE_FAILED: {error}"))
+    })?;
+    roundtripped["canonical_sha256"] = Value::String(String::new());
+    let hash = canonical_json_hash(&roundtripped);
+    roundtripped["canonical_sha256"] = Value::String(hash.clone());
+    *intent = roundtripped;
+    Ok(hash)
 }
 
 fn validate_action_optimization_parent(
@@ -1364,7 +1460,7 @@ fn spawn_optimization_job(runtime: &Runtime, job_id: &str) {
                 Ok(runtime) => {
                     if let Err(error) = run_optimization_job(&runtime, &job_id) {
                         if !error.to_string().contains("OPTIMIZATION_CANCELLED") {
-                            let _ = mark_optimization_failed(&runtime, &job_id);
+                            let _ = mark_optimization_failed(&runtime, &job_id, &error);
                             eprintln!("ForgeCAD optimization job failed: {error}");
                         }
                     }
@@ -1379,7 +1475,11 @@ fn spawn_optimization_job(runtime: &Runtime, job_id: &str) {
         });
 }
 
-fn mark_optimization_failed(runtime: &Runtime, job_id: &str) -> Result<(), RuntimeError> {
+fn mark_optimization_failed(
+    runtime: &Runtime,
+    job_id: &str,
+    error: &RuntimeError,
+) -> Result<(), RuntimeError> {
     let Some(current) = runtime.store.get_job_record(job_id)? else {
         return Ok(());
     };
@@ -1389,6 +1489,7 @@ fn mark_optimization_failed(runtime: &Runtime, job_id: &str) -> Result<(), Runti
     ) {
         return Ok(());
     }
+    let failure_code = optimization_failure_code(error);
     let next = JobRecord {
         schema_version: current.schema_version,
         job_id: current.job_id,
@@ -1398,17 +1499,44 @@ fn mark_optimization_failed(runtime: &Runtime, job_id: &str) -> Result<(), Runti
         progress: current.progress,
         request_sha256: current.request_sha256,
         checkpoint_sha256: current.checkpoint_sha256,
-        error_code: Some("OPTIMIZATION_RUNTIME_FAILED".to_owned()),
+        error_code: Some(failure_code.clone()),
         created_at: current.created_at,
         updated_at: now_string(),
     };
     runtime.store.update_job_with_event(
         &next,
         "optimization_failed",
-        &json!({"code":"OPTIMIZATION_RUNTIME_FAILED"}),
+        &json!({"code":failure_code}),
         &[],
     )?;
     Ok(())
+}
+
+/// Keep terminal Job readback useful without copying arbitrary Runtime error
+/// text (which could contain a local path or user payload) into durable state.
+/// Invalid-input stages already use stable upper-case contract codes; preserve
+/// only that bounded token and collapse everything else to a typed subsystem
+/// code.
+fn optimization_failure_code(error: &RuntimeError) -> String {
+    match error {
+        RuntimeError::InvalidInput(detail) => {
+            let code = detail.split(':').next().map(str::trim).unwrap_or_default();
+            if !code.is_empty()
+                && code.len() <= 96
+                && code.bytes().all(|byte| {
+                    byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
+                })
+                && code.contains('_')
+            {
+                code.to_owned()
+            } else {
+                "OPTIMIZATION_RUNTIME_FAILED".to_owned()
+            }
+        }
+        RuntimeError::Store(_) => "OPTIMIZATION_STORE_FAILED".to_owned(),
+        RuntimeError::Ipc(_) => "OPTIMIZATION_IPC_FAILED".to_owned(),
+        RuntimeError::ProcessLock(_) => "OPTIMIZATION_RUNTIME_BUSY".to_owned(),
+    }
 }
 
 fn run_optimization_job(runtime: &Runtime, job_id: &str) -> Result<(), RuntimeError> {
@@ -2030,6 +2158,262 @@ fn validate_evaluation_objective_binding(
     {
         return Err(RuntimeError::InvalidInput(
             "OPTIMIZATION_EVALUATION_OBJECTIVE_CAMERA_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+/// Validate only the durable control-plane envelope of an optimization
+/// intent.  This deliberately does not resolve CAS references, invoke the
+/// Geometry/Render Worker, or materialize a silhouette target.  Those checks
+/// belong to `validate_intent` in the background execution lane.  Keeping the
+/// two lanes separate is what makes prepare/get genuinely asynchronous: the
+/// MCP request can observe a queued job while the Worker performs the
+/// expensive, hash-bound validation and search.
+fn validate_intent_control_plane(
+    intent: &Value,
+    intent_sha256: &str,
+    project_id: &str,
+    candidate_id: &str,
+) -> Result<(), RuntimeError> {
+    let object = intent.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("OPTIMIZATION_INTENT_INVALID: object required".to_owned())
+    })?;
+    reject_unknown_keys(
+        object,
+        &[
+            "schema_version",
+            "intent_id",
+            "action_run_id",
+            "job_id",
+            "project_id",
+            "candidate_id",
+            "reference_id",
+            "reference_sha256",
+            "program_sha256",
+            "target_sha256",
+            "evaluation_objective_sha256",
+            "camera",
+            "camera_hash",
+            "part_id",
+            "stage",
+            "rig",
+            "fidelity",
+            "budget",
+            "objective",
+            "residual",
+            "canonical_sha256",
+        ],
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("OptimizationIntent@1") {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_INVALID: schema_version".to_owned(),
+        ));
+    }
+    for key in [
+        "intent_id",
+        "job_id",
+        "project_id",
+        "candidate_id",
+        "reference_id",
+        "part_id",
+    ] {
+        let _ = required_id_from_object(object, key)?;
+    }
+    if let Some(action_run_id) = object.get("action_run_id") {
+        if !action_run_id.is_null() && !action_run_id.as_str().is_some_and(is_opaque_id) {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_ACTION_RUN_ID_INVALID".to_owned(),
+            ));
+        }
+    }
+    if object.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || object.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_SCOPE_DENIED".to_owned(),
+        ));
+    }
+    for key in [
+        "reference_sha256",
+        "program_sha256",
+        "target_sha256",
+        "camera_hash",
+        "canonical_sha256",
+    ] {
+        let _ = required_sha(object, key)?;
+    }
+    if let Some(objective_sha256) = object.get("evaluation_objective_sha256") {
+        if !objective_sha256.as_str().is_some_and(is_sha256) {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_EVALUATION_OBJECTIVE_HASH_INVALID".to_owned(),
+            ));
+        }
+    }
+    let canonical_sha256 = object
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .expect("required canonical_sha256");
+    let mut canonical = intent.clone();
+    canonical["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&canonical) != canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_CANONICAL_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    if !is_sha256(intent_sha256) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_OBJECT_HASH_INVALID".to_owned(),
+        ));
+    }
+
+    // The camera may be a complete calibration or a Runtime-owned reference
+    // whose decimal leaves were round-tripped by a JSON client.  Both forms
+    // must still carry the immutable identity fields; resolving that identity
+    // against candidate/target CAS is an execution-lane responsibility.
+    let camera = object
+        .get("camera")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_INTENT_CAMERA_REQUIRED".to_owned())
+        })?;
+    if camera.get("camera_hash").and_then(Value::as_str)
+        != object.get("camera_hash").and_then(Value::as_str)
+        || !camera
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .is_some_and(is_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_CAMERA_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+
+    let part_id = object
+        .get("part_id")
+        .and_then(Value::as_str)
+        .expect("required part_id");
+    let rig = object
+        .get("rig")
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_INTENT_RIG_REQUIRED".to_owned()))?;
+    validate_silhouette_rig(rig, candidate_id)?;
+    let parameters = rig
+        .get("parameters")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_RIG_PARAMETERS_REQUIRED".to_owned())
+        })?;
+    if !(4..=12).contains(&parameters.len()) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RIG_PARAMETER_BUDGET".to_owned(),
+        ));
+    }
+    if parameters.iter().any(|parameter| {
+        parameter.get("part_id").and_then(Value::as_str) != Some(part_id)
+    }) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RIG_MUST_TARGET_ONE_PART".to_owned(),
+        ));
+    }
+    if !matches!(
+        object.get("stage").and_then(Value::as_str),
+        Some(
+            "primary-form"
+                | "secondary-structure"
+                | "tertiary-detail"
+                | "uv-pbr"
+                | "final-review"
+        )
+    ) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_STAGE_INVALID".to_owned(),
+        ));
+    }
+
+    let fidelity = object
+        .get("fidelity")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_FIDELITY_INVALID".to_owned()))?;
+    if fidelity.get("coarse_resolution").and_then(Value::as_u64) != Some(128)
+        || fidelity.get("mid_resolution").and_then(Value::as_u64) != Some(256)
+        || fidelity.get("final_resolution").and_then(Value::as_u64) != Some(512)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_FIDELITY_RESOLUTION_INVALID".to_owned(),
+        ));
+    }
+    let coarse_count = fidelity
+        .get("coarse_evaluations")
+        .and_then(Value::as_u64)
+        .filter(|value| (32..=48).contains(value))
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_COARSE_BUDGET_INVALID".to_owned()))?;
+    let mid_top_k = fidelity
+        .get("mid_top_k")
+        .and_then(Value::as_u64)
+        .filter(|value| (4..=8).contains(value))
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_MID_BUDGET_INVALID".to_owned()))?;
+    if fidelity.get("final_top_k").and_then(Value::as_u64) != Some(2) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_FINAL_BUDGET_INVALID".to_owned(),
+        ));
+    }
+    let budget = object
+        .get("budget")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_BUDGET_INVALID".to_owned()))?;
+    let max_evaluations = budget
+        .get("max_evaluations")
+        .and_then(Value::as_u64)
+        .filter(|value| (42..=64).contains(value))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_EVALUATION_BUDGET_INVALID".to_owned())
+        })?;
+    if coarse_count + mid_top_k + 3 > max_evaluations {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_EVALUATION_BUDGET_TOO_SMALL".to_owned(),
+        ));
+    }
+    let _max_runtime_ms = budget
+        .get("max_runtime_ms")
+        .and_then(Value::as_u64)
+        .filter(|value| (1_000..=120_000).contains(value))
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_RUNTIME_BUDGET_INVALID".to_owned()))?;
+    let _max_triangles = budget
+        .get("max_output_triangles")
+        .and_then(Value::as_u64)
+        .filter(|value| (1..=2_000_000).contains(value))
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_TRIANGLE_BUDGET_INVALID".to_owned()))?;
+    let _memory = budget
+        .get("max_worker_memory_bytes")
+        .and_then(Value::as_u64)
+        .filter(|value| (1_048_576..=536_870_912).contains(value))
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_MEMORY_BUDGET_INVALID".to_owned()))?;
+    let objective = object
+        .get("objective")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_OBJECTIVE_INVALID".to_owned()))?;
+    let weight_sum = [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "landmark_coverage",
+        "landmark_nme",
+        "part_region",
+        "program_complexity",
+    ]
+    .iter()
+    .map(|key| {
+        objective
+            .get(*key)
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+            .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_OBJECTIVE_WEIGHT_INVALID".to_owned()))
+    })
+    .collect::<Result<Vec<_>, _>>()?
+    .into_iter()
+    .sum::<f64>();
+    if (weight_sum - 1.0).abs() > 1.0e-6 {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_OBJECTIVE_WEIGHTS_MUST_SUM_TO_ONE".to_owned(),
         ));
     }
     Ok(())
@@ -4861,6 +5245,22 @@ fn persist_optimization_state(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn optimization_failure_code_is_stable_and_path_free() {
+        assert_eq!(
+            optimization_failure_code(&RuntimeError::InvalidInput(
+                "OPTIMIZATION_PROGRAM_HASH_FAILED: /private/user/path".to_owned(),
+            )),
+            "OPTIMIZATION_PROGRAM_HASH_FAILED"
+        );
+        assert_eq!(
+            optimization_failure_code(&RuntimeError::InvalidInput(
+                "arbitrary detail with /private/user/path".to_owned(),
+            )),
+            "OPTIMIZATION_RUNTIME_FAILED"
+        );
+    }
 
     fn rig() -> Value {
         json!({

@@ -328,6 +328,99 @@ def main() -> int:
     require(optimization.get("persistent_user_data_touched") is False, "unified-objective OptimizationJob touched persistent data")
     require(optimization_path != source_path and optimization_path != part_path and optimization_path != unified_path, "unified-objective OptimizationJob receipt was merged with another receipt")
 
+    latest_row = ledger["latest_real_reference_surface_transport"]
+    latest_path = evidence_path(latest_row)
+    latest = load_json(latest_path)
+    for key in (
+        "status",
+        "reference_sha256",
+        "expected_build_cohort_sha256",
+        "build_cohorts",
+        "evaluations_count",
+        "fidelity_counts",
+        "baseline_loss",
+        "best_loss",
+        "strict_improvement",
+        "proposal_status",
+        "camera_binding_status",
+        "camera_hash",
+        "comparison_camera_hash",
+        "comparison_status",
+        "comparison_render_set_hash",
+        "comparison_report_sha256",
+        "comparison_metrics",
+        "surface_signal_status",
+        "surface_signal_canonical_sha256",
+        "boolean_backend",
+        "boolean_lane_candidate_indices",
+        "boolean_lane_node_ids",
+        "candidate_confirmed",
+        "version_count",
+        "persistent_user_data_touched",
+        "quality_claim",
+        "surface_multi_control_point_candidate_indices",
+        "surface_changed_control_point_counts",
+    ):
+        require(latest.get(key) == latest_row[key], f"latest real-reference surface field drifted: {key}")
+    latest_cohorts = latest["build_cohorts"]
+    require(set(latest_cohorts) == {"mcp", "runtime", "geometry_worker", "render_worker"}, "latest real-reference worker keys drifted")
+    require(len(set(latest_cohorts.values())) == 1, "latest real-reference binaries are not unified")
+    require(latest_cohorts["mcp"] == latest_row["expected_build_cohort_sha256"], "latest real-reference cohort does not match expected")
+    require(latest.get("camera_hash") == latest.get("comparison_camera_hash"), "latest real-reference camera binding diverged")
+    require(latest.get("comparison_status") == "QUALITY_TARGET_NOT_MET", "latest real-reference visual quality was promoted")
+    require(latest.get("candidate_confirmed") is False and latest.get("version_count") == 0, "latest real-reference crossed approval boundary")
+    require(latest.get("persistent_user_data_touched") is False, "latest real-reference touched persistent data")
+    require(latest.get("surface_signal_status") == "ready", "latest real-reference surface signal is not ready")
+    require(len(latest.get("surface_multi_control_point_candidate_indices") or []) >= 2, "latest real-reference did not exercise multiple surface candidates")
+    require(any(int(value) >= 2 for value in (latest.get("surface_changed_control_point_counts") or {}).values()), "latest real-reference did not materialize multiple surface control points")
+    require(latest_path != source_path and latest_path != optimization_path, "latest real-reference receipt was merged with another cohort")
+
+    viewer_row = ledger["latest_viewer_read_model_transport"]
+    viewer_path = evidence_path(viewer_row)
+    viewer = load_json(viewer_path)
+    for key in (
+        "status",
+        "build_cohort_sha256",
+        "runtime_build_cohort_sha256",
+        "viewer_build_cohort_sha256",
+        "project_id",
+        "candidate_id",
+        "candidate_count",
+        "version_count",
+        "artifact_id",
+        "artifact_sha256",
+        "reference_id",
+        "reference_sha256",
+        "render_set_hash",
+        "comparison_report_hash",
+        "quality_candidate_id",
+        "quality_visual_status",
+        "quality_hard_gate_passed",
+        "candidate_artifact_binding",
+        "candidate_quality_binding",
+        "read_only",
+        "persistent_user_data_touched",
+        "source_optimization_receipt",
+        "quality_claim",
+        "formal_packaged_ui_e2e",
+        "human_visual_review",
+        "export_restart_hash",
+        "hq_360",
+    ):
+        require(viewer.get(key) == viewer_row[key], f"latest Viewer read-model field drifted: {key}")
+    require(viewer.get("build_cohort_sha256") == latest_row["expected_build_cohort_sha256"], "latest Viewer cohort is not current")
+    require(viewer.get("runtime_build_cohort_sha256") == viewer.get("viewer_build_cohort_sha256"), "latest Viewer and Runtime cohorts diverged")
+    require(viewer.get("candidate_id") == latest.get("candidate_id"), "latest Viewer candidate is not CADFit-bound")
+    require(viewer.get("artifact_sha256") == latest.get("artifact_sha256"), "latest Viewer artifact is not CADFit-bound")
+    require(viewer.get("reference_sha256") == latest.get("reference_sha256"), "latest Viewer reference is not CADFit-bound")
+    require(viewer.get("render_set_hash") == latest.get("comparison_render_set_hash"), "latest Viewer RenderSet is not CADFit-bound")
+    require(viewer.get("comparison_report_hash") == latest.get("comparison_report_sha256"), "latest Viewer comparison is not CADFit-bound")
+    require(viewer.get("quality_candidate_id") == viewer.get("candidate_id"), "latest Viewer quality candidate drifted")
+    require(viewer.get("quality_visual_status") == "QUALITY_TARGET_NOT_MET", "latest Viewer quality status was promoted")
+    require(viewer.get("quality_hard_gate_passed") is False, "latest Viewer falsely reports a quality pass")
+    require(viewer.get("read_only") is True and viewer.get("persistent_user_data_touched") is False, "latest Viewer crossed the write boundary")
+    require(viewer_path != latest_path, "latest Viewer receipt was merged with CADFit receipt")
+
     cadfit = source.get("cadfit_optimization")
     require(isinstance(cadfit, dict), "current CADFit result is missing")
     expected_counts = {"coarse": 32, "mid": 4, "final": 3}
@@ -463,6 +556,8 @@ def main() -> int:
         "same_cohort_action_run": "PASS_ACTION_RUN_CADFIT_HANDOFF_CAMERA_REBIND_REQUIRED",
         "same_cohort_unified_objective": "PASS_UNIFIED_OBJECTIVE_TRANSPORT_BLOCKED_PROMOTION",
         "same_cohort_unified_objective_optimization": "PASS_UNIFIED_OBJECTIVE_CADFIT_READY_QUALITY_TARGET_NOT_MET",
+        "latest_real_reference_surface": "PASS_CURRENT_COHORT_CADFIT_SURFACE_MATERIALIZATION_MANIFOLD_BOOLEAN_WITH_QUALITY_TARGET_NOT_MET",
+        "latest_viewer_read_model": "PASS_CURRENT_COHORT_EXACT_CANDIDATE_RENDERSET_COMPARISON_READ_ONLY",
         "current_visual_quality": "QUALITY_TARGET_NOT_MET",
         "historical_observation": "RETAINED_BLOCKED_INCOMPLETE_BINDING",
         "boolean_residual": "PASS_BOUNDED_NO_COHORT_PROMOTION",

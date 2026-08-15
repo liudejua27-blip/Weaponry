@@ -585,7 +585,12 @@ fn mcp010c_write_tool_names() -> Vec<String> {
 }
 
 fn mcp010f_write_tool_names() -> Vec<String> {
-    ["reference_mask_prepare", "reference_mask_refine_prepare"]
+    [
+        "primary_form_repair_prepare",
+        "primary_form_repair_job_prepare",
+        "reference_mask_prepare",
+        "reference_mask_refine_prepare",
+    ]
         .into_iter()
         .map(str::to_owned)
         .collect()
@@ -933,6 +938,12 @@ fn read_only_tools() -> Vec<Value> {
         tool(
             "job_get",
             "Read a durable Runtime job receipt",
+            json!({"type":"object","required":["job_id"],"properties":{"job_id":{"type":"string","minLength":1}},"additionalProperties":false}),
+            true,
+        ),
+        tool(
+            "job_result_get",
+            "Read the completed result of a durable Runtime job from CAS; returns JOB_RESULT_PENDING while the worker is still running",
             json!({"type":"object","required":["job_id"],"properties":{"job_id":{"type":"string","minLength":1}},"additionalProperties":false}),
             true,
         ),
@@ -1470,6 +1481,74 @@ fn mcp010c_write_tools() -> Vec<Value> {
 fn mcp010f_write_tools() -> Vec<Value> {
     vec![
         write_tool_with_transaction(
+            "primary_form_repair_prepare",
+            "Run one Runtime-owned bounded Primary Form repair: fit the typed SilhouetteRig, compile the selected GeometryProgram through the Geometry Worker, validate strict readback, render the same camera through the isolated Render Worker, compare source and proposal, and return only a staged candidate when strict same-camera improvement is proven. It never confirms a version or exports an asset.",
+            json!({
+                "type":"object",
+                "required":["project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
+                "properties":{
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property(),
+                    "part_id":id_property(),
+                    "rig":{"type":"object"},
+                    "base_camera":{"type":"object"},
+                    "optimizer":{
+                        "type":"object",
+                        "required":["algorithm","max_iterations","max_evaluations","step_fraction"],
+                        "properties":{
+                            "algorithm":{"enum":["grid","coordinate_descent"]},
+                            "max_iterations":{"type":"integer","minimum":1,"maximum":8},
+                            "max_evaluations":{"type":"integer","minimum":1,"maximum":64},
+                            "step_fraction":{"type":"number","exclusiveMinimum":0,"maximum":0.5}
+                        },
+                        "additionalProperties":false
+                    },
+                    "view_spec":{"type":"object"},
+                    "base_version_id":nullable_id_property(),
+                    "canonical_sha256":sha256_property()
+                },
+                "additionalProperties":false
+            }),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "primary_form_repair_job_prepare",
+            "Queue one Runtime-owned asynchronous Primary Form repair. The bounded Geometry/Render Worker search runs outside the MCP request deadline; poll job_get and then job_result_get. It creates only a staged candidate when the same-camera acceptance gate passes, never confirms a version or exports an asset.",
+            json!({
+                "type":"object",
+                "required":["project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
+                "properties":{
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property(),
+                    "part_id":id_property(),
+                    "rig":{"type":"object"},
+                    "base_camera":{"type":"object"},
+                    "view_spec":{"type":"object"},
+                    "optimizer":{
+                        "type":"object",
+                        "required":["algorithm","max_iterations","max_evaluations","step_fraction"],
+                        "properties":{
+                            "algorithm":{"enum":["grid","coordinate_descent"]},
+                            "max_iterations":{"type":"integer","minimum":1,"maximum":8},
+                            "max_evaluations":{"type":"integer","minimum":1,"maximum":64},
+                            "step_fraction":{"type":"number","exclusiveMinimum":0,"maximum":0.5}
+                        },
+                        "additionalProperties":false
+                    },
+                    "base_version_id":nullable_id_property(),
+                    "canonical_sha256":sha256_property()
+                },
+                "additionalProperties":false
+            }),
+            false,
+            false,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
             "reference_mask_prepare",
             "Create a hash-bound 512x512 silhouette target from a user-authorized reference; an optional Codex contour is rasterized deterministically and no model candidate is created.",
             json!({
@@ -1806,6 +1885,7 @@ fn validate_tool_schema_shape(
                 | "maxLength"
                 | "pattern"
                 | "minimum"
+                | "exclusiveMinimum"
                 | "maximum"
                 | "maxProperties"
                 | "items"
@@ -1891,6 +1971,12 @@ fn validate_tool_schema_shape(
     }
     if object
         .get("maximum")
+        .is_some_and(|value| value.as_f64().is_none())
+    {
+        return Err(());
+    }
+    if object
+        .get("exclusiveMinimum")
         .is_some_and(|value| value.as_f64().is_none())
     {
         return Err(());
@@ -1983,6 +2069,15 @@ fn validate_value_against_tool_schema(
         if value
             .as_f64()
             .filter(|candidate| *candidate <= maximum)
+            .is_none()
+        {
+            return Err(());
+        }
+    }
+    if let Some(minimum) = object.get("exclusiveMinimum").and_then(Value::as_f64) {
+        if value
+            .as_f64()
+            .filter(|candidate| *candidate > minimum)
             .is_none()
         {
             return Err(());
@@ -2607,6 +2702,9 @@ fn dispatch_tool_with_build_cohort(
         } else if is_mcp010c_write_tool(name) {
             "MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
                 .to_owned()
+        } else if is_mcp010f_write_tool(name) {
+            "MCP010F_PRIMARY_FORM_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
         } else {
             "MCP004_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required".to_owned()
         });
@@ -2808,6 +2906,7 @@ fn map_ipc_error(error: IpcError) -> String {
                                 || value.starts_with("DESIGN_COMPOSITION_")
                                 || value.starts_with("REPAIR_")
                                 || value.starts_with("GEOMETRY_PROGRAM_HASH_REJECTED")
+                                || value.starts_with("PRIMARY_FORM_REPAIR_")
                                 || value.starts_with("SILHOUETTE_")
                                 || value.starts_with("CAMERA_")
                                 || value.starts_with("APPEARANCE_")
@@ -2899,6 +2998,15 @@ fn map_ipc_error(error: IpcError) -> String {
                         }
                         "SILHOUETTE_FIT_REJECTED" => "SILHOUETTE_FIT_REJECTED: Runtime silhouette gate rejected the candidate".to_owned(),
                         "SILHOUETTE_FIT_RENDER_FAILED" => "SILHOUETTE_FIT_RENDER_FAILED: Runtime fit render failed".to_owned(),
+                        _ if stage.starts_with("PRIMARY_FORM_REPAIR_") => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("PRIMARY_FORM_REPAIR_REJECTED");
+                            format!(
+                                "{code}: Runtime Primary Form request rejected"
+                            )
+                        }
                         _ if stage.starts_with("SILHOUETTE_OBJECTIVE_") => {
                             let code = stage
                                 .split_whitespace()
@@ -3003,6 +3111,20 @@ fn map_ipc_error(error: IpcError) -> String {
                 "STORE_ERROR" => "STORE_ERROR: Runtime store rejected the request".to_owned(),
                 "RUNTIME_BUSY" => "RUNTIME_BUSY: Runtime writer is busy".to_owned(),
                 "IPC_ERROR" => "IPC_ERROR: Runtime IPC request failed".to_owned(),
+                _ if code.starts_with("PRIMARY_FORM_REPAIR_") => {
+                    format!("{code}: Runtime Primary Form request rejected")
+                }
+                _ if code.starts_with("SILHOUETTE_OBJECTIVE_") => {
+                    format!(
+                        "{code}: Runtime silhouette evaluation objective request rejected"
+                    )
+                }
+                _ if code.starts_with("SILHOUETTE_PART_ERROR_") => {
+                    format!("{code}: Runtime Part contour evidence request rejected")
+                }
+                _ if code.starts_with("OPTIMIZATION_") => {
+                    format!("{code}: Runtime optimization request rejected")
+                }
                 _ => "RUNTIME_UNAVAILABLE: Runtime request failed".to_owned(),
             }
         }
@@ -3542,6 +3664,12 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
             serde_json::to_value(runtime.job(id).map_err(|error| error.to_string())?)
                 .map_err(|error| error.to_string())
         }
+        "job_result_get" => {
+            let id = required_id(arguments, "job_id")?;
+            runtime
+                .job_result(id)
+                .map_err(|error| error.to_string())
+        }
         "job_events_read" => {
             let id = required_id(arguments, "job_id")?;
             let after_sequence = arguments
@@ -3643,13 +3771,14 @@ fn canonicalize_silhouette_fit_wire(arguments: &Value) -> Result<Value, String> 
 ///
 /// Rust and Python both preserve the same IEEE-754 value, but they can emit a
 /// different shortest decimal spelling for that value.  A camera produced by
-/// Runtime can therefore arrive with a stale `camera_hash`/`canonical_sha256`
-/// even though its typed fields are unchanged.  The outer intent hash is
-/// checked against the exact wire payload first; then this adapter normalizes
-/// only continuous camera numbers while preserving the Runtime-owned camera
-/// identity. Runtime resolves that identity from its candidate/target camera
-/// cache before validating the complete calibration, all typed intent fields,
-/// CAS bindings, and the residual source hashes.
+/// Runtime can therefore arrive with a stale floating-point payload even
+/// though its typed identity is unchanged.  The outer intent hash is checked
+/// against the exact wire payload first; then a complete calibration is
+/// reduced to the two Runtime-owned identity hashes. Runtime resolves that
+/// compact reference from its candidate/target cache before validating the
+/// authoritative calibration, all typed intent fields, CAS bindings, and the
+/// residual source hashes. No caller-rounded camera floats enter geometry
+/// truth.
 fn canonicalize_optimization_job_wire(arguments: &Value) -> Result<Value, String> {
     let object = arguments
         .as_object()
@@ -3676,7 +3805,15 @@ fn canonicalize_optimization_job_wire(arguments: &Value) -> Result<Value, String
     // typed JSON transport gap without minting a new camera identity.
     let mut normalized_intent = Value::Object(intent.clone());
     if let Some(camera) = normalized_intent.get("camera").cloned() {
-        normalized_intent["camera"] = normalize_continuous_numbers(&camera, true);
+        if camera.get("schema_version").and_then(Value::as_str) == Some("CameraCalibration@1") {
+            normalized_intent["camera"] = json!({
+                "schema_version":"CameraCalibrationRef@1",
+                "camera_hash":camera.get("camera_hash").cloned().unwrap_or(Value::Null),
+                "canonical_sha256":camera.get("canonical_sha256").cloned().unwrap_or(Value::Null),
+            });
+        } else {
+            normalized_intent["camera"] = normalize_continuous_numbers(&camera, true);
+        }
     }
     if let Some(rig) = normalized_intent.get("rig").cloned() {
         normalized_intent["rig"] = normalize_continuous_numbers(&rig, false);
@@ -3735,7 +3872,14 @@ fn normalize_continuous_numbers(value: &Value, preserve_resolution: bool) -> Val
             object
                 .iter()
                 .map(|(key, child)| {
-                    let normalized = if preserve_resolution && key == "resolution" {
+                    // These fields are discrete contract values, not
+                    // continuous optimizer leaves.  Converting a surface
+                    // control-point index through f64 changes `0` into a
+                    // JSON float and makes the Runtime Rig validator reject
+                    // the otherwise valid OptimizationIntent.
+                    let normalized = if (preserve_resolution && key == "resolution")
+                        || key == "control_point_index"
+                    {
                         child.clone()
                     } else {
                         normalize_continuous_numbers(child, preserve_resolution)
@@ -3862,6 +4006,44 @@ mod tests {
         let mut value_budget = ToolSchemaValidationBudget::new();
         assert!(
             validate_value_against_tool_schema(&schema, &arguments, 0, &mut value_budget).is_ok()
+        );
+    }
+
+    #[test]
+    fn primary_form_repair_schema_accepts_exclusive_step_fraction() {
+        let schema = tools_with_writes(true)
+            .into_iter()
+            .find(|tool| tool["name"] == "primary_form_repair_prepare")
+            .expect("primary_form_repair_prepare tool")["inputSchema"]
+            .clone();
+        let arguments = json!({
+            "project_id":"project-primary-form",
+            "candidate_id":"candidate-primary-form",
+            "target_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "part_id":"chest-shell",
+            "rig":{},
+            "base_camera":{},
+            "optimizer":{
+                "algorithm":"coordinate_descent",
+                "max_iterations":2,
+                "max_evaluations":16,
+                "step_fraction":0.1
+            },
+            "base_version_id":null,
+            "canonical_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        });
+        let mut schema_budget = ToolSchemaValidationBudget::new();
+        assert!(validate_tool_schema_shape(&schema, 0, &mut schema_budget).is_ok());
+        let mut value_budget = ToolSchemaValidationBudget::new();
+        assert!(
+            validate_value_against_tool_schema(&schema, &arguments, 0, &mut value_budget).is_ok()
+        );
+
+        let mut zero_step = arguments.clone();
+        zero_step["optimizer"]["step_fraction"] = Value::from(0.0);
+        let mut value_budget = ToolSchemaValidationBudget::new();
+        assert!(
+            validate_value_against_tool_schema(&schema, &zero_step, 0, &mut value_budget).is_err()
         );
     }
 
@@ -4181,6 +4363,24 @@ mod tests {
             map_ipc_error(IpcError::RuntimeRequest("RUNTIME_BUSY".to_owned())),
             "RUNTIME_BUSY: Runtime writer is busy"
         );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "PRIMARY_FORM_REPAIR_INVALID: canonical_sha256 does not bind intent".to_owned(),
+            )),
+            "PRIMARY_FORM_REPAIR_INVALID: Runtime Primary Form request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "SILHOUETTE_OBJECTIVE_TARGET_LINEAGE_MISMATCH".to_owned(),
+            )),
+            "SILHOUETTE_OBJECTIVE_TARGET_LINEAGE_MISMATCH: Runtime silhouette evaluation objective request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "OPTIMIZATION_INTENT_INVALID".to_owned(),
+            )),
+            "OPTIMIZATION_INTENT_INVALID: Runtime optimization request rejected"
+        );
         assert!(map_ipc_error(IpcError::Io(std::io::Error::other("socket")))
             .starts_with("RUNTIME_UNAVAILABLE:"));
     }
@@ -4223,11 +4423,11 @@ mod tests {
             summary["schema_version"],
             "ForgeCADMcpToolManifestSummary@1"
         );
-        assert_eq!(summary["read_count"], 40);
-        assert_eq!(summary["write_count"], 30);
-        assert_eq!(summary["total_count"], 70);
-        assert_eq!(summary["read_names"].as_array().unwrap().len(), 40);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 30);
+        assert_eq!(summary["read_count"], 41);
+        assert_eq!(summary["write_count"], 32);
+        assert_eq!(summary["total_count"], 73);
+        assert_eq!(summary["read_names"].as_array().unwrap().len(), 41);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 32);
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -4332,7 +4532,7 @@ mod tests {
     }
 
     #[test]
-    fn optimization_job_wire_preserves_runtime_camera_identity_and_normalizes_numbers() {
+    fn optimization_job_wire_reduces_camera_to_runtime_owned_identity() {
         let mut full_camera: Value = serde_json::from_str(
             r#"{
                 "schema_version":"CameraCalibration@1",
@@ -4410,6 +4610,10 @@ mod tests {
         let rebound_camera = &restored["intent"]["camera"];
 
         assert_eq!(
+            rebound_camera["schema_version"],
+            json!("CameraCalibrationRef@1")
+        );
+        assert_eq!(
             rebound_camera["camera_hash"],
             Value::String(full_camera_hash.clone())
         );
@@ -4435,14 +4639,53 @@ mod tests {
             rebound_intent_hash,
             Value::String(canonical_json_hash(&rebound_intent))
         );
-        assert_eq!(
-            rebound_camera["transform"]["up"][2],
-            json!(-0.1038082581402942)
-        );
+        assert_eq!(rebound_camera.as_object().map(Map::len), Some(3));
 
         let mut rejected = request;
         rejected["intent"]["canonical_sha256"] = Value::String("f".repeat(64));
         assert!(canonicalize_optimization_job_wire(&rejected).is_err());
+    }
+
+    #[test]
+    fn optimization_job_wire_preserves_discrete_surface_control_point_index() {
+        let mut intent = json!({
+            "schema_version":"OptimizationIntent@1",
+            "intent_id":"intent-surface-control-point-wire-test",
+            "job_id":"job-surface-control-point-wire-test",
+            "project_id":"project-surface-control-point-wire-test",
+            "candidate_id":"candidate-surface-control-point-wire-test",
+            "camera":{"camera_hash":"a".repeat(64),"canonical_sha256":"b".repeat(64)},
+            "rig":{
+                "schema_version":"SilhouetteRig@1",
+                "rig_id":"rig-surface-control-point-wire-test",
+                "candidate_id":"candidate-surface-control-point-wire-test",
+                "parameters":[{
+                    "parameter_id":"surface-control-point-7-x",
+                    "part_id":"chest-shell",
+                    "semantic":"surface_control_point",
+                    "control_point_index":7,
+                    "axis":"x",
+                    "value":0.0,
+                    "min":-0.25,
+                    "max":0.25,
+                    "step":0.02,
+                    "unit":"meter"
+                }],
+                "canonical_sha256":""
+            },
+            "objective":{"silhouette_iou":0.35},
+            "canonical_sha256":""
+        });
+        intent["canonical_sha256"] = Value::String(canonical_json_hash(&intent));
+        let restored = canonicalize_optimization_job_wire(&json!({"intent":intent}))
+            .expect("surface control point wire normalization");
+        assert_eq!(
+            restored["intent"]["rig"]["parameters"][0]["control_point_index"],
+            json!(7)
+        );
+        assert!(restored["intent"]["rig"]["parameters"][0]["control_point_index"]
+            .as_u64()
+            .is_some());
     }
 
     #[test]
@@ -4782,13 +5025,13 @@ mod tests {
     #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 40);
+        assert_eq!(disabled.len(), 41);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 70);
+        assert_eq!(enabled.len(), 73);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -5031,7 +5274,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 70);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 73);
 
         let imported = handle(
             &mut backend,

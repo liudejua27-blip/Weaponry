@@ -180,7 +180,7 @@ pub(crate) fn render_glb_fit_batch_at_resolution(
     if glb.is_empty() || glb.len() > 64 * 1024 * 1024 || cameras.is_empty() || cameras.len() > 64 {
         return Err(GeometryWorkerError::Protocol);
     }
-    if !matches!(resolution, 128 | 512) {
+    if !matches!(resolution, 128 | 256 | 512) {
         return Err(GeometryWorkerError::Protocol);
     }
     #[cfg(feature = "test-render-worker-fallback")]

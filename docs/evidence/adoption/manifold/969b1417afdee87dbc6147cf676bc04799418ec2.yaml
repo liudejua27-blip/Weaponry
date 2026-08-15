@@ -26,5 +26,5 @@ approval: accepted
 accepted_scope: isolated C API/FFI Worker integration on the verified macOS arm64 host profile
 evidence_receipt: docs/evidence/mcp010d/manifold-boolean-adoption-gate-20260814.json
 sbom_receipt: docs/evidence/mcp010d/manifold-boolean-sbom-20260814.json
-next_gate: Current-cohort packaged D, real-reference visual/PBR, export/restart and human gates; intersection remains outside the active operator contract.
+next_gate: Current-cohort packaged D, real-reference visual/PBR, export/restart and human gates; bounded same-Part union/difference/intersection are active structural operators, while arbitrary mesh Boolean and 360 remain outside the active contract.
 fallback_or_removal_plan: Remove the vendored Manifold build slice and Boolean catalog/allowlist activation together; retain the existing product-owned geometry path and fail closed for boolean@1.
