@@ -642,6 +642,107 @@ def parse_bound_silhouette_turn(
     }
 
 
+def build_primary_form_composition_lineage(
+    project_id: str,
+    initial_candidate_id: str,
+    final_candidate_id: str,
+    target_sha256: str,
+    requested_part_ids: tuple[str, ...],
+    steps: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Collapse a serial Primary Form run into one validated hash-bound receipt.
+
+    Raw Codex/MCP events remain available for transport auditing, but the
+    next decision must consume this compact lineage instead of reconstructing
+    state from scattered turns.  Candidate advancement is deliberately
+    fail-closed: only an accepted staged candidate can become the next step's
+    source; a retained source keeps the chain on the same candidate.
+    """
+    if not 2 <= len(requested_part_ids) <= 3 or len(steps) != len(requested_part_ids):
+        raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: sequence length drifted")
+    current_candidate_id = initial_candidate_id
+    normalized_steps: list[dict[str, Any]] = []
+    accepted_step_count = 0
+    for expected_step, requested_part_id in enumerate(requested_part_ids, start=1):
+        step = steps[expected_step - 1]
+        if step.get("step") != expected_step or step.get("part_id") != requested_part_id:
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: step identity drifted")
+        if step.get("source_candidate_id") != current_candidate_id:
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: source candidate chain drifted")
+        if step.get("observation_candidate_id") != current_candidate_id:
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: observation candidate is stale")
+        if step.get("target_sha256") != target_sha256:
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: target binding drifted")
+        for key in (
+            "observation_sha256",
+            "camera_hash",
+            "camera_canonical_sha256",
+            "rig_sha256",
+            "intent_sha256",
+            "fit_camera_hash",
+        ):
+            value = step.get(key)
+            if not isinstance(value, str) or len(value) != 64:
+                raise RuntimeError(f"PRIMARY_FORM_COMPOSITION_INVALID: {key} is not hash-bound")
+        status = step.get("status")
+        acceptance = step.get("acceptance")
+        if status not in {"prepared", "no_improvement"} or not isinstance(acceptance, dict):
+            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: unsupported step status")
+        prepared_candidate_id = step.get("prepared_candidate_id")
+        if status == "prepared":
+            if not isinstance(prepared_candidate_id, str) or not prepared_candidate_id:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: accepted step has no staged candidate")
+            if prepared_candidate_id == current_candidate_id:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: staged candidate did not advance")
+            if acceptance.get("status") != "accepted" or acceptance.get("strict_improvement") is not True:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: accepted step lacks strict acceptance")
+            accepted_step_count += 1
+            next_candidate_id = prepared_candidate_id
+        else:
+            if prepared_candidate_id is not None:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: retained step advanced candidate")
+            if acceptance.get("status") != "retained_source" or acceptance.get("strict_improvement") is not False:
+                raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: retained step acceptance drifted")
+            next_candidate_id = current_candidate_id
+        normalized_steps.append({
+            "step": expected_step,
+            "part_id": requested_part_id,
+            "source_candidate_id": current_candidate_id,
+            "observation_candidate_id": step["observation_candidate_id"],
+            "observation_sha256": step["observation_sha256"],
+            "target_sha256": target_sha256,
+            "camera_hash": step["camera_hash"],
+            "camera_canonical_sha256": step["camera_canonical_sha256"],
+            "rig_sha256": step["rig_sha256"],
+            "intent_sha256": step["intent_sha256"],
+            "fit_camera_hash": step["fit_camera_hash"],
+            "status": status,
+            "acceptance_status": acceptance["status"],
+            "acceptance_strict_improvement": acceptance["strict_improvement"],
+            "prepared_candidate_id": prepared_candidate_id,
+            "next_candidate_id": next_candidate_id,
+        })
+        current_candidate_id = next_candidate_id
+    if current_candidate_id != final_candidate_id:
+        raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: final candidate drifted")
+    lineage: dict[str, Any] = {
+        "schema_version": "ForgeCADPrimaryFormCompositionLineage@1",
+        "project_id": project_id,
+        "initial_candidate_id": initial_candidate_id,
+        "final_candidate_id": final_candidate_id,
+        "target_sha256": target_sha256,
+        "requested_part_ids": list(requested_part_ids),
+        "step_count": len(normalized_steps),
+        "accepted_step_count": accepted_step_count,
+        "search_owner": "forgecad-runtime",
+        "observation_policy": "one_candidate_bound_agentic_observation_per_step",
+        "steps": normalized_steps,
+        "canonical_sha256": "",
+    }
+    lineage["canonical_sha256"] = canonical_hash(lineage)
+    return lineage
+
+
 def reference_dimensions(path: Path) -> tuple[int, int]:
     data = path.read_bytes()
     if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) < 24:
@@ -1247,6 +1348,8 @@ def main() -> int:
     silhouette_fit_intent_sha: str | None = None
     primary_form_repair_intent_sha: str | None = None
     partial_evidence: dict[str, Any] = {}
+    primary_form_composition_lineage: dict[str, Any] | None = None
+    primary_form_composition_initial_candidate_id: str | None = None
     try:
         with tempfile.TemporaryDirectory(dir="/tmp", prefix="fc10c-codex-") as temporary:
             root = Path(temporary)
@@ -1419,6 +1522,8 @@ def main() -> int:
                     sequence_parts = options.part_contour_sequence_parts or (
                         (options.part_contour_part,) if options.part_contour_trial else (None,)
                     )
+                    if options.part_contour_sequence_parts:
+                        primary_form_composition_initial_candidate_id = candidate_id
                     for step_index, part_id in enumerate(sequence_parts):
                         if step_index:
                             # Never carry the previous candidate's observation
@@ -1510,6 +1615,18 @@ def main() -> int:
                             artifact_id = staged["artifact_id"]
                             artifact = staged["artifact"]
                             program_hash = staged["program_sha256"]
+                    if options.part_contour_sequence_parts:
+                        if primary_form_composition_initial_candidate_id is None:
+                            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: initial candidate is missing")
+                        primary_form_composition_lineage = build_primary_form_composition_lineage(
+                            project_id,
+                            primary_form_composition_initial_candidate_id,
+                            candidate_id,
+                            silhouette_target_sha or "",
+                            options.part_contour_sequence_parts,
+                            primary_form_repair_steps,
+                        )
+                        partial_evidence["primary_form_composition_lineage"] = primary_form_composition_lineage
                 else:
                     fit_request: dict[str, Any] = {
                         "project_id": project_id,
@@ -1799,6 +1916,7 @@ def main() -> int:
                     "part_contour_sequence_requested": bool(options.part_contour_sequence_parts),
                     "part_contour_sequence_parts": list(options.part_contour_sequence_parts),
                     "primary_form_repair_steps": primary_form_repair_steps,
+                    "primary_form_composition_lineage": primary_form_composition_lineage,
                     "part_contour_trial": {
                         "part_id": field(primary_form_repair_result or {}, "part_id"),
                         "status": field(primary_form_repair_result or {}, "status"),
@@ -1951,6 +2069,7 @@ def main() -> int:
                 "part_contour_sequence_parts": list(options.part_contour_sequence_parts),
                 "primary_form_repair_intent_sha256": primary_form_repair_intent_sha,
                 "primary_form_repair_steps": primary_form_repair_steps,
+                "primary_form_composition_lineage": primary_form_composition_lineage,
                 "primary_form_repair": {
                     "part_id": field(primary_form_repair_result or {}, "part_id"),
                     "status": field(primary_form_repair_result or {}, "status"),

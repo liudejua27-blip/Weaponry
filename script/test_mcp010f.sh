@@ -35,8 +35,74 @@ assert '"--part-contour-sequence"' in source
 assert 'def parse_bound_silhouette_turn' in source
 assert 'def run_primary_form_repair_step' in source
 assert 'primary_form_repair_steps' in source
+assert 'def build_primary_form_composition_lineage' in source
+assert 'primary_form_composition_lineage' in source
 assert 'silhouette observation before composition step' in source
 print("MCP010F source route includes bounded Primary Form controls and candidate-bound composition sequence")
+PY
+python3 - <<'PY'
+import sys
+
+sys.path.insert(0, "scripts")
+from probe_mcp010c_codex_cli import build_primary_form_composition_lineage, canonical_hash
+
+def hash_value(fill):
+    return fill * 64
+
+steps = [
+    {
+        "step": 1,
+        "part_id": "chest-shell",
+        "source_candidate_id": "candidate-0",
+        "observation_candidate_id": "candidate-0",
+        "observation_sha256": hash_value("a"),
+        "target_sha256": hash_value("t"),
+        "camera_hash": hash_value("b"),
+        "camera_canonical_sha256": hash_value("c"),
+        "rig_sha256": hash_value("d"),
+        "intent_sha256": hash_value("e"),
+        "fit_camera_hash": hash_value("f"),
+        "status": "prepared",
+        "acceptance": {"status": "accepted", "strict_improvement": True},
+        "prepared_candidate_id": "candidate-1",
+    },
+    {
+        "step": 2,
+        "part_id": "hip-pair",
+        "source_candidate_id": "candidate-1",
+        "observation_candidate_id": "candidate-1",
+        "observation_sha256": hash_value("g"),
+        "target_sha256": hash_value("t"),
+        "camera_hash": hash_value("h"),
+        "camera_canonical_sha256": hash_value("i"),
+        "rig_sha256": hash_value("j"),
+        "intent_sha256": hash_value("k"),
+        "fit_camera_hash": hash_value("l"),
+        "status": "no_improvement",
+        "acceptance": {"status": "retained_source", "strict_improvement": False},
+        "prepared_candidate_id": None,
+    },
+]
+lineage = build_primary_form_composition_lineage(
+    "project-0", "candidate-0", "candidate-1", hash_value("t"), ("chest-shell", "hip-pair"), steps
+)
+assert lineage["schema_version"] == "ForgeCADPrimaryFormCompositionLineage@1"
+assert lineage["accepted_step_count"] == 1
+assert lineage["final_candidate_id"] == "candidate-1"
+canonical_input = dict(lineage)
+canonical_input["canonical_sha256"] = ""
+assert lineage["canonical_sha256"] == canonical_hash(canonical_input)
+broken = [dict(step) for step in steps]
+broken[1] = dict(broken[1], source_candidate_id="candidate-0")
+try:
+    build_primary_form_composition_lineage(
+        "project-0", "candidate-0", "candidate-1", hash_value("t"), ("chest-shell", "hip-pair"), broken
+    )
+except RuntimeError as error:
+    assert "source candidate chain drifted" in str(error)
+else:
+    raise AssertionError("stale composition source unexpectedly passed")
+print("MCP010F composition lineage binds observation, target, Runtime search and candidate transitions")
 PY
 
 INVENTORY_ROOT="$F_GATE_TARGET/reference-inventory"
