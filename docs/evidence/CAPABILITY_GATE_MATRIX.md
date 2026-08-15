@@ -1,5 +1,7 @@
 # ForgeCAD 能力—Gate 矩阵
 
+2026-08-15 Primary Form recovery coverage Gate：joint proposal 失败时，Runtime 只执行一个 boundary-dominant Part 的 coupled recovery，再保证 36-control detail Rig 的 `36/36` scalar probe coverage；总预算仍固定为 `40 geometry + 15 initial camera + 9 winner refit`。focused Runtime/Agentic tests 与 `script/test_mcp010f.sh` full Gate PASS，证据为 `docs/evidence/mcp010f/primary-form-recovery-coverage-20260815.json`。该 Gate 只证明 Runtime-owned bounded convergence boundary，未产生新的 likeness/PBR/human/export-restart/360 证据；package/live MCP 尚未重建到本源码，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 live/package cohort Gate：`abae43f3` 同 revision 的 Dev.app 已安装，MCP/Runtime/Geometry Worker/Render Worker cohort `5a1f108a…e2dd2f` exact-match；deep-strict package、resource allowlist、隔离 Runtime Ready/project/preflight probe PASS，未触碰持久用户数据。新包工具面为 37 read + 24 opt-in write。当前 Codex MCP 会话仍返回旧 `7f9e4c…ee518`/旧 `05fca3…d4d0a` surface，故 `live_session_rebind=BLOCKED_RESTART_REQUIRED`，不能把 package PASS 误写成 live visual authoring PASS；无新 likeness receipt，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Primary Form resolution-consistent fit Gate：`silhouette_fit_prepare` 的 Primary Form camera/geometry batch 统一为 512×512 isolated Render Worker，与 same-camera acceptance 共享分辨率；非 Primary Form camera 粗搜继续使用 128×128。源码/Runtime focused regression、MCP010F 聚合门与 product workspace check 已通过；该模块不产生 likeness/PBR/human/export-restart/360 PASS，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。

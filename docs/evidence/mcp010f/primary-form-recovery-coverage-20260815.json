@@ -1,0 +1,34 @@
+{
+  "schema_version": "ForgeCADMCP010FPrimaryFormRecoveryGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_at": "2026-08-15",
+  "source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+  "runtime_source_sha256": "531783a04480d1e98be6d53bcb3dbbb3db297edd17a3487c1203a6f3411ae53b",
+  "bounded_schedule": {
+    "max_evaluations": 64,
+    "geometry_budget": 40,
+    "initial_camera_budget": 15,
+    "camera_refit_budget": 9,
+    "detail_rig_controls": 36,
+    "joint_recovery_groups": 1,
+    "failed_joint_proposal_scalar_probe_coverage": "36/36"
+  },
+  "change": "After a failed joint proposal, retain one boundary-dominant Part group recovery and reserve the remaining geometry budget for one bounded probe of every scalar Rig control.",
+  "focused_tests": [
+    "primary_form_parameter_groups_keep_boundary_priority_and_part_coupling",
+    "primary_form_recovery_reserves_full_scalar_control_coverage",
+    "contour_fit_part_proposal_and_candidate_compare_are_bounded_and_read_only",
+    "bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably"
+  ],
+  "aggregate_gate": "PASS_SOURCE_CONVERGENCE_BOUNDARY",
+  "mcp010f_full_gate": "PASS",
+  "persistent_user_data_touched": false,
+  "visual_quality_status": "QUALITY_TARGET_NOT_MET",
+  "camera_binding": "MISMATCH",
+  "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+  "human_review": "NOT_RUN",
+  "pbr_likeness": "NOT_RUN",
+  "export_restart_hash": "NOT_RUN",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "canonical_sha256": "d6e497bfb44e82a718d89ef988cfa78f6c7fbe88be4623fd7ec96b5ff0b63d4f"
+}

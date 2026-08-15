@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Primary Form recovery coverage truth：当 joint evidence proposal 未严格改善时，Runtime 只保留 boundary-dominant Part 的一个 coupled recovery group，把剩余 geometry budget 留给 detail Rig 的全 36 个 scalar controls；64 上限仍为 `40 geometry + 15 initial camera + 9 winner refit`，没有扩大预算或把搜索交回 Codex。recovery receipt、focused Runtime/Agentic tests 与 MCP010F full Gate 通过；当前源码 hash 为 `531783a0…1ae53b`。该修复不产生新的真实视觉 receipt，package/live MCP 尚未重建到此源码，权威质量继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 live/package cohort truth：当前 `abae43f3` 源码已重建并安装用户级 Dev.app，四个 packaged executable 的 cohort 均为 `5a1f108a…e2dd2f`；ad-hoc deep-strict、资源 allowlist、隔离 Runtime Ready/project/preflight probe 通过，未触碰持久用户数据。新包 37 read + 24 opt-in write 的 manifest 与当前 source surface 一致。当前 Codex MCP 连接仍返回旧 `7f9e4c…ee518` cohort、旧 write surface 与旧 manifest `05fca3…d4d0a`，所以 live session rebind 仍 `BLOCKED_RESTART_REQUIRED`；该事实不改变当前 candidate/benchmark truth，也不产生视觉质量证据。权威质量继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Primary Form resolution-consistent fit truth：Runtime-owned `silhouette_fit_prepare` 的 Primary Form camera/geometry search 现在使用 512×512 fit batch，并与最终 same-camera acceptance 对齐；只有普通 camera 粗搜保留 128×128 accelerator。此处只修复 objective/acceptance 分辨率漂移，未产生新的真实视觉 receipt或质量升级；`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态保持不变。

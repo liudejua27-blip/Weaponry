@@ -1776,6 +1776,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 &boundary_segments,
             );
             let parameter_groups = ranked_rig_parameter_groups(rig, &parameter_indices);
+            // A 36-control detail Rig has only 40 geometry evaluations in the
+            // hard 64-call budget.  If the joint proposal fails, trying one
+            // coupled hypothesis for every Part would consume the budget
+            // before every scalar control gets an independent probe.  Keep a
+            // single coupled recovery for the dominant Part, then guarantee
+            // one bounded coordinate pass over the complete Rig.  The
+            // evidence-directed joint proposal already covered every Part;
+            // this reservation makes the fallback converge deterministically
+            // instead of spending its last probes on repeated group guesses.
+            let recovery_groups = primary_form_recovery_groups(parameter_groups);
             let definitions = rig
                 .get("parameters")
                 .and_then(Value::as_array)
@@ -1823,23 +1833,24 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     };
                     let group_index = (initial_proposal_improved == Some(false))
                         .then_some(search_probe_index.saturating_sub(1))
-                        .filter(|index| *index < parameter_groups.len());
+                        .filter(|index| *index < recovery_groups.len());
                     if let Some(group_index) = group_index {
-                        // Once a joint proposal has failed, test each Part as
-                        // one local shape hypothesis before falling back to
-                        // individual coordinates. This lets coupled
+                        // Once a joint proposal has failed, test the dominant
+                        // Part as one local shape hypothesis before falling
+                        // back to individual coordinates. This lets coupled
                         // width/height/offset changes escape a greedy local
-                        // minimum while retaining the current best Part edits.
+                        // minimum while retaining the current best Part edits
+                        // without sacrificing full scalar-control coverage.
                         parameter_values = interpolate_rig_parameter_group_values(
                             definitions,
                             &best_geometry_parameters,
                             &evidence_parameters,
-                            &parameter_groups[group_index],
+                            &recovery_groups[group_index],
                             1.0,
                         );
                     } else {
                         let coordinate_probe_index = if initial_proposal_improved == Some(false) {
-                            search_probe_index.saturating_sub(parameter_groups.len())
+                            search_probe_index.saturating_sub(recovery_groups.len())
                         } else {
                             search_probe_index
                         };
@@ -11107,6 +11118,14 @@ fn ranked_rig_parameter_groups(rig: &Value, parameter_indices: &[usize]) -> Vec<
     groups.into_iter().map(|(_, indices)| indices).collect()
 }
 
+/// Reserve at most one coupled recovery hypothesis after the joint proposal.
+/// The remaining geometry budget must be able to visit every scalar Rig
+/// control once, even when the authored detail Rig has more Parts than the
+/// proposal can afford to test as separate groups.
+fn primary_form_recovery_groups(parameter_groups: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+    parameter_groups.into_iter().take(1).collect()
+}
+
 /// Apply one evidence-attributed Part proposal to the current geometry
 /// incumbent. Only the coordinates in `group` move; all other coordinates stay
 /// at the incumbent so successful local improvements can be composed without
@@ -16751,6 +16770,16 @@ mod tests {
         });
         let groups = ranked_rig_parameter_groups(&rig, &[1, 2, 0, 4, 3]);
         assert_eq!(groups, vec![vec![1, 3], vec![2, 0], vec![4]]);
+    }
+
+    #[test]
+    fn primary_form_recovery_reserves_full_scalar_control_coverage() {
+        let groups = (0..12).map(|index| vec![index, index + 12]).collect();
+        let recovery = primary_form_recovery_groups(groups);
+        assert_eq!(recovery.len(), 1);
+        // 40 geometry trials: joint proposal + two backtracks + one coupled
+        // recovery leave exactly enough probes for a 36-control Rig.
+        assert!(40usize.saturating_sub(3).saturating_sub(recovery.len()) >= 36);
     }
 
     #[test]
