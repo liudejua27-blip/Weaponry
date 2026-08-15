@@ -1,5 +1,7 @@
 # ForgeCAD 当前原子任务索引
 
+2026-08-15 `FGC-MCP010F` Primary Form same-camera acceptance 真实复放：新 packaged cohort `e7e466f6…b7cc` 的 supplemental r6 经过 56 次 bounded fit evaluations；最终 paired acceptance 比较 source loss `0.40710507361` 与 proposal loss `0.412782572291`，Runtime 保留 source、未创建 candidate/version。r6 顶层 `BLOCKED` 由无关 side-effect 账本触发，不能作为 transport PASS；camera binding、Render Worker cohort 与 Viewer read-model 绑定仍为结构 PASS，质量继续 `QUALITY_TARGET_NOT_MET`，F 仍唯一 `in_progress`。
+
 版本：2026-08-15
 状态：唯一任务状态表；MVP host golden path 与 FGC-MCP010A 已收口；FGC-MCP010B 结构实现已通过、Darwin OS 总内存硬门 deferred；FGC-MCP010C source-focused 已完成；FGC-MCP010D/E source-focused 已通过；FGC-MCP010F source-focused in_progress，packaged/人评/360 子门保留。ADR-0026 的 Agentic Design Runtime 已完成 observe/plan projection、嵌套只读 projection conformance 与 durable session/checkpoint/RepairIntent prepare/readback slice；durable/reference/DesignSpec 完整 producer、单动作 orchestrator 和 Repair 应用 backlog 尚未改变当前唯一任务状态。
 

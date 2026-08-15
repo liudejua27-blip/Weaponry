@@ -4343,7 +4343,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
           </div>
         </section>
         <section className="panel-section" aria-labelledby="agentic-session-console-title">
-          <p className="section-kicker">设计会话 / 里程碑</p>
+          <p className="section-kicker">DESIGN SESSION / CHECKPOINT · 设计会话 / 里程碑</p>
           <h2 id="agentic-session-console-title">设计阶段回读</h2>
           <div className="workflow-summary" data-session-status={agenticSession.status} data-binding-status={agenticSession.bindingStatus}>
             <div className="workflow-current">
@@ -4372,7 +4372,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                 <strong>{agenticSession.checkpoint.durable === true ? '已持久化' : agenticSession.checkpoint.durable === false ? '未持久化' : '未知'}</strong>
               </div>
               <div className="workflow-gate-row">
-                <span>恢复版本</span>
+                <span>恢复版本 · restore prepare / approval</span>
                 <strong className={`workflow-gate-status workflow-gate-status-${agenticSessionStatusClass(agenticSession.restore.status)}`}>{AGENTIC_RESTORE_STATUS_LABELS[agenticSession.restore.status]}</strong>
               </div>
               <div className="workflow-gate-row">

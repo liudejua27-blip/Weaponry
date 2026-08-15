@@ -1871,12 +1871,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let loss = camera_fit_loss(&loss_metrics);
                 geometry_evaluations += 1;
                 if probe_index == 0 {
-                    initial_proposal_improved = Some(primary_form_metrics_improve(
+                    initial_proposal_improved = Some(primary_form_search_metrics_improve(
                         &loss_metrics,
                         &selected_camera_ranking_metrics,
                     ));
                 }
-                if primary_form_metrics_improve(&loss_metrics, &best_geometry_ranking_metrics) {
+                if primary_form_search_metrics_improve(&loss_metrics, &best_geometry_ranking_metrics) {
                     best_geometry_loss = loss;
                     best_geometry_parameters = parameter_values;
                     best_geometry_metrics = variant_metrics;
@@ -1930,6 +1930,31 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     camera_refit_budget,
                 );
                 if !refit_cameras.is_empty() {
+                    // A camera refit is only a valid Primary Form improvement
+                    // when the proposed geometry beats the authored geometry
+                    // at that exact camera.  Comparing the proposal only with
+                    // its previous-camera incumbent lets the camera absorb a
+                    // geometry error and then makes the final acceptance gate
+                    // reject the result after doing the expensive prepare
+                    // work.  Render the source batch once, in the same
+                    // isolated Render Worker cohort, so every refit candidate
+                    // has a same-camera source/proposal pair.
+                    let source_refit_passes = render_worker::render_glb_fit_batch_at_resolution(
+                        &glb,
+                        &refit_cameras,
+                        512,
+                    )
+                    .map_err(|error| {
+                        RuntimeError::InvalidInput(format!(
+                            "SILHOUETTE_FIT_GEOMETRY_REFIT_SOURCE_RENDER_FAILED: {error}"
+                        ))
+                    })?;
+                    if source_refit_passes.len() != refit_cameras.len() {
+                        return Err(RuntimeError::InvalidInput(
+                            "SILHOUETTE_FIT_GEOMETRY_REFIT_SOURCE_RENDER_FAILED: result count mismatch"
+                                .to_owned(),
+                        ));
+                    }
                     let refit_passes = render_worker::render_glb_fit_batch_at_resolution(
                         &artifact.glb,
                         &refit_cameras,
@@ -1946,7 +1971,37 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                                 .to_owned(),
                         ));
                     }
-                    for (camera_candidate, passes) in refit_cameras.into_iter().zip(refit_passes) {
+                    for ((camera_candidate, source_passes), passes) in refit_cameras
+                        .into_iter()
+                        .zip(source_refit_passes)
+                        .zip(refit_passes)
+                    {
+                        let source_silhouette = source_passes
+                            .iter()
+                            .find(|pass| pass.pass == "silhouette")
+                            .ok_or_else(|| {
+                                RuntimeError::InvalidInput(
+                                    "SILHOUETTE_FIT_GEOMETRY_REFIT_SOURCE_RENDER_FAILED: silhouette pass missing"
+                                        .to_owned(),
+                                )
+                            })?;
+                        let source_model_mask = decode_binary_mask(&source_silhouette.png).map_err(|error| {
+                            RuntimeError::InvalidInput(format!(
+                                "SILHOUETTE_FIT_GEOMETRY_REFIT_SOURCE_RENDER_FAILED: {error}"
+                            ))
+                        })?;
+                        let source_part_context = source_passes
+                            .iter()
+                            .find(|pass| pass.pass == "part-id")
+                            .map(|pass| (pass.png.as_slice(), inspection.part_ids.as_slice()));
+                        let source_metrics =
+                            extended_silhouette_metrics(&target_mask.mask, &source_model_mask);
+                        let source_ranking_metrics = primary_form_ranking_metrics(
+                            &source_metrics,
+                            &source_model_mask,
+                            target.get("landmarks"),
+                            source_part_context,
+                        );
                         let silhouette = passes
                             .iter()
                             .find(|pass| pass.pass == "silhouette")
@@ -1973,9 +2028,21 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                             target.get("landmarks"),
                             part_context,
                         );
+                        // Do not let a proposal that is merely better than
+                        // the previous proposal-camera pair become the new
+                        // incumbent.  It must first beat the authored source
+                        // at this exact refit camera; otherwise the final
+                        // acceptance check would correctly retain the source
+                        // after the optimizer had already spent its budget.
+                        if !primary_form_metrics_improve(
+                            &loss_metrics,
+                            &source_ranking_metrics,
+                        ) {
+                            continue;
+                        }
                         let loss = camera_fit_loss(&loss_metrics);
                         camera_refit_evaluations += 1;
-                        if primary_form_metrics_improve(&loss_metrics, &selected_ranking_metrics) {
+                        if primary_form_search_metrics_improve(&loss_metrics, &selected_ranking_metrics) {
                             best_loss = loss;
                             selected_camera = camera_candidate;
                             metrics = candidate_metrics;
@@ -2002,6 +2069,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             &selected_ranking_metrics,
             &baseline_ranking_metrics,
         );
+        if !strict_improvement {
+            // A search-only incumbent is never exposed as a repair proposal
+            // when it did not beat the authored geometry at the final
+            // Runtime-owned camera. This keeps a softened exploration loss
+            // from leaking into a staged-candidate claim.
+            selected_geometry_program = None;
+        }
         let mut result = json!({
             "schema_version":"SilhouetteFitResult@1",
             "project_id":project_id,
@@ -9581,6 +9655,29 @@ fn primary_form_metrics_improve(candidate: &Value, incumbent: &Value) -> bool {
     primary_form_metric_ordering(candidate, incumbent) == std::cmp::Ordering::Less
 }
 
+/// Use a softer, still bounded objective while walking the Runtime-owned
+/// geometry neighborhood. The final acceptance path remains
+/// `primary_form_metrics_improve`; this search-only comparator exists so a
+/// coupled Part edit can cross a shallow local minimum instead of freezing on
+/// the first boundary-tied coordinate. A boundary regression larger than
+/// three percentage points is never accepted even for exploration.
+fn primary_form_search_metrics_improve(candidate: &Value, incumbent: &Value) -> bool {
+    if primary_form_metrics_improve(candidate, incumbent) {
+        return true;
+    }
+    let metric = |value: &Value, key: &str, default: f64| {
+        value
+            .get(key)
+            .and_then(Value::as_f64)
+            .unwrap_or(default)
+            .clamp(0.0, 1.0)
+    };
+    let candidate_boundary = metric(candidate, "boundary_f1_4px", 0.0);
+    let incumbent_boundary = metric(incumbent, "boundary_f1_4px", 0.0);
+    candidate_boundary + 0.03 >= incumbent_boundary
+        && weighted_contour_loss(candidate) + 1.0e-9 < weighted_contour_loss(incumbent)
+}
+
 fn primary_form_row_ordering(left: &Value, right: &Value) -> std::cmp::Ordering {
     let left_metrics = left.get("metrics").unwrap_or(left);
     let right_metrics = right.get("metrics").unwrap_or(right);
@@ -16469,6 +16566,35 @@ mod tests {
         assert!(primary_form_strict_same_camera_improvement(&source, &improved));
         assert!(!primary_form_strict_same_camera_improvement(&source, &regressed));
         assert!(!primary_form_strict_same_camera_improvement(&source, &source));
+    }
+
+    #[test]
+    fn primary_form_search_can_cross_a_bounded_local_minimum_without_relaxing_acceptance() {
+        let incumbent = json!({
+            "silhouette_iou":0.70,
+            "boundary_f1_4px":0.80,
+            "bbox_edge_error":0.03,
+            "centroid_error":0.03,
+            "sdf_chamfer_px":20.0
+        });
+        let contour_tradeoff = json!({
+            "silhouette_iou":0.76,
+            "boundary_f1_4px":0.79,
+            "bbox_edge_error":0.029,
+            "centroid_error":0.029,
+            "sdf_chamfer_px":18.0
+        });
+        assert!(!primary_form_metrics_improve(&contour_tradeoff, &incumbent));
+        assert!(primary_form_search_metrics_improve(&contour_tradeoff, &incumbent));
+
+        let boundary_regression = json!({
+            "silhouette_iou":0.90,
+            "boundary_f1_4px":0.74,
+            "bbox_edge_error":0.02,
+            "centroid_error":0.02,
+            "sdf_chamfer_px":12.0
+        });
+        assert!(!primary_form_search_metrics_improve(&boundary_regression, &incumbent));
     }
 
     #[test]
