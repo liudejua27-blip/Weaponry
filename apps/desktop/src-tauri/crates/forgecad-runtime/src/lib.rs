@@ -2042,6 +2042,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         .zip(source_refit_passes)
                         .zip(refit_passes)
                     {
+                        // Count every scheduled refit camera after both source
+                        // and proposal renders, even when the strict
+                        // same-camera gate rejects the proposal. This field is
+                        // an execution ledger, not an acceptance counter.
+                        camera_refit_evaluations += 1;
                         let source_silhouette = source_passes
                             .iter()
                             .find(|pass| pass.pass == "silhouette")
@@ -2107,7 +2112,6 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                             continue;
                         }
                         let loss = camera_fit_loss(&loss_metrics);
-                        camera_refit_evaluations += 1;
                         if primary_form_search_metrics_improve(&loss_metrics, &selected_ranking_metrics) {
                             best_loss = loss;
                             selected_camera = camera_candidate;
@@ -11342,7 +11346,11 @@ fn primary_form_evaluation_budgets(
     // enough to cover its fixed axes, then retain a smaller geometry-winner
     // refit. The three budgets always sum to the caller's hard cap.
     let geometry_budget = (max_evaluations.saturating_mul(5) / 8).clamp(1, 40);
-    let camera_budget = (max_evaluations / 4).clamp(1, 16);
+    // The initial Primary Form neighborhood has fifteen deterministic camera
+    // variants. Keep the phase budget aligned with that schedule; otherwise a
+    // 64-evaluation request advertises sixteen camera evaluations but silently
+    // executes only fifteen and leaves one unit unaccounted for.
+    let camera_budget = (max_evaluations / 4).clamp(1, 15);
     let camera_refit_budget = max_evaluations
         .saturating_sub(geometry_budget)
         .saturating_sub(camera_budget)
@@ -16308,7 +16316,7 @@ mod tests {
         let primary_form_evaluations = primary_form["fit_result"]["evaluations"]
             .as_u64()
             .expect("Primary Form fit evaluation count");
-        assert!((63..=64).contains(&primary_form_evaluations));
+        assert_eq!(primary_form_evaluations, 64);
         assert_eq!(primary_form["fit_result"]["iterations"], 2);
         assert!(primary_form["fit_result"]["strict_improvement"].is_boolean());
         assert!(primary_form["fit_result"]["baseline_metrics"].is_object());
@@ -16706,7 +16714,7 @@ mod tests {
         assert_eq!(primary_form_evaluation_budgets(24, true), (15, 6, 3));
         assert_eq!(primary_form_evaluation_budgets(8, true), (5, 2, 1));
         assert_eq!(primary_form_evaluation_budgets(1, true), (0, 1, 0));
-        assert_eq!(primary_form_evaluation_budgets(64, true), (40, 16, 8));
+        assert_eq!(primary_form_evaluation_budgets(64, true), (40, 15, 9));
         assert_eq!(primary_form_evaluation_budgets(24, false), (0, 24, 0));
         let detail_rig_parameter_count = 36;
         let detail_budgets = primary_form_evaluation_budgets(64, true);
@@ -16714,7 +16722,7 @@ mod tests {
         for max_evaluations in 1..=64 {
             let budgets = primary_form_evaluation_budgets(max_evaluations, true);
             assert!(budgets.0 + budgets.1 + budgets.2 <= max_evaluations);
-            assert!(budgets.0 <= 40 && budgets.1 <= 16 && budgets.2 <= 24);
+            assert!(budgets.0 <= 40 && budgets.1 <= 15 && budgets.2 <= 24);
         }
     }
 

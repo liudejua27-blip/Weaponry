@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Primary Form evaluation ledger truth：Runtime 将 64 evaluation ceiling 对齐为 `40 geometry + 15 initial camera + 9 winner refit`，并对每个 refit camera row 做执行级计数；proposal 被 strict same-camera gate 拒绝时仍会计入，不再把 accepted rows 当作 evaluations。该修复仅影响 bounded search 的预算/receipt 一致性，没有新的真实视觉证据或质量升级；`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态保持不变。
+
 2026-08-15 Primary Form profile-loft height truth：Runtime 的 typed Rig `height` 对 `forgecad.geometry.profile-loft@1` 现在只缩放 `profiles[*].height_m` 的纵向跨度，并以首站为稳定锚点；二维 profile points 的局部深度不再被误写。focused/full Runtime 与 MCP010F Gate 通过，Stage 0 Runtime source hash 已同步；没有新的真实视觉 receipt，权威状态仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，未解锁确认、PBR、人评、export/restart 或 360。
 
 2026-08-15 Durable Agentic observation lineage truth：Runtime 在 durable session/checkpoint/action 的观察声明上增加 candidate/reference lineage 等值校验：观察必须同时绑定当前 candidate ID/hash、reference ID/object hash/canonical hash；不完整或状态漂移立即 fail closed。该校验只保护现有 Runtime-owned durable prepare/readback，不把 durable slice 扩写成完整 orchestrator 或 Repair execution；无新的视觉 receipt，`QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态不变。
