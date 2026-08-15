@@ -1,0 +1,39 @@
+{
+  "schema_version": "ForgeCADMCP010FAgenticDesignDocumentsReadbackGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-15",
+  "source": {
+    "runtime_lib_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+    "runtime_lib_sha256": "930eec661be015268f480b22e6fb810318685b913e80c04156727c900ad05aee",
+    "agentic_session_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/agentic_session.rs",
+    "agentic_session_sha256": "73b21fcf2f1bdf7aa2e6b3365ba56f7ee312aad17e3e71acbe9dc32101cc0164"
+  },
+  "contract": {
+    "session_result_schema": "AgenticSessionResult@1",
+    "reference_canvas_schema": "ReferenceCanvas@1",
+    "design_spec_schema": "DesignSpec@1",
+    "document_hashes_are_cas_object_hashes": true,
+    "original_reference_bytes_returned": false,
+    "absolute_paths_returned": false
+  },
+  "readback_behavior": {
+    "session_create_or_resume": "PASS",
+    "session_get": "PASS",
+    "agentic_session_lookup": "PASS",
+    "canonical_hash_validation": "PASS",
+    "schema_validation": "PASS",
+    "project_reference_canvas_binding": "PASS",
+    "design_spec_canvas_binding": "PASS",
+    "missing_or_drifted_document": "FAIL_CLOSED"
+  },
+  "focused_test": {
+    "command": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably -- --nocapture",
+    "result": "1 passed; 0 failed"
+  },
+  "aggregate_gate": "PASS_AGENTIC_DURABLE_DESIGN_DOCUMENT_READBACK",
+  "quality_status": "QUALITY_TARGET_NOT_MET",
+  "camera_binding": "MISMATCH",
+  "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+  "live_mcp_status": "BLOCKED_RESTART_REQUIRED_OLD_COHORT",
+  "canonical_sha256": "c50e64c9e6dbd442c78e33d629173f07668861cb6dfebf1107d28effe1257e03"
+}

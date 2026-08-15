@@ -99,7 +99,7 @@ impl Runtime {
                         .to_owned(),
                 ));
             }
-            return Ok(session_result(&existing, "resumed"));
+            return self.session_result(&existing, "resumed");
         }
 
         let canvas = build_reference_canvas(&reference, reference_canvas_id);
@@ -153,7 +153,7 @@ impl Runtime {
         let stored = self
             .store
             .agentic_session_create_or_resume(&session, &session_object.record)?;
-        Ok(session_result(&stored, "created"))
+        self.session_result(&stored, "created")
     }
 
     pub fn session_get(&self, request: Value) -> Result<Value, RuntimeError> {
@@ -187,7 +187,7 @@ impl Runtime {
             &session.evidence_sha256,
             &observation_sha256,
         )?;
-        Ok(session_result(&session, "read"))
+        self.session_result(&session, "read")
     }
 
     /// Prepare and persist one immutable checkpoint.  The checkpoint is
@@ -656,9 +656,9 @@ impl Runtime {
         let session = self
             .store
             .get_agentic_session_for_binding(project_id, candidate_id)?;
-        Ok(match session {
-            Some(session) => session_result(&session, "lookup"),
-            None => json!({
+        match session {
+            Some(session) => self.session_result(&session, "lookup"),
+            None => Ok(json!({
                 "schema_version":"AgenticSessionLookupResult@1",
                 "status":"unavailable",
                 "durable":false,
@@ -666,8 +666,8 @@ impl Runtime {
                 "project_id":project_id,
                 "candidate_id":candidate_id,
                 "reason":"no durable DesignSession exists for this candidate"
-            }),
-        })
+            })),
+        }
     }
 }
 
@@ -1049,8 +1049,22 @@ fn no_checkpoint_rollback() -> Value {
     json!({"relation":"none","target_checkpoint_id":null,"target_checkpoint_sha256":null,"target_version_id":null,"target_version_sha256":null,"reason":null})
 }
 
-fn session_result(session: &AgenticSessionRecord, status: &str) -> Value {
-    json!({
+impl Runtime {
+    /// Read the two durable design documents that a DesignSession points to.
+    ///
+    /// The session row intentionally stores only their CAS hashes so the
+    /// durable `DesignSession@1` contract stays small.  A caller that resumes
+    /// after a Runtime/MCP restart still needs the exact ReferenceCanvas and
+    /// DesignSpec, however; returning opaque IDs would force Codex to rebuild
+    /// the design context from fragmented projections.  This readback is
+    /// hash-bound, project-bound and never returns reference bytes or paths.
+    fn session_result(
+        &self,
+        session: &AgenticSessionRecord,
+        status: &str,
+    ) -> Result<Value, RuntimeError> {
+        let documents = self.read_durable_design_documents(session)?;
+        Ok(json!({
         "schema_version":"AgenticSessionResult@1",
         "status":status,
         "durable":true,
@@ -1061,8 +1075,146 @@ fn session_result(session: &AgenticSessionRecord, status: &str) -> Value {
         "revision":session.revision,
         "object_sha256":session.object_sha256,
         "lineage":session.lineage,
-        "session":session_contract_value(session)
-    })
+        "session":session_contract_value(session),
+        "documents":documents
+        }))
+    }
+
+    fn read_durable_design_documents(
+        &self,
+        session: &AgenticSessionRecord,
+    ) -> Result<Value, RuntimeError> {
+        let reference_canvas = read_canonical_document(
+            self,
+            &session.reference_canvas_sha256,
+            "ReferenceCanvas@1",
+            "reference canvas",
+        )?;
+        let design_spec = read_canonical_document(
+            self,
+            &session.design_spec_sha256,
+            "DesignSpec@1",
+            "design spec",
+        )?;
+        validate_design_document_binding(session, &reference_canvas, &design_spec)?;
+        Ok(json!({
+            "reference_canvas": {
+                "object_sha256": session.reference_canvas_sha256,
+                "document": reference_canvas
+            },
+            "design_spec": {
+                "object_sha256": session.design_spec_sha256,
+                "document": design_spec
+            }
+        }))
+    }
+}
+
+fn read_canonical_document(
+    runtime: &Runtime,
+    object_sha256: &str,
+    expected_schema: &str,
+    label: &str,
+) -> Result<Value, RuntimeError> {
+    if !is_sha256(object_sha256) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_DOCUMENT_BINDING_INVALID: {label} object hash is not a SHA-256"
+        )));
+    }
+    let bytes = runtime.cas_read(object_sha256).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "AGENTIC_DOCUMENT_READBACK_FAILED: {label} CAS object unavailable: {error}"
+        ))
+    })?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "AGENTIC_DOCUMENT_READBACK_FAILED: {label} is not valid JSON: {error}"
+        ))
+    })?;
+    if value.get("schema_version").and_then(Value::as_str) != Some(expected_schema) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_DOCUMENT_READBACK_FAILED: {label} schema differs"
+        )));
+    }
+    let canonical_sha256 = value
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "AGENTIC_DOCUMENT_READBACK_FAILED: {label} canonical hash is missing"
+            ))
+        })?;
+    let mut without_hash = value.clone();
+    without_hash["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&without_hash) != canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_DOCUMENT_READBACK_FAILED: {label} canonical hash drifted"
+        )));
+    }
+    Ok(value)
+}
+
+fn validate_design_document_binding(
+    session: &AgenticSessionRecord,
+    reference_canvas: &Value,
+    design_spec: &Value,
+) -> Result<(), RuntimeError> {
+    if reference_canvas.get("canvas_id").and_then(Value::as_str)
+        != Some(session.reference_canvas_id.as_str())
+        || reference_canvas.get("project_id").and_then(Value::as_str)
+            != Some(session.project_id.as_str())
+        || reference_canvas
+            .get("reference_set_sha256")
+            .and_then(Value::as_str)
+            != Some(session.reference_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_DOCUMENT_BINDING_MISMATCH: ReferenceCanvas differs from session"
+                .to_owned(),
+        ));
+    }
+    let views = reference_canvas
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_DOCUMENT_READBACK_FAILED: ReferenceCanvas views are missing"
+                    .to_owned(),
+            )
+        })?;
+    if views.is_empty()
+        || views.iter().any(|view| {
+            view.get("reference_id").and_then(Value::as_str)
+                != Some(session.reference_id.as_str())
+                || view.get("reference_sha256").and_then(Value::as_str)
+                    != Some(session.reference_sha256.as_str())
+        })
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_DOCUMENT_BINDING_MISMATCH: ReferenceCanvas view reference differs"
+                .to_owned(),
+        ));
+    }
+    if design_spec.get("spec_id").and_then(Value::as_str)
+        != Some(session.design_spec_id.as_str())
+        || design_spec.get("project_id").and_then(Value::as_str)
+            != Some(session.project_id.as_str())
+        || design_spec
+            .get("reference_canvas_id")
+            .and_then(Value::as_str)
+            != Some(session.reference_canvas_id.as_str())
+        || design_spec
+            .get("reference_canvas_sha256")
+            .and_then(Value::as_str)
+            != Some(session.reference_canvas_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_DOCUMENT_BINDING_MISMATCH: DesignSpec differs from session"
+                .to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 fn checkpoint_result(

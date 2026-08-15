@@ -18962,6 +18962,21 @@ mod tests {
             }))
             .expect("session");
         assert_eq!(session["session"]["current_stage"], "primary-form");
+        assert_eq!(
+            session["documents"]["reference_canvas"]["object_sha256"],
+            session["session"]["reference_canvas_sha256"],
+            "session readback must expose the exact durable ReferenceCanvas object"
+        );
+        assert_eq!(
+            session["documents"]["design_spec"]["object_sha256"],
+            session["session"]["design_spec_sha256"],
+            "session readback must expose the exact durable DesignSpec object"
+        );
+        assert_eq!(
+            session["documents"]["design_spec"]["document"]["reference_canvas_sha256"],
+            session["documents"]["reference_canvas"]["object_sha256"],
+            "DesignSpec must remain bound to the returned ReferenceCanvas"
+        );
         let observation = runtime
             .agentic_scene_observe(&project.project_id, Some(&candidate_id))
             .expect("action observation");

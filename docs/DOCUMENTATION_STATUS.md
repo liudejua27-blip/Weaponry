@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Agentic durable design-document readback：`AgenticSessionResult@1` 现在携带同一 session binding 下的 CAS-backed `ReferenceCanvas@1` 与 `DesignSpec@1`；Runtime 对两个文档执行 canonical/schema/project/reference/canvas 校验，任何 hash drift 都 fail closed。focused session/action regression 通过，未增加工具或视觉结论；live MCP 仍需重启，质量继续 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 clean package cohort：提交 `cf329215` 后重新构建的 Dev.app 使用干净源码，四个 packaged executable 共享 cohort `aa0d6dcb…5808e`，`source_worktree_dirty=false`；隔离 Runtime `Ready`、project create、Ponytail preflight 与 packaged MCP010B raw stdio 均 PASS。该 package structural Gate 不等于 live MCP rebind 或视觉 likeness PASS，live session 仍需重启；质量继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Primary Form adaptive local line search：Runtime 已修复大 Rig 失败路径中“无 reverse/fine 预算”的实际漂移。36-control detail Rig 现在在 `40 geometry` 内执行 `joint + 0.5 whole-proposal backtrack + 0.5/1.0 dominant-Part coupled hypotheses + 36/36 scalar coverage`；小 Rig 动态保留 `0.5/0.25` backtrack 与一个 coupled recovery。focused Runtime `22 passed`，receipt 为 `docs/evidence/mcp010f/primary-form-adaptive-line-search-20260815.json`。该 source/convergence Gate 不等于真实视觉收敛，质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。

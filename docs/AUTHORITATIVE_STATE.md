@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Agentic durable design-document readback truth：Runtime session readback 现在从 session 保存的 CAS hashes 重新读取 `ReferenceCanvas@1` 与 `DesignSpec@1`，验证各自 canonical hash、schema、project/reference/canvas binding 后再返回；不会返回原图字节、路径或由 Codex 重建的替代文档。该模块只收口 durable observation context，不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或 live MCP `BLOCKED_RESTART_REQUIRED`。
+
 2026-08-15 clean package truth：提交 `cf329215` 后 Dev.app 已按干净源码重建并安装，四个 packaged executable exact cohort 为 `aa0d6dcb…5808e`，`source_worktree_dirty=false`；ad-hoc deep-strict、隔离 Runtime Ready/project_create/preflight 与 packaged MCP010B raw stdio structural Gate PASS。该 package truth 不等于当前 Codex live MCP 已重绑，也不产生新的 candidate/RenderSet/视觉 likeness 结论；live session 仍需重启，权威质量继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Primary Form adaptive local line-search truth：当前 36-control detail Rig 的失败路径不再把 `40` 个 geometry evaluation 全部消耗在 `joint + 2 backtracks + 1 group + 36 scalar` 的单向 schedule 上。Runtime 根据参数数量和硬预算安排大 Rig 的 `joint + 0.5 whole-proposal backtrack + 0.5/1.0 dominant-Part coupled recovery + 36/36 scalar coverage`；小 Rig 保留旧的 `0.5/0.25` whole-proposal backtrack 与单 coupled recovery。focused Runtime `22 passed`，证据 `primary-form-adaptive-line-search-20260815.json`；这只是 bounded convergence source Gate，不是视觉 likeness PASS，权威质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
