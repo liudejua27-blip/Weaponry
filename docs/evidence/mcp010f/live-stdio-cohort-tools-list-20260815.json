@@ -1,0 +1,19 @@
+{
+  "build_cohort_match": true,
+  "build_cohort_sha256": "5a1f108af9eeb854b4cfc5c62dce868883259bd0d52ee0f950dd11eee1e2dd2f",
+  "current_codex_session": {
+    "build_cohort_sha256": "7f9e4c33787a9ad2e069aa82c9796be575f86e038da9276b600b43b14daee518",
+    "status": "STALE_SESSION_REQUIRES_RESTART",
+    "tool_manifest_hash": "05fca3e0727ccb4c6fe5546384da250711054f9d045249f9eb23fdac330d4d0a"
+  },
+  "mcp_build_cohort_sha256": "5a1f108af9eeb854b4cfc5c62dce868883259bd0d52ee0f950dd11eee1e2dd2f",
+  "required_agentic_tools_present": true,
+  "runtime_state": "Ready",
+  "schema_version": "ForgeCADMCP010FLiveStdioCohortProbe@1",
+  "status": "PASS",
+  "tool_count": 61,
+  "tool_manifest_hash": "aa6da7e46b20a637f3c7383d8f623c8ddef8679439599b09f277852c28840a0d",
+  "read_only_count": 37,
+  "write_count": 24,
+  "persistent_user_data_touched": false
+}
