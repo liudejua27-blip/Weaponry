@@ -9974,13 +9974,13 @@ fn fit_rig_parameters_with_part_context(
             let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
             let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
             let proposed = part_id
-                .and_then(|id| local_envelopes.get(id))
+                .and_then(|id| merged_local_envelopes_for_rig_part(&local_envelopes, id))
                 .map(|(target_envelope, model_envelope)| {
                     (value
                         + local_part_parameter_delta(
                             parameter,
-                            *target_envelope,
-                            *model_envelope,
+                            target_envelope,
+                            model_envelope,
                             camera,
                         ))
                         .clamp(min, max)
@@ -9999,6 +9999,30 @@ fn fit_rig_parameters_with_part_context(
             })
         })
         .collect()
+}
+
+/// Merge all target/model envelope pairs owned by one Rig Part.  A bilateral
+/// authoring control may correspond to several concrete target/render Parts;
+/// using only the first exact string match would reduce a pair to one side and
+/// silently fall back to whole-body evidence for the other side.
+fn merged_local_envelopes_for_rig_part(
+    local_envelopes: &HashMap<String, (MaskEnvelope, MaskEnvelope)>,
+    rig_part_id: &str,
+) -> Option<(MaskEnvelope, MaskEnvelope)> {
+    let mut merged: Option<(MaskEnvelope, MaskEnvelope)> = None;
+    for (observed_part_id, (target, model)) in local_envelopes {
+        if !rig_part_matches_observed_part(rig_part_id, observed_part_id) {
+            continue;
+        }
+        merged = Some(match merged {
+            Some((merged_target, merged_model)) => (
+                merge_mask_envelopes(merged_target, *target),
+                merge_mask_envelopes(merged_model, *model),
+            ),
+            None => (*target, *model),
+        });
+    }
+    merged
 }
 
 /// Refine the bounded Part-envelope proposal with image-derived landmark
@@ -11289,6 +11313,7 @@ struct MaskEnvelope {
     max_y: usize,
     centroid_x: f64,
     centroid_y: f64,
+    pixel_count: f64,
 }
 
 fn mask_envelope_value(envelope: MaskEnvelope) -> Value {
@@ -11329,7 +11354,25 @@ fn mask_envelope(mask: &[bool]) -> Option<MaskEnvelope> {
         max_y,
         centroid_x: centroid_x / count / 511.0,
         centroid_y: centroid_y / count / 511.0,
+        pixel_count: count,
     })
+}
+
+fn merge_mask_envelopes(left: MaskEnvelope, right: MaskEnvelope) -> MaskEnvelope {
+    let left_weight = left.pixel_count.max(1.0);
+    let right_weight = right.pixel_count.max(1.0);
+    let total_weight = left_weight + right_weight;
+    MaskEnvelope {
+        min_x: left.min_x.min(right.min_x),
+        min_y: left.min_y.min(right.min_y),
+        max_x: left.max_x.max(right.max_x),
+        max_y: left.max_y.max(right.max_y),
+        centroid_x: (left.centroid_x * left_weight + right.centroid_x * right_weight)
+            / total_weight,
+        centroid_y: (left.centroid_y * left_weight + right.centroid_y * right_weight)
+            / total_weight,
+        pixel_count: left.pixel_count + right.pixel_count,
+    }
 }
 
 fn local_part_parameter_delta(
@@ -16601,6 +16644,59 @@ mod tests {
             "value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"meter"
         });
         assert_eq!(local_part_parameter_delta(&depth, target, model, None), 0.0);
+    }
+
+    #[test]
+    fn local_part_envelope_merges_bilateral_worker_parts_for_pair_rig() {
+        let mut target_left_mask = vec![false; 512 * 512];
+        let mut model_left_mask = vec![false; 512 * 512];
+        let mut target_right_mask = vec![false; 512 * 512];
+        let mut model_right_mask = vec![false; 512 * 512];
+        for y in 120..220 {
+            for x in 90..150 {
+                target_left_mask[y * 512 + x] = true;
+            }
+            for x in 104..136 {
+                model_left_mask[y * 512 + x] = true;
+            }
+            for x in 362..422 {
+                target_right_mask[y * 512 + x] = true;
+            }
+            for x in 376..408 {
+                model_right_mask[y * 512 + x] = true;
+            }
+        }
+        let mut envelopes = HashMap::new();
+        envelopes.insert(
+            "hip-left".to_owned(),
+            (
+                mask_envelope(&target_left_mask).expect("left target"),
+                mask_envelope(&model_left_mask).expect("left model"),
+            ),
+        );
+        envelopes.insert(
+            "hip-right".to_owned(),
+            (
+                mask_envelope(&target_right_mask).expect("right target"),
+                mask_envelope(&model_right_mask).expect("right model"),
+            ),
+        );
+
+        let (target, model) = merged_local_envelopes_for_rig_part(&envelopes, "hip-pair")
+            .expect("bilateral pair envelope");
+        assert_eq!(target.min_x, 90);
+        assert_eq!(target.max_x, 421);
+        assert_eq!(model.min_x, 104);
+        assert_eq!(model.max_x, 407);
+        assert!(target.centroid_x > 0.49 && target.centroid_x < 0.51);
+        assert!(model.centroid_x > 0.49 && model.centroid_x < 0.51);
+
+        let width = json!({
+            "parameter_id":"hip-width","part_id":"hip-pair","semantic":"width",
+            "value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"meter"
+        });
+        assert!(local_part_parameter_delta(&width, target, model, None) > 0.0);
+        assert!(merged_local_envelopes_for_rig_part(&envelopes, "missing").is_none());
     }
 
     #[test]
