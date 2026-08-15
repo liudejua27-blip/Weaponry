@@ -10755,29 +10755,43 @@ fn ranked_rig_parameter_indices_with_boundary_context(
     selected_parameters: &[Value],
     segments: &[Value],
 ) -> Vec<usize> {
-    let mut part_scores: HashMap<String, f64> = HashMap::new();
-    for segment in segments {
-        let Some(part_id) = segment.get("part_id").and_then(Value::as_str) else {
-            continue;
-        };
-        let distance = segment
-            .get("distance_px")
-            .and_then(Value::as_f64)
-            .unwrap_or(0.0);
-        if distance <= 4.0 || !distance.is_finite() {
-            continue;
+    let Some(parameters) = rig.get("parameters").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    // Render Worker Part-ID passes expose concrete output IDs (for example
+    // `shin-left` and `shin-right`) while a bounded authoring Rig commonly
+    // owns them through one bilateral `shin-pair` control.  Aggregate the
+    // observed boundary evidence through the same fixed alias relation used
+    // by dominance and exact-Part scoping; an exact string lookup here would
+    // silently demote the bilateral control and make the first convergence
+    // probes spend their budget on an unrelated Part.
+    let rig_part_ids = parameters
+        .iter()
+        .filter_map(|parameter| parameter.get("part_id").and_then(Value::as_str))
+        .collect::<HashSet<_>>();
+    let mut part_scores: HashMap<&str, f64> = HashMap::new();
+    for rig_part_id in rig_part_ids {
+        let score = segments
+            .iter()
+            .filter_map(|segment| {
+                let observed_part_id = segment.get("part_id").and_then(Value::as_str)?;
+                if !rig_part_matches_observed_part(rig_part_id, observed_part_id) {
+                    return None;
+                }
+                let distance = segment
+                    .get("distance_px")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0);
+                (distance > 4.0 && distance.is_finite()).then_some(distance * distance)
+            })
+            .sum::<f64>();
+        if score > 0.0 {
+            part_scores.insert(rig_part_id, score);
         }
-        // The squared distance makes a few dominant, clearly separated
-        // contour errors win over many near-aligned samples from another
-        // Part, while the fixed segment cap keeps this aggregation bounded.
-        *part_scores.entry(part_id.to_owned()).or_default() += distance * distance;
     }
     if part_scores.is_empty() {
         return ranked_rig_parameter_indices(rig, selected_parameters);
     }
-    let Some(parameters) = rig.get("parameters").and_then(Value::as_array) else {
-        return Vec::new();
-    };
     let mut indices: Vec<usize> = (0..parameters.len()).collect();
     indices.sort_by(|left, right| {
         let part_score = |index: usize| {
@@ -17017,6 +17031,32 @@ mod tests {
             &segments,
         );
         assert_eq!(ranked, vec![2, 1, 0]);
+    }
+
+    #[test]
+    fn primary_form_ranking_merges_bilateral_worker_output_ids() {
+        let rig = json!({"parameters":[
+            {"parameter_id":"chest-width","part_id":"chest-shell","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"},
+            {"parameter_id":"shin-width","part_id":"shin-pair","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"}
+        ]});
+        let selected = vec![
+            json!({"parameter_id":"chest-width","part_id":"chest-shell","value":1.18}),
+            json!({"parameter_id":"shin-width","part_id":"shin-pair","value":1.04}),
+        ];
+        // The Render Worker reports concrete bilateral outputs.  The Rig
+        // still owns both through one bounded pair control, which must win
+        // over a larger but unrelated chest proposal.
+        let segments = vec![
+            json!({"part_id":"shin-left","distance_px":48.0}),
+            json!({"part_id":"shin-right","distance_px":38.0}),
+            json!({"part_id":"chest-shell","distance_px":12.0}),
+        ];
+        let ranked = ranked_rig_parameter_indices_with_boundary_context(
+            &rig,
+            &selected,
+            &segments,
+        );
+        assert_eq!(ranked, vec![1, 0]);
     }
 
     #[test]
