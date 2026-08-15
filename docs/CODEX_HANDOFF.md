@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 Render Worker fail-closed boundary handoff：Runtime 的 `render-core` fallback 已不再由 `cfg(test)` 自动启用；`test-render-worker-fallback` 是唯一 Render 回退 feature，`test-geometry-worker-fallback` 仅作为 legacy 显式组合。无 feature product `cargo check`、source boundary checker、显式 fallback Runtime/MCP tests、MCP010C/F full Gate 通过。后续若要声称 Render Worker 真实落地，仍须运行 same-cohort sibling/package probe；当前质量账本不变：`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 Agentic canonical observation MCP dispatch handoff：修复 `InProcess` adapter 的观察绑定回退。`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 现在必须把调用方提交的 `observation_sha256` 交给 Runtime bound projection；缺失/stale hash 立即 fail closed，与 authenticated IPC 路径一致。MCP 全量 `56 passed / 0 failed`；没有新的 Runtime/CAS、likeness 或 Viewer 质量证据，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Primary Form output-level offset sink handoff：Runtime 修复了 `offset_x/offset_y/offset_z/scale` 在 mirror/array 拓扑上的落点错误。现在 width/height/depth 仍作用于源几何节点；整体 camera-plane 位移/缩放则在 Part 输出后的复用 `forgecad.geometry.transform@2` 上物化，避免双侧镜像把一次整体偏移变成左右相反的间距变化。mirror/direct-output materialization regressions 通过，Stage 0 Runtime hash 已同步；没有新的真实 likeness receipt，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，未 confirm/version/export。

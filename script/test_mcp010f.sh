@@ -557,14 +557,14 @@ require_equal(actual, expected)
 PY
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp tool_manifest_summary_is_derived_from_the_actual_enabled_manifests --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime visible_view_gate_rejects_exploratory_thresholds_and_accepts_strict_metrics --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime silhouette_target_is_hash_bound_and_refinement_is_immutable --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime automatic_silhouette_target_round_trips_float_contour_hash --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime camera_fit_returns_bounded_hash_bound_candidates_without_mutating_candidate --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime camera_fit_search_covers_global_scale_with_deterministic_budget --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime contour_fit_part_proposal_and_candidate_compare_are_bounded_and_read_only --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably --offline
-CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --offline silhouette_part_error
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback visible_view_gate_rejects_exploratory_thresholds_and_accepts_strict_metrics --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback silhouette_target_is_hash_bound_and_refinement_is_immutable --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback automatic_silhouette_target_round_trips_float_contour_hash --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback camera_fit_returns_bounded_hash_bound_candidates_without_mutating_candidate --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback camera_fit_search_covers_global_scale_with_deterministic_budget --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback contour_fit_part_proposal_and_candidate_compare_are_bounded_and_read_only --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback --offline silhouette_part_error
 git diff --check
 
 python3 - docs/evidence/mcp010f/current-benchmark-truth.json <<'PY'

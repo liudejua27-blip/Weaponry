@@ -12964,7 +12964,7 @@ fn render_fixed_with_runtime_worker(
     };
     match render_worker::render_fixed_glb(&artifact.glb) {
         Ok(passes) => Ok(passes),
-        #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+        #[cfg(feature = "test-render-worker-fallback")]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
             forgecad_render_core::render_fixed_glb(&artifact.glb)
                 .map(|passes| {
@@ -13014,7 +13014,7 @@ fn render_glb_with_runtime_worker_identity(
             passes: render.passes,
             build_cohort_sha256: render.build_cohort_sha256,
         }),
-        #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+        #[cfg(feature = "test-render-worker-fallback")]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
             forgecad_render_core::render_perspective_glb(glb, camera)
                 .map(|passes| {

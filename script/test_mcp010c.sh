@@ -100,12 +100,14 @@ PY
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
   --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
-  -p forgecad-runtime c_fixed_renderer_persists_nine_aovs_and_review_chain --offline
+  -p forgecad-runtime --features test-render-worker-fallback \
+  c_fixed_renderer_persists_nine_aovs_and_review_chain --offline
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \
   --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
-  -p forgecad-runtime v2_runtime_output_validators_fail_closed_on_mutated_receipts --offline
+  -p forgecad-runtime --features test-render-worker-fallback \
+  v2_runtime_output_validators_fail_closed_on_mutated_receipts --offline
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo test \

@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Render Worker test-boundary truth：Runtime 的 `render-core` fallback 现在只在显式 `test-render-worker-fallback` feature 下编译；普通 `cfg(test)` 不再把进程内 renderer 当作 Worker 缺失时的隐式成功路径。无 feature 的 Runtime product check、source ownership checker、显式 fallback Runtime/MCP tests 与 MCP010C/F 聚合 Gate 通过。该状态只修正证据与测试边界，不改变真实视觉真值：`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断；same-cohort packaged Worker receipt 仍是独立证据。
+
 2026-08-15 Agentic canonical observation transport truth：MCP `InProcess` adapter 已修复 stage/critic/visual-evidence follow-up 的分发落点，三者现在都消费调用方提供的同一 `AgenticSceneObserveResult@1.canonical_sha256`；缺失或 stale hash 不再回退到未绑定观察。MCP 全量 56 tests 通过；该修复不新增 Runtime/CAS 数据、不改变 Schema/tool count，也没有新的视觉 receipt。权威质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Primary Form output-level offset sink truth：Runtime 对完整 Part output graph 的 camera-plane `offset_x/offset_y/offset_z/scale` 使用 Runtime-owned `forgecad.geometry.transform@2` sink；mirror/array 之前的源几何只承载局部尺寸控制。该修复防止 bilateral Part 的整体位移被镜像拓扑解释为左右张开/收拢，focused materialization regressions 与 Stage 0 source-truth freshness 通过。没有新的真实视觉 receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态不变。

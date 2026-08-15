@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Render Worker fallback boundary hardening：Runtime 的 perspective/fixed/fit-batch `render-core` fallback 从 `cfg(test)` 隐式路径收口到独立 `test-render-worker-fallback` feature；生产 `cargo check` 不启用该依赖，legacy Runtime/MCP 单测只有在命令行显式启用时才可使用 fallback。source ownership checker、Runtime full `122 passed / 0 failed / 12 ignored`、MCP `56 passed / 0 failed`、MCP010C/F 聚合 Gate 和 Stage 0 truth freshness 通过。该模块不新增视觉 likeness、PBR、人评、export/restart 或 360 证据，仍保留 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Agentic canonical observation MCP dispatch closure：`InProcess` adapter 现在强制把 `observation_sha256` 交给 Runtime 的 bound stage/critic/evidence projection；此前开发/测试路径会调用未绑定 stage/critic 方法，且缺少 visual-evidence 分支，可能重新构建碎片观察。新增 stale/missing hash regression，MCP 全量 `56 passed / 0 failed`；没有 Runtime/CAS 或工具数变化，也没有新的真实 likeness receipt。质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Primary Form output-level offset sink：Runtime 对 mirror/array 输出的 camera-plane offset/scale 采用复用的最终 `forgecad.geometry.transform@2` sink；不再把双侧 Part 的位移写入镜像前源节点，避免一次 typed offset 被解释成左右反向张开。mirror/direct-output materialization regressions 通过，Stage 0 Runtime source hash 已同步；没有新的真实 likeness receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 与未运行的人评/PBR/export-restart/360 保持不变。

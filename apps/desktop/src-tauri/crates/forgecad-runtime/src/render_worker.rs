@@ -190,7 +190,7 @@ pub(crate) fn render_glb_fit_batch_at_resolution(
     if !matches!(resolution, 128 | 512) {
         return Err(GeometryWorkerError::Protocol);
     }
-    #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+    #[cfg(feature = "test-render-worker-fallback")]
     let fallback = || {
         cameras
             .iter()
@@ -219,7 +219,7 @@ pub(crate) fn render_glb_fit_batch_at_resolution(
         json!({"glb_base64":encoded,"cameras":cameras,"resolution":resolution}),
     ) {
         Ok(result) => result,
-        #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+        #[cfg(feature = "test-render-worker-fallback")]
         Err(GeometryWorkerError::Unavailable) => return fallback(),
         Err(error) => return Err(error),
     };

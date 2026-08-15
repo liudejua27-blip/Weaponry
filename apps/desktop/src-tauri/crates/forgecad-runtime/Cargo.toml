@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-# Internal test wiring only.  Production builds leave this feature disabled,
-# so Runtime can execute geometry only through the fixed sibling Worker.
-test-geometry-worker-fallback = ["dep:forgecad-geometry-worker", "dep:forgecad-render-core"]
+# Internal test wiring only. Production builds leave both features disabled,
+# so Runtime can execute geometry and rendering only through fixed sibling
+# Workers. Render fallback is separate so a normal test target cannot silently
+# replace the Render Worker boundary merely because cfg(test) is active.
+test-render-worker-fallback = ["dep:forgecad-render-core"]
+test-geometry-worker-fallback = ["dep:forgecad-geometry-worker", "test-render-worker-fallback"]
 
 [dependencies]
 base64 = "0.22"
