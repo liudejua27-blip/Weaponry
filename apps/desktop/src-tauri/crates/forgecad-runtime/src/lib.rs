@@ -10326,16 +10326,36 @@ fn rig_part_matches_output(rig_part_id: &str, output_part_id: &str) -> bool {
     if rig_part_id == output_part_id {
         return true;
     }
-    let Some(stem) = rig_part_id.strip_suffix("-pair") else {
-        return false;
-    };
-    let mut bases = vec![stem.to_owned()];
-    if let Some(base) = stem.strip_suffix("-armor") {
-        bases.push(base.to_owned());
+    if let Some(stem) = rig_part_id.strip_suffix("-pair") {
+        let mut bases = vec![stem.to_owned()];
+        if let Some(base) = stem.strip_suffix("-armor") {
+            bases.push(base.to_owned());
+        }
+        if bases.iter().any(|base| {
+            output_part_id == format!("{base}-left") || output_part_id == format!("{base}-right")
+        }) {
+            return true;
+        }
     }
-    bases.iter().any(|base| {
-        output_part_id == format!("{base}-left") || output_part_id == format!("{base}-right")
-    })
+
+    // Some detail programs expose the authored single-side armor as the
+    // simpler visible sink (`shoulder-left`/`shoulder-right`).  Keep this
+    // alias exact and bilateral-side aware; it must not turn into a fuzzy
+    // substring match or allow a left proposal to reach the right sink.
+    fixed_armor_side_alias(rig_part_id).is_some_and(|alias| alias == output_part_id)
+        || fixed_armor_side_alias(output_part_id).is_some_and(|alias| alias == rig_part_id)
+}
+
+fn fixed_armor_side_alias(part_id: &str) -> Option<String> {
+    let (stem, side) = if let Some(stem) = part_id.strip_suffix("-left") {
+        (stem, "left")
+    } else if let Some(stem) = part_id.strip_suffix("-right") {
+        (stem, "right")
+    } else {
+        return None;
+    };
+    let base = stem.strip_suffix("-armor")?;
+    Some(format!("{base}-{side}"))
 }
 
 fn collect_geometry_node_indices(
@@ -17158,6 +17178,36 @@ mod tests {
         assert_eq!(applied, 1);
         assert_eq!(materialized["nodes"][0]["parameters"]["radius_m"], 0.36);
         assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.36);
+    }
+
+    #[test]
+    fn rig_materialization_maps_exact_armored_side_to_unarmored_sink_only() {
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-rig-exact-armor-side-alias",
+            "nodes":[
+                {"node_id":"shoulder-left","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"sphere","radius_m":0.3,"longitude_segments":12,"latitude_segments":8,"position_m":[-0.8,2.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"shoulder-right","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"sphere","radius_m":0.3,"longitude_segments":12,"latitude_segments":8,"position_m":[0.8,2.0,0.0],"rotation_rad":[0.0,0.0,0.0]}}
+            ],
+            "part_outputs":[
+                {"part_id":"shoulder-left","input_node_ids":["shoulder-left"],"material_zone_id":"zone-white-shell","solid":true},
+                {"part_id":"shoulder-right","input_node_ids":["shoulder-right"],"material_zone_id":"zone-white-shell","solid":true}
+            ],
+            "canonical_sha256":""
+        });
+        let rig = json!({"parameters":[
+            {"parameter_id":"shoulder-left-width","part_id":"shoulder-armor-left","semantic":"width","value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"ratio"}
+        ]});
+        let selected = vec![json!({"parameter_id":"shoulder-left-width","part_id":"shoulder-armor-left","value":1.2})];
+        assert!(rig_part_matches_output("shoulder-armor-left", "shoulder-left"));
+        assert!(rig_part_matches_output("shoulder-left", "shoulder-armor-left"));
+        assert!(!rig_part_matches_output("shoulder-armor-left", "shoulder-right"));
+
+        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None)
+            .expect("materialize exact armored side alias");
+        assert_eq!(applied, 1);
+        assert_eq!(materialized["nodes"][0]["parameters"]["radius_m"], 0.36);
+        assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.3);
     }
 
     #[test]
