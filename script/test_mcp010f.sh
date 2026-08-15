@@ -31,7 +31,12 @@ source = Path("scripts/probe_mcp010c_codex_cli.py").read_text(encoding="utf-8")
 for parameter_id in ("upper-arm-height", "forearm-height", "thigh-height", "shin-height", "elbow-offset-y", "knee-offset-y"):
     assert f'"parameter_id": "{parameter_id}"' in source
 assert '"max_evaluations": 64' in source
-print("MCP010F source route includes bounded Primary Form limb-length and vertical-placement controls")
+assert '"--part-contour-sequence"' in source
+assert 'def parse_bound_silhouette_turn' in source
+assert 'def run_primary_form_repair_step' in source
+assert 'primary_form_repair_steps' in source
+assert 'silhouette observation before composition step' in source
+print("MCP010F source route includes bounded Primary Form controls and candidate-bound composition sequence")
 PY
 
 INVENTORY_ROOT="$F_GATE_TARGET/reference-inventory"

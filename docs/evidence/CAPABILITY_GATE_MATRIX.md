@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Stage 0 Runtime source snapshot synchronization：`current-benchmark-truth.json` 的 Runtime visible-view policy hash 已同步到当前已提交源码，`check_mcp010f_stage0_truth.py` 通过。同步只修复 source-truth freshness，不改变 8 项 visible-view thresholds、`camera=MISMATCH`、`QUALITY_TARGET_NOT_MET`、`BLOCKED_INCOMPLETE_BINDING` 或 Viewer Runtime-only quality authority；真实组合仍因授权 PNG 字节不可用而 `NOT_RUN/BLOCKED_REFERENCE_BYTES_UNAVAILABLE`。
+
 2026-08-15 Primary Form hip-pair bounded candidate Gate：r21 在 cohort `726153a3…42ab5c` 完成 60 次 Runtime-owned fit，source/proposal loss `0.426350916959`/`0.426265642648` 严格改善，生成 staged `candidate-2dc5728da7124288b6ff79a0fb6b4f00`，camera `PASS_SILHOUETTE_FIT_TO_COMPARE`、九 AOV/readback 与 no-persistent-side-effect 通过。全局 compare 仍为 IoU `0.743473474034`、Boundary F1 `0.301145366407`、bbox `0.0234375`、centroid `0.021831234764`、`QUALITY_TARGET_NOT_MET`、hard gate false；未 confirm/version/export。该 Gate 与 r19/r20 是相互独立的 bounded candidate/transport PASS_WITH_QUALITY_TARGET_NOT_MET，不是 likeness/high-quality PASS，也不替换 Stage 0 provisional truth。
 
 2026-08-15 Primary Form chest-shell bounded candidate Gate：r20 在 cohort `726153a3…42ab5c` 完成 61 次 Runtime-owned fit，source/proposal loss `0.426350916959`/`0.416406210214` 严格改善，生成 staged `candidate-d9d8cb24b1c5475d85b773c3ceb032c7`，camera `PASS_SILHOUETTE_FIT_TO_COMPARE`、九 AOV/readback 与 no-persistent-side-effect 通过。全局 compare 仍为 IoU `0.739507057324`、Boundary F1 `0.314765400977`、bbox `0.013671875`、centroid `0.020515796935`、`QUALITY_TARGET_NOT_MET`、hard gate false；未 confirm/version/export。该 Gate 为 bounded candidate/transport PASS_WITH_QUALITY_TARGET_NOT_MET，不是 likeness/high-quality PASS，也不替换 Stage 0 provisional truth。
