@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 Agentic canonical observation MCP dispatch handoff：修复 `InProcess` adapter 的观察绑定回退。`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 现在必须把调用方提交的 `observation_sha256` 交给 Runtime bound projection；缺失/stale hash 立即 fail closed，与 authenticated IPC 路径一致。MCP 全量 `56 passed / 0 failed`；没有新的 Runtime/CAS、likeness 或 Viewer 质量证据，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Primary Form output-level offset sink handoff：Runtime 修复了 `offset_x/offset_y/offset_z/scale` 在 mirror/array 拓扑上的落点错误。现在 width/height/depth 仍作用于源几何节点；整体 camera-plane 位移/缩放则在 Part 输出后的复用 `forgecad.geometry.transform@2` 上物化，避免双侧镜像把一次整体偏移变成左右相反的间距变化。mirror/direct-output materialization regressions 通过，Stage 0 Runtime hash 已同步；没有新的真实 likeness receipt，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，未 confirm/version/export。
 
 2026-08-15 Primary Form exact evaluation ledger handoff：Runtime 修复了 bounded search 的执行计数与阶段预算漂移。64 上限现在固定为 `40 geometry + 15 initial camera + 9 winner refit`，与实际 15 个初始 camera variants 对齐；每个 refit camera row 都在 source/proposal batch 渲染后计入 `camera_refit_evaluations`，即使 strict same-camera acceptance 保留 authored source，也不会再把一次真实 Worker evaluation 从总数中漏掉。focused budget 与 Primary Form fixture 通过，fixture 现要求 `evaluations=64`。这只修复 Runtime 收敛账本，不代表视觉收敛或质量通过；没有新的授权参考 receipt，仍保留 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`INCOMPLETE_TRUTH_BINDING`/`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。

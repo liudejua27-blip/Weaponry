@@ -3008,19 +3008,35 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         }
         "agentic_stage_plan" => {
             let project_id = required_id(arguments, "project_id")?;
+            let observation_sha256 = required_sha256(arguments, "observation_sha256")?;
             runtime
-                .agentic_stage_plan(
+                .agentic_stage_plan_bound(
                     project_id,
                     arguments.get("candidate_id").and_then(Value::as_str),
+                    observation_sha256,
                 )
                 .map_err(|error| error.to_string())
         }
         "agentic_critic_projection" => {
             let project_id = required_id(arguments, "project_id")?;
+            let observation_sha256 = required_sha256(arguments, "observation_sha256")?;
             runtime
-                .agentic_critic_projection(
+                .agentic_critic_projection_bound(
                     project_id,
                     arguments.get("candidate_id").and_then(Value::as_str),
+                    observation_sha256,
+                )
+                .map_err(|error| error.to_string())
+        }
+        "agentic_visual_evidence_bundle" => {
+            let project_id = required_id(arguments, "project_id")?;
+            let candidate_id = required_id(arguments, "candidate_id")?;
+            let observation_sha256 = required_sha256(arguments, "observation_sha256")?;
+            runtime
+                .agentic_visual_evidence_bundle_bound(
+                    project_id,
+                    candidate_id,
+                    observation_sha256,
                 )
                 .map_err(|error| error.to_string())
         }
@@ -4262,6 +4278,52 @@ mod tests {
         assert!(unavailable["result"]["structuredContent"]["message"]
             .as_str()
             .is_some_and(|message| message.contains("project not found")));
+    }
+
+    #[test]
+    fn in_process_agentic_followups_consume_the_canonical_observation() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("agentic-observation-binding", json!({"profile":"test"}))
+            .expect("project");
+        let project_id = project.project_id.clone();
+        let observation = runtime
+            .agentic_scene_observe(&project_id, None)
+            .expect("observation");
+        let observation_sha256 = observation["canonical_sha256"]
+            .as_str()
+            .expect("observation hash")
+            .to_owned();
+
+        let stage_plan = dispatch_in_process(
+            &runtime,
+            "agentic_stage_plan",
+            &json!({
+                "project_id": project_id.clone(),
+                "observation_sha256": observation_sha256,
+            }),
+        )
+        .expect("bound stage plan");
+        assert_eq!(stage_plan["schema_version"], "DesignStagePlan@1");
+
+        let stale = dispatch_in_process(
+            &runtime,
+            "agentic_critic_projection",
+            &json!({
+                "project_id": project_id.clone(),
+                "observation_sha256": "f".repeat(64),
+            }),
+        )
+        .expect_err("stale observation must fail closed");
+        assert!(stale.contains("AGENTIC_OBSERVATION_STALE"));
+
+        let missing = dispatch_in_process(
+            &runtime,
+            "agentic_stage_plan",
+            &json!({"project_id": project_id}),
+        )
+        .expect_err("missing observation hash must be rejected");
+        assert!(missing.contains("observation_sha256"));
     }
 
     #[test]

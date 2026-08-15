@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D source-focused PASS_WITH_DEFERRED_BOOLEAN_AND_VISUAL_GATES（当前 packaged D 结构性探针 PASS，视觉门 NOT_RUN）`；`FGC-MCP010E source-focused PASS_WITH_DEFERRED_EXTERNAL_GATES（当前 packaged E 结构性探针 PASS，但视觉/人评/导出仍 NOT_RUN）`；唯一 `in_progress` 为 `FGC-MCP010F`（Viewer source、packaged CLI read-model、原生窗口与核心控件 smoke PASS；同一 provisional observation 的 packaged Viewer 绑定、正式 VoiceOver、人评和 360 仍 `NOT_RUN/BLOCKED`）。ADR-0026 已新增 Agentic Design Runtime 目标架构；它不改变当前 F 状态。
 
+2026-08-15 Agentic canonical observation MCP dispatch Gate：MCP `InProcess` transport 已与 authenticated Runtime IPC 使用相同的 bound projection 语义；stage/critic/evidence follow-up 缺失或 stale `observation_sha256` 会 fail closed，不能回退到独立观察重建。MCP 全量 56 tests 通过；无新 Schema/tool/CAS 或真实视觉证据，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 与人评/PBR/export-restart/360 状态不变。
+
 2026-08-15 Primary Form output-level offset sink：对 mirror/array Part，camera-plane `offset_x/offset_y/offset_z/scale` 必须落在完整 output graph 后的 Runtime-owned typed Transform；源节点只接受 width/height/depth 等局部几何控制。这样 bilateral Part 的整体平移不会被镜像拓扑误解为左右间距变化。该 source/focused Gate 没有新的真实 likeness receipt，视觉状态继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Agentic observation cache source Gate：Runtime 为完整 `AgenticSceneObserveResult@1` 增加 bounded process-local canonical-hash cache；bound plan/critic/evidence/action follow-up 在同一 Runtime 会话消费原观察，cache miss 时重建并严格验证 hash/scope。它不写 Runtime/CAS、不新增 Schema/tool，也不改变 Viewer 质量权威；focused Runtime tests PASS，真实 composition/likeness 仍 `NOT_RUN` 或 `QUALITY_TARGET_NOT_MET`。

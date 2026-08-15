@@ -56,7 +56,7 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "a0786f02927bd14b425f6d33e99e88c5bc1af781d9a96245ba0be390bfe6341b",
+  "canonical_sha256": "2c4515f83f077dd0cc8907e5d1c187a62a1fff74e28c6247c782302d9c571a63",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -108,7 +108,7 @@
         "visual_evidence_bundle_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "367800d4eedad46a8c262bd4b8fa338bfc0623c5b4f755e50c23dfe265542c41",
+      "source_sha256": "3c66c1e233efaf547ae36e3af06170b8499798c43710d7c50875806965ffcf8c",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
       "summary_receipt_sha256": "cd8b5930cdf173322d2e61ab54831dfbaab3d00877b74450cc2730e85472b220",
       "total_count": 61,
