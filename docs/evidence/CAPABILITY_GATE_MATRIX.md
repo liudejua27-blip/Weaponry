@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Primary Form 单 Part Runtime-owner Gate：`scripts/probe_mcp010f_part_correction.py` 现在只执行 authored baseline、Runtime camera/observation/Rig hash 和一次 `primary_form_repair_prepare`；连续搜索不再由 Codex/Python 负责。`part_contour_rig_draft` 的 offset 控制使用 meter 单位，Runtime 返回的 `PrimaryFormRepairPrepareResult@1` 是唯一 staged/no-improvement authority；脚本不再生成 fraction candidates、patch GeometryProgram、调用 `silhouette_candidate_compare` 或做本地非回归接受。MCP010F full Gate、contracts、Viewer source、desktop build 和 focused Runtime tests PASS；无新的真实参考/likeness receipt，故仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`INCOMPLETE_TRUTH_BINDING`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 Primary Form profile-loft height sink Gate：Runtime 将 `height` proposal 映射到 `forgecad.geometry.profile-loft@1` 的 `profiles[*].height_m` station span，保持首站锚点并不修改 profile point depth；`profile-extrude` 既有行为回归通过。7 个 materialization tests、Runtime `122 passed / 0 failed / 12 ignored`、MCP010F full Gate 与 Stage 0 source-truth checker PASS。该 Gate 只修复 typed geometry sink，不产生新的真实 likeness/quality receipt；`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态保持不变。
 
 2026-08-15 Durable Agentic lineage Gate：session/checkpoint/action 的 observation claims 现在必须同时匹配 current candidate/reference 的 ID、candidate canonical hash、reference object hash 与 reference canonical hash；缺失或漂移返回 fail-closed binding error。exact-lineage unit、Agentic projection 与 bounded action regressions PASS；不新增 Schema/tool/CAS，不产生 Repair/confirm/version/export 或视觉质量结论，仍为 `QUALITY_TARGET_NOT_MET` / `MISMATCH` / `BLOCKED_INCOMPLETE_BINDING`。

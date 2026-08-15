@@ -22,7 +22,15 @@ assert '"shoulder-armor-right": "shoulder-armor-right"' in source
 assert '"shin-pair": "shin-left"' in source
 assert '--target-mode' in source
 assert 'def part_parameter_prefix' in source
-print("MCP010F part-correction probe reads ponytail-preflight before design tools and supports bounded shoulder/shin Parts")
+assert 'primary_form_repair_prepare' in source
+assert 'scene_observe_get' in source
+assert 'silhouette_rig_hash' in source
+assert 'runtime_search_owner": "forgecad-runtime"' in source
+assert 'for fraction in (0.4, 0.7, 1.0)' not in source
+assert 'apply_part_adjustment' not in source
+assert 'silhouette_candidate_compare' not in source
+assert 'part_contour_fit_prepare' not in source
+print("MCP010F part-correction probe uses one Runtime-owned Primary Form repair and consolidated observation")
 PY
 python3 - <<'PY'
 from pathlib import Path
