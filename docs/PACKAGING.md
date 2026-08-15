@@ -1,5 +1,7 @@
 # ForgeCAD Runtime 打包合同
 
+2026-08-15 live/package cohort refresh：当前 `abae43f3` 已重建并安装用户级 `ForgeCAD Runtime Dev.app`，MCP/Runtime/Geometry Worker/Render Worker 四资源 cohort `5a1f108a…e2dd2f` exact-match；ad-hoc deep-strict、resource allowlist、隔离 Runtime/project/preflight probe 均 PASS，旧包以 timestamped backup 保留。新包 manifest 为 37 read + 24 opt-in write；安装与 probe receipt 位于 `docs/evidence/mcp010f/dev-app-install-live-cohort-20260815.json` 和 `docs/evidence/mcp010f/dev-app-live-cohort-probe-20260815.json`。当前 Codex MCP 会话仍缓存旧 `7f9e4c…ee518`/旧 manifest `05fca3…d4d0a`，必须重新建立会话才能验证 live tool surface；本次不升级真实 likeness、PBR、人评、export/restart 或 360。
+
 版本：2026-08-09
 状态：MCP013 正式发布合同；不阻塞 MCP005–009 开发 MVP，当前不可外部分发
 

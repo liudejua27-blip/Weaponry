@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 live/package cohort alignment：当前 `abae43f3` 已重建并安装到用户级 `ForgeCAD Runtime Dev.app`，四个 packaged executable 共享 cohort `5a1f108a…e2dd2f`；ad-hoc deep-strict、四资源 allowlist、隔离 Runtime `Ready`、project create 与 Ponytail preflight probe 通过，`persistent_user_data_touched=false`。安装/probe receipt 为 `docs/evidence/mcp010f/dev-app-install-live-cohort-20260815.json` 与 `docs/evidence/mcp010f/dev-app-live-cohort-probe-20260815.json`。当前 Codex 进程中的已连接 MCP 仍是旧 `7f9e4c…ee518`/旧 manifest `05fca3…d4d0a`，因此不能把新包安装 PASS 当作 live authoring PASS；需要新 MCP 会话后再复跑真实参考闭环。视觉质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Primary Form resolution-consistent fit：`silhouette_fit_prepare` 的 Runtime-owned camera/geometry search 已与最终 same-camera acceptance 统一为 512×512 isolated Render Worker fit batch；普通 camera 粗搜保持 128×128 bounded accelerator。该修复解决 fit objective 与 QualityReport acceptance 的分辨率漂移，不新增 candidate/version/CAS 或真实视觉 likeness 证据；权威状态仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Viewer Agentic evidence binding hardening：Viewer 在已有完整视觉证据绑定时，不再接受 Runtime Agentic projection 缺少任一 artifact/reference/render-set/comparison/quality hash；完整等值才标记 projection ready，缺失/漂移为 `AGENTIC_EVIDENCE_BINDING_MISMATCH`。Viewer source Gate、Node behavior check、desktop typecheck/build 与 MCP010F full Gate 通过。无新增 Schema/tool/CAS 或真实视觉 receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态保持不变。

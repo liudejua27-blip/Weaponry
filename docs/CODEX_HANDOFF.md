@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 live/package cohort handoff：`abae43f3` 已按同一源码 revision 重建并安装用户级 Dev.app；MCP/Runtime/Geometry Worker/Render Worker cohort 为 `5a1f108a…e2dd2f`，package deep-strict、resource allowlist、隔离 Runtime Ready/project/preflight probe 通过，且 `persistent_user_data_touched=false`。新包工具面为 37 read + 24 opt-in write。当前对话已有的 MCP 连接仍绑定旧 `7f9e4c…ee518` cohort/旧 manifest `05fca3…d4d0a`，要开始 live authoring 必须新建 MCP 会话；因此没有把 package receipt 绑定到任何机器人 candidate 或视觉 benchmark。当前质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Primary Form resolution-consistent fit handoff：修复 Primary Form 搜索与最终接受门使用不同分辨率的问题。`silhouette_fit_prepare` 的相机邻域与 Geometry Worker proposal 现在走 512×512 isolated Render Worker fit batch；普通 camera-fit 仍保留 128×128 粗搜。Runtime focused/full tests、MCP010F 聚合门与 product workspace check 已通过；没有新的 likeness receipt，真实质量账本继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Viewer Agentic evidence binding handoff：Viewer 已有 candidate-bound visual evidence 时，`agentic-design.ts` 的 normalizer 现在要求五个 Runtime evidence hash 逐项完整匹配；缺 hash 或 hash drift 会返回 `AGENTIC_EVIDENCE_BINDING_MISMATCH`，不再将缺失字段视为可兼容的 ready projection。没有视觉绑定时保留 unknown/结构状态。source Gate、Node behavior、desktop build 与 MCP010F full Gate 通过；没有新的真实 likeness receipt，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。

@@ -1,5 +1,7 @@
 # FGC-MCP010 高质量硬表面参考闭环计划
 
+2026-08-15 live/package cohort alignment Gate：以当前 `abae43f3` 源码 revision 重建并安装用户级 Dev.app，MCP/Runtime/Geometry Worker/Render Worker cohort `5a1f108a…e2dd2f` 一致；package deep-strict、四资源 allowlist、隔离 Ready/project/preflight probe 通过，包内工具面为 37 read + 24 opt-in write。当前线程已经建立的 Codex MCP 连接仍暴露旧 `7f9e4c…ee518` cohort 和旧 manifest `05fca3…d4d0a`，需要重新建立 MCP 会话后才可执行 live authoring；本 Gate 不绑定任何新 candidate/reference/RenderSet，也不改变 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或人评/PBR/export-restart/360 状态。
+
 2026-08-15 Primary Form resolution-consistent fit Gate：Runtime-owned `silhouette_fit_prepare` 的相机邻域和 geometry trial 已改用 512×512 isolated Render Worker fit batch，与最终 same-camera acceptance 使用同一分辨率；普通 camera-fit 的 128×128 粗搜不变。该 Gate 只消除 Primary Form 的 objective resolution drift，不升级 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或人评/PBR/export-restart/360 状态。
 
 版本：2026-08-13
