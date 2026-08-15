@@ -1021,7 +1021,7 @@ def primary_form_repair_prompt(request: dict[str, Any]) -> str:
 primary_form_repair_prepare with this exact JSON object: {request_json}
 
 This is the single Runtime-owned Primary Form repair action. It must consume the
-same target, camera reference, Rig and optimizer intent. Runtime owns the
+same target, canonical ReferenceViewSpec, camera reference, Rig and optimizer intent. Runtime owns the
 nested bounded silhouette fit and the Geometry Worker/Render Worker compare;
 do not call silhouette_fit_prepare separately, do not edit any parameter, and
 do not call geometry_prepare, render, compare, confirm or export separately in
@@ -1042,6 +1042,7 @@ def run_primary_form_repair_step(
     target_sha256: str,
     camera_ref: dict[str, Any],
     rig_sha256: str,
+    view_spec: dict[str, Any],
     part_id: str | None,
     label: str,
 ) -> dict[str, Any]:
@@ -1054,6 +1055,7 @@ def run_primary_form_repair_step(
         "target_sha256": target_sha256,
         "rig": rig,
         "base_camera": camera_ref,
+        "view_spec": view_spec,
         "optimizer": {
             "algorithm": "coordinate_descent",
             "max_iterations": 2,
@@ -1583,6 +1585,7 @@ def main() -> int:
                             silhouette_target_sha or "",
                             camera_ref,
                             silhouette_rig_sha,
+                            spec,
                             part_id,
                             f"Primary Form composition step {step_index + 1}",
                         )

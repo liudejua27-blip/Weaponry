@@ -7,7 +7,7 @@
 
 Stage 0 机器真值读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，候选状态是 `QUALITY_TARGET_NOT_MET`，证据完整性是 `INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`，packaged Viewer 为不同 cohort/artifact，尚未绑定该 observation。工具或 Viewer 已实现不等于这些缺口已通过，也不能提升 human/PBR/export-restart/360 状态。
 
-<!-- forgecad-stage0: schemas=103 schema_set_sha256=01218d921dd05574835d5762c8b64c72332b61a58eba6cdb20d0190d4b658a47 read_tools=37 write_tools=24 total_tools=61 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json latest_completed=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json -->
+<!-- forgecad-stage0: schemas=103 schema_set_sha256=cc5042eccde20e61618e4fcc5fdcea93e0e92f1add84dd6247922ca5e44db8ae read_tools=37 write_tools=24 total_tools=61 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json latest_completed=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json -->
 
 ## 1. MVP 运行边界
 

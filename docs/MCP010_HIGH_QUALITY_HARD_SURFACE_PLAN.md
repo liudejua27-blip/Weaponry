@@ -82,7 +82,7 @@ Stage 0 机器真值唯一入口为 `docs/evidence/mcp010f/current-benchmark-tru
 
 2026-08-15 Primary Form local-group convergence follow-up：when the Runtime joint evidence proposal is rejected, the bounded geometry phase now tests Part-local coupled width/height/offset hypotheses before scalar coordinate probes. This preserves the Runtime/Worker ownership boundary and does not expose a continuous search trace to Codex; focused tests pass, but no new real reference receipt has been generated and the previous visual truth remains below gate.
 
-<!-- forgecad-stage0: schemas=103 schema_set_sha256=01218d921dd05574835d5762c8b64c72332b61a58eba6cdb20d0190d4b658a47 read_tools=37 write_tools=24 total_tools=61 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json latest_completed=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json -->
+<!-- forgecad-stage0: schemas=103 schema_set_sha256=cc5042eccde20e61618e4fcc5fdcea93e0e92f1add84dd6247922ca5e44db8ae read_tools=37 write_tools=24 total_tools=61 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json latest_completed=real-codex-cli-current-20260814-primary-form-runtime-owned-r3.json -->
 
 本文是 MCP010A–F 的唯一详细执行合同。它不改写 MCP005–009 的历史 evidence，也不把目标 Schema、工具、Skill、库或素材写成当前能力。
 

@@ -1360,7 +1360,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         })?;
         validate_request_keys(
             object,
-            &["project_id", "candidate_id", "target_sha256", "rig", "base_camera", "optimizer", "canonical_sha256"],
+            &["project_id", "candidate_id", "target_sha256", "rig", "base_camera", "optimizer", "view_spec", "canonical_sha256"],
             "silhouette_fit_prepare",
         )?;
         let intent_hash = required_value_sha(object.get("canonical_sha256"), "canonical_sha256")?;
@@ -1382,6 +1382,34 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         }
         let target = self.read_silhouette_target(target_sha256)?;
         let target_mask = self.target_mask(target_sha256, &target)?;
+        // A Primary Form request may carry the exact ReferenceViewSpec used by
+        // the canonical observe/compare turn.  Validate it against the
+        // hash-bound target reference before allowing it into the bounded
+        // objective; an omitted spec keeps the historical landmark-only
+        // compatibility path for older callers and unit fixtures.
+        let fit_view_spec = if let Some(view_spec) = object.get("view_spec") {
+            let target_reference_id = required_value_id(target.get("reference_id"), "reference_id")?;
+            let reference = self.reference(target_reference_id)?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: silhouette fit target reference not found".to_owned(),
+                )
+            })?;
+            if reference.project_id != project_id {
+                return Err(RuntimeError::InvalidInput(
+                    "REFERENCE_SCOPE_DENIED: silhouette fit target reference is outside the project"
+                        .to_owned(),
+                ));
+            }
+            validate_reference_view_spec(view_spec, &reference).map_err(|error| {
+                RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_INVALID: view_spec: {error}"))
+            })?;
+            view_spec.clone()
+        } else {
+            json!({
+                "landmarks":target.get("landmarks").cloned().unwrap_or_else(|| json!([])),
+                "regions":[]
+            })
+        };
         let rig = object.get("rig").ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: rig is required".to_owned()))?;
         validate_silhouette_rig(rig, candidate_id).map_err(|error| {
             // The validator already emits a stable stage-prefixed error.  Keep
@@ -1602,10 +1630,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .iter()
                     .find(|pass| pass.pass == "part-id")
                     .map(|pass| (pass.png.as_slice(), inspection.part_ids.as_slice()));
-                let loss_metrics = primary_form_ranking_metrics(
+                let loss_metrics = primary_form_ranking_metrics_with_view_spec(
                     &metrics,
+                    &target_mask.mask,
                     &model_mask,
-                    target.get("landmarks"),
+                    &fit_view_spec,
                     part_context,
                 );
                 let loss = camera_fit_loss(&loss_metrics);
@@ -1684,10 +1713,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let part_context = selected_part_png
                     .as_deref()
                     .map(|part_png| (part_png, inspection.part_ids.as_slice()));
-                primary_form_ranking_metrics(
+                primary_form_ranking_metrics_with_view_spec(
                     &metrics,
+                    &target_mask.mask,
                     &selected_model_mask,
-                    target.get("landmarks"),
+                    &fit_view_spec,
                     part_context,
                 )
             });
@@ -1974,10 +2004,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .first()
                     .and_then(|batch| batch.iter().find(|pass| pass.pass == "part-id"))
                     .map(|pass| (pass.png.as_slice(), variant_inspection.part_ids.as_slice()));
-                let loss_metrics = primary_form_ranking_metrics(
+                let loss_metrics = primary_form_ranking_metrics_with_view_spec(
                     &variant_metrics,
+                    &target_mask.mask,
                     &model_mask,
-                    target.get("landmarks"),
+                    &fit_view_spec,
                     part_context,
                 );
                 // Geometry trials must use the same evidence-weighted loss as
@@ -2118,10 +2149,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                             .map(|pass| (pass.png.as_slice(), inspection.part_ids.as_slice()));
                         let source_metrics =
                             extended_silhouette_metrics(&target_mask.mask, &source_model_mask);
-                        let source_ranking_metrics = primary_form_ranking_metrics(
+                        let source_ranking_metrics = primary_form_ranking_metrics_with_view_spec(
                             &source_metrics,
+                            &target_mask.mask,
                             &source_model_mask,
-                            target.get("landmarks"),
+                            &fit_view_spec,
                             source_part_context,
                         );
                         let silhouette = passes
@@ -2144,10 +2176,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                             .map(|pass| (pass.png.as_slice(), inspection.part_ids.as_slice()));
                         let candidate_metrics =
                             extended_silhouette_metrics(&target_mask.mask, &model_mask);
-                        let loss_metrics = primary_form_ranking_metrics(
+                        let loss_metrics = primary_form_ranking_metrics_with_view_spec(
                             &candidate_metrics,
+                            &target_mask.mask,
                             &model_mask,
-                            target.get("landmarks"),
+                            &fit_view_spec,
                             part_context,
                         );
                         // Do not let a proposal that is merely better than
@@ -2272,6 +2305,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "rig",
                 "base_camera",
                 "optimizer",
+                "view_spec",
                 "base_version_id",
                 "canonical_sha256",
             ],
@@ -2442,7 +2476,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         // A fit winner is not accepted merely because its transient camera
         // loss improved; the source artifact must survive the same final
         // 512px Render Worker comparison before a new candidate is staged.
-        let view_spec = primary_form_view_spec(&reference, &target, target_sha256)?;
+        let view_spec = if let Some(view_spec) = object.get("view_spec") {
+            validate_reference_view_spec(view_spec, &reference).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRIMARY_FORM_REPAIR_INVALID: view_spec: {error}"
+                ))
+            })?;
+            view_spec.clone()
+        } else {
+            primary_form_view_spec(&reference, &target, target_sha256)?
+        };
         let source_compare = compare_glb_metrics_at_camera(
             self,
             project_id,
@@ -9888,6 +9931,46 @@ fn primary_form_ranking_metrics(
     metrics
 }
 
+/// Extend the transient Primary Form ranking snapshot with the exact visible
+/// regions from the canonical ReferenceViewSpec.  The public fit result keeps
+/// its stable five-field metrics, while the Runtime-owned comparator now sees
+/// the same landmark/region evidence that the final candidate comparison uses.
+fn primary_form_ranking_metrics_with_view_spec(
+    base: &Value,
+    reference: &[bool],
+    model: &[bool],
+    view_spec: &Value,
+    part_context: Option<(&[u8], &[String])>,
+) -> Value {
+    let mut metrics = primary_form_ranking_metrics(
+        base,
+        model,
+        view_spec.get("landmarks"),
+        part_context,
+    );
+    let region_scores = region_metrics(reference, model, view_spec);
+    if !region_scores.is_empty() {
+        let mut sorted = region_scores.clone();
+        sorted.sort_by(|left, right| {
+            left.partial_cmp(right)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let median = sorted[sorted.len() / 2];
+        let critical = region_scores.iter().copied().fold(1.0, f64::min);
+        if let Some(object) = metrics.as_object_mut() {
+            object.insert(
+                "region_median_iou".to_owned(),
+                Value::from(stable_visual_metric(median)),
+            );
+            object.insert(
+                "critical_region_min_iou".to_owned(),
+                Value::from(stable_visual_metric(critical)),
+            );
+        }
+    }
+    metrics
+}
+
 fn transient_loss_metrics_with_parts(
     base: &Value,
     model: &[bool],
@@ -16189,6 +16272,57 @@ mod tests {
         assert_eq!(candidate["landmark_coverage"], 0.0);
         assert!(primary_form_metrics_improve(&baseline, &candidate));
         assert!(!primary_form_metrics_improve(&candidate, &baseline));
+    }
+
+    #[test]
+    fn primary_form_view_spec_regions_enter_only_the_transient_ranking_snapshot() {
+        let mut reference_mask = vec![false; 512 * 512];
+        for y in 128..384 {
+            for x in 128..384 {
+                reference_mask[y * 512 + x] = true;
+            }
+        }
+        let candidate_mask = vec![false; 512 * 512];
+        let base = json!({
+            "silhouette_iou": 0.8,
+            "boundary_f1_4px": 0.8,
+            "bbox_edge_error": 0.1,
+            "centroid_error": 0.1,
+            "sdf_chamfer_px": 10.0
+        });
+        let view_spec = json!({
+            "landmarks":[],
+            "regions":[{
+                "region_id":"chest-armor",
+                "x":0.25,
+                "y":0.25,
+                "width":0.5,
+                "height":0.5,
+                "visibility":"observed",
+                "confidence":1.0
+            }]
+        });
+        let baseline = primary_form_ranking_metrics_with_view_spec(
+            &base,
+            &reference_mask,
+            &reference_mask,
+            &view_spec,
+            None,
+        );
+        let candidate = primary_form_ranking_metrics_with_view_spec(
+            &base,
+            &reference_mask,
+            &candidate_mask,
+            &view_spec,
+            None,
+        );
+
+        assert_eq!(baseline["region_median_iou"], 1.0);
+        assert_eq!(baseline["critical_region_min_iou"], 1.0);
+        assert_eq!(candidate["region_median_iou"], 0.0);
+        assert_eq!(candidate["critical_region_min_iou"], 0.0);
+        assert!(primary_form_metrics_improve(&baseline, &candidate));
+        assert!(base.get("region_median_iou").is_none());
     }
 
     #[test]

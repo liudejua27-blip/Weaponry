@@ -806,6 +806,7 @@ fn read_only_tools() -> Vec<Value> {
                     "project_id":id_property(),"candidate_id":id_property(),"target_sha256":sha256_property(),
                     "rig":{"type":"object"},"base_camera":{"type":"object"},
                     "optimizer":{"type":"object","required":["algorithm","max_iterations","max_evaluations","step_fraction"],"properties":{"algorithm":{"enum":["grid","coordinate_descent"]},"max_iterations":{"type":"integer","minimum":1,"maximum":8},"max_evaluations":{"type":"integer","minimum":1,"maximum":64},"step_fraction":{"type":"number","minimum":0.000001,"maximum":0.5}},"additionalProperties":false},
+                    "view_spec":{"type":"object"},
                     "canonical_sha256":sha256_property()
                 },
                 "additionalProperties":false
@@ -1438,6 +1439,7 @@ fn mcp010f_write_tools() -> Vec<Value> {
                     "rig":{"type":"object"},
                     "base_camera":{"type":"object"},
                     "optimizer":{"type":"object","required":["algorithm","max_iterations","max_evaluations","step_fraction"],"properties":{"algorithm":{"enum":["grid","coordinate_descent"]},"max_iterations":{"type":"integer","minimum":1,"maximum":8},"max_evaluations":{"type":"integer","minimum":1,"maximum":64},"step_fraction":{"type":"number","minimum":0.000001,"maximum":0.5}},"additionalProperties":false},
+                    "view_spec":{"type":"object"},
                     "base_version_id":nullable_id_property(),
                     "canonical_sha256":sha256_property()
                 },
@@ -1461,6 +1463,7 @@ fn mcp010f_write_tools() -> Vec<Value> {
                     "rig":{"type":"object"},
                     "base_camera":{"type":"object"},
                     "optimizer":{"type":"object","required":["algorithm","max_iterations","max_evaluations","step_fraction"],"properties":{"algorithm":{"enum":["grid","coordinate_descent"]},"max_iterations":{"type":"integer","minimum":1,"maximum":8},"max_evaluations":{"type":"integer","minimum":1,"maximum":64},"step_fraction":{"type":"number","minimum":0.000001,"maximum":0.5}},"additionalProperties":false},
+                    "view_spec":{"type":"object"},
                     "base_version_id":nullable_id_property(),
                     "canonical_sha256":sha256_property()
                 },
@@ -3371,6 +3374,9 @@ fn canonicalize_silhouette_fit_wire(arguments: &Value) -> Result<Value, String> 
     if let Some(optimizer) = restored.get("optimizer").cloned() {
         restored["optimizer"] = normalize_optimizer_numbers(&optimizer);
     }
+    if let Some(view_spec) = restored.get("view_spec").cloned() {
+        restored["view_spec"] = normalize_reference_view_numbers(&view_spec);
+    }
     restored["canonical_sha256"] = Value::String(String::new());
     let restored_hash = canonical_json_hash(&restored);
     if supplied != wire_hash && supplied != restored_hash {
@@ -3378,6 +3384,42 @@ fn canonicalize_silhouette_fit_wire(arguments: &Value) -> Result<Value, String> 
     }
     restored["canonical_sha256"] = Value::String(restored_hash);
     Ok(restored)
+}
+
+fn normalize_reference_view_numbers(value: &Value) -> Value {
+    let Some(object) = value.as_object() else {
+        return value.clone();
+    };
+    Value::Object(
+        object
+            .iter()
+            .map(|(key, child)| {
+                let normalized = if key == "image" {
+                    child
+                        .as_object()
+                        .map(|image| {
+                            Value::Object(
+                                image
+                                    .iter()
+                                    .map(|(image_key, image_child)| {
+                                        let normalized = if matches!(image_key.as_str(), "width" | "height") {
+                                            image_child.clone()
+                                        } else {
+                                            normalize_continuous_numbers(image_child, false)
+                                        };
+                                        (image_key.clone(), normalized)
+                                    })
+                                    .collect(),
+                            )
+                        })
+                        .unwrap_or_else(|| child.clone())
+                } else {
+                    normalize_continuous_numbers(child, false)
+                };
+                (key.clone(), normalized)
+            })
+            .collect(),
+    )
 }
 
 fn normalize_continuous_numbers(value: &Value, preserve_resolution: bool) -> Value {
