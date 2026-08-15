@@ -110,9 +110,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="stop after candidate-bound boundary_error_get and persist its typed Part summary; skip AOV/review calls",
     )
+    parser.add_argument(
+        "--part-contour-part",
+        help="after boundary_error_get, request one Runtime-owned PartContourFitResult@1 for this exact semantic Part ID",
+    )
     options = parser.parse_args()
     if options.primary_form_repair and not options.silhouette_first:
         parser.error("--primary-form-repair requires --silhouette-first")
+    if options.part_contour_part and not options.silhouette_first:
+        parser.error("--part-contour-part requires --silhouette-first")
     return options
 
 
@@ -670,6 +676,28 @@ def silhouette_rig_draft(candidate_id: str) -> dict[str, Any]:
     }
 
 
+def part_contour_rig_draft(candidate_id: str, part_id: str) -> dict[str, Any]:
+    """Build one exact-Part typed Rig for the bounded contour proposal route.
+
+    Explicit left/right IDs are intentional: a pair Rig remains bilateral,
+    while this route can only move the semantic Part that the Runtime
+    Part-ID evidence selected.  Runtime still validates the candidate-bound
+    hash and returns a read-only proposal; it never edits or confirms a mesh.
+    """
+    safe_part_id = re.sub(r"[^A-Za-z0-9_.-]", "-", part_id).strip("-") or "part"
+    return {
+        "schema_version": "SilhouetteRig@1",
+        "rig_id": f"part-contour-{safe_part_id}",
+        "candidate_id": candidate_id,
+        "parameters": [
+            {"parameter_id": f"{safe_part_id}-width", "part_id": part_id, "semantic": "width", "value": 1.0, "min": 0.84, "max": 1.16, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": f"{safe_part_id}-height", "part_id": part_id, "semantic": "height", "value": 1.0, "min": 0.80, "max": 1.20, "step": 0.04, "unit": "ratio"},
+            {"parameter_id": f"{safe_part_id}-offset-x", "part_id": part_id, "semantic": "offset_x", "value": 0.0, "min": -0.35, "max": 0.35, "step": 0.05, "unit": "meter"},
+            {"parameter_id": f"{safe_part_id}-offset-y", "part_id": part_id, "semantic": "offset_y", "value": 0.0, "min": -0.45, "max": 0.45, "step": 0.05, "unit": "meter"},
+        ],
+    }
+
+
 def silhouette_prompt(project_id: str, candidate_id: str, target_sha256: str) -> str:
     rig = json.dumps(silhouette_rig_draft(candidate_id), ensure_ascii=False, separators=(",", ":"))
     return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
@@ -719,6 +747,22 @@ def boundary_error_prompt(project_id: str, candidate_id: str, target_sha256: str
     return f"""Use only the ForgeCAD MCP server. Call exactly one tool, then stop:
 boundary_error_get with {{"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"max_segments":16}}.
 This is candidate-bound evidence for project {json.dumps(project_id)}. Return only the largest directional segments and their Part IDs. Do not edit geometry or claim a likeness pass.
+"""
+
+
+def part_contour_prompt(project_id: str, candidate_id: str, target_sha256: str, part_id: str) -> str:
+    rig_draft = part_contour_rig_draft(candidate_id, part_id)
+    rig = json.dumps(rig_draft, ensure_ascii=False, separators=(",", ":"))
+    rig_with_placeholder = dict(rig_draft)
+    rig_with_placeholder["canonical_sha256"] = "RUNTIME_HASH"
+    rig_payload = json.dumps(rig_with_placeholder, ensure_ascii=False, separators=(",", ":"))
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
+
+This is one bounded single-Part contour decision for project {json.dumps(project_id)} and candidate {json.dumps(candidate_id)}. The exact semantic Part selected by Runtime boundary evidence is {json.dumps(part_id)}.
+Call exactly these two tools in order, then stop:
+1) silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}; save the Runtime-returned canonical_sha256.
+2) part_contour_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"part_id":{json.dumps(part_id)},"rig":{rig_payload}}}.
+In step 2 replace the literal RUNTIME_HASH inside rig.canonical_sha256 with the exact hash from step 1. Do not call silhouette_fit_prepare, geometry_prepare, render, compare, confirm or export. Return only the typed PartContourFitResult@1. This is a read-only proposal and is not a likeness or quality pass.
 """
 
 
@@ -1437,6 +1481,34 @@ def main() -> int:
                 if options.silhouette_first
                 else None
             )
+            part_contour_result: dict[str, Any] | None = None
+            part_contour_rig_sha256: str | None = None
+            part_contour_items: list[dict[str, Any]] = []
+            if options.part_contour_part:
+                part_contour_turn = run_codex_turn(
+                    options,
+                    environment,
+                    part_contour_prompt(
+                        project_id,
+                        candidate_id,
+                        silhouette_target_sha or "",
+                        options.part_contour_part,
+                    ),
+                    str(root),
+                )
+                turn_outputs.append(part_contour_turn)
+                part_contour_items = event_items(part_contour_turn.stdout)
+                part_contour_rig_result = structured_result(part_contour_items, "silhouette_rig_hash") or {}
+                part_contour_result = structured_result(part_contour_items, "part_contour_fit_prepare") or {}
+                part_contour_rig_sha256 = field(part_contour_rig_result, "canonical_sha256")
+                if not has_subsequence(
+                    call_sequence(part_contour_items),
+                    ("silhouette_rig_hash", "part_contour_fit_prepare"),
+                ) or not all_completed(
+                    part_contour_items,
+                    ("silhouette_rig_hash", "part_contour_fit_prepare"),
+                ):
+                    raise RuntimeError("Codex did not complete the single-Part contour sequence")
             if options.boundary_only:
                 all_items = [item for turn in turn_outputs for item in event_items(turn.stdout)]
                 side_effects = side_effect_summary(all_items)
@@ -1484,6 +1556,9 @@ def main() -> int:
                     "comparison_metrics": metrics,
                     "boundary_error": boundary_summary,
                     "boundary_error_count": len(field(boundary_result or {}, "segments") or []),
+                    "part_contour_part_id": options.part_contour_part,
+                    "part_contour_rig_sha256": part_contour_rig_sha256,
+                    "part_contour_fit": part_contour_result,
                     "quality_claim": "NO_LIKENESS_PASS_CLAIM; BOUNDARY_EVIDENCE_ONLY",
                     "geometry_route": options.geometry_route,
                     "geometry_variant": options.geometry_variant if options.geometry_route == "detail" else None,
@@ -1499,6 +1574,7 @@ def main() -> int:
                         "silhouette": list(SILHOUETTE_SEQUENCE),
                         "compare": list(COMPARE_SEQUENCE),
                         "boundary": ["boundary_error_get"],
+                        "part_contour": ["silhouette_rig_hash", "part_contour_fit_prepare"] if options.part_contour_part else [],
                         "render": [],
                         "review": [],
                     },
@@ -1664,6 +1740,9 @@ def main() -> int:
                 # next round from guessing a Part after the Runtime process
                 # is torn down.
                 "boundary_error": boundary_summary,
+                "part_contour_part_id": options.part_contour_part,
+                "part_contour_rig_sha256": part_contour_rig_sha256,
+                "part_contour_fit": part_contour_result,
                 "visual_review_status": field(review_report, "status"),
                 "quality_visual_status": field(quality_report, "visual_status"),
                 "quality_hard_gate_passed": field(quality_report, "hard_gate_passed"),
@@ -1675,6 +1754,7 @@ def main() -> int:
                     "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE) if options.silhouette_first else [],
                     "silhouette": list(SILHOUETTE_SEQUENCE) if options.silhouette_first else [],
                     "compare": [] if primary_form_runtime_compare else list(COMPARE_SEQUENCE),
+                    "part_contour": ["silhouette_rig_hash", "part_contour_fit_prepare"] if options.part_contour_part else [],
                     "primary_form_repair": list(PRIMARY_FORM_REPAIR_SEQUENCE) if options.primary_form_repair else [],
                     "render": list(RENDER_SEQUENCE),
                     "review": list(REVIEW_SEQUENCE),
@@ -1717,6 +1797,7 @@ def main() -> int:
                     "target": [call.get("tool") for call in mcp_calls(target_items)] if options.silhouette_first else [],
                     "observation": [call.get("tool") for call in mcp_calls(silhouette_turn_items)] if options.silhouette_first else [],
                     "fit": [call.get("tool") for call in mcp_calls(fit_items)] if options.silhouette_first else [],
+                    "part_contour": [call.get("tool") for call in mcp_calls(part_contour_items)] if options.part_contour_part else [],
                     "repair": [call.get("tool") for call in mcp_calls(primary_form_repair_items)] if options.primary_form_repair else [],
                 },
                 "canonical_observation": {

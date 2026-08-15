@@ -1027,7 +1027,10 @@ fn projected_part_boundary_mask(segments: &[Value], part_id: &str) -> Option<Vec
     let mut mask = vec![false; 512 * 512];
     let mut count = 0usize;
     for segment in segments {
-        if segment.get("part_id").and_then(Value::as_str) != Some(part_id) {
+        let Some(observed_part_id) = segment.get("part_id").and_then(Value::as_str) else {
+            continue;
+        };
+        if !rig_part_matches_observed_part(part_id, observed_part_id) {
             continue;
         }
         let Some(point) = segment.get("reference").and_then(Value::as_array) else {
@@ -1053,7 +1056,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
     let mut total = 0.0;
     let mut count = 0usize;
     for segment in segments {
-        if segment.get("part_id").and_then(Value::as_str) != Some(part_id) {
+        let Some(observed_part_id) = segment.get("part_id").and_then(Value::as_str) else {
+            continue;
+        };
+        if !rig_part_matches_observed_part(part_id, observed_part_id) {
             continue;
         }
         let Some(distance) = segment.get("distance_px").and_then(Value::as_f64) else {
@@ -2572,7 +2578,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .and_then(|bytes| strict_glb_inspection(&bytes).ok())
             .map(|inspection| inspection.part_ids)
             .unwrap_or_default();
-        if !part_ids.iter().any(|value| value == part_id) {
+        if !part_ids
+            .iter()
+            .any(|value| rig_part_matches_observed_part(part_id, value))
+        {
             return Err(RuntimeError::InvalidInput(
                 "PART_CONTOUR_FIT_INVALID: part_id is absent from candidate readback".to_owned(),
             ));
@@ -11195,7 +11204,9 @@ fn decode_part_mask(part_png: &[u8], part_id: &str, part_ids: &[String]) -> Opti
     for (index, value) in part_mask.iter_mut().enumerate() {
         let pixel = image.get_pixel((index % 512) as u32, (index / 512) as u32).0;
         let Some(part_index) = part_color_index(pixel) else { continue; };
-        *value = part_ids.get(part_index).is_some_and(|candidate| candidate == part_id);
+        *value = part_ids
+            .get(part_index)
+            .is_some_and(|candidate| rig_part_matches_observed_part(part_id, candidate));
     }
     part_mask.iter().any(|value| *value).then_some(part_mask)
 }
@@ -16315,6 +16326,26 @@ mod tests {
     }
 
     #[test]
+    fn automatic_part_boundary_projection_aggregates_bilateral_aliases_and_preserves_single_side() {
+        let segments = vec![
+            json!({"part_id":"hip-left","reference":[0.20,0.50],"distance_px":48.0}),
+            json!({"part_id":"hip-right","reference":[0.80,0.50],"distance_px":32.0}),
+            json!({"part_id":"chest-shell","reference":[0.50,0.30],"distance_px":12.0}),
+        ];
+        let pair_mask = Runtime::projected_part_boundary_mask(&segments, "hip-pair").expect("pair projection");
+        let pair_envelope = mask_envelope(&pair_mask).expect("pair envelope");
+        assert!(pair_envelope.min_x < 128);
+        assert!(pair_envelope.max_x > 384);
+        assert_eq!(Runtime::projected_part_boundary_error(&segments, "hip-pair"), Some(40.0));
+
+        let left_mask = Runtime::projected_part_boundary_mask(&segments, "hip-left").expect("left projection");
+        let left_envelope = mask_envelope(&left_mask).expect("left envelope");
+        assert!(left_envelope.max_x < 192);
+        assert_eq!(Runtime::projected_part_boundary_error(&segments, "hip-left"), Some(48.0));
+        assert!(Runtime::projected_part_boundary_mask(&segments, "hip-right").is_some());
+    }
+
+    #[test]
     fn boundary_segments_preserve_visible_part_coverage_before_distance_fill() {
         let segments = vec![
             json!({"part_id":"shin-pair","distance_px":60.0}),
@@ -16932,6 +16963,31 @@ mod tests {
         assert_eq!(applied, 1);
         assert_eq!(materialized["nodes"][0]["parameters"]["radius_m"], 0.36);
         assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.36);
+    }
+
+    #[test]
+    fn rig_materialization_keeps_explicit_side_parameter_asymmetric() {
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-rig-side",
+            "nodes":[
+                {"node_id":"hip-left","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"cylinder","radius_m":0.2,"height_m":0.24,"radial_segments":16,"position_m":[-0.48,1.1,0.24],"rotation_rad":[1.5708,0.0,0.0]}},
+                {"node_id":"hip-right","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"cylinder","radius_m":0.2,"height_m":0.24,"radial_segments":16,"position_m":[0.48,1.1,0.24],"rotation_rad":[1.5708,0.0,0.0]}}
+            ],
+            "part_outputs":[
+                {"part_id":"hip-left","input_node_ids":["hip-left"],"material_zone_id":"zone-brushed-steel","solid":true},
+                {"part_id":"hip-right","input_node_ids":["hip-right"],"material_zone_id":"zone-brushed-steel","solid":true}
+            ],
+            "canonical_sha256":""
+        });
+        let rig = json!({"parameters":[
+            {"parameter_id":"hip-left-width","part_id":"hip-left","semantic":"width","value":1.0,"min":0.84,"max":1.16,"step":0.04,"unit":"ratio"}
+        ]});
+        let selected = vec![json!({"parameter_id":"hip-left-width","part_id":"hip-left","value":1.1})];
+        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize side control");
+        assert_eq!(applied, 1);
+        assert!((materialized["nodes"][0]["parameters"]["radius_m"].as_f64().unwrap() - 0.22).abs() < 1e-12);
+        assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.2);
     }
 
     #[test]
