@@ -10309,7 +10309,7 @@ fn materialize_rig_geometry_program(
     camera: Option<&Value>,
 ) -> Result<(Value, usize), RuntimeError> {
     let mut materialized = program.clone();
-    let outputs = materialized
+    let mut outputs = materialized
         .get("part_outputs")
         .and_then(Value::as_array)
         .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: GeometryProgram part_outputs are missing".to_owned()))?
@@ -10340,16 +10340,62 @@ fn materialize_rig_geometry_program(
         // two visible sides as `shoulder-left` and `shoulder-right`.  Resolve
         // all matching sinks instead of silently applying zero geometry
         // trials when the authoring route chose explicit left/right Parts.
-        for output in outputs.iter().filter(|output| {
-            output
+        for output_index in 0..outputs.len() {
+            let output_matches = outputs[output_index]
                 .get("part_id")
                 .and_then(Value::as_str)
-                .is_some_and(|output_part_id| rig_part_matches_output(part_id, output_part_id))
-        }) {
+                .is_some_and(|output_part_id| rig_part_matches_output(part_id, output_part_id));
+            if !output_matches {
+                continue;
+            }
+            let output = &outputs[output_index];
             let Some(input_node_ids) = output.get("input_node_ids").and_then(Value::as_array) else { continue; };
+            let input_node_ids = input_node_ids
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            if matches!(semantic, "offset_x" | "offset_y" | "offset_z" | "scale") {
+                // A bilateral Part is often authored as `source -> transform
+                // -> mirror`. Applying a camera-plane offset to the source
+                // node moves the two mirrored sides in opposite directions;
+                // it changes the span instead of translating the semantic
+                // Part. Materialize a typed Transform after the complete
+                // output graph so offset/scale semantics belong to the Part
+                // output, independent of mirror/array topology.
+                for (input_index, _) in input_node_ids.iter().enumerate() {
+                    let Some(transform_index) = ensure_output_transform_node(
+                        &mut *nodes,
+                        &mut outputs,
+                        output_index,
+                        input_index,
+                    ) else {
+                        continue;
+                    };
+                    let Some(node) = nodes.get_mut(transform_index) else { continue; };
+                    let operator_id = node
+                        .get("operator_id")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned();
+                    let Some(parameters) = node.get_mut("parameters").and_then(Value::as_object_mut) else { continue; };
+                    if apply_rig_parameter_to_node(
+                        parameters,
+                        &operator_id,
+                        semantic,
+                        unit,
+                        value,
+                        base_value,
+                        camera,
+                    ) {
+                        changed = true;
+                    }
+                }
+                continue;
+            }
             let mut affected = Vec::new();
             let mut visited = HashSet::new();
-            for input_node_id in input_node_ids.iter().filter_map(Value::as_str) {
+            for input_node_id in &input_node_ids {
                 collect_geometry_node_indices(&nodes, input_node_id, &mut visited, &mut affected);
             }
             let has_transform = affected.iter().any(|index| {
@@ -10403,7 +10449,74 @@ fn materialize_rig_geometry_program(
         }
         if changed { applied += 1; }
     }
+    materialized["part_outputs"] = Value::Array(outputs);
     Ok((materialized, applied))
+}
+
+/// Ensure that a Part output has a final typed Transform sink.  This keeps
+/// Runtime-owned positional/scale edits attached to the semantic Part after
+/// mirror/array topology, rather than mutating one source branch and changing
+/// bilateral spacing. Existing final transforms are reused so repeated Rig
+/// coordinates compose on one sink and do not grow the DAG per parameter.
+fn ensure_output_transform_node(
+    nodes: &mut Vec<Value>,
+    outputs: &mut [Value],
+    output_index: usize,
+    input_index: usize,
+) -> Option<usize> {
+    let input_node_id = outputs
+        .get(output_index)?
+        .get("input_node_ids")
+        .and_then(Value::as_array)?
+        .get(input_index)
+        .and_then(Value::as_str)?
+        .to_owned();
+    let input_node_index = nodes.iter().position(|node| {
+        node.get("node_id").and_then(Value::as_str) == Some(input_node_id.as_str())
+    })?;
+    if nodes[input_node_index]
+        .get("operator_id")
+        .and_then(Value::as_str)
+        == Some("forgecad.geometry.transform@2")
+    {
+        return Some(input_node_index);
+    }
+
+    let mut node_id = format!("forgecad.rig.transform.{output_index}.{input_index}");
+    let mut suffix = 0usize;
+    while nodes.iter().any(|node| {
+        node.get("node_id").and_then(Value::as_str) == Some(node_id.as_str())
+    }) {
+        suffix += 1;
+        node_id = format!("forgecad.rig.transform.{output_index}.{input_index}.{suffix}");
+    }
+    nodes.push(json!({
+        "node_id": node_id,
+        "operator_id": "forgecad.geometry.transform@2",
+        "inputs": [input_node_id],
+        "parameters": {
+            "shape": "transform",
+            "translation_m": [0.0, 0.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0],
+            "scale": [1.0, 1.0, 1.0]
+        }
+    }));
+    let transform_index = nodes.len().saturating_sub(1);
+    outputs
+        .get_mut(output_index)?
+        .get_mut("input_node_ids")
+        .and_then(Value::as_array_mut)?
+        .get_mut(input_index)
+        .map(|input| {
+            *input = Value::String(
+                nodes[transform_index]
+                    .get("node_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+            );
+            transform_index
+        })
 }
 
 /// Return whether a typed Rig parameter owns a rendered semantic Part.  The
@@ -17507,9 +17620,18 @@ mod tests {
         let source = materialized["nodes"].as_array().unwrap().iter().find(|node| node["node_id"] == "shell-left").unwrap();
         assert_eq!(source["parameters"]["size_m"][0], 1.2);
         assert_eq!(source["parameters"]["size_m"][1], 2.2);
+        assert_eq!(source["parameters"]["position_m"][0], -1.0);
         let transform = materialized["nodes"].as_array().unwrap().iter().find(|node| node["node_id"] == "shell-shaped").unwrap();
-        assert_eq!(transform["parameters"]["translation_m"][0], 0.1);
-        assert_eq!(transform["parameters"]["translation_m"][1], 0.2);
+        assert_eq!(transform["parameters"]["translation_m"], json!([0.0, 0.0, 0.0]));
+        let output_transform = materialized["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["operator_id"] == "forgecad.geometry.transform@2" && node["node_id"] != "shell-shaped")
+            .expect("output transform");
+        assert_eq!(output_transform["parameters"]["translation_m"][0], 0.1);
+        assert_eq!(output_transform["parameters"]["translation_m"][1], 0.2);
+        assert_eq!(materialized["part_outputs"][0]["input_node_ids"][0], output_transform["node_id"]);
         assert_eq!(materialized["nodes"][2]["parameters"]["axis"], "x");
     }
 
@@ -17536,9 +17658,18 @@ mod tests {
         )
         .expect("camera-plane materialize");
         assert_eq!(applied, 1);
-        let translation = materialized["nodes"][0]["parameters"]["position_m"]
+        let source_translation = materialized["nodes"][0]["parameters"]["position_m"]
             .as_array()
             .expect("position");
+        assert_eq!(source_translation, json!([0.0, 0.0, 0.0]).as_array().unwrap());
+        let translation = materialized["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["operator_id"] == "forgecad.geometry.transform@2")
+            .expect("output transform")["parameters"]["translation_m"]
+            .as_array()
+            .expect("translation");
         let distance = translation
             .iter()
             .map(|value| value.as_f64().unwrap().powi(2))
@@ -17727,12 +17858,28 @@ mod tests {
         let hip = nodes.iter().find(|node| node["node_id"] == "hip-left").expect("hip source");
         assert_eq!(hip["parameters"]["radius_m"], 0.24200000000000005);
         assert_eq!(hip["parameters"]["height_m"], 0.264);
-        assert_eq!(hip["parameters"]["position_m"][0], -0.38);
-        assert!((hip["parameters"]["position_m"][1].as_f64().unwrap() - 1.2).abs() < 1e-12);
+        assert_eq!(hip["parameters"]["position_m"][0], -0.48);
+        assert!((hip["parameters"]["position_m"][1].as_f64().unwrap() - 1.1).abs() < 1e-12);
+        let hip_transform = nodes
+            .iter()
+            .find(|node| node["operator_id"] == "forgecad.geometry.transform@2")
+            .expect("hip output transform");
+        assert_eq!(hip_transform["parameters"]["translation_m"], json!([0.1, 0.1, 0.0]));
         let pelvis = nodes.iter().find(|node| node["node_id"] == "pelvis-shell").expect("pelvis source");
-        assert!((pelvis["parameters"]["position_m"][0].as_f64().unwrap() - 0.1).abs() < 1e-12);
+        assert_eq!(pelvis["parameters"]["position_m"][0], 0.0);
         let chest = nodes.iter().find(|node| node["node_id"] == "chest-panel").expect("chest source");
-        assert!((chest["parameters"]["position_m"][0].as_f64().unwrap() - 0.1).abs() < 1e-12);
+        assert_eq!(chest["parameters"]["position_m"][0], 0.0);
+        let pelvis_output = materialized["part_outputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|output| output["part_id"] == "pelvis")
+            .expect("pelvis output");
+        let pelvis_transform = nodes
+            .iter()
+            .find(|node| node["node_id"] == pelvis_output["input_node_ids"][0])
+            .expect("pelvis output transform");
+        assert_eq!(pelvis_transform["operator_id"], "forgecad.geometry.transform@2");
     }
 
     #[test]
