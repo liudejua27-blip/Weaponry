@@ -1,5 +1,7 @@
 # ForgeCAD 当前原子任务索引
 
+2026-08-15 `FGC-MCP010F` Agentic observation cache：Runtime 按 `AgenticSceneObserveResult@1.canonical_sha256` 保留同一进程内的完整只读观察；bound plan/critic/evidence/action follow-up 优先消费原对象，避免 Codex 在一次观察后重新拼接多个投影。Runtime 重启时 cache 不持久化，只有重新构建并通过 canonical hash/scope 校验才可继续；cache ambiguity regression 与 bounded action regression 通过。该修复不改变唯一 `in_progress`、工具/Schema 数或真实视觉真值：仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 `FGC-MCP010F` Primary Form composition lineage projection：CLI 序列现在生成 `ForgeCADPrimaryFormCompositionLineage@1`，以 canonical hash 固定 2–3 个 serial steps；完成第二步起，下一步 candidate 必须来自已校验的 prefix lineage，并 fail closed 检查 candidate、consolidated observation、target、camera、Rig 与 intent 链。Codex 不再从散乱 raw events 重建连续搜索状态。该投影不等于 Runtime durable producer、视觉 likeness 或高质量 PASS；唯一 `in_progress` 仍为 F，授权 PNG 缺失，真实组合为 `NOT_RUN/BLOCKED_REFERENCE_BYTES_UNAVAILABLE`。
 
 2026-08-15 `FGC-MCP010F` Primary Form bilateral landmark projection：Runtime 修复 landmark Part-ID 解码的 alias gap；语义 `knee-pair`/`hand-pair` 会聚合 Render Worker concrete `*-left`/`*-right` masks，随后再计算 left/right anchor coverage 与 NME。新增双侧 landmark regression；这是 observation/convergence boundary 修复，不改变唯一 `in_progress=FGC-MCP010F`，没有新的真实 likeness receipt，Stage 0 仍明确 `camera=MISMATCH`、`QUALITY_TARGET_NOT_MET`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。

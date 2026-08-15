@@ -86,7 +86,11 @@ impl Runtime {
         }
         let candidate = bound_candidate(self, project_id, candidate_id)?;
         let reference = bound_reference(self, project_id, &session.reference_id)?;
-        let observation = self.agentic_scene_observe(project_id, Some(candidate_id))?;
+        let observation = self.bound_agentic_observation(
+            project_id,
+            Some(candidate_id),
+            requested_observation_sha256,
+        )?;
         validate_observation_claims(
             &observation,
             &candidate,

@@ -2,6 +2,8 @@
 
 版本：2026-08-10
 状态：MCP005–MCP009 MVP functional core 和真实 Codex CLI host golden path 已完成；MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；MCP010C 当前源码为 37 read + 24 opt-in write = 61 个工具，fixed renderer/九 AOV/reference comparison/review raw Gate PASS；MCP010D/E offline Operator/AssetPack/UV/PBR/MikkTSpace raw Gate PASS；MCP010F Viewer source 与轮廓目标/相机拟合/边界误差/多 Part 误差表 source Gate PASS，并新增 Runtime-owned `primary_form_repair_prepare` 单动作 same-camera retention → staged prepare/evaluate 与 `primary_form_repair_job_prepare` 异步 Job；Agentic observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback 也已通过隔离 source/transport/restart receipt；通用单动作 orchestrator、Repair 应用、packaged/live C/D/E/F、真实用户 likeness、Viewer/PBR likeness/360仍 NOT_RUN/BLOCKED
+
+2026-08-15 Agentic observation binding：`scene_observe_get` 生成的完整 `AgenticSceneObserveResult@1` 在 Runtime 进程内按 canonical hash bounded cache 保持；bound plan/critic/evidence/action 先读取同一 projection，cache miss 才允许重建并校验 project/candidate scope 与 canonical hash。该 cache 不进入 SQLite/CAS，不改变 projection read-only 或 durable session/checkpoint 的边界；focused tests 通过，真实视觉质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
 P0 required 客户端：Codex Desktop、Codex CLI
 未来兼容客户端：Codex IDE / VS Code / Cursor / Windsurf；其他 MCP Client
 

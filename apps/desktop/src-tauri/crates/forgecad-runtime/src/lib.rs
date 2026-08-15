@@ -157,6 +157,13 @@ pub struct Runtime {
     // CameraCalibrationRef -> SilhouetteFit handoff, never a source of truth:
     // the full result remains recomputable from the candidate/target hashes.
     camera_fit_cache: Mutex<HashMap<String, Value>>,
+    // AgenticSceneObserveResult is a read-only projection, not durable user
+    // data. Keep the exact projection available for bound plan/critic/action
+    // follow-ups during this Runtime process so those calls consume one
+    // observation instead of rebuilding several near-identical projections.
+    // A Runtime restart intentionally loses this cache; bound consumers then
+    // fall back to recomputation plus canonical-hash validation.
+    agentic_observation_cache: Mutex<HashMap<String, Value>>,
     _process_lock: Option<process_lock::ProcessLock>,
 }
 
@@ -183,6 +190,7 @@ impl Runtime {
             capabilities: runtime_capabilities(),
             reference_attachment_roots: configured_attachment_roots(),
             camera_fit_cache: Mutex::new(HashMap::new()),
+            agentic_observation_cache: Mutex::new(HashMap::new()),
             _process_lock: Some(process_lock),
         })
     }
@@ -204,6 +212,7 @@ impl Runtime {
             capabilities: runtime_capabilities(),
             reference_attachment_roots,
             camera_fit_cache: Mutex::new(HashMap::new()),
+            agentic_observation_cache: Mutex::new(HashMap::new()),
             _process_lock: None,
         })
     }
@@ -219,6 +228,7 @@ impl Runtime {
             capabilities: self.capabilities.clone(),
             reference_attachment_roots: self.reference_attachment_roots.clone(),
             camera_fit_cache: Mutex::new(HashMap::new()),
+            agentic_observation_cache: Mutex::new(HashMap::new()),
             _process_lock: None,
         }
     }

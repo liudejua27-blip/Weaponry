@@ -14,6 +14,7 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
 const AGENTIC_PROJECTION_STATUS: &str = "projection/read-only";
+const AGENTIC_OBSERVATION_CACHE_CAPACITY: usize = 32;
 const STAGES: [&str; 6] = [
     "reference-canvas",
     "primary-form",
@@ -79,7 +80,7 @@ impl Runtime {
         let critic = build_critic_report(&context, &stage_plan);
         let session = build_design_session(&context, &scene_graph, &stage_plan, &critic);
 
-        Ok(canonicalize(json!({
+        let observation = canonicalize(json!({
             "schema_version":"AgenticSceneObserveResult@1",
             "projection_status":AGENTIC_PROJECTION_STATUS,
             "read_only":true,
@@ -99,7 +100,9 @@ impl Runtime {
             "design_critic_report":critic,
             "lineage":context.lineage,
             "canonical_sha256":""
-        })))
+        }));
+        self.remember_agentic_observation(&observation);
+        Ok(observation)
     }
 
     /// Return only the derived stage plan.  Stage advancement and unlocks are
@@ -114,9 +117,10 @@ impl Runtime {
     }
 
     /// Return the stage plan from one previously observed Runtime snapshot.
-    /// The MCP follow-up surface uses this bound form so a caller cannot
-    /// silently rebuild a second, differently bound observation between
-    /// Observe and Plan.
+    /// The MCP follow-up surface first consumes the exact process-local
+    /// projection produced by scene_observe_get. After a Runtime restart the
+    /// projection cache is gone, so it recomputes once and fail-closes unless
+    /// the canonical hash still proves the same observation.
     pub fn agentic_stage_plan_bound(
         &self,
         project_id: &str,
@@ -201,7 +205,7 @@ impl Runtime {
             })
     }
 
-    fn bound_agentic_observation(
+    pub(crate) fn bound_agentic_observation(
         &self,
         project_id: &str,
         candidate_id: Option<&str>,
@@ -213,7 +217,22 @@ impl Runtime {
                     .to_owned(),
             ));
         }
-        let observation = self.agentic_scene_observe(project_id, candidate_id)?;
+        let cached_observation = self
+            .agentic_observation_cache
+            .lock()
+            .ok()
+            .and_then(|cache| cache.get(observation_sha256).cloned());
+        let observation = match cached_observation {
+            Some(observation) => observation,
+            None => self.agentic_scene_observe(project_id, candidate_id)?,
+        };
+        if observation.get("project_id").and_then(Value::as_str) != Some(project_id) {
+            return Err(binding_error("cached observation project differs"));
+        }
+        let observed_candidate_id = observation.get("candidate_id").and_then(Value::as_str);
+        if candidate_id.is_some() && observed_candidate_id != candidate_id {
+            return Err(binding_error("cached observation candidate differs"));
+        }
         if observation.get("canonical_sha256").and_then(Value::as_str)
             != Some(observation_sha256)
         {
@@ -223,6 +242,24 @@ impl Runtime {
             ));
         }
         Ok(observation)
+    }
+
+    fn remember_agentic_observation(&self, observation: &Value) {
+        let Some(hash) = observation
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+        else {
+            return;
+        };
+        if let Ok(mut cache) = self.agentic_observation_cache.lock() {
+            cache.insert(hash.to_owned(), observation.clone());
+            if cache.len() > AGENTIC_OBSERVATION_CACHE_CAPACITY {
+                if let Some(key) = cache.keys().next().cloned() {
+                    cache.remove(&key);
+                }
+            }
+        }
     }
 }
 
@@ -1713,6 +1750,29 @@ mod tests {
             .expect("observation");
         let observation_sha256 = observation["canonical_sha256"].as_str().expect("hash");
 
+        let stale = runtime
+            .agentic_stage_plan_bound(&project.project_id, None, &"f".repeat(64))
+            .expect_err("stale follow-up must fail closed");
+        assert!(stale.to_string().contains("AGENTIC_OBSERVATION_STALE"));
+
+        // Mutate the live candidate selection after Observe. A bound
+        // follow-up must still read the exact cached observation; rebuilding
+        // scene_observe_get here would reject the now-ambiguous selection.
+        runtime
+            .prepare_diagnostic_candidate(
+                &project.project_id,
+                None,
+                json!({"typed":"diagnostic","label":"first"}),
+            )
+            .expect("first candidate");
+        runtime
+            .prepare_diagnostic_candidate(
+                &project.project_id,
+                None,
+                json!({"typed":"diagnostic","label":"second"}),
+            )
+            .expect("second candidate");
+
         let stage_plan = runtime
             .agentic_stage_plan_bound(&project.project_id, None, observation_sha256)
             .expect("bound stage plan");
@@ -1721,11 +1781,6 @@ mod tests {
             .agentic_critic_projection_bound(&project.project_id, None, observation_sha256)
             .expect("bound critic");
         assert_eq!(critic, observation["design_critic_report"]);
-
-        let stale = runtime
-            .agentic_stage_plan_bound(&project.project_id, None, &"f".repeat(64))
-            .expect_err("stale follow-up must fail closed");
-        assert!(stale.to_string().contains("AGENTIC_OBSERVATION_STALE"));
     }
 
     #[test]
