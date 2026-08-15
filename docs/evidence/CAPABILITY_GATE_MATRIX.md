@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Viewer Agentic evidence binding Gate：`visualEvidenceBound=true` 时，Viewer Agentic normalizer 对 artifact/reference/render-set/comparison/QualityReport 五个 hash 采用 exact-match；缺失或漂移直接为 unavailable，不显示 Runtime quality gate 的 ready 状态。无视觉绑定时仍保持结构 projection 的 unknown 语义。Viewer source Gate、Node exact-hash regression、TypeScript/build 与 MCP010F full Gate 通过；该 Gate 不产生 likeness/PBR/human/export-restart/360 PASS，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Render Worker fail-closed test boundary Gate：Runtime `render-core` fallback 已从 `cfg(test)` 隐式路径改为独立 `test-render-worker-fallback`；无 feature 的 product `cargo check` 通过，source ownership checker 与显式 fallback Runtime `122 passed / 0 failed / 12 ignored`、MCP `56 passed / 0 failed`、MCP010C/F full Gate 通过。该 Gate 证明测试不会在 Worker 缺失时伪造 Render Worker 证据；它不产生 likeness/PBR/human/export-restart/360 PASS，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Agentic canonical observation MCP transport Gate：`InProcess` adapter 已把 stage/critic/visual-evidence follow-up 统一转发到 Runtime bound projection，并严格校验 `observation_sha256`；stale/missing observation 回归通过，MCP 全量 `56 passed / 0 failed`。该 Gate 只证明 transport lineage 一致，不产生真实 likeness、人评、PBR、export/restart 或 360 证据；质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。

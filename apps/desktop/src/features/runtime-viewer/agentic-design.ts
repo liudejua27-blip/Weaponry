@@ -226,7 +226,11 @@ function evidenceMatchesBinding(hashes: AgenticEvidenceHashes, binding: AgenticP
     [hashes.comparisonReportHash, binding.comparisonReportHash],
     [hashes.qualityReportHash, binding.qualityReportHash],
   ]
-  return pairs.every(([actual, expected]) => actual === null || Boolean(expected && actual === expected))
+  return pairs.every(([actual, expected]) => {
+    if (!expected) return actual === null
+    if (binding.visualEvidenceBound) return actual === expected
+    return actual === null || actual === expected
+  })
 }
 
 function gateEntries(value: unknown): Array<{ id: string; value: unknown }> {

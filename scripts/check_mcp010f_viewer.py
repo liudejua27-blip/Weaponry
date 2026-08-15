@@ -17,12 +17,14 @@ VIEWER = ROOT / "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx"
 STYLES = ROOT / "apps/desktop/src/styles.css"
 TAURI_VIEWER = ROOT / "apps/desktop/src-tauri/src/viewer.rs"
 COMPARE_WORKER = ROOT / "apps/desktop/src/features/runtime-viewer/compare-worker.ts"
+AGENTIC_DESIGN = ROOT / "apps/desktop/src/features/runtime-viewer/agentic-design.ts"
 
 
 def main() -> int:
     source = VIEWER.read_text(encoding="utf-8")
     styles = STYLES.read_text(encoding="utf-8")
     tauri_source = TAURI_VIEWER.read_text(encoding="utf-8")
+    agentic_source = AGENTIC_DESIGN.read_text(encoding="utf-8")
     required_tokens = [
         "viewer_read_model",
         "viewer_read_model_summary",
@@ -225,6 +227,10 @@ def main() -> int:
         raise SystemExit("Viewer must not fall back to an unverified candidate quality projection for visual evidence")
     if "quality.project_id" in source or "quality?.project_id" in source:
         raise SystemExit("QualityReport@2 does not provide project_id; project binding must use the evidence envelope")
+    if "if (binding.visualEvidenceBound) return actual === expected" not in agentic_source:
+        raise SystemExit("Agentic Viewer binding must require exact evidence hashes when visual evidence is bound")
+    if "actual === null || Boolean(expected && actual === expected)" in agentic_source:
+        raise SystemExit("Agentic Viewer binding must not accept missing Runtime evidence hashes")
     def candidate_binding_is_valid(entry: dict, project_id: str) -> bool:
         candidate = entry.get("candidate") or {}
         candidate_id = candidate.get("candidate_id")
@@ -351,6 +357,7 @@ def main() -> int:
         "contour_annotation": "PASS_EPHEMERAL_NORMALIZED_POINTER_DRAFT",
         "visual_gate_source": "PASS_RUNTIME_AGENTIC_QUALITY_REPORT_ONLY",
         "visual_report_fallback": "PASS_NO_UNVERIFIED_CANDIDATE_QUALITY_FALLBACK",
+        "agentic_evidence_binding": "PASS_FAIL_CLOSED_MISSING_OR_DRIFTED_HASH",
         "candidate_artifact_binding": "PASS_FAIL_CLOSED_SAME_CANDIDATE_ONLY",
         "candidate_binding_fixtures": "PASS_SAME_CANDIDATE_POSITIVE_CROSS_CANDIDATE_NEGATIVE_MISSING_EVIDENCE_NEGATIVE",
         "visual_evidence_binding_fixtures": "PASS_NO_QUALITY_PROJECT_ID_CROSS_CANDIDATE_RENDER_NEGATIVE_MISSING_REFERENCE_HASH_NEGATIVE",

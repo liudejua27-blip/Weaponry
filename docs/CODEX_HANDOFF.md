@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 Viewer Agentic evidence binding handoff：Viewer 已有 candidate-bound visual evidence 时，`agentic-design.ts` 的 normalizer 现在要求五个 Runtime evidence hash 逐项完整匹配；缺 hash 或 hash drift 会返回 `AGENTIC_EVIDENCE_BINDING_MISMATCH`，不再将缺失字段视为可兼容的 ready projection。没有视觉绑定时保留 unknown/结构状态。source Gate、Node behavior、desktop build 与 MCP010F full Gate 通过；没有新的真实 likeness receipt，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Render Worker fail-closed boundary handoff：Runtime 的 `render-core` fallback 已不再由 `cfg(test)` 自动启用；`test-render-worker-fallback` 是唯一 Render 回退 feature，`test-geometry-worker-fallback` 仅作为 legacy 显式组合。无 feature product `cargo check`、source boundary checker、显式 fallback Runtime/MCP tests、MCP010C/F full Gate 通过。后续若要声称 Render Worker 真实落地，仍须运行 same-cohort sibling/package probe；当前质量账本不变：`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Agentic canonical observation MCP dispatch handoff：修复 `InProcess` adapter 的观察绑定回退。`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 现在必须把调用方提交的 `observation_sha256` 交给 Runtime bound projection；缺失/stale hash 立即 fail closed，与 authenticated IPC 路径一致。MCP 全量 `56 passed / 0 failed`；没有新的 Runtime/CAS、likeness 或 Viewer 质量证据，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。

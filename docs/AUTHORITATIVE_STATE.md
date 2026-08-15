@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Viewer Agentic evidence binding truth：Viewer 的 Agentic projection 只有在当前 visual evidence 已绑定时，才允许五个 Runtime evidence hash 全部 exact-match 后显示 ready；缺失或漂移返回 unavailable，不从 comparison metrics 或候选结构字段补造质量门。无视觉证据时仍可显示 unknown 的结构性 projection。该修复通过 Viewer source/Node/desktop build/MCP010F Gate，不新增视觉 receipt；真实状态仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 Render Worker test-boundary truth：Runtime 的 `render-core` fallback 现在只在显式 `test-render-worker-fallback` feature 下编译；普通 `cfg(test)` 不再把进程内 renderer 当作 Worker 缺失时的隐式成功路径。无 feature 的 Runtime product check、source ownership checker、显式 fallback Runtime/MCP tests 与 MCP010C/F 聚合 Gate 通过。该状态只修正证据与测试边界，不改变真实视觉真值：`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断；same-cohort packaged Worker receipt 仍是独立证据。
 
 2026-08-15 Agentic canonical observation transport truth：MCP `InProcess` adapter 已修复 stage/critic/visual-evidence follow-up 的分发落点，三者现在都消费调用方提供的同一 `AgenticSceneObserveResult@1.canonical_sha256`；缺失或 stale hash 不再回退到未绑定观察。MCP 全量 56 tests 通过；该修复不新增 Runtime/CAS 数据、不改变 Schema/tool count，也没有新的视觉 receipt。权威质量仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
