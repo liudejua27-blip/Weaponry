@@ -1,0 +1,65 @@
+{
+  "schema_version": "ForgeCADAgenticCompositionProposalReceipt@1",
+  "canonical_sha256": "e8c366f8da24028d5eb215486d034569e4dfc03077e16108e3c27493f4ad22b0",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-14",
+  "status": "PASS_SOURCE_RUNTIME_MCP_FAIL_CLOSED",
+  "scope": [
+    "DesignCompositionRequest@1 and DesignCompositionResult@1 contracts",
+    "Runtime design_composition_prepare ordered proposal envelope",
+    "MCP design_composition_prepare approval-gated write tool",
+    "linear 2-6 ActionRun dependency, aggregate, stop and replay lineage",
+    "separate explicit promotion boundary with review-candidate merge only; no Repair apply, confirm, version or export"
+  ],
+  "implementation": {
+    "runtime_method": "Runtime::design_composition_prepare",
+    "mcp_tool": "design_composition_prepare",
+    "execution_mode": "ordered-independent-proposal-with-cumulative-merge",
+    "dependency_rule": "first action has no dependency; each later action depends exactly on the previous run_id",
+    "promotion_boundary": "merge_status=prepared-review-candidate-only; confirm_allowed=false"
+  },
+  "verification": {
+    "contract_checker": "python3 scripts/check_forgecad_contracts.py: PASS (113 schemas)",
+    "agentic_contract_checker": "python3 scripts/check_agentic_contracts.py: PASS",
+    "runtime_focused": "cargo test -p forgecad-runtime --lib agentic_action_run_revalidates_bound_candidate_and_is_idempotent --offline: PASS (negative composition stops at first quality gate, source candidate unchanged, exact replay)",
+    "positive_composition_conformance": "cargo test -p forgecad-runtime --lib agentic_repair_apply_prepare_accepts_strict_improvement_and_is_idempotent --offline: PASS (two reviewable actions, cumulative parent hash chain, distinct merged review candidate, exact replay)",
+    "mcp_unit": "cargo test -p forgecad-mcp --offline: PASS (57 tests)",
+    "stage0_truth": "python3 scripts/check_mcp010f_stage0_truth.py: PASS (37 read + 28 write = 65)",
+    "negative_boundary": "PASS: one-item, non-linear dependency and untyped action inputs fail closed"
+  },
+  "observed_result": {
+    "negative_fixture": {
+      "action_count_requested": 2,
+      "completed_count": 1,
+      "status": "blocked",
+      "next_action_index": 0,
+      "aggregate_quality_status": "QUALITY_TARGET_NOT_MET",
+      "source_candidate_unchanged": true,
+      "replayable": true
+    },
+    "positive_fixture": {
+      "action_count_requested": 2,
+      "completed_count": 2,
+      "status": "reviewable",
+      "job_status": "succeeded",
+      "next_action_index": null,
+      "aggregate_quality_status": "PARTIAL_VISIBLE_VIEW_PASS",
+      "strict_improvement": true,
+      "non_regressing": true,
+      "merge_status": "prepared",
+      "merged_candidate": "distinct review candidate",
+      "merged_candidate_confirm_allowed": false,
+      "source_candidate_unchanged": true,
+      "replayable": true,
+      "fixture_scope": "deterministic Runtime self-rendered target; not real-reference likeness evidence"
+    },
+    "primary_observed_path": "positive_fixture"
+  },
+  "not_proven": [
+    "active source candidate mutation or Repair application of the merged candidate",
+    "user-approved promotion, immutable version creation or export",
+    "real Codex multi-action visual conformance, human visual review, PBR likeness and 360-degree gates"
+  ],
+  "manifold_boolean": "BLOCKED_NOT_ACCEPTED",
+  "persistent_user_data_touched": false
+}

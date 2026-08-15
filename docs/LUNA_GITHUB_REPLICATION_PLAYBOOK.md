@@ -12,7 +12,7 @@ Luna 可以从下表的冻结 revision 读取、下载并在隔离研究缓存�
 - `forgecad-runtime` 仍是唯一永久状态写者；
 - MCP 仍是薄 `stdio` adapter，Viewer 仍是只读；
 - 当前只有 `mikktspace@0.3.0` 是已接受的外部依赖；
-- `boolean@1` 仍 unavailable；Manifold、MaterialX 和其余四个项目尚未进入 lockfile、安装包或 Runtime；
+- Manifold 已完成固定 revision 的 product-owned isolated Worker adoption，`boolean@1` 当前开放同一 Part 的 bounded union/difference/intersection；MaterialX 和其余项目尚未进入 lockfile、安装包或 Runtime；
 - 当前唯一 `in_progress` 是 `FGC-MCP010F`。本手册只准备后续设计和评估，不得借此跳过现有质量真值或改写 `QUALITY_TARGET_NOT_MET`。
 
 ## 2. 允许的上游快照
@@ -22,7 +22,7 @@ Luna 可以从下表的冻结 revision 读取、下载并在隔离研究缓存�
 | [build123d](https://github.com/gumyr/build123d) | `ef48b98af7780028e015d9f079d8ccc01d894696` | Apache-2.0 | BuildPart/BuildSketch、操作与 topology 的职责划分 | 静态研究缓存；再以 Rust typed JSON 重写为 Parametric Design Kit |
 | [BlenderMCP](https://github.com/ahujasid/blender-mcp) | `3ab892510cc0e5435ba5e611c01fb1021fbde8de` | MIT | scene inspect、截图回看、tool receipt 的可观察性 | 静态研究缓存；再定义 ForgeCAD 自有 read-only observe/visual-evidence 合同 |
 | [CadQuery](https://github.com/CadQuery/cadquery) | `d6729f51bf1ed183f110aacdbc6238e4a5110c96` | Apache-2.0 | Workplane/Sketch/selector/assembly 的参数化表达方式 | 静态研究缓存；再定义 bounded macro/schema 和 Rust Worker 实现 |
-| [Manifold](https://github.com/elalish/manifold) | `969b1417afdee87dbc6147cf676bc04799418ec2` | Apache-2.0 | robust manifold mesh、C API 边界、拓扑测试 | 隔离 C API/FFI benchmark；通过 accepted receipt 前不得启用 boolean |
+| [Manifold](https://github.com/elalish/manifold) | `969b1417afdee87dbc6147cf676bc04799418ec2` | Apache-2.0 | robust manifold mesh、C API 边界、拓扑测试 | **accepted：product-owned isolated C API/FFI Worker；启用同一 Part union/difference/intersection；通用 mesh 仍隔离研究** |
 | [MaterialX](https://github.com/AcademySoftwareFoundation/MaterialX) | `a7b2d60aa682656b6fed72f760685612aa3a87c6` | Apache-2.0 | material document/node/definition、look/material graph 和 PBR 映射 | 静态研究缓存；再定义 MaterialZone/PBR translator 的数据合同 |
 
 上述 revision、许可证文件 Git blob 和候选路径记录在 `docs/evidence/adoption/<project>/<revision>.yaml`。这些记录的 `approval: research-authorized` 明确表示“可研究”，不表示 `accepted`。
@@ -45,7 +45,7 @@ Luna 可以从下表的冻结 revision 读取、下载并在隔离研究缓存�
 | build123d | `build_part.py`、`build_sketch.py`、`operations_part.py`、`topology/**` 的结构与测试思路 | `ParametricDesignKit@1` 的 macro/parameter/source-map schema，及 bounded Rust lowering | Python runtime、OCCT binding、Jupyter/VTK、import/export 脚本 |
 | CadQuery | `cq.py`、`sketch.py`、`selectors.py`、`assembly.py`、`occ_impl/shape_protocols.py` 的 API 设计 | Workplane/selector 意图到 typed Part/Operator 的受限映射 | 任意 CadQuery script、OCP/FreeCAD binding、plugin/GUI 代码 |
 | BlenderMCP | `src/blender_mcp/server.py`、`telemetry*.py`、`addon.py` 仅供安全与协议研究 | `scene_observe_get`、render/evidence receipt、超时/错误归一化的自有合同 | `exec()`、Blender Python、socket server、遥测、资产 API、远程 host、`.blend` 状态 |
-| Manifold | `bindings/c/include/**`、`bindings/c/manifoldc.cpp`、边界测试和 C API 文档 | 受限 C FFI request/result、mesh budget、source-ID/readback、fallback | 自动 CMake 构建、WASM/Python bindings、任意上游脚本；未 accepted 的 boolean |
+| Manifold | `bindings/c/**`、`include/manifold/**`、必要 `src/**`、LICENSE | 受限 C FFI request/result、mesh budget、source-ID/readback、fallback；已 vendored 62 files | 自动 CMake 构建、WASM/Python bindings、任意上游脚本、任意 mesh Boolean |
 | MaterialX | `MaterialXCore/{Document,Element,Node,Material,Definition,Look,Value,Variant}` 的数据模型 | MaterialZone/PBR graph interchange translator 的自有 schema | CMake、Viewer、Graph Editor、shader generation/render backends、Python/JS bindings |
 
 所有原样保留的上游文本都必须连同原始许可证/NOTICE 一起留在研究缓存或受控 quarantine，保留 source URL、revision、文件路径、原始 hash、修改说明和 removal plan。进入产品树时优先重写；若未来必须 vendoring，需另立 accepted receipt 并同步 `THIRD_PARTY_LICENSES.md`、SBOM 和最终包检查。

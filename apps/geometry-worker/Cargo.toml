@@ -3,6 +3,9 @@ name = "forgecad-geometry-worker"
 version = "0.1.0"
 edition = "2021"
 
+[build-dependencies]
+cc = "1.2"
+
 [dependencies]
 base64 = "0.22"
 forgecad-worker-protocol = { path = "../desktop/src-tauri/crates/forgecad-worker-protocol" }

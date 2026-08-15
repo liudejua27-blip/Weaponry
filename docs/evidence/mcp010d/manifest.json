@@ -2,7 +2,7 @@
   "schema_version": "ForgeCADEvidenceManifest@1",
   "task_id": "FGC-MCP010D",
   "status": "done",
-  "recorded_on": "2026-08-12",
+  "recorded_on": "2026-08-14",
   "scope": [
     "typed GeometryProgram@2 hard-surface operators",
     "ordered DAG inputs and semantic Part output",
@@ -11,12 +11,12 @@
     "strict GLB readback, lineage, determinism and negative gates"
   ],
   "current_source_surface": {
-    "contract_count": 65,
-    "d_contract_subtotal": 59,
+    "contract_count": 115,
+    "d_contract_subtotal": 61,
     "operator_catalog_entries": 13,
-    "active_operator_count": 12,
-    "active_hard_surface_operator_count": 11,
-    "boolean_status": "unavailable",
+    "active_operator_count": 13,
+    "active_hard_surface_operator_count": 12,
+    "boolean_status": "active_bounded_union_difference",
     "skill": "hard-surface-detail@0.2.0 active",
     "raw_semantic_parts": 7,
     "raw_triangle_count": 488
@@ -32,7 +32,7 @@
     "deterministic_repeat": "PASS",
     "raw_stdio": "PASS",
     "darwin_os_total_memory_hard_cap": "NOT_RUN",
-    "manifold_boolean_adoption": "NOT_RUN",
+    "manifold_boolean_adoption": "PASS_PRODUCT_WORKER_INTEGRATION",
     "packaged_d": "PASS_STRUCTURAL_NOT_VISUAL",
     "visual_reference_quality": "NOT_RUN"
   },
@@ -40,12 +40,13 @@
     "docs/evidence/mcp010d/raw-stdio.json",
     "docs/evidence/mcp010d/packaged-raw-stdio-mirror.json",
     "docs/evidence/mcp010d/focused-gates.json",
+    "docs/evidence/mcp010d/manifold-boolean-adoption-gate-20260814.json",
     "script/test_mcp010d.sh",
     "script/test_mcp010b.sh",
     "apps/geometry-worker/src/operator_d.rs"
   ],
   "limitations": [
-    "Boolean is deliberately unavailable because Manifold has not passed the separate adoption gate.",
+    "Boolean is active only as a product-owned bounded Worker path for same-Part union and difference; intersection and arbitrary mesh operations remain unavailable.",
     "The current same-cohort packaged D raw probe proves catalog/geometry/readback transport only; it does not prove Viewer presentation or visual likeness.",
     "D operators produce typed, editable geometry; MCP010E now separately passes the source-focused offline AssetPack, UV atlas, MikkTSpace and embedded PBR path.",
     "A single three-quarter reference still cannot establish complete 360-degree coverage."

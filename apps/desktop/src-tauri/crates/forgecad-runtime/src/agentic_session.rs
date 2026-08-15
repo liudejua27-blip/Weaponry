@@ -5,12 +5,11 @@
 //! SQLite/CAS mutation to the Store.  It never confirms a candidate, creates a
 //! version, or treats a failed visual gate as a pass.
 
-use super::{canonical_json_hash, Runtime, RuntimeError};
+use super::{canonical_json_hash, sha256_hex, Runtime, RuntimeError};
 use forgecad_contracts::{is_opaque_id, is_sha256, CandidateRecord, ReferenceEvidenceRecord};
-use forgecad_store::{
-    AgenticCheckpointRecord, AgenticSessionRecord,
-};
+use forgecad_store::{AgenticCheckpointRecord, AgenticSessionRecord};
 use serde_json::{json, Map, Value};
+use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -24,9 +23,9 @@ const STAGES: [&str; 6] = [
 ];
 
 impl Runtime {
-    /// Create or resume one durable DesignSession.  A new session is bound to
-    /// the current Runtime projection hash; callers cannot inject an
-    /// unverified evidence claim into the durable state.
+    /// Create or resume one durable DesignSession. A new session is bound to
+    /// a Runtime-owned visual evidence hash from the current projection;
+    /// callers cannot inject an unverified evidence claim into durable state.
     pub fn session_create_or_resume(&self, request: Value) -> Result<Value, RuntimeError> {
         let object = request_object(&request, "session_create_or_resume")?;
         reject_unknown_keys(
@@ -45,6 +44,7 @@ impl Runtime {
                 "approval_receipt_id",
                 "approval_summary",
                 "approval_expires_at",
+                "authoring_context",
             ],
         )?;
         require_approval(object)?;
@@ -97,11 +97,26 @@ impl Runtime {
                         .to_owned(),
                 ));
             }
-            return Ok(session_result(&existing, "resumed"));
+            if object.contains_key("authoring_context") {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_CONTEXT_IMMUTABLE: authoring_context is accepted only when creating a new session"
+                        .to_owned(),
+                ));
+            }
+            return session_result_with_authoring(self, &existing, "resumed");
         }
 
-        let canvas = build_reference_canvas(&reference, reference_canvas_id);
-        let canvas = canonical_value(canvas);
+        let explicit_authoring = object.get("authoring_context");
+        let canvas = match explicit_authoring {
+            Some(authoring) => build_reference_canvas_from_authoring(
+                self,
+                authoring,
+                project_id,
+                reference_canvas_id,
+                &reference,
+            )?,
+            None => canonical_value(build_reference_canvas(&reference, reference_canvas_id)),
+        };
         let canvas_bytes = canonical_json_bytes(&canvas)?;
         let canvas_object = self.put_object(
             &canvas_bytes,
@@ -110,21 +125,26 @@ impl Runtime {
             "agentic-reference-canvas",
         )?;
 
-        let spec = build_design_spec(
-            project_id,
-            design_spec_id,
-            reference_canvas_id,
-            &canvas_object.record.sha256,
-            &reference,
-        );
-        let spec = canonical_value(spec);
+        let spec = match explicit_authoring {
+            Some(authoring) => build_design_spec_from_authoring(
+                authoring,
+                project_id,
+                design_spec_id,
+                reference_canvas_id,
+                &canvas_object.record.sha256,
+                &reference,
+            )?,
+            None => canonical_value(build_design_spec(
+                project_id,
+                design_spec_id,
+                reference_canvas_id,
+                &canvas_object.record.sha256,
+                &reference,
+            )),
+        };
         let spec_bytes = canonical_json_bytes(&spec)?;
-        let spec_object = self.put_object(
-            &spec_bytes,
-            None,
-            "application/json",
-            "agentic-design-spec",
-        )?;
+        let spec_object =
+            self.put_object(&spec_bytes, None, "application/json", "agentic-design-spec")?;
 
         let session = session_from_observation(
             &observation,
@@ -150,7 +170,7 @@ impl Runtime {
         let stored = self
             .store
             .agentic_session_create_or_resume(&session, &session_object.record)?;
-        Ok(session_result(&stored, "created"))
+        session_result_with_authoring(self, &stored, "created")
     }
 
     pub fn session_get(&self, request: Value) -> Result<Value, RuntimeError> {
@@ -172,7 +192,7 @@ impl Runtime {
             &session.camera_hash,
             &session.evidence_sha256,
         )?;
-        Ok(session_result(&session, "read"))
+        session_result_with_authoring(self, &session, "read")
     }
 
     /// Prepare and persist one immutable checkpoint.  The checkpoint is
@@ -246,8 +266,7 @@ impl Runtime {
         )?;
         if requested_evidence != session.evidence_sha256 {
             return Err(RuntimeError::InvalidInput(
-                "AGENTIC_SESSION_STALE: checkpoint evidence differs from the session"
-                    .to_owned(),
+                "AGENTIC_SESSION_STALE: checkpoint evidence differs from the session".to_owned(),
             ));
         }
         let stage = required_stage(object, "stage")?;
@@ -281,8 +300,7 @@ impl Runtime {
         let candidate_state_sha256 = required_sha(object, "candidate_state_sha256")?;
         if candidate_state_sha256 != candidate.canonical_sha256 {
             return Err(RuntimeError::InvalidInput(
-                "AGENTIC_CANDIDATE_STATE_MISMATCH: candidate state hash differs"
-                    .to_owned(),
+                "AGENTIC_CANDIDATE_STATE_MISMATCH: candidate state hash differs".to_owned(),
             ));
         }
         let artifact_sha256 = required_sha(object, "artifact_sha256")?;
@@ -375,7 +393,13 @@ impl Runtime {
             failed_gates: stage_gate
                 .get("failed_checks")
                 .and_then(Value::as_array)
-                .map(|values| values.iter().filter_map(Value::as_str).map(str::to_owned).collect())
+                .map(|values| {
+                    values
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                })
                 .unwrap_or_default(),
             allowed_actions: checkpoint_actions(&stage_gate, true),
             locked_actions: checkpoint_actions(&stage_gate, false),
@@ -389,7 +413,9 @@ impl Runtime {
         let mut next_session = session.clone();
         next_session.current_checkpoint_id = Some(checkpoint.checkpoint_id.clone());
         next_session.current_checkpoint_sha256 = Some(checkpoint.canonical_sha256.clone());
-        next_session.checkpoint_ids.push(checkpoint.checkpoint_id.clone());
+        next_session
+            .checkpoint_ids
+            .push(checkpoint.checkpoint_id.clone());
         next_session.quality_status = if visual_state == "pass" {
             "PARTIAL_VISIBLE_VIEW_PASS".to_owned()
         } else {
@@ -400,8 +426,8 @@ impl Runtime {
         next_session.next_actions = next_actions(
             stage,
             &next_session.quality_status,
-            &next_session.evidence_sha256,
             &next_session.session_id,
+            &next_session.reference_id,
         );
         next_session.updated_at = agentic_timestamp();
         next_session.object_sha256 = Some("0".repeat(64));
@@ -438,7 +464,11 @@ impl Runtime {
             .store
             .get_agentic_checkpoint(&checkpoint.checkpoint_id)?
             .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_CHECKPOINT_NOT_FOUND".to_owned()))?;
-        Ok(checkpoint_result(&stored_checkpoint, &stored_session, "prepared"))
+        Ok(checkpoint_result(
+            &stored_checkpoint,
+            &stored_session,
+            "prepared",
+        ))
     }
 
     pub fn checkpoint_get(&self, request: Value) -> Result<Value, RuntimeError> {
@@ -454,7 +484,9 @@ impl Runtime {
         let checkpoint = self
             .store
             .get_agentic_checkpoint(checkpoint_id)?
-            .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: checkpoint not found".to_owned()))?;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("NOT_FOUND: checkpoint not found".to_owned())
+            })?;
         if checkpoint.session_id != session_id
             || checkpoint.project_id != project_id
             || checkpoint.candidate_id != candidate_id
@@ -621,7 +653,7 @@ impl Runtime {
             .store
             .get_agentic_session_for_binding(project_id, candidate_id)?;
         Ok(match session {
-            Some(session) => session_result(&session, "lookup"),
+            Some(session) => session_result_with_authoring(self, &session, "lookup")?,
             None => json!({
                 "schema_version":"AgenticSessionLookupResult@1",
                 "status":"unavailable",
@@ -635,10 +667,220 @@ impl Runtime {
     }
 }
 
-fn request_object<'a>(request: &'a Value, operation: &str) -> Result<&'a Map<String, Value>, RuntimeError> {
+fn request_object<'a>(
+    request: &'a Value,
+    operation: &str,
+) -> Result<&'a Map<String, Value>, RuntimeError> {
     request.as_object().ok_or_else(|| {
-        RuntimeError::InvalidInput(format!("AGENTIC_INVALID_INPUT: {operation} requires an object"))
+        RuntimeError::InvalidInput(format!(
+            "AGENTIC_INVALID_INPUT: {operation} requires an object"
+        ))
     })
+}
+
+/// Read the durable authoring context that a DesignSession was created from.
+/// The session stores object hashes, while this method verifies the CAS bytes,
+/// object metadata, canonical hashes and cross-object bindings before exposing
+/// the DesignSpec/ReferenceCanvas to MCP or the Viewer.  This is a readback
+/// operation; it never rebuilds or rewrites either object.
+fn session_result_with_authoring(
+    runtime: &Runtime,
+    session: &AgenticSessionRecord,
+    status: &str,
+) -> Result<Value, RuntimeError> {
+    let authoring_context = read_authoring_context(runtime, session)?;
+    let mut result = session_result(session, status);
+    result["authoring_context"] = authoring_context;
+    Ok(result)
+}
+
+fn read_authoring_context(
+    runtime: &Runtime,
+    session: &AgenticSessionRecord,
+) -> Result<Value, RuntimeError> {
+    let canvas = read_authoring_object(
+        runtime,
+        &session.reference_canvas_sha256,
+        "agentic-reference-canvas",
+        "ReferenceCanvas@1",
+    )?;
+    let spec = read_authoring_object(
+        runtime,
+        &session.design_spec_sha256,
+        "agentic-design-spec",
+        "DesignSpec@1",
+    )?;
+
+    if canvas.get("canvas_id").and_then(Value::as_str) != Some(session.reference_canvas_id.as_str())
+        || canvas.get("project_id").and_then(Value::as_str) != Some(session.project_id.as_str())
+        || !canvas
+            .get("reference_set_sha256")
+            .and_then(Value::as_str)
+            .is_some_and(is_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_REFERENCE_CANVAS_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    if spec.get("spec_id").and_then(Value::as_str) != Some(session.design_spec_id.as_str())
+        || spec.get("project_id").and_then(Value::as_str) != Some(session.project_id.as_str())
+        || spec.get("reference_canvas_id").and_then(Value::as_str)
+            != Some(session.reference_canvas_id.as_str())
+        || spec.get("reference_canvas_sha256").and_then(Value::as_str)
+            != Some(session.reference_canvas_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_DESIGN_SPEC_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+
+    let view_matches = canvas
+        .get("views")
+        .and_then(Value::as_array)
+        .is_some_and(|views| {
+            views.iter().any(|view| {
+                view.get("reference_id").and_then(Value::as_str)
+                    == Some(session.reference_id.as_str())
+                    && view.get("reference_sha256").and_then(Value::as_str)
+                        == Some(session.reference_sha256.as_str())
+            })
+        });
+    if !view_matches {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_REFERENCE_CANVAS_VIEW_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+
+    let mut context = json!({
+        "schema_version":"AgenticAuthoringContext@1",
+        "durable":true,
+        "read_only":true,
+        "session_id":session.session_id,
+        "project_id":session.project_id,
+        "candidate_id":session.candidate_id,
+        "reference_id":session.reference_id,
+        "reference_sha256":session.reference_sha256,
+        "reference_canvas_object_sha256":session.reference_canvas_sha256,
+        "design_spec_object_sha256":session.design_spec_sha256,
+        "reference_canvas":canvas,
+        "design_spec":spec,
+        "canonical_sha256":""
+    });
+    context["canonical_sha256"] = Value::String(canonical_json_hash(&context));
+    Ok(context)
+}
+
+/// Return the durable ReferenceCanvas for an existing project/candidate
+/// session without rebuilding a session or invoking the observation
+/// projection.  Agentic scene observation uses this narrow helper so the
+/// multi-view authoring facts remain the same CAS-bound object that
+/// `session_get` exposes.  No session means the caller must retain its
+/// conservative single-reference projection.
+pub(crate) fn durable_reference_canvas_for_binding(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate_id: Option<&str>,
+) -> Result<Option<(Value, String)>, RuntimeError> {
+    let Some(candidate_id) = candidate_id else {
+        return Ok(None);
+    };
+    let Some(session) = runtime
+        .store
+        .get_agentic_session_for_binding(project_id, candidate_id)?
+    else {
+        return Ok(None);
+    };
+    let authoring_context = read_authoring_context(runtime, &session)?;
+    let canvas = authoring_context
+        .get("reference_canvas")
+        .cloned()
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_REFERENCE_CANVAS_READBACK_MISSING: durable canvas is absent".to_owned(),
+            )
+        })?;
+    Ok(Some((canvas, session.reference_canvas_sha256)))
+}
+
+/// Read the authoring canvas from one exact durable session.  Candidate-only
+/// lookup is sufficient for a single active session, but cross-view evaluation
+/// must use the session whose approval and view set are being evaluated when
+/// several sessions share the same candidate.
+pub(crate) fn durable_reference_canvas_for_session_binding(
+    runtime: &Runtime,
+    project_id: &str,
+    session_id: &str,
+    candidate_id: &str,
+) -> Result<(Value, String), RuntimeError> {
+    let session = runtime
+        .store
+        .get_agentic_session(session_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+    if session.project_id != project_id || session.candidate_id != candidate_id {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_SESSION_SCOPE_MISMATCH".to_owned(),
+        ));
+    }
+    let authoring_context = read_authoring_context(runtime, &session)?;
+    let canvas = authoring_context
+        .get("reference_canvas")
+        .cloned()
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_REFERENCE_CANVAS_READBACK_MISSING: durable canvas is absent".to_owned(),
+            )
+        })?;
+    Ok((canvas, session.reference_canvas_sha256))
+}
+
+fn read_authoring_object(
+    runtime: &Runtime,
+    object_sha256: &str,
+    expected_kind: &str,
+    expected_schema: &str,
+) -> Result<Value, RuntimeError> {
+    if !is_sha256(object_sha256) {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_OBJECT_HASH_INVALID".to_owned(),
+        ));
+    }
+    let record = runtime.store.get_object(object_sha256)?.ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_OBJECT_UNAVAILABLE".to_owned())
+    })?;
+    if record.mime != "application/json" || record.kind != expected_kind {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_OBJECT_METADATA_MISMATCH".to_owned(),
+        ));
+    }
+    let bytes = runtime.cas_read(object_sha256)?;
+    if sha256_hex(&bytes) != object_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_OBJECT_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!("AGENTIC_AUTHORING_OBJECT_INVALID: {error}"))
+    })?;
+    if value.get("schema_version").and_then(Value::as_str) != Some(expected_schema) {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_OBJECT_SCHEMA_MISMATCH".to_owned(),
+        ));
+    }
+    let canonical = value
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|value| is_sha256(value))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_OBJECT_CANONICAL_INVALID".to_owned())
+        })?;
+    let mut without_hash = value.clone();
+    without_hash["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&without_hash) != canonical {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_OBJECT_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(value)
 }
 
 fn reject_unknown_keys(object: &Map<String, Value>, allowed: &[&str]) -> Result<(), RuntimeError> {
@@ -651,7 +893,10 @@ fn reject_unknown_keys(object: &Map<String, Value>, allowed: &[&str]) -> Result<
 }
 
 fn required_id<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str, RuntimeError> {
-    let value = object.get(key).and_then(Value::as_str).filter(|value| !value.is_empty());
+    let value = object
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty());
     let value = value.ok_or_else(|| RuntimeError::InvalidInput(format!("{key} is required")))?;
     if !is_opaque_id(value) {
         return Err(RuntimeError::InvalidInput(format!("{key} is malformed")));
@@ -660,10 +905,15 @@ fn required_id<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str,
 }
 
 fn required_sha<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str, RuntimeError> {
-    let value = object.get(key).and_then(Value::as_str).filter(|value| !value.is_empty());
+    let value = object
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty());
     let value = value.ok_or_else(|| RuntimeError::InvalidInput(format!("{key} is required")))?;
     if !is_sha256(value) {
-        return Err(RuntimeError::InvalidInput(format!("{key} is not a SHA-256")));
+        return Err(RuntimeError::InvalidInput(format!(
+            "{key} is not a SHA-256"
+        )));
     }
     Ok(value)
 }
@@ -671,7 +921,9 @@ fn required_sha<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str
 fn required_stage<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str, RuntimeError> {
     let value = required_id(object, key)?;
     if !STAGES.contains(&value) {
-        return Err(RuntimeError::InvalidInput(format!("{key} is not a valid DesignStage")));
+        return Err(RuntimeError::InvalidInput(format!(
+            "{key} is not a valid DesignStage"
+        )));
     }
     Ok(value)
 }
@@ -683,7 +935,10 @@ fn require_approval(object: &Map<String, Value>) -> Result<(), RuntimeError> {
         ));
     }
     for key in ["approval_receipt_id", "approval_summary", "idempotency_key"] {
-        let value = object.get(key).and_then(Value::as_str).filter(|value| !value.is_empty());
+        let value = object
+            .get(key)
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty());
         if value.is_none() {
             return Err(RuntimeError::InvalidInput(format!(
                 "AGENTIC_APPROVAL_REQUIRED: {key} is required"
@@ -694,7 +949,11 @@ fn require_approval(object: &Map<String, Value>) -> Result<(), RuntimeError> {
         .get("approval_summary")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    if summary.len() > 512 || summary.contains('/') || summary.contains('\\') || summary.contains("http") {
+    if summary.len() > 512
+        || summary.contains('/')
+        || summary.contains('\\')
+        || summary.contains("http")
+    {
         return Err(RuntimeError::InvalidInput(
             "AGENTIC_APPROVAL_REQUIRED: approval_summary is unsafe".to_owned(),
         ));
@@ -747,7 +1006,8 @@ fn validate_observation_claims(
     evidence_sha256: &str,
 ) -> Result<(), RuntimeError> {
     if observation.get("project_id").and_then(Value::as_str) != Some(candidate.project_id.as_str())
-        || observation.get("candidate_id").and_then(Value::as_str) != Some(candidate.candidate_id.as_str())
+        || observation.get("candidate_id").and_then(Value::as_str)
+            != Some(candidate.candidate_id.as_str())
     {
         return Err(RuntimeError::InvalidInput(
             "AGENTIC_OBSERVATION_BINDING_MISMATCH: observation scope differs".to_owned(),
@@ -756,8 +1016,7 @@ fn validate_observation_claims(
     let known = observation_hashes(observation, candidate, reference);
     if !known.iter().any(|hash| hash == evidence_sha256) {
         return Err(RuntimeError::InvalidInput(
-            "AGENTIC_EVIDENCE_BINDING_MISMATCH: evidence hash is not Runtime-owned"
-                .to_owned(),
+            "AGENTIC_EVIDENCE_BINDING_MISMATCH: evidence hash is not Runtime-owned".to_owned(),
         ));
     }
     if let Some(observed_camera) = observation
@@ -813,9 +1072,9 @@ fn session_from_observation(
     camera_hash: &str,
     evidence_sha256: &str,
 ) -> Result<AgenticSessionRecord, RuntimeError> {
-    let stage_plan = observation
-        .get("design_stage_plan")
-        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_PROJECTION_INVALID: stage plan missing".to_owned()))?;
+    let stage_plan = observation.get("design_stage_plan").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_PROJECTION_INVALID: stage plan missing".to_owned())
+    })?;
     let stage = stage_plan
         .get("current_stage")
         .and_then(Value::as_str)
@@ -824,7 +1083,14 @@ fn session_from_observation(
     let quality_status = observation
         .pointer("/quality/visual_status")
         .and_then(Value::as_str)
-        .filter(|value| matches!(*value, "PARTIAL_VISIBLE_VIEW_PASS" | "QUALITY_TARGET_NOT_MET" | "BLOCKED_REFERENCE_COVERAGE"))
+        .filter(|value| {
+            matches!(
+                *value,
+                "PARTIAL_VISIBLE_VIEW_PASS"
+                    | "QUALITY_TARGET_NOT_MET"
+                    | "BLOCKED_REFERENCE_COVERAGE"
+            )
+        })
         .unwrap_or("not-run");
     let gate = session_stage_gate(observation, stage, evidence_sha256);
     Ok(AgenticSessionRecord {
@@ -851,17 +1117,24 @@ fn session_from_observation(
         quality_status: quality_status.to_owned(),
         status: "active".to_owned(),
         stage_gate: gate,
-        next_actions: next_actions(stage, quality_status, evidence_sha256, session_id),
+        next_actions: next_actions(
+            stage,
+            quality_status,
+            session_id,
+            &reference.reference_id,
+        ),
         rollback: no_session_rollback(),
         current_checkpoint_id: None,
         current_checkpoint_sha256: None,
         checkpoint_ids: Vec::new(),
-        lineage: observation.get("lineage").cloned().unwrap_or_else(|| json!({
-            "project_id":candidate.project_id,
-            "candidate_id":candidate.candidate_id,
-            "reference_id":reference.reference_id,
-            "reference_sha256":reference.object_sha256
-        })),
+        lineage: observation.get("lineage").cloned().unwrap_or_else(|| {
+            json!({
+                "project_id":candidate.project_id,
+                "candidate_id":candidate.candidate_id,
+                "reference_id":reference.reference_id,
+                "reference_sha256":reference.object_sha256
+            })
+        }),
         object_sha256: Some("0".repeat(64)),
         canonical_sha256: "0".repeat(64),
         created_at: agentic_timestamp(),
@@ -874,20 +1147,39 @@ fn session_stage_gate(observation: &Value, stage: &str, evidence_sha256: &str) -
         .pointer("/design_stage_plan/strict_visual_gate/status")
         .and_then(Value::as_str)
         .unwrap_or("unknown");
-    let status = if strict == "passed" { "pass" } else { "unknown" };
+    let status = if strict == "passed" {
+        "pass"
+    } else {
+        "unknown"
+    };
     let required_checks = match stage {
         "reference-canvas" => vec!["reference-authorized", "reference-coverage"],
         "primary-form" => vec!["primary-silhouette", "primary-proportion", "visible-view"],
         "secondary-structure" => vec!["secondary-structure", "visible-view"],
         "tertiary-detail" => vec!["tertiary-detail", "visible-view"],
         "uv-pbr" => vec!["uv-tangent-pbr", "visible-view"],
-        _ => vec!["multi-view-compare", "codex-typed-review", "human-review", "export-restart-hash"],
+        _ => vec![
+            "multi-view-compare",
+            "codex-typed-review",
+            "human-review",
+            "export-restart-hash",
+        ],
     };
-    let failed_checks = if status == "pass" { Vec::new() } else { vec!["visible-view"] };
+    let failed_checks = if status == "pass" {
+        Vec::new()
+    } else {
+        vec!["visible-view"]
+    };
     let locks = if status == "pass" {
         Vec::new()
     } else {
-        vec!["tertiary-detail", "uv-pbr", "confirm", "export", "next-stage"]
+        vec![
+            "tertiary-detail",
+            "uv-pbr",
+            "confirm",
+            "export",
+            "next-stage",
+        ]
     };
     let unlocks = if status == "pass" {
         vec!["checkpoint", "next-stage"]
@@ -914,12 +1206,23 @@ fn checkpoint_stage_gate(observation: &Value, visual_state: &str, evidence_sha25
     if visual_state == "fail" {
         gate["status"] = Value::String("fail".to_owned());
         gate["failed_checks"] = json!(["visible-view"]);
-        gate["locks"] = json!(["tertiary-detail", "uv-pbr", "confirm", "export", "next-stage"]);
+        gate["locks"] = json!([
+            "tertiary-detail",
+            "uv-pbr",
+            "confirm",
+            "export",
+            "next-stage"
+        ]);
     }
     gate
 }
 
-fn next_actions(stage: &str, quality_status: &str, evidence_sha256: &str, session_id: &str) -> Vec<Value> {
+fn next_actions(
+    stage: &str,
+    quality_status: &str,
+    session_id: &str,
+    reference_id: &str,
+) -> Vec<Value> {
     let action_kind = if quality_status == "QUALITY_TARGET_NOT_MET" {
         "bounded-repair"
     } else if quality_status == "not-run" {
@@ -927,23 +1230,85 @@ fn next_actions(stage: &str, quality_status: &str, evidence_sha256: &str, sessio
     } else {
         "checkpoint"
     };
+    let is_reference_request = action_kind == "request-reference";
+    let scope_kind = if is_reference_request {
+        "reference"
+    } else {
+        "session"
+    };
+    let target_id = if is_reference_request {
+        Value::String(reference_id.to_owned())
+    } else {
+        Value::Null
+    };
     vec![json!({
-        "action_id":format!("{}-{}", action_kind, &canonical_json_hash(&json!({"stage":stage,"session_id":session_id}))[..16]),
-        "stage":stage,
+        "action_id":format!("{}-{}", action_kind, &canonical_json_hash(&json!({"stage":stage,"session_id":session_id,"reference_id":reference_id}))[..16]),
         "action_kind":action_kind,
-        "scope_kind":"session",
-        "target_id":session_id,
-        "evidence_sha256":evidence_sha256,
+        "scope_kind":scope_kind,
+        "target_id":target_id,
+        "operator_id":null,
+        "parameter_changes":[],
         "bounded":true,
         "description":if action_kind == "bounded-repair" {"Prepare one bounded repair and rerun compile/readback/render/compare"} else if action_kind == "request-reference" {"Request or annotate missing reference coverage before advancing"} else {"Persist a checkpoint before the next bounded action"}
     })]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_reference_next_action_binds_the_session_reference() {
+        let actions = next_actions(
+            "reference-canvas",
+            "not-run",
+            "session-test",
+            "reference-test",
+        );
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0]["action_kind"], "request-reference");
+        assert_eq!(actions[0]["scope_kind"], "reference");
+        assert_eq!(actions[0]["target_id"], "reference-test");
+        assert_eq!(actions[0]["operator_id"], Value::Null);
+        assert_eq!(actions[0]["parameter_changes"], json!([]));
+        assert_eq!(actions[0]["bounded"], true);
+        assert!(actions[0].get("stage").is_none());
+        assert!(actions[0].get("evidence_sha256").is_none());
+    }
+
+    #[test]
+    fn complete_coverage_requires_authored_view_entities() {
+        let coverage = json!({
+            "required_views":["front","back","left","right","perspective"],
+            "supplied_views":["front","back","left","right","perspective"],
+            "missing_views":[],
+            "coverage_status":"complete",
+            "hq_360_status":"eligible",
+            "evidence_refs":[{"kind":"reference","sha256":"a".repeat(64)}]
+        });
+        let error = validate_coverage_view_bindings(
+            &coverage,
+            &[json!({"kind":"front"}), json!({"kind":"perspective"})],
+        )
+        .expect_err("complete coverage without all authored views must fail closed");
+        assert_eq!(
+            error.to_string(),
+            "invalid runtime input: AGENTIC_AUTHORING_COVERAGE_VIEW_BINDING_MISMATCH"
+        );
+    }
 }
 
 fn checkpoint_actions(gate: &Value, allowed: bool) -> Vec<String> {
     let key = if allowed { "unlocks" } else { "locks" };
     gate.get(key)
         .and_then(Value::as_array)
-        .map(|values| values.iter().filter_map(Value::as_str).map(str::to_owned).collect())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -951,7 +1316,13 @@ fn observation_strings(observation: &Value, key: &str) -> Vec<String> {
     observation
         .pointer(&format!("/model_understanding_bundle/uncertainty/{key}"))
         .and_then(Value::as_array)
-        .map(|values| values.iter().filter_map(Value::as_str).map(str::to_owned).collect())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -1054,7 +1425,9 @@ fn validate_session_binding(
     Ok(())
 }
 
-fn with_session_canonical(mut session: AgenticSessionRecord) -> Result<AgenticSessionRecord, RuntimeError> {
+fn with_session_canonical(
+    mut session: AgenticSessionRecord,
+) -> Result<AgenticSessionRecord, RuntimeError> {
     let mut value = serde_json::to_value(&session)
         .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
     value["object_sha256"] = Value::Null;
@@ -1063,7 +1436,9 @@ fn with_session_canonical(mut session: AgenticSessionRecord) -> Result<AgenticSe
     Ok(session)
 }
 
-fn with_checkpoint_canonical(mut checkpoint: AgenticCheckpointRecord) -> Result<AgenticCheckpointRecord, RuntimeError> {
+fn with_checkpoint_canonical(
+    mut checkpoint: AgenticCheckpointRecord,
+) -> Result<AgenticCheckpointRecord, RuntimeError> {
     let mut value = serde_json::to_value(&checkpoint)
         .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
     value["object_sha256"] = Value::Null;
@@ -1079,7 +1454,1148 @@ fn canonical_value(mut value: Value) -> Value {
 }
 
 fn canonical_json_bytes(value: &Value) -> Result<Vec<u8>, RuntimeError> {
-    super::canonical_json_bytes(value).map_err(|error| RuntimeError::InvalidInput(error.to_string()))
+    super::canonical_json_bytes(value)
+        .map_err(|error| RuntimeError::InvalidInput(error.to_string()))
+}
+
+/// Validate and canonicalize an explicit authoring payload supplied by Codex.
+/// The default session path still creates a conservative single-reference
+/// canvas/spec, but an authoring payload is the Runtime-owned producer path for
+/// semantic views, observed/inferred/unknown facts and stage constraints.  No
+/// image bytes, paths or executable instructions are accepted here.
+fn build_reference_canvas_from_authoring(
+    runtime: &Runtime,
+    authoring: &Value,
+    project_id: &str,
+    canvas_id: &str,
+    primary_reference: &ReferenceEvidenceRecord,
+) -> Result<Value, RuntimeError> {
+    let authoring = authoring_object(authoring)?;
+    let canvas = authoring
+        .get("reference_canvas")
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_REQUIRED".to_owned()))?
+        .clone();
+    let canvas_object = canvas
+        .as_object()
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_INVALID".to_owned()))?;
+    reject_authoring_keys(
+        canvas_object,
+        &[
+            "schema_version",
+            "canvas_id",
+            "project_id",
+            "reference_set_sha256",
+            "views",
+            "coverage",
+            "unknowns",
+            "claims",
+            "canonical_sha256",
+            "created_at",
+        ],
+        "ReferenceCanvas",
+    )?;
+    validate_bounded_authoring_value(&canvas, 0)?;
+    if canvas_object.get("schema_version").and_then(Value::as_str) != Some("ReferenceCanvas@1")
+        || canvas_object.get("canvas_id").and_then(Value::as_str) != Some(canvas_id)
+        || canvas_object.get("project_id").and_then(Value::as_str) != Some(project_id)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_CANVAS_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let reference_set_sha256 =
+        required_authoring_sha(canvas_object, "reference_set_sha256", "ReferenceCanvas")?;
+    let views = canvas_object
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_VIEWS_INVALID".to_owned())
+        })?;
+    if views.is_empty() || views.len() > 32 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_CANVAS_VIEWS_OUT_OF_BOUNDS".to_owned(),
+        ));
+    }
+    let mut view_ids = HashSet::new();
+    let mut reference_pairs = Vec::new();
+    let mut has_primary_view = false;
+    for view in views {
+        let view_object = view.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_INVALID".to_owned())
+        })?;
+        reject_authoring_keys(
+            view_object,
+            &[
+                "view_id",
+                "reference_id",
+                "reference_sha256",
+                "kind",
+                "authorization",
+                "image_dimensions",
+                "camera_claim",
+                "visible_regions",
+                "unknown_regions",
+            ],
+            "ReferenceCanvas.view",
+        )?;
+        let view_id = required_authoring_id(view_object, "view_id", "ReferenceCanvas.view")?;
+        if !view_ids.insert(view_id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_VIEW_ID_DUPLICATE".to_owned(),
+            ));
+        }
+        let reference_id =
+            required_authoring_id(view_object, "reference_id", "ReferenceCanvas.view")?;
+        let reference_sha256 =
+            required_authoring_sha(view_object, "reference_sha256", "ReferenceCanvas.view")?;
+        let reference = runtime.reference(reference_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_REFERENCE_NOT_FOUND".to_owned())
+        })?;
+        if reference.project_id != project_id || reference.object_sha256 != reference_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_VIEW_REFERENCE_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        if reference_id == primary_reference.reference_id
+            && reference_sha256 == primary_reference.object_sha256
+        {
+            has_primary_view = true;
+        }
+        validate_authoring_view_kind(view_object, "kind")?;
+        validate_authorization_claim(
+            view_object.get("authorization").ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_VIEW_AUTHORIZATION_REQUIRED".to_owned(),
+                )
+            })?,
+            &reference,
+            reference_sha256,
+        )?;
+        validate_image_dimensions(
+            view_object.get("image_dimensions").ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_DIMENSIONS_REQUIRED".to_owned())
+            })?,
+            reference.width,
+            reference.height,
+        )?;
+        validate_camera_claim(view_object.get("camera_claim").ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_CAMERA_REQUIRED".to_owned())
+        })?)?;
+        validate_regions(view_object.get("visible_regions").ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_REGIONS_REQUIRED".to_owned())
+        })?)?;
+        validate_unknown_regions(view_object.get("unknown_regions").ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_UNKNOWN_REGIONS_REQUIRED".to_owned())
+        })?)?;
+        reference_pairs.push((reference_id.to_owned(), reference_sha256.to_owned()));
+    }
+    if !has_primary_view {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_CANVAS_PRIMARY_VIEW_REQUIRED".to_owned(),
+        ));
+    }
+    let expected_set_hash = reference_set_hash(&reference_pairs);
+    if reference_set_sha256 != expected_set_hash
+        && !(reference_pairs
+            .iter()
+            .map(|(_, sha256)| sha256.as_str())
+            .collect::<HashSet<_>>()
+            .len()
+            == 1
+            && reference_set_sha256 == primary_reference.object_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_REFERENCE_SET_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    let coverage = canvas_object.get("coverage").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_COVERAGE_REQUIRED".to_owned())
+    })?;
+    validate_coverage(coverage)?;
+    validate_coverage_view_bindings(coverage, views)?;
+    validate_unknowns(canvas_object.get("unknowns").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_UNKNOWNS_REQUIRED".to_owned())
+    })?)?;
+    validate_claims(canvas_object.get("claims").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_CLAIMS_REQUIRED".to_owned())
+    })?)?;
+    required_authoring_text(canvas_object, "created_at", "ReferenceCanvas")?;
+    canonicalize_authoring_value(canvas, "ReferenceCanvas@1")
+}
+
+fn build_design_spec_from_authoring(
+    authoring: &Value,
+    project_id: &str,
+    spec_id: &str,
+    canvas_id: &str,
+    canvas_sha256: &str,
+    _primary_reference: &ReferenceEvidenceRecord,
+) -> Result<Value, RuntimeError> {
+    let authoring = authoring_object(authoring)?;
+    let spec = authoring
+        .get("design_spec")
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_AUTHORING_SPEC_REQUIRED".to_owned()))?
+        .clone();
+    let spec_object = spec
+        .as_object()
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_AUTHORING_SPEC_INVALID".to_owned()))?;
+    reject_authoring_keys(
+        spec_object,
+        &[
+            "schema_version",
+            "spec_id",
+            "project_id",
+            "reference_canvas_id",
+            "reference_canvas_sha256",
+            "category",
+            "style",
+            "primary_forms",
+            "proportions",
+            "semantic_parts",
+            "material_language",
+            "stage_goals",
+            "risks",
+            "unknowns",
+            "canonical_sha256",
+            "created_at",
+        ],
+        "DesignSpec",
+    )?;
+    validate_bounded_authoring_value(&spec, 0)?;
+    if spec_object.get("schema_version").and_then(Value::as_str) != Some("DesignSpec@1")
+        || spec_object.get("spec_id").and_then(Value::as_str) != Some(spec_id)
+        || spec_object.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || spec_object
+            .get("reference_canvas_id")
+            .and_then(Value::as_str)
+            != Some(canvas_id)
+        || spec_object
+            .get("reference_canvas_sha256")
+            .and_then(Value::as_str)
+            != Some(canvas_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_SPEC_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    required_authoring_text(spec_object, "category", "DesignSpec")?;
+    required_authoring_text(spec_object, "style", "DesignSpec")?;
+    validate_nonempty_array(spec_object, "primary_forms", 64, "DesignSpec")?;
+    validate_nonempty_array(spec_object, "semantic_parts", 256, "DesignSpec")?;
+    validate_nonempty_array(spec_object, "stage_goals", 6, "DesignSpec")?;
+    validate_bounded_array(spec_object, "proportions", 128, "DesignSpec")?;
+    validate_bounded_array(spec_object, "material_language", 128, "DesignSpec")?;
+    validate_bounded_array(spec_object, "risks", 128, "DesignSpec")?;
+    validate_bounded_array(spec_object, "unknowns", 128, "DesignSpec")?;
+    validate_design_spec_states(spec_object)?;
+    required_authoring_text(spec_object, "created_at", "DesignSpec")?;
+    canonicalize_authoring_value(spec, "DesignSpec@1")
+}
+
+fn authoring_object(authoring: &Value) -> Result<&Map<String, Value>, RuntimeError> {
+    let object = authoring.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CONTEXT_INVALID".to_owned())
+    })?;
+    reject_authoring_keys(
+        object,
+        &["reference_canvas", "design_spec"],
+        "authoring_context",
+    )?;
+    Ok(object)
+}
+
+fn reject_authoring_keys(
+    object: &Map<String, Value>,
+    allowed: &[&str],
+    label: &str,
+) -> Result<(), RuntimeError> {
+    if let Some(key) = object.keys().find(|key| !allowed.contains(&key.as_str())) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_AUTHORING_UNSUPPORTED_FIELD: {label}.{key}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_bounded_authoring_value(value: &Value, depth: usize) -> Result<(), RuntimeError> {
+    if depth > 12 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_NESTING_OUT_OF_BOUNDS".to_owned(),
+        ));
+    }
+    match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) => Ok(()),
+        Value::String(text) => {
+            if text.len() > 4096 || unsafe_authoring_text(text) {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_UNSAFE_TEXT".to_owned(),
+                ));
+            }
+            Ok(())
+        }
+        Value::Array(values) => {
+            if values.len() > 256 {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_ARRAY_OUT_OF_BOUNDS".to_owned(),
+                ));
+            }
+            for value in values {
+                validate_bounded_authoring_value(value, depth + 1)?;
+            }
+            Ok(())
+        }
+        Value::Object(values) => {
+            if values.len() > 64 {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_OBJECT_OUT_OF_BOUNDS".to_owned(),
+                ));
+            }
+            for (key, value) in values {
+                let lowered = key.to_ascii_lowercase();
+                if lowered.split(['_', '-', '.']).any(|part| {
+                    matches!(
+                        part,
+                        "path"
+                            | "url"
+                            | "secret"
+                            | "token"
+                            | "password"
+                            | "script"
+                            | "command"
+                            | "shell"
+                            | "bytes"
+                            | "base64"
+                            | "prompt"
+                    )
+                }) || lowered.contains("api_key")
+                    || lowered.contains("apikey")
+                {
+                    return Err(RuntimeError::InvalidInput(format!(
+                        "AGENTIC_AUTHORING_FORBIDDEN_FIELD: {key}"
+                    )));
+                }
+                validate_bounded_authoring_value(value, depth + 1)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+fn unsafe_authoring_text(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    text.starts_with('/')
+        || text.starts_with('\\')
+        || lowered.contains("://")
+        || lowered.contains("api_key")
+        || lowered.contains("secret")
+        || lowered.contains("token")
+        || lowered.contains("password")
+}
+
+fn required_authoring_id<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+    label: &str,
+) -> Result<&'a str, RuntimeError> {
+    let value = object.get(key).and_then(Value::as_str).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!("AGENTIC_AUTHORING_REQUIRED: {label}.{key}"))
+    })?;
+    if !is_opaque_id(value) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_AUTHORING_INVALID_ID: {label}.{key}"
+        )));
+    }
+    Ok(value)
+}
+
+fn required_authoring_sha<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+    label: &str,
+) -> Result<&'a str, RuntimeError> {
+    let value = object.get(key).and_then(Value::as_str).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!("AGENTIC_AUTHORING_REQUIRED: {label}.{key}"))
+    })?;
+    if !is_sha256(value) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_AUTHORING_INVALID_SHA256: {label}.{key}"
+        )));
+    }
+    Ok(value)
+}
+
+fn required_authoring_text<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+    label: &str,
+) -> Result<&'a str, RuntimeError> {
+    let value = object.get(key).and_then(Value::as_str).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!("AGENTIC_AUTHORING_REQUIRED: {label}.{key}"))
+    })?;
+    if value.is_empty() || value.len() > 512 || unsafe_authoring_text(value) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_AUTHORING_INVALID_TEXT: {label}.{key}"
+        )));
+    }
+    Ok(value)
+}
+
+fn canonicalize_authoring_value(
+    mut value: Value,
+    expected_schema: &str,
+) -> Result<Value, RuntimeError> {
+    let supplied = {
+        let object = value.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_OBJECT_INVALID".to_owned())
+        })?;
+        if object.get("schema_version").and_then(Value::as_str) != Some(expected_schema) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_SCHEMA_MISMATCH".to_owned(),
+            ));
+        }
+        let supplied = object
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANONICAL_REQUIRED".to_owned())
+            })?;
+        if !supplied.is_empty() && !is_sha256(supplied) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CANONICAL_INVALID".to_owned(),
+            ));
+        }
+        supplied.to_owned()
+    };
+    value["canonical_sha256"] = Value::String(String::new());
+    let canonical = canonical_json_hash(&value);
+    if !supplied.is_empty() && supplied != canonical {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    value["canonical_sha256"] = Value::String(canonical);
+    Ok(value)
+}
+
+fn validate_authoring_view_kind(
+    object: &Map<String, Value>,
+    key: &str,
+) -> Result<(), RuntimeError> {
+    let kind = object.get(key).and_then(Value::as_str).ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_KIND_REQUIRED".to_owned())
+    })?;
+    if !matches!(
+        kind,
+        "front"
+            | "back"
+            | "left"
+            | "right"
+            | "top"
+            | "perspective"
+            | "rear-three-quarter"
+            | "material"
+            | "detail"
+    ) {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_VIEW_KIND_INVALID".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_authorization_claim(
+    value: &Value,
+    reference: &ReferenceEvidenceRecord,
+    reference_sha256: &str,
+) -> Result<(), RuntimeError> {
+    let object = value.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_AUTHORIZATION_INVALID".to_owned())
+    })?;
+    reject_authoring_keys(
+        object,
+        &["user_authorized", "declaration", "evidence_refs"],
+        "ReferenceCanvas.authorization",
+    )?;
+    if object.get("user_authorized") != Some(&Value::Bool(true))
+        || object.get("declaration").and_then(Value::as_str)
+            != Some(reference.authorization.declaration.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_AUTHORIZATION_MISMATCH".to_owned(),
+        ));
+    }
+    let declaration = object
+        .get("declaration")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_AUTHORIZATION_DECLARATION_REQUIRED".to_owned(),
+            )
+        })?;
+    if declaration.is_empty() || declaration.len() > 512 || unsafe_authoring_text(declaration) {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_AUTHORIZATION_DECLARATION_INVALID".to_owned(),
+        ));
+    }
+    validate_evidence_refs(
+        object.get("evidence_refs").ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_EVIDENCE_REFS_REQUIRED".to_owned())
+        })?,
+        reference_sha256,
+    )?;
+    Ok(())
+}
+
+fn validate_evidence_refs(value: &Value, required_sha256: &str) -> Result<(), RuntimeError> {
+    let refs = value.as_array().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_EVIDENCE_REFS_INVALID".to_owned())
+    })?;
+    if refs.is_empty() || refs.len() > 16 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_EVIDENCE_REFS_OUT_OF_BOUNDS".to_owned(),
+        ));
+    }
+    let mut found = false;
+    for item in refs {
+        let object = item.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_EVIDENCE_REF_INVALID".to_owned())
+        })?;
+        reject_authoring_keys(object, &["kind", "sha256"], "evidence_ref")?;
+        let kind = object.get("kind").and_then(Value::as_str).ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_EVIDENCE_KIND_REQUIRED".to_owned())
+        })?;
+        if kind.is_empty() || kind.len() > 32 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_EVIDENCE_KIND_INVALID".to_owned(),
+            ));
+        }
+        let sha256 = object
+            .get("sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_EVIDENCE_HASH_REQUIRED".to_owned())
+            })?;
+        if !is_sha256(sha256) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_EVIDENCE_HASH_INVALID".to_owned(),
+            ));
+        }
+        found |= sha256 == required_sha256;
+    }
+    if !found {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_EVIDENCE_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_image_dimensions(
+    value: &Value,
+    expected_width: u32,
+    expected_height: u32,
+) -> Result<(), RuntimeError> {
+    let object = value.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_IMAGE_DIMENSIONS_INVALID".to_owned())
+    })?;
+    reject_authoring_keys(object, &["width", "height"], "image_dimensions")?;
+    let width = object.get("width").and_then(Value::as_u64).ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_IMAGE_WIDTH_REQUIRED".to_owned())
+    })?;
+    let height = object
+        .get("height")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_IMAGE_HEIGHT_REQUIRED".to_owned())
+        })?;
+    if width == 0
+        || width > 16_384
+        || height == 0
+        || height > 16_384
+        || width != expected_width as u64
+        || height != expected_height as u64
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_IMAGE_DIMENSIONS_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_camera_claim(value: &Value) -> Result<(), RuntimeError> {
+    let object = value.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CAMERA_CLAIM_INVALID".to_owned())
+    })?;
+    reject_authoring_keys(
+        object,
+        &["visibility", "camera_hash", "claim", "evidence_refs"],
+        "camera_claim",
+    )?;
+    let visibility = object
+        .get("visibility")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CAMERA_VISIBILITY_REQUIRED".to_owned())
+        })?;
+    let camera_hash = object.get("camera_hash").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CAMERA_HASH_REQUIRED".to_owned())
+    })?;
+    match visibility {
+        "unknown" if !camera_hash.is_null() => {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_UNKNOWN_CAMERA_MUST_BE_NULL".to_owned(),
+            ))
+        }
+        "observed" | "inferred" if !camera_hash.as_str().is_some_and(is_sha256) => {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CAMERA_HASH_INVALID".to_owned(),
+            ))
+        }
+        "unknown" | "observed" | "inferred" => {}
+        _ => {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CAMERA_VISIBILITY_INVALID".to_owned(),
+            ))
+        }
+    }
+    let claim = object.get("claim").and_then(Value::as_str).ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CAMERA_CLAIM_REQUIRED".to_owned())
+    })?;
+    if claim.is_empty() || claim.len() > 512 || unsafe_authoring_text(claim) {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_CAMERA_CLAIM_INVALID".to_owned(),
+        ));
+    }
+    let required_sha = camera_hash.as_str().unwrap_or_else(|| "");
+    if camera_hash.is_null() {
+        let refs = object.get("evidence_refs").ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CAMERA_EVIDENCE_REQUIRED".to_owned())
+        })?;
+        let refs = refs.as_array().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CAMERA_EVIDENCE_INVALID".to_owned())
+        })?;
+        if refs.is_empty() {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CAMERA_EVIDENCE_REQUIRED".to_owned(),
+            ));
+        }
+        for reference in refs {
+            let object = reference.as_object().ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_EVIDENCE_REF_INVALID".to_owned())
+            })?;
+            if !object
+                .get("sha256")
+                .and_then(Value::as_str)
+                .is_some_and(is_sha256)
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_EVIDENCE_HASH_INVALID".to_owned(),
+                ));
+            }
+        }
+    } else {
+        validate_evidence_refs(
+            object.get("evidence_refs").ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_CAMERA_EVIDENCE_REQUIRED".to_owned())
+            })?,
+            required_sha,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_regions(value: &Value) -> Result<(), RuntimeError> {
+    let regions = value.as_array().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_REGIONS_INVALID".to_owned())
+    })?;
+    if regions.len() > 128 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_REGIONS_OUT_OF_BOUNDS".to_owned(),
+        ));
+    }
+    let mut ids = HashSet::new();
+    for region in regions {
+        let object = region.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_REGION_INVALID".to_owned())
+        })?;
+        reject_authoring_keys(object, &["region_id", "label", "state"], "region")?;
+        let id = required_authoring_id(object, "region_id", "region")?;
+        if !ids.insert(id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_REGION_ID_DUPLICATE".to_owned(),
+            ));
+        }
+        required_authoring_text(object, "label", "region")?;
+        validate_state(
+            object.get("state").ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_REGION_STATE_REQUIRED".to_owned())
+            })?,
+            false,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_unknown_regions(value: &Value) -> Result<(), RuntimeError> {
+    let regions = value.as_array().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_UNKNOWN_REGIONS_INVALID".to_owned())
+    })?;
+    if regions.len() > 128 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_UNKNOWN_REGIONS_OUT_OF_BOUNDS".to_owned(),
+        ));
+    }
+    let mut ids = HashSet::new();
+    for region in regions {
+        let object = region.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_UNKNOWN_REGION_INVALID".to_owned())
+        })?;
+        reject_authoring_keys(
+            object,
+            &["region_id", "question", "state"],
+            "unknown_region",
+        )?;
+        let id = required_authoring_id(object, "region_id", "unknown_region")?;
+        if !ids.insert(id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_UNKNOWN_REGION_ID_DUPLICATE".to_owned(),
+            ));
+        }
+        required_authoring_text(object, "question", "unknown_region")?;
+        validate_state(
+            object.get("state").ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_UNKNOWN_REGION_STATE_REQUIRED".to_owned(),
+                )
+            })?,
+            true,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_state(value: &Value, unknown_only: bool) -> Result<(), RuntimeError> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_AUTHORING_STATE_INVALID".to_owned()))?;
+    reject_authoring_keys(
+        object,
+        &["visibility", "confidence", "evidence_refs"],
+        "state",
+    )?;
+    let visibility = object
+        .get("visibility")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_STATE_VISIBILITY_REQUIRED".to_owned())
+        })?;
+    if !matches!(visibility, "observed" | "inferred" | "unknown")
+        || (unknown_only && visibility != "unknown")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_STATE_VISIBILITY_INVALID".to_owned(),
+        ));
+    }
+    let confidence = object
+        .get("confidence")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_STATE_CONFIDENCE_REQUIRED".to_owned())
+        })?;
+    if !confidence.is_finite()
+        || !(0.0..=1.0).contains(&confidence)
+        || (visibility == "unknown" && confidence != 0.0)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_STATE_CONFIDENCE_INVALID".to_owned(),
+        ));
+    }
+    validate_evidence_refs_any(object.get("evidence_refs").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_STATE_EVIDENCE_REQUIRED".to_owned())
+    })?)
+}
+
+fn validate_evidence_refs_any(value: &Value) -> Result<(), RuntimeError> {
+    let refs = value.as_array().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_EVIDENCE_REFS_INVALID".to_owned())
+    })?;
+    if refs.is_empty() || refs.len() > 16 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_EVIDENCE_REFS_OUT_OF_BOUNDS".to_owned(),
+        ));
+    }
+    for item in refs {
+        let object = item.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_EVIDENCE_REF_INVALID".to_owned())
+        })?;
+        reject_authoring_keys(object, &["kind", "sha256"], "evidence_ref")?;
+        if object.get("kind").and_then(Value::as_str).is_none()
+            || !object
+                .get("sha256")
+                .and_then(Value::as_str)
+                .is_some_and(is_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_EVIDENCE_REF_INVALID".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_coverage(value: &Value) -> Result<(), RuntimeError> {
+    let object = value.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_COVERAGE_INVALID".to_owned())
+    })?;
+    reject_authoring_keys(
+        object,
+        &[
+            "required_views",
+            "supplied_views",
+            "missing_views",
+            "coverage_status",
+            "hq_360_status",
+            "evidence_refs",
+        ],
+        "coverage",
+    )?;
+    let required = view_kind_array(object, "required_views", 5, 9)?;
+    let supplied = view_kind_array(object, "supplied_views", 1, 9)?;
+    let missing = view_kind_array(object, "missing_views", 0, 9)?;
+    let required_set: HashSet<&str> = required.iter().map(String::as_str).collect();
+    let supplied_set: HashSet<&str> = supplied.iter().map(String::as_str).collect();
+    let missing_set: HashSet<&str> = missing.iter().map(String::as_str).collect();
+    if !supplied_set.is_subset(&required_set)
+        || !missing_set.is_subset(&required_set)
+        || required_set
+            .difference(&supplied_set)
+            .copied()
+            .collect::<HashSet<_>>()
+            != missing_set
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_COVERAGE_SET_MISMATCH".to_owned(),
+        ));
+    }
+    let status = object
+        .get("coverage_status")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_COVERAGE_STATUS_REQUIRED".to_owned())
+        })?;
+    let hq = object
+        .get("hq_360_status")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_COVERAGE_HQ_STATUS_REQUIRED".to_owned())
+        })?;
+    if missing.is_empty() {
+        if status != "complete" || hq != "eligible" {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_COVERAGE_COMPLETE_STATUS_MISMATCH".to_owned(),
+            ));
+        }
+    } else if !matches!(status, "partial" | "blocked") || hq != "BLOCKED_REFERENCE_COVERAGE" {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_COVERAGE_BLOCKED_STATUS_MISMATCH".to_owned(),
+        ));
+    }
+    validate_evidence_refs_any(object.get("evidence_refs").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_COVERAGE_EVIDENCE_REQUIRED".to_owned())
+    })?)
+}
+
+/// A coverage claim is only meaningful when every supplied view kind has an
+/// authored ReferenceCanvas view.  The set-level validator above protects the
+/// required/supplied/missing bookkeeping; this second gate binds that claim
+/// to the actual view entities so a caller cannot mark a six-view canvas as
+/// complete while submitting only one or two view objects.
+fn validate_coverage_view_bindings(
+    coverage: &Value,
+    views: &[Value],
+) -> Result<(), RuntimeError> {
+    let coverage_object = coverage.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_COVERAGE_INVALID".to_owned())
+    })?;
+    let supplied = coverage_object
+        .get("supplied_views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_COVERAGE_SUPPLIED_VIEWS_INVALID".to_owned(),
+            )
+        })?;
+    let authored_kinds: HashSet<&str> = views
+        .iter()
+        .filter_map(|view| view.get("kind").and_then(Value::as_str))
+        .collect();
+    if supplied.iter().any(|kind| {
+        kind.as_str()
+            .is_none_or(|kind| !authored_kinds.contains(kind))
+    }) {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_COVERAGE_VIEW_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    if coverage_object.get("coverage_status").and_then(Value::as_str) == Some("complete")
+        && coverage_object
+            .get("missing_views")
+            .and_then(Value::as_array)
+            .is_none_or(|missing| !missing.is_empty())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_COVERAGE_COMPLETE_VIEW_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn view_kind_array(
+    object: &Map<String, Value>,
+    key: &str,
+    min: usize,
+    max: usize,
+) -> Result<Vec<String>, RuntimeError> {
+    let values = object.get(key).and_then(Value::as_array).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!("AGENTIC_AUTHORING_COVERAGE_{key}_INVALID"))
+    })?;
+    if values.len() < min || values.len() > max {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_AUTHORING_COVERAGE_{key}_OUT_OF_BOUNDS"
+        )));
+    }
+    let mut result = Vec::new();
+    let mut seen = HashSet::new();
+    for value in values {
+        let kind = value.as_str().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_COVERAGE_VIEW_INVALID".to_owned())
+        })?;
+        if !matches!(
+            kind,
+            "front"
+                | "back"
+                | "left"
+                | "right"
+                | "top"
+                | "perspective"
+                | "rear-three-quarter"
+                | "material"
+                | "detail"
+        ) || !seen.insert(kind)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_COVERAGE_VIEW_INVALID".to_owned(),
+            ));
+        }
+        result.push(kind.to_owned());
+    }
+    Ok(result)
+}
+
+fn validate_unknowns(value: &Value) -> Result<(), RuntimeError> {
+    let values = value.as_array().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_UNKNOWNS_INVALID".to_owned())
+    })?;
+    if values.len() > 128 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_UNKNOWNS_OUT_OF_BOUNDS".to_owned(),
+        ));
+    }
+    let mut ids = HashSet::new();
+    for value in values {
+        let object = value.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_UNKNOWN_INVALID".to_owned())
+        })?;
+        reject_authoring_keys(
+            object,
+            &["unknown_id", "scope_kind", "scope_id", "question", "state"],
+            "unknown",
+        )?;
+        let id = required_authoring_id(object, "unknown_id", "unknown")?;
+        if !ids.insert(id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_UNKNOWN_ID_DUPLICATE".to_owned(),
+            ));
+        }
+        if !matches!(
+            object.get("scope_kind").and_then(Value::as_str),
+            Some("scene" | "part" | "material-zone" | "camera" | "region")
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_UNKNOWN_SCOPE_INVALID".to_owned(),
+            ));
+        }
+        required_authoring_id(object, "scope_id", "unknown")?;
+        required_authoring_text(object, "question", "unknown")?;
+        validate_state(
+            object.get("state").ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_UNKNOWN_STATE_REQUIRED".to_owned())
+            })?,
+            true,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_claims(value: &Value) -> Result<(), RuntimeError> {
+    let values = value
+        .as_array()
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_AUTHORING_CLAIMS_INVALID".to_owned()))?;
+    if values.len() > 128 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_CLAIMS_OUT_OF_BOUNDS".to_owned(),
+        ));
+    }
+    let mut ids = HashSet::new();
+    for value in values {
+        let object = value.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CLAIM_INVALID".to_owned())
+        })?;
+        reject_authoring_keys(
+            object,
+            &[
+                "claim_id",
+                "subject_kind",
+                "subject_id",
+                "statement",
+                "state",
+            ],
+            "claim",
+        )?;
+        let id = required_authoring_id(object, "claim_id", "claim")?;
+        if !ids.insert(id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CLAIM_ID_DUPLICATE".to_owned(),
+            ));
+        }
+        if !matches!(
+            object.get("subject_kind").and_then(Value::as_str),
+            Some("canvas" | "view" | "region" | "camera")
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CLAIM_SUBJECT_INVALID".to_owned(),
+            ));
+        }
+        required_authoring_id(object, "subject_id", "claim")?;
+        required_authoring_text(object, "statement", "claim")?;
+        validate_state(
+            object.get("state").ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_CLAIM_STATE_REQUIRED".to_owned())
+            })?,
+            false,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_nonempty_array(
+    object: &Map<String, Value>,
+    key: &str,
+    max: usize,
+    label: &str,
+) -> Result<(), RuntimeError> {
+    let values = object.get(key).and_then(Value::as_array).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!("AGENTIC_AUTHORING_{label}_{key}_INVALID"))
+    })?;
+    if values.is_empty() || values.len() > max {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_AUTHORING_{label}_{key}_OUT_OF_BOUNDS"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_bounded_array(
+    object: &Map<String, Value>,
+    key: &str,
+    max: usize,
+    label: &str,
+) -> Result<(), RuntimeError> {
+    let values = object.get(key).and_then(Value::as_array).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!("AGENTIC_AUTHORING_{label}_{key}_INVALID"))
+    })?;
+    if values.len() > max {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_AUTHORING_{label}_{key}_OUT_OF_BOUNDS"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_design_spec_states(object: &Map<String, Value>) -> Result<(), RuntimeError> {
+    for (key, unknown_only) in [
+        ("primary_forms", false),
+        ("proportions", false),
+        ("semantic_parts", false),
+        ("material_language", false),
+        ("risks", false),
+        ("unknowns", true),
+    ] {
+        let values = object[key].as_array().expect("array validated above");
+        for value in values {
+            let child = value.as_object().ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "AGENTIC_AUTHORING_DESIGN_SPEC_{key}_ITEM_INVALID"
+                ))
+            })?;
+            validate_state(
+                child.get("state").ok_or_else(|| {
+                    RuntimeError::InvalidInput(format!(
+                        "AGENTIC_AUTHORING_DESIGN_SPEC_{key}_STATE_REQUIRED"
+                    ))
+                })?,
+                unknown_only,
+            )?;
+        }
+    }
+    let stage_goals = object["stage_goals"]
+        .as_array()
+        .expect("array validated above");
+    let mut stages = HashSet::new();
+    for goal in stage_goals {
+        let goal = goal.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_STAGE_GOAL_INVALID".to_owned())
+        })?;
+        let stage = goal.get("stage").and_then(Value::as_str).ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_STAGE_GOAL_STAGE_REQUIRED".to_owned())
+        })?;
+        if !STAGES.contains(&stage) || !stages.insert(stage.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_STAGE_GOAL_STAGE_INVALID".to_owned(),
+            ));
+        }
+        required_authoring_text(goal, "objective", "stage_goal")?;
+        let gate = goal
+            .get("exit_gate")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("AGENTIC_AUTHORING_STAGE_GOAL_GATE_REQUIRED".to_owned())
+            })?;
+        if gate.get("stage").and_then(Value::as_str) != Some(stage)
+            || !matches!(
+                gate.get("status").and_then(Value::as_str),
+                Some("pass" | "fail" | "unknown")
+            )
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_STAGE_GOAL_GATE_INVALID".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn reference_set_hash(pairs: &[(String, String)]) -> String {
+    let mut pairs = pairs.to_vec();
+    pairs.sort();
+    canonical_json_hash(&Value::Array(
+        pairs
+            .into_iter()
+            .map(|(reference_id, reference_sha256)| {
+                json!({"reference_id":reference_id,"reference_sha256":reference_sha256})
+            })
+            .collect(),
+    ))
 }
 
 fn build_reference_canvas(reference: &ReferenceEvidenceRecord, canvas_id: &str) -> Value {
@@ -1116,7 +2632,8 @@ fn build_design_spec(
     reference: &ReferenceEvidenceRecord,
 ) -> Value {
     let evidence = json!({"kind":"reference","sha256":reference.object_sha256});
-    let unknown_state = json!({"visibility":"unknown","confidence":0,"evidence_refs":[evidence.clone()]});
+    let unknown_state =
+        json!({"visibility":"unknown","confidence":0,"evidence_refs":[evidence.clone()]});
     let gate = json!({"stage":"reference-canvas","status":"unknown","required_checks":["reference-authorized","reference-coverage"],"failed_checks":["reference-coverage"],"evidence_hashes":[reference.object_sha256],"unlocks":["checkpoint","bounded-repair"],"locks":["tertiary-detail","uv-pbr","confirm","export","next-stage"]});
     json!({
         "schema_version":"DesignSpec@1",

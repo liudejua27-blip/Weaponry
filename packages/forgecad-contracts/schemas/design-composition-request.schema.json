@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/design-composition-request.schema.json",
+  "title": "DesignCompositionRequest",
+  "description": "Approval-gated ordered composition of bounded geometry proposals; an optional cumulative-program envelope hash-links complete GeometryProgram@2 states before a separate review candidate is compiled.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "composition_id",
+    "requested_stage",
+    "actions",
+    "input_sha256",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "session_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "composition_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "requested_stage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/stage"},
+    "actions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 6,
+      "items": {"$ref": "#/$defs/action_entry"}
+    },
+    "input_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+    "approved": {"const": true},
+    "approval_receipt_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "approval_summary": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"},
+    "approval_expires_at": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"},
+    "approval_session_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "idempotency_key": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+    "merge": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/merge"}
+      ]
+    }
+  },
+  "$defs": {
+    "action_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "depends_on", "action", "proposal"],
+      "properties": {
+        "run_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+        "depends_on": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"}
+        },
+        "action": {"$ref": "https://forgecad.local/contracts/design-action-run.schema.json#/$defs/action"},
+        "proposal": {"$ref": "#/$defs/proposal"}
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repair_intent", "geometry_program", "view_spec", "camera"],
+      "properties": {
+        "repair_intent": {"type": "object", "additionalProperties": true},
+        "geometry_program": {"type": "object", "additionalProperties": true},
+        "view_spec": {"type": "object", "additionalProperties": true},
+        "camera": {"type": "object", "additionalProperties": true},
+        "view_evaluations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {"type": "object", "additionalProperties": true}
+        }
+      }
+    },
+    "merge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "steps", "final_step_index"],
+      "properties": {
+        "mode": {"const": "cumulative-program"},
+        "steps": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {"$ref": "#/$defs/merge_step"}
+        },
+        "final_step_index": {"type": "integer", "minimum": 1, "maximum": 5}
+      }
+    },
+    "merge_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "parent_program_sha256", "program_sha256"],
+      "properties": {
+        "run_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
+        "parent_program_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+        "program_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"}
+      }
+    }
+  }
+}

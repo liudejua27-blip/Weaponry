@@ -7,7 +7,9 @@ F_GATE_TARGET="$(mktemp -d "${TMPDIR:-/tmp}/forgecad-mcp010f-tauri.XXXXXX")"
 trap 'rm -rf "$F_GATE_TARGET"' EXIT
 
 python3 scripts/check_mcp010f_stage0_truth.py
+python3 scripts/check_mcp010f_current_quality_evidence.py
 python3 scripts/check_forgecad_contracts.py
+python3 scripts/check_visual_surface_contract.py
 python3 scripts/check_mcp010f_viewer.py
 python3 - <<'PY'
 from pathlib import Path
@@ -36,7 +38,7 @@ import pathlib
 import sys
 
 source = json.loads(pathlib.Path("docs/evidence/mcp010f/reference-detail-inventory-real-reference.json").read_text())
-source["detail_inventory"][0]["operator_ids"].append("boolean@1")
+source["detail_inventory"][0]["operator_ids"].append("boolean@2")
 pathlib.Path(sys.argv[1]).write_text(json.dumps(source) + "\n", encoding="utf-8")
 PY
 if python3 scripts/validate_mcp010f_reference_inventory.py \

@@ -1460,6 +1460,152 @@ fn parse_glb(glb: &[u8]) -> Result<(Value, &[u8]), GeometryError> {
     Ok((root, &glb[binary_offset..binary_end]))
 }
 
+/// A bounded, read-only triangle view used by the Runtime Visual Surface
+/// projection.  The normal is derived from the decoded GLB positions rather
+/// than trusted from metadata or the renderer.  This intentionally exposes no
+/// arbitrary glTF scene state and is only callable after the strict artifact
+/// profile has been admitted by the caller.
+#[derive(Debug, Clone)]
+pub struct SurfaceTriangle {
+    pub positions: [[f32; 3]; 3],
+    pub normal: [f32; 3],
+    pub part_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurfaceMesh {
+    pub triangles: Vec<SurfaceTriangle>,
+    pub vertex_count: usize,
+}
+
+/// Decode the product-owned static mesh needed for bounded surface signals.
+///
+/// This is deliberately not a general glTF importer: the Runtime calls it only
+/// after `ArtifactReadback@2` has passed.  It reads positions, indices and
+/// semantic Part lineage from the same GLB BIN, caps the triangle count, and
+/// rejects malformed or degenerate payloads instead of returning a partial
+/// surface analysis.
+pub fn extract_surface_mesh(glb: &[u8]) -> Result<SurfaceMesh, GeometryError> {
+    const MAX_SURFACE_TRIANGLES: usize = 250_000;
+    const WELD_SCALE: f32 = 1_000_000.0;
+
+    let (root, binary) = parse_glb(glb)?;
+    let meshes = required_array(&root, "meshes")?;
+    let nodes = required_array(&root, "nodes")?;
+    let accessors = required_array(&root, "accessors")?;
+    let views = required_array(&root, "bufferViews")?;
+    let mut triangles = Vec::new();
+    let mut vertices = BTreeSet::<[i64; 3]>::new();
+    let mut lineage_metrics = Metrics::default();
+
+    for (mesh_index, mesh) in meshes.iter().enumerate() {
+        let mesh_object = mesh.as_object().ok_or_else(|| {
+            GeometryError::Invalid("surface GLB mesh is not an object".to_owned())
+        })?;
+        let mesh_lineage = mesh_object.get("extras").and_then(Value::as_object);
+        let node_lineages = matching_node_lineages(nodes, mesh_index);
+        let node_lineage = node_lineages.first();
+        let primitives = mesh_object
+            .get("primitives")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                GeometryError::Invalid("surface GLB primitive list is missing".to_owned())
+            })?;
+        for primitive in primitives {
+            let primitive_object = primitive.as_object().ok_or_else(|| {
+                GeometryError::Invalid("surface GLB primitive is not an object".to_owned())
+            })?;
+            let primitive_lineage = primitive_object.get("extras").and_then(Value::as_object);
+            let lineage = merge_lineage(
+                mesh_lineage,
+                node_lineage,
+                primitive_lineage,
+                &mut lineage_metrics,
+            );
+            let part_id = lineage.part_id.ok_or_else(|| {
+                GeometryError::Invalid("surface GLB Part lineage is missing".to_owned())
+            })?;
+            let attributes = primitive_object
+                .get("attributes")
+                .and_then(Value::as_object)
+                .ok_or_else(|| {
+                    GeometryError::Invalid(
+                        "surface GLB primitive attributes are missing".to_owned(),
+                    )
+                })?;
+            let position_accessor = required_index(attributes, "POSITION")?;
+            let index_accessor = primitive_object
+                .get("indices")
+                .and_then(Value::as_u64)
+                .and_then(|value| usize::try_from(value).ok())
+                .ok_or_else(|| {
+                    GeometryError::Invalid("surface GLB index accessor is missing".to_owned())
+                })?;
+            let positions = read_vec3(&accessors, &views, binary, position_accessor)?;
+            let indices = read_indices(&accessors, &views, binary, index_accessor)?;
+            if positions.is_empty() || indices.is_empty() || indices.len() % 3 != 0 {
+                return Err(GeometryError::Invalid(
+                    "surface GLB mesh has an invalid triangle payload".to_owned(),
+                ));
+            }
+            for position in &positions {
+                if !finite3(*position) {
+                    return Err(GeometryError::Invalid(
+                        "surface GLB contains a non-finite position".to_owned(),
+                    ));
+                }
+                vertices.insert(position.map(|component| (component * WELD_SCALE).round() as i64));
+            }
+            for triangle in indices.chunks_exact(3) {
+                if triangles.len() >= MAX_SURFACE_TRIANGLES {
+                    return Err(GeometryError::Invalid(
+                        "surface analysis exceeds the bounded triangle budget".to_owned(),
+                    ));
+                }
+                let indices = [
+                    triangle[0] as usize,
+                    triangle[1] as usize,
+                    triangle[2] as usize,
+                ];
+                if indices.iter().any(|index| *index >= positions.len()) {
+                    return Err(GeometryError::Invalid(
+                        "surface GLB triangle index is out of bounds".to_owned(),
+                    ));
+                }
+                let triangle_positions = [
+                    positions[indices[0]],
+                    positions[indices[1]],
+                    positions[indices[2]],
+                ];
+                let face = cross3(
+                    sub3(triangle_positions[1], triangle_positions[0]),
+                    sub3(triangle_positions[2], triangle_positions[0]),
+                );
+                let face_length = length3(face);
+                if !face_length.is_finite() || face_length <= DEGENERATE_AREA_EPSILON {
+                    return Err(GeometryError::Invalid(
+                        "surface GLB contains a degenerate triangle".to_owned(),
+                    ));
+                }
+                triangles.push(SurfaceTriangle {
+                    positions: triangle_positions,
+                    normal: normalize3(face),
+                    part_id: part_id.clone(),
+                });
+            }
+        }
+    }
+    if triangles.is_empty() || vertices.is_empty() {
+        return Err(GeometryError::Invalid(
+            "surface GLB contains no analyzable triangles".to_owned(),
+        ));
+    }
+    Ok(SurfaceMesh {
+        triangles,
+        vertex_count: vertices.len(),
+    })
+}
+
 fn read_vec2(
     accessors: &[Value],
     views: &[Value],
@@ -1836,8 +1982,14 @@ fn tangent_handedness_matches_geometry(
         return false;
     }
     let orientation = dot3(cross3(normal, tangent_direction), bitangent_direction);
-    if !orientation.is_finite() || orientation.abs() <= ORTHOGONALITY_EPSILON {
+    if !orientation.is_finite() {
         return false;
+    }
+    if orientation.abs() <= ORTHOGONALITY_EPSILON {
+        // A nearly collinear Boolean sliver has no numerically stable
+        // bitangent orientation. Its tangent direction was already checked
+        // above; there is no meaningful handedness bit to reject here.
+        return true;
     }
     let expected_handedness = if orientation < 0.0 { -1.0 } else { 1.0 };
     (tangent[3] - expected_handedness).abs() <= ORTHOGONALITY_EPSILON

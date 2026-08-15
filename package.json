@@ -36,6 +36,8 @@
     "mcp009:test": "script/test_mcp009.sh",
     "mcp010c:test": "script/test_mcp010c.sh",
     "mcp010f:truth": "python3 scripts/check_mcp010f_stage0_truth.py",
+    "mcp010f:current-evidence": "python3 scripts/check_mcp010f_current_quality_evidence.py",
+    "mcp010f:visual-surface": "python3 scripts/check_visual_surface_contract.py",
     "mcp010f:test": "script/test_mcp010f.sh",
     "mcp010a:install-dev": "python3 scripts/install_mcp010a_dev_app.py",
     "mcp010a:probe-dev": "python3 scripts/probe_mcp010a_dev_app.py --evidence docs/evidence/mcp010a/dev-app-probe.json",

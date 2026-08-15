@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/visual-surface-request.schema.json",
+  "title": "VisualSurfaceRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "candidate_id",
+    "requested_signals",
+    "expected_binding",
+    "target_sha256",
+    "max_part_errors",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "VisualSurfaceRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "requested_signals": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "silhouette",
+          "boundary",
+          "depth",
+          "normal",
+          "part-id",
+          "material-id",
+          "curvature",
+          "feature-line"
+        ]
+      }
+    },
+    "expected_binding": {"$ref": "#/$defs/binding"},
+    "target_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "max_part_errors": {"type": "integer", "minimum": 1, "maximum": 64},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_id": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_id",
+        "reference_sha256",
+        "artifact_sha256",
+        "render_set_hash",
+        "camera_hash",
+        "comparison_report_hash",
+        "quality_report_hash"
+      ],
+      "properties": {
+        "reference_id": {"$ref": "#/$defs/nullable_id"},
+        "reference_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "render_set_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "camera_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "comparison_report_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "quality_report_hash": {"$ref": "#/$defs/nullable_sha256"}
+      }
+    }
+  }
+}

@@ -17,6 +17,11 @@ CARGO_TARGET_DIR="$TARGET_DIR" \
 
 CARGO_TARGET_DIR="$TARGET_DIR" \
   "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo build \
+  --manifest-path "$PROJECT_ROOT/apps/render-worker/Cargo.toml" \
+  --bin forgecad-render-worker --offline
+
+CARGO_TARGET_DIR="$TARGET_DIR" \
+  "$PROJECT_ROOT/script/with_rust_toolchain.sh" cargo build \
   --manifest-path "$PROJECT_ROOT/apps/desktop/src-tauri/Cargo.toml" \
   -p forgecad-mcp --bin forgecad-mcp \
   -p forgecad-runtime --bin forgecad-runtime --offline

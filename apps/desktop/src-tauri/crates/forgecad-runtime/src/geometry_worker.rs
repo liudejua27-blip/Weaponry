@@ -94,10 +94,13 @@ pub(crate) fn compile_geometry(
     appearance_program: Option<&Value>,
 ) -> Result<GeometryArtifact, GeometryWorkerError> {
     let execution_budget = execution_budget_for_geometry_program(geometry_program);
-    let mut payload = json!({"geometry_program":geometry_program});
-    if let Some(appearance_program) = appearance_program {
-        payload["appearance_program"] = appearance_program.clone();
-    }
+    // The Worker protocol is closed even when no appearance program is used;
+    // send an explicit null so legacy GeometryProgram@1 calls and V2 geometry
+    // calls take the same typed path instead of failing at the protocol gate.
+    let payload = json!({
+        "geometry_program":geometry_program,
+        "appearance_program":appearance_program.cloned().unwrap_or(Value::Null),
+    });
     let expected_program_sha256 = required_sha256(geometry_program.get("canonical_sha256"))?;
     let result = execute("compile_geometry", payload, execution_budget)?;
     let object = strict_object(&result)?;
@@ -364,7 +367,7 @@ pub(crate) fn render_glb_fit_batch_at_resolution(
     if glb.is_empty() || glb.len() > 64 * 1024 * 1024 || cameras.is_empty() || cameras.len() > 64 {
         return Err(GeometryWorkerError::Protocol);
     }
-    if !matches!(resolution, 128 | 512) {
+    if !matches!(resolution, 128 | 256 | 512) {
         return Err(GeometryWorkerError::Protocol);
     }
     #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
@@ -372,19 +375,21 @@ pub(crate) fn render_glb_fit_batch_at_resolution(
         cameras
             .iter()
             .map(|camera| {
-                forgecad_geometry_worker::render_perspective_glb_fit_at_resolution(glb, camera, resolution)
-                    .map(|passes| {
-                        passes
-                            .into_iter()
-                            .map(|pass| RenderPass {
-                                pass: pass.pass,
-                                png: pass.png,
-                                width: pass.width,
-                                height: pass.height,
-                            })
-                            .collect()
-                    })
-                    .map_err(|_| GeometryWorkerError::Rejected)
+                forgecad_geometry_worker::render_perspective_glb_fit_at_resolution(
+                    glb, camera, resolution,
+                )
+                .map(|passes| {
+                    passes
+                        .into_iter()
+                        .map(|pass| RenderPass {
+                            pass: pass.pass,
+                            png: pass.png,
+                            width: pass.width,
+                            height: pass.height,
+                        })
+                        .collect()
+                })
+                .map_err(|_| GeometryWorkerError::Rejected)
             })
             .collect::<Result<Vec<_>, _>>()
     };
@@ -403,10 +408,15 @@ pub(crate) fn render_glb_fit_batch_at_resolution(
     let object = strict_object(&result)?;
     require_exact_keys(
         object,
-        &["schema_version", "width", "height", "renderer_revision", "renders"],
+        &[
+            "schema_version",
+            "width",
+            "height",
+            "renderer_revision",
+            "renders",
+        ],
     )?;
-    if object.get("schema_version").and_then(Value::as_str)
-        != Some("RenderWorkerFitBatchResult@1")
+    if object.get("schema_version").and_then(Value::as_str) != Some("RenderWorkerFitBatchResult@1")
         || object.get("width").and_then(Value::as_u64) != Some(resolution as u64)
         || object.get("height").and_then(Value::as_u64) != Some(resolution as u64)
         || object.get("renderer_revision").and_then(Value::as_str) != Some("forgecad-renderer-2")
@@ -452,7 +462,10 @@ pub(crate) fn render_glb_fit_batch_at_resolution(
                 encoded.as_bytes(),
             )
             .map_err(|_| GeometryWorkerError::Protocol)?;
-            if png.is_empty() || png.len() > 16 * 1024 * 1024 || !png.starts_with(b"\x89PNG\r\n\x1a\n") {
+            if png.is_empty()
+                || png.len() > 16 * 1024 * 1024
+                || !png.starts_with(b"\x89PNG\r\n\x1a\n")
+            {
                 return Err(GeometryWorkerError::Protocol);
             }
             passes.push(RenderPass {
@@ -472,12 +485,7 @@ fn execute(
     payload: Value,
     execution_budget: ExecutionBudget,
 ) -> Result<Value, GeometryWorkerError> {
-    execute_on_worker(
-        GEOMETRY_WORKER_BINARY,
-        operation,
-        payload,
-        execution_budget,
-    )
+    execute_on_worker(GEOMETRY_WORKER_BINARY, operation, payload, execution_budget)
 }
 
 fn execute_on_worker(
@@ -508,7 +516,9 @@ fn execute_on_worker(
     // an artifact, reach CAS, or create a candidate.
     let response = serde_json::from_slice::<WorkerResponse>(&child.stdout)
         .map_err(|_| GeometryWorkerError::Protocol)?;
-    validate_response(&response, &request.request_id).map_err(|_| GeometryWorkerError::Protocol)?;
+    if validate_response(&response, &request.request_id).is_err() {
+        return Err(GeometryWorkerError::Protocol);
+    }
     if response.build_cohort_sha256 != build_cohort_sha256() {
         return Err(GeometryWorkerError::Protocol);
     }
@@ -1032,12 +1042,7 @@ fn test_worker_mode_with_timeout(
     args: &[&str],
     wall_timeout: Duration,
 ) -> Result<(i32, Vec<u8>), GeometryWorkerError> {
-    let child = spawn_fixed_worker(
-        GEOMETRY_WORKER_BINARY,
-        args,
-        Vec::new(),
-        wall_timeout,
-    )?;
+    let child = spawn_fixed_worker(GEOMETRY_WORKER_BINARY, args, Vec::new(), wall_timeout)?;
     Ok((child.exit_code, child.stdout))
 }
 

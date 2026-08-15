@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/cross-view-evidence-bundle.schema.json",
+  "title": "CrossViewEvidenceBundle",
+  "description": "Runtime-owned, view-keyed evidence for a bounded candidate proposal. It is reviewable evidence, not a confirmation transaction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "artifact_sha256",
+    "program_sha256",
+    "reference_canvas_sha256",
+    "coverage",
+    "view_evaluations",
+    "aggregate_status",
+    "hard_gate_passed",
+    "baseline_score",
+    "proposal_score",
+    "strict_improvement",
+    "non_regressing",
+    "promotion",
+    "limitations",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "CrossViewEvidenceBundle@1"},
+    "bundle_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_canvas_sha256": {"$ref": "#/$defs/sha256"},
+    "coverage": {"$ref": "https://forgecad.local/contracts/reference-canvas.schema.json#/$defs/coverage"},
+    "view_evaluations": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/view_evaluation"}
+    },
+    "aggregate_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE"]},
+    "hard_gate_passed": {"type": "boolean"},
+    "baseline_score": {"type": "number", "minimum": 0, "maximum": 8},
+    "proposal_score": {"type": "number", "minimum": 0, "maximum": 8},
+    "strict_improvement": {"type": "boolean"},
+    "non_regressing": {"type": "boolean"},
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "confirm_allowed"],
+      "properties": {
+        "status": {"enum": ["reviewable", "not-improved", "rejected-regression"]},
+        "confirm_allowed": {"const": false}
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 256}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "view_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "kind",
+        "visibility",
+        "confidence",
+        "reference_id",
+        "reference_sha256",
+        "camera_hash",
+        "baseline_status",
+        "proposal_status",
+        "baseline_render_set_sha256",
+        "baseline_comparison_report_sha256",
+        "baseline_quality_report_sha256",
+        "proposal_render_set_sha256",
+        "proposal_comparison_report_sha256",
+        "proposal_quality_report_sha256",
+        "baseline_metrics",
+        "proposal_metrics",
+        "non_regressing",
+        "strict_improvement"
+      ],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"enum": ["front", "back", "left", "right", "top", "perspective", "three-quarter", "rear-three-quarter", "detail"]},
+        "visibility": {"enum": ["observed", "inferred", "unknown"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "baseline_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE"]},
+        "proposal_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE"]},
+        "baseline_render_set_sha256": {"$ref": "#/$defs/sha256"},
+        "baseline_comparison_report_sha256": {"$ref": "#/$defs/sha256"},
+        "baseline_quality_report_sha256": {"$ref": "#/$defs/sha256"},
+        "proposal_render_set_sha256": {"$ref": "#/$defs/sha256"},
+        "proposal_comparison_report_sha256": {"$ref": "#/$defs/sha256"},
+        "proposal_quality_report_sha256": {"$ref": "#/$defs/sha256"},
+        "baseline_metrics": {"$ref": "https://forgecad.local/contracts/reference-comparison-report.schema.json#/properties/metrics"},
+        "proposal_metrics": {"$ref": "https://forgecad.local/contracts/reference-comparison-report.schema.json#/properties/metrics"},
+        "non_regressing": {"type": "boolean"},
+        "strict_improvement": {"type": "boolean"}
+      }
+    }
+  }
+}

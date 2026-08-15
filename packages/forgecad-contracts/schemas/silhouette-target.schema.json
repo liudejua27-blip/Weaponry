@@ -29,6 +29,7 @@
     "height": {"const": 512},
     "coordinate_space": {"const": "normalized_reference_image"},
     "source": {"enum": ["automatic", "user_refined"]},
+    "parent_target_sha256": {"$ref": "#/$defs/sha256"},
     "contour_points": {
       "type": "array",
       "minItems": 3,
@@ -46,7 +47,8 @@
           "part_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
           "start_index": {"type": "integer", "minimum": 0, "maximum": 511},
           "end_index": {"type": "integer", "minimum": 0, "maximum": 511},
-          "visibility": {"enum": ["observed", "inferred", "unknown"]}
+          "visibility": {"enum": ["observed", "inferred", "unknown"]},
+          "region": {"$ref": "#/$defs/part_region"}
         }
       }
     },
@@ -78,6 +80,18 @@
       "items": false,
       "minItems": 2,
       "maxItems": 2
+    },
+    "part_region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "x", "y", "width", "height"],
+      "properties": {
+        "region_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+        "x": {"type": "number", "minimum": 0, "maximum": 1},
+        "y": {"type": "number", "minimum": 0, "maximum": 1},
+        "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+      }
     }
   }
 }

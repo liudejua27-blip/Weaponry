@@ -13,6 +13,7 @@
     "program_sha256": {"$ref": "#/$defs/sha256"},
     "reference_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
     "reference_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "view_id": {"$ref": "#/$defs/identifier"},
     "render_set_hash": {"$ref": "#/$defs/sha256"},
     "comparison_report_hash": {"$ref": "#/$defs/sha256"},
     "human_receipt_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},

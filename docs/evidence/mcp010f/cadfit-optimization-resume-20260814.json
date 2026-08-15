@@ -1,0 +1,42 @@
+{
+  "schema_version": "ForgeCADCADFitOptimizationResumeEvidence@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-14",
+  "status": "PASS_SOURCE_RUNTIME_RESUME",
+  "scope": [
+    "Runtime-owned OptimizationJob@1",
+    "CAS-backed multi-fidelity evaluation checkpoints",
+    "cancel then approved resume",
+    "proposal-only completion without candidate/version mutation"
+  ],
+  "implementation": {
+    "search_strategy": "seed-then-adaptive-trust-region-v1",
+    "search_behavior": "evaluate a small deterministic parameter-aware seed prefix at coarse fidelity, choose the best seed, replace the remaining coarse slots with shrinking positive/negative local probes around that seed, then promote the measured candidates to mid/final fidelity",
+    "checkpoint_fields": [
+      "next_stage",
+      "evaluation_object_sha256s",
+      "candidate_program_object_sha256s",
+      "candidate_artifact_object_sha256s",
+      "checkpoint_sequence"
+    ],
+    "resume_behavior": "reuses validated CAS evaluations and candidate artifacts, then evaluates only missing fidelity work",
+    "corrupt_checkpoint_behavior": "fail closed",
+    "confirm_or_version": "never"
+  },
+  "gates": {
+    "forgecad_runtime_unit": "PASS: targeted CADFit integration and adaptive-search tests",
+    "cancel_resume_integration": "PASS: optimization_job_runs_bounded_multi_fidelity_search_and_never_confirms",
+    "adaptive_search_unit": "PASS: exploration budget and deterministic bounded local candidates",
+    "evaluation_hash_reuse": "PASS: checkpoint evaluation object hashes remained the prefix of the resumed result",
+    "forgecad_store": "PASS: 8 passed",
+    "forgecad_mcp": "PASS: 54 passed",
+    "packaged_or_live_desktop": "NOT_RUN",
+    "visual_likeness": "NOT_RUN"
+  },
+  "limitations": [
+    "This is a source/runtime recovery gate, not packaged distribution or visual quality evidence.",
+    "The optimizer remains bounded to one candidate Part and returns a proposal; the adaptive trust-region is deterministic and local, not a claim of global optimization. It does not confirm, version, or export.",
+    "Manifold boolean remains unavailable until its separate accepted C API adoption gate passes."
+  ],
+  "persistent_user_data_touched": false
+}

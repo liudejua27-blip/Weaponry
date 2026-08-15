@@ -12,6 +12,7 @@
     "artifact_sha256": {"$ref": "#/$defs/sha256"},
     "program_sha256": {"$ref": "#/$defs/sha256"},
     "reference_id": {"$ref": "#/$defs/identifier"},
+    "view_id": {"$ref": "#/$defs/identifier"},
     "camera_hash": {"$ref": "#/$defs/sha256"},
     "renderer_hash": {"$ref": "#/$defs/sha256"},
     "width": {"const": 512},

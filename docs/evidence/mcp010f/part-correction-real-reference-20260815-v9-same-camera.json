@@ -1,0 +1,324 @@
+{
+  "automatic_target_sha256": "c985922432247cc107d40a510ec566b097dd77e4e38852c8b9156bbe258a8da3",
+  "baseline_metrics": {
+    "bbox_edge_error": 0.21484375,
+    "boundary_f1_4px": 0.077157626231,
+    "centroid_error": 0.032655429175,
+    "critical_region_min_iou": 0.587600644122,
+    "landmark_coverage": 0.139498432602,
+    "landmark_nme": 0.089797986767,
+    "region_median_iou": 0.948246225319,
+    "silhouette_iou": 0.523518339306
+  },
+  "build_cohort_sha256": "889f054a706360eb0060f040f338be08f1a81379d91ca78e0a086c8098de9d2e",
+  "build_cohorts": {
+    "geometry_worker": "889f054a706360eb0060f040f338be08f1a81379d91ca78e0a086c8098de9d2e",
+    "mcp": "889f054a706360eb0060f040f338be08f1a81379d91ca78e0a086c8098de9d2e",
+    "render_worker": "889f054a706360eb0060f040f338be08f1a81379d91ca78e0a086c8098de9d2e",
+    "runtime": "889f054a706360eb0060f040f338be08f1a81379d91ca78e0a086c8098de9d2e"
+  },
+  "camera": {
+    "binding_status": "PASS_ALL_CANDIDATES_SAME_CAMERA",
+    "camera_hash": "35e938f51b4912305d75f16e98e2e65dda176dd88da48e72f491e85cfd487fdd",
+    "canonical_sha256": "f6da16a520f0527b36cb7a1cea3cb2ec507d19afbb9c15064b4393ba34074cb4",
+    "source": "camera_fit_prepare"
+  },
+  "candidate_comparisons": [
+    {
+      "camera_hash": "35e938f51b4912305d75f16e98e2e65dda176dd88da48e72f491e85cfd487fdd",
+      "candidate_id": "candidate-ac55eb9a77304eedb683335797b3529f",
+      "comparison_report_hash": "d64bfaee73249774a628e041a6fc0f72b7293f47c5d4446a967da792dada0e95",
+      "metrics": {
+        "bbox_edge_error": 0.21484375,
+        "boundary_f1_4px": 0.077157626231,
+        "centroid_error": 0.032655429175,
+        "critical_region_min_iou": 0.587600644122,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.089797986767,
+        "region_median_iou": 0.948246225319,
+        "silhouette_iou": 0.523518339306
+      },
+      "proposal": null,
+      "render_set_hash": "3c9c656ed9e8c6bf8ded632b30fda54fe99c75ecb1ae25e451136839655d3f61",
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "camera_hash": "35e938f51b4912305d75f16e98e2e65dda176dd88da48e72f491e85cfd487fdd",
+      "candidate_id": "candidate-c29cce258c6342b4a6b9fd46a5a93094",
+      "comparison_report_hash": "a9f433c5fe72b4626cf4d7f66ef2d8118ad9f8d34a4ef5f6d1980ef47db5eb0a",
+      "metrics": {
+        "bbox_edge_error": 0.21484375,
+        "boundary_f1_4px": 0.077988602651,
+        "centroid_error": 0.031381067851,
+        "critical_region_min_iou": 0.604106280193,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.089622077938,
+        "region_median_iou": 0.955772357724,
+        "silhouette_iou": 0.528027394638
+      },
+      "proposal": {
+        "delta": 0.1,
+        "parameter_id": "chest-height",
+        "source": "part_contour_fit_prepare"
+      },
+      "render_set_hash": "32993da71ef3faf7fb1e11e785d96abd192e10f1f892e2ce4742555d48cd6b7b",
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "camera_hash": "35e938f51b4912305d75f16e98e2e65dda176dd88da48e72f491e85cfd487fdd",
+      "candidate_id": "candidate-8929bd3d0cf64065986d1aa8498f9cfd",
+      "comparison_report_hash": "2cea5a2d87d107a12589638f996ceb1a156d6b933637207f06058713e1d7bd64",
+      "metrics": {
+        "bbox_edge_error": 0.21484375,
+        "boundary_f1_4px": 0.078675224625,
+        "centroid_error": 0.030617009962,
+        "critical_region_min_iou": 0.60998389694,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.089785945414,
+        "region_median_iou": 0.96,
+        "silhouette_iou": 0.530919996172
+      },
+      "proposal": {
+        "delta": 0.175,
+        "parameter_id": "chest-height",
+        "source": "part_contour_fit_prepare"
+      },
+      "render_set_hash": "1d5daded66c7be41b05fd17286aec45927ac5e56e60505079c746f47e8d82682",
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "camera_hash": "35e938f51b4912305d75f16e98e2e65dda176dd88da48e72f491e85cfd487fdd",
+      "candidate_id": "candidate-2e4b3e8ba2e745c09400c7a39798867d",
+      "comparison_report_hash": "e6ad9f69b096cb02ae7f0d4657bf9a646e0c674d50cbaff02967cd54abf5a318",
+      "metrics": {
+        "bbox_edge_error": 0.21484375,
+        "boundary_f1_4px": 0.07916459042,
+        "centroid_error": 0.030064998642,
+        "critical_region_min_iou": 0.614734299517,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.090111041027,
+        "region_median_iou": 0.961393728223,
+        "silhouette_iou": 0.533248965789
+      },
+      "proposal": {
+        "delta": 0.25,
+        "parameter_id": "chest-height",
+        "source": "part_contour_fit_prepare"
+      },
+      "render_set_hash": "cd8f45064317bbda905231c99f276e373b60f7352680b5af8058871155193929",
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "camera_hash": "35e938f51b4912305d75f16e98e2e65dda176dd88da48e72f491e85cfd487fdd",
+      "candidate_id": "candidate-797f46515c82409e95e97c117491ac12",
+      "comparison_report_hash": "4113a136de0bfae53b0d07b6887aea9a1077edf83201e836857d9a1f4c662044",
+      "metrics": {
+        "bbox_edge_error": 0.21484375,
+        "boundary_f1_4px": 0.076330296694,
+        "centroid_error": 0.035578092996,
+        "critical_region_min_iou": 0.548349436393,
+        "landmark_coverage": 0.139498432602,
+        "landmark_nme": 0.086811338898,
+        "region_median_iou": 0.930034843206,
+        "silhouette_iou": 0.513798347389
+      },
+      "proposal": {
+        "delta": -0.25,
+        "parameter_id": "chest-width",
+        "source": "part_contour_fit_prepare"
+      },
+      "render_set_hash": "0a499b7ec361065b831d7866f4803ec0cd99e23a924b017f3549aa2e3e054f2e",
+      "status": "QUALITY_TARGET_NOT_MET"
+    }
+  ],
+  "candidate_count": 5,
+  "catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+  "comparison_camera_hashes": [
+    "35e938f51b4912305d75f16e98e2e65dda176dd88da48e72f491e85cfd487fdd"
+  ],
+  "comparison_render_set_hashes": [
+    "3c9c656ed9e8c6bf8ded632b30fda54fe99c75ecb1ae25e451136839655d3f61",
+    "32993da71ef3faf7fb1e11e785d96abd192e10f1f892e2ce4742555d48cd6b7b",
+    "1d5daded66c7be41b05fd17286aec45927ac5e56e60505079c746f47e8d82682",
+    "cd8f45064317bbda905231c99f276e373b60f7352680b5af8058871155193929",
+    "0a499b7ec361065b831d7866f4803ec0cd99e23a924b017f3549aa2e3e054f2e"
+  ],
+  "expected_build_cohort_sha256": "889f054a706360eb0060f040f338be08f1a81379d91ca78e0a086c8098de9d2e",
+  "geometry_variant": "surface-linework",
+  "part_error": {
+    "candidate_id": "candidate-ac55eb9a77304eedb683335797b3529f",
+    "canonical_sha256": "09f6e0f05e85345b2fbd59e447a474ab58ea05da1e5792719c6b15cab76db57d",
+    "metrics": {
+      "bbox_edge_error": 0.34765625,
+      "boundary_f1_4px": 0.010895985249,
+      "centroid_error": 0.064252616186,
+      "sdf_chamfer_px": 64.378466869535,
+      "silhouette_iou": 0.158187187007
+    },
+    "parts": [
+      {
+        "boundary_error_px": 22.389001756587,
+        "centroid_delta_px": [
+          -17.549661639698,
+          67.911503471826
+        ],
+        "height_ratio": 1.385714285714,
+        "model_bbox": [
+          0.356164383562,
+          0.230919765166,
+          0.694716242661,
+          0.502935420744
+        ],
+        "model_pixels": 6532,
+        "part_id": "chest-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.414872798434,
+          0.275929549902,
+          0.600782778865,
+          0.65362035225
+        ],
+        "target_boundary_pixels": 472,
+        "visibility": "observed",
+        "width_ratio": 0.551724137931
+      }
+    ],
+    "project_id": "project-e8eb9da963cd4698add16269296113f3",
+    "recommended_part_ids": [
+      "chest-shell"
+    ],
+    "render_set_hash": "3c9c656ed9e8c6bf8ded632b30fda54fe99c75ecb1ae25e451136839655d3f61",
+    "schema_version": "SilhouettePartErrorResult@1",
+    "target_sha256": "c6cc307093aa81783b12003595321dd34c9acca60b86a4b932207dc237c8c0a0"
+  },
+  "part_fit": {
+    "adjustments": [
+      {
+        "bounded_value": 0.75,
+        "delta": -0.25,
+        "parameter_id": "chest-width"
+      },
+      {
+        "bounded_value": 1.25,
+        "delta": 0.25,
+        "parameter_id": "chest-height"
+      },
+      {
+        "bounded_value": -0.034343760547,
+        "delta": -0.034343760547,
+        "parameter_id": "chest-offset-x"
+      },
+      {
+        "bounded_value": 0.132899224015,
+        "delta": 0.132899224015,
+        "parameter_id": "chest-offset-y"
+      }
+    ],
+    "metrics": {
+      "boundary_f1_4px": 0.010895985249,
+      "part_boundary_error_px": 22.389001756587,
+      "sdf_chamfer_px": 64.378466869535,
+      "silhouette_iou": 0.158187187007
+    },
+    "status": "proposal_ready"
+  },
+  "part_id": "chest-shell",
+  "persistent_user_data_touched": false,
+  "ponytail_preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-e8eb9da963cd4698add16269296113f3",
+  "quality_claim": "NO_LIKENESS_PASS_CLAIM; SINGLE_PART_CORRECTION_TRANSPORT_ONLY",
+  "reference": {
+    "reference_id": "reference-5f1b63dfd50e4cd5978433db72dd6c45",
+    "reference_sha256": "946b1be7e39a7e88ae1ac2be9b3218aad3cf08a9b59293d0a7e170f769d45f80"
+  },
+  "reference_id": "reference-5f1b63dfd50e4cd5978433db72dd6c45",
+  "reference_sha256": "946b1be7e39a7e88ae1ac2be9b3218aad3cf08a9b59293d0a7e170f769d45f80",
+  "refined_part_target_sha256": "c6cc307093aa81783b12003595321dd34c9acca60b86a4b932207dc237c8c0a0",
+  "same_camera": true,
+  "schema_version": "ForgeCADMCP010FPartCorrectionProbe@1",
+  "status": "PASS_TRANSPORT_WITH_METRICS",
+  "strict_improvement": true,
+  "winner": {
+    "candidates": [
+      {
+        "candidate_id": "candidate-2e4b3e8ba2e745c09400c7a39798867d",
+        "loss": 0.324531782667,
+        "metrics": {
+          "bbox_edge_error": 0.21484375,
+          "boundary_f1_4px": 0.07916459042,
+          "centroid_error": 0.030064998642,
+          "sdf_chamfer_px": 66.161865600197,
+          "silhouette_iou": 0.533248965789
+        }
+      },
+      {
+        "candidate_id": "candidate-8929bd3d0cf64065986d1aa8498f9cfd",
+        "loss": 0.325635810778,
+        "metrics": {
+          "bbox_edge_error": 0.21484375,
+          "boundary_f1_4px": 0.078675224625,
+          "centroid_error": 0.030617009962,
+          "sdf_chamfer_px": 66.73703134157,
+          "silhouette_iou": 0.530919996172
+        }
+      },
+      {
+        "candidate_id": "candidate-c29cce258c6342b4a6b9fd46a5a93094",
+        "loss": 0.32712771981,
+        "metrics": {
+          "bbox_edge_error": 0.21484375,
+          "boundary_f1_4px": 0.077988602651,
+          "centroid_error": 0.031381067851,
+          "sdf_chamfer_px": 67.599180188947,
+          "silhouette_iou": 0.528027394638
+        }
+      },
+      {
+        "candidate_id": "candidate-ac55eb9a77304eedb683335797b3529f",
+        "loss": 0.328951819169,
+        "metrics": {
+          "bbox_edge_error": 0.21484375,
+          "boundary_f1_4px": 0.077157626231,
+          "centroid_error": 0.032655429175,
+          "sdf_chamfer_px": 68.249790190198,
+          "silhouette_iou": 0.523518339306
+        }
+      },
+      {
+        "candidate_id": "candidate-797f46515c82409e95e97c117491ac12",
+        "loss": 0.332779559469,
+        "metrics": {
+          "bbox_edge_error": 0.21484375,
+          "boundary_f1_4px": 0.076330296694,
+          "centroid_error": 0.035578092996,
+          "sdf_chamfer_px": 69.685403825295,
+          "silhouette_iou": 0.513798347389
+        }
+      }
+    ],
+    "canonical_sha256": "d4f2d475200cc5861f2da3aa0d288759a83826f525b2c1672881beadfaf46802",
+    "delta": {
+      "boundary_f1_4px": 0.000489365795,
+      "sdf_chamfer_px": 0.575165741373,
+      "silhouette_iou": 0.002328969617
+    },
+    "schema_version": "SilhouetteCandidateCompareResult@1",
+    "status": "ready",
+    "target_sha256": "c985922432247cc107d40a510ec566b097dd77e4e38852c8b9156bbe258a8da3",
+    "winner_candidate_id": "candidate-2e4b3e8ba2e745c09400c7a39798867d"
+  },
+  "winner_candidate_id": "candidate-2e4b3e8ba2e745c09400c7a39798867d",
+  "winner_metrics": {
+    "bbox_edge_error": 0.21484375,
+    "boundary_f1_4px": 0.07916459042,
+    "centroid_error": 0.030064998642,
+    "sdf_chamfer_px": 66.161865600197,
+    "silhouette_iou": 0.533248965789
+  }
+}

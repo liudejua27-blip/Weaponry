@@ -3,7 +3,7 @@
 版本：2026-08-09
 状态：`FGC-MCP010B structural source Gate PASS；Darwin OS memory hard cap deferred/NOT_RUN`；本文件是 V2 调用和审计指引，不代表 C 的视觉质量或 360°通过
 
-当前 B 源码 reconciliation 已通过 source-focused Gate：B subtotal 为 52 contracts（44 历史 + 8 MCP010B，新增 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`）、MCP006 Skill integrity、isolated Worker/raw V2、V2 restore hardening 与 closed GLB profile。当前全仓源合同为 100；本文件只描述 B authoring/readback，Agentic durable session/checkpoint/RepairIntent 另见 `docs/ADR/0026-agentic-design-runtime.md`。3c/f488/bfa56/d9 Dev.app/CLI evidence 是历史或结构 cohort；本工作流不宣称 PBR、reference similarity、human review 或 360°。
+当前 B 源码 reconciliation 已通过 source-focused Gate：B subtotal 为 52 contracts（44 历史 + 8 MCP010B，新增 `GeometryQualityReport@2`、`GeometryCandidateEvidence@1`）、MCP006 Skill integrity、isolated Worker/raw V2、V2 restore hardening 与 closed GLB profile。当前全仓源合同为 115；本文件只描述 B authoring/readback，Agentic durable session/checkpoint/RepairIntent 另见 `docs/ADR/0026-agentic-design-runtime.md`。3c/f488/bfa56/d9 Dev.app/CLI evidence 是历史或结构 cohort；本工作流不宣称 PBR、reference similarity、human review 或 360°。
 
 ## 1. 用途和边界
 
@@ -21,7 +21,7 @@
 
 Codex 同时整理了一份脱敏 `SubjectProfile@1` intake note（[real-reference-subject-profile.json](evidence/mcp010b/real-reference-subject-profile.json)），包含可见区域、近似 normalized landmarks、confidence 以及 rear/far-side/feet 的 `inferred/unknown` 标记。当前 `reference-intake` Skill 的 Runtime operators 尚未 active，因此这份文件只能帮助下一阶段复用参考理解，不能替代 Runtime producer、silhouette/landmark/region metrics 或人工评审。
 
-本轮不接入外部脚本、BlenderMCP、FreeCAD MCP、Manifold、xatlas、mikktspace、glTF Validator、远程 image-to-3D 或 AssetPack。它们分别属于后续 MCP010C–E 或 MCP012 的受控采用流程。
+本轮不接入外部脚本、BlenderMCP、FreeCAD MCP、xatlas、glTF Validator、远程 image-to-3D 或 AssetPack。Manifold 已按 MCP010D adoption receipt 以固定 C API 源码编入隔离 Geometry Worker，当前提供同一 Part 的 bounded union/difference/intersection；其余项目仍按 MCP010C–E/MCP012 的受控采用流程。
 
 MCP010B Dev.app cohort `3c6f59f…7140`（pre-graph）和 `f4885b11…6bc1`（graph）均为历史 package receipt，必须保留，不能冒充当前验证。当前 `bfa56ac…de9` 是新建的 52-contract Dev.app cohort：它的授权参考 CLI structural receipt生成未确认的 12 Part/896 triangle/161104-byte candidate（`chest-shell` 按顺序输入 chest-shell/chest-panel），并有 matching packaged MCP/Runtime/Worker cohort。用户完整重启后的 live Desktop 已证明 32 工具、Ready、cohort match、catalog/hash 与项目只读回读；当前 d9 隔离 Codex CLI 又完成了同一七调用 V2 reference→hash→prepare→readback 结构链，证据见 `docs/evidence/mcp010b/dev-app-primitive-knowledge-codex-cli-v2-current-repeat.json`。无论新旧开发 package 都不证明视觉质量、PBR V2、360°或 Darwin 512 MiB OS 总内存硬上限。
 
@@ -54,7 +54,7 @@ capabilities_get
 3. `capabilities_get.operator_catalog_sha256` 存在且与 catalog 的 `canonical_sha256` 相同；
 4. program 中只能使用 catalog 中 `status="active"` 的 Operator 和其公布的形状。
 
-当前 MCP010D catalog 的 node input arity 已支持真实有序 DAG：primitive leaf 与 transform/mirror/array、profile/loft/revolve/sweep、panel/vent/joint/part-output 等 operator 的输入按 `inputs` 绑定；`part_outputs[].input_node_ids` 仍是语义 Part sink，允许一个 Part 聚合多个 detail source，并为每个 source 保留单独的 `source_node_id` 回读 binding。每个 node input 必须指向更早节点且不能被多个下游复用；每个 source 必须在下游或最终 sink 中正好消费一次；空、未知、重复、循环和 unconsumed input 都必须 fail closed。`boolean@1` 仍 unavailable，未通过 Manifold adoption 前不得提交。
+当前 MCP010D catalog 的 node input arity 已支持真实有序 DAG：primitive leaf 与 transform/mirror/array、profile/loft/revolve/sweep、panel/vent/joint/part-output，以及 Boolean union/difference/intersection 的输入按 `inputs` 绑定；`part_outputs[].input_node_ids` 仍是语义 Part sink，允许一个 Part 聚合多个 detail source，并为每个 source 保留单独的 `source_node_id` 回读 binding。每个 node input 必须指向更早节点且不能被多个下游复用；每个 source 必须在下游或最终 sink 中正好消费一次；空、未知、重复、循环和 unconsumed input 都必须 fail closed。Boolean 必须恰好两个输入，只支持同一 Part scope 的 `union`/`difference`/`intersection`；通用 mesh Boolean 仍不开放。
 
 ## 3. Skill 是建议来源，不是执行权威
 

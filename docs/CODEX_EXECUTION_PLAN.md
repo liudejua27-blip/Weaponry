@@ -1,7 +1,7 @@
 # ForgeCAD Codex-only MVP 执行计划
 
 版本：2026-08-13
-状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done；FGC-MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source-focused in_progress（packaged/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 新增 Agentic Design Runtime 目标路线，尚未进入当前实现口径。
+状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done；FGC-MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source-focused in_progress（packaged/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 的 Agentic Design Runtime 已落地 projection、durable prepare/readback、独立 stage batch、带父程序哈希链校验的可选 cumulative-program composition merge prepare 和 `repair_apply_prepare` CAS-backed apply-intent boundary；正向 merge candidate、Repair 实际应用、用户批准后的晋级和视觉门仍未完成。
 
 ## 1. 产品策略
 
@@ -104,7 +104,7 @@ MVP 已交付 10 个组合能力的历史声明式 Bundle profile，不建市场
 - 010A：只重排权威、构建/激活同 revision 用户级开发 App，并等待用户重启后的真实 Codex capability/build-hash Gate；
 - 010B：先让 Schema、GeometryProgram/OperatorCatalog/GLB readback 和失败路径成为真实真值；
 - 010C：再实现 perspective/z-buffer 固定 renderer、九 AOV、参考比较和 typed visual/human review；
-- 010D：在 C 的指标闭环上扩展受限高细节 Operator，Manifold 只有 adoption receipt accepted 后才进入 Worker；
+- 010D：在 C 的指标闭环上扩展受限高细节 Operator；Manifold 通过 fixed-revision adoption gate 后以 product-owned isolated Worker 进入，当前开放同一 Part bounded union/difference/intersection；
 - 010E：离线 AssetPack、512px UV atlas、固定 `mikktspace@0.3.0`、embedded PBR 纹理及逐资产 provenance；不建设网络 API 或通用安装器；
 - 010F：Viewer compare/selection/explosion、AOV、undo/redo 和真实机器人闭环。当前只读 Viewer source Gate 已通过；单图只允许 `PARTIAL_VISIBLE_VIEW_PASS`，补齐五张全身参考前 360 固定 blocked。
 
@@ -126,7 +126,7 @@ truth freeze / current quality boundary
 → human/export/restart hash
 ```
 
-每一步都必须先有公开 Schema、validator/negative tests、Runtime producer、MCP read/write 边界、Viewer 消费面和 evidence。当前 Agentic 的 `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 已满足 source/read-only projection Gate，真实 Runtime 的 scene/stage 嵌套只读 projection 已由 `scripts/check_agentic_projection_receipt.py` 完成 conformance 校验；`session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare` 已满足 durable prepare/readback Gate。后者不等于 durable/reference/DesignSpec 完整 producer、单动作 orchestrator 或 Repair execution。没有对应证据的后续能力仍只能写 `目标设计/NOT_IMPLEMENTED`；任何会创建 candidate/version 的动作仍走现有 prepare/approval/confirm 纪律。
+每一步都必须先有公开 Schema、validator/negative tests、Runtime producer、MCP read/write 边界、Viewer 消费面和 evidence。当前 Agentic 的 `scene_observe_get`、`design_stage_plan_get`、`critic_report_get`、`visual_evidence_bundle_get` 已满足 source/read-only projection Gate，真实 Runtime 的 scene/stage 嵌套只读 projection 已由 `scripts/check_agentic_projection_receipt.py` 完成 conformance 校验；`session_create_or_resume`、`session_get`、`checkpoint_prepare`、`checkpoint_get`、`checkpoint_restore_prepare` 已满足 durable prepare/readback Gate；bounded `authoring_context`、primary-form/secondary-structure/tertiary-detail single-Part geometry proposal 与 CADFit multi-fidelity checkpoint/resume 另有独立 source/runtime receipt。后者不等于跨视图 Visual Evidence conformance、完整多动作 orchestrator、MaterialZone/UV-PBR/Repair execution、用户批准后的候选变更或 Manifold Boolean；composition merge 目前只接受显式累计程序和父哈希链，并在完整批次通过后准备独立 review candidate，尚无正向 candidate/Repair/promotion 证据。没有对应证据的后续能力仍只能写 `目标设计/NOT_IMPLEMENTED`；任何会创建 candidate/version 的动作仍走现有 prepare/approval/confirm 纪律。
 
 ## 7. 质量证据顺序
 

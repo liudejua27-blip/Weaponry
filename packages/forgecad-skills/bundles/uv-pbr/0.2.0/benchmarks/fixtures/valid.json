@@ -6,7 +6,7 @@
     "operator_allowlist": "pass"
   },
   "fixture_id": "uv-pbr-declarative-valid",
-  "recipe_id": "uv-pbr",
+  "recipe_id": "uv-pbr@0.2.0",
   "schema_version": "SkillBenchmarkFixture@1",
   "skill_id": "uv-pbr",
   "units": "meter",

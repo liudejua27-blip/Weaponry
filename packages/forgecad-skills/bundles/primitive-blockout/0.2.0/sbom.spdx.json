@@ -1,5 +1,13 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
+  "annotations": [
+    {
+      "annotationDate": "2026-08-09T00:00:00Z",
+      "annotationType": "OTHER",
+      "annotator": "Tool: forgecad-mcp006",
+      "comment": "Declarative metadata only; no executable or external asset payload."
+    }
+  ],
   "dataLicense": "CC0-1.0",
   "documentNamespace": "https://forgecad.local/sbom/skill/primitive-blockout/0.2.0",
   "name": "forgecad-skill-primitive-blockout",

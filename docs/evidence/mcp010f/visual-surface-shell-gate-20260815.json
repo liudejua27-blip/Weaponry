@@ -1,0 +1,51 @@
+{
+  "schema_version": "ForgeCADVisualSurfaceShellGate@1",
+  "status": "PASS_TYPED_WATERTIGHT_SURFACE_SHELL_SOURCE_GATE",
+  "scope": "product-owned Geometry Worker source/focused test",
+  "operator_id": "forgecad.geometry.surface-shell@1",
+  "operator_catalog_entry": {
+    "status": "active",
+    "input_arity": {"min": 0, "max": 0},
+    "output_kind": "triangle-mesh",
+    "parameter_schema": "SurfaceShellParameters@1",
+    "part_output_required": true,
+    "catalog_entry_count_after_addition": 15
+  },
+  "program": {
+    "schema": "GeometryProgram@2",
+    "patch_type": "bicubic-bezier-symmetric-constant-thickness-shell",
+    "control_cage": "4x4=16 typed coordinate vectors",
+    "u_segments": {"min": 4, "max": 32, "fixture": 8},
+    "v_segments": {"min": 4, "max": 32, "fixture": 8},
+    "thickness_m": {"fixture": 0.08, "minimum_stable": 0.0001, "maximum": 10},
+    "fixture_triangle_count": 320,
+    "fixture_part_id": "chest-surface",
+    "fixture_solid": true
+  },
+  "determinism": {
+    "same_program_compiled_twice": "PASS_BYTE_EQUAL",
+    "strict_artifact_readback": "PASS",
+    "uv_tangent_readback": "PASS",
+    "watertight_boundary_edge_count": 0,
+    "non_manifold_edge_count": 0,
+    "low_thickness_negative_fixture": "PASS_REJECTED"
+  },
+  "boundary": {
+    "shell_is_explicit": true,
+    "solid_claim": "PASS_SOURCE_FIXTURE_ONLY",
+    "worker_writes_runtime_state": false,
+    "network_or_dynamic_code": false
+  },
+  "contract_schema_content_set_sha256": "551157fbed61ee69e0cd55989af6be7f69dfc0183da1ebc8b99e43bb6ff9e5dc",
+  "limitations": [
+    "This is a bounded constant-thickness shell source gate, not a complete Visual Surface backend.",
+    "It does not implement variable thickness, trim loops, self-intersection resolution, SubD limit surfaces, crease/feature-line semantics, or curvature/zebra analysis.",
+    "Manifold Boolean is not invoked by this operator and no generic mesh Boolean claim is made.",
+    "Visual likeness, PBR likeness, human review, packaged UI, export/restart hash, and 360 gates remain independent."
+  ],
+  "commands": [
+    "script/with_rust_toolchain.sh cargo test --manifest-path apps/geometry-worker/Cargo.toml --lib mcp010f_surface_shell --offline",
+    "python3 scripts/check_forgecad_contracts.py",
+    "python3 scripts/check_mcp010f_stage0_truth.py"
+  ]
+}

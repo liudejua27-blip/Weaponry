@@ -7,7 +7,7 @@
     "max_triangles": 250000,
     "max_worker_memory_bytes": 536870912
   },
-  "canonical_sha256": "f7ed9865d3fb59df14f42a4009a7b1c4e9e0ae2819c4dd9eb3855eaea8f07f89",
+  "canonical_sha256": "34b1b16ea176bca47caea42973393037bb3d53642b88a2f2c0eaaa37c9566f28",
   "capabilities": {
     "dynamic_code": false,
     "filesystem_read": false,
@@ -22,6 +22,9 @@
   "operator_ids": [
     "forgecad.geometry.profile-extrude@1",
     "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.subd-cage@1",
+    "forgecad.geometry.surface-patch@1",
+    "forgecad.geometry.surface-shell@1",
     "forgecad.geometry.revolve@1",
     "forgecad.geometry.tube-sweep@1",
     "forgecad.geometry.transform@2",
@@ -30,6 +33,7 @@
     "forgecad.geometry.panel@1",
     "forgecad.geometry.vent-array@1",
     "forgecad.geometry.joint-stack@1",
+    "forgecad.geometry.boolean@1",
     "forgecad.geometry.part-output@1"
   ],
   "output_schema": "schemas/geometry-prepare-result-v2.schema.json",

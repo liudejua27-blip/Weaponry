@@ -3,17 +3,16 @@
   "expected": {
     "dag": "acyclic",
     "finite": true,
-    "operator_allowlist": "pass",
-    "semantic_part_sink": "pass"
+    "operator_allowlist": "pass"
   },
-  "fixture_id": "primitive-blockout-v2-declarative-valid",
+  "fixture_id": "primitive-blockout-declarative-valid",
   "recipe_id": "primitive-blockout",
   "schema_version": "SkillBenchmarkFixture@1",
   "skill_id": "primitive-blockout",
   "units": "meter",
   "values": {
-    "max_nodes": 128,
-    "max_triangles": 250000,
-    "parts": 12
+    "confidence": 0.8,
+    "max_parts": 16,
+    "scale": 1.0
   }
 }

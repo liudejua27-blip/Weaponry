@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/visual-surface-result.schema.json",
+  "title": "VisualSurfaceResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "project_id",
+    "candidate_id",
+    "target_sha256",
+    "status",
+    "backend",
+    "surface_program_status",
+    "requested_signals",
+    "available_signals",
+    "unsupported_signals",
+    "binding",
+    "metrics",
+    "part_errors",
+    "readback",
+    "unknowns",
+    "lineage",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "VisualSurfaceResult@1"},
+    "projection_status": {"const": "projection/read-only"},
+    "read_only": {"const": true},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "target_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "status": {"enum": ["ready", "blocked", "not-run"]},
+    "backend": {"enum": ["candidate-bound-aov-diagnostics@1", "candidate-bound-surface-analysis@1"]},
+    "surface_program_status": {"enum": ["ready", "not-run", "unavailable"]},
+    "requested_signals": {"$ref": "#/$defs/signals"},
+    "available_signals": {"$ref": "#/$defs/signals"},
+    "unsupported_signals": {"$ref": "#/$defs/signals"},
+    "binding": {"$ref": "#/$defs/binding"},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "bbox_edge_error",
+        "centroid_error",
+        "landmark_coverage",
+        "landmark_nme",
+        "region_median_iou",
+        "critical_region_min_iou"
+      ],
+      "properties": {
+        "silhouette_iou": {"$ref": "#/$defs/nullable_unit"},
+        "boundary_f1_4px": {"$ref": "#/$defs/nullable_unit"},
+        "bbox_edge_error": {"$ref": "#/$defs/nullable_unit"},
+        "centroid_error": {"$ref": "#/$defs/nullable_unit"},
+        "landmark_coverage": {"$ref": "#/$defs/nullable_unit"},
+        "landmark_nme": {"$ref": "#/$defs/nullable_unit"},
+        "region_median_iou": {"$ref": "#/$defs/nullable_unit"},
+        "critical_region_min_iou": {"$ref": "#/$defs/nullable_unit"}
+      }
+    },
+    "part_errors": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/part_error"}
+    },
+    "readback": {"$ref": "#/$defs/readback"},
+    "unknowns": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"}
+    },
+    "lineage": {"$ref": "#/$defs/lineage"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "nullable_id": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "unit": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "nullable_unit": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "signals": {
+      "type": "array",
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "silhouette",
+          "boundary",
+          "depth",
+          "normal",
+          "part-id",
+          "material-id",
+          "curvature",
+          "feature-line"
+        ]
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_id",
+        "reference_sha256",
+        "artifact_sha256",
+        "render_set_hash",
+        "camera_hash",
+        "comparison_report_hash",
+        "quality_report_hash"
+      ],
+      "properties": {
+        "reference_id": {"$ref": "#/$defs/nullable_id"},
+        "reference_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "render_set_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "camera_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "comparison_report_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "quality_report_hash": {"$ref": "#/$defs/nullable_sha256"}
+      }
+    },
+    "part_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "status",
+        "boundary_error_px",
+        "boundary_error_normalized",
+        "evidence_hash"
+      ],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/id"},
+        "status": {"enum": ["ready", "unknown", "not-run"]},
+        "boundary_error_px": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 512
+        },
+        "boundary_error_normalized": {"$ref": "#/$defs/nullable_unit"},
+        "evidence_hash": {"$ref": "#/$defs/nullable_sha256"}
+      }
+    },
+    "bbox": {
+      "type": ["array", "null"],
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"type": "integer", "minimum": 0, "maximum": 511}
+    },
+    "mask_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "decoded", "foreground_pixels", "edge_pixels", "bbox"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "decoded": {"type": "boolean"},
+        "foreground_pixels": {"type": ["integer", "null"], "minimum": 0, "maximum": 262144},
+        "edge_pixels": {"type": ["integer", "null"], "minimum": 0, "maximum": 262144},
+        "bbox": {"$ref": "#/$defs/bbox"}
+      }
+    },
+    "edge_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "radius_px",
+        "reference_edge_pixels",
+        "candidate_edge_pixels",
+        "matched_reference_edge_pixels",
+        "matched_candidate_edge_pixels",
+        "f1",
+        "sdf_chamfer_px"
+      ],
+      "properties": {
+        "status": {"enum": ["ready", "not-run"]},
+        "radius_px": {"const": 4},
+        "reference_edge_pixels": {"type": ["integer", "null"], "minimum": 0, "maximum": 262144},
+        "candidate_edge_pixels": {"type": ["integer", "null"], "minimum": 0, "maximum": 262144},
+        "matched_reference_edge_pixels": {"type": ["integer", "null"], "minimum": 0, "maximum": 262144},
+        "matched_candidate_edge_pixels": {"type": ["integer", "null"], "minimum": 0, "maximum": 262144},
+        "f1": {"$ref": "#/$defs/nullable_unit"},
+        "sdf_chamfer_px": {"type": ["number", "null"], "minimum": 0, "maximum": 512}
+      }
+    },
+    "roi_part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_id", "pixel_count", "normalized_area", "bbox"],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/id"},
+        "pixel_count": {"type": "integer", "minimum": 0, "maximum": 262144},
+        "normalized_area": {"$ref": "#/$defs/unit"},
+        "bbox": {"$ref": "#/$defs/bbox"}
+      }
+    },
+    "roi_region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "visibility", "bbox", "reference_pixels", "candidate_pixels", "iou"],
+      "properties": {
+        "region_id": {"$ref": "#/$defs/id"},
+        "visibility": {"enum": ["observed", "inferred", "unknown"]},
+        "bbox": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {"$ref": "#/$defs/unit"}
+        },
+        "reference_pixels": {"type": "integer", "minimum": 0, "maximum": 262144},
+        "candidate_pixels": {"type": "integer", "minimum": 0, "maximum": 262144},
+        "iou": {"$ref": "#/$defs/nullable_unit"}
+      }
+    },
+    "roi_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source", "part_id_sha256", "material_id_sha256", "parts", "regions", "unknowns"],
+      "properties": {
+        "status": {"enum": ["ready", "partial", "not-run"]},
+        "source": {"enum": ["part-id+reference-regions", "part-id", "not-run"]},
+        "part_id_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "material_id_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "parts": {"type": "array", "maxItems": 512, "items": {"$ref": "#/$defs/roi_part"}},
+        "regions": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/roi_region"}},
+        "unknowns": {"type": "array", "maxItems": 16, "items": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"}}
+      }
+    },
+    "aov_pass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "sha256", "status", "pixel_count", "nonzero_pixel_count", "mean_rgba"],
+      "properties": {
+        "pass": {"enum": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "status": {"const": "decoded"},
+        "pixel_count": {"type": "integer", "const": 262144},
+        "nonzero_pixel_count": {"type": "integer", "minimum": 0, "maximum": 262144},
+        "mean_rgba": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {"type": "integer", "minimum": 0, "maximum": 255}
+        }
+      }
+    },
+    "aov_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source", "passes", "missing_passes"],
+      "properties": {
+        "status": {"enum": ["ready", "partial", "not-run"]},
+        "source": {"const": "RenderSet@2/pass_artifacts"},
+        "passes": {"type": "array", "maxItems": 9, "items": {"$ref": "#/$defs/aov_pass"}},
+        "missing_passes": {"type": "array", "maxItems": 9, "items": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,64}$"}}
+      }
+    },
+    "readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "status", "resolution", "reference_mask", "candidate_mask", "edge", "roi", "aov", "surface", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "VisualSurfaceReadback@1"},
+        "status": {"enum": ["ready", "blocked", "not-run"]},
+        "resolution": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [{"const": 512}, {"const": 512}]
+        },
+        "reference_mask": {"$ref": "#/$defs/mask_stats"},
+        "candidate_mask": {"$ref": "#/$defs/mask_stats"},
+        "edge": {"$ref": "#/$defs/edge_stats"},
+        "roi": {"$ref": "#/$defs/roi_stats"},
+        "aov": {"$ref": "#/$defs/aov_stats"},
+        "surface": {"$ref": "#/$defs/surface_stats"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "surface_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "status", "artifact_sha256", "triangle_count", "vertex_count", "edge_count", "non_manifold_edge_count", "curvature", "feature_line", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "SurfaceSignalReadback@1"},
+        "status": {"enum": ["ready", "blocked", "not-run"]},
+        "artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "triangle_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 250000},
+        "vertex_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 750000},
+        "edge_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "non_manifold_edge_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "curvature": {"$ref": "#/$defs/curvature_stats"},
+        "feature_line": {"$ref": "#/$defs/feature_line_stats"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "curvature_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "method", "mean_abs_dihedral_rad", "max_abs_dihedral_rad", "curved_triangle_count"],
+      "properties": {
+        "status": {"enum": ["ready", "not-run"]},
+        "method": {"enum": ["triangle-dihedral@1", "not-run"]},
+        "mean_abs_dihedral_rad": {"type": ["number", "null"], "minimum": 0, "maximum": 3.141592653589793},
+        "max_abs_dihedral_rad": {"type": ["number", "null"], "minimum": 0, "maximum": 3.141592653589793},
+        "curved_triangle_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 250000}
+      }
+    },
+    "feature_line_stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "method", "threshold_rad", "edge_count", "boundary_edge_count", "crease_edge_count"],
+      "properties": {
+        "status": {"enum": ["ready", "not-run"]},
+        "method": {"enum": ["boundary-and-crease-edge@1", "not-run"]},
+        "threshold_rad": {"type": ["number", "null"], "minimum": 0, "maximum": 3.141592653589793},
+        "edge_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "boundary_edge_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "crease_edge_count": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000}
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "candidate_id",
+        "target_sha256",
+        "reference_id",
+        "reference_sha256",
+        "artifact_sha256",
+        "render_set_hash",
+        "camera_hash",
+        "comparison_report_hash",
+        "quality_report_hash"
+      ],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/id"},
+        "candidate_id": {"$ref": "#/$defs/id"},
+        "target_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "reference_id": {"$ref": "#/$defs/nullable_id"},
+        "reference_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "artifact_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "render_set_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "camera_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "comparison_report_hash": {"$ref": "#/$defs/nullable_sha256"},
+        "quality_report_hash": {"$ref": "#/$defs/nullable_sha256"}
+      }
+    }
+  }
+}

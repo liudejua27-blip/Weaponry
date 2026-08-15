@@ -52,9 +52,9 @@ pub struct WorkerError {
 /// executable Worker state. The Worker validates against this closed value and
 /// the Runtime exposes the exact same canonical JSON through its read path.
 ///
-/// MCP010D deliberately keeps boolean unavailable until the isolated Manifold
-/// adoption receipt exists. The procedural profile, transform and hard-surface
-/// macro operators below are product-owned and active; no arbitrary script or
+/// The Boolean operator is product-owned and is compiled through the fixed
+/// Manifold C API bridge in the isolated Geometry Worker.  Only the bounded
+/// union/difference/intersection same-Part slice is active in P0; no arbitrary script or
 /// plugin can add an operator at runtime.
 pub fn operator_catalog() -> Value {
     let mut catalog = json!({
@@ -65,6 +65,9 @@ pub fn operator_catalog() -> Value {
             {"operator_id":"forgecad.geometry.primitive@2","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"GeometryPrimitiveParameters@2","part_output_required":true,"supported_shapes":["box","cylinder","ellipsoid","sphere"]},
             {"operator_id":"forgecad.geometry.profile-extrude@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"ProfileExtrudeParameters@1","part_output_required":true,"supported_shapes":["profile-extrude"]},
             {"operator_id":"forgecad.geometry.profile-loft@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"ProfileLoftParameters@1","part_output_required":true,"supported_shapes":["profile-loft"]},
+            {"operator_id":"forgecad.geometry.subd-cage@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"SubdCageParameters@1","part_output_required":true,"supported_shapes":["subd-cage"]},
+            {"operator_id":"forgecad.geometry.surface-patch@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"SurfacePatchParameters@1","part_output_required":true,"supported_shapes":["surface-patch"]},
+            {"operator_id":"forgecad.geometry.surface-shell@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"SurfaceShellParameters@1","part_output_required":true,"supported_shapes":["surface-shell"]},
             {"operator_id":"forgecad.geometry.revolve@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"RevolveParameters@1","part_output_required":true,"supported_shapes":["revolve"]},
             {"operator_id":"forgecad.geometry.tube-sweep@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"TubeSweepParameters@1","part_output_required":true,"supported_shapes":["tube-sweep"]},
             {"operator_id":"forgecad.geometry.transform@2","status":"active","input_arity":{"min":1,"max":1},"output_kind":"triangle-mesh","parameter_schema":"TransformParameters@2","part_output_required":true,"supported_shapes":["transform"]},
@@ -74,7 +77,7 @@ pub fn operator_catalog() -> Value {
             {"operator_id":"forgecad.geometry.vent-array@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"VentArrayParameters@1","part_output_required":true,"supported_shapes":["vent-array"]},
             {"operator_id":"forgecad.geometry.joint-stack@1","status":"active","input_arity":{"min":0,"max":0},"output_kind":"triangle-mesh","parameter_schema":"JointStackParameters@1","part_output_required":true,"supported_shapes":["joint-stack"]},
             {"operator_id":"forgecad.geometry.part-output@1","status":"active","input_arity":{"min":1,"max":64},"output_kind":"triangle-mesh","parameter_schema":"PartOutputParameters@1","part_output_required":true,"supported_shapes":["part-output"]},
-            {"operator_id":"forgecad.geometry.boolean@1","status":"unavailable","input_arity":{"min":2,"max":2},"output_kind":"triangle-mesh","parameter_schema":"BooleanParameters@1","part_output_required":true,"supported_shapes":["union","difference"]}
+            {"operator_id":"forgecad.geometry.boolean@1","status":"active","input_arity":{"min":2,"max":2},"output_kind":"triangle-mesh","parameter_schema":"BooleanParameters@1","part_output_required":true,"supported_shapes":["union","difference","intersection"]}
         ],
         "canonical_sha256":""
     });
@@ -111,8 +114,14 @@ pub fn material_pack_manifest() -> Value {
         .clone();
     without_hash.remove("canonical_sha256");
     let actual = canonical_hash(&Value::Object(without_hash));
-    assert_eq!(expected, actual, "ForgeCAD material pack manifest hash drifted");
-    assert_eq!(manifest.get("pack_id").and_then(Value::as_str), Some(MATERIAL_PACK_ID));
+    assert_eq!(
+        expected, actual,
+        "ForgeCAD material pack manifest hash drifted"
+    );
+    assert_eq!(
+        manifest.get("pack_id").and_then(Value::as_str),
+        Some(MATERIAL_PACK_ID)
+    );
     manifest
 }
 

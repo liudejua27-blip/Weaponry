@@ -1,7 +1,7 @@
 # 外部项目、Blender 与 GitHub 采用清单
 
 版本：2026-08-13
-状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 已以受限 Worker Library 进入 Cargo.lock；xatlas、Manifold、Khronos Validator 和其他第三方仍未进入产品真值。ADR-0026 新增 Pi Agent、Omniverse Kit、OpenUSD、FreeCAD、build123d/CadQuery、BlenderMCP、Trimesh、MaterialX、TRELLIS.2/Hunyuan3D 的研究边界；用户另授权 Luna 对 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 进行冻结 revision 的选择性源文件研究。除既有 `mikktspace@0.3.0` 外均未 adopted。
+状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 与 MCP010D 固定 revision Manifold C API 已以受限 Worker 方式进入产品源码；xatlas、Khronos Validator 和其他第三方仍未进入产品真值。ADR-0026 新增 Pi Agent、Omniverse Kit、OpenUSD、FreeCAD、build123d/CadQuery、BlenderMCP、Trimesh、MaterialX、TRELLIS.2/Hunyuan3D 的研究边界；用户另授权 Luna 对 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 进行冻结 revision 的选择性源文件研究。
 
 ## 1. 采用规则
 
@@ -16,7 +16,7 @@
 
 每项必须通过：维护活跃度、许可证/例外、依赖 SBOM、恶意输入、确定性、资源上限、平台打包、性能、替代/退出策略和 Benchmark。禁止整仓复制、自动运行安装脚本、拉取模型权重、执行 arbitrary Python/JavaScript、在 Runtime 内起不受控网络服务或让第三方格式成为第二真值。
 
-产品采用状态只允许：`approved-for-evaluation | accepted | deferred | reference-only | rejected`。研究 receipt 可以额外标为 `research-authorized`，但它不属于产品采用状态。只有作为依赖或二进制采用的 `accepted` 项目才能改 lockfile/安装包。本文件当前只有受限范围的 `mikktspace@0.3.0` 为 accepted dependency；`ponytail-preflight` 是另行记录的 accepted first-party workflow rewrite，不含上游代码或依赖。
+产品采用状态只允许：`approved-for-evaluation | accepted | deferred | reference-only | rejected`。研究 receipt 可以额外标为 `research-authorized`，但它不属于产品采用状态。只有作为依赖或二进制采用的 `accepted` 项目才能改 lockfile/安装包。本文件当前只有受限范围的 `mikktspace@0.3.0` 与 Manifold 固定 revision Worker slice 为 accepted product adoption；`ponytail-preflight` 是另行记录的 accepted first-party workflow rewrite，不含上游代码或依赖。Manifold 不作为通用动态库或 Runtime dependency，仅静态编译进隔离 Geometry Worker。
 
 ## 2. MVP approved-for-evaluation
 
@@ -24,14 +24,14 @@
 |---|---|---|---|---|
 | [image-rs/image](https://github.com/image-rs/image) | PNG/JPEG decode/admission | MIT/Apache-2.0 | approved-for-evaluation | MCP005；关闭 default features、只开 PNG/JPEG、decoder limits、恶意图片 |
 | [gltf-rs/gltf](https://github.com/gltf-rs/gltf) | Rust GLB strict readback | MIT OR Apache-2.0 | approved-for-evaluation | MCP007；禁外部 URI、buffer/image/size 上限 |
-| [Manifold](https://github.com/elalish/manifold) | robust mesh boolean/manifold | Apache-2.0 | approved-for-evaluation | MCP010D；v3.5.2/full revision、C API/FFI、面数/时间/内存/拓扑/source IDs/removal |
+| [Manifold](https://github.com/elalish/manifold) | robust mesh boolean/manifold | Apache-2.0 | **accepted**（固定 revision、隔离 Geometry Worker；同一 Part bounded union/difference/intersection） | MCP010D adoption/product Worker Gate；C API/FFI、面数/时间/内存/拓扑/source IDs/removal；见 `docs/evidence/mcp010d/raw-stdio.json` |
 | [xatlas](https://github.com/jpcy/xatlas) | UV unwrap/pack | MIT | approved-for-evaluation | MCP010E；determinism、seam/overlap、跨平台；当前不安装，产品使用 bounded triangle-chart packer |
 | [mikktspace Rust](https://github.com/gltf-rs/mikktspace) | MikkTSpace tangent generation | MIT/Apache-2.0 | **accepted**（仅 MCP010E source-focused Worker） | 固定 0.3.0、源码 revision、crate/license/SBOM receipt、确定性/恶意输入/GLB handedness Gate；见 `docs/evidence/adoption/mikktspace/0.3.0.yaml` |
 | [Khronos glTF-Validator](https://github.com/KhronosGroup/glTF-Validator) | GLB 交付验证 | Apache-2.0 | approved-for-evaluation | MCP010E/F；恶意 GLB、版本 pin、JSON 报告归一 |
 | [glTF-Transform](https://github.com/donmccurdy/glTF-Transform) | GLB inspection/优化 | MIT | approved-for-evaluation-as-dev-tool | MCP009；Node 只在构建/测试，不能写 Runtime 真值 |
 | [img2threejs](https://github.com/img2threejs/img2threejs) | 分阶段 image → typed spec → procedural review 的工作流思想 | Apache-2.0 | approved-for-evaluation / first-party reimplementation | MCP006；仅学习 staged passes、detail inventory、per-region confidence 和 side-by-side review；不安装其 Python/TypeScript skill，不把 Three.js/JS 作为 Runtime 真值 |
 
-“许可证初筛”不是法律批准。当前只有 `mikktspace@0.3.0` 作为受限 tangent library 通过 source-focused receipt；UV atlas 仍是 ForgeCAD 自有的 512px bounded chart packer，xatlas 尚未安装，Manifold/Validator 也未进入产品包。distribution legal review、最终二进制 SBOM 和签名仍在 MCP012/013。
+“许可证初筛”不是法律批准。当前 `mikktspace@0.3.0` 与 Manifold 固定 revision 已通过各自受限 Worker/source receipt；UV atlas 仍是 ForgeCAD 自有的 512px bounded chart packer，xatlas/Validator 尚未安装。distribution legal review、最终二进制 SBOM 和签名仍在 MCP012/013。
 
 ### 2.1 img2threejs 研究快照（2026-08-12）
 
@@ -57,10 +57,10 @@ ForgeCAD 已把这些原则映射到自己的边界：`GeometryProgram@2`/semant
 | build123d | `research-authorized` | Parametric Design Kit 的自有 schema/Rust rewrite | Python/OCCT/VTK/Jupyter 进入 Runtime |
 | CadQuery | `research-authorized` | bounded selector/Sketch/assembly intent 的自有设计 | CadQuery/OCP script、GUI 或 FreeCAD binding |
 | BlenderMCP | `research-authorized`，仅安全/协议研究 | read-only observe、render evidence、tool receipt 的自有合同 | Blender Python、`exec()`、socket、遥测、网络资产 API |
-| Manifold | `research-authorized` | C API/FFI 的隔离 benchmark 设计 | 自动构建、直接启用 `boolean@1` 或写 Runtime state |
+| Manifold | `accepted`（product-owned isolated Worker；`boolean@1` bounded） | C API/FFI、MeshGL64 readback、union/difference/intersection、资源/确定性/移除 benchmark | 自动上游构建、任意 mesh、Python/JS/WASM binding、写 Runtime state |
 | MaterialX | `research-authorized` | MaterialZone/PBR graph translator 的自有 schema | shader/render/Viewer/JS/Python runtime 引入 |
 
-研究副本只允许存放于受控 adoption cache 或 quarantine，不能提交为 active 模块。`vendored_files` 在这五份 receipt 中仍为空，表示本轮只完成研究快照和操作授权，尚未复制任何上游源码到产品树。
+研究副本默认只允许存放于受控 adoption cache 或 quarantine；Manifold 是本轮唯一已完成产品 Worker adoption 的例外，`vendored_files` 与 hash 由其 receipt 固定。其余研究项目仍不能提交为 active 模块。
 
 ### 2.4 Ponytail 前置工作流重写（2026-08-13）
 

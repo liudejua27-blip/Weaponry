@@ -1,6 +1,6 @@
 # ADR-0026: Agentic Design Runtime
 
-状态：Accepted as target architecture；observe/plan read-only projection 与 durable session/checkpoint/RepairIntent prepare/readback slice 已落地，单动作 orchestrator、Repair 应用和完整视觉 Gate 仍未完成
+状态：Accepted as target architecture；observe/plan projection、durable session/checkpoint/RepairIntent prepare/readback、显式 bounded 多视图 authoring producer/readback、单动作 geometry ActionRun、逐视图 evidence inventory、hash-bound CrossViewEvidenceBundle@1、approval-gated 有界同阶段独立动作批处理，以及带可选累计程序合并准备的 ordered composition proposal 已落地；Repair 晋级应用、用户 promotion 和正式跨视图视觉 Gate 仍未完成
 日期：2026-08-13
 
 ## 背景
@@ -56,8 +56,13 @@ MCP010F 当前包含两个严格受限的 slice：
 - 隔离探针先执行 Ponytail preflight，随后验证空参考 fail closed、动作锁定、project binding 和无用户持久数据写入：`docs/evidence/mcp010f/agentic-runtime-observe-plan-20260813.json`。
 - Runtime 另外提供受批准的 `session_create_or_resume`、`checkpoint_prepare`、`checkpoint_restore_prepare` 写入准备，以及 `session_get`、`checkpoint_get` durable readback；session/checkpoint 记录由 Runtime 写入 SQLite/CAS，恢复只生成 CAS-bound `RepairIntent@1`，不修改 candidate/version/history；
 - Viewer 通过 authenticated IPC 查询 durable session，仍只展示 read model，不提供写入按钮；完整重启后的 session/checkpoint/intent receipt 为 `docs/evidence/mcp010f/agentic-runtime-session-checkpoint-20260813.json`，合同检查为 `scripts/check_agentic_runtime_receipt.py`。
+- `session_create_or_resume` 现在还接受严格 bounded 的显式 `authoring_context`：Runtime 校验多个授权 `ReferenceEvidence` 组成的 `ReferenceCanvas@1`、CAS/object hash、view/coverage/unknown/claim 状态，以及绑定的 `DesignSpec@1`；缺省输入仍生成保守 single-reference unknown 对象。
+- `design_action_run_prepare` 已形成单动作 `prepare -> compile -> readback -> render -> evaluate` 执行 slice：checkpoint 和 primary-blockout/primary-form-adjustment/secondary-structure/tertiary-detail 的 single-Part geometry proposal 可执行，返回独立 reviewable candidate；未支持 action kind fail closed，永不 confirm/version/export。
+- `design_stage_run_prepare` 已形成 bounded stage batch：Runtime 要求显式批准、完整 ordered input hash 和 session/stage scope，最多执行 6 个同阶段独立 ActionRun，按 RuntimeJob/event 记录进度，在首个 action/quality gate 阻断处停止，并对同一 `batch_id + input_sha256` 精确重放；batch 不合并 proposal、不提升 candidate、不 confirm/version/export。
+- `design_composition_prepare` 已形成显式 ordered composition proposal：要求 2–6 个 typed geometry action、线性 `depends_on`、完整 composition hash 和用户批准；每一步复用独立 ActionRun，记录 step/aggregate/replay lineage，在首个质量门停止。可选 `merge.mode=cumulative-program` 要求每个完整 GeometryProgram@2 的 `parent_program_sha256` 链接上一步程序，并在动作批次完整通过后编译一个独立 review candidate；当前真实 focused fixture 在首个视觉门阻断，因此 merge 结果为 blocked，`confirm_allowed=false`，不应用 Repair、不改变 source candidate/version/history，也不导出。
+- `bounded-repair` proposal 已支持 2–8 个经 session `ReferenceCanvas@1` 精确绑定的 `view_evaluations`；Runtime 对 source/proposal candidate 分别执行每个 view 的 RenderSet@2、ReferenceComparisonReport@1 和 QualityReport@2，写入逐 view evidence 与 `CrossViewEvidenceBundle@1`，聚合 coverage/pass/non-regression/strict-improvement；跨视图 bundle 仍由 `candidate_confirm` 以 `CROSS_VIEW_PROMOTION_REQUIRED` fail closed，尚无用户批准 promotion transaction。
 
-这里的 `AgenticSceneObserveResult@1` 仍是可丢弃的 source transport envelope；durable session/checkpoint/RepairIntent 只在上述受限 prepare/readback 范围内存在。真实 Runtime 的嵌套只读 projection 已有独立 producer/consumer conformance 回执，但 durable/reference/DesignSpec 的完整 producer 尚未形成。它们尚未形成单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator 或 Repair 实际应用。这个区分是本 ADR 的强制状态边界。
+这里的 `AgenticSceneObserveResult@1` 仍是可丢弃的 source transport envelope；durable session/checkpoint/RepairIntent、bounded authoring producer/readback、单动作 ActionRun、独立 stage batch 和 bounded cross-view evidence 的边界已经形成，但它们仍不等于完整组合式多动作 orchestrator、用户批准的 proposal promotion、source candidate/version mutation 或最终视觉 PASS。这个区分是本 ADR 的强制状态边界。
 
 ### 1. Agent Harness
 
@@ -76,7 +81,7 @@ Observe -> Plan -> Act -> Inspect -> Render -> Evaluate -> Checkpoint
 - 绑定 project/reference/candidate/version/evidence hash；
 - 记录当前 stage、失败门、下一步允许动作；
 - 管理 stage checkpoint 和 rollback intent；
-- 限制 Codex 一次只做一个可验证设计动作。
+- 限制每个 Runtime ActionRun 为一个可验证设计动作；同阶段 batch 与 composition proposal 只串联独立 receipt 并记录显式 lineage，不形成隐式组合事务。
 
 ### 3. SemanticSceneGraph / ModelUnderstandingBundle
 
@@ -158,10 +163,10 @@ pass/fail/unknown
 
 ADR-0026 不改变当前唯一 `in_progress`：`FGC-MCP010F`。observe/plan projection 与 durable session/checkpoint/RepairIntent prepare/readback 已完成各自 source/isolated receipt；后续工作必须拆成独立、可验证的子任务：
 
-1. durable/reference/DesignSpec 与剩余 Agentic contract family 的完整 producer/consumer conformance（嵌套只读 projection 已有独立 Gate）；
-2. `DesignSpec@1` / `ReferenceCanvas@1` 的独立 CAS-bound producer/readback 和真实参考覆盖证据；
-3. 单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator；
-4. bounded RepairIntent 执行和用户批准边界；
+1. 完成剩余 Agentic contract family 的独立 producer/consumer conformance（当前 authoring_context 已有 bounded multi-view producer/readback）；
+2. 把 `ReferenceCanvas@1` 的多视图事实接入真实跨视图 render/compare 与 reference coverage evidence；
+3. 单动作 `prepare -> compile -> readback -> render -> evaluate`、有界 stage batch 和带累计程序链的 composition merge prepare 已落地；下一步是完整 positive merge conformance、失败恢复细化与 Repair/promotion transaction；
+4. bounded RepairIntent 已能生成 reviewable proposal；下一步是用户批准后的 candidate promotion，仍不得绕过 confirm/version/export gate；
 5. Parametric Design Kit v0 的 typed macro producer；
 6. 完整 Visual Evidence Bundle 与 critic evidence hash；
 7. 真实 Codex observe→plan→bounded action→inspect loop；

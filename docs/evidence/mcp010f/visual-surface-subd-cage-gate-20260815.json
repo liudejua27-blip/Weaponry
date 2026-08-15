@@ -1,0 +1,53 @@
+{
+  "schema_version": "ForgeCADVisualSurfaceSubdCageGate@1",
+  "status": "PASS_BOUNDED_EDITABLE_SUBD_CONTROL_CAGE_SOURCE_GATE",
+  "scope": "product-owned Geometry Worker source/focused test",
+  "operator_id": "forgecad.geometry.subd-cage@1",
+  "operator_catalog_entry": {
+    "status": "active",
+    "input_arity": {"min": 0, "max": 0},
+    "output_kind": "triangle-mesh",
+    "parameter_schema": "SubdCageParameters@1",
+    "part_output_required": true,
+    "catalog_entry_count_after_addition": 16
+  },
+  "contract": {
+    "shape": "subd-cage",
+    "control_cage": "rectangular typed quad grid",
+    "u_points": {"min": 2, "max": 16},
+    "v_points": {"min": 2, "max": 16},
+    "subdivision_levels": {"min": 0, "max": 2},
+    "control_points": {"min": 4, "max": 256},
+    "solid": false
+  },
+  "implementation": {
+    "algorithm": "bounded regular open-grid Catmull-Clark-style subdivision",
+    "fixture_control_grid": "3x3",
+    "fixture_triangle_counts": {"level_0": 8, "level_1": 32, "level_2": 128},
+    "editable_parameter": "control_points"
+  },
+  "determinism": {
+    "same_program_compiled_twice": "PASS_BYTE_EQUAL",
+    "strict_artifact_readback": "PASS",
+    "finite_and_degenerate_output_checks": "PASS",
+    "control_point_count_negative_fixture": "PASS_REJECTED"
+  },
+  "boundary": {
+    "open_surface_is_explicit": true,
+    "worker_writes_runtime_state": false,
+    "network_or_dynamic_code": false,
+    "runtime_catalog_and_action_allowlist": "PASS"
+  },
+  "limitations": [
+    "This is a bounded regular rectangular control-cage operator, not arbitrary-topology SubD.",
+    "Creases, extraordinary vertices, trims, NURBS, principal curvature/zebra analysis, variable thickness, and self-intersection repair are not implemented.",
+    "The output is an open triangle surface and must remain solid=false unless another typed shell contract closes it.",
+    "This source gate does not claim reference likeness, PBR quality, human review, candidate promotion, export/restart parity, or 360 coverage."
+  ],
+  "commands": [
+    "script/with_rust_toolchain.sh cargo test --manifest-path apps/geometry-worker/Cargo.toml --lib mcp010f_subd_cage_is_editable_deterministic_and_bounded --offline",
+    "script/test_mcp010d.sh",
+    "python3 scripts/check_forgecad_contracts.py",
+    "python3 scripts/check_mcp006_skills.py"
+  ]
+}

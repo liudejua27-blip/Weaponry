@@ -1,0 +1,41 @@
+{
+  "schema_version": "ForgeCADCrossViewPromotionPositiveSyntheticReceipt@1",
+  "canonical_sha256": "7366af5020f95f20dc4fbd1a33a2bdeaa755b5c6d637e29e5df434618076e803",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-15",
+  "status": "PASS_CROSS_VIEW_PROMOTION_SYNTHETIC_FIXTURE",
+  "scope": [
+    "complete ReferenceCanvas@1 coverage entity binding",
+    "six view-bound RenderSet/Comparison/Quality evaluations",
+    "CrossViewEvidenceBundle@1 strict-improvement and non-regression aggregation",
+    "cross_view_promotion_confirm approval-gated immutable version creation",
+    "exact replay and current-head base-version binding"
+  ],
+  "verification": {
+    "runtime_focused_test": "cargo test -p forgecad-runtime --lib agentic_repair_apply_prepare_accepts_strict_improvement_and_is_idempotent --offline: PASS",
+    "runtime_negative_cross_view_test": "cargo test -p forgecad-runtime --lib agentic_action_run_revalidates_bound_candidate_and_is_idempotent --offline: PASS",
+    "coverage_entity_binding": "PASS: complete coverage requires authored view entities for every supplied view kind",
+    "view_count": 6,
+    "aggregate_quality_status": "PARTIAL_VISIBLE_VIEW_PASS",
+    "strict_improvement": true,
+    "non_regressing": true,
+    "promotion_status": "reviewable",
+    "confirm_allowed_before_promotion": false,
+    "immutable_version_created": true,
+    "promotion_replay_idempotent": true,
+    "source_candidate_unchanged": true,
+    "fixture_runtime_version_delta": 1,
+    "persistent_user_data_touched": false
+  },
+  "truth_boundary": {
+    "fixture_reference": "Runtime-produced deterministic silhouette reused across six authored view kinds",
+    "real_user_reference_visual_quality": "NOT_PROVEN",
+    "real_codex_cross_view_conformance": "NOT_RUN",
+    "independent_human_visual_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "NOT_RUN",
+    "general_mesh_boolean": "NOT_IMPLEMENTED_AS_A_PRODUCT_CONTRACT",
+    "quality_claim": "NO_LIKENESS_OR_HIGH_QUALITY_PASS_CLAIM; TRANSACTION_AND_LINEAGE_FIXTURE_ONLY"
+  }
+}

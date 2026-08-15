@@ -44,6 +44,40 @@ def parse_args() -> Any:
     return parser.parse_args()
 
 
+def read_ponytail_preflight(client: McpClient) -> dict[str, str]:
+    """Read the mandatory first-party planning Skill before design calls."""
+    result = client.tool(
+        "skill_get",
+        {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+    )
+    require(isinstance(result, dict), "ponytail preflight returned no typed result")
+    skill = result.get("skill")
+    knowledge = result.get("knowledge")
+    require(
+        isinstance(skill, dict)
+        and skill.get("skill_id") == "ponytail-preflight"
+        and skill.get("version") == "0.1.0"
+        and isinstance(skill.get("canonical_sha256"), str)
+        and len(skill["canonical_sha256"]) == 64,
+        "ponytail preflight manifest was not verified",
+    )
+    require(
+        isinstance(knowledge, dict)
+        and isinstance(knowledge.get("canonical_sha256"), str)
+        and len(knowledge["canonical_sha256"]) == 64
+        and isinstance(knowledge.get("overview"), str)
+        and isinstance(knowledge.get("constraints"), str),
+        "ponytail preflight knowledge was not returned",
+    )
+    return {
+        "skill_id": skill["skill_id"],
+        "version": skill["version"],
+        "skill_manifest_sha256": skill["canonical_sha256"],
+        "knowledge_sha256": knowledge["canonical_sha256"],
+        "status": "PASS",
+    }
+
+
 def draft(project_id: str, catalog_hash: str) -> dict[str, Any]:
     return {
         "schema_version": "GeometryProgram@2",
@@ -220,6 +254,66 @@ def draft(project_id: str, catalog_hash: str) -> dict[str, Any]:
                 },
             },
             {
+                "node_id": "boolean-left",
+                "operator_id": "forgecad.geometry.profile-extrude@1",
+                "inputs": [],
+                "parameters": {
+                    "shape": "profile-extrude",
+                    "profile": [[-0.72, -0.50], [0.60, -0.50], [0.72, 0.0], [0.60, 0.50], [-0.72, 0.50]],
+                    "depth_m": 1.0,
+                    "position_m": [2.25, 0.0, 0.0],
+                    "rotation_rad": [0.0, 0.0, 0.0],
+                },
+            },
+            {
+                "node_id": "boolean-right",
+                "operator_id": "forgecad.geometry.profile-extrude@1",
+                "inputs": [],
+                "parameters": {
+                    "shape": "profile-extrude",
+                    "profile": [[-0.36, -0.36], [0.28, -0.36], [0.42, -0.06], [0.28, 0.36], [-0.36, 0.36]],
+                    "depth_m": 0.72,
+                    "position_m": [2.75, 0.0, 0.0],
+                    "rotation_rad": [0.0, 0.0, 0.0],
+                },
+            },
+            {
+                "node_id": "boolean-intersection-left",
+                "operator_id": "forgecad.geometry.profile-extrude@1",
+                "inputs": [],
+                "parameters": {
+                    "shape": "profile-extrude",
+                    "profile": [[-0.72, -0.50], [0.60, -0.50], [0.72, 0.0], [0.60, 0.50], [-0.72, 0.50]],
+                    "depth_m": 1.0,
+                    "position_m": [2.25, 0.0, 0.0],
+                    "rotation_rad": [0.0, 0.0, 0.0],
+                },
+            },
+            {
+                "node_id": "boolean-intersection-right",
+                "operator_id": "forgecad.geometry.profile-extrude@1",
+                "inputs": [],
+                "parameters": {
+                    "shape": "profile-extrude",
+                    "profile": [[-0.36, -0.36], [0.28, -0.36], [0.42, -0.06], [0.28, 0.36], [-0.36, 0.36]],
+                    "depth_m": 0.72,
+                    "position_m": [2.75, 0.0, 0.0],
+                    "rotation_rad": [0.0, 0.0, 0.0],
+                },
+            },
+            {
+                "node_id": "boolean-difference",
+                "operator_id": "forgecad.geometry.boolean@1",
+                "inputs": ["boolean-left", "boolean-right"],
+                "parameters": {"shape": "difference"},
+            },
+            {
+                "node_id": "boolean-intersection",
+                "operator_id": "forgecad.geometry.boolean@1",
+                "inputs": ["boolean-intersection-left", "boolean-intersection-right"],
+                "parameters": {"shape": "intersection"},
+            },
+            {
                 "node_id": "aggregate",
                 "operator_id": "forgecad.geometry.part-output@1",
                 "inputs": ["panel", "vent"],
@@ -267,6 +361,18 @@ def draft(project_id: str, catalog_hash: str) -> dict[str, Any]:
                 "part_id": "sweep-part",
                 "input_node_ids": ["sweep"],
                 "material_zone_id": "zone-emissive-amber",
+                "solid": True,
+            },
+            {
+                "part_id": "boolean-part",
+                "input_node_ids": ["boolean-difference"],
+                "material_zone_id": "zone-black-mechanical",
+                "solid": True,
+            },
+            {
+                "part_id": "boolean-intersection-part",
+                "input_node_ids": ["boolean-intersection"],
+                "material_zone_id": "zone-black-mechanical",
                 "solid": True,
             },
         ],
@@ -346,6 +452,7 @@ def main() -> int:
             "MCP010D initialize did not negotiate 2025-06-18",
         )
         client.notify("notifications/initialized")
+        preflight = read_ponytail_preflight(client)
         capabilities = client.tool("capabilities_get")
         catalog_hash = capabilities.get("operator_catalog_sha256")
         require(isinstance(catalog_hash, str) and len(catalog_hash) == 64, "catalog hash missing")
@@ -354,6 +461,7 @@ def main() -> int:
         required_active = {
             "forgecad.geometry.profile-extrude@1",
             "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.subd-cage@1",
             "forgecad.geometry.revolve@1",
             "forgecad.geometry.tube-sweep@1",
             "forgecad.geometry.transform@2",
@@ -362,6 +470,7 @@ def main() -> int:
             "forgecad.geometry.panel@1",
             "forgecad.geometry.vent-array@1",
             "forgecad.geometry.joint-stack@1",
+            "forgecad.geometry.boolean@1",
             "forgecad.geometry.part-output@1",
         }
         require(
@@ -371,8 +480,10 @@ def main() -> int:
             "OperatorCatalog did not advertise all active MCP010D operators",
         )
         require(
-            operators.get("forgecad.geometry.boolean@1", {}).get("status") == "unavailable",
-            "boolean@1 was not truthfully unavailable",
+            operators.get("forgecad.geometry.boolean@1", {}).get("status") == "active"
+            and set(operators.get("forgecad.geometry.boolean@1", {}).get("supported_shapes", []))
+            == {"union", "difference", "intersection"},
+            "boolean@1 did not advertise the bounded active P0 scope",
         )
         project = client.tool(
             "project_create",
@@ -414,7 +525,17 @@ def main() -> int:
         require(
             isinstance(bindings, list)
             and {item.get("source_node_id") for item in bindings}
-            >= {"arrayed", "aggregate", "joint", "profile", "loft", "revolve", "sweep"},
+            >= {
+                "arrayed",
+                "aggregate",
+                "joint",
+                "profile",
+                "loft",
+                "revolve",
+                "sweep",
+                "boolean-difference",
+                "boolean-intersection",
+            },
             "MCP010D readback lost semantic operator lineage",
         )
         negative = copy.deepcopy(program_draft)
@@ -426,10 +547,13 @@ def main() -> int:
                 "geometry_program_draft": negative,
             },
         )
-        require(error.get("code") == "INVALID_INPUT", "future DAG input did not fail closed")
+        require(
+            error.get("code") in {"INVALID_INPUT", "GEOMETRY_PROGRAM_HASH_REJECTED"},
+            f"future DAG input did not fail closed: {error}",
+        )
         boolean = copy.deepcopy(program_draft)
-        boolean["nodes"][0]["operator_id"] = "forgecad.geometry.boolean@1"
-        boolean["nodes"][0]["parameters"] = {"shape": "difference"}
+        boolean_node = next(node for node in boolean["nodes"] if node["node_id"] == "boolean-difference")
+        boolean_node["parameters"] = {"shape": "xor"}
         error = client.tool_error(
             "geometry_program_hash",
             {
@@ -437,10 +561,13 @@ def main() -> int:
                 "geometry_program_draft": boolean,
             },
         )
-        require(error.get("code") == "INVALID_INPUT", "unavailable boolean did not fail closed")
+        require(
+            error.get("code") in {"INVALID_INPUT", "GEOMETRY_PROGRAM_HASH_REJECTED"},
+            f"unsupported boolean shape did not fail closed: {error}",
+        )
         d_result = {
             "status": "PASS",
-            "operator_catalog": "13 entries / 12 active / boolean unavailable",
+            "operator_catalog": "16 entries / 16 active / boolean union+difference/intersection active",
             "operators": sorted(required_active),
             "geometry_program": "GeometryProgram@2 DAG",
             "semantic_parts": len(artifact.get("part_ids", [])),
@@ -448,7 +575,9 @@ def main() -> int:
             "artifact_readback": "ArtifactReadback@2 hard_gate_passed",
             "lineage": "PASS",
             "negative_future_input": "PASS",
-            "negative_boolean_unavailable": "PASS",
+            "boolean_union_difference_intersection": "PASS",
+            "negative_boolean_unsupported_shape": "PASS",
+            "ponytail_preflight": preflight,
             "persistent_user_data_touched": False,
         }
     finally:

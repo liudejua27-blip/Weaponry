@@ -17,10 +17,18 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["parameter_id", "part_id", "semantic", "value", "min", "max", "step", "unit"],
+        "allOf": [
+          {
+            "if": {"properties": {"semantic": {"const": "surface_control_point"}}},
+            "then": {"required": ["control_point_index", "axis"]}
+          }
+        ],
         "properties": {
           "parameter_id": {"$ref": "#/$defs/id"},
           "part_id": {"$ref": "#/$defs/id"},
-          "semantic": {"enum": ["width", "height", "depth", "offset_x", "offset_y", "offset_z", "scale"]},
+          "semantic": {"enum": ["width", "height", "depth", "offset_x", "offset_y", "offset_z", "scale", "surface_control_point"]},
+          "control_point_index": {"type": "integer", "minimum": 0, "maximum": 255},
+          "axis": {"enum": ["x", "y", "z"]},
           "value": {"type": "number", "finite": true},
           "min": {"type": "number", "finite": true},
           "max": {"type": "number", "finite": true},

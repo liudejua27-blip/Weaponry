@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/repair-apply-confirm-request.schema.json",
+  "title": "ForgeCAD Repair Apply Confirm Request",
+  "description": "Explicit user-approved consumption of a single-view RepairApplyIntent. Multi-view intents must use CrossViewPromotionRequest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "proposal_candidate_id",
+    "run_id",
+    "apply_intent_object_sha256",
+    "apply_intent_canonical_sha256",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "proposal_candidate_id": {"$ref": "#/$defs/identifier"},
+    "run_id": {"$ref": "#/$defs/identifier"},
+    "apply_intent_object_sha256": {"$ref": "#/$defs/sha256"},
+    "apply_intent_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "approved": {"const": true},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approval_expires_at": {"type": "string", "minLength": 1, "maxLength": 64},
+    "approval_session_id": {"$ref": "#/$defs/identifier"},
+    "idempotency_key": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

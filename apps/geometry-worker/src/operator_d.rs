@@ -6,6 +6,7 @@
 //! parent GeometryProgram budget. The resulting mesh is handed back to the
 //! existing strict GLB/readback path in the parent module.
 
+use super::manifold_bridge;
 use super::{
     add3, box_mesh, compile_v2_primitive, cross3, dot3, finite3, length3, normalize,
     require_exact_keys, rotate_xyz, scale3, subtract3, v2_scalar, v2_vec3, GeometryError,
@@ -17,6 +18,8 @@ use std::collections::BTreeMap;
 const MAX_PROFILE_POINTS: usize = 64;
 const MAX_LOFT_PROFILES: usize = 16;
 const MAX_SWEEP_POINTS: usize = 128;
+const SURFACE_PATCH_CONTROL_POINTS: usize = 16;
+const MAX_SUBD_CONTROL_POINTS: usize = 256;
 
 #[derive(Debug, Clone)]
 pub enum ValidatedOperator {
@@ -29,6 +32,29 @@ pub enum ValidatedOperator {
     },
     ProfileLoft {
         profiles: Vec<(f32, Vec<[f32; 2]>)>,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    SurfacePatch {
+        control_points: [[f32; 3]; SURFACE_PATCH_CONTROL_POINTS],
+        u_segments: usize,
+        v_segments: usize,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    SurfaceShell {
+        control_points: [[f32; 3]; SURFACE_PATCH_CONTROL_POINTS],
+        u_segments: usize,
+        v_segments: usize,
+        thickness_m: f32,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    SubdCage {
+        control_points: Vec<[f32; 3]>,
+        u_points: usize,
+        v_points: usize,
+        subdivision_levels: usize,
         position_m: [f32; 3],
         rotation_rad: [f32; 3],
     },
@@ -88,9 +114,21 @@ pub enum ValidatedOperator {
         position_m: [f32; 3],
         rotation_rad: [f32; 3],
     },
+    Boolean {
+        left: String,
+        right: String,
+        operation: BooleanOperation,
+    },
     PartOutput {
         inputs: Vec<String>,
     },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BooleanOperation {
+    Union,
+    Difference,
+    Intersection,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -111,6 +149,37 @@ impl ValidatedOperator {
             Self::ProfileLoft { profiles, .. } => {
                 let points = profiles.first().map(|(_, p)| p.len()).unwrap_or(0) as u64;
                 2 * points.saturating_sub(2) + 2 * points * profiles.len().saturating_sub(1) as u64
+            }
+            Self::SurfacePatch {
+                u_segments,
+                v_segments,
+                ..
+            } => 2 * *u_segments as u64 * *v_segments as u64,
+            Self::SurfaceShell {
+                u_segments,
+                v_segments,
+                ..
+            } => {
+                4 * *u_segments as u64 * *v_segments as u64
+                    + 4 * (*u_segments as u64 + *v_segments as u64)
+            }
+            Self::SubdCage {
+                u_points,
+                v_points,
+                subdivision_levels,
+                ..
+            } => {
+                let base_triangles = (*u_points as u64 - 1)
+                    .checked_mul(*v_points as u64 - 1)
+                    .and_then(|quads| quads.checked_mul(2))
+                    .ok_or_else(|| {
+                        GeometryError::Invalid("subd-cage triangle count overflow".to_owned())
+                    })?;
+                base_triangles
+                    .checked_mul(4u64.pow(*subdivision_levels as u32))
+                    .ok_or_else(|| {
+                        GeometryError::Invalid("subd-cage triangle count overflow".to_owned())
+                    })?
             }
             Self::Revolve {
                 profile,
@@ -162,6 +231,19 @@ impl ValidatedOperator {
                 radial_segments,
                 ..
             } => 4 * *ring_count as u64 * *radial_segments as u64,
+            Self::Boolean { left, right, .. } => input_counts
+                .get(left)
+                .ok_or_else(|| GeometryError::Invalid("boolean left input is unknown".to_owned()))?
+                .checked_add(*input_counts.get(right).ok_or_else(|| {
+                    GeometryError::Invalid("boolean right input is unknown".to_owned())
+                })?)
+                // Intersections split boundary faces.  Reserve a bounded
+                // eight-fold topology allowance instead of treating the
+                // input triangle sum as an exact or unsafe upper bound.
+                .and_then(|sum| sum.checked_mul(8))
+                .ok_or_else(|| {
+                    GeometryError::Invalid("boolean triangle count overflow".to_owned())
+                })?,
             Self::PartOutput { inputs } => inputs.iter().try_fold(0u64, |sum, input| {
                 sum.checked_add(*input_counts.get(input).ok_or_else(|| {
                     GeometryError::Invalid("part-output input is unknown".to_owned())
@@ -254,6 +336,134 @@ pub fn validate_operator(
             }
             ValidatedOperator::ProfileLoft {
                 profiles,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.surface-patch@1" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "surface-patch accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "control_points",
+                    "u_segments",
+                    "v_segments",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "surface-patch",
+            )?;
+            require_shape(parameters, "surface-patch")?;
+            let points = parse_vec3_array(
+                parameters,
+                "control_points",
+                SURFACE_PATCH_CONTROL_POINTS,
+                SURFACE_PATCH_CONTROL_POINTS,
+            )?;
+            let control_points: [[f32; 3]; SURFACE_PATCH_CONTROL_POINTS] =
+                points.try_into().map_err(|_| {
+                    GeometryError::Invalid(
+                        "surface-patch control point count is invalid".to_owned(),
+                    )
+                })?;
+            ValidatedOperator::SurfacePatch {
+                control_points,
+                u_segments: bounded_count(parameters, "u_segments", 4, 32)?,
+                v_segments: bounded_count(parameters, "v_segments", 4, 32)?,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.surface-shell@1" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "surface-shell accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "control_points",
+                    "u_segments",
+                    "v_segments",
+                    "thickness_m",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "surface-shell",
+            )?;
+            require_shape(parameters, "surface-shell")?;
+            let points = parse_vec3_array(
+                parameters,
+                "control_points",
+                SURFACE_PATCH_CONTROL_POINTS,
+                SURFACE_PATCH_CONTROL_POINTS,
+            )?;
+            let control_points: [[f32; 3]; SURFACE_PATCH_CONTROL_POINTS] =
+                points.try_into().map_err(|_| {
+                    GeometryError::Invalid(
+                        "surface-shell control point count is invalid".to_owned(),
+                    )
+                })?;
+            let thickness_m = v2_scalar(parameters, "thickness_m", MAX_DIMENSION, true)?;
+            if thickness_m < 1.0e-4 {
+                return Err(GeometryError::Invalid(
+                    "surface-shell thickness is below the stable mesh tolerance".to_owned(),
+                ));
+            }
+            ValidatedOperator::SurfaceShell {
+                control_points,
+                u_segments: bounded_count(parameters, "u_segments", 4, 32)?,
+                v_segments: bounded_count(parameters, "v_segments", 4, 32)?,
+                thickness_m,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.subd-cage@1" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "subd-cage accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "control_points",
+                    "u_points",
+                    "v_points",
+                    "subdivision_levels",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "subd-cage",
+            )?;
+            require_shape(parameters, "subd-cage")?;
+            let u_points = bounded_count(parameters, "u_points", 2, 16)?;
+            let v_points = bounded_count(parameters, "v_points", 2, 16)?;
+            let subdivision_levels = bounded_count(parameters, "subdivision_levels", 0, 2)?;
+            let control_points =
+                parse_vec3_array(parameters, "control_points", 4, MAX_SUBD_CONTROL_POINTS)?;
+            let expected_points = u_points.checked_mul(v_points).ok_or_else(|| {
+                GeometryError::Invalid("subd-cage control point count overflow".to_owned())
+            })?;
+            if control_points.len() != expected_points {
+                return Err(GeometryError::Invalid(format!(
+                    "subd-cage requires exactly {expected_points} control points"
+                )));
+            }
+            ValidatedOperator::SubdCage {
+                control_points,
+                u_points,
+                v_points,
+                subdivision_levels,
                 position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
                 rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
             }
@@ -468,10 +678,27 @@ pub fn validate_operator(
             }
         }
         "forgecad.geometry.boolean@1" => {
-            return Err(GeometryError::Invalid(
-                "boolean@1 is unavailable until the isolated Manifold adoption gate passes"
-                    .to_owned(),
-            ));
+            if inputs.len() != 2 {
+                return Err(GeometryError::Invalid(
+                    "boolean requires exactly two inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(parameters, &["shape"], "boolean")?;
+            let operation = match parameters.get("shape").and_then(Value::as_str) {
+                Some("union") => BooleanOperation::Union,
+                Some("difference") => BooleanOperation::Difference,
+                Some("intersection") => BooleanOperation::Intersection,
+                _ => {
+                    return Err(GeometryError::Invalid(
+                        "boolean shape must be union, difference or intersection".to_owned(),
+                    ))
+                }
+            };
+            ValidatedOperator::Boolean {
+                left: inputs[0].clone(),
+                right: inputs[1].clone(),
+                operation,
+            }
         }
         other => {
             return Err(GeometryError::Invalid(format!(
@@ -486,12 +713,15 @@ pub fn validate_operator(
 pub fn compile_operator(
     operation: &ValidatedOperator,
     meshes: &BTreeMap<String, PrimitiveNodeMesh>,
+    max_triangles: u64,
+    max_runtime_ms: u64,
 ) -> Result<PrimitiveNodeMesh, GeometryError> {
     let mut mesh = match operation {
         ValidatedOperator::Primitive(primitive) => {
             let (positions, normals, indices) = compile_v2_primitive(primitive);
             PrimitiveNodeMesh {
                 operator_id: "forgecad.geometry.primitive@2".to_owned(),
+                lineage_source_node_ids: Vec::new(),
                 positions,
                 normals,
                 indices,
@@ -514,6 +744,44 @@ pub fn compile_operator(
             rotation_rad,
         } => transform_mesh(
             profile_loft_mesh(profiles)?,
+            *position_m,
+            *rotation_rad,
+            [1.0; 3],
+        ),
+        ValidatedOperator::SurfacePatch {
+            control_points,
+            u_segments,
+            v_segments,
+            position_m,
+            rotation_rad,
+        } => transform_mesh(
+            surface_patch_mesh(control_points, *u_segments, *v_segments)?,
+            *position_m,
+            *rotation_rad,
+            [1.0; 3],
+        ),
+        ValidatedOperator::SurfaceShell {
+            control_points,
+            u_segments,
+            v_segments,
+            thickness_m,
+            position_m,
+            rotation_rad,
+        } => transform_mesh(
+            surface_shell_mesh(control_points, *u_segments, *v_segments, *thickness_m)?,
+            *position_m,
+            *rotation_rad,
+            [1.0; 3],
+        ),
+        ValidatedOperator::SubdCage {
+            control_points,
+            u_points,
+            v_points,
+            subdivision_levels,
+            position_m,
+            rotation_rad,
+        } => transform_mesh(
+            subd_cage_mesh(control_points, *u_points, *v_points, *subdivision_levels)?,
             *position_m,
             *rotation_rad,
             [1.0; 3],
@@ -646,6 +914,7 @@ pub fn compile_operator(
                 );
                 let translated = PrimitiveNodeMesh {
                     operator_id: String::new(),
+                    lineage_source_node_ids: Vec::new(),
                     positions: positions
                         .into_iter()
                         .map(|mut point| {
@@ -659,6 +928,49 @@ pub fn compile_operator(
                 append_mesh(&mut mesh, &translated);
             }
             transform_mesh(mesh, *position_m, *rotation_rad, [1.0; 3])
+        }
+        ValidatedOperator::Boolean {
+            left,
+            right,
+            operation,
+        } => {
+            let left_mesh = input_mesh(meshes, left)?;
+            let right_mesh = input_mesh(meshes, right)?;
+            let operation_name = match operation {
+                BooleanOperation::Union => "union",
+                BooleanOperation::Difference => "difference",
+                BooleanOperation::Intersection => "intersection",
+            };
+            let result = manifold_bridge::execute_boolean(
+                left_mesh,
+                right_mesh,
+                operation_name,
+                max_triangles,
+                max_runtime_ms,
+            )?;
+            // The C bridge has already strict-read the output topology,
+            // source-run IDs, and face IDs.  The existing GLB path consumes
+            // the typed mesh and regenerates UV/tangent data at the semantic
+            // Part boundary, while the bridge result remains the source of
+            // truth for the Boolean topology and lineage check.
+            let _lineage_probe = (result.source_ids.len(), result.face_ids.len());
+            let _topology_metrics = (result.volume, result.surface_area, result.genus);
+            let mut lineage_source_node_ids = left_mesh.lineage_source_node_ids.clone();
+            for source_node_id in &right_mesh.lineage_source_node_ids {
+                if !lineage_source_node_ids
+                    .iter()
+                    .any(|existing| existing == source_node_id)
+                {
+                    lineage_source_node_ids.push(source_node_id.clone());
+                }
+            }
+            PrimitiveNodeMesh {
+                operator_id: "forgecad.geometry.boolean@1".to_owned(),
+                lineage_source_node_ids,
+                positions: result.positions,
+                normals: result.normals,
+                indices: result.indices,
+            }
         }
         ValidatedOperator::PartOutput { inputs } => {
             let mut result = empty_mesh();
@@ -675,6 +987,9 @@ pub fn compile_operator(
     if matches!(
         operation,
         ValidatedOperator::ProfileLoft { .. }
+            | ValidatedOperator::SurfacePatch { .. }
+            | ValidatedOperator::SurfaceShell { .. }
+            | ValidatedOperator::SubdCage { .. }
             | ValidatedOperator::Revolve { .. }
             | ValidatedOperator::TubeSweep { .. }
             | ValidatedOperator::JointStack { .. }
@@ -1095,6 +1410,527 @@ fn profile_loft_mesh(
     Ok(mesh)
 }
 
+/// Evaluate one bounded bicubic Bezier patch.  This is the first Visual
+/// Surface representation: it gives Codex a smooth, editable primary shell
+/// envelope without admitting arbitrary subdivision scripts or a hidden DCC.
+/// The patch is intentionally an open surface; the caller must mark its
+/// semantic Part `solid=false` until a future typed shell-thickness operator
+/// closes it.
+fn surface_patch_mesh(
+    control_points: &[[f32; 3]; SURFACE_PATCH_CONTROL_POINTS],
+    u_segments: usize,
+    v_segments: usize,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let mut mesh = empty_mesh();
+    let stride = u_segments + 1;
+    let mut positions = Vec::with_capacity((u_segments + 1) * (v_segments + 1));
+    let mut normals = Vec::with_capacity((u_segments + 1) * (v_segments + 1));
+    for v_index in 0..=v_segments {
+        let v = v_index as f32 / v_segments as f32;
+        for u_index in 0..=u_segments {
+            let u = u_index as f32 / u_segments as f32;
+            let position = bezier_patch_point(control_points, u, v, false);
+            let du = bezier_patch_point(control_points, u, v, true);
+            let dv = bezier_patch_point_v_derivative(control_points, u, v);
+            let cross = cross3(du, dv);
+            let normal = normalize(cross);
+            if !finite3(position) || !finite3(normal) || !finite3(cross) || length3(cross) <= 1.0e-6
+            {
+                return Err(GeometryError::Invalid(
+                    "surface-patch contains a degenerate or non-finite sample".to_owned(),
+                ));
+            }
+            positions.push(position);
+            normals.push(normal);
+        }
+    }
+    let mut indices = Vec::with_capacity(u_segments * v_segments * 6);
+    for v_index in 0..v_segments {
+        for u_index in 0..u_segments {
+            let a = (v_index * stride + u_index) as u32;
+            let b = a + 1;
+            let c = a + stride as u32;
+            let d = c + 1;
+            indices.extend([a, b, c, b, d, c]);
+        }
+    }
+    mesh.positions = positions;
+    mesh.normals = normals;
+    mesh.indices = indices;
+    Ok(mesh)
+}
+
+/// Close a bounded Bézier patch with a uniform, symmetric shell. The shell
+/// duplicates boundary vertices for hard side normals, but the strict GLB
+/// readback welds those positions and verifies that the resulting semantic
+/// Part is watertight. This is intentionally a constant-thickness mesh
+/// envelope, not a general offset/shell solver: self-intersection, variable
+/// thickness, trim loops, and feature-line semantics remain outside this
+/// operator's contract.
+fn surface_shell_mesh(
+    control_points: &[[f32; 3]; SURFACE_PATCH_CONTROL_POINTS],
+    u_segments: usize,
+    v_segments: usize,
+    thickness_m: f32,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let mut mesh = empty_mesh();
+    let stride = u_segments + 1;
+    let half_thickness = thickness_m * 0.5;
+
+    for v_index in 0..=v_segments {
+        let v = v_index as f32 / v_segments as f32;
+        for u_index in 0..=u_segments {
+            let u = u_index as f32 / u_segments as f32;
+            let position = bezier_patch_point(control_points, u, v, false);
+            let du = bezier_patch_point(control_points, u, v, true);
+            let dv = bezier_patch_point_v_derivative(control_points, u, v);
+            let cross = cross3(du, dv);
+            let normal = normalize(cross);
+            if !finite3(position) || !finite3(normal) || !finite3(cross) || length3(cross) <= 1.0e-6
+            {
+                return Err(GeometryError::Invalid(
+                    "surface-shell contains a degenerate or non-finite sample".to_owned(),
+                ));
+            }
+            mesh.positions
+                .push(add3(position, scale3(normal, half_thickness)));
+            mesh.normals.push(normal);
+            mesh.positions
+                .push(subtract3(position, scale3(normal, half_thickness)));
+            mesh.normals.push(scale3(normal, -1.0));
+        }
+    }
+
+    let mut indices =
+        Vec::with_capacity(6 * u_segments * v_segments + 12 * (u_segments + v_segments));
+    for v_index in 0..v_segments {
+        for u_index in 0..u_segments {
+            let surface_index = v_index * stride + u_index;
+            let a = (surface_index * 2) as u32;
+            let b = ((surface_index + 1) * 2) as u32;
+            let c = ((surface_index + stride) * 2) as u32;
+            let d = ((surface_index + stride + 1) * 2) as u32;
+            indices.extend([a, b, c, b, d, c]);
+            let a = a + 1;
+            let b = b + 1;
+            let c = c + 1;
+            let d = d + 1;
+            indices.extend([a, c, b, b, c, d]);
+        }
+    }
+
+    let add_boundary_quad =
+        |mesh: &mut PrimitiveNodeMesh, corners: [[f32; 3]; 4]| -> Result<(), GeometryError> {
+            let normal = normalize(cross3(
+                subtract3(corners[1], corners[0]),
+                subtract3(corners[2], corners[0]),
+            ));
+            if !finite3(normal) || length3(normal) <= 1.0e-6 {
+                return Err(GeometryError::Invalid(
+                    "surface-shell boundary contains a degenerate side".to_owned(),
+                ));
+            }
+            let base = mesh.positions.len() as u32;
+            mesh.positions.extend(corners);
+            mesh.normals.extend([normal; 4]);
+            mesh.indices
+                .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+            Ok(())
+        };
+
+    let top_index = |surface_index: usize| (surface_index * 2) as usize;
+    let bottom_index = |surface_index: usize| (surface_index * 2 + 1) as usize;
+    for u_index in 0..u_segments {
+        let first = u_index;
+        let next = u_index + 1;
+        let corners = [
+            mesh.positions[top_index(first)],
+            mesh.positions[bottom_index(first)],
+            mesh.positions[bottom_index(next)],
+            mesh.positions[top_index(next)],
+        ];
+        add_boundary_quad(&mut mesh, corners)?;
+
+        let first = v_segments * stride + u_index;
+        let next = first + 1;
+        let corners = [
+            mesh.positions[top_index(first)],
+            mesh.positions[top_index(next)],
+            mesh.positions[bottom_index(next)],
+            mesh.positions[bottom_index(first)],
+        ];
+        add_boundary_quad(&mut mesh, corners)?;
+    }
+    for v_index in 0..v_segments {
+        let first = v_index * stride;
+        let next = (v_index + 1) * stride;
+        let corners = [
+            mesh.positions[top_index(first)],
+            mesh.positions[top_index(next)],
+            mesh.positions[bottom_index(next)],
+            mesh.positions[bottom_index(first)],
+        ];
+        add_boundary_quad(&mut mesh, corners)?;
+
+        let first = v_index * stride + u_segments;
+        let next = (v_index + 1) * stride + u_segments;
+        let corners = [
+            mesh.positions[top_index(first)],
+            mesh.positions[bottom_index(first)],
+            mesh.positions[bottom_index(next)],
+            mesh.positions[top_index(next)],
+        ];
+        add_boundary_quad(&mut mesh, corners)?;
+    }
+    mesh.indices.splice(0..0, indices);
+    Ok(mesh)
+}
+
+#[derive(Debug, Clone)]
+struct SubdEdge {
+    a: usize,
+    b: usize,
+    faces: Vec<usize>,
+}
+
+/// Build a bounded regular quad Catmull-Clark surface from an editable cage.
+///
+/// This is deliberately not an arbitrary-topology SubD kernel: the input is a
+/// rectangular quad grid, the level count is capped by validation, and the
+/// output remains an open triangle mesh.  It is nevertheless a real editable
+/// control-cage path: changing one cage point changes the deterministic
+/// subdivision result without asking a DCC, executing a script, or hiding a
+/// mesh delta behind the Runtime.
+fn subd_cage_mesh(
+    control_points: &[[f32; 3]],
+    u_points: usize,
+    v_points: usize,
+    subdivision_levels: usize,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let expected_points = u_points.checked_mul(v_points).ok_or_else(|| {
+        GeometryError::Invalid("subd-cage control point count overflow".to_owned())
+    })?;
+    if control_points.len() != expected_points || u_points < 2 || v_points < 2 {
+        return Err(GeometryError::Invalid(
+            "subd-cage rectangular control grid is invalid".to_owned(),
+        ));
+    }
+    let mut positions = control_points.to_vec();
+    let mut faces = Vec::with_capacity((u_points - 1) * (v_points - 1));
+    for v_index in 0..v_points - 1 {
+        for u_index in 0..u_points - 1 {
+            let a = v_index * u_points + u_index;
+            let b = a + 1;
+            let d = a + u_points;
+            let c = d + 1;
+            faces.push([a, b, c, d]);
+        }
+    }
+
+    for _ in 0..subdivision_levels {
+        let (next_positions, next_faces) = subd_catmull_clark_step(&positions, &faces)?;
+        positions = next_positions;
+        faces = next_faces;
+    }
+    subd_mesh_from_quads(positions, &faces)
+}
+
+fn subd_catmull_clark_step(
+    positions: &[[f32; 3]],
+    faces: &[[usize; 4]],
+) -> Result<(Vec<[f32; 3]>, Vec<[usize; 4]>), GeometryError> {
+    if positions.is_empty() || faces.is_empty() {
+        return Err(GeometryError::Invalid(
+            "subd-cage cannot subdivide an empty mesh".to_owned(),
+        ));
+    }
+    let mut edge_lookup: BTreeMap<(usize, usize), usize> = BTreeMap::new();
+    let mut edges: Vec<SubdEdge> = Vec::new();
+    let mut vertex_edges: Vec<Vec<usize>> = vec![Vec::new(); positions.len()];
+    let mut vertex_faces: Vec<Vec<usize>> = vec![Vec::new(); positions.len()];
+    let mut face_edges: Vec<[usize; 4]> = Vec::with_capacity(faces.len());
+
+    for (face_index, face) in faces.iter().enumerate() {
+        if face.iter().any(|index| *index >= positions.len()) {
+            return Err(GeometryError::Invalid(
+                "subd-cage face index is outside the control mesh".to_owned(),
+            ));
+        }
+        if face[0] == face[1] || face[1] == face[2] || face[2] == face[3] || face[3] == face[0] {
+            return Err(GeometryError::Invalid(
+                "subd-cage face contains a repeated edge vertex".to_owned(),
+            ));
+        }
+        for vertex in face {
+            vertex_faces[*vertex].push(face_index);
+        }
+        let pairs = [
+            (face[0], face[1]),
+            (face[1], face[2]),
+            (face[2], face[3]),
+            (face[3], face[0]),
+        ];
+        let mut indices = [0usize; 4];
+        for (slot, (left, right)) in pairs.into_iter().enumerate() {
+            let key = (left.min(right), left.max(right));
+            let edge_index = if let Some(existing) = edge_lookup.get(&key).copied() {
+                let edge = edges
+                    .get_mut(existing)
+                    .expect("edge lookup is synchronized");
+                if edge.faces.contains(&face_index) || edge.faces.len() >= 2 {
+                    return Err(GeometryError::Invalid(
+                        "subd-cage topology is non-manifold".to_owned(),
+                    ));
+                }
+                edge.faces.push(face_index);
+                existing
+            } else {
+                let edge_index = edges.len();
+                edge_lookup.insert(key, edge_index);
+                edges.push(SubdEdge {
+                    a: key.0,
+                    b: key.1,
+                    faces: vec![face_index],
+                });
+                edge_index
+            };
+            indices[slot] = edge_index;
+            if !vertex_edges[left].contains(&edge_index) {
+                vertex_edges[left].push(edge_index);
+            }
+            if !vertex_edges[right].contains(&edge_index) {
+                vertex_edges[right].push(edge_index);
+            }
+        }
+        face_edges.push(indices);
+    }
+
+    let face_points: Vec<[f32; 3]> = faces
+        .iter()
+        .map(|face| {
+            scale3(
+                add3(
+                    add3(positions[face[0]], positions[face[1]]),
+                    add3(positions[face[2]], positions[face[3]]),
+                ),
+                0.25,
+            )
+        })
+        .collect();
+    let edge_points: Vec<[f32; 3]> = edges
+        .iter()
+        .map(|edge| {
+            let midpoint = scale3(add3(positions[edge.a], positions[edge.b]), 0.5);
+            if edge.faces.len() == 1 {
+                midpoint
+            } else {
+                scale3(
+                    add3(
+                        add3(positions[edge.a], positions[edge.b]),
+                        add3(face_points[edge.faces[0]], face_points[edge.faces[1]]),
+                    ),
+                    0.25,
+                )
+            }
+        })
+        .collect();
+
+    let mut new_vertex_points = Vec::with_capacity(positions.len());
+    for (vertex_index, position) in positions.iter().copied().enumerate() {
+        let boundary_edges: Vec<usize> = vertex_edges[vertex_index]
+            .iter()
+            .copied()
+            .filter(|edge_index| edges[*edge_index].faces.len() == 1)
+            .collect();
+        let next = if !boundary_edges.is_empty() {
+            if boundary_edges.len() != 2 {
+                return Err(GeometryError::Invalid(
+                    "subd-cage boundary valence is not supported".to_owned(),
+                ));
+            }
+            let mut boundary_sum = scale3(position, 6.0);
+            for edge_index in boundary_edges {
+                let edge = &edges[edge_index];
+                let neighbor = if edge.a == vertex_index {
+                    edge.b
+                } else {
+                    edge.a
+                };
+                boundary_sum = add3(boundary_sum, positions[neighbor]);
+            }
+            scale3(boundary_sum, 0.125)
+        } else {
+            let valence = vertex_edges[vertex_index].len();
+            if valence == 0 || vertex_faces[vertex_index].len() != valence {
+                return Err(GeometryError::Invalid(
+                    "subd-cage vertex valence is not regular".to_owned(),
+                ));
+            }
+            let face_sum = vertex_faces[vertex_index]
+                .iter()
+                .fold([0.0; 3], |sum, face_index| {
+                    add3(sum, face_points[*face_index])
+                });
+            let face_average = scale3(face_sum, 1.0 / valence as f32);
+            let edge_midpoint_sum =
+                vertex_edges[vertex_index]
+                    .iter()
+                    .fold([0.0; 3], |sum, edge_index| {
+                        let edge = &edges[*edge_index];
+                        add3(sum, scale3(add3(positions[edge.a], positions[edge.b]), 0.5))
+                    });
+            let edge_midpoint_average = scale3(edge_midpoint_sum, 1.0 / valence as f32);
+            scale3(
+                add3(
+                    add3(face_average, scale3(edge_midpoint_average, 2.0)),
+                    scale3(position, valence as f32 - 3.0),
+                ),
+                1.0 / valence as f32,
+            )
+        };
+        if !finite3(next) {
+            return Err(GeometryError::Invalid(
+                "subd-cage subdivision emitted a non-finite control point".to_owned(),
+            ));
+        }
+        new_vertex_points.push(next);
+    }
+
+    let vertex_count = positions.len();
+    let edge_offset = vertex_count;
+    let face_offset = edge_offset + edge_points.len();
+    let mut next_positions = new_vertex_points;
+    next_positions.extend(edge_points);
+    next_positions.extend(face_points);
+    let mut next_faces = Vec::with_capacity(faces.len() * 4);
+    for (face_index, face) in faces.iter().enumerate() {
+        let [edge_ab, edge_bc, edge_cd, edge_da] = face_edges[face_index];
+        let a = face[0];
+        let b = face[1];
+        let c = face[2];
+        let d = face[3];
+        let face_point = face_offset + face_index;
+        next_faces.extend([
+            [a, edge_offset + edge_ab, face_point, edge_offset + edge_da],
+            [b, edge_offset + edge_bc, face_point, edge_offset + edge_ab],
+            [c, edge_offset + edge_cd, face_point, edge_offset + edge_bc],
+            [d, edge_offset + edge_da, face_point, edge_offset + edge_cd],
+        ]);
+    }
+    Ok((next_positions, next_faces))
+}
+
+fn subd_mesh_from_quads(
+    positions: Vec<[f32; 3]>,
+    faces: &[[usize; 4]],
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let mut normals = vec![[0.0; 3]; positions.len()];
+    let mut indices = Vec::with_capacity(faces.len() * 6);
+    for face in faces {
+        let triangles = [[face[0], face[1], face[2]], [face[0], face[2], face[3]]];
+        for [a, b, c] in triangles {
+            if a >= positions.len() || b >= positions.len() || c >= positions.len() {
+                return Err(GeometryError::Invalid(
+                    "subd-cage output index is outside the mesh".to_owned(),
+                ));
+            }
+            let cross = cross3(
+                subtract3(positions[b], positions[a]),
+                subtract3(positions[c], positions[a]),
+            );
+            if !finite3(cross) || length3(cross) <= 1.0e-8 {
+                return Err(GeometryError::Invalid(
+                    "subd-cage output contains a degenerate triangle".to_owned(),
+                ));
+            }
+            normals[a] = add3(normals[a], cross);
+            normals[b] = add3(normals[b], cross);
+            normals[c] = add3(normals[c], cross);
+            indices.extend([a as u32, b as u32, c as u32]);
+        }
+    }
+    for normal in &mut normals {
+        *normal = normalize(*normal);
+        if !finite3(*normal) {
+            return Err(GeometryError::Invalid(
+                "subd-cage output contains a non-finite normal".to_owned(),
+            ));
+        }
+    }
+    Ok(PrimitiveNodeMesh {
+        operator_id: String::new(),
+        lineage_source_node_ids: Vec::new(),
+        positions,
+        normals,
+        indices,
+    })
+}
+
+fn cubic_basis(t: f32) -> [f32; 4] {
+    let one = 1.0 - t;
+    [
+        one * one * one,
+        3.0 * one * one * t,
+        3.0 * one * t * t,
+        t * t * t,
+    ]
+}
+
+fn cubic_basis_derivative(t: f32) -> [f32; 4] {
+    let one = 1.0 - t;
+    [
+        -3.0 * one * one,
+        3.0 * one * one - 6.0 * one * t,
+        6.0 * one * t - 3.0 * t * t,
+        3.0 * t * t,
+    ]
+}
+
+fn bezier_patch_point(
+    control_points: &[[f32; 3]; SURFACE_PATCH_CONTROL_POINTS],
+    u: f32,
+    v: f32,
+    derivative_u: bool,
+) -> [f32; 3] {
+    let u_basis = if derivative_u {
+        cubic_basis_derivative(u)
+    } else {
+        cubic_basis(u)
+    };
+    let v_basis = cubic_basis(v);
+    let mut result = [0.0; 3];
+    for row in 0..4 {
+        for column in 0..4 {
+            let weight = u_basis[column] * v_basis[row];
+            let point = control_points[row * 4 + column];
+            result[0] += weight * point[0];
+            result[1] += weight * point[1];
+            result[2] += weight * point[2];
+        }
+    }
+    result
+}
+
+fn bezier_patch_point_v_derivative(
+    control_points: &[[f32; 3]; SURFACE_PATCH_CONTROL_POINTS],
+    u: f32,
+    v: f32,
+) -> [f32; 3] {
+    let u_basis = cubic_basis(u);
+    let v_basis = cubic_basis_derivative(v);
+    let mut result = [0.0; 3];
+    for row in 0..4 {
+        for column in 0..4 {
+            let weight = u_basis[column] * v_basis[row];
+            let point = control_points[row * 4 + column];
+            result[0] += weight * point[0];
+            result[1] += weight * point[1];
+            result[2] += weight * point[2];
+        }
+    }
+    result
+}
+
 fn revolve_mesh(profile: &[[f32; 2]], segments: usize) -> Result<PrimitiveNodeMesh, GeometryError> {
     let mut mesh = empty_mesh();
     for level in 0..profile.len() - 1 {
@@ -1210,6 +2046,7 @@ fn tube_sweep_mesh(
 fn empty_mesh() -> PrimitiveNodeMesh {
     PrimitiveNodeMesh {
         operator_id: String::new(),
+        lineage_source_node_ids: Vec::new(),
         positions: Vec::new(),
         normals: Vec::new(),
         indices: Vec::new(),
@@ -1223,6 +2060,7 @@ fn box_as_mesh(size: [f32; 3], translation: [f32; 3]) -> PrimitiveNodeMesh {
     }
     PrimitiveNodeMesh {
         operator_id: String::new(),
+        lineage_source_node_ids: Vec::new(),
         positions,
         normals,
         indices,
@@ -1236,6 +2074,15 @@ fn append_mesh(target: &mut PrimitiveNodeMesh, source: &PrimitiveNodeMesh) {
     target
         .indices
         .extend(source.indices.iter().map(|index| base + *index));
+    for source_node_id in &source.lineage_source_node_ids {
+        if !target
+            .lineage_source_node_ids
+            .iter()
+            .any(|existing| existing == source_node_id)
+        {
+            target.lineage_source_node_ids.push(source_node_id.clone());
+        }
+    }
 }
 
 fn transform_mesh(
@@ -1343,7 +2190,8 @@ mod tests {
         )
         .expect("rounded panel should validate");
         assert_eq!(rounded_count, 76);
-        let rounded_mesh = compile_operator(&rounded, &BTreeMap::new()).expect("rounded mesh");
+        let rounded_mesh =
+            compile_operator(&rounded, &BTreeMap::new(), 250_000, 10_000).expect("rounded mesh");
         assert_eq!(rounded_mesh.indices.len() / 3, 76);
         assert!(rounded_mesh.positions.len() > 8);
 
@@ -1363,7 +2211,8 @@ mod tests {
         )
         .expect("plain panel should validate");
         assert_eq!(plain_count, 12);
-        let plain_mesh = compile_operator(&plain, &BTreeMap::new()).expect("plain mesh");
+        let plain_mesh =
+            compile_operator(&plain, &BTreeMap::new(), 250_000, 10_000).expect("plain mesh");
         assert_eq!(plain_mesh.indices.len() / 3, 12);
     }
 
@@ -1384,7 +2233,8 @@ mod tests {
         )
         .expect("revolve should validate");
         assert_eq!(triangle_count, 64);
-        let mesh = compile_operator(&operation, &BTreeMap::new()).expect("revolve mesh");
+        let mesh =
+            compile_operator(&operation, &BTreeMap::new(), 250_000, 10_000).expect("revolve mesh");
         let mut groups: BTreeMap<(u32, u32, u32), Vec<[f32; 3]>> = BTreeMap::new();
         for (position, normal) in mesh.positions.iter().zip(mesh.normals.iter()) {
             groups

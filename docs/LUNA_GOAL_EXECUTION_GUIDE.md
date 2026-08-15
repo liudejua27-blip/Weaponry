@@ -1,16 +1,20 @@
 # Luna Goal 执行指南：ForgeCAD 单用户 MVP
 
+2026-08-15 最新源代码覆盖：当前为 123 Schema、40 read + 30 opt-in write = 70 tools。`SilhouetteEvaluationObjective@1` 已成为 `OptimizationIntent@1` 的可选 hash-bound policy；Runtime 在 checkpoint/resume/final compare/result 中统一 Global non-regression 与 Part strict-improvement，真实 v11f receipt 已完成 39 次 `32/4/3` proposal-only 评估，但 fixed-camera comparison 仍 `QUALITY_TARGET_NOT_MET`。`repair_apply_confirm` 已加入单视图的 approval-gated immutable-version source path；`design_action_optimization_proposal_prepare` 只物化严格且 non-regressing 的 ActionRun-bound CADFit review candidate，不自动 Repair/Confirm；多视图仍 fail closed 到 `cross_view_promotion_confirm`。Rust focused test 与 workspace test 需以本轮基线结果为准；Goal 状态和视觉质量 Gate 仍不升级。
+
+计数校正：本指南下方旧执行快照中的 115/118 Schema、37 read + 28/30 opt-in write = 65/67 均是历史快照；当前执行必须使用 123 / 40 + 30 = 70。
+
 版本：2026-08-13
 状态：Luna 强制执行协议；MVP host golden path 已收口；MCP010 质量轨道已批准
-当前任务：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C done（source-focused PASS_WITH_UNRUN_VISUAL_GATES）`；`FGC-MCP010D/E source + packaged structural PASS（Manifold/xatlas/Validator/视觉子门 NOT_RUN）`；唯一 `in_progress` 为 `FGC-MCP010F`（Viewer source、packaged CLI read-model、原生窗口与核心控件 smoke PASS；provisional observation package binding/正式 VoiceOver/人评/360 `NOT_RUN/BLOCKED`）
+当前任务：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C done（source-focused PASS_WITH_UNRUN_VISUAL_GATES）`；`FGC-MCP010D/E source + packaged structural PASS（Manifold bounded Boolean Worker adoption PASS；xatlas/Validator/视觉子门 NOT_RUN）`；唯一 `in_progress` 为 `FGC-MCP010F`（Viewer source、packaged CLI read-model、原生窗口与核心控件 smoke PASS；provisional observation package binding/正式 VoiceOver/人评/360 `NOT_RUN/BLOCKED`）。当前源码为 118 Schema、37 read + 30 opt-in write = 67 tools；`BooleanRequest@1`/`BooleanResult@1` 已绑定 product-owned Manifold 同一 Part union/difference/intersection Worker；`OptimizationResult@1` 已加入 highest-completed-fidelity best-so-far 与 proposal hash 分离，`OptimizationResidual@1` 保持 hash-bound typed residual；`design_action_optimization_proposal_prepare` 只物化严格且 non-regressing 的独立优化候选，不自动 Repair/Confirm；`CrossViewEvidenceBundle@1`、`cross_view_promotion_confirm`、`repair_apply_prepare` 与 `repair_apply_confirm` 已有 source/validator/prepare 或 fixture/runtime transaction fail-closed boundary，不是视觉或 360 PASS。
 
 ## 1. Goal 目标
 
 Luna 是仓库开发执行者，不是 ForgeCAD 运行时 Agent、Provider 或状态真值。当前 Goal 的代码主线和真实 Codex CLI 已完成一条用户授权图片 → typed 3D → PBR/fixed render → quality → approval/version → CAS GLB receipt 的 MVP host golden path；MCP010C source 已完成固定 renderer、九 AOV、reference compare、Codex typed visual review 以及 human review 合同/工具接口，MCP010D/E source 已完成真实硬表面 Operator、离线 AssetPack、UV atlas、MikkTSpace 和嵌入式 PBR，MCP010F source 已完成只读 Viewer 的 AOV/对比/部件筛选/材质区筛选/爆炸图/热图辅助。真实用户 likeness、同一 candidate 的 packaged Viewer、独立真人评分、PBR likeness、xatlas/Validator、export/restart hash 和 360 仍按独立证据推进，不继续堆复杂后台治理。
 
-Stage 0 唯一机器可读真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，不是合格 benchmark；它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；packaged Viewer 来自不同 cohort/artifact，未绑定该 candidate。任何 Luna 状态更新都必须保留这些失败/未运行边界。
+Stage 0 唯一机器可读真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，不是合格 benchmark；它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；current-cohort packaged Viewer CLI read-model 已绑定 project/candidate/artifact/reference/render-set/comparison lineage，但正式 UI/accessibility E2E 未运行。任何 Luna 状态更新都必须保留这些失败/未运行边界。
 
-<!-- forgecad-stage0: schemas=101 schema_set_sha256=a48a823ce7d51b214978c966b4cfb27243857f7e6cf594b7c9f4ec47ad1a0c1e read_tools=35 write_tools=21 total_tools=56 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json latest_completed=real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json -->
+<!-- forgecad-stage0: schemas=123 schema_set_sha256=583fd0d2615f09e66d16c58fca8d4ab60f1856d1de427b5b9e390c8c8b137f67 read_tools=40 write_tools=30 total_tools=70 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 不要把 Goal 写成“完善整个软件”后无边界并行修改。一次只领取一个 `FGC-MCPxxx`，先完成退出 Gate，再进入下一项。MCP005–009 是已完成的 functional core；MCP010A–F 严格串行，MCP011–013 保留可靠性、分发和正式发布职责。
 
@@ -39,14 +43,14 @@ Stage 0 唯一机器可读真值为 `docs/evidence/mcp010f/current-benchmark-tru
 
 若冲突，按 `DOCUMENTATION_MAP.md` 解决；没有明确权威时先修文档，不自行混合两套架构。
 
-ADR-0026、Agentic plan、模块边界和废弃隔离计划都是当前权威阅读链的一部分。当前已有 Agentic contract family、4 个 read-only projection tool、5 个 durable session/checkpoint prepare/readback tool 和隔离 Runtime/MCP/Viewer evidence；真实 Runtime 的嵌套只读 projection producer/consumer conformance 另已通过 `scripts/check_agentic_projection_receipt.py` 校验。Luna 必须把它们分别标为 `source/read-only projection PASS`、`nested projection conformance PASS` 与 `durable prepare/readback PASS`，不能写成 durable/reference/DesignSpec 完整 schema conformance、单动作 orchestrator、Repair execution 或高质量 PASS。
+ADR-0026、Agentic plan、模块边界和废弃隔离计划都是当前权威阅读链的一部分。当前已有 Agentic contract family、4 个 read-only projection tool、5 个 durable session/checkpoint prepare/readback tool 和隔离 Runtime/MCP/Viewer evidence；真实 Runtime 的嵌套只读 projection producer/consumer conformance 另已通过 `scripts/check_agentic_projection_receipt.py` 校验。Luna 必须把它们分别标为 `source/read-only projection PASS`、`nested projection conformance PASS` 与 `durable prepare/readback PASS`；`design_composition_prepare` 现在还支持显式累计程序/父程序哈希链校验和独立 merge prepare，但正向 merge、Repair execution、promotion 或高质量 PASS 仍未证明，不能写成 durable/reference/DesignSpec 完整 schema conformance、完整多动作 orchestrator 或已完成的 Repair execution。
 
 ## 3. Goal 建议文本
 
 用户已批准并显式继续以下 Goal；010A–E 的已完成/source 状态按账本保留，当前只执行唯一 `in_progress` 的 FGC-MCP010F：
 
 ```text
-按照 AGENTS.md、docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md、docs/CODEX_TASK_INDEX.md 和本指南，保护 dirty worktree，一次只执行一个原子任务。当前源码固定为 100 Schema、35 read + 21 opt-in write = 56，唯一 `in_progress` 是 FGC-MCP010F。Agentic 设计调用必须先 `skill_get(ponytail-preflight@0.1.0)`；观察路径为 `scene_observe_get/design_stage_plan_get`，durable 路径为 `session_create_or_resume → checkpoint_prepare → checkpoint_get/session_get`，恢复只允许 `checkpoint_restore_prepare` 生成 CAS-only RepairIntent，不能绕过 approval 或直接改 candidate/version。高质量路径只允许 `GeometryProgram@2` detail → strict readback → 九 AOV strict compare → typed visual review；`[transition-v1]` primitive-only 仅为历史兼容。Viewer source 和 packaged read-model/window/core-control smoke 已通过，但 attempt35 仍为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，fit/compare camera `MISMATCH`，packaged Viewer 未绑定 provisional observation。正式 VoiceOver、真人、PBR likeness、export/restart hash 和 360 仍独立记录。禁止旧 Provider、付费 API、远程 image-to-3D、任意 Python/BlenderMCP、手工 GLB、heartbeat 或插件市场。
+按照 AGENTS.md、docs/MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md、docs/CODEX_TASK_INDEX.md 和本指南，保护 dirty worktree，一次只执行一个原子任务。当前源码固定为 115 Schema、37 read + 28 opt-in write = 65，唯一 `in_progress` 是 FGC-MCP010F。Agentic 设计调用必须先 `skill_get(ponytail-preflight@0.1.0)`；观察路径为 `scene_observe_get/design_stage_plan_get`，durable 路径为 `session_create_or_resume → checkpoint_prepare → checkpoint_get/session_get`，恢复只允许 `checkpoint_restore_prepare` 生成 CAS-only RepairIntent，不能绕过 approval 或直接改 candidate/version；同阶段批处理只允许 `design_stage_run_prepare` 以完整 hash、最多 6 个独立 ActionRun 逐项执行并在首个质量门停止；`design_composition_prepare` 允许 2–6 个线性依赖 action，且可选地要求每步 `GeometryProgram@2` 的 parent/program hash 链，只有完整批次通过才准备独立 merge review candidate；`repair_apply_prepare` 只生成 source/proposal/RepairIntent/quality/evidence 绑定的 CAS apply intent，当前 merge/promotion 仍 fail closed；bounded Repair 可附带 2–8 个 exact session-bound views 生成 `CrossViewEvidenceBundle@1`，但 promotion 仍 fail closed。高质量路径只允许 `GeometryProgram@2` detail → strict readback → 九 AOV strict compare → typed visual review；`[transition-v1]` primitive-only 仅为历史兼容。Viewer source 和 packaged read-model/window/core-control smoke 已通过，current-cohort packaged Viewer CLI read-model 已绑定 lineage，但 attempt35 仍为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`、fit/compare camera `MISMATCH`。正式 VoiceOver、真人、PBR likeness、export/restart hash 和 360 仍独立记录。禁止旧 Provider、付费 API、远程 image-to-3D、任意 Python/BlenderMCP、手工 GLB、heartbeat 或插件市场。
 ```
 
 若用户要求大调整或架构重规划，应追加：
@@ -58,7 +62,7 @@ ADR-0026、Agentic plan、模块边界和废弃隔离计划都是当前权威阅
 用户已经授权的 GitHub 研究必须追加：
 
 ```text
-仅按 LUNA_GITHUB_REPLICATION_PLAYBOOK.md 研究 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 的冻结 revision。每个项目先写 research-authorized receipt，选择性文件只进隔离缓存，随后做许可证/依赖/动态代码/网络/文件系统审查。默认输出是 ForgeCAD 自有 Schema 和 Rust rewrite；不运行 Python、Blender addon、socket、上游安装脚本或模型下载。未取得 approval: accepted、SBOM、恶意输入、确定性、资源和平台证据前，不改 lockfile、安装包、Runtime allowlist 或 active Skill。
+仅按 LUNA_GITHUB_REPLICATION_PLAYBOOK.md 研究 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 的冻结 revision。Manifold 的 fixed revision 已通过 source/LICENSE/SBOM、恶意输入、确定性、资源和 removal gate，并已 accepted 为 product-owned isolated Worker；其他项目先写 research-authorized receipt，选择性文件只进隔离缓存，随后做许可证/依赖/动态代码/网络/文件系统审查。默认输出是 ForgeCAD 自有 Schema 和 Rust rewrite；不运行 Python、Blender addon、socket、上游安装脚本或模型下载。除 Manifold 已接受的隔离 Worker 例外外，未取得 approval: accepted、SBOM、恶意输入、确定性、资源和平台证据前，不改 lockfile、安装包、Runtime allowlist 或 active Skill。
 ```
 
 真实 host 证据按下面的顺序运行；`<AUTHORIZED_REFERENCE>` 必须是用户明确授权的本地 PNG/JPEG，命令输出不得写入 Git、日志或 receipt：
@@ -107,7 +111,7 @@ Destructive actions / user approval:
 - 当前 010A 已由用户批准并完成真实 Desktop Gate，标为 `done`；
 - 成功 receipt 必须保留，第一次失败 receipt 也不得改写；
 - 010A 已 done；010B structural source Gate已通过但 Darwin OS memory hard cap deferred；010C source-focused Gate 已完成但视觉子门仍未运行；D/E source Gate 已完成；当前只允许 F 保持 `in_progress`，其 packaged/human/360 子门独立记录；之后每次只将直接后继改为 ready/in_progress；
-- 当前工作树有 100 Schema（MCP006 历史 44 + MCP010B/C/D/E/F 与 Agentic contract family）、35 read + 21 opt-in write = 56 个工具、12 个 Skill（包含每个设计 MCP session 必须先读的 `ponytail-preflight@0.1.0`；历史 `0.1.0` + `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0`、`uv-pbr@0.2.0` active）；C source Gate 已通过 contracts、fixed renderer/九 AOV、comparison/typed visual review、MCP image block 和 deterministic raw stdio，D/E source Gate 已通过真实 Operator、AssetPack、UV/PBR/MikkTSpace/embedded-texture 和九 AOV，并有同 cohort packaged D/E structural probes，F source Gate 另通过哈希绑定轮廓目标、Runtime-owned camera reference、方向性边界误差、多 Part `silhouette_part_error_get` 归因表、只读 Viewer 的 AOV/compare/selection/explosion/heatmap 及构建边界，packaged Viewer 另有 read-model/window/core-control smoke；Agentic projection 与 durable session/checkpoint/RepairIntent prepare/readback 另有合同、preflight、空参考 fail closed、Runtime/MCP 重启和隔离持久化检查。attempt35 likeness/receipt/camera 仍失败或不完整；provisional observation package binding、正式 VoiceOver、人评阈值、xatlas/Validator、PBR likeness、export/restart hash和360只写 `NOT_RUN/BLOCKED`。
+- 当前工作树有 115 Schema（MCP006 历史 44 + MCP010B/C/D/E/F 与 Agentic contract family）、37 read + 28 opt-in write = 65 个工具、12 个 Skill（包含每个设计 MCP session 必须先读的 `ponytail-preflight@0.1.0`；历史 `0.1.0` + `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0`、`uv-pbr@0.2.0` active）；C source Gate 已通过 contracts、fixed renderer/九 AOV、comparison/typed visual review、MCP image block 和 deterministic raw stdio，D source Gate 已通过 13 active Operator（含 product-owned Manifold 同一 Part bounded union/difference/intersection Boolean Worker），E source Gate 已通过真实 Operator、AssetPack、UV/PBR/MikkTSpace/embedded-texture 和九 AOV，并有同 cohort packaged D/E structural probes，F source Gate 另通过哈希绑定轮廓目标、Runtime-owned camera reference、方向性边界误差、多 Part `silhouette_part_error_get` 归因表、只读 Viewer 的 AOV/compare/selection/explosion/heatmap 及构建边界，packaged Viewer 另有 read-model/window/core-control smoke；Agentic projection、逐视图 evidence inventory、bounded cross-view evidence、durable session/checkpoint/RepairIntent prepare/readback、bounded independent stage batch、ordered composition merge-chain 和 `repair_apply_prepare` apply-intent 另有合同、preflight、空参考 fail closed、Runtime/MCP 重启、focused tests 和隔离持久化检查。attempt35 likeness/receipt/camera 仍失败或不完整；current-cohort packaged Viewer CLI read-model 已绑定，但正式 VoiceOver、人评阈值、xatlas/Validator、PBR likeness、export/restart hash和360只写 `NOT_RUN/BLOCKED`。
 
 ## 5. FGC-MCP005 已完成记录
 
@@ -138,7 +142,7 @@ MCP005 已完成：
 
 ### MCP006（已完成）
 
-先 Schema/validator，再 first-party Skills。MCP006 已完成 44 个 contracts schema、十项 historical registry manifest、十个独立标准 Bundle、trust hash、`skill_list/get` 和只读 resource、DAG/单位/finite/预算 validator、负向 fixture、benchmark receipt、LICENSE/NOTICE/SBOM/provenance 绑定；当前总数为 100 Schema，`primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0` 均有 active Runtime consumer。Codex 提交 typed program，ForgeCAD 不调用 LLM。MVP Bundle 用 canonical hash + first-party trust root；不省略许可证/SBOM/provenance，但分发签名/撤销延后。它只证明声明式能力可审计，不证明通用视觉质量。
+先 Schema/validator，再 first-party Skills。MCP006 已完成 44 个 contracts schema、十项 historical registry manifest、十个独立标准 Bundle、trust hash、`skill_list/get` 和只读 resource、DAG/单位/finite/预算 validator、负向 fixture、benchmark receipt、LICENSE/NOTICE/SBOM/provenance 绑定；当前总数为 115 Schema，`primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0` 均有 active Runtime consumer，D 的 Boolean request/result 与 product-owned isolated Worker 已通过。Codex 提交 typed program，ForgeCAD 不调用 LLM。MVP Bundle 用 canonical hash + first-party trust root；不省略许可证/SBOM/provenance，但分发签名/撤销延后。它只证明声明式能力可审计，不证明通用视觉质量。
 
 ### MCP007（已完成）
 
@@ -166,7 +170,7 @@ search/read source + release + license
 → only then edit lockfile/build/package
 ```
 
-允许优先评估：image-rs/image、gltf-rs/gltf、Manifold、xatlas、mikktspace、glTF-Validator、glTF-Transform。`approved-for-evaluation` 不等于 `adopted`。
+允许优先评估：image-rs/image、gltf-rs/gltf、xatlas、mikktspace、glTF-Validator、glTF-Transform。Manifold 已是 accepted product-owned isolated Worker；其余项目的 `approved-for-evaluation` 不等于 `adopted`。
 
 禁止安装：BlenderMCP、FreeCAD MCP、任意 Python CAD MCP、远程 image-to-3D Provider、自动下载模型权重、GitHub prompt/Skill pack。MCP010E 仅允许 Codex 将计划点名的 CC0 文件一次性下载到本机 adoption cache；逐资产 hash/license/SBOM/provenance 通过后才能编入 first-party 离线 AssetPack。Runtime、安装器和 Viewer 不联网、不调用素材 API。
 
@@ -241,7 +245,7 @@ ForgeCAD MVP completed for the first hard-surface reference benchmark on <commit
 
 真实 Codex host 具备 MCP write opt-in 后，按下面顺序调用；每一步把返回的 ID/hash传给下一步，禁止从模型自由猜测 hash。新的 MCP stdio 设计会话必须先成功读取 first-party `ponytail-preflight@0.1.0`；只有 `capabilities_get`、`runtime_status`、`doctor` 可作为无状态诊断例外，不能代替前置读取：
 
-1. `skill_get(ponytail-preflight@0.1.0) → capabilities_get → runtime_status → doctor → operator_catalog_get → skill_list`：先保存 Skill manifest/knowledge canonical hash，再要求 Runtime Ready、同 cohort、catalog digest 一致；当前口径必须是 35 read + 21 opt-in write = 56。未完成 `skill_get` 时不得调用 `project_create`、参考、Geometry、Appearance、比较、评审或其他 Skill。
+1. `skill_get(ponytail-preflight@0.1.0) → capabilities_get → runtime_status → doctor → operator_catalog_get → skill_list`：先保存 Skill manifest/knowledge canonical hash，再要求 Runtime Ready、同 cohort、catalog digest 一致；当前口径必须是 37 read + 28 opt-in write = 65，并包含 approval-gated `design_composition_prepare` 与 `repair_apply_prepare`（后者只准备 apply intent）。未完成 `skill_get` 时不得调用 `project_create`、参考、Geometry、Appearance、比较、评审或其他 Skill。
 2. `project_create → reference_import → reference_get`：只提交用户授权 PNG/JPEG，记录 project/reference/object hash 和 observed/inferred/unknown coverage。
 3. 构造 project/catalog-bound `GeometryProgram@2` detail draft；`geometry_program_hash → geometry_prepare → job_get → candidate_get → artifact_readback_get`，要求 strict `ArtifactReadback@2` 的完整 lineage 和零 integrity failure。
 4. `reference_mask_prepare → silhouette_target_get → camera_fit_prepare → silhouette_rig_hash → silhouette_fit_prepare`；fit 返回的 camera 必须与后续 compare 的 camera hash/canonical hash 一致，不一致即停止。

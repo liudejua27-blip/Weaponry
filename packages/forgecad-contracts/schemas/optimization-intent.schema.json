@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-intent.schema.json",
+  "title": "ForgeCAD Multi-Fidelity Optimization Intent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "intent_id", "job_id", "project_id", "candidate_id", "reference_id", "reference_sha256", "program_sha256", "target_sha256", "camera", "camera_hash", "part_id", "stage", "rig", "fidelity", "budget", "objective", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "OptimizationIntent@1"},
+    "intent_id": {"$ref": "#/$defs/id"},
+    "action_run_id": {"$ref": "#/$defs/nullable_id"},
+    "job_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "target_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation_objective_sha256": {"$ref": "#/$defs/sha256"},
+    "camera": {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/id"},
+    "stage": {"enum": ["primary-form", "secondary-structure", "tertiary-detail", "uv-pbr", "final-review"]},
+    "rig": {"$ref": "https://forgecad.local/contracts/silhouette-rig.schema.json"},
+    "fidelity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coarse_resolution", "mid_resolution", "final_resolution", "coarse_evaluations", "mid_top_k", "final_top_k"],
+      "properties": {
+        "coarse_resolution": {"const": 128},
+        "mid_resolution": {"const": 256},
+        "final_resolution": {"const": 512},
+        "coarse_evaluations": {"type": "integer", "minimum": 32, "maximum": 48},
+        "mid_top_k": {"type": "integer", "minimum": 4, "maximum": 8},
+        "final_top_k": {"const": 2}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_evaluations", "max_runtime_ms", "max_output_triangles", "max_worker_memory_bytes"],
+      "properties": {
+        "max_evaluations": {"type": "integer", "minimum": 42, "maximum": 64},
+        "max_runtime_ms": {"type": "integer", "minimum": 1000, "maximum": 120000},
+        "max_output_triangles": {"type": "integer", "minimum": 1, "maximum": 2000000},
+        "max_worker_memory_bytes": {"type": "integer", "minimum": 1048576, "maximum": 536870912}
+      }
+    },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["silhouette_iou", "boundary_f1_4px", "landmark_coverage", "landmark_nme", "part_region", "program_complexity"],
+      "properties": {
+        "silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1},
+        "landmark_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "landmark_nme": {"type": "number", "minimum": 0, "maximum": 1},
+        "part_region": {"type": "number", "minimum": 0, "maximum": 1},
+        "program_complexity": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "residual": {"$ref": "#/$defs/optimization_residual"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "optimization_residual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "part_id",
+        "node_id",
+        "operation",
+        "parameters",
+        "source_critic_report_sha256",
+        "source_part_error_sha256",
+        "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "OptimizationResidual@1"},
+        "part_id": {"$ref": "#/$defs/id"},
+        "node_id": {"$ref": "#/$defs/id", "pattern": "^residual-[A-Za-z0-9_.-]{1,95}$"},
+        "operation": {"enum": ["union", "difference", "intersection"]},
+        "parameters": {
+          "oneOf": [
+            {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/box_parameters"},
+            {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/cylinder_parameters"},
+            {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/ellipsoid_parameters"},
+            {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/sphere_parameters"}
+          ]
+        },
+        "source_critic_report_sha256": {"$ref": "#/$defs/sha256"},
+        "source_part_error_sha256": {"$ref": "#/$defs/sha256"},
+        "source_visual_surface_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

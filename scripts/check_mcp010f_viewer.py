@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VIEWER = ROOT / "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx"
+APP = ROOT / "apps/desktop/src/App.tsx"
 STYLES = ROOT / "apps/desktop/src/styles.css"
 TAURI_VIEWER = ROOT / "apps/desktop/src-tauri/src/viewer.rs"
 COMPARE_WORKER = ROOT / "apps/desktop/src/features/runtime-viewer/compare-worker.ts"
@@ -21,6 +22,7 @@ COMPARE_WORKER = ROOT / "apps/desktop/src/features/runtime-viewer/compare-worker
 
 def main() -> int:
     source = VIEWER.read_text(encoding="utf-8")
+    app_source = APP.read_text(encoding="utf-8")
     styles = STYLES.read_text(encoding="utf-8")
     tauri_source = TAURI_VIEWER.read_text(encoding="utf-8")
     required_tokens = [
@@ -133,6 +135,19 @@ def main() -> int:
     missing = [token for token in required_tokens if token not in source]
     if missing:
         raise SystemExit(f"Viewer source surface is missing required tokens: {missing}")
+    if "<RuntimeViewer" not in app_source or "from './features/runtime-viewer/RuntimeViewer'" not in app_source:
+        raise SystemExit("Desktop App must mount the Runtime Viewer as its only product entry surface")
+    forbidden_app_entry_tokens = [
+        'type="file"',
+        "<textarea",
+        "准备生成",
+        "让 Codex 检查",
+        "上传参考",
+        "referenceName",
+    ]
+    leaked_app_entry_tokens = [token for token in forbidden_app_entry_tokens if token in app_source]
+    if leaked_app_entry_tokens:
+        raise SystemExit(f"Desktop App must not recreate upload/chat/generate entry actions: {leaked_app_entry_tokens}")
     forbidden_local_quality_logic = [
         "VISUAL_GATE_THRESHOLDS",
         "evaluateWorkflowGate",

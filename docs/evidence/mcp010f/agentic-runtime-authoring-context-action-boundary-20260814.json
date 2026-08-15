@@ -1,0 +1,46 @@
+{
+  "schema_version": "ForgeCADAgenticAuthoringContextActionBoundaryEvidence@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-14",
+  "status": "PASS_SOURCE_RUNTIME_READBACK_AND_FAIL_CLOSED_ACTION_BOUNDARY",
+  "scope": [
+    "Runtime-owned default and explicit bounded ReferenceCanvas@1/DesignSpec@1 CAS producer/readback",
+    "explicit multi-view reference/authorization/project binding validation",
+    "session result authoring_context projection",
+    "DesignActionRun authoring-context revalidation",
+    "checkpoint and geometry-stage single-Part execution matrix"
+  ],
+  "implementation": {
+    "authoring_context": [
+      "session_create_or_resume emits canonical default objects or accepts an approved typed authoring_context with bounded multi-view facts",
+      "explicit views are checked against Runtime-owned ReferenceEvidence, project scope, authorization declaration, dimensions, coverage and observed/inferred/unknown state contracts",
+      "session_get and agentic_session_lookup verify CAS bytes, object metadata, SHA-256, canonical hash, project/session/reference bindings and the bound view",
+      "DesignActionRun re-reads the authoring context before candidate execution"
+    ],
+    "executable_action_kinds": {
+      "checkpoint": "PASS_REVALIDATION_AND_CHECKPOINT",
+      "bounded-repair": "PASS_TYPED_PROPOSAL_ONLY_SEPARATE_CANDIDATE",
+      "primary-blockout": "PASS_TYPED_SINGLE_PART_PROPOSAL_ONLY",
+      "primary-form-adjustment": "PASS_TYPED_SINGLE_PART_PROPOSAL_ONLY",
+      "secondary-structure": "PASS_TYPED_SINGLE_PART_PROPOSAL_ONLY",
+      "tertiary-detail": "PASS_TYPED_SINGLE_PART_PROPOSAL_ONLY",
+      "other_contract_action_kinds": "BLOCKED_UNIMPLEMENTED_FAIL_CLOSED"
+    },
+    "source_candidate_mutation": false,
+    "confirm_version_export": false
+  },
+  "gates": {
+    "forgecad_runtime_action_tests": "PASS: 5 focused tests plus one end-to-end Runtime integration test",
+    "authoring_context_integration": "PASS: explicit single-view and two-view authoring create/readback, CAS binding and canonical tamper rejection",
+    "rustfmt_targeted_files": "PASS",
+    "packaged_or_live_desktop": "NOT_RUN",
+    "visual_likeness": "NOT_RUN"
+  },
+  "limitations": [
+    "This is a bounded explicit multi-view authoring producer/readback, not the complete multi-view render/compare evaluation loop or a formal independent JSON-Schema conformance receipt.",
+    "The current ActionRun executor is intentionally limited to checkpoint and single-Part geometry proposal paths; global critic metrics do not produce a null-scope RepairIntent, and MaterialZone/UV-PBR execution remains unavailable until typed executors exist. next-stage, rollback and other vocabulary remain unavailable until their typed executors exist.",
+    "The bounded-repair path prepares a reviewable candidate and never confirms, versions or exports it.",
+    "This receipt does not change QUALITY_TARGET_NOT_MET, incomplete camera/reference binding, human-review, packaged, export/restart or 360 status."
+  ],
+  "persistent_user_data_touched": false
+}

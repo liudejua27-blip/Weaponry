@@ -1,0 +1,49 @@
+{
+  "camera_hash_diagnostics": {
+    "camera_payload": {
+      "camera_hash": "aaf7e38ae18dfd44cf002c583e272bba23669d06fe4786b041fb8289a69dbe08",
+      "canonical_sha256": "c796ed359f08355a1c6ffd6bd5751d27a53b123011344cbb50bebe5b6bd60bcf",
+      "coordinate_system": "right-handed-y-up-meter",
+      "far_m": 20.0,
+      "fov_y_degrees": 42.0,
+      "near_m": 0.05,
+      "projection": "perspective",
+      "renderer_revision": "forgecad-renderer-2",
+      "resolution": {
+        "height": 512,
+        "width": 512
+      },
+      "schema_version": "CameraCalibration@1",
+      "transform": {
+        "position_m": [
+          3.199191497840016,
+          2.0907832771758006,
+          5.0164046374013855
+        ],
+        "target_m": [
+          -0.08276190380161919,
+          1.346800270381924,
+          0.09347453493893176
+        ],
+        "up": [
+          -0.06920550542686278,
+          0.992186697935671,
+          -0.1038082581402942
+        ]
+      }
+    },
+    "python_camera_hash": "a386776504853e316215fda23d8a5ec425d16b1ebbef6a7f36b9e4101edf76ce",
+    "python_canonical_sha256": "8e36198accdf5ad7fcff94f39ae205a8e17a0e36e3df3525405b1086e815400a",
+    "wire_camera_hash": "aaf7e38ae18dfd44cf002c583e272bba23669d06fe4786b041fb8289a69dbe08",
+    "wire_canonical_sha256": "c796ed359f08355a1c6ffd6bd5751d27a53b123011344cbb50bebe5b6bd60bcf"
+  },
+  "candidate_confirmed": false,
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "reason": "MCP tool failed for optimization_job_prepare: {\"code\": \"CONTRACT_OUTPUT_INVALID\", \"evidence_ids\": [], \"message\": \"CameraCalibration@1.canonical_sha256 does not bind the payload\", \"next_action\": \"Read capabilities_get and correct the request or wait for the required MCP task.\", \"retryable\": false, \"schema_version\": \"RuntimeError@1\"}",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "schema_version": "ForgeCADMCP010FOptimizationRealReferenceProbe@1",
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

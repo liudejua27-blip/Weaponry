@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/cross-view-promotion-request.schema.json",
+  "title": "ForgeCAD Cross-view Promotion Request",
+  "description": "Explicit user-approved promotion of a candidate-bound CrossViewEvidenceBundle. The bundle itself never self-authorizes confirmation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "session_id",
+    "source_candidate_id",
+    "candidate_id",
+    "bundle_sha256",
+    "base_version_id",
+    "prepared_object_id",
+    "prepared_object_sha256",
+    "quality_report_id",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_session_id",
+    "approval_expires_at",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "bundle_sha256": {"$ref": "#/$defs/sha256"},
+    "base_version_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "prepared_object_id": {"$ref": "#/$defs/identifier"},
+    "prepared_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_id": {"$ref": "#/$defs/identifier"},
+    "approved": {"const": true},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approval_session_id": {"$ref": "#/$defs/identifier"},
+    "approval_expires_at": {"type": "string", "minLength": 1, "maxLength": 64},
+    "idempotency_key": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

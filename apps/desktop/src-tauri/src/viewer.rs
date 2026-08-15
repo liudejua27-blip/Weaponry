@@ -202,14 +202,8 @@ fn read_agentic_session_from_root(
             json!({"project_id":project_id,"candidate_id":candidate_id}),
         )
         .map_err(|_| "AGENTIC_SESSION_UNAVAILABLE".to_owned())?;
-    if durable_session
-        .get("project_id")
-        .and_then(Value::as_str)
-        != Some(project_id)
-        || durable_session
-            .get("candidate_id")
-            .and_then(Value::as_str)
-            != Some(candidate_id)
+    if durable_session.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || durable_session.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
     {
         return Err("AGENTIC_SESSION_BINDING_MISMATCH".to_owned());
     }
@@ -232,15 +226,18 @@ fn read_agentic_session_from_root(
             json!({"project_id":project_id,"candidate_id":candidate_id}),
         )
         .map_err(|_| "AGENTIC_SESSION_PROJECTION_UNAVAILABLE".to_owned())?;
-    if projection
-        .get("projection_status")
-        .and_then(Value::as_str)
-        != Some("projection/read-only")
+    if projection.get("projection_status").and_then(Value::as_str) != Some("projection/read-only")
         || projection.get("read_only").and_then(Value::as_bool) != Some(true)
         || projection.get("project_id").and_then(Value::as_str) != Some(project_id)
         || projection.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
-        || projection.get("design_session").and_then(Value::as_object).is_none()
-        || projection.get("design_stage_plan").and_then(Value::as_object).is_none()
+        || projection
+            .get("design_session")
+            .and_then(Value::as_object)
+            .is_none()
+        || projection
+            .get("design_stage_plan")
+            .and_then(Value::as_object)
+            .is_none()
     {
         return Err("AGENTIC_SESSION_BINDING_MISMATCH".to_owned());
     }
@@ -755,8 +752,7 @@ mod tests {
 
     #[test]
     fn agentic_session_frontend_source_guard_is_read_only() {
-        let session_source =
-            include_str!("../../src/features/runtime-viewer/agentic-session.ts");
+        let session_source = include_str!("../../src/features/runtime-viewer/agentic-session.ts");
         let viewer_source = include_str!("../../src/features/runtime-viewer/RuntimeViewer.tsx");
         for token in [
             "normalizeAgenticSessionProjection",
@@ -764,7 +760,10 @@ mod tests {
             "uncertainty",
             "locked-read-only",
         ] {
-            assert!(session_source.contains(token), "missing session source token: {token}");
+            assert!(
+                session_source.contains(token),
+                "missing session source token: {token}"
+            );
         }
         for token in [
             "viewer_agentic_session",
@@ -772,18 +771,26 @@ mod tests {
             "restore prepare / approval",
             "允许显示",
         ] {
-            assert!(viewer_source.contains(token), "missing Viewer source token: {token}");
+            assert!(
+                viewer_source.contains(token),
+                "missing Viewer source token: {token}"
+            );
         }
-        for token in [
-            "candidate_confirm(",
-            "export_confirm(",
-            "restore_confirm(",
-        ] {
-            assert!(!viewer_source.contains(token), "forbidden Viewer action invocation: {token}");
+        for token in ["candidate_confirm(", "export_confirm(", "restore_confirm("] {
+            assert!(
+                !viewer_source.contains(token),
+                "forbidden Viewer action invocation: {token}"
+            );
         }
         for token in ["invokeModel(", "fetch("] {
-            assert!(!session_source.contains(token), "forbidden session readback invocation: {token}");
-            assert!(!viewer_source.contains(token), "forbidden Viewer readback invocation: {token}");
+            assert!(
+                !session_source.contains(token),
+                "forbidden session readback invocation: {token}"
+            );
+            assert!(
+                !viewer_source.contains(token),
+                "forbidden Viewer readback invocation: {token}"
+            );
         }
     }
 }

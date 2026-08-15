@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/boolean-request.schema.json",
+  "title": "BooleanRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "operation", "left", "right", "budgets", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "BooleanRequest@1"},
+    "operation": {"enum": ["union", "difference", "intersection"]},
+    "left": {"$ref": "#/$defs/mesh"},
+    "right": {"$ref": "#/$defs/mesh"},
+    "budgets": {"$ref": "#/$defs/budgets"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "coordinate": {"type": "number", "minimum": -10, "maximum": 10},
+    "position": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/coordinate"}
+    },
+    "mesh": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_node_id", "positions", "indices"],
+      "properties": {
+        "source_node_id": {"$ref": "#/$defs/identifier"},
+        "positions": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 750000,
+          "items": {"$ref": "#/$defs/position"}
+        },
+        "indices": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 750000,
+          "items": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_vertices", "max_triangles", "max_runtime_ms"],
+      "properties": {
+        "max_vertices": {"type": "integer", "minimum": 3, "maximum": 750000},
+        "max_triangles": {"type": "integer", "minimum": 1, "maximum": 250000},
+        "max_runtime_ms": {"type": "integer", "minimum": 1, "maximum": 10000}
+      }
+    }
+  }
+}

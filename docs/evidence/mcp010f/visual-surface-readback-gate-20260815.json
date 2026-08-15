@@ -1,0 +1,49 @@
+{
+  "schema_version": "ForgeCADVisualSurfaceReadbackGate@1",
+  "status": "PASS_CANDIDATE_BOUND_MASK_EDGE_ROI_AOV_READBACK",
+  "scope": "isolated Runtime source/focused test",
+  "request_schema": "VisualSurfaceRequest@1",
+  "result_schema": "VisualSurfaceResult@1",
+  "readback_schema": "VisualSurfaceReadback@1",
+  "binding": "same candidate + same RenderSet@2 + same CAS reference mask + same fixed 512x512 camera evidence",
+  "aov": {
+    "status": "ready",
+    "resolution": [512, 512],
+    "decoded_pass_count": 9,
+    "pass_order": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"],
+    "source": "RenderSet@2/pass_artifacts"
+  },
+  "mask": {
+    "reference": "CAS comparison_report.mask.sha256 decoded",
+    "candidate": "CAS RenderSet@2 silhouette pass decoded"
+  },
+  "edge": {
+    "status": "ready",
+    "radius_px": 4,
+    "metrics": ["matched_reference_edge_pixels", "matched_candidate_edge_pixels", "boundary_f1_4px", "sdf_chamfer_px"]
+  },
+  "roi": {
+    "status": "partial",
+    "part_id": "decoded from candidate-bound RenderSet@2 part-id pass",
+    "reference_regions": "only ready when durable view_spec regions are bound; otherwise explicit reference-regions-not-bound"
+  },
+  "critic_cadfit_binding": {
+    "critic_field": "DesignCriticReport@1.visual_surface",
+    "bound_hash": "VisualSurfaceReadback@1.canonical_sha256",
+    "cadfit_gate": "OptimizationResidual@1 rejects non-ready readback or binding mismatch before Boolean/CADFit evaluation"
+  },
+  "read_only": true,
+  "surface_program_status": "NOT_RUN",
+  "limitations": [
+    "This proves deterministic same-candidate readback and evidence binding, not visual likeness.",
+    "SubD, curvature, feature-line and arbitrary mesh surface analysis remain unavailable.",
+    "PBR likeness, human review, packaged UI, export/restart hash and 360 coverage remain independent gates.",
+    "The current real robot observation remains QUALITY_TARGET_NOT_MET and BLOCKED_INCOMPLETE_BINDING."
+  ],
+  "commands": [
+    "python3 scripts/check_visual_surface_contract.py",
+    "env FORGECAD_BUILD_COHORT_SHA256=<current-cohort> script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime agentic_design::tests --offline",
+    "python3 scripts/check_forgecad_contracts.py",
+    "python3 scripts/check_mcp010f_stage0_truth.py"
+  ]
+}

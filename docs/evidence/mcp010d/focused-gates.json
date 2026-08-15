@@ -1,24 +1,25 @@
 {
   "schema_version": "ForgeCADMCP010DFocusedGates@1",
   "task_id": "FGC-MCP010D",
-  "status": "PASS_WITH_DEFERRED_BOOLEAN_AND_VISUAL_GATES",
+  "status": "PASS_WITH_DEFERRED_DARWIN_PACKAGED_AND_VISUAL_GATES",
   "source_gate": {
-    "contracts": "65 current schemas pass (D subtotal was 59 before MCP010E added six contracts)",
-    "operator_catalog": "13 entries; 12 active product-owned operators; boolean@1 explicitly unavailable",
-    "geometry_worker_unit": "20 geometry-worker tests pass, including D-specific operator/graph/readback and mirror-pair regression tests",
-    "runtime_mcp": "forgecad-runtime 56 pass + 10 isolated tests exercised by MCP010B; forgecad-mcp 32 pass",
+    "contracts": "115 current schemas pass (D subtotal is 61, including BooleanRequest@1/BooleanResult@1)",
+    "operator_catalog": "13 entries; 13 active product-owned operators (12 hard-surface plus primitive); boolean@1 is bounded to union/difference",
+    "geometry_worker_unit": "26 geometry-worker tests pass, including real Manifold union/difference, topology/readback, deterministic lineage and negative gates",
+    "runtime_mcp": "forgecad-runtime 93 library + 1 binary test pass, 10 isolated tests ignored by the normal run; forgecad-mcp 57 pass",
     "skill_registry": "hard-surface-detail@0.2.0 active only after immutable bundle/recipe/lock/benchmark/provenance validation",
-    "raw_stdio": "catalog → GeometryProgram@2 hash → geometry_prepare → ArtifactReadback@2 with seven semantic Parts and 488 triangles",
-    "packaged_d_structural": "same-cohort Dev.app embedded Worker raw probe: catalog → GeometryProgram@2 → strict readback with seven semantic Parts and 488 triangles; structural-only",
+    "raw_stdio": "catalog → ponytail preflight → Boolean union/difference GeometryProgram@2 → geometry_prepare → ArtifactReadback@2 with eight semantic Parts and 548 triangles; unsupported intersection and non-finite negative gates pass",
+    "packaged_d_structural": "historical same-cohort Dev.app mirror remains catalog → GeometryProgram@2 → strict readback with seven semantic Parts and 488 triangles; it predates Boolean activation and is structural-only",
     "worker_isolation": "fixed same-cohort sibling, bounded one-shot protocol, 10s watchdog, CPU/core limits, CLOEXEC pipes, peak-RSS post-hoc acceptance",
     "determinism": "same typed D program compiles to identical mesh/readback hashes in focused tests",
-    "lineage": "Part/source-node/material-zone bindings survive compilation and strict GLB readback"
+    "lineage": "Part/source-node/material-zone bindings survive compilation and strict GLB readback; Boolean operand lineage is preserved as ordered source-node extras"
   },
   "negative_or_binding_checks": {
     "future_dag_input": "PASS",
     "unknown_or_duplicate_graph_input": "PASS",
     "unknown_parameter": "PASS",
-    "unavailable_boolean": "PASS",
+    "boolean_union_difference": "PASS",
+    "boolean_unsupported_intersection": "PASS",
     "budget_and_non_finite_parameters": "PASS",
     "worker_timeout_crash_fd_and_inherited_limit": "PASS",
     "darwin_os_total_memory_hard_cap": "NOT_RUN"
@@ -37,8 +38,8 @@
     "forgecad.geometry.part-output@1"
   ],
   "deferred": {
-    "boolean_manifold_adoption": "NOT_RUN: Manifold is not locked or linked; boolean remains unavailable",
-    "packaged_dev_app_d": "PASS_STRUCTURAL_NOT_VISUAL: docs/evidence/mcp010d/packaged-raw-stdio-mirror.json",
+    "boolean_manifold_adoption": "PASS_PRODUCT_WORKER_INTEGRATION: fixed Manifold revision is vendored into the isolated Geometry Worker; C ABI, strict MeshGL64 readback and product raw stdio gate pass",
+    "packaged_dev_app_d": "PASS_STRUCTURAL_NOT_VISUAL_HISTORICAL: docs/evidence/mcp010d/packaged-raw-stdio-mirror.json; rebuild with Boolean is not run",
     "visual_similarity": "NOT_RUN: D proves geometry structure, not reference likeness",
     "pbr_asset_pack": "PASS_MCP010E_SOURCE_FOCUSED"
   },

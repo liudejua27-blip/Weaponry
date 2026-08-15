@@ -24,7 +24,7 @@ ADR-0026 后，本工作流是 `primary-form` stage 的当前实现切片：轮�
 9. `boundary_error_get`：读取同一 candidate 的 RenderSet 和 SilhouetteTarget，返回最多 64 条最大的边界误差段。每段包含 reference/model 点、像素 delta、`inward/outward/aligned` 径向方向和可解析的 `part_id`；这是下一轮局部修改提示，不是自动修改授权。
 10. `silhouette_part_error_get`：读取同一 candidate 的 `part-id` AOV 和 target 的非重叠 Part contour slices，返回每个 semantic Part 的 target/model envelope、像素数、质心偏移、宽高比、边界误差、可见性/状态，并按边界误差给出最多 16 个 `recommended_part_ids`。它是多 Part 归因表，不创建 candidate、Job 或 version；`missing_model_part`、`empty_target_part` 和 `unknown` 必须由 Luna 先修正输入或停止猜测。
 11. `part_contour_fit_prepare`：只针对一个 semantic Part，结合 part-ID 和该 Part 对应的 target contour slice（没有 observed slice 时才回退整图诊断）以及 SDF/边界误差返回 bounded parameter adjustments；`width`、`height`、`scale` 使用该 Part 的局部投影包围盒，`offset_x/offset_y` 使用局部质心偏移，`depth/offset_z` 保持中性（单图不可观测）；这是 reviewable intent，不是 mesh mutation。
-12. `silhouette_candidate_compare`：把 2–8 个候选绑定到同一 target，返回综合 loss、metrics、delta 和 winner/tie；它不创建版本。
+12. `silhouette_candidate_compare`：把 2–8 个候选绑定到同一 target，返回 candidate-bound metrics、delta 和 winner/tie；候选按 `Boundary F1 → Silhouette IoU → bbox → centroid → SDF` 的可见轮廓优先级排序，综合 loss 只作最后 tie-break；它不创建版本。
 13. `visual_review_submit`：Codex 提交观察到的区域问题和唯一修改意图。轮廓门未通过时，只允许一个 contour-bearing Part/Operator；不得提前进入材质或表面堆料。
 14. `reference_mask_refine_prepare`：若用户在画布中修正轮廓，基于旧 target 创建新的不可变 target。旧 target 不覆盖，所有后续比较必须使用新 hash。
 15. 对单一 Part 重新执行 Geometry → readback → camera/compare → boundary error → Part error table。最多五轮；没有改善就保留上一候选并记录 `QUALITY_TARGET_NOT_MET`。
@@ -39,8 +39,10 @@ For the current robot vocabulary, known landmark IDs resolve to fixed Part-ID
 anchors from the renderer's `part-id` AOV (for example crown→head-shell Top and
 chest-center→chest-shell Center); unknown IDs retain the bounded global-silhouette
 fallback. This mapping is product-owned and deliberately not a free-form Part
-selector. Camera search, Rig/geometry trial ranking, candidate comparison and
-the persisted reference comparison use the same transient anchor loss.
+selector. Camera search, Rig/geometry trial ranking and the persisted reference
+comparison use the same transient anchor loss. `silhouette_candidate_compare`
+uses that loss only after the visible contour priority, so an auxiliary term
+cannot hide a Boundary-F1 regression.
 The solver never fabricates landmarks from a single mask. The automatic
 mask-to-contour aid now traces directed grid boundary edges, selects the
 largest deterministic outer loop and downsamples it; the 512×512 binary mask

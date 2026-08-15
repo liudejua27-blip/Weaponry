@@ -56,18 +56,18 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "2f5569981c2e8ee5133e2d7cb8f6e45c397dac7ddafba07941ebf09d0d7a02bb",
+  "canonical_sha256": "02f7e061f72ba53afa98981053a6d3a830ee4d74f0d741b1584b8e2a2a28c73d",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
-    "manifest_sha256": "79289a9cb88389e82b54c60147700eac251e17d14ab9e8c1508a189cd7ac0a09",
+      "manifest_sha256": "8d94bf79020762a391cfb4524f70d1c20a5fa85e0588faac5c5acca12002a328",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-    "schema_content_set_sha256": "a48a823ce7d51b214978c966b4cfb27243857f7e6cf594b7c9f4ec47ad1a0c1e",
-    "schema_count": 101
+      "schema_content_set_sha256": "583fd0d2615f09e66d16c58fca8d4ab60f1856d1de427b5b9e390c8c8b137f67",
+      "schema_count": 123
     },
     "mcp_tools": {
-    "read_count": 35,
-    "read_manifest_sha256": "5083956a3b2182329f1d925e718bbb155effda785c3b50ab2b48067bccb46d9a",
+    "read_count": 40,
+      "read_manifest_sha256": "1167a9a330bc7a5da4735406c103e895484b1a32d5c6d85dd02733aa92631c3e",
       "read_names": [
         "artifact_readback_get",
         "boundary_error_get",
@@ -76,6 +76,7 @@
         "capabilities_get",
         "checkpoint_get",
         "critic_report_get",
+        "design_action_run_get",
         "design_stage_plan_get",
         "doctor",
         "geometry_program_hash",
@@ -83,6 +84,7 @@
         "job_get",
         "material_pack_get",
         "operator_catalog_get",
+        "optimization_job_get",
         "part_contour_fit_prepare",
         "project_get",
         "project_list",
@@ -94,7 +96,9 @@
         "selection_get",
         "session_get",
         "silhouette_candidate_compare",
+        "silhouette_evaluation_objective_prepare",
         "silhouette_fit_prepare",
+        "silhouette_objective_compare",
         "silhouette_part_error_get",
         "silhouette_rig_hash",
         "silhouette_target_get",
@@ -103,15 +107,16 @@
         "snapshot_get",
         "version_diff",
         "version_list",
-        "visual_evidence_bundle_get"
+        "visual_evidence_bundle_get",
+        "visual_surface_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-    "source_sha256": "cef6b794e424dc913df6f5bd0735c7c1abe03483a4d42a35c5110a7eeb469199",
+      "source_sha256": "288c0afe67a8d0e339ffd5d8c477ba42ada12b9bcceb04ef0eed2aab163bbf8a",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
-    "summary_receipt_sha256": "6948075f6ad427f0041dc7529c112f94c144b881f38a8f1e47018224c758e436",
-    "total_count": 56,
-    "write_count": 21,
-    "write_enabled_manifest_sha256": "bcab87912eb3a9244bfcdde4d302706c53ee9690e372f539a526d44a551f07d2",
+      "summary_receipt_sha256": "e6b6b8fd373c3fccc4168bc2096070d2ad3323550465e11e04bf9365a427a3ce",
+    "total_count": 70,
+    "write_count": 30,
+      "write_enabled_manifest_sha256": "59c5565de89ee149a6ff4b9a2e3193f5995c1c7c0fcb5397734fa0e0f972ab16",
       "write_names": [
         "appearance_prepare",
         "candidate_confirm",
@@ -120,16 +125,25 @@
         "change_prepare",
         "checkpoint_prepare",
         "checkpoint_restore_prepare",
+        "cross_view_promotion_confirm",
+        "design_action_optimization_proposal_prepare",
+        "design_action_run_prepare",
+        "design_composition_prepare",
+        "design_stage_run_prepare",
         "export_confirm",
         "export_prepare",
         "geometry_prepare",
         "human_visual_review_submit",
         "job_cancel",
+        "optimization_job_prepare",
+        "optimization_job_resume",
         "project_create",
         "reference_compare_prepare",
         "reference_import",
         "reference_mask_prepare",
         "reference_mask_refine_prepare",
+        "repair_apply_confirm",
+        "repair_apply_prepare",
         "restore_confirm",
         "restore_prepare",
         "session_create_or_resume",
@@ -145,7 +159,7 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "0c7a0250f3f2221d73e8a1bd43428063f4958e46c7871e1fc3855fb25d6aa89a",
+      "runtime_source_sha256": "d2a427d9a0b5d803802fb71b8179b5913a04ed26f936f1d9a5201bc8be0a8a0b",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "c660171870953fd8818514035182c235216b4e21444e64f53473be639b32d367"
     }
@@ -157,45 +171,45 @@
   },
   "latest_attempt": {
     "build_cohorts": {
-      "mcp": "f05773c98290182378e126455c858c6695caaf25525a86d95fee366da27c9c5d",
-      "runtime": "f05773c98290182378e126455c858c6695caaf25525a86d95fee366da27c9c5d",
-      "worker": "f05773c98290182378e126455c858c6695caaf25525a86d95fee366da27c9c5d"
+      "mcp": "b37f7116fdab4ec6ea1a57b75bbb922addf3d5ef2d32c51562d5e12aa7cdfe2f",
+      "runtime": "b37f7116fdab4ec6ea1a57b75bbb922addf3d5ef2d32c51562d5e12aa7cdfe2f",
+      "worker": "b37f7116fdab4ec6ea1a57b75bbb922addf3d5ef2d32c51562d5e12aa7cdfe2f"
     },
-    "attempt_count_evidence": "VERIFIED_SANITIZED_MCP_SETUP_CALLS_ONLY_NO_CODEX_TURN_COUNT",
+    "attempt_count_evidence": "VERIFIED_RAW_RECEIPT_11_CODEX_TURNS_ZERO_EXIT_CODES",
     "cohort_provenance": "VERIFIED_CURRENT_SOURCE_BUILT_COHORT",
-    "classification": "REAL_CODEX_BLOCKED_SETUP_NO_QUALITY_RESULT",
-    "host_provenance": "VERIFIED_SANITIZED_MCP_SETUP_EVENTS_ONLY",
-    "quality_result": "NOT_PRODUCED",
-    "reason": "Codex setup did not complete the required MCP sequence",
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json",
-    "source_receipt_sha256": "11f7b1ecddd40af578a74bd91348096adeb3091384c67155726a6c9740cd9ff8",
-    "status": "BLOCKED"
+    "classification": "REAL_CODEX_COMPLETED_TRANSPORT_WITH_QUALITY_TARGET_NOT_MET",
+    "host_provenance": "VERIFIED_SANITIZED_CLI_EVENTS_AND_EXIT_CODES",
+    "quality_result": "QUALITY_TARGET_NOT_MET",
+    "reason": null,
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto-v3.json",
+    "source_receipt_sha256": "2be10bce6825db334e7439f231965f7ae94df5829b4d8f318e73811c8feba9c9",
+    "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
   },
   "latest_completed_transport": {
-    "artifact_sha256": "3662c38b162c48a8597c3ef01b14cd79e1f9fe0602ea0f69dfc6ff6116ef7d6e",
+    "artifact_sha256": "5e854d58a0279b890810013c017c2b44653295bb9b00c8281ba6c29db7d2089e",
     "build_cohorts": {
-      "mcp": "e9078615a82a4af1a2b58bec9b9735bb68561dff8fc441ed0e929c523ecf0f0a",
-      "runtime": "e9078615a82a4af1a2b58bec9b9735bb68561dff8fc441ed0e929c523ecf0f0a",
-      "worker": "e9078615a82a4af1a2b58bec9b9735bb68561dff8fc441ed0e929c523ecf0f0a"
+      "mcp": "b37f7116fdab4ec6ea1a57b75bbb922addf3d5ef2d32c51562d5e12aa7cdfe2f",
+      "runtime": "b37f7116fdab4ec6ea1a57b75bbb922addf3d5ef2d32c51562d5e12aa7cdfe2f",
+      "worker": "b37f7116fdab4ec6ea1a57b75bbb922addf3d5ef2d32c51562d5e12aa7cdfe2f"
     },
-    "candidate_id": "candidate-56ddb00a46614a4d8665a64e278677f6",
-    "comparison_report_hash": "024d7dbc346188012c5ff2893f1276164dbeae0f5f34a3dfc1344119909f3840",
+    "candidate_id": "candidate-26d5149c552c42a3a8e575c980a92e4e",
+    "comparison_report_hash": "de91f1acb898f8740264130fc3681c18c745d1630177a36ce435de316d9405c7",
     "metric_semantics": "CURRENT_SOURCE_BUILT_FULL_VISIBLE_VIEW_METRICS_NOT_PROMOTED",
     "metrics": {
-      "bbox_edge_error": 0.03515625,
-      "boundary_f1_4px": 0.252540770111,
-      "centroid_error": 0.046151563742,
-      "critical_region_min_iou": 0.654307398181,
-      "landmark_coverage": 0.067398119122,
-      "landmark_nme": 0.078662128418,
-      "region_median_iou": 0.774717048925,
-      "silhouette_iou": 0.693333216002
+      "bbox_edge_error": 0.203125,
+      "boundary_f1_4px": 0.073554184233,
+      "centroid_error": 0.031885195089,
+      "critical_region_min_iou": 1.0,
+      "landmark_coverage": 0.0,
+      "landmark_nme": 1.0,
+      "region_median_iou": 0.0,
+      "silhouette_iou": 0.529998351301
     },
     "promotion_decision": "NOT_PROMOTED_QUALITY_TARGET_NOT_MET_AND_PROVISIONAL_BASELINE_FROZEN",
     "quality_visual_status": "QUALITY_TARGET_NOT_MET",
-    "render_set_hash": "bea97d79eabd2fce6ed5eff7182a500cae0ce7afd6c66c68514ee47b5d077a50",
-    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
-    "source_receipt_sha256": "bbec0b60f9fa77a2c7ec4e9760b17556b8bb1766f9dbe84401029f13284545e2",
+    "render_set_hash": "d7d815726f1f15795087fe1e2977ccf423c18cee497649fe114e10011b015a65",
+    "source_receipt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto-v3.json",
+    "source_receipt_sha256": "2be10bce6825db334e7439f231965f7ae94df5829b4d8f318e73811c8feba9c9",
     "status": "PASS_WITH_QUALITY_TARGET_NOT_MET"
   },
   "packaged_viewer": {
@@ -225,8 +239,8 @@
   "real_codex_run_inventory": {
     "path": "docs/evidence/mcp010f/real-codex-run-inventory.json",
     "ordering_confidence": "SNAPSHOT_ONLY_LEGACY_RECEIPTS_LACK_RECORDED_AT",
-    "sha256": "af83b10cf195e576cb49759c28e897480889c727906f4eca866cf270449d5da0",
-    "run_count": 61
+    "sha256": "e0680113c077e6d4a845a62b3dd9d5c48c9de0866ebd17595e4dba701958a77a",
+    "run_count": 71
   },
   "recorded_on": "2026-08-14",
   "provisional_retained_observation": {

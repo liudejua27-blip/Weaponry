@@ -140,7 +140,7 @@ fn write_tool_definition(tool: AgenticTool) -> Value {
     debug_assert!(tool.is_write());
     let (description, schema, idempotent) = match tool {
         AgenticTool::SessionCreateOrResume => (
-            "Create or resume a Runtime-owned DesignSession after explicit adapter opt-in and user approval. The Runtime owns the durable record and the MCP adapter never fabricates a session.",
+            "Create or resume a Runtime-owned DesignSession after explicit adapter opt-in and user approval. The Runtime owns the durable record; an optional typed authoring_context can provide hash-bound multi-view ReferenceCanvas and DesignSpec facts, while omitted context receives the conservative single-reference unknown model. The MCP adapter never fabricates a session.",
             session_create_schema(),
             true,
         ),
@@ -222,6 +222,18 @@ fn session_create_schema() -> Value {
     properties.insert("reference_canvas_id".to_owned(), id_property());
     properties.insert("camera_hash".to_owned(), sha256_property());
     properties.insert("evidence_sha256".to_owned(), sha256_property());
+    properties.insert(
+        "authoring_context".to_owned(),
+        json!({
+            "type":"object",
+            "required":["reference_canvas","design_spec"],
+            "properties":{
+                "reference_canvas":{"type":"object","maxProperties":16},
+                "design_spec":{"type":"object","maxProperties":16}
+            },
+            "additionalProperties":false
+        }),
+    );
     object_schema(
         vec![
             "session_id",
@@ -583,23 +595,13 @@ mod tests {
             "project_id": "project-1",
             "candidate_id": "candidate-1"
         });
-        assert!(validate_call(
-            "checkpoint_get",
-            &checkpoint_request,
-            &Binding::default()
-        )
-        .is_ok());
+        assert!(validate_call("checkpoint_get", &checkpoint_request, &Binding::default()).is_ok());
         let session_request = json!({
             "session_id": "session-1",
             "project_id": "project-1",
             "candidate_id": "candidate-1"
         });
-        assert!(validate_call(
-            "session_get",
-            &session_request,
-            &Binding::default()
-        )
-        .is_ok());
+        assert!(validate_call("session_get", &session_request, &Binding::default()).is_ok());
     }
 
     #[test]

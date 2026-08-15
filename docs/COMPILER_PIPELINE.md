@@ -26,7 +26,7 @@ ReferenceEvidence
 
 ### 2.0 MVP profile
 
-MVP 不实现通用图生 3D 模型。Codex 已能看参考图，由 Codex 提交 typed `SubjectProfile/AssemblyGraph/GeometryProgram/AppearanceProgram`；ForgeCAD 只做确定性验证和编译。当前实际 Runtime allowlist 包含 product-owned primitive@2 与 MCP010D 的 profile-extrude/profile-loft/revolve/tube-sweep/transform@2/mirror/array/panel/vent-array/joint-stack/part-output；boolean/Manifold 仍 unavailable，不能在能力快照中伪装成已实现。
+MVP 不实现通用图生 3D 模型。Codex 已能看参考图，由 Codex 提交 typed `SubjectProfile/AssemblyGraph/GeometryProgram/AppearanceProgram`；ForgeCAD 只做确定性验证和编译。当前实际 Runtime allowlist 包含 product-owned primitive@2 与 MCP010D 的 profile-extrude/profile-loft/revolve/tube-sweep/transform@2/mirror/array/boolean（同一 Part bounded union/difference/intersection）/panel/vent-array/joint-stack/part-output；Manifold 只作为隔离 Worker 实现，不开放通用 mesh Boolean。
 
 MCP007 先产生真实多 Part mesh/GLB；MCP008 加 bounded UV/PBR 和 beauty/silhouette/normal/part-ID；MCP009 加 limited reference aspect evidence、稳定 Part `change_prepare`、immutable version/restore 和 CAS-backed `mvp-glb` receipt。像素级 silhouette/landmark/region compare、surface network、deformable、有机角色、UDIM、完整 AOV、Blender worker 和跨类别 benchmark 均是 post-MVP。
 

@@ -1,0 +1,71 @@
+{
+  "schema_version": "ForgeCADRepairApplyBoundaryReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-14",
+  "status": "PASS_SOURCE_RUNTIME_MCP_FAIL_CLOSED",
+  "scope": {
+    "tool": "repair_apply_prepare",
+    "runtime_method": "Runtime::repair_apply_prepare",
+    "write_mode": "explicit_opt_in_and_approval_required",
+    "mutation_boundary": "CAS_apply_intent_only",
+    "active_snapshot_mutated": false,
+    "candidate_source_mutated": false,
+    "version_created": false,
+    "export_created": false
+  },
+  "contracts": {
+    "request_schema": "packages/forgecad-contracts/schemas/repair-apply-request.schema.json",
+    "result_schema": "packages/forgecad-contracts/schemas/repair-apply-result.schema.json",
+    "manifest_entry": "repair_apply_prepare",
+    "contract_check": "python3 scripts/check_forgecad_contracts.py: PASS (113 schemas)"
+  },
+  "runtime": {
+    "input_binding": "canonical hash over project/session/source/proposal/run/lineage/object/quality/evidence/base-version/idempotency fields",
+    "revalidation": [
+      "source candidate current canonical state and base version",
+      "proposal candidate project/source/base/object/quality/reviewable/quality gate",
+      "completed DesignActionRun proposal and strict visible-view status",
+      "CAS RepairIntent kind, canonical hash, session/project/candidate scope",
+      "candidate confirmation evidence or cross-view bundle promotion evidence"
+    ],
+    "idempotency": "RuntimeJob keyed by hashed idempotency key; same request replays the CAS result; conflicting request fails closed",
+    "result_flags": {
+      "status": "ready",
+      "confirm_allowed": false,
+      "source_candidate_unchanged": true,
+      "active_design_state_mutated": false,
+      "persistent_user_data_touched": false
+    },
+    "focused_test": "repair_apply_readback_is_source_bound_and_never_confirmable: PASS; agentic_repair_apply_prepare_accepts_strict_improvement_and_is_idempotent: PASS"
+  },
+  "mcp": {
+    "read_tools": 37,
+    "opt_in_write_tools": 28,
+    "total_tools": 65,
+    "validation": "approval, exact session/project/candidate/run scope, SHA-256 lineage, nullable evidence/base version, safe approval text",
+    "focused_test": "repair_apply_prepare_requires_approval_and_exact_scope: PASS"
+  },
+  "verification": {
+    "runtime_tests": "93 passed; 0 failed; 10 ignored; 1 runtime binary test passed",
+    "mcp_tests": "57 passed; 0 failed",
+    "contract_check": "PASS",
+    "agentic_contract_check": "PASS (10 schemas; positive and negative fixtures)",
+    "stage0_truth": "PASS; visual quality remains QUALITY_TARGET_NOT_MET and benchmark eligibility remains BLOCKED_INCOMPLETE_BINDING",
+    "release_gates": [
+      "release:docs-walkthrough PASS",
+      "repository:integrity PASS",
+      "release:safety-scope PASS",
+      "release:secrets-files PASS",
+      "release:license-sbom PASS"
+    ]
+  },
+  "not_proven": [
+    "positive Repair apply execution mutating the active source candidate (intentionally not implemented)",
+    "cross_view_promotion_confirm success",
+    "positive cumulative composition merge",
+    "real-user visual likeness, human review, PBR likeness, export/restart hash, 360-degree quality",
+    "Manifold Boolean implementation or acceptance"
+  ],
+  "manifold_boolean": "BLOCKED_NOT_ACCEPTED",
+  "canonical_sha256": "7e4169ff6db65b0a18cd54b02a10687573478d3f0360f45f5ef1ca15d07dde95"
+}

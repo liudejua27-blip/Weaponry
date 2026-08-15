@@ -1,0 +1,33 @@
+{
+  "schema_version": "ForgeCADMCP010FRequestReferenceActionGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-15",
+  "status": "PASS_ACTION_RUN_REQUEST_REFERENCE",
+  "scope": "Runtime unit and ephemeral Runtime ActionRun integration",
+  "action_kind": "request-reference",
+  "target_binding": "session.authorized_reference_id",
+  "prepare_boundary": "BLOCKED_REFERENCE_COVERAGE",
+  "stage_results": {
+    "prepare": {
+      "status": "blocked",
+      "reason": "reference-coverage-requested"
+    },
+    "compile": "not-run",
+    "readback": "not-run",
+    "render": "not-run",
+    "evaluate": "not-run"
+  },
+  "checkpoint_created": false,
+  "optimization_job_created": false,
+  "candidate_or_version_mutated": false,
+  "persistent_user_data_touched": false,
+  "confirm_allowed": false,
+  "exact_replay": true,
+  "negative_geometry_payload": "PASS_REJECTED",
+  "tested_with": [
+    "agentic_action::tests::request_reference_is_an_orchestration_boundary_without_payload",
+    "agentic_session::tests::request_reference_next_action_binds_the_session_reference",
+    "tests::agentic_action_run_revalidates_bound_candidate_and_is_idempotent"
+  ],
+  "quality_claim": "NO_LIKENESS_PASS_CLAIM; REFERENCE_COVERAGE_ORCHESTRATION_BOUNDARY_ONLY"
+}

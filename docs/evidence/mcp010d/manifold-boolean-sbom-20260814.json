@@ -1,0 +1,97 @@
+{
+  "schema_version": "ForgeCADManifoldBooleanSBOM@1",
+  "task_id": "FGC-MCP010D",
+  "recorded_on": "2026-08-14",
+  "status": "PASS_ISOLATED_EVALUATION",
+  "source": {
+    "project": "manifold",
+    "source_url": "https://github.com/elalish/manifold",
+    "revision": "969b1417afdee87dbc6147cf676bc04799418ec2",
+    "license_spdx": "Apache-2.0",
+    "license_file_git_blob": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+    "license_file_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "selected_source_paths": [
+      "LICENSE",
+      "include/manifold/**",
+      "src/**",
+      "bindings/c/**"
+    ],
+    "selected_source_file_count": 64,
+    "selected_source_tree_sha256": "420fcc6e880f04a219486d0095e502a78f903ab0506cd2e998560177ce79ae12",
+    "source_archive_sha256": "d5d47cb06bc27fc7d420900fdcded01d1ba83f9e6d48847bd52d01110baab388"
+  },
+  "components": [
+    {
+      "component": "manifold-core-and-c-api",
+      "version": "969b1417afdee87dbc6147cf676bc04799418ec2",
+      "license": "Apache-2.0",
+      "scope": "product-owned isolated Geometry Worker",
+      "notes": "Fixed-revision C API wrapper plus the core source files required by the wrapper; vendored under apps/geometry-worker/vendor/manifold and compiled statically into the isolated Worker."
+    },
+    {
+      "component": "linalg-derived-source",
+      "paths": ["include/manifold/linalg.h"],
+      "license": "Public-domain upstream with Apache-2.0 Manifold modifications",
+      "notes": "The file preserves the upstream acknowledgement and modification context."
+    },
+    {
+      "component": "deterministic-math-notice",
+      "paths": ["include/manifold/math.h"],
+      "license": "Sun Microsystems permissive notice via musl/FreeBSD-derived implementations",
+      "notes": "The source preserves the permission notice; no separate binary dependency is linked."
+    },
+    {
+      "component": "quickhull-derived-source",
+      "paths": ["src/quickhull.h", "src/quickhull.cpp"],
+      "license": "Public-domain upstream with Apache-2.0 Manifold modifications",
+      "notes": "The source preserves the public-domain attribution."
+    },
+    {
+      "component": "dset-derived-source",
+      "paths": ["src/disjoint_sets.h"],
+      "license": "Permissive upstream license with required attribution and modification notice",
+      "notes": "The source preserves the Wenzel Jakob notice and altered-source requirements."
+    },
+    {
+      "component": "tbtSVD-derived-source",
+      "paths": ["src/svd.h"],
+      "license": "MIT",
+      "notes": "The source preserves the wi-re copyright and MIT terms."
+    },
+    {
+      "component": "apple-system-runtime",
+      "license": "system runtime",
+      "scope": "build-host-only",
+      "notes": "The isolated executable links only to Apple libc++ and libSystem; no third-party runtime library is bundled."
+    }
+  ],
+  "external_dependencies": [],
+  "disabled_dependency_paths": [
+    "TBB parallel backend",
+    "Python/nanobind binding",
+    "WASM/JavaScript binding",
+    "GoogleTest and fuzztest",
+    "Tracy profiler",
+    "ASSIMP"
+  ],
+  "network_or_dynamic_code": {
+    "network": false,
+    "filesystem_in_core_c_api_build": false,
+    "subprocess_or_dynamic_loader": false,
+    "automatic_download": false,
+    "model_or_provider_call": false
+  },
+  "product_status": {
+    "vendored": true,
+    "vendor_file_count": 62,
+    "vendor_tree_sha256": "72ee20b2ee2044ee50ad147071c91b048b0de864cfeb610ce9c307decf820ab7",
+    "lockfile_changed": true,
+    "package_changed": false,
+    "build_dependency": "cc@1.2",
+    "runtime_allowlist_changed": true,
+    "boolean_operator_active": true,
+    "boolean_supported_shapes": ["union", "difference"],
+    "product_bridge_source_sha256": "66f0c9bcf9c74137b0e22138380a64d967aed21d6c54e4a0949e62c7e8ffa446",
+    "product_ffi_source_sha256": "4539f3f6ee11aa2e5af7fa3b6573fc8e0e9e37ac9c6d0459c28fc80c0c178d44"
+  }
+}

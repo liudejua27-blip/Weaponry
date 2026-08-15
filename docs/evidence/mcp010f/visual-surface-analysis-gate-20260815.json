@@ -1,0 +1,56 @@
+{
+  "schema_version": "ForgeCADVisualSurfaceAnalysisGate@1",
+  "status": "PASS_CANDIDATE_BOUND_MESH_DERIVED_CURVATURE_FEATURE_LINE",
+  "scope": "Runtime source/focused test over the same candidate-bound GLB",
+  "request_schema": "VisualSurfaceRequest@1",
+  "result_schema": "VisualSurfaceResult@1",
+  "readback_schema": "VisualSurfaceReadback@1",
+  "surface_signal_schema": "SurfaceSignalReadback@1",
+  "backend": "candidate-bound-surface-analysis@1",
+  "binding": "Runtime reads the raw GLB from the candidate-bound artifact_sha256 after ArtifactReadback@2 admission",
+  "signals": {
+    "curvature": {
+      "status": "ready",
+      "method": "triangle-dihedral@1",
+      "summary": "mean/max absolute adjacent-face dihedral and curved-triangle count"
+    },
+    "feature_line": {
+      "status": "ready",
+      "method": "boundary-and-crease-edge@1",
+      "threshold_rad": 0.5235987755982988,
+      "summary": "boundary edges plus crease edges above the fixed 30-degree threshold"
+    }
+  },
+  "readback": {
+    "same_candidate_artifact": true,
+    "strict_glb_positions_and_indices": true,
+    "semantic_part_lineage": true,
+    "non_manifold_edges_fail_closed": true,
+    "runtime_or_cas_write": false
+  },
+  "critic_projection": {
+    "surface_signal_status": "same SurfaceSignalReadback@1.status",
+    "surface_signal_canonical_sha256": "DesignCriticReport@1.visual_surface.surface_signal_canonical_sha256"
+  },
+  "cadfit_residual": {
+    "optional_source_visual_surface_sha256": "when present, must equal Critic surface_signal_canonical_sha256",
+    "negative_gate": "OPTIMIZATION_RESIDUAL_VISUAL_SURFACE_SIGNAL_BINDING_MISMATCH"
+  },
+  "negative_gates": [
+    {"case": "no-candidate-artifact", "status": "PASS_NOT_RUN"},
+    {"case": "non-manifold-surface", "status": "SOURCE_BRANCH_FAIL_CLOSED_NOT_ISOLATED"},
+    {"case": "cross-candidate-request-binding", "status": "PASS_REJECTED"}
+  ],
+  "contract_schema_content_set_sha256": "b77b0ad3ace4f6d42b047da0c4b2ba740f28becb7055bec9b85b754543ded6f1",
+  "limitations": [
+    "This is a bounded mesh-derived surface signal backend, not SubD/NURBS principal curvature, zebra analysis, or a surface reconstruction solver.",
+    "It reports typed summaries rather than a quality score and cannot set quality_hard_gate_passed, create candidates/versions, or write CAS/SQLite.",
+    "Visual likeness, PBR likeness, human review, packaged UI, export/restart hash, and 360 gates remain independent."
+  ],
+  "commands": [
+    "python3 scripts/check_visual_surface_contract.py",
+    "script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --lib visual_surface --offline",
+    "python3 scripts/check_forgecad_contracts.py",
+    "python3 scripts/check_mcp010f_stage0_truth.py"
+  ]
+}

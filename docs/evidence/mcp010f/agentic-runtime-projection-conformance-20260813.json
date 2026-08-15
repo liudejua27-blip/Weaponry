@@ -364,6 +364,7 @@
         "schema_version": "DesignCriticReport@1",
         "stage": "primary-form",
         "status": "unknown",
+        "part_error": null,
         "strict_visual_gate": "unknown"
       },
       "design_session": {

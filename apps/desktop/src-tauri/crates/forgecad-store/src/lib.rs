@@ -66,6 +66,42 @@ pub struct VisualEvidenceRecord {
     pub updated_at: String,
 }
 
+/// One candidate-bound visual comparison for an authored ReferenceCanvas
+/// view.  The legacy `visual_evidence` row remains the single-view compatibility
+/// projection; this table is the durable view-keyed source for multi-view
+/// evidence and prevents the last rendered view from overwriting the others.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisualEvidenceViewRecord {
+    pub candidate_id: String,
+    pub project_id: String,
+    pub view_id: String,
+    pub reference_id: String,
+    pub reference_sha256: String,
+    pub camera_hash: String,
+    pub render_set_object_sha256: String,
+    pub comparison_report_object_sha256: Option<String>,
+    pub quality_report_object_sha256: String,
+    pub quality_status: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Index row for a canonical `CrossViewEvidenceBundle@1` CAS object.  The
+/// bundle is immutable; the row only makes the latest candidate/session
+/// binding queryable without moving JSON truth into SQLite.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CrossViewEvidenceRecord {
+    pub bundle_object_sha256: String,
+    pub candidate_id: String,
+    pub project_id: String,
+    pub session_id: String,
+    pub reference_canvas_sha256: String,
+    pub aggregate_status: String,
+    pub hard_gate_passed: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 /// Runtime-owned durable state for the Agentic Design Runtime.  The full
 /// record is also stored as a canonical JSON object in CAS; these fields are
 /// repeated in SQLite so binding checks and project-scoped reads stay inside
@@ -515,7 +551,7 @@ impl Store {
         };
         let connection = self.lock_connection()?;
         let updated = connection.execute(
-            "UPDATE candidates SET state = ?1, quality_report_id = ?2, quality_hard_gate_passed = ?3, error_code = ?4, updated_at = ?5 WHERE candidate_id = ?6 AND state IN ('prepared', 'compiling', 'evaluating')",
+            "UPDATE candidates SET state = ?1, quality_report_id = ?2, quality_hard_gate_passed = ?3, error_code = ?4, updated_at = ?5 WHERE candidate_id = ?6 AND state IN ('prepared', 'compiling', 'evaluating', 'reviewable')",
             params![state, quality_report_id, hard_gate_passed, error_code, updated_at, candidate_id],
         )?;
         if updated == 0 {
@@ -800,6 +836,285 @@ impl Store {
                 },
             )
             .optional()?)
+    }
+
+    pub fn get_job_record(&self, job_id: &str) -> Result<Option<JobRecord>, StoreError> {
+        if !is_opaque_id(job_id) {
+            return Err(StoreError::InvalidData("invalid job id".to_owned()));
+        }
+        let connection = self.lock_connection()?;
+        Ok(connection
+            .query_row(
+                "SELECT job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at FROM runtime_jobs WHERE job_id = ?1",
+                params![job_id],
+                |row| {
+                    let progress: i64 = row.get(4)?;
+                    let progress = u8::try_from(progress).map_err(|_| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            4,
+                            rusqlite::types::Type::Integer,
+                            "job progress outside u8".into(),
+                        )
+                    })?;
+                    Ok(JobRecord {
+                        schema_version: "RuntimeJob@1".to_owned(),
+                        job_id: row.get(0)?,
+                        project_id: row.get(1)?,
+                        kind: row.get(2)?,
+                        status: row.get(3)?,
+                        progress,
+                        request_sha256: row.get(5)?,
+                        checkpoint_sha256: row.get(6)?,
+                        error_code: row.get(7)?,
+                        created_at: row.get(8)?,
+                        updated_at: row.get(9)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    /// Atomically create one durable Job and its first event.  Optimization
+    /// is intentionally built on this existing RuntimeJob table rather than
+    /// introducing a second job state machine.  A repeated job id is an
+    /// idempotent read only when its project/kind/request binding is exact.
+    pub fn insert_job_with_event_if_absent(
+        &self,
+        job: &JobRecord,
+        event: &JobEventRecord,
+        reachable_hashes: &[String],
+    ) -> Result<JobRecord, StoreError> {
+        validate_job(job)?;
+        validate_job_event(event)?;
+        if event.job_id != job.job_id || event.sequence != 1 {
+            return Err(StoreError::InvalidData(
+                "initial job event does not bind to job".to_owned(),
+            ));
+        }
+        validate_reachable_hashes(reachable_hashes)?;
+        let payload = serde_json::to_string(&event.payload)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        let existing = read_job_record_from_transaction(&transaction, &job.job_id)?;
+        if let Some(existing) = existing {
+            if existing.project_id != job.project_id
+                || existing.kind != job.kind
+                || existing.request_sha256 != job.request_sha256
+            {
+                return Err(StoreError::Contract {
+                    code: "JOB_IDEMPOTENCY_CONFLICT".to_owned(),
+                    message: "job id is already bound to another optimization request".to_owned(),
+                });
+            }
+            transaction.commit()?;
+            return Ok(existing);
+        }
+        transaction.execute(
+            "INSERT INTO runtime_jobs (job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                job.job_id,
+                job.project_id,
+                job.kind,
+                job.status,
+                i64::from(job.progress),
+                job.request_sha256,
+                job.checkpoint_sha256,
+                job.error_code,
+                job.created_at,
+                job.updated_at,
+            ],
+        )?;
+        transaction.execute(
+            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![event.job_id, event.sequence, event.kind, payload, event.created_at],
+        )?;
+        mark_reachable_in_transaction(&transaction, reachable_hashes)?;
+        transaction.commit()?;
+        drop(connection);
+        self.get_job_record(&job.job_id)?.ok_or_else(|| {
+            StoreError::InvalidData("job disappeared after atomic create".to_owned())
+        })
+    }
+
+    /// Advance a durable Job and append the event/checkpoint in one SQLite
+    /// transaction.  Every CAS object referenced by the event becomes
+    /// reachable before the new state is visible to a reader.
+    pub fn update_job_with_event(
+        &self,
+        job: &JobRecord,
+        event_kind: &str,
+        event_payload: &Value,
+        reachable_hashes: &[String],
+    ) -> Result<JobRecord, StoreError> {
+        validate_job(job)?;
+        if event_kind.trim().is_empty() || !event_payload.is_object() {
+            return Err(StoreError::InvalidData(
+                "job event is not a bounded object".to_owned(),
+            ));
+        }
+        validate_reachable_hashes(reachable_hashes)?;
+        let payload = serde_json::to_string(event_payload)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        let existing =
+            read_job_record_from_transaction(&transaction, &job.job_id)?.ok_or_else(|| {
+                StoreError::Contract {
+                    code: "NOT_FOUND".to_owned(),
+                    message: "job not found".to_owned(),
+                }
+            })?;
+        if existing.project_id != job.project_id
+            || existing.kind != job.kind
+            || existing.request_sha256 != job.request_sha256
+        {
+            return Err(StoreError::Contract {
+                code: "JOB_BINDING_MISMATCH".to_owned(),
+                message: "job update does not bind to the original request".to_owned(),
+            });
+        }
+        if matches!(
+            existing.status.as_str(),
+            "succeeded" | "failed" | "cancelled"
+        ) {
+            return Err(StoreError::Contract {
+                code: "JOB_TERMINAL".to_owned(),
+                message: "job is already terminal".to_owned(),
+            });
+        }
+        let next_sequence: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM runtime_job_events WHERE job_id = ?1",
+            params![job.job_id],
+            |row| row.get(0),
+        )?;
+        transaction.execute(
+            "UPDATE runtime_jobs SET status = ?1, progress = ?2, checkpoint_sha256 = ?3, error_code = ?4, updated_at = ?5 WHERE job_id = ?6",
+            params![
+                job.status,
+                i64::from(job.progress),
+                job.checkpoint_sha256,
+                job.error_code,
+                job.updated_at,
+                job.job_id,
+            ],
+        )?;
+        transaction.execute(
+            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![job.job_id, next_sequence, event_kind, payload, job.updated_at],
+        )?;
+        if let Some(checkpoint_sha256) = job.checkpoint_sha256.as_deref() {
+            transaction.execute(
+                "INSERT OR REPLACE INTO runtime_job_checkpoints (job_id, sequence, checkpoint_sha256, created_at) VALUES (?1, ?2, ?3, ?4)",
+                params![job.job_id, next_sequence, checkpoint_sha256, job.updated_at],
+            )?;
+        }
+        mark_reachable_in_transaction(&transaction, reachable_hashes)?;
+        transaction.commit()?;
+        drop(connection);
+        self.get_job_record(&job.job_id)?.ok_or_else(|| {
+            StoreError::InvalidData("job disappeared after atomic update".to_owned())
+        })
+    }
+
+    /// Claim a queued job exactly once.  This closes the small race between
+    /// two identical MCP reads both deciding to start the same detached
+    /// worker thread.
+    pub fn claim_job_running(
+        &self,
+        job_id: &str,
+        updated_at: &str,
+        payload: &Value,
+    ) -> Result<Option<JobRecord>, StoreError> {
+        if !is_opaque_id(job_id) || updated_at.is_empty() || !payload.is_object() {
+            return Err(StoreError::InvalidData(
+                "invalid job claim envelope".to_owned(),
+            ));
+        }
+        let payload = serde_json::to_string(payload)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        let current = read_job_record_from_transaction(&transaction, job_id)?;
+        let Some(current) = current else {
+            return Err(StoreError::Contract {
+                code: "NOT_FOUND".to_owned(),
+                message: "job not found".to_owned(),
+            });
+        };
+        if current.status != "queued" {
+            transaction.commit()?;
+            return Ok(None);
+        }
+        let updated = transaction.execute(
+            "UPDATE runtime_jobs SET status = 'running', error_code = NULL, updated_at = ?1 WHERE job_id = ?2 AND status = 'queued'",
+            params![updated_at, job_id],
+        )?;
+        if updated != 1 {
+            transaction.commit()?;
+            return Ok(None);
+        }
+        let sequence: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM runtime_job_events WHERE job_id = ?1",
+            params![job_id],
+            |row| row.get(0),
+        )?;
+        transaction.execute(
+            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, 'optimization_started', ?3, ?4)",
+            params![job_id, sequence, payload, updated_at],
+        )?;
+        transaction.commit()?;
+        drop(connection);
+        self.get_job_record(job_id)
+    }
+
+    /// Requeue a non-terminal optimization after a user-approved recovery
+    /// request.  The previous CAS checkpoint remains immutable/reachable; a
+    /// resumed run starts from the same intent and records a new event.
+    pub fn requeue_job(
+        &self,
+        job_id: &str,
+        updated_at: &str,
+        payload: &Value,
+    ) -> Result<JobRecord, StoreError> {
+        if !is_opaque_id(job_id) || updated_at.is_empty() || !payload.is_object() {
+            return Err(StoreError::InvalidData(
+                "invalid job recovery envelope".to_owned(),
+            ));
+        }
+        let payload = serde_json::to_string(payload)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        let current = read_job_record_from_transaction(&transaction, job_id)?.ok_or_else(|| {
+            StoreError::Contract {
+                code: "NOT_FOUND".to_owned(),
+                message: "job not found".to_owned(),
+            }
+        })?;
+        if !matches!(current.status.as_str(), "running" | "failed" | "cancelled") {
+            return Err(StoreError::Contract {
+                code: "JOB_NOT_RECOVERABLE".to_owned(),
+                message: "only running, failed or cancelled jobs can be recovered".to_owned(),
+            });
+        }
+        let next_sequence: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM runtime_job_events WHERE job_id = ?1",
+            params![job_id],
+            |row| row.get(0),
+        )?;
+        transaction.execute(
+            "UPDATE runtime_jobs SET status = 'queued', error_code = NULL, updated_at = ?1 WHERE job_id = ?2",
+            params![updated_at, job_id],
+        )?;
+        transaction.execute(
+            "INSERT INTO runtime_job_events (job_id, sequence, kind, payload_json, created_at) VALUES (?1, ?2, 'optimization_requeued', ?3, ?4)",
+            params![job_id, next_sequence, payload, updated_at],
+        )?;
+        transaction.commit()?;
+        drop(connection);
+        self.get_job_record(job_id)?
+            .ok_or_else(|| StoreError::InvalidData("job disappeared after recovery".to_owned()))
     }
 
     pub fn insert_job(&self, job: &JobRecord) -> Result<(), StoreError> {
@@ -1153,6 +1468,182 @@ impl Store {
                         human_receipt_object_sha256: row.get(7)?,
                         created_at: row.get(8)?,
                         updated_at: row.get(9)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn upsert_visual_evidence_view(
+        &self,
+        evidence: &VisualEvidenceViewRecord,
+    ) -> Result<(), StoreError> {
+        if !is_opaque_id(&evidence.candidate_id)
+            || !is_opaque_id(&evidence.project_id)
+            || !is_opaque_id(&evidence.view_id)
+            || !is_opaque_id(&evidence.reference_id)
+            || !is_sha256(&evidence.reference_sha256)
+            || !is_sha256(&evidence.camera_hash)
+            || !is_sha256(&evidence.render_set_object_sha256)
+            || !is_sha256(&evidence.quality_report_object_sha256)
+            || evidence
+                .comparison_report_object_sha256
+                .as_deref()
+                .is_some_and(|value| !is_sha256(value))
+            || !matches!(
+                evidence.quality_status.as_str(),
+                "PARTIAL_VISIBLE_VIEW_PASS"
+                    | "QUALITY_TARGET_NOT_MET"
+                    | "BLOCKED_REFERENCE_COVERAGE"
+                    | "not-run"
+            )
+            || evidence.created_at.is_empty()
+            || evidence.updated_at.is_empty()
+        {
+            return Err(StoreError::InvalidData(
+                "visual evidence view identity or hash is invalid".to_owned(),
+            ));
+        }
+        let connection = self.lock_connection()?;
+        connection.execute(
+            "INSERT INTO visual_evidence_views (candidate_id, project_id, view_id, reference_id, reference_sha256, camera_hash, render_set_object_sha256, comparison_report_object_sha256, quality_report_object_sha256, quality_status, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12) ON CONFLICT(candidate_id, view_id) DO UPDATE SET project_id=excluded.project_id, reference_id=excluded.reference_id, reference_sha256=excluded.reference_sha256, camera_hash=excluded.camera_hash, render_set_object_sha256=excluded.render_set_object_sha256, comparison_report_object_sha256=excluded.comparison_report_object_sha256, quality_report_object_sha256=excluded.quality_report_object_sha256, quality_status=excluded.quality_status, updated_at=excluded.updated_at",
+            params![
+                evidence.candidate_id,
+                evidence.project_id,
+                evidence.view_id,
+                evidence.reference_id,
+                evidence.reference_sha256,
+                evidence.camera_hash,
+                evidence.render_set_object_sha256,
+                evidence.comparison_report_object_sha256,
+                evidence.quality_report_object_sha256,
+                evidence.quality_status,
+                evidence.created_at,
+                evidence.updated_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_visual_evidence_views(
+        &self,
+        candidate_id: &str,
+    ) -> Result<Vec<VisualEvidenceViewRecord>, StoreError> {
+        let connection = self.lock_connection()?;
+        let mut statement = connection.prepare(
+            "SELECT candidate_id, project_id, view_id, reference_id, reference_sha256, camera_hash, render_set_object_sha256, comparison_report_object_sha256, quality_report_object_sha256, quality_status, created_at, updated_at FROM visual_evidence_views WHERE candidate_id = ?1 ORDER BY view_id ASC",
+        )?;
+        let rows = statement.query_map(params![candidate_id], |row| {
+            Ok(VisualEvidenceViewRecord {
+                candidate_id: row.get(0)?,
+                project_id: row.get(1)?,
+                view_id: row.get(2)?,
+                reference_id: row.get(3)?,
+                reference_sha256: row.get(4)?,
+                camera_hash: row.get(5)?,
+                render_set_object_sha256: row.get(6)?,
+                comparison_report_object_sha256: row.get(7)?,
+                quality_report_object_sha256: row.get(8)?,
+                quality_status: row.get(9)?,
+                created_at: row.get(10)?,
+                updated_at: row.get(11)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(StoreError::from)
+    }
+
+    pub fn insert_cross_view_evidence(
+        &self,
+        evidence: &CrossViewEvidenceRecord,
+    ) -> Result<(), StoreError> {
+        if !is_sha256(&evidence.bundle_object_sha256)
+            || !is_opaque_id(&evidence.candidate_id)
+            || !is_opaque_id(&evidence.project_id)
+            || !is_opaque_id(&evidence.session_id)
+            || !is_sha256(&evidence.reference_canvas_sha256)
+            || !matches!(
+                evidence.aggregate_status.as_str(),
+                "PARTIAL_VISIBLE_VIEW_PASS"
+                    | "QUALITY_TARGET_NOT_MET"
+                    | "BLOCKED_REFERENCE_COVERAGE"
+            )
+            || evidence.created_at.is_empty()
+            || evidence.updated_at.is_empty()
+        {
+            return Err(StoreError::InvalidData(
+                "cross-view evidence identity or status is invalid".to_owned(),
+            ));
+        }
+        let connection = self.lock_connection()?;
+        connection.execute(
+            "INSERT INTO cross_view_evidence (bundle_object_sha256, candidate_id, project_id, session_id, reference_canvas_sha256, aggregate_status, hard_gate_passed, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) ON CONFLICT(bundle_object_sha256) DO UPDATE SET candidate_id=excluded.candidate_id, project_id=excluded.project_id, session_id=excluded.session_id, reference_canvas_sha256=excluded.reference_canvas_sha256, aggregate_status=excluded.aggregate_status, hard_gate_passed=excluded.hard_gate_passed, updated_at=excluded.updated_at",
+            params![
+                evidence.bundle_object_sha256,
+                evidence.candidate_id,
+                evidence.project_id,
+                evidence.session_id,
+                evidence.reference_canvas_sha256,
+                evidence.aggregate_status,
+                evidence.hard_gate_passed,
+                evidence.created_at,
+                evidence.updated_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_latest_cross_view_evidence(
+        &self,
+        candidate_id: &str,
+    ) -> Result<Option<CrossViewEvidenceRecord>, StoreError> {
+        let connection = self.lock_connection()?;
+        Ok(connection
+            .query_row(
+                "SELECT bundle_object_sha256, candidate_id, project_id, session_id, reference_canvas_sha256, aggregate_status, hard_gate_passed, created_at, updated_at FROM cross_view_evidence WHERE candidate_id = ?1 ORDER BY updated_at DESC, bundle_object_sha256 ASC LIMIT 1",
+                params![candidate_id],
+                |row| {
+                    Ok(CrossViewEvidenceRecord {
+                        bundle_object_sha256: row.get(0)?,
+                        candidate_id: row.get(1)?,
+                        project_id: row.get(2)?,
+                        session_id: row.get(3)?,
+                        reference_canvas_sha256: row.get(4)?,
+                        aggregate_status: row.get(5)?,
+                        hard_gate_passed: row.get::<_, i64>(6)? != 0,
+                        created_at: row.get(7)?,
+                        updated_at: row.get(8)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn get_cross_view_evidence(
+        &self,
+        bundle_object_sha256: &str,
+    ) -> Result<Option<CrossViewEvidenceRecord>, StoreError> {
+        if !is_sha256(bundle_object_sha256) {
+            return Err(StoreError::InvalidData(
+                "cross-view bundle hash is invalid".to_owned(),
+            ));
+        }
+        let connection = self.lock_connection()?;
+        Ok(connection
+            .query_row(
+                "SELECT bundle_object_sha256, candidate_id, project_id, session_id, reference_canvas_sha256, aggregate_status, hard_gate_passed, created_at, updated_at FROM cross_view_evidence WHERE bundle_object_sha256 = ?1",
+                params![bundle_object_sha256],
+                |row| {
+                    Ok(CrossViewEvidenceRecord {
+                        bundle_object_sha256: row.get(0)?,
+                        candidate_id: row.get(1)?,
+                        project_id: row.get(2)?,
+                        session_id: row.get(3)?,
+                        reference_canvas_sha256: row.get(4)?,
+                        aggregate_status: row.get(5)?,
+                        hard_gate_passed: row.get::<_, i64>(6)? != 0,
+                        created_at: row.get(7)?,
+                        updated_at: row.get(8)?,
                     })
                 },
             )
@@ -1705,6 +2196,250 @@ impl Store {
         self.get_agentic_action_run(run_id)
     }
 
+    /// Persist one immutable DesignActionRun@1 contract alongside the older
+    /// AgenticActionRun@1 envelope.  The table columns retain only the
+    /// binding/index fields; the complete contract is the canonical CAS
+    /// payload and is read back byte-for-byte after a Runtime restart.
+    pub fn design_action_run_create_or_resume(
+        &self,
+        run: &Value,
+        object: &CasObjectRecord,
+        created_at: &str,
+    ) -> Result<Value, StoreError> {
+        validate_design_action_run_value(run)?;
+        let payload_bytes = canonical_json_bytes(run)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        let payload = String::from_utf8(payload_bytes)
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        if payload.len() > 256 * 1024 {
+            return Err(StoreError::InvalidData(
+                "DesignActionRun payload exceeds bounded metadata capacity".to_owned(),
+            ));
+        }
+        ensure_agentic_object(&self.cas, object, Some(object.sha256.as_str()), &payload)?;
+
+        let object_value = run.as_object().expect("validated DesignActionRun object");
+        let run_id = object_value["run_id"].as_str().expect("validated run_id");
+        let session_id = object_value["session_id"]
+            .as_str()
+            .expect("validated session_id");
+        let project_id = object_value["project_id"]
+            .as_str()
+            .expect("validated project_id");
+        let candidate_id = object_value["candidate_id"]
+            .as_str()
+            .expect("validated candidate_id");
+        let input_sha256 = object_value["input_sha256"]
+            .as_str()
+            .expect("validated input_sha256");
+        let status = object_value["status"].as_str().expect("validated status");
+        let completed_stage = object_value
+            .get("completed_stage")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let stage_results_json = canonical_json_bytes(&object_value["stage_results"])
+            .map_err(|error| StoreError::InvalidData(error.to_string()))
+            .and_then(|bytes| {
+                String::from_utf8(bytes).map_err(|error| StoreError::InvalidData(error.to_string()))
+            })?;
+        let checkpoint_id = object_value.get("checkpoint_id").and_then(Value::as_str);
+        let checkpoint_hash = object_value.get("checkpoint_hash").and_then(Value::as_str);
+        let canonical_sha256 = object_value["canonical_sha256"]
+            .as_str()
+            .expect("validated canonical_sha256");
+        if created_at.is_empty() || created_at.len() > 64 {
+            return Err(StoreError::InvalidData(
+                "DesignActionRun created_at is malformed".to_owned(),
+            ));
+        }
+
+        let mut connection = self.lock_connection()?;
+        let transaction = connection.transaction()?;
+        ensure_design_action_run_binding_rows(&transaction, run)?;
+        ensure_agentic_action_run_object_row(&transaction, object)?;
+        let existing: Option<(
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+        )> = transaction
+            .query_row(
+                "SELECT payload_json, stage_results_json, object_sha256, input_sha256, canonical_sha256, session_id, project_id, candidate_id FROM agentic_action_runs WHERE run_id = ?1",
+                params![run_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+        if let Some(existing) = existing {
+            if existing.3 != input_sha256 {
+                return Err(StoreError::Contract {
+                    code: "DESIGN_ACTION_RUN_INPUT_MISMATCH".to_owned(),
+                    message: "run_id is already bound to another input hash".to_owned(),
+                });
+            }
+            if existing.0 != payload
+                || existing.1 != stage_results_json
+                || existing.2 != object.sha256
+                || existing.4 != canonical_sha256
+                || existing.5 != session_id
+                || existing.6 != project_id
+                || existing.7 != candidate_id
+            {
+                return Err(StoreError::Contract {
+                    code: "DESIGN_ACTION_RUN_IMMUTABLE_CONFLICT".to_owned(),
+                    message: "an existing DesignActionRun cannot be changed while resuming"
+                        .to_owned(),
+                });
+            }
+            transaction.commit()?;
+            drop(connection);
+            return self.get_design_action_run(run_id)?.ok_or_else(|| {
+                StoreError::InvalidData("DesignActionRun disappeared after resume".to_owned())
+            });
+        }
+
+        transaction.execute(
+            "INSERT INTO agentic_action_runs (run_id, session_id, project_id, candidate_id, input_sha256, status, completed_stage, stage_results_json, checkpoint_id, checkpoint_sha256, immutable, object_sha256, canonical_sha256, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 1, ?11, ?12, ?13, ?14)",
+            params![
+                run_id,
+                session_id,
+                project_id,
+                candidate_id,
+                input_sha256,
+                status,
+                completed_stage,
+                stage_results_json,
+                checkpoint_id,
+                checkpoint_hash,
+                object.sha256,
+                canonical_sha256,
+                payload,
+                created_at,
+            ],
+        )?;
+        let marked_reachable = transaction.execute(
+            "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
+            params![object.sha256],
+        )?;
+        if marked_reachable != 1 {
+            return Err(StoreError::Contract {
+                code: "DESIGN_ACTION_RUN_CAS_OBJECT_UNAVAILABLE".to_owned(),
+                message: "DesignActionRun CAS metadata disappeared during the write".to_owned(),
+            });
+        }
+        transaction.commit()?;
+        drop(connection);
+        self.get_design_action_run(run_id)?.ok_or_else(|| {
+            StoreError::InvalidData("DesignActionRun disappeared after create".to_owned())
+        })
+    }
+
+    pub fn get_design_action_run(&self, run_id: &str) -> Result<Option<Value>, StoreError> {
+        if !is_opaque_id(run_id) {
+            return Err(StoreError::InvalidData(
+                "invalid DesignActionRun id".to_owned(),
+            ));
+        }
+        let connection = self.lock_connection()?;
+        let row: Option<(
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+        )> = connection
+            .query_row(
+                "SELECT payload_json, stage_results_json, object_sha256, canonical_sha256, session_id, project_id, candidate_id, input_sha256 FROM agentic_action_runs WHERE run_id = ?1",
+                params![run_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+        drop(connection);
+        let Some((
+            payload,
+            stage_results_json,
+            object_sha256,
+            canonical_sha256,
+            session_id,
+            project_id,
+            candidate_id,
+            input_sha256,
+        )) = row
+        else {
+            return Ok(None);
+        };
+        let object = self
+            .get_object(&object_sha256)?
+            .ok_or_else(|| StoreError::Contract {
+                code: "DESIGN_ACTION_RUN_CAS_OBJECT_UNAVAILABLE".to_owned(),
+                message: "DesignActionRun CAS metadata is missing".to_owned(),
+            })?;
+        validate_agentic_action_run_object(&object)?;
+        let cas_payload = self.cas.read_verified(&object.sha256)?;
+        if cas_payload != payload.as_bytes() {
+            return Err(StoreError::Contract {
+                code: "DESIGN_ACTION_RUN_CAS_PAYLOAD_MISMATCH".to_owned(),
+                message: "SQLite DesignActionRun payload differs from its CAS object".to_owned(),
+            });
+        }
+        let value: Value = serde_json::from_str(&payload).map_err(|error| {
+            StoreError::InvalidData(format!("invalid DesignActionRun payload: {error}"))
+        })?;
+        validate_design_action_run_value(&value)?;
+        let object_value = value.as_object().expect("validated DesignActionRun object");
+        let stored_stage_results = canonical_json_bytes(&object_value["stage_results"])
+            .map_err(|error| StoreError::InvalidData(error.to_string()))?;
+        if object_value.get("run_id").and_then(Value::as_str) != Some(run_id)
+            || object_value.get("session_id").and_then(Value::as_str) != Some(session_id.as_str())
+            || object_value.get("project_id").and_then(Value::as_str) != Some(project_id.as_str())
+            || object_value.get("candidate_id").and_then(Value::as_str)
+                != Some(candidate_id.as_str())
+            || object_value.get("input_sha256").and_then(Value::as_str)
+                != Some(input_sha256.as_str())
+            || object_value.get("canonical_sha256").and_then(Value::as_str)
+                != Some(canonical_sha256.as_str())
+            || stored_stage_results != stage_results_json.as_bytes()
+        {
+            return Err(StoreError::Contract {
+                code: "DESIGN_ACTION_RUN_PAYLOAD_BINDING_MISMATCH".to_owned(),
+                message: "DesignActionRun payload does not match its SQLite binding".to_owned(),
+            });
+        }
+        Ok(Some(value))
+    }
+
+    pub fn design_action_run_get(&self, run_id: &str) -> Result<Option<Value>, StoreError> {
+        self.get_design_action_run(run_id)
+    }
+
     pub fn prepare_restore_candidate(
         &self,
         request: &RestorePrepareRequest,
@@ -1932,6 +2667,46 @@ impl Store {
         now: &str,
     ) -> Result<CandidateConfirmResult, StoreError> {
         self.confirm_candidate_with_tool(request, now, "candidate_confirm", None, None)
+    }
+
+    pub fn confirm_cross_view_candidate(
+        &self,
+        request: &CandidateConfirmRequest,
+        now: &str,
+        request_sha256: &str,
+    ) -> Result<CandidateConfirmResult, StoreError> {
+        if !is_sha256(request_sha256) {
+            return Err(StoreError::InvalidData(
+                "cross-view promotion request hash is invalid".to_owned(),
+            ));
+        }
+        self.confirm_candidate_with_tool(
+            request,
+            now,
+            "cross_view_promotion_confirm",
+            None,
+            Some(request_sha256),
+        )
+    }
+
+    pub fn confirm_repair_apply_candidate(
+        &self,
+        request: &CandidateConfirmRequest,
+        now: &str,
+        request_sha256: &str,
+    ) -> Result<CandidateConfirmResult, StoreError> {
+        if !is_sha256(request_sha256) {
+            return Err(StoreError::InvalidData(
+                "repair apply request hash is invalid".to_owned(),
+            ));
+        }
+        self.confirm_candidate_with_tool(
+            request,
+            now,
+            "repair_apply_confirm",
+            None,
+            Some(request_sha256),
+        )
     }
 
     pub fn restore_confirm(
@@ -2241,11 +3016,13 @@ impl Store {
             schema_version: "AuditEvent@1".to_owned(),
             audit_id: format!("audit-{}", Uuid::new_v4().simple()),
             project_id: Some(request.project_id.clone()),
-            kind: if approval_tool == "restore_confirm" {
-                "restore_confirmed".to_owned()
-            } else {
-                "candidate_confirmed".to_owned()
-            },
+            kind: match approval_tool {
+                "restore_confirm" => "restore_confirmed",
+                "repair_apply_confirm" => "repair_apply_confirmed",
+                "cross_view_promotion_confirm" => "cross_view_candidate_confirmed",
+                _ => "candidate_confirmed",
+            }
+            .to_owned(),
             object_id: Some(request.candidate_id.clone()),
             request_sha256: Some(request_sha256.clone()),
             payload: serde_json::json!({
@@ -2984,6 +3761,38 @@ fn migrate(connection: &mut Connection) -> Result<(), StoreError> {
         "visual_review_object_sha256",
         "TEXT",
     )?;
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS visual_evidence_views (
+             candidate_id TEXT NOT NULL REFERENCES candidates(candidate_id),
+             project_id TEXT NOT NULL REFERENCES projects(project_id),
+             view_id TEXT NOT NULL,
+             reference_id TEXT NOT NULL REFERENCES reference_evidence(reference_id),
+             reference_sha256 TEXT NOT NULL,
+             camera_hash TEXT NOT NULL,
+             render_set_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             comparison_report_object_sha256 TEXT REFERENCES objects(sha256),
+             quality_report_object_sha256 TEXT NOT NULL REFERENCES objects(sha256),
+             quality_status TEXT NOT NULL,
+             created_at TEXT NOT NULL,
+             updated_at TEXT NOT NULL,
+             PRIMARY KEY(candidate_id, view_id)
+         );
+         CREATE INDEX IF NOT EXISTS visual_evidence_views_project_idx
+             ON visual_evidence_views(project_id, candidate_id, view_id);
+         CREATE TABLE IF NOT EXISTS cross_view_evidence (
+             bundle_object_sha256 TEXT PRIMARY KEY REFERENCES objects(sha256),
+             candidate_id TEXT NOT NULL REFERENCES candidates(candidate_id),
+             project_id TEXT NOT NULL REFERENCES projects(project_id),
+             session_id TEXT NOT NULL,
+             reference_canvas_sha256 TEXT NOT NULL,
+             aggregate_status TEXT NOT NULL,
+             hard_gate_passed INTEGER NOT NULL CHECK (hard_gate_passed IN (0, 1)),
+             created_at TEXT NOT NULL,
+             updated_at TEXT NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS cross_view_evidence_candidate_idx
+             ON cross_view_evidence(candidate_id, updated_at DESC, bundle_object_sha256 ASC);",
+    )?;
     // Agentic session/checkpoint state is an additive Runtime V1 extension.
     // It creates no rows from existing projects and never opens or migrates a
     // legacy database (that gate ran before this transaction).
@@ -3294,6 +4103,86 @@ fn ensure_agentic_action_run_binding_rows(
     Ok(())
 }
 
+fn ensure_design_action_run_binding_rows(
+    transaction: &rusqlite::Transaction<'_>,
+    run: &Value,
+) -> Result<(), StoreError> {
+    let object = run
+        .as_object()
+        .ok_or_else(|| StoreError::InvalidData("DesignActionRun is not an object".to_owned()))?;
+    let project_id = object["project_id"].as_str().ok_or_else(|| {
+        StoreError::InvalidData("DesignActionRun project_id is missing".to_owned())
+    })?;
+    let candidate_id = object["candidate_id"].as_str().ok_or_else(|| {
+        StoreError::InvalidData("DesignActionRun candidate_id is missing".to_owned())
+    })?;
+    let session_id = object["session_id"].as_str().ok_or_else(|| {
+        StoreError::InvalidData("DesignActionRun session_id is missing".to_owned())
+    })?;
+    let candidate_project: Option<String> = transaction
+        .query_row(
+            "SELECT project_id FROM candidates WHERE candidate_id = ?1",
+            params![candidate_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if candidate_project.as_deref() != Some(project_id) {
+        return Err(StoreError::Contract {
+            code: "DESIGN_ACTION_RUN_CANDIDATE_SCOPE_DENIED".to_owned(),
+            message: "DesignActionRun candidate is not in the requested project".to_owned(),
+        });
+    }
+    let session: Option<(String, String)> = transaction
+        .query_row(
+            "SELECT project_id, candidate_id FROM agentic_design_sessions WHERE session_id = ?1",
+            params![session_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((session_project, session_candidate)) = session else {
+        return Err(StoreError::Contract {
+            code: "DESIGN_ACTION_RUN_SESSION_NOT_FOUND".to_owned(),
+            message: "DesignActionRun requires a persisted DesignSession".to_owned(),
+        });
+    };
+    if session_project != project_id || session_candidate != candidate_id {
+        return Err(StoreError::Contract {
+            code: "DESIGN_ACTION_RUN_BINDING_MISMATCH".to_owned(),
+            message: "DesignActionRun session, project and candidate bindings differ".to_owned(),
+        });
+    }
+    if let Some(checkpoint_id) = object.get("checkpoint_id").and_then(Value::as_str) {
+        let checkpoint_hash = object
+            .get("checkpoint_hash")
+            .and_then(Value::as_str)
+            .ok_or_else(|| StoreError::Contract {
+                code: "DESIGN_ACTION_RUN_CHECKPOINT_MISMATCH".to_owned(),
+                message: "DesignActionRun checkpoint hash is required".to_owned(),
+            })?;
+        let checkpoint: Option<(String, String, String, String)> = transaction
+            .query_row(
+                "SELECT session_id, project_id, candidate_id, canonical_sha256 FROM agentic_design_checkpoints WHERE checkpoint_id = ?1",
+                params![checkpoint_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()?;
+        if checkpoint.as_ref().map(|value| {
+            value.0 != session_id
+                || value.1 != project_id
+                || value.2 != candidate_id
+                || value.3 != checkpoint_hash
+        }) != Some(false)
+        {
+            return Err(StoreError::Contract {
+                code: "DESIGN_ACTION_RUN_CHECKPOINT_MISMATCH".to_owned(),
+                message: "DesignActionRun checkpoint pointer is unavailable or out of scope"
+                    .to_owned(),
+            });
+        }
+    }
+    Ok(())
+}
+
 fn validate_agentic_metadata(value: &Value, depth: usize) -> Result<(), StoreError> {
     if depth > 12 {
         return Err(StoreError::InvalidData(
@@ -3550,6 +4439,433 @@ fn validate_agentic_action_run(run: &AgenticActionRunRecord) -> Result<(), Store
             code: "AGENTIC_ACTION_RUN_CANONICAL_HASH_MISMATCH".to_owned(),
             message: "action run canonical hash does not match its immutable fields".to_owned(),
         });
+    }
+    Ok(())
+}
+
+fn validate_design_action_run_value(value: &Value) -> Result<(), StoreError> {
+    const REQUIRED: &[&str] = &[
+        "schema_version",
+        "run_id",
+        "session_id",
+        "project_id",
+        "candidate_id",
+        "reference_id",
+        "reference_sha256",
+        "camera_hash",
+        "input_sha256",
+        "action",
+        "requested_stage",
+        "status",
+        "completed_stage",
+        "stage_results",
+        "quality_status",
+        "failed_gates",
+        "allowed_actions",
+        "locked_actions",
+        "checkpoint_id",
+        "checkpoint_hash",
+        "optimization_job_id",
+        "optimization_intent_sha256",
+        "runtime_write",
+        "persistent_user_data_touched",
+        "canonical_sha256",
+    ];
+    let object = value
+        .as_object()
+        .ok_or_else(|| StoreError::InvalidData("DesignActionRun must be an object".to_owned()))?;
+    if object
+        .keys()
+        .any(|key| !REQUIRED.contains(&key.as_str()) && key != "proposal")
+        || REQUIRED.iter().any(|key| !object.contains_key(*key))
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun has missing or unknown fields".to_owned(),
+        ));
+    }
+    if object.get("schema_version").and_then(Value::as_str) != Some("DesignActionRun@1") {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun schema version is unsupported".to_owned(),
+        ));
+    }
+    for key in [
+        "run_id",
+        "session_id",
+        "project_id",
+        "candidate_id",
+        "reference_id",
+    ] {
+        if object
+            .get(key)
+            .and_then(Value::as_str)
+            .is_none_or(|value| !is_opaque_id(value))
+        {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun {key} is malformed"
+            )));
+        }
+    }
+    for key in [
+        "reference_sha256",
+        "camera_hash",
+        "input_sha256",
+        "canonical_sha256",
+    ] {
+        if object
+            .get(key)
+            .and_then(Value::as_str)
+            .is_none_or(|value| !is_sha256(value))
+        {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun {key} is not a SHA-256"
+            )));
+        }
+    }
+    if object.get("runtime_write") != Some(&Value::Bool(false))
+        || object.get("persistent_user_data_touched") != Some(&Value::Bool(false))
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun must remain Runtime-write and persistent-data false".to_owned(),
+        ));
+    }
+    if object
+        .get("requested_stage")
+        .and_then(Value::as_str)
+        .is_none_or(|stage| {
+            !matches!(
+                stage,
+                "reference-canvas"
+                    | "primary-form"
+                    | "secondary-structure"
+                    | "tertiary-detail"
+                    | "uv-pbr"
+                    | "final-review"
+            )
+        })
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun requested_stage is unsupported".to_owned(),
+        ));
+    }
+    if object
+        .get("status")
+        .and_then(Value::as_str)
+        .is_none_or(|status| {
+            !matches!(
+                status,
+                "prepared" | "running" | "completed" | "failed" | "blocked"
+            )
+        })
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun status is unsupported".to_owned(),
+        ));
+    }
+    if let Some(stage) = object.get("completed_stage").and_then(Value::as_str) {
+        if !matches!(
+            stage,
+            "prepare" | "compile" | "readback" | "render" | "evaluate"
+        ) {
+            return Err(StoreError::InvalidData(
+                "DesignActionRun completed_stage is unsupported".to_owned(),
+            ));
+        }
+    } else if !object.get("completed_stage").is_some_and(Value::is_null) {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun completed_stage must be null or a pipeline stage".to_owned(),
+        ));
+    }
+    if object
+        .get("quality_status")
+        .and_then(Value::as_str)
+        .is_none_or(|status| {
+            !matches!(
+                status,
+                "PARTIAL_VISIBLE_VIEW_PASS"
+                    | "QUALITY_TARGET_NOT_MET"
+                    | "BLOCKED_REFERENCE_COVERAGE"
+                    | "not-run"
+                    | "unknown"
+            )
+        })
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun quality_status is unsupported".to_owned(),
+        ));
+    }
+    validate_design_action_array(object, "failed_gates", true)?;
+    validate_design_action_array(object, "allowed_actions", true)?;
+    validate_design_action_array(object, "locked_actions", true)?;
+    let allowed = object["allowed_actions"]
+        .as_array()
+        .expect("validated action array");
+    let locked = object["locked_actions"]
+        .as_array()
+        .expect("validated action array");
+    if allowed
+        .iter()
+        .any(|value| matches!(value.as_str(), Some("confirm" | "export")))
+        || !locked.iter().any(|value| value.as_str() == Some("confirm"))
+        || !locked.iter().any(|value| value.as_str() == Some("export"))
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun approval locks are not fail-closed".to_owned(),
+        ));
+    }
+    let checkpoint_id = object.get("checkpoint_id").expect("required checkpoint_id");
+    let checkpoint_hash = object
+        .get("checkpoint_hash")
+        .expect("required checkpoint_hash");
+    if checkpoint_id.is_null() != checkpoint_hash.is_null()
+        || checkpoint_hash
+            .as_str()
+            .is_some_and(|value| !is_sha256(value))
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun checkpoint id/hash must be paired".to_owned(),
+        ));
+    }
+    let optimization_job_id = object
+        .get("optimization_job_id")
+        .expect("required optimization_job_id");
+    let optimization_intent_sha256 = object
+        .get("optimization_intent_sha256")
+        .expect("required optimization_intent_sha256");
+    if optimization_job_id.is_null() != optimization_intent_sha256.is_null()
+        || (!optimization_job_id.is_null()
+            && !optimization_job_id.as_str().is_some_and(is_opaque_id))
+        || (!optimization_intent_sha256.is_null()
+            && !optimization_intent_sha256.as_str().is_some_and(is_sha256))
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun optimization job/id hash must be paired".to_owned(),
+        ));
+    }
+    let action = object
+        .get("action")
+        .and_then(Value::as_object)
+        .ok_or_else(|| StoreError::InvalidData("DesignActionRun action is missing".to_owned()))?;
+    if action
+        .get("action_id")
+        .and_then(Value::as_str)
+        .is_none_or(|value| !is_opaque_id(value))
+        || action.get("bounded") != Some(&Value::Bool(true))
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun action is not bounded".to_owned(),
+        ));
+    }
+    let stages = object
+        .get("stage_results")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            StoreError::InvalidData("DesignActionRun stage_results is missing".to_owned())
+        })?;
+    const PIPELINE: &[&str] = &["prepare", "compile", "readback", "render", "evaluate"];
+    if stages.len() != PIPELINE.len() || PIPELINE.iter().any(|stage| !stages.contains_key(*stage)) {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun stage_results must contain exactly five pipeline stages".to_owned(),
+        ));
+    }
+    for stage in PIPELINE {
+        let result = stages[*stage].as_object().ok_or_else(|| {
+            StoreError::InvalidData(format!("DesignActionRun {stage} result is malformed"))
+        })?;
+        if result
+            .keys()
+            .any(|key| !matches!(key.as_str(), "status" | "hash" | "reason"))
+            || !result.contains_key("status")
+            || !result.contains_key("hash")
+            || !result.contains_key("reason")
+        {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun {stage} result fields are invalid"
+            )));
+        }
+        let status = result["status"].as_str().ok_or_else(|| {
+            StoreError::InvalidData(format!("DesignActionRun {stage} status is missing"))
+        })?;
+        if !matches!(
+            status,
+            "not-run" | "running" | "completed" | "failed" | "blocked"
+        ) {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun {stage} status is unsupported"
+            )));
+        }
+        if result["hash"].as_str().is_some_and(|hash| !is_sha256(hash))
+            || (!result["hash"].is_null() && result["hash"].as_str().is_none())
+        {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun {stage} hash is malformed"
+            )));
+        }
+        let reason = result["reason"].as_str();
+        if matches!(status, "not-run" | "running" | "failed" | "blocked")
+            && reason.is_none_or(str::is_empty)
+        {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun {stage} reason is required"
+            )));
+        }
+        if status == "completed" && result["hash"].is_null() {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun {stage} completed result needs a hash"
+            )));
+        }
+        if let Some(reason) = reason {
+            if reason.len() > 512 || reason.contains("://") || reason.starts_with('/') {
+                return Err(StoreError::InvalidData(format!(
+                    "DesignActionRun {stage} reason contains unsafe text"
+                )));
+            }
+        } else if !result["reason"].is_null() {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun {stage} reason must be text or null"
+            )));
+        }
+    }
+    validate_agentic_metadata(value, 0)?;
+    validate_agentic_action_run_text(value, 0)?;
+    if let Some(proposal) = object.get("proposal") {
+        validate_design_action_proposal_value(proposal)?;
+    }
+    let mut canonical = value.clone();
+    canonical["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&canonical) != object["canonical_sha256"].as_str().unwrap_or_default() {
+        return Err(StoreError::Contract {
+            code: "DESIGN_ACTION_RUN_CANONICAL_HASH_MISMATCH".to_owned(),
+            message: "DesignActionRun canonical hash does not match immutable fields".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn validate_design_action_proposal_value(value: &Value) -> Result<(), StoreError> {
+    const REQUIRED: &[&str] = &[
+        "intent_sha256",
+        "intent_object_sha256",
+        "candidate_id",
+        "candidate_state_sha256",
+        "artifact_sha256",
+        "geometry_program_sha256",
+        "render_set_sha256",
+        "comparison_report_sha256",
+        "quality_report_sha256",
+        "visual_status",
+        "baseline_score",
+        "proposal_score",
+        "strict_improvement",
+        "non_regressing",
+        "promotion",
+        "confirm_allowed",
+    ];
+    let object = value.as_object().ok_or_else(|| {
+        StoreError::InvalidData("DesignActionRun proposal must be an object".to_owned())
+    })?;
+    if object
+        .keys()
+        .any(|key| !REQUIRED.contains(&key.as_str()) && key != "cross_view_evidence_sha256")
+        || REQUIRED.iter().any(|key| !object.contains_key(*key))
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun proposal has missing or unknown fields".to_owned(),
+        ));
+    }
+    for key in ["candidate_id"] {
+        if object
+            .get(key)
+            .and_then(Value::as_str)
+            .is_none_or(|value| !is_opaque_id(value))
+        {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun proposal {key} is malformed"
+            )));
+        }
+    }
+    for key in [
+        "intent_sha256",
+        "intent_object_sha256",
+        "candidate_state_sha256",
+        "artifact_sha256",
+        "geometry_program_sha256",
+        "render_set_sha256",
+        "comparison_report_sha256",
+        "quality_report_sha256",
+    ] {
+        if object
+            .get(key)
+            .and_then(Value::as_str)
+            .is_none_or(|value| !is_sha256(value))
+        {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun proposal {key} is not a SHA-256"
+            )));
+        }
+    }
+    if !matches!(
+        object.get("visual_status").and_then(Value::as_str),
+        Some("PARTIAL_VISIBLE_VIEW_PASS" | "QUALITY_TARGET_NOT_MET" | "BLOCKED_REFERENCE_COVERAGE")
+    ) || !matches!(
+        object.get("promotion").and_then(Value::as_str),
+        Some("reviewable" | "not-improved" | "rejected-regression")
+    ) || object.get("confirm_allowed") != Some(&Value::Bool(false))
+    {
+        return Err(StoreError::InvalidData(
+            "DesignActionRun proposal gate fields are invalid".to_owned(),
+        ));
+    }
+    for key in ["baseline_score", "proposal_score"] {
+        let score = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            StoreError::InvalidData(format!("DesignActionRun proposal {key} is invalid"))
+        })?;
+        if !score.is_finite() || !(0.0..=8.0).contains(&score) {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun proposal {key} is out of bounds"
+            )));
+        }
+    }
+    for key in ["strict_improvement", "non_regressing"] {
+        if !object.get(key).is_some_and(Value::is_boolean) {
+            return Err(StoreError::InvalidData(format!(
+                "DesignActionRun proposal {key} must be boolean"
+            )));
+        }
+    }
+    if let Some(value) = object.get("cross_view_evidence_sha256") {
+        if !value.is_null() && value.as_str().is_none_or(|value| !is_sha256(value)) {
+            return Err(StoreError::InvalidData(
+                "DesignActionRun proposal cross_view_evidence_sha256 is invalid".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_design_action_array(
+    object: &serde_json::Map<String, Value>,
+    key: &str,
+    non_empty: bool,
+) -> Result<(), StoreError> {
+    let values = object
+        .get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| StoreError::InvalidData(format!("DesignActionRun {key} is not an array")))?;
+    if non_empty && values.is_empty() && key == "locked_actions" {
+        return Err(StoreError::InvalidData(format!(
+            "DesignActionRun {key} is empty"
+        )));
+    }
+    if values.len() > 24
+        || values.iter().any(|value| {
+            value
+                .as_str()
+                .is_none_or(|value| !is_opaque_id(value) || value.len() > 64)
+        })
+    {
+        return Err(StoreError::InvalidData(format!(
+            "DesignActionRun {key} contains an invalid capability"
+        )));
     }
     Ok(())
 }
@@ -3834,7 +5150,11 @@ fn ensure_approval_tools_schema(transaction: &rusqlite::Transaction<'_>) -> Resu
         ));
     };
     let normalized = sql.to_ascii_lowercase();
-    if normalized.contains("restore_confirm") && normalized.contains("export_confirm") {
+    if normalized.contains("restore_confirm")
+        && normalized.contains("export_confirm")
+        && normalized.contains("repair_apply_confirm")
+        && normalized.contains("cross_view_promotion_confirm")
+    {
         return Ok(());
     }
     transaction.execute_batch(
@@ -3842,7 +5162,7 @@ fn ensure_approval_tools_schema(transaction: &rusqlite::Transaction<'_>) -> Resu
          CREATE TABLE approval_receipts (
              approval_receipt_id TEXT PRIMARY KEY,
              project_id TEXT NOT NULL REFERENCES projects(project_id),
-             tool TEXT NOT NULL CHECK (tool IN ('candidate_confirm', 'candidate_reject', 'restore_confirm', 'export_confirm')),
+             tool TEXT NOT NULL CHECK (tool IN ('candidate_confirm', 'candidate_reject', 'restore_confirm', 'export_confirm', 'repair_apply_confirm', 'cross_view_promotion_confirm')),
              base_version_id TEXT,
              prepared_object_id TEXT NOT NULL,
              prepared_object_sha256 TEXT NOT NULL,
@@ -3929,6 +5249,76 @@ fn read_job_summary(
         created_at,
         updated_at,
     })
+}
+
+fn read_job_record_from_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    job_id: &str,
+) -> Result<Option<JobRecord>, StoreError> {
+    Ok(transaction
+        .query_row(
+            "SELECT job_id, project_id, kind, status, progress, request_sha256, checkpoint_sha256, error_code, created_at, updated_at FROM runtime_jobs WHERE job_id = ?1",
+            params![job_id],
+            |row| {
+                let progress: i64 = row.get(4)?;
+                let progress = u8::try_from(progress).map_err(|_| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        4,
+                        rusqlite::types::Type::Integer,
+                        "job progress outside u8".into(),
+                    )
+                })?;
+                Ok(JobRecord {
+                    schema_version: "RuntimeJob@1".to_owned(),
+                    job_id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    kind: row.get(2)?,
+                    status: row.get(3)?,
+                    progress,
+                    request_sha256: row.get(5)?,
+                    checkpoint_sha256: row.get(6)?,
+                    error_code: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                })
+            },
+        )
+        .optional()?)
+}
+
+// A bounded optimization checkpoint can reference the coarse candidate
+// programs/artifacts, one evaluation object per real geometry evaluation, all
+// final AOV objects, the intent/result objects, and the prior checkpoint.  The
+// v4 funnel (48 coarse + 8 mid + 2 proposal finalists + baseline) stays below
+// this ceiling while preserving the generic Job reachability guard.
+const MAX_JOB_REACHABILITY_HASHES: usize = 256;
+
+fn validate_reachable_hashes(hashes: &[String]) -> Result<(), StoreError> {
+    if hashes.len() > MAX_JOB_REACHABILITY_HASHES || hashes.iter().any(|hash| !is_sha256(hash)) {
+        return Err(StoreError::InvalidData(
+            "job reachability list is invalid or exceeds its bound".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn mark_reachable_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    hashes: &[String],
+) -> Result<(), StoreError> {
+    for hash in hashes {
+        let updated = transaction.execute(
+            "UPDATE objects SET reachability = 'reachable' WHERE sha256 = ?1",
+            params![hash],
+        )?;
+        if updated != 1 {
+            return Err(StoreError::Contract {
+                code: "JOB_CAS_OBJECT_UNAVAILABLE".to_owned(),
+                message: "job references a CAS object that is not registered".to_owned(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn read_export_for_transaction(
@@ -4311,7 +5701,12 @@ fn validate_approval(approval: &ApprovalReceiptRecord) -> Result<(), StoreError>
         || !is_opaque_id(&approval.project_id)
         || !matches!(
             approval.tool.as_str(),
-            "candidate_confirm" | "candidate_reject" | "restore_confirm" | "export_confirm"
+            "candidate_confirm"
+                | "candidate_reject"
+                | "restore_confirm"
+                | "export_confirm"
+                | "repair_apply_confirm"
+                | "cross_view_promotion_confirm"
         )
         || approval
             .base_version_id

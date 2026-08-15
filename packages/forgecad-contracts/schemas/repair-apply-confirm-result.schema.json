@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/repair-apply-confirm-result.schema.json",
+  "title": "ForgeCAD Repair Apply Confirm Result",
+  "description": "Version and snapshot created by consuming a single-view RepairApplyIntent after fresh approval and full revalidation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "source_candidate_id",
+    "proposal_candidate_id",
+    "run_id",
+    "apply_intent_object_sha256",
+    "apply_intent_canonical_sha256",
+    "version_id",
+    "snapshot_id",
+    "approval_receipt_id",
+    "request_sha256",
+    "source_candidate_unchanged",
+    "proposal_candidate_confirmed",
+    "active_design_state_mutated",
+    "replayed",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "RepairApplyConfirmResult@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_id": {"$ref": "#/$defs/identifier"},
+    "proposal_candidate_id": {"$ref": "#/$defs/identifier"},
+    "run_id": {"$ref": "#/$defs/identifier"},
+    "apply_intent_object_sha256": {"$ref": "#/$defs/sha256"},
+    "apply_intent_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "version_id": {"$ref": "#/$defs/identifier"},
+    "snapshot_id": {"$ref": "#/$defs/identifier"},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "source_candidate_unchanged": {"const": true},
+    "proposal_candidate_confirmed": {"const": true},
+    "active_design_state_mutated": {"const": true},
+    "replayed": {"type": "boolean"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

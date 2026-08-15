@@ -31,6 +31,5 @@ budgets:
   max_runtime_ms: 10000
 benchmark_suite: primitive-blockout-v2-smoke
 known_limitations:
-  - Primitive@2 is a bounded structural blockout compiler; it is not a texture or PBR material generator.
-  - A single reference produces only a reviewable visible-view candidate; hidden surfaces remain inferred or unknown.
+  - Declarative safety receipt does not claim geometry, render or visual quality.
   - Distribution signature and third-party installation are deferred to MCP012-013.

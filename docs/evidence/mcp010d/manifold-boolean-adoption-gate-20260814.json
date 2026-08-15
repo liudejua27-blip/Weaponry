@@ -1,0 +1,70 @@
+{
+  "schema_version": "ForgeCADManifoldBooleanAdoptionGate@1",
+  "task_id": "FGC-MCP010D",
+  "recorded_on": "2026-08-14",
+  "status": "PASS_PRODUCT_WORKER_INTEGRATION",
+  "source": {
+    "project": "manifold",
+    "revision": "969b1417afdee87dbc6147cf676bc04799418ec2",
+    "license": "Apache-2.0",
+    "research_receipt": "docs/evidence/adoption/manifold/969b1417afdee87dbc6147cf676bc04799418ec2.yaml",
+    "candidate_c_api": [
+      "manifold_union",
+      "manifold_difference",
+      "manifold_intersection",
+      "manifold_of_meshgl64",
+      "manifold_get_meshgl64",
+      "manifold_with_context",
+      "manifold_status"
+    ],
+    "selected_source_paths": [
+      "LICENSE",
+      "include/manifold/**",
+      "src/**",
+      "bindings/c/**"
+    ],
+    "selected_source_tree_sha256": "420fcc6e880f04a219486d0095e502a78f903ab0506cd2e998560177ce79ae12",
+    "source_archive_sha256": "d5d47cb06bc27fc7d420900fdcded01d1ba83f9e6d48847bd52d01110baab388"
+  },
+  "checks": {
+    "research_receipt": "PASS",
+    "accepted_dependency": "PASS: fixed revision is accepted for the product-owned isolated Geometry Worker; no dynamic library, network or Runtime database dependency is introduced",
+    "local_c_api_library": "PASS: fixed revision compiles inside the Worker with Apple clang 21, C++17, sequential backend, no automatic downloads",
+    "isolated_boolean_worker": "PASS: product Worker C ABI adapter and raw MCP cohort exercise union/difference; the isolated harness also exercises intersection for research coverage",
+    "meshgl_topology_readback": "PASS: finite vertices, triangle index bounds, positive volumes, face IDs and two source runs read back",
+    "determinism": "PASS: same-process and separate-process MeshGL64 fingerprints matched for all three operations",
+    "resource_timeout_crash_fd": "PASS: 3,496-triangle bounded stress case; CPU=5s, nofile=64, core=0; ASan/UBSan pass; FD 3->3",
+    "negative_input": "PASS: invalid index and non-finite vertex fail with non-zero Manifold status without crash",
+    "license_sbom": "PASS: docs/evidence/mcp010d/manifold-boolean-sbom-20260814.json",
+    "platform": "PASS: macOS arm64 isolated build; other distribution platforms NOT_RUN",
+    "removal_fallback": "PASS: product integration is isolated to the Worker build/allowlist/catalog slice; removing that slice leaves the prior product-owned geometry path and fail-closed Boolean contract",
+    "negative_boolean_gate": "PASS: forgecad.geometry.boolean@1 accepts only union/difference; intersection, wrong arity and non-finite/index-invalid inputs fail closed"
+  },
+  "artifacts": {
+    "isolated_static_library_sha256": "0be198da07244a0c5d864490efcfc32465646aa73fd3c80ee4dcab6c94194cbc",
+    "probe_sha256": "73b4d62fdd0bd59419ad099a4126c0f591095535965f59e4cc123f1af222bfe0",
+    "asan_ubsan_probe_sha256": "480b7316ca4eb145ae68bacb58c5936080c6ac366a55839eb00b4dd0f4429ad8"
+  },
+  "product_integration": {
+    "source_vendored": true,
+    "vendor_file_count": 62,
+    "vendor_tree_sha256": "72ee20b2ee2044ee50ad147071c91b048b0de864cfeb610ce9c307decf820ab7",
+    "lockfile_or_package_change": true,
+    "package_change": false,
+    "build_dependency": "cc@1.2",
+    "runtime_allowlist_change": true,
+    "operator_catalog_activation": true,
+    "product_bridge_source_sha256": "66f0c9bcf9c74137b0e22138380a64d967aed21d6c54e4a0949e62c7e8ffa446",
+    "product_ffi_source_sha256": "4539f3f6ee11aa2e5af7fa3b6573fc8e0e9e37ac9c6d0459c28fc80c0c178d44",
+    "raw_stdio_receipt": "docs/evidence/mcp010d/raw-stdio.json",
+    "next_step": "Run current-cohort packaged D, real-reference multi-view visual/PBR review, export/restart hash and human gates"
+  },
+  "limitations": [
+    "The accepted product scope is a bounded same-Part Worker adapter; it does not make Manifold a general Runtime library or expose arbitrary user mesh operations.",
+    "The Worker carries vendored fixed-revision C/C++ source and links it into the isolated binary; there is no dynamically loaded libmanifold package.",
+    "The product and isolated benchmarks use bounded synthetic meshes; they do not prove arbitrary user-mesh quality, GLB/PBR likeness, human review, export/restart hash, or 360-degree quality.",
+    "The build-host gate is macOS arm64 only; cross-platform packaging and distribution signing remain NOT_RUN.",
+    "The cached manifold-rust crate was not used as a substitute for the frozen C API adoption gate."
+  ],
+  "persistent_user_data_touched": false
+}

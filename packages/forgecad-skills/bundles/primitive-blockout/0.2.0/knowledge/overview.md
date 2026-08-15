@@ -1,7 +1,5 @@
 # primitive-blockout
 
-`primitive-blockout@0.2.0` is the first active Runtime-backed V2 Skill. It
-helps Codex author a closed, hash-bound GeometryProgram@2 from a user-authorized
-reference using only the product-owned primitive@2 operator and ordered semantic
-Part sinks. It is a structural blockout route, not a texture, PBR, renderer or
-visual-similarity claim.
+First-party declarative Skill `primitive-blockout@0.2.0`. It declares typed inputs, a bounded Recipe and product-owned validators; it does not contain executable code.
+
+This bundle is planning metadata for the single-user MVP. A successful registry or declarative benchmark check does not claim that geometry, render or visual similarity has passed.

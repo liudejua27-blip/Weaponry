@@ -1,0 +1,48 @@
+{
+  "schema_version": "ForgeCADCrossViewPromotionTransactionReceipt@1",
+  "canonical_sha256": "4f6d9d0d5d2b7731959284082a4bb0c4bbcc053249e73d9924fb6d42bbf00b96",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-14",
+  "status": "PASS_SOURCE_RUNTIME_MCP_FAIL_CLOSED",
+  "scope": [
+    "CrossViewPromotionRequest@1 and CrossViewPromotionResult@1 contracts",
+    "Runtime cross_view_promotion_confirm transaction",
+    "MCP cross_view_promotion_confirm approval-gated write tool",
+    "exact CrossViewEvidenceBundle@1, per-view RenderSet/Comparison/Quality and candidate lineage revalidation",
+    "immutable version creation only after complete cross-view quality and user approval gates"
+  ],
+  "implementation": {
+    "runtime_method": "Runtime::cross_view_promotion_confirm",
+    "mcp_tool": "cross_view_promotion_confirm",
+    "legacy_confirm_behavior": "candidate_confirm rejects cross-view promotion with BLOCKED_CROSS_VIEW_PROMOTION_REQUIRED",
+    "positive_promotion": "NOT_RUN",
+    "version_or_export_side_effect": "NOT_RUN"
+  },
+  "verification": {
+    "contract_checker": "python3 scripts/check_forgecad_contracts.py: PASS (109 schemas)",
+    "agentic_contract_checker": "python3 scripts/check_agentic_contracts.py: PASS",
+    "runtime_unit": "cargo test -p forgecad-runtime --lib agentic_action_run_revalidates_bound_candidate_and_is_idempotent --offline: PASS",
+    "runtime_negative_promotion": "PASS: incomplete CrossViewEvidenceBundle is rejected with CROSS_VIEW_PROMOTION_QUALITY_GATE_FAILED and no project version is created",
+    "mcp_unit": "cargo test -p forgecad-mcp --offline: PASS (55 tests)",
+    "stage0_truth": "python3 scripts/check_mcp010f_stage0_truth.py: PASS"
+  },
+  "fail_closed_gates": [
+    "source candidate/project/session binding",
+    "proposal candidate/artifact lineage",
+    "exact indexed CrossViewEvidenceBundle CAS hash",
+    "complete view coverage and per-view reference/camera/render/compare/quality hashes",
+    "PARTIAL_VISIBLE_VIEW_PASS and strict improvement/non-regression",
+    "approval session, expiry and safe summary",
+    "immutable confirm transaction"
+  ],
+  "not_proven": [
+    "positive user-approved promotion and immutable version receipt",
+    "Repair application that creates the promoted proposal candidate",
+    "real Codex cross-view render/compare conformance",
+    "packaged Viewer same-observation cross-view readback",
+    "independent human visual review",
+    "export/restart hash and 360-degree quality gates"
+  ],
+  "manifold_boolean": "BLOCKED_NOT_ACCEPTED",
+  "persistent_user_data_touched": false
+}

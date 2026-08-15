@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/boolean-result.schema.json",
+  "title": "BooleanResultV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "status",
+    "vertices",
+    "triangles",
+    "volume",
+    "surface_area",
+    "genus",
+    "source_ids",
+    "face_ids",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "BooleanResult@1"},
+    "operation": {"enum": ["union", "difference", "intersection"]},
+    "status": {"enum": ["passed", "rejected", "budget_exceeded", "timeout"]},
+    "vertices": {"type": "integer", "minimum": 0, "maximum": 750000},
+    "triangles": {"type": "integer", "minimum": 0, "maximum": 250000},
+    "volume": {"type": "number", "exclusiveMinimum": 0},
+    "surface_area": {"type": "number", "exclusiveMinimum": 0},
+    "genus": {"type": "integer", "minimum": 0},
+    "source_ids": {
+      "type": "array",
+      "maxItems": 250000,
+      "items": {"enum": [0, 1]}
+    },
+    "face_ids": {
+      "type": "array",
+      "maxItems": 250000,
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "canonical_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

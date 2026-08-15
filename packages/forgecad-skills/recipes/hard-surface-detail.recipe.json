@@ -18,17 +18,50 @@
     "part-sink"
   ],
   "edges": [
-    {"from": "profile-body", "to": "profile-shell"},
-    {"from": "profile-body", "to": "revolve-joint"},
-    {"from": "profile-shell", "to": "panel-shell"},
-    {"from": "panel-shell", "to": "vent-grid"},
-    {"from": "revolve-joint", "to": "joint-stack"},
-    {"from": "joint-stack", "to": "cable-sweep"},
-    {"from": "cable-sweep", "to": "mirror-limb"},
-    {"from": "mirror-limb", "to": "array-ribs"},
-    {"from": "array-ribs", "to": "transform-fit"},
-    {"from": "vent-grid", "to": "part-sink"},
-    {"from": "transform-fit", "to": "part-sink"}
+    {
+      "from": "profile-body",
+      "to": "profile-shell"
+    },
+    {
+      "from": "profile-body",
+      "to": "revolve-joint"
+    },
+    {
+      "from": "profile-shell",
+      "to": "panel-shell"
+    },
+    {
+      "from": "panel-shell",
+      "to": "vent-grid"
+    },
+    {
+      "from": "revolve-joint",
+      "to": "joint-stack"
+    },
+    {
+      "from": "joint-stack",
+      "to": "cable-sweep"
+    },
+    {
+      "from": "cable-sweep",
+      "to": "mirror-limb"
+    },
+    {
+      "from": "mirror-limb",
+      "to": "array-ribs"
+    },
+    {
+      "from": "array-ribs",
+      "to": "transform-fit"
+    },
+    {
+      "from": "vent-grid",
+      "to": "part-sink"
+    },
+    {
+      "from": "transform-fit",
+      "to": "part-sink"
+    }
   ],
   "max_edges": 128,
   "nodes": [

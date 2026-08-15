@@ -1,0 +1,108 @@
+{
+  "build_cohort_sha256": "613470b60b2e97f4459580105316879bffde416e6e6f7717308159c8b4baf04a",
+  "build_cohorts": {
+    "geometry_worker": "613470b60b2e97f4459580105316879bffde416e6e6f7717308159c8b4baf04a",
+    "mcp": "613470b60b2e97f4459580105316879bffde416e6e6f7717308159c8b4baf04a",
+    "render_worker": "613470b60b2e97f4459580105316879bffde416e6e6f7717308159c8b4baf04a",
+    "runtime": "613470b60b2e97f4459580105316879bffde416e6e6f7717308159c8b4baf04a"
+  },
+  "camera_hash": "8cd20605a8b497eae82b7108338dc7201870b64994f3fc1cdc30850c7c84a535",
+  "candidate_confirmed": false,
+  "catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+  "completed_stage": "evaluate",
+  "execution_mode": "runtime-owned-surface-control-point-patch-v1",
+  "expected_build_cohort_sha256": "613470b60b2e97f4459580105316879bffde416e6e6f7717308159c8b4baf04a",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-5e8beb6b01244ba7b4cdfde5d2b17e91",
+  "proposal": {
+    "artifact_sha256": "1f0dd2854777398031a0b0e7d62aa6cb184d56d6e700abac53255ec510021fd3",
+    "baseline_score": 5.681233147408,
+    "candidate_id": "candidate-39dd21f9410d437f904dc4b259461979",
+    "candidate_state_sha256": "6738a72266581ed7aa97b072d79004070577644c2334b43950aac06a39b90256",
+    "comparison_report_sha256": "a552a2ab43d2b44481eb34eb30e6196759ae811b3a43b2b12f007c51c8188304",
+    "confirm_allowed": false,
+    "cross_view_evidence_sha256": null,
+    "geometry_program_sha256": "d4a1835a58cba8c7943ec8c6f7c97319e4b6f0a8e553d1e349f0fff3c6d88075",
+    "intent_object_sha256": "267bc6fbe340628fb1456425a18b1045ad1bc42fcba4a4900953f7b095b21c1b",
+    "intent_sha256": "d6a1bb7971556adb5fedf056dfd453d86d3dc78e5e5ecb0c684bfdd4df72f96b",
+    "non_regressing": false,
+    "promotion": "rejected-regression",
+    "proposal_score": 5.68839788452,
+    "quality_report_sha256": "4f9b43a7ab7968bb829021c83227d77c0a839372397585afcea7c5444657b125",
+    "render_set_sha256": "1ef628fce1673f5156234e8baf42e20a2fe5ba0f091cfc3e14b4c679420cb798",
+    "strict_improvement": false,
+    "visual_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "quality_claim": "NO_LIKENESS_PASS_CLAIM; ACTION_RUN_PROPOSAL_TRANSPORT_AND_GATE_ONLY",
+  "reference_id": "reference-183df35d44bf4421b6f8a11bf225a6f4",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "repair_probe_gate": null,
+  "repair_probe_status": "completed",
+  "replay_sha256": "1dcb6d0ee075e0542570722bb2746234110d70e540c53f48ec1d4052a83006b9",
+  "run_id": "design-action-run-real-chest-surface-control-point",
+  "run_sha256": "1dcb6d0ee075e0542570722bb2746234110d70e540c53f48ec1d4052a83006b9",
+  "run_status": "completed",
+  "runtime_parameter_patch": {
+    "action_changes_authoritative": true,
+    "parameter_ids": [
+      "control-point-5-z"
+    ],
+    "runtime_materialized_geometry_program": true,
+    "schema_version": "RuntimeParameterPatch@1",
+    "source_candidate_unchanged": true,
+    "strategy": "surface-control-points-v1",
+    "surface_backed_chest_shell": true
+  },
+  "schema_version": "ForgeCADMCP010FDesignActionRealReferenceProbe@1",
+  "scope": "real authorized reference, one chest-shell Part, isolated Runtime/MCP/Worker process",
+  "session_evidence_sha256": "8e88f98a18f5e9b2262a9a1fff5f41e68dec034ec28743f9ec80c158f91254de",
+  "session_id": "design-session-real-action-run",
+  "source_artifact_sha256": "b4a19efe7192016a084bf25610923c41c01864591104ce25fdfe7dfd36d36735",
+  "source_candidate_id": "candidate-4a859b4dce384b3887ae68585d0419c5",
+  "source_candidate_state_sha256": "ebad178dc44da10be97649f0d90a165e4d74adee105b75d2c8071cdd68f93f29",
+  "source_program_sha256": "e0a2d6fe3bdff6f3d4c8ab8b110388a2b9c2fdcb7dd5c07fc0bc193d9ceebdfa",
+  "source_quality_report_id": "quality-c-08e76ad4be32414b9b6e0e70e8b4ef2b",
+  "source_quality_report_sha256": "8e88f98a18f5e9b2262a9a1fff5f41e68dec034ec28743f9ec80c158f91254de",
+  "source_visual_status": "QUALITY_TARGET_NOT_MET",
+  "stage_results": {
+    "compile": {
+      "hash": "b4a19efe7192016a084bf25610923c41c01864591104ce25fdfe7dfd36d36735",
+      "reason": null,
+      "status": "completed"
+    },
+    "evaluate": {
+      "hash": "8e88f98a18f5e9b2262a9a1fff5f41e68dec034ec28743f9ec80c158f91254de",
+      "reason": null,
+      "status": "completed"
+    },
+    "prepare": {
+      "hash": "0077a0bd924bda06d59511100b3474b097174cc9d8191bc101aaff627763423b",
+      "reason": null,
+      "status": "completed"
+    },
+    "readback": {
+      "hash": "d807a51ae8eeecb3e21cd81f5623f1a30dd23c5401681365c97de5f169adcbb5",
+      "reason": null,
+      "status": "completed"
+    },
+    "render": {
+      "hash": "fd2eeb3a5876bc905fa7922f4e5b38b7bc8835fb5e8feb631b29613f422e3a70",
+      "reason": null,
+      "status": "completed"
+    }
+  },
+  "status": "PASS_ACTION_RUN_RUNTIME_PARAMETER_PATCH",
+  "surface_backed_chest_shell": true,
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

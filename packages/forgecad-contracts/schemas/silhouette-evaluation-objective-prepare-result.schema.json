@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-evaluation-objective-prepare-result.schema.json",
+  "title": "SilhouetteEvaluationObjectivePrepareResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "objective_sha256", "objective", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "SilhouetteEvaluationObjectivePrepareResult@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "objective_sha256": {"$ref": "#/$defs/sha256"},
+    "objective": {"$ref": "https://forgecad.local/contracts/silhouette-evaluation-objective.schema.json"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

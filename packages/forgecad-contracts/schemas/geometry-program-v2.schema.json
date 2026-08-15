@@ -126,6 +126,9 @@
             "forgecad.geometry.primitive@2",
             "forgecad.geometry.profile-extrude@1",
             "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.subd-cage@1",
+            "forgecad.geometry.surface-patch@1",
+            "forgecad.geometry.surface-shell@1",
             "forgecad.geometry.revolve@1",
             "forgecad.geometry.tube-sweep@1",
             "forgecad.geometry.transform@2",
@@ -134,6 +137,7 @@
             "forgecad.geometry.panel@1",
             "forgecad.geometry.vent-array@1",
             "forgecad.geometry.joint-stack@1",
+            "forgecad.geometry.boolean@1",
             "forgecad.geometry.part-output@1"
           ]
         },
@@ -151,6 +155,9 @@
             {"$ref": "#/$defs/sphere_parameters"},
             {"$ref": "#/$defs/profile_extrude_parameters"},
             {"$ref": "#/$defs/profile_loft_parameters"},
+            {"$ref": "#/$defs/subd_cage_parameters"},
+            {"$ref": "#/$defs/surface_patch_parameters"},
+            {"$ref": "#/$defs/surface_shell_parameters"},
             {"$ref": "#/$defs/revolve_parameters"},
             {"$ref": "#/$defs/tube_sweep_parameters"},
             {"$ref": "#/$defs/transform_parameters"},
@@ -159,9 +166,24 @@
             {"$ref": "#/$defs/panel_parameters"},
             {"$ref": "#/$defs/vent_array_parameters"},
             {"$ref": "#/$defs/joint_stack_parameters"},
+            {"$ref": "#/$defs/boolean_parameters"},
             {"$ref": "#/$defs/part_output_parameters"}
           ]
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "operator_id": {"const": "forgecad.geometry.boolean@1"}
+              }
+            },
+            "then": {
+              "properties": {
+                "inputs": {"minItems": 2, "maxItems": 2}
+              }
+            }
+          }
+        ]
       }
     },
     "base_primitive_parameters": {
@@ -302,6 +324,62 @@
         "rotation_rad": {"$ref": "#/$defs/radian_vector"}
       }
     },
+    "surface_patch_control_point": {
+      "$ref": "#/$defs/coordinate_vector"
+    },
+    "surface_patch_control_points": {
+      "type": "array",
+      "minItems": 16,
+      "maxItems": 16,
+      "items": {"$ref": "#/$defs/surface_patch_control_point"}
+    },
+    "subd_cage_control_points": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 256,
+      "items": {"$ref": "#/$defs/surface_patch_control_point"}
+    },
+    "subd_cage_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "control_points", "u_points", "v_points", "subdivision_levels", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "subd-cage"},
+        "control_points": {"$ref": "#/$defs/subd_cage_control_points"},
+        "u_points": {"type": "integer", "minimum": 2, "maximum": 16},
+        "v_points": {"type": "integer", "minimum": 2, "maximum": 16},
+        "subdivision_levels": {"type": "integer", "minimum": 0, "maximum": 2},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "surface_patch_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "control_points", "u_segments", "v_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "surface-patch"},
+        "control_points": {"$ref": "#/$defs/surface_patch_control_points"},
+        "u_segments": {"type": "integer", "minimum": 4, "maximum": 32},
+        "v_segments": {"type": "integer", "minimum": 4, "maximum": 32},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "surface_shell_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "control_points", "u_segments", "v_segments", "thickness_m", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "surface-shell"},
+        "control_points": {"$ref": "#/$defs/surface_patch_control_points"},
+        "u_segments": {"type": "integer", "minimum": 4, "maximum": 32},
+        "v_segments": {"type": "integer", "minimum": 4, "maximum": 32},
+        "thickness_m": {"$ref": "#/$defs/dimension_scalar"},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
     "revolve_parameters": {
       "type": "object",
       "additionalProperties": false,
@@ -406,6 +484,14 @@
         "radial_segments": {"type": "integer", "minimum": 8, "maximum": 64},
         "position_m": {"$ref": "#/$defs/coordinate_vector"},
         "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "boolean_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape"],
+      "properties": {
+        "shape": {"enum": ["union", "difference", "intersection"]}
       }
     },
     "part_output_parameters": {

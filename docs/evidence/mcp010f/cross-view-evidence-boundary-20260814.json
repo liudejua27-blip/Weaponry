@@ -1,0 +1,31 @@
+{
+  "schema_version": "ForgeCADCrossViewEvidenceBoundaryReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_CONTRACT_AND_UNIT_BOUNDARY",
+  "implemented_boundary": {
+    "view_keyed_store": "visual_evidence_views(candidate_id, view_id)",
+    "aggregate_cas_contract": "CrossViewEvidenceBundle@1",
+    "per_view_binding": "reference_id/reference_sha256/camera_hash/render/comparison/quality hashes",
+    "aggregate_binding": "candidate/project/session/reference_canvas and canonical hash"
+  },
+  "promotion_boundary": {
+    "candidate_confirm": "BLOCKED_CROSS_VIEW_PROMOTION_REQUIRED",
+    "bundle_confirm_allowed": false,
+    "user_approved_promotion_transaction": "NOT_IMPLEMENTED"
+  },
+  "verification": {
+    "contracts": "python3 scripts/check_forgecad_contracts.py: PASS (107 schemas)",
+    "agentic_contracts": "python3 scripts/check_agentic_contracts.py: PASS",
+    "unit_test": "cargo test -p forgecad-runtime cross_view_evidence_requires_explicit_promotion_boundary --offline: PASS",
+    "integration_test": "cargo test -p forgecad-runtime agentic_action_run_revalidates_bound_candidate_and_is_idempotent --offline: PASS (two view-keyed render/compare evaluations and CAS bundle readback)",
+    "source_gate": "script/test_mcp010f.sh: PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING"
+  },
+  "not_proven": [
+    "cross-view real-Codex render/compare conformance",
+    "packaged Viewer same-observation cross-view readback",
+    "independent human visual review",
+    "complete front/back/left/right/rear-three-quarter reference coverage",
+    "user-approved promotion, version creation or export"
+  ],
+  "persistent_user_data_touched": false
+}

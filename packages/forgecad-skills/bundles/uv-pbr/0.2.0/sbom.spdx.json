@@ -9,7 +9,7 @@
     }
   ],
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://forgecad.local/sbom/skill/uv-pbr/0.1.0",
+  "documentNamespace": "https://forgecad.local/sbom/skill/uv-pbr/0.2.0",
   "name": "forgecad-skill-uv-pbr",
   "packages": [
     {
@@ -17,7 +17,7 @@
       "downloadLocation": "NOASSERTION",
       "licenseConcluded": "NOASSERTION",
       "name": "forgecad-skill-uv-pbr",
-      "versionInfo": "0.1.0"
+      "versionInfo": "0.2.0"
     }
   ],
   "spdxVersion": "SPDX-2.3"

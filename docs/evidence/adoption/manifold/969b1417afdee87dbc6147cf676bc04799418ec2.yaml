@@ -4,20 +4,27 @@ revision: 969b1417afdee87dbc6147cf676bc04799418ec2
 identity: controlled-source-research
 license_spdx: Apache-2.0
 license_file_git_blob: 261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64
-research_status: authorized
-vendored_files: []
+research_status: accepted-product-isolated-worker
+vendored_files:
+  - apps/geometry-worker/vendor/manifold/LICENSE
+  - apps/geometry-worker/vendor/manifold/include/manifold/**
+  - apps/geometry-worker/vendor/manifold/src/**
+  - apps/geometry-worker/vendor/manifold/bindings/c/**
 candidate_source_paths:
   - bindings/c/include
   - bindings/c/manifoldc.cpp
   - bindings/c/conv.h
-target: isolated C API and FFI benchmark for manifold mesh boolean
+target: product-owned isolated C API/FFI Worker for bounded mesh boolean
 denied_capabilities:
   - automatic_cmake_build
   - wasm_binding
   - python_binding
   - network
   - direct_runtime_state_write
-lockfile_or_package_change: false
-approval: research-authorized
-next_gate: accepted receipt with C API isolation, topology, determinism, resource and removal evidence
-fallback_or_removal_plan: Keep boolean@1 unavailable and retain the current product-owned geometry path.
+lockfile_or_package_change: true
+approval: accepted
+accepted_scope: isolated C API/FFI Worker integration on the verified macOS arm64 host profile
+evidence_receipt: docs/evidence/mcp010d/manifold-boolean-adoption-gate-20260814.json
+sbom_receipt: docs/evidence/mcp010d/manifold-boolean-sbom-20260814.json
+next_gate: Current-cohort packaged D, real-reference visual/PBR, export/restart and human gates; intersection remains outside the active operator contract.
+fallback_or_removal_plan: Remove the vendored Manifold build slice and Boolean catalog/allowlist activation together; retain the existing product-owned geometry path and fail closed for boolean@1.

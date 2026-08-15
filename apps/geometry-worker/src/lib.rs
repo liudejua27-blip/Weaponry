@@ -6,6 +6,7 @@
 //! calls a model/network service.
 
 pub mod integrity;
+mod manifold_bridge;
 mod operator_d;
 
 use base64::Engine;
@@ -58,6 +59,7 @@ struct PartMesh {
 struct PartSourceMesh {
     source_node_id: String,
     operator_id: String,
+    lineage_source_node_ids: Vec<String>,
     positions: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     uvs: Vec<[f32; 2]>,
@@ -68,6 +70,10 @@ struct PartSourceMesh {
 #[derive(Debug, Clone)]
 struct PrimitiveNodeMesh {
     operator_id: String,
+    /// Ordered, deduplicated authoring nodes that contribute to this typed
+    /// mesh.  Boolean keeps the operand lineage here even though its output
+    /// becomes one semantic source primitive in the GLB.
+    lineage_source_node_ids: Vec<String>,
     positions: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     indices: Vec<u32>,
@@ -311,7 +317,7 @@ fn compile_geometry_program_v1_with_appearance(
             *normal = normalize(rotate_y(*normal, rotation_y));
         }
         let (positions, normals, uvs, tangents, indices) =
-            triangulate_uv_charts(&positions, &normals, &indices)?;
+            triangulate_uv_charts(&positions, &normals, &indices, false)?;
         let material = appearance_zones
             .get(&material_zone_id)
             .cloned()
@@ -323,6 +329,7 @@ fn compile_geometry_program_v1_with_appearance(
             sources: vec![PartSourceMesh {
                 source_node_id: node_id.to_owned(),
                 operator_id: operator_id.to_owned(),
+                lineage_source_node_ids: vec![node_id.to_owned()],
                 positions,
                 normals,
                 uvs,
@@ -377,8 +384,16 @@ fn compile_geometry_program_v2_with_appearance(
     let appearance_zones = validate_appearance(appearance, &validation.program_sha256)?;
     let mut sources = std::collections::BTreeMap::<String, PrimitiveNodeMesh>::new();
     for node in &validation.nodes {
-        let mut mesh = operator_d::compile_operator(&node.operator, &sources)?;
+        let mut mesh = operator_d::compile_operator(
+            &node.operator,
+            &sources,
+            validation.max_triangles,
+            validation.max_runtime_ms,
+        )?;
         mesh.operator_id = node.operator_id.clone();
+        if mesh.lineage_source_node_ids.is_empty() {
+            mesh.lineage_source_node_ids.push(node.node_id.clone());
+        }
         sources.insert(node.node_id.clone(), mesh);
     }
     let mut parts = Vec::with_capacity(validation.part_outputs.len());
@@ -404,11 +419,16 @@ fn compile_geometry_program_v2_with_appearance(
                         .to_owned(),
                 )
             })?;
-            let (positions, normals, uvs, tangents, indices) =
-                triangulate_uv_charts(&source.positions, &source.normals, &source.indices)?;
+            let (positions, normals, uvs, tangents, indices) = triangulate_uv_charts(
+                &source.positions,
+                &source.normals,
+                &source.indices,
+                source.operator_id == "forgecad.geometry.boolean@1",
+            )?;
             part_sources.push(PartSourceMesh {
                 source_node_id,
                 operator_id: source.operator_id,
+                lineage_source_node_ids: source.lineage_source_node_ids,
                 positions,
                 normals,
                 uvs,
@@ -429,8 +449,12 @@ fn compile_geometry_program_v2_with_appearance(
         .flat_map(|part| &part.sources)
         .map(|source| source.indices.len() as u64 / 3)
         .sum::<u64>();
-    if triangle_count != validation.estimated_triangle_count
-        || triangle_count == 0
+    // A Boolean node declares the conservative sum of its operands during
+    // validation.  The actual manifold result may legitimately be smaller,
+    // so the generated readback must stay within that estimate rather than
+    // pretending a topology-changing operation has an exact triangle count.
+    if triangle_count == 0
+        || triangle_count > validation.estimated_triangle_count
         || triangle_count > validation.max_triangles
     {
         return Err(GeometryError::Invalid(
@@ -845,10 +869,10 @@ pub fn worker_result(request: &Value) -> Result<Value, GeometryError> {
             let program = payload
                 .get("geometry_program")
                 .ok_or_else(|| GeometryError::Invalid("geometry_program is required".to_owned()))?;
-            let artifact = compile_geometry_program_with_appearance(
-                program,
-                payload.get("appearance_program"),
-            )?;
+            let appearance = payload
+                .get("appearance_program")
+                .filter(|value| !value.is_null());
+            let artifact = compile_geometry_program_with_appearance(program, appearance)?;
             if operation == "render_fixed" {
                 let passes = render_fixed_glb(&artifact.glb)?;
                 return Ok(json!({
@@ -913,9 +937,10 @@ pub fn worker_result(request: &Value) -> Result<Value, GeometryError> {
             let resolution = payload
                 .get("resolution")
                 .and_then(Value::as_u64)
-                .filter(|value| matches!(*value, 128 | 512))
-                .ok_or_else(|| GeometryError::Invalid("fit resolution must be 128 or 512".to_owned()))?
-                as u32;
+                .filter(|value| matches!(*value, 128 | 256 | 512))
+                .ok_or_else(|| {
+                    GeometryError::Invalid("fit resolution must be 128, 256 or 512".to_owned())
+                })? as u32;
             let cameras = payload
                 .get("cameras")
                 .and_then(Value::as_array)
@@ -1383,6 +1408,7 @@ fn triangulate_uv_charts(
     positions: &[[f32; 3]],
     normals: &[[f32; 3]],
     indices: &[u32],
+    force_face_normals: bool,
 ) -> Result<
     (
         Vec<[f32; 3]>,
@@ -1478,6 +1504,30 @@ fn triangulate_uv_charts(
                 chart_row as f32 * cell_v + padding_v + uv[1] * (cell_v - 2.0 * padding_v),
             ]
         });
+        let triangle_uvs = if force_face_normals {
+            // Manifold can legitimately return very thin intersection
+            // triangles.  Projecting those vertices through the global
+            // bounds makes their UV determinant collapse below MikkTSpace's
+            // useful precision.  Boolean output is already a per-triangle
+            // chart, so give that chart a stable local triangle while keeping
+            // every chart disjoint and inside the same bounded atlas cell.
+            [
+                [
+                    chart_column as f32 * cell_u + padding_u,
+                    chart_row as f32 * cell_v + padding_v,
+                ],
+                [
+                    chart_column as f32 * cell_u + cell_u - padding_u,
+                    chart_row as f32 * cell_v + padding_v,
+                ],
+                [
+                    chart_column as f32 * cell_u + padding_u,
+                    chart_row as f32 * cell_v + cell_v - padding_v,
+                ],
+            ]
+        } else {
+            triangle_uvs
+        };
         let uv_a = [
             triangle_uvs[1][0] - triangle_uvs[0][0],
             triangle_uvs[1][1] - triangle_uvs[0][1],
@@ -1493,7 +1543,17 @@ fn triangulate_uv_charts(
             ));
         }
         for vertex in 0..3 {
-            let normal = normalize(normals[source[vertex]]);
+            // Boolean intersections introduce intentional hard edges and can
+            // place a shared vertex at a concave cut where an averaged
+            // vertex normal points across the local face. Keep the Boolean
+            // result's tangent frame fail-closed by using the actual face
+            // normal for that chart; ordinary primitives retain their
+            // authored/smoothed normals.
+            let normal = if force_face_normals {
+                face
+            } else {
+                normalize(normals[source[vertex]])
+            };
             chart_positions.push(triangle_positions[vertex]);
             chart_normals.push(normal);
             uvs.push(triangle_uvs[vertex]);
@@ -1521,6 +1581,44 @@ fn triangulate_uv_charts(
             "MikkTSpace produced a non-finite tangent".to_owned(),
         ));
     }
+    if force_face_normals {
+        // MikkTSpace can leave one vertex of a machine-epsilon sliver chart
+        // at its zero initializer even though the chart has a finite UV
+        // frame. Keep Mikk's result wherever it is valid, and repair only
+        // that missing vector from the same triangle/UV basis that strict
+        // readback uses.
+        for triangle_index in 0..triangle_count {
+            let base = triangle_index * 3;
+            let triangle_positions = [
+                tangent_mesh.positions[base],
+                tangent_mesh.positions[base + 1],
+                tangent_mesh.positions[base + 2],
+            ];
+            let triangle_normals = [
+                tangent_mesh.normals[base],
+                tangent_mesh.normals[base + 1],
+                tangent_mesh.normals[base + 2],
+            ];
+            let triangle_uvs = [
+                tangent_mesh.uvs[base],
+                tangent_mesh.uvs[base + 1],
+                tangent_mesh.uvs[base + 2],
+            ];
+            for vertex in 0..3 {
+                let tangent = tangent_mesh.tangents[base + vertex];
+                if length3([tangent[0], tangent[1], tangent[2]]) > 1.0e-6 {
+                    continue;
+                }
+                if let Some(fallback) = tangent_from_uv_frame(
+                    triangle_positions,
+                    triangle_normals[vertex],
+                    triangle_uvs,
+                ) {
+                    tangent_mesh.tangents[base + vertex] = fallback;
+                }
+            }
+        }
+    }
     Ok((
         tangent_mesh.positions,
         tangent_mesh.normals,
@@ -1528,6 +1626,51 @@ fn triangulate_uv_charts(
         tangent_mesh.tangents,
         chart_indices,
     ))
+}
+
+fn tangent_from_uv_frame(
+    positions: [[f32; 3]; 3],
+    normal: [f32; 3],
+    uvs: [[f32; 2]; 3],
+) -> Option<[f32; 4]> {
+    let edge_a = subtract3(positions[1], positions[0]);
+    let edge_b = subtract3(positions[2], positions[0]);
+    let uv_a = [uvs[1][0] - uvs[0][0], uvs[1][1] - uvs[0][1]];
+    let uv_b = [uvs[2][0] - uvs[0][0], uvs[2][1] - uvs[0][1]];
+    let uv_area = uv_a[0] * uv_b[1] - uv_a[1] * uv_b[0];
+    if !uv_area.is_finite() || uv_area.abs() <= 1.0e-8 {
+        return None;
+    }
+    let reciprocal = 1.0 / uv_area;
+    let tangent_basis = [
+        (edge_a[0] * uv_b[1] - edge_b[0] * uv_a[1]) * reciprocal,
+        (edge_a[1] * uv_b[1] - edge_b[1] * uv_a[1]) * reciprocal,
+        (edge_a[2] * uv_b[1] - edge_b[2] * uv_a[1]) * reciprocal,
+    ];
+    let bitangent_basis = [
+        (edge_b[0] * uv_a[0] - edge_a[0] * uv_b[0]) * reciprocal,
+        (edge_b[1] * uv_a[0] - edge_a[1] * uv_b[0]) * reciprocal,
+        (edge_b[2] * uv_a[0] - edge_a[2] * uv_b[0]) * reciprocal,
+    ];
+    let normal = normalize(normal);
+    let tangent = normalize(subtract3(
+        tangent_basis,
+        scale3(normal, dot3(normal, tangent_basis)),
+    ));
+    let bitangent = normalize(subtract3(
+        bitangent_basis,
+        scale3(normal, dot3(normal, bitangent_basis)),
+    ));
+    if !finite3(tangent) || !finite3(bitangent) || length3(tangent) <= 1.0e-6 {
+        return None;
+    }
+    let orientation = dot3(cross3(normal, tangent), bitangent);
+    let sign = if orientation.is_finite() && orientation < 0.0 {
+        -1.0
+    } else {
+        1.0
+    };
+    Some([tangent[0], tangent[1], tangent[2], sign])
 }
 
 struct MikkTriangleMesh {
@@ -2186,6 +2329,7 @@ fn write_glb(
                 "extras":{
                     "part_id":part.part_id,
                     "source_node_id":source.source_node_id,
+                    "lineage_source_node_ids":source.lineage_source_node_ids,
                     "operator_id":source.operator_id,
                     "material_zone_id":part.material_zone_id,
                     "solid":part.solid,
@@ -4280,6 +4424,365 @@ mod tests {
             .any(|id| id == "aggregate"));
     }
 
+    fn surface_patch_program() -> Value {
+        let control_points = (0..4)
+            .flat_map(|v| {
+                (0..4).map(move |u| {
+                    let x = -0.8 + u as f64 * 0.5333333333;
+                    let y = 1.2 + v as f64 * 0.4;
+                    let edge = (u as f64 - 1.5).abs() / 1.5;
+                    let crown = (1.0 - edge * edge) * 0.16;
+                    json!([x, y, crown])
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-surface-patch",
+            "representation_plan_sha256":"f".repeat(64),
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{
+                "max_nodes":4,
+                "max_triangles":10000,
+                "max_glb_bytes":67108864,
+                "max_worker_memory_bytes":536870912,
+                "max_runtime_ms":10000
+            },
+            "nodes":[{
+                "node_id":"chest-surface",
+                "operator_id":"forgecad.geometry.surface-patch@1",
+                "inputs":[],
+                "parameters":{
+                    "shape":"surface-patch",
+                    "control_points":control_points,
+                    "u_segments":8,
+                    "v_segments":8,
+                    "position_m":[0.0,0.0,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            }],
+            "part_outputs":[{
+                "part_id":"chest-surface",
+                "input_node_ids":["chest-surface"],
+                "material_zone_id":"zone-white-shell",
+                "solid":false
+            }]
+        });
+        program["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&program)));
+        program
+    }
+
+    #[test]
+    fn mcp010f_surface_patch_is_smooth_deterministic_and_explicitly_open() {
+        let program = surface_patch_program();
+        let first = compile_geometry_program(&program).expect("surface patch artifact");
+        let second = compile_geometry_program(&program).expect("surface patch repeat");
+        assert_eq!(first.glb, second.glb);
+        assert_eq!(first.triangle_count, 128);
+        let inspection = integrity::inspect_glb(&first.glb).expect("surface patch readback");
+        assert!(
+            inspection.hard_gate_passed,
+            "{:?}",
+            inspection.failure_codes
+        );
+        assert_eq!(inspection.boundary_edge_count, 0);
+        assert_eq!(inspection.non_manifold_edge_count, 0);
+        assert_eq!(inspection.part_bindings.len(), 1);
+        assert!(!inspection.part_bindings[0].solid);
+        assert_eq!(inspection.part_bindings[0].part_id, "chest-surface");
+
+        let mut invalid = program;
+        invalid["nodes"][0]["parameters"]["u_segments"] = json!(3);
+        invalid["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&invalid)));
+        assert!(compile_geometry_program(&invalid).is_err());
+    }
+
+    fn surface_shell_program() -> Value {
+        let mut program = surface_patch_program();
+        program["project_id"] = json!("project-surface-shell");
+        program["nodes"][0]["operator_id"] = json!("forgecad.geometry.surface-shell@1");
+        program["nodes"][0]["parameters"]["shape"] = json!("surface-shell");
+        program["nodes"][0]["parameters"]["thickness_m"] = json!(0.08);
+        program["part_outputs"][0]["solid"] = json!(true);
+        program["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&program)));
+        program
+    }
+
+    #[test]
+    fn mcp010f_surface_shell_is_watertight_deterministic_and_thickness_bounded() {
+        let program = surface_shell_program();
+        let first = compile_geometry_program(&program).expect("surface shell artifact");
+        let second = compile_geometry_program(&program).expect("surface shell repeat");
+        assert_eq!(first.glb, second.glb);
+        assert_eq!(first.triangle_count, 320);
+        let inspection = integrity::inspect_glb(&first.glb).expect("surface shell readback");
+        assert!(
+            inspection.hard_gate_passed,
+            "{:?}",
+            inspection.failure_codes
+        );
+        assert_eq!(inspection.boundary_edge_count, 0);
+        assert_eq!(inspection.non_manifold_edge_count, 0);
+        assert_eq!(inspection.part_bindings.len(), 1);
+        assert!(inspection.part_bindings[0].solid);
+
+        let mut invalid = program;
+        invalid["nodes"][0]["parameters"]["thickness_m"] = json!(0.00001);
+        invalid["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&invalid)));
+        assert!(compile_geometry_program(&invalid).is_err());
+    }
+
+    fn subd_cage_program(subdivision_levels: usize) -> Value {
+        let control_points = (0..3)
+            .flat_map(|v| {
+                (0..3).map(move |u| {
+                    let x = -0.9 + u as f64 * 0.9;
+                    let y = 1.0 + v as f64 * 0.55;
+                    let z = 0.12 * (1.0 - (u as f64 - 1.0).abs() * 0.35) + 0.06 * v as f64;
+                    json!([x, y, z])
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":format!("project-subd-cage-{subdivision_levels}"),
+            "representation_plan_sha256":"a".repeat(64),
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{
+                "max_nodes":4,
+                "max_triangles":10000,
+                "max_glb_bytes":67108864,
+                "max_worker_memory_bytes":536870912,
+                "max_runtime_ms":10000
+            },
+            "nodes":[{
+                "node_id":"subd-chest-cage",
+                "operator_id":"forgecad.geometry.subd-cage@1",
+                "inputs":[],
+                "parameters":{
+                    "shape":"subd-cage",
+                    "control_points":control_points,
+                    "u_points":3,
+                    "v_points":3,
+                    "subdivision_levels":subdivision_levels,
+                    "position_m":[0.0,0.0,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            }],
+            "part_outputs":[{
+                "part_id":"subd-chest-cage",
+                "input_node_ids":["subd-chest-cage"],
+                "material_zone_id":"zone-white-shell",
+                "solid":false
+            }]
+        });
+        program["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&program)));
+        program
+    }
+
+    #[test]
+    fn mcp010f_subd_cage_is_editable_deterministic_and_bounded() {
+        let level_one = subd_cage_program(1);
+        let first = compile_geometry_program(&level_one).expect("subd cage level one artifact");
+        let second = compile_geometry_program(&level_one).expect("subd cage level one repeat");
+        assert_eq!(first.glb, second.glb);
+        assert_eq!(first.triangle_count, 32);
+        let inspection = integrity::inspect_glb(&first.glb).expect("subd cage readback");
+        assert!(
+            inspection.hard_gate_passed,
+            "{:?}",
+            inspection.failure_codes
+        );
+        assert_eq!(inspection.part_bindings.len(), 1);
+        assert!(!inspection.part_bindings[0].solid);
+        assert!(compile_geometry_program(&subd_cage_program(2)).is_ok());
+
+        let mut invalid = level_one;
+        invalid["nodes"][0]["parameters"]["control_points"] = json!([
+            [-0.9, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.9, 1.0, 0.0],
+            [-0.9, 1.55, 0.0],
+            [0.0, 1.55, 0.0],
+            [0.9, 1.55, 0.0],
+            [-0.9, 2.1, 0.0],
+            [0.0, 2.1, 0.0]
+        ]);
+        invalid["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&invalid)));
+        assert!(compile_geometry_program(&invalid).is_err());
+    }
+
+    fn boolean_program(shape: &str) -> Value {
+        let mut program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-boolean",
+            "representation_plan_sha256":"e".repeat(64),
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{
+                "max_nodes":8,
+                "max_triangles":10000,
+                "max_glb_bytes":67108864,
+                "max_worker_memory_bytes":536870912,
+                "max_runtime_ms":10000
+            },
+            "nodes":[
+                {"node_id":"left","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[-0.25,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"right","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.25,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"boolean","operator_id":"forgecad.geometry.boolean@1","inputs":["left","right"],"parameters":{"shape":shape}}
+            ],
+            "part_outputs":[
+                {"part_id":"boolean-part","input_node_ids":["boolean"],"material_zone_id":"zone-black-mechanical","solid":true}
+            ]
+        });
+        let hash = canonical_hash(&program);
+        program["canonical_sha256"] = Value::String(hash);
+        program
+    }
+
+    #[test]
+    fn mcp010d_boolean_worker_compiles_real_union_difference_and_intersection() {
+        for shape in ["union", "difference", "intersection"] {
+            let program = boolean_program(shape);
+            let first = compile_geometry_program(&program).expect("Boolean compile");
+            let second = compile_geometry_program(&program).expect("Boolean deterministic compile");
+            assert_eq!(
+                first.glb, second.glb,
+                "Boolean {shape} is not deterministic"
+            );
+            assert!(first.triangle_count > 0);
+            assert!(first.triangle_count <= 192);
+            let inspection = integrity::inspect_glb(&first.glb).expect("Boolean readback");
+            assert!(
+                inspection.hard_gate_passed,
+                "{:?}",
+                inspection.failure_codes
+            );
+            assert!(inspection.source_node_ids.iter().any(|id| id == "boolean"));
+            let (root, _) = glb_root_and_bin_offset(&first.glb);
+            assert_eq!(
+                root["meshes"][0]["primitives"][0]["extras"]["lineage_source_node_ids"],
+                json!(["left", "right"])
+            );
+        }
+    }
+
+    fn curved_boolean_program(shape: &str) -> Value {
+        let mut program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-curved-boolean",
+            "representation_plan_sha256":"f".repeat(64),
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{
+                "max_nodes":8,
+                "max_triangles":50000,
+                "max_glb_bytes":67108864,
+                "max_worker_memory_bytes":536870912,
+                "max_runtime_ms":10000
+            },
+            "nodes":[
+                {"node_id":"profile-left","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-0.72,-0.50],[0.60,-0.50],[0.72,0.0],[0.60,0.50],[-0.72,0.50]],"depth_m":1.0,"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"profile-right","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-0.36,-0.36],[0.28,-0.36],[0.42,-0.06],[0.28,0.36],[-0.36,0.36]],"depth_m":0.72,"position_m":[0.35,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"boolean","operator_id":"forgecad.geometry.boolean@1","inputs":["profile-left","profile-right"],"parameters":{"shape":shape}}
+            ],
+            "part_outputs":[
+                {"part_id":"curved-boolean-part","input_node_ids":["boolean"],"material_zone_id":"zone-black-mechanical","solid":true}
+            ]
+        });
+        let hash = canonical_hash(&program);
+        program["canonical_sha256"] = Value::String(hash);
+        program
+    }
+
+    #[test]
+    fn mcp010d_boolean_worker_accepts_curved_mesh_operands_and_preserves_lineage() {
+        for shape in ["union", "difference", "intersection"] {
+            let program = curved_boolean_program(shape);
+            let first = compile_geometry_program(&program).expect("curved Boolean compile");
+            let second =
+                compile_geometry_program(&program).expect("curved Boolean deterministic compile");
+            assert_eq!(
+                first.glb, second.glb,
+                "curved Boolean {shape} is not deterministic"
+            );
+            assert!(first.triangle_count > 0);
+            let inspection = integrity::inspect_glb(&first.glb).expect("curved Boolean readback");
+            assert!(
+                inspection.hard_gate_passed,
+                "{shape}: {:?}",
+                inspection.failure_codes
+            );
+            assert!(inspection.source_node_ids.iter().any(|id| id == "boolean"));
+            let (root, _) = glb_root_and_bin_offset(&first.glb);
+            assert_eq!(
+                root["meshes"][0]["primitives"][0]["extras"]["lineage_source_node_ids"],
+                json!(["profile-left", "profile-right"])
+            );
+        }
+    }
+
+    fn panel_sphere_boolean_program(shape: &str) -> Value {
+        let mut program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-panel-sphere-boolean",
+            "representation_plan_sha256":"a".repeat(64),
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{
+                "max_nodes":8,
+                "max_triangles":100000,
+                "max_glb_bytes":67108864,
+                "max_worker_memory_bytes":536870912,
+                "max_runtime_ms":10000
+            },
+            "nodes":[
+                {"node_id":"chest-panel","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[1.66,1.12,0.68],"thickness_m":0.18,"bevel_m":0.12,"position_m":[0.0,1.98,0.04],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"residual-sphere","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"sphere","radius_m":0.13,"longitude_segments":16,"latitude_segments":8,"position_m":[0.0,1.98,0.08],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"residual-sphere-boolean","operator_id":"forgecad.geometry.boolean@1","inputs":["chest-panel","residual-sphere"],"parameters":{"shape":shape}}
+            ],
+            "part_outputs":[
+                {"part_id":"chest-shell","input_node_ids":["residual-sphere-boolean"],"material_zone_id":"zone-white-shell","solid":true}
+            ]
+        });
+        let hash = canonical_hash(&program);
+        program["canonical_sha256"] = Value::String(hash);
+        program
+    }
+
+    #[test]
+    fn mcp010f_boolean_residual_keeps_panel_sphere_tangents_valid() {
+        let program = panel_sphere_boolean_program("union");
+        let artifact = compile_geometry_program(&program).expect("panel-sphere Boolean compile");
+        let inspection = integrity::inspect_glb(&artifact.glb).expect("panel-sphere readback");
+        assert!(
+            inspection.hard_gate_passed,
+            "{:?}",
+            inspection.failure_codes
+        );
+        assert_eq!(inspection.tangent_handedness_error_count, 0);
+        assert!(inspection
+            .source_node_ids
+            .iter()
+            .any(|id| id == "residual-sphere-boolean"));
+    }
+
+    #[test]
+    fn mcp010d_boolean_contract_rejects_unsupported_shapes_and_arity() {
+        let mut invalid_shape = boolean_program("xor");
+        invalid_shape["canonical_sha256"] =
+            Value::String(canonical_hash(&without_hash(&invalid_shape)));
+        assert!(compile_geometry_program(&invalid_shape).is_err());
+
+        let mut invalid_arity = boolean_program("union");
+        invalid_arity["nodes"][2]["inputs"] = json!(["left"]);
+        invalid_arity["canonical_sha256"] =
+            Value::String(canonical_hash(&without_hash(&invalid_arity)));
+        assert!(compile_geometry_program(&invalid_arity).is_err());
+    }
+
     #[test]
     fn mcp010d_dag_and_operator_parameters_fail_closed() {
         let mut cycle = d_operator_program();
@@ -4673,7 +5176,7 @@ mod tests {
         assert_eq!(declared, canonical_hash(&Value::Object(without_hash)));
         assert_eq!(
             catalog["operators"].as_array().expect("operators").len(),
-            13
+            15
         );
         assert_eq!(
             catalog["operators"][0]["operator_id"],

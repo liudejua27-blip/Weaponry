@@ -1,0 +1,86 @@
+{
+  "build_cohort_sha256": null,
+  "camera_hash": "8cd20605a8b497eae82b7108338dc7201870b64994f3fc1cdc30850c7c84a535",
+  "candidate_confirmed": false,
+  "catalog_sha256": "419d8705249d0cd057452e6ae4151fa6bdf41870a089536b82c72bcc2d50b439",
+  "completed_stage": "evaluate",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-1aa91a5c1fb94292bb7e8e4bb837a786",
+  "proposal": {
+    "artifact_sha256": "f9636bfd4d8c44fd4d8d2f049e7d7a999875f7c62b7a181e7e3eeab21780e572",
+    "baseline_score": 5.642296286778,
+    "candidate_id": "candidate-80bb84c792c04228a164f3b9fdd9ba51",
+    "candidate_state_sha256": "202f44c1b4185749d725cadae33a85824d3cba17e837d18c6930689c390ad615",
+    "comparison_report_sha256": "e38c319c5221ba1f4ce351fa5f484766318ac2d90b2a3f986ad5e7096c0f6210",
+    "confirm_allowed": false,
+    "cross_view_evidence_sha256": null,
+    "geometry_program_sha256": "c80806ca3eb94918ce231285f7d71e7b931395b4eb0c2ef0e679b24d8ad4c32a",
+    "intent_object_sha256": "8c3a282530f6fd71d9cc023bd16f370fc043002df1825297d60442311a1357b3",
+    "intent_sha256": "1c84bf440a6177d697c04d34c7b87602d37a5acd3ccbacd2909e2f9cf873ff44",
+    "non_regressing": false,
+    "promotion": "rejected-regression",
+    "proposal_score": 5.6538052661239995,
+    "quality_report_sha256": "5be60879bfd0aa3f7d01469bf0a10356096530efeaf78f26755f32976f94ac20",
+    "render_set_sha256": "ea8058260f5e1c479e44eb8b046f8f44edc104d80fa0fae33cd170cba733ebfe",
+    "strict_improvement": false,
+    "visual_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "quality_claim": "NO_LIKENESS_PASS_CLAIM; ACTION_RUN_PROPOSAL_TRANSPORT_AND_GATE_ONLY",
+  "reference_id": "reference-282206509c354c148704b6c998219f61",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "replay_sha256": "5f7efd04bc916cfb8742d4155731c20914045dd9288edf77e3a3f72887507e9f",
+  "run_id": "design-action-run-real-chest-width",
+  "run_sha256": "5f7efd04bc916cfb8742d4155731c20914045dd9288edf77e3a3f72887507e9f",
+  "run_status": "completed",
+  "schema_version": "ForgeCADMCP010FDesignActionRealReferenceProbe@1",
+  "scope": "real authorized reference, one chest-shell Part, isolated Runtime/MCP/Worker process",
+  "session_evidence_sha256": "ff06535f8c0634a6bca48e7aa2a96380a6da3d9f8b546d76fd1104da4b9de19c",
+  "session_id": "design-session-real-action-run",
+  "source_artifact_sha256": "36cd20eb802261eb2f42017548487640cde7800e5ef8131d3882d4b2f8ac34fd",
+  "source_candidate_id": "candidate-73a00f68f0ba48dfb7fa4b64da3b84de",
+  "source_candidate_state_sha256": "1e4427da75064ba5146ace0d4cff27e1da2f6229657f3a2caac017ab8720771a",
+  "source_program_sha256": "e3e27323455c095d952b04d1a788bc3168a7bedb7391b112c49d26a612690c5f",
+  "source_quality_report_id": "quality-c-068dad3088ef49c6a1009c3a8a160513",
+  "source_quality_report_sha256": "ff06535f8c0634a6bca48e7aa2a96380a6da3d9f8b546d76fd1104da4b9de19c",
+  "source_visual_status": "QUALITY_TARGET_NOT_MET",
+  "stage_results": {
+    "compile": {
+      "hash": "36cd20eb802261eb2f42017548487640cde7800e5ef8131d3882d4b2f8ac34fd",
+      "reason": null,
+      "status": "completed"
+    },
+    "evaluate": {
+      "hash": "ff06535f8c0634a6bca48e7aa2a96380a6da3d9f8b546d76fd1104da4b9de19c",
+      "reason": null,
+      "status": "completed"
+    },
+    "prepare": {
+      "hash": "46c44849159b61b2afa30237365f1581eb6ded291c888eb6d582f09d84894da8",
+      "reason": null,
+      "status": "completed"
+    },
+    "readback": {
+      "hash": "d6700957d6487c92edfd080ab9f607e62044dcb6120f4d359ade5a16c5b865e3",
+      "reason": null,
+      "status": "completed"
+    },
+    "render": {
+      "hash": "66cf1ebb7a0eb17c487231ee4d799a1cb63d6ee89ed271c78b43bd306a1a5e18",
+      "reason": null,
+      "status": "completed"
+    }
+  },
+  "status": "PASS_ACTION_RUN_REAL_REFERENCE",
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

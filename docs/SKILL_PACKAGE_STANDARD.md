@@ -109,7 +109,7 @@ MVP 不建设第三方插件市场，也不让 distribution signing 阻塞 3D ve
 | 2 | `subject-profile` | typed 类别、比例、材质线索和不确定项 |
 | 3 | `semantic-assembly` | Assembly/Part/MaterialZone 稳定层级 |
 | 4 | `silhouette-blockout` | 当前用 bounded box/cylinder/sphere/transform 做轮廓 blockout；profile/sweep 仅为声明式后续目标 |
-| 5 | `hard-surface-detail@0.2.0` | MCP010D 已实现 profile/loft/revolve/sweep/transform/mirror/array/panel/vent/joint/part-output；boolean/Manifold 保持 unavailable，Bundle 不携带 executable |
+| 5 | `hard-surface-detail@0.2.0` | MCP010D 已实现 profile/loft/revolve/sweep/transform/mirror/array/boolean（同一 Part bounded union/difference/intersection）/panel/vent/joint/part-output；Manifold C API 由 product-owned isolated Worker 消费，Bundle 仍不携带 executable |
 | 6 | `mesh-integrity` | 几何硬门、source map 和 GLB readback |
 | 7 | `uv-pbr` | UV、tangent、metallic-roughness、normal/AO/emissive |
 | 8 | `render-evidence` | 固定相机 beauty/silhouette/normal/part-ID |

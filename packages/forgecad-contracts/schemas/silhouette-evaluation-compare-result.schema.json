@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-evaluation-compare-result.schema.json",
+  "title": "SilhouetteEvaluationCompareResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "objective_sha256",
+    "global_target_sha256",
+    "part_target_sha256",
+    "part_id",
+    "camera_hash",
+    "baseline_candidate_id",
+    "candidates",
+    "winner_candidate_id",
+    "strict_improvement",
+    "promotion_status",
+    "status",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SilhouetteEvaluationCompareResult@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "objective_sha256": {"$ref": "#/$defs/sha256"},
+    "global_target_sha256": {"$ref": "#/$defs/sha256"},
+    "part_target_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/id"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "baseline_candidate_id": {"$ref": "#/$defs/id"},
+    "candidates": {"type": "array", "minItems": 2, "maxItems": 8, "items": {"$ref": "#/$defs/candidate"}},
+    "winner_candidate_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "strict_improvement": {"type": "boolean"},
+    "promotion_status": {"enum": ["ready", "blocked_global_or_part_objective"]},
+    "status": {"enum": ["ready", "blocked"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metrics": {"$ref": "https://forgecad.local/contracts/silhouette-candidate-compare-result.schema.json#/$defs/metrics"},
+    "part_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "part_boundary_error_px", "part_boundary_f1_4px", "part_silhouette_iou", "part_sdf_chamfer_px"],
+      "properties": {
+        "status": {"enum": ["ready", "missing_model_part"]},
+        "part_boundary_error_px": {"type": "number", "minimum": 0, "maximum": 512},
+        "part_boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1},
+        "part_silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "part_sdf_chamfer_px": {"type": "number", "minimum": 0}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "global_metrics", "part_metrics", "global_non_regressing", "part_strict_improvement", "eligible_for_part_promotion"],
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/id"},
+        "global_metrics": {"$ref": "#/$defs/metrics"},
+        "part_metrics": {"$ref": "#/$defs/part_metrics"},
+        "global_non_regressing": {"type": "boolean"},
+        "part_strict_improvement": {"type": "boolean"},
+        "eligible_for_part_promotion": {"type": "boolean"}
+      }
+    }
+  }
+}

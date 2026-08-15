@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-evaluation-objective.schema.json",
+  "title": "SilhouetteEvaluationObjective",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "baseline_candidate_id",
+    "reference_id",
+    "reference_sha256",
+    "global_target_sha256",
+    "part_target_sha256",
+    "part_id",
+    "source_part_error_sha256",
+    "camera_hash",
+    "camera_canonical_sha256",
+    "global_metric_priority",
+    "part_metric_priority",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SilhouetteEvaluationObjective@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "baseline_candidate_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "global_target_sha256": {"$ref": "#/$defs/sha256"},
+    "part_target_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/id"},
+    "source_part_error_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "camera_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "global_metric_priority": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metric", "direction"],
+        "properties": {
+          "metric": {"enum": ["boundary_f1_4px", "silhouette_iou", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "part_region_error", "sdf_chamfer_px", "complexity_penalty"]},
+          "direction": {"enum": ["max", "min"]}
+        }
+      }
+    },
+    "part_metric_priority": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metric", "direction"],
+        "properties": {
+          "metric": {"enum": ["part_boundary_error_px", "part_boundary_f1_4px", "part_silhouette_iou", "part_sdf_chamfer_px"]},
+          "direction": {"enum": ["max", "min"]}
+        }
+      }
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

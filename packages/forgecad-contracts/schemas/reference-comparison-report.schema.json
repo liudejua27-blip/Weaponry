@@ -13,6 +13,7 @@
     "reference_id": {"$ref": "#/$defs/identifier"},
     "reference_sha256": {"$ref": "#/$defs/sha256"},
     "render_set_hash": {"$ref": "#/$defs/sha256"},
+    "view_id": {"$ref": "#/$defs/identifier"},
     "camera_hash": {"$ref": "#/$defs/sha256"},
     "mask": {
       "type": "object",

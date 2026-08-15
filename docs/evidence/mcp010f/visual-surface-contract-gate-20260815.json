@@ -1,0 +1,36 @@
+{
+  "schema_version": "ForgeCADVisualSurfaceContractGate@1",
+  "status": "PASS_TYPED_BOUNDARY_WITH_NEGATIVE_GATES",
+  "scope": "source/runtime/mcp",
+  "request_schema": "VisualSurfaceRequest@1",
+  "result_schema": "VisualSurfaceResult@1",
+  "mcp_tool": "visual_surface_get",
+  "runtime_method": "visual_surface_get",
+  "read_only": true,
+  "backend": "candidate-bound-aov-diagnostics@1",
+  "readback_schema": "VisualSurfaceReadback@1",
+  "readback_status": "PASS_CANDIDATE_BOUND_MASK_EDGE_ROI_AOV_READBACK",
+  "critic_binding": "DesignCriticReport@1.visual_surface carries readback canonical hash and lineage binding",
+  "cadfit_binding": "OptimizationResidual@1 revalidates ready VisualSurface readback before typed Boolean/CADFit evaluation",
+  "surface_program_status": "NOT_RUN",
+  "target_binding": "explicit request/result/lineage target_sha256",
+  "supported_signals": ["silhouette", "boundary", "depth", "normal", "part-id", "material-id"],
+  "unsupported_signals": ["curvature", "feature-line"],
+  "negative_gates": [
+    {"case": "closed-request-extra-field", "status": "PASS_REJECTED"},
+    {"case": "duplicate-request-signal", "status": "PASS_REJECTED"},
+    {"case": "cross-candidate-lineage", "status": "PASS_REJECTED"},
+    {"case": "expected-binding-mismatch", "status": "PASS_FAIL_CLOSED"}
+  ],
+  "limitations": [
+    "This receipt proves the typed candidate/reference/artifact/RenderSet/camera/quality binding boundary and the read-only CAS mask/edge/ROI/AOV readback path.",
+    "The Visual Surface backend does not execute SubD, curvature, feature-line, or arbitrary mesh analysis.",
+    "The result cannot set quality_hard_gate_passed, create a candidate/version, or write CAS/SQLite.",
+    "Visual likeness, PBR likeness, human review, packaged UI, export/restart hash, and 360 gates remain independent."
+  ],
+  "commands": [
+    "python3 scripts/check_visual_surface_contract.py",
+    "python3 scripts/check_forgecad_contracts.py",
+    "python3 scripts/check_mcp010f_stage0_truth.py"
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-evaluation.schema.json",
+  "title": "ForgeCAD Optimization Evaluation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evaluation_id", "job_id", "sequence", "fidelity", "resolution", "program_sha256", "render_sha256", "metrics_sha256", "metrics", "loss", "complexity_penalty", "triangle_count", "valid", "duration_ms", "pass_hashes", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "OptimizationEvaluation@1"},
+    "evaluation_id": {"$ref": "#/$defs/id"},
+    "job_id": {"$ref": "#/$defs/id"},
+    "sequence": {"type": "integer", "minimum": 1, "maximum": 64},
+    "fidelity": {"enum": ["coarse", "mid", "final"]},
+    "resolution": {"enum": [128, 256, 512]},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation_objective_sha256": {"$ref": "#/$defs/sha256"},
+    "render_sha256": {"$ref": "#/$defs/sha256"},
+    "metrics_sha256": {"$ref": "#/$defs/sha256"},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "part_region_error", "sdf_chamfer_px"],
+      "properties": {
+        "silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1},
+        "bbox_edge_error": {"type": "number", "minimum": 0, "maximum": 1},
+        "centroid_error": {"type": "number", "minimum": 0, "maximum": 1},
+        "landmark_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "landmark_nme": {"type": "number", "minimum": 0, "maximum": 1},
+        "part_region_error": {"type": "number", "minimum": 0, "maximum": 1},
+        "sdf_chamfer_px": {"type": "number", "minimum": 0, "maximum": 512}
+      }
+    },
+    "part_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "part_boundary_error_px", "part_boundary_f1_4px", "part_silhouette_iou", "part_sdf_chamfer_px"],
+      "properties": {
+        "status": {"enum": ["ready", "missing_model_part"]},
+        "part_boundary_error_px": {"type": "number", "minimum": 0, "maximum": 512},
+        "part_boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1},
+        "part_silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "part_sdf_chamfer_px": {"type": "number", "minimum": 0}
+      }
+    },
+    "loss": {"type": "number", "minimum": 0, "maximum": 1000000},
+    "complexity_penalty": {"type": "number", "minimum": 0, "maximum": 1},
+    "triangle_count": {"type": "integer", "minimum": 1, "maximum": 2000000},
+    "valid": {"type": "boolean"},
+    "duration_ms": {"type": "integer", "minimum": 0, "maximum": 120000},
+    "pass_hashes": {
+      "type": "array",
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pass", "sha256", "width", "height"],
+        "properties": {
+          "pass": {"type": "string", "minLength": 1, "maxLength": 32},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "width": {"enum": [128, 256, 512]},
+          "height": {"enum": [128, 256, 512]}
+        }
+      }
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

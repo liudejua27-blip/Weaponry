@@ -1,0 +1,52 @@
+{
+  "schema_version": "ForgeCADRuntimeParameterPatchSurfaceControlPointsReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-15",
+  "status": "PASS_TYPED_SURFACE_ACTIONRUN_BOUNDARY",
+  "scope": {
+    "runtime_method": "design_action_run_prepare",
+    "strategy": "surface-control-points-v1",
+    "supported_operator_ids": [
+      "forgecad.geometry.subd-cage@1",
+      "forgecad.geometry.surface-patch@1",
+      "forgecad.geometry.surface-shell@1"
+    ],
+    "parameter_id_grammar": "control-point-{index}-{x|y|z}",
+    "max_parameter_changes": 8,
+    "source_candidate_mutated": false,
+    "version_created": false,
+    "runtime_write": false,
+    "persistent_user_data_touched": false
+  },
+  "positive": {
+    "test": "surface_control_point_patch_materializes_and_rejects_out_of_range_points",
+    "operator_id": "forgecad.geometry.surface-shell@1",
+    "target_part_id": "chest-shell",
+    "parameter_id": "control-point-5-z",
+    "pipeline": ["prepare", "compile", "readback", "render", "evaluate"],
+    "result": "completed",
+    "review_candidate_created": true,
+    "control_point_readback": 0.22,
+    "confirm_allowed": false
+  },
+  "negative": {
+    "test": "surface_control_point_patch_materializes_and_rejects_out_of_range_points",
+    "parameter_id": "control-point-99-z",
+    "result": "blocked",
+    "blocked_stage": "evaluate",
+    "source_candidate_unchanged": true,
+    "failure_policy": "fail-closed"
+  },
+  "verification": {
+    "runtime_test_command": "CARGO_TARGET_DIR=/tmp/forgecad-surface-action-test-runtime script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime surface_control_point_patch_materializes_and_rejects_out_of_range_points --offline",
+    "mcp_test_command": "CARGO_TARGET_DIR=/tmp/forgecad-surface-action-test-mcp script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp repair_proposal_schema_exposes_runtime_owned_parameter_patch_variant --offline",
+    "geometry_worker": "product-owned bounded GeometryProgram@2 worker",
+    "quality_claim": "structural/readback proposal boundary only"
+  },
+  "limitations": [
+    "This receipt does not prove real-reference likeness or high-quality visual approval.",
+    "MaterialZone/UV-PBR execution, human review, export/restart hash and HQ_360 remain independent gates.",
+    "The source candidate remains immutable and no user confirmation or version promotion is performed."
+  ],
+  "canonical_sha256": "9f1f3934243ec23a41fc4103a5de82a05204e1f4383b222f9c15492113c8c274"
+}

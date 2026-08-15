@@ -13,6 +13,16 @@
     "read_only": {"const": true},
     "project_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
     "selected_reference_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/nullable_identifier"},
+    "authoring_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "canvas_sha256", "canvas"],
+      "properties": {
+        "status": {"const": "observed"},
+        "canvas_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
+        "canvas": {"$ref": "https://forgecad.local/contracts/reference-canvas.schema.json"}
+      }
+    },
     "references": {
       "type": "array",
       "maxItems": 64,

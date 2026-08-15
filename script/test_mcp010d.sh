@@ -24,4 +24,5 @@ CARGO_TARGET_DIR="$TARGET_DIR" \
 python3 "$PROJECT_ROOT/scripts/probe_mcp010d_raw_stdio.py" \
   --mcp "$TARGET_DIR/debug/forgecad-mcp" \
   --runtime "$TARGET_DIR/debug/forgecad-runtime" \
-  --data-root "$DATA_ROOT"
+  --data-root "$DATA_ROOT" \
+  --evidence "$PROJECT_ROOT/docs/evidence/mcp010d/raw-stdio-subd-cage-20260815.json"

@@ -290,7 +290,11 @@ def main() -> int:
             and candidate_plan.get("candidate_id") == candidate_id,
             "candidate-bound DesignStagePlan was incomplete",
         )
-        evidence_sha256 = observed["canonical_sha256"]
+        # Durable session/checkpoint evidence must remain stable across a
+        # rebuilt read-only projection. The candidate state hash is one of the
+        # Runtime-owned observation bindings and does not depend on ephemeral
+        # projection fields such as the critic envelope.
+        evidence_sha256 = candidate_state_sha256
         camera_hash = canonical_hash(
             {
                 "schema_version": "CameraCalibrationRef@1",

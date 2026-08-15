@@ -453,6 +453,29 @@ pub struct CandidateConfirmRequest {
     pub idempotency_key: String,
 }
 
+/// Explicit approval envelope for promoting a multi-view proposal.  The
+/// legacy CandidateConfirmRequest intentionally cannot consume a
+/// CrossViewEvidenceBundle; this request keeps the session/canvas/bundle
+/// binding visible at the transaction boundary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrossViewPromotionRequest {
+    pub project_id: String,
+    pub session_id: String,
+    pub source_candidate_id: String,
+    pub candidate_id: String,
+    pub bundle_sha256: String,
+    pub base_version_id: Option<String>,
+    pub prepared_object_id: String,
+    pub prepared_object_sha256: String,
+    pub quality_report_id: String,
+    pub approved: bool,
+    pub approval_receipt_id: String,
+    pub approval_summary: String,
+    pub approval_session_id: String,
+    pub approval_expires_at: String,
+    pub idempotency_key: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateRejectRequest {
     pub project_id: String,
@@ -481,6 +504,106 @@ pub struct CandidateConfirmResult {
     pub approval_receipt_id: String,
     pub request_sha256: String,
     pub replayed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrossViewPromotionResult {
+    pub schema_version: String,
+    pub project_id: String,
+    pub session_id: String,
+    pub source_candidate_id: String,
+    pub candidate_id: String,
+    pub bundle_sha256: String,
+    pub version_id: String,
+    pub snapshot_id: String,
+    pub approval_receipt_id: String,
+    pub request_sha256: String,
+    pub replayed: bool,
+}
+
+/// Explicit approval envelope for consuming a Runtime-owned RepairApplyIntent
+/// and confirming its already-validated single-view proposal candidate.
+/// Multi-view intents remain bound to CrossViewPromotionRequest.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepairApplyConfirmRequest {
+    pub project_id: String,
+    pub session_id: String,
+    pub candidate_id: String,
+    pub proposal_candidate_id: String,
+    pub run_id: String,
+    pub apply_intent_object_sha256: String,
+    pub apply_intent_canonical_sha256: String,
+    pub approved: bool,
+    pub approval_receipt_id: String,
+    pub approval_summary: String,
+    pub approval_expires_at: String,
+    pub approval_session_id: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepairApplyConfirmResult {
+    pub schema_version: String,
+    pub project_id: String,
+    pub session_id: String,
+    pub candidate_id: String,
+    pub source_candidate_id: String,
+    pub proposal_candidate_id: String,
+    pub run_id: String,
+    pub apply_intent_object_sha256: String,
+    pub apply_intent_canonical_sha256: String,
+    pub version_id: String,
+    pub snapshot_id: String,
+    pub approval_receipt_id: String,
+    pub request_sha256: String,
+    pub source_candidate_unchanged: bool,
+    pub proposal_candidate_confirmed: bool,
+    pub active_design_state_mutated: bool,
+    pub replayed: bool,
+    pub canonical_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DesignCompositionRequest {
+    pub project_id: String,
+    pub session_id: String,
+    pub candidate_id: String,
+    pub composition_id: String,
+    pub requested_stage: String,
+    pub actions: Vec<Value>,
+    pub input_sha256: String,
+    pub approved: bool,
+    pub approval_receipt_id: String,
+    pub approval_summary: String,
+    pub approval_expires_at: String,
+    pub approval_session_id: Option<String>,
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DesignCompositionResult {
+    pub schema_version: String,
+    pub composition_id: String,
+    pub session_id: String,
+    pub project_id: String,
+    pub candidate_id: String,
+    pub requested_stage: String,
+    pub input_sha256: String,
+    pub job_id: String,
+    pub job_status: String,
+    pub job_progress: u8,
+    pub status: String,
+    pub execution_mode: String,
+    pub steps: Vec<Value>,
+    pub action_runs: Vec<Value>,
+    pub completed_count: usize,
+    pub next_action_index: Option<usize>,
+    pub aggregate: Value,
+    pub composition_proposal: Value,
+    pub failure_recovery: Value,
+    pub runtime_write: bool,
+    pub persistent_user_data_touched: bool,
+    pub canonical_sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

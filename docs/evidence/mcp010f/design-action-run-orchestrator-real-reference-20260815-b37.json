@@ -1,0 +1,83 @@
+{
+  "build_cohort_sha256": "b37f7116fdab4ec6ea1a57b75bbb922addf3d5ef2d32c51562d5e12aa7cdfe2f",
+  "camera_hash": "35e938f51b4912305d75f16e98e2e65dda176dd88da48e72f491e85cfd487fdd",
+  "candidate_confirmed": false,
+  "catalog_sha256": "2a26cf3e3589381f57b26b98269bc7d29f6cb4a93cbbd72ecceae424ec5fb79c",
+  "completed_stage": "render",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "orchestrator": {
+    "batch_id": "design-stage-batch-real-reference",
+    "batch_sha256": "fa7aafcbba96d48206f856c113023a3b5eec2c712b6be6467312b1bc7a8a93ab",
+    "completed_count": 1,
+    "execution_mode": "independent-reviewable-actions",
+    "job_status": "failed",
+    "next_action_index": 0,
+    "quality_claim": "NO_LIKENESS_PASS_CLAIM; REAL_REFERENCE_STAGE_ORCHESTRATOR_GATE_ONLY",
+    "replay_sha256": "fa7aafcbba96d48206f856c113023a3b5eec2c712b6be6467312b1bc7a8a93ab",
+    "source_candidate_unchanged": true,
+    "status": "blocked",
+    "version_count": 0
+  },
+  "persistent_user_data_touched": false,
+  "preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-20dee04ec3ac42ce93d7a2b4ace6f4fd",
+  "proposal": null,
+  "quality_claim": "NO_LIKENESS_PASS_CLAIM; ACTION_RUN_PROPOSAL_TRANSPORT_AND_GATE_ONLY",
+  "reference_id": "reference-73f101d4517f4c7c92c525b826a868f0",
+  "reference_sha256": "946b1be7e39a7e88ae1ac2be9b3218aad3cf08a9b59293d0a7e170f769d45f80",
+  "repair_probe_gate": "repair-proposal-failed",
+  "repair_probe_status": "blocked",
+  "replay_sha256": "ea0da9d411283eb13f857f1340b2a73ff7ce274058ee33ee3f7e039cbea5e1f4",
+  "run_id": "design-action-run-real-chest-width",
+  "run_sha256": "ea0da9d411283eb13f857f1340b2a73ff7ce274058ee33ee3f7e039cbea5e1f4",
+  "run_status": "blocked",
+  "schema_version": "ForgeCADMCP010FDesignActionRealReferenceProbe@1",
+  "scope": "real authorized reference, one chest-shell Part, isolated Runtime/MCP/Worker process",
+  "session_evidence_sha256": "12199324d7e2ec5903e3346c5fd8fac47a1f62a12b090943216cc6022d64c885",
+  "session_id": "design-session-real-action-run",
+  "source_artifact_sha256": "f03b18bafa00b1dcd8997e98ddf178e0464cc39a7a042563f3850255f56e4e5f",
+  "source_candidate_id": "candidate-2a4493ccd8244834b21ac7b2dc594862",
+  "source_candidate_state_sha256": "6809888fd555e57d8a311d634202385f3297cabde20cf27bd94a9c5526eec256",
+  "source_program_sha256": "b78cf27243638ad7aa231fcd681214c308e3220f3619587b7be3059badea028f",
+  "source_quality_report_id": "quality-c-0cad45b9482d4d48892fdfbad718cde0",
+  "source_quality_report_sha256": "12199324d7e2ec5903e3346c5fd8fac47a1f62a12b090943216cc6022d64c885",
+  "source_visual_status": "QUALITY_TARGET_NOT_MET",
+  "stage_results": {
+    "compile": {
+      "hash": "f03b18bafa00b1dcd8997e98ddf178e0464cc39a7a042563f3850255f56e4e5f",
+      "reason": null,
+      "status": "completed"
+    },
+    "evaluate": {
+      "hash": null,
+      "reason": "repair-proposal-failed",
+      "status": "blocked"
+    },
+    "prepare": {
+      "hash": "5f7b25bc9c8859498fa66adf0fbfea44d5125c5ddd5acd8e85616a81aaef7ad0",
+      "reason": null,
+      "status": "completed"
+    },
+    "readback": {
+      "hash": "1768a8e86205eed3fb35a009c71f50ef2d5d6e53c3474fa315b24d8a7e8427ab",
+      "reason": null,
+      "status": "completed"
+    },
+    "render": {
+      "hash": "e5dc8c5da6701ec4c347c2ef242be1a921acca280d6844167f3a07d0704ec5e5",
+      "reason": null,
+      "status": "completed"
+    }
+  },
+  "status": "PASS_ACTION_RUN_REAL_REFERENCE",
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

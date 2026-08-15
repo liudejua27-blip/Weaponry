@@ -1,11 +1,15 @@
 # ForgeCAD Runtime Viewer
 
+2026-08-15 Codex-only 入口收口：`apps/desktop/src/App.tsx` 现在只挂载 `RuntimeViewer`，不再提供本地图片上传、聊天式需求输入或断开 Runtime 的“准备生成/让 Codex 检查”假动作；参考附件、设计意图、审批和永久写入仍由 Codex → MCP → Runtime 驱动。新增 `scripts/check_mcp010f_viewer.py` 对 App 入口做负向检查；这只修正产品边界，不升级任何视觉质量、确认或导出 Gate。
+
+2026-08-15 最新源代码覆盖：当前为 120 Schema、38 read + 30 opt-in write = 68 tools。Viewer 仍只读；新增 `visual_surface_get` 只返回 candidate-bound VisualSurfaceResult@1 诊断投影，并可展示同一 RenderSet 的 `VisualSurfaceReadback@1` mask/edge/ROI/AOV 证据，不增加 Viewer 写权限；`repair_apply_confirm` 不向 Viewer 增加写权限，仅由 Runtime 消费单视图 apply intent；`design_action_optimization_proposal_prepare` 生成的候选也只通过 Viewer read model 审查，不增加 Viewer 写权限，多视图仍由 `cross_view_promotion_confirm` 处理。合同/negative gate、真实 CAS readback focused test 与 Critic/CADFit binding 已通过，Viewer/视觉 Gate 不因此升级。
+
 版本：2026-08-14
-状态：当前源码口径为 100 Schema、35 read + 21 opt-in write = 56；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。第一阶段又接入 Runtime-authenticated Agentic projection，Viewer 可归一化显示 stage/gate/action/evidence hash，并按 project/candidate 读取 durable DesignSession/Checkpoint read model；唯一 `in_progress` 为 `FGC-MCP010F`。provisional observation 的 packaged Viewer binding、正式 VoiceOver、真人/PBR/360 与发布级 packaged E2E 仍 `NOT_RUN/BLOCKED`；Viewer 不提供 durable 写入，单动作 orchestrator 与 Repair 应用尚未实现。
+状态：当前源码口径为 118 Schema、37 read + 30 opt-in write = 67；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。第一阶段又接入 Runtime-authenticated Agentic projection，Viewer 可归一化显示 stage/gate/action/evidence hash，并按 project/candidate 读取 durable DesignSession/Checkpoint read model；逐视图 Visual Evidence inventory 会对未绑定 view 显式显示 `unknown/not-run`，已新增 hash-bound `CrossViewEvidenceBundle@1` 及跨视图 Promotion fail-closed boundary；唯一 `in_progress` 为 `FGC-MCP010F`。current-cohort provisional observation 的 packaged Viewer CLI read-model binding 已通过，但正式 VoiceOver、真人/PBR/360 与发布级 packaged UI E2E 仍 `NOT_RUN/BLOCKED`；Viewer 不提供 durable 写入，Runtime 已有 bounded single-action geometry ActionRun、独立 stage batch、带 `cumulative-program` 合并准备的 composition proposal、`design_action_optimization_proposal_prepare` 独立 CADFit review-candidate continuation、`repair_apply_prepare` CAS-backed apply-intent 和显式 promotion transaction boundary，但 positive merge、Repair 实际应用、跨视图同 cohort conformance 和 promotion 正向成功仍未完成。
 
-Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
+Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；current-cohort packaged Viewer CLI read-model 已绑定 project/candidate/artifact/reference/render-set/comparison lineage，但正式 UI/accessibility E2E 未运行。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
 
-<!-- forgecad-stage0: schemas=101 schema_set_sha256=a48a823ce7d51b214978c966b4cfb27243857f7e6cf594b7c9f4ec47ad1a0c1e read_tools=35 write_tools=21 total_tools=56 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json latest_completed=real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json -->
+<!-- forgecad-stage0: schemas=123 schema_set_sha256=583fd0d2615f09e66d16c58fca8d4ab60f1856d1de427b5b9e390c8c8b137f67 read_tools=40 write_tools=30 total_tools=70 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 ## 1. 产品角色
 
@@ -76,6 +80,7 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 ### 5.1 MCP010F 当前实现与剩余门
 
 - 已实现 source surface：reference/render split、透明 overlay、flicker、diff heatmap；
+- 已实现 Runtime/MCP read-only surface：`visual_surface_get` 返回 candidate-bound `VisualSurfaceResult@1` 与 `VisualSurfaceReadback@1` 诊断投影；从同一 `RenderSet@2`/CAS 解码九个 AOV、mask、4px edge/SDF 和 Part-ID ROI，并从同一已通过 ArtifactReadback@2 的 candidate GLB 提供 bounded mesh-derived curvature/feature-line summary；不创建 candidate/version，不设置质量 Gate；SubD/NURBS principal curvature、zebra 和真人视觉门仍未实现；
 - 已实现 source surface：beauty/silhouette/depth/normal/AO/part-ID/material-ID/wireframe/UV-stretch 九 AOV；
 - 已实现 ephemeral surface：Part/MaterialZone 筛选、临时 explosion、轮廓画布、hash-bound 草图复制与只读 correction queue；
 - 已有证据：TypeScript/Vite/Tauri source Gate、packaged CLI read-model、原生窗口以及 AOV/Home/End/overlay/flicker/轮廓/热图/爆炸图核心控件 smoke；
@@ -96,7 +101,7 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 - Critic issue 列表和单 Part/MaterialZone repair intent；
 - checkpoint/version/candidate 关系。
 
-当前已实现的是 source/read-only projection surface，真实 Runtime 的 scene/stage 嵌套只读 projection conformance 也已有独立回执，但不是完整 durable target。DesignSession/Checkpoint 虽已具备受批准的持久化 readback，跨阶段写入 orchestrator、durable/reference/DesignSpec 完整 producer、Critic/Repair 执行、同 observation packaged binding 和正式无障碍/真人门仍为 `NOT_RUN` 或后续任务。在这些 Gate 关闭前，Viewer 只能把投影标为可重建观察，不能把本地 UI 推导成 DesignSession 真值。
+当前已实现的是 source/read-only projection surface，真实 Runtime 的 scene/stage 嵌套只读 projection conformance 也已有独立回执，但不是完整 durable target。DesignSession/Checkpoint 虽已具备受批准的持久化 readback，显式 bounded authoring_context 与 primary-form/secondary-structure/tertiary-detail proposal 也已进入 Runtime，但跨阶段写入 orchestrator、跨视图质量评估、MaterialZone/UV-PBR/Repair 应用、同 observation packaged binding 和正式无障碍/真人门仍为 `NOT_RUN` 或后续任务。在这些 Gate 关闭前，Viewer 只能把投影标为可重建观察，不能把本地 UI 推导成 DesignSession 真值。
 
 ### 5.3 2026-08-14 前端交互与诊断加固
 

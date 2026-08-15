@@ -1,0 +1,22 @@
+{
+  "schema_version": "ForgeCADMCP010FDesignActionRunRestartReadback@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_ACTION_RUN_RESTART_READBACK",
+  "preflight": {
+    "schema_version": "SkillGetResult@1",
+    "skill_id": "ponytail-preflight",
+    "version": "0.1.0"
+  },
+  "session_id": "design-session-real-action-run",
+  "session_canonical_sha256": "f83f2f52e9914e22b7bb54fe57deaf48008873fc20e43ba50c77ba7f4bde4897",
+  "run_id": "design-action-run-real-chest-width",
+  "run_sha256": "5f7efd04bc916cfb8742d4155731c20914045dd9288edf77e3a3f72887507e9f",
+  "run_status": "completed",
+  "readback_scope": "new Runtime process and new MCP stdio session over the persisted isolated SQLite/CAS state",
+  "quality_claim": "NO_LIKENESS_PASS_CLAIM; durable ActionRun readback only",
+  "confirm_allowed": false,
+  "candidate_confirmed": false,
+  "version_count": 0,
+  "human_review": "NOT_RUN",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+}

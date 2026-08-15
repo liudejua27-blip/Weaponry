@@ -249,7 +249,23 @@ def main() -> int:
 
         listed = client.request("tools/list")
         tools = listed.get("result", {}).get("tools")
-        require(isinstance(tools, list) and len(tools) == 56, "C source tool manifest did not expose 35 read + 21 write tools")
+        require(isinstance(tools, list), "C source tool manifest was not a list")
+        read_tool_count = sum(
+            1
+            for tool in tools
+            if isinstance(tool, dict)
+            and tool.get("annotations", {}).get("readOnlyHint") is True
+        )
+        write_tool_count = sum(
+            1
+            for tool in tools
+            if isinstance(tool, dict)
+            and tool.get("annotations", {}).get("readOnlyHint") is not True
+        )
+        require(
+            len(tools) == 65 and read_tool_count == 37 and write_tool_count == 28,
+            "C source tool manifest did not expose current 37 read + 28 write tools",
+        )
         render_tool = next((tool for tool in tools if tool.get("name") == "render_pass_get"), None)
         require(isinstance(render_tool, dict) and render_tool.get("annotations", {}).get("readOnlyHint") is True, "render_pass_get was not read-only")
 
@@ -491,7 +507,9 @@ def main() -> int:
             "task_id": "FGC-MCP010C",
             "status": "PASS",
             "protocol_version": MCP_PROTOCOL_VERSION,
-            "tool_count": 56,
+            "tool_count": len(tools),
+            "read_tool_count": read_tool_count,
+            "write_tool_count": write_tool_count,
             "ponytail_preflight": "PASS",
             "fixed_renderer": "512x512-perspective-zbuffer-deterministic",
             "aov_count": 9,

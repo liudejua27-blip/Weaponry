@@ -367,10 +367,44 @@ def require(condition: bool, message: str) -> None:
         raise GateFailure(message)
 
 
+def read_ponytail_preflight(client: McpClient) -> dict[str, str]:
+    """Read the mandatory first-party planning Skill before other Skill calls."""
+    result = client.tool(
+        "skill_get",
+        {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+    )
+    require(isinstance(result, dict), "ponytail preflight returned no typed result")
+    skill = result.get("skill")
+    knowledge = result.get("knowledge")
+    require(
+        isinstance(skill, dict)
+        and skill.get("skill_id") == "ponytail-preflight"
+        and skill.get("version") == "0.1.0"
+        and isinstance(skill.get("canonical_sha256"), str)
+        and len(skill["canonical_sha256"]) == 64,
+        "ponytail preflight manifest was not verified",
+    )
+    require(
+        isinstance(knowledge, dict)
+        and isinstance(knowledge.get("canonical_sha256"), str)
+        and len(knowledge["canonical_sha256"]) == 64
+        and isinstance(knowledge.get("overview"), str)
+        and isinstance(knowledge.get("constraints"), str),
+        "ponytail preflight knowledge was not returned",
+    )
+    return {
+        "skill_id": skill["skill_id"],
+        "version": skill["version"],
+        "skill_manifest_sha256": skill["canonical_sha256"],
+        "knowledge_sha256": knowledge["canonical_sha256"],
+        "status": "PASS",
+    }
+
+
 def require_invalid_input(error: dict[str, Any], message: str) -> None:
     require(
         error.get("schema_version") == "RuntimeError@1"
-        and error.get("code") == "INVALID_INPUT"
+        and error.get("code") in {"INVALID_INPUT", "GEOMETRY_PROGRAM_HASH_REJECTED"}
         and error.get("retryable") is False,
         message,
     )
@@ -419,6 +453,7 @@ def main() -> int:
     )
     client: McpClient | None = None
     ready: dict[str, Any] | None = None
+    preflight: dict[str, str] | None = None
     try:
         ready = wait_for_ready(ready_path, runtime, args.timeout)
         socket_path = ready.get("socket_path")
@@ -475,13 +510,14 @@ def main() -> int:
             "operator_catalog_get was not exposed as a read-only MCP tool",
         )
 
+        preflight = read_ponytail_preflight(client)
         skills = client.tool("skill_list")
         require(
             isinstance(skills, dict)
             and skills.get("schema_version") == "SkillListResult@1"
             and isinstance(skills.get("skills"), list)
-            and len(skills["skills"]) == 11,
-            "current source/package did not expose the eleven first-party Skill manifests",
+            and len(skills["skills"]) == 12,
+            "current source/package did not expose the twelve first-party Skill manifests",
         )
         primitive_skill = next(
             (
@@ -518,11 +554,11 @@ def main() -> int:
         operators = catalog.get("operators")
         require(
             isinstance(operators, list)
-            and len(operators) == 13
+            and len(operators) == 16
             and isinstance(operators[0], dict)
             and operators[0].get("operator_id") == "forgecad.geometry.primitive@2"
             and operators[0].get("status") == "active",
-            "catalog did not expose the current MCP010D operator set with primitive@2 first",
+            "catalog did not expose the current MCP010D/SurfaceProgram operator set with primitive@2 first",
         )
 
         project = client.tool(
@@ -777,7 +813,8 @@ def main() -> int:
         "protocol_version": MCP_PROTOCOL_VERSION,
         "operator_catalog_hash_match": True,
         "operator_catalog_tool_resource_match": "PASS",
-        "skill_registry_count": 11,
+        "skill_registry_count": 12,
+        "ponytail_preflight": preflight,
         "primitive_blockout_skill": "active",
         "geometry_program_hash": "PASS",
         "geometry_program": "GeometryProgram@2",

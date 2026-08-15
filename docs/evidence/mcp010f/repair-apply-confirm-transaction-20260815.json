@@ -1,0 +1,69 @@
+{
+  "schema_version": "ForgeCADRepairApplyConfirmEvidence@1",
+  "recorded_on": "2026-08-15",
+  "status": "RUST_RUNTIME_FOCUSED_PASS_WORKSPACE_PASS",
+  "transaction": "repair_apply_confirm",
+  "environment": {
+    "cargo": "/Users/liuchongjiang/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+    "rustc": "/Users/liuchongjiang/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc",
+    "rust_runtime_compile": "PASS_CARGO_CHECK_WORKSPACE",
+    "rust_focused_test": "PASS_agentic_repair_apply_prepare_accepts_strict_improvement_and_is_idempotent",
+    "workspace_test": "PASS_CARGO_TEST_WORKSPACE",
+    "workspace_test_summary": "forgecad_mcp=58, forgecad_runtime=96_pass_10_ignored, forgecad_store=8, forgecad_desktop=6, other_workspace_crates_pass",
+    "commands": [
+      "PATH=/Users/liuchongjiang/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH cargo check --workspace",
+      "PATH=/Users/liuchongjiang/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH cargo test -p forgecad-runtime --lib agentic_repair_apply_prepare_accepts_strict_improvement_and_is_idempotent -- --nocapture",
+      "PATH=/Users/liuchongjiang/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH cargo test --workspace"
+    ],
+    "reason": "The Rust toolchain was present outside PATH and was invoked through its explicit stable toolchain path."
+  },
+  "static_checks": {
+    "forgecad_contract_checker": "PASS",
+    "mcp010f_stage0_truth_checker": "PASS",
+    "json_schema_parse": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "source_surface": {
+    "schema_count": 117,
+    "read_tool_count": 37,
+    "write_tool_count": 29,
+    "total_tool_count": 66,
+    "request_schema": "RepairApplyConfirmRequest@1",
+    "result_schema": "RepairApplyConfirmResult@1",
+    "mcp_tool": "repair_apply_confirm",
+    "runtime_method": "ForgeRuntime::repair_apply_confirm",
+    "store_method": "ForgeStore::confirm_repair_apply_candidate",
+    "audit_kind": "repair_apply_confirmed"
+  },
+  "single_view_contract": {
+    "prepare": "repair_apply_prepare",
+    "confirm": "repair_apply_confirm",
+    "required_approval": "fresh user approval bound to the same session",
+    "revalidation": [
+      "apply-intent CAS metadata and canonical hash",
+      "project/session/source/proposal/run scope",
+      "source candidate unchanged and base version",
+      "proposal candidate state, artifact, RepairIntent, quality and visual evidence lineage",
+      "strict improvement and non-regressing quality flags"
+    ],
+    "expected_effect": "After successful approval and revalidation, confirm the proposal candidate as one immutable child version while leaving the source candidate unchanged.",
+    "idempotency": "Uses the shared candidate confirmation transaction and returns the existing version on an exact replay; focused Runtime test passed with one version after replay."
+  },
+  "multi_view_boundary": {
+    "status": "CROSS_VIEW_PROMOTION_REQUIRED",
+    "route": "cross_view_promotion_confirm",
+    "single_view_confirm_rejects": "cross-view apply intents fail closed and cannot bypass the cross-view promotion transaction"
+  },
+  "truth_boundary": {
+    "visual_quality": "UNCHANGED_QUALITY_TARGET_NOT_MET",
+    "benchmark": "BLOCKED_INCOMPLETE_BINDING",
+    "camera": "MISMATCH",
+    "not_proven": [
+      "positive real-reference Repair application",
+      "cross-view promotion success",
+      "visual likeness, PBR likeness, human review, export/restart hash or 360 quality"
+    ],
+    "receipt_class": "FOCUSED_RUST_RUNTIME_FIXTURE_TEST",
+    "not_a_production_real_reference_receipt": true
+  }
+}

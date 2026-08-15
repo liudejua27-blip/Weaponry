@@ -86,7 +86,7 @@ Codex 在第一次写入前必须完成下列信息。原图路径、原始字�
 | `evidence` | `observed`、`inferred` 或 `unknown`；可附 normalized bbox/landmark，但不附图片字节 |
 | `criticality` | `identity`、`major` 或 `supporting`；identity 特征错误时本轮不能通过 |
 | `topology_strategy` | `profile-loft`、`profile-extrude`、`panel`、`vent-array`、`joint-stack`、`revolve`、`tube-sweep` 等当前 active Operator |
-| `operator_ids` | 只能填 live `OperatorCatalog@1` 中的 `active` 项；`boolean@1` 当前 unavailable |
+| `operator_ids` | 只能填 live `OperatorCatalog@1` 中的 `active` 项；`boolean@1` 当前支持同一 Part 的 bounded union/difference/intersection |
 | `material_zone_id` | 必须来自已验证的离线 AssetPack；未知材质停止，而不是自造名称 |
 | `line_flow` | 连接该细节的视觉线条，例如 `helmet→visor→neck` |
 | `confidence` | `0..1` 的 Codex 观察置信度；不是 Runtime 质量分数 |

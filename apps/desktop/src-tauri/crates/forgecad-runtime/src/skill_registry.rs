@@ -61,6 +61,9 @@ const EXECUTABLE_OPERATOR_IDS: &[&str] = &[
     "forgecad.geometry.primitive@2",
     "forgecad.geometry.profile-extrude@1",
     "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.subd-cage@1",
+    "forgecad.geometry.surface-patch@1",
+    "forgecad.geometry.surface-shell@1",
     "forgecad.geometry.revolve@1",
     "forgecad.geometry.tube-sweep@1",
     "forgecad.geometry.transform@2",
@@ -69,6 +72,7 @@ const EXECUTABLE_OPERATOR_IDS: &[&str] = &[
     "forgecad.geometry.panel@1",
     "forgecad.geometry.vent-array@1",
     "forgecad.geometry.joint-stack@1",
+    "forgecad.geometry.boolean@1",
     "forgecad.geometry.part-output@1",
     "forgecad.appearance.offline-pbr@1",
 ];

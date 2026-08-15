@@ -1,0 +1,18 @@
+{
+  "build_cohorts": {
+    "geometry_worker": "61e012769076a9e1148955a81eb0769c6c9e72e75044faa6d1edb23cd6bf340a",
+    "mcp": "61e012769076a9e1148955a81eb0769c6c9e72e75044faa6d1edb23cd6bf340a",
+    "render_worker": "61e012769076a9e1148955a81eb0769c6c9e72e75044faa6d1edb23cd6bf340a",
+    "runtime": "61e012769076a9e1148955a81eb0769c6c9e72e75044faa6d1edb23cd6bf340a"
+  },
+  "candidate_confirmed": false,
+  "expected_build_cohort_sha256": "61e012769076a9e1148955a81eb0769c6c9e72e75044faa6d1edb23cd6bf340a",
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "reason": "real CADFit job did not succeed: failed",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "schema_version": "ForgeCADMCP010FOptimizationRealReferenceProbe@1",
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

@@ -1,0 +1,12 @@
+{
+  "candidate_confirmed": false,
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "reason": "real CADFit job did not succeed: failed",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "runtime_stderr_debug": "forgecad-runtime: ready\nForgeCAD geometry worker stderr: ForgeCAD tangent debug normal=[0.0, 0.0, 1.0] tangent=[0.0, 0.0, 0.0, 1.0] positions=[[-0.71, 2.54, 0.13], [-0.119853176, 1.9796448, 0.13], [-0.11993652, 1.98, 0.13]] uvs=[[0.878169, 0.20647323], [0.8963148, 0.17855373], [0.89631224, 0.17857143]] basis=[32.522144, -0.0074592074, 0.0] bitangent=[0.0037296037, 20.065268, 0.0]\nForgeCAD tangent debug normal=[0.0, 0.0, 1.0] tangent=[0.0, 0.0, 0.0, 1.0] positions=[[0.83, 1.54, 0.13], [-0.020710682, 1.8628162, 0.13], [-0.02878684, 1.865873, 0.13]] uvs=[[0.72552085, 0.29950574], [0.69936323, 0.31558993], [0.69911486, 0.31574225]] basis=[30.232046, 0.53038675, 0.0] bitangent=[-3.889503, 20.950277, 0.0]\nForgeCAD tangent debug normal=[0.0, 0.0, 1.0] tangent=[0.0, 0.0, 0.0, 1.0] positions=[[0.71, 2.54, 0.13], [-0.058786795, 2.0811207, 0.13], [-0.05, 2.0860982, 0.13]] uvs=[[0.5218311, 0.49218753], [0.49819246, 0.46932405], [0.49846265, 0.46957204]] basis=[32.496033, 0.02066802, 0.0] bitangent=[0.029525742, 20.045027, 0.0]\nForgeCAD tangent debug normal=[0.0, 0.0, 1.0] tangent=[0.0, 0.0, 0.0, 1.0] positions=[[0.71, 2.54, 0.13], [-2.185569e-9, 2.0999365, 0.13], [0.00025114208, 2.099903, 0.13]] uvs=[[0.92183113, 0.49218753], [0.9000001, 0.47026154], [0.9000078, 0.47025988]] basis=[32.631367, 0.013626685, 0.0] bitangent=[-0.11355571, 20.05848, 0.0]\n\nForgeCAD geometry worker rejected: code=GEOMETRY_REJECTED message=geometry program is invalid: GeometryProgram@2 strict GLB readback failed: TANGENT_HANDEDNESS\nForgeCAD optimization job failed: invalid runtime input: OPTIMIZATION_COMPILE_FAILED: GEOMETRY_WORKER_REJECTED\n",
+  "schema_version": "ForgeCADMCP010FOptimizationRealReferenceProbe@1",
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

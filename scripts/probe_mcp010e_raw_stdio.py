@@ -50,6 +50,40 @@ def require(condition: bool, message: str) -> None:
         raise GateFailure(message)
 
 
+def read_ponytail_preflight(client: McpClient) -> dict[str, str]:
+    """Read the mandatory first-party planning Skill before design calls."""
+    result = client.tool(
+        "skill_get",
+        {"skill_id": "ponytail-preflight", "version": "0.1.0"},
+    )
+    require(isinstance(result, dict), "ponytail preflight returned no typed result")
+    skill = result.get("skill")
+    knowledge = result.get("knowledge")
+    require(
+        isinstance(skill, dict)
+        and skill.get("skill_id") == "ponytail-preflight"
+        and skill.get("version") == "0.1.0"
+        and isinstance(skill.get("canonical_sha256"), str)
+        and len(skill["canonical_sha256"]) == 64,
+        "ponytail preflight manifest was not verified",
+    )
+    require(
+        isinstance(knowledge, dict)
+        and isinstance(knowledge.get("canonical_sha256"), str)
+        and len(knowledge["canonical_sha256"]) == 64
+        and isinstance(knowledge.get("overview"), str)
+        and isinstance(knowledge.get("constraints"), str),
+        "ponytail preflight knowledge was not returned",
+    )
+    return {
+        "skill_id": skill["skill_id"],
+        "version": skill["version"],
+        "skill_manifest_sha256": skill["canonical_sha256"],
+        "knowledge_sha256": knowledge["canonical_sha256"],
+        "status": "PASS",
+    }
+
+
 def png_dimensions(data: bytes) -> tuple[int, int]:
     require(data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24, "--compare currently requires a PNG reference")
     width = int.from_bytes(data[16:20], "big")
@@ -1175,6 +1209,7 @@ def main() -> int:
             "render_pass_get",
         }
         require(required_tools.issubset(tool_names), "MCP010E required tool set was incomplete")
+        preflight = read_ponytail_preflight(client)
         pack = client.tool("material_pack_get")
         require(
             isinstance(pack, dict)
@@ -1273,7 +1308,8 @@ def main() -> int:
             },
         )
         if isinstance(appearance_response.get("result"), dict) and appearance_response["result"].get("isError"):
-            raise GateFailure("appearance_prepare rejected")
+            error_content = appearance_response["result"].get("content")
+            raise GateFailure(f"appearance_prepare rejected: {error_content!r}")
         prepared = appearance_response.get("result", {}).get("structuredContent")
         artifact = prepared.get("artifact") if isinstance(prepared, dict) else None
         render_set = prepared.get("render_set") if isinstance(prepared, dict) else None
@@ -1511,6 +1547,7 @@ def main() -> int:
             "tool_count": "21 read + 16 write",
             "pack_id": pack["pack_id"],
             "pack_manifest_sha256": pack_hash,
+            "ponytail_preflight": preflight,
             "texture_manifest_count": len(textures),
             "appearance_program": "AppearanceProgram@2",
             "artifact_readback": "ArtifactReadback@2 hard_gate_passed",

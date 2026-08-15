@@ -431,9 +431,79 @@
       "sha256": "11f7b1ecddd40af578a74bd91348096adeb3091384c67155726a6c9740cd9ff8",
       "status": "BLOCKED",
       "completed_transport": false
+    },
+    {
+      "sequence": 62,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-retry-camera-bound-v2.json",
+      "sha256": "848578081b243a15935320d2706006b20386575498ed7c3b20c92ee0cca46373",
+      "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+      "completed_transport": true
+    },
+    {
+      "sequence": 63,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-threshold-bound-v3.json",
+      "sha256": "0be8826dd622783bdd341aa505a81aeec437a15955fdf675dd1b017189af33fe",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 64,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-threshold-bound-v4.json",
+      "sha256": "5f33eb135c1c80b970aa9b834bda5484f4620ca6ecda7b97c4df1db4e2a68057",
+      "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+      "completed_transport": true
+    },
+    {
+      "sequence": 65,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete.json",
+      "sha256": "9c9e1b5b424ee287ae7ea505fefb3a553086b62a6808f2cfa086952671a735fd",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 66,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-debug.json",
+      "sha256": "b44bf6bc78fbe12e7a5b597ea61089a8dbd0ed7b72d928d2a859d734d7e3d8f2",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 67,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-link-debug.json",
+      "sha256": "bd5953f6cdcec17919cbf8e9b4c5f44db6a508781bb1ec8dafb66b504fc22722",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 68,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto.json",
+      "sha256": "0b8c58e877215672eff1be3f875b47524a4ef93cf6043621218cb61fe94dce9f",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 69,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto-debug.json",
+      "sha256": "c78bf8c6be275dae2b3e94caf4f556f24512e16fb0a6ccc90aa54e86a2914065",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 70,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto-v2.json",
+      "sha256": "97cf28d9006791db7b39e5ac82777d59ee12f3497a42ca5d13e33eaa046c4cda",
+      "status": "BLOCKED",
+      "completed_transport": false
+    },
+    {
+      "sequence": 71,
+      "path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto-v3.json",
+      "sha256": "2be10bce6825db334e7439f231965f7ae94df5829b4d8f318e73811c8feba9c9",
+      "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+      "completed_transport": true
     }
   ],
-  "latest_attempt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-framing-bound-viewer.json",
-  "latest_completed_transport_path": "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-coverage-bound-viewer.json",
-  "canonical_sha256": "5dba457d3e937c9d3775ed7e4b5bbfe7ea3386b852eb336075efce56f1523f23"
+  "latest_attempt_path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto-v3.json",
+  "latest_completed_transport_path": "docs/evidence/mcp010f/real-codex-cli-current-20260815-b37-complete-auto-v3.json",
+  "canonical_sha256": "c1d41ff9700ab6b0f9e6f676dbc88bfe23e69b73aa8e162cdff497922cb271a6"
 }

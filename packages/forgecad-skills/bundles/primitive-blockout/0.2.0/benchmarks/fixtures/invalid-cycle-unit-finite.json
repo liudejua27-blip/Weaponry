@@ -13,15 +13,14 @@
   "expected": {
     "dag": "reject",
     "finite": "reject",
-    "operator_allowlist": "reject",
     "units": "reject"
   },
-  "fixture_id": "primitive-blockout-v2-declarative-invalid-cycle",
+  "fixture_id": "primitive-blockout-declarative-invalid-cycle",
   "recipe_id": "primitive-blockout",
   "schema_version": "SkillBenchmarkFixture@1",
   "skill_id": "primitive-blockout",
   "units": "millimeter",
   "values": {
-    "coordinate": "NaN"
+    "scale": "NaN"
   }
 }

@@ -11,6 +11,7 @@ pub enum AgenticReadTool {
     StagePlan,
     CriticReport,
     VisualEvidenceBundle,
+    VisualSurface,
 }
 
 impl AgenticReadTool {
@@ -20,6 +21,7 @@ impl AgenticReadTool {
             "design_stage_plan_get" => Self::StagePlan,
             "critic_report_get" => Self::CriticReport,
             "visual_evidence_bundle_get" => Self::VisualEvidenceBundle,
+            "visual_surface_get" => Self::VisualSurface,
             _ => return None,
         })
     }
@@ -30,6 +32,7 @@ impl AgenticReadTool {
             Self::StagePlan => "design_stage_plan_get",
             Self::CriticReport => "critic_report_get",
             Self::VisualEvidenceBundle => "visual_evidence_bundle_get",
+            Self::VisualSurface => "visual_surface_get",
         }
     }
 
@@ -40,7 +43,8 @@ impl AgenticReadTool {
             Self::SceneObserve => Some("agentic_scene_observe"),
             Self::StagePlan => Some("agentic_stage_plan"),
             Self::CriticReport => Some("agentic_critic_projection"),
-            Self::VisualEvidenceBundle => Some("visual_evidence_get"),
+            Self::VisualEvidenceBundle => Some("visual_evidence_bundle_get"),
+            Self::VisualSurface => Some("visual_surface_get"),
         }
     }
 
@@ -53,7 +57,8 @@ impl AgenticReadTool {
             Self::SceneObserve => "agentic_scene_observe",
             Self::StagePlan => "agentic_stage_plan",
             Self::CriticReport => "agentic_critic_projection",
-            Self::VisualEvidenceBundle => "visual_evidence_get",
+            Self::VisualEvidenceBundle => "visual_evidence_bundle_get",
+            Self::VisualSurface => "visual_surface_get",
         }
     }
 
@@ -62,7 +67,8 @@ impl AgenticReadTool {
             Self::SceneObserve => Some("AgenticSceneObserveResult@1"),
             Self::StagePlan => Some("DesignStagePlan@1"),
             Self::CriticReport => Some("DesignCriticReport@1"),
-            Self::VisualEvidenceBundle => Some("ViewerVisualEvidence@1"),
+            Self::VisualEvidenceBundle => Some("VisualEvidenceBundle@1"),
+            Self::VisualSurface => Some("VisualSurfaceResult@1"),
         }
     }
 }
@@ -90,6 +96,7 @@ pub fn read_tools() -> Vec<Value> {
         AgenticReadTool::StagePlan,
         AgenticReadTool::CriticReport,
         AgenticReadTool::VisualEvidenceBundle,
+        AgenticReadTool::VisualSurface,
     ]
     .into_iter()
     .map(tool_definition)
@@ -107,12 +114,16 @@ fn tool_definition(tool: AgenticReadTool) -> Value {
             project_candidate_schema(),
         ),
         AgenticReadTool::CriticReport => (
-            "Read the Runtime-owned evidence-bound critic projection. It returns DesignCriticReport@1 with bounded repair intents for inspection only; execution remains in the existing prepare and approval flow.",
-            project_candidate_schema(),
+            "Read the Runtime-owned evidence-bound critic projection. Optionally provide an explicit SilhouetteTarget hash to add candidate-bound PartError rows and scoped repair intents; execution remains in the existing prepare and approval flow.",
+            project_candidate_target_schema(),
         ),
         AgenticReadTool::VisualEvidenceBundle => (
-            "Read the existing candidate-bound visual evidence projection. It returns ViewerVisualEvidence@1 from the Runtime and does not create a render, candidate, version, or CAS object.",
-            candidate_schema(),
+            "Read the Runtime-owned VisualEvidenceBundle@1 projection. It exposes candidate-bound render/comparison/quality hashes and, when a durable ReferenceCanvas exists, a per-view evidence inventory. Unrendered or view-unbound references remain explicitly not-run; the call never creates a render, candidate, version, or CAS object.",
+            project_candidate_schema(),
+        ),
+        AgenticReadTool::VisualSurface => (
+            "Read the Runtime-owned VisualSurfaceResult@1 diagnostic projection. It binds requested silhouette/boundary/AOV signals and bounded mesh-derived curvature/feature-line summaries to one explicit candidate, reference, artifact, RenderSet and camera. The surface summaries are not SubD/NURBS principal curvature and do not unlock visual quality. The call is read-only and never creates a candidate, version, or CAS object.",
+            visual_surface_request_schema(),
         ),
     };
     let mut forgecad = json!({
@@ -137,15 +148,6 @@ fn tool_definition(tool: AgenticReadTool) -> Value {
     })
 }
 
-fn candidate_schema() -> Value {
-    json!({
-        "type": "object",
-        "required": ["candidate_id"],
-        "properties": {"candidate_id": id_property()},
-        "additionalProperties": false
-    })
-}
-
 fn project_candidate_schema() -> Value {
     json!({
         "type": "object",
@@ -158,8 +160,80 @@ fn project_candidate_schema() -> Value {
     })
 }
 
+fn project_candidate_target_schema() -> Value {
+    json!({
+        "type": "object",
+        "required": ["project_id"],
+        "properties": {
+            "project_id": id_property(),
+            "candidate_id": id_property(),
+            "target_sha256": sha_property()
+        },
+        "additionalProperties": false
+    })
+}
+
 fn id_property() -> Value {
     json!({"type": "string", "minLength": 1, "maxLength": 128})
+}
+
+fn sha_property() -> Value {
+    json!({"type": "string", "pattern": "^[0-9a-f]{64}$"})
+}
+
+fn nullable_id_property() -> Value {
+    json!({
+        "oneOf": [
+            id_property(),
+            {"type":"null"}
+        ]
+    })
+}
+
+fn nullable_sha_property() -> Value {
+    json!({
+        "oneOf": [
+            sha_property(),
+            {"type":"null"}
+        ]
+    })
+}
+
+fn visual_surface_request_schema() -> Value {
+    json!({
+        "type":"object",
+        "required":["schema_version","project_id","candidate_id","requested_signals","expected_binding","target_sha256","max_part_errors","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"VisualSurfaceRequest@1"},
+            "project_id":id_property(),
+            "candidate_id":id_property(),
+            "requested_signals":{
+                "type":"array",
+                "minItems":1,
+                "maxItems":8,
+                "uniqueItems":true,
+                "items":{"enum":["silhouette","boundary","depth","normal","part-id","material-id","curvature","feature-line"]}
+            },
+            "expected_binding":{
+                "type":"object",
+                "required":["reference_id","reference_sha256","artifact_sha256","render_set_hash","camera_hash","comparison_report_hash","quality_report_hash"],
+                "properties":{
+                    "reference_id":nullable_id_property(),
+                    "reference_sha256":nullable_sha_property(),
+                    "artifact_sha256":nullable_sha_property(),
+                    "render_set_hash":nullable_sha_property(),
+                    "camera_hash":nullable_sha_property(),
+                    "comparison_report_hash":nullable_sha_property(),
+                    "quality_report_hash":nullable_sha_property()
+                },
+                "additionalProperties":false
+            },
+            "target_sha256":nullable_sha_property(),
+            "max_part_errors":{"type":"integer","minimum":1,"maximum":64},
+            "canonical_sha256":sha_property()
+        },
+        "additionalProperties":false
+    })
 }
 
 #[cfg(test)]
@@ -169,7 +243,7 @@ mod tests {
     #[test]
     fn target_projections_are_read_only_and_availability_is_explicit() {
         let tools = read_tools();
-        assert_eq!(tools.len(), 4);
+        assert_eq!(tools.len(), 5);
         for tool in &tools {
             assert_eq!(tool["annotations"]["readOnlyHint"], true);
             assert_eq!(tool["annotations"]["destructiveHint"], false);
@@ -205,13 +279,44 @@ mod tests {
             AgenticReadTool::from_name("visual_evidence_bundle_get")
                 .expect("evidence tool")
                 .runtime_method(),
-            Some("visual_evidence_get")
+            Some("visual_evidence_bundle_get")
         );
         assert_eq!(
             AgenticReadTool::from_name("critic_report_get")
                 .expect("critic tool")
                 .source_schema(),
             Some("DesignCriticReport@1")
+        );
+        assert_eq!(
+            AgenticReadTool::from_name("visual_surface_get")
+                .expect("surface tool")
+                .runtime_method(),
+            Some("visual_surface_get")
+        );
+        let critic = read_tools()
+            .into_iter()
+            .find(|tool| tool["name"] == "critic_report_get")
+            .expect("critic definition");
+        assert_eq!(
+            critic["inputSchema"]["properties"]["target_sha256"]["pattern"],
+            "^[0-9a-f]{64}$"
+        );
+        assert!(!critic["inputSchema"]["required"]
+            .as_array()
+            .expect("critic required")
+            .iter()
+            .any(|value| value == "target_sha256"));
+        let surface = read_tools()
+            .into_iter()
+            .find(|tool| tool["name"] == "visual_surface_get")
+            .expect("surface definition");
+        assert_eq!(
+            surface["_meta"]["forgecad"]["source_schema"],
+            "VisualSurfaceResult@1"
+        );
+        assert_eq!(
+            surface["inputSchema"]["properties"]["schema_version"]["const"],
+            "VisualSurfaceRequest@1"
         );
     }
 }

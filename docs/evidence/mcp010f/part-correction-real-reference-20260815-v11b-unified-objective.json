@@ -1,0 +1,17 @@
+{
+  "build_cohort_sha256": "0496571f20cabf918e9c99fb13bcc327a1bb0d19ab5a260dbaae684d6aff9903",
+  "build_cohorts": {
+    "geometry_worker": "0496571f20cabf918e9c99fb13bcc327a1bb0d19ab5a260dbaae684d6aff9903",
+    "mcp": "0496571f20cabf918e9c99fb13bcc327a1bb0d19ab5a260dbaae684d6aff9903",
+    "render_worker": "0496571f20cabf918e9c99fb13bcc327a1bb0d19ab5a260dbaae684d6aff9903",
+    "runtime": "0496571f20cabf918e9c99fb13bcc327a1bb0d19ab5a260dbaae684d6aff9903"
+  },
+  "expected_build_cohort_sha256": "0496571f20cabf918e9c99fb13bcc327a1bb0d19ab5a260dbaae684d6aff9903",
+  "geometry_variant": "surface-linework",
+  "part_id": "chest-shell",
+  "persistent_user_data_touched": false,
+  "reason": "MCP tool failed for silhouette_evaluation_objective_prepare: {\"code\": \"INVALID_INPUT\", \"evidence_ids\": [], \"message\": \"Runtime request rejected\", \"next_action\": \"Read capabilities_get and correct the request or wait for the required MCP task.\", \"retryable\": false, \"schema_version\": \"RuntimeError@1\"}",
+  "reference_sha256": "946b1be7e39a7e88ae1ac2be9b3218aad3cf08a9b59293d0a7e170f769d45f80",
+  "schema_version": "ForgeCADMCP010FPartCorrectionProbe@1",
+  "status": "BLOCKED"
+}

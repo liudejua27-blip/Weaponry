@@ -1,5 +1,9 @@
+mod agentic_action_tools;
+mod agentic_orchestrator_tools;
 mod agentic_tools;
 mod agentic_write_tools;
+mod cross_view_promotion_tools;
+mod optimization_tools;
 mod supervisor;
 
 #[cfg(test)]
@@ -54,6 +58,10 @@ struct Session {
     write_tools_enabled: bool,
     ponytail_preflight_read: bool,
     agentic_binding: agentic_write_tools::Binding,
+    action_binding: agentic_action_tools::Binding,
+    orchestrator_binding: agentic_orchestrator_tools::Binding,
+    optimization_binding: optimization_tools::Binding,
+    cross_view_promotion_binding: cross_view_promotion_tools::Binding,
 }
 
 impl Session {
@@ -64,6 +72,10 @@ impl Session {
             write_tools_enabled: false,
             ponytail_preflight_read: false,
             agentic_binding: agentic_write_tools::Binding::default(),
+            action_binding: agentic_action_tools::Binding::default(),
+            orchestrator_binding: agentic_orchestrator_tools::Binding::default(),
+            optimization_binding: optimization_tools::Binding::default(),
+            cross_view_promotion_binding: cross_view_promotion_tools::Binding::default(),
         }
     }
 }
@@ -579,8 +591,50 @@ fn mcp010f_write_tool_names() -> Vec<String> {
         .collect()
 }
 
+fn silhouette_target_part_property() -> Value {
+    json!({
+        "type":"object",
+        "required":["part_id","start_index","end_index","visibility"],
+        "properties":{
+            "part_id":id_property(),
+            "start_index":{"type":"integer","minimum":0,"maximum":511},
+            "end_index":{"type":"integer","minimum":0,"maximum":511},
+            "visibility":{"enum":["observed","inferred","unknown"]},
+            "region":{
+                "type":"object",
+                "required":["region_id","x","y","width","height"],
+                "properties":{
+                    "region_id":id_property(),
+                    "x":{"type":"number","minimum":0,"maximum":1},
+                    "y":{"type":"number","minimum":0,"maximum":1},
+                    "width":{"type":"number","minimum":0,"maximum":1},
+                    "height":{"type":"number","minimum":0,"maximum":1}
+                },
+                "additionalProperties":false
+            }
+        },
+        "additionalProperties":false
+    })
+}
+
 fn agentic_write_tool_names() -> Vec<String> {
     agentic_write_tools::write_tool_names()
+}
+
+fn agentic_action_write_tool_names() -> Vec<String> {
+    agentic_action_tools::write_tool_names()
+}
+
+fn optimization_write_tool_names() -> Vec<String> {
+    optimization_tools::write_tool_names()
+}
+
+fn agentic_orchestrator_write_tool_names() -> Vec<String> {
+    agentic_orchestrator_tools::write_tool_names()
+}
+
+fn cross_view_promotion_write_tool_names() -> Vec<String> {
+    cross_view_promotion_tools::write_tool_names()
 }
 
 fn is_mcp004_write_tool(name: &str) -> bool {
@@ -619,6 +673,10 @@ fn is_write_tool(name: &str) -> bool {
         || is_mcp009_write_tool(name)
         || is_mcp010c_write_tool(name)
         || is_mcp010f_write_tool(name)
+        || optimization_tools::is_write_tool(name)
+        || agentic_orchestrator_tools::is_write_tool(name)
+        || agentic_action_tools::is_write_tool(name)
+        || cross_view_promotion_tools::is_write_tool(name)
         || agentic_write_tools::is_write_tool(name)
 }
 
@@ -630,6 +688,10 @@ fn all_write_tool_names() -> Vec<String> {
     names.extend(mcp009_write_tool_names());
     names.extend(mcp010c_write_tool_names());
     names.extend(mcp010f_write_tool_names());
+    names.extend(optimization_write_tool_names());
+    names.extend(agentic_orchestrator_write_tool_names());
+    names.extend(agentic_action_write_tool_names());
+    names.extend(cross_view_promotion_write_tool_names());
     names.extend(agentic_write_tool_names());
     names
 }
@@ -644,6 +706,10 @@ fn tools_with_writes(writes_enabled: bool) -> Vec<Value> {
         tools.extend(mcp009_write_tools());
         tools.extend(mcp010c_write_tools());
         tools.extend(mcp010f_write_tools());
+        tools.extend(optimization_tools::write_tools());
+        tools.extend(agentic_orchestrator_tools::write_tools());
+        tools.extend(agentic_action_tools::write_tools());
+        tools.extend(cross_view_promotion_tools::write_tools());
         tools.extend(agentic_write_tools::write_tools());
     }
     tools.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
@@ -717,10 +783,13 @@ fn read_only_tools() -> Vec<Value> {
                                     "type":"object",
                                     "additionalProperties":false,
                                     "required":["parameter_id","part_id","semantic","value","min","max","step","unit"],
+                                    "allOf":[{"if":{"properties":{"semantic":{"const":"surface_control_point"}}},"then":{"required":["control_point_index","axis"]}}],
                                     "properties":{
                                         "parameter_id":id_property(),
                                         "part_id":id_property(),
-                                        "semantic":{"enum":["width","height","depth","offset_x","offset_y","offset_z","scale"]},
+                                        "semantic":{"enum":["width","height","depth","offset_x","offset_y","offset_z","scale","surface_control_point"]},
+                                        "control_point_index":{"type":"integer","minimum":0,"maximum":255},
+                                        "axis":{"enum":["x","y","z"]},
                                         "value":{"type":"number"},
                                         "min":{"type":"number"},
                                         "max":{"type":"number"},
@@ -807,6 +876,40 @@ fn read_only_tools() -> Vec<Value> {
             "silhouette_candidate_compare",
             "Compare 2 to 8 candidate silhouettes against one immutable target and return the best bounded evidence.",
             json!({"type":"object","required":["project_id","target_sha256","candidate_ids"],"properties":{"project_id":id_property(),"target_sha256":sha256_property(),"candidate_ids":{"type":"array","minItems":2,"maxItems":8,"items":id_property()}},"additionalProperties":false}),
+            true,
+        ),
+        tool(
+            "silhouette_evaluation_objective_prepare",
+            "Create immutable Runtime-owned objective evidence binding the global target, refined Part target, PartError source, baseline candidate and fixed camera.",
+            json!({
+                "type":"object",
+                "required":["project_id","baseline_candidate_id","global_target_sha256","part_target_sha256","part_id","source_part_error_sha256","camera"],
+                "properties":{
+                    "project_id":id_property(),
+                    "baseline_candidate_id":id_property(),
+                    "global_target_sha256":sha256_property(),
+                    "part_target_sha256":sha256_property(),
+                    "part_id":id_property(),
+                    "source_part_error_sha256":sha256_property(),
+                    "camera":{"type":"object"}
+                },
+                "additionalProperties":false
+            }),
+            true,
+        ),
+        tool(
+            "silhouette_objective_compare",
+            "Compare candidates under one unified global non-regression plus single-Part PartError promotion objective; never confirms or mutates a candidate.",
+            json!({
+                "type":"object",
+                "required":["project_id","objective_sha256","candidate_ids"],
+                "properties":{
+                    "project_id":id_property(),
+                    "objective_sha256":sha256_property(),
+                    "candidate_ids":{"type":"array","minItems":2,"maxItems":8,"items":id_property()}
+                },
+                "additionalProperties":false
+            }),
             true,
         ),
         tool(
@@ -926,6 +1029,8 @@ fn read_only_tools() -> Vec<Value> {
         ),
     ];
     tools.extend(agentic_tools::read_tools());
+    tools.extend(agentic_action_tools::read_tools());
+    tools.extend(optimization_tools::read_tools());
     tools.extend(agentic_write_tools::read_tools());
     tools
 }
@@ -1375,7 +1480,7 @@ fn mcp010f_write_tools() -> Vec<Value> {
                     "reference_id":id_property(),
                     "contour_points":{"type":["array","null"],"maxItems":512,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}},
                     "landmarks":{"type":["array","null"],"maxItems":128,"items":{"type":"object"}},
-                    "parts":{"type":["array","null"],"maxItems":64,"items":{"type":"object"}}
+                    "parts":{"type":["array","null"],"maxItems":64,"items":silhouette_target_part_property()}
                 },
                 "additionalProperties":false
             }),
@@ -1394,7 +1499,7 @@ fn mcp010f_write_tools() -> Vec<Value> {
                     "base_target_sha256":sha256_property(),
                     "contour_points":{"type":"array","minItems":3,"maxItems":512,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}},
                     "landmarks":{"type":["array","null"],"maxItems":128,"items":{"type":"object"}},
-                    "parts":{"type":["array","null"],"maxItems":64,"items":{"type":"object"}}
+                    "parts":{"type":["array","null"],"maxItems":64,"items":silhouette_target_part_property()}
                 },
                 "additionalProperties":false
             }),
@@ -1692,6 +1797,9 @@ fn validate_tool_schema_shape(
                 | "properties"
                 | "additionalProperties"
                 | "oneOf"
+                | "allOf"
+                | "if"
+                | "then"
                 | "const"
                 | "enum"
                 | "minLength"
@@ -1703,6 +1811,7 @@ fn validate_tool_schema_shape(
                 | "items"
                 | "minItems"
                 | "maxItems"
+                | "uniqueItems"
         )
     }) {
         return Err(());
@@ -1727,6 +1836,11 @@ fn validate_tool_schema_shape(
             return Err(());
         }
     }
+    if let Some(value) = object.get("uniqueItems") {
+        if !value.is_boolean() {
+            return Err(());
+        }
+    }
     if let Some(value) = object.get("oneOf") {
         let alternatives = value
             .as_array()
@@ -1734,6 +1848,20 @@ fn validate_tool_schema_shape(
             .ok_or(())?;
         for alternative in alternatives {
             validate_tool_schema_shape(alternative, depth + 1, budget)?;
+        }
+    }
+    if let Some(value) = object.get("allOf") {
+        let alternatives = value
+            .as_array()
+            .filter(|items| !items.is_empty())
+            .ok_or(())?;
+        for alternative in alternatives {
+            validate_tool_schema_shape(alternative, depth + 1, budget)?;
+        }
+    }
+    for key in ["if", "then"] {
+        if let Some(value) = object.get(key) {
+            validate_tool_schema_shape(value, depth + 1, budget)?;
         }
     }
     if let Some(value) = object.get("enum") {
@@ -1768,7 +1896,10 @@ fn validate_tool_schema_shape(
         return Err(());
     }
     if let Some(value) = object.get("pattern") {
-        if value.as_str() != Some("^[0-9a-f]{64}$") {
+        if !matches!(
+            value.as_str(),
+            Some("^[0-9a-f]{64}$" | "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+        ) {
             return Err(());
         }
     }
@@ -1870,7 +2001,18 @@ fn validate_value_against_tool_schema(
             }
         }
         if let Some(pattern) = object.get("pattern").and_then(Value::as_str) {
-            if pattern != "^[0-9a-f]{64}$" || !is_lowercase_sha256(string) {
+            let matches = match pattern {
+                "^[0-9a-f]{64}$" => is_lowercase_sha256(string),
+                "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$" => {
+                    is_opaque_id(string)
+                        && string
+                            .chars()
+                            .next()
+                            .is_some_and(|first| first.is_ascii_alphanumeric())
+                }
+                _ => false,
+            };
+            if !matches {
                 return Err(());
             }
         }
@@ -2014,7 +2156,13 @@ fn call_tool(
             .expect("response for request"),
         );
     };
-    if agentic_write_tools::is_tool(name) && !session.ponytail_preflight_read {
+    if (agentic_write_tools::is_tool(name)
+        || agentic_action_tools::is_tool(name)
+        || agentic_orchestrator_tools::is_tool(name)
+        || cross_view_promotion_tools::is_tool(name)
+        || optimization_tools::is_tool(name))
+        && !session.ponytail_preflight_read
+    {
         return Some(json!({
             "jsonrpc":"2.0",
             "id":id,
@@ -2095,6 +2243,50 @@ fn call_tool(
                 }
             }));
         }
+        if agentic_action_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("AGENTIC_ACTION_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("AGENTIC_ACTION_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if agentic_orchestrator_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("AGENTIC_ORCHESTRATOR_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("AGENTIC_ORCHESTRATOR_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if cross_view_promotion_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("CROSS_VIEW_PROMOTION_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("CROSS_VIEW_PROMOTION_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if optimization_tools::is_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("OPTIMIZATION_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("OPTIMIZATION_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
         if agentic_write_tools::is_write_tool(name) {
             return Some(json!({
                 "jsonrpc":"2.0",
@@ -2157,10 +2349,56 @@ fn call_tool(
         }));
     }
     if agentic_write_tools::is_tool(name) {
-        if let Err(error) = agentic_write_tools::validate_call(
+        if let Err(error) =
+            agentic_write_tools::validate_call(name, &arguments, &session.agentic_binding)
+        {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+            }));
+        }
+    }
+    if agentic_action_tools::is_tool(name) {
+        if let Err(error) =
+            agentic_action_tools::validate_call(name, &arguments, &session.action_binding)
+        {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+            }));
+        }
+    }
+    if agentic_orchestrator_tools::is_tool(name) {
+        if let Err(error) = agentic_orchestrator_tools::validate_call(
             name,
             &arguments,
-            &session.agentic_binding,
+            &session.orchestrator_binding,
+        ) {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+            }));
+        }
+    }
+    if optimization_tools::is_tool(name) {
+        if let Err(error) =
+            optimization_tools::validate_call(name, &arguments, &session.optimization_binding)
+        {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+            }));
+        }
+    }
+    if cross_view_promotion_tools::is_tool(name) {
+        if let Err(error) = cross_view_promotion_tools::validate_call(
+            name,
+            &arguments,
+            &session.cross_view_promotion_binding,
         ) {
             return Some(json!({
                 "jsonrpc":"2.0",
@@ -2191,11 +2429,87 @@ fn call_tool(
         }
         Ok(value) => {
             if agentic_write_tools::is_tool(name) {
-                if let Err(error) = agentic_write_tools::bind_response(
+                if let Err(error) =
+                    agentic_write_tools::bind_response(name, &value, &mut session.agentic_binding)
+                {
+                    return Some(json!({
+                        "jsonrpc":"2.0",
+                        "id":id,
+                        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+                    }));
+                }
+            }
+            if agentic_action_tools::is_tool(name) {
+                if let Err(error) =
+                    agentic_action_tools::validate_response(name, &value, &session.action_binding)
+                        .and_then(|_| {
+                            agentic_action_tools::bind_response(
+                                name,
+                                &value,
+                                &mut session.action_binding,
+                            )
+                        })
+                {
+                    return Some(json!({
+                        "jsonrpc":"2.0",
+                        "id":id,
+                        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+                    }));
+                }
+            }
+            if agentic_orchestrator_tools::is_tool(name) {
+                if let Err(error) = agentic_orchestrator_tools::validate_response(
                     name,
                     &value,
-                    &mut session.agentic_binding,
-                ) {
+                    &session.orchestrator_binding,
+                )
+                .and_then(|_| {
+                    agentic_orchestrator_tools::bind_response(
+                        name,
+                        &value,
+                        &mut session.orchestrator_binding,
+                    )
+                }) {
+                    return Some(json!({
+                        "jsonrpc":"2.0",
+                        "id":id,
+                        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+                    }));
+                }
+            }
+            if optimization_tools::is_tool(name) {
+                if let Err(error) = optimization_tools::validate_response(
+                    name,
+                    &value,
+                    &session.optimization_binding,
+                )
+                .and_then(|_| {
+                    optimization_tools::bind_response(
+                        name,
+                        &value,
+                        &mut session.optimization_binding,
+                    )
+                }) {
+                    return Some(json!({
+                        "jsonrpc":"2.0",
+                        "id":id,
+                        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
+                    }));
+                }
+            }
+            if cross_view_promotion_tools::is_tool(name) {
+                if let Err(error) = cross_view_promotion_tools::validate_response(
+                    name,
+                    &value,
+                    &session.cross_view_promotion_binding,
+                )
+                .and_then(|_| {
+                    cross_view_promotion_tools::bind_response(
+                        name,
+                        &value,
+                        &mut session.cross_view_promotion_binding,
+                    )
+                }) {
                     return Some(json!({
                         "jsonrpc":"2.0",
                         "id":id,
@@ -2255,6 +2569,24 @@ fn dispatch_tool_with_build_cohort(
     local_build_cohort: Option<&str>,
 ) -> Result<Value, String> {
     if is_write_tool(name) && !write_tools_enabled {
+        if optimization_tools::is_write_tool(name) {
+            return Err(
+                "OPTIMIZATION_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if agentic_action_tools::is_write_tool(name) {
+            return Err(
+                "AGENTIC_ACTION_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
+        if agentic_orchestrator_tools::is_write_tool(name) {
+            return Err(
+                "AGENTIC_ORCHESTRATOR_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                    .to_owned(),
+            );
+        }
         if agentic_write_tools::is_write_tool(name) {
             return Err(
                 "AGENTIC_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
@@ -2280,6 +2612,23 @@ fn dispatch_tool_with_build_cohort(
         });
     }
     if is_write_tool(name) {
+        if optimization_tools::is_write_tool(name) {
+            let arguments = if name == "optimization_job_prepare" {
+                canonicalize_optimization_job_wire(arguments)?
+            } else {
+                arguments.clone()
+            };
+            return backend_write_call(backend, name, &arguments, local_build_cohort);
+        }
+        if agentic_orchestrator_tools::is_write_tool(name) {
+            return backend_write_call(backend, name, arguments, local_build_cohort);
+        }
+        if agentic_action_tools::is_write_tool(name) {
+            return backend_agentic_action_call(backend, name, arguments, local_build_cohort);
+        }
+        if cross_view_promotion_tools::is_write_tool(name) {
+            return backend_write_call(backend, name, arguments, local_build_cohort);
+        }
         if agentic_write_tools::is_write_tool(name) {
             return backend_agentic_write_call(backend, name, arguments, local_build_cohort);
         }
@@ -2289,6 +2638,24 @@ fn dispatch_tool_with_build_cohort(
         return match agentic_write_tools::runtime_method(name) {
             Some(runtime_method) => backend_call(backend, runtime_method, arguments),
             None => Err(agentic_write_tools::unavailable_error(name)),
+        };
+    }
+    if agentic_action_tools::is_tool(name) {
+        return match agentic_action_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(agentic_action_tools::unavailable_error(name)),
+        };
+    }
+    if optimization_tools::is_tool(name) {
+        return match optimization_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(optimization_tools::unavailable_error(name)),
+        };
+    }
+    if cross_view_promotion_tools::is_tool(name) {
+        return match cross_view_promotion_tools::runtime_method(name) {
+            Some(runtime_method) => backend_call(backend, runtime_method, arguments),
+            None => Err(cross_view_promotion_tools::unavailable_error(name)),
         };
     }
     if agentic_tools::is_tool(name) {
@@ -2318,6 +2685,23 @@ fn backend_agentic_write_call(
         }
         if error.starts_with("RUNTIME_UNAVAILABLE:") {
             return format!("AGENTIC_RUNTIME_UNAVAILABLE: {error}");
+        }
+        error
+    })
+}
+
+fn backend_agentic_action_call(
+    backend: &mut Backend,
+    name: &str,
+    arguments: &Value,
+    local_build_cohort: Option<&str>,
+) -> Result<Value, String> {
+    backend_write_call(backend, name, arguments, local_build_cohort).map_err(|error| {
+        if error == "RUNTIME_UNAVAILABLE: Runtime request failed" {
+            return agentic_action_tools::unavailable_error(name);
+        }
+        if error.starts_with("RUNTIME_UNAVAILABLE:") {
+            return format!("AGENTIC_ACTION_RUNTIME_UNAVAILABLE: {error}");
         }
         error
     })
@@ -2417,7 +2801,20 @@ fn map_ipc_error(error: IpcError) -> String {
                     let stage = detail
                         .split(':')
                         .map(str::trim)
-                        .find(|value| value.starts_with("AGENTIC_") || value.starts_with("GEOMETRY_PROGRAM_HASH_REJECTED") || value.starts_with("SILHOUETTE_") || value.starts_with("CAMERA_") || value.starts_with("CONTRACT_OUTPUT_INVALID"))
+                        .find(|value| {
+                            value.starts_with("AGENTIC_")
+                                || value.starts_with("DESIGN_ACTION_")
+                                || value.starts_with("DESIGN_STAGE_")
+                                || value.starts_with("DESIGN_COMPOSITION_")
+                                || value.starts_with("REPAIR_")
+                                || value.starts_with("GEOMETRY_PROGRAM_HASH_REJECTED")
+                                || value.starts_with("SILHOUETTE_")
+                                || value.starts_with("CAMERA_")
+                                || value.starts_with("APPEARANCE_")
+                                || value.starts_with("RENDER_REJECTED")
+                                || value.starts_with("CONTRACT_OUTPUT_INVALID")
+                                || value.starts_with("OPTIMIZATION_")
+                        })
                         .unwrap_or("");
                     match stage {
                         "GEOMETRY_PROGRAM_HASH_REJECTED" => {
@@ -2446,6 +2843,41 @@ fn map_ipc_error(error: IpcError) -> String {
                                 .unwrap_or("AGENTIC_RUNTIME_REJECTED");
                             format!("{code}: Runtime Agentic request rejected")
                         }
+                        _ if stage.starts_with("DESIGN_ACTION_") || stage.starts_with("DESIGN_STAGE_") || stage.starts_with("DESIGN_COMPOSITION_") || stage.starts_with("REPAIR_") => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("DESIGN_ORCHESTRATOR_RUNTIME_REJECTED");
+                            if matches!(
+                                code,
+                                "DESIGN_ACTION_INPUT_HASH_MISMATCH"
+                                    | "DESIGN_STAGE_INPUT_HASH_MISMATCH"
+                                    | "DESIGN_COMPOSITION_INPUT_HASH_MISMATCH"
+                            ) {
+                                let detail = detail
+                                    .split_once(&format!("{code}:"))
+                                    .map(|(_, value)| value.trim())
+                                    .unwrap_or("");
+                                let safe_hash_detail = detail
+                                    .split_whitespace()
+                                    .filter(|part| {
+                                        let Some((key, value)) = part.split_once('=') else {
+                                            return false;
+                                        };
+                                        matches!(key, "expected" | "numeric_compatibility" | "actual")
+                                            && value.len() == 64
+                                            && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+                                    })
+                                    .collect::<Vec<_>>();
+                                if safe_hash_detail.len() >= 2 {
+                                    return format!(
+                                        "{code}: Runtime design request rejected ({})",
+                                        safe_hash_detail.join(" ")
+                                    );
+                                }
+                            }
+                            format!("{code}: Runtime design request rejected")
+                        }
                         "SILHOUETTE_FIT_INVALID" => {
                             let reason = detail
                                 .split_once("SILHOUETTE_FIT_INVALID:")
@@ -2467,6 +2899,15 @@ fn map_ipc_error(error: IpcError) -> String {
                         }
                         "SILHOUETTE_FIT_REJECTED" => "SILHOUETTE_FIT_REJECTED: Runtime silhouette gate rejected the candidate".to_owned(),
                         "SILHOUETTE_FIT_RENDER_FAILED" => "SILHOUETTE_FIT_RENDER_FAILED: Runtime fit render failed".to_owned(),
+                        _ if stage.starts_with("SILHOUETTE_OBJECTIVE_") => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("SILHOUETTE_OBJECTIVE_REJECTED");
+                            format!(
+                                "{code}: Runtime silhouette evaluation objective request rejected"
+                            )
+                        }
                         "SILHOUETTE_RIG_INVALID" => {
                             let reason = detail
                                 .split_once("SILHOUETTE_RIG_INVALID:")
@@ -2483,6 +2924,34 @@ fn map_ipc_error(error: IpcError) -> String {
                                 .unwrap_or("contract validation failed");
                             format!("CAMERA_CALIBRATION_INVALID: {reason}")
                         }
+                        "CAMERA_FIT_INVALID" => "CAMERA_FIT_INVALID: Runtime camera-fit request shape was rejected".to_owned(),
+                        "CAMERA_FIT_REJECTED" => "CAMERA_FIT_REJECTED: Runtime camera-fit readback gate rejected the candidate".to_owned(),
+                        "CAMERA_FIT_RENDER_FAILED" => "CAMERA_FIT_RENDER_FAILED: Runtime camera-fit render failed".to_owned(),
+                        "CAMERA_FIT_UNAVAILABLE" => "CAMERA_FIT_UNAVAILABLE: Runtime camera-fit did not produce a candidate".to_owned(),
+                        "APPEARANCE_V2_REFERENCE_REQUIRED" => "APPEARANCE_V2_REFERENCE_REQUIRED: Runtime appearance preparation requires a project-bound reference".to_owned(),
+                        "APPEARANCE_REJECTED" => {
+                            let reason = detail
+                                .split_once("APPEARANCE_REJECTED:")
+                                .map(|(_, value)| value.trim())
+                                .filter(|value| !value.is_empty())
+                                .unwrap_or("appearance contract or GLB readback validation failed");
+                            let reason = [
+                                "physical GLB readback failed",
+                                "appearance program must be an object",
+                                "appearance schema_version",
+                                "appearance project_id",
+                                "appearance geometry_program_sha256",
+                                "appearance is not bound",
+                                "appearance canonical_sha256",
+                                "appearance material_zones",
+                                "AppearanceProgram@2",
+                            ]
+                            .into_iter()
+                            .find(|candidate| reason.starts_with(candidate))
+                            .unwrap_or("appearance contract or GLB readback validation failed");
+                            format!("APPEARANCE_REJECTED: Runtime appearance stage rejected ({reason})")
+                        }
+                        "RENDER_REJECTED" => "RENDER_REJECTED: Runtime render stage rejected the artifact".to_owned(),
                         "CONTRACT_OUTPUT_INVALID" => {
                             let reason = detail
                                 .split_once("CONTRACT_OUTPUT_INVALID:")
@@ -2501,6 +2970,9 @@ fn map_ipc_error(error: IpcError) -> String {
                                 .filter(|value| !value.is_empty())
                                 .unwrap_or("Part contour evidence is invalid");
                             format!("SILHOUETTE_PART_ERROR_INVALID: {reason}")
+                        }
+                        _ if stage.starts_with("OPTIMIZATION_") => {
+                            format!("{stage}: Runtime optimization request rejected")
                         }
                         "REFERENCE_BINDING_MISMATCH" => "REFERENCE_BINDING_MISMATCH: Runtime reference evidence is not bound to the candidate".to_owned(),
                         _ if detail.contains("SilhouettePartErrorResult@1") => {
@@ -2735,6 +3207,51 @@ fn read_bounded_json(path: &std::path::Path) -> Result<Value, String> {
 
 fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Result<Value, String> {
     match name {
+        "design_stage_run_prepare" => runtime
+            .design_stage_run_prepare(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "design_composition_prepare" => runtime
+            .design_composition_prepare(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "cross_view_promotion_confirm" => runtime
+            .cross_view_promotion_confirm(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "optimization_job_get" | "optimization_job_prepare" | "optimization_job_resume" => {
+            match name {
+                "optimization_job_get" => runtime
+                    .optimization_job_get(arguments.clone())
+                    .map_err(|error| error.to_string()),
+                "optimization_job_prepare" => runtime
+                    .optimization_job_prepare(arguments.clone())
+                    .map_err(|error| error.to_string()),
+                "optimization_job_resume" => runtime
+                    .optimization_job_resume(arguments.clone())
+                    .map_err(|error| error.to_string()),
+                _ => unreachable!("OptimizationJob dispatch arm is exhaustive"),
+            }
+        }
+        "design_action_run_get"
+        | "design_action_run_prepare"
+        | "design_action_optimization_proposal_prepare"
+        | "repair_apply_prepare"
+        | "repair_apply_confirm" => match name {
+            "design_action_run_get" => runtime
+                .design_action_run_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "design_action_run_prepare" => runtime
+                .design_action_run_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "design_action_optimization_proposal_prepare" => runtime
+                .design_action_optimization_proposal_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "repair_apply_prepare" => runtime
+                .repair_apply_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "repair_apply_confirm" => runtime
+                .repair_apply_confirm(arguments.clone())
+                .map_err(|error| error.to_string()),
+            _ => unreachable!("DesignActionRun dispatch arm is exhaustive"),
+        },
         "session_create_or_resume"
         | "session_get"
         | "checkpoint_prepare"
@@ -2786,9 +3303,22 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .agentic_critic_projection(
                     project_id,
                     arguments.get("candidate_id").and_then(Value::as_str),
+                    arguments.get("target_sha256").and_then(Value::as_str),
                 )
                 .map_err(|error| error.to_string())
         }
+        "visual_evidence_bundle_get" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .visual_evidence_bundle_get(
+                    project_id,
+                    arguments.get("candidate_id").and_then(Value::as_str),
+                )
+                .map_err(|error| error.to_string())
+        }
+        "visual_surface_get" => runtime
+            .visual_surface_get(arguments.clone())
+            .map_err(|error| error.to_string()),
         "geometry_program_hash" => runtime
             .geometry_program_hash(arguments)
             .map_err(|error| error.to_string()),
@@ -2917,6 +3447,18 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
             let project_id = required_id(arguments, "project_id")?;
             runtime
                 .silhouette_candidate_compare(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
+        "silhouette_evaluation_objective_prepare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .silhouette_evaluation_objective_prepare(project_id, arguments.clone())
+                .map_err(|error| error.to_string())
+        }
+        "silhouette_objective_compare" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .silhouette_objective_compare(project_id, arguments.clone())
                 .map_err(|error| error.to_string())
         }
         "visual_review_submit" => runtime
@@ -3095,6 +3637,85 @@ fn canonicalize_silhouette_fit_wire(arguments: &Value) -> Result<Value, String> 
     Ok(restored)
 }
 
+/// Rebind the nested CameraCalibration after a JSON client round-trip.
+///
+/// Rust and Python both preserve the same IEEE-754 value, but they can emit a
+/// different shortest decimal spelling for that value.  A camera produced by
+/// Runtime can therefore arrive with a stale `camera_hash`/`canonical_sha256`
+/// even though its typed fields are unchanged.  The outer intent hash is
+/// checked against the exact wire payload first; then this adapter normalizes
+/// only continuous camera numbers while preserving the Runtime-owned camera
+/// identity. Runtime resolves that identity from its candidate/target camera
+/// cache before validating the complete calibration, all typed intent fields,
+/// CAS bindings, and the residual source hashes.
+fn canonicalize_optimization_job_wire(arguments: &Value) -> Result<Value, String> {
+    let object = arguments
+        .as_object()
+        .ok_or_else(|| "INVALID_INPUT: optimization job arguments must be an object".to_owned())?;
+    let intent = object
+        .get("intent")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "INVALID_INPUT: optimization intent must be an object".to_owned())?;
+    let supplied_intent_hash = intent
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            "INVALID_INPUT: optimization intent canonical_sha256 is required".to_owned()
+        })?;
+
+    let mut wire_intent = Value::Object(intent.clone());
+    wire_intent["canonical_sha256"] = Value::String(String::new());
+    let wire_intent_hash = canonical_json_hash(&wire_intent);
+
+    // A Codex JSON round-trip can spell continuous numbers differently (most
+    // commonly `1.0` as `1`).  Accept the same deterministic numeric
+    // restoration used by silhouette_fit_prepare. The exact wire hash is still
+    // preferred and arbitrary hashes remain rejected; this only closes the
+    // typed JSON transport gap without minting a new camera identity.
+    let mut normalized_intent = Value::Object(intent.clone());
+    if let Some(camera) = normalized_intent.get("camera").cloned() {
+        normalized_intent["camera"] = normalize_continuous_numbers(&camera, true);
+    }
+    if let Some(rig) = normalized_intent.get("rig").cloned() {
+        normalized_intent["rig"] = normalize_continuous_numbers(&rig, false);
+    }
+    if let Some(objective) = normalized_intent.get("objective").cloned() {
+        normalized_intent["objective"] = normalize_continuous_numbers(&objective, false);
+    }
+    let mut normalized_hash_input = normalized_intent.clone();
+    normalized_hash_input["canonical_sha256"] = Value::String(String::new());
+    let normalized_intent_hash = canonical_json_hash(&normalized_hash_input);
+    if supplied_intent_hash != wire_intent_hash && supplied_intent_hash != normalized_intent_hash {
+        return Err(
+            "OPTIMIZATION_INTENT_INVALID: canonical_sha256 does not bind the wire payload"
+                .to_owned(),
+        );
+    }
+
+    let mut rebound_rig = normalized_intent
+        .get("rig")
+        .cloned()
+        .ok_or_else(|| "INVALID_INPUT: optimization intent rig is required".to_owned())?;
+    {
+        let rig_object = rebound_rig
+            .as_object_mut()
+            .ok_or_else(|| "INVALID_INPUT: optimization intent rig must be an object".to_owned())?;
+        rig_object.insert("canonical_sha256".to_owned(), Value::String(String::new()));
+    }
+    let rig_canonical_hash = canonical_json_hash(&rebound_rig);
+    rebound_rig["canonical_sha256"] = Value::String(rig_canonical_hash);
+
+    let mut rebound_intent = normalized_intent;
+    rebound_intent["rig"] = rebound_rig;
+    rebound_intent["canonical_sha256"] = Value::String(String::new());
+    let rebound_intent_hash = canonical_json_hash(&rebound_intent);
+    rebound_intent["canonical_sha256"] = Value::String(rebound_intent_hash);
+
+    let mut rebound_arguments = arguments.clone();
+    rebound_arguments["intent"] = rebound_intent;
+    Ok(rebound_arguments)
+}
+
 fn normalize_continuous_numbers(value: &Value, preserve_resolution: bool) -> Value {
     match value {
         Value::Number(number) => number
@@ -3237,13 +3858,9 @@ mod tests {
         let mut schema_budget = ToolSchemaValidationBudget::new();
         assert!(validate_tool_schema_shape(&schema, 0, &mut schema_budget).is_ok());
         let mut value_budget = ToolSchemaValidationBudget::new();
-        assert!(validate_value_against_tool_schema(
-            &schema,
-            &arguments,
-            0,
-            &mut value_budget
-        )
-        .is_ok());
+        assert!(
+            validate_value_against_tool_schema(&schema, &arguments, 0, &mut value_budget).is_ok()
+        );
     }
 
     #[test]
@@ -3256,7 +3873,10 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":MCP_PROTOCOL_VERSION,"capabilities":{},"clientInfo":{"name":"test","version":"1"}}}),
         )
         .expect("initialize response");
-        assert_eq!(initialize_response["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
+        assert_eq!(
+            initialize_response["result"]["protocolVersion"],
+            MCP_PROTOCOL_VERSION
+        );
 
         let blocked = handle(
             &mut backend,
@@ -3265,7 +3885,10 @@ mod tests {
         )
         .expect("preflight block");
         assert_eq!(blocked["result"]["isError"], true);
-        assert_eq!(blocked["result"]["structuredContent"]["code"], "PONYTAIL_PREFLIGHT_REQUIRED");
+        assert_eq!(
+            blocked["result"]["structuredContent"]["code"],
+            "PONYTAIL_PREFLIGHT_REQUIRED"
+        );
 
         let preflight = handle(
             &mut backend,
@@ -3273,11 +3896,16 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"skill_get","arguments":{"skill_id":"ponytail-preflight","version":"0.1.0"}}}),
         )
         .expect("preflight skill");
-        assert_eq!(preflight["result"]["structuredContent"]["skill"]["skill_id"], "ponytail-preflight");
-        assert!(preflight["result"]["structuredContent"]["knowledge"]["overview"]
-            .as_str()
-            .expect("preflight overview")
-            .contains("Ponytail preflight"));
+        assert_eq!(
+            preflight["result"]["structuredContent"]["skill"]["skill_id"],
+            "ponytail-preflight"
+        );
+        assert!(
+            preflight["result"]["structuredContent"]["knowledge"]["overview"]
+                .as_str()
+                .expect("preflight overview")
+                .contains("Ponytail preflight")
+        );
 
         let catalog = handle(
             &mut backend,
@@ -3593,11 +4221,11 @@ mod tests {
             summary["schema_version"],
             "ForgeCADMcpToolManifestSummary@1"
         );
-        assert_eq!(summary["read_count"], 35);
-        assert_eq!(summary["write_count"], 21);
-        assert_eq!(summary["total_count"], 56);
-        assert_eq!(summary["read_names"].as_array().unwrap().len(), 35);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 21);
+        assert_eq!(summary["read_count"], 40);
+        assert_eq!(summary["write_count"], 30);
+        assert_eq!(summary["total_count"], 70);
+        assert_eq!(summary["read_names"].as_array().unwrap().len(), 40);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 30);
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -3699,6 +4327,120 @@ mod tests {
         assert_ne!(restored["canonical_sha256"], Value::String(String::new()));
         request["canonical_sha256"] = Value::String("b".repeat(64));
         assert!(canonicalize_silhouette_fit_wire(&request).is_err());
+    }
+
+    #[test]
+    fn optimization_job_wire_preserves_runtime_camera_identity_and_normalizes_numbers() {
+        let mut full_camera: Value = serde_json::from_str(
+            r#"{
+                "schema_version":"CameraCalibration@1",
+                "camera_hash":"",
+                "projection":"perspective",
+                "transform":{
+                    "position_m":[3.199191497840016,2.0907832771758006,5.0164046374013855],
+                    "target_m":[-0.08276190380161919,1.346800270381924,0.09347453493893176],
+                    "up":[-0.06920550542686278,0.992186697935671,-0.10380825814029421]
+                },
+                "fov_y_degrees":42.0,
+                "near_m":0.05,
+                "far_m":20.0,
+                "resolution":{"width":512,"height":512},
+                "coordinate_system":"right-handed-y-up-meter",
+                "renderer_revision":"forgecad-renderer-2",
+                "canonical_sha256":""
+            }"#,
+        )
+        .expect("full camera JSON");
+        let mut camera_hash_input = full_camera.clone();
+        camera_hash_input["camera_hash"] = Value::String(String::new());
+        camera_hash_input["canonical_sha256"] = Value::String(String::new());
+        let full_camera_hash = canonical_json_hash(&camera_hash_input);
+        full_camera["camera_hash"] = Value::String(full_camera_hash.clone());
+        let mut full_canonical_input = full_camera.clone();
+        full_canonical_input["canonical_sha256"] = Value::String(String::new());
+        full_camera["canonical_sha256"] = Value::String(canonical_json_hash(&full_canonical_input));
+
+        let mut wire_camera: Value = serde_json::from_str(
+            r#"{
+                "schema_version":"CameraCalibration@1",
+                "camera_hash":"",
+                "projection":"perspective",
+                "transform":{
+                    "position_m":[3.199191497840016,2.0907832771758006,5.0164046374013855],
+                    "target_m":[-0.08276190380161919,1.346800270381924,0.09347453493893176],
+                    "up":[-0.06920550542686278,0.992186697935671,-0.1038082581402942]
+                },
+                "fov_y_degrees":42.0,
+                "near_m":0.05,
+                "far_m":20.0,
+                "resolution":{"width":512,"height":512},
+                "coordinate_system":"right-handed-y-up-meter",
+                "renderer_revision":"forgecad-renderer-2",
+                "canonical_sha256":""
+            }"#,
+        )
+        .expect("wire camera JSON");
+        wire_camera["camera_hash"] = Value::String(full_camera_hash.clone());
+        wire_camera["canonical_sha256"] = full_camera["canonical_sha256"].clone();
+        let mut intent = json!({
+            "schema_version":"OptimizationIntent@1",
+            "intent_id":"intent-camera-wire-test",
+            "job_id":"job-camera-wire-test",
+            "project_id":"project-camera-wire-test",
+            "candidate_id":"candidate-camera-wire-test",
+            "reference_id":"reference-camera-wire-test",
+            "reference_sha256":"a".repeat(64),
+            "program_sha256":"b".repeat(64),
+            "target_sha256":"c".repeat(64),
+            "camera":wire_camera,
+            "camera_hash":full_camera_hash,
+            "part_id":"chest-shell",
+            "stage":"primary-form",
+            "rig":{"parameters":[]},
+            "fidelity":{},
+            "budget":{},
+            "objective":{},
+            "canonical_sha256":""
+        });
+        intent["canonical_sha256"] = Value::String(canonical_json_hash(&intent));
+        let request = json!({"intent":intent});
+        let restored = canonicalize_optimization_job_wire(&request).expect("wire camera rebind");
+        let rebound_camera = &restored["intent"]["camera"];
+
+        assert_eq!(
+            rebound_camera["camera_hash"],
+            Value::String(full_camera_hash.clone())
+        );
+        assert_eq!(
+            rebound_camera["canonical_sha256"],
+            full_camera["canonical_sha256"]
+        );
+        assert_eq!(
+            restored["intent"]["camera_hash"],
+            Value::String(full_camera_hash)
+        );
+        let rebound_rig = &restored["intent"]["rig"];
+        let mut rebound_rig_hash_input = rebound_rig.clone();
+        rebound_rig_hash_input["canonical_sha256"] = Value::String(String::new());
+        assert_eq!(
+            rebound_rig["canonical_sha256"],
+            Value::String(canonical_json_hash(&rebound_rig_hash_input))
+        );
+        let mut rebound_intent = restored["intent"].clone();
+        let rebound_intent_hash = rebound_intent["canonical_sha256"].clone();
+        rebound_intent["canonical_sha256"] = Value::String(String::new());
+        assert_eq!(
+            rebound_intent_hash,
+            Value::String(canonical_json_hash(&rebound_intent))
+        );
+        assert_eq!(
+            rebound_camera["transform"]["up"][2],
+            json!(-0.1038082581402942)
+        );
+
+        let mut rejected = request;
+        rejected["intent"]["canonical_sha256"] = Value::String("f".repeat(64));
+        assert!(canonicalize_optimization_job_wire(&rejected).is_err());
     }
 
     #[test]
@@ -3910,6 +4652,7 @@ mod tests {
             "design_stage_plan_get",
             "critic_report_get",
             "visual_evidence_bundle_get",
+            "visual_surface_get",
         ] {
             let read_tool = read_tools
                 .iter()
@@ -3936,7 +4679,15 @@ mod tests {
                 .find(|tool| tool["name"] == "visual_evidence_bundle_get")
                 .expect("evidence tool")
                 .pointer("/_meta/forgecad/source_schema"),
-            Some(&Value::String("ViewerVisualEvidence@1".to_owned()))
+            Some(&Value::String("VisualEvidenceBundle@1".to_owned()))
+        );
+        assert_eq!(
+            read_tools
+                .iter()
+                .find(|tool| tool["name"] == "visual_surface_get")
+                .expect("surface tool")
+                .pointer("/_meta/forgecad/source_schema"),
+            Some(&Value::String("VisualSurfaceResult@1".to_owned()))
         );
     }
 
@@ -4029,13 +4780,13 @@ mod tests {
     #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 35);
+        assert_eq!(disabled.len(), 40);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 56);
+        assert_eq!(enabled.len(), 70);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -4278,7 +5029,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 56);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 70);
 
         let imported = handle(
             &mut backend,

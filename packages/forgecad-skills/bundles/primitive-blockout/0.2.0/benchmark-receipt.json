@@ -1,12 +1,11 @@
 {
-  "fixture_sha256": "13c9abafb89087e44ccca1d3cc6ee2115bc51aaf0e844bc518f46b5781cb16b9",
+  "fixture_sha256": "16e51d3c8bb516c915104e467eb09dcdda220a1c9ff39878c8af23b95a15f7c7",
   "metrics": {
     "declarative_plan_validation": 1,
     "fixtures": 2,
-    "forbidden_capabilities": 0,
-    "semantic_part_sink": 1
+    "forbidden_capabilities": 0
   },
-  "reason": "Synthetic MCP006 contract safety plus source-focused V2 primitive/hash/readback gates; no visual or PBR claim.",
+  "reason": "Synthetic MCP006 contract safety only; geometry/render/quality are not claimed.",
   "schema_version": "SkillBenchmarkReceipt@1",
   "skill_id": "primitive-blockout",
   "status": "passed",

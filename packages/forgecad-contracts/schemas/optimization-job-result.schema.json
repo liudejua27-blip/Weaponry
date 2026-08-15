@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-job-result.schema.json",
+  "title": "ForgeCAD Optimization Job Read Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "job", "intent_sha256", "result", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "OptimizationJobResult@1"},
+    "job": {"$ref": "https://forgecad.local/contracts/runtime-job.schema.json"},
+    "intent_sha256": {"$ref": "#/$defs/sha256"},
+    "result": {"type": ["object", "null"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

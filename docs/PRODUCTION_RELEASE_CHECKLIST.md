@@ -2,7 +2,7 @@
 
 版本：2026-08-11
 MVP 结论：**功能核心 PASS；参考图真人验收/packaged release BLOCKED 或 NOT_RUN**
-MCP010 结论：**FGC-MCP010A done；FGC-MCP010B structural source Gate PASS（Darwin OS memory hard cap deferred/NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；MCP010D source-focused Operator/Skill + packaged raw structural PASS（Manifold/视觉子门 NOT_RUN）；MCP010E source-focused AssetPack/UV/PBR/MikkTSpace + packaged structural PASS（xatlas/Validator/视觉子门 NOT_RUN）；MCP010F BLOCKED**
+MCP010 结论：**FGC-MCP010A done；FGC-MCP010B structural source Gate PASS（Darwin OS memory hard cap deferred/NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；MCP010D source-focused Operator/Skill + bounded Manifold Boolean Worker/raw structural PASS（current packaged rebuild/视觉子门 NOT_RUN）；MCP010E source-focused AssetPack/UV/PBR/MikkTSpace + packaged structural PASS（xatlas/Validator/视觉子门 NOT_RUN）；MCP010F BLOCKED**
 生产发布结论：**BLOCKED，不可外部分发**
 
 ## 1. 已完成基座
@@ -64,7 +64,7 @@ MCP004 历史 manifest 仍保留 signing/reference/Geometry/GLB 的 BLOCKED/NOT_
 - [x] 010A：同 revision 用户级开发 App、raw stdio/CLI、用户重启后的真实 Codex capability/project/build hash
 - [ ] 010B：source-focused PASS；V2 Schema、真实 GLB/accessor/topology/source readback、损坏输入 fail closed、Worker structural 子门、历史 Dev.app structural probes 已 PASS；Darwin OS 总内存硬门仍 NOT_RUN
 - [ ] 010C：perspective/z-buffer 固定 renderer、九 AOV、silhouette/landmark/region metrics、typed review tools
-- [x] 010D：11 个真实高细节 Operator、`hard-surface-detail@0.2.0` integrity/benchmark/Worker source Gate；Manifold boolean 保持 unavailable，adoption/packaged/视觉子门未运行
+- [x] 010D：12 个真实高细节 Operator、`hard-surface-detail@0.2.0` integrity/benchmark/Worker source Gate；Manifold 固定 revision C API 已通过同一 Part bounded union/difference/intersection adoption/raw Gate；current packaged rebuild、视觉子门未运行
 - [x] 010E：first-party 离线 AssetPack、512px UV atlas、固定 `mikktspace@0.3.0`、embedded PNG PBR/texture、逐资产 license/SBOM/provenance 与 source raw Gate；xatlas/Khronos Validator/packaged/视觉子门未运行
 - [ ] 010F：Viewer compare/selection/isolate/explosion/a11y、真实 Codex change/confirm/restore/export/restart 同 hash、用户四项评分 ≥4/5
 - [ ] 当前单图达到 `PARTIAL_VISIBLE_VIEW_PASS`

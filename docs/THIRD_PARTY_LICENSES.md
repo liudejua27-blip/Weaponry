@@ -1,7 +1,7 @@
 # ForgeCAD License / SBOM Ledger
 
 版本：2026-08-13
-状态：当前依赖账本 + MCP010E source-focused 采用回执；除固定 mikktspace 外候选仍不是已采用依赖。用户已授权 Luna 对 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 进行冻结 revision 的选择性源文件研究；另有 Ponytail 的 accepted first-party workflow rewrite。它们均不改变当前 SBOM。
+状态：当前依赖账本 + MCP010D/E source-focused 采用回执；Manifold 仅以固定 revision vendored C API/Worker 方式进入产品，xatlas/Validator 和其他候选仍未采用。用户已授权 Luna 对 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 进行冻结 revision 的选择性源文件研究；另有 Ponytail 的 accepted first-party workflow rewrite。
 
 MCP002 建立的最小依赖账本继续作为基础；MCP005 起每次 adoption 增量更新。
 
@@ -24,7 +24,7 @@ MCP002 建立的最小依赖账本继续作为基础；MCP005 起每次 adoption
 | build123d | `ef48b98af7780028e015d9f079d8ccc01d894696` | Apache-2.0 | `docs/evidence/adoption/build123d/ef48b98af7780028e015d9f079d8ccc01d894696.yaml` | research-authorized |
 | BlenderMCP | `3ab892510cc0e5435ba5e611c01fb1021fbde8de` | MIT | `docs/evidence/adoption/blender-mcp/3ab892510cc0e5435ba5e611c01fb1021fbde8de.yaml` | research-authorized |
 | CadQuery | `d6729f51bf1ed183f110aacdbc6238e4a5110c96` | Apache-2.0 | `docs/evidence/adoption/cadquery/d6729f51bf1ed183f110aacdbc6238e4a5110c96.yaml` | research-authorized |
-| Manifold | `969b1417afdee87dbc6147cf676bc04799418ec2` | Apache-2.0 | `docs/evidence/adoption/manifold/969b1417afdee87dbc6147cf676bc04799418ec2.yaml` | research-authorized |
+| Manifold | `969b1417afdee87dbc6147cf676bc04799418ec2` | Apache-2.0 | `docs/evidence/adoption/manifold/969b1417afdee87dbc6147cf676bc04799418ec2.yaml` | **accepted：product-owned isolated Worker，同一 Part union/difference/intersection** |
 | MaterialX | `a7b2d60aa682656b6fed72f760685612aa3a87c6` | Apache-2.0 | `docs/evidence/adoption/materialx/a7b2d60aa682656b6fed72f760685612aa3a87c6.yaml` | research-authorized |
 | Ponytail | `2ed6c52c9d7e5e56942508591085fd45dea277d3` | MIT | `docs/evidence/adoption/ponytail/2ed6c52c9d7e5e56942508591085fd45dea277d3.yaml` | accepted workflow reference; no code/dependency |
 
@@ -36,7 +36,7 @@ MCP002 建立的最小依赖账本继续作为基础；MCP005 起每次 adoption
 |---|---|---|---|
 | image-rs/image | MIT OR Apache-2.0 | MCP005 | exact version、features、LICENSE hash、decoder security/limits、SBOM |
 | gltf-rs/gltf | MIT OR Apache-2.0 | MCP007 | exact version、external URI policy、malicious GLB、SBOM |
-| Manifold | Apache-2.0 | MCP007 | exact revision/binding、transitives、FFI/package、topology benchmark |
+| Manifold | Apache-2.0 | MCP010D | fixed revision/vendor hash、C API/FFI、topology/readback、determinism、resource/ASan/UBSan、removal fallback；现为 bounded Worker adoption |
 | xatlas | MIT | MCP008 | exact revision、vendoring/build、determinism benchmark；MVP 当前使用 product-owned bounded UV mapping，未安装 |
 | gltf-rs/mikktspace 0.3.0 | MIT/Apache-2.0 | MCP010E | **accepted（受限 Worker）**；固定 revision、license/SBOM、确定性和 GLB handedness 回执见 `docs/evidence/adoption/mikktspace/0.3.0.yaml` |
 | Khronos glTF-Validator | Apache-2.0 | MCP008 | pinned tool artifact、transitives、report normalization |
