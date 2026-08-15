@@ -1786,6 +1786,23 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             // this reservation makes the fallback converge deterministically
             // instead of spending its last probes on repeated group guesses.
             let recovery_groups = primary_form_recovery_groups(parameter_groups);
+            // Keep the line-search schedule inside the same declared geometry
+            // budget. A large detail Rig needs full scalar coverage, so it
+            // gets two coupled hypotheses for the dominant Part (half-step
+            // and full evidence step) and one whole-proposal backtrack. A
+            // smaller Rig can retain the older quarter backtrack while still
+            // reserving one coupled recovery. The schedule is Runtime-owned;
+            // Codex receives only the final typed result.
+            let recovery_fractions = primary_form_recovery_fractions(
+                parameter_indices.len(),
+                geometry_budget,
+                !recovery_groups.is_empty(),
+            );
+            let backtrack_fractions = primary_form_backtrack_fractions(
+                parameter_indices.len(),
+                geometry_budget,
+                recovery_fractions.len(),
+            );
             let definitions = rig
                 .get("parameters")
                 .and_then(Value::as_array)
@@ -1803,11 +1820,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             let mut initial_proposal_improved = None;
             for probe_index in 0..geometry_budget {
                 let backtrack_fraction = if initial_proposal_improved == Some(false) {
-                    match probe_index {
-                        1 => Some(0.5),
-                        2 => Some(0.25),
-                        _ => None,
-                    }
+                    backtrack_fractions
+                        .get(probe_index.saturating_sub(1))
+                        .copied()
                 } else {
                     None
                 };
@@ -1824,33 +1839,35 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 };
                 if probe_index > 0 && backtrack_fraction.is_none() && !parameter_indices.is_empty() {
                     let search_probe_index = if initial_proposal_improved == Some(false) {
-                        // Probe 1 and 2 were reserved for proposal backtracking.
-                        // Start the local-Part schedule only after those retries
-                        // have been consumed.
-                        probe_index.saturating_sub(2)
+                        // The initial joint proposal and the dynamically
+                        // sized whole-proposal backtracks are reserved before
+                        // the local-Part schedule starts.
+                        probe_index.saturating_sub(backtrack_fractions.len())
                     } else {
                         probe_index
                     };
-                    let group_index = (initial_proposal_improved == Some(false))
-                        .then_some(search_probe_index.saturating_sub(1))
-                        .filter(|index| *index < recovery_groups.len());
-                    if let Some(group_index) = group_index {
+                    let recovery_index = search_probe_index.saturating_sub(1);
+                    let recovery_fraction = (initial_proposal_improved == Some(false))
+                        .then_some(recovery_index)
+                        .and_then(|index| recovery_fractions.get(index).copied());
+                    if let Some(recovery_fraction) = recovery_fraction {
+                        let group_index = recovery_index.min(recovery_groups.len().saturating_sub(1));
                         // Once a joint proposal has failed, test the dominant
-                        // Part as one local shape hypothesis before falling
-                        // back to individual coordinates. This lets coupled
-                        // width/height/offset changes escape a greedy local
-                        // minimum while retaining the current best Part edits
-                        // without sacrificing full scalar-control coverage.
+                        // Part at bounded half/full evidence steps before
+                        // falling back to individual coordinates. This lets
+                        // coupled width/height/offset changes escape a greedy
+                        // local minimum without sacrificing full scalar
+                        // control coverage.
                         parameter_values = interpolate_rig_parameter_group_values(
                             definitions,
                             &best_geometry_parameters,
                             &evidence_parameters,
                             &recovery_groups[group_index],
-                            1.0,
+                            recovery_fraction,
                         );
                     } else {
                         let coordinate_probe_index = if initial_proposal_improved == Some(false) {
-                            search_probe_index.saturating_sub(recovery_groups.len())
+                            search_probe_index.saturating_sub(recovery_fractions.len())
                         } else {
                             search_probe_index
                         };
@@ -11126,6 +11143,46 @@ fn primary_form_recovery_groups(parameter_groups: Vec<Vec<usize>>) -> Vec<Vec<us
     parameter_groups.into_iter().take(1).collect()
 }
 
+/// Choose the number and scale of coupled recovery hypotheses that fit before
+/// a complete scalar-control pass. Large Rigs benefit from a short local line
+/// search on the dominant Part; smaller Rigs leave more room for whole-vector
+/// backtracking and later fine probes. The caller's hard geometry budget is
+/// the only source of additional capacity.
+fn primary_form_recovery_fractions(
+    parameter_count: usize,
+    geometry_budget: usize,
+    has_recovery_group: bool,
+) -> Vec<f64> {
+    if !has_recovery_group || parameter_count == 0 {
+        return Vec::new();
+    }
+    let capacity = geometry_budget.saturating_sub(1 + parameter_count);
+    let desired = if parameter_count >= 32 { 2 } else { 1 };
+    let count = desired.min(capacity);
+    match count {
+        0 => Vec::new(),
+        1 => vec![1.0],
+        _ => vec![0.5, 1.0],
+    }
+}
+
+/// Reserve whole-proposal backtracks without taking budget away from the
+/// complete ranked scalar pass or the coupled recovery hypotheses selected by
+/// `primary_form_recovery_fractions`.
+fn primary_form_backtrack_fractions(
+    parameter_count: usize,
+    geometry_budget: usize,
+    recovery_count: usize,
+) -> Vec<f64> {
+    let capacity = geometry_budget
+        .saturating_sub(1 + parameter_count + recovery_count);
+    match capacity.min(2) {
+        0 => Vec::new(),
+        1 => vec![0.5],
+        _ => vec![0.5, 0.25],
+    }
+}
+
 /// Apply one evidence-attributed Part proposal to the current geometry
 /// incumbent. Only the coordinates in `group` move; all other coordinates stay
 /// at the incumbent so successful local improvements can be composed without
@@ -16777,9 +16834,22 @@ mod tests {
         let groups = (0..12).map(|index| vec![index, index + 12]).collect();
         let recovery = primary_form_recovery_groups(groups);
         assert_eq!(recovery.len(), 1);
-        // 40 geometry trials: joint proposal + two backtracks + one coupled
-        // recovery leave exactly enough probes for a 36-control Rig.
-        assert!(40usize.saturating_sub(3).saturating_sub(recovery.len()) >= 36);
+        // 40 geometry trials: joint proposal + one whole-vector backtrack +
+        // two coupled dominant-Part hypotheses leave a complete 36-control
+        // scalar pass. The large-Rig schedule does not silently spend the
+        // final probes on another unrelated Part group.
+        let recovery_fractions = primary_form_recovery_fractions(36, 40, true);
+        let backtrack_fractions = primary_form_backtrack_fractions(36, 40, recovery_fractions.len());
+        assert_eq!(recovery_fractions, vec![0.5, 1.0]);
+        assert_eq!(backtrack_fractions, vec![0.5]);
+        assert_eq!(1 + backtrack_fractions.len() + recovery_fractions.len() + 36, 40);
+
+        // A smaller Rig retains the quarter backtrack and one coupled
+        // recovery while leaving the remaining budget for a repeat/fine pass.
+        let small_recovery = primary_form_recovery_fractions(26, 40, true);
+        let small_backtracks = primary_form_backtrack_fractions(26, 40, small_recovery.len());
+        assert_eq!(small_recovery, vec![1.0]);
+        assert_eq!(small_backtracks, vec![0.5, 0.25]);
     }
 
     #[test]
