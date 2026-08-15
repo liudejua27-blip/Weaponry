@@ -1,0 +1,21 @@
+{
+  "build_cohort_sha256": "aa0d6dcb0d38c8a7eeeb6f428f8308b4062fd77aa35baafe7bf2f1b06b85808e",
+  "codesign": "ad-hoc deep strict PASS",
+  "developer_id": "NOT_RUN",
+  "installed_app": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app",
+  "notarization": "NOT_RUN",
+  "previous_app_backup": "none",
+  "resource_sha256": {
+    "forgecad-geometry-worker": "d166878d17e548202f69d10649aebd900555d31539d6a0cea3d10ba04b5b4a0c",
+    "forgecad-mcp": "4b64a4af2691a35989bf7cf3d8f9fc8e71a21934ff2b4cf3821bf4c9fc569089",
+    "forgecad-render-worker": "7ed8aa82339f437c8e7c5dcba4a2433a704f608fa842cbef725b660254f77bb7",
+    "forgecad-runtime": "d08ac44e6aa1dbda8319c14ce639d5eb46b702c69b38aa1c8138b51c390f85f0"
+  },
+  "schema_version": "ForgeCADDevAppInstallReceipt@1",
+  "source_file_count": 580,
+  "source_revision": "cf329215468a8172ac9d9ea7791f5f4331032e1c",
+  "source_worktree_dirty": false,
+  "status": "PASS",
+  "task_id": "FGC-MCP010F",
+  "viewer_sha256": "2b00988d1131a161224b24d18f77409fa77bb6a331d718be2b1a0fc9a86f6259"
+}
