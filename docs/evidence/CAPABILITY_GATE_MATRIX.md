@@ -3,7 +3,7 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
-2026-08-15 Primary Form composition-lineage Gate：CLI 的 `ForgeCADPrimaryFormCompositionLineage@1` 对 2–3 个 serial repair steps 做 candidate/observation/target/camera/Rig/intent hash binding，并只接受 Runtime `prepared + strict_improvement` 的 candidate advancement；source drift、target drift、hash 缺失和错误状态均 fail closed。该 Gate 是 orchestration projection/source Gate，不是 Runtime/CAS durable write、视觉 likeness 或高质量 PASS；当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，真实 composition 因授权 PNG 缺失 `NOT_RUN/BLOCKED_REFERENCE_BYTES_UNAVAILABLE`。
+2026-08-15 Primary Form composition-lineage Gate：CLI 的 `ForgeCADPrimaryFormCompositionLineage@1` 对 2–3 个 serial repair steps 做 candidate/observation/target/camera/Rig/intent hash binding，第二步起在 candidate advancement 前实际消费已校验的 prefix projection，并只接受 Runtime `prepared + strict_improvement`；source drift、target drift、hash 缺失和错误状态均 fail closed。该 Gate 是 orchestration projection/source Gate，不是 Runtime/CAS durable write、视觉 likeness 或高质量 PASS；当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，真实 composition 因授权 PNG 缺失 `NOT_RUN/BLOCKED_REFERENCE_BYTES_UNAVAILABLE`。
 
 2026-08-15 Primary Form bilateral landmark-mask Gate：Runtime 的 landmark evidence decoder 现在按固定 `rig_part_matches_observed_part` alias 将 Worker `knee-left`/`knee-right` 等 concrete Part-ID 合并到 `knee-pair` 语义 mask；双侧 anchor 覆盖与 NME 不再静默退回 whole-body fallback。新增 Runtime regression；该 Gate 只修复 Codex observation 的 Part-owned projection，不产生真实 likeness、人评、PBR、export/restart 或 360 证据，当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
 

@@ -1,6 +1,6 @@
 # ForgeCAD 当前交接
 
-2026-08-15 Primary Form composition-lineage handoff：`--part-contour-sequence` 现在生成并校验 `ForgeCADPrimaryFormCompositionLineage@1` compact orchestration receipt；每一步绑定 candidate/observation/target/camera/Rig/intent hashes，只有 `prepared + strict_improvement` 才推进到下一 candidate，`no_improvement` 保持 source。raw Codex/MCP events 仍仅用于 transport audit，Codex 后续决策消费 lineage projection，不从散乱事件重建状态。该 projection 不写 Runtime/CAS、不改变 Viewer Runtime-only QualityReport，真实 composition 仍需用户授权 PNG，当前视觉质量仍 `QUALITY_TARGET_NOT_MET`。
+2026-08-15 Primary Form composition-lineage handoff：`--part-contour-sequence` 现在生成并校验 `ForgeCADPrimaryFormCompositionLineage@1` compact orchestration receipt；每一步绑定 candidate/observation/target/camera/Rig/intent hashes，完成第二步起先消费已校验的 prefix lineage 再允许下一 candidate，只有 `prepared + strict_improvement` 才推进，`no_improvement` 保持 source。raw Codex/MCP events 仍仅用于 transport audit，Codex 后续决策消费 lineage projection，不从散乱事件重建状态。该 projection 不写 Runtime/CAS、不改变 Viewer Runtime-only QualityReport，真实 composition 仍需用户授权 PNG，当前视觉质量仍 `QUALITY_TARGET_NOT_MET`。
 
 2026-08-15 Primary Form bilateral landmark-mask handoff：修复 landmark 证据投影只按 exact Part-ID 解码的缺口；`knee-pair`/`hand-pair` 等语义 Rig Part 现在会在 Runtime 内把 Render Worker 的 `*-left`/`*-right` Part-ID 聚合成同一 landmark mask，再按 left/right anchor 计算覆盖与误差。新增双侧地标回归测试；该修复只恢复 Part-owned observation，不产生新的真实 likeness receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 未运行或阻断保持不变。
 

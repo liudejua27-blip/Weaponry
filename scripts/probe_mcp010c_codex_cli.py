@@ -1607,6 +1607,43 @@ def main() -> int:
                         silhouette_fit_result = step["fit_result"]
                         silhouette_fit_camera_hash = step["fit_camera_hash"]
                         silhouette_fit_camera_canonical = step["fit_camera_canonical"]
+                        next_candidate_id = candidate_id
+                        if options.part_contour_sequence_parts:
+                            if step["status"] == "prepared":
+                                staged_payload = step.get("staged")
+                                staged_candidate_id = (
+                                    staged_payload.get("candidate_id")
+                                    if isinstance(staged_payload, dict)
+                                    else None
+                                )
+                                if not isinstance(staged_candidate_id, str) or not staged_candidate_id:
+                                    raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: staged candidate is missing")
+                                next_candidate_id = staged_candidate_id
+                            elif step["status"] != "no_improvement":
+                                raise RuntimeError(
+                                    "PRIMARY_FORM_COMPOSITION_INVALID: unsupported step status before candidate advance"
+                                )
+                            # Once a two-step prefix exists, the compact
+                            # lineage is the authoritative chain projection
+                            # for the next step.  Do not advance from the raw
+                            # event list if its candidate/observation/hash
+                            # bindings fail closed.
+                            if step_index >= 1:
+                                if primary_form_composition_initial_candidate_id is None:
+                                    raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: initial candidate is missing")
+                                primary_form_composition_lineage = build_primary_form_composition_lineage(
+                                    project_id,
+                                    primary_form_composition_initial_candidate_id,
+                                    next_candidate_id,
+                                    silhouette_target_sha or "",
+                                    options.part_contour_sequence_parts[: step_index + 1],
+                                    primary_form_repair_steps,
+                                )
+                                if primary_form_composition_lineage["final_candidate_id"] != next_candidate_id:
+                                    raise RuntimeError(
+                                        "PRIMARY_FORM_COMPOSITION_INVALID: lineage did not authorize candidate advance"
+                                    )
+                                partial_evidence["primary_form_composition_lineage"] = primary_form_composition_lineage
                         if step["status"] == "prepared":
                             selected_camera_for_compare = step["fit_camera"]
                             staged = step["staged"]
@@ -1615,18 +1652,13 @@ def main() -> int:
                             artifact_id = staged["artifact_id"]
                             artifact = staged["artifact"]
                             program_hash = staged["program_sha256"]
+                        elif options.part_contour_sequence_parts:
+                            candidate_id = next_candidate_id
                     if options.part_contour_sequence_parts:
-                        if primary_form_composition_initial_candidate_id is None:
-                            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: initial candidate is missing")
-                        primary_form_composition_lineage = build_primary_form_composition_lineage(
-                            project_id,
-                            primary_form_composition_initial_candidate_id,
-                            candidate_id,
-                            silhouette_target_sha or "",
-                            options.part_contour_sequence_parts,
-                            primary_form_repair_steps,
-                        )
-                        partial_evidence["primary_form_composition_lineage"] = primary_form_composition_lineage
+                        if primary_form_composition_lineage is None:
+                            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: lineage was not consumed")
+                        if primary_form_composition_lineage["final_candidate_id"] != candidate_id:
+                            raise RuntimeError("PRIMARY_FORM_COMPOSITION_INVALID: final candidate is not lineage-bound")
                 else:
                     fit_request: dict[str, Any] = {
                         "project_id": project_id,

@@ -37,6 +37,8 @@ assert 'def run_primary_form_repair_step' in source
 assert 'primary_form_repair_steps' in source
 assert 'def build_primary_form_composition_lineage' in source
 assert 'primary_form_composition_lineage' in source
+assert 'lineage did not authorize candidate advance' in source
+assert 'PRIMARY_FORM_COMPOSITION_INVALID: lineage was not consumed' in source
 assert 'silhouette observation before composition step' in source
 print("MCP010F source route includes bounded Primary Form controls and candidate-bound composition sequence")
 PY
