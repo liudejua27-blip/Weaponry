@@ -1345,9 +1345,16 @@ def main() -> int:
                         or len(silhouette_fit_camera_canonical) != 64
                     ):
                         raise RuntimeError("primary_form_repair_prepare returned an invalid Runtime-selected camera")
-                    selected_camera_for_compare = fit_selected_camera
                     repair_status = field(primary_form_repair_result, "status")
                     if repair_status == "prepared":
+                        # A prepared candidate owns the Runtime repair fit's
+                        # selected camera, so the later compare must bind to
+                        # this camera.  For no_improvement, the fit is only a
+                        # proposal and the source candidate's canonical
+                        # silhouette compare remains the authoritative
+                        # evidence; do not relabel that baseline as if it had
+                        # used the proposal camera.
+                        selected_camera_for_compare = fit_selected_camera
                         prepared_result = field(primary_form_repair_result, "prepared_candidate") or {}
                         prepared_candidate = field(prepared_result, "candidate") or {}
                         prepared_job = field(prepared_result, "job") or {}
