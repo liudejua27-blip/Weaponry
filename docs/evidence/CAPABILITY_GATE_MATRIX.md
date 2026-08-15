@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Primary Form bilateral landmark-mask Gate：Runtime 的 landmark evidence decoder 现在按固定 `rig_part_matches_observed_part` alias 将 Worker `knee-left`/`knee-right` 等 concrete Part-ID 合并到 `knee-pair` 语义 mask；双侧 anchor 覆盖与 NME 不再静默退回 whole-body fallback。新增 Runtime regression；该 Gate 只修复 Codex observation 的 Part-owned projection，不产生真实 likeness、人评、PBR、export/restart 或 360 证据，当前仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Primary Form bilateral local-envelope Gate：Runtime 将 target 与 Render Worker 的 concrete `*-left`/`*-right` envelope 通过固定 alias 合并到 authoring Rig 的 `*-pair` 控制，再计算局部 width/height/offset proposal；此前 exact lookup 会让 bilateral Part 退回 whole-body bbox。新增 merge regression 与 Primary Form focused tests 通过；该 Gate 只修复收敛输入，不产生新的真实 likeness receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 与人评/PBR/export-restart/360 状态保持不变。
 
 2026-08-15 Primary Form bilateral boundary ranking Gate：Runtime 将 Render Worker 的 concrete `*-left`/`*-right` Part-ID 通过固定 alias 聚合到 authoring Rig 的 `*-pair` 控制，再按 candidate-bound boundary score 排序 bounded probes；此前 exact-string lookup 会使 bilateral control 丢失边界优先级。新增 regression、Primary Form 相关 21 个 Runtime tests 与 MCP010F full Gate 通过；该 Gate 只修复收敛排序输入，不产生新的真实 likeness receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 与人评/PBR/export-restart/360 状态保持不变。

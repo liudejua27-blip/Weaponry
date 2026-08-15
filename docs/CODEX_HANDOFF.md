@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 Primary Form bilateral landmark-mask handoff：修复 landmark 证据投影只按 exact Part-ID 解码的缺口；`knee-pair`/`hand-pair` 等语义 Rig Part 现在会在 Runtime 内把 Render Worker 的 `*-left`/`*-right` Part-ID 聚合成同一 landmark mask，再按 left/right anchor 计算覆盖与误差。新增双侧地标回归测试；该修复只恢复 Part-owned observation，不产生新的真实 likeness receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 未运行或阻断保持不变。
+
 2026-08-15 Primary Form bilateral local-envelope handoff：修复局部 proposal 仍按 exact Part-ID 查找的缺口；`hip-left`/`hip-right` target 与 Render Worker envelope 现在会通过固定 alias 合并后再计算 pair Rig 的 width/height/offset 提案，避免已选中的双侧 Part 退回 whole-body bbox。新增 local-envelope merge regression 与 Primary Form 相关测试通过；该修复只改善 Runtime 收敛输入，没有新的真实 likeness receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 未运行或阻断保持不变。
 
 2026-08-15 Primary Form bilateral boundary ranking handoff：修复 Runtime bounded probe 排序只按字符串精确匹配的缺口；Render Worker 的 `shin-left`/`shin-right` 现在会通过固定 alias 关系聚合到 Rig 的 `shin-pair` 控制，再参与 boundary-priority 排序。新增 bilateral ranking regression，Primary Form 相关 21 个 Runtime tests 与 MCP010F full Gate 通过。该修复只改善 Runtime 收敛输入，不产生新的真实 likeness receipt；`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 未运行或阻断保持不变。

@@ -11463,20 +11463,32 @@ fn decode_relevant_part_masks(
             imageops::FilterType::Nearest,
         )
         .to_rgba8();
+    // Rig landmark hints use semantic controls such as `knee-pair`, while
+    // the Render Worker may expose the visible AOV as `knee-left` and
+    // `knee-right`.  Resolve that fixed alias relation here and aggregate
+    // both concrete outputs into the semantic mask consumed by the
+    // landmark anchor code; otherwise the scorer silently falls back to the
+    // whole-body mask and loses Part ownership.
     let wanted_indices = part_ids
         .iter()
         .enumerate()
-        .filter_map(|(index, part_id)| {
-            wanted_part_ids
-                .contains(part_id)
-                .then_some((index, part_id.clone()))
+        .filter_map(|(index, observed_part_id)| {
+            let matched = wanted_part_ids
+                .iter()
+                .filter(|wanted_part_id| {
+                    rig_part_matches_observed_part(wanted_part_id, observed_part_id)
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            (!matched.is_empty()).then_some((index, matched))
         })
-        .collect::<HashMap<usize, String>>();
+        .collect::<HashMap<usize, Vec<String>>>();
     if wanted_indices.is_empty() {
         return Some(HashMap::new());
     }
     let mut masks = wanted_indices
         .values()
+        .flatten()
         .map(|part_id| (part_id.clone(), vec![false; resolution * resolution]))
         .collect::<HashMap<_, _>>();
     for index in 0..resolution * resolution {
@@ -11486,11 +11498,13 @@ fn decode_relevant_part_masks(
         let Some(part_index) = part_color_index(pixel) else {
             continue;
         };
-        let Some(part_id) = wanted_indices.get(&part_index) else {
+        let Some(part_ids) = wanted_indices.get(&part_index) else {
             continue;
         };
-        if let Some(mask) = masks.get_mut(part_id) {
-            mask[index] = true;
+        for part_id in part_ids {
+            if let Some(mask) = masks.get_mut(part_id) {
+                mask[index] = true;
+            }
         }
     }
     Some(
@@ -14067,6 +14081,41 @@ mod tests {
         );
         assert_eq!(coverage, 0.0);
         assert!(nme > 0.05);
+    }
+
+    #[test]
+    fn semantic_landmark_masks_merge_bilateral_worker_parts() {
+        let mut model = vec![false; 512 * 512];
+        let mut part_image = RgbaImage::from_pixel(512, 512, Rgba([0, 0, 0, 0]));
+        let left_color = Rgba([73, 119, 91, 255]);
+        let right_color = Rgba([170, 172, 122, 255]);
+        for y in 200..261 {
+            for x in 100..141 {
+                model[y * 512 + x] = true;
+                part_image.put_pixel(x as u32, y as u32, left_color);
+            }
+            for x in 371..412 {
+                model[y * 512 + x] = true;
+                part_image.put_pixel(x as u32, y as u32, right_color);
+            }
+        }
+        let mut part_png = Vec::new();
+        part_image
+            .write_to(&mut Cursor::new(&mut part_png), ImageFormat::Png)
+            .expect("part-id png");
+        let target = json!({
+            "landmarks":[
+                {"landmark_id":"left-knee","x":100.0/511.0,"y":230.0/511.0,"visibility":"observed","confidence":1.0},
+                {"landmark_id":"right-knee","x":411.0/511.0,"y":230.0/511.0,"visibility":"observed","confidence":1.0}
+            ]
+        });
+        let (coverage, nme) = landmark_metrics_with_parts(
+            &model,
+            &target,
+            Some((&part_png, &["knee-left".to_owned(), "knee-right".to_owned()])),
+        );
+        assert_eq!(coverage, 1.0);
+        assert!(nme < 0.001);
     }
 
     #[test]
