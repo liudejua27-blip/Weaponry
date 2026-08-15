@@ -2897,6 +2897,41 @@ mod tests {
     }
 
     #[test]
+    fn fit_512_transient_matches_formal_silhouette_and_part_id_raster() {
+        let artifact = compile_geometry_program(&v2_program()).expect("V2 artifact");
+        let camera = json!({
+            "schema_version":"CameraCalibration@1",
+            "camera_hash":"a".repeat(64),
+            "projection":"perspective",
+            "transform":{"position_m":[4.0,3.0,6.0],"target_m":[0.0,1.5,0.0],"up":[0.0,1.0,0.0]},
+            "fov_y_degrees":42.0,
+            "near_m":0.05,
+            "far_m":20.0,
+            "resolution":{"width":512,"height":512},
+            "coordinate_system":"right-handed-y-up-meter",
+            "renderer_revision":"forgecad-renderer-2",
+            "canonical_sha256":"b".repeat(64)
+        });
+        let formal = render_perspective_glb(&artifact.glb, &camera).expect("formal renderer");
+        let fit = render_perspective_glb_fit_at_resolution(&artifact.glb, &camera, 512)
+            .expect("512 fit renderer");
+
+        for pass_name in ["silhouette", "part-id"] {
+            let formal_pass = formal
+                .iter()
+                .find(|pass| pass.pass == pass_name)
+                .expect("formal pass");
+            let fit_pass = fit
+                .iter()
+                .find(|pass| pass.pass == pass_name)
+                .expect("fit pass");
+            assert_eq!(fit_pass.width, 512);
+            assert_eq!(fit_pass.height, 512);
+            assert_eq!(fit_pass.png, formal_pass.png, "raster drift in {pass_name}");
+        }
+    }
+
+    #[test]
     fn operator_catalog_is_closed_and_hash_bound() {
         let catalog = operator_catalog();
         let declared = catalog["canonical_sha256"]

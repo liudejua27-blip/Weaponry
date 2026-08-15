@@ -325,19 +325,22 @@ fn render_perspective_glb_at_resolution_with_passes(
     let height = resolution;
     // The fixed nine-AOV renderer keeps its deterministic 2x supersampling
     // path.  The transient fit renderer only asks for binary silhouette and
-    // Part-ID passes; rendering those masks at the output grid avoids four
-    // times as many raster samples for every camera trial while preserving
-    // the exact same depth/lineage semantics.  The result is still encoded
-    // at the contract's 128x128 resolution and is never persisted as an AOV.
+    // Part-ID passes.  Keep the cheaper half-resolution raster only for the
+    // 128px exploratory contract; a 512px fit must use the exact same 1024px
+    // sample grid as the formal 512px comparison renderer, otherwise Primary
+    // Form can optimize a different contour than the acceptance gate.
     let transient_binary_fit = requested_passes.len() == 2
         && requested_passes.contains(&"silhouette")
         && requested_passes.contains(&"part-id");
     let raster_resolution = if transient_binary_fit {
-        // A 64px binary raster is sufficient for ranking a bounded camera
-        // neighborhood; the result is deterministically upsampled to the
-        // 128px transient contract below.  The final persisted comparison
-        // still uses the 512px fixed renderer.
-        (resolution / 2).max(64)
+        if resolution == 512 {
+            resolution * 2
+        } else {
+            // A 64px binary raster is sufficient for ranking a bounded
+            // 128px camera neighborhood; the result is deterministically
+            // upsampled to the transient contract and is never persisted.
+            (resolution / 2).max(64)
+        }
     } else {
         resolution * 2
     };
