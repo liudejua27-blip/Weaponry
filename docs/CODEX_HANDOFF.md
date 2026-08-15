@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 Durable observation lineage handoff：本轮把 Agentic durable prepare/readback 的 binding 从 project/candidate scope 扩展为 exact candidate/reference lineage。`session_*`、`checkpoint_*` 和 bounded action 在使用观察时会核对 candidate ID/hash、reference ID/object hash/canonical hash；缺失/漂移不会继续执行。focused exact-lineage、Agentic projection 与 bounded action tests PASS。该修复没有改变 Runtime 唯一写者、Viewer 只读边界或当前视觉真值；下一步仍是用真实授权参考复跑视觉闭环，不能把结构 Gate 写成 likeness PASS。
+
 2026-08-15 Agentic observation handoff：Runtime 进程内新增以 `AgenticSceneObserveResult@1.canonical_sha256` 为 key 的 bounded read-only cache；同一次 `scene_observe_get` 后的 plan/critic/evidence/action follow-up 读取原观察对象，缓存丢失时才重建并严格做 hash/scope 校验。它不写 SQLite/CAS，也不替代 durable session/checkpoint；新增 ambiguity/cache regression 与 bounded action regression 通过。没有新的授权 PNG 或 likeness 证据，质量仍为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Primary Form composition-lineage handoff：`--part-contour-sequence` 现在生成并校验 `ForgeCADPrimaryFormCompositionLineage@1` compact orchestration receipt；每一步绑定 candidate/observation/target/camera/Rig/intent hashes，完成第二步起先消费已校验的 prefix lineage 再允许下一 candidate，只有 `prepared + strict_improvement` 才推进，`no_improvement` 保持 source。raw Codex/MCP events 仍仅用于 transport audit，Codex 后续决策消费 lineage projection，不从散乱事件重建状态。该 projection 不写 Runtime/CAS、不改变 Viewer Runtime-only QualityReport，真实 composition 仍需用户授权 PNG，当前视觉质量仍 `QUALITY_TARGET_NOT_MET`。

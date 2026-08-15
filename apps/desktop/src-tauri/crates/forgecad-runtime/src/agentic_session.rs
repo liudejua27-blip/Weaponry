@@ -789,6 +789,36 @@ pub(super) fn validate_observation_claims(
             "AGENTIC_OBSERVATION_BINDING_MISMATCH: observation scope differs".to_owned(),
         ));
     }
+    validate_observation_lineage_value(
+        observation,
+        "candidate_id",
+        &candidate.candidate_id,
+        "AGENTIC_CANDIDATE_BINDING_MISMATCH",
+    )?;
+    validate_observation_lineage_value(
+        observation,
+        "candidate_canonical_sha256",
+        &candidate.canonical_sha256,
+        "AGENTIC_CANDIDATE_STATE_MISMATCH",
+    )?;
+    validate_observation_lineage_value(
+        observation,
+        "reference_id",
+        &reference.reference_id,
+        "AGENTIC_REFERENCE_BINDING_MISMATCH",
+    )?;
+    validate_observation_lineage_value(
+        observation,
+        "reference_sha256",
+        &reference.object_sha256,
+        "AGENTIC_REFERENCE_BINDING_MISMATCH",
+    )?;
+    validate_observation_lineage_value(
+        observation,
+        "reference_canonical_sha256",
+        &reference.canonical_sha256,
+        "AGENTIC_REFERENCE_STATE_MISMATCH",
+    )?;
     let known = observation_hashes(observation, candidate, reference);
     if !known.iter().any(|hash| hash == evidence_sha256) {
         return Err(RuntimeError::InvalidInput(
@@ -810,6 +840,23 @@ pub(super) fn validate_observation_claims(
     Ok(())
 }
 
+fn validate_observation_lineage_value(
+    observation: &Value,
+    key: &str,
+    expected: &str,
+    error_code: &str,
+) -> Result<(), RuntimeError> {
+    let observed = observation
+        .pointer(&format!("/lineage/{key}"))
+        .and_then(Value::as_str);
+    if observed != Some(expected) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "{error_code}: observation lineage {key} differs"
+        )));
+    }
+    Ok(())
+}
+
 fn observation_hashes(
     observation: &Value,
     candidate: &CandidateRecord,
@@ -818,6 +865,7 @@ fn observation_hashes(
     let mut hashes = vec![
         candidate.canonical_sha256.clone(),
         reference.object_sha256.clone(),
+        reference.canonical_sha256.clone(),
     ];
     for pointer in [
         "/canonical_sha256",
@@ -1190,6 +1238,110 @@ fn build_design_spec(
         "canonical_sha256":"",
         "created_at":agentic_timestamp()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use forgecad_contracts::ReferenceAuthorization;
+
+    fn candidate() -> CandidateRecord {
+        CandidateRecord {
+            schema_version: "Candidate@1".to_owned(),
+            candidate_id: "candidate-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            base_version_id: None,
+            source_version_id: None,
+            prepared_object_id: None,
+            prepared_object_sha256: None,
+            state: "staged".to_owned(),
+            request_sha256: "d".repeat(64),
+            manifest_hash: None,
+            quality_report_id: None,
+            quality_hard_gate_passed: false,
+            canonical_sha256: "a".repeat(64),
+            error_code: None,
+            created_at: "2026-08-15T00:00:00Z".to_owned(),
+            updated_at: "2026-08-15T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn reference() -> ReferenceEvidenceRecord {
+        ReferenceEvidenceRecord {
+            schema_version: "ReferenceEvidence@1".to_owned(),
+            reference_id: "reference-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            object_sha256: "b".repeat(64),
+            mime: "image/png".to_owned(),
+            size_bytes: 1,
+            width: 1,
+            height: 1,
+            frame_count: 1,
+            import_mode: "inline".to_owned(),
+            authorization: ReferenceAuthorization {
+                user_authorized: true,
+                declaration: "authorized test reference".to_owned(),
+            },
+            derived_object_sha256: None,
+            canonical_sha256: "c".repeat(64),
+            created_at: "2026-08-15T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn observation() -> Value {
+        json!({
+            "project_id":"project-1",
+            "candidate_id":"candidate-1",
+            "canonical_sha256":"f".repeat(64),
+            "lineage":{
+                "candidate_id":"candidate-1",
+                "candidate_canonical_sha256":"a".repeat(64),
+                "reference_id":"reference-1",
+                "reference_sha256":"b".repeat(64),
+                "reference_canonical_sha256":"c".repeat(64),
+                "camera_hash":"e".repeat(64)
+            }
+        })
+    }
+
+    #[test]
+    fn observation_claims_require_exact_candidate_and_reference_lineage() {
+        let candidate = candidate();
+        let reference = reference();
+        let camera_hash = "e".repeat(64);
+        validate_observation_claims(
+            &observation(),
+            &candidate,
+            &reference,
+            &camera_hash,
+            &candidate.canonical_sha256,
+        )
+        .expect("exact observation lineage");
+
+        let mut stale_candidate = observation();
+        stale_candidate["lineage"]["candidate_canonical_sha256"] = Value::String("1".repeat(64));
+        let error = validate_observation_claims(
+            &stale_candidate,
+            &candidate,
+            &reference,
+            &camera_hash,
+            &candidate.canonical_sha256,
+        )
+        .expect_err("candidate lineage drift must fail closed");
+        assert!(error.to_string().contains("AGENTIC_CANDIDATE_STATE_MISMATCH"));
+
+        let mut stale_reference = observation();
+        stale_reference["lineage"]["reference_canonical_sha256"] = Value::String("2".repeat(64));
+        let error = validate_observation_claims(
+            &stale_reference,
+            &candidate,
+            &reference,
+            &camera_hash,
+            &candidate.canonical_sha256,
+        )
+        .expect_err("reference lineage drift must fail closed");
+        assert!(error.to_string().contains("AGENTIC_REFERENCE_STATE_MISMATCH"));
+    }
 }
 
 fn agentic_timestamp() -> String {

@@ -3,6 +3,8 @@
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 
+2026-08-15 Durable Agentic lineage Gate：session/checkpoint/action 的 observation claims 现在必须同时匹配 current candidate/reference 的 ID、candidate canonical hash、reference object hash 与 reference canonical hash；缺失或漂移返回 fail-closed binding error。exact-lineage unit、Agentic projection 与 bounded action regressions PASS；不新增 Schema/tool/CAS，不产生 Repair/confirm/version/export 或视觉质量结论，仍为 `QUALITY_TARGET_NOT_MET` / `MISMATCH` / `BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Agentic observation cache Gate：Runtime 进程内按 canonical observation hash 缓存完整只读 projection；bound plan/critic/evidence/action 在同一 Runtime 会话消费原对象，缓存丢失时执行重建 + hash/scope fail-closed 校验。focused Runtime cache/ambiguity 与 bounded action tests PASS；无新增 Schema、tool、CAS 用户数据或视觉质量结论，仍为 `QUALITY_TARGET_NOT_MET` / `MISMATCH` / `BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Primary Form composition-lineage Gate：CLI 的 `ForgeCADPrimaryFormCompositionLineage@1` 对 2–3 个 serial repair steps 做 candidate/observation/target/camera/Rig/intent hash binding，第二步起在 candidate advancement 前实际消费已校验的 prefix projection，并只接受 Runtime `prepared + strict_improvement`；source drift、target drift、hash 缺失和错误状态均 fail closed。该 Gate 是 orchestration projection/source Gate，不是 Runtime/CAS durable write、视觉 likeness 或高质量 PASS；当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、benchmark `BLOCKED_INCOMPLETE_BINDING`，真实 composition 因授权 PNG 缺失 `NOT_RUN/BLOCKED_REFERENCE_BYTES_UNAVAILABLE`。

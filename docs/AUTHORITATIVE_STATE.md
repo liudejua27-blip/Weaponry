@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Durable Agentic observation lineage truth：Runtime 在 durable session/checkpoint/action 的观察声明上增加 candidate/reference lineage 等值校验：观察必须同时绑定当前 candidate ID/hash、reference ID/object hash/canonical hash；不完整或状态漂移立即 fail closed。该校验只保护现有 Runtime-owned durable prepare/readback，不把 durable slice 扩写成完整 orchestrator 或 Repair execution；无新的视觉 receipt，`QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态不变。
+
 2026-08-15 Agentic observation cache truth：Runtime 现在在进程内按 `AgenticSceneObserveResult@1.canonical_sha256` 缓存一次完整只读观察；bound plan/critic/visual-evidence/action follow-up 优先读取同一对象，不再在正常同一 Runtime 会话中重新拆分推导。缓存不是 SQLite/CAS 用户数据；Runtime 重启后仍允许一次重新构建，但必须通过请求 hash、project/candidate scope 与 canonical hash 校验。新增 cache/ambiguity regression 和 bounded action regression 通过；没有新的视觉 receipt，`QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态不变。
 
 2026-08-15 Primary Form composition-lineage truth：`ForgeCADPrimaryFormCompositionLineage@1` 是 CLI 层的 hash-bound orchestration projection；每一步必须消费同一 current candidate 的 consolidated observation，完成第二步起先校验 prefix lineage 再推进 candidate，并且只允许 Runtime 返回 `prepared` 且严格改善时推进 staged candidate。raw events 仅保留 transport audit，projection 不写 Runtime/CAS、不产生 version/confirm/export，也不替代 Runtime-owned QualityReport。当前无授权 PNG，真实 composition 未运行；`QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 仍为权威状态。

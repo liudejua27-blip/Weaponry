@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Agentic durable lineage binding：`validate_observation_claims` 现在逐项校验 observation lineage 与当前 Candidate/Reference canonical records；session/checkpoint/action 不能拿缺失或漂移的参考/候选观察继续执行。exact-lineage、Agentic projection 和 bounded action 回归通过；无新增 Schema/tool/CAS 写入，视觉真值保持 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Agentic observation consolidation status：`AgenticSceneObserveResult@1` 现在由 Runtime 进程内 bounded hash cache 保持为一次完整只读快照；bound plan/critic/evidence/action 不再在同一 Runtime 会话重新构建观察。cache 只存在内存，重启后重建仍须通过 canonical hash/scope 校验；没有新增 Schema、tool 或 durable user-data 写入。focused Runtime tests 通过，真实视觉状态仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Primary Form composition-lineage status：`--part-contour-sequence` 现生成并校验 `ForgeCADPrimaryFormCompositionLineage@1` compact orchestration receipt；每个 serial step 绑定 source/observation/target/camera/Rig/intent/fit-camera hash，第二步起必须先通过 prefix lineage 校验才允许下一步消费 candidate，只有 `prepared + strict_improvement` 才推进，`no_improvement` 保留 source。该 projection 只属于 CLI 编排与证据投影，不写 Runtime/CAS，也不改变 Viewer Runtime-only QualityReport；缺少授权 PNG 时真实 composition 仍 `NOT_RUN/BLOCKED_REFERENCE_BYTES_UNAVAILABLE`，`QUALITY_TARGET_NOT_MET`、`camera=MISMATCH` 与 `BLOCKED_INCOMPLETE_BINDING` 保持不变。
