@@ -1,5 +1,7 @@
 # ForgeCAD 能力—Gate 矩阵
 
+2026-08-15 Primary Form resolution-consistent fit Gate：`silhouette_fit_prepare` 的 Primary Form camera/geometry batch 统一为 512×512 isolated Render Worker，与 same-camera acceptance 共享分辨率；非 Primary Form camera 粗搜继续使用 128×128。源码/Runtime focused regression、MCP010F 聚合门与 product workspace check 已通过；该模块不产生 likeness/PBR/human/export-restart/360 PASS，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 版本：2026-08-13
 状态：当前唯一能力与阻断总表；ADR-0026 Agentic Design Runtime 与废弃隔离规则已纳入目标/治理能力，不改变 MCP010F 质量状态
 

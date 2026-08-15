@@ -1,5 +1,7 @@
 # ForgeCAD 当前状态账本
 
+2026-08-15 Primary Form resolution-consistent fit：`silhouette_fit_prepare` 的 Runtime-owned camera/geometry search 已与最终 same-camera acceptance 统一为 512×512 isolated Render Worker fit batch；普通 camera 粗搜保持 128×128 bounded accelerator。该修复解决 fit objective 与 QualityReport acceptance 的分辨率漂移，不新增 candidate/version/CAS 或真实视觉 likeness 证据；权威状态仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
+
 2026-08-15 Viewer Agentic evidence binding hardening：Viewer 在已有完整视觉证据绑定时，不再接受 Runtime Agentic projection 缺少任一 artifact/reference/render-set/comparison/quality hash；完整等值才标记 projection ready，缺失/漂移为 `AGENTIC_EVIDENCE_BINDING_MISMATCH`。Viewer source Gate、Node behavior check、desktop typecheck/build 与 MCP010F full Gate 通过。无新增 Schema/tool/CAS 或真实视觉 receipt，`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态保持不变。
 
 2026-08-15 Render Worker fallback boundary hardening：Runtime 的 perspective/fixed/fit-batch `render-core` fallback 从 `cfg(test)` 隐式路径收口到独立 `test-render-worker-fallback` feature；生产 `cargo check` 不启用该依赖，legacy Runtime/MCP 单测只有在命令行显式启用时才可使用 fallback。source ownership checker、Runtime full `122 passed / 0 failed / 12 ignored`、MCP `56 passed / 0 failed`、MCP010C/F 聚合 Gate 和 Stage 0 truth freshness 通过。该模块不新增视觉 likeness、PBR、人评、export/restart 或 360 证据，仍保留 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。

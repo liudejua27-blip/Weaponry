@@ -1,5 +1,7 @@
 # ForgeCAD 权威状态与版本真值
 
+2026-08-15 Primary Form resolution-consistent fit truth：Runtime-owned `silhouette_fit_prepare` 的 Primary Form camera/geometry search 现在使用 512×512 fit batch，并与最终 same-camera acceptance 对齐；只有普通 camera 粗搜保留 128×128 accelerator。此处只修复 objective/acceptance 分辨率漂移，未产生新的真实视觉 receipt或质量升级；`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`、人评/PBR/export-restart/360 状态保持不变。
+
 2026-08-15 Viewer Agentic evidence binding truth：Viewer 的 Agentic projection 只有在当前 visual evidence 已绑定时，才允许五个 Runtime evidence hash 全部 exact-match 后显示 ready；缺失或漂移返回 unavailable，不从 comparison metrics 或候选结构字段补造质量门。无视觉证据时仍可显示 unknown 的结构性 projection。该修复通过 Viewer source/Node/desktop build/MCP010F Gate，不新增视觉 receipt；真实状态仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。
 
 2026-08-15 Render Worker test-boundary truth：Runtime 的 `render-core` fallback 现在只在显式 `test-render-worker-fallback` feature 下编译；普通 `cfg(test)` 不再把进程内 renderer 当作 Worker 缺失时的隐式成功路径。无 feature 的 Runtime product check、source ownership checker、显式 fallback Runtime/MCP tests 与 MCP010C/F 聚合 Gate 通过。该状态只修正证据与测试边界，不改变真实视觉真值：`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断；same-cohort packaged Worker receipt 仍是独立证据。

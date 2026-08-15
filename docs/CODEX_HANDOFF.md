@@ -1,5 +1,7 @@
 # ForgeCAD 当前交接
 
+2026-08-15 Primary Form resolution-consistent fit handoff：修复 Primary Form 搜索与最终接受门使用不同分辨率的问题。`silhouette_fit_prepare` 的相机邻域与 Geometry Worker proposal 现在走 512×512 isolated Render Worker fit batch；普通 camera-fit 仍保留 128×128 粗搜。Runtime focused/full tests、MCP010F 聚合门与 product workspace check 已通过；没有新的 likeness receipt，真实质量账本继续为 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
+
 2026-08-15 Viewer Agentic evidence binding handoff：Viewer 已有 candidate-bound visual evidence 时，`agentic-design.ts` 的 normalizer 现在要求五个 Runtime evidence hash 逐项完整匹配；缺 hash 或 hash drift 会返回 `AGENTIC_EVIDENCE_BINDING_MISMATCH`，不再将缺失字段视为可兼容的 ready projection。没有视觉绑定时保留 unknown/结构状态。source Gate、Node behavior、desktop build 与 MCP010F full Gate 通过；没有新的真实 likeness receipt，当前仍 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`。
 
 2026-08-15 Render Worker fail-closed boundary handoff：Runtime 的 `render-core` fallback 已不再由 `cfg(test)` 自动启用；`test-render-worker-fallback` 是唯一 Render 回退 feature，`test-geometry-worker-fallback` 仅作为 legacy 显式组合。无 feature product `cargo check`、source boundary checker、显式 fallback Runtime/MCP tests、MCP010C/F full Gate 通过。后续若要声称 Render Worker 真实落地，仍须运行 same-cohort sibling/package probe；当前质量账本不变：`QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，人评/PBR/export-restart/360 未运行或阻断。

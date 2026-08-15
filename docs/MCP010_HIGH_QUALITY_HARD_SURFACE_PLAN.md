@@ -1,5 +1,7 @@
 # FGC-MCP010 高质量硬表面参考闭环计划
 
+2026-08-15 Primary Form resolution-consistent fit Gate：Runtime-owned `silhouette_fit_prepare` 的相机邻域和 geometry trial 已改用 512×512 isolated Render Worker fit batch，与最终 same-camera acceptance 使用同一分辨率；普通 camera-fit 的 128×128 粗搜不变。该 Gate 只消除 Primary Form 的 objective resolution drift，不升级 `QUALITY_TARGET_NOT_MET`、camera `MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或人评/PBR/export-restart/360 状态。
+
 版本：2026-08-13
 状态：`FGC-MCP010A done`；`FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）`；`FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES`；`FGC-MCP010D source-focused PASS_WITH_DEFERRED_BOOLEAN_AND_VISUAL_GATES（当前 packaged D 结构性探针 PASS，视觉门 NOT_RUN）`；`FGC-MCP010E source-focused PASS_WITH_DEFERRED_EXTERNAL_GATES（当前 packaged E 结构性探针 PASS，但视觉/人评/导出仍 NOT_RUN）`；唯一 `in_progress` 为 `FGC-MCP010F`（Viewer source、packaged CLI read-model、原生窗口与核心控件 smoke PASS；同一 provisional observation 的 packaged Viewer 绑定、正式 VoiceOver、人评和 360 仍 `NOT_RUN/BLOCKED`）。ADR-0026 已新增 Agentic Design Runtime 目标架构；它不改变当前 F 状态。
 

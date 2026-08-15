@@ -572,7 +572,11 @@ impl Runtime {
             }
         }
         let mut rows = Vec::with_capacity(CAMERA_FIT_RUNTIME_MAX_EVALUATIONS);
-        let coarse_passes = render_glb_fit_batch_with_runtime_worker(&glb, &coarse_variants)
+        let coarse_passes = render_glb_fit_batch_with_runtime_worker_at_resolution(
+            &glb,
+            &coarse_variants,
+            128,
+        )
             .map_err(|error| {
                 RuntimeError::InvalidInput(format!("CAMERA_FIT_RENDER_FAILED: {error}"))
             })?;
@@ -609,9 +613,10 @@ impl Runtime {
             }
         }
         if !refinement_cameras.is_empty() {
-            let refinement_passes = render_glb_fit_batch_with_runtime_worker(
+            let refinement_passes = render_glb_fit_batch_with_runtime_worker_at_resolution(
                 &glb,
                 &refinement_cameras,
+                128,
             )
             .map_err(|error| {
                 RuntimeError::InvalidInput(format!("CAMERA_FIT_RENDER_FAILED: {error}"))
@@ -1561,8 +1566,14 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     Ok::<Value, RuntimeError>(candidate_camera)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let batch_passes = render_glb_fit_batch_with_runtime_worker(&glb, &candidate_cameras)
-                .map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_RENDER_FAILED: {error}")))?;
+            let batch_passes = render_glb_fit_batch_with_runtime_worker_at_resolution(
+                &glb,
+                &candidate_cameras,
+                PRIMARY_FORM_FIT_RENDER_RESOLUTION,
+            )
+            .map_err(|error| {
+                RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_RENDER_FAILED: {error}"))
+            })?;
             if batch_passes.len() != candidate_cameras.len() {
                 return Err(RuntimeError::InvalidInput(
                     "SILHOUETTE_FIT_RENDER_FAILED: batch result count mismatch".to_owned(),
@@ -1686,8 +1697,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         let selected_camera_ranking_metrics = selected_ranking_metrics.clone();
         // A Rig proposal is only useful to Luna when a parameter is attributed
         // to the same visible Part that produced the boundary evidence.  The
-        // coarse camera batch intentionally renders silhouette only; when the
-        // target carries explicit observed/inferred Part slices, do one bounded
+        // Primary Form batch intentionally renders silhouette and Part-ID only,
+        // but uses the same 512px resolution as final acceptance. Keeping the
+        // optimizer and acceptance objective at one resolution prevents a
+        // low-resolution winner from being rejected after the bounded geometry
+        // budget has already been spent. When the target carries explicit
+        // observed/inferred Part slices, do one bounded
         // Part-ID readback at the selected camera and use local envelopes for
         // those parameters.  Automatic targets with no Part annotations keep
         // the conservative whole-body proposal instead of inventing ownership.
@@ -1909,8 +1924,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         variant_inspection.failure_codes.join(",")
                     )));
                 }
-                let passes = render_glb_fit_batch_with_runtime_worker(&artifact.glb, &[selected_camera.clone()])
-                    .map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_RENDER_FAILED: {error}")))?;
+                let passes = render_glb_fit_batch_with_runtime_worker_at_resolution(
+                    &artifact.glb,
+                    &[selected_camera.clone()],
+                    PRIMARY_FORM_FIT_RENDER_RESOLUTION,
+                )
+                .map_err(|error| {
+                    RuntimeError::InvalidInput(format!(
+                        "SILHOUETTE_FIT_GEOMETRY_RENDER_FAILED: {error}"
+                    ))
+                })?;
                 let silhouette = passes
                     .first()
                     .and_then(|batch| batch.iter().find(|pass| pass.pass == "silhouette"))
@@ -13121,11 +13144,14 @@ fn compare_glb_metrics_at_camera(
     }))
 }
 
-fn render_glb_fit_batch_with_runtime_worker(
+const PRIMARY_FORM_FIT_RENDER_RESOLUTION: u32 = 512;
+
+fn render_glb_fit_batch_with_runtime_worker_at_resolution(
     glb: &[u8],
     cameras: &[Value],
+    resolution: u32,
 ) -> Result<Vec<Vec<render_worker::RenderPass>>, geometry_worker::GeometryWorkerError> {
-    render_worker::render_glb_fit_batch(glb, cameras)
+    render_worker::render_glb_fit_batch_at_resolution(glb, cameras, resolution)
 }
 
 fn strict_glb_inspection(bytes: &[u8]) -> Result<integrity::GlbIntegrity, RuntimeError> {

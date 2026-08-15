@@ -172,13 +172,6 @@ pub(crate) fn render_glb_with_worker_identity(
     })
 }
 
-pub(crate) fn render_glb_fit_batch(
-    glb: &[u8],
-    cameras: &[Value],
-) -> Result<Vec<Vec<RenderPass>>, GeometryWorkerError> {
-    render_glb_fit_batch_at_resolution(glb, cameras, 128)
-}
-
 pub(crate) fn render_glb_fit_batch_at_resolution(
     glb: &[u8],
     cameras: &[Value],
