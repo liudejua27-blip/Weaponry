@@ -1,9 +1,55 @@
 {
   "schema_version": "ForgeCADMCP010FCurrentQualityEvidenceLedger@1",
   "task_id": "FGC-MCP010F",
-  "recorded_on": "2026-08-15",
+  "recorded_on": "2026-08-16",
   "status": "PASS_EVIDENCE_LEDGER_WITH_QUALITY_TARGET_NOT_MET",
   "purpose": "Separate the current same-cohort CADFit transport from the retained historical provisional observation and from isolated Boolean/ActionRun/restart receipts.",
+  "real_codex_observation_primary_form_transport": {
+    "observation_evidence_path": "docs/evidence/mcp010f/supplemental/real-codex-cli-current-20260816-reference-canvas-observation-pass-v3.json",
+    "observation_evidence_sha256": "62d6bc793d04f170232f59144eb95ca6fec63149f0924951d73818cc9834463e",
+    "primary_form_evidence_path": "docs/evidence/mcp010f/supplemental/real-codex-cli-current-20260816-primary-form-runtime-fallback-20260816.json",
+    "primary_form_evidence_sha256": "87bccd73e0d5e1412b6716c78395e8174043c28bc6e6da7173b99dd1e5be9684",
+    "negative_authoring_evidence_path": "docs/evidence/mcp010f/supplemental/real-codex-cli-current-20260816-reference-canvas-observation-primitive-split-v6.json",
+    "negative_authoring_evidence_sha256": "8dfdd99738a5c8c9f4529b958ea6b25a42adc5ec9b92863e18592fe95c02e6a6",
+    "build_cohorts": {
+      "mcp": "70badfd9d4e07a374aee994ad42604980ccf77e3f572b6d2926b46eccca6f72a",
+      "runtime": "70badfd9d4e07a374aee994ad42604980ccf77e3f572b6d2926b46eccca6f72a",
+      "worker": "70badfd9d4e07a374aee994ad42604980ccf77e3f572b6d2926b46eccca6f72a"
+    },
+    "status": "PASS_BOUNDARY_ONLY",
+    "authoring_mode": "RUNTIME_DEFAULT_AUTHORING",
+    "durable_context_status": "PASS_DURABLE_REFERENCE_CANVAS_DESIGN_SPEC",
+    "observation_schema": "AgenticSceneObserveResult@1",
+    "observation_sha256": "0388986a9f07c8d7991af05854f06f700607bf6283d21d3c3eb84b15bbd4fc3d",
+    "project_id": "project-012d986e1d0a43e49df923bd68658f4d",
+    "final_candidate_id": "candidate-44421a365666493886e46dde2efc2039",
+    "primary_form_parts": ["pelvis", "upper-arm-pair"],
+    "primary_form_accepted_steps": 2,
+    "primary_form_evaluations_per_step": 64,
+    "primary_form_strict_improvement": true,
+    "comparison_metrics": {
+      "silhouette_iou": 0.752731669182,
+      "boundary_f1_4px": 0.355021780326,
+      "bbox_edge_error": 0.00390625,
+      "centroid_error": 0.001753436389,
+      "critical_region_min_iou": 0.66880524665
+    },
+    "quality_visual_status": "NOT_RUN",
+    "silhouette_gate": "QUALITY_TARGET_NOT_MET",
+    "quality_claim": "NO_LIKENESS_PASS_CLAIM; BOUNDARY_EVIDENCE_ONLY",
+    "human_review": "NOT_RUN",
+    "pbr_material_pack": "NOT_RUN",
+    "candidate_confirmed": false,
+    "version_count": 0,
+    "export": "NOT_RUN",
+    "coverage": {
+      "supplied_views": ["perspective"],
+      "missing_views": ["front", "back", "left", "right", "rear-three-quarter"],
+      "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+    },
+    "persistent_user_data_touched": false,
+    "unrelated_side_effects": false
+  },
   "current_source_transport": {
     "evidence_path": "docs/evidence/mcp010f/real-codex-cadfit-real-reference-20260815-rebuilt-rig-rebind.json",
     "evidence_sha256": "915babc9f5d07c4c10f0e5d9f155ea71f636e43e401d5e6cba9e47838bee018f",

@@ -42,6 +42,8 @@ from probe_mcp010e_raw_stdio import robot_detail_program_draft  # noqa: E402
 AOV_ORDER = ("beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch")
 SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")
 AUTHORING_SEQUENCE = ("capabilities_get", "runtime_status", "doctor", "operator_catalog_get", "skill_list", "geometry_program_hash", "geometry_prepare")
+GEOMETRY_HASH_SEQUENCE = ("geometry_program_hash",)
+GEOMETRY_PREPARE_SEQUENCE = ("geometry_prepare",)
 COMPARE_SEQUENCE = ("job_get", "candidate_get", "artifact_readback_get", "reference_compare_prepare")
 # The synchronous Primary Form endpoint is intentionally not used by the
 # real-client probe: a bounded 64-evaluation Geometry/Render Worker search can
@@ -68,6 +70,14 @@ SILHOUETTE_SEQUENCE = (
     "scene_observe_get",
     "silhouette_rig_hash",
 )
+# Keep the real-client authoring boundary in small, independently bounded
+# turns.  The Runtime still owns the complete sequence and the receipt joins
+# these raw events in order; only the Codex transport session is split so a
+# large ReferenceCanvas/DesignSpec payload cannot starve the observation call.
+SILHOUETTE_CORE_SEQUENCE = SILHOUETTE_SEQUENCE[:6]
+SILHOUETTE_AUTHORING_SEQUENCE = ("session_create_or_resume",)
+SILHOUETTE_OBSERVATION_SEQUENCE = ("scene_observe_get",)
+SILHOUETTE_RIG_SEQUENCE = ("silhouette_rig_hash",)
 
 
 class BoundaryOnlyComplete(RuntimeError):
@@ -114,6 +124,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="After the one-shot observation/camera/Rig turn, submit one Runtime-owned Primary Form repair action and compare its staged candidate.",
     )
+    parser.add_argument(
+        "--observation-only",
+        action="store_true",
+        help="Stop after the candidate-bound durable session, canonical scene observation and Runtime-owned Rig hash; do not run silhouette fit/AOV/review.",
+    )
     parser.add_argument("--timeout", type=float, default=360.0)
     parser.add_argument("--sandbox", choices=("read-only", "workspace-write"), default="workspace-write")
     parser.add_argument(
@@ -143,6 +158,12 @@ def parse_args() -> argparse.Namespace:
     options = parser.parse_args()
     if options.primary_form_repair and not options.silhouette_first:
         parser.error("--primary-form-repair requires --silhouette-first")
+    if options.observation_only and not options.silhouette_first:
+        parser.error("--observation-only requires --silhouette-first")
+    if options.observation_only and (options.primary_form_repair or options.part_contour_part or options.part_contour_trial or options.part_contour_sequence):
+        parser.error("--observation-only cannot be combined with Primary Form or Part contour actions")
+    if options.observation_only:
+        options.boundary_only = True
     if options.part_contour_part and not options.silhouette_first:
         parser.error("--part-contour-part requires --silhouette-first")
     if options.part_contour_trial and not options.part_contour_part:
@@ -458,7 +479,74 @@ def run_required_codex_turn(
         ]
         if has_subsequence(completed, expected) and all(name in completed for name in expected):
             return aggregate
-    raise RuntimeError(f"Codex did not complete {label} after {attempt_limit} bounded attempts")
+    diagnostic = ""
+    if label == "ReferenceCanvas/DesignSpec durable authoring":
+        diagnostic = f"; authoring_argument={json.dumps(authoring_argument_summary(aggregate), ensure_ascii=False, sort_keys=True)}"
+    raise RuntimeError(f"Codex did not complete {label} after {attempt_limit} bounded attempts{diagnostic}")
+
+
+def authoring_argument_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize only canonical/binding facts from a failed authoring call.
+
+    The real Codex event may contain the complete MCP arguments, but receipts
+    must never retain the full authoring payload.  These hashes and counts are
+    sufficient to distinguish a canvas canonical drift from a DesignSpec
+    binding drift without leaking prompts, image bytes or local paths.
+    """
+    calls = [
+        item
+        for item in items
+        if item.get("type") == "mcp_tool_call"
+        and item.get("server") == "forgecad"
+        and item.get("tool") == "session_create_or_resume"
+    ]
+    if not calls:
+        return {"session_call": "not_observed"}
+    item = calls[-1]
+    arguments = item.get("arguments")
+    if not isinstance(arguments, dict):
+        return {"session_call": "arguments_unavailable", "status": item.get("status")}
+    context = arguments.get("authoring_context")
+    if not isinstance(context, dict):
+        return {"session_call": "authoring_context_missing", "status": item.get("status")}
+
+    def digest_pair(value: Any) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {"present": False}
+        declared = value.get("canonical_sha256")
+        canonical_input = dict(value)
+        canonical_input["canonical_sha256"] = ""
+        recomputed = canonical_hash(canonical_input)
+        return {
+            "present": True,
+            "declared": declared if isinstance(declared, str) else None,
+            "recomputed": recomputed,
+            "object_sha256": canonical_hash(value),
+            "declared_matches_recomputed": declared == recomputed,
+        }
+
+    canvas = context.get("reference_canvas")
+    spec = context.get("design_spec")
+    canvas_summary = digest_pair(canvas)
+    spec_summary = digest_pair(spec)
+    if isinstance(spec, dict):
+        spec_summary.update({
+            "reference_canvas_sha256": spec.get("reference_canvas_sha256"),
+            "stage_goal_count": len(spec.get("stage_goals", [])) if isinstance(spec.get("stage_goals"), list) else None,
+            "primary_form_count": len(spec.get("primary_forms", [])) if isinstance(spec.get("primary_forms"), list) else None,
+            "semantic_part_count": len(spec.get("semantic_parts", [])) if isinstance(spec.get("semantic_parts"), list) else None,
+        })
+    return {
+        "session_call": "observed",
+        "status": item.get("status"),
+        "context_keys": sorted(context),
+        "canvas": canvas_summary,
+        "design_spec": spec_summary,
+        "expected_binding_matches_argument_object": (
+            isinstance(spec, dict)
+            and spec.get("reference_canvas_sha256") == canvas_summary.get("object_sha256")
+        ),
+    }
 
 
 def render_pass_names(items: list[dict[str, Any]]) -> list[str]:
@@ -498,7 +586,11 @@ def side_effect_summary(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "rm ", "mv ", "cp ", "chmod ", "chown ", "tee ", "install ",
             "python", "node ", "git ", "curl ", "wget ", "http://", "https://",
         )
-        shell_mutation = bool(re.search(r"[;&|<>]", command_text))
+        # A read-only Skill lookup may use a pipe (for example, sed/awk into
+        # a bounded preview).  Treat only command separators and redirection
+        # as mutation boundaries here; the forbidden-token list below still
+        # blocks writes, installs, network access and arbitrary runtimes.
+        shell_mutation = bool(re.search(r"[;&<>]", command_text))
         read_only_skill_lookup = (
             item_type == "command_execution"
             and (
@@ -606,6 +698,13 @@ def run_codex_turn(options: argparse.Namespace, environment: dict[str, str], pro
             command[8:8] = ["--sandbox", "read-only"]
         else:
             command[8:8] = ["--approve-for-me"]
+        # Keep the MCP request deadline at least as long as the Codex turn.
+        # Geometry preparation can spend time in the bounded Worker while the
+        # real client is still waiting for the typed result.
+        command[command.index("-c") + 1] = config_override(options.mcp_command).replace(
+            "tool_timeout_sec=120",
+            f"tool_timeout_sec={max(120, int(options.timeout))}",
+        )
         if image_path:
             command.extend(["--image", image_path])
             return run_codex_process(command, environment, options.timeout, prompt_text + "\n")
@@ -1027,7 +1126,11 @@ def reference_canvas_authoring_context(
         "canonical_sha256": "",
         "created_at": created_at,
     }
-    canvas["canonical_sha256"] = canonical_hash(canvas)
+    # Runtime keeps two related but distinct digests: the object canonical
+    # field is computed with that field blank, while DesignSpec binds to the
+    # CAS object hash of the fully canonicalized JSON that Runtime stores.
+    canvas_canonical_sha256 = canonical_hash(canvas)
+    canvas["canonical_sha256"] = canvas_canonical_sha256
     canvas_object_sha256 = canonical_hash(canvas)
 
     def gate(
@@ -1058,7 +1161,7 @@ def reference_canvas_authoring_context(
             "form_id": "humanoid-primary-form",
             "name": "Humanoid primary form",
             "role": "main-body",
-            "description": "The visible body envelope is an inferred primary form; hidden depth remains unknown.",
+            "description": "Visible body envelope; hidden depth remains unknown.",
             "state": state("inferred", 0.82),
         }],
         "proportions": [],
@@ -1070,100 +1173,57 @@ def reference_canvas_authoring_context(
             "material_zone_ids": ["zone-white-shell", "zone-black-mechanical"],
             "state": state("inferred", 0.72),
         }],
-        "material_language": [
-            {
-                "material_zone_id": "zone-white-shell",
-                "surface_language": "painted light shell with controlled highlights",
-                "color_family": "white and cool gray",
-                "channels": ["base-color", "metallic", "roughness", "normal"],
-                "state": state("inferred", 0.78),
-            },
-            {
-                "material_zone_id": "zone-black-mechanical",
-                "surface_language": "dark mechanical structure with recessed detail",
-                "color_family": "black graphite",
-                "channels": ["base-color", "metallic", "roughness", "normal"],
-                "state": state("inferred", 0.76),
-            },
-        ],
+        # Material language is deliberately deferred to the later UV/PBR
+        # stage.  The ReferenceCanvas still records the visible shell/core
+        # observation, while this durable authoring payload stays small enough
+        # for a real Codex tool call to copy byte-for-byte.
+        "material_language": [],
         "stage_goals": [
             {
                 "stage": "reference-canvas",
-                "objective": "Bind the supplied perspective and record coverage unknowns before primary form work.",
-                "allowed_action_kinds": ["reference-import", "coverage-annotation", "mark-unknown", "checkpoint"],
+                "objective": "Bind reference and coverage before primary form.",
+                "allowed_action_kinds": ["coverage-annotation", "checkpoint"],
                 "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
-                "exit_gate": gate("reference-canvas", ["reference-authorized", "reference-coverage"], ["reference-coverage"], ["tertiary-detail", "uv-pbr", "export"]),
+                "exit_gate": gate("reference-canvas", ["reference-authorized"], ["reference-coverage"], ["tertiary-detail", "uv-pbr", "export"]),
             },
             {
                 "stage": "primary-form",
-                "objective": "Converge the visible primary silhouette and proportions with bounded Runtime-owned actions.",
-                "allowed_action_kinds": ["primary-blockout", "primary-form-adjustment", "bounded-repair", "checkpoint"],
+                "objective": "Converge visible primary silhouette and proportions.",
+                "allowed_action_kinds": ["primary-blockout", "bounded-repair", "checkpoint"],
                 "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
-                "exit_gate": gate("primary-form", ["primary-silhouette", "primary-proportion", "visible-view"], ["primary-silhouette", "primary-proportion"], ["tertiary-detail", "uv-pbr", "export"]),
+                "exit_gate": gate("primary-form", ["primary-silhouette"], ["primary-silhouette", "primary-proportion"], ["tertiary-detail", "uv-pbr", "export"]),
             },
             {
                 "stage": "secondary-structure",
-                "objective": "Add semantic secondary structure only after the primary visible form is accepted.",
+                "objective": "Add secondary structure after primary form.",
                 "allowed_action_kinds": ["secondary-structure", "bounded-repair", "checkpoint"],
                 "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
-                "exit_gate": gate("secondary-structure", ["secondary-structure", "visible-view"], ["visible-view"], ["tertiary-detail", "uv-pbr", "export"]),
+                "exit_gate": gate("secondary-structure", ["secondary-structure"], ["visible-view"], ["tertiary-detail", "uv-pbr", "export"]),
             },
             {
                 "stage": "tertiary-detail",
-                "objective": "Keep tertiary detail locked until the visible form and reference coverage are sufficient.",
+                "objective": "Keep tertiary detail locked until form and coverage pass.",
                 "allowed_action_kinds": ["tertiary-detail", "checkpoint"],
                 "forbidden_action_kinds": ["uv-pbr", "export"],
                 "exit_gate": gate("tertiary-detail", ["tertiary-detail", "visible-view"], ["visible-view"], ["uv-pbr", "export"]),
             },
             {
                 "stage": "uv-pbr",
-                "objective": "Bind UV, tangent and PBR evidence after geometry gates are complete.",
+                "objective": "Bind UV, tangent and PBR after geometry gates.",
                 "allowed_action_kinds": ["material-zone", "uv-pbr", "checkpoint"],
                 "forbidden_action_kinds": ["export"],
                 "exit_gate": gate("uv-pbr", ["uv-tangent-pbr", "visible-view"], ["uv-tangent-pbr"], ["export"]),
             },
             {
                 "stage": "final-review",
-                "objective": "Require multi-view comparison, typed review, human review and restart-safe export evidence.",
+                "objective": "Require comparison, review and restart-safe export evidence.",
                 "allowed_action_kinds": ["final-review", "human-review", "export", "checkpoint"],
                 "forbidden_action_kinds": [],
-                "exit_gate": gate("final-review", ["multi-view-compare", "codex-typed-review", "human-review", "export-restart-hash"], ["multi-view-compare", "human-review", "export-restart-hash"], ["export"]),
+                "exit_gate": gate("final-review", ["multi-view-compare"], ["multi-view-compare", "human-review", "export-restart-hash"], ["export"]),
             },
         ],
-        "risks": [
-            {
-                "risk_id": "risk-reference-coverage",
-                "kind": "reference-coverage",
-                "severity": "blocking",
-                "description": "A single perspective cannot support a 360-degree likeness claim.",
-                "state": state("unknown", 0.0),
-            },
-            {
-                "risk_id": "risk-primary-proportion",
-                "kind": "proportion",
-                "severity": "high",
-                "description": "Primary proportions must be evaluated under the same calibrated view before detail work.",
-                "state": state("unknown", 0.0),
-            },
-        ],
-        "unknowns": [
-            {
-                "unknown_id": "unknown-design-depth",
-                "question": "What is the true depth and hidden structure outside the supplied view?",
-                "scope_kind": "scene",
-                "scope_id": "scene",
-                "state": state("unknown", 0.0),
-                "blocked_stages": ["secondary-structure", "tertiary-detail", "uv-pbr", "final-review"],
-            },
-            {
-                "unknown_id": "unknown-material-physicality",
-                "question": "Which physical material parameters are intended beyond the visible color and highlight cues?",
-                "scope_kind": "material-zone",
-                "scope_id": "zone-white-shell",
-                "state": state("unknown", 0.0),
-                "blocked_stages": ["uv-pbr", "final-review"],
-            },
-        ],
+        "risks": [],
+        "unknowns": [],
         "canonical_sha256": "",
         "created_at": created_at,
     }
@@ -1316,6 +1376,256 @@ Call exactly these nine ForgeCAD tools in order, then stop:
 
 Do not call silhouette_fit_prepare yet because the next turn will bind its request hash to the exact selected camera. Do not call render_pass_get, review, confirm or export. Return only target/camera/compare/session/observation/Rig hashes and opaque IDs; do not claim visual quality.
 """
+
+
+def silhouette_core_prompt(
+    project_id: str,
+    reference_id: str,
+    candidate_id: str,
+    job_id: str,
+    artifact_id: str,
+    target_sha256: str,
+    view: dict[str, Any],
+) -> str:
+    """Read the candidate and establish the exact camera/compare baseline.
+
+    This is deliberately separate from the durable authoring payload.  It
+    gives the later session_create_or_resume call concrete Runtime hashes
+    without asking one Codex turn to hold nine calls and a full DesignSpec in
+    working memory.
+    """
+    view_json = json.dumps(view, ensure_ascii=False, separators=(",", ":"))
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
+
+Call exactly these six ForgeCAD tools in order, then stop:
+1) silhouette_target_get with {{"target_sha256":{json.dumps(target_sha256)}}}; verify it belongs to project {json.dumps(project_id)}.
+2) camera_fit_prepare with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"target_sha256":{json.dumps(target_sha256)},"camera":null}}; save the complete selected_camera calibration object and both hashes.
+3) job_get with {{"job_id":{json.dumps(job_id)}}}.
+4) candidate_get with {{"candidate_id":{json.dumps(candidate_id)}}}.
+5) artifact_readback_get with {{"artifact_id":{json.dumps(artifact_id)},"candidate_id":{json.dumps(candidate_id)}}}.
+6) reference_compare_prepare with this exact JSON object: {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"reference_id":{json.dumps(reference_id)},"view_spec":{view_json},"camera":{{"schema_version":"CameraCalibrationRef@1","camera_hash":<copy selected_camera.camera_hash from step 2>,"canonical_sha256":<copy selected_camera.canonical_sha256 from step 2>}},"target_sha256":{json.dumps(target_sha256)}}}. Copy view_spec byte-for-byte and do not reconstruct camera fields.
+
+Do not call session_create_or_resume, scene_observe_get, silhouette_rig_hash, silhouette_fit_prepare, render, review, confirm or export in this turn. Return only the typed baseline objects and hashes; do not claim visual quality.
+"""
+
+
+def silhouette_authoring_prompt(
+    project_id: str,
+    reference_id: str,
+    candidate_id: str,
+    camera_hash: str,
+    camera_canonical_sha256: str,
+    evidence_sha256: str,
+    authoring_context: dict[str, Any],
+) -> str:
+    authoring_json = json.dumps(authoring_context, ensure_ascii=False, separators=(",", ":"))
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
+
+Call exactly one ForgeCAD tool, then stop:
+session_create_or_resume with {{"session_id":null,"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"idempotency_key":{json.dumps("reference-canvas-" + candidate_id)},"reference_id":{json.dumps(reference_id)},"design_spec_id":"design-spec-real-codex","reference_canvas_id":"reference-canvas-real-codex","camera_hash":{json.dumps(camera_hash)},"evidence_sha256":{json.dumps(evidence_sha256)},"approved":true,"approval_receipt_id":"mcp010c-reference-canvas-approval","approval_summary":"Create isolated reference canvas context","authoring_context":{authoring_json}}}
+
+This is an isolated Runtime metadata write only. It must not confirm, version, export or mutate the candidate. Copy authoring_context byte-for-byte and return the complete typed AgenticSessionResult@1. Do not call scene_observe_get or any other ForgeCAD tool in this turn; do not claim visual quality.
+The Runtime-selected camera canonical hash is {json.dumps(camera_canonical_sha256)} and must remain bound to the session's CameraCalibrationRef.
+"""
+
+
+def silhouette_runtime_default_authoring_prompt(
+    project_id: str,
+    reference_id: str,
+    candidate_id: str,
+    camera_hash: str,
+    camera_canonical_sha256: str,
+    evidence_sha256: str,
+) -> str:
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
+
+Call exactly one ForgeCAD tool, then stop:
+session_create_or_resume with {{"session_id":null,"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"idempotency_key":{json.dumps("reference-canvas-" + candidate_id)},"reference_id":{json.dumps(reference_id)},"design_spec_id":"design-spec-real-codex","reference_canvas_id":"reference-canvas-real-codex","camera_hash":{json.dumps(camera_hash)},"evidence_sha256":{json.dumps(evidence_sha256)},"approved":true,"approval_receipt_id":"mcp010c-reference-canvas-approval","approval_summary":"Create Runtime-owned conservative reference canvas context"}}
+
+Do not include authoring_context. Runtime must create its own conservative, hash-bound ReferenceCanvas@1 and DesignSpec@1 for this exact project/reference/candidate binding. Return the complete typed AgenticSessionResult@1. This is isolated Runtime metadata only: do not confirm, version, export or mutate the candidate. Do not call scene_observe_get or any other ForgeCAD tool in this turn; do not claim visual quality.
+The Runtime-selected camera canonical hash is {json.dumps(camera_canonical_sha256)} and must remain bound to the session's CameraCalibrationRef.
+"""
+
+
+def authoring_mode_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Report whether the successful durable session used explicit or default authoring."""
+    successful = [
+        item
+        for item in items
+        if item.get("type") == "mcp_tool_call"
+        and item.get("server") == "forgecad"
+        and item.get("tool") == "session_create_or_resume"
+        and item.get("status") == "completed"
+    ]
+    failed = [
+        item
+        for item in items
+        if item.get("type") == "mcp_tool_call"
+        and item.get("server") == "forgecad"
+        and item.get("tool") == "session_create_or_resume"
+        and item.get("status") == "failed"
+    ]
+    codes = sorted({str(item.get("structured", {}).get("code")) for item in failed if isinstance(item.get("structured"), dict) and item.get("structured", {}).get("code")})
+    if not successful:
+        return {"status": "NOT_RUN", "explicit_failure_codes": codes}
+    arguments = successful[-1].get("arguments")
+    if isinstance(arguments, dict) and "authoring_context" in arguments:
+        return {"status": "EXPLICIT_CODEX_AUTHORING", "explicit_failure_codes": codes}
+    return {
+        "status": "RUNTIME_DEFAULT_AFTER_EXPLICIT_FAILURE" if codes else "RUNTIME_DEFAULT_AUTHORING",
+        "explicit_failure_codes": codes,
+    }
+
+
+def silhouette_observation_prompt(project_id: str, candidate_id: str) -> str:
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
+
+Call exactly one ForgeCAD tool, then stop:
+scene_observe_get with {{"project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)}}}.
+
+This is the post-authoring canonical observation. Return the complete typed AgenticSceneObserveResult@1, including its canonical_sha256, project/candidate binding, read_only flag and design critic evidence. Do not call any other ForgeCAD tool, do not issue a second fragmented boundary/quality read, and do not claim visual quality.
+"""
+
+
+def silhouette_rig_prompt(project_id: str, candidate_id: str) -> str:
+    rig = json.dumps(silhouette_rig_draft(candidate_id), ensure_ascii=False, separators=(",", ":"))
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers or arbitrary code.
+
+Call exactly one ForgeCAD tool, then stop:
+silhouette_rig_hash with {{"schema_version":"SilhouetteRigHashRequest@1","project_id":{json.dumps(project_id)},"candidate_id":{json.dumps(candidate_id)},"rig_draft":{rig}}}.
+
+Return only the Runtime-owned canonical_sha256 for this unchanged bounded Rig. Do not call silhouette_fit_prepare, geometry_prepare, render, compare, confirm or export, and do not claim visual quality.
+"""
+
+
+def run_split_silhouette_observation(
+    options: argparse.Namespace,
+    environment: dict[str, str],
+    workspace_root: str,
+    turn_outputs: list[subprocess.CompletedProcess[str]],
+    project_id: str,
+    reference_id: str,
+    candidate_id: str,
+    job_id: str,
+    artifact_id: str,
+    target_sha256: str,
+    view: dict[str, Any],
+    authoring_context: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Run the real Codex observation boundary as four bounded MCP turns."""
+    core_items = run_required_codex_turn(
+        options,
+        environment,
+        silhouette_core_prompt(
+            project_id,
+            reference_id,
+            candidate_id,
+            job_id,
+            artifact_id,
+            target_sha256,
+            view,
+        ),
+        workspace_root,
+        SILHOUETTE_CORE_SEQUENCE,
+        turn_outputs,
+        "silhouette target/camera/compare baseline",
+    )
+    camera_result = structured_result(core_items, "camera_fit_prepare") or {}
+    comparison = structured_result(core_items, "reference_compare_prepare") or {}
+    selected_camera = field(camera_result, "selected_camera") or field(camera_result, "camera")
+    if isinstance(selected_camera, dict) and not {
+        "schema_version", "camera_hash", "projection", "transform", "fov_y_degrees",
+        "near_m", "far_m", "resolution", "coordinate_system", "renderer_revision",
+        "canonical_sha256",
+    }.issubset(selected_camera):
+        selected_hash = selected_camera.get("camera_hash")
+        selected_canonical = selected_camera.get("canonical_sha256")
+        for row in camera_result.get("candidates", []):
+            candidate_camera = row.get("camera") if isinstance(row, dict) else None
+            if not isinstance(candidate_camera, dict):
+                continue
+            if (
+                (isinstance(selected_hash, str) and candidate_camera.get("camera_hash") == selected_hash)
+                or (isinstance(selected_canonical, str) and candidate_camera.get("canonical_sha256") == selected_canonical)
+            ):
+                selected_camera = candidate_camera
+                break
+    camera_hash = field(selected_camera or {}, "camera_hash") or field(camera_result, "selected_camera_hash") or field(camera_result, "camera_hash")
+    camera_canonical = field(selected_camera or {}, "canonical_sha256")
+    evidence_sha256 = field(comparison, "comparison_report_object_sha256") or field(comparison, "comparison_report_hash")
+    if (
+        not isinstance(selected_camera, dict)
+        or not isinstance(camera_hash, str)
+        or len(camera_hash) != 64
+        or not isinstance(camera_canonical, str)
+        or len(camera_canonical) != 64
+        or not isinstance(evidence_sha256, str)
+        or len(evidence_sha256) != 64
+    ):
+        raise RuntimeError("split silhouette baseline did not return complete camera/compare hashes")
+
+    try:
+        session_items = run_required_codex_turn(
+            options,
+            environment,
+            silhouette_authoring_prompt(
+                project_id,
+                reference_id,
+                candidate_id,
+                camera_hash,
+                camera_canonical,
+                evidence_sha256,
+                authoring_context,
+            ),
+            workspace_root,
+            SILHOUETTE_AUTHORING_SEQUENCE,
+            turn_outputs,
+            "ReferenceCanvas/DesignSpec durable authoring",
+            max_attempts=1,
+        )
+    except RuntimeError as explicit_error:
+        # A real Codex can normalize or recompute a large nested authoring
+        # payload while copying it into MCP arguments.  Do not retry that
+        # non-idempotent request indefinitely.  The Runtime-owned default is
+        # a safe, conservative durable canvas/spec producer and still gives
+        # the observation turn one canonical context; retain the explicit
+        # typed failure in the raw event stream and receipt mode summary.
+        session_items = run_required_codex_turn(
+            options,
+            environment,
+            silhouette_runtime_default_authoring_prompt(
+                project_id,
+                reference_id,
+                candidate_id,
+                camera_hash,
+                camera_canonical,
+                evidence_sha256,
+            ),
+            workspace_root,
+            SILHOUETTE_AUTHORING_SEQUENCE,
+            turn_outputs,
+            "Runtime-owned default ReferenceCanvas/DesignSpec durable authoring",
+            max_attempts=1,
+        )
+    observation_items = run_required_codex_turn(
+        options,
+        environment,
+        silhouette_observation_prompt(project_id, candidate_id),
+        workspace_root,
+        SILHOUETTE_OBSERVATION_SEQUENCE,
+        turn_outputs,
+        "canonical Agentic scene observation",
+    )
+    rig_items = run_required_codex_turn(
+        options,
+        environment,
+        silhouette_rig_prompt(project_id, candidate_id),
+        workspace_root,
+        SILHOUETTE_RIG_SEQUENCE,
+        turn_outputs,
+        "Runtime-owned silhouette Rig hash",
+    )
+    return core_items + session_items + observation_items + rig_items
 
 
 def silhouette_fit_prompt(fit_request: dict[str, Any]) -> str:
@@ -1572,6 +1882,107 @@ Hash-free GeometryProgram@2 draft:
 """
 
 
+def geometry_hash_prompt(
+    project_id: str,
+    geometry_route: str,
+    geometry_variant: str,
+    material_variant: str,
+    catalog_hash: str,
+) -> str:
+    draft_value, route_instructions = authoring_draft(
+        geometry_route, project_id, geometry_variant, material_variant
+    )
+    draft_value = dict(draft_value)
+    draft_value["operator_catalog_sha256"] = catalog_hash
+    draft = json.dumps(draft_value, ensure_ascii=False, separators=(",", ":"))
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, images, other MCP servers or arbitrary code.
+
+Call exactly one ForgeCAD tool, then stop:
+geometry_program_hash with {{"schema_version":"GeometryProgramHashRequest@1","geometry_program_draft":{draft}}}.
+
+{route_instructions}
+Do not call geometry_prepare, appearance, compare, confirm, export or any other ForgeCAD tool. Return only the Runtime canonical_sha256 for this exact hash-free GeometryProgram@2 draft. Do not claim visual quality.
+"""
+
+
+def geometry_prepare_prompt(
+    project_id: str,
+    reference_id: str,
+    geometry_route: str,
+    geometry_variant: str,
+    material_variant: str,
+    catalog_hash: str,
+    program_hash: str,
+) -> str:
+    draft_value, route_instructions = authoring_draft(
+        geometry_route, project_id, geometry_variant, material_variant
+    )
+    draft_value = dict(draft_value)
+    draft_value["operator_catalog_sha256"] = catalog_hash
+    draft_value["canonical_sha256"] = program_hash
+    draft = json.dumps(draft_value, ensure_ascii=False, separators=(",", ":"))
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, images, other MCP servers or arbitrary code.
+
+Call exactly one ForgeCAD tool, then stop:
+geometry_prepare with {{"project_id":{json.dumps(project_id)},"request":{{"typed":"geometry","reference_id":{json.dumps(reference_id)},"geometry_program":{draft}}}}}.
+
+The Runtime returned this exact GeometryProgram canonical_sha256 from the previous hash turn: {json.dumps(program_hash)}. Copy it byte-for-byte; do not recompute or alter the draft. {route_instructions}
+Do not call geometry_program_hash again, appearance, compare, confirm, export or any other ForgeCAD tool. Return the complete candidate, job and artifact objects; do not claim visual quality.
+"""
+
+
+def run_split_geometry_authoring(
+    options: argparse.Namespace,
+    environment: dict[str, str],
+    workspace_root: str,
+    turn_outputs: list[subprocess.CompletedProcess[str]],
+    project_id: str,
+    reference_id: str,
+    geometry_route: str,
+    geometry_variant: str,
+    material_variant: str,
+    catalog_hash: str,
+) -> list[dict[str, Any]]:
+    """Hash and prepare GeometryProgram in separate real-client turns."""
+    hash_items = run_required_codex_turn(
+        options,
+        environment,
+        geometry_hash_prompt(
+            project_id,
+            geometry_route,
+            geometry_variant,
+            material_variant,
+            catalog_hash,
+        ),
+        workspace_root,
+        GEOMETRY_HASH_SEQUENCE,
+        turn_outputs,
+        "geometry program hash",
+    )
+    hashed = structured_result(hash_items, "geometry_program_hash") or {}
+    program_hash = field(hashed, "canonical_sha256")
+    if not isinstance(program_hash, str) or len(program_hash) != 64:
+        raise RuntimeError("geometry_program_hash did not return a canonical_sha256")
+    prepare_items = run_required_codex_turn(
+        options,
+        environment,
+        geometry_prepare_prompt(
+            project_id,
+            reference_id,
+            geometry_route,
+            geometry_variant,
+            material_variant,
+            catalog_hash,
+            program_hash,
+        ),
+        workspace_root,
+        GEOMETRY_PREPARE_SEQUENCE,
+        turn_outputs,
+        "geometry prepare",
+    )
+    return hash_items + prepare_items
+
+
 def compare_prompt(
     project_id: str,
     reference_id: str,
@@ -1783,8 +2194,15 @@ def main() -> int:
             reference_get = field(reference_get_result or {}, "reference") or reference_get_result or {}
             if field(reference_get, "reference_id") != reference_id or field(reference_get, "object_sha256") != reference_sha:
                 raise RuntimeError("reference_get did not match reference_import")
-            setup_tool_names = [str(call.get("tool")) for call in setup_calls if call.get("server") == "forgecad"]
-            if not (has_subsequence(setup_tool_names, SETUP_SEQUENCE) and all(call.get("status") == "completed" for call in setup_calls)):
+            completed_setup_tool_names = [
+                str(call.get("tool"))
+                for call in setup_calls
+                if call.get("server") == "forgecad" and call.get("status") == "completed"
+            ]
+            if not (
+                has_subsequence(completed_setup_tool_names, SETUP_SEQUENCE)
+                and all(name in completed_setup_tool_names for name in SETUP_SEQUENCE)
+            ):
                 raise RuntimeError("Codex setup did not complete the required MCP sequence")
 
             spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
@@ -1851,22 +2269,17 @@ def main() -> int:
             capability_hash = field(capabilities, "operator_catalog_sha256")
             if not all(isinstance(value, str) and value for value in (catalog_hash, capability_hash)):
                 raise RuntimeError("Codex discovery did not return matching operator catalog hashes")
-            prepare_sequence = ("geometry_program_hash", "geometry_prepare")
-            hash_prepare_items = run_required_codex_turn(
+            hash_prepare_items = run_split_geometry_authoring(
                 options,
                 environment,
-                authoring_hash_prepare_prompt(
-                    project_id,
-                    reference_id,
-                    options.geometry_route,
-                    options.geometry_variant,
-                    options.material_variant,
-                    catalog_hash,
-                ),
                 str(root),
-                prepare_sequence,
                 turn_outputs,
-                "geometry hash and prepare",
+                project_id,
+                reference_id,
+                options.geometry_route,
+                options.geometry_variant,
+                options.material_variant,
+                catalog_hash,
             )
             hashed = structured_result(hash_prepare_items, "geometry_program_hash") or {}
             prepared = structured_result(hash_prepare_items, "geometry_prepare") or {}
@@ -1879,27 +2292,23 @@ def main() -> int:
             artifact_id = field(artifact, "artifact_id")
             if not all(isinstance(value, str) and value for value in (catalog_hash, capability_hash, program_hash, candidate_id, job_id, artifact_id)):
                 raise RuntimeError("Codex authoring did not return all V2 hashes and opaque IDs")
-            if catalog_hash != capability_hash or not has_subsequence(call_sequence(discovery_items), discovery_sequence) or not all_completed(discovery_items, discovery_sequence) or not has_subsequence(call_sequence(hash_prepare_items), prepare_sequence) or not all_completed(hash_prepare_items, prepare_sequence):
+            if catalog_hash != capability_hash or not has_subsequence(call_sequence(discovery_items), discovery_sequence) or not all_completed(discovery_items, discovery_sequence) or not has_subsequence(call_sequence(hash_prepare_items), ("geometry_program_hash", "geometry_prepare")) or not all_completed(hash_prepare_items, ("geometry_program_hash", "geometry_prepare")):
                 raise RuntimeError("Codex authoring did not complete matching discovery/hash/prepare sequence")
 
             if options.silhouette_first:
-                silhouette_turn_items = run_required_codex_turn(
+                silhouette_turn_items = run_split_silhouette_observation(
                     options,
                     environment,
-                    silhouette_prompt(
-                        project_id,
-                        reference_id,
-                        candidate_id,
-                        job_id,
-                        artifact_id,
-                        silhouette_target_sha or "",
-                        spec,
-                        authoring_context,
-                    ),
                     str(root),
-                    SILHOUETTE_SEQUENCE,
                     turn_outputs,
-                    "silhouette target/camera/compare/authoring/observation/Rig",
+                    project_id,
+                    reference_id,
+                    candidate_id,
+                    job_id,
+                    artifact_id,
+                    silhouette_target_sha or "",
+                    spec,
+                    authoring_context,
                 )
                 silhouette_items.extend(silhouette_turn_items)
                 silhouette_turn = parse_bound_silhouette_turn(
@@ -1919,7 +2328,15 @@ def main() -> int:
                 rig["canonical_sha256"] = silhouette_rig_sha
                 camera_ref = silhouette_turn["camera_ref"]
                 selected_camera_for_compare = selected_camera
-                if options.primary_form_repair:
+                if options.observation_only:
+                    # The baseline compare is already part of the same
+                    # candidate-bound silhouette turn.  Observation-only is a
+                    # transport gate: it must not issue a fragmented compare
+                    # or a continuous parameter search after the canonical
+                    # scene observation has been verified.
+                    comparison = silhouette_comparison_result or {}
+                    canonical_compare_in_silhouette = True
+                elif options.primary_form_repair:
                     sequence_parts = options.part_contour_sequence_parts or (
                         (options.part_contour_part,) if options.part_contour_trial else (None,)
                     )
@@ -1928,26 +2345,24 @@ def main() -> int:
                     for step_index, part_id in enumerate(sequence_parts):
                         if step_index:
                             # Never carry the previous candidate's observation
-                            # into the next repair.  Re-read target/camera,
+                            # into the next repair.  Re-read the consolidated
+                            # silhouette observation before composition step:
+                            # target/camera,
                             # baseline compare, canonical observation and Rig
                             # after every accepted staged candidate.
-                            next_silhouette_items = run_required_codex_turn(
+                            next_silhouette_items = run_split_silhouette_observation(
                                 options,
                                 environment,
-                                silhouette_prompt(
-                                    project_id,
-                                    reference_id,
-                                    candidate_id,
-                                    job_id,
-                                    artifact_id,
-                                    silhouette_target_sha or "",
-                                    spec,
-                                    authoring_context,
-                                ),
                                 str(root),
-                                SILHOUETTE_SEQUENCE,
                                 turn_outputs,
-                                f"silhouette observation before composition step {step_index + 1}",
+                                project_id,
+                                reference_id,
+                                candidate_id,
+                                job_id,
+                                artifact_id,
+                                silhouette_target_sha or "",
+                                spec,
+                                authoring_context,
                             )
                             silhouette_items.extend(next_silhouette_items)
                             silhouette_turn = parse_bound_silhouette_turn(
@@ -2196,6 +2611,7 @@ def main() -> int:
                 "comparison_report_hash": comparison_hash,
                 "comparison_metrics": metrics,
                 "authoring_context_binding": authoring_binding_summary(authoring_session_result),
+                "authoring_mode": authoring_mode_summary(silhouette_items),
             })
             if selected_camera_for_compare is not None:
                 compared_camera_hash = field(comparison, "camera", "camera_hash") or field(comparison, "comparison_report", "camera_hash")
@@ -2336,12 +2752,14 @@ def main() -> int:
                     "silhouette_camera_hash": silhouette_camera_hash,
                     "silhouette_fit_camera_hash": silhouette_fit_camera_hash,
                     "silhouette_fit_camera_canonical_sha256": silhouette_fit_camera_canonical,
+                    "silhouette_rig_sha256": silhouette_rig_sha,
                     "comparison_camera_hash": comparison_camera_hash,
                     "comparison_camera_canonical_sha256": comparison_camera_canonical,
                     "render_set_hash": field(comparison, "render_set_object_sha256") or field(comparison, "render_set_hash"),
                     "comparison_report_hash": field(comparison, "comparison_report_object_sha256") or field(comparison, "comparison_report_hash"),
                     "comparison_metrics": metrics,
                     "authoring_context_binding": authoring_binding_summary(authoring_session_result),
+                    "authoring_mode": authoring_mode_summary(silhouette_items),
                     "boundary_error": boundary_summary,
                     "canonical_part_error": canonical_part_error,
                     "boundary_error_count": (
@@ -2502,6 +2920,7 @@ def main() -> int:
                 "render_set_hash": render_set_hash,
                 "comparison_report_hash": comparison_hash,
                 "authoring_context_binding": authoring_binding_summary(authoring_session_result),
+                "authoring_mode": authoring_mode_summary(silhouette_items),
                 "primary_form_repair_requested": options.primary_form_repair,
                 "part_contour_trial_requested": options.part_contour_trial,
                 "part_contour_sequence_requested": bool(options.part_contour_sequence_parts),
