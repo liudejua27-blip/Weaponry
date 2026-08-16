@@ -50,6 +50,17 @@ def evidence_path(row: dict[str, Any]) -> Path:
     return path
 
 
+def keyed_evidence_path(row: dict[str, Any], path_key: str, hash_key: str) -> Path:
+    value = row.get(path_key)
+    require(isinstance(value, str) and value, f"{path_key} must be a non-empty relative path")
+    path = ROOT / value
+    require(path.is_file() and not path.is_symlink(), f"evidence path is not a regular file: {value}")
+    expected = row.get(hash_key)
+    require(isinstance(expected, str) and len(expected) == 64, f"{hash_key} missing: {value}")
+    require(sha256_file(path) == expected, f"evidence bytes drifted: {value}")
+    return path
+
+
 def require_same_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
     require(set(value) == expected, f"{label} key set drifted")
 
@@ -63,6 +74,8 @@ def main() -> int:
     source_row = ledger["current_source_transport"]
     source_path = evidence_path(source_row)
     source = load_json(source_path)
+    require(source_row.get("role") == "OLDER_CADFIT_PROPOSAL_TRANSPORT_NOT_CURRENT_REFERENCE_OBSERVATION", "CADFit transport role drifted")
+    require(source_row.get("not_current_reference_observation") is True, "CADFit transport promotion boundary drifted")
     require(source.get("status") == source_row["transport_status"], "current transport status drifted")
     require(source.get("reference_sha256") == source_row["reference_sha256"], "current reference hash drifted")
     require(source.get("build_cohorts") == source_row["build_cohorts"], "current source cohorts drifted")
@@ -81,6 +94,91 @@ def main() -> int:
     require(source.get("candidate_confirmed", False) is False, "current candidate was unexpectedly confirmed")
     require(source.get("version_count", 0) == 0, "current transport unexpectedly created a version")
     require(source.get("persistent_user_data_touched") is False, "current transport touched persistent user data")
+
+    observation_row = ledger["real_codex_observation_primary_form_transport"]
+    observation_path = keyed_evidence_path(
+        observation_row, "observation_evidence_path", "observation_evidence_sha256"
+    )
+    observation = load_json(observation_path)
+    observation_cohorts = observation.get("build_cohorts")
+    require(observation.get("status") == observation_row["status"], "current ReferenceCanvas observation status drifted")
+    require(observation_cohorts == observation_row["build_cohorts"], "current ReferenceCanvas observation cohorts drifted")
+    require(isinstance(observation_cohorts, dict), "current ReferenceCanvas observation cohorts are missing")
+    require(set(observation_cohorts) == {"mcp", "runtime", "worker", "render_worker"}, "current ReferenceCanvas observation cohort keys drifted")
+    require(len(set(observation_cohorts.values())) == 1, "current ReferenceCanvas observation cohort is not unified")
+    require(observation.get("reference_sha256") == observation_row["reference_sha256"], "current observation reference hash drifted")
+    require(observation.get("reference_set_sha256") == observation_row["reference_set_sha256"], "current observation reference-set hash drifted")
+    require(observation.get("scene_observation_schema") == observation_row["observation_schema"], "current observation schema drifted")
+    require(observation.get("scene_observation_sha256") == observation_row["observation_sha256"], "current observation hash drifted")
+    context = observation.get("authoring_context_binding")
+    require(isinstance(context, dict), "current durable authoring context is missing")
+    expected_context = {
+        "reference_canvas_id": observation_row["reference_canvas_id"],
+        "reference_canvas_object_sha256": observation_row["reference_canvas_object_sha256"],
+        "design_spec_id": observation_row["design_spec_id"],
+        "design_spec_object_sha256": observation_row["design_spec_object_sha256"],
+        "session_id": observation_row["session_id"],
+        "status": observation_row["durable_context_status"],
+    }
+    for key, expected in expected_context.items():
+        require(context.get(key) == expected, f"current authoring context drifted: {key}")
+    coverage = observation.get("reference_coverage")
+    require(isinstance(coverage, dict), "current observation coverage is missing")
+    require(coverage.get("supplied_views") == observation_row["coverage"]["supplied_views"], "current supplied view coverage drifted")
+    require(coverage.get("missing_views") == observation_row["coverage"]["missing_views"], "current missing view coverage drifted")
+    require(coverage.get("hq_360_status") == observation_row["coverage"]["hq_360"], "current 360 coverage boundary drifted")
+    require(observation.get("reference_view_count") == observation_row["reference_view_count"], "current reference view count drifted")
+    require(observation.get("project_id") == observation_row["project_id"], "current observation project drifted")
+    require(observation.get("reference_id") == observation_row["reference_id"], "current observation reference id drifted")
+    require(observation.get("candidate_id") == observation_row["final_candidate_id"], "current observation candidate drifted")
+    observation_steps = observation.get("primary_form_repair_steps")
+    require(isinstance(observation_steps, list) and len(observation_steps) == observation_row["primary_form_accepted_steps"], "current observation Primary Form step count drifted")
+    require(all(step.get("acceptance", {}).get("status") == "accepted" for step in observation_steps), "current observation Primary Form acceptance drifted")
+    require(all(step.get("acceptance", {}).get("strict_improvement") is True for step in observation_steps), "current observation Primary Form strict-improvement boundary drifted")
+    require(observation.get("quality_visual_status") == observation_row["quality_visual_status"], "current observation visual status drifted")
+    require(observation.get("quality_claim") == observation_row["quality_claim"], "current observation quality claim drifted")
+    require(observation.get("persistent_user_data_touched") is False, "current observation touched persistent user data")
+    require(observation.get("unrelated_side_effects") is False, "current observation produced unrelated side effects")
+
+    primary_row = observation_row["latest_primary_form"]
+    primary_path = keyed_evidence_path(
+        observation_row, "primary_form_evidence_path", "primary_form_evidence_sha256"
+    )
+    primary = load_json(primary_path)
+    require(primary.get("status") == observation_row["primary_form_status"], "latest current Primary Form status drifted")
+    require(primary.get("build_cohorts") == observation_row["build_cohorts"], "latest current Primary Form cohorts drifted")
+    require(primary.get("reference_sha256") == observation_row["reference_sha256"], "latest current Primary Form reference hash drifted")
+    require(primary.get("reference_set_sha256") == observation_row["reference_set_sha256"], "latest current Primary Form reference-set hash drifted")
+    require(primary.get("scene_observation_schema") == observation_row["observation_schema"], "latest current Primary Form observation schema drifted")
+    require(primary.get("scene_observation_sha256") == primary_row["observation_sha256"], "latest current Primary Form observation hash drifted")
+    require(primary.get("project_id") == primary_row["project_id"], "latest current Primary Form project drifted")
+    require(primary.get("reference_id") == primary_row["reference_id"], "latest current Primary Form reference id drifted")
+    require(primary.get("candidate_id") == primary_row["final_candidate_id"], "latest current Primary Form candidate drifted")
+    require(primary.get("comparison_metrics") == primary_row["comparison_metrics"], "latest current Primary Form metrics drifted")
+    primary_steps = primary.get("primary_form_repair_steps")
+    require(isinstance(primary_steps, list) and len(primary_steps) == primary_row["accepted_steps"], "latest current Primary Form step count drifted")
+    require([step.get("part_id") for step in primary_steps] == primary_row["accepted_parts"], "latest current Primary Form part order drifted")
+    require(all(step.get("acceptance", {}).get("status") == "accepted" for step in primary_steps), "latest current Primary Form acceptance drifted")
+    require(all(step.get("acceptance", {}).get("strict_improvement") is True for step in primary_steps), "latest current Primary Form strict-improvement boundary drifted")
+    require(primary.get("quality_visual_status") == primary_row["quality_visual_status"], "latest current Primary Form visual status drifted")
+    require(primary.get("visual_review_status") == primary_row["visual_review_status"], "latest current Primary Form review status drifted")
+    require(primary.get("quality_hard_gate_passed") is primary_row["quality_hard_gate_passed"], "latest current Primary Form quality gate drifted")
+    require(primary.get("quality_claim") == primary_row["quality_claim"], "latest current Primary Form quality claim drifted")
+    require(primary.get("candidate_confirmed") in (None, False), "latest current Primary Form crossed confirm boundary")
+    require(primary.get("version_count") in (None, 0), "latest current Primary Form created a version")
+    require(primary.get("export") in (None, "NOT_RUN"), "latest current Primary Form exported")
+    require(primary.get("persistent_user_data_touched") is primary_row["persistent_user_data_touched"], "latest current Primary Form touched persistent data")
+
+    negative_path = keyed_evidence_path(
+        observation_row, "negative_authoring_evidence_path", "negative_authoring_evidence_sha256"
+    )
+    negative = load_json(negative_path)
+    require(negative.get("status") == "BLOCKED", "negative current authoring evidence was promoted")
+    negative_cohorts = negative.get("build_cohorts")
+    require(isinstance(negative_cohorts, dict), "negative current authoring cohort is missing")
+    require({"mcp", "runtime", "worker"}.issubset(negative_cohorts), "negative current authoring cohort keys drifted")
+    require(set(negative_cohorts).issubset({"mcp", "runtime", "worker", "render_worker"}), "negative current authoring cohort has unknown components")
+    require(all(value == observation_cohorts["mcp"] for value in negative_cohorts.values()), "negative current authoring cohort drifted")
 
     surface_row = ledger["same_cohort_surface_signal_transport"]
     surface_path = evidence_path(surface_row)
@@ -550,7 +648,8 @@ def main() -> int:
         "schema_version": "ForgeCADMCP010FCurrentQualityEvidenceGate@1",
         "status": "PASS",
         "ledger": str(LEDGER.relative_to(ROOT)),
-        "current_source_cohort": cohorts["mcp"],
+        "current_cadfit_source_cohort": cohorts["mcp"],
+        "current_reference_observation_cohort": observation_cohorts["mcp"],
         "current_cadfit": "PASS_TRANSPORT_PROPOSAL_ONLY",
         "same_cohort_surface_signal": "PASS_SURFACE_SIGNAL_CADFIT_BOOLEAN_TRANSPORT_ONLY",
         "same_cohort_action_run": "PASS_ACTION_RUN_CADFIT_HANDOFF_CAMERA_REBIND_REQUIRED",
