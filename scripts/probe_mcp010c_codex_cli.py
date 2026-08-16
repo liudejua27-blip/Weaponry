@@ -41,6 +41,18 @@ from probe_mcp010e_raw_stdio import robot_detail_program_draft  # noqa: E402
 
 AOV_ORDER = ("beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch")
 SETUP_SEQUENCE = ("skill_get", "project_create", "reference_import", "reference_get")
+REFERENCE_VIEW_KINDS = (
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "perspective",
+    "rear-three-quarter",
+    "material",
+    "detail",
+)
+REQUIRED_COVERAGE_VIEWS = ("front", "back", "left", "right", "perspective", "rear-three-quarter")
 AUTHORING_SEQUENCE = ("capabilities_get", "runtime_status", "doctor", "operator_catalog_get", "skill_list", "geometry_program_hash", "geometry_prepare")
 GEOMETRY_HASH_SEQUENCE = ("geometry_program_hash",)
 GEOMETRY_PREPARE_SEQUENCE = ("geometry_prepare",)
@@ -84,10 +96,54 @@ class BoundaryOnlyComplete(RuntimeError):
     """Internal control flow for the evidence-only boundary route."""
 
 
+def parse_view_path_bindings(values: list[str] | None, option_name: str) -> tuple[tuple[str, Path], ...]:
+    """Parse explicit ``view-kind=path`` bindings without accepting inference.
+
+    The primary ``--reference`` remains the supplied perspective view.  Every
+    additional view must be named by the caller, so a single image can never
+    silently become a fabricated front/back/side reference.
+    """
+    bindings: list[tuple[str, Path]] = []
+    seen: set[str] = set()
+    for raw in values or []:
+        if not isinstance(raw, str) or "=" not in raw:
+            raise ValueError(f"{option_name} requires VIEW_KIND=PATH")
+        kind, raw_path = raw.split("=", 1)
+        kind = kind.strip()
+        raw_path = raw_path.strip()
+        if kind not in REFERENCE_VIEW_KINDS:
+            raise ValueError(f"{option_name} has unsupported view kind: {kind or '<empty>'}")
+        if not raw_path:
+            raise ValueError(f"{option_name} requires a non-empty path for {kind}")
+        if kind in seen:
+            raise ValueError(f"{option_name} repeats view kind: {kind}")
+        seen.add(kind)
+        bindings.append((kind, Path(raw_path).expanduser()))
+    return tuple(bindings)
+
+
+def stable_view_id(kind: str) -> str:
+    """Return the stable view id used by the ReferenceCanvas probe."""
+    if kind == "perspective":
+        # Preserve the existing single-reference id so old receipts and
+        # downstream readbacks remain comparable.
+        return "three-quarter-user-reference"
+    return f"{kind}-user-reference"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--reference", required=True, help="user-authorized PNG/JPEG path")
+    parser.add_argument(
+        "--reference-view",
+        action="append",
+        metavar="VIEW_KIND=PATH",
+        help=(
+            "Additional explicitly user-authorized reference view. Repeat for front/back/left/right/top/"
+            "rear-three-quarter/detail/material; --reference is the primary perspective view."
+        ),
+    )
     parser.add_argument("--runtime-command", required=True)
     parser.add_argument("--mcp-command", required=True)
     parser.add_argument("--codex-command", default="codex")
@@ -96,6 +152,15 @@ def parse_args() -> argparse.Namespace:
         "--intake",
         type=Path,
         help="Optional sanitized ForgeCADCodexReferenceInventory/robot intake JSON with normalized landmarks and visible regions.",
+    )
+    parser.add_argument(
+        "--intake-view",
+        action="append",
+        metavar="VIEW_KIND=PATH",
+        help=(
+            "Optional sanitized intake JSON for an explicitly supplied view. Repeat with the matching view kind; "
+            "the primary perspective intake remains --intake."
+        ),
     )
     parser.add_argument(
         "--geometry-route",
@@ -156,6 +221,22 @@ def parse_args() -> argparse.Namespace:
         help="run 2-3 exact Part repairs serially in one project; each accepted staged candidate becomes the next step source",
     )
     options = parser.parse_args()
+    try:
+        options.reference_views = parse_view_path_bindings(options.reference_view, "--reference-view")
+        options.intake_views = parse_view_path_bindings(options.intake_view, "--intake-view")
+    except ValueError as error:
+        parser.error(str(error))
+    if any(kind == "perspective" for kind, _ in options.reference_views):
+        parser.error("--reference-view perspective is reserved for the primary --reference")
+    if any(kind == "perspective" for kind, _ in options.intake_views):
+        parser.error("--intake-view perspective is reserved for the primary --intake")
+    supplied_kinds = {"perspective", *(kind for kind, _ in options.reference_views)}
+    intake_kinds = {kind for kind, _ in options.intake_views}
+    if not intake_kinds.issubset(supplied_kinds):
+        missing = sorted(intake_kinds - supplied_kinds)
+        parser.error(f"--intake-view has no matching --reference-view: {', '.join(missing)}")
+    if len(supplied_kinds) > len(REQUIRED_COVERAGE_VIEWS) + 3:
+        parser.error("at most 9 explicit reference views are supported")
     if options.primary_form_repair and not options.silhouette_first:
         parser.error("--primary-form-repair requires --silhouette-first")
     if options.observation_only and not options.silhouette_first:
@@ -398,6 +479,47 @@ def has_subsequence(actual: list[str], expected: tuple[str, ...]) -> bool:
 def all_completed(items: list[dict[str, Any]], expected: tuple[str, ...]) -> bool:
     completed = set(call_sequence(items))
     return all(name in completed for name in expected)
+
+
+def structured_results(items: list[dict[str, Any]], tool_name: str) -> list[dict[str, Any]]:
+    """Return one typed result per completed call, preserving call order.
+
+    ``structured_result`` intentionally returns the last result for a tool and
+    is correct for the historical single-reference path.  Multi-view setup
+    imports the same tool several times, so this helper groups lifecycle events
+    by MCP call id and keeps each completed typed payload without retaining the
+    raw arguments or image data.
+    """
+    grouped: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    seen_call_ids: set[str] = set()
+    fallback_index = 0
+    for item in items:
+        if item.get("type") != "mcp_tool_call" or item.get("tool") != tool_name:
+            continue
+        call_id = item.get("id")
+        if not isinstance(call_id, str) or not call_id:
+            # Codex normally supplies ids.  If a client omits them, completed
+            # events are still kept in observation order rather than merged
+            # into one result.
+            call_id = f"{tool_name}-fallback-{fallback_index}"
+            if item.get("status") == "completed":
+                fallback_index += 1
+        if call_id not in seen_call_ids:
+            seen_call_ids.add(call_id)
+            order.append(call_id)
+        status = item.get("status")
+        if status not in (None, "completed"):
+            continue
+        result = item.get("result")
+        if not isinstance(result, dict):
+            continue
+        structured = result.get("structured_content")
+        if not isinstance(structured, dict):
+            structured = result.get("structuredContent")
+        if isinstance(structured, dict):
+            grouped[call_id] = structured
+    return [grouped[call_id] for call_id in order if call_id in grouped]
 
 
 def completed_tool_sequence(items: list[dict[str, Any]]) -> list[str]:
@@ -667,7 +789,13 @@ def run_codex_process(
     return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
-def run_codex_turn(options: argparse.Namespace, environment: dict[str, str], prompt_text: str, workspace_root: str, image_path: str | None = None) -> subprocess.CompletedProcess[str]:
+def run_codex_turn(
+    options: argparse.Namespace,
+    environment: dict[str, str],
+    prompt_text: str,
+    workspace_root: str,
+    image_path: str | list[str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     """Run one short Codex turn with an explicit, inspectable shell sandbox."""
     prompt_text = (
         "Before any other ForgeCAD tool in this fresh MCP session, call exactly one read-only "
@@ -706,7 +834,9 @@ def run_codex_turn(options: argparse.Namespace, environment: dict[str, str], pro
             f"tool_timeout_sec={max(120, int(options.timeout))}",
         )
         if image_path:
-            command.extend(["--image", image_path])
+            image_paths = [image_path] if isinstance(image_path, str) else image_path
+            for path in image_paths:
+                command.extend(["--image", path])
             return run_codex_process(command, environment, options.timeout, prompt_text + "\n")
         command.append(prompt_text)
         return run_codex_process(command, environment, options.timeout)
@@ -839,6 +969,8 @@ def authoring_binding_summary(result: dict[str, Any] | None) -> dict[str, Any]:
         "observation_sha256": session.get("observation_sha256"),
         "reference_canvas_id": canvas.get("canvas_id"),
         "reference_canvas_object_sha256": canvas_document.get("object_sha256"),
+        "reference_set_sha256": canvas.get("reference_set_sha256"),
+        "reference_view_count": len(canvas.get("views", [])) if isinstance(canvas.get("views"), list) else None,
         "design_spec_id": (context.get("design_spec") or {}).get("spec_id") if isinstance(context.get("design_spec"), dict) else None,
         "design_spec_object_sha256": spec_document.get("object_sha256"),
         "coverage_status": coverage.get("coverage_status"),
@@ -994,14 +1126,56 @@ def load_visual_intake(path: Path | None, reference_sha: str) -> tuple[dict[str,
     return {"landmarks": clean_landmarks, "regions": clean_regions}, hashlib.sha256(raw).hexdigest()
 
 
-def view_spec(reference_id: str, reference_sha: str, width: int, height: int, intake: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any]:
+def reference_view_receipt_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Project local/runtime view bindings without paths or image content."""
+    summary: list[dict[str, Any]] = []
+    for record in records:
+        intake = record.get("intake") if isinstance(record.get("intake"), dict) else {}
+        intake_sha = record.get("intake_source_sha256")
+        summary.append({
+            "kind": record.get("kind"),
+            "view_id": record.get("view_id"),
+            "reference_id": record.get("reference_id"),
+            "reference_sha256": record.get("reference_sha256") or record.get("source_sha256"),
+            "width": record.get("width"),
+            "height": record.get("height"),
+            "visual_intake": {
+                "status": "PROVIDED" if isinstance(intake_sha, str) else "NOT_PROVIDED",
+                "source_sha256": intake_sha,
+                "landmark_count": len(intake.get("landmarks", [])) if isinstance(intake.get("landmarks"), list) else 0,
+                "region_count": len(intake.get("regions", [])) if isinstance(intake.get("regions"), list) else 0,
+            },
+        })
+    return summary
+
+
+def view_spec(
+    reference_id: str,
+    reference_sha: str,
+    width: int,
+    height: int,
+    intake: dict[str, list[dict[str, Any]]] | None = None,
+    *,
+    kind: str = "perspective",
+    view_id: str | None = None,
+) -> dict[str, Any]:
     intake = intake or {"landmarks": [], "regions": []}
+    if kind not in REFERENCE_VIEW_KINDS:
+        raise ValueError(f"unsupported ReferenceViewSpec kind: {kind}")
+    source_view = {
+        "perspective": "three-quarter",
+        "front": "front",
+        "back": "back",
+        "left": "left",
+        "right": "right",
+        "rear-three-quarter": "rear-three-quarter",
+    }.get(kind, "unknown")
     value: dict[str, Any] = {
         "schema_version": "ReferenceViewSpec@1",
         "reference_id": reference_id,
         "reference_sha256": reference_sha,
-        "view_id": "three-quarter-user-reference",
-        "source_view": "three-quarter",
+        "view_id": view_id or stable_view_id(kind),
+        "source_view": source_view,
         # Keep the scalar representation integer-stable.  Codex's JSON
         # round-trip normalizes 0.0/1.0 to 0/1; the Runtime canonical hash is
         # type-sensitive, so the bytes hashed here must match what MCP sees.
@@ -1231,6 +1405,339 @@ def reference_canvas_authoring_context(
         "reference_canvas": canvas,
         "design_spec": spec,
     }
+
+
+def reference_canvas_authoring_context_multi(
+    project_id: str,
+    reference_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build an explicit multi-view canvas from imported Runtime references.
+
+    Every record is already bound to a live ``reference_import`` readback.  No
+    image transformation or inferred view is allowed here; the helper only
+    projects those exact references into the bounded authoring contracts.
+    """
+    if not reference_records or len(reference_records) > 32:
+        raise ValueError("multi-view authoring requires 1-32 imported references")
+    normalized: list[dict[str, Any]] = []
+    seen_kinds: set[str] = set()
+    seen_view_ids: set[str] = set()
+    for record in reference_records:
+        if not isinstance(record, dict):
+            raise ValueError("reference record must be an object")
+        kind = record.get("kind")
+        view_id = record.get("view_id")
+        reference_id = record.get("reference_id")
+        reference_sha = record.get("reference_sha256")
+        width = record.get("width")
+        height = record.get("height")
+        intake = record.get("intake") or {"landmarks": [], "regions": []}
+        if (
+            not isinstance(kind, str)
+            or kind not in REFERENCE_VIEW_KINDS
+            or kind in seen_kinds
+            or not isinstance(view_id, str)
+            or not view_id
+            or view_id in seen_view_ids
+            or not isinstance(reference_id, str)
+            or not reference_id
+            or not isinstance(reference_sha, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", reference_sha)
+            or not isinstance(width, int)
+            or not isinstance(height, int)
+            or width <= 0
+            or height <= 0
+            or not isinstance(intake, dict)
+        ):
+            raise ValueError("invalid multi-view reference record")
+        seen_kinds.add(kind)
+        seen_view_ids.add(view_id)
+        normalized.append({
+            "kind": kind,
+            "view_id": view_id,
+            "reference_id": reference_id,
+            "reference_sha256": reference_sha,
+            "width": width,
+            "height": height,
+            "intake": intake,
+        })
+    if not any(record["kind"] == "perspective" for record in normalized):
+        raise ValueError("multi-view authoring requires the primary perspective reference")
+
+    reference_pairs = sorted(
+        (record["reference_id"], record["reference_sha256"])
+        for record in normalized
+    )
+    reference_set_sha256 = canonical_hash([
+        {"reference_id": reference_id, "reference_sha256": reference_sha}
+        for reference_id, reference_sha in reference_pairs
+    ])
+    evidence_by_sha: dict[str, dict[str, str]] = {}
+    for record in normalized:
+        reference_sha = record["reference_sha256"]
+        evidence_by_sha.setdefault(reference_sha, {"kind": "reference", "sha256": reference_sha})
+    all_evidence = list(evidence_by_sha.values())
+    required_views = list(REQUIRED_COVERAGE_VIEWS)
+    required_views.extend(
+        record["kind"]
+        for record in normalized
+        if record["kind"] not in required_views
+    )
+    supplied_kinds = {record["kind"] for record in normalized}
+    supplied_views = [kind for kind in required_views if kind in supplied_kinds]
+    missing_views = [kind for kind in required_views if kind not in supplied_kinds]
+    coverage_status = "complete" if not missing_views else (
+        "blocked" if supplied_views == ["perspective"] else "partial"
+    )
+    hq_360_status = "eligible" if not missing_views else "BLOCKED_REFERENCE_COVERAGE"
+    created_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+    def state(
+        visibility: str,
+        confidence: float,
+        evidence_refs: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        return {
+            "visibility": visibility,
+            "confidence": confidence,
+            "evidence_refs": [dict(item) for item in evidence_refs],
+        }
+
+    def visible_regions(record: dict[str, Any]) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+        intake = record["intake"]
+        for index, region in enumerate(intake.get("regions", [])):
+            if not isinstance(region, dict):
+                continue
+            region_id = region.get("region_id")
+            if not isinstance(region_id, str) or not region_id:
+                continue
+            visibility = region.get("visibility")
+            if visibility not in {"observed", "inferred", "unknown"}:
+                visibility = "unknown"
+            confidence = region.get("confidence", 0.0)
+            if not isinstance(confidence, (int, float)) or not math.isfinite(float(confidence)):
+                confidence = 0.0
+            confidence = max(0.0, min(1.0, float(confidence))) if visibility != "unknown" else 0.0
+            evidence = [evidence_by_sha[record["reference_sha256"]]]
+            result.append({
+                "region_id": region_id,
+                "label": f"visible region {index + 1}",
+                "state": state(visibility, confidence, evidence),
+            })
+        return result
+
+    def unknown_regions(record: dict[str, Any]) -> list[dict[str, Any]]:
+        evidence = [evidence_by_sha[record["reference_sha256"]]]
+        kind = record["kind"]
+        return [
+            {
+                "region_id": f"unknown-{kind}-hidden-geometry",
+                "question": "Which forms continue around the hidden surfaces of this supplied view?",
+                "state": state("unknown", 0.0, evidence),
+            },
+            {
+                "region_id": f"unknown-{kind}-camera-calibration",
+                "question": "What physical camera and focal length produced this supplied view?",
+                "state": state("unknown", 0.0, evidence),
+            },
+        ]
+
+    views: list[dict[str, Any]] = []
+    claims: list[dict[str, Any]] = []
+    for record in normalized:
+        evidence = [evidence_by_sha[record["reference_sha256"]]]
+        views.append({
+            "view_id": record["view_id"],
+            "reference_id": record["reference_id"],
+            "reference_sha256": record["reference_sha256"],
+            "kind": record["kind"],
+            "authorization": {
+                "user_authorized": True,
+                "declaration": "The user supplied and authorized this reference for local ForgeCAD modeling.",
+                "evidence_refs": [dict(item) for item in evidence],
+            },
+            "image_dimensions": {"width": record["width"], "height": record["height"]},
+            "camera_claim": {
+                "visibility": "unknown",
+                "camera_hash": None,
+                "claim": "Camera parameters are unknown for this supplied reference view.",
+                "evidence_refs": [dict(item) for item in evidence],
+            },
+            "visible_regions": visible_regions(record),
+            "unknown_regions": unknown_regions(record),
+        })
+        claims.append({
+            "claim_id": f"claim-supplied-{record['kind']}",
+            "subject_kind": "view",
+            "subject_id": record["view_id"],
+            "statement": f"The supplied {record['kind']} image is user-authorized; hidden coverage remains explicit.",
+            "state": state("observed", 0.98, evidence),
+        })
+
+    canvas_id = "reference-canvas-real-codex"
+    spec_id = "design-spec-real-codex"
+    canvas: dict[str, Any] = {
+        "schema_version": "ReferenceCanvas@1",
+        "canvas_id": canvas_id,
+        "project_id": project_id,
+        "reference_set_sha256": reference_set_sha256,
+        "views": views,
+        "coverage": {
+            "required_views": required_views,
+            "supplied_views": supplied_views,
+            "missing_views": missing_views,
+            "coverage_status": coverage_status,
+            "hq_360_status": hq_360_status,
+            "evidence_refs": [dict(item) for item in all_evidence],
+        },
+        "unknowns": [
+            {
+                "unknown_id": "unknown-reference-coverage",
+                "scope_kind": "scene",
+                "scope_id": "scene",
+                "question": "Which required reference views are still unavailable?",
+                "state": state("unknown", 0.0, all_evidence),
+            },
+            {
+                "unknown_id": "unknown-hidden-depth",
+                "scope_kind": "scene",
+                "scope_id": "scene",
+                "question": "What is the true depth and hidden assembly behind the supplied views?",
+                "state": state("unknown", 0.0, all_evidence),
+            },
+        ],
+        "claims": claims,
+        "canonical_sha256": "",
+        "created_at": created_at,
+    }
+    canvas["canonical_sha256"] = canonical_hash(canvas)
+    canvas_object_sha256 = canonical_hash(canvas)
+
+    def gate(
+        stage: str,
+        required_checks: list[str],
+        failed_checks: list[str],
+        locks: list[str],
+    ) -> dict[str, Any]:
+        return {
+            "stage": stage,
+            "status": "unknown",
+            "required_checks": required_checks,
+            "failed_checks": failed_checks,
+            "evidence_hashes": [record["reference_sha256"] for record in normalized],
+            "unlocks": ["checkpoint", "mark-unknown"],
+            "locks": locks,
+        }
+
+    spec: dict[str, Any] = {
+        "schema_version": "DesignSpec@1",
+        "spec_id": spec_id,
+        "project_id": project_id,
+        "reference_canvas_id": canvas_id,
+        "reference_canvas_sha256": canvas_object_sha256,
+        "category": "hard-surface humanoid visual asset",
+        "style": f"white shell with dark mechanical understructure, inferred from {len(normalized)} authorized view(s)",
+        "primary_forms": [{
+            "form_id": "humanoid-primary-form",
+            "name": "Humanoid primary form",
+            "role": "main-body",
+            "description": "Visible body envelope; hidden depth remains explicit until coverage and comparison pass.",
+            "state": state("inferred", 0.82, all_evidence),
+        }],
+        "proportions": [],
+        "semantic_parts": [{
+            "part_id": "scene",
+            "role": "root",
+            "parent_id": None,
+            "symmetry": "unknown",
+            "material_zone_ids": ["zone-white-shell", "zone-black-mechanical"],
+            "state": state("inferred", 0.72, all_evidence),
+        }],
+        "material_language": [],
+        "stage_goals": [
+            {
+                "stage": "reference-canvas",
+                "objective": "Bind authorized references and coverage before primary form.",
+                "allowed_action_kinds": ["coverage-annotation", "checkpoint"],
+                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
+                "exit_gate": gate("reference-canvas", ["reference-authorized"], ["reference-coverage"], ["tertiary-detail", "uv-pbr", "export"]),
+            },
+            {
+                "stage": "primary-form",
+                "objective": "Converge visible primary silhouette and proportions across supplied views.",
+                "allowed_action_kinds": ["primary-blockout", "bounded-repair", "checkpoint"],
+                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
+                "exit_gate": gate("primary-form", ["primary-silhouette"], ["primary-silhouette", "primary-proportion"], ["tertiary-detail", "uv-pbr", "export"]),
+            },
+            {
+                "stage": "secondary-structure",
+                "objective": "Add secondary structure after primary form.",
+                "allowed_action_kinds": ["secondary-structure", "bounded-repair", "checkpoint"],
+                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
+                "exit_gate": gate("secondary-structure", ["secondary-structure"], ["visible-view"], ["tertiary-detail", "uv-pbr", "export"]),
+            },
+            {
+                "stage": "tertiary-detail",
+                "objective": "Keep tertiary detail locked until form and coverage pass.",
+                "allowed_action_kinds": ["tertiary-detail", "checkpoint"],
+                "forbidden_action_kinds": ["uv-pbr", "export"],
+                "exit_gate": gate("tertiary-detail", ["tertiary-detail", "visible-view"], ["visible-view"], ["uv-pbr", "export"]),
+            },
+            {
+                "stage": "uv-pbr",
+                "objective": "Bind UV, tangent and PBR after geometry gates.",
+                "allowed_action_kinds": ["material-zone", "uv-pbr", "checkpoint"],
+                "forbidden_action_kinds": ["export"],
+                "exit_gate": gate("uv-pbr", ["uv-tangent-pbr", "visible-view"], ["uv-tangent-pbr"], ["export"]),
+            },
+            {
+                "stage": "final-review",
+                "objective": "Require multi-view comparison, review and restart-safe export evidence.",
+                "allowed_action_kinds": ["final-review", "human-review", "export", "checkpoint"],
+                "forbidden_action_kinds": [],
+                "exit_gate": gate("final-review", ["multi-view-compare"], ["multi-view-compare", "human-review", "export-restart-hash"], ["export"]),
+            },
+        ],
+        "risks": [],
+        "unknowns": [],
+        "canonical_sha256": "",
+        "created_at": created_at,
+    }
+    return {"reference_canvas": canvas, "design_spec": spec}
+
+
+def setup_prompt_multi(reference_inputs: list[dict[str, Any]]) -> str:
+    """Create a bounded setup turn for explicitly supplied reference views."""
+    if not reference_inputs or len(reference_inputs) > 9:
+        raise ValueError("setup requires 1-9 reference inputs")
+    imports: list[str] = []
+    gets: list[str] = []
+    for index, item in enumerate(reference_inputs, start=1):
+        kind = item.get("kind")
+        path = item.get("path")
+        source_sha = item.get("source_sha256")
+        if not isinstance(kind, str) or not isinstance(path, str) or not isinstance(source_sha, str):
+            raise ValueError("setup reference input is incomplete")
+        imports.append(
+            f'{index}) reference_import for the {kind} view with this exact JSON object: '
+            f'{{"project_id":<saved project_id>,"source":{{"kind":"codex_local_file","path":{json.dumps(path, ensure_ascii=False)}}},'
+            f'"authorization":{{"user_authorized":true,"declaration":"The user supplied and authorized this reference for local ForgeCAD modeling."}},'
+            f'"expected_sha256":{json.dumps(source_sha)}}}; save the returned reference_id and object_sha256.'
+        )
+        gets.append(
+            f'{len(reference_inputs) + index}) reference_get for the {kind} view with '
+            'the reference_id returned by the matching import; verify reference_id and object_sha256 exactly.'
+        )
+    steps = "\n".join(imports + gets)
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, other MCP servers, or arbitrary code.
+
+This is the first setup turn for a real MCP010C host gate. The mandatory Ponytail preflight has already been requested by the host wrapper. After it succeeds, call exactly these ForgeCAD tools in order, then stop:
+1) project_create with name="MCP010C Codex visual review" and policy={{"profile":"mvp"}}; save project_id.
+{steps}
+
+Do not request or print image bytes. Return the project_id, one import result and one metadata readback for each named view, preserving the listed order. Do not claim similarity, high quality, PBR, human approval or 360-degree coverage.
+"""
 
 
 def setup_prompt(reference_path: str) -> str:
@@ -1511,6 +2018,7 @@ def run_split_silhouette_observation(
     target_sha256: str,
     view: dict[str, Any],
     authoring_context: dict[str, Any],
+    allow_runtime_default_authoring: bool = True,
 ) -> list[dict[str, Any]]:
     """Run the real Codex observation boundary as four bounded MCP turns."""
     core_items = run_required_codex_turn(
@@ -1590,6 +2098,11 @@ def run_split_silhouette_observation(
         # a safe, conservative durable canvas/spec producer and still gives
         # the observation turn one canonical context; retain the explicit
         # typed failure in the raw event stream and receipt mode summary.
+        if not allow_runtime_default_authoring:
+            raise RuntimeError(
+                "MULTI_VIEW_AUTHORING_EXPLICIT_CONTEXT_REQUIRED: "
+                f"Codex could not preserve the multi-view authoring payload: {explicit_error}"
+            ) from explicit_error
         session_items = run_required_codex_turn(
             options,
             environment,
@@ -2076,12 +2589,18 @@ def base_receipt(source_sha: str, source_size: int) -> dict[str, Any]:
 
 def main() -> int:
     options = parse_args()
-    source = Path(options.reference).expanduser()
-    if not source.is_file() or source.is_symlink():
-        receipt = base_receipt("", 0) | {"status": "BLOCKED", "reason": "reference is not a regular file"}
+    source_input = Path(options.reference).expanduser()
+    if not source_input.is_file() or source_input.is_symlink():
+        receipt = base_receipt("", 0) | {
+            "status": "BLOCKED",
+            "reason": "perspective reference is not a regular file",
+            "reference_view_count": 1 + len(options.reference_views),
+            "reference_views": [],
+        }
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 3
+    source = source_input.resolve()
     source_bytes = source.read_bytes()
     source_sha = hashlib.sha256(source_bytes).hexdigest()
     try:
@@ -2091,32 +2610,106 @@ def main() -> int:
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 3
+    local_reference_records: list[dict[str, Any]] = [{
+        "kind": "perspective",
+        "view_id": stable_view_id("perspective"),
+        "path": source,
+        "source_sha256": source_sha,
+        "reference_sha256": source_sha,
+        "width": width,
+        "height": height,
+        "intake": {"landmarks": [], "regions": []},
+        "intake_source_sha256": None,
+    }]
     try:
-        visual_intake, visual_intake_sha = load_visual_intake(options.intake, source_sha)
-    except (OSError, ValueError, json.JSONDecodeError) as error:
-        receipt = base_receipt(source_sha, len(source_bytes)) | {"status": "BLOCKED", "reason": f"visual intake unavailable: {str(error)[:240]}"}
+        for kind, path in options.reference_views:
+            if not path.is_file() or path.is_symlink():
+                raise ValueError(f"{kind} reference is not a regular file")
+            path = path.resolve()
+            raw = path.read_bytes()
+            view_width, view_height = reference_dimensions(path)
+            view_sha = hashlib.sha256(raw).hexdigest()
+            local_reference_records.append({
+                "kind": kind,
+                "view_id": stable_view_id(kind),
+                "path": path,
+                "source_sha256": view_sha,
+                "reference_sha256": view_sha,
+                "width": view_width,
+                "height": view_height,
+                "intake": {"landmarks": [], "regions": []},
+                "intake_source_sha256": None,
+            })
+    except (OSError, ValueError) as error:
+        receipt = base_receipt(source_sha, len(source_bytes)) | {
+            "status": "BLOCKED",
+            "reason": str(error)[:240],
+            "reference_view_count": 1 + len(options.reference_views),
+            "reference_views": reference_view_receipt_summary(local_reference_records),
+        }
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 3
+    try:
+        visual_intake, visual_intake_sha = load_visual_intake(options.intake, source_sha)
+        local_reference_records[0]["intake"] = visual_intake
+        local_reference_records[0]["intake_source_sha256"] = visual_intake_sha
+        intake_by_kind = dict(options.intake_views)
+        for record in local_reference_records[1:]:
+            view_intake, view_intake_sha = load_visual_intake(
+                intake_by_kind.get(record["kind"]),
+                record["source_sha256"],
+            )
+            record["intake"] = view_intake
+            record["intake_source_sha256"] = view_intake_sha
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        receipt = base_receipt(source_sha, len(source_bytes)) | {
+            "status": "BLOCKED",
+            "reason": f"visual intake unavailable: {str(error)[:240]}",
+            "reference_view_count": len(local_reference_records),
+            "reference_views": reference_view_receipt_summary(local_reference_records),
+        }
+        write_receipt(options.evidence, receipt)
+        print(json.dumps(receipt, sort_keys=True))
+        return 3
+    reference_views_receipt = reference_view_receipt_summary(local_reference_records)
     if not options.execute:
-        receipt = base_receipt(source_sha, len(source_bytes)) | {"status": "NOT_RUN", "reason": "Pass --execute to run the isolated local Runtime and Codex CLI."}
+        receipt = base_receipt(source_sha, len(source_bytes)) | {
+            "status": "NOT_RUN",
+            "reason": "Pass --execute to run the isolated local Runtime and Codex CLI.",
+            "reference_view_count": len(local_reference_records),
+            "reference_views": reference_views_receipt,
+        }
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 2
 
     runtime_command = str(Path(options.runtime_command).expanduser().resolve())
     mcp_command = str(Path(options.mcp_command).expanduser().resolve())
+    # Codex starts each turn from a private temporary ``-C`` directory.  The
+    # Runtime supervisor may use the resolved local paths above, but the MCP
+    # server command is also copied into Codex's fresh configuration; leave no
+    # relative path for that second consumer to resolve against the temp cwd.
+    options.runtime_command = runtime_command
+    options.mcp_command = mcp_command
     worker_command = str(Path(runtime_command).with_name("forgecad-geometry-worker"))
+    render_worker_command = str(Path(runtime_command).with_name("forgecad-render-worker"))
     viewer_command = options.viewer_executable.expanduser().resolve() if options.viewer_executable else None
     if (
         options.timeout <= 0
         or not Path(runtime_command).is_file()
         or not Path(mcp_command).is_file()
         or not Path(worker_command).is_file()
+        or not Path(render_worker_command).is_file()
         or viewer_command is not None
         and (not viewer_command.is_file() or not os.access(viewer_command, os.X_OK))
     ):
-        receipt = base_receipt(source_sha, len(source_bytes)) | {"status": "BLOCKED", "reason": "same-cohort source MCP, Runtime and geometry Worker binaries were unavailable"}
+        receipt = base_receipt(source_sha, len(source_bytes)) | {
+            "status": "BLOCKED",
+            "reason": "same-cohort source MCP, Runtime, Geometry Worker and Render Worker binaries were unavailable",
+            "reference_view_count": len(local_reference_records),
+            "reference_views": reference_views_receipt,
+        }
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 3
@@ -2125,14 +2718,26 @@ def main() -> int:
             "mcp": build_cohort(mcp_command, "forgecad-mcp"),
             "runtime": build_cohort(runtime_command, "forgecad-runtime"),
             "worker": build_cohort(worker_command, "forgecad-geometry-worker"),
+            "render_worker": build_cohort(render_worker_command, "forgecad-render-worker"),
         }
     except (OSError, subprocess.SubprocessError, ValueError, json.JSONDecodeError) as error:
-        receipt = base_receipt(source_sha, len(source_bytes)) | {"status": "BLOCKED", "reason": f"build identity unavailable: {str(error)[:240]}"}
+        receipt = base_receipt(source_sha, len(source_bytes)) | {
+            "status": "BLOCKED",
+            "reason": f"build identity unavailable: {str(error)[:240]}",
+            "reference_view_count": len(local_reference_records),
+            "reference_views": reference_views_receipt,
+        }
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 3
     if len(set(cohorts.values())) != 1:
-        receipt = base_receipt(source_sha, len(source_bytes)) | {"status": "BLOCKED", "reason": "MCP, Runtime and Worker build cohorts did not match", "build_cohorts": cohorts}
+        receipt = base_receipt(source_sha, len(source_bytes)) | {
+            "status": "BLOCKED",
+            "reason": "MCP, Runtime, Geometry Worker and Render Worker build cohorts did not match",
+            "build_cohorts": cohorts,
+            "reference_view_count": len(local_reference_records),
+            "reference_views": reference_views_receipt,
+        }
         write_receipt(options.evidence, receipt)
         print(json.dumps(receipt, sort_keys=True))
         return 3
@@ -2141,9 +2746,19 @@ def main() -> int:
     for key in ("CODEX_MCP_PROTOCOL_VERSION", "FORGECAD_RUNTIME_SOCKET", "FORGECAD_RUNTIME_TOKEN", "FORGECAD_RUNTIME_DATA_DIR", "FORGECAD_RUNTIME_COMMAND", "FORGECAD_RUNTIME_READY_FILE", "FORGECAD_RUNTIME_STATUS_FILE"):
         environment.pop(key, None)
     environment["FORGECAD_MCP_ENABLE_MCP004_WRITES"] = "1"
-    environment["FORGECAD_ATTACHMENT_ROOTS"] = str(source.parent)
+    attachment_roots: list[str] = []
+    for record in local_reference_records:
+        root_path = str(record["path"].parent.resolve())
+        if root_path not in attachment_roots:
+            attachment_roots.append(root_path)
+    environment["FORGECAD_ATTACHMENT_ROOTS"] = os.pathsep.join(attachment_roots)
 
-    receipt = base_receipt(source_sha, len(source_bytes)) | {"status": "BLOCKED", "build_cohorts": cohorts}
+    receipt = base_receipt(source_sha, len(source_bytes)) | {
+        "status": "BLOCKED",
+        "build_cohorts": cohorts,
+        "reference_view_count": len(local_reference_records),
+        "reference_views": reference_views_receipt,
+    }
     runtime: subprocess.Popen[str] | None = None
     turn_outputs: list[subprocess.CompletedProcess[str]] = []
     silhouette_fit_intent_sha: str | None = None
@@ -2172,48 +2787,137 @@ def main() -> int:
             environment["FORGECAD_RUNTIME_SOCKET"] = socket_path
             environment["FORGECAD_RUNTIME_TOKEN"] = token
 
-            first = run_codex_turn(options, environment, setup_prompt(str(source)), str(root), str(source))
+            setup_images = [str(record["path"]) for record in local_reference_records]
+            if len(local_reference_records) == 1:
+                setup_text = setup_prompt(str(source))
+            else:
+                setup_text = setup_prompt_multi([
+                    {
+                        "kind": record["kind"],
+                        "path": str(record["path"]),
+                        "source_sha256": record["source_sha256"],
+                    }
+                    for record in local_reference_records
+                ])
+            first = run_codex_turn(options, environment, setup_text, str(root), setup_images)
             turn_outputs.append(first)
             first_items = event_items(first.stdout)
             project_result = structured_result(first_items, "project_create") or {}
-            reference_result = structured_result(first_items, "reference_import") or {}
-            reference = field(reference_result, "reference") or reference_result
             project_id = field(project_result, "project_id")
-            reference_id = field(reference, "reference_id")
-            reference_sha = field(reference, "object_sha256")
-            if not isinstance(project_id, str) or not isinstance(reference_id, str) or not isinstance(reference_sha, str):
-                raise RuntimeError("Codex setup did not return project/reference evidence")
-            reference_get_result = structured_result(first_items, "reference_get")
+            import_results = structured_results(first_items, "reference_import")
+            get_results = structured_results(first_items, "reference_get")
             setup_calls = mcp_calls(first_items)
-            if reference_get_result is None:
-                setup_readback = run_codex_turn(options, environment, reference_get_prompt(reference_id), str(root))
-                turn_outputs.append(setup_readback)
-                setup_readback_items = event_items(setup_readback.stdout)
-                setup_calls.extend(mcp_calls(setup_readback_items))
-                reference_get_result = structured_result(setup_readback_items, "reference_get")
-            reference_get = field(reference_get_result or {}, "reference") or reference_get_result or {}
-            if field(reference_get, "reference_id") != reference_id or field(reference_get, "object_sha256") != reference_sha:
-                raise RuntimeError("reference_get did not match reference_import")
+            if not isinstance(project_id, str) or len(import_results) != len(local_reference_records):
+                raise RuntimeError("Codex setup did not return one import result per reference view")
+            imported_references: list[dict[str, Any]] = []
+            for record, import_result in zip(local_reference_records, import_results):
+                imported = field(import_result, "reference") or import_result
+                imported_id = field(imported, "reference_id")
+                imported_sha = field(imported, "object_sha256")
+                if (
+                    not isinstance(imported_id, str)
+                    or not isinstance(imported_sha, str)
+                    or imported_sha != record["source_sha256"]
+                ):
+                    raise RuntimeError(f"reference_import did not bind the {record['kind']} source bytes")
+                record["reference_id"] = imported_id
+                record["reference_sha256"] = imported_sha
+                imported_references.append({
+                    "reference_id": imported_id,
+                    "reference_sha256": imported_sha,
+                })
+            if len(get_results) != len(local_reference_records):
+                if len(local_reference_records) == 1:
+                    reference_id_for_readback = imported_references[0]["reference_id"]
+                    setup_readback = run_codex_turn(
+                        options,
+                        environment,
+                        reference_get_prompt(reference_id_for_readback),
+                        str(root),
+                    )
+                    turn_outputs.append(setup_readback)
+                    setup_readback_items = event_items(setup_readback.stdout)
+                    setup_calls.extend(mcp_calls(setup_readback_items))
+                    get_results = structured_results(setup_readback_items, "reference_get")
+                else:
+                    raise RuntimeError("Codex setup did not return one readback per reference view")
+            if len(get_results) != len(local_reference_records):
+                raise RuntimeError("Codex setup did not return reference metadata readback")
+            runtime_reference_records: list[dict[str, Any]] = []
+            for record, imported, get_result in zip(local_reference_records, imported_references, get_results):
+                readback = field(get_result, "reference") or get_result
+                if (
+                    field(readback, "reference_id") != imported["reference_id"]
+                    or field(readback, "object_sha256") != imported["reference_sha256"]
+                ):
+                    raise RuntimeError(f"reference_get did not match the {record['kind']} reference_import")
+                runtime_reference_records.append({
+                    "kind": record["kind"],
+                    "view_id": record["view_id"],
+                    "reference_id": imported["reference_id"],
+                    "reference_sha256": imported["reference_sha256"],
+                    "width": record["width"],
+                    "height": record["height"],
+                    "intake": record["intake"],
+                })
+            primary_reference = runtime_reference_records[0]
+            reference_id = primary_reference["reference_id"]
+            reference_sha = primary_reference["reference_sha256"]
+            width = primary_reference["width"]
+            height = primary_reference["height"]
+            reference_views_receipt = reference_view_receipt_summary(local_reference_records)
+            if not isinstance(reference_id, str) or not isinstance(reference_sha, str):
+                raise RuntimeError("Codex setup did not return the primary reference evidence")
+            setup_expected = (
+                "skill_get",
+                "project_create",
+                *(["reference_import"] * len(local_reference_records)),
+                *(["reference_get"] * len(local_reference_records)),
+            )
             completed_setup_tool_names = [
                 str(call.get("tool"))
                 for call in setup_calls
                 if call.get("server") == "forgecad" and call.get("status") == "completed"
             ]
             if not (
-                has_subsequence(completed_setup_tool_names, SETUP_SEQUENCE)
-                and all(name in completed_setup_tool_names for name in SETUP_SEQUENCE)
+                has_subsequence(completed_setup_tool_names, tuple(setup_expected))
+                and all(name in completed_setup_tool_names for name in setup_expected)
             ):
                 raise RuntimeError("Codex setup did not complete the required MCP sequence")
 
-            spec = view_spec(reference_id, reference_sha, width, height, visual_intake)
-            authoring_context = reference_canvas_authoring_context(
-                project_id,
+            spec = view_spec(
                 reference_id,
                 reference_sha,
                 width,
                 height,
                 visual_intake,
+                kind="perspective",
+                view_id=primary_reference["view_id"],
             )
+            authoring_context = (
+                reference_canvas_authoring_context_multi(project_id, runtime_reference_records)
+                if len(runtime_reference_records) > 1
+                else reference_canvas_authoring_context(
+                    project_id,
+                    reference_id,
+                    reference_sha,
+                    width,
+                    height,
+                    visual_intake,
+                )
+            )
+            receipt.update({
+                "reference_view_count": len(local_reference_records),
+                "reference_views": reference_views_receipt,
+                "reference_set_sha256": field(authoring_context, "reference_canvas", "reference_set_sha256"),
+                "reference_coverage": {
+                    "required_views": field(authoring_context, "reference_canvas", "coverage", "required_views"),
+                    "supplied_views": field(authoring_context, "reference_canvas", "coverage", "supplied_views"),
+                    "missing_views": field(authoring_context, "reference_canvas", "coverage", "missing_views"),
+                    "coverage_status": field(authoring_context, "reference_canvas", "coverage", "coverage_status"),
+                    "hq_360_status": field(authoring_context, "reference_canvas", "coverage", "hq_360_status"),
+                },
+            })
             silhouette_target_sha: str | None = None
             silhouette_camera_hash: str | None = None
             silhouette_fit_camera_hash: str | None = None
@@ -2309,6 +3013,7 @@ def main() -> int:
                     silhouette_target_sha or "",
                     spec,
                     authoring_context,
+                    allow_runtime_default_authoring=len(runtime_reference_records) == 1,
                 )
                 silhouette_items.extend(silhouette_turn_items)
                 silhouette_turn = parse_bound_silhouette_turn(
@@ -2363,6 +3068,7 @@ def main() -> int:
                                 silhouette_target_sha or "",
                                 spec,
                                 authoring_context,
+                                allow_runtime_default_authoring=len(runtime_reference_records) == 1,
                             )
                             silhouette_items.extend(next_silhouette_items)
                             silhouette_turn = parse_bound_silhouette_turn(
@@ -2728,6 +3434,16 @@ def main() -> int:
                     "project_id": project_id,
                     "reference_id": reference_id,
                     "reference_sha256": reference_sha,
+                    "reference_view_count": len(local_reference_records),
+                    "reference_views": reference_views_receipt,
+                    "reference_set_sha256": field(authoring_context, "reference_canvas", "reference_set_sha256"),
+                    "reference_coverage": {
+                        "required_views": field(authoring_context, "reference_canvas", "coverage", "required_views"),
+                        "supplied_views": field(authoring_context, "reference_canvas", "coverage", "supplied_views"),
+                        "missing_views": field(authoring_context, "reference_canvas", "coverage", "missing_views"),
+                        "coverage_status": field(authoring_context, "reference_canvas", "coverage", "coverage_status"),
+                        "hq_360_status": field(authoring_context, "reference_canvas", "coverage", "hq_360_status"),
+                    },
                     "reference_width": width,
                     "reference_height": height,
                     "visual_intake": {
@@ -2797,7 +3513,7 @@ def main() -> int:
                     "detail_material_stages": "LOCKED_UNTIL_SILHOUETTE_GATE",
                     "mcp_tool_calls": [call for turn in turn_outputs for call in mcp_calls(event_items(turn.stdout))],
                     "expected_sequences": {
-                        "setup": list(SETUP_SEQUENCE),
+                        "setup": list(setup_expected),
                         "authoring": list(AUTHORING_SEQUENCE),
                         "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE),
                         "silhouette": list(SILHOUETTE_SEQUENCE),
@@ -2899,6 +3615,16 @@ def main() -> int:
                 "project_id": project_id,
                 "reference_id": reference_id,
                 "reference_sha256": reference_sha,
+                "reference_view_count": len(local_reference_records),
+                "reference_views": reference_views_receipt,
+                "reference_set_sha256": field(authoring_context, "reference_canvas", "reference_set_sha256"),
+                "reference_coverage": {
+                    "required_views": field(authoring_context, "reference_canvas", "coverage", "required_views"),
+                    "supplied_views": field(authoring_context, "reference_canvas", "coverage", "supplied_views"),
+                    "missing_views": field(authoring_context, "reference_canvas", "coverage", "missing_views"),
+                    "coverage_status": field(authoring_context, "reference_canvas", "coverage", "coverage_status"),
+                    "hq_360_status": field(authoring_context, "reference_canvas", "coverage", "hq_360_status"),
+                },
                 "reference_width": width,
                 "reference_height": height,
                 "visual_intake": {
@@ -2988,7 +3714,7 @@ def main() -> int:
                 "review_recovered_after_tool_drift": review_recovered,
                 "mcp_tool_calls": [call for turn in turn_outputs for call in mcp_calls(event_items(turn.stdout))],
                 "expected_sequences": {
-                    "setup": list(SETUP_SEQUENCE),
+                    "setup": list(setup_expected),
                     "authoring": list(AUTHORING_SEQUENCE),
                     "silhouette_target": list(SILHOUETTE_TARGET_SEQUENCE) if options.silhouette_first else [],
                     "silhouette": list(SILHOUETTE_SEQUENCE) if options.silhouette_first else [],

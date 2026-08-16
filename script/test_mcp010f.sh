@@ -116,6 +116,77 @@ else:
     raise AssertionError("stale composition source unexpectedly passed")
 print("MCP010F composition lineage binds observation, target, Runtime search and candidate transitions")
 PY
+python3 - <<'PY'
+import sys
+
+sys.path.insert(0, "scripts")
+from probe_mcp010c_codex_cli import (
+    REFERENCE_VIEW_KINDS,
+    canonical_hash,
+    reference_canvas_authoring_context_multi,
+    stable_view_id,
+    view_spec,
+)
+
+def record(kind, index):
+    reference_id = f"reference-{kind}"
+    reference_sha = f"{index:x}" * 64
+    return {
+        "kind": kind,
+        "view_id": stable_view_id(kind),
+        "reference_id": reference_id,
+        "reference_sha256": reference_sha,
+        "width": 1254,
+        "height": 1254,
+        "intake": {"landmarks": [], "regions": []},
+    }
+
+single = reference_canvas_authoring_context_multi("project-views", [record("perspective", 1)])
+single_coverage = single["reference_canvas"]["coverage"]
+assert single_coverage["coverage_status"] == "blocked"
+assert single_coverage["missing_views"] == ["front", "back", "left", "right", "rear-three-quarter"]
+assert single_coverage["hq_360_status"] == "BLOCKED_REFERENCE_COVERAGE"
+
+two = reference_canvas_authoring_context_multi("project-views", [record("perspective", 1), record("front", 2)])
+assert two["reference_canvas"]["coverage"]["coverage_status"] == "partial"
+assert two["reference_canvas"]["coverage"]["supplied_views"] == ["front", "perspective"]
+
+ordered = [record(kind, index) for index, kind in enumerate(
+    ("front", "back", "left", "right", "perspective", "rear-three-quarter"), start=1
+)]
+complete = reference_canvas_authoring_context_multi("project-views", ordered)
+canvas = complete["reference_canvas"]
+coverage = canvas["coverage"]
+assert coverage["coverage_status"] == "complete"
+assert coverage["missing_views"] == []
+assert coverage["hq_360_status"] == "eligible"
+assert len(canvas["views"]) == 6
+expected_set = canonical_hash([
+    {"reference_id": item["reference_id"], "reference_sha256": item["reference_sha256"]}
+    for item in sorted(ordered, key=lambda item: (item["reference_id"], item["reference_sha256"]))
+])
+assert canvas["reference_set_sha256"] == expected_set
+canvas_without_hash = dict(canvas)
+canvas_without_hash["canonical_sha256"] = ""
+assert canvas["canonical_sha256"] == canonical_hash(canvas_without_hash)
+
+changed = [dict(item) for item in ordered]
+changed[-1] = dict(changed[-1], reference_sha256="f" * 64)
+changed_context = reference_canvas_authoring_context_multi("project-views", changed)
+assert changed_context["reference_canvas"]["reference_set_sha256"] != canvas["reference_set_sha256"]
+
+front = view_spec("reference-front", "a" * 64, 1254, 1254, kind="front")
+assert front["view_id"] == "front-user-reference"
+assert front["source_view"] == "front"
+assert set(REFERENCE_VIEW_KINDS) >= {"front", "back", "perspective"}
+try:
+    reference_canvas_authoring_context_multi("project-views", [record("perspective", 1), record("perspective", 2)])
+except ValueError as error:
+    assert "invalid multi-view reference record" in str(error)
+else:
+    raise AssertionError("duplicate multi-view kind unexpectedly passed")
+print("MCP010F multi-view authoring binds exact view entities, coverage and reference-set hashes")
+PY
 
 INVENTORY_ROOT="$F_GATE_TARGET/reference-inventory"
 mkdir -p "$INVENTORY_ROOT"
