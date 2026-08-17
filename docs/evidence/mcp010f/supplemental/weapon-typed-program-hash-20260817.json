@@ -1,0 +1,28 @@
+{
+  "schema_version": "ForgeCADWeaponTypedProgramHashReceipt@1",
+  "task_id": "FGC-MCP010F-WEAPON-LIVE-INTAKE",
+  "recorded_at_local_date": "2026-08-17",
+  "status": "PASS_STRUCTURAL_HASH_ONLY",
+  "build": {
+    "mcp_build_cohort_sha256": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+    "operator_catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf"
+  },
+  "project_id": "project-8233f3b99c36490ebcae250da6d4f317",
+  "source_artifact": "weaponry-modular-rifle-primary-form-draft-20260817.json",
+  "draft_rebound_to_live_project_in_memory": true,
+  "geometry_program": {
+    "schema_version": "GeometryProgram@2",
+    "node_count": 25,
+    "semantic_part_count": 12,
+    "canonical_sha256": "1ee119fb8b935874bd944d8146d5f2678a6db0dc4ed45699d5c4a3a1204d4ff6",
+    "validation_status": "passed"
+  },
+  "persistence": {
+    "candidate_created": false,
+    "version_created": false,
+    "cas_glb_created": false,
+    "reference_binding": "NOT_AVAILABLE_REFERENCE_IMPORT_BLOCKED",
+    "optimization_job": "NOT_CREATED"
+  },
+  "interpretation": "The Runtime accepted the bounded typed GeometryProgram@2 draft for hashing against the live operator catalog. This receipt proves neither geometry compilation nor GLB readback, multi-view likeness, materials, optimization, nor export quality."
+}

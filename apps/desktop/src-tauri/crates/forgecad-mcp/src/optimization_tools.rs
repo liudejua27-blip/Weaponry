@@ -161,7 +161,10 @@ fn prepare_schema() -> Value {
         Map::from_iter([
             ("project_id".to_owned(), id_property()),
             ("candidate_id".to_owned(), id_property()),
-            ("intent".to_owned(), intent_property()),
+            (
+                "intent".to_owned(),
+                json!({"oneOf":[intent_property(), intent_v2_property()]}),
+            ),
             ("approved".to_owned(), json!({"const":true})),
             ("approval_receipt_id".to_owned(), id_property()),
             ("approval_summary".to_owned(), safe_text_property(512)),
@@ -214,6 +217,64 @@ pub(crate) fn intent_property() -> Value {
             "budget":{"type":"object"},
             "objective":{"type":"object"},
             "residual":residual_property(),
+            "canonical_sha256":sha_property()
+        },
+        "additionalProperties":false
+    })
+}
+
+fn intent_v2_property() -> Value {
+    // The MCP declaration is intentionally bounded but not a second copy of
+    // the full Runtime contract.  Runtime owns the authoritative V2
+    // validation; this surface only rejects malformed top-level transport
+    // shapes and keeps the Codex tool manifest deterministic.
+    json!({
+        "type":"object",
+        "required":["schema_version","intent_id","job_id","project_id","candidate_id","reference_id","reference_sha256","program_sha256","camera_rig_sha256","camera_rig","views","part_id","target_part_ids","stage","rig","fidelity","budget","objective","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"OptimizationIntent@2"},
+            "intent_id":id_property(),
+            "action_run_id":{"type":["string","null"],"pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+            "job_id":id_property(),
+            "project_id":id_property(),
+            "candidate_id":id_property(),
+            "reference_id":id_property(),
+            "reference_sha256":sha_property(),
+            "program_sha256":sha_property(),
+            "camera_rig_sha256":sha_property(),
+            "camera_rig":{"type":"object"},
+            "views":{
+                "type":"array",
+                "minItems":6,
+                "maxItems":8,
+                "items":{
+                    "type":"object",
+                    "required":["view_id","kind","target_sha256","camera","camera_hash","weight","primary"],
+                    "properties":{
+                        "view_id":id_property(),
+                        "kind":{"enum":["left","right","top","bottom","front","back","front-three-quarter","rear-three-quarter"]},
+                        "target_sha256":sha_property(),
+                        "camera":{"type":"object"},
+                        "camera_hash":sha_property(),
+                        "weight":{"type":"number","exclusiveMinimum":0.0,"maximum":1.0},
+                        "primary":{"type":"boolean"}
+                    },
+                    "additionalProperties":false
+                }
+            },
+            "part_id":id_property(),
+            "target_part_ids":{
+                "type":"array",
+                "minItems":1,
+                "maxItems":64,
+                "uniqueItems":true,
+                "items":id_property()
+            },
+            "stage":{"enum":["primary-form","secondary-structure","tertiary-detail","uv-pbr","final-review"]},
+            "rig":{"type":"object"},
+            "fidelity":{"type":"object"},
+            "budget":{"type":"object"},
+            "objective":{"type":"object"},
             "canonical_sha256":sha_property()
         },
         "additionalProperties":false

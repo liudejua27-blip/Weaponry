@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-rig-v2.schema.json",
+  "title": "SilhouetteRigV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rig_id", "candidate_id", "subject_coordinate_frame_sha256", "target_part_ids", "groups", "parameters", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "SilhouetteRig@2"},
+    "rig_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "subject_coordinate_frame_sha256": {"$ref": "#/$defs/sha256"},
+    "target_part_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["group_id", "parameter_ids", "mode"],
+        "properties": {
+          "group_id": {"$ref": "#/$defs/id"},
+          "parameter_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+          "mode": {"enum": ["independent", "mirror", "linked"]},
+          "axis": {"enum": ["x", "y", "z"]}
+        }
+      }
+    },
+    "parameters": {"type": "array", "minItems": 4, "maxItems": 64, "items": {"$ref": "#/$defs/parameter"}},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parameter_id", "part_id", "semantic", "value", "min", "max", "step", "unit"],
+      "properties": {
+        "parameter_id": {"$ref": "#/$defs/id"},
+        "part_id": {"$ref": "#/$defs/id"},
+        "semantic": {"enum": ["width", "height", "depth", "offset_x", "offset_y", "offset_z", "scale", "rotation_x", "rotation_y", "rotation_z", "surface_control_point"]},
+        "control_point_index": {"type": "integer", "minimum": 0, "maximum": 255},
+        "axis": {"enum": ["x", "y", "z"]},
+        "value": {"type": "number"},
+        "min": {"type": "number"},
+        "max": {"type": "number"},
+        "step": {"type": "number", "exclusiveMinimum": 0},
+        "unit": {"enum": ["meter", "radian", "ratio"]}
+      }
+    }
+  }
+}

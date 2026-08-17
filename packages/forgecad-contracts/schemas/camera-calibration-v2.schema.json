@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/camera-calibration-v2.schema.json",
+  "title": "CameraCalibrationV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "camera_hash", "projection", "transform", "fov_y_degrees", "ortho_scale", "near_m", "far_m", "resolution", "coordinate_system", "renderer_revision", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "CameraCalibration@2"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "projection": {"enum": ["perspective", "orthographic"]},
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position_m", "target_m", "up"],
+      "properties": {
+        "position_m": {"$ref": "#/$defs/vec3"},
+        "target_m": {"$ref": "#/$defs/vec3"},
+        "up": {"$ref": "#/$defs/vec3"}
+      }
+    },
+    "fov_y_degrees": {"type": ["number", "null"], "exclusiveMinimum": 1, "exclusiveMaximum": 179},
+    "ortho_scale": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 100},
+    "near_m": {"type": "number", "exclusiveMinimum": 0},
+    "far_m": {"type": "number", "exclusiveMinimum": 0},
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {"width": {"const": 512}, "height": {"const": 512}}
+    },
+    "coordinate_system": {"const": "right-handed-y-up-meter"},
+    "renderer_revision": {"$ref": "#/$defs/id"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"projection": {"const": "perspective"}}, "required": ["projection"]}, "then": {"properties": {"fov_y_degrees": {"type": "number"}, "ortho_scale": {"type": "null"}}}},
+    {"if": {"properties": {"projection": {"const": "orthographic"}}, "required": ["projection"]}, "then": {"properties": {"fov_y_degrees": {"type": "null"}, "ortho_scale": {"type": "number"}}}}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "vec3": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}], "items": false, "minItems": 3, "maxItems": 3}
+  }
+}

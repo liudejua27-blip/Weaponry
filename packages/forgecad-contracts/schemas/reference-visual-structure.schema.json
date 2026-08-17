@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-visual-structure.schema.json",
+  "title": "ReferenceVisualStructure",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decomposition_type",
+    "global_contour_authority",
+    "functional_part_claim_allowed",
+    "regions_may_overlap",
+    "shared_boundaries_allowed",
+    "review_status",
+    "regions",
+    "line_flows",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ReferenceVisualStructure@1"},
+    "decomposition_type": {"const": "visual-geometry-not-functional"},
+    "global_contour_authority": {"const": true},
+    "functional_part_claim_allowed": {"const": false},
+    "regions_may_overlap": {"const": true},
+    "shared_boundaries_allowed": {"const": true},
+    "review_status": {"enum": ["unreviewed", "user_confirmed"]},
+    "regions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/region"}
+    },
+    "line_flows": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"$ref": "#/$defs/line_flow"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1}
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structure_id",
+        "visual_role",
+        "continuity_group_id",
+        "layer_index",
+        "boundary_relationship",
+        "visibility",
+        "depth_policy",
+        "profile_policy",
+        "contour_points"
+      ],
+      "properties": {
+        "structure_id": {"$ref": "#/$defs/id"},
+        "visual_role": {
+          "enum": [
+            "outer-flowing-shell",
+            "open-frame",
+            "primary-volume",
+            "floating-shell",
+            "layered-body",
+            "terminal-assembly",
+            "luminous-core",
+            "internal-channel",
+            "material-transition",
+            "unknown-visual-region"
+          ]
+        },
+        "continuity_group_id": {"$ref": "#/$defs/id"},
+        "layer_index": {"type": "integer", "minimum": -16, "maximum": 16},
+        "boundary_relationship": {
+          "enum": ["shared", "overlap", "independent", "enclosed"]
+        },
+        "visibility": {"enum": ["observed", "inferred", "unknown"]},
+        "depth_policy": {"enum": ["from-multiview", "bounded-inference", "unknown"]},
+        "profile_policy": {
+          "enum": ["preserve-continuity", "closed-profile", "revolved-profile", "material-only"]
+        },
+        "mask_operation": {
+          "description": "Optional image-space operation for an explicitly observed visual void. Omitted is equivalent to none; subtract is restricted by the Runtime to enclosed open-frame regions.",
+          "enum": ["none", "subtract"]
+        },
+        "contour_points": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 256,
+          "items": {"$ref": "#/$defs/point"}
+        }
+      }
+    },
+    "line_flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line_flow_id", "continuity_group_id", "kind", "visibility", "points"],
+      "properties": {
+        "line_flow_id": {"$ref": "#/$defs/id"},
+        "continuity_group_id": {"$ref": "#/$defs/id"},
+        "kind": {"enum": ["ridge", "valley", "seam", "light-channel", "occlusion-edge"]},
+        "visibility": {"enum": ["observed", "inferred", "unknown"]},
+        "points": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 256,
+          "items": {"$ref": "#/$defs/point"}
+        }
+      }
+    }
+  }
+}

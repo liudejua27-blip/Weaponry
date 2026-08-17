@@ -21,7 +21,7 @@
       "additionalProperties": false,
       "required": ["method", "revision", "sha256", "width", "height"],
       "properties": {
-        "method": {"const": "local-border-flood-fill-morphology"},
+        "method": {"enum": ["local-border-flood-fill-morphology", "silhouette-target"]},
         "revision": {"$ref": "#/$defs/identifier"},
         "sha256": {"$ref": "#/$defs/sha256"},
         "width": {"const": 512},

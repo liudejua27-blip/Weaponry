@@ -541,3 +541,290 @@ kbd { min-width: 18px; padding: 2px 5px; border: 1px solid #3d5366; border-radiu
 @media (max-width: 560px) {
   .viewport-empty-guide { grid-template-columns: 1fr; width: min(100%, 260px); }
 }
+
+/* Canvas-first ForgeCAD workbench. The Runtime remains the only source of
+   product truth; these rules organize the read-only projection surface. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; padding: 0; border: 0; margin: -1px; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.runtime-shell { color-scheme: dark; background: #08111a; font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif; }
+.runtime-shell > .error-console { display: none; }
+.runtime-app-bar { position: relative; z-index: 20; min-height: 58px; flex-basis: 58px; gap: 14px; padding: 0 16px; border-bottom-color: #22303d; background: linear-gradient(180deg, #0d1823 0%, #0a141e 100%); box-shadow: 0 8px 28px rgba(0, 0, 0, .2); }
+.runtime-app-bar > * { min-width: 0; }
+.runtime-brand-lockup { width: min(32vw, 490px); gap: 10px; }
+.runtime-brand-lockup strong { font-size: 18px; letter-spacing: -.035em; }
+.runtime-brand-mark { width: 34px; height: 34px; border-color: #315777; border-radius: 9px; color: #79bbff; background: linear-gradient(145deg, #102d47, #0e1d2c); box-shadow: inset 0 0 0 1px rgba(117, 183, 255, .08), 0 0 18px rgba(54, 135, 217, .12); }
+.runtime-brand-divider { width: 1px; height: 25px; margin-inline: 2px; background: #2a3743; }
+.runtime-project-switcher { display: inline-flex; min-width: 0; align-items: center; gap: 7px; padding: 6px 8px; border: 0; border-radius: 6px; color: #aebdca; background: transparent; cursor: pointer; }
+.runtime-project-switcher:hover, .runtime-project-switcher:focus-visible { color: #e6eef5; background: #14222f; outline: none; }
+.runtime-project-name { max-width: 270px; color: inherit; font-size: 12px; letter-spacing: 0; }
+.runtime-mode-switcher { position: absolute; inset: 0 auto auto 50%; display: flex; height: 58px; align-items: stretch; gap: 12px; transform: translateX(-50%); }
+.runtime-mode-switcher button { position: relative; min-width: 74px; padding: 0 14px; border: 0; color: #8c9aa8; background: transparent; font-size: 14px; font-weight: 600; cursor: pointer; }
+.runtime-mode-switcher button::after { position: absolute; right: 12px; bottom: 0; left: 12px; height: 2px; border-radius: 999px 999px 0 0; background: transparent; content: ''; }
+.runtime-mode-switcher button:hover { color: #dce7f0; }
+.runtime-mode-switcher .runtime-mode-active { color: #f4f8fb; }
+.runtime-mode-switcher .runtime-mode-active::after { background: #3185ff; box-shadow: 0 0 12px rgba(49, 133, 255, .45); }
+.runtime-codex-connection { margin-left: auto; padding-right: 8px; border-right: 1px solid #25333f; font-size: 11px; }
+.runtime-command-trigger { display: inline-flex; min-height: 30px; align-items: center; gap: 6px; margin-left: auto; padding: 0 8px; border: 1px solid transparent; border-radius: 6px; color: #728697; background: transparent; font-size: 10px; cursor: pointer; }
+.runtime-command-trigger:hover, .runtime-command-trigger:focus-visible { border-color: #2a3d4c; color: #dce8f1; background: #111f2b; outline: none; }
+.runtime-command-trigger kbd, .runtime-command-search kbd, .runtime-command-results kbd { padding: 2px 5px; border: 1px solid #2b3b48; border-radius: 4px; color: #8295a4; background: #0b151e; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.runtime-codex-connection { margin-left: 0; }
+.runtime-app-actions { margin-left: 0; }
+.runtime-compact-panel-actions { display: none; }
+.runtime-top-action { min-height: 34px; padding: 0 12px; border-color: #2c3c49; border-radius: 6px; color: #a8b7c5; background: #101b26; font-size: 11px; font-weight: 600; }
+.runtime-top-action-icon { width: 34px; justify-content: center; padding: 0; border-color: transparent; background: transparent; }
+.runtime-top-action-confirm { border-color: #344859; color: #dce8f1; background: #111e2a; }
+.runtime-top-action-primary { min-width: 94px; justify-content: center; border-color: #2f81ee; background: linear-gradient(180deg, #2d83f3, #1f6ed7); box-shadow: 0 6px 20px rgba(27, 108, 215, .2); }
+.runtime-top-action-primary:disabled { border-color: #2a3946; color: #5f7180; background: #101b25; box-shadow: none; cursor: not-allowed; opacity: 1; }
+.runtime-action-divider { width: 1px; height: 24px; margin-inline: 2px; background: #263541; }
+
+.runtime-command-layer { position: fixed; z-index: 90; inset: 0; display: grid; align-items: start; justify-items: center; padding: 13vh 16px 16px; background: rgba(2, 8, 13, .58); backdrop-filter: blur(5px); }
+.runtime-command-palette { width: min(560px, calc(100vw - 32px)); overflow: hidden; border: 1px solid #344858; border-radius: 10px; background: #0d1822; box-shadow: 0 28px 90px rgba(0, 0, 0, .58); }
+.runtime-command-search { display: grid; min-height: 54px; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 0 13px; border-bottom: 1px solid #263642; color: #718696; }
+.runtime-command-search input { width: 100%; min-width: 0; height: 42px; padding: 0; border: 0; outline: 0; color: #e7f0f6; background: transparent; font-size: 14px; }
+.runtime-command-search input::placeholder { color: #667a89; }
+.runtime-command-results { max-height: min(420px, 55vh); overflow: auto; padding: 6px; }
+.runtime-command-results button { display: grid; width: 100%; min-height: 48px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 9px; border: 0; border-radius: 6px; color: #9cadb9; text-align: left; background: transparent; cursor: pointer; }
+.runtime-command-results button > span { display: grid; min-width: 0; gap: 2px; }
+.runtime-command-results strong, .runtime-command-results small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-command-results strong { color: #d9e5ed; font-size: 11px; font-weight: 600; }
+.runtime-command-results small { color: #6f8291; font-size: 9px; }
+.runtime-command-results button:hover, .runtime-command-results .runtime-command-result-active { color: #e9f3fa; background: #162838; }
+.runtime-command-empty { margin: 22px; color: #758896; text-align: center; font-size: 11px; }
+.runtime-command-footer { margin: 0; padding: 8px 13px; border-top: 1px solid #22313d; color: #617482; font-size: 9px; }
+
+.runtime-workbench-grid { position: relative; grid-template-columns: var(--runtime-left-panel-width, 248px) minmax(520px, 1fr) var(--runtime-right-panel-width, 320px); border-bottom: 0; background: #09121b; }
+.runtime-scene-panel, .runtime-inspector-panel { position: relative; background: linear-gradient(180deg, #0d1822, #0b151e); }
+.runtime-scene-panel { border-right-color: #22313e; }
+.runtime-inspector-panel { border-left-color: #22313e; }
+.runtime-panel-resizer { position: absolute; z-index: 8; top: 0; bottom: 0; width: 7px; padding: 0; border: 0; background: transparent; cursor: col-resize; }
+.runtime-panel-resizer::after { position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: transparent; content: ''; transition: background .15s ease; }
+.runtime-panel-resizer:hover::after, .runtime-panel-resizer:focus-visible::after { background: #398ef7; }
+.runtime-panel-resizer-left { right: -4px; }
+.runtime-panel-resizer-right { left: -4px; }
+.runtime-panel-tabs { display: grid; min-height: 54px; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #22313e; }
+.runtime-panel-tabs button { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 10px; border: 0; color: #7f91a1; background: transparent; font-size: 11px; font-weight: 600; cursor: pointer; }
+.runtime-panel-tabs button::after { position: absolute; right: 10px; bottom: 0; left: 10px; height: 2px; background: transparent; content: ''; }
+.runtime-panel-tabs button:hover { color: #d6e3ed; background: rgba(55, 113, 166, .06); }
+.runtime-panel-tabs .runtime-panel-tab-active { color: #edf5fb; }
+.runtime-panel-tabs .runtime-panel-tab-active::after { background: #3185ff; }
+.runtime-scene-tree-scroll { padding: 10px 8px; }
+.runtime-panel-empty-state, .runtime-inspector-empty-state { display: grid; min-height: 180px; align-content: center; justify-items: center; gap: 7px; padding: 20px; color: #506678; text-align: center; }
+.runtime-panel-empty-state strong, .runtime-inspector-empty-state strong { color: #b7c7d2; font-size: 12px; }
+.runtime-panel-empty-state span, .runtime-inspector-empty-state span { max-width: 210px; color: #687c8b; font-size: 9px; line-height: 1.55; }
+.runtime-inspector-empty-state .viewer-toggle { margin-top: 5px; }
+.runtime-scene-root { border-color: #293b4b; background: #132131; }
+.runtime-scene-tree-controls { padding-top: 2px; }
+.runtime-scene-tree-search { position: relative; }
+.runtime-scene-tree-search input { min-height: 34px; padding-left: 10px; border-color: #2e4050; background: #0b1620; }
+.runtime-scene-tree-part-row { grid-template-columns: 18px minmax(0, 1fr) 25px 25px; min-height: 32px; }
+.runtime-scene-tree-icon-toggle { width: 25px; height: 28px; color: #79aef0; }
+.runtime-scene-tree-part-row .scene-tree-part-select { min-height: 30px; font-size: 11px; }
+.runtime-scene-tree-material-list { padding-left: 20px; }
+.runtime-scene-panel .scene-footer { min-height: 36px; flex-basis: 36px; border-top-color: #22313e; background: #0a141d; }
+.runtime-reference-browser { display: grid; gap: 12px; }
+.runtime-reference-heading { display: flex; align-items: center; justify-content: space-between; color: #7f92a2; font-size: 10px; }
+.runtime-reference-heading > div { display: grid; gap: 3px; }
+.runtime-reference-heading strong { color: #d9e5ee; font-size: 12px; }
+.runtime-reference-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.runtime-reference-grid button { display: grid; min-width: 0; gap: 4px; padding: 6px; border: 1px solid #293b49; border-radius: 6px; color: #8fa0af; text-align: left; background: #0d1923; cursor: pointer; }
+.runtime-reference-grid button:hover, .runtime-reference-grid .runtime-reference-card-active { border-color: #367fce; color: #e3eff7; background: #10243a; }
+.runtime-reference-thumb { display: grid; min-height: 52px; place-items: center; overflow: hidden; border-radius: 4px; color: #4c6477; background: #08121b; }
+.runtime-reference-thumb img { width: 100%; height: 52px; object-fit: contain; }
+.runtime-reference-grid strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-reference-grid small, .runtime-reference-note { color: #617787; font-size: 8px; }
+.runtime-reference-note { margin: 0; line-height: 1.5; }
+
+.runtime-viewport-card { position: relative; overflow: hidden; background: #08121b; }
+.runtime-viewport-commandbar { position: relative; z-index: 7; display: flex; min-height: 56px; flex: 0 0 56px; align-items: center; gap: 8px; margin: 14px 14px 0; padding: 7px 10px; overflow: visible; border: 1px solid #22313e; border-radius: 8px; background: rgba(12, 23, 33, .97); box-shadow: 0 6px 18px rgba(0, 0, 0, .16); }
+.runtime-version-select { flex: 0 0 auto; }
+.runtime-version-select select { width: 122px; min-height: 34px; padding: 0 28px 0 10px; border: 1px solid #314453; border-radius: 6px; color: #d7e4ed; background: #13202c; font-size: 11px; font-weight: 600; }
+.runtime-command-group { display: grid; min-width: max-content; grid-auto-flow: column; grid-template-rows: 14px 28px; padding: 0 8px; border-left: 1px solid #23313d; }
+.runtime-command-group > span { grid-row: 1; grid-column: 1 / -1; color: #627888; font-size: 8px; letter-spacing: .06em; }
+.runtime-command-group > button { grid-row: 2; }
+.runtime-command-group button, .runtime-command-toggles button, .runtime-reset-view { min-width: 36px; height: 28px; padding: 0 8px; border: 1px solid #2a3a47; color: #8ea0ae; background: #0f1a24; font-size: 9px; cursor: pointer; }
+.runtime-command-group button:first-of-type { border-radius: 5px 0 0 5px; }
+.runtime-command-group button:last-of-type { border-radius: 0 5px 5px 0; }
+.runtime-command-group button + button { margin-left: -1px; }
+.runtime-command-group button:hover, .runtime-command-group .runtime-command-active { position: relative; z-index: 1; border-color: #2d83f3; color: #dff0ff; background: #153356; }
+.runtime-command-group button:disabled { cursor: not-allowed; opacity: .42; }
+.runtime-command-camera button { min-width: 31px; padding-inline: 6px; }
+.runtime-command-empty-hint { margin-left: 4px; color: #5e7282; font-size: 9px; }
+.runtime-view-options { position: relative; margin-left: auto; }
+.runtime-view-options > summary { display: inline-flex; min-height: 30px; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid #2a3a47; border-radius: 5px; color: #8598a6; background: #0f1a24; font-size: 9px; cursor: pointer; list-style: none; white-space: nowrap; }
+.runtime-view-options > summary::-webkit-details-marker { display: none; }
+.runtime-view-options[open] > summary, .runtime-view-options > summary:hover { border-color: #397ec5; color: #dceaf4; background: #14273a; }
+.runtime-view-options[open] > summary svg { transform: rotate(180deg); }
+.runtime-view-options-menu { position: absolute; z-index: 20; top: calc(100% + 7px); right: 0; display: grid; width: 230px; gap: 10px; padding: 10px; border: 1px solid #324655; border-radius: 7px; background: #0e1a24; box-shadow: 0 18px 48px rgba(0, 0, 0, .42); }
+.runtime-view-options-menu > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.runtime-view-options-menu span { grid-column: 1 / -1; color: #718696; font-size: 8px; }
+.runtime-view-options-menu button { min-height: 28px; border: 1px solid #293c4a; border-radius: 4px; color: #8396a4; background: #0b161f; font-size: 9px; cursor: pointer; }
+.runtime-view-options-menu button:hover, .runtime-view-options-menu button[aria-pressed='true'] { border-color: #2e7fdf; color: #dfedfa; background: #15304d; }
+.runtime-view-options-menu button:disabled { cursor: not-allowed; opacity: .4; }
+.runtime-command-toggles { display: flex; min-width: max-content; align-items: flex-end; gap: 4px; padding-left: 8px; border-left: 1px solid #23313d; }
+.runtime-command-toggles button { position: relative; padding-right: 25px; border-radius: 5px; }
+.runtime-command-toggles button::after { position: absolute; top: 8px; right: 6px; width: 13px; height: 8px; border-radius: 999px; background: #334653; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04); content: ''; }
+.runtime-command-toggles button::before { position: absolute; z-index: 1; top: 10px; right: 13px; width: 4px; height: 4px; border-radius: 50%; background: #8ba0ae; content: ''; transition: transform .16s ease; }
+.runtime-command-toggles .runtime-command-toggle-active { color: #dbeeff; }
+.runtime-command-toggles .runtime-command-toggle-active::after { background: #2377dc; }
+.runtime-command-toggles .runtime-command-toggle-active::before { background: #fff; transform: translateX(6px); }
+.runtime-command-toggles button:disabled { cursor: not-allowed; opacity: .42; }
+.runtime-reset-view { display: inline-flex; min-width: 46px; align-items: center; justify-content: center; gap: 4px; border-radius: 5px; }
+.runtime-connection-recovery { display: flex; min-height: 58px; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 16px; margin: 10px 14px 0; padding: 10px 12px; border: 1px solid #5f4525; border-radius: 8px; color: #d8b57d; background: linear-gradient(90deg, rgba(74, 49, 21, .78), rgba(34, 28, 22, .84)); }
+.runtime-connection-recovery > div:first-child { display: grid; min-width: 0; gap: 3px; }
+.runtime-connection-recovery strong { color: #f4d29b; font-size: 11px; }
+.runtime-connection-recovery span { color: #b99c72; font-size: 9px; line-height: 1.45; }
+.runtime-connection-recovery-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.runtime-connection-recovery-actions .viewer-toggle { min-height: 30px; }
+.runtime-main-stage { flex: 1 1 auto; min-height: 0 !important; background-color: #0a131d; background-image: radial-gradient(circle at 50% 45%, rgba(38, 64, 83, .32), transparent 48%); }
+.runtime-main-stage.runtime-grid-visible { background-image: linear-gradient(rgba(64, 87, 103, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(64, 87, 103, .055) 1px, transparent 1px), radial-gradient(circle at 50% 45%, rgba(38, 64, 83, .32), transparent 48%); background-size: 44px 44px, 44px 44px, auto; }
+.runtime-grid-hidden .viewport-crosshair { display: none; }
+.runtime-main-stage::after { width: min(36vw, 440px); height: min(36vw, 440px); border-color: rgba(87, 124, 149, .11); }
+.runtime-viewport-shortcuts { opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+.runtime-main-stage:focus-within .runtime-viewport-shortcuts { opacity: 1; }
+.runtime-main-stage .viewport-message { max-width: 420px; border-color: #2a3d4d; border-radius: 9px; background: rgba(8, 15, 23, .92); box-shadow: 0 18px 45px rgba(0, 0, 0, .3); }
+.runtime-review-markers { position: absolute; inset: 0; pointer-events: none; }
+.runtime-review-markers button { position: absolute; top: 39%; left: 62%; display: grid; width: 27px; height: 27px; place-items: center; border: 2px solid #ffb34d; border-radius: 50%; color: #201406; background: #ffb34d; font-size: 11px; font-weight: 800; cursor: pointer; pointer-events: auto; box-shadow: 0 0 0 7px rgba(255, 179, 77, .12); }
+.runtime-review-markers button span { position: absolute; top: 33px; left: 50%; width: max-content; padding: 5px 7px; border: 1px solid #6f5127; border-radius: 4px; color: #f4c57f; background: #241a0f; font-size: 9px; font-weight: 600; transform: translateX(-50%); }
+.runtime-workspace-mode-compare .runtime-main-stage { display: none; }
+.runtime-workspace-mode-compare .runtime-compare-mode-panel { display: flex; min-height: 0; max-height: none; flex: 1 1 auto; flex-direction: column; border-top: 0; }
+.runtime-compare-mode-panel .compare-header { display: flex; min-height: 50px; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid #22313e; }
+.runtime-compare-mode-panel .compare-header > div { min-width: 0; }
+.runtime-compare-mode-panel .compare-header .section-kicker { margin: 0 0 2px; color: #627888; font-size: 8px; line-height: 1.2; letter-spacing: .06em; }
+.runtime-compare-mode-panel .compare-header h2 { margin: 0; overflow: hidden; color: #dce8ef; font-size: 13px; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-compare-mode-panel .compare-status { display: inline-flex; min-width: 0; flex: 0 0 auto; align-items: center; gap: 6px; color: #cbd8e1; font-size: 10px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.runtime-compare-mode-panel .compare-status .status-icon { width: 17px; height: 17px; flex: 0 0 17px; font-size: 9px; }
+.runtime-workspace-mode-compare .runtime-compare-mode-panel .compare-stage { display: grid; min-height: 0; flex: 1 1 auto; place-items: stretch; }
+.runtime-workspace-mode-compare .runtime-compare-mode-panel .compare-empty, .runtime-workspace-mode-compare .runtime-compare-mode-panel .compare-error { display: grid; height: 100%; place-items: center; color: #718797; font-size: 11px; }
+.runtime-workspace-mode-compare .runtime-compare-mode-panel .runtime-compare-empty-state { align-content: center; justify-items: center; gap: 16px; padding: 28px; }
+.runtime-compare-empty-copy { display: grid; gap: 5px; text-align: center; }
+.runtime-compare-empty-copy strong { color: #e4edf4; font-size: 15px; }
+.runtime-compare-empty-copy span { color: #7f94a4; font-size: 10px; }
+.runtime-compare-prerequisites { display: grid; width: min(100%, 440px); gap: 7px; }
+.runtime-compare-prerequisites > div { display: grid; min-height: 38px; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid #2a3b48; border-radius: 6px; color: #657988; background: #0d1822; }
+.runtime-compare-prerequisites svg { color: #4f6372; }
+.runtime-compare-prerequisites span { color: #9aabb7; font-size: 10px; }
+.runtime-compare-prerequisites strong { color: #8194a2; font-size: 9px; font-weight: 600; }
+.runtime-compare-prerequisites .runtime-prerequisite-ready { border-color: #2a5747; background: #0e211c; }
+.runtime-compare-prerequisites .runtime-prerequisite-ready svg, .runtime-compare-prerequisites .runtime-prerequisite-ready strong { color: #79c79d; }
+.runtime-compare-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+.runtime-compare-mode-toolbar { display: flex; min-height: 38px; align-items: center; gap: 5px; padding: 0 12px; border-bottom: 1px solid #22313e; background: #0c1721; }
+.runtime-compare-mode-toolbar button { min-width: 58px; height: 27px; padding: 0 9px; border: 1px solid #2b3c49; border-radius: 5px; color: #899ca9; background: #0f1b25; font-size: 9px; cursor: pointer; }
+.runtime-compare-mode-toolbar button:hover, .runtime-compare-mode-toolbar .runtime-command-active { border-color: #2e82f2; color: #e1f0ff; background: #153457; }
+.runtime-compare-mode-toolbar label { display: flex; align-items: center; gap: 7px; margin-left: 6px; color: #728797; font-size: 9px; }
+.runtime-compare-mode-toolbar input { width: 112px; }
+.runtime-compare-mode-panel > .compare-toolbar { display: flex; min-height: 36px; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; overflow: hidden; border-bottom: 1px solid #22313e; }
+.runtime-compare-mode-panel > .compare-toolbar .toolbar-muted { min-width: 0; overflow: hidden; color: #718696; font-size: 10px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-compare-mode-panel > .compare-toolbar .compare-basic-hint { min-width: 0; overflow: hidden; flex: 0 1 auto; color: #637989; font-size: 9px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+
+.runtime-inspector-header { display: flex; min-height: 54px; align-items: center; justify-content: space-between; padding: 0 14px; }
+.runtime-inspector-header > div { min-width: 0; }
+.runtime-inspector-header h2 { margin: 3px 0 0; color: #edf4f9; font-size: 13px; }
+.runtime-inspector-tabs { display: grid; min-height: 39px; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid #22313e; }
+.runtime-inspector-tabs button { position: relative; border: 0; color: #7e8f9e; background: transparent; font-size: 10px; cursor: pointer; }
+.runtime-inspector-tabs button::after { position: absolute; right: 7px; bottom: 0; left: 7px; height: 2px; background: transparent; content: ''; }
+.runtime-inspector-tabs button:hover { color: #d6e4ee; }
+.runtime-inspector-tabs .runtime-inspector-tab-active { color: #e8f2fa; }
+.runtime-inspector-tabs .runtime-inspector-tab-active::after { background: #3185ff; }
+.runtime-inspector-scroll { height: calc(100% - 93px); padding-bottom: 10px; }
+.runtime-inspector-panel:not(:has(.runtime-inspector-tabs)) .runtime-inspector-scroll { height: calc(100% - 54px); }
+.runtime-inspector-panel:focus { outline: none; }
+.runtime-inspector-panel .runtime-inspector-scroll > .panel-section { padding: 12px 13px; }
+.runtime-inspector-selection { margin: 0 0 10px; border-color: #2b4050; border-radius: 7px; background: #101d28; }
+.runtime-inspector-section-card { padding: 10px; border: 1px solid #293b49; border-radius: 7px; background: #0e1a24; }
+.runtime-inspector-section-card h3 { margin: 0 0 8px; color: #d8e5ee; font-size: 11px; }
+.runtime-check-summary { display: grid; gap: 0; }
+.runtime-check-summary > div { display: grid; min-height: 30px; grid-template-columns: 18px 1fr auto; align-items: center; gap: 7px; border-bottom: 1px solid rgba(41, 59, 73, .7); color: #83b99e; font-size: 9px; }
+.runtime-check-summary > div:last-child { border-bottom: 0; }
+.runtime-check-summary span { color: #9eafbc; }
+.runtime-check-summary strong { color: #cfdae2; font-weight: 550; }
+.runtime-basic-candidate-status { margin: 10px 0; }
+.runtime-professional-trigger { min-height: 44px; }
+.inspector-note { font-size: 8px; line-height: 1.5; }
+
+.runtime-bottom-rail { display: flex; min-height: 42px; flex: 0 0 42px; flex-direction: column; border-top: 1px solid #22313e; background: #09131c; transition: flex-basis .18s ease, min-height .18s ease; }
+.runtime-drawer-open .runtime-bottom-rail { min-height: 238px; flex-basis: 238px; }
+.runtime-drawer-bar { display: flex; min-height: 41px; flex: 0 0 41px; align-items: stretch; justify-content: space-between; border-bottom: 1px solid transparent; }
+.runtime-drawer-open .runtime-drawer-bar { border-bottom-color: #22313e; }
+.runtime-drawer-tabs { display: flex; align-items: stretch; gap: 4px; padding-left: 12px; }
+.runtime-drawer-tabs button { position: relative; min-width: 96px; padding: 0 11px; border: 0; color: #7c8e9d; background: transparent; font-size: 10px; font-weight: 600; cursor: pointer; }
+.runtime-drawer-tabs button::after { position: absolute; right: 10px; bottom: 0; left: 10px; height: 2px; background: transparent; content: ''; }
+.runtime-drawer-tabs button:hover { color: #d8e4ed; }
+.runtime-drawer-tabs .runtime-drawer-tab-active { color: #e7f1f8; }
+.runtime-drawer-tabs .runtime-drawer-tab-active::after { background: #3185ff; }
+.runtime-drawer-toggle { display: grid; width: 42px; place-items: center; border: 0; border-left: 1px solid #22313e; color: #879aa9; background: transparent; cursor: pointer; }
+.runtime-drawer-open .runtime-drawer-toggle svg { transform: rotate(180deg); }
+.runtime-drawer-content { min-height: 0; flex: 1; overflow: hidden; }
+.runtime-drawer-content[hidden] { display: none; }
+.runtime-drawer-content > section { height: 100%; border: 0; }
+.runtime-history-panel, .runtime-activity-panel { height: 100%; }
+.runtime-rail-header { min-height: 42px; }
+.runtime-version-strip { min-height: 0; height: calc(100% - 42px); align-items: stretch; }
+.runtime-version-card { min-width: 172px; padding: 9px 11px; }
+.runtime-task-table, .runtime-issues-list { max-height: calc(100% - 42px); overflow: auto; padding: 5px 13px; }
+.runtime-task-row { display: grid; min-height: 30px; grid-template-columns: 18px minmax(0, 1fr) 100px; align-items: center; gap: 8px; border-bottom: 1px solid rgba(38, 51, 65, .58); color: #78ad93; font-size: 10px; }
+.runtime-task-row span { color: #a8b8c5; }
+.runtime-task-row strong { color: #95bba5; font-size: 9px; font-weight: 600; text-align: right; }
+.runtime-issue-row { display: grid; min-height: 36px; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-bottom: 1px solid rgba(38, 51, 65, .58); }
+.runtime-issue-row > span { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 50%; color: #e8b768; background: #4a3316; font-size: 9px; font-weight: 800; }
+.runtime-issue-row > div { display: grid; gap: 2px; }
+.runtime-issue-row strong { color: #d7e1e8; font-size: 10px; }
+.runtime-issue-row small { color: #788b9a; font-size: 8px; }
+.runtime-issue-row code { color: #9b7d50; font-size: 8px; }
+.runtime-issue-actions { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 5px; }
+.runtime-issue-actions .viewer-toggle { min-height: 26px; padding: 0 8px; font-size: 8px; }
+.runtime-compact-panel-backdrop { display: none; }
+
+@media (max-width: 1320px) {
+  .runtime-workbench-grid { grid-template-columns: min(var(--runtime-left-panel-width, 230px), 230px) minmax(440px, 1fr) min(var(--runtime-right-panel-width, 290px), 290px); }
+  .runtime-brand-lockup { width: 330px; }
+  .runtime-project-name { max-width: 165px; }
+  .runtime-command-trigger span { display: none; }
+  .runtime-command-toggles { display: none; }
+  .runtime-command-camera button { min-width: 28px; padding-inline: 5px; }
+}
+
+@media (max-width: 1040px) {
+  .runtime-brand-lockup { width: 235px; }
+  .runtime-project-switcher { display: none; }
+  .runtime-mode-switcher button { min-width: 58px; padding-inline: 6px; }
+  .runtime-command-trigger { display: none; }
+  .runtime-codex-connection { display: none; }
+  .runtime-workbench-grid { grid-template-columns: 210px minmax(400px, 1fr) 270px; }
+  .runtime-command-group:first-of-type { display: none; }
+}
+
+@media (max-width: 900px) {
+  .runtime-shell { height: 100vh; min-height: 0; overflow: hidden; }
+  .runtime-app-bar { gap: 8px; padding-inline: 10px; }
+  .runtime-mode-switcher { position: static; margin-left: 0; transform: none; }
+  .runtime-mode-switcher button { min-width: 54px; }
+  .runtime-brand-lockup { width: auto; }
+  .runtime-brand-divider { display: none; }
+  .runtime-compact-panel-actions { display: inline-flex; margin-left: auto; gap: 4px; }
+  .runtime-compact-panel-actions button { display: inline-flex; min-height: 32px; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid #2b3c49; border-radius: 5px; color: #8ea0ae; background: #0f1a24; font-size: 9px; cursor: pointer; }
+  .runtime-compact-panel-actions button:hover, .runtime-compact-panel-actions .runtime-compact-panel-active { border-color: #2d83f3; color: #dff0ff; background: #153356; }
+  .runtime-app-actions .runtime-top-action-icon, .runtime-app-actions .runtime-action-divider { display: none; }
+  .runtime-top-action-confirm { display: none; }
+  .runtime-top-action-primary { min-width: 72px; }
+  .runtime-workbench-grid { grid-template-columns: minmax(0, 1fr); overflow: hidden; }
+  .runtime-scene-panel, .runtime-inspector-panel { display: none; }
+  .runtime-compact-panel-scene .runtime-scene-panel, .runtime-compact-panel-inspector .runtime-inspector-panel { position: fixed; z-index: 41; top: 58px; bottom: 42px; display: flex; width: min(320px, calc(100vw - 44px)); box-shadow: 18px 0 42px rgba(0, 0, 0, .48); }
+  .runtime-compact-panel-scene .runtime-scene-panel { left: 0; border-right: 1px solid #31516a; }
+  .runtime-compact-panel-inspector .runtime-inspector-panel { right: 0; flex-direction: column; border-left: 1px solid #31516a; box-shadow: -18px 0 42px rgba(0, 0, 0, .48); }
+  .runtime-compact-panel-backdrop { position: fixed; z-index: 40; inset: 58px 0 42px; display: block; padding: 0; border: 0; background: rgba(2, 8, 13, .58); cursor: default; }
+  .runtime-viewport-card { min-height: 0; }
+  .runtime-viewport-commandbar { overflow-x: auto; }
+  .runtime-view-options-menu { position: fixed; top: 126px; right: 12px; }
+  .runtime-panel-resizer { display: none; }
+  .runtime-drawer-tabs button { min-width: 76px; padding-inline: 6px; font-size: 9px; }
+  .runtime-connection-recovery { margin: 8px 10px 0; }
+}
+
+@media (max-width: 720px) {
+  .runtime-mode-switcher button { min-width: 46px; padding-inline: 4px; }
+  .runtime-brand-lockup strong { font-size: 16px; }
+  .runtime-compact-panel-actions button { width: 32px; justify-content: center; padding: 0; font-size: 0; }
+  .runtime-top-action-primary { min-width: 48px; padding-inline: 8px; }
+  .runtime-top-action-primary svg:last-child { display: none; }
+  .runtime-connection-recovery { align-items: flex-start; flex-direction: column; }
+  .runtime-compare-mode-panel > .compare-toolbar .compare-basic-hint { display: none; }
+}

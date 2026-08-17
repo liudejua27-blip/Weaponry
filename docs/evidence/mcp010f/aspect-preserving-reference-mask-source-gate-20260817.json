@@ -1,0 +1,51 @@
+{
+  "schema_version": "ForgeCADMCP010FAspectPreservingReferenceMaskEvidence@1",
+  "task_id": "FGC-MCP010F-ASPECT-PRESERVING-REFERENCE-MASK",
+  "recorded_at": "2026-08-17",
+  "status": "SOURCE_AND_DEV_APP_PASS_LIVE_RELOAD_REQUIRED",
+  "scope": "fictional game and film visual asset only",
+  "defect": {
+    "source_reference_dimensions": [1000, 220],
+    "comparison_canvas_dimensions": [512, 512],
+    "previous_behavior": "resize_exact changed the source pixel aspect ratio",
+    "impact": "silhouette metrics rewarded a square distortion that the renderer and model did not share"
+  },
+  "repair": {
+    "behavior": "aspect-fit into the fixed 512 square canvas",
+    "padding": "deterministic clamped border-pixel extension",
+    "segmentation": "existing local border-connected flood fill and morphology retained",
+    "remote_model_or_network": false
+  },
+  "verification": {
+    "targeted_test": {
+      "name": "automatic_reference_mask_preserves_wide_reference_aspect_ratio",
+      "status": "PASS",
+      "passed": 1,
+      "failed": 0
+    },
+    "focused_reference_mask_tests": {
+      "status": "PASS",
+      "passed": 2,
+      "failed": 0
+    },
+    "dev_app_install_receipt": "docs/evidence/mcp010f/dev-app-install-aspect-preserving-reference-mask-20260817.json",
+    "dev_app_verify_receipt": "docs/evidence/mcp010f/dev-app-verify-aspect-preserving-reference-mask-20260817.json",
+    "isolated_runtime_probe_receipt": "docs/evidence/mcp010f/dev-app-probe-aspect-preserving-reference-mask-20260817.json",
+    "isolated_runtime_state": "Ready",
+    "isolated_build_cohort_match": true,
+    "persistent_user_data_touched_by_probe": false,
+    "installed_build_cohort_sha256": "4a9a01eb349096605534b0d0de36b62aa1c0c63ac14af51d9920adfc8ed3d1aa",
+    "codesign": "ad-hoc deep strict PASS",
+    "live_codex_bridge_build_cohort_sha256": "a5d38dd4dbb42548c1627e624d75575e4879cbcb631ab2c134579c21b3a88784",
+    "live_reload_status": "BLOCKED_CODEX_MCP_SESSION_STILL_OLD_COHORT"
+  },
+  "quality_state": {
+    "existing_silhouette_targets": "STALE_ASPECT_DISTORTED_IMMUTABLE_EVIDENCE",
+    "regenerated_target": "NOT_RUN_REQUIRES_LIVE_RELOAD",
+    "receiver_core_graybox_recompare": "NOT_RUN_REQUIRES_REGENERATED_TARGET",
+    "visible_view_gate": "FAIL",
+    "details_pbr_unlocked": false,
+    "candidate_confirmed": false,
+    "exported": false
+  }
+}

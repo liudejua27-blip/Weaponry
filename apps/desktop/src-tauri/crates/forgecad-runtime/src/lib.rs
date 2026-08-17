@@ -1,13 +1,15 @@
-mod geometry_worker;
-mod render_worker;
-mod ipc;
-mod agentic_design;
 mod agentic_action;
-mod agentic_session;
+mod agentic_design;
 mod agentic_orchestrator;
+mod agentic_session;
+mod geometry_worker;
+mod ipc;
+mod multiview;
 mod optimization;
 mod process_lock;
+mod render_worker;
 mod skill_registry;
+mod weapon;
 
 // The Runtime owns the final, strict GLB readback. Keeping the implementation
 // compiled into Runtime ensures a worker's self-reported metadata can never
@@ -34,22 +36,19 @@ pub use forgecad_contracts::{
 };
 pub use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
 pub use forgecad_store::{
-    CasError, CasObject, CasStore, CrossViewEvidenceRecord, Store, StoreError,
-    VisualEvidenceRecord,
+    CasError, CasObject, CasStore, CrossViewEvidenceRecord, Store, StoreError, VisualEvidenceRecord,
 };
-use forgecad_worker_protocol::{
-    material_pack_manifest, operator_catalog, operator_catalog_sha256,
-};
+use forgecad_worker_protocol::{material_pack_manifest, operator_catalog, operator_catalog_sha256};
 pub use ipc::{IpcError, LocalIpcClient, LocalIpcEndpoint, LocalIpcServer};
 
 use forgecad_contracts::{
     CandidateConfirmRequest, CandidateConfirmResult, CandidatePrepareResult, CandidateRecord,
     CandidateRejectRequest, CandidateRejectResult, CrossViewPromotionRequest,
     CrossViewPromotionResult, DesignAssetVersionRecord, ExportConfirmRequest, ExportConfirmResult,
-    ExportPrepareRequest, ExportPrepareResult,
-    GeometryCandidateEvidenceRecord, JobEventRecord, JobRecord, JobSummary, ProjectRecord,
-    ProjectSummary, RestoreConfirmRequest, RestoreConfirmResult, RestorePrepareRequest,
-    RestorePrepareResult, SnapshotRecord, SnapshotSummary,
+    ExportPrepareRequest, ExportPrepareResult, GeometryCandidateEvidenceRecord, JobEventRecord,
+    JobRecord, JobSummary, ProjectRecord, ProjectSummary, RestoreConfirmRequest,
+    RestoreConfirmResult, RestorePrepareRequest, RestorePrepareResult, SnapshotRecord,
+    SnapshotSummary,
 };
 use image::{imageops, ImageFormat, ImageReader, Limits, Rgba, RgbaImage};
 use serde_json::{json, Value};
@@ -364,8 +363,10 @@ impl Runtime {
             ));
         }
         let project_id = required_value_id(object.get("project_id"), "project_id")?;
-        let representation_plan_sha256 =
-            required_value_sha(object.get("representation_plan_sha256"), "representation_plan_sha256")?;
+        let representation_plan_sha256 = required_value_sha(
+            object.get("representation_plan_sha256"),
+            "representation_plan_sha256",
+        )?;
         let kit_id = object
             .get("kit_id")
             .and_then(Value::as_str)
@@ -375,7 +376,8 @@ impl Runtime {
                 )
             })?;
         let part_id = required_value_id(object.get("part_id"), "part_id")?;
-        let material_zone_id = required_value_id(object.get("material_zone_id"), "material_zone_id")?;
+        let material_zone_id =
+            required_value_id(object.get("material_zone_id"), "material_zone_id")?;
         let intent = object
             .get("intent")
             .and_then(Value::as_object)
@@ -412,18 +414,14 @@ impl Runtime {
             "part_outputs":[{"part_id":part_id,"input_node_ids":[node_id],"material_zone_id":material_zone_id,"solid":true}]
         });
         let hash_result = hash_geometry_program_with_runtime_worker(&draft).map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "PARAMETRIC_DESIGN_KIT_GEOMETRY_REJECTED: {error}"
-            ))
+            RuntimeError::InvalidInput(format!("PARAMETRIC_DESIGN_KIT_GEOMETRY_REJECTED: {error}"))
         })?;
         let program_sha256 = hash_result
             .get("canonical_sha256")
             .and_then(Value::as_str)
             .filter(|hash| is_sha256(hash))
             .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "PARAMETRIC_DESIGN_KIT_GEOMETRY_HASH_INVALID".to_owned(),
-                )
+                RuntimeError::InvalidInput("PARAMETRIC_DESIGN_KIT_GEOMETRY_HASH_INVALID".to_owned())
             })?
             .to_owned();
         if hash_result
@@ -537,9 +535,23 @@ impl Runtime {
     ) -> Result<Value, RuntimeError> {
         validate_id(project_id)?;
         let object = request.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: request must be an object".to_owned())
+            RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: request must be an object".to_owned(),
+            )
         })?;
-        validate_request_keys(object, &["project_id", "reference_id", "contour_points", "landmarks", "parts", "user_confirmed"], "reference_mask_prepare")?;
+        validate_request_keys(
+            object,
+            &[
+                "project_id",
+                "reference_id",
+                "contour_points",
+                "landmarks",
+                "parts",
+                "visual_structure",
+                "user_confirmed",
+            ],
+            "reference_mask_prepare",
+        )?;
         if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
             return Err(RuntimeError::InvalidInput(
                 "PROJECT_SCOPE_DENIED: reference mask project differs".to_owned(),
@@ -558,10 +570,11 @@ impl Runtime {
         let landmarks = parse_target_landmarks(object.get("landmarks"))?;
         let parts = parse_target_parts(object.get("parts"))?;
         let user_confirmed = request_user_confirmed(object, "reference_mask_prepare")?;
+        let visual_structure =
+            prepare_reference_visual_structure(object.get("visual_structure"), user_confirmed)?;
         if user_confirmed && contour_points.is_none() {
             return Err(RuntimeError::InvalidInput(
-                "REFERENCE_MASK_INVALID: user confirmation requires an explicit contour"
-                    .to_owned(),
+                "REFERENCE_MASK_INVALID: user confirmation requires an explicit contour".to_owned(),
             ));
         }
         let automatic = reference_mask_png(&self.cas_read(&reference.object_sha256)?)?;
@@ -571,6 +584,7 @@ impl Runtime {
             contour_points.as_deref(),
             landmarks,
             parts,
+            visual_structure,
             automatic,
             contour_points.is_none(),
             user_confirmed,
@@ -587,9 +601,23 @@ impl Runtime {
     ) -> Result<Value, RuntimeError> {
         validate_id(project_id)?;
         let object = request.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: request must be an object".to_owned())
+            RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: request must be an object".to_owned(),
+            )
         })?;
-        validate_request_keys(object, &["project_id", "base_target_sha256", "contour_points", "landmarks", "parts", "user_confirmed"], "reference_mask_refine_prepare")?;
+        validate_request_keys(
+            object,
+            &[
+                "project_id",
+                "base_target_sha256",
+                "contour_points",
+                "landmarks",
+                "parts",
+                "visual_structure",
+                "user_confirmed",
+            ],
+            "reference_mask_refine_prepare",
+        )?;
         if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
             return Err(RuntimeError::InvalidInput(
                 "PROJECT_SCOPE_DENIED: reference mask project differs".to_owned(),
@@ -606,11 +634,12 @@ impl Runtime {
                 "REFERENCE_SCOPE_DENIED: base target is outside the target project".to_owned(),
             ));
         }
-        let contour_points = parse_contour_points(object.get("contour_points"))?.ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "REFERENCE_MASK_INVALID: contour_points are required for refinement".to_owned(),
-            )
-        })?;
+        let contour_points =
+            parse_contour_points(object.get("contour_points"))?.ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "REFERENCE_MASK_INVALID: contour_points are required for refinement".to_owned(),
+                )
+            })?;
         let landmarks = match object.get("landmarks") {
             Some(value) => parse_target_landmarks(Some(value))?,
             None => base.get("landmarks").cloned().unwrap_or_else(|| json!([])),
@@ -620,6 +649,16 @@ impl Runtime {
             None => base.get("parts").cloned().unwrap_or_else(|| json!([])),
         };
         let user_confirmed = request_user_confirmed(object, "reference_mask_refine_prepare")?;
+        let visual_structure = match object.get("visual_structure") {
+            Some(value) => prepare_reference_visual_structure(Some(value), user_confirmed)?,
+            None => base
+                .get("visual_structure")
+                .cloned()
+                .map(|structure| {
+                    rebind_reference_visual_structure_review(structure, user_confirmed)
+                })
+                .transpose()?,
+        };
         let automatic = reference_mask_png(&self.cas_read(&reference.object_sha256)?)?;
         self.store_silhouette_target(
             project_id,
@@ -627,6 +666,7 @@ impl Runtime {
             Some(&contour_points),
             landmarks,
             parts,
+            visual_structure,
             automatic,
             false,
             user_confirmed,
@@ -651,7 +691,11 @@ impl Runtime {
         let object = request.as_object().ok_or_else(|| {
             RuntimeError::InvalidInput("CAMERA_FIT_INVALID: request must be an object".to_owned())
         })?;
-        validate_request_keys(object, &["project_id", "candidate_id", "target_sha256", "camera"], "camera_fit_prepare")?;
+        validate_request_keys(
+            object,
+            &["project_id", "candidate_id", "target_sha256", "camera"],
+            "camera_fit_prepare",
+        )?;
         if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
             return Err(RuntimeError::InvalidInput(
                 "PROJECT_SCOPE_DENIED: camera fit project differs".to_owned(),
@@ -676,7 +720,9 @@ impl Runtime {
             .manifest_hash
             .clone()
             .or(candidate.prepared_object_sha256.clone())
-            .ok_or_else(|| RuntimeError::InvalidInput("CANDIDATE_ARTIFACT_UNAVAILABLE".to_owned()))?;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("CANDIDATE_ARTIFACT_UNAVAILABLE".to_owned())
+            })?;
         let glb = self.cas_read(&artifact_sha256)?;
         let inspection = strict_glb_inspection(&glb)?;
         if !inspection.hard_gate_passed {
@@ -724,36 +770,34 @@ impl Runtime {
                     "CAMERA_FIT_RENDER_FAILED: base framing silhouette missing".to_owned(),
                 )
             })?;
-        let base_full_model_mask = decode_binary_mask(&base_full_silhouette.png).map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "CAMERA_FIT_RENDER_FAILED: base framing silhouette decode failed: {error}"
-            ))
-        })?;
+        let base_full_model_mask =
+            decode_binary_mask(&base_full_silhouette.png).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "CAMERA_FIT_RENDER_FAILED: base framing silhouette decode failed: {error}"
+                ))
+            })?;
         for framing_camera in [
             calibrate_default_camera_height_only(
                 &base_camera,
                 &reference_mask.mask,
                 &base_full_model_mask,
             ),
-            calibrate_default_camera(
-                &base_camera,
-                &reference_mask.mask,
-                &base_full_model_mask,
-            ),
+            calibrate_default_camera(&base_camera, &reference_mask.mask, &base_full_model_mask),
         ] {
-            if framing_camera != base_camera && !coarse_variants.iter().any(|camera| camera == &framing_camera) {
+            if framing_camera != base_camera
+                && !coarse_variants
+                    .iter()
+                    .any(|camera| camera == &framing_camera)
+            {
                 coarse_variants.push(framing_camera);
             }
         }
         let mut rows = Vec::with_capacity(CAMERA_FIT_RUNTIME_MAX_EVALUATIONS);
-        let coarse_passes = render_glb_fit_batch_with_runtime_worker_at_resolution(
-            &glb,
-            &coarse_variants,
-            128,
-        )
-            .map_err(|error| {
-                RuntimeError::InvalidInput(format!("CAMERA_FIT_RENDER_FAILED: {error}"))
-            })?;
+        let coarse_passes =
+            render_glb_fit_batch_with_runtime_worker_at_resolution(&glb, &coarse_variants, 128)
+                .map_err(|error| {
+                    RuntimeError::InvalidInput(format!("CAMERA_FIT_RENDER_FAILED: {error}"))
+                })?;
         if coarse_passes.len() != coarse_variants.len() {
             return Err(RuntimeError::InvalidInput(
                 "CAMERA_FIT_RENDER_FAILED: coarse batch result count mismatch".to_owned(),
@@ -841,24 +885,36 @@ impl Runtime {
                 rows.get(*index)
                     .and_then(|row| row.get("camera"))
                     .cloned()
-                    .ok_or_else(|| RuntimeError::InvalidInput("CAMERA_FIT_RENDER_FAILED: full-resolution row missing".to_owned()))
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput(
+                            "CAMERA_FIT_RENDER_FAILED: full-resolution row missing".to_owned(),
+                        )
+                    })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let full_resolution_passes = render_worker::render_glb_fit_batch_at_resolution(
-            &glb,
-            &full_resolution_cameras,
-            512,
-        )
-        .map_err(|error| {
-            RuntimeError::InvalidInput(format!("CAMERA_FIT_RENDER_FAILED: full-resolution verification failed: {error}"))
-        })?;
-        for (index, passes) in full_resolution_indices.into_iter().zip(full_resolution_passes) {
+        let full_resolution_passes =
+            render_worker::render_glb_fit_batch_at_resolution(&glb, &full_resolution_cameras, 512)
+                .map_err(|error| {
+                    RuntimeError::InvalidInput(format!(
+                        "CAMERA_FIT_RENDER_FAILED: full-resolution verification failed: {error}"
+                    ))
+                })?;
+        for (index, passes) in full_resolution_indices
+            .into_iter()
+            .zip(full_resolution_passes)
+        {
             let silhouette = passes
                 .iter()
                 .find(|pass| pass.pass == "silhouette")
-                .ok_or_else(|| RuntimeError::InvalidInput("CAMERA_FIT_RENDER_FAILED: full-resolution silhouette missing".to_owned()))?;
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "CAMERA_FIT_RENDER_FAILED: full-resolution silhouette missing".to_owned(),
+                    )
+                })?;
             let model_mask = decode_binary_mask(&silhouette.png).map_err(|error| {
-                RuntimeError::InvalidInput(format!("CAMERA_FIT_RENDER_FAILED: full-resolution silhouette decode failed: {error}"))
+                RuntimeError::InvalidInput(format!(
+                    "CAMERA_FIT_RENDER_FAILED: full-resolution silhouette decode failed: {error}"
+                ))
             })?;
             let full_metrics = extended_silhouette_metrics(&reference_mask.mask, &model_mask);
             let part_context = passes
@@ -900,7 +956,10 @@ impl Runtime {
         rows.sort_by(primary_form_row_ordering);
         rows.truncate(4);
         if let Some(base_row) = base_row {
-            if !rows.iter().any(|row| row.get("camera") == base_row.get("camera")) {
+            if !rows
+                .iter()
+                .any(|row| row.get("camera") == base_row.get("camera"))
+            {
                 rows.push(base_row);
                 rows.sort_by(primary_form_row_ordering);
             }
@@ -960,21 +1019,31 @@ impl Runtime {
     ) -> Result<Value, RuntimeError> {
         validate_id(candidate_id)?;
         let target = self.read_silhouette_target(target_sha256)?;
-        let evidence = self.store.get_visual_evidence(candidate_id)?.ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "BOUNDARY_ERROR_UNAVAILABLE: run reference_compare_prepare first".to_owned(),
-            )
-        })?;
+        let evidence = self
+            .store
+            .get_visual_evidence(candidate_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "BOUNDARY_ERROR_UNAVAILABLE: run reference_compare_prepare first".to_owned(),
+                )
+            })?;
         let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
             RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
         })?;
-        if target.get("reference_id").and_then(Value::as_str) != Some(evidence.reference_id.as_str()) {
+        if target.get("reference_id").and_then(Value::as_str)
+            != Some(evidence.reference_id.as_str())
+        {
             return Err(RuntimeError::InvalidInput(
-                "REFERENCE_BINDING_MISMATCH: target reference differs from candidate evidence".to_owned(),
+                "REFERENCE_BINDING_MISMATCH: target reference differs from candidate evidence"
+                    .to_owned(),
             ));
         }
-        let render_set: Value = serde_json::from_slice(&self.cas_read(&evidence.render_set_object_sha256)?)
-            .map_err(|error| RuntimeError::InvalidInput(format!("BOUNDARY_ERROR_INVALID: RenderSet: {error}")))?;
+        let render_set: Value = serde_json::from_slice(
+            &self.cas_read(&evidence.render_set_object_sha256)?,
+        )
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!("BOUNDARY_ERROR_INVALID: RenderSet: {error}"))
+        })?;
         validate_render_set_v2_output(&render_set)?;
         let render_set_hash = evidence.render_set_object_sha256.clone();
         let target_mask = self.target_mask(target_sha256, &target)?;
@@ -1016,167 +1085,172 @@ impl Runtime {
         Ok(result)
     }
 
-/// Produce the same candidate-bound directional boundary evidence used by
-/// `boundary_error_get`, but from an already-rendered transient Worker result.
-/// Primary Form can therefore attribute local error to a typed Part without a
-/// second Codex observation turn or a caller-owned image-space search.
-///
-/// Keep one high-error sample for every attributed visible Part before filling
-/// the bounded result by global distance.  A distance-only top-N selection can
-/// otherwise let a single dominant Part consume the entire observation table,
-/// which makes the next bounded sweep blind to the other visible Parts.
-fn retain_boundary_segments_with_part_coverage(segments: &[Value], max_segments: usize) -> Vec<Value> {
-    let limit = max_segments.clamp(1, 64).min(segments.len());
-    if limit == 0 {
-        return Vec::new();
+    /// Produce the same candidate-bound directional boundary evidence used by
+    /// `boundary_error_get`, but from an already-rendered transient Worker result.
+    /// Primary Form can therefore attribute local error to a typed Part without a
+    /// second Codex observation turn or a caller-owned image-space search.
+    ///
+    /// Keep one high-error sample for every attributed visible Part before filling
+    /// the bounded result by global distance.  A distance-only top-N selection can
+    /// otherwise let a single dominant Part consume the entire observation table,
+    /// which makes the next bounded sweep blind to the other visible Parts.
+    fn retain_boundary_segments_with_part_coverage(
+        segments: &[Value],
+        max_segments: usize,
+    ) -> Vec<Value> {
+        let limit = max_segments.clamp(1, 64).min(segments.len());
+        if limit == 0 {
+            return Vec::new();
+        }
+
+        let mut ranked_indices: Vec<usize> = (0..segments.len()).collect();
+        ranked_indices.sort_by(|left, right| {
+            segments[*right]["distance_px"]
+                .as_f64()
+                .unwrap_or(0.0)
+                .partial_cmp(&segments[*left]["distance_px"].as_f64().unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| {
+                    segments[*right]["part_id"]
+                        .as_str()
+                        .unwrap_or("")
+                        .cmp(segments[*left]["part_id"].as_str().unwrap_or(""))
+                })
+                .then_with(|| right.cmp(left))
+        });
+
+        let mut selected = vec![false; segments.len()];
+        let mut covered_parts = HashSet::new();
+        let mut selected_count = 0usize;
+        for index in &ranked_indices {
+            let Some(part_id) = segments[*index]["part_id"].as_str() else {
+                continue;
+            };
+            if part_id.is_empty() || !covered_parts.insert(part_id.to_owned()) {
+                continue;
+            }
+            selected[*index] = true;
+            selected_count += 1;
+            if selected_count == limit {
+                break;
+            }
+        }
+        for index in ranked_indices {
+            if selected_count == limit {
+                break;
+            }
+            if selected[index] {
+                continue;
+            }
+            selected[index] = true;
+            selected_count += 1;
+        }
+
+        // Preserve the existing distance-descending contract for callers while
+        // making the coverage choice above the only new selection policy.
+        let mut output: Vec<Value> = selected
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, keep)| keep.then_some(segments[index].clone()))
+            .collect();
+        output.sort_by(|left, right| {
+            right["distance_px"]
+                .as_f64()
+                .unwrap_or(0.0)
+                .partial_cmp(&left["distance_px"].as_f64().unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| {
+                    right["part_id"]
+                        .as_str()
+                        .unwrap_or("")
+                        .cmp(left["part_id"].as_str().unwrap_or(""))
+                })
+        });
+        output
     }
 
-    let mut ranked_indices: Vec<usize> = (0..segments.len()).collect();
-    ranked_indices.sort_by(|left, right| {
-        segments[*right]["distance_px"]
-            .as_f64()
-            .unwrap_or(0.0)
-            .partial_cmp(
-                &segments[*left]["distance_px"]
-                    .as_f64()
-                    .unwrap_or(0.0),
-            )
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| {
-                segments[*right]["part_id"]
-                    .as_str()
-                    .unwrap_or("")
-                    .cmp(segments[*left]["part_id"].as_str().unwrap_or(""))
-            })
-            .then_with(|| right.cmp(left))
-    });
-
-    let mut selected = vec![false; segments.len()];
-    let mut covered_parts = HashSet::new();
-    let mut selected_count = 0usize;
-    for index in &ranked_indices {
-        let Some(part_id) = segments[*index]["part_id"].as_str() else {
-            continue;
-        };
-        if part_id.is_empty() || !covered_parts.insert(part_id.to_owned()) {
-            continue;
-        }
-        selected[*index] = true;
-        selected_count += 1;
-        if selected_count == limit {
-            break;
-        }
-    }
-    for index in ranked_indices {
-        if selected_count == limit {
-            break;
-        }
-        if selected[index] {
-            continue;
-        }
-        selected[index] = true;
-        selected_count += 1;
-    }
-
-    // Preserve the existing distance-descending contract for callers while
-    // making the coverage choice above the only new selection policy.
-    let mut output: Vec<Value> = selected
-        .into_iter()
-        .enumerate()
-        .filter_map(|(index, keep)| keep.then_some(segments[index].clone()))
-        .collect();
-    output.sort_by(|left, right| {
-        right["distance_px"]
-            .as_f64()
-            .unwrap_or(0.0)
-            .partial_cmp(&left["distance_px"].as_f64().unwrap_or(0.0))
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| {
-                right["part_id"]
-                    .as_str()
-                    .unwrap_or("")
-                    .cmp(left["part_id"].as_str().unwrap_or(""))
-            })
-    });
-    output
-}
-
-fn boundary_error_segments_for_masks(
-    reference: &[bool],
-    model: &[bool],
-    part_png: Option<&[u8]>,
-    part_ids: &[String],
-    max_segments: usize,
-) -> Vec<Value> {
-    let target_boundary = boundary_mask(reference);
-    let model_boundary = boundary_mask(model);
-    let model_points: Vec<(usize, usize)> = model_boundary
-        .iter()
-        .enumerate()
-        .filter_map(|(index, value)| value.then_some((index % 512, index / 512)))
-        .collect();
-    let reference_points: Vec<(usize, usize)> = target_boundary
-        .iter()
-        .enumerate()
-        .filter_map(|(index, value)| value.then_some((index % 512, index / 512)))
-        .collect();
-    if model_points.is_empty() || reference_points.is_empty() {
-        return Vec::new();
-    }
-    let (center_x, center_y) = mask_centroid(reference).unwrap_or((255.5, 255.5));
-    let reference_sample_stride = ((reference_points.len() + 127) / 128).max(1);
-    let model_sample_stride = ((model_points.len() + 127) / 128).max(1);
-    let part_image = part_png.and_then(|png| {
-        image::load_from_memory(png)
-            .ok()
-            .map(|image| image.resize_exact(512, 512, imageops::FilterType::Nearest).to_rgba8())
-    });
-    let part_id_at = |x: usize, y: usize| {
-        part_image.as_ref().and_then(|image| {
-            let pixel = image.get_pixel(x as u32, y as u32).0;
-            let index = part_color_index(pixel)?;
-            part_ids.get(index).cloned()
-        })
-    };
-    let direction_for = |reference_x: usize,
-                         reference_y: usize,
-                         model_x: usize,
-                         model_y: usize,
-                         distance: f64| {
-        let dx = model_x as f64 - reference_x as f64;
-        let dy = model_y as f64 - reference_y as f64;
-        let radial_x = reference_x as f64 - center_x;
-        let radial_y = reference_y as f64 - center_y;
-        if distance <= 4.0 {
-            "aligned"
-        } else if dx * radial_x + dy * radial_y >= 0.0 {
-            "outward"
-        } else {
-            "inward"
-        }
-    };
-    let nearest_point = |source_x: usize, source_y: usize, candidates: &[(usize, usize)]| {
-        candidates
+    fn boundary_error_segments_for_masks(
+        reference: &[bool],
+        model: &[bool],
+        part_png: Option<&[u8]>,
+        part_ids: &[String],
+        max_segments: usize,
+    ) -> Vec<Value> {
+        let target_boundary = boundary_mask(reference);
+        let model_boundary = boundary_mask(model);
+        let model_points: Vec<(usize, usize)> = model_boundary
             .iter()
-            .map(|(x, y)| {
-                let dx = *x as f64 - source_x as f64;
-                let dy = *y as f64 - source_y as f64;
-                (*x, *y, (dx * dx + dy * dy).sqrt())
+            .enumerate()
+            .filter_map(|(index, value)| value.then_some((index % 512, index / 512)))
+            .collect();
+        let reference_points: Vec<(usize, usize)> = target_boundary
+            .iter()
+            .enumerate()
+            .filter_map(|(index, value)| value.then_some((index % 512, index / 512)))
+            .collect();
+        if model_points.is_empty() || reference_points.is_empty() {
+            return Vec::new();
+        }
+        let (center_x, center_y) = mask_centroid(reference).unwrap_or((255.5, 255.5));
+        let reference_sample_stride = ((reference_points.len() + 127) / 128).max(1);
+        let model_sample_stride = ((model_points.len() + 127) / 128).max(1);
+        let part_image = part_png.and_then(|png| {
+            image::load_from_memory(png).ok().map(|image| {
+                image
+                    .resize_exact(512, 512, imageops::FilterType::Nearest)
+                    .to_rgba8()
             })
-            .min_by(|left, right| {
-                left.2
-                    .partial_cmp(&right.2)
-                    .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let part_id_at = |x: usize, y: usize| {
+            part_image.as_ref().and_then(|image| {
+                let pixel = image.get_pixel(x as u32, y as u32).0;
+                let index = part_color_index(pixel)?;
+                part_ids.get(index).cloned()
             })
-            .expect("boundary candidates are non-empty")
-    };
-    let mut segments = Vec::new();
-    // Forward correspondence preserves the old target-owned evidence path.
-    // Sampling the boundary point list, rather than raster indices, gives the
-    // fixed 128-sample budget a stable contour distribution.
-    for &(tx, ty) in reference_points.iter().step_by(reference_sample_stride).take(128) {
-        let (mx, my, distance) = nearest_point(tx, ty, &model_points);
-        segments.push(json!({
+        };
+        let direction_for = |reference_x: usize,
+                             reference_y: usize,
+                             model_x: usize,
+                             model_y: usize,
+                             distance: f64| {
+            let dx = model_x as f64 - reference_x as f64;
+            let dy = model_y as f64 - reference_y as f64;
+            let radial_x = reference_x as f64 - center_x;
+            let radial_y = reference_y as f64 - center_y;
+            if distance <= 4.0 {
+                "aligned"
+            } else if dx * radial_x + dy * radial_y >= 0.0 {
+                "outward"
+            } else {
+                "inward"
+            }
+        };
+        let nearest_point = |source_x: usize, source_y: usize, candidates: &[(usize, usize)]| {
+            candidates
+                .iter()
+                .map(|(x, y)| {
+                    let dx = *x as f64 - source_x as f64;
+                    let dy = *y as f64 - source_y as f64;
+                    (*x, *y, (dx * dx + dy * dy).sqrt())
+                })
+                .min_by(|left, right| {
+                    left.2
+                        .partial_cmp(&right.2)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .expect("boundary candidates are non-empty")
+        };
+        let mut segments = Vec::new();
+        // Forward correspondence preserves the old target-owned evidence path.
+        // Sampling the boundary point list, rather than raster indices, gives the
+        // fixed 128-sample budget a stable contour distribution.
+        for &(tx, ty) in reference_points
+            .iter()
+            .step_by(reference_sample_stride)
+            .take(128)
+        {
+            let (mx, my, distance) = nearest_point(tx, ty, &model_points);
+            segments.push(json!({
             "reference":[tx as f64 / 511.0, ty as f64 / 511.0],
             "model":[mx as f64 / 511.0, my as f64 / 511.0],
             "delta_px":[stable_visual_metric(mx as f64 - tx as f64), stable_visual_metric(my as f64 - ty as f64)],
@@ -1184,16 +1258,16 @@ fn boundary_error_segments_for_masks(
             "direction":direction_for(tx, ty, mx, my, distance),
             "part_id":part_id_at(mx, my)
         }));
-    }
+        }
 
-    // Reverse correspondence captures model-owned excess or displaced
-    // boundary that has no distinct target sample. Without it, a protruding
-    // Part can disappear from the proposal merely because every target point
-    // found a nearby model edge. It remains bounded to 128 samples and the
-    // same deterministic Part-ID attribution as the forward direction.
-    for &(mx, my) in model_points.iter().step_by(model_sample_stride).take(128) {
-        let (tx, ty, distance) = nearest_point(mx, my, &reference_points);
-        segments.push(json!({
+        // Reverse correspondence captures model-owned excess or displaced
+        // boundary that has no distinct target sample. Without it, a protruding
+        // Part can disappear from the proposal merely because every target point
+        // found a nearby model edge. It remains bounded to 128 samples and the
+        // same deterministic Part-ID attribution as the forward direction.
+        for &(mx, my) in model_points.iter().step_by(model_sample_stride).take(128) {
+            let (tx, ty, distance) = nearest_point(mx, my, &reference_points);
+            segments.push(json!({
             "reference":[tx as f64 / 511.0, ty as f64 / 511.0],
             "model":[mx as f64 / 511.0, my as f64 / 511.0],
             "delta_px":[stable_visual_metric(mx as f64 - tx as f64), stable_visual_metric(my as f64 - ty as f64)],
@@ -1201,66 +1275,66 @@ fn boundary_error_segments_for_masks(
             "direction":direction_for(tx, ty, mx, my, distance),
             "part_id":part_id_at(mx, my)
         }));
+        }
+        Self::retain_boundary_segments_with_part_coverage(&segments, max_segments)
     }
-    Self::retain_boundary_segments_with_part_coverage(&segments, max_segments)
-}
 
-/// Project automatic silhouette boundary evidence onto one semantic Part.
-///
-/// An automatic target has no user-drawn Part contour.  We can still make a
-/// bounded local proposal when the fixed Render Worker returned a Part-ID
-/// pass: each reference boundary sample is attributed to the nearest visible
-/// model boundary Part, and only those attributed samples are projected into a
-/// local envelope.  This is evidence projection, not hidden-side inference.
-fn projected_part_boundary_mask(segments: &[Value], part_id: &str) -> Option<Vec<bool>> {
-    let mut mask = vec![false; 512 * 512];
-    let mut count = 0usize;
-    for segment in segments {
-        let Some(observed_part_id) = segment.get("part_id").and_then(Value::as_str) else {
-            continue;
-        };
-        if !rig_part_matches_observed_part(part_id, observed_part_id) {
-            continue;
+    /// Project automatic silhouette boundary evidence onto one semantic Part.
+    ///
+    /// An automatic target has no user-drawn Part contour.  We can still make a
+    /// bounded local proposal when the fixed Render Worker returned a Part-ID
+    /// pass: each reference boundary sample is attributed to the nearest visible
+    /// model boundary Part, and only those attributed samples are projected into a
+    /// local envelope.  This is evidence projection, not hidden-side inference.
+    fn projected_part_boundary_mask(segments: &[Value], part_id: &str) -> Option<Vec<bool>> {
+        let mut mask = vec![false; 512 * 512];
+        let mut count = 0usize;
+        for segment in segments {
+            let Some(observed_part_id) = segment.get("part_id").and_then(Value::as_str) else {
+                continue;
+            };
+            if !rig_part_matches_observed_part(part_id, observed_part_id) {
+                continue;
+            }
+            let Some(point) = segment.get("reference").and_then(Value::as_array) else {
+                continue;
+            };
+            let Some(x) = point.first().and_then(Value::as_f64) else {
+                continue;
+            };
+            let Some(y) = point.get(1).and_then(Value::as_f64) else {
+                continue;
+            };
+            let px = (x.clamp(0.0, 1.0) * 511.0).round() as usize;
+            let py = (y.clamp(0.0, 1.0) * 511.0).round() as usize;
+            if !mask[py * 512 + px] {
+                mask[py * 512 + px] = true;
+                count += 1;
+            }
         }
-        let Some(point) = segment.get("reference").and_then(Value::as_array) else {
-            continue;
-        };
-        let Some(x) = point.first().and_then(Value::as_f64) else {
-            continue;
-        };
-        let Some(y) = point.get(1).and_then(Value::as_f64) else {
-            continue;
-        };
-        let px = (x.clamp(0.0, 1.0) * 511.0).round() as usize;
-        let py = (y.clamp(0.0, 1.0) * 511.0).round() as usize;
-        if !mask[py * 512 + px] {
-            mask[py * 512 + px] = true;
-            count += 1;
-        }
+        (count > 0).then_some(mask)
     }
-    (count > 0).then_some(mask)
-}
 
-fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f64> {
-    let mut total = 0.0;
-    let mut count = 0usize;
-    for segment in segments {
-        let Some(observed_part_id) = segment.get("part_id").and_then(Value::as_str) else {
-            continue;
-        };
-        if !rig_part_matches_observed_part(part_id, observed_part_id) {
-            continue;
+    fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f64> {
+        let mut total = 0.0;
+        let mut count = 0usize;
+        for segment in segments {
+            let Some(observed_part_id) = segment.get("part_id").and_then(Value::as_str) else {
+                continue;
+            };
+            if !rig_part_matches_observed_part(part_id, observed_part_id) {
+                continue;
+            }
+            let Some(distance) = segment.get("distance_px").and_then(Value::as_f64) else {
+                continue;
+            };
+            if distance.is_finite() {
+                total += distance.clamp(0.0, 512.0);
+                count += 1;
+            }
         }
-        let Some(distance) = segment.get("distance_px").and_then(Value::as_f64) else {
-            continue;
-        };
-        if distance.is_finite() {
-            total += distance.clamp(0.0, 512.0);
-            count += 1;
-        }
+        (count > 0).then(|| (total / count as f64).clamp(0.0, 512.0))
     }
-    (count > 0).then(|| (total / count as f64).clamp(0.0, 512.0))
-}
 
     /// Return a deterministic per-Part contour error table for Luna's next
     /// bounded repair round.  This is deliberately read-only: it consumes the
@@ -1309,12 +1383,15 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             ));
         }
         let target_mask = self.target_mask(target_sha256, &target)?;
-        let evidence = self.store.get_visual_evidence(candidate_id)?.ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "SILHOUETTE_PART_ERROR_UNAVAILABLE: reference_compare_prepare required"
-                    .to_owned(),
-            )
-        })?;
+        let evidence = self
+            .store
+            .get_visual_evidence(candidate_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "SILHOUETTE_PART_ERROR_UNAVAILABLE: reference_compare_prepare required"
+                        .to_owned(),
+                )
+            })?;
         if evidence.reference_id
             != target
                 .get("reference_id")
@@ -1326,12 +1403,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .to_owned(),
             ));
         }
-        let render_set: Value = serde_json::from_slice(&self.cas_read(&evidence.render_set_object_sha256)?)
-            .map_err(|error| {
-                RuntimeError::InvalidInput(format!(
-                    "SILHOUETTE_PART_ERROR_INVALID: RenderSet: {error}"
-                ))
-            })?;
+        let render_set: Value = serde_json::from_slice(
+            &self.cas_read(&evidence.render_set_object_sha256)?,
+        )
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!("SILHOUETTE_PART_ERROR_INVALID: RenderSet: {error}"))
+        })?;
         validate_render_set_v2_output(&render_set)?;
         let silhouette_png = self.render_pass_bytes(&render_set, "silhouette")?;
         let model_mask = decode_binary_mask(&silhouette_png)?;
@@ -1385,8 +1462,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         for part in &target_parts {
             let part_object = part.as_object().ok_or_else(|| {
                 RuntimeError::InvalidInput(
-                    "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1.part must be an object"
-                        .to_owned(),
+                    "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1.part must be an object".to_owned(),
                 )
             })?;
             if (part_object.len() != 4 && part_object.len() != 5)
@@ -1394,8 +1470,14 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .iter()
                     .any(|key| !part_object.contains_key(*key))
                 || part_object.keys().any(|key| {
-                    !["part_id", "start_index", "end_index", "visibility", "region"]
-                        .contains(&key.as_str())
+                    ![
+                        "part_id",
+                        "start_index",
+                        "end_index",
+                        "visibility",
+                        "region",
+                    ]
+                    .contains(&key.as_str())
                 })
             {
                 return Err(RuntimeError::InvalidInput(
@@ -1461,11 +1543,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     let target_height = (target_envelope.max_y - target_envelope.min_y + 1) as f64;
                     let model_height = (model_envelope.max_y - model_envelope.min_y + 1) as f64;
                     let boundary_error_px = if automatic_target {
-                        Self::projected_part_boundary_error(
-                            &automatic_boundary_segments,
-                            &part_id,
-                        )
-                        .unwrap_or(512.0)
+                        Self::projected_part_boundary_error(&automatic_boundary_segments, &part_id)
+                            .unwrap_or(512.0)
                     } else {
                         part_png
                             .as_deref()
@@ -1548,11 +1627,22 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
     ) -> Result<Value, RuntimeError> {
         validate_id(project_id)?;
         let object = request.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: request must be an object".to_owned())
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INVALID: request must be an object".to_owned(),
+            )
         })?;
         validate_request_keys(
             object,
-            &["project_id", "candidate_id", "target_sha256", "rig", "base_camera", "optimizer", "view_spec", "canonical_sha256"],
+            &[
+                "project_id",
+                "candidate_id",
+                "target_sha256",
+                "rig",
+                "base_camera",
+                "optimizer",
+                "view_spec",
+                "canonical_sha256",
+            ],
             "silhouette_fit_prepare",
         )?;
         let intent_hash = required_value_sha(object.get("canonical_sha256"), "canonical_sha256")?;
@@ -1561,16 +1651,24 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         if canonical_json_hash(&intent_without_hash) != intent_hash
             && canonical_json_hash(&normalize_json_numbers(&intent_without_hash)) != intent_hash
         {
-            return Err(RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent".to_owned(),
+            ));
         }
         if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
-            return Err(RuntimeError::InvalidInput("PROJECT_SCOPE_DENIED: silhouette fit project differs".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "PROJECT_SCOPE_DENIED: silhouette fit project differs".to_owned(),
+            ));
         }
         let candidate_id = required_value_id(object.get("candidate_id"), "candidate_id")?;
         let target_sha256 = required_value_sha(object.get("target_sha256"), "target_sha256")?;
-        let candidate = self.candidate(candidate_id)?.ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned()))?;
+        let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
+        })?;
         if candidate.project_id != project_id {
-            return Err(RuntimeError::InvalidInput("PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned(),
+            ));
         }
         let target = self.read_silhouette_target(target_sha256)?;
         let target_mask = self.target_mask(target_sha256, &target)?;
@@ -1580,7 +1678,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         // objective; an omitted spec keeps the historical landmark-only
         // compatibility path for older callers and unit fixtures.
         let fit_view_spec = if let Some(view_spec) = object.get("view_spec") {
-            let target_reference_id = required_value_id(target.get("reference_id"), "reference_id")?;
+            let target_reference_id =
+                required_value_id(target.get("reference_id"), "reference_id")?;
             let reference = self.reference(target_reference_id)?.ok_or_else(|| {
                 RuntimeError::InvalidInput(
                     "NOT_FOUND: silhouette fit target reference not found".to_owned(),
@@ -1602,7 +1701,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "regions":[]
             })
         };
-        let rig = object.get("rig").ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: rig is required".to_owned()))?;
+        let rig = object.get("rig").ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: rig is required".to_owned())
+        })?;
         validate_silhouette_rig(rig, candidate_id).map_err(|error| {
             // The validator already emits a stable stage-prefixed error.  Keep
             // its reason intact so the thin MCP adapter can tell Codex which
@@ -1618,7 +1719,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 other => RuntimeError::InvalidInput(format!("SILHOUETTE_RIG_INVALID: {other}")),
             }
         })?;
-        let camera_input = object.get("base_camera").ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: base_camera is required".to_owned()))?;
+        let camera_input = object.get("base_camera").ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: base_camera is required".to_owned())
+        })?;
         let camera = self.resolve_silhouette_fit_camera(
             project_id,
             candidate_id,
@@ -1637,53 +1740,115 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 other => RuntimeError::InvalidInput(format!("CAMERA_CALIBRATION_INVALID: {other}")),
             }
         })?;
-        let optimizer = object.get("optimizer").and_then(Value::as_object).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: optimizer is required".to_owned()))?;
-        let algorithm = optimizer.get("algorithm").and_then(Value::as_str).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: optimizer.algorithm is required".to_owned()))?;
+        let optimizer = object
+            .get("optimizer")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "SILHOUETTE_FIT_INVALID: optimizer is required".to_owned(),
+                )
+            })?;
+        let algorithm = optimizer
+            .get("algorithm")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "SILHOUETTE_FIT_INVALID: optimizer.algorithm is required".to_owned(),
+                )
+            })?;
         if !matches!(algorithm, "grid" | "coordinate_descent") {
-            return Err(RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: unsupported optimizer".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INVALID: unsupported optimizer".to_owned(),
+            ));
         }
-        let max_iterations = optimizer.get("max_iterations").and_then(Value::as_u64).unwrap_or(1).clamp(1, 8);
-        let max_evaluations = optimizer.get("max_evaluations").and_then(Value::as_u64).unwrap_or(16).clamp(1, 64) as usize;
+        let max_iterations = optimizer
+            .get("max_iterations")
+            .and_then(Value::as_u64)
+            .unwrap_or(1)
+            .clamp(1, 8);
+        let max_evaluations = optimizer
+            .get("max_evaluations")
+            .and_then(Value::as_u64)
+            .unwrap_or(16)
+            .clamp(1, 64) as usize;
         let step_fraction = optimizer
             .get("step_fraction")
             .and_then(Value::as_f64)
-            .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: optimizer.step_fraction is required".to_owned()))?;
-        if !step_fraction.is_finite() || !(0.0..=0.5).contains(&step_fraction) || step_fraction == 0.0 {
-            return Err(RuntimeError::InvalidInput("SILHOUETTE_FIT_INVALID: optimizer.step_fraction is outside (0,0.5]".to_owned()));
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "SILHOUETTE_FIT_INVALID: optimizer.step_fraction is required".to_owned(),
+                )
+            })?;
+        if !step_fraction.is_finite()
+            || !(0.0..=0.5).contains(&step_fraction)
+            || step_fraction == 0.0
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INVALID: optimizer.step_fraction is outside (0,0.5]".to_owned(),
+            ));
         }
-        let artifact_sha256 = candidate.manifest_hash.clone().or(candidate.prepared_object_sha256.clone()).ok_or_else(|| RuntimeError::InvalidInput("CANDIDATE_ARTIFACT_UNAVAILABLE".to_owned()))?;
+        let artifact_sha256 = candidate
+            .manifest_hash
+            .clone()
+            .or(candidate.prepared_object_sha256.clone())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("CANDIDATE_ARTIFACT_UNAVAILABLE".to_owned())
+            })?;
         let glb = self.cas_read(&artifact_sha256)?;
         let inspection = strict_glb_inspection(&glb).map_err(|error| {
             RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_REJECTED: {error}"))
         })?;
         if !inspection.hard_gate_passed {
-                return Err(RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_REJECTED: {}", inspection.failure_codes.join(","))));
+            return Err(RuntimeError::InvalidInput(format!(
+                "SILHOUETTE_FIT_REJECTED: {}",
+                inspection.failure_codes.join(",")
+            )));
         }
         // A silhouette fit may only mutate a candidate-bound V2 program.  The
         // program is read from the durable evidence row, re-hashed through the
         // same Worker helper used by candidate_confirm, and never admitted to
         // CAS by this read-only proposal call.
-        let geometry_program_draft = match self.store.get_geometry_candidate_evidence(candidate_id)? {
+        let geometry_program_draft = match self
+            .store
+            .get_geometry_candidate_evidence(candidate_id)?
+        {
             Some(evidence) => {
                 if evidence.project_id != project_id
                     || evidence.artifact_object_sha256 != artifact_sha256
                     || evidence.geometry_program_object_sha256.is_empty()
                 {
-                    return Err(RuntimeError::InvalidInput("SILHOUETTE_FIT_REJECTED: candidate geometry evidence is not bound".to_owned()));
+                    return Err(RuntimeError::InvalidInput(
+                        "SILHOUETTE_FIT_REJECTED: candidate geometry evidence is not bound"
+                            .to_owned(),
+                    ));
                 }
-                let draft: Value = serde_json::from_slice(&self.cas_read(&evidence.geometry_program_object_sha256)?)
-                    .map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_REJECTED: GeometryProgram CAS is invalid: {error}")))?;
+                let draft: Value = serde_json::from_slice(
+                    &self.cas_read(&evidence.geometry_program_object_sha256)?,
+                )
+                .map_err(|error| {
+                    RuntimeError::InvalidInput(format!(
+                        "SILHOUETTE_FIT_REJECTED: GeometryProgram CAS is invalid: {error}"
+                    ))
+                })?;
                 if draft.get("schema_version").and_then(Value::as_str) != Some("GeometryProgram@2")
                     || draft.get("project_id").and_then(Value::as_str) != Some(project_id)
                 {
-                    return Err(RuntimeError::InvalidInput("SILHOUETTE_FIT_REJECTED: persisted GeometryProgram scope is invalid".to_owned()));
+                    return Err(RuntimeError::InvalidInput(
+                        "SILHOUETTE_FIT_REJECTED: persisted GeometryProgram scope is invalid"
+                            .to_owned(),
+                    ));
                 }
                 let hash = hash_geometry_program_with_runtime_worker(&draft)
                     .map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_REJECTED: persisted GeometryProgram validation failed: {error}")))?;
-                if hash.get("canonical_sha256").and_then(Value::as_str) != Some(evidence.geometry_program_sha256.as_str())
-                    || hash.get("operator_catalog_sha256").and_then(Value::as_str) != Some(evidence.operator_catalog_sha256.as_str())
+                if hash.get("canonical_sha256").and_then(Value::as_str)
+                    != Some(evidence.geometry_program_sha256.as_str())
+                    || hash.get("operator_catalog_sha256").and_then(Value::as_str)
+                        != Some(evidence.operator_catalog_sha256.as_str())
                 {
-                    return Err(RuntimeError::InvalidInput("SILHOUETTE_FIT_REJECTED: persisted GeometryProgram provenance drifted".to_owned()));
+                    return Err(RuntimeError::InvalidInput(
+                        "SILHOUETTE_FIT_REJECTED: persisted GeometryProgram provenance drifted"
+                            .to_owned(),
+                    ));
                 }
                 Some(draft)
             }
@@ -1698,10 +1863,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         // Codex supplies the typed Rig bounds once and never chooses a
         // continuous parameter trace.  The outer optimizer validation still
         // bounds the complete three-phase schedule to 64 evaluations.
-        let (geometry_budget, camera_budget, camera_refit_budget) = primary_form_evaluation_budgets(
-            max_evaluations,
-            geometry_program_draft.is_some(),
-        );
+        let (geometry_budget, camera_budget, camera_refit_budget) =
+            primary_form_evaluation_budgets(max_evaluations, geometry_program_draft.is_some());
         let requested_iterations = if algorithm == "coordinate_descent" {
             max_iterations as usize
         } else {
@@ -1746,7 +1909,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 break;
             }
             let iterations_left = requested_iterations - iteration;
-            let iteration_budget = (remaining_budget / iterations_left).max(1).min(step_variants.len());
+            let iteration_budget = (remaining_budget / iterations_left)
+                .max(1)
+                .min(step_variants.len());
             // Do not take the same prefix on every coordinate-descent round:
             // that used to repeat `base,+yaw,-yaw` and never test pitch/roll
             // when the request had two iterations.  Keep the first row as
@@ -1756,35 +1921,48 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 .iter()
                 .skip(step_offset.min(step_variants.len().saturating_sub(1)))
                 .take(iteration_budget)
-                .map(|(yaw, pitch, roll, fov_delta, distance_scale, target_dx, target_dy, global_scale)| {
-                    let candidate_camera = if *yaw == 0.0
-                        && *pitch == 0.0
-                        && *roll == 0.0
-                        && *fov_delta == 0.0
-                        && *distance_scale == 1.0
-                        && *target_dx == 0.0
-                        && *target_dy == 0.0
-                        && *global_scale == 1.0
-                    {
-                        current_camera.clone()
-                    } else {
-                        camera_fit_variant_extended(
-                            &current_camera,
-                            *yaw,
-                            *pitch,
-                            *roll,
-                            *fov_delta,
-                            *distance_scale,
-                            *target_dx,
-                            *target_dy,
-                            *global_scale,
-                        )
-                    };
-                    validate_camera_calibration(&candidate_camera).map_err(|error| {
-                        RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_RENDER_FAILED: {error}"))
-                    })?;
-                    Ok::<Value, RuntimeError>(candidate_camera)
-                })
+                .map(
+                    |(
+                        yaw,
+                        pitch,
+                        roll,
+                        fov_delta,
+                        distance_scale,
+                        target_dx,
+                        target_dy,
+                        global_scale,
+                    )| {
+                        let candidate_camera = if *yaw == 0.0
+                            && *pitch == 0.0
+                            && *roll == 0.0
+                            && *fov_delta == 0.0
+                            && *distance_scale == 1.0
+                            && *target_dx == 0.0
+                            && *target_dy == 0.0
+                            && *global_scale == 1.0
+                        {
+                            current_camera.clone()
+                        } else {
+                            camera_fit_variant_extended(
+                                &current_camera,
+                                *yaw,
+                                *pitch,
+                                *roll,
+                                *fov_delta,
+                                *distance_scale,
+                                *target_dx,
+                                *target_dy,
+                                *global_scale,
+                            )
+                        };
+                        validate_camera_calibration(&candidate_camera).map_err(|error| {
+                            RuntimeError::InvalidInput(format!(
+                                "SILHOUETTE_FIT_RENDER_FAILED: {error}"
+                            ))
+                        })?;
+                        Ok::<Value, RuntimeError>(candidate_camera)
+                    },
+                )
                 .collect::<Result<Vec<_>, _>>()?;
             let batch_passes = render_glb_fit_batch_with_runtime_worker_at_resolution(
                 &glb,
@@ -1817,7 +1995,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .iter()
                     .find(|pass| pass.pass == "part-id")
                     .map(|pass| pass.png.clone());
-                camera_model_evidence.push((candidate_camera.clone(), model_mask.clone(), part_png));
+                camera_model_evidence.push((
+                    candidate_camera.clone(),
+                    model_mask.clone(),
+                    part_png,
+                ));
                 let part_context = passes
                     .iter()
                     .find(|pass| pass.pass == "part-id")
@@ -1842,7 +2024,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             remaining_budget = remaining_budget.saturating_sub(iteration_budget);
             step_offset = step_offset.saturating_add(iteration_budget);
             completed_iterations += 1;
-            let Some(iteration_best) = iteration_best else { break; };
+            let Some(iteration_best) = iteration_best else {
+                break;
+            };
             let improved = previous_best_ranking_metrics
                 .as_ref()
                 .is_none_or(|best| primary_form_metrics_improve(&iteration_best.3, best));
@@ -1875,9 +2059,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
         });
-        let (mut best_loss, mut selected_camera, mut metrics, mut selected_ranking_metrics) = best_overall
-            .or_else(|| rows.first().cloned())
-            .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_UNAVAILABLE".to_owned()))?;
+        let (mut best_loss, mut selected_camera, mut metrics, mut selected_ranking_metrics) =
+            best_overall
+                .or_else(|| rows.first().cloned())
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput("SILHOUETTE_FIT_UNAVAILABLE".to_owned())
+                })?;
         let base_loss = rows
             .iter()
             .find(|(_, value, _, _)| *value == camera)
@@ -2028,7 +2215,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             let definitions = rig
                 .get("parameters")
                 .and_then(Value::as_array)
-                .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameters are missing".to_owned()))?;
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameters are missing".to_owned(),
+                    )
+                })?;
             // Keep the current authored Rig as the immutable optimization
             // baseline.  An evidence-attributed proposal is a first trial,
             // not an unconditional new incumbent: if it is worse than the
@@ -2051,15 +2242,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let mut parameter_values = if probe_index == 0 {
                     selected_parameters.clone()
                 } else if let Some(fraction) = backtrack_fraction {
-                    interpolate_rig_parameter_values(
-                        definitions,
-                        &selected_parameters,
-                        fraction,
-                    )
+                    interpolate_rig_parameter_values(definitions, &selected_parameters, fraction)
                 } else {
                     best_geometry_parameters.clone()
                 };
-                if probe_index > 0 && backtrack_fraction.is_none() && !parameter_indices.is_empty() {
+                if probe_index > 0 && backtrack_fraction.is_none() && !parameter_indices.is_empty()
+                {
                     let search_probe_index = if initial_proposal_improved == Some(false) {
                         // The initial joint proposal and the dynamically
                         // sized whole-proposal backtracks are reserved before
@@ -2073,7 +2261,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         .then_some(recovery_index)
                         .and_then(|index| recovery_fractions.get(index).copied());
                     if let Some(recovery_fraction) = recovery_fraction {
-                        let group_index = recovery_index.min(recovery_groups.len().saturating_sub(1));
+                        let group_index =
+                            recovery_index.min(recovery_groups.len().saturating_sub(1));
                         // Once a joint proposal has failed, test the dominant
                         // Part at bounded half/full evidence steps before
                         // falling back to individual coordinates. This lets
@@ -2095,21 +2284,50 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         };
                         if coordinate_probe_index == 0 {
                             return Err(RuntimeError::InvalidInput(
-                                "SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty".to_owned(),
+                                "SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty"
+                                    .to_owned(),
                             ));
                         }
                         let probe_slot = coordinate_probe_index - 1;
-                        let coordinate = primary_form_probe_coordinate(&parameter_indices, coordinate_probe_index)
-                            .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty".to_owned()))?;
-                        let parameter = definitions.get(coordinate).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter index drifted".to_owned()))?;
+                        let coordinate = primary_form_probe_coordinate(
+                            &parameter_indices,
+                            coordinate_probe_index,
+                        )
+                        .ok_or_else(|| {
+                            RuntimeError::InvalidInput(
+                                "SILHOUETTE_FIT_GEOMETRY_FAILED: Rig probe schedule is empty"
+                                    .to_owned(),
+                            )
+                        })?;
+                        let parameter = definitions.get(coordinate).ok_or_else(|| {
+                            RuntimeError::InvalidInput(
+                                "SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter index drifted"
+                                    .to_owned(),
+                            )
+                        })?;
                         let value = parameter_values
                             .get(coordinate)
                             .and_then(|row| row.get("value"))
                             .and_then(Value::as_f64)
-                            .unwrap_or_else(|| parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0));
-                        let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
-                        let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
-                        let step = parameter.get("step").and_then(Value::as_f64).unwrap_or(0.01).abs();
+                            .unwrap_or_else(|| {
+                                parameter
+                                    .get("value")
+                                    .and_then(Value::as_f64)
+                                    .unwrap_or(0.0)
+                            });
+                        let min = parameter
+                            .get("min")
+                            .and_then(Value::as_f64)
+                            .unwrap_or(value);
+                        let max = parameter
+                            .get("max")
+                            .and_then(Value::as_f64)
+                            .unwrap_or(value);
+                        let step = parameter
+                            .get("step")
+                            .and_then(Value::as_f64)
+                            .unwrap_or(0.01)
+                            .abs();
                         let span = (max - min).abs();
                         let delta = (step * step_fraction)
                             .max(span * step_fraction * 0.25)
@@ -2146,7 +2364,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                             probe_pass,
                         );
                         if let Some(row) = parameter_values.get_mut(coordinate) {
-                            row["value"] = Value::from(stable_visual_metric((value + direction * magnitude).clamp(min, max)));
+                            row["value"] = Value::from(stable_visual_metric(
+                                (value + direction * magnitude).clamp(min, max),
+                            ));
                         }
                     }
                 }
@@ -2163,8 +2383,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     continue;
                 }
                 let finalized = finalize_v2_geometry_program(draft)?;
-                let artifact = compile_geometry_with_runtime_worker(&finalized, None)
-                    .map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_FAILED: {error}")))?;
+                let artifact =
+                    compile_geometry_with_runtime_worker(&finalized, None).map_err(|error| {
+                        RuntimeError::InvalidInput(format!(
+                            "SILHOUETTE_FIT_GEOMETRY_FAILED: {error}"
+                        ))
+                    })?;
                 let variant_inspection = strict_glb_inspection(&artifact.glb).map_err(|error| {
                     RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_FAILED: {error}"))
                 })?;
@@ -2187,9 +2411,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let silhouette = passes
                     .first()
                     .and_then(|batch| batch.iter().find(|pass| pass.pass == "silhouette"))
-                    .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_RENDER_FAILED: silhouette pass missing".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput(
+                            "SILHOUETTE_FIT_GEOMETRY_RENDER_FAILED: silhouette pass missing"
+                                .to_owned(),
+                        )
+                    })?;
                 let model_mask = decode_binary_mask(&silhouette.png).map_err(|error| {
-                    RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_RENDER_FAILED: {error}"))
+                    RuntimeError::InvalidInput(format!(
+                        "SILHOUETTE_FIT_GEOMETRY_RENDER_FAILED: {error}"
+                    ))
                 })?;
                 let variant_metrics = extended_silhouette_metrics(&target_mask.mask, &model_mask);
                 let part_context = passes
@@ -2216,7 +2447,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         &selected_camera_ranking_metrics,
                     ));
                 }
-                if primary_form_search_metrics_improve(&loss_metrics, &best_geometry_ranking_metrics) {
+                if primary_form_search_metrics_improve(
+                    &loss_metrics,
+                    &best_geometry_ranking_metrics,
+                ) {
                     best_geometry_loss = loss;
                     best_geometry_parameters = parameter_values;
                     best_geometry_metrics = variant_metrics;
@@ -2254,10 +2488,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let finalized = selected_geometry_program
                     .as_ref()
                     .expect("geometry program checked above");
-                let artifact = compile_geometry_with_runtime_worker(finalized, None)
-                    .map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_REFIT_FAILED: {error}")))?;
+                let artifact =
+                    compile_geometry_with_runtime_worker(finalized, None).map_err(|error| {
+                        RuntimeError::InvalidInput(format!(
+                            "SILHOUETTE_FIT_GEOMETRY_REFIT_FAILED: {error}"
+                        ))
+                    })?;
                 let inspection = strict_glb_inspection(&artifact.glb).map_err(|error| {
-                    RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_REFIT_FAILED: {error}"))
+                    RuntimeError::InvalidInput(format!(
+                        "SILHOUETTE_FIT_GEOMETRY_REFIT_FAILED: {error}"
+                    ))
                 })?;
                 if !inspection.hard_gate_passed {
                     return Err(RuntimeError::InvalidInput(format!(
@@ -2265,10 +2505,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         inspection.failure_codes.join(",")
                     )));
                 }
-                let refit_cameras = primary_form_camera_refit_schedule(
-                    &selected_camera,
-                    camera_refit_budget,
-                );
+                let refit_cameras =
+                    primary_form_camera_refit_schedule(&selected_camera, camera_refit_budget);
                 if !refit_cameras.is_empty() {
                     // A camera refit is only a valid Primary Form improvement
                     // when the proposed geometry beats the authored geometry
@@ -2330,11 +2568,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                                         .to_owned(),
                                 )
                             })?;
-                        let source_model_mask = decode_binary_mask(&source_silhouette.png).map_err(|error| {
-                            RuntimeError::InvalidInput(format!(
-                                "SILHOUETTE_FIT_GEOMETRY_REFIT_SOURCE_RENDER_FAILED: {error}"
-                            ))
-                        })?;
+                        let source_model_mask = decode_binary_mask(&source_silhouette.png)
+                            .map_err(|error| {
+                                RuntimeError::InvalidInput(format!(
+                                    "SILHOUETTE_FIT_GEOMETRY_REFIT_SOURCE_RENDER_FAILED: {error}"
+                                ))
+                            })?;
                         let source_part_context = source_passes
                             .iter()
                             .find(|pass| pass.pass == "part-id")
@@ -2381,14 +2620,14 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         // at this exact refit camera; otherwise the final
                         // acceptance check would correctly retain the source
                         // after the optimizer had already spent its budget.
-                        if !primary_form_metrics_improve(
-                            &loss_metrics,
-                            &source_ranking_metrics,
-                        ) {
+                        if !primary_form_metrics_improve(&loss_metrics, &source_ranking_metrics) {
                             continue;
                         }
                         let loss = camera_fit_loss(&loss_metrics);
-                        if primary_form_search_metrics_improve(&loss_metrics, &selected_ranking_metrics) {
+                        if primary_form_search_metrics_improve(
+                            &loss_metrics,
+                            &selected_ranking_metrics,
+                        ) {
                             best_loss = loss;
                             selected_camera = camera_candidate;
                             metrics = candidate_metrics;
@@ -2411,10 +2650,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .saturating_add(geometry_evaluations)
             .saturating_add(camera_refit_evaluations);
         let camera_evaluations = rows.len().saturating_add(camera_refit_evaluations);
-        let strict_improvement = primary_form_metrics_improve(
-            &selected_ranking_metrics,
-            &baseline_ranking_metrics,
-        );
+        let strict_improvement =
+            primary_form_metrics_improve(&selected_ranking_metrics, &baseline_ranking_metrics);
         if !strict_improvement {
             // A search-only incumbent is never exposed as a repair proposal
             // when it did not beat the authored geometry at the final
@@ -2455,12 +2692,16 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         // caller-supplied camera payload.
         let cache_key = camera_fit_cache_key(project_id, candidate_id, target_sha256);
         if let Ok(mut cache) = self.camera_fit_cache.lock() {
-            let entry = cache.entry(cache_key).or_insert_with(|| json!({"candidates":[]}));
+            let entry = cache
+                .entry(cache_key)
+                .or_insert_with(|| json!({"candidates":[]}));
             if let (Some(candidates), Some(fit_camera)) = (
                 entry.get_mut("candidates").and_then(Value::as_array_mut),
                 result.get("selected_camera").cloned(),
             ) {
-                let already_present = candidates.iter().any(|row| row.get("camera") == Some(&fit_camera));
+                let already_present = candidates
+                    .iter()
+                    .any(|row| row.get("camera") == Some(&fit_camera));
                 if !already_present {
                     candidates.push(json!({"camera": fit_camera}));
                 }
@@ -2532,9 +2773,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         } else {
             None
         };
-        let request_base_version_id = object
-            .get("base_version_id")
-            .and_then(Value::as_str);
+        let request_base_version_id = object.get("base_version_id").and_then(Value::as_str);
         if request_base_version_id != base_version_id {
             return Err(RuntimeError::InvalidInput(
                 "PRIMARY_FORM_REPAIR_INVALID: base_version_id argument is not bound to intent"
@@ -2586,8 +2825,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             normalize_primary_form_repair_optimizer(optimizer);
         }
         fit_request["canonical_sha256"] = Value::String(String::new());
-        fit_request["canonical_sha256"] =
-            Value::String(canonical_json_hash(&fit_request));
+        fit_request["canonical_sha256"] = Value::String(canonical_json_hash(&fit_request));
         let fit = self.silhouette_fit_prepare(project_id, fit_request)?;
         let target_sha256 = required_value_sha(fit.get("target_sha256"), "target_sha256")?;
         let target = self.read_silhouette_target(target_sha256)?;
@@ -2631,23 +2869,22 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         };
         if program.get("project_id").and_then(Value::as_str) != Some(project_id) {
             return Err(RuntimeError::InvalidInput(
-                "PRIMARY_FORM_REPAIR_REJECTED: selected GeometryProgram project differs"
-                    .to_owned(),
+                "PRIMARY_FORM_REPAIR_REJECTED: selected GeometryProgram project differs".to_owned(),
             ));
         }
 
         let selected_program = Value::Object(program.clone());
-        let source_candidate_id = fit
-            .get("candidate_id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "PRIMARY_FORM_REPAIR_REJECTED: fit candidate_id is missing".to_owned(),
-                )
-            })?;
-        let source_candidate = self
-            .candidate(source_candidate_id)?
-            .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: source candidate not found".to_owned()))?;
+        let source_candidate_id =
+            fit.get("candidate_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_REPAIR_REJECTED: fit candidate_id is missing".to_owned(),
+                    )
+                })?;
+        let source_candidate = self.candidate(source_candidate_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("NOT_FOUND: source candidate not found".to_owned())
+        })?;
         let source_artifact_sha256 = source_candidate
             .manifest_hash
             .clone()
@@ -2736,11 +2973,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     "PRIMARY_FORM_REPAIR_ACCEPTANCE_COMPILE_FAILED: {error}"
                 ))
             })?;
-        let proposed_inspection = strict_glb_inspection(&proposed_artifact.glb).map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "PRIMARY_FORM_REPAIR_ACCEPTANCE_READBACK_FAILED: {error}"
-            ))
-        })?;
+        let proposed_inspection =
+            strict_glb_inspection(&proposed_artifact.glb).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRIMARY_FORM_REPAIR_ACCEPTANCE_READBACK_FAILED: {error}"
+                ))
+            })?;
         validate_worker_metadata(&proposed_artifact, &proposed_inspection)?;
         if !proposed_inspection.hard_gate_passed {
             return Err(RuntimeError::InvalidInput(format!(
@@ -2759,23 +2997,29 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             &proposed_artifact.glb,
             &proposed_inspection.part_ids,
         )?;
-        let single_view_source_loss = camera_fit_loss(
-            source_compare
-                .get("metrics")
-                .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: source metrics".to_owned()))?,
-        );
-        let single_view_proposed_loss = camera_fit_loss(
-            proposed_compare
-                .get("metrics")
-                .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: proposal metrics".to_owned()))?,
-        );
+        let single_view_source_loss =
+            camera_fit_loss(source_compare.get("metrics").ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: source metrics".to_owned(),
+                )
+            })?);
+        let single_view_proposed_loss =
+            camera_fit_loss(proposed_compare.get("metrics").ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: proposal metrics".to_owned(),
+                )
+            })?);
         let single_view_strict_improvement = primary_form_strict_same_camera_improvement(
-            source_compare
-                .get("metrics")
-                .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: source metrics".to_owned()))?,
-            proposed_compare
-                .get("metrics")
-                .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: proposal metrics".to_owned()))?,
+            source_compare.get("metrics").ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: source metrics".to_owned(),
+                )
+            })?,
+            proposed_compare.get("metrics").ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: proposal metrics".to_owned(),
+                )
+            })?,
         );
         let multi_view_evaluation = multi_view_context
             .as_ref()
@@ -2798,8 +3042,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         let (source_loss, proposed_loss, strict_same_camera_improvement) =
             if let Some(evaluation) = multi_view_evaluation.as_ref() {
                 (
-                    evaluation["source_loss"].as_f64().unwrap_or(single_view_source_loss),
-                    evaluation["proposal_loss"].as_f64().unwrap_or(single_view_proposed_loss),
+                    evaluation["source_loss"]
+                        .as_f64()
+                        .unwrap_or(single_view_source_loss),
+                    evaluation["proposal_loss"]
+                        .as_f64()
+                        .unwrap_or(single_view_proposed_loss),
                     evaluation["strict_improvement"]
                         .as_bool()
                         .unwrap_or(single_view_strict_improvement),
@@ -2885,11 +3133,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 other => other,
             })?;
         validate_geometry_prepare_result_v2_output(&prepared)?;
-        let prepared_candidate_id = required_value_id(
-            prepared.pointer("/candidate/candidate_id"),
-            "candidate_id",
-        )?
-        .to_owned();
+        let prepared_candidate_id =
+            required_value_id(prepared.pointer("/candidate/candidate_id"), "candidate_id")?
+                .to_owned();
         // The fit winner is cached against the source candidate. The staged
         // GeometryProgram has a new candidate ID, so passing a
         // CameraCalibrationRef here would make comparison look up the old
@@ -2913,7 +3159,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .and_then(Value::as_str)
             .unwrap_or("not-run");
         result["prepared_candidate"] = prepared;
-        result["acceptance"]["proposal_candidate_id"] = Value::String(prepared_candidate_id.clone());
+        result["acceptance"]["proposal_candidate_id"] =
+            Value::String(prepared_candidate_id.clone());
         result["visual_evidence"] = json!({
             "candidate_id":prepared_candidate_id,
             "reference_id":reference_id,
@@ -2964,7 +3211,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             ));
         }
         let camera_hash = required_value_sha(object.get("camera_hash"), "camera_hash")?;
-        let canonical_sha256 = required_value_sha(object.get("canonical_sha256"), "canonical_sha256")?;
+        let canonical_sha256 =
+            required_value_sha(object.get("canonical_sha256"), "canonical_sha256")?;
         let cache_key = camera_fit_cache_key(project_id, candidate_id, target_sha256);
         let cached = self
             .camera_fit_cache
@@ -2996,11 +3244,14 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             })
             .cloned()
             .or_else(|| {
-                result.get("selected_camera").filter(|camera| {
-                    camera.get("camera_hash").and_then(Value::as_str) == Some(camera_hash)
-                        && camera.get("canonical_sha256").and_then(Value::as_str)
-                            == Some(canonical_sha256)
-                }).cloned()
+                result
+                    .get("selected_camera")
+                    .filter(|camera| {
+                        camera.get("camera_hash").and_then(Value::as_str) == Some(camera_hash)
+                            && camera.get("canonical_sha256").and_then(Value::as_str)
+                                == Some(canonical_sha256)
+                    })
+                    .cloned()
             });
         matches.ok_or_else(|| {
             RuntimeError::InvalidInput(
@@ -3012,21 +3263,64 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
     /// Return a bounded one-Part adjustment proposal from signed contour
     /// evidence. This is intentionally read-only: no geometry program is
     /// edited and no candidate is replaced by this call.
-    pub fn part_contour_fit_prepare(&self, project_id: &str, request: Value) -> Result<Value, RuntimeError> {
+    pub fn part_contour_fit_prepare(
+        &self,
+        project_id: &str,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
         validate_id(project_id)?;
-        let object = request.as_object().ok_or_else(|| RuntimeError::InvalidInput("PART_CONTOUR_FIT_INVALID: request must be an object".to_owned()))?;
-        validate_request_keys(object, &["project_id", "candidate_id", "target_sha256", "part_id", "rig"], "part_contour_fit_prepare")?;
-        if object.get("project_id").and_then(Value::as_str) != Some(project_id) { return Err(RuntimeError::InvalidInput("PROJECT_SCOPE_DENIED: part fit project differs".to_owned())); }
+        let object = request.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PART_CONTOUR_FIT_INVALID: request must be an object".to_owned(),
+            )
+        })?;
+        validate_request_keys(
+            object,
+            &[
+                "project_id",
+                "candidate_id",
+                "target_sha256",
+                "part_id",
+                "rig",
+            ],
+            "part_contour_fit_prepare",
+        )?;
+        if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
+            return Err(RuntimeError::InvalidInput(
+                "PROJECT_SCOPE_DENIED: part fit project differs".to_owned(),
+            ));
+        }
         let candidate_id = required_value_id(object.get("candidate_id"), "candidate_id")?;
         let target_sha256 = required_value_sha(object.get("target_sha256"), "target_sha256")?;
         let part_id = required_value_id(object.get("part_id"), "part_id")?;
-        let candidate = self.candidate(candidate_id)?.ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned()))?;
-        if candidate.project_id != project_id { return Err(RuntimeError::InvalidInput("PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned())); }
-        validate_silhouette_rig(object.get("rig").ok_or_else(|| RuntimeError::InvalidInput("PART_CONTOUR_FIT_INVALID: rig is required".to_owned()))?, candidate_id)?;
+        let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
+        })?;
+        if candidate.project_id != project_id {
+            return Err(RuntimeError::InvalidInput(
+                "PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned(),
+            ));
+        }
+        validate_silhouette_rig(
+            object.get("rig").ok_or_else(|| {
+                RuntimeError::InvalidInput("PART_CONTOUR_FIT_INVALID: rig is required".to_owned())
+            })?,
+            candidate_id,
+        )?;
         let target = self.read_silhouette_target(target_sha256)?;
         let target_mask = self.target_mask(target_sha256, &target)?;
-        let evidence = self.store.get_visual_evidence(candidate_id)?.ok_or_else(|| RuntimeError::InvalidInput("PART_CONTOUR_FIT_UNAVAILABLE: reference_compare_prepare required".to_owned()))?;
-        let render_set: Value = serde_json::from_slice(&self.cas_read(&evidence.render_set_object_sha256)?).map_err(|error| RuntimeError::InvalidInput(format!("PART_CONTOUR_FIT_INVALID: {error}")))?;
+        let evidence = self
+            .store
+            .get_visual_evidence(candidate_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PART_CONTOUR_FIT_UNAVAILABLE: reference_compare_prepare required".to_owned(),
+                )
+            })?;
+        let render_set: Value =
+            serde_json::from_slice(&self.cas_read(&evidence.render_set_object_sha256)?).map_err(
+                |error| RuntimeError::InvalidInput(format!("PART_CONTOUR_FIT_INVALID: {error}")),
+            )?;
         validate_render_set_v2_output(&render_set)?;
         let model_mask = decode_binary_mask(&self.render_pass_bytes(&render_set, "silhouette")?)?;
         let metrics = extended_silhouette_metrics(&target_mask.mask, &model_mask);
@@ -3072,7 +3366,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         let part_error = if explicit_target_part_boundary.is_some() {
             part_png
                 .as_deref()
-                .map(|bytes| part_boundary_error(bytes, &target_mask.mask, &target, part_id, &part_ids))
+                .map(|bytes| {
+                    part_boundary_error(bytes, &target_mask.mask, &target, part_id, &part_ids)
+                })
                 .unwrap_or_else(|| metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0))
         } else {
             Self::projected_part_boundary_error(&automatic_boundary_segments, part_id)
@@ -3084,7 +3380,11 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 .unwrap_or_else(|| metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0))
         };
         let mut adjustments = Vec::new();
-        if let Some(parameters) = object.get("rig").and_then(|rig| rig.get("parameters")).and_then(Value::as_array) {
+        if let Some(parameters) = object
+            .get("rig")
+            .and_then(|rig| rig.get("parameters"))
+            .and_then(Value::as_array)
+        {
             // A Part proposal must be driven by that Part's own projected
             // envelope.  Reusing the whole-body bbox here makes a chest or
             // shoulder correction inherit unrelated leg/head error and was
@@ -3099,12 +3399,23 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 ) {
                     for parameter in parameters
                         .iter()
-                        .filter(|value| value.get("part_id").and_then(Value::as_str) == Some(part_id))
+                        .filter(|value| {
+                            value.get("part_id").and_then(Value::as_str) == Some(part_id)
+                        })
                         .take(16)
                     {
-                        let value = parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0);
-                        let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
-                        let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
+                        let value = parameter
+                            .get("value")
+                            .and_then(Value::as_f64)
+                            .unwrap_or(0.0);
+                        let min = parameter
+                            .get("min")
+                            .and_then(Value::as_f64)
+                            .unwrap_or(value);
+                        let max = parameter
+                            .get("max")
+                            .and_then(Value::as_f64)
+                            .unwrap_or(value);
                         // This legacy proposal endpoint has no camera payload.
                         // Keep meter offsets neutral instead of converting image
                         // error with an arbitrary Rig step; ratio controls remain
@@ -3131,26 +3442,79 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
     }
 
     /// Compare two or more candidate render evidences against the same target.
-    pub fn silhouette_candidate_compare(&self, project_id: &str, request: Value) -> Result<Value, RuntimeError> {
+    pub fn silhouette_candidate_compare(
+        &self,
+        project_id: &str,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
         validate_id(project_id)?;
-        let object = request.as_object().ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_COMPARE_INVALID: request must be an object".to_owned()))?;
-        validate_request_keys(object, &["project_id", "target_sha256", "candidate_ids"], "silhouette_candidate_compare")?;
-        if object.get("project_id").and_then(Value::as_str) != Some(project_id) { return Err(RuntimeError::InvalidInput("PROJECT_SCOPE_DENIED: compare project differs".to_owned())); }
+        let object = request.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_COMPARE_INVALID: request must be an object".to_owned(),
+            )
+        })?;
+        validate_request_keys(
+            object,
+            &["project_id", "target_sha256", "candidate_ids"],
+            "silhouette_candidate_compare",
+        )?;
+        if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
+            return Err(RuntimeError::InvalidInput(
+                "PROJECT_SCOPE_DENIED: compare project differs".to_owned(),
+            ));
+        }
         let target_sha256 = required_value_sha(object.get("target_sha256"), "target_sha256")?;
-        let ids = object.get("candidate_ids").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_COMPARE_INVALID: candidate_ids is required".to_owned()))?;
-        if !(2..=8).contains(&ids.len()) { return Err(RuntimeError::InvalidInput("SILHOUETTE_COMPARE_INVALID: candidate_ids must contain 2..8 ids".to_owned())); }
+        let ids = object
+            .get("candidate_ids")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "SILHOUETTE_COMPARE_INVALID: candidate_ids is required".to_owned(),
+                )
+            })?;
+        if !(2..=8).contains(&ids.len()) {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_COMPARE_INVALID: candidate_ids must contain 2..8 ids".to_owned(),
+            ));
+        }
         let target = self.read_silhouette_target(target_sha256)?;
         let target_mask = self.target_mask(target_sha256, &target)?;
         let mut rows = Vec::new();
         for value in ids {
             let candidate_id = required_value_id(Some(value), "candidate_id")?;
-            if rows.iter().any(|row: &Value| row["candidate_id"].as_str() == Some(candidate_id)) { return Err(RuntimeError::InvalidInput("SILHOUETTE_COMPARE_INVALID: duplicate candidate_id".to_owned())); }
-            let candidate = self.candidate(candidate_id)?.ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned()))?;
-            if candidate.project_id != project_id { return Err(RuntimeError::InvalidInput("PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned())); }
-            let evidence = self.store.get_visual_evidence(candidate_id)?.ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_COMPARE_UNAVAILABLE: candidate has no visual evidence".to_owned()))?;
-            let render_set: Value = serde_json::from_slice(&self.cas_read(&evidence.render_set_object_sha256)?).map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_COMPARE_INVALID: {error}")))?;
+            if rows
+                .iter()
+                .any(|row: &Value| row["candidate_id"].as_str() == Some(candidate_id))
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "SILHOUETTE_COMPARE_INVALID: duplicate candidate_id".to_owned(),
+                ));
+            }
+            let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
+                RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
+            })?;
+            if candidate.project_id != project_id {
+                return Err(RuntimeError::InvalidInput(
+                    "PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned(),
+                ));
+            }
+            let evidence = self
+                .store
+                .get_visual_evidence(candidate_id)?
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "SILHOUETTE_COMPARE_UNAVAILABLE: candidate has no visual evidence"
+                            .to_owned(),
+                    )
+                })?;
+            let render_set: Value =
+                serde_json::from_slice(&self.cas_read(&evidence.render_set_object_sha256)?)
+                    .map_err(|error| {
+                        RuntimeError::InvalidInput(format!("SILHOUETTE_COMPARE_INVALID: {error}"))
+                    })?;
             validate_render_set_v2_output(&render_set)?;
-            let model_mask = decode_binary_mask(&self.render_pass_bytes(&render_set, "silhouette")?)?;
+            let model_mask =
+                decode_binary_mask(&self.render_pass_bytes(&render_set, "silhouette")?)?;
             let part_context = self
                 .render_pass_bytes(&render_set, "part-id")
                 .ok()
@@ -3176,12 +3540,24 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             rows.push(json!({"candidate_id":candidate_id,"metrics":metrics,"loss":stable_visual_metric(loss)}));
         }
         rows.sort_by(primary_form_row_ordering);
-        let winner = rows.first().and_then(|row| row.get("candidate_id")).cloned().unwrap_or(Value::Null);
+        let winner = rows
+            .first()
+            .and_then(|row| row.get("candidate_id"))
+            .cloned()
+            .unwrap_or(Value::Null);
         let tie = rows.len() > 1
             && primary_form_metric_ordering(&rows[0]["metrics"], &rows[1]["metrics"])
                 == std::cmp::Ordering::Equal;
-        let first_metrics = rows.first().and_then(|row| row.get("metrics")).cloned().unwrap_or(Value::Null);
-        let second_metrics = rows.get(1).and_then(|row| row.get("metrics")).cloned().unwrap_or(Value::Null);
+        let first_metrics = rows
+            .first()
+            .and_then(|row| row.get("metrics"))
+            .cloned()
+            .unwrap_or(Value::Null);
+        let second_metrics = rows
+            .get(1)
+            .and_then(|row| row.get("metrics"))
+            .cloned()
+            .unwrap_or(Value::Null);
         let mut result = json!({"schema_version":"SilhouetteCandidateCompareResult@1","target_sha256":target_sha256,"candidates":rows,"winner_candidate_id":if tie {Value::Null} else {winner},"delta":{"silhouette_iou":stable_visual_metric(second_metrics["silhouette_iou"].as_f64().unwrap_or(0.0)-first_metrics["silhouette_iou"].as_f64().unwrap_or(0.0)),"boundary_f1_4px":stable_visual_metric(second_metrics["boundary_f1_4px"].as_f64().unwrap_or(0.0)-first_metrics["boundary_f1_4px"].as_f64().unwrap_or(0.0)),"sdf_chamfer_px":stable_visual_metric(second_metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0)-first_metrics["sdf_chamfer_px"].as_f64().unwrap_or(0.0))},"status":if tie {"tie"} else {"ready"},"canonical_sha256":""});
         result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
         validate_silhouette_candidate_compare_result(&result)?;
@@ -3200,9 +3576,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 {
                     RuntimeError::InvalidInput(detail)
                 }
-                RuntimeError::InvalidInput(detail) => RuntimeError::InvalidInput(format!(
-                    "SILHOUETTE_OBJECTIVE_INVALID: {detail}"
-                )),
+                RuntimeError::InvalidInput(detail) => {
+                    RuntimeError::InvalidInput(format!("SILHOUETTE_OBJECTIVE_INVALID: {detail}"))
+                }
                 other => other,
             })
     }
@@ -3620,6 +3996,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         contour_points: Option<&[[f64; 2]]>,
         landmarks: Value,
         parts: Value,
+        visual_structure: Option<Value>,
         automatic: ReferenceMask,
         automatic_source: bool,
         user_confirmed: bool,
@@ -3630,15 +4007,24 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "REFERENCE_MASK_INVALID: automatic target cannot be user-confirmed".to_owned(),
             ));
         }
-        let mask = if let Some(points) = contour_points {
+        let mut mask = if let Some(points) = contour_points {
             rasterize_contour(points)
         } else {
             automatic.mask.clone()
         };
+        if let Some(structure) = visual_structure.as_ref() {
+            apply_visual_structure_mask_operations(&mut mask, structure)?;
+        }
         let png = mask_to_png(&mask)?;
-        let mask_object = self.put_object(&png, None, "image/png", "reference-silhouette-mask-v1")?;
+        let mask_object =
+            self.put_object(&png, None, "image/png", "reference-silhouette-mask-v1")?;
         let points = contour_points
-            .map(|points| points.iter().map(|[x, y]| json!([x, y])).collect::<Vec<_>>())
+            .map(|points| {
+                points
+                    .iter()
+                    .map(|[x, y]| json!([x, y]))
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_else(|| contour_points_from_mask(&mask));
         if points.len() < 3 {
             return Err(RuntimeError::InvalidInput(
@@ -3662,6 +4048,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "landmarks":landmarks,
             "canonical_sha256":""
         });
+        if let Some(visual_structure) = visual_structure {
+            target["visual_structure"] = visual_structure;
+        }
         if let Some(parent_target_sha256) = parent_target_sha256 {
             if automatic_source {
                 return Err(RuntimeError::InvalidInput(
@@ -3686,7 +4075,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         validate_silhouette_target(&target)?;
         let target_bytes = canonical_json_bytes(&target)
             .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
-        let target_object = self.put_object(&target_bytes, None, "application/json", "silhouette-target-v1")?;
+        let target_object = self.put_object(
+            &target_bytes,
+            None,
+            "application/json",
+            "silhouette-target-v1",
+        )?;
         let mut result = json!({
             "schema_version":"ReferenceMaskPrepareResult@1",
             "project_id":project_id,
@@ -3707,13 +4101,19 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "REFERENCE_MASK_INVALID: target_sha256 is not a SHA-256".to_owned(),
             ));
         }
-        let target: Value = serde_json::from_slice(&self.cas_read(target_sha256)?)
-            .map_err(|error| RuntimeError::InvalidInput(format!("REFERENCE_MASK_INVALID: {error}")))?;
+        let target: Value =
+            serde_json::from_slice(&self.cas_read(target_sha256)?).map_err(|error| {
+                RuntimeError::InvalidInput(format!("REFERENCE_MASK_INVALID: {error}"))
+            })?;
         validate_silhouette_target(&target)?;
         Ok(target)
     }
 
-    fn target_mask(&self, target_sha256: &str, target: &Value) -> Result<ReferenceMask, RuntimeError> {
+    fn target_mask(
+        &self,
+        target_sha256: &str,
+        target: &Value,
+    ) -> Result<ReferenceMask, RuntimeError> {
         let _ = target_sha256;
         let mask_sha256 = required_value_sha(target.get("mask_sha256"), "mask_sha256")?;
         let bytes = self.cas_read(mask_sha256)?;
@@ -3727,7 +4127,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .and_then(|value| value.get(pass))
             .and_then(|value| value.get("sha256"))
             .and_then(Value::as_str)
-            .ok_or_else(|| RuntimeError::InvalidInput(format!("BOUNDARY_ERROR_INVALID: {pass} pass missing")))?;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!("BOUNDARY_ERROR_INVALID: {pass} pass missing"))
+            })?;
         self.cas_read(hash)
     }
 
@@ -4006,7 +4408,8 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             let target = self.read_silhouette_target(target_sha256)?;
             if target.get("reference_id").and_then(Value::as_str) != Some(reference_id) {
                 return Err(RuntimeError::InvalidInput(
-                    "REFERENCE_SCOPE_DENIED: silhouette target is bound to another reference".to_owned(),
+                    "REFERENCE_SCOPE_DENIED: silhouette target is bound to another reference"
+                        .to_owned(),
                 ));
             }
         }
@@ -4030,18 +4433,15 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             }
             Some(value)
                 if value.get("schema_version").and_then(Value::as_str)
-                    == Some("CameraCalibrationRef@1") => {
+                    == Some("CameraCalibrationRef@1") =>
+            {
                 let target_sha256 = target_sha256.as_deref().ok_or_else(|| {
                     RuntimeError::InvalidInput(
-                        "CAMERA_CALIBRATION_INVALID: CameraCalibrationRef@1 requires target_sha256".to_owned(),
+                        "CAMERA_CALIBRATION_INVALID: CameraCalibrationRef@1 requires target_sha256"
+                            .to_owned(),
                     )
                 })?;
-                self.resolve_silhouette_fit_camera(
-                    project_id,
-                    candidate_id,
-                    target_sha256,
-                    value,
-                )?
+                self.resolve_silhouette_fit_camera(project_id, candidate_id, target_sha256, value)?
             }
             Some(value) => value.clone(),
         };
@@ -4065,8 +4465,27 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             .map_err(|error| RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}")))?;
         let mut render_worker_cohort = initial_render.build_cohort_sha256.clone();
         let mut render_passes = initial_render.passes;
-        let reference_bytes = self.cas_read(&reference.object_sha256)?;
-        let reference_mask = reference_mask_png(&reference_bytes)?;
+        let (reference_mask, reference_mask_method, reference_mask_revision) =
+            if let Some(target_sha256) = target_sha256.as_deref() {
+                // A caller-supplied SilhouetteTarget is the reviewed contour
+                // truth for this comparison. Falling back to a fresh
+                // flood-fill here would make camera fitting and the final
+                // quality gate evaluate different masks despite sharing one
+                // target hash.
+                let target = self.read_silhouette_target(target_sha256)?;
+                (
+                    self.target_mask(target_sha256, &target)?,
+                    "silhouette-target",
+                    "target-1",
+                )
+            } else {
+                let reference_bytes = self.cas_read(&reference.object_sha256)?;
+                (
+                    reference_mask_png(&reference_bytes)?,
+                    "local-border-flood-fill-morphology",
+                    "mask-2",
+                )
+            };
         if !explicit_camera && !reused_cached_camera_fit {
             let initial_silhouette = render_passes
                 .iter()
@@ -4094,10 +4513,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                         continue;
                     }
                     validate_camera_calibration(&candidate)?;
-                    let candidate_render = render_glb_with_runtime_worker_identity(&glb, &candidate)
-                        .map_err(|error| {
-                            RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}"))
-                        })?;
+                    let candidate_render =
+                        render_glb_with_runtime_worker_identity(&glb, &candidate).map_err(
+                            |error| RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}")),
+                        )?;
                     let candidate_silhouette = candidate_render
                         .passes
                         .iter()
@@ -4233,7 +4652,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "render_set_hash":render_set_hash,
             "camera_hash":camera["camera_hash"].clone(),
             "benchmark_eligibility":annotation_readiness.benchmark_eligibility,
-            "mask":{"method":"local-border-flood-fill-morphology","revision":"mask-2","sha256":mask_object.record.sha256,"width":512,"height":512},
+            "mask":{"method":reference_mask_method,"revision":reference_mask_revision,"sha256":mask_object.record.sha256,"width":512,"height":512},
             "metrics":metrics,
             "status":visual_status,
             "canonical_sha256":""
@@ -4479,15 +4898,23 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         let quality_report = self.quality(candidate_id, Some(&evidence.reference_id))?;
         validate_quality_report_v2_output(&quality_report)?;
         if quality_report.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
-            || quality_report.get("artifact_sha256").and_then(Value::as_str)
+            || quality_report
+                .get("artifact_sha256")
+                .and_then(Value::as_str)
                 != Some(candidate_artifact_sha256)
             || quality_report.get("reference_id").and_then(Value::as_str)
                 != Some(evidence.reference_id.as_str())
-            || quality_report.get("reference_sha256").and_then(Value::as_str)
+            || quality_report
+                .get("reference_sha256")
+                .and_then(Value::as_str)
                 != Some(reference.object_sha256.as_str())
-            || quality_report.get("render_set_hash").and_then(Value::as_str)
+            || quality_report
+                .get("render_set_hash")
+                .and_then(Value::as_str)
                 != Some(evidence.render_set_object_sha256.as_str())
-            || quality_report.get("comparison_report_hash").and_then(Value::as_str)
+            || quality_report
+                .get("comparison_report_hash")
+                .and_then(Value::as_str)
                 != evidence.comparison_report_object_sha256.as_deref()
         {
             return Err(RuntimeError::InvalidInput(
@@ -4787,9 +5214,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "JOB_RESULT_INVALID: result hash is not a SHA-256".to_owned(),
             ));
         }
-        let result: Value = serde_json::from_slice(&self.cas_read(result_sha256)?).map_err(|_| {
-            RuntimeError::InvalidInput("JOB_RESULT_INVALID: result CAS object is not JSON".to_owned())
-        })?;
+        let result: Value =
+            serde_json::from_slice(&self.cas_read(result_sha256)?).map_err(|_| {
+                RuntimeError::InvalidInput(
+                    "JOB_RESULT_INVALID: result CAS object is not JSON".to_owned(),
+                )
+            })?;
         Ok(json!({
             "schema_version": "RuntimeJobResult@1",
             "job": job,
@@ -4848,8 +5278,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             && canonical_json_hash(&normalize_json_numbers(&intent_without_hash)) != intent_hash
         {
             return Err(RuntimeError::InvalidInput(
-                "PRIMARY_FORM_REPAIR_JOB_INVALID: canonical_sha256 does not bind intent"
-                    .to_owned(),
+                "PRIMARY_FORM_REPAIR_JOB_INVALID: canonical_sha256 does not bind intent".to_owned(),
             ));
         }
         let job_id = format!("job-primary-form-{}", Uuid::new_v4().simple());
@@ -5886,7 +6315,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         let manifest_hash = manifest
             .get("canonical_sha256")
             .and_then(Value::as_str)
-            .ok_or_else(|| RuntimeError::InvalidInput("material pack manifest hash is missing".to_owned()))?;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("material pack manifest hash is missing".to_owned())
+            })?;
         let _manifest_object = self.put_object(
             &canonical_json_bytes(&manifest)
                 .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
@@ -5948,7 +6379,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         )?;
         let candidate = self.mark_candidate_quality(
             &prepared.candidate.candidate_id,
-            quality.get("quality_report_id").and_then(Value::as_str).unwrap_or("quality-appearance-v2"),
+            quality
+                .get("quality_report_id")
+                .and_then(Value::as_str)
+                .unwrap_or("quality-appearance-v2"),
             true,
         )?;
         let result = json!({
@@ -6897,14 +7331,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "QUALITY_HARD_GATE_FAILED: visual evidence project binding drifted".to_owned(),
             ));
         }
-        let quality: Value = serde_json::from_slice(&self.cas_read(
-            &evidence.quality_report_object_sha256,
-        )?)
-        .map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "QUALITY_HARD_GATE_FAILED: visual quality report is invalid: {error}"
-            ))
-        })?;
+        let quality: Value =
+            serde_json::from_slice(&self.cas_read(&evidence.quality_report_object_sha256)?)
+                .map_err(|error| {
+                    RuntimeError::InvalidInput(format!(
+                        "QUALITY_HARD_GATE_FAILED: visual quality report is invalid: {error}"
+                    ))
+                })?;
         validate_quality_report_v2_output(&quality)?;
         if quality.get("candidate_id").and_then(Value::as_str)
             != Some(candidate.candidate_id.as_str())
@@ -6912,12 +7345,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 != candidate.prepared_object_sha256.as_deref()
             || quality.get("render_set_hash").and_then(Value::as_str)
                 != Some(evidence.render_set_object_sha256.as_str())
-            || quality.get("comparison_report_hash").and_then(Value::as_str)
+            || quality
+                .get("comparison_report_hash")
+                .and_then(Value::as_str)
                 != evidence.comparison_report_object_sha256.as_deref()
         {
             return Err(RuntimeError::InvalidInput(
-                "QUALITY_HARD_GATE_FAILED: visual quality report is not candidate-bound"
-                    .to_owned(),
+                "QUALITY_HARD_GATE_FAILED: visual quality report is not candidate-bound".to_owned(),
             ));
         }
         if quality.get("hard_gate_passed").and_then(Value::as_bool) != Some(true) {
@@ -6927,13 +7361,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             ));
         }
         if let Some(human_sha256) = evidence.human_receipt_object_sha256.as_deref() {
-            let receipt: Value = serde_json::from_slice(&self.cas_read(human_sha256)?).map_err(
-                |error| {
+            let receipt: Value =
+                serde_json::from_slice(&self.cas_read(human_sha256)?).map_err(|error| {
                     RuntimeError::InvalidInput(format!(
                         "HUMAN_REVIEW_INVALID: receipt is not valid JSON: {error}"
                     ))
-                },
-            )?;
+                })?;
             validate_human_review_receipt(&receipt)?;
             if receipt.get("candidate_id").and_then(Value::as_str)
                 != Some(candidate.candidate_id.as_str())
@@ -6941,7 +7374,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                     != Some(evidence.reference_id.as_str())
                 || receipt.get("render_set_hash").and_then(Value::as_str)
                     != Some(evidence.render_set_object_sha256.as_str())
-                || receipt.get("comparison_report_hash").and_then(Value::as_str)
+                || receipt
+                    .get("comparison_report_hash")
+                    .and_then(Value::as_str)
                     != evidence.comparison_report_object_sha256.as_deref()
             {
                 return Err(RuntimeError::InvalidInput(
@@ -7433,7 +7868,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 self.agentic_scene_observe(
                     project_id,
                     payload.get("candidate_id").and_then(Value::as_str),
@@ -7443,11 +7880,15 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 let observation_sha256 = payload
                     .get("observation_sha256")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("observation_sha256 is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("observation_sha256 is required".to_owned())
+                    })?;
                 self.agentic_stage_plan_bound(
                     project_id,
                     payload.get("candidate_id").and_then(Value::as_str),
@@ -7458,11 +7899,15 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 let observation_sha256 = payload
                     .get("observation_sha256")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("observation_sha256 is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("observation_sha256 is required".to_owned())
+                    })?;
                 self.agentic_critic_projection_bound(
                     project_id,
                     payload.get("candidate_id").and_then(Value::as_str),
@@ -7473,15 +7918,21 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 let candidate_id = payload
                     .get("candidate_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("candidate_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("candidate_id is required".to_owned())
+                    })?;
                 let observation_sha256 = payload
                     .get("observation_sha256")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("observation_sha256 is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("observation_sha256 is required".to_owned())
+                    })?;
                 self.agentic_visual_evidence_bundle_bound(
                     project_id,
                     candidate_id,
@@ -7492,11 +7943,15 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 let candidate_id = payload
                     .get("candidate_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("candidate_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("candidate_id is required".to_owned())
+                    })?;
                 self.agentic_session_lookup(project_id, candidate_id)
             }
             "session_create_or_resume"
@@ -7535,7 +7990,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "material_pack_get" => Ok(self.material_pack_manifest()),
             "geometry_program_hash" => self.geometry_program_hash(payload),
             "silhouette_rig_hash" => {
-                let project_id = payload.get("project_id").and_then(Value::as_str).ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 self.silhouette_rig_hash(project_id, payload)
             }
             "silhouette_target_get" => {
@@ -7891,14 +8351,18 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 self.silhouette_fit_prepare(project_id, payload.clone())
             }
             "primary_form_repair_prepare" => {
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 let base_version_id = payload.get("base_version_id").and_then(Value::as_str);
                 self.primary_form_repair_prepare(project_id, base_version_id, payload.clone())
             }
@@ -7906,7 +8370,9 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 let base_version_id = payload.get("base_version_id").and_then(Value::as_str);
                 self.primary_form_repair_job_prepare(project_id, base_version_id, payload.clone())
             }
@@ -7914,28 +8380,36 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 self.part_contour_fit_prepare(project_id, payload.clone())
             }
             "silhouette_candidate_compare" => {
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 self.silhouette_candidate_compare(project_id, payload.clone())
             }
             "silhouette_evaluation_objective_prepare" => {
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 self.silhouette_evaluation_objective_prepare(project_id, payload.clone())
             }
             "silhouette_objective_compare" => {
                 let project_id = payload
                     .get("project_id")
                     .and_then(Value::as_str)
-                    .ok_or_else(|| RuntimeError::InvalidInput("project_id is required".to_owned()))?;
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
                 self.silhouette_objective_compare(project_id, payload.clone())
             }
             "visual_review_submit" => self.submit_visual_review(payload.clone()),
@@ -8083,8 +8557,11 @@ fn build_primary_form_multiview_context(
     primary_reference_id: &str,
     source_glb: &[u8],
 ) -> Result<Option<PrimaryFormMultiViewContext>, RuntimeError> {
-    let Some((canvas, canvas_sha256)) =
-        agentic_session::durable_reference_canvas_for_binding(runtime, project_id, Some(candidate_id))?
+    let Some((canvas, canvas_sha256)) = agentic_session::durable_reference_canvas_for_binding(
+        runtime,
+        project_id,
+        Some(candidate_id),
+    )?
     else {
         return Ok(None);
     };
@@ -8133,7 +8610,8 @@ fn build_primary_form_multiview_context(
         })?;
         let view_id = required_value_id(view_object.get("view_id"), "view_id")?.to_owned();
         let reference_id = required_value_id(view_object.get("reference_id"), "reference_id")?;
-        let reference_sha256 = required_value_sha(view_object.get("reference_sha256"), "reference_sha256")?;
+        let reference_sha256 =
+            required_value_sha(view_object.get("reference_sha256"), "reference_sha256")?;
         let reference = runtime.reference(reference_id)?.ok_or_else(|| {
             RuntimeError::InvalidInput(
                 "PRIMARY_FORM_MULTIVIEW_BLOCKED: authored reference is missing".to_owned(),
@@ -8160,12 +8638,14 @@ fn build_primary_form_multiview_context(
         .iter()
         .map(|(_, _, _, _, _, camera)| camera.clone())
         .collect::<Vec<_>>();
-    let base_passes = render_worker::render_glb_fit_batch_at_resolution(source_glb, &base_cameras, 512)
-        .map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: base render: {error}"
-            ))
-        })?;
+    let base_passes =
+        render_worker::render_glb_fit_batch_at_resolution(source_glb, &base_cameras, 512).map_err(
+            |error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: base render: {error}"
+                ))
+            },
+        )?;
     if base_passes.len() != selected.len() {
         return Err(RuntimeError::InvalidInput(
             "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: base render count mismatch"
@@ -8202,16 +8682,13 @@ fn build_primary_form_multiview_context(
         }
         candidate_indices.push(indices);
     }
-    let framing_passes = render_worker::render_glb_fit_batch_at_resolution(
-        source_glb,
-        &framing_candidates,
-        512,
-    )
-    .map_err(|error| {
-        RuntimeError::InvalidInput(format!(
-            "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: framing render: {error}"
-        ))
-    })?;
+    let framing_passes =
+        render_worker::render_glb_fit_batch_at_resolution(source_glb, &framing_candidates, 512)
+            .map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: framing render: {error}"
+                ))
+            })?;
     if framing_passes.len() != framing_candidates.len() {
         return Err(RuntimeError::InvalidInput(
             "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: framing render count mismatch"
@@ -8298,8 +8775,7 @@ fn compare_glb_against_primary_form_reference(
         .transpose()?
         .ok_or_else(|| {
             RuntimeError::InvalidInput(
-                "PRIMARY_FORM_MULTIVIEW_COMPARE_RENDER_FAILED: silhouette pass missing"
-                    .to_owned(),
+                "PRIMARY_FORM_MULTIVIEW_COMPARE_RENDER_FAILED: silhouette pass missing".to_owned(),
             )
         })?;
     let part_context = render_passes
@@ -8312,9 +8788,10 @@ fn compare_glb_against_primary_form_reference(
         &view.view_spec,
         part_context,
     );
-    metrics["sdf_chamfer_px"] = Value::from(stable_visual_metric(
-        sdf_chamfer_px(&view.reference_mask.mask, &model_mask),
-    ));
+    metrics["sdf_chamfer_px"] = Value::from(stable_visual_metric(sdf_chamfer_px(
+        &view.reference_mask.mask,
+        &model_mask,
+    )));
     Ok(json!({
         "project_id":project_id,
         "candidate_id":candidate_id,
@@ -8358,24 +8835,22 @@ fn evaluate_primary_form_multiview(
             proposal_glb,
             proposal_part_ids,
         )?;
-        let source_metrics = source
-            .get("metrics")
-            .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_MULTIVIEW_SOURCE_METRICS_MISSING".to_owned()))?;
-        let proposal_metrics = proposal
-            .get("metrics")
-            .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_MULTIVIEW_PROPOSAL_METRICS_MISSING".to_owned()))?;
+        let source_metrics = source.get("metrics").ok_or_else(|| {
+            RuntimeError::InvalidInput("PRIMARY_FORM_MULTIVIEW_SOURCE_METRICS_MISSING".to_owned())
+        })?;
+        let proposal_metrics = proposal.get("metrics").ok_or_else(|| {
+            RuntimeError::InvalidInput("PRIMARY_FORM_MULTIVIEW_PROPOSAL_METRICS_MISSING".to_owned())
+        })?;
         let source_loss = camera_fit_loss(source_metrics);
         let proposal_loss = camera_fit_loss(proposal_metrics);
-        let non_regressing = primary_form_metric_ordering(proposal_metrics, source_metrics)
-            != Ordering::Greater;
+        let non_regressing =
+            primary_form_metric_ordering(proposal_metrics, source_metrics) != Ordering::Greater;
         let strict_improvement = primary_form_metrics_improve(proposal_metrics, source_metrics);
         if view.view_id == context.primary_view_id {
             primary_strict = strict_improvement;
         }
         all_non_regressing &= non_regressing;
-        all_visible_pass &= proposal
-            .get("visual_status")
-            .and_then(Value::as_str)
+        all_visible_pass &= proposal.get("visual_status").and_then(Value::as_str)
             == Some("PARTIAL_VISIBLE_VIEW_PASS");
         source_total += source_loss;
         proposal_total += proposal_loss;
@@ -8400,9 +8875,8 @@ fn evaluate_primary_form_multiview(
     let count = context.views.len() as f64;
     let source_loss = stable_visual_metric(source_total / count);
     let proposal_loss = stable_visual_metric(proposal_total / count);
-    let strict_improvement = primary_strict
-        && all_non_regressing
-        && proposal_loss + 1.0e-12 < source_loss;
+    let strict_improvement =
+        primary_strict && all_non_regressing && proposal_loss + 1.0e-12 < source_loss;
     let mut result = json!({
         "schema_version":"PrimaryFormMultiViewEvaluation@1",
         "project_id":project_id,
@@ -8727,7 +9201,8 @@ fn default_camera_calibration() -> Value {
 fn stable_camera_calibration_hashes(value: Value) -> Value {
     let normalized = normalize_json_numbers(&value);
     let bytes = canonical_json_bytes(&normalized).expect("camera calibration is serializable");
-    let mut camera: Value = serde_json::from_slice(&bytes).expect("camera calibration is valid JSON");
+    let mut camera: Value =
+        serde_json::from_slice(&bytes).expect("camera calibration is valid JSON");
     camera["camera_hash"] = Value::String(String::new());
     camera["canonical_sha256"] = Value::String(String::new());
     camera["camera_hash"] = Value::String(canonical_json_hash(&camera));
@@ -9019,7 +9494,14 @@ fn camera_plane_axes(camera: &Value) -> Option<([f64; 3], [f64; 3])> {
     if !up_length.is_finite() || up_length <= f64::EPSILON {
         return None;
     }
-    Some((right, [up_raw[0] / up_length, up_raw[1] / up_length, up_raw[2] / up_length]))
+    Some((
+        right,
+        [
+            up_raw[0] / up_length,
+            up_raw[1] / up_length,
+            up_raw[2] / up_length,
+        ],
+    ))
 }
 
 fn camera_fit_score(reference: &[bool], model: &[bool]) -> f64 {
@@ -9249,8 +9731,9 @@ fn reference_annotation_readiness(
             .and_then(Value::as_array)
             .and_then(|views| {
                 views.iter().find(|view| {
-                    view_id.is_some_and(|view_id| view.get("view_id").and_then(Value::as_str) == Some(view_id))
-                        && view.get("reference_id").and_then(Value::as_str) == Some(reference_id)
+                    view_id.is_some_and(|view_id| {
+                        view.get("view_id").and_then(Value::as_str) == Some(view_id)
+                    }) && view.get("reference_id").and_then(Value::as_str) == Some(reference_id)
                 })
             });
         let Some(view) = view else {
@@ -9258,9 +9741,7 @@ fn reference_annotation_readiness(
             return Ok(ReferenceAnnotationReadiness::blocked(reasons));
         };
         if view.get("target_sha256").and_then(Value::as_str) != Some(target_sha256)
-            || view
-                .get("mask_sha256")
-                .and_then(Value::as_str)
+            || view.get("mask_sha256").and_then(Value::as_str)
                 != target.get("mask_sha256").and_then(Value::as_str)
         {
             reasons.push("REFERENCE_CANVAS_TARGET_MASK_BINDING_MISMATCH");
@@ -9271,9 +9752,7 @@ fn reference_annotation_readiness(
             .is_none_or(|regions| {
                 regions.is_empty()
                     || regions.iter().any(|region| {
-                        region
-                            .pointer("/state/visibility")
-                            .and_then(Value::as_str)
+                        region.pointer("/state/visibility").and_then(Value::as_str)
                             != Some("observed")
                     })
             })
@@ -9285,9 +9764,7 @@ fn reference_annotation_readiness(
             claim.get("visibility").and_then(Value::as_str) != Some("observed")
                 || claim.get("camera_hash").and_then(Value::as_str)
                     != camera.get("camera_hash").and_then(Value::as_str)
-                || claim
-                    .get("camera_canonical_sha256")
-                    .and_then(Value::as_str)
+                || claim.get("camera_canonical_sha256").and_then(Value::as_str)
                     != camera.get("canonical_sha256").and_then(Value::as_str)
         }) {
             reasons.push("REFERENCE_CAMERA_CANONICAL_BINDING_REQUIRED");
@@ -9397,11 +9874,16 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
     let coverage = object
         .get("coverage")
         .and_then(Value::as_object)
-        .ok_or_else(|| RuntimeError::InvalidInput("CrossViewEvidenceBundle@1 coverage is invalid".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CrossViewEvidenceBundle@1 coverage is invalid".to_owned())
+        })?;
     if !matches!(
         coverage.get("coverage_status").and_then(Value::as_str),
         Some("complete" | "partial" | "blocked")
-    ) || coverage.get("missing_views").and_then(Value::as_array).is_none()
+    ) || coverage
+        .get("missing_views")
+        .and_then(Value::as_array)
+        .is_none()
     {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 coverage is incomplete".to_owned(),
@@ -9410,7 +9892,11 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
     let evaluations = object
         .get("view_evaluations")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("CrossViewEvidenceBundle@1 view_evaluations is invalid".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CrossViewEvidenceBundle@1 view_evaluations is invalid".to_owned(),
+            )
+        })?;
     if !(2..=8).contains(&evaluations.len()) {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 view count is invalid".to_owned(),
@@ -9424,14 +9910,19 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
     for evaluation in evaluations {
         let evaluation = evaluation.as_object().ok_or_else(|| {
             RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 view evaluation is invalid".to_owned(),
+                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 view evaluation is invalid"
+                    .to_owned(),
             )
         })?;
         let view_id = evaluation
             .get("view_id")
             .and_then(Value::as_str)
             .filter(|value| is_opaque_id(value))
-            .ok_or_else(|| RuntimeError::InvalidInput("CrossViewEvidenceBundle@1 view_id is invalid".to_owned()))?;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "CrossViewEvidenceBundle@1 view_id is invalid".to_owned(),
+                )
+            })?;
         if !view_ids.insert(view_id.to_owned()) {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 duplicate view_id".to_owned(),
@@ -9442,8 +9933,7 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
             .and_then(Value::as_str)
             .ok_or_else(|| {
                 RuntimeError::InvalidInput(
-                    "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 kind is invalid"
-                        .to_owned(),
+                    "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 kind is invalid".to_owned(),
                 )
             })?;
         if !matches!(
@@ -9459,14 +9949,12 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
                 | "detail"
         ) {
             return Err(RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 kind is unsupported"
-                    .to_owned(),
+                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 kind is unsupported".to_owned(),
             ));
         }
         if !view_kinds.insert(kind) {
             return Err(RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 duplicate view kind"
-                    .to_owned(),
+                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 duplicate view kind".to_owned(),
             ));
         }
         for key in [
@@ -9479,7 +9967,11 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
             "proposal_comparison_report_sha256",
             "proposal_quality_report_sha256",
         ] {
-            if evaluation.get(key).and_then(Value::as_str).is_none_or(|value| !is_sha256(value)) {
+            if evaluation
+                .get(key)
+                .and_then(Value::as_str)
+                .is_none_or(|value| !is_sha256(value))
+            {
                 return Err(RuntimeError::InvalidInput(format!(
                     "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1.{key} is invalid"
                 )));
@@ -9509,14 +10001,10 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
                 )));
             }
         }
-        all_proposal_pass &= evaluation
-            .get("proposal_status")
-            .and_then(Value::as_str)
+        all_proposal_pass &= evaluation.get("proposal_status").and_then(Value::as_str)
             == Some("PARTIAL_VISIBLE_VIEW_PASS");
-        all_non_regressing &= evaluation
-            .get("non_regressing")
-            .and_then(Value::as_bool)
-            == Some(true);
+        all_non_regressing &=
+            evaluation.get("non_regressing").and_then(Value::as_bool) == Some(true);
         all_strict_improvement &= evaluation
             .get("strict_improvement")
             .and_then(Value::as_bool)
@@ -9550,13 +10038,18 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
     let aggregate_status = object
         .get("aggregate_status")
         .and_then(Value::as_str)
-        .ok_or_else(|| RuntimeError::InvalidInput("CrossViewEvidenceBundle@1 aggregate_status is invalid".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CrossViewEvidenceBundle@1 aggregate_status is invalid".to_owned(),
+            )
+        })?;
     if !matches!(
         aggregate_status,
         "PARTIAL_VISIBLE_VIEW_PASS" | "QUALITY_TARGET_NOT_MET" | "BLOCKED_REFERENCE_COVERAGE"
     ) {
         return Err(RuntimeError::InvalidInput(
-            "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 aggregate_status is invalid".to_owned(),
+            "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 aggregate_status is invalid"
+                .to_owned(),
         ));
     }
     let coverage_complete = coverage.get("coverage_status").and_then(Value::as_str)
@@ -9598,10 +10091,13 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
     let promotion = object
         .get("promotion")
         .and_then(Value::as_object)
-        .ok_or_else(|| RuntimeError::InvalidInput("CrossViewEvidenceBundle@1 promotion is invalid".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CrossViewEvidenceBundle@1 promotion is invalid".to_owned())
+        })?;
     if promotion.get("confirm_allowed") != Some(&Value::Bool(false)) {
         return Err(RuntimeError::InvalidInput(
-            "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 confirm_allowed must be false".to_owned(),
+            "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 confirm_allowed must be false"
+                .to_owned(),
         ));
     }
     verify_output_canonical_hash(value, "CrossViewEvidenceBundle@1")
@@ -9710,11 +10206,8 @@ fn validate_reference_view_spec(
             &["landmark_id", "x", "y", "visibility", "confidence"],
             "ReferenceViewSpec@1.landmark",
         )?;
-        let landmark_id = required_contract_identifier(
-            landmark,
-            "landmark_id",
-            "ReferenceViewSpec@1.landmark",
-        )?;
+        let landmark_id =
+            required_contract_identifier(landmark, "landmark_id", "ReferenceViewSpec@1.landmark")?;
         if !landmark_ids.insert(landmark_id) {
             return Err(RuntimeError::InvalidInput(
                 "ReferenceViewSpec@1.landmark IDs must be unique".to_owned(),
@@ -9723,7 +10216,8 @@ fn validate_reference_view_spec(
         validate_normalized_coordinate(landmark, "x", "ReferenceViewSpec@1.landmark")?;
         validate_normalized_coordinate(landmark, "y", "ReferenceViewSpec@1.landmark")?;
         validate_visibility(landmark, "visibility", "ReferenceViewSpec@1.landmark")?;
-        let confidence = validate_unit_number(landmark, "confidence", "ReferenceViewSpec@1.landmark")?;
+        let confidence =
+            validate_unit_number(landmark, "confidence", "ReferenceViewSpec@1.landmark")?;
         if landmark.get("visibility").and_then(Value::as_str) == Some("unknown")
             && confidence != 0.0
         {
@@ -9758,7 +10252,8 @@ fn validate_reference_view_spec(
             ],
             "ReferenceViewSpec@1.region",
         )?;
-        let region_id = required_contract_identifier(region, "region_id", "ReferenceViewSpec@1.region")?;
+        let region_id =
+            required_contract_identifier(region, "region_id", "ReferenceViewSpec@1.region")?;
         if !region_ids.insert(region_id) {
             return Err(RuntimeError::InvalidInput(
                 "ReferenceViewSpec@1.region IDs must be unique".to_owned(),
@@ -9774,15 +10269,13 @@ fn validate_reference_view_spec(
                 "ReferenceViewSpec@1.region bounds exceed the image".to_owned(),
             ));
         }
-        if width <= 0.0 || height <= 0.0
-        {
+        if width <= 0.0 || height <= 0.0 {
             return Err(RuntimeError::InvalidInput(
                 "ReferenceViewSpec@1.region dimensions must be positive".to_owned(),
             ));
         }
         validate_visibility(region, "visibility", "ReferenceViewSpec@1.region")?;
-        if region.get("visibility").and_then(Value::as_str) == Some("unknown")
-            && confidence != 0.0
+        if region.get("visibility").and_then(Value::as_str) == Some("unknown") && confidence != 0.0
         {
             return Err(RuntimeError::InvalidInput(
                 "ReferenceViewSpec@1.unknown region confidence must be zero".to_owned(),
@@ -9857,6 +10350,10 @@ fn validate_vec3(
 }
 
 fn validate_camera_calibration(value: &Value) -> Result<(), RuntimeError> {
+    if value.get("schema_version").and_then(Value::as_str) == Some("CameraCalibration@2") {
+        return multiview::camera_rig::validate_camera_calibration_v2(value)
+            .map_err(RuntimeError::InvalidInput);
+    }
     let object = exact_object(
         value,
         &[
@@ -9956,8 +10453,7 @@ fn verify_camera_canonical_hash(value: &Value) -> Result<(), RuntimeError> {
         .and_then(Value::as_str)
         .ok_or_else(|| {
             RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: CameraCalibration@1.canonical_sha256 missing"
-                    .to_owned(),
+                "CONTRACT_OUTPUT_INVALID: CameraCalibration@1.canonical_sha256 missing".to_owned(),
             )
         })?;
     let mut input = value.clone();
@@ -10042,9 +10538,20 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
             "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1 must be an object".to_owned(),
         )
     })?;
-    let expected_len = 13
-        + if object.contains_key("annotation_status") { 1 } else { 0 }
-        + if object.contains_key("parent_target_sha256") { 1 } else { 0 };
+    let expected_len =
+        13 + if object.contains_key("annotation_status") {
+            1
+        } else {
+            0
+        } + if object.contains_key("parent_target_sha256") {
+            1
+        } else {
+            0
+        } + if object.contains_key("visual_structure") {
+            1
+        } else {
+            0
+        };
     if object.len() != expected_len
         || [
             "schema_version",
@@ -10077,6 +10584,7 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
                 "annotation_status",
                 "contour_points",
                 "parts",
+                "visual_structure",
                 "landmarks",
                 "canonical_sha256",
                 "parent_target_sha256",
@@ -10093,7 +10601,10 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
         || object.get("height").and_then(Value::as_u64) != Some(512)
         || object.get("coordinate_space").and_then(Value::as_str)
             != Some("normalized_reference_image")
-        || !matches!(object.get("source").and_then(Value::as_str), Some("automatic" | "user_refined"))
+        || !matches!(
+            object.get("source").and_then(Value::as_str),
+            Some("automatic" | "user_refined")
+        )
     {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1 constants drifted".to_owned(),
@@ -10112,11 +10623,7 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
         ));
     }
     if let Some(parent_target_sha256) = object.get("parent_target_sha256") {
-        required_contract_sha256(
-            object,
-            "parent_target_sha256",
-            "SilhouetteTarget@1",
-        )?;
+        required_contract_sha256(object, "parent_target_sha256", "SilhouetteTarget@1")?;
         if object.get("source").and_then(Value::as_str) != Some("user_refined")
             || parent_target_sha256.as_str().is_none()
         {
@@ -10127,42 +10634,99 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
     }
     let target_id = required_contract_identifier(object, "target_id", "SilhouetteTarget@1")?;
     if !target_id.starts_with("silhouette-target-") {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1.target_id prefix".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1.target_id prefix".to_owned(),
+        ));
     }
     required_contract_identifier(object, "reference_id", "SilhouetteTarget@1")?;
     required_contract_sha256(object, "reference_sha256", "SilhouetteTarget@1")?;
     required_contract_sha256(object, "mask_sha256", "SilhouetteTarget@1")?;
-    let contour = object.get("contour_points").and_then(Value::as_array).ok_or_else(|| {
-        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1.contour_points".to_owned())
-    })?;
+    let contour = object
+        .get("contour_points")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1.contour_points".to_owned(),
+            )
+        })?;
     if !(3..=512).contains(&contour.len()) {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: contour point count".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: contour point count".to_owned(),
+        ));
     }
     for point in contour {
-        let values = point.as_array().ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: contour point".to_owned()))?;
-        if values.len() != 2 || values.iter().any(|value| value.as_f64().is_none_or(|number| !number.is_finite() || !(0.0..=1.0).contains(&number))) {
-            return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: contour point coordinates".to_owned()));
+        let values = point.as_array().ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: contour point".to_owned())
+        })?;
+        if values.len() != 2
+            || values.iter().any(|value| {
+                value
+                    .as_f64()
+                    .is_none_or(|number| !number.is_finite() || !(0.0..=1.0).contains(&number))
+            })
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: contour point coordinates".to_owned(),
+            ));
         }
     }
-    let parts = object.get("parts").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target parts".to_owned()))?;
+    let parts = object
+        .get("parts")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target parts".to_owned())
+        })?;
     if parts.len() > 64 {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target annotation limits".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: target annotation limits".to_owned(),
+        ));
     }
-    validate_target_part_ranges(&Value::Array(parts.clone()), contour.len(), "CONTRACT_OUTPUT_INVALID")?;
-    let landmarks = object.get("landmarks").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target landmarks".to_owned()))?;
+    validate_target_part_ranges(
+        &Value::Array(parts.clone()),
+        contour.len(),
+        "CONTRACT_OUTPUT_INVALID",
+    )?;
+    if let Some(visual_structure) = object.get("visual_structure") {
+        validate_reference_visual_structure(visual_structure)?;
+    }
+    let landmarks = object
+        .get("landmarks")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target landmarks".to_owned())
+        })?;
     if landmarks.len() > 128 {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target annotation limits".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: target annotation limits".to_owned(),
+        ));
     }
     for landmark in landmarks {
-        let landmark = exact_object(landmark, &["landmark_id", "x", "y", "visibility"], "SilhouetteTarget@1.landmark")?;
+        let landmark = exact_object(
+            landmark,
+            &["landmark_id", "x", "y", "visibility"],
+            "SilhouetteTarget@1.landmark",
+        )?;
         required_contract_identifier(landmark, "landmark_id", "SilhouetteTarget@1.landmark")?;
         for key in ["x", "y"] {
-            if landmark.get(key).and_then(Value::as_f64).is_none_or(|coordinate| !coordinate.is_finite() || !(0.0..=1.0).contains(&coordinate)) {
-                return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target landmark coordinate".to_owned()));
+            if landmark
+                .get(key)
+                .and_then(Value::as_f64)
+                .is_none_or(|coordinate| {
+                    !coordinate.is_finite() || !(0.0..=1.0).contains(&coordinate)
+                })
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: target landmark coordinate".to_owned(),
+                ));
             }
         }
-        if !matches!(landmark.get("visibility").and_then(Value::as_str), Some("observed" | "inferred" | "unknown")) {
-            return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target landmark visibility".to_owned()));
+        if !matches!(
+            landmark.get("visibility").and_then(Value::as_str),
+            Some("observed" | "inferred" | "unknown")
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: target landmark visibility".to_owned(),
+            ));
         }
     }
     required_contract_sha256(object, "canonical_sha256", "SilhouetteTarget@1")?;
@@ -10183,14 +10747,19 @@ fn validate_reference_mask_prepare_result(value: &Value) -> Result<(), RuntimeEr
         ],
         "ReferenceMaskPrepareResult@1",
     )?;
-    if object.get("schema_version").and_then(Value::as_str) != Some("ReferenceMaskPrepareResult@1") {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: ReferenceMaskPrepareResult@1 schema_version".to_owned()));
+    if object.get("schema_version").and_then(Value::as_str) != Some("ReferenceMaskPrepareResult@1")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ReferenceMaskPrepareResult@1 schema_version".to_owned(),
+        ));
     }
     required_contract_identifier(object, "project_id", "ReferenceMaskPrepareResult@1")?;
     required_contract_identifier(object, "reference_id", "ReferenceMaskPrepareResult@1")?;
     required_contract_sha256(object, "target_sha256", "ReferenceMaskPrepareResult@1")?;
     required_contract_sha256(object, "mask_sha256", "ReferenceMaskPrepareResult@1")?;
-    validate_silhouette_target(object.get("target").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target missing".to_owned()))?)?;
+    validate_silhouette_target(object.get("target").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: target missing".to_owned())
+    })?)?;
     required_contract_sha256(object, "canonical_sha256", "ReferenceMaskPrepareResult@1")?;
     verify_output_canonical_hash(value, "ReferenceMaskPrepareResult@1")
 }
@@ -10210,72 +10779,184 @@ fn validate_camera_fit_result(value: &Value) -> Result<(), RuntimeError> {
         "CameraFitResult@1",
     )?;
     if object.get("schema_version").and_then(Value::as_str) != Some("CameraFitResult@1")
-        || !matches!(object.get("status").and_then(Value::as_str), Some("ready" | "no_improvement" | "unavailable"))
+        || !matches!(
+            object.get("status").and_then(Value::as_str),
+            Some("ready" | "no_improvement" | "unavailable")
+        )
     {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: CameraFitResult@1 constants".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: CameraFitResult@1 constants".to_owned(),
+        ));
     }
     required_contract_identifier(object, "candidate_id", "CameraFitResult@1")?;
     required_contract_sha256(object, "target_sha256", "CameraFitResult@1")?;
-    validate_camera_calibration(object.get("selected_camera").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected camera missing".to_owned()))?)?;
-    let candidates = object.get("candidates").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: candidates missing".to_owned()))?;
+    validate_camera_calibration(object.get("selected_camera").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected camera missing".to_owned())
+    })?)?;
+    let candidates = object
+        .get("candidates")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: candidates missing".to_owned())
+        })?;
     if candidates.is_empty() || candidates.len() > 128 {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: candidate camera count".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: candidate camera count".to_owned(),
+        ));
     }
     for candidate in candidates {
-        let entry = exact_object(candidate, &["camera", "loss", "metrics"], "CameraFitResult@1.candidate")?;
-        validate_camera_calibration(entry.get("camera").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: candidate camera missing".to_owned()))?)?;
-        let loss = entry.get("loss").and_then(Value::as_f64).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: camera loss missing".to_owned()))?;
+        let entry = exact_object(
+            candidate,
+            &["camera", "loss", "metrics"],
+            "CameraFitResult@1.candidate",
+        )?;
+        validate_camera_calibration(entry.get("camera").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: candidate camera missing".to_owned(),
+            )
+        })?)?;
+        let loss = entry.get("loss").and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: camera loss missing".to_owned())
+        })?;
         if !loss.is_finite() || loss < 0.0 {
-            return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: camera loss invalid".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: camera loss invalid".to_owned(),
+            ));
         }
-        validate_camera_fit_metrics(entry.get("metrics").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: camera metrics missing".to_owned()))?)?;
+        validate_camera_fit_metrics(entry.get("metrics").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: camera metrics missing".to_owned())
+        })?)?;
     }
     required_contract_sha256(object, "canonical_sha256", "CameraFitResult@1")?;
     verify_output_canonical_hash(value, "CameraFitResult@1")
 }
 
 fn validate_camera_fit_metrics(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error"], "CameraFitResult@1.metrics")?;
-    for (key, maximum) in [("silhouette_iou", 1.0), ("boundary_f1_4px", 1.0), ("bbox_edge_error", 1.0), ("centroid_error", 1.0)] {
-        let number = object.get(key).and_then(Value::as_f64).ok_or_else(|| RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: camera metric {key}")))?;
+    let object = exact_object(
+        value,
+        &[
+            "silhouette_iou",
+            "boundary_f1_4px",
+            "bbox_edge_error",
+            "centroid_error",
+        ],
+        "CameraFitResult@1.metrics",
+    )?;
+    for (key, maximum) in [
+        ("silhouette_iou", 1.0),
+        ("boundary_f1_4px", 1.0),
+        ("bbox_edge_error", 1.0),
+        ("centroid_error", 1.0),
+    ] {
+        let number = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: camera metric {key}"))
+        })?;
         if !number.is_finite() || number < 0.0 || number > maximum {
-            return Err(RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: camera metric {key}")));
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: camera metric {key}"
+            )));
         }
     }
     Ok(())
 }
 
 fn validate_boundary_error_result(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["schema_version", "candidate_id", "target_sha256", "render_set_hash", "metrics", "segments", "canonical_sha256"], "BoundaryErrorResult@1")?;
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "candidate_id",
+            "target_sha256",
+            "render_set_hash",
+            "metrics",
+            "segments",
+            "canonical_sha256",
+        ],
+        "BoundaryErrorResult@1",
+    )?;
     if object.get("schema_version").and_then(Value::as_str) != Some("BoundaryErrorResult@1") {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: BoundaryErrorResult@1 schema_version".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: BoundaryErrorResult@1 schema_version".to_owned(),
+        ));
     }
     required_contract_identifier(object, "candidate_id", "BoundaryErrorResult@1")?;
     required_contract_sha256(object, "target_sha256", "BoundaryErrorResult@1")?;
     required_contract_sha256(object, "render_set_hash", "BoundaryErrorResult@1")?;
-    validate_extended_silhouette_metrics(object.get("metrics").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary metrics missing".to_owned()))?, "BoundaryErrorResult@1.metrics")?;
-    let segments = object.get("segments").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary segments missing".to_owned()))?;
+    validate_extended_silhouette_metrics(
+        object.get("metrics").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: boundary metrics missing".to_owned(),
+            )
+        })?,
+        "BoundaryErrorResult@1.metrics",
+    )?;
+    let segments = object
+        .get("segments")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: boundary segments missing".to_owned(),
+            )
+        })?;
     if segments.len() > 64 {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: too many boundary segments".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: too many boundary segments".to_owned(),
+        ));
     }
     for segment in segments {
-        let entry = exact_object(segment, &["reference", "model", "delta_px", "distance_px", "direction", "part_id"], "BoundaryErrorResult@1.segment")?;
+        let entry = exact_object(
+            segment,
+            &[
+                "reference",
+                "model",
+                "delta_px",
+                "distance_px",
+                "direction",
+                "part_id",
+            ],
+            "BoundaryErrorResult@1.segment",
+        )?;
         for key in ["reference", "model", "delta_px"] {
-            let point = entry.get(key).and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary point".to_owned()))?;
-            if point.len() != 2 || point.iter().any(|value| value.as_f64().is_none_or(|number| !number.is_finite())) {
-                return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary point".to_owned()));
+            let point = entry.get(key).and_then(Value::as_array).ok_or_else(|| {
+                RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary point".to_owned())
+            })?;
+            if point.len() != 2
+                || point
+                    .iter()
+                    .any(|value| value.as_f64().is_none_or(|number| !number.is_finite()))
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: boundary point".to_owned(),
+                ));
             }
         }
-        let distance = entry.get("distance_px").and_then(Value::as_f64).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary distance".to_owned()))?;
-        if !distance.is_finite() || distance < 0.0 || !matches!(entry.get("direction").and_then(Value::as_str), Some("inward" | "outward" | "aligned")) {
-            return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary segment".to_owned()));
+        let distance = entry
+            .get("distance_px")
+            .and_then(Value::as_f64)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary distance".to_owned())
+            })?;
+        if !distance.is_finite()
+            || distance < 0.0
+            || !matches!(
+                entry.get("direction").and_then(Value::as_str),
+                Some("inward" | "outward" | "aligned")
+            )
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: boundary segment".to_owned(),
+            ));
         }
         if let Some(part_id) = entry.get("part_id").and_then(Value::as_str) {
             if !is_opaque_id(part_id) {
-                return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary part_id".to_owned()));
+                return Err(RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: boundary part_id".to_owned(),
+                ));
             }
         } else if !entry.get("part_id").is_some_and(Value::is_null) {
-            return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: boundary part_id".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: boundary part_id".to_owned(),
+            ));
         }
     }
     required_contract_sha256(object, "canonical_sha256", "BoundaryErrorResult@1")?;
@@ -10283,14 +10964,36 @@ fn validate_boundary_error_result(value: &Value) -> Result<(), RuntimeError> {
 }
 
 fn validate_extended_silhouette_metrics(value: &Value, context: &str) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "sdf_chamfer_px"], context)?;
+    let object = exact_object(
+        value,
+        &[
+            "silhouette_iou",
+            "boundary_f1_4px",
+            "bbox_edge_error",
+            "centroid_error",
+            "sdf_chamfer_px",
+        ],
+        context,
+    )?;
     for key in ["silhouette_iou", "boundary_f1_4px"] {
-        let number = object.get(key).and_then(Value::as_f64).ok_or_else(|| RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {context}.{key}")))?;
-        if !number.is_finite() || !(0.0..=1.0).contains(&number) { return Err(RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {context}.{key}"))); }
+        let number = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {context}.{key}"))
+        })?;
+        if !number.is_finite() || !(0.0..=1.0).contains(&number) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: {context}.{key}"
+            )));
+        }
     }
     for key in ["bbox_edge_error", "centroid_error", "sdf_chamfer_px"] {
-        let number = object.get(key).and_then(Value::as_f64).ok_or_else(|| RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {context}.{key}")))?;
-        if !number.is_finite() || number < 0.0 { return Err(RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {context}.{key}"))); }
+        let number = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {context}.{key}"))
+        })?;
+        if !number.is_finite() || number < 0.0 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: {context}.{key}"
+            )));
+        }
     }
     Ok(())
 }
@@ -10365,11 +11068,7 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
     }
     let object = exact_object(value, &keys, "PrimaryFormRepairPrepareResult@1")?;
     if object.get("part_id").is_some() {
-        required_contract_identifier(
-            object,
-            "part_id",
-            "PrimaryFormRepairPrepareResult@1",
-        )?;
+        required_contract_identifier(object, "part_id", "PrimaryFormRepairPrepareResult@1")?;
     }
     if let Some(multi_view) = object.get("multi_view_evaluation") {
         validate_primary_form_multiview_evaluation(multi_view)?;
@@ -10402,20 +11101,18 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
     )?;
     required_contract_identifier(object, "reference_id", "PrimaryFormRepairPrepareResult@1")?;
     required_contract_sha256(object, "target_sha256", "PrimaryFormRepairPrepareResult@1")?;
-    validate_silhouette_fit_result(
-        object
-            .get("fit_result")
-            .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit_result".to_owned()))?,
-    )?;
-    let prepared = object
-        .get("prepared_candidate")
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: prepared_candidate".to_owned()))?;
-    let visual = object
-        .get("visual_evidence")
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: visual_evidence".to_owned()))?;
-    let acceptance = object
-        .get("acceptance")
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: acceptance".to_owned()))?;
+    validate_silhouette_fit_result(object.get("fit_result").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit_result".to_owned())
+    })?)?;
+    let prepared = object.get("prepared_candidate").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: prepared_candidate".to_owned())
+    })?;
+    let visual = object.get("visual_evidence").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: visual_evidence".to_owned())
+    })?;
+    let acceptance = object.get("acceptance").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: acceptance".to_owned())
+    })?;
     if object.get("status").and_then(Value::as_str) == Some("no_improvement") {
         if !prepared.is_null()
             || !visual.is_null()
@@ -10428,12 +11125,7 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
             ));
         }
         if !acceptance.is_null() {
-            validate_primary_form_acceptance(
-                acceptance,
-                object,
-                None,
-                "retained_source",
-            )?;
+            validate_primary_form_acceptance(acceptance, object, None, "retained_source")?;
         }
     } else {
         validate_geometry_prepare_result_v2_output(prepared)?;
@@ -10467,23 +11159,23 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
         validate_render_set_v2_output(visual.get("render_set").ok_or_else(|| {
             RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: render_set".to_owned())
         })?)?;
-        validate_reference_comparison_report(visual.get("comparison_report").ok_or_else(|| {
-            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: comparison_report".to_owned())
-        })?)?;
+        validate_reference_comparison_report(visual.get("comparison_report").ok_or_else(
+            || RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: comparison_report".to_owned()),
+        )?)?;
         validate_quality_report_v2_output(visual.get("quality_report").ok_or_else(|| {
             RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: quality_report".to_owned())
         })?)?;
         if object.get("quality_status")
-            != visual.get("quality_report").and_then(|report| report.get("visual_status"))
+            != visual
+                .get("quality_report")
+                .and_then(|report| report.get("visual_status"))
         {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: quality status is not bound to the Runtime report"
                     .to_owned(),
             ));
         }
-        if object.get("candidate_state").and_then(Value::as_str)
-            != Some("staged_new_candidate")
-        {
+        if object.get("candidate_state").and_then(Value::as_str) != Some("staged_new_candidate") {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: prepared result candidate state drifted".to_owned(),
             ));
@@ -10503,7 +11195,11 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
             "accepted",
         )?;
     }
-    required_contract_sha256(object, "canonical_sha256", "PrimaryFormRepairPrepareResult@1")?;
+    required_contract_sha256(
+        object,
+        "canonical_sha256",
+        "PrimaryFormRepairPrepareResult@1",
+    )?;
     verify_output_canonical_hash(value, "PrimaryFormRepairPrepareResult@1")
 }
 
@@ -10592,11 +11288,7 @@ fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), Runti
                 .to_owned(),
         ));
     }
-    required_contract_identifier(
-        object,
-        "project_id",
-        "PrimaryFormMultiViewEvaluation@1",
-    )?;
+    required_contract_identifier(object, "project_id", "PrimaryFormMultiViewEvaluation@1")?;
     required_contract_identifier(
         object,
         "source_candidate_id",
@@ -10618,8 +11310,7 @@ fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), Runti
         .filter(|count| (2..=8).contains(count))
         .ok_or_else(|| {
             RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view_count"
-                    .to_owned(),
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view_count".to_owned(),
             )
         })?;
     let views = object
@@ -10655,11 +11346,8 @@ fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), Runti
             ],
             "PrimaryFormMultiViewEvaluation@1.view",
         )?;
-        let view_id = required_contract_identifier(
-            view,
-            "view_id",
-            "PrimaryFormMultiViewEvaluation@1.view",
-        )?;
+        let view_id =
+            required_contract_identifier(view, "view_id", "PrimaryFormMultiViewEvaluation@1.view")?;
         if !view_ids.insert(view_id.to_owned()) {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 duplicate view_id"
@@ -10674,11 +11362,7 @@ fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), Runti
         {
             has_primary = true;
         }
-        required_contract_identifier(
-            view,
-            "kind",
-            "PrimaryFormMultiViewEvaluation@1.view",
-        )?;
+        required_contract_identifier(view, "kind", "PrimaryFormMultiViewEvaluation@1.view")?;
         required_contract_identifier(
             view,
             "reference_id",
@@ -10702,9 +11386,7 @@ fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), Runti
                 "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view_spec".to_owned(),
             )
         })?;
-        if view_spec.get("schema_version").and_then(Value::as_str)
-            != Some("ReferenceViewSpec@1")
-        {
+        if view_spec.get("schema_version").and_then(Value::as_str) != Some("ReferenceViewSpec@1") {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view_spec schema"
                     .to_owned(),
@@ -10716,7 +11398,10 @@ fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), Runti
                 "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 camera".to_owned(),
             )
         })?)?;
-        for (key, maximum) in [("source_loss", f64::INFINITY), ("proposal_loss", f64::INFINITY)] {
+        for (key, maximum) in [
+            ("source_loss", f64::INFINITY),
+            ("proposal_loss", f64::INFINITY),
+        ] {
             let loss = view.get(key).and_then(Value::as_f64).ok_or_else(|| {
                 RuntimeError::InvalidInput(format!(
                     "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view {key}"
@@ -10744,12 +11429,17 @@ fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), Runti
         ) || !matches!(
             view.get("proposal_status").and_then(Value::as_str),
             Some("PARTIAL_VISIBLE_VIEW_PASS" | "QUALITY_TARGET_NOT_MET")
-        ) || view.get("non_regressing").and_then(Value::as_bool).is_none()
-            || view.get("strict_improvement").and_then(Value::as_bool).is_none()
+        ) || view
+            .get("non_regressing")
+            .and_then(Value::as_bool)
+            .is_none()
+            || view
+                .get("strict_improvement")
+                .and_then(Value::as_bool)
+                .is_none()
         {
             return Err(RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view gates"
-                    .to_owned(),
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view gates".to_owned(),
             ));
         }
     }
@@ -10783,13 +11473,14 @@ fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), Runti
         .and_then(Value::as_array)
         .ok_or_else(|| {
             RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 limitations"
-                    .to_owned(),
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 limitations".to_owned(),
             )
         })?;
     if limitations.is_empty()
         || limitations.iter().any(|value| {
-            value.as_str().is_none_or(|text| text.is_empty() || text.len() > 256)
+            value
+                .as_str()
+                .is_none_or(|text| text.is_empty() || text.len() > 256)
         })
     {
         return Err(RuntimeError::InvalidInput(
@@ -10827,8 +11518,7 @@ fn validate_primary_form_acceptance(
         ],
         "PrimaryFormAcceptance@1",
     )?;
-    if object.get("schema_version").and_then(Value::as_str)
-        != Some("PrimaryFormAcceptance@1")
+    if object.get("schema_version").and_then(Value::as_str) != Some("PrimaryFormAcceptance@1")
         || object.get("status").and_then(Value::as_str) != Some(expected_status)
     {
         return Err(RuntimeError::InvalidInput(
@@ -10896,42 +11586,125 @@ fn validate_primary_form_acceptance(
 }
 
 fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["schema_version", "project_id", "candidate_id", "target_sha256", "baseline_camera", "selected_camera", "selected_parameters", "parameter_deltas", "selected_geometry_program", "baseline_metrics", "geometry_evaluations", "camera_evaluations", "iterations", "evaluations", "metrics", "baseline_loss", "selected_loss", "strict_improvement", "thresholds", "status", "canonical_sha256"], "SilhouetteFitResult@1")?;
-    if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteFitResult@1") { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: SilhouetteFitResult@1 schema_version".to_owned())); }
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "project_id",
+            "candidate_id",
+            "target_sha256",
+            "baseline_camera",
+            "selected_camera",
+            "selected_parameters",
+            "parameter_deltas",
+            "selected_geometry_program",
+            "baseline_metrics",
+            "geometry_evaluations",
+            "camera_evaluations",
+            "iterations",
+            "evaluations",
+            "metrics",
+            "baseline_loss",
+            "selected_loss",
+            "strict_improvement",
+            "thresholds",
+            "status",
+            "canonical_sha256",
+        ],
+        "SilhouetteFitResult@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteFitResult@1") {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: SilhouetteFitResult@1 schema_version".to_owned(),
+        ));
+    }
     required_contract_identifier(object, "project_id", "SilhouetteFitResult@1")?;
     required_contract_identifier(object, "candidate_id", "SilhouetteFitResult@1")?;
     required_contract_sha256(object, "target_sha256", "SilhouetteFitResult@1")?;
-    validate_camera_calibration(object.get("baseline_camera").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: baseline camera".to_owned()))?)?;
-    validate_camera_calibration(object.get("selected_camera").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected camera".to_owned()))?)?;
-    let parameters = object.get("selected_parameters").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit parameters".to_owned()))?;
-    if parameters.len() > 64 || parameters.iter().any(|parameter| {
-        let Some(parameter) = parameter.as_object() else { return true; };
-        parameter.len() != 3
-            || required_contract_identifier(parameter, "parameter_id", "SilhouetteFitResult@1.selected_parameters").is_err()
-            || required_contract_identifier(parameter, "part_id", "SilhouetteFitResult@1.selected_parameters").is_err()
-            || parameter.get("value").and_then(Value::as_f64).is_none_or(|value| !value.is_finite())
-    }) {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit parameters".to_owned()));
+    validate_camera_calibration(object.get("baseline_camera").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: baseline camera".to_owned())
+    })?)?;
+    validate_camera_calibration(object.get("selected_camera").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected camera".to_owned())
+    })?)?;
+    let parameters = object
+        .get("selected_parameters")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit parameters".to_owned())
+        })?;
+    if parameters.len() > 64
+        || parameters.iter().any(|parameter| {
+            let Some(parameter) = parameter.as_object() else {
+                return true;
+            };
+            parameter.len() != 3
+                || required_contract_identifier(
+                    parameter,
+                    "parameter_id",
+                    "SilhouetteFitResult@1.selected_parameters",
+                )
+                .is_err()
+                || required_contract_identifier(
+                    parameter,
+                    "part_id",
+                    "SilhouetteFitResult@1.selected_parameters",
+                )
+                .is_err()
+                || parameter
+                    .get("value")
+                    .and_then(Value::as_f64)
+                    .is_none_or(|value| !value.is_finite())
+        })
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: fit parameters".to_owned(),
+        ));
     }
     if let Some(deltas) = object.get("parameter_deltas") {
-        let deltas = deltas.as_array().ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: parameter_deltas".to_owned()))?;
-        if deltas.len() > 64 || deltas.iter().any(|delta| {
-            let Some(delta) = delta.as_object() else { return true; };
-            delta.len() != 5
-                || required_contract_identifier(delta, "parameter_id", "SilhouetteFitResult@1.parameter_deltas").is_err()
-                || required_contract_identifier(delta, "part_id", "SilhouetteFitResult@1.parameter_deltas").is_err()
-                || ["from", "to", "delta"].iter().any(|key| delta.get(*key).and_then(Value::as_f64).is_none_or(|value| !value.is_finite()))
-        }) {
-            return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: parameter_deltas".to_owned()));
+        let deltas = deltas.as_array().ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: parameter_deltas".to_owned())
+        })?;
+        if deltas.len() > 64
+            || deltas.iter().any(|delta| {
+                let Some(delta) = delta.as_object() else {
+                    return true;
+                };
+                delta.len() != 5
+                    || required_contract_identifier(
+                        delta,
+                        "parameter_id",
+                        "SilhouetteFitResult@1.parameter_deltas",
+                    )
+                    .is_err()
+                    || required_contract_identifier(
+                        delta,
+                        "part_id",
+                        "SilhouetteFitResult@1.parameter_deltas",
+                    )
+                    .is_err()
+                    || ["from", "to", "delta"].iter().any(|key| {
+                        delta
+                            .get(*key)
+                            .and_then(Value::as_f64)
+                            .is_none_or(|value| !value.is_finite())
+                    })
+            })
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: parameter_deltas".to_owned(),
+            ));
         }
     }
     let project_id = required_contract_identifier(object, "project_id", "SilhouetteFitResult@1")?;
-    let selected_geometry_program = object
-        .get("selected_geometry_program")
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected_geometry_program".to_owned()))?;
+    let selected_geometry_program = object.get("selected_geometry_program").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected_geometry_program".to_owned())
+    })?;
     if !selected_geometry_program.is_null() {
         let program = selected_geometry_program.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: selected_geometry_program".to_owned())
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: selected_geometry_program".to_owned(),
+            )
         })?;
         if program.get("schema_version").and_then(Value::as_str) != Some("GeometryProgram@2")
             || program.get("project_id").and_then(Value::as_str) != Some(project_id.as_str())
@@ -10952,7 +11725,10 @@ fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
         })?;
         if hash.get("canonical_sha256").and_then(Value::as_str)
             != program.get("canonical_sha256").and_then(Value::as_str)
-            || hash.get("operator_catalog_sha256").and_then(Value::as_str).is_none()
+            || hash
+                .get("operator_catalog_sha256")
+                .and_then(Value::as_str)
+                .is_none()
         {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: selected_geometry_program hash binding".to_owned(),
@@ -10961,29 +11737,86 @@ fn validate_silhouette_fit_result(value: &Value) -> Result<(), RuntimeError> {
     }
     if let Some(geometry_evaluations) = object.get("geometry_evaluations") {
         if geometry_evaluations.as_u64().is_none_or(|value| value > 64) {
-            return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: geometry_evaluations".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: geometry_evaluations".to_owned(),
+            ));
         }
     }
-    validate_extended_silhouette_metrics(object.get("baseline_metrics").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: baseline metrics".to_owned()))?, "SilhouetteFitResult@1.baseline_metrics")?;
-    validate_extended_silhouette_metrics(object.get("metrics").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit metrics".to_owned()))?, "SilhouetteFitResult@1.metrics")?;
+    validate_extended_silhouette_metrics(
+        object.get("baseline_metrics").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: baseline metrics".to_owned())
+        })?,
+        "SilhouetteFitResult@1.baseline_metrics",
+    )?;
+    validate_extended_silhouette_metrics(
+        object.get("metrics").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit metrics".to_owned())
+        })?,
+        "SilhouetteFitResult@1.metrics",
+    )?;
     for key in ["baseline_loss", "selected_loss"] {
-        let loss = object.get(key).and_then(Value::as_f64).ok_or_else(|| RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {key}")))?;
+        let loss = object
+            .get(key)
+            .and_then(Value::as_f64)
+            .ok_or_else(|| RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {key}")))?;
         if !loss.is_finite() || loss < 0.0 {
-            return Err(RuntimeError::InvalidInput(format!("CONTRACT_OUTPUT_INVALID: {key}")));
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: {key}"
+            )));
         }
     }
-    if object.get("strict_improvement").and_then(Value::as_bool).is_none() {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: strict_improvement".to_owned()));
+    if object
+        .get("strict_improvement")
+        .and_then(Value::as_bool)
+        .is_none()
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: strict_improvement".to_owned(),
+        ));
     }
-    let camera_evaluations = object.get("camera_evaluations").and_then(Value::as_u64).unwrap_or(99);
+    let camera_evaluations = object
+        .get("camera_evaluations")
+        .and_then(Value::as_u64)
+        .unwrap_or(99);
     if camera_evaluations == 0 || camera_evaluations > 64 {
-        return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: camera_evaluations".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: camera_evaluations".to_owned(),
+        ));
     }
-    let iterations = object.get("iterations").and_then(Value::as_u64).unwrap_or(99);
-    let evaluations = object.get("evaluations").and_then(Value::as_u64).unwrap_or(99);
-    if iterations > 8 || evaluations == 0 || evaluations > 64 || !matches!(object.get("status").and_then(Value::as_str), Some("ready" | "no_improvement" | "quality_target_not_met" | "unavailable")) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit bounds/status".to_owned())); }
-    let thresholds = exact_object(object.get("thresholds").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit thresholds".to_owned()))?, &["silhouette_iou", "boundary_f1_4px"], "SilhouetteFitResult@1.thresholds")?;
-    if thresholds.get("silhouette_iou").and_then(Value::as_f64) != Some(0.9) || thresholds.get("boundary_f1_4px").and_then(Value::as_f64) != Some(0.9) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: strict silhouette thresholds drifted".to_owned())); }
+    let iterations = object
+        .get("iterations")
+        .and_then(Value::as_u64)
+        .unwrap_or(99);
+    let evaluations = object
+        .get("evaluations")
+        .and_then(Value::as_u64)
+        .unwrap_or(99);
+    if iterations > 8
+        || evaluations == 0
+        || evaluations > 64
+        || !matches!(
+            object.get("status").and_then(Value::as_str),
+            Some("ready" | "no_improvement" | "quality_target_not_met" | "unavailable")
+        )
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: fit bounds/status".to_owned(),
+        ));
+    }
+    let thresholds = exact_object(
+        object.get("thresholds").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: fit thresholds".to_owned())
+        })?,
+        &["silhouette_iou", "boundary_f1_4px"],
+        "SilhouetteFitResult@1.thresholds",
+    )?;
+    if thresholds.get("silhouette_iou").and_then(Value::as_f64) != Some(0.9)
+        || thresholds.get("boundary_f1_4px").and_then(Value::as_f64) != Some(0.9)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: strict silhouette thresholds drifted".to_owned(),
+        ));
+    }
     required_contract_sha256(object, "canonical_sha256", "SilhouetteFitResult@1")?;
     verify_output_canonical_hash(value, "SilhouetteFitResult@1")
 }
@@ -11004,9 +11837,7 @@ fn validate_silhouette_part_error_result(value: &Value) -> Result<(), RuntimeErr
         ],
         "SilhouettePartErrorResult@1",
     )?;
-    if object.get("schema_version").and_then(Value::as_str)
-        != Some("SilhouettePartErrorResult@1")
-    {
+    if object.get("schema_version").and_then(Value::as_str) != Some("SilhouettePartErrorResult@1") {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: SilhouettePartErrorResult@1 schema_version".to_owned(),
         ));
@@ -11018,15 +11849,17 @@ fn validate_silhouette_part_error_result(value: &Value) -> Result<(), RuntimeErr
         required_contract_sha256(object, key, "SilhouettePartErrorResult@1")?;
     }
     validate_extended_silhouette_metrics(
-        object
-            .get("metrics")
-            .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: Part metrics".to_owned()))?,
+        object.get("metrics").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: Part metrics".to_owned())
+        })?,
         "SilhouettePartErrorResult@1.metrics",
     )?;
     let parts = object
         .get("parts")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: Part rows".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: Part rows".to_owned())
+        })?;
     if parts.is_empty() || parts.len() > 64 {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: Part row budget".to_owned(),
@@ -11051,11 +11884,8 @@ fn validate_silhouette_part_error_result(value: &Value) -> Result<(), RuntimeErr
             ],
             "SilhouettePartErrorResult@1.part",
         )?;
-        let part_id = required_contract_identifier(
-            entry,
-            "part_id",
-            "SilhouettePartErrorResult@1.part",
-        )?;
+        let part_id =
+            required_contract_identifier(entry, "part_id", "SilhouettePartErrorResult@1.part")?;
         if !part_ids.insert(part_id) {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: duplicate Part row".to_owned(),
@@ -11116,9 +11946,11 @@ fn validate_silhouette_part_error_result(value: &Value) -> Result<(), RuntimeErr
             ));
         }
         for key in ["width_ratio", "height_ratio"] {
-            if entry.get(key).and_then(Value::as_f64).is_none_or(|number| {
-                !number.is_finite() || !(0.0..=4.0).contains(&number)
-            }) {
+            if entry
+                .get(key)
+                .and_then(Value::as_f64)
+                .is_none_or(|number| !number.is_finite() || !(0.0..=4.0).contains(&number))
+            {
                 return Err(RuntimeError::InvalidInput(
                     "CONTRACT_OUTPUT_INVALID: Part ratio".to_owned(),
                 ));
@@ -11163,48 +11995,216 @@ fn validate_silhouette_part_error_result(value: &Value) -> Result<(), RuntimeErr
 }
 
 fn validate_part_contour_fit_result(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["schema_version", "project_id", "candidate_id", "target_sha256", "part_id", "adjustments", "metrics", "status", "canonical_sha256"], "PartContourFitResult@1")?;
-    if object.get("schema_version").and_then(Value::as_str) != Some("PartContourFitResult@1") { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: PartContourFitResult@1 schema_version".to_owned())); }
-    for key in ["project_id", "candidate_id", "part_id"] { required_contract_identifier(object, key, "PartContourFitResult@1")?; }
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "project_id",
+            "candidate_id",
+            "target_sha256",
+            "part_id",
+            "adjustments",
+            "metrics",
+            "status",
+            "canonical_sha256",
+        ],
+        "PartContourFitResult@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("PartContourFitResult@1") {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PartContourFitResult@1 schema_version".to_owned(),
+        ));
+    }
+    for key in ["project_id", "candidate_id", "part_id"] {
+        required_contract_identifier(object, key, "PartContourFitResult@1")?;
+    }
     required_contract_sha256(object, "target_sha256", "PartContourFitResult@1")?;
-    let metrics = exact_object(object.get("metrics").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part metrics".to_owned()))?, &["silhouette_iou", "boundary_f1_4px", "sdf_chamfer_px", "part_boundary_error_px"], "PartContourFitResult@1.metrics")?;
+    let metrics = exact_object(
+        object.get("metrics").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part metrics".to_owned())
+        })?,
+        &[
+            "silhouette_iou",
+            "boundary_f1_4px",
+            "sdf_chamfer_px",
+            "part_boundary_error_px",
+        ],
+        "PartContourFitResult@1.metrics",
+    )?;
     for key in ["silhouette_iou", "boundary_f1_4px"] {
-        let number = metrics.get(key).and_then(Value::as_f64).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part metric".to_owned()))?;
-        if !number.is_finite() || !(0.0..=1.0).contains(&number) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part metric".to_owned())); }
+        let number = metrics.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part metric".to_owned())
+        })?;
+        if !number.is_finite() || !(0.0..=1.0).contains(&number) {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: part metric".to_owned(),
+            ));
+        }
     }
     for key in ["sdf_chamfer_px", "part_boundary_error_px"] {
-        if metrics.get(key).and_then(Value::as_f64).is_none_or(|number| !number.is_finite() || number < 0.0) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part metric".to_owned())); }
+        if metrics
+            .get(key)
+            .and_then(Value::as_f64)
+            .is_none_or(|number| !number.is_finite() || number < 0.0)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: part metric".to_owned(),
+            ));
+        }
     }
-    let adjustments = object.get("adjustments").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part adjustments".to_owned()))?;
-    if adjustments.len() > 16 { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part adjustment budget".to_owned())); }
+    let adjustments = object
+        .get("adjustments")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part adjustments".to_owned())
+        })?;
+    if adjustments.len() > 16 {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: part adjustment budget".to_owned(),
+        ));
+    }
     for adjustment in adjustments {
-        let entry = exact_object(adjustment, &["parameter_id", "delta", "bounded_value"], "PartContourFitResult@1.adjustment")?;
+        let entry = exact_object(
+            adjustment,
+            &["parameter_id", "delta", "bounded_value"],
+            "PartContourFitResult@1.adjustment",
+        )?;
         required_contract_identifier(entry, "parameter_id", "PartContourFitResult@1.adjustment")?;
-        for key in ["delta", "bounded_value"] { if entry.get(key).and_then(Value::as_f64).is_none_or(|number| !number.is_finite()) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part adjustment value".to_owned())); } }
+        for key in ["delta", "bounded_value"] {
+            if entry
+                .get(key)
+                .and_then(Value::as_f64)
+                .is_none_or(|number| !number.is_finite())
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: part adjustment value".to_owned(),
+                ));
+            }
+        }
     }
-    if !matches!(object.get("status").and_then(Value::as_str), Some("proposal_ready" | "no_action" | "unavailable")) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part status".to_owned())); }
+    if !matches!(
+        object.get("status").and_then(Value::as_str),
+        Some("proposal_ready" | "no_action" | "unavailable")
+    ) {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: part status".to_owned(),
+        ));
+    }
     required_contract_sha256(object, "canonical_sha256", "PartContourFitResult@1")?;
     verify_output_canonical_hash(value, "PartContourFitResult@1")
 }
 
 fn validate_silhouette_candidate_compare_result(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["schema_version", "target_sha256", "candidates", "winner_candidate_id", "delta", "status", "canonical_sha256"], "SilhouetteCandidateCompareResult@1")?;
-    if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteCandidateCompareResult@1") { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare schema_version".to_owned())); }
-    required_contract_sha256(object, "target_sha256", "SilhouetteCandidateCompareResult@1")?;
-    let candidates = object.get("candidates").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare candidates".to_owned()))?;
-    if !(2..=8).contains(&candidates.len()) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare candidate budget".to_owned())); }
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "target_sha256",
+            "candidates",
+            "winner_candidate_id",
+            "delta",
+            "status",
+            "canonical_sha256",
+        ],
+        "SilhouetteCandidateCompareResult@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("SilhouetteCandidateCompareResult@1")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: compare schema_version".to_owned(),
+        ));
+    }
+    required_contract_sha256(
+        object,
+        "target_sha256",
+        "SilhouetteCandidateCompareResult@1",
+    )?;
+    let candidates = object
+        .get("candidates")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare candidates".to_owned())
+        })?;
+    if !(2..=8).contains(&candidates.len()) {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: compare candidate budget".to_owned(),
+        ));
+    }
     let mut ids = std::collections::HashSet::new();
     for candidate in candidates {
-        let entry = exact_object(candidate, &["candidate_id", "metrics", "loss"], "SilhouetteCandidateCompareResult@1.candidate")?;
-        let id = required_contract_identifier(entry, "candidate_id", "SilhouetteCandidateCompareResult@1.candidate")?;
-        if !ids.insert(id) || entry.get("loss").and_then(Value::as_f64).is_none_or(|loss| !loss.is_finite() || loss < 0.0) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare candidate".to_owned())); }
-        validate_extended_silhouette_metrics(entry.get("metrics").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare metrics".to_owned()))?, "SilhouetteCandidateCompareResult@1.metrics")?;
+        let entry = exact_object(
+            candidate,
+            &["candidate_id", "metrics", "loss"],
+            "SilhouetteCandidateCompareResult@1.candidate",
+        )?;
+        let id = required_contract_identifier(
+            entry,
+            "candidate_id",
+            "SilhouetteCandidateCompareResult@1.candidate",
+        )?;
+        if !ids.insert(id)
+            || entry
+                .get("loss")
+                .and_then(Value::as_f64)
+                .is_none_or(|loss| !loss.is_finite() || loss < 0.0)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: compare candidate".to_owned(),
+            ));
+        }
+        validate_extended_silhouette_metrics(
+            entry.get("metrics").ok_or_else(|| {
+                RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare metrics".to_owned())
+            })?,
+            "SilhouetteCandidateCompareResult@1.metrics",
+        )?;
     }
-    if let Some(winner) = object.get("winner_candidate_id").and_then(Value::as_str) { if !ids.contains(winner) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare winner".to_owned())); } } else if !object.get("winner_candidate_id").is_some_and(Value::is_null) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare winner".to_owned())); }
-    let delta = exact_object(object.get("delta").ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare delta".to_owned()))?, &["silhouette_iou", "boundary_f1_4px", "sdf_chamfer_px"], "SilhouetteCandidateCompareResult@1.delta")?;
-    for key in ["silhouette_iou", "boundary_f1_4px", "sdf_chamfer_px"] { if delta.get(key).and_then(Value::as_f64).is_none_or(|number| !number.is_finite()) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare delta value".to_owned())); } }
-    if !matches!(object.get("status").and_then(Value::as_str), Some("ready" | "tie" | "unavailable")) { return Err(RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare status".to_owned())); }
-    required_contract_sha256(object, "canonical_sha256", "SilhouetteCandidateCompareResult@1")?;
+    if let Some(winner) = object.get("winner_candidate_id").and_then(Value::as_str) {
+        if !ids.contains(winner) {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: compare winner".to_owned(),
+            ));
+        }
+    } else if !object
+        .get("winner_candidate_id")
+        .is_some_and(Value::is_null)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: compare winner".to_owned(),
+        ));
+    }
+    let delta = exact_object(
+        object.get("delta").ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: compare delta".to_owned())
+        })?,
+        &["silhouette_iou", "boundary_f1_4px", "sdf_chamfer_px"],
+        "SilhouetteCandidateCompareResult@1.delta",
+    )?;
+    for key in ["silhouette_iou", "boundary_f1_4px", "sdf_chamfer_px"] {
+        if delta
+            .get(key)
+            .and_then(Value::as_f64)
+            .is_none_or(|number| !number.is_finite())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: compare delta value".to_owned(),
+            ));
+        }
+    }
+    if !matches!(
+        object.get("status").and_then(Value::as_str),
+        Some("ready" | "tie" | "unavailable")
+    ) {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: compare status".to_owned(),
+        ));
+    }
+    required_contract_sha256(
+        object,
+        "canonical_sha256",
+        "SilhouetteCandidateCompareResult@1",
+    )?;
     verify_output_canonical_hash(value, "SilhouetteCandidateCompareResult@1")
 }
 
@@ -11511,7 +12511,8 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
         "cohort_unavailable" if worker_cohort.is_null() => {}
         _ => {
             return Err(RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: RenderSet Worker cohort/status pair is invalid".to_owned(),
+                "CONTRACT_OUTPUT_INVALID: RenderSet Worker cohort/status pair is invalid"
+                    .to_owned(),
             ));
         }
     }
@@ -11654,8 +12655,10 @@ fn validate_reference_comparison_report(value: &Value) -> Result<(), RuntimeErro
         &["method", "revision", "sha256", "width", "height"],
         "ReferenceComparisonReport@1.mask",
     )?;
-    if mask.get("method").and_then(Value::as_str) != Some("local-border-flood-fill-morphology")
-        || mask.get("width").and_then(Value::as_u64) != Some(512)
+    if !matches!(
+        mask.get("method").and_then(Value::as_str),
+        Some("local-border-flood-fill-morphology" | "silhouette-target")
+    ) || mask.get("width").and_then(Value::as_u64) != Some(512)
         || mask.get("height").and_then(Value::as_u64) != Some(512)
     {
         return Err(RuntimeError::InvalidInput(
@@ -11712,7 +12715,10 @@ fn validate_reference_comparison_report(value: &Value) -> Result<(), RuntimeErro
         ));
     }
     if let Some(eligibility) = object.get("benchmark_eligibility").and_then(Value::as_str) {
-        if !matches!(eligibility, "READY_PARTIAL_VIEW" | "BLOCKED_USER_CONFIRMATION_REQUIRED") {
+        if !matches!(
+            eligibility,
+            "READY_PARTIAL_VIEW" | "BLOCKED_USER_CONFIRMATION_REQUIRED"
+        ) {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: ReferenceComparisonReport@1 benchmark eligibility is invalid"
                     .to_owned(),
@@ -11984,7 +12990,9 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
         != Some(VISIBLE_VIEW_THRESHOLD_REVISION)
         || object.get("threshold_source").and_then(Value::as_str)
             != Some(VISIBLE_VIEW_THRESHOLD_SOURCE)
-        || object.get("threshold_policy_sha256").and_then(Value::as_str)
+        || object
+            .get("threshold_policy_sha256")
+            .and_then(Value::as_str)
             != Some(visible_view_threshold_policy_sha256().as_str())
     {
         return Err(RuntimeError::InvalidInput(
@@ -12041,10 +13049,7 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
             })?;
         if !seen_metrics.insert(metric_name.to_owned())
             || result.get("direction").and_then(Value::as_str) != Some(expected_direction)
-            || result
-                .get("threshold")
-                .and_then(Value::as_f64)
-                != Some(expected_threshold)
+            || result.get("threshold").and_then(Value::as_f64) != Some(expected_threshold)
             || !matches!(
                 result.get("status").and_then(Value::as_str),
                 Some("passed" | "failed" | "not-run")
@@ -12054,8 +13059,7 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
                 .is_none_or(|value| !value.is_null() && !value.as_f64().is_some_and(f64::is_finite))
         {
             return Err(RuntimeError::InvalidInput(
-                "CONTRACT_OUTPUT_INVALID: QualityReport@2 metric gate result drifted"
-                    .to_owned(),
+                "CONTRACT_OUTPUT_INVALID: QualityReport@2 metric gate result drifted".to_owned(),
             ));
         }
     }
@@ -12099,7 +13103,10 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
         ));
     }
     if let Some(eligibility) = object.get("benchmark_eligibility").and_then(Value::as_str) {
-        if !matches!(eligibility, "READY_PARTIAL_VIEW" | "BLOCKED_USER_CONFIRMATION_REQUIRED") {
+        if !matches!(
+            eligibility,
+            "READY_PARTIAL_VIEW" | "BLOCKED_USER_CONFIRMATION_REQUIRED"
+        ) {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: QualityReport@2 benchmark eligibility is invalid"
                     .to_owned(),
@@ -12146,16 +13153,12 @@ fn validate_appearance_prepare_result_v2_output(value: &Value) -> Result<(), Run
             "CONTRACT_OUTPUT_INVALID: AppearancePrepareResult@2 schema_version".to_owned(),
         ));
     }
-    validate_artifact_readback_v2_output(
-        object
-            .get("artifact")
-            .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: appearance artifact".to_owned()))?,
-    )?;
-    validate_render_set_v2_output(
-        object
-            .get("render_set")
-            .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: appearance render_set".to_owned()))?,
-    )?;
+    validate_artifact_readback_v2_output(object.get("artifact").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: appearance artifact".to_owned())
+    })?)?;
+    validate_render_set_v2_output(object.get("render_set").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: appearance render_set".to_owned())
+    })?)?;
     for key in [
         "render_set_object_sha256",
         "quality_report_object_sha256",
@@ -12194,7 +13197,9 @@ fn parse_contour_points(value: Option<&Value>) -> Result<Option<Vec<[f64; 2]>>, 
         return Ok(None);
     }
     let points = value.as_array().ok_or_else(|| {
-        RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: contour_points must be an array or null".to_owned())
+        RuntimeError::InvalidInput(
+            "REFERENCE_MASK_INVALID: contour_points must be an array or null".to_owned(),
+        )
     })?;
     if !(3..=512).contains(&points.len()) {
         return Err(RuntimeError::InvalidInput(
@@ -12204,7 +13209,9 @@ fn parse_contour_points(value: Option<&Value>) -> Result<Option<Vec<[f64; 2]>>, 
     let mut parsed = Vec::with_capacity(points.len());
     for point in points {
         let values = point.as_array().ok_or_else(|| {
-            RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: contour point must be [x,y]".to_owned())
+            RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: contour point must be [x,y]".to_owned(),
+            )
         })?;
         if values.len() != 2 {
             return Err(RuntimeError::InvalidInput(
@@ -12217,9 +13224,14 @@ fn parse_contour_points(value: Option<&Value>) -> Result<Option<Vec<[f64; 2]>>, 
         let y = values[1].as_f64().ok_or_else(|| {
             RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: contour y is not finite".to_owned())
         })?;
-        if !x.is_finite() || !y.is_finite() || !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) {
+        if !x.is_finite()
+            || !y.is_finite()
+            || !(0.0..=1.0).contains(&x)
+            || !(0.0..=1.0).contains(&y)
+        {
             return Err(RuntimeError::InvalidInput(
-                "REFERENCE_MASK_INVALID: contour coordinates must be finite normalized values".to_owned(),
+                "REFERENCE_MASK_INVALID: contour coordinates must be finite normalized values"
+                    .to_owned(),
             ));
         }
         parsed.push([x, y]);
@@ -12240,18 +13252,45 @@ fn parse_target_landmarks(value: Option<&Value>) -> Result<Value, RuntimeError> 
         return Ok(json!([]));
     }
     let values = value.as_array().ok_or_else(|| {
-        RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: landmarks must be an array or null".to_owned())
+        RuntimeError::InvalidInput(
+            "REFERENCE_MASK_INVALID: landmarks must be an array or null".to_owned(),
+        )
     })?;
     if values.len() > 128 {
-        return Err(RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: too many landmarks".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_MASK_INVALID: too many landmarks".to_owned(),
+        ));
     }
     for landmark in values {
-        let object = landmark.as_object().ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: landmark must be an object".to_owned()))?;
-        if object.len() != 4 || ["landmark_id", "x", "y", "visibility"].iter().any(|key| !object.contains_key(*key)) || object.keys().any(|key| !["landmark_id", "x", "y", "visibility"].contains(&key.as_str())) {
-            return Err(RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: landmark field set is not closed".to_owned()));
+        let object = landmark.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: landmark must be an object".to_owned(),
+            )
+        })?;
+        if object.len() != 4
+            || ["landmark_id", "x", "y", "visibility"]
+                .iter()
+                .any(|key| !object.contains_key(*key))
+            || object
+                .keys()
+                .any(|key| !["landmark_id", "x", "y", "visibility"].contains(&key.as_str()))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: landmark field set is not closed".to_owned(),
+            ));
         }
-        if !is_opaque_id(object.get("landmark_id").and_then(Value::as_str).unwrap_or_default()) || !matches!(object.get("visibility").and_then(Value::as_str), Some("observed" | "inferred" | "unknown")) {
-            return Err(RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: landmark identity or visibility is invalid".to_owned()));
+        if !is_opaque_id(
+            object
+                .get("landmark_id")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        ) || !matches!(
+            object.get("visibility").and_then(Value::as_str),
+            Some("observed" | "inferred" | "unknown")
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: landmark identity or visibility is invalid".to_owned(),
+            ));
         }
         let x = object.get("x").and_then(Value::as_f64).ok_or_else(|| {
             RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: landmark x is required".to_owned())
@@ -12259,8 +13298,14 @@ fn parse_target_landmarks(value: Option<&Value>) -> Result<Value, RuntimeError> 
         let y = object.get("y").and_then(Value::as_f64).ok_or_else(|| {
             RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: landmark y is required".to_owned())
         })?;
-        if !x.is_finite() || !y.is_finite() || !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) {
-            return Err(RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: landmark coordinates are invalid".to_owned()));
+        if !x.is_finite()
+            || !y.is_finite()
+            || !(0.0..=1.0).contains(&x)
+            || !(0.0..=1.0).contains(&y)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: landmark coordinates are invalid".to_owned(),
+            ));
         }
     }
     Ok(value.clone())
@@ -12274,25 +13319,394 @@ fn parse_target_parts(value: Option<&Value>) -> Result<Value, RuntimeError> {
         return Ok(json!([]));
     }
     let values = value.as_array().ok_or_else(|| {
-        RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: parts must be an array or null".to_owned())
+        RuntimeError::InvalidInput(
+            "REFERENCE_MASK_INVALID: parts must be an array or null".to_owned(),
+        )
     })?;
     if values.len() > 64 {
-        return Err(RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: too many parts".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_MASK_INVALID: too many parts".to_owned(),
+        ));
     }
     for part in values {
-        let object = part.as_object().ok_or_else(|| RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: part must be an object".to_owned()))?;
-        if (object.len() != 4 && object.len() != 5) || ["part_id", "start_index", "end_index", "visibility"].iter().any(|key| !object.contains_key(*key)) || object.keys().any(|key| !["part_id", "start_index", "end_index", "visibility", "region"].contains(&key.as_str())) {
-            return Err(RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: part field set is not closed".to_owned()));
+        let object = part.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: part must be an object".to_owned())
+        })?;
+        if (object.len() != 4 && object.len() != 5)
+            || ["part_id", "start_index", "end_index", "visibility"]
+                .iter()
+                .any(|key| !object.contains_key(*key))
+            || object.keys().any(|key| {
+                ![
+                    "part_id",
+                    "start_index",
+                    "end_index",
+                    "visibility",
+                    "region",
+                ]
+                .contains(&key.as_str())
+            })
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: part field set is not closed".to_owned(),
+            ));
         }
-        let part_id = object.get("part_id").and_then(Value::as_str).unwrap_or_default();
-        if !is_opaque_id(part_id) || object.get("start_index").and_then(Value::as_u64).is_none_or(|index| index > 511) || object.get("end_index").and_then(Value::as_u64).is_none_or(|index| index > 511) || !matches!(object.get("visibility").and_then(Value::as_str), Some("observed" | "inferred" | "unknown")) {
-            return Err(RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: part fields are invalid".to_owned()));
+        let part_id = object
+            .get("part_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !is_opaque_id(part_id)
+            || object
+                .get("start_index")
+                .and_then(Value::as_u64)
+                .is_none_or(|index| index > 511)
+            || object
+                .get("end_index")
+                .and_then(Value::as_u64)
+                .is_none_or(|index| index > 511)
+            || !matches!(
+                object.get("visibility").and_then(Value::as_str),
+                Some("observed" | "inferred" | "unknown")
+            )
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: part fields are invalid".to_owned(),
+            ));
         }
         if let Some(region) = object.get("region") {
             validate_target_part_region(region, "REFERENCE_MASK_INVALID")?;
         }
     }
     Ok(value.clone())
+}
+
+/// Convert Codex/user image-space annotations into a neutral visual
+/// decomposition.  This deliberately describes continuity, overlap, depth
+/// evidence and line flow rather than conventional product functions.  The
+/// Runtime owns the constants and canonical hash so the annotation can be
+/// reviewed and replayed without becoming geometry truth by itself.
+fn prepare_reference_visual_structure(
+    value: Option<&Value>,
+    user_confirmed: bool,
+) -> Result<Option<Value>, RuntimeError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let object = value.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: visual_structure must be an object or null"
+                .to_owned(),
+        )
+    })?;
+    validate_request_keys(
+        object,
+        &["regions", "line_flows"],
+        "reference_visual_structure",
+    )?;
+    let mut structure = json!({
+        "schema_version":"ReferenceVisualStructure@1",
+        "decomposition_type":"visual-geometry-not-functional",
+        "global_contour_authority":true,
+        "functional_part_claim_allowed":false,
+        "regions_may_overlap":true,
+        "shared_boundaries_allowed":true,
+        "review_status":if user_confirmed {"user_confirmed"} else {"unreviewed"},
+        "regions":object.get("regions").cloned().unwrap_or_else(|| json!([])),
+        "line_flows":object.get("line_flows").cloned().unwrap_or_else(|| json!([])),
+        "canonical_sha256":""
+    });
+    structure["canonical_sha256"] = Value::String(canonical_json_hash(&structure));
+    validate_reference_visual_structure(&structure)?;
+    Ok(Some(structure))
+}
+
+fn rebind_reference_visual_structure_review(
+    mut structure: Value,
+    user_confirmed: bool,
+) -> Result<Value, RuntimeError> {
+    structure["review_status"] = Value::String(
+        if user_confirmed {
+            "user_confirmed"
+        } else {
+            "unreviewed"
+        }
+        .to_owned(),
+    );
+    structure["canonical_sha256"] = Value::String(String::new());
+    structure["canonical_sha256"] = Value::String(canonical_json_hash(&structure));
+    validate_reference_visual_structure(&structure)?;
+    Ok(structure)
+}
+
+fn validate_reference_visual_structure(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "decomposition_type",
+            "global_contour_authority",
+            "functional_part_claim_allowed",
+            "regions_may_overlap",
+            "shared_boundaries_allowed",
+            "review_status",
+            "regions",
+            "line_flows",
+            "canonical_sha256",
+        ],
+        "ReferenceVisualStructure@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("ReferenceVisualStructure@1")
+        || object.get("decomposition_type").and_then(Value::as_str)
+            != Some("visual-geometry-not-functional")
+        || object
+            .get("global_contour_authority")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || object
+            .get("functional_part_claim_allowed")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || object.get("regions_may_overlap").and_then(Value::as_bool) != Some(true)
+        || object
+            .get("shared_boundaries_allowed")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || !matches!(
+            object.get("review_status").and_then(Value::as_str),
+            Some("unreviewed" | "user_confirmed")
+        )
+    {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: policy constants drifted".to_owned(),
+        ));
+    }
+
+    let regions = object
+        .get("regions")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: regions must be an array".to_owned(),
+            )
+        })?;
+    if !(1..=64).contains(&regions.len()) {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: regions must contain 1..64 entries".to_owned(),
+        ));
+    }
+    let mut structure_ids = std::collections::HashSet::new();
+    for region in regions {
+        let region = if region.get("mask_operation").is_some() {
+            exact_object(
+                region,
+                &[
+                    "structure_id",
+                    "visual_role",
+                    "continuity_group_id",
+                    "layer_index",
+                    "boundary_relationship",
+                    "visibility",
+                    "depth_policy",
+                    "profile_policy",
+                    "mask_operation",
+                    "contour_points",
+                ],
+                "ReferenceVisualStructure@1.region",
+            )?
+        } else {
+            // Existing ReferenceVisualStructure@1 objects predate negative-space
+            // operations.  Missing is canonically equivalent to `none` so CAS
+            // readback remains backward compatible without rewriting history.
+            exact_object(
+                region,
+                &[
+                    "structure_id",
+                    "visual_role",
+                    "continuity_group_id",
+                    "layer_index",
+                    "boundary_relationship",
+                    "visibility",
+                    "depth_policy",
+                    "profile_policy",
+                    "contour_points",
+                ],
+                "ReferenceVisualStructure@1.region",
+            )?
+        };
+        let structure_id = required_contract_identifier(
+            region,
+            "structure_id",
+            "ReferenceVisualStructure@1.region",
+        )?;
+        if !structure_ids.insert(structure_id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: duplicate structure_id".to_owned(),
+            ));
+        }
+        required_contract_identifier(
+            region,
+            "continuity_group_id",
+            "ReferenceVisualStructure@1.region",
+        )?;
+        if !matches!(
+            region.get("visual_role").and_then(Value::as_str),
+            Some(
+                "outer-flowing-shell"
+                    | "open-frame"
+                    | "primary-volume"
+                    | "floating-shell"
+                    | "layered-body"
+                    | "terminal-assembly"
+                    | "luminous-core"
+                    | "internal-channel"
+                    | "material-transition"
+                    | "unknown-visual-region"
+            )
+        ) || !matches!(
+            region.get("boundary_relationship").and_then(Value::as_str),
+            Some("shared" | "overlap" | "independent" | "enclosed")
+        ) || !matches!(
+            region.get("visibility").and_then(Value::as_str),
+            Some("observed" | "inferred" | "unknown")
+        ) || !matches!(
+            region.get("depth_policy").and_then(Value::as_str),
+            Some("from-multiview" | "bounded-inference" | "unknown")
+        ) || !matches!(
+            region.get("profile_policy").and_then(Value::as_str),
+            Some("preserve-continuity" | "closed-profile" | "revolved-profile" | "material-only")
+        ) || !matches!(
+            region.get("mask_operation").and_then(Value::as_str),
+            None | Some("none" | "subtract")
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: region enum is unsupported".to_owned(),
+            ));
+        }
+        if region
+            .get("layer_index")
+            .and_then(Value::as_i64)
+            .is_none_or(|layer| !(-16..=16).contains(&layer))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: layer_index is out of bounds".to_owned(),
+            ));
+        }
+        validate_visual_points(
+            region.get("contour_points"),
+            3,
+            "ReferenceVisualStructure@1.region.contour_points",
+        )?;
+        if region.get("mask_operation").and_then(Value::as_str) == Some("subtract")
+            && (region.get("visual_role").and_then(Value::as_str) != Some("open-frame")
+                || region.get("visibility").and_then(Value::as_str) != Some("observed")
+                || region.get("boundary_relationship").and_then(Value::as_str) != Some("enclosed"))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract requires an observed open-frame region"
+                    .to_owned(),
+            ));
+        }
+    }
+
+    let line_flows = object
+        .get("line_flows")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: line_flows must be an array".to_owned(),
+            )
+        })?;
+    if line_flows.len() > 128 {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: too many line flows".to_owned(),
+        ));
+    }
+    let mut line_ids = std::collections::HashSet::new();
+    for line_flow in line_flows {
+        let line_flow = exact_object(
+            line_flow,
+            &[
+                "line_flow_id",
+                "continuity_group_id",
+                "kind",
+                "visibility",
+                "points",
+            ],
+            "ReferenceVisualStructure@1.line_flow",
+        )?;
+        let line_id = required_contract_identifier(
+            line_flow,
+            "line_flow_id",
+            "ReferenceVisualStructure@1.line_flow",
+        )?;
+        if !line_ids.insert(line_id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: duplicate line_flow_id".to_owned(),
+            ));
+        }
+        required_contract_identifier(
+            line_flow,
+            "continuity_group_id",
+            "ReferenceVisualStructure@1.line_flow",
+        )?;
+        if !matches!(
+            line_flow.get("kind").and_then(Value::as_str),
+            Some("ridge" | "valley" | "seam" | "light-channel" | "occlusion-edge")
+        ) || !matches!(
+            line_flow.get("visibility").and_then(Value::as_str),
+            Some("observed" | "inferred" | "unknown")
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: line flow enum is unsupported".to_owned(),
+            ));
+        }
+        validate_visual_points(
+            line_flow.get("points"),
+            2,
+            "ReferenceVisualStructure@1.line_flow.points",
+        )?;
+    }
+    required_contract_sha256(object, "canonical_sha256", "ReferenceVisualStructure@1")?;
+    verify_output_canonical_hash(value, "ReferenceVisualStructure@1")
+}
+
+fn validate_visual_points(
+    value: Option<&Value>,
+    minimum: usize,
+    context: &str,
+) -> Result<(), RuntimeError> {
+    let points = value.and_then(Value::as_array).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} must be an array"
+        ))
+    })?;
+    if !(minimum..=256).contains(&points.len()) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} length is out of bounds"
+        )));
+    }
+    for point in points {
+        let point = point.as_array().ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} point must be an array"
+            ))
+        })?;
+        if point.len() != 2
+            || point.iter().any(|coordinate| {
+                coordinate
+                    .as_f64()
+                    .is_none_or(|number| !number.is_finite() || !(0.0..=1.0).contains(&number))
+            })
+        {
+            return Err(RuntimeError::InvalidInput(format!(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: {context} coordinates are invalid"
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_target_part_region(value: &Value, context: &str) -> Result<(), RuntimeError> {
@@ -12376,7 +13790,9 @@ fn point_in_polygon(x: f64, y: f64, points: &[[f64; 2]]) -> bool {
         let [xi, yi] = points[current];
         let [xj, yj] = points[previous];
         let crosses = (yi > y) != (yj > y)
-            && x < (xj - xi) * (y - yi) / ((yj - yi).abs().max(1e-12) * (if yj >= yi { 1.0 } else { -1.0 })) + xi;
+            && x < (xj - xi) * (y - yi)
+                / ((yj - yi).abs().max(1e-12) * (if yj >= yi { 1.0 } else { -1.0 }))
+                + xi;
         if crosses {
             inside = !inside;
         }
@@ -12386,6 +13802,10 @@ fn point_in_polygon(x: f64, y: f64, points: &[[f64; 2]]) -> bool {
 }
 
 fn rasterize_contour(points: &[[f64; 2]]) -> Vec<bool> {
+    close_mask(&rasterize_contour_raw(points))
+}
+
+fn rasterize_contour_raw(points: &[[f64; 2]]) -> Vec<bool> {
     let mut mask = vec![false; 512 * 512];
     for y in 0..512usize {
         for x in 0..512usize {
@@ -12394,17 +13814,108 @@ fn rasterize_contour(points: &[[f64; 2]]) -> Vec<bool> {
             mask[y * 512 + x] = point_in_polygon(px, py, points);
         }
     }
-    close_mask(&mask)
+    mask
+}
+
+fn apply_visual_structure_mask_operations(
+    mask: &mut [bool],
+    structure: &Value,
+) -> Result<(), RuntimeError> {
+    if mask.len() != 512 * 512 {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_MASK_INVALID: mask dimensions are not 512x512".to_owned(),
+        ));
+    }
+    let regions = structure
+        .get("regions")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: regions must be an array".to_owned(),
+            )
+        })?;
+    let mut combined_cutout = vec![false; 512 * 512];
+    for region in regions {
+        if region.get("mask_operation").and_then(Value::as_str) != Some("subtract") {
+            continue;
+        }
+        let points = region
+            .get("contour_points")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract contour is missing".to_owned(),
+                )
+            })?
+            .iter()
+            .map(|point| {
+                let point = point.as_array().ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract point is invalid".to_owned(),
+                    )
+                })?;
+                Ok([
+                    point[0].as_f64().ok_or_else(|| {
+                        RuntimeError::InvalidInput(
+                            "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract x is invalid".to_owned(),
+                        )
+                    })?,
+                    point[1].as_f64().ok_or_else(|| {
+                        RuntimeError::InvalidInput(
+                            "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract y is invalid".to_owned(),
+                        )
+                    })?,
+                ])
+            })
+            .collect::<Result<Vec<_>, RuntimeError>>()?;
+        // A subtractive contour is direct observed evidence. Do not run the
+        // outer-silhouette closing pass here: it can erase narrow intentional
+        // slots. Multiple overlapping subtract regions are unioned before one
+        // subtraction so `regions_may_overlap=true` remains deterministic.
+        let cutout = rasterize_contour_raw(&points);
+        let cutout_pixels = cutout.iter().filter(|value| **value).count();
+        if cutout_pixels < 16
+            || cutout
+                .iter()
+                .enumerate()
+                .any(|(index, value)| *value && !mask[index])
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VISUAL_STRUCTURE_INVALID: subtract region must be an enclosed observed void"
+                    .to_owned(),
+            ));
+        }
+        for (index, value) in cutout.iter().enumerate() {
+            combined_cutout[index] |= *value;
+        }
+    }
+    for (index, value) in combined_cutout.iter().enumerate() {
+        if *value {
+            mask[index] = false;
+        }
+    }
+    if !mask.iter().any(|value| *value) {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_MASK_INVALID: visual structure removed the complete silhouette".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 fn mask_to_png(mask: &[bool]) -> Result<Vec<u8>, RuntimeError> {
     if mask.len() != 512 * 512 {
-        return Err(RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: mask dimensions are not 512x512".to_owned()));
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_MASK_INVALID: mask dimensions are not 512x512".to_owned(),
+        ));
     }
     let mut image = RgbaImage::from_pixel(512, 512, Rgba([0, 0, 0, 255]));
     for (index, value) in mask.iter().enumerate() {
         if *value {
-            image.put_pixel((index % 512) as u32, (index / 512) as u32, Rgba([255, 255, 255, 255]));
+            image.put_pixel(
+                (index % 512) as u32,
+                (index / 512) as u32,
+                Rgba([255, 255, 255, 255]),
+            );
         }
     }
     let mut png = Vec::new();
@@ -12536,7 +14047,12 @@ fn contour_points_from_mask(mask: &[bool]) -> Vec<Value> {
     }
     points
         .into_iter()
-        .map(|(x, y)| json!([(x as f64 / 512.0).clamp(0.0, 1.0), (y as f64 / 512.0).clamp(0.0, 1.0)]))
+        .map(|(x, y)| {
+            json!([
+                (x as f64 / 512.0).clamp(0.0, 1.0),
+                (y as f64 / 512.0).clamp(0.0, 1.0)
+            ])
+        })
         .collect()
 }
 
@@ -12586,15 +14102,27 @@ fn camera_orbit_variant(base: &Value, yaw: f64, pitch: f64, distance_scale: f64)
     let Some(target) = camera_vec3(transform.get("target_m")) else {
         return base.clone();
     };
-    let relative = [position[0] - target[0], position[1] - target[1], position[2] - target[2]];
-    let horizontal = (relative[0] * relative[0] + relative[2] * relative[2]).sqrt().max(1e-6);
+    let relative = [
+        position[0] - target[0],
+        position[1] - target[1],
+        position[2] - target[2],
+    ];
+    let horizontal = (relative[0] * relative[0] + relative[2] * relative[2])
+        .sqrt()
+        .max(1e-6);
     let base_yaw = relative[0].atan2(relative[2]);
     let base_pitch = (relative[1] / horizontal).atan();
     let yaw = base_yaw + yaw;
     let pitch = (base_pitch + pitch).clamp(-1.25, 1.25);
-    let radius = (relative[0] * relative[0] + relative[1] * relative[1] + relative[2] * relative[2]).sqrt() * distance_scale;
+    let radius =
+        (relative[0] * relative[0] + relative[1] * relative[1] + relative[2] * relative[2]).sqrt()
+            * distance_scale;
     let horizontal = radius * pitch.cos();
-    let new_position = [target[0] + horizontal * yaw.sin(), target[1] + radius * pitch.sin(), target[2] + horizontal * yaw.cos()];
+    let new_position = [
+        target[0] + horizontal * yaw.sin(),
+        target[1] + radius * pitch.sin(),
+        target[2] + horizontal * yaw.cos(),
+    ];
     let mut camera = base.clone();
     if let Some(transform) = camera.get_mut("transform").and_then(Value::as_object_mut) {
         transform.insert("position_m".to_owned(), json!(new_position));
@@ -12643,15 +14171,7 @@ fn camera_fit_search_variants(base: &Value) -> Vec<Value> {
         (-0.04, -0.04),
     ] {
         coarse.push(camera_fit_variant_extended(
-            base,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            target_dx,
-            target_dy,
-            1.0,
+            base, 0.0, 0.0, 0.0, 0.0, 1.0, target_dx, target_dy, 1.0,
         ));
     }
     for global_scale in [0.96_f64, 1.04] {
@@ -12731,11 +14251,8 @@ fn camera_fit_row_from_passes(
     const FIT_RESOLUTION: usize = 128;
     let model_mask = decode_binary_mask_at_resolution(&silhouette.png, FIT_RESOLUTION)?;
     let reference_fit_mask = downsample_mask(reference_mask, 512, FIT_RESOLUTION);
-    let metrics = camera_fit_metrics_at_resolution(
-        &reference_fit_mask,
-        &model_mask,
-        FIT_RESOLUTION,
-    );
+    let metrics =
+        camera_fit_metrics_at_resolution(&reference_fit_mask, &model_mask, FIT_RESOLUTION);
     let part_context = passes
         .iter()
         .find(|pass| pass.pass == "part-id")
@@ -12772,22 +14289,62 @@ fn camera_fit_variant_extended(
     global_scale: f64,
 ) -> Value {
     let mut camera = camera_orbit_variant(base, yaw, pitch, distance_scale * global_scale);
-    let Some(transform) = camera.get("transform").and_then(Value::as_object).cloned() else { return camera; };
-    let Some(mut position) = camera_vec3(transform.get("position_m")) else { return camera; };
-    let Some(mut target) = camera_vec3(transform.get("target_m")) else { return camera; };
-    let Some(up) = camera_vec3(transform.get("up")) else { return camera; };
-    let view = [target[0] - position[0], target[1] - position[1], target[2] - position[2]];
-    let length = (view[0] * view[0] + view[1] * view[1] + view[2] * view[2]).sqrt().max(1e-6);
+    let Some(transform) = camera.get("transform").and_then(Value::as_object).cloned() else {
+        return camera;
+    };
+    let Some(mut position) = camera_vec3(transform.get("position_m")) else {
+        return camera;
+    };
+    let Some(mut target) = camera_vec3(transform.get("target_m")) else {
+        return camera;
+    };
+    let Some(up) = camera_vec3(transform.get("up")) else {
+        return camera;
+    };
+    let view = [
+        target[0] - position[0],
+        target[1] - position[1],
+        target[2] - position[2],
+    ];
+    let length = (view[0] * view[0] + view[1] * view[1] + view[2] * view[2])
+        .sqrt()
+        .max(1e-6);
     let forward = [view[0] / length, view[1] / length, view[2] / length];
-    let right_raw = [forward[1] * up[2] - forward[2] * up[1], forward[2] * up[0] - forward[0] * up[2], forward[0] * up[1] - forward[1] * up[0]];
-    let right_len = (right_raw[0] * right_raw[0] + right_raw[1] * right_raw[1] + right_raw[2] * right_raw[2]).sqrt().max(1e-6);
-    let right = [right_raw[0] / right_len, right_raw[1] / right_len, right_raw[2] / right_len];
-    let corrected_up = [right[1] * forward[2] - right[2] * forward[1], right[2] * forward[0] - right[0] * forward[2], right[0] * forward[1] - right[1] * forward[0]];
+    let right_raw = [
+        forward[1] * up[2] - forward[2] * up[1],
+        forward[2] * up[0] - forward[0] * up[2],
+        forward[0] * up[1] - forward[1] * up[0],
+    ];
+    let right_len =
+        (right_raw[0] * right_raw[0] + right_raw[1] * right_raw[1] + right_raw[2] * right_raw[2])
+            .sqrt()
+            .max(1e-6);
+    let right = [
+        right_raw[0] / right_len,
+        right_raw[1] / right_len,
+        right_raw[2] / right_len,
+    ];
+    let corrected_up = [
+        right[1] * forward[2] - right[2] * forward[1],
+        right[2] * forward[0] - right[0] * forward[2],
+        right[0] * forward[1] - right[1] * forward[0],
+    ];
     let cos = roll.clamp(-0.5, 0.5).cos();
     let sin = roll.clamp(-0.5, 0.5).sin();
-    let rolled_up = [corrected_up[0] * cos + right[0] * sin, corrected_up[1] * cos + right[1] * sin, corrected_up[2] * cos + right[2] * sin];
-    let shift = [right[0] * target_dx + corrected_up[0] * target_dy, right[1] * target_dx + corrected_up[1] * target_dy, right[2] * target_dx + corrected_up[2] * target_dy];
-    for index in 0..3 { target[index] += shift[index]; position[index] += shift[index]; }
+    let rolled_up = [
+        corrected_up[0] * cos + right[0] * sin,
+        corrected_up[1] * cos + right[1] * sin,
+        corrected_up[2] * cos + right[2] * sin,
+    ];
+    let shift = [
+        right[0] * target_dx + corrected_up[0] * target_dy,
+        right[1] * target_dx + corrected_up[1] * target_dy,
+        right[2] * target_dx + corrected_up[2] * target_dy,
+    ];
+    for index in 0..3 {
+        target[index] += shift[index];
+        position[index] += shift[index];
+    }
     if let Some(transform) = camera.get_mut("transform").and_then(Value::as_object_mut) {
         transform.insert("position_m".to_owned(), json!(position));
         transform.insert("target_m".to_owned(), json!(target));
@@ -13047,16 +14604,18 @@ fn weighted_contour_loss(metrics: &Value) -> f64 {
         .unwrap_or(512.0)
         / 512.0)
         .clamp(0.0, 1.0);
-    let iou = (1.0 - metrics
-        .get("silhouette_iou")
-        .and_then(Value::as_f64)
-        .unwrap_or(0.0))
-        .clamp(0.0, 1.0);
-    let boundary = (1.0 - metrics
-        .get("boundary_f1_4px")
-        .and_then(Value::as_f64)
-        .unwrap_or(0.0))
-        .clamp(0.0, 1.0);
+    let iou = (1.0
+        - metrics
+            .get("silhouette_iou")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0))
+    .clamp(0.0, 1.0);
+    let boundary = (1.0
+        - metrics
+            .get("boundary_f1_4px")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0))
+    .clamp(0.0, 1.0);
     let bbox = metrics
         .get("bbox_edge_error")
         .and_then(Value::as_f64)
@@ -13135,7 +14694,8 @@ fn primary_form_metric_ordering(candidate: &Value, incumbent: &Value) -> std::cm
     };
     let candidate_priority = priority(candidate);
     let incumbent_priority = priority(incumbent);
-    for (candidate_value, incumbent_value) in candidate_priority.into_iter().zip(incumbent_priority) {
+    for (candidate_value, incumbent_value) in candidate_priority.into_iter().zip(incumbent_priority)
+    {
         if (candidate_value - incumbent_value).abs() > 1e-9 {
             return candidate_value
                 .partial_cmp(&incumbent_value)
@@ -13211,8 +14771,14 @@ fn primary_form_ranking_metrics(
     let (coverage, nme) = landmark_metrics_with_parts(model, &view_spec, part_context);
     let mut metrics = base.clone();
     if let Some(object) = metrics.as_object_mut() {
-        object.insert("landmark_coverage".to_owned(), Value::from(stable_visual_metric(coverage)));
-        object.insert("landmark_nme".to_owned(), Value::from(stable_visual_metric(nme)));
+        object.insert(
+            "landmark_coverage".to_owned(),
+            Value::from(stable_visual_metric(coverage)),
+        );
+        object.insert(
+            "landmark_nme".to_owned(),
+            Value::from(stable_visual_metric(nme)),
+        );
     }
     metrics
 }
@@ -13228,19 +14794,12 @@ fn primary_form_ranking_metrics_with_view_spec(
     view_spec: &Value,
     part_context: Option<(&[u8], &[String])>,
 ) -> Value {
-    let mut metrics = primary_form_ranking_metrics(
-        base,
-        model,
-        view_spec.get("landmarks"),
-        part_context,
-    );
+    let mut metrics =
+        primary_form_ranking_metrics(base, model, view_spec.get("landmarks"), part_context);
     let region_scores = region_metrics(reference, model, view_spec);
     if !region_scores.is_empty() {
         let mut sorted = region_scores.clone();
-        sorted.sort_by(|left, right| {
-            left.partial_cmp(right)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        sorted.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
         let median = sorted[sorted.len() / 2];
         let critical = region_scores.iter().copied().fold(1.0, f64::min);
         if let Some(object) = metrics.as_object_mut() {
@@ -13281,23 +14840,42 @@ fn sdf_chamfer_px(reference: &[bool], model: &[bool]) -> f64 {
     let mut left_count = 0.0;
     let mut right_count = 0.0;
     for index in 0..reference_boundary.len() {
-        if reference_boundary[index] { left += model_field[index]; left_count += 1.0; }
-        if model_boundary[index] { right += reference_field[index]; right_count += 1.0; }
+        if reference_boundary[index] {
+            left += model_field[index];
+            left_count += 1.0;
+        }
+        if model_boundary[index] {
+            right += reference_field[index];
+            right_count += 1.0;
+        }
     }
-    if left_count == 0.0 || right_count == 0.0 { return 512.0; }
+    if left_count == 0.0 || right_count == 0.0 {
+        return 512.0;
+    }
     ((left / left_count) + (right / right_count)) * 0.5
 }
 
 fn boundary_distance_field(boundary: &[bool]) -> Vec<f64> {
     const INF: f64 = 1.0e9;
-    let mut field = boundary.iter().map(|value| if *value { 0.0 } else { INF }).collect::<Vec<_>>();
+    let mut field = boundary
+        .iter()
+        .map(|value| if *value { 0.0 } else { INF })
+        .collect::<Vec<_>>();
     for y in 0..512usize {
         for x in 0..512usize {
             let index = y * 512 + x;
             let mut value = field[index];
-            for (dx, dy, weight) in [(-1_i32, 0_i32, 1.0), (0, -1, 1.0), (-1, -1, 1.4142), (1, -1, 1.4142)] {
-                let nx = x as i32 + dx; let ny = y as i32 + dy;
-                if nx >= 0 && ny >= 0 && nx < 512 && ny < 512 { value = value.min(field[ny as usize * 512 + nx as usize] + weight); }
+            for (dx, dy, weight) in [
+                (-1_i32, 0_i32, 1.0),
+                (0, -1, 1.0),
+                (-1, -1, 1.4142),
+                (1, -1, 1.4142),
+            ] {
+                let nx = x as i32 + dx;
+                let ny = y as i32 + dy;
+                if nx >= 0 && ny >= 0 && nx < 512 && ny < 512 {
+                    value = value.min(field[ny as usize * 512 + nx as usize] + weight);
+                }
             }
             field[index] = value;
         }
@@ -13306,9 +14884,17 @@ fn boundary_distance_field(boundary: &[bool]) -> Vec<f64> {
         for x in (0..512usize).rev() {
             let index = y * 512 + x;
             let mut value = field[index];
-            for (dx, dy, weight) in [(1_i32, 0_i32, 1.0), (0, 1, 1.0), (1, 1, 1.4142), (-1, 1, 1.4142)] {
-                let nx = x as i32 + dx; let ny = y as i32 + dy;
-                if nx >= 0 && ny >= 0 && nx < 512 && ny < 512 { value = value.min(field[ny as usize * 512 + nx as usize] + weight); }
+            for (dx, dy, weight) in [
+                (1_i32, 0_i32, 1.0),
+                (0, 1, 1.0),
+                (1, 1, 1.4142),
+                (-1, 1, 1.4142),
+            ] {
+                let nx = x as i32 + dx;
+                let ny = y as i32 + dy;
+                if nx >= 0 && ny >= 0 && nx < 512 && ny < 512 {
+                    value = value.min(field[ny as usize * 512 + nx as usize] + weight);
+                }
             }
             field[index] = value;
         }
@@ -13317,11 +14903,36 @@ fn boundary_distance_field(boundary: &[bool]) -> Vec<f64> {
 }
 
 fn validate_silhouette_rig(value: &Value, candidate_id: &str) -> Result<(), RuntimeError> {
-    let object = exact_object(value, &["schema_version", "rig_id", "candidate_id", "parameters", "canonical_sha256"], "SilhouetteRig@1")?;
-    if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteRig@1") || object.get("candidate_id").and_then(Value::as_str) != Some(candidate_id) { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: candidate binding".to_owned())); }
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "rig_id",
+            "candidate_id",
+            "parameters",
+            "canonical_sha256",
+        ],
+        "SilhouetteRig@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteRig@1")
+        || object.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_INVALID: candidate binding".to_owned(),
+        ));
+    }
     required_contract_identifier(object, "rig_id", "SilhouetteRig@1")?;
-    let parameters = object.get("parameters").and_then(Value::as_array).ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: parameters".to_owned()))?;
-    if parameters.is_empty() || parameters.len() > 64 { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: parameter budget".to_owned())); }
+    let parameters = object
+        .get("parameters")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: parameters".to_owned())
+        })?;
+    if parameters.is_empty() || parameters.len() > 64 {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_INVALID: parameter budget".to_owned(),
+        ));
+    }
     let mut ids = std::collections::HashSet::new();
     for parameter in parameters {
         let semantic = parameter.get("semantic").and_then(Value::as_str);
@@ -13358,31 +14969,93 @@ fn validate_silhouette_rig(value: &Value, candidate_id: &str) -> Result<(), Runt
                 "SilhouetteRig@1.parameter",
             )?
         };
-        let parameter_id = required_contract_identifier(entry, "parameter_id", "SilhouetteRig@1.parameter")?;
+        let parameter_id =
+            required_contract_identifier(entry, "parameter_id", "SilhouetteRig@1.parameter")?;
         required_contract_identifier(entry, "part_id", "SilhouetteRig@1.parameter")?;
-        if !ids.insert(parameter_id) { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: duplicate parameter_id".to_owned())); }
-        let value = entry.get("value").and_then(Value::as_f64).unwrap_or(f64::NAN);
+        if !ids.insert(parameter_id) {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_INVALID: duplicate parameter_id".to_owned(),
+            ));
+        }
+        let value = entry
+            .get("value")
+            .and_then(Value::as_f64)
+            .unwrap_or(f64::NAN);
         let min = entry.get("min").and_then(Value::as_f64).unwrap_or(f64::NAN);
         let max = entry.get("max").and_then(Value::as_f64).unwrap_or(f64::NAN);
-        let step = entry.get("step").and_then(Value::as_f64).unwrap_or(f64::NAN);
-        if !value.is_finite() || !min.is_finite() || !max.is_finite() || !step.is_finite() || min > value || value > max || step <= 0.0 || min >= max { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: parameter bounds".to_owned())); }
+        let step = entry
+            .get("step")
+            .and_then(Value::as_f64)
+            .unwrap_or(f64::NAN);
+        if !value.is_finite()
+            || !min.is_finite()
+            || !max.is_finite()
+            || !step.is_finite()
+            || min > value
+            || value > max
+            || step <= 0.0
+            || min >= max
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_INVALID: parameter bounds".to_owned(),
+            ));
+        }
         if matches!(semantic, Some("rotation_x" | "rotation_y" | "rotation_z"))
             && (min < -2.0 * std::f64::consts::PI || max > 2.0 * std::f64::consts::PI)
         {
-            return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: rotation bounds".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_INVALID: rotation bounds".to_owned(),
+            ));
         }
-        if !matches!(semantic, Some("width" | "height" | "depth" | "offset_x" | "offset_y" | "offset_z" | "scale" | "rotation_x" | "rotation_y" | "rotation_z" | "surface_control_point")) { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: semantic".to_owned())); }
+        if !matches!(
+            semantic,
+            Some(
+                "width"
+                    | "height"
+                    | "depth"
+                    | "offset_x"
+                    | "offset_y"
+                    | "offset_z"
+                    | "scale"
+                    | "rotation_x"
+                    | "rotation_y"
+                    | "rotation_z"
+                    | "surface_control_point"
+            )
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_INVALID: semantic".to_owned(),
+            ));
+        }
         if semantic == Some("surface_control_point")
-            && (entry.get("control_point_index").and_then(Value::as_u64).is_none_or(|index| index > 255)
-                || !matches!(entry.get("axis").and_then(Value::as_str), Some("x" | "y" | "z")))
+            && (entry
+                .get("control_point_index")
+                .and_then(Value::as_u64)
+                .is_none_or(|index| index > 255)
+                || !matches!(
+                    entry.get("axis").and_then(Value::as_str),
+                    Some("x" | "y" | "z")
+                ))
         {
-            return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: surface control point".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_INVALID: surface control point".to_owned(),
+            ));
         }
         let allowed_unit = match semantic {
-            Some("rotation_x" | "rotation_y" | "rotation_z") => matches!(entry.get("unit").and_then(Value::as_str), Some("radian" | "ratio")),
-            _ => matches!(entry.get("unit").and_then(Value::as_str), Some("meter" | "ratio")),
+            Some("rotation_x" | "rotation_y" | "rotation_z") => matches!(
+                entry.get("unit").and_then(Value::as_str),
+                Some("radian" | "ratio")
+            ),
+            _ => matches!(
+                entry.get("unit").and_then(Value::as_str),
+                Some("meter" | "ratio")
+            ),
         };
-        if !allowed_unit { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: unit".to_owned())); }
+        if !allowed_unit {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_INVALID: unit".to_owned(),
+            ));
+        }
     }
     required_contract_sha256(object, "canonical_sha256", "SilhouetteRig@1")?;
     verify_output_canonical_hash(value, "SilhouetteRig@1")
@@ -13431,13 +15104,13 @@ fn fit_rig_parameters_with_part_context(
             let Some(part_id) = part.get("part_id").and_then(Value::as_str) else {
                 continue;
             };
-            let Some(target_part) = target_part_boundary_mask(target, part_id)
-                .and_then(|mask| mask_envelope(&mask))
+            let Some(target_part) =
+                target_part_boundary_mask(target, part_id).and_then(|mask| mask_envelope(&mask))
             else {
                 continue;
             };
-            let Some(model_part) = decode_part_mask(part_png, part_id, part_ids)
-                .and_then(|mask| mask_envelope(&mask))
+            let Some(model_part) =
+                decode_part_mask(part_png, part_id, part_ids).and_then(|mask| mask_envelope(&mask))
             else {
                 continue;
             };
@@ -13545,7 +15218,10 @@ fn fit_rig_parameters_with_landmark_context(
         return selected;
     };
     for (index, parameter) in parameters.iter().enumerate() {
-        let semantic = parameter.get("semantic").and_then(Value::as_str).unwrap_or("");
+        let semantic = parameter
+            .get("semantic")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         if !matches!(semantic, "offset_x" | "offset_y") {
             continue;
         }
@@ -13579,9 +15255,7 @@ fn fit_rig_parameters_with_landmark_context(
                 landmark.get("x").and_then(Value::as_f64).unwrap_or(-1.0),
                 landmark.get("y").and_then(Value::as_f64).unwrap_or(-1.0),
             );
-            if !(0.0..=1.0).contains(&target_point.0)
-                || !(0.0..=1.0).contains(&target_point.1)
-            {
+            if !(0.0..=1.0).contains(&target_point.0) || !(0.0..=1.0).contains(&target_point.1) {
                 continue;
             }
             let Some(model_point) = landmark_anchor_point(&part_mask, anchor) else {
@@ -13602,17 +15276,24 @@ fn fit_rig_parameters_with_landmark_context(
             continue;
         }
         let delta = if semantic == "offset_x" {
-            (target_x / weight_total - model_x / weight_total)
-                * world_per_screen_x
+            (target_x / weight_total - model_x / weight_total) * world_per_screen_x
         } else {
             // Image Y grows downward while the calibrated camera-plane up
             // basis grows upward.
-            (model_y / weight_total - target_y / weight_total)
-                * world_per_screen_y
+            (model_y / weight_total - target_y / weight_total) * world_per_screen_y
         };
-        let value = parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0);
-        let min = parameter.get("min").and_then(Value::as_f64).unwrap_or(value);
-        let max = parameter.get("max").and_then(Value::as_f64).unwrap_or(value);
+        let value = parameter
+            .get("value")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        let min = parameter
+            .get("min")
+            .and_then(Value::as_f64)
+            .unwrap_or(value);
+        let max = parameter
+            .get("max")
+            .and_then(Value::as_f64)
+            .unwrap_or(value);
         let Some(selected_row) = selected.get_mut(index) else {
             continue;
         };
@@ -13667,10 +15348,12 @@ fn apply_boundary_part_parameter_projection(
         {
             continue;
         }
-        grouped
-            .entry(part_id.to_owned())
-            .or_default()
-            .push((reference_x, reference_y, model_x, model_y));
+        grouped.entry(part_id.to_owned()).or_default().push((
+            reference_x,
+            reference_y,
+            model_x,
+            model_y,
+        ));
     }
     if grouped.is_empty() {
         return selected_parameters.to_vec();
@@ -13719,11 +15402,26 @@ fn apply_boundary_part_parameter_projection(
         let model_center_y = (model_min_y + model_max_y) * 0.5;
         let center_delta_x = (target_center_x - model_center_x).clamp(-0.5, 0.5);
         let center_delta_y = (model_center_y - target_center_y).clamp(-0.5, 0.5);
-        let semantic = definition.get("semantic").and_then(Value::as_str).unwrap_or("");
-        let unit = definition.get("unit").and_then(Value::as_str).unwrap_or("meter");
-        let base_value = definition.get("value").and_then(Value::as_f64).unwrap_or(0.0);
-        let min = definition.get("min").and_then(Value::as_f64).unwrap_or(base_value);
-        let max = definition.get("max").and_then(Value::as_f64).unwrap_or(base_value);
+        let semantic = definition
+            .get("semantic")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let unit = definition
+            .get("unit")
+            .and_then(Value::as_str)
+            .unwrap_or("meter");
+        let base_value = definition
+            .get("value")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        let min = definition
+            .get("min")
+            .and_then(Value::as_f64)
+            .unwrap_or(base_value);
+        let max = definition
+            .get("max")
+            .and_then(Value::as_f64)
+            .unwrap_or(base_value);
         let desired = match semantic {
             "width" => Some(base_value * width_ratio),
             "height" => Some(base_value * height_ratio),
@@ -13780,28 +15478,60 @@ fn materialize_rig_geometry_program(
     let mut outputs = materialized
         .get("part_outputs")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: GeometryProgram part_outputs are missing".to_owned()))?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_GEOMETRY_FAILED: GeometryProgram part_outputs are missing"
+                    .to_owned(),
+            )
+        })?
         .clone();
     let nodes = materialized
         .get_mut("nodes")
         .and_then(Value::as_array_mut)
-        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: GeometryProgram nodes are missing".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_GEOMETRY_FAILED: GeometryProgram nodes are missing".to_owned(),
+            )
+        })?;
     let definitions = rig
         .get("parameters")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameters are missing".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameters are missing".to_owned(),
+            )
+        })?;
     let mut applied = 0usize;
     for (index, definition) in definitions.iter().enumerate() {
-        let Some(selected) = selected_parameters.get(index) else { continue; };
-        let Some(parameter_id) = definition.get("parameter_id").and_then(Value::as_str) else { continue; };
+        let Some(selected) = selected_parameters.get(index) else {
+            continue;
+        };
+        let Some(parameter_id) = definition.get("parameter_id").and_then(Value::as_str) else {
+            continue;
+        };
         if selected.get("parameter_id").and_then(Value::as_str) != Some(parameter_id) {
-            return Err(RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter order drifted".to_owned()));
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_GEOMETRY_FAILED: Rig parameter order drifted".to_owned(),
+            ));
         }
-        let Some(part_id) = definition.get("part_id").and_then(Value::as_str) else { continue; };
-        let Some(value) = selected.get("value").and_then(Value::as_f64) else { continue; };
-        let base_value = definition.get("value").and_then(Value::as_f64).unwrap_or(value);
-        let semantic = definition.get("semantic").and_then(Value::as_str).unwrap_or_default();
-        let unit = definition.get("unit").and_then(Value::as_str).unwrap_or("meter");
+        let Some(part_id) = definition.get("part_id").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(value) = selected.get("value").and_then(Value::as_f64) else {
+            continue;
+        };
+        let base_value = definition
+            .get("value")
+            .and_then(Value::as_f64)
+            .unwrap_or(value);
+        let semantic = definition
+            .get("semantic")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let unit = definition
+            .get("unit")
+            .and_then(Value::as_str)
+            .unwrap_or("meter");
         let mut changed = false;
         // A Rig uses stable semantic pair IDs (for example
         // `shoulder-armor-pair`) while a primitive blockout may expose the
@@ -13817,7 +15547,10 @@ fn materialize_rig_geometry_program(
                 continue;
             }
             let output = &outputs[output_index];
-            let Some(input_node_ids) = output.get("input_node_ids").and_then(Value::as_array) else { continue; };
+            let Some(input_node_ids) = output.get("input_node_ids").and_then(Value::as_array)
+            else {
+                continue;
+            };
             let input_node_ids = input_node_ids
                 .iter()
                 .filter_map(Value::as_str)
@@ -13832,10 +15565,17 @@ fn materialize_rig_geometry_program(
                 let mut affected = Vec::new();
                 let mut visited = HashSet::new();
                 for input_node_id in &input_node_ids {
-                    collect_geometry_node_indices(&nodes, input_node_id, &mut visited, &mut affected);
+                    collect_geometry_node_indices(
+                        &nodes,
+                        input_node_id,
+                        &mut visited,
+                        &mut affected,
+                    );
                 }
                 for node_index in affected {
-                    let Some(node) = nodes.get_mut(node_index) else { continue; };
+                    let Some(node) = nodes.get_mut(node_index) else {
+                        continue;
+                    };
                     let operator_id = node
                         .get("operator_id")
                         .and_then(Value::as_str)
@@ -13844,7 +15584,9 @@ fn materialize_rig_geometry_program(
                     if operator_id != "forgecad.geometry.surface-shell@1" {
                         continue;
                     }
-                    let Some(parameters) = node.get_mut("parameters").and_then(Value::as_object_mut) else {
+                    let Some(parameters) =
+                        node.get_mut("parameters").and_then(Value::as_object_mut)
+                    else {
                         continue;
                     };
                     if apply_surface_control_point_to_node(
@@ -13858,7 +15600,16 @@ fn materialize_rig_geometry_program(
                 }
                 continue;
             }
-            if matches!(semantic, "offset_x" | "offset_y" | "offset_z" | "scale" | "rotation_x" | "rotation_y" | "rotation_z") {
+            if matches!(
+                semantic,
+                "offset_x"
+                    | "offset_y"
+                    | "offset_z"
+                    | "scale"
+                    | "rotation_x"
+                    | "rotation_y"
+                    | "rotation_z"
+            ) {
                 // A bilateral Part is often authored as `source -> transform
                 // -> mirror`. Applying a camera-plane offset to the source
                 // node moves the two mirrored sides in opposite directions;
@@ -13875,13 +15626,19 @@ fn materialize_rig_geometry_program(
                     ) else {
                         continue;
                     };
-                    let Some(node) = nodes.get_mut(transform_index) else { continue; };
+                    let Some(node) = nodes.get_mut(transform_index) else {
+                        continue;
+                    };
                     let operator_id = node
                         .get("operator_id")
                         .and_then(Value::as_str)
                         .unwrap_or_default()
                         .to_owned();
-                    let Some(parameters) = node.get_mut("parameters").and_then(Value::as_object_mut) else { continue; };
+                    let Some(parameters) =
+                        node.get_mut("parameters").and_then(Value::as_object_mut)
+                    else {
+                        continue;
+                    };
                     if apply_rig_parameter_to_node(
                         parameters,
                         &operator_id,
@@ -13909,13 +15666,18 @@ fn materialize_rig_geometry_program(
                     == Some("forgecad.geometry.transform@2")
             });
             for node_index in affected {
-                let Some(node) = nodes.get_mut(node_index) else { continue; };
+                let Some(node) = nodes.get_mut(node_index) else {
+                    continue;
+                };
                 let operator_id = node
                     .get("operator_id")
                     .and_then(Value::as_str)
                     .unwrap_or_default()
                     .to_owned();
-                let Some(parameters) = node.get_mut("parameters").and_then(Value::as_object_mut) else { continue; };
+                let Some(parameters) = node.get_mut("parameters").and_then(Value::as_object_mut)
+                else {
+                    continue;
+                };
                 // Dimensions belong to the first-party source geometry node.
                 // An offset/scale belongs to the final transform when one
                 // exists; tracing the DAG keeps mirror/array/part-output
@@ -13929,8 +15691,13 @@ fn materialize_rig_geometry_program(
                         | "forgecad.geometry.part-output@1"
                 );
                 let should_apply = match semantic {
-                    "offset_x" | "offset_y" | "offset_z" | "scale" | "rotation_x" | "rotation_y" | "rotation_z" => {
-                        if has_transform { is_transform } else { is_source_geometry }
+                    "offset_x" | "offset_y" | "offset_z" | "scale" | "rotation_x"
+                    | "rotation_y" | "rotation_z" => {
+                        if has_transform {
+                            is_transform
+                        } else {
+                            is_source_geometry
+                        }
                     }
                     "width" | "height" | "depth" => is_source_geometry,
                     _ => false,
@@ -13950,7 +15717,9 @@ fn materialize_rig_geometry_program(
                 }
             }
         }
-        if changed { applied += 1; }
+        if changed {
+            applied += 1;
+        }
     }
     materialized["part_outputs"] = Value::Array(outputs);
     Ok((materialized, applied))
@@ -14030,9 +15799,10 @@ fn ensure_output_transform_node(
 
     let mut node_id = format!("forgecad.rig.transform.{output_index}.{input_index}");
     let mut suffix = 0usize;
-    while nodes.iter().any(|node| {
-        node.get("node_id").and_then(Value::as_str) == Some(node_id.as_str())
-    }) {
+    while nodes
+        .iter()
+        .any(|node| node.get("node_id").and_then(Value::as_str) == Some(node_id.as_str()))
+    {
         suffix += 1;
         node_id = format!("forgecad.rig.transform.{output_index}.{input_index}.{suffix}");
     }
@@ -14150,13 +15920,20 @@ fn apply_rig_parameter_to_node(
     } else {
         1.0
     };
-    let delta = if unit == "ratio" { value - base_value } else { value };
+    let delta = if unit == "ratio" {
+        value - base_value
+    } else {
+        value
+    };
     if !ratio.is_finite() || !delta.is_finite() || ratio <= 0.0 {
         return false;
     }
     match semantic {
         "rotation_x" | "rotation_y" | "rotation_z" => {
-            let Some(vector) = parameters.get_mut("rotation_rad").and_then(Value::as_array_mut) else {
+            let Some(vector) = parameters
+                .get_mut("rotation_rad")
+                .and_then(Value::as_array_mut)
+            else {
                 return false;
             };
             if vector.len() != 3 {
@@ -14183,7 +15960,9 @@ fn apply_rig_parameter_to_node(
             };
             let old = vector[axis].as_f64().unwrap_or(0.0);
             let next = old + delta;
-            if !next.is_finite() || !(-2.0 * std::f64::consts::PI..=2.0 * std::f64::consts::PI).contains(&next) {
+            if !next.is_finite()
+                || !(-2.0 * std::f64::consts::PI..=2.0 * std::f64::consts::PI).contains(&next)
+            {
                 return false;
             }
             vector[axis] = Value::from(next);
@@ -14237,7 +16016,8 @@ fn apply_rig_parameter_to_node(
                 // anchor and scale the loft span so a Primary Form height
                 // proposal cannot silently change depth instead.
                 let (first_height, last_height) = {
-                    let Some(profiles) = parameters.get("profiles").and_then(Value::as_array) else {
+                    let Some(profiles) = parameters.get("profiles").and_then(Value::as_array)
+                    else {
                         return false;
                     };
                     if profiles.len() < 2 {
@@ -14269,11 +16049,16 @@ fn apply_rig_parameter_to_node(
                     value
                 };
                 let span_scale = target_span / authored_span;
-                if !target_span.is_finite() || target_span <= 0.0 || !span_scale.is_finite() || span_scale <= 0.0 {
+                if !target_span.is_finite()
+                    || target_span <= 0.0
+                    || !span_scale.is_finite()
+                    || span_scale <= 0.0
+                {
                     return false;
                 }
                 let next_heights = {
-                    let Some(profiles) = parameters.get("profiles").and_then(Value::as_array) else {
+                    let Some(profiles) = parameters.get("profiles").and_then(Value::as_array)
+                    else {
                         return false;
                     };
                     profiles
@@ -14288,7 +16073,8 @@ fn apply_rig_parameter_to_node(
                 let Some(next_heights) = next_heights else {
                     return false;
                 };
-                let Some(profiles) = parameters.get_mut("profiles").and_then(Value::as_array_mut) else {
+                let Some(profiles) = parameters.get_mut("profiles").and_then(Value::as_array_mut)
+                else {
                     return false;
                 };
                 for (profile, next_height) in profiles.iter_mut().zip(next_heights) {
@@ -14302,7 +16088,11 @@ fn apply_rig_parameter_to_node(
                 _ => 2,
             };
             let scale_dimension = |old: f64| {
-                if unit == "ratio" { old * ratio } else { value }
+                if unit == "ratio" {
+                    old * ratio
+                } else {
+                    value
+                }
             };
             let mut changed = false;
             for key in ["size_m", "radii_m"] {
@@ -14365,9 +16155,12 @@ fn apply_rig_parameter_to_node(
                         }
                     }
                 }
-                if let Some(profiles) = parameters.get_mut("profiles").and_then(Value::as_array_mut) {
+                if let Some(profiles) = parameters.get_mut("profiles").and_then(Value::as_array_mut)
+                {
                     for profile in profiles {
-                        if let Some(points) = profile.get_mut("points").and_then(Value::as_array_mut) {
+                        if let Some(points) =
+                            profile.get_mut("points").and_then(Value::as_array_mut)
+                        {
                             for point in points {
                                 if let Some(pair) = point.as_array_mut() {
                                     if pair.len() >= 2 {
@@ -14431,12 +16224,11 @@ fn finalize_v2_geometry_program(mut draft: Value) -> Result<Value, RuntimeError>
     // Geometry Worker receives. Without this normalization, the Worker can
     // validate one canonical hash while Runtime stores a different byte hash
     // for the same logical Rig edit.
-    draft = serde_json::from_slice(
-        &serde_json::to_vec(&draft)
-            .map_err(|error| RuntimeError::InvalidInput(format!(
-                "SILHOUETTE_FIT_GEOMETRY_FAILED: program serialization failed: {error}"
-            )))?,
-    )
+    draft = serde_json::from_slice(&serde_json::to_vec(&draft).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "SILHOUETTE_FIT_GEOMETRY_FAILED: program serialization failed: {error}"
+        ))
+    })?)
     .map_err(|error| {
         RuntimeError::InvalidInput(format!(
             "SILHOUETTE_FIT_GEOMETRY_FAILED: program round-trip failed: {error}"
@@ -14444,14 +16236,23 @@ fn finalize_v2_geometry_program(mut draft: Value) -> Result<Value, RuntimeError>
     })?;
     draft
         .as_object_mut()
-        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: program is not an object".to_owned()))?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_GEOMETRY_FAILED: program is not an object".to_owned(),
+            )
+        })?
         .remove("canonical_sha256");
-    let hash = hash_geometry_program_with_runtime_worker(&draft)
-        .map_err(|error| RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_FAILED: {error}")))?;
+    let hash = hash_geometry_program_with_runtime_worker(&draft).map_err(|error| {
+        RuntimeError::InvalidInput(format!("SILHOUETTE_FIT_GEOMETRY_FAILED: {error}"))
+    })?;
     let canonical = hash
         .get("canonical_sha256")
         .and_then(Value::as_str)
-        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_FIT_GEOMETRY_FAILED: GeometryProgram hash is missing".to_owned()))?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_GEOMETRY_FAILED: GeometryProgram hash is missing".to_owned(),
+            )
+        })?
         .to_owned();
     draft["canonical_sha256"] = Value::String(canonical);
     Ok(draft)
@@ -14461,20 +16262,24 @@ fn rig_parameter_deltas(rig: &Value, selected_parameters: &[Value]) -> Vec<Value
     rig.get("parameters")
         .and_then(Value::as_array)
         .map(|parameters| {
-            parameters.iter().enumerate().filter_map(|(index, parameter)| {
-                let selected = selected_parameters.get(index)?;
-                let parameter_id = parameter.get("parameter_id").and_then(Value::as_str)?;
-                let part_id = parameter.get("part_id").and_then(Value::as_str)?;
-                let from = parameter.get("value").and_then(Value::as_f64)?;
-                let to = selected.get("value").and_then(Value::as_f64)?;
-                Some(json!({
-                    "parameter_id": parameter_id,
-                    "part_id": part_id,
-                    "from": stable_visual_metric(from),
-                    "to": stable_visual_metric(to),
-                    "delta": stable_visual_metric(to - from)
-                }))
-            }).collect()
+            parameters
+                .iter()
+                .enumerate()
+                .filter_map(|(index, parameter)| {
+                    let selected = selected_parameters.get(index)?;
+                    let parameter_id = parameter.get("parameter_id").and_then(Value::as_str)?;
+                    let part_id = parameter.get("part_id").and_then(Value::as_str)?;
+                    let from = parameter.get("value").and_then(Value::as_f64)?;
+                    let to = selected.get("value").and_then(Value::as_f64)?;
+                    Some(json!({
+                        "parameter_id": parameter_id,
+                        "part_id": part_id,
+                        "from": stable_visual_metric(from),
+                        "to": stable_visual_metric(to),
+                        "delta": stable_visual_metric(to - from)
+                    }))
+                })
+                .collect()
         })
         .unwrap_or_default()
 }
@@ -14703,8 +16508,7 @@ fn primary_form_backtrack_fractions(
     geometry_budget: usize,
     recovery_count: usize,
 ) -> Vec<f64> {
-    let capacity = geometry_budget
-        .saturating_sub(1 + parameter_count + recovery_count);
+    let capacity = geometry_budget.saturating_sub(1 + parameter_count + recovery_count);
     match capacity.min(2) {
         0 => Vec::new(),
         1 => vec![0.5],
@@ -14892,7 +16696,9 @@ fn scope_silhouette_rig_to_part(
                 parameter
                     .get("part_id")
                     .and_then(Value::as_str)
-                    .is_some_and(|authored_part| rig_part_matches_observed_part(authored_part, part_id))
+                    .is_some_and(|authored_part| {
+                        rig_part_matches_observed_part(authored_part, part_id)
+                    })
             })
             .map(|parameter| {
                 let mut scoped = parameter.clone();
@@ -14936,7 +16742,9 @@ fn primary_form_probe_coordinate(parameter_indices: &[usize], probe_index: usize
     if probe_index == 0 || parameter_indices.is_empty() {
         return None;
     }
-    parameter_indices.get((probe_index - 1) % parameter_indices.len()).copied()
+    parameter_indices
+        .get((probe_index - 1) % parameter_indices.len())
+        .copied()
 }
 
 /// Return the direction supplied by the full Runtime-owned evidence proposal
@@ -15120,8 +16928,12 @@ fn primary_form_camera_refit_schedule(base: &Value, budget: usize) -> Vec<Value>
 }
 
 fn bbox_axis_ratios(target: &[bool], model: &[bool]) -> (f64, f64) {
-    let Some(target_box) = bbox(target) else { return (1.0, 1.0); };
-    let Some(model_box) = bbox(model) else { return (1.0, 1.0); };
+    let Some(target_box) = bbox(target) else {
+        return (1.0, 1.0);
+    };
+    let Some(model_box) = bbox(model) else {
+        return (1.0, 1.0);
+    };
     let target_width = (target_box.2 - target_box.0 + 1) as f64;
     let target_height = (target_box.3 - target_box.1 + 1) as f64;
     let model_width = (model_box.2 - model_box.0 + 1) as f64;
@@ -15208,10 +17020,22 @@ fn local_part_parameter_delta(
     model: MaskEnvelope,
     camera: Option<&Value>,
 ) -> f64 {
-    let semantic = parameter.get("semantic").and_then(Value::as_str).unwrap_or("");
-    let unit = parameter.get("unit").and_then(Value::as_str).unwrap_or("meter");
-    let value = parameter.get("value").and_then(Value::as_f64).unwrap_or(0.0);
-    let step = parameter.get("step").and_then(Value::as_f64).unwrap_or(0.01);
+    let semantic = parameter
+        .get("semantic")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let unit = parameter
+        .get("unit")
+        .and_then(Value::as_str)
+        .unwrap_or("meter");
+    let value = parameter
+        .get("value")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let step = parameter
+        .get("step")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.01);
     let parameter_scale = value.abs().max(step.abs()).max(0.001);
     let target_width = (target.max_x.saturating_sub(target.min_x) + 1) as f64;
     let target_height = (target.max_y.saturating_sub(target.min_y) + 1) as f64;
@@ -15230,18 +17054,26 @@ fn local_part_parameter_delta(
         "width" => (width_ratio - 1.0) * parameter_scale,
         "height" => (height_ratio - 1.0) * parameter_scale,
         "scale" => (((width_ratio * height_ratio).sqrt()) - 1.0) * parameter_scale,
-        "offset_x" => center_delta_x
-            * if unit == "ratio" {
-                1.0
-            } else {
-                camera_scale.map(|(world_per_screen_x, _)| world_per_screen_x).unwrap_or(0.0)
-            },
-        "offset_y" => center_delta_y
-            * if unit == "ratio" {
-                1.0
-            } else {
-                camera_scale.map(|(_, world_per_screen_y)| world_per_screen_y).unwrap_or(0.0)
-            },
+        "offset_x" => {
+            center_delta_x
+                * if unit == "ratio" {
+                    1.0
+                } else {
+                    camera_scale
+                        .map(|(world_per_screen_x, _)| world_per_screen_x)
+                        .unwrap_or(0.0)
+                }
+        }
+        "offset_y" => {
+            center_delta_y
+                * if unit == "ratio" {
+                    1.0
+                } else {
+                    camera_scale
+                        .map(|(_, world_per_screen_y)| world_per_screen_y)
+                        .unwrap_or(0.0)
+                }
+        }
         // Depth and Z offsets cannot be inferred from one view.  Returning a
         // neutral bounded proposal is safer than inventing hidden geometry.
         "depth" | "offset_z" => 0.0,
@@ -15260,8 +17092,12 @@ fn decode_part_mask(part_png: &[u8], part_id: &str, part_ids: &[String]) -> Opti
     }
     let mut part_mask = vec![false; 512 * 512];
     for (index, value) in part_mask.iter_mut().enumerate() {
-        let pixel = image.get_pixel((index % 512) as u32, (index / 512) as u32).0;
-        let Some(part_index) = part_color_index(pixel) else { continue; };
+        let pixel = image
+            .get_pixel((index % 512) as u32, (index / 512) as u32)
+            .0;
+        let Some(part_index) = part_color_index(pixel) else {
+            continue;
+        };
         *value = part_ids
             .get(part_index)
             .is_some_and(|candidate| rig_part_matches_observed_part(part_id, candidate));
@@ -15342,12 +17178,22 @@ fn decode_relevant_part_masks(
     )
 }
 
-fn part_boundary_error(part_png: &[u8], target_mask: &[bool], target: &Value, part_id: &str, part_ids: &[String]) -> f64 {
-    let Some(part_mask) = decode_part_mask(part_png, part_id, part_ids) else { return 512.0; };
+fn part_boundary_error(
+    part_png: &[u8],
+    target_mask: &[bool],
+    target: &Value,
+    part_id: &str,
+    part_ids: &[String],
+) -> f64 {
+    let Some(part_mask) = decode_part_mask(part_png, part_id, part_ids) else {
+        return 512.0;
+    };
     let selected_boundary = boundary_mask(&part_mask);
-    if !selected_boundary.iter().any(|value| *value) { return 512.0; }
-    let target_boundary = target_part_boundary_mask(target, part_id)
-        .unwrap_or_else(|| boundary_mask(target_mask));
+    if !selected_boundary.iter().any(|value| *value) {
+        return 512.0;
+    }
+    let target_boundary =
+        target_part_boundary_mask(target, part_id).unwrap_or_else(|| boundary_mask(target_mask));
     let target_field = boundary_distance_field(&target_boundary);
     let mut total = 0.0;
     let mut count = 0.0;
@@ -15357,7 +17203,11 @@ fn part_boundary_error(part_png: &[u8], target_mask: &[bool], target: &Value, pa
             count += 1.0;
         }
     }
-    if count == 0.0 { 512.0 } else { (total / count).clamp(0.0, 512.0) }
+    if count == 0.0 {
+        512.0
+    } else {
+        (total / count).clamp(0.0, 512.0)
+    }
 }
 
 fn part_boundary_error_against_mask(
@@ -15396,12 +17246,18 @@ fn part_boundary_error_against_mask(
 /// semantic Part.  A slice is an inclusive, non-wrapping range over the
 /// canonical contour point array; ranges must be unique and non-overlapping
 /// so a boundary pixel cannot silently belong to two Parts.
-fn validate_target_part_ranges(parts: &Value, contour_len: usize, context: &str) -> Result<(), RuntimeError> {
+fn validate_target_part_ranges(
+    parts: &Value,
+    contour_len: usize,
+    context: &str,
+) -> Result<(), RuntimeError> {
     let values = parts.as_array().ok_or_else(|| {
         RuntimeError::InvalidInput(format!("{context}: target parts must be an array"))
     })?;
     if values.len() > 64 {
-        return Err(RuntimeError::InvalidInput(format!("{context}: too many target parts")));
+        return Err(RuntimeError::InvalidInput(format!(
+            "{context}: too many target parts"
+        )));
     }
     let mut ids = std::collections::HashSet::new();
     let mut ranges: Vec<(usize, usize)> = Vec::with_capacity(values.len());
@@ -15413,9 +17269,16 @@ fn validate_target_part_ranges(parts: &Value, contour_len: usize, context: &str)
             || ["part_id", "start_index", "end_index", "visibility"]
                 .iter()
                 .any(|key| !object.contains_key(*key))
-            || object
-                .keys()
-                .any(|key| !["part_id", "start_index", "end_index", "visibility", "region"].contains(&key.as_str()))
+            || object.keys().any(|key| {
+                ![
+                    "part_id",
+                    "start_index",
+                    "end_index",
+                    "visibility",
+                    "region",
+                ]
+                .contains(&key.as_str())
+            })
         {
             return Err(RuntimeError::InvalidInput(format!(
                 "{context}: target part field set is not closed"
@@ -15423,18 +17286,22 @@ fn validate_target_part_ranges(parts: &Value, contour_len: usize, context: &str)
         }
         let part_id = required_contract_identifier(object, "part_id", "SilhouetteTarget@1.part")?;
         if !ids.insert(part_id.to_owned()) {
-            return Err(RuntimeError::InvalidInput(format!("{context}: duplicate target part_id")));
+            return Err(RuntimeError::InvalidInput(format!(
+                "{context}: duplicate target part_id"
+            )));
         }
         let start = object
             .get("start_index")
             .and_then(Value::as_u64)
-            .ok_or_else(|| RuntimeError::InvalidInput(format!("{context}: target part start_index")))?
-            as usize;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!("{context}: target part start_index"))
+            })? as usize;
         let end = object
             .get("end_index")
             .and_then(Value::as_u64)
-            .ok_or_else(|| RuntimeError::InvalidInput(format!("{context}: target part end_index")))?
-            as usize;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!("{context}: target part end_index"))
+            })? as usize;
         if contour_len < 2 || start >= end || end >= contour_len {
             return Err(RuntimeError::InvalidInput(format!(
                 "{context}: target part range is outside contour"
@@ -15444,7 +17311,9 @@ fn validate_target_part_ranges(parts: &Value, contour_len: usize, context: &str)
             object.get("visibility").and_then(Value::as_str),
             Some("observed" | "inferred" | "unknown")
         ) {
-            return Err(RuntimeError::InvalidInput(format!("{context}: target part visibility")));
+            return Err(RuntimeError::InvalidInput(format!(
+                "{context}: target part visibility"
+            )));
         }
         if let Some(region) = object.get("region") {
             validate_target_part_region(region, context)?;
@@ -15554,12 +17423,8 @@ fn rasterize_boundary_segment(mask: &mut [bool], start: [f64; 2], end: [f64; 2])
     let steps = (x1 - x0).abs().max((y1 - y0).abs()).max(1);
     for step in 0..=steps {
         let t = step as f64 / steps as f64;
-        let x = (x0 as f64 + (x1 - x0) as f64 * t)
-            .round()
-            .clamp(0.0, 511.0) as usize;
-        let y = (y0 as f64 + (y1 - y0) as f64 * t)
-            .round()
-            .clamp(0.0, 511.0) as usize;
+        let x = (x0 as f64 + (x1 - x0) as f64 * t).round().clamp(0.0, 511.0) as usize;
+        let y = (y0 as f64 + (y1 - y0) as f64 * t).round().clamp(0.0, 511.0) as usize;
         mask[y * 512 + x] = true;
     }
 }
@@ -15614,7 +17479,10 @@ fn transient_loss_metrics_at_resolution(
         &json!({"landmarks": values}),
         part_context,
     );
-    if values.iter().all(|value| value.get("visibility").and_then(Value::as_str) == Some("unknown")) {
+    if values
+        .iter()
+        .all(|value| value.get("visibility").and_then(Value::as_str) == Some("unknown"))
+    {
         return base.clone();
     }
     let mut metrics = base.clone();
@@ -15669,10 +17537,7 @@ fn part_color_index(pixel: [u8; 4]) -> Option<usize> {
 }
 
 fn reference_mask_png(bytes: &[u8]) -> Result<ReferenceMask, RuntimeError> {
-    let decoded = image::load_from_memory(bytes)
-        .map_err(|error| RuntimeError::InvalidInput(format!("REFERENCE_MASK_FAILED: {error}")))?
-        .resize_exact(512, 512, imageops::FilterType::Triangle)
-        .to_rgba8();
+    let decoded = aspect_fit_reference_rgba(bytes)?;
     let mut background = vec![false; 512 * 512];
     let mut queue = VecDeque::new();
     for x in 0..512usize {
@@ -15746,6 +17611,54 @@ fn reference_mask_png(bytes: &[u8]) -> Result<ReferenceMask, RuntimeError> {
     Ok(ReferenceMask { mask, png })
 }
 
+/// Fit an authorized reference into the fixed square comparison canvas without
+/// changing its pixel aspect ratio. Padding is produced by extending the
+/// resized border pixels instead of inserting a hard black/white frame; this
+/// keeps the deterministic border-connected background walk continuous for
+/// both light concept sheets and dark studio references.
+fn aspect_fit_reference_rgba(bytes: &[u8]) -> Result<RgbaImage, RuntimeError> {
+    let source = image::load_from_memory(bytes)
+        .map_err(|error| RuntimeError::InvalidInput(format!("REFERENCE_MASK_FAILED: {error}")))?
+        .to_rgba8();
+    let source_width = source.width();
+    let source_height = source.height();
+    if source_width == 0 || source_height == 0 {
+        return Err(RuntimeError::InvalidInput(
+            "REFERENCE_MASK_FAILED: empty reference image".to_owned(),
+        ));
+    }
+    let (fit_width, fit_height) = if source_width >= source_height {
+        (
+            512_u32,
+            ((source_height as u64 * 512 + source_width as u64 / 2) / source_width as u64)
+                .clamp(1, 512) as u32,
+        )
+    } else {
+        (
+            ((source_width as u64 * 512 + source_height as u64 / 2) / source_height as u64)
+                .clamp(1, 512) as u32,
+            512_u32,
+        )
+    };
+    let fitted = imageops::resize(
+        &source,
+        fit_width,
+        fit_height,
+        imageops::FilterType::Triangle,
+    );
+    let offset_x = (512 - fit_width) / 2;
+    let offset_y = (512 - fit_height) / 2;
+    let mut canvas = RgbaImage::new(512, 512);
+    for y in 0..512_u32 {
+        let source_y = y.saturating_sub(offset_y).min(fit_height.saturating_sub(1));
+        for x in 0..512_u32 {
+            let source_x = x.saturating_sub(offset_x).min(fit_width.saturating_sub(1));
+            canvas.put_pixel(x, y, *fitted.get_pixel(source_x, source_y));
+        }
+    }
+    Ok(canvas)
+}
+
 fn close_mask(mask: &[bool]) -> Vec<bool> {
     let mut dilated = vec![false; mask.len()];
     for y in 0..512usize {
@@ -15806,7 +17719,10 @@ fn decode_binary_mask(bytes: &[u8]) -> Result<Vec<bool>, RuntimeError> {
         .collect())
 }
 
-fn decode_binary_mask_at_resolution(bytes: &[u8], resolution: usize) -> Result<Vec<bool>, RuntimeError> {
+fn decode_binary_mask_at_resolution(
+    bytes: &[u8],
+    resolution: usize,
+) -> Result<Vec<bool>, RuntimeError> {
     if !(16..=512).contains(&resolution) {
         return Err(RuntimeError::InvalidInput(
             "RENDER_PASS_INVALID: fit resolution out of bounds".to_owned(),
@@ -15814,7 +17730,11 @@ fn decode_binary_mask_at_resolution(bytes: &[u8], resolution: usize) -> Result<V
     }
     let image = image::load_from_memory(bytes)
         .map_err(|error| RuntimeError::InvalidInput(format!("RENDER_PASS_INVALID: {error}")))?
-        .resize_exact(resolution as u32, resolution as u32, imageops::FilterType::Nearest)
+        .resize_exact(
+            resolution as u32,
+            resolution as u32,
+            imageops::FilterType::Nearest,
+        )
         .to_rgba8();
     Ok(image
         .pixels()
@@ -15895,8 +17815,9 @@ fn centroid_error_at_resolution(reference: &[bool], model: &[bool], resolution: 
         (count > 0.0).then_some((x / count, y / count))
     }
     match (center(reference, resolution), center(model, resolution)) {
-        (Some(left), Some(right)) =>
-            ((left.0 - right.0).powi(2) + (left.1 - right.1).powi(2)).sqrt().min(1.0),
+        (Some(left), Some(right)) => ((left.0 - right.0).powi(2) + (left.1 - right.1).powi(2))
+            .sqrt()
+            .min(1.0),
         _ => 1.0,
     }
 }
@@ -15961,7 +17882,11 @@ fn boundary_f1_at_resolution(
                 }
             }
         }
-        if total == 0 { 0.0 } else { hit as f64 / total as f64 }
+        if total == 0 {
+            0.0
+        } else {
+            hit as f64 / total as f64
+        }
     }
     let precision = score(&left, &right, resolution, radius);
     let recall = score(&right, &left, resolution, radius);
@@ -16008,7 +17933,12 @@ fn boundary_distance_field_at_resolution(boundary: &[bool], resolution: usize) -
         for x in 0..resolution {
             let index = y * resolution + x;
             let mut value = field[index];
-            for (dx, dy, weight) in [(-1_i32, 0_i32, 1.0), (0, -1, 1.0), (-1, -1, 1.4142), (1, -1, 1.4142)] {
+            for (dx, dy, weight) in [
+                (-1_i32, 0_i32, 1.0),
+                (0, -1, 1.0),
+                (-1, -1, 1.4142),
+                (1, -1, 1.4142),
+            ] {
                 let nx = x as i32 + dx;
                 let ny = y as i32 + dy;
                 if nx >= 0 && ny >= 0 && nx < resolution as i32 && ny < resolution as i32 {
@@ -16022,7 +17952,12 @@ fn boundary_distance_field_at_resolution(boundary: &[bool], resolution: usize) -
         for x in (0..resolution).rev() {
             let index = y * resolution + x;
             let mut value = field[index];
-            for (dx, dy, weight) in [(1_i32, 0_i32, 1.0), (0, 1, 1.0), (1, 1, 1.4142), (-1, 1, 1.4142)] {
+            for (dx, dy, weight) in [
+                (1_i32, 0_i32, 1.0),
+                (0, 1, 1.0),
+                (1, 1, 1.4142),
+                (-1, 1, 1.4142),
+            ] {
                 let nx = x as i32 + dx;
                 let ny = y as i32 + dy;
                 if nx >= 0 && ny >= 0 && nx < resolution as i32 && ny < resolution as i32 {
@@ -16067,18 +18002,30 @@ fn landmark_metrics_at_resolution_with_parts(
         if !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) {
             continue;
         }
-        let confidence = value.get("confidence").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.25, 1.0);
+        let confidence = value
+            .get("confidence")
+            .and_then(Value::as_f64)
+            .unwrap_or(1.0)
+            .clamp(0.25, 1.0);
         total += confidence;
-        let px = ((x * (resolution.saturating_sub(1)) as f64).round() as usize).min(resolution.saturating_sub(1));
-        let py = ((y * (resolution.saturating_sub(1)) as f64).round() as usize).min(resolution.saturating_sub(1));
+        let px = ((x * (resolution.saturating_sub(1)) as f64).round() as usize)
+            .min(resolution.saturating_sub(1));
+        let py = ((y * (resolution.saturating_sub(1)) as f64).round() as usize)
+            .min(resolution.saturating_sub(1));
         let anchor = value
             .get("landmark_id")
             .and_then(Value::as_str)
             .and_then(landmark_part_hint)
-            .and_then(|(part_id, anchor)| part_masks.get(part_id).and_then(|mask| landmark_anchor_point_at_resolution(mask, anchor, resolution)));
+            .and_then(|(part_id, anchor)| {
+                part_masks
+                    .get(part_id)
+                    .and_then(|mask| landmark_anchor_point_at_resolution(mask, anchor, resolution))
+            });
         if let Some((anchor_x, anchor_y)) = anchor {
             let distance = ((anchor_x - x).powi(2) + (anchor_y - y).powi(2)).sqrt();
-            if distance <= 12.0 / 512.0 { covered += confidence; }
+            if distance <= 12.0 / 512.0 {
+                covered += confidence;
+            }
             error += distance.min(1.0) * confidence;
         } else if model[py * resolution + px] {
             covered += confidence;
@@ -16088,7 +18035,12 @@ fn landmark_metrics_at_resolution_with_parts(
                 for dx in -3i32..=3 {
                     let nx = px as i32 + dx;
                     let ny = py as i32 + dy;
-                    if nx >= 0 && ny >= 0 && nx < resolution as i32 && ny < resolution as i32 && model[ny as usize * resolution + nx as usize] {
+                    if nx >= 0
+                        && ny >= 0
+                        && nx < resolution as i32
+                        && ny < resolution as i32
+                        && model[ny as usize * resolution + nx as usize]
+                    {
                         best = best.min(((dx * dx + dy * dy) as f64).sqrt() / resolution as f64);
                     }
                 }
@@ -16096,21 +18048,43 @@ fn landmark_metrics_at_resolution_with_parts(
             error += best * confidence;
         }
     }
-    if total == 0.0 { (0.0, 1.0) } else { (covered / total, (error / total).min(1.0)) }
+    if total == 0.0 {
+        (0.0, 1.0)
+    } else {
+        (covered / total, (error / total).min(1.0))
+    }
 }
 
-fn landmark_anchor_point_at_resolution(mask: &[bool], anchor: LandmarkAnchor, resolution: usize) -> Option<(f64, f64)> {
-    let pixels = mask.iter().enumerate().filter_map(|(index, value)| value.then_some((index % resolution, index / resolution))).collect::<Vec<_>>();
-    if pixels.is_empty() { return None; }
+fn landmark_anchor_point_at_resolution(
+    mask: &[bool],
+    anchor: LandmarkAnchor,
+    resolution: usize,
+) -> Option<(f64, f64)> {
+    let pixels = mask
+        .iter()
+        .enumerate()
+        .filter_map(|(index, value)| value.then_some((index % resolution, index / resolution)))
+        .collect::<Vec<_>>();
+    if pixels.is_empty() {
+        return None;
+    }
     let min_x = pixels.iter().map(|(x, _)| *x).min()?;
     let max_x = pixels.iter().map(|(x, _)| *x).max()?;
     let split = (min_x + max_x) / 2;
-    let selected = pixels.iter().copied().filter(|(x, _)| match anchor {
-        LandmarkAnchor::Left | LandmarkAnchor::LowerLeft => *x <= split,
-        LandmarkAnchor::Right => *x >= split,
-        _ => true,
-    }).collect::<Vec<_>>();
-    let selected = if selected.is_empty() { pixels } else { selected };
+    let selected = pixels
+        .iter()
+        .copied()
+        .filter(|(x, _)| match anchor {
+            LandmarkAnchor::Left | LandmarkAnchor::LowerLeft => *x <= split,
+            LandmarkAnchor::Right => *x >= split,
+            _ => true,
+        })
+        .collect::<Vec<_>>();
+    let selected = if selected.is_empty() {
+        pixels
+    } else {
+        selected
+    };
     let extreme = match anchor {
         LandmarkAnchor::Top => selected.iter().map(|(_, y)| *y).min(),
         LandmarkAnchor::Bottom => selected.iter().map(|(_, y)| *y).max(),
@@ -16119,14 +18093,26 @@ fn landmark_anchor_point_at_resolution(mask: &[bool], anchor: LandmarkAnchor, re
         LandmarkAnchor::Center => None,
     };
     let chosen = if let Some(extreme) = extreme {
-        selected.into_iter().filter(|(x, y)| match anchor {
-            LandmarkAnchor::Top | LandmarkAnchor::Bottom => *y == extreme,
-            LandmarkAnchor::Left | LandmarkAnchor::LowerLeft | LandmarkAnchor::Right => *x == extreme,
-            LandmarkAnchor::Center => true,
-        }).collect::<Vec<_>>()
-    } else { selected };
-    let (sum_x, sum_y) = chosen.iter().fold((0.0, 0.0), |(sx, sy), (x, y)| (sx + *x as f64, sy + *y as f64));
-    Some((sum_x / chosen.len() as f64 / resolution.saturating_sub(1) as f64, sum_y / chosen.len() as f64 / resolution.saturating_sub(1) as f64))
+        selected
+            .into_iter()
+            .filter(|(x, y)| match anchor {
+                LandmarkAnchor::Top | LandmarkAnchor::Bottom => *y == extreme,
+                LandmarkAnchor::Left | LandmarkAnchor::LowerLeft | LandmarkAnchor::Right => {
+                    *x == extreme
+                }
+                LandmarkAnchor::Center => true,
+            })
+            .collect::<Vec<_>>()
+    } else {
+        selected
+    };
+    let (sum_x, sum_y) = chosen.iter().fold((0.0, 0.0), |(sx, sy), (x, y)| {
+        (sx + *x as f64, sy + *y as f64)
+    });
+    Some((
+        sum_x / chosen.len() as f64 / resolution.saturating_sub(1) as f64,
+        sum_y / chosen.len() as f64 / resolution.saturating_sub(1) as f64,
+    ))
 }
 
 /// Quantize persisted visual metrics before hashing them. `serde_json::Value`
@@ -16190,27 +18176,27 @@ fn visible_view_threshold_policy_sha256() -> String {
 fn visible_view_gate_checks(metrics: &Value) -> Vec<Value> {
     visible_view_threshold_specs()
         .into_iter()
-    .map(|(metric_name, direction, threshold)| {
-        let observed = metrics
-            .get(metric_name)
-            .and_then(Value::as_f64)
-            .filter(|value| value.is_finite());
-        let passed = observed.is_some_and(|value| {
-            if direction == "min" {
-                value >= threshold
-            } else {
-                value <= threshold
-            }
-        });
-        json!({
-            "metric_name":metric_name,
-            "direction":direction,
-            "observed":observed.map(Value::from).unwrap_or(Value::Null),
-            "threshold":threshold,
-            "status":if observed.is_none() {"not-run"} else if passed {"passed"} else {"failed"}
+        .map(|(metric_name, direction, threshold)| {
+            let observed = metrics
+                .get(metric_name)
+                .and_then(Value::as_f64)
+                .filter(|value| value.is_finite());
+            let passed = observed.is_some_and(|value| {
+                if direction == "min" {
+                    value >= threshold
+                } else {
+                    value <= threshold
+                }
+            });
+            json!({
+                "metric_name":metric_name,
+                "direction":direction,
+                "observed":observed.map(Value::from).unwrap_or(Value::Null),
+                "threshold":threshold,
+                "status":if observed.is_none() {"not-run"} else if passed {"passed"} else {"failed"}
+            })
         })
-    })
-    .collect()
+        .collect()
 }
 
 fn compare_masks(reference: &[bool], model: &[bool], view_spec: &Value) -> Value {
@@ -16454,7 +18440,11 @@ fn landmark_anchor_point(mask: &[bool], anchor: LandmarkAnchor) -> Option<(f64, 
         _ => true,
     });
     let selected = filtered.collect::<Vec<_>>();
-    let selected = if selected.is_empty() { pixels } else { selected };
+    let selected = if selected.is_empty() {
+        pixels
+    } else {
+        selected
+    };
     let (sum_x, sum_y) = selected.iter().fold((0.0, 0.0), |(x, y), (px, py)| {
         (x + *px as f64, y + *py as f64)
     });
@@ -16479,19 +18469,43 @@ fn landmark_anchor_point(mask: &[bool], anchor: LandmarkAnchor) -> Option<(f64, 
     let (x, y) = match anchor {
         LandmarkAnchor::Top => {
             let extreme = selected.iter().map(|(_, y)| *y).min()?;
-            mean_pixels(selected.iter().copied().filter(|(_, y)| *y == extreme).collect())?
+            mean_pixels(
+                selected
+                    .iter()
+                    .copied()
+                    .filter(|(_, y)| *y == extreme)
+                    .collect(),
+            )?
         }
         LandmarkAnchor::Bottom => {
             let extreme = selected.iter().map(|(_, y)| *y).max()?;
-            mean_pixels(selected.iter().copied().filter(|(_, y)| *y == extreme).collect())?
+            mean_pixels(
+                selected
+                    .iter()
+                    .copied()
+                    .filter(|(_, y)| *y == extreme)
+                    .collect(),
+            )?
         }
         LandmarkAnchor::Left => {
             let extreme = selected.iter().map(|(x, _)| *x).min()?;
-            mean_pixels(selected.iter().copied().filter(|(x, _)| *x == extreme).collect())?
+            mean_pixels(
+                selected
+                    .iter()
+                    .copied()
+                    .filter(|(x, _)| *x == extreme)
+                    .collect(),
+            )?
         }
         LandmarkAnchor::Right => {
             let extreme = selected.iter().map(|(x, _)| *x).max()?;
-            mean_pixels(selected.iter().copied().filter(|(x, _)| *x == extreme).collect())?
+            mean_pixels(
+                selected
+                    .iter()
+                    .copied()
+                    .filter(|(x, _)| *x == extreme)
+                    .collect(),
+            )?
         }
         LandmarkAnchor::LowerLeft => {
             let bottom_band = max_y.saturating_sub(((max_y - min_y) / 5).max(4));
@@ -16500,7 +18514,11 @@ fn landmark_anchor_point(mask: &[bool], anchor: LandmarkAnchor) -> Option<(f64, 
                 .copied()
                 .filter(|(_, y)| *y >= bottom_band)
                 .collect::<Vec<_>>();
-            let bottom = if bottom.is_empty() { selected.clone() } else { bottom };
+            let bottom = if bottom.is_empty() {
+                selected.clone()
+            } else {
+                bottom
+            };
             let extreme = match anchor {
                 LandmarkAnchor::LowerLeft => bottom.iter().map(|(x, _)| *x).min()?,
                 _ => unreachable!(),
@@ -16654,13 +18672,25 @@ fn compile_geometry_with_runtime_worker(
     geometry_program: &Value,
     appearance_program: Option<&Value>,
 ) -> Result<geometry_worker::GeometryArtifact, geometry_worker::GeometryWorkerError> {
+    // See `hash_geometry_program_with_runtime_worker`: MCP unit tests enable
+    // this explicit test feature so their transport assertions never couple
+    // to whatever sibling binary happens to be present in `target/debug`.
+    // Production and package probes still require the isolated Worker.
+    #[cfg(feature = "test-geometry-worker-fallback")]
+    {
+        return geometry_worker::compile_geometry_test_fallback(
+            geometry_program,
+            appearance_program,
+        );
+    }
+    #[cfg(not(feature = "test-geometry-worker-fallback"))]
     match geometry_worker::compile_geometry(geometry_program, appearance_program) {
         Ok(artifact) => Ok(artifact),
-        #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+        #[cfg(test)]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
             // This branch exists only in Runtime unit tests and in a consumer
-            // test target that explicitly enables the internal test feature.
-            // It is absent from product builds and dedicated isolation gates.
+            // test target. It is absent from product builds and dedicated
+            // isolation gates.
             geometry_worker::compile_geometry_test_fallback(geometry_program, appearance_program)
         }
         Err(error) => Err(error),
@@ -16670,9 +18700,28 @@ fn compile_geometry_with_runtime_worker(
 fn hash_geometry_program_with_runtime_worker(
     draft: &Value,
 ) -> Result<Value, geometry_worker::GeometryWorkerError> {
+    // MCP unit tests link Runtime as a dependency and can coexist with a
+    // stale sibling binary in `target/debug`.  That binary is deliberately
+    // rejected by the same-cohort contract, so a read-only PDK unit test must
+    // not accidentally become a test of sibling packaging.  The feature is
+    // declared only as a dev-dependency of `forgecad-mcp`; release Runtime
+    // and release MCP builds always take the fixed Worker path below.
+    #[cfg(feature = "test-geometry-worker-fallback")]
+    {
+        let canonical_sha256 = forgecad_geometry_worker::geometry_program_v2_draft_hash(draft)
+            .map_err(|_| geometry_worker::GeometryWorkerError::Rejected)?;
+        return Ok(json!({
+            "schema_version":"GeometryProgramHashResult@1",
+            "geometry_program_schema_version":"GeometryProgram@2",
+            "canonical_sha256":canonical_sha256,
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "validation_status":"passed"
+        }));
+    }
+    #[cfg(not(feature = "test-geometry-worker-fallback"))]
     match geometry_worker::geometry_program_hash(draft) {
         Ok(result) => Ok(result),
-        #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+        #[cfg(test)]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
             let canonical_sha256 = forgecad_geometry_worker::geometry_program_v2_draft_hash(draft)
                 .map_err(|_| geometry_worker::GeometryWorkerError::Rejected)?;
@@ -16692,14 +18741,18 @@ fn render_fixed_with_runtime_worker(
     geometry_program: &Value,
     appearance_program: &Value,
 ) -> Result<Vec<render_worker::RenderPass>, geometry_worker::GeometryWorkerError> {
-    let artifact = match geometry_worker::compile_geometry(geometry_program, Some(appearance_program)) {
-        Ok(artifact) => artifact,
-        #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
-        Err(geometry_worker::GeometryWorkerError::Unavailable) => {
-            geometry_worker::compile_geometry_test_fallback(geometry_program, Some(appearance_program))?
-        }
-        Err(error) => return Err(error),
-    };
+    let artifact =
+        match geometry_worker::compile_geometry(geometry_program, Some(appearance_program)) {
+            Ok(artifact) => artifact,
+            #[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+            Err(geometry_worker::GeometryWorkerError::Unavailable) => {
+                geometry_worker::compile_geometry_test_fallback(
+                    geometry_program,
+                    Some(appearance_program),
+                )?
+            }
+            Err(error) => return Err(error),
+        };
     match render_worker::render_fixed_glb(&artifact.glb) {
         Ok(passes) => Ok(passes),
         #[cfg(feature = "test-render-worker-fallback")]
@@ -16755,19 +18808,17 @@ fn render_glb_with_runtime_worker_identity(
         #[cfg(feature = "test-render-worker-fallback")]
         Err(geometry_worker::GeometryWorkerError::Unavailable) => {
             forgecad_render_core::render_perspective_glb(glb, camera)
-                .map(|passes| {
-                    RuntimeRenderResult {
-                        passes: passes
-                            .into_iter()
-                            .map(|pass| render_worker::RenderPass {
-                                pass: pass.pass,
-                                png: pass.png,
-                                width: pass.width,
-                                height: pass.height,
-                            })
-                            .collect(),
-                        build_cohort_sha256: None,
-                    }
+                .map(|passes| RuntimeRenderResult {
+                    passes: passes
+                        .into_iter()
+                        .map(|pass| render_worker::RenderPass {
+                            pass: pass.pass,
+                            png: pass.png,
+                            width: pass.width,
+                            height: pass.height,
+                        })
+                        .collect(),
+                    build_cohort_sha256: None,
                 })
                 .map_err(|_| geometry_worker::GeometryWorkerError::Rejected)
         }
@@ -16803,9 +18854,9 @@ fn compare_glb_metrics_at_camera(
             "PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned(),
         ));
     }
-    let reference = runtime.reference(reference_id)?.ok_or_else(|| {
-        RuntimeError::InvalidInput("NOT_FOUND: reference not found".to_owned())
-    })?;
+    let reference = runtime
+        .reference(reference_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: reference not found".to_owned()))?;
     if reference.project_id != project_id {
         return Err(RuntimeError::InvalidInput(
             "REFERENCE_SCOPE_DENIED: reference is outside the target project".to_owned(),
@@ -17280,8 +19331,8 @@ fn expand_parametric_design_kit(
             let slot_count = pdk_u64(intent, "slot_count", 1, 32, kit_id)?;
             let slot_width = pdk_number(intent, "slot_width_m", 0.0, 10.0, kit_id)?;
             let slot_spacing = pdk_number(intent, "slot_spacing_m", 0.0, 10.0, kit_id)?;
-            let occupied = slot_width * slot_count as f64
-                + slot_spacing * slot_count.saturating_sub(1) as f64;
+            let occupied =
+                slot_width * slot_count as f64 + slot_spacing * slot_count.saturating_sub(1) as f64;
             if occupied > width {
                 return Err(RuntimeError::InvalidInput(format!(
                     "PARAMETRIC_DESIGN_KIT_GEOMETRY_RELATIONSHIP_INVALID: {kit_id} slots exceed width_m"
@@ -17423,8 +19474,7 @@ fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeEr
         ],
         "ParametricDesignKitProgram@1",
     )?;
-    if object.get("schema_version").and_then(Value::as_str)
-        != Some("ParametricDesignKitProgram@1")
+    if object.get("schema_version").and_then(Value::as_str) != Some("ParametricDesignKitProgram@1")
         || !matches!(
             object.get("kit_id").and_then(Value::as_str),
             Some(
@@ -17447,20 +19497,20 @@ fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeEr
         .get("kit_id")
         .and_then(Value::as_str)
         .expect("kit_id constant was checked");
-    let project_id = required_contract_identifier(object, "project_id", "ParametricDesignKitProgram@1")?;
+    let project_id =
+        required_contract_identifier(object, "project_id", "ParametricDesignKitProgram@1")?;
     let representation_plan_sha256 = required_contract_sha256(
         object,
         "representation_plan_sha256",
         "ParametricDesignKitProgram@1",
     )?;
     let part_id = required_contract_identifier(object, "part_id", "ParametricDesignKitProgram@1")?;
-    let material_zone_id = required_contract_identifier(
-        object,
-        "material_zone_id",
-        "ParametricDesignKitProgram@1",
-    )?;
-    let intent_sha256 = required_contract_sha256(object, "intent_sha256", "ParametricDesignKitProgram@1")?;
-    let program_sha256 = required_contract_sha256(object, "program_sha256", "ParametricDesignKitProgram@1")?;
+    let material_zone_id =
+        required_contract_identifier(object, "material_zone_id", "ParametricDesignKitProgram@1")?;
+    let intent_sha256 =
+        required_contract_sha256(object, "intent_sha256", "ParametricDesignKitProgram@1")?;
+    let program_sha256 =
+        required_contract_sha256(object, "program_sha256", "ParametricDesignKitProgram@1")?;
     required_contract_sha256(object, "canonical_sha256", "ParametricDesignKitProgram@1")?;
     verify_output_canonical_hash(value, "ParametricDesignKitProgram@1")?;
 
@@ -17529,11 +19579,15 @@ fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeEr
     let nodes = program_object
         .get("nodes")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: nodes missing".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: nodes missing".to_owned())
+        })?;
     let part_outputs = program_object
         .get("part_outputs")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part_outputs missing".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part_outputs missing".to_owned())
+        })?;
     if nodes.len() != 1 || part_outputs.len() != 1 {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: PDK program must contain exactly one node and one part output"
@@ -17553,7 +19607,9 @@ fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeEr
     let source_map = object
         .get("source_map")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: source_map missing".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: source_map missing".to_owned())
+        })?;
     if source_map.len() != 1 {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: PDK source_map must contain exactly one binding".to_owned(),
@@ -17561,7 +19617,13 @@ fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeEr
     }
     let mapping = exact_object(
         &source_map[0],
-        &["part_id", "node_id", "operator_id", "material_zone_id", "parameter_ids"],
+        &[
+            "part_id",
+            "node_id",
+            "operator_id",
+            "material_zone_id",
+            "parameter_ids",
+        ],
         "ParametricDesignKitProgram@1.source_map[0]",
     )?;
     let node_id = required_contract_identifier(node, "node_id", "PDK node")?;
@@ -17571,15 +19633,21 @@ fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeEr
     let input_nodes = output
         .get("input_node_ids")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: PDK input nodes missing".to_owned()))?;
-    if input_nodes.len() != 1 || input_nodes[0].as_str() != Some(node_id.as_str())
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PDK input nodes missing".to_owned(),
+            )
+        })?;
+    if input_nodes.len() != 1
+        || input_nodes[0].as_str() != Some(node_id.as_str())
         || output_part != part_id
         || output_zone != material_zone_id
         || output.get("solid").and_then(Value::as_bool) != Some(true)
         || mapping.get("part_id").and_then(Value::as_str) != Some(part_id.as_str())
         || mapping.get("node_id").and_then(Value::as_str) != Some(node_id.as_str())
         || mapping.get("operator_id").and_then(Value::as_str) != Some(node_operator.as_str())
-        || mapping.get("material_zone_id").and_then(Value::as_str) != Some(material_zone_id.as_str())
+        || mapping.get("material_zone_id").and_then(Value::as_str)
+            != Some(material_zone_id.as_str())
     {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: PDK source map does not bind program outputs".to_owned(),
@@ -17599,7 +19667,11 @@ fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeEr
     let parameter_ids = mapping
         .get("parameter_ids")
         .and_then(Value::as_array)
-        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: PDK parameter ids missing".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PDK parameter ids missing".to_owned(),
+            )
+        })?;
     if parameter_ids.is_empty()
         || parameter_ids.iter().any(|value| {
             value
@@ -17631,9 +19703,9 @@ fn exact_object_with_optional<'a>(
         ))
     })?;
     if required.iter().any(|key| !object.contains_key(*key))
-        || object.keys().any(|key| {
-            !required.contains(&key.as_str()) && !optional.contains(&key.as_str())
-        })
+        || object
+            .keys()
+            .any(|key| !required.contains(&key.as_str()) && !optional.contains(&key.as_str()))
     {
         return Err(RuntimeError::InvalidInput(format!(
             "CONTRACT_OUTPUT_INVALID: {context} has an unexpected field set"
@@ -17873,8 +19945,7 @@ fn validate_silhouette_rig_hash_result_output(value: &Value) -> Result<(), Runti
         ],
         "SilhouetteRigHashResult@1",
     )?;
-    if object.get("schema_version").and_then(Value::as_str)
-        != Some("SilhouetteRigHashResult@1")
+    if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteRigHashResult@1")
         || object
             .get("silhouette_rig_schema_version")
             .and_then(Value::as_str)
@@ -18196,11 +20267,7 @@ fn request_hash(value: &Value) -> String {
 
 fn primary_form_job_error_code(error: &RuntimeError) -> String {
     let detail = error.to_string();
-    let code = detail
-        .split(':')
-        .next()
-        .unwrap_or_default()
-        .trim();
+    let code = detail.split(':').next().unwrap_or_default().trim();
     if code.starts_with("PRIMARY_FORM_REPAIR_")
         || code.starts_with("SILHOUETTE_FIT_")
         || code.starts_with("CAMERA_FIT_")
@@ -18312,7 +20379,9 @@ mod tests {
         );
         let duplicate_error = validate_reference_view_spec(&duplicate, &reference)
             .expect_err("duplicate landmark IDs must fail closed");
-        assert!(duplicate_error.to_string().contains("landmark IDs must be unique"));
+        assert!(duplicate_error
+            .to_string()
+            .contains("landmark IDs must be unique"));
 
         duplicate["landmarks"] = json!([]);
         duplicate["regions"] = json!([
@@ -18328,7 +20397,10 @@ mod tests {
     fn reference_view_spec_rejects_nonzero_unknown_confidence() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
-            .create_project("ReferenceViewSpec unknown confidence", json!({"profile":"mvp"}))
+            .create_project(
+                "ReferenceViewSpec unknown confidence",
+                json!({"profile":"mvp"}),
+            )
             .expect("project");
         let (reference, mut spec) = reference_view_spec_fixture(
             &runtime,
@@ -18370,7 +20442,10 @@ mod tests {
             "nested": [2, 3]
         });
         let normalized = normalize_json_numbers(&wire);
-        assert_eq!(canonical_json_hash(&normalized), canonical_json_hash(&expected));
+        assert_eq!(
+            canonical_json_hash(&normalized),
+            canonical_json_hash(&expected)
+        );
         assert_eq!(normalized["integral_float"].as_i64(), Some(1));
         assert_eq!(normalized["negative_zero"].as_i64(), Some(0));
     }
@@ -18768,8 +20843,8 @@ mod tests {
     #[test]
     fn stable_camera_hashes_survive_cross_process_number_round_trip() {
         let mut source = default_camera_calibration();
-        source["transform"]["up"][2] = serde_json::from_str("-0.10380825814029421")
-            .expect("camera decimal token");
+        source["transform"]["up"][2] =
+            serde_json::from_str("-0.10380825814029421").expect("camera decimal token");
 
         let stable = stable_camera_calibration_hashes(source);
         let wire = serde_json::to_vec(&stable).expect("camera wire JSON");
@@ -18780,7 +20855,10 @@ mod tests {
             camera_identity_hash(&round_tripped).expect("round-tripped identity"),
             stable["camera_hash"]
         );
-        assert_eq!(round_tripped["canonical_sha256"], stable["canonical_sha256"]);
+        assert_eq!(
+            round_tripped["canonical_sha256"],
+            stable["canonical_sha256"]
+        );
     }
 
     #[test]
@@ -18825,11 +20903,8 @@ mod tests {
         let exact = json!({
             "landmarks":[{"landmark_id":"crown","x":250.0/511.0,"y":100.0/511.0,"visibility":"observed","confidence":1.0}]
         });
-        let (coverage, nme) = landmark_metrics_with_parts(
-            &model,
-            &exact,
-            Some((&part_png, &part_ids)),
-        );
+        let (coverage, nme) =
+            landmark_metrics_with_parts(&model, &exact, Some((&part_png, &part_ids)));
         assert_eq!(coverage, 1.0);
         assert!(nme < 0.001);
 
@@ -18839,11 +20914,8 @@ mod tests {
         let wrong = json!({
             "landmarks":[{"landmark_id":"crown","x":220.0/511.0,"y":180.0/511.0,"visibility":"observed","confidence":1.0}]
         });
-        let (coverage, nme) = landmark_metrics_with_parts(
-            &model,
-            &wrong,
-            Some((&part_png, &part_ids)),
-        );
+        let (coverage, nme) =
+            landmark_metrics_with_parts(&model, &wrong, Some((&part_png, &part_ids)));
         assert_eq!(coverage, 0.0);
         assert!(nme > 0.05);
     }
@@ -18877,7 +20949,10 @@ mod tests {
         let (coverage, nme) = landmark_metrics_with_parts(
             &model,
             &target,
-            Some((&part_png, &["knee-left".to_owned(), "knee-right".to_owned()])),
+            Some((
+                &part_png,
+                &["knee-left".to_owned(), "knee-right".to_owned()],
+            )),
         );
         assert_eq!(coverage, 1.0);
         assert!(nme < 0.001);
@@ -19087,6 +21162,14 @@ mod tests {
             ref_bound_visual["render_set"]["camera_hash"],
             selected_camera["camera_hash"]
         );
+        assert_eq!(
+            ref_bound_visual["comparison_report"]["mask"]["method"],
+            "silhouette-target"
+        );
+        assert_eq!(
+            ref_bound_visual["comparison_report"]["mask"]["sha256"],
+            target["mask_sha256"]
+        );
         let target_bound_viewer = runtime
             .visual_evidence(&candidate_id)
             .expect("target-bound Viewer evidence");
@@ -19103,7 +21186,8 @@ mod tests {
             "runtime"
         );
         assert_eq!(
-            target_bound_observation["design_critic_report"]["primary_form_directive"]["target_sha256"],
+            target_bound_observation["design_critic_report"]["primary_form_directive"]
+                ["target_sha256"],
             target_sha256
         );
         // Restore the ordinary compatibility comparison as the active review
@@ -19130,7 +21214,9 @@ mod tests {
         );
         assert_eq!(
             render_set["render_worker_build_cohort_sha256"],
-            build_cohort_sha256().map(Value::String).unwrap_or(Value::Null)
+            build_cohort_sha256()
+                .map(Value::String)
+                .unwrap_or(Value::Null)
         );
         let render_set_hash = prepared_visual["render_set_object_sha256"]
             .as_str()
@@ -19282,8 +21368,8 @@ mod tests {
         let matched_contour = contour_points_from_mask(&matched_reference_mask.mask);
         assert!(matched_contour.len() >= 3);
         let matched_contour_end = matched_contour.len().saturating_sub(1);
-        let matched_reference_envelope = mask_envelope(&matched_reference_mask.mask)
-            .expect("matched reference envelope");
+        let matched_reference_envelope =
+            mask_envelope(&matched_reference_mask.mask).expect("matched reference envelope");
         let matched_landmark_x = matched_reference_envelope.centroid_x;
         let matched_landmark_y = matched_reference_envelope.centroid_y;
         let matched_target = runtime
@@ -19307,7 +21393,10 @@ mod tests {
             .as_str()
             .expect("matched target hash")
             .to_owned();
-        assert_eq!(matched_target["target"]["annotation_status"], "user_confirmed");
+        assert_eq!(
+            matched_target["target"]["annotation_status"],
+            "user_confirmed"
+        );
         let mut matched_view_spec = json!({
             "schema_version":"ReferenceViewSpec@1",
             "reference_id":matched_reference.reference_id,
@@ -20131,7 +22220,10 @@ mod tests {
             "candidates":runtime.candidates(&project.project_id).expect("candidates"),
             "versions":runtime.versions(Some(&project.project_id)).expect("versions")
         });
-        assert_eq!(before, after, "PDK expansion must not persist Runtime state");
+        assert_eq!(
+            before, after,
+            "PDK expansion must not persist Runtime state"
+        );
     }
 
     #[test]
@@ -20204,7 +22296,10 @@ mod tests {
     fn optimization_job_methods_reach_runtime_ipc_dispatch() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
-            .create_project("MCP010F optimization IPC dispatch project", json!({"profile":"mvp"}))
+            .create_project(
+                "MCP010F optimization IPC dispatch project",
+                json!({"profile":"mvp"}),
+            )
             .expect("project");
         let error = runtime
             .dispatch_ipc(
@@ -20258,7 +22353,10 @@ mod tests {
     fn unified_silhouette_objective_methods_reach_runtime_ipc_dispatch() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
-            .create_project("MCP010F unified objective IPC dispatch project", json!({"profile":"mvp"}))
+            .create_project(
+                "MCP010F unified objective IPC dispatch project",
+                json!({"profile":"mvp"}),
+            )
             .expect("project");
         let error = runtime
             .dispatch_ipc(
@@ -20277,7 +22375,10 @@ mod tests {
             )
             .expect_err("incomplete objective compare must be handled by the typed route");
         let detail = error.to_string();
-        assert!(detail.contains("objective_sha256 is required"), "unexpected objective compare dispatch error: {detail}");
+        assert!(
+            detail.contains("objective_sha256 is required"),
+            "unexpected objective compare dispatch error: {detail}"
+        );
         assert!(!detail.contains("unsupported IPC method"));
     }
 
@@ -20668,6 +22769,36 @@ mod tests {
     }
 
     #[test]
+    fn automatic_reference_mask_preserves_wide_reference_aspect_ratio() {
+        let mut source = RgbaImage::from_pixel(100, 20, Rgba([248, 248, 248, 255]));
+        for y in 5..15 {
+            for x in 20..80 {
+                source.put_pixel(x, y, Rgba([12, 12, 12, 255]));
+            }
+        }
+        let mut png = Vec::new();
+        image::DynamicImage::ImageRgba8(source)
+            .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+            .expect("wide reference png");
+        let result = reference_mask_png(&png).expect("aspect-preserving mask");
+        let points = result
+            .mask
+            .iter()
+            .enumerate()
+            .filter_map(|(index, foreground)| foreground.then_some((index % 512, index / 512)))
+            .collect::<Vec<_>>();
+        let min_x = points.iter().map(|point| point.0).min().expect("min x");
+        let max_x = points.iter().map(|point| point.0).max().expect("max x");
+        let min_y = points.iter().map(|point| point.1).min().expect("min y");
+        let max_y = points.iter().map(|point| point.1).max().expect("max y");
+        let width = max_x - min_x + 1;
+        let height = max_y - min_y + 1;
+        assert!((295..=320).contains(&width), "unexpected width {width}");
+        assert!((45..=60).contains(&height), "unexpected height {height}");
+        assert!(width as f64 / height as f64 > 4.5);
+    }
+
+    #[test]
     fn silhouette_target_is_hash_bound_and_refinement_is_immutable() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
@@ -20716,7 +22847,10 @@ mod tests {
             )
             .expect("refined target");
         assert_ne!(refined["target_sha256"], first["target_sha256"]);
-        assert_eq!(runtime.silhouette_target_get(&first_hash).unwrap()["target_id"], first["target"]["target_id"]);
+        assert_eq!(
+            runtime.silhouette_target_get(&first_hash).unwrap()["target_id"],
+            first["target"]["target_id"]
+        );
         assert_eq!(refined["target"]["source"], "user_refined");
         assert_eq!(refined["target"]["annotation_status"], "unreviewed");
         assert_eq!(refined["target"]["parent_target_sha256"], first_hash);
@@ -20770,6 +22904,7 @@ mod tests {
                 None,
                 json!([]),
                 json!([]),
+                None,
                 ReferenceMask {
                     mask,
                     png: Vec::new(),
@@ -20779,9 +22914,7 @@ mod tests {
                 None,
             )
             .expect("automatic target");
-        let target_sha = prepared["target_sha256"]
-            .as_str()
-            .expect("target hash");
+        let target_sha = prepared["target_sha256"].as_str().expect("target hash");
         let readback = runtime
             .silhouette_target_get(target_sha)
             .expect("automatic target readback");
@@ -20798,6 +22931,149 @@ mod tests {
                 }),
             )
             .is_err());
+    }
+
+    #[test]
+    fn visual_structure_preserves_global_contour_and_allows_overlapping_neutral_regions() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("visual structure target", json!({"profile":"mvp"}))
+            .expect("project");
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "visual structure test".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
+        let prepared = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id,
+                    "contour_points":[[0.05,0.25],[0.95,0.25],[0.95,0.75],[0.05,0.75]],
+                    "parts":[],
+                    "landmarks":[],
+                    "visual_structure":{
+                        "regions":[
+                            {
+                                "structure_id":"central-primary-volume",
+                                "visual_role":"primary-volume",
+                                "continuity_group_id":"main-flow",
+                                "layer_index":0,
+                                "boundary_relationship":"shared",
+                                "visibility":"observed",
+                                "depth_policy":"from-multiview",
+                                "profile_policy":"preserve-continuity",
+                                "contour_points":[[0.2,0.3],[0.7,0.3],[0.7,0.7],[0.2,0.7]]
+                            },
+                            {
+                                "structure_id":"luminous-core",
+                                "visual_role":"luminous-core",
+                                "continuity_group_id":"main-flow",
+                                "layer_index":2,
+                                "boundary_relationship":"overlap",
+                                "visibility":"observed",
+                                "depth_policy":"from-multiview",
+                                "profile_policy":"revolved-profile",
+                                "contour_points":[[0.4,0.35],[0.55,0.35],[0.55,0.65],[0.4,0.65]]
+                            }
+                        ],
+                        "line_flows":[{
+                            "line_flow_id":"upper-ridge",
+                            "continuity_group_id":"main-flow",
+                            "kind":"ridge",
+                            "visibility":"observed",
+                            "points":[[0.1,0.3],[0.5,0.28],[0.9,0.32]]
+                        }]
+                    },
+                    "user_confirmed":true
+                }),
+            )
+            .expect("visual structure target");
+        let structure = &prepared["target"]["visual_structure"];
+        assert_eq!(
+            structure["decomposition_type"],
+            "visual-geometry-not-functional"
+        );
+        assert_eq!(structure["global_contour_authority"], true);
+        assert_eq!(structure["functional_part_claim_allowed"], false);
+        assert_eq!(structure["regions_may_overlap"], true);
+        assert_eq!(structure["review_status"], "user_confirmed");
+        assert_eq!(structure["regions"].as_array().unwrap().len(), 2);
+        validate_reference_visual_structure(structure).expect("visual structure contract");
+        let readback = runtime
+            .silhouette_target_get(prepared["target_sha256"].as_str().unwrap())
+            .expect("visual structure readback");
+        assert_eq!(readback["visual_structure"], *structure);
+        let refined = runtime
+            .refine_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id,
+                    "base_target_sha256":prepared["target_sha256"],
+                    "contour_points":[[0.04,0.24],[0.96,0.24],[0.96,0.76],[0.04,0.76]]
+                }),
+            )
+            .expect("refined visual structure target");
+        assert_eq!(
+            refined["target"]["visual_structure"]["review_status"],
+            "unreviewed"
+        );
+        assert_ne!(
+            refined["target"]["visual_structure"]["canonical_sha256"],
+            structure["canonical_sha256"]
+        );
+    }
+
+    #[test]
+    fn observed_open_frame_can_subtract_an_enclosed_reference_void() {
+        let outer = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+        let mut mask = rasterize_contour(&outer);
+        let before = mask.iter().filter(|value| **value).count();
+        apply_visual_structure_mask_operations(
+            &mut mask,
+            &json!({
+                "regions":[{
+                    "visual_role":"open-frame",
+                    "visibility":"observed",
+                    "mask_operation":"subtract",
+                    "contour_points":[[0.3,0.3],[0.7,0.3],[0.7,0.7],[0.3,0.7]]
+                }]
+            }),
+        )
+        .expect("enclosed observed void");
+        let after = mask.iter().filter(|value| **value).count();
+        assert!(after < before);
+        assert!(!mask[256 * 512 + 256]);
+        assert!(mask[128 * 512 + 128]);
+    }
+
+    #[test]
+    fn subtractive_visual_region_cannot_cut_the_global_contour() {
+        let outer = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+        let mut mask = rasterize_contour(&outer);
+        let result = apply_visual_structure_mask_operations(
+            &mut mask,
+            &json!({
+                "regions":[{
+                    "visual_role":"open-frame",
+                    "visibility":"observed",
+                    "mask_operation":"subtract",
+                    "contour_points":[[0.05,0.3],[0.3,0.3],[0.3,0.7],[0.05,0.7]]
+                }]
+            }),
+        );
+        assert!(result.is_err());
     }
 
     #[test]
@@ -20826,7 +23102,9 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert!(!contour_self_intersects(&points));
-        assert!(points.iter().all(|[x, y]| (0.0..=1.0).contains(x) && (0.0..=1.0).contains(y)));
+        assert!(points
+            .iter()
+            .all(|[x, y]| (0.0..=1.0).contains(x) && (0.0..=1.0).contains(y)));
         let reconstructed = rasterize_contour(&points);
         let metrics = compare_masks(&mask, &reconstructed, &json!({"landmarks":[],"regions":[]}));
         assert!(metrics["silhouette_iou"].as_f64().unwrap() > 0.94);
@@ -20926,18 +23204,9 @@ mod tests {
         let landmarks = json!([
             {"landmark_id":"chest-center","x":0.5,"y":0.5,"visibility":"observed"}
         ]);
-        let baseline = primary_form_ranking_metrics(
-            &base,
-            &baseline_mask,
-            Some(&landmarks),
-            None,
-        );
-        let candidate = primary_form_ranking_metrics(
-            &base,
-            &candidate_mask,
-            Some(&landmarks),
-            None,
-        );
+        let baseline = primary_form_ranking_metrics(&base, &baseline_mask, Some(&landmarks), None);
+        let candidate =
+            primary_form_ranking_metrics(&base, &candidate_mask, Some(&landmarks), None);
 
         assert_eq!(baseline["landmark_coverage"], 1.0);
         assert_eq!(candidate["landmark_coverage"], 0.0);
@@ -21034,7 +23303,10 @@ mod tests {
                 json!({"typed":"geometry","geometry_program":v2_restore_program(&project.project_id)}),
             )
             .expect("candidate");
-        let candidate_id = prepared["candidate"]["candidate_id"].as_str().unwrap().to_owned();
+        let candidate_id = prepared["candidate"]["candidate_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
         let result = runtime
             .prepare_camera_fit(
                 &project.project_id,
@@ -21046,10 +23318,16 @@ mod tests {
             )
             .expect("camera fit");
         validate_camera_fit_result(&result).expect("camera fit contract");
-        assert_eq!(result["candidate_id"], prepared["candidate"]["candidate_id"]);
+        assert_eq!(
+            result["candidate_id"],
+            prepared["candidate"]["candidate_id"]
+        );
         assert!(result["candidates"].as_array().unwrap().len() <= 64);
         assert_eq!(runtime.candidates(&project.project_id).unwrap().len(), 1);
-        assert_eq!(runtime.versions(Some(&project.project_id)).unwrap().len(), 0);
+        assert_eq!(
+            runtime.versions(Some(&project.project_id)).unwrap().len(),
+            0
+        );
         let selected = result["selected_camera"].clone();
         let camera_ref = json!({
             "schema_version":"CameraCalibrationRef@1",
@@ -21072,22 +23350,25 @@ mod tests {
         let base = default_camera_calibration();
         let coarse = camera_fit_search_variants(&base);
         assert_eq!(coarse.len(), 37);
-        assert!(coarse.iter().all(|camera| validate_camera_calibration(camera).is_ok()));
+        assert!(coarse
+            .iter()
+            .all(|camera| validate_camera_calibration(camera).is_ok()));
         let coarse_hashes = coarse
             .iter()
             .filter_map(|camera| camera.get("camera_hash").and_then(Value::as_str))
             .collect::<std::collections::HashSet<_>>();
         assert_eq!(coarse_hashes.len(), coarse.len());
         for global_scale in [0.96_f64, 1.04] {
-            let expected = camera_fit_variant_extended(
-                &base, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, global_scale,
-            );
+            let expected =
+                camera_fit_variant_extended(&base, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, global_scale);
             assert!(coarse.iter().any(|camera| camera == &expected));
             assert_ne!(expected["camera_hash"], base["camera_hash"]);
         }
         let refinement = camera_fit_refinement_variants(&coarse[0]);
         assert_eq!(refinement.len(), 9);
-        assert!(refinement.iter().all(|camera| validate_camera_calibration(camera).is_ok()));
+        assert!(refinement
+            .iter()
+            .all(|camera| validate_camera_calibration(camera).is_ok()));
         assert!(coarse.len() + 3 * refinement.len() <= 64);
     }
 
@@ -21258,13 +23539,9 @@ mod tests {
             json!({"parameter_id":"control-point-5-z","part_id":"chest-shell","value":0.16}),
             json!({"parameter_id":"control-point-6-z","part_id":"chest-shell","value":0.16}),
         ];
-        let (materialized, applied) = materialize_rig_geometry_program(
-            &program,
-            &rig,
-            &selected,
-            None,
-        )
-        .expect("materialize surface control points");
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None)
+                .expect("materialize surface control points");
         assert_eq!(applied, 4);
         let points = &materialized["nodes"][0]["parameters"]["control_points"];
         assert_eq!(points[4][0], -0.77);
@@ -21320,11 +23597,18 @@ mod tests {
         program["canonical_sha256"] = Value::String(program_hash);
         let prepare = |runtime: &Runtime| {
             runtime
-                .prepare_geometry_candidate(&project.project_id, None, json!({"typed":"geometry","geometry_program":program.clone()}))
+                .prepare_geometry_candidate(
+                    &project.project_id,
+                    None,
+                    json!({"typed":"geometry","geometry_program":program.clone()}),
+                )
                 .expect("geometry candidate")
         };
         let first = prepare(&runtime);
-        let first_id = first["candidate"]["candidate_id"].as_str().unwrap().to_owned();
+        let first_id = first["candidate"]["candidate_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
         // The silhouette-first product path stores the automatic mask before
         // comparison. Keep that ordering here so repeated CAS admission of
         // the same mask bytes is covered by the focused regression.
@@ -21345,7 +23629,9 @@ mod tests {
         rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
         let mut fit_request = json!({"project_id":project.project_id.clone(),"candidate_id":first_id.clone(),"target_sha256":target["target_sha256"].clone(),"rig":rig.clone(),"base_camera":default_camera_calibration(),"optimizer":{"algorithm":"coordinate_descent","max_iterations":2,"max_evaluations":8,"step_fraction":0.1},"canonical_sha256":""});
         fit_request["canonical_sha256"] = Value::String(canonical_json_hash(&fit_request));
-        let fit = runtime.silhouette_fit_prepare(&project.project_id, fit_request).expect("fit");
+        let fit = runtime
+            .silhouette_fit_prepare(&project.project_id, fit_request)
+            .expect("fit");
         validate_silhouette_fit_result(&fit).expect("fit contract");
         assert!(fit["baseline_camera"]["camera_hash"].as_str().is_some());
         assert!(fit["selected_camera"]["camera_hash"].as_str().is_some());
@@ -21353,8 +23639,11 @@ mod tests {
         assert!(fit["baseline_loss"].as_f64().unwrap().is_finite());
         assert!(fit["selected_loss"].as_f64().unwrap().is_finite());
         assert!(fit["camera_evaluations"].as_u64().unwrap() >= 1);
-        assert!(fit["evaluations"].as_u64().unwrap() >= fit["camera_evaluations"].as_u64().unwrap());
-        let before_primary_form_versions = runtime.versions(Some(&project.project_id)).unwrap().len();
+        assert!(
+            fit["evaluations"].as_u64().unwrap() >= fit["camera_evaluations"].as_u64().unwrap()
+        );
+        let before_primary_form_versions =
+            runtime.versions(Some(&project.project_id)).unwrap().len();
         let before_primary_form_candidates = runtime.candidates(&project.project_id).unwrap().len();
         let mut primary_form_request = json!({
             "project_id":project.project_id.clone(),
@@ -21413,7 +23702,10 @@ mod tests {
             );
             if primary_form["acceptance"].is_object() {
                 assert_eq!(primary_form["acceptance"]["status"], "retained_source");
-                assert_eq!(primary_form["acceptance"]["proposal_candidate_id"], Value::Null);
+                assert_eq!(
+                    primary_form["acceptance"]["proposal_candidate_id"],
+                    Value::Null
+                );
                 assert_eq!(primary_form["acceptance"]["strict_improvement"], false);
             }
         }
@@ -21442,7 +23734,8 @@ mod tests {
                 .expect("continuation seed candidate")
                 .to_owned()
         };
-        let before_continuation_versions = runtime.versions(Some(&project.project_id)).unwrap().len();
+        let before_continuation_versions =
+            runtime.versions(Some(&project.project_id)).unwrap().len();
         let before_continuation_candidates = runtime.candidates(&project.project_id).unwrap().len();
         let mut continuation_request = primary_form_request.clone();
         continuation_request["candidate_id"] = Value::String(continuation_source_id.clone());
@@ -21504,13 +23797,11 @@ mod tests {
             "step_fraction":0.1
         });
         scoped_request["canonical_sha256"] = Value::String(String::new());
-        scoped_request["canonical_sha256"] =
-            Value::String(canonical_json_hash(&scoped_request));
+        scoped_request["canonical_sha256"] = Value::String(canonical_json_hash(&scoped_request));
         let scoped_trial = runtime
             .primary_form_repair_prepare(&project.project_id, None, scoped_request)
             .expect("scoped single-Part trial");
-        validate_primary_form_repair_prepare_result(&scoped_trial)
-            .expect("scoped trial contract");
+        validate_primary_form_repair_prepare_result(&scoped_trial).expect("scoped trial contract");
         assert_eq!(scoped_trial["part_id"], "shell");
         assert!(scoped_trial["fit_result"]["selected_parameters"]
             .as_array()
@@ -21522,11 +23813,8 @@ mod tests {
             Some("prepared" | "no_improvement")
         ));
         if scoped_trial["acceptance"].is_object() {
-            assert!(scoped_trial["acceptance"]["camera_hash"]
-                .as_str()
-                .is_some());
-            assert!(scoped_trial["acceptance"]["strict_improvement"]
-                .is_boolean());
+            assert!(scoped_trial["acceptance"]["camera_hash"].as_str().is_some());
+            assert!(scoped_trial["acceptance"]["strict_improvement"].is_boolean());
         }
         let fit_camera = fit["selected_camera"].clone();
         let fit_camera_ref = json!({
@@ -21556,8 +23844,14 @@ mod tests {
                 }),
             )
             .expect("fit winner comparison");
-        assert_eq!(comparison["camera"]["camera_hash"], fit_camera["camera_hash"]);
-        assert_eq!(comparison["camera"]["canonical_sha256"], fit_camera["canonical_sha256"]);
+        assert_eq!(
+            comparison["camera"]["camera_hash"],
+            fit_camera["camera_hash"]
+        );
+        assert_eq!(
+            comparison["camera"]["canonical_sha256"],
+            fit_camera["canonical_sha256"]
+        );
         // The optimizer may retain the authored camera as the incumbent, but
         // it must still consume the declared bounded camera schedule instead
         // of stopping after the first non-improving batch and hiding later
@@ -21566,18 +23860,27 @@ mod tests {
         assert_eq!(fit["evaluations"].as_u64(), Some(8));
         assert!(fit["geometry_evaluations"].as_u64().unwrap() <= 5);
         assert_eq!(fit["parameter_deltas"].as_array().map(Vec::len), Some(1));
-        assert!(fit["parameter_deltas"][0]["delta"].as_f64().unwrap().is_finite());
+        assert!(fit["parameter_deltas"][0]["delta"]
+            .as_f64()
+            .unwrap()
+            .is_finite());
         assert!(fit.get("selected_geometry_program").is_some());
         if let Some(program) = fit["selected_geometry_program"].as_object() {
             assert_eq!(program["schema_version"], "GeometryProgram@2");
             assert_eq!(program["project_id"], project.project_id);
             assert!(program["canonical_sha256"].as_str().is_some());
         }
-        assert!(matches!(fit["status"].as_str(), Some("ready" | "quality_target_not_met" | "no_improvement")));
+        assert!(matches!(
+            fit["status"].as_str(),
+            Some("ready" | "quality_target_not_met" | "no_improvement")
+        ));
         let part = runtime.part_contour_fit_prepare(&project.project_id, json!({"project_id":project.project_id.clone(),"candidate_id":first_id.clone(),"target_sha256":target["target_sha256"].clone(),"part_id":"shell","rig":rig.clone()})).expect("part proposal");
         validate_part_contour_fit_result(&part).expect("part contract");
         assert_eq!(part["adjustments"].as_array().map(Vec::len), Some(1));
-        assert!(part["adjustments"][0]["delta"].as_f64().unwrap().is_finite());
+        assert!(part["adjustments"][0]["delta"]
+            .as_f64()
+            .unwrap()
+            .is_finite());
         let part_errors = runtime
             .silhouette_part_error(
                 &project.project_id,
@@ -21654,14 +23957,20 @@ mod tests {
             .part_contour_fit_prepare(&project.project_id, json!({"project_id":project.project_id.clone(),"candidate_id":first_id.clone(),"target_sha256":target["target_sha256"].clone(),"part_id":"unknown-part","rig":rig.clone()}))
             .is_err());
         let second = prepare(&runtime);
-        let second_id = second["candidate"]["candidate_id"].as_str().unwrap().to_owned();
+        let second_id = second["candidate"]["candidate_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
         runtime
             .prepare_reference_comparison(&project.project_id, json!({"candidate_id":second_id,"reference_id":reference.reference_id,"view_spec":view_spec}))
             .expect("second comparison");
         let compared = runtime.silhouette_candidate_compare(&project.project_id, json!({"project_id":project.project_id.clone(),"target_sha256":target["target_sha256"].clone(),"candidate_ids":[first_id,second_id]})).expect("compare");
         validate_silhouette_candidate_compare_result(&compared).expect("compare contract");
         assert_eq!(compared["candidates"].as_array().unwrap().len(), 2);
-        assert_eq!(runtime.versions(Some(&project.project_id)).unwrap().len(), 0);
+        assert_eq!(
+            runtime.versions(Some(&project.project_id)).unwrap().len(),
+            0
+        );
     }
 
     #[test]
@@ -21673,7 +23982,8 @@ mod tests {
                 {"part_id":"right","start_index":3,"end_index":5,"visibility":"observed"}
             ]
         });
-        validate_target_part_ranges(target.get("parts").unwrap(), 6, "test").expect("valid disjoint ranges");
+        validate_target_part_ranges(target.get("parts").unwrap(), 6, "test")
+            .expect("valid disjoint ranges");
         parse_target_parts(target.get("parts")).expect("image-derived Part ROI is accepted");
         assert!(target_part_region_mask(&target, "left", &vec![true; 512 * 512]).is_some());
         let left = target_part_boundary_mask(&target, "left").expect("left boundary");
@@ -21704,7 +24014,10 @@ mod tests {
             .map(|probe_index| primary_form_probe_coordinate(&ranked, probe_index).unwrap())
             .collect::<Vec<_>>();
         assert_eq!(first_pass, ranked);
-        assert_eq!(primary_form_probe_coordinate(&ranked, ranked.len() + 1), Some(0));
+        assert_eq!(
+            primary_form_probe_coordinate(&ranked, ranked.len() + 1),
+            Some(0)
+        );
         assert_eq!(primary_form_probe_coordinate(&[], 1), None);
         assert_eq!(primary_form_probe_coordinate(&ranked, 0), None);
     }
@@ -21734,10 +24047,14 @@ mod tests {
         // scalar pass. The large-Rig schedule does not silently spend the
         // final probes on another unrelated Part group.
         let recovery_fractions = primary_form_recovery_fractions(36, 40, true);
-        let backtrack_fractions = primary_form_backtrack_fractions(36, 40, recovery_fractions.len());
+        let backtrack_fractions =
+            primary_form_backtrack_fractions(36, 40, recovery_fractions.len());
         assert_eq!(recovery_fractions, vec![0.5, 1.0]);
         assert_eq!(backtrack_fractions, vec![0.5]);
-        assert_eq!(1 + backtrack_fractions.len() + recovery_fractions.len() + 36, 40);
+        assert_eq!(
+            1 + backtrack_fractions.len() + recovery_fractions.len() + 36,
+            40
+        );
 
         // A smaller Rig retains the quarter backtrack and one coupled
         // recovery while leaving the remaining budget for a repeat/fine pass.
@@ -21764,13 +24081,8 @@ mod tests {
             json!({"parameter_id":"chest-width","part_id":"chest","value":1.4}),
             json!({"parameter_id":"chest-height","part_id":"chest","value":0.8}),
         ];
-        let result = interpolate_rig_parameter_group_values(
-            &definitions,
-            &current,
-            &evidence,
-            &[1, 2],
-            0.5,
-        );
+        let result =
+            interpolate_rig_parameter_group_values(&definitions, &current, &evidence, &[1, 2], 0.5);
         assert_eq!(result[0]["value"], 1.1);
         assert_eq!(result[1]["value"], 1.2);
         assert_eq!(result[2]["value"], 0.9);
@@ -21999,8 +24311,14 @@ mod tests {
         // down therefore requires a negative camera-plane-up offset.
         assert!(calibrated_y < 0.0);
         assert!(calibrated_x.abs() > 0.05);
-        assert_eq!(local_part_parameter_delta(&offset_x, target, model, None), 0.0);
-        assert_eq!(local_part_parameter_delta(&offset_y, target, model, None), 0.0);
+        assert_eq!(
+            local_part_parameter_delta(&offset_x, target, model, None),
+            0.0
+        );
+        assert_eq!(
+            local_part_parameter_delta(&offset_y, target, model, None),
+            0.0
+        );
     }
 
     #[test]
@@ -22010,11 +24328,15 @@ mod tests {
             json!({"part_id":"shin-pair","reference":[0.62,0.90],"distance_px":32.0}),
             json!({"part_id":"head-shell","reference":[0.56,0.15],"distance_px":42.0}),
         ];
-        let mask = Runtime::projected_part_boundary_mask(&segments, "shin-pair").expect("projected mask");
+        let mask =
+            Runtime::projected_part_boundary_mask(&segments, "shin-pair").expect("projected mask");
         let envelope = mask_envelope(&mask).expect("projected envelope");
         assert!(envelope.min_x < envelope.max_x);
         assert!(envelope.min_y < envelope.max_y);
-        assert_eq!(Runtime::projected_part_boundary_error(&segments, "shin-pair"), Some(40.0));
+        assert_eq!(
+            Runtime::projected_part_boundary_error(&segments, "shin-pair"),
+            Some(40.0)
+        );
         assert!(Runtime::projected_part_boundary_mask(&segments, "missing").is_none());
         assert!(Runtime::projected_part_boundary_error(&segments, "missing").is_none());
     }
@@ -22026,16 +24348,24 @@ mod tests {
             json!({"part_id":"hip-right","reference":[0.80,0.50],"distance_px":32.0}),
             json!({"part_id":"chest-shell","reference":[0.50,0.30],"distance_px":12.0}),
         ];
-        let pair_mask = Runtime::projected_part_boundary_mask(&segments, "hip-pair").expect("pair projection");
+        let pair_mask =
+            Runtime::projected_part_boundary_mask(&segments, "hip-pair").expect("pair projection");
         let pair_envelope = mask_envelope(&pair_mask).expect("pair envelope");
         assert!(pair_envelope.min_x < 128);
         assert!(pair_envelope.max_x > 384);
-        assert_eq!(Runtime::projected_part_boundary_error(&segments, "hip-pair"), Some(40.0));
+        assert_eq!(
+            Runtime::projected_part_boundary_error(&segments, "hip-pair"),
+            Some(40.0)
+        );
 
-        let left_mask = Runtime::projected_part_boundary_mask(&segments, "hip-left").expect("left projection");
+        let left_mask =
+            Runtime::projected_part_boundary_mask(&segments, "hip-left").expect("left projection");
         let left_envelope = mask_envelope(&left_mask).expect("left envelope");
         assert!(left_envelope.max_x < 192);
-        assert_eq!(Runtime::projected_part_boundary_error(&segments, "hip-left"), Some(48.0));
+        assert_eq!(
+            Runtime::projected_part_boundary_error(&segments, "hip-left"),
+            Some(48.0)
+        );
         assert!(Runtime::projected_part_boundary_mask(&segments, "hip-right").is_some());
     }
 
@@ -22139,11 +24469,14 @@ mod tests {
         ]});
         let authored_baseline = vec![rig["parameters"][0].clone()];
         let compact = compact_rig_parameter_values(&rig, &authored_baseline);
-        assert_eq!(compact, vec![json!({
-            "parameter_id":"body-width",
-            "part_id":"body",
-            "value":1.0
-        })]);
+        assert_eq!(
+            compact,
+            vec![json!({
+                "parameter_id":"body-width",
+                "part_id":"body",
+                "value":1.0
+            })]
+        );
         assert_eq!(compact[0].as_object().unwrap().len(), 3);
     }
 
@@ -22288,9 +24621,15 @@ mod tests {
             "centroid_error":0.004,
             "sdf_chamfer_px":15.2
         });
-        assert!(primary_form_strict_same_camera_improvement(&source, &improved));
-        assert!(!primary_form_strict_same_camera_improvement(&source, &regressed));
-        assert!(!primary_form_strict_same_camera_improvement(&source, &source));
+        assert!(primary_form_strict_same_camera_improvement(
+            &source, &improved
+        ));
+        assert!(!primary_form_strict_same_camera_improvement(
+            &source, &regressed
+        ));
+        assert!(!primary_form_strict_same_camera_improvement(
+            &source, &source
+        ));
     }
 
     #[test]
@@ -22310,7 +24649,10 @@ mod tests {
             "sdf_chamfer_px":18.0
         });
         assert!(!primary_form_metrics_improve(&contour_tradeoff, &incumbent));
-        assert!(primary_form_search_metrics_improve(&contour_tradeoff, &incumbent));
+        assert!(primary_form_search_metrics_improve(
+            &contour_tradeoff,
+            &incumbent
+        ));
 
         let boundary_regression = json!({
             "silhouette_iou":0.90,
@@ -22319,7 +24661,10 @@ mod tests {
             "centroid_error":0.02,
             "sdf_chamfer_px":12.0
         });
-        assert!(!primary_form_search_metrics_improve(&boundary_regression, &incumbent));
+        assert!(!primary_form_search_metrics_improve(
+            &boundary_regression,
+            &incumbent
+        ));
     }
 
     #[test]
@@ -22389,11 +24734,7 @@ mod tests {
             json!({"part_id":"shin-pair","distance_px":38.0}),
             json!({"part_id":"chest-shell","distance_px":12.0}),
         ];
-        let ranked = ranked_rig_parameter_indices_with_boundary_context(
-            &rig,
-            &selected,
-            &segments,
-        );
+        let ranked = ranked_rig_parameter_indices_with_boundary_context(&rig, &selected, &segments);
         assert_eq!(ranked, vec![2, 1, 0]);
     }
 
@@ -22415,11 +24756,7 @@ mod tests {
             json!({"part_id":"shin-right","distance_px":38.0}),
             json!({"part_id":"chest-shell","distance_px":12.0}),
         ];
-        let ranked = ranked_rig_parameter_indices_with_boundary_context(
-            &rig,
-            &selected,
-            &segments,
-        );
+        let ranked = ranked_rig_parameter_indices_with_boundary_context(&rig, &selected, &segments);
         assert_eq!(ranked, vec![1, 0]);
     }
 
@@ -22464,12 +24801,8 @@ mod tests {
         });
         let mut rig = rig;
         rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
-        let scoped = scope_silhouette_rig_to_part(
-            &rig,
-            "candidate-scoped-side",
-            "hip-left",
-        )
-        .expect("exact side scope");
+        let scoped = scope_silhouette_rig_to_part(&rig, "candidate-scoped-side", "hip-left")
+            .expect("exact side scope");
         assert_eq!(scoped["parameters"].as_array().unwrap().len(), 1);
         assert_eq!(scoped["parameters"][0]["part_id"], "hip-left");
         validate_silhouette_rig(&scoped, "candidate-scoped-side").expect("scoped Rig contract");
@@ -22488,20 +24821,18 @@ mod tests {
             "canonical_sha256":""
         });
         let selected = vec![json!({"parameter_id":"hip-width","part_id":"hip-left","value":1.1})];
-        let (materialized, applied) = materialize_rig_geometry_program(
-            &program,
-            &scoped,
-            &selected,
-            None,
-        )
-        .expect("materialize exact side scope");
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &scoped, &selected, None)
+                .expect("materialize exact side scope");
         assert_eq!(applied, 1);
-        assert!((materialized["nodes"][0]["parameters"]["radius_m"]
-            .as_f64()
-            .unwrap()
-            - 0.22)
-            .abs()
-            < 1e-12);
+        assert!(
+            (materialized["nodes"][0]["parameters"]["radius_m"]
+                .as_f64()
+                .unwrap()
+                - 0.22)
+                .abs()
+                < 1e-12
+        );
         assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.2);
     }
 
@@ -22568,12 +24899,12 @@ mod tests {
         let authored = definitions.clone();
         let fallback = 0.01;
 
-        assert!((
-            primary_form_probe_magnitude(&definitions, &evidence, &authored, 0, fallback, 0)
-                - 0.30
-        )
-        .abs()
-            < 1e-12);
+        assert!(
+            (primary_form_probe_magnitude(&definitions, &evidence, &authored, 0, fallback, 0)
+                - 0.30)
+                .abs()
+                < 1e-12
+        );
         assert_eq!(
             primary_form_probe_magnitude(&definitions, &evidence, &authored, 0, fallback, 1),
             fallback * 0.5
@@ -22635,23 +24966,43 @@ mod tests {
             json!({"parameter_id":"shoulder-offset-x","part_id":"shoulder-pair","value":0.1}),
             json!({"parameter_id":"shoulder-offset-y","part_id":"shoulder-pair","value":0.2}),
         ];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
         assert_eq!(applied, 4);
-        let source = materialized["nodes"].as_array().unwrap().iter().find(|node| node["node_id"] == "shell-left").unwrap();
+        let source = materialized["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["node_id"] == "shell-left")
+            .unwrap();
         assert_eq!(source["parameters"]["size_m"][0], 1.2);
         assert_eq!(source["parameters"]["size_m"][1], 2.2);
         assert_eq!(source["parameters"]["position_m"][0], -1.0);
-        let transform = materialized["nodes"].as_array().unwrap().iter().find(|node| node["node_id"] == "shell-shaped").unwrap();
-        assert_eq!(transform["parameters"]["translation_m"], json!([0.0, 0.0, 0.0]));
+        let transform = materialized["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["node_id"] == "shell-shaped")
+            .unwrap();
+        assert_eq!(
+            transform["parameters"]["translation_m"],
+            json!([0.0, 0.0, 0.0])
+        );
         let output_transform = materialized["nodes"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|node| node["operator_id"] == "forgecad.geometry.transform@2" && node["node_id"] != "shell-shaped")
+            .find(|node| {
+                node["operator_id"] == "forgecad.geometry.transform@2"
+                    && node["node_id"] != "shell-shaped"
+            })
             .expect("output transform");
         assert_eq!(output_transform["parameters"]["translation_m"][0], 0.1);
         assert_eq!(output_transform["parameters"]["translation_m"][1], 0.2);
-        assert_eq!(materialized["part_outputs"][0]["input_node_ids"][0], output_transform["node_id"]);
+        assert_eq!(
+            materialized["part_outputs"][0]["input_node_ids"][0],
+            output_transform["node_id"]
+        );
         assert_eq!(materialized["nodes"][2]["parameters"]["axis"], "x");
     }
 
@@ -22669,7 +25020,8 @@ mod tests {
         let rig = json!({"parameters":[
             {"parameter_id":"chest-offset-x","part_id":"chest-shell","semantic":"offset_x","value":0.0,"min":-0.35,"max":0.35,"step":0.05,"unit":"meter"}
         ]});
-        let selected = vec![json!({"parameter_id":"chest-offset-x","part_id":"chest-shell","value":0.2})];
+        let selected =
+            vec![json!({"parameter_id":"chest-offset-x","part_id":"chest-shell","value":0.2})];
         let (materialized, applied) = materialize_rig_geometry_program(
             &program,
             &rig,
@@ -22681,7 +25033,10 @@ mod tests {
         let source_translation = materialized["nodes"][0]["parameters"]["position_m"]
             .as_array()
             .expect("position");
-        assert_eq!(source_translation, json!([0.0, 0.0, 0.0]).as_array().unwrap());
+        assert_eq!(
+            source_translation,
+            json!([0.0, 0.0, 0.0]).as_array().unwrap()
+        );
         let translation = materialized["nodes"]
             .as_array()
             .unwrap()
@@ -22713,19 +25068,36 @@ mod tests {
         let rig = json!({"parameters":[
             {"parameter_id":"head-rotation-y","part_id":"head-shell","semantic":"rotation_y","value":0.0,"min":-0.6,"max":0.6,"step":0.08,"unit":"radian"}
         ]});
-        let selected = vec![json!({"parameter_id":"head-rotation-y","part_id":"head-shell","value":0.24})];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None)
-            .expect("materialize pose rotation");
+        let selected =
+            vec![json!({"parameter_id":"head-rotation-y","part_id":"head-shell","value":0.24})];
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None)
+                .expect("materialize pose rotation");
         assert_eq!(applied, 1);
-        let source = materialized["nodes"].as_array().unwrap().iter()
+        let source = materialized["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
             .find(|node| node["node_id"] == "head-shell")
             .expect("head source");
-        assert_eq!(source["parameters"]["rotation_rad"], json!([0.0, 0.12, 0.0]));
-        let transform = materialized["nodes"].as_array().unwrap().iter()
+        assert_eq!(
+            source["parameters"]["rotation_rad"],
+            json!([0.0, 0.12, 0.0])
+        );
+        let transform = materialized["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
             .find(|node| node["operator_id"] == "forgecad.geometry.transform@2")
             .expect("pose output transform");
-        assert_eq!(transform["parameters"]["rotation_rad"], json!([0.0, 0.24, 0.0]));
-        assert_eq!(materialized["part_outputs"][0]["input_node_ids"][0], transform["node_id"]);
+        assert_eq!(
+            transform["parameters"]["rotation_rad"],
+            json!([0.0, 0.24, 0.0])
+        );
+        assert_eq!(
+            materialized["part_outputs"][0]["input_node_ids"][0],
+            transform["node_id"]
+        );
     }
 
     #[test]
@@ -22774,10 +25146,13 @@ mod tests {
             json!({"parameter_id":"vent-width","part_id":"vent","value":1.1}),
             json!({"parameter_id":"profile-height","part_id":"profile","value":0.8}),
         ];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
         assert_eq!(applied, 2);
         assert_eq!(materialized["nodes"][0]["parameters"]["width_m"], 1.1);
-        let profile = materialized["nodes"][1]["parameters"]["profile"].as_array().unwrap();
+        let profile = materialized["nodes"][1]["parameters"]["profile"]
+            .as_array()
+            .unwrap();
         let y0 = profile[0][1].as_f64().unwrap();
         let y2 = profile[2][1].as_f64().unwrap();
         assert!((y0 + 0.4).abs() < 1e-9);
@@ -22798,10 +25173,15 @@ mod tests {
         let rig = json!({"parameters":[
             {"parameter_id":"pelvis-height","part_id":"pelvis","semantic":"height","value":1.0,"min":0.75,"max":1.5,"step":0.05,"unit":"ratio"}
         ]});
-        let selected = vec![json!({"parameter_id":"pelvis-height","part_id":"pelvis","value":1.25})];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize profile-loft height");
+        let selected =
+            vec![json!({"parameter_id":"pelvis-height","part_id":"pelvis","value":1.25})];
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None)
+                .expect("materialize profile-loft height");
         assert_eq!(applied, 1);
-        let profiles = materialized["nodes"][0]["parameters"]["profiles"].as_array().expect("profiles");
+        let profiles = materialized["nodes"][0]["parameters"]["profiles"]
+            .as_array()
+            .expect("profiles");
         assert_eq!(profiles[0]["height_m"], 0.0);
         assert!((profiles[1]["height_m"].as_f64().unwrap() - 0.5).abs() < 1e-12);
         assert!((profiles[2]["height_m"].as_f64().unwrap() - 1.0).abs() < 1e-12);
@@ -22828,8 +25208,11 @@ mod tests {
         let rig = json!({"parameters":[
             {"parameter_id":"shoulder-width","part_id":"shoulder-armor-pair","semantic":"width","value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"ratio"}
         ]});
-        let selected = vec![json!({"parameter_id":"shoulder-width","part_id":"shoulder-armor-pair","value":1.2})];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
+        let selected = vec![
+            json!({"parameter_id":"shoulder-width","part_id":"shoulder-armor-pair","value":1.2}),
+        ];
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize");
         assert_eq!(applied, 1);
         assert_eq!(materialized["nodes"][0]["parameters"]["radius_m"], 0.36);
         assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.36);
@@ -22853,13 +25236,25 @@ mod tests {
         let rig = json!({"parameters":[
             {"parameter_id":"shoulder-left-width","part_id":"shoulder-armor-left","semantic":"width","value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"ratio"}
         ]});
-        let selected = vec![json!({"parameter_id":"shoulder-left-width","part_id":"shoulder-armor-left","value":1.2})];
-        assert!(rig_part_matches_output("shoulder-armor-left", "shoulder-left"));
-        assert!(rig_part_matches_output("shoulder-left", "shoulder-armor-left"));
-        assert!(!rig_part_matches_output("shoulder-armor-left", "shoulder-right"));
+        let selected = vec![
+            json!({"parameter_id":"shoulder-left-width","part_id":"shoulder-armor-left","value":1.2}),
+        ];
+        assert!(rig_part_matches_output(
+            "shoulder-armor-left",
+            "shoulder-left"
+        ));
+        assert!(rig_part_matches_output(
+            "shoulder-left",
+            "shoulder-armor-left"
+        ));
+        assert!(!rig_part_matches_output(
+            "shoulder-armor-left",
+            "shoulder-right"
+        ));
 
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None)
-            .expect("materialize exact armored side alias");
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None)
+                .expect("materialize exact armored side alias");
         assert_eq!(applied, 1);
         assert_eq!(materialized["nodes"][0]["parameters"]["radius_m"], 0.36);
         assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.3);
@@ -22883,10 +25278,20 @@ mod tests {
         let rig = json!({"parameters":[
             {"parameter_id":"hip-left-width","part_id":"hip-left","semantic":"width","value":1.0,"min":0.84,"max":1.16,"step":0.04,"unit":"ratio"}
         ]});
-        let selected = vec![json!({"parameter_id":"hip-left-width","part_id":"hip-left","value":1.1})];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize side control");
+        let selected =
+            vec![json!({"parameter_id":"hip-left-width","part_id":"hip-left","value":1.1})];
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None)
+                .expect("materialize side control");
         assert_eq!(applied, 1);
-        assert!((materialized["nodes"][0]["parameters"]["radius_m"].as_f64().unwrap() - 0.22).abs() < 1e-12);
+        assert!(
+            (materialized["nodes"][0]["parameters"]["radius_m"]
+                .as_f64()
+                .unwrap()
+                - 0.22)
+                .abs()
+                < 1e-12
+        );
         assert_eq!(materialized["nodes"][1]["parameters"]["radius_m"], 0.2);
     }
 
@@ -22922,12 +25327,17 @@ mod tests {
             json!({"parameter_id":"hip-offset-x","part_id":"hip-pair","value":0.1}),
             json!({"parameter_id":"hip-offset-y","part_id":"hip-pair","value":0.1}),
             json!({"parameter_id":"pelvis-offset-x","part_id":"pelvis","value":0.1}),
-            json!({"parameter_id":"chest-offset-x","part_id":"chest-shell","value":0.1})
+            json!({"parameter_id":"chest-offset-x","part_id":"chest-shell","value":0.1}),
         ];
-        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None).expect("materialize primary form controls");
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None)
+                .expect("materialize primary form controls");
         assert_eq!(applied, 6);
         let nodes = materialized["nodes"].as_array().expect("nodes");
-        let hip = nodes.iter().find(|node| node["node_id"] == "hip-left").expect("hip source");
+        let hip = nodes
+            .iter()
+            .find(|node| node["node_id"] == "hip-left")
+            .expect("hip source");
         assert_eq!(hip["parameters"]["radius_m"], 0.24200000000000005);
         assert_eq!(hip["parameters"]["height_m"], 0.264);
         assert_eq!(hip["parameters"]["position_m"][0], -0.48);
@@ -22936,10 +25346,19 @@ mod tests {
             .iter()
             .find(|node| node["operator_id"] == "forgecad.geometry.transform@2")
             .expect("hip output transform");
-        assert_eq!(hip_transform["parameters"]["translation_m"], json!([0.1, 0.1, 0.0]));
-        let pelvis = nodes.iter().find(|node| node["node_id"] == "pelvis-shell").expect("pelvis source");
+        assert_eq!(
+            hip_transform["parameters"]["translation_m"],
+            json!([0.1, 0.1, 0.0])
+        );
+        let pelvis = nodes
+            .iter()
+            .find(|node| node["node_id"] == "pelvis-shell")
+            .expect("pelvis source");
         assert_eq!(pelvis["parameters"]["position_m"][0], 0.0);
-        let chest = nodes.iter().find(|node| node["node_id"] == "chest-panel").expect("chest source");
+        let chest = nodes
+            .iter()
+            .find(|node| node["node_id"] == "chest-panel")
+            .expect("chest source");
         assert_eq!(chest["parameters"]["position_m"][0], 0.0);
         let pelvis_output = materialized["part_outputs"]
             .as_array()
@@ -22951,7 +25370,10 @@ mod tests {
             .iter()
             .find(|node| node["node_id"] == pelvis_output["input_node_ids"][0])
             .expect("pelvis output transform");
-        assert_eq!(pelvis_transform["operator_id"], "forgecad.geometry.transform@2");
+        assert_eq!(
+            pelvis_transform["operator_id"],
+            "forgecad.geometry.transform@2"
+        );
     }
 
     #[test]
@@ -23277,11 +25699,23 @@ mod tests {
 
     #[test]
     fn c_visual_evidence_export_and_restart_keep_hashes_stable() {
-        let root = std::env::temp_dir().join(format!("forgecad-mcp010c-restart-{}", Uuid::new_v4()));
+        let root =
+            std::env::temp_dir().join(format!("forgecad-mcp010c-restart-{}", Uuid::new_v4()));
         fs::create_dir_all(&root).expect("root");
         let database = root.join("runtime.sqlite");
         let cas = root.join("cas");
-        let (candidate_id, version_id, artifact_sha256, reference_id, reference_sha256, render_set_sha256, comparison_sha256, quality_sha256, export_request, export_output_sha256) = {
+        let (
+            candidate_id,
+            version_id,
+            artifact_sha256,
+            reference_id,
+            reference_sha256,
+            render_set_sha256,
+            comparison_sha256,
+            quality_sha256,
+            export_request,
+            export_output_sha256,
+        ) = {
             let runtime = Runtime::open_with_cas(&database, &cas).expect("runtime");
             let project = runtime
                 .create_project("MCP010C restart evidence", json!({"profile":"mvp"}))
@@ -23306,13 +25740,19 @@ mod tests {
                 .expect("geometry prepare");
             let candidate = prepared["candidate"].clone();
             let candidate_id = candidate["candidate_id"].as_str().unwrap().to_owned();
-            let artifact_sha256 = candidate["prepared_object_sha256"].as_str().unwrap().to_owned();
+            let artifact_sha256 = candidate["prepared_object_sha256"]
+                .as_str()
+                .unwrap()
+                .to_owned();
             let confirmed = runtime
                 .confirm_candidate(&CandidateConfirmRequest {
                     project_id: project.project_id.clone(),
                     candidate_id: candidate_id.clone(),
                     base_version_id: None,
-                    prepared_object_id: candidate["prepared_object_id"].as_str().unwrap().to_owned(),
+                    prepared_object_id: candidate["prepared_object_id"]
+                        .as_str()
+                        .unwrap()
+                        .to_owned(),
                     prepared_object_sha256: artifact_sha256.clone(),
                     quality_report_id: candidate["quality_report_id"].as_str().unwrap().to_owned(),
                     approval_receipt_id: "mcp010c-restart-confirm".to_owned(),
@@ -23375,9 +25815,18 @@ mod tests {
             validate_boundary_error_result(&boundary).expect("boundary contract");
             assert_eq!(boundary["candidate_id"], candidate_id);
             assert!(boundary["segments"].as_array().unwrap().len() <= 8);
-            let render_set_sha256 = visual["render_set_object_sha256"].as_str().unwrap().to_owned();
-            let comparison_sha256 = visual["comparison_report_object_sha256"].as_str().unwrap().to_owned();
-            let quality_sha256 = visual["quality_report_object_sha256"].as_str().unwrap().to_owned();
+            let render_set_sha256 = visual["render_set_object_sha256"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            let comparison_sha256 = visual["comparison_report_object_sha256"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            let quality_sha256 = visual["quality_report_object_sha256"]
+                .as_str()
+                .unwrap()
+                .to_owned();
             let export = runtime
                 .prepare_export(&ExportPrepareRequest {
                     project_id: project.project_id.clone(),
@@ -23421,7 +25870,10 @@ mod tests {
             .candidate(&candidate_id)
             .expect("candidate query")
             .expect("candidate after restart");
-        assert_eq!(candidate.prepared_object_sha256.as_deref(), Some(artifact_sha256.as_str()));
+        assert_eq!(
+            candidate.prepared_object_sha256.as_deref(),
+            Some(artifact_sha256.as_str())
+        );
         let version = reopened
             .version(&version_id)
             .expect("version query")
@@ -23440,7 +25892,14 @@ mod tests {
         assert_eq!(quality["artifact_sha256"], artifact_sha256);
         assert_eq!(quality["render_set_hash"], render_set_sha256);
         assert_eq!(quality["comparison_report_hash"], comparison_sha256);
-        assert_eq!(reopened.reference(&reference_id).unwrap().unwrap().object_sha256, reference_sha256);
+        assert_eq!(
+            reopened
+                .reference(&reference_id)
+                .unwrap()
+                .unwrap()
+                .object_sha256,
+            reference_sha256
+        );
         let pass = reopened
             .render_pass_get(&render_set_sha256, "beauty")
             .expect("render pass after restart");
@@ -23890,7 +26349,9 @@ mod tests {
                 }),
             )
             .expect("comparison");
-        let visual = runtime.visual_evidence(&candidate_id).expect("visual evidence");
+        let visual = runtime
+            .visual_evidence(&candidate_id)
+            .expect("visual evidence");
         let camera_hash = visual["render_set"]["camera_hash"]
             .as_str()
             .expect("camera hash")
@@ -24073,8 +26534,7 @@ mod tests {
             .expect("observation hash")
             .to_owned();
         assert_eq!(
-            session["session"]["observation_sha256"],
-            observation["canonical_sha256"],
+            session["session"]["observation_sha256"], observation["canonical_sha256"],
             "durable session must bind the same one-shot Runtime observation"
         );
         let action = json!({
@@ -24097,7 +26557,10 @@ mod tests {
             "requested_stage":"primary-form",
             "observation_sha256":observation_sha256.clone()
         }));
-        let before_versions = runtime.versions(Some(&project.project_id)).expect("versions").len();
+        let before_versions = runtime
+            .versions(Some(&project.project_id))
+            .expect("versions")
+            .len();
         let request = json!({
             "project_id":project.project_id.clone(),
             "session_id":session_id,
@@ -24118,15 +26581,25 @@ mod tests {
             .expect("action run");
         assert_eq!(first["schema_version"], "DesignActionRun@1");
         assert_eq!(
-            first["observation_sha256"],
-            observation["canonical_sha256"],
+            first["observation_sha256"], observation["canonical_sha256"],
             "the immutable action receipt must bind the exact Runtime observation"
         );
-        assert!(matches!(first["status"].as_str(), Some("completed" | "blocked")));
+        assert!(matches!(
+            first["status"].as_str(),
+            Some("completed" | "blocked")
+        ));
         assert_eq!(first["runtime_write"], false);
         assert_eq!(first["persistent_user_data_touched"], false);
-        assert!(first["locked_actions"].as_array().unwrap().iter().any(|value| value == "confirm"));
-        assert!(first["locked_actions"].as_array().unwrap().iter().any(|value| value == "export"));
+        assert!(first["locked_actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value == "confirm"));
+        assert!(first["locked_actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value == "export"));
         let stale_run_id = "action-run-stale-observation";
         let stale_observation_sha256 = "f".repeat(64);
         let stale_input_sha256 = canonical_json_hash(&json!({
@@ -24154,14 +26627,20 @@ mod tests {
         assert_eq!(first, second);
         let read = runtime
             .design_action_run_get(json!({
-                "project_id":project.project_id,
-                "session_id":session_id,
-                "candidate_id":candidate_id,
-                "run_id":run_id
-        }))
+                    "project_id":project.project_id,
+                    "session_id":session_id,
+                    "candidate_id":candidate_id,
+                    "run_id":run_id
+            }))
             .expect("action readback");
         assert_eq!(read, first);
-        assert_eq!(runtime.versions(Some(session["project_id"].as_str().unwrap())).unwrap().len(), before_versions);
+        assert_eq!(
+            runtime
+                .versions(Some(session["project_id"].as_str().unwrap()))
+                .unwrap()
+                .len(),
+            before_versions
+        );
 
         // The conservative session path remains valid for intake and
         // observation, but it must never silently become a geometry action
@@ -24268,7 +26747,10 @@ mod tests {
         let mut terminal = None;
         for _ in 0..80 {
             let current = runtime.job(&job_id).expect("job readback").expect("job");
-            if matches!(current.status.as_str(), "succeeded" | "failed" | "cancelled") {
+            if matches!(
+                current.status.as_str(),
+                "succeeded" | "failed" | "cancelled"
+            ) {
                 terminal = Some(current);
                 break;
             }
@@ -24276,7 +26758,10 @@ mod tests {
         }
         let terminal = terminal.expect("background job reaches a terminal state");
         assert_eq!(terminal.status, "failed");
-        assert_eq!(terminal.error_code.as_deref(), Some("PRIMARY_FORM_REPAIR_JOB_FAILED"));
+        assert_eq!(
+            terminal.error_code.as_deref(),
+            Some("PRIMARY_FORM_REPAIR_JOB_FAILED")
+        );
         let events = runtime.job_events(&job_id, 0).expect("events");
         assert_eq!(events.len(), 2);
         assert_eq!(events[0].kind, "queued");
@@ -24334,18 +26819,19 @@ mod tests {
             "canonical_sha256": ""
         });
         render_set["canonical_sha256"] = Value::String(canonical_json_hash(&render_set));
-        validate_render_set_v2_output(&render_set).expect("unavailable worker identity is explicit");
+        validate_render_set_v2_output(&render_set)
+            .expect("unavailable worker identity is explicit");
 
         let default_mismatched_cohort = "f".repeat(64);
-        let mismatched_cohort = if build_cohort_sha256().as_deref()
-            == Some(default_mismatched_cohort.as_str())
-        {
-            "e".repeat(64)
-        } else {
-            default_mismatched_cohort
-        };
+        let mismatched_cohort =
+            if build_cohort_sha256().as_deref() == Some(default_mismatched_cohort.as_str()) {
+                "e".repeat(64)
+            } else {
+                default_mismatched_cohort
+            };
         render_set["render_worker_build_cohort_sha256"] = Value::String(mismatched_cohort);
-        render_set["render_worker_binding_status"] = Value::String("same_cohort_verified".to_owned());
+        render_set["render_worker_binding_status"] =
+            Value::String("same_cohort_verified".to_owned());
         render_set["canonical_sha256"] = Value::String(canonical_json_hash(&render_set));
         let error = validate_render_set_v2_output(&render_set)
             .expect_err("a RenderSet from another Worker cohort must fail closed");

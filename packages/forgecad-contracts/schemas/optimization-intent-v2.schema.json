@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-intent-v2.schema.json",
+  "title": "ForgeCAD Joint Multi-View Optimization Intent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "intent_id", "job_id", "project_id", "candidate_id", "reference_id", "reference_sha256", "program_sha256", "camera_rig_sha256", "camera_rig", "views", "part_id", "target_part_ids", "stage", "rig", "fidelity", "budget", "objective", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "OptimizationIntent@2"},
+    "intent_id": {"$ref": "#/$defs/id"},
+    "action_run_id": {"$ref": "#/$defs/nullable_id"},
+    "job_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_rig_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_rig": {"$ref": "https://forgecad.local/contracts/camera-rig-calibration.schema.json"},
+    "views": {"type": "array", "minItems": 6, "maxItems": 8, "items": {"$ref": "#/$defs/view"}},
+    "part_id": {"$ref": "#/$defs/id"},
+    "target_part_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "stage": {"enum": ["primary-form", "secondary-structure", "tertiary-detail", "uv-pbr", "final-review"]},
+    "rig": {"$ref": "https://forgecad.local/contracts/silhouette-rig-v2.schema.json"},
+    "fidelity": {"$ref": "https://forgecad.local/contracts/optimization-intent.schema.json#/properties/fidelity"},
+    "budget": {"$ref": "https://forgecad.local/contracts/optimization-intent.schema.json#/properties/budget"},
+    "objective": {"$ref": "https://forgecad.local/contracts/optimization-intent.schema.json#/properties/objective"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["view_id", "kind", "target_sha256", "camera", "camera_hash", "weight", "primary"],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/id"},
+        "kind": {"enum": ["left", "right", "top", "bottom", "front", "back", "front-three-quarter", "rear-three-quarter"]},
+        "target_sha256": {"$ref": "#/$defs/sha256"},
+        "camera": {"$ref": "https://forgecad.local/contracts/camera-calibration-v2.schema.json"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "primary": {"type": "boolean"}
+      }
+    }
+  }
+}

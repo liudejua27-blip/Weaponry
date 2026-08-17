@@ -1,0 +1,54 @@
+{
+  "schema_version": "ForgeCADWeaponJointMultiviewOptimizationSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_ONLY",
+  "scope": "weapon coordinate frame + orthographic camera rig + Runtime-owned joint multi-view optimization",
+  "contracts": {
+    "schema_version": "OptimizationIntent@2 / OptimizationEvaluation@2 / OptimizationResult@2",
+    "schema_files": [
+      "subject-coordinate-frame.schema.json",
+      "camera-calibration-v2.schema.json",
+      "camera-rig-calibration.schema.json",
+      "silhouette-rig-v2.schema.json",
+      "optimization-intent-v2.schema.json",
+      "optimization-evaluation-v2.schema.json",
+      "optimization-result-v2.schema.json"
+    ],
+    "manifest_schema_count": 136,
+    "manifest_sha256": "484fe66738d7084b9cb3f691d69a55bcb5101554a2e65f31ee6458cb5c72615a",
+    "schema_content_set_sha256": "c22af05267c279beab98a80703f1671de6b00d744c86055a9487ad7879cd2416"
+  },
+  "runtime_surface": {
+    "coordinate_frame": "SubjectCoordinateFrame@1: +X muzzle, -X stock, +Y up, +Z right",
+    "camera_projection": "CameraCalibration@2: fixed 512x512 perspective or orthographic",
+    "camera_rig": "CameraRigCalibration@1: six orthographic views required, one primary",
+    "joint_context": "immutable target/camera/weight context per view",
+    "objective": "weighted aggregate loss plus worst-view loss",
+    "promotion_gate": "all views non-regressing, all orthographic views non-regressing, primary strict improvement, at least three strict view improvements"
+  },
+  "source_files": {
+    "mcp_main_sha256": "25847b7bb645f9b3fd862bf86d419f4bdc148eb1aa14407fb1e394c1d4a74df1",
+    "mcp_optimization_tools_sha256": "6e928e2e79e62ba8e8ac28aace35f4c81246c096be1f3e6494fddd8d68f7cfcb",
+    "runtime_lib_sha256": "865e1d7acd950eb19cfd5b400c7fd17dade97eb086935ee7b94e16b26af469a5",
+    "runtime_optimization_sha256": "f2125b0e3a18061efa6726c2a89d1e458a5a69ebc9aa10d01cb9f6b999b6bfff",
+    "render_core_sha256": "2b75d2cb6aa56a85effbe673b24769463f6b14c17f5eccb9d736e84d2c0196a4"
+  },
+  "focused_checks": {
+    "contracts_check": "PASS_136_SCHEMAS",
+    "repository_integrity": "PASS",
+    "desktop_tauri_check": "PASS",
+    "render_core_orthographic_test": "PASS_3_RENDER_CORE_TESTS",
+    "runtime_joint_gate_tests": "PASS_17_OPTIMIZATION_TESTS",
+    "runtime_camera_rig_and_objective_tests": "PASS_9_MULTIVIEW_TESTS",
+    "mcp_v2_wire_rebind_test": "PASS_69_MCP_TESTS",
+    "stage0_truth": "PASS"
+  },
+  "limitations": [
+    "This is a source/contract/transport gate only; no real weapon reference bytes were processed in this receipt.",
+    "No beauty/silhouette likeness score, independent human review, PBR likeness, export/restart hash or HQ_360 result is claimed.",
+    "The full Runtime library suite remains blocked in this environment by unavailable isolated Geometry/Render Worker resources; focused tests and compile checks passed.",
+    "The Runtime still requires explicit user approval before any candidate promotion or confirmation."
+  ],
+  "canonical_sha256": "ebc3cc885f19ace5fb4a1163fce46be85e691e26c08685e2ba86b560838b9e5e"
+}

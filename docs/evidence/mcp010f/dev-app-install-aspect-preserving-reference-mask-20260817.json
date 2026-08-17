@@ -1,0 +1,21 @@
+{
+  "build_cohort_sha256": "4a9a01eb349096605534b0d0de36b62aa1c0c63ac14af51d9920adfc8ed3d1aa",
+  "codesign": "ad-hoc deep strict PASS",
+  "developer_id": "NOT_RUN",
+  "installed_app": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app",
+  "notarization": "NOT_RUN",
+  "previous_app_backup": "none",
+  "resource_sha256": {
+    "forgecad-geometry-worker": "4d6e65e57d85f224c1ebf25392e954919218956381c3920d7082f5f255602da5",
+    "forgecad-mcp": "8e4cb7cc3ffd8956f9fef70fc31664cfbd1d03b69d6ee5aba371c6006b975e00",
+    "forgecad-render-worker": "8f95ac6bf53399aa86afc2deaaf7e266e756d7ca66991a677e49f374606e57df",
+    "forgecad-runtime": "1b306c3a9ec5d6dc94da80943929184792af92363413ba6491e90c90f75139ea"
+  },
+  "schema_version": "ForgeCADDevAppInstallReceipt@1",
+  "source_file_count": 636,
+  "source_revision": "70541995d9a44cd983c62c2c495d74cd4f264909",
+  "source_worktree_dirty": true,
+  "status": "PASS",
+  "task_id": "FGC-MCP010F-ASPECT-PRESERVING-REFERENCE-MASK",
+  "viewer_sha256": "b8225cb48d992ee201ac56f97be4c73deb794e00cb0ab4702494639b831a0526"
+}

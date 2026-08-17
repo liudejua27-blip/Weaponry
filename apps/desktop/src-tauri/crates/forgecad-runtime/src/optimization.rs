@@ -9,11 +9,16 @@
 //! candidates carry a bounded family derived from the approved residual.
 //! No candidate, version, confirmation or export is changed here.
 
+use super::multiview::camera_rig::{validate_camera_calibration_v2, validate_camera_rig};
+use super::multiview::evaluation::metric_non_regressing;
+use super::multiview::objective::{metric_loss, weighted_loss};
+use super::multiview::reference_context::OptimizationViewContext;
+use super::weapon::coordinate_frame::{is_orthographic_view_kind, is_weapon_view_kind};
 use super::{
     canonical_json_bytes, canonical_json_hash, decode_binary_mask,
     decode_binary_mask_at_resolution, downsample_mask, finalize_v2_geometry_program,
-    hash_geometry_program_with_runtime_worker, materialize_rig_geometry_program,
-    now_string, render_glb_with_runtime_worker, render_worker, sha256_hex, stable_visual_metric,
+    hash_geometry_program_with_runtime_worker, materialize_rig_geometry_program, now_string,
+    render_glb_with_runtime_worker, render_worker, sha256_hex, stable_visual_metric,
     strict_glb_inspection, transient_loss_metrics_at_resolution, validate_camera_calibration,
     validate_silhouette_rig, validate_worker_metadata, Runtime, RuntimeError,
 };
@@ -56,6 +61,9 @@ struct OptimizationContext {
     rig: Value,
     part_id: String,
     residual_variants: Vec<Value>,
+    joint_views: Vec<OptimizationViewContext>,
+    camera_rig: Option<Value>,
+    is_joint_multiview: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -854,10 +862,9 @@ impl Runtime {
         candidate_id: &str,
         intent: &mut Value,
     ) -> Result<(), RuntimeError> {
-        let camera_input = intent
-            .get("camera")
-            .cloned()
-            .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_INTENT_CAMERA_REQUIRED".to_owned()))?;
+        let camera_input = intent.get("camera").cloned().ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_INTENT_CAMERA_REQUIRED".to_owned())
+        })?;
         if camera_input.get("schema_version").and_then(Value::as_str)
             != Some("CameraCalibrationRef@1")
         {
@@ -1083,6 +1090,7 @@ impl Runtime {
             checkpoint_sha256,
             job_id,
             &job.request_sha256,
+            &context,
             coarse_count,
             mid_top_k,
             final_top_k,
@@ -1524,7 +1532,10 @@ fn optimization_failure_code(error: &RuntimeError) -> String {
             if !code.is_empty()
                 && code.len() <= 96
                 && code.bytes().all(|byte| {
-                    byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
+                    byte.is_ascii_uppercase()
+                        || byte.is_ascii_digit()
+                        || byte == b'_'
+                        || byte == b'-'
                 })
                 && code.contains('_')
             {
@@ -1581,6 +1592,7 @@ fn run_optimization_job(runtime: &Runtime, job_id: &str) -> Result<(), RuntimeEr
                 hash,
                 job_id,
                 &job.request_sha256,
+                &context,
                 coarse_count,
                 mid_top_k,
                 final_top_k,
@@ -2083,7 +2095,13 @@ fn read_json_object(runtime: &Runtime, sha256: &str, kind: &str) -> Result<Value
             "{kind}: CAS object metadata mismatch"
         )));
     }
-    serde_json::from_slice(&runtime.cas_read(sha256)?).map_err(|error| {
+    let bytes = runtime.cas_read(sha256)?;
+    if sha256_hex(&bytes) != sha256 {
+        return Err(RuntimeError::InvalidInput(format!(
+            "{kind}: CAS object hash mismatch"
+        )));
+    }
+    serde_json::from_slice(&bytes).map_err(|error| {
         RuntimeError::InvalidInput(format!("{kind}: invalid JSON payload: {error}"))
     })
 }
@@ -2179,6 +2197,15 @@ fn validate_intent_control_plane(
     let object = intent.as_object().ok_or_else(|| {
         RuntimeError::InvalidInput("OPTIMIZATION_INTENT_INVALID: object required".to_owned())
     })?;
+    if object.get("schema_version").and_then(Value::as_str) == Some("OptimizationIntent@2") {
+        return validate_joint_intent_control_plane(
+            intent,
+            object,
+            intent_sha256,
+            project_id,
+            candidate_id,
+        );
+    }
     reject_unknown_keys(
         object,
         &[
@@ -2308,9 +2335,10 @@ fn validate_intent_control_plane(
             "OPTIMIZATION_RIG_PARAMETER_BUDGET".to_owned(),
         ));
     }
-    if parameters.iter().any(|parameter| {
-        parameter.get("part_id").and_then(Value::as_str) != Some(part_id)
-    }) {
+    if parameters
+        .iter()
+        .any(|parameter| parameter.get("part_id").and_then(Value::as_str) != Some(part_id))
+    {
         return Err(RuntimeError::InvalidInput(
             "OPTIMIZATION_RIG_MUST_TARGET_ONE_PART".to_owned(),
         ));
@@ -2318,11 +2346,7 @@ fn validate_intent_control_plane(
     if !matches!(
         object.get("stage").and_then(Value::as_str),
         Some(
-            "primary-form"
-                | "secondary-structure"
-                | "tertiary-detail"
-                | "uv-pbr"
-                | "final-review"
+            "primary-form" | "secondary-structure" | "tertiary-detail" | "uv-pbr" | "final-review"
         )
     ) {
         return Err(RuntimeError::InvalidInput(
@@ -2346,7 +2370,9 @@ fn validate_intent_control_plane(
         .get("coarse_evaluations")
         .and_then(Value::as_u64)
         .filter(|value| (32..=48).contains(value))
-        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_COARSE_BUDGET_INVALID".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_COARSE_BUDGET_INVALID".to_owned())
+        })?;
     let mid_top_k = fidelity
         .get("mid_top_k")
         .and_then(Value::as_u64)
@@ -2377,17 +2403,23 @@ fn validate_intent_control_plane(
         .get("max_runtime_ms")
         .and_then(Value::as_u64)
         .filter(|value| (1_000..=120_000).contains(value))
-        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_RUNTIME_BUDGET_INVALID".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_RUNTIME_BUDGET_INVALID".to_owned())
+        })?;
     let _max_triangles = budget
         .get("max_output_triangles")
         .and_then(Value::as_u64)
         .filter(|value| (1..=2_000_000).contains(value))
-        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_TRIANGLE_BUDGET_INVALID".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_TRIANGLE_BUDGET_INVALID".to_owned())
+        })?;
     let _memory = budget
         .get("max_worker_memory_bytes")
         .and_then(Value::as_u64)
         .filter(|value| (1_048_576..=536_870_912).contains(value))
-        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_MEMORY_BUDGET_INVALID".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_MEMORY_BUDGET_INVALID".to_owned())
+        })?;
     let objective = object
         .get("objective")
         .and_then(Value::as_object)
@@ -2406,7 +2438,9 @@ fn validate_intent_control_plane(
             .get(*key)
             .and_then(Value::as_f64)
             .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
-            .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_OBJECTIVE_WEIGHT_INVALID".to_owned()))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_OBJECTIVE_WEIGHT_INVALID".to_owned())
+            })
     })
     .collect::<Result<Vec<_>, _>>()?
     .into_iter()
@@ -2414,6 +2448,188 @@ fn validate_intent_control_plane(
     if (weight_sum - 1.0).abs() > 1.0e-6 {
         return Err(RuntimeError::InvalidInput(
             "OPTIMIZATION_OBJECTIVE_WEIGHTS_MUST_SUM_TO_ONE".to_owned(),
+        ));
+    }
+    if [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "landmark_coverage",
+        "landmark_nme",
+        "part_region",
+    ]
+    .iter()
+    .map(|key| objective.get(*key).and_then(Value::as_f64).unwrap_or(0.0))
+    .sum::<f64>()
+        <= 1.0e-9
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_OBJECTIVE_REQUIRES_VISUAL_WEIGHT".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_joint_intent_control_plane(
+    intent: &Value,
+    object: &Map<String, Value>,
+    intent_sha256: &str,
+    project_id: &str,
+    candidate_id: &str,
+) -> Result<(), RuntimeError> {
+    let allowed = [
+        "schema_version",
+        "intent_id",
+        "action_run_id",
+        "job_id",
+        "project_id",
+        "candidate_id",
+        "reference_id",
+        "reference_sha256",
+        "program_sha256",
+        "camera_rig_sha256",
+        "camera_rig",
+        "views",
+        "part_id",
+        "target_part_ids",
+        "stage",
+        "rig",
+        "fidelity",
+        "budget",
+        "objective",
+        "canonical_sha256",
+    ];
+    reject_unknown_keys(object, &allowed)?;
+    for key in [
+        "intent_id",
+        "job_id",
+        "project_id",
+        "candidate_id",
+        "reference_id",
+        "part_id",
+    ] {
+        let _ = required_id_from_object(object, key)?;
+    }
+    if object.get("schema_version").and_then(Value::as_str) != Some("OptimizationIntent@2")
+        || object.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || object.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_V2_SCOPE_DENIED".to_owned(),
+        ));
+    }
+    for key in [
+        "reference_sha256",
+        "program_sha256",
+        "camera_rig_sha256",
+        "canonical_sha256",
+    ] {
+        let _ = required_sha(object, key)?;
+    }
+    if !is_sha256(intent_sha256) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_OBJECT_HASH_INVALID".to_owned(),
+        ));
+    }
+    let mut canonical = intent.clone();
+    canonical["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&canonical) != object["canonical_sha256"] {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_CANONICAL_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    validate_camera_rig(
+        object.get("camera_rig").ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_CAMERA_RIG_REQUIRED".to_owned())
+        })?,
+        project_id,
+        candidate_id,
+    )
+    .map_err(RuntimeError::InvalidInput)?;
+    if object["camera_rig"].get("canonical_sha256") != object.get("camera_rig_sha256") {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_CAMERA_RIG_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    let frame_hash = object
+        .get("camera_rig")
+        .and_then(|rig| rig.pointer("/subject_coordinate_frame/canonical_sha256"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_SUBJECT_FRAME_MISSING".to_owned())
+        })?;
+    let rig = object
+        .get("rig")
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_INTENT_RIG_REQUIRED".to_owned()))?;
+    validate_joint_rig(rig, candidate_id)?;
+    if rig
+        .get("subject_coordinate_frame_sha256")
+        .and_then(Value::as_str)
+        != Some(frame_hash)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RIG_FRAME_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    if rig.get("target_part_ids") != object.get("target_part_ids") {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RIG_TARGET_PART_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    validate_joint_optimization_shape(object)?;
+    let views = object
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_VIEWS_REQUIRED".to_owned()))?;
+    if !(6..=8).contains(&views.len()) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_VIEW_COUNT_INVALID".to_owned(),
+        ));
+    }
+    let mut ids = HashSet::new();
+    let mut kinds = HashSet::new();
+    let mut primary = 0usize;
+    for view in views {
+        let view = view
+            .as_object()
+            .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_VIEW_INVALID".to_owned()))?;
+        let id = required_id_from_object(view, "view_id")?;
+        let kind = view.get("kind").and_then(Value::as_str).ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_VIEW_KIND_INVALID".to_owned())
+        })?;
+        if !is_weapon_view_kind(kind)
+            || !ids.insert(id.to_owned())
+            || !kinds.insert(kind.to_owned())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_DUPLICATE_VIEW_ID_OR_KIND".to_owned(),
+            ));
+        }
+        let _ = required_sha(view, "target_sha256")?;
+        let camera = view.get("camera").ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_VIEW_CAMERA_REQUIRED".to_owned())
+        })?;
+        validate_camera_calibration_v2(camera).map_err(RuntimeError::InvalidInput)?;
+        let camera_hash = required_sha(view, "camera_hash")?;
+        if camera.get("camera_hash").and_then(Value::as_str) != Some(camera_hash) {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_VIEW_CAMERA_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        if view
+            .get("primary")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            primary += 1;
+        }
+    }
+    if primary != 1
+        || !["left", "right", "top", "bottom", "front", "back"]
+            .iter()
+            .all(|kind| kinds.contains(*kind))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_ORTHOGRAPHIC_VIEW_COVERAGE_INVALID".to_owned(),
         ));
     }
     Ok(())
@@ -2429,6 +2645,15 @@ fn validate_intent(
     let object = intent.as_object().ok_or_else(|| {
         RuntimeError::InvalidInput("OPTIMIZATION_INTENT_INVALID: object required".to_owned())
     })?;
+    if object.get("schema_version").and_then(Value::as_str) == Some("OptimizationIntent@2") {
+        return validate_joint_multiview_intent(
+            runtime,
+            intent,
+            intent_sha256,
+            project_id,
+            candidate_id,
+        );
+    }
     let allowed = [
         "schema_version",
         "intent_id",
@@ -2516,9 +2741,9 @@ fn validate_intent(
     let camera = if validate_camera_calibration(camera_input).is_ok() {
         camera_input.clone()
     } else {
-        let camera_object = camera_input.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput("OPTIMIZATION_CAMERA_INVALID".to_owned())
-        })?;
+        let camera_object = camera_input
+            .as_object()
+            .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_CAMERA_INVALID".to_owned()))?;
         let camera_ref = json!({
             "schema_version": "CameraCalibrationRef@1",
             "camera_hash": camera_object.get("camera_hash").cloned().unwrap_or(Value::Null),
@@ -2705,6 +2930,22 @@ fn validate_intent(
             "OPTIMIZATION_OBJECTIVE_WEIGHTS_MUST_SUM_TO_ONE".to_owned(),
         ));
     }
+    if [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "landmark_coverage",
+        "landmark_nme",
+        "part_region",
+    ]
+    .iter()
+    .map(|key| objective.get(*key).and_then(Value::as_f64).unwrap_or(0.0))
+    .sum::<f64>()
+        <= 1.0e-9
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_OBJECTIVE_REQUIRES_VISUAL_WEIGHT".to_owned(),
+        ));
+    }
     let candidate = runtime
         .candidate(candidate_id)?
         .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned()))?;
@@ -2869,7 +3110,676 @@ fn validate_intent(
         rig: rig.clone(),
         part_id: part_id.to_owned(),
         residual_variants,
+        joint_views: Vec::new(),
+        camera_rig: None,
+        is_joint_multiview: false,
     })
+}
+
+fn validate_joint_multiview_intent(
+    runtime: &Runtime,
+    intent: &Value,
+    intent_sha256: &str,
+    project_id: &str,
+    candidate_id: &str,
+) -> Result<OptimizationContext, RuntimeError> {
+    let object = intent.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("OPTIMIZATION_INTENT_V2_INVALID: object required".to_owned())
+    })?;
+    let allowed = [
+        "schema_version",
+        "intent_id",
+        "action_run_id",
+        "job_id",
+        "project_id",
+        "candidate_id",
+        "reference_id",
+        "reference_sha256",
+        "program_sha256",
+        "camera_rig_sha256",
+        "camera_rig",
+        "views",
+        "part_id",
+        "target_part_ids",
+        "stage",
+        "rig",
+        "fidelity",
+        "budget",
+        "objective",
+        "canonical_sha256",
+    ];
+    reject_unknown_keys(object, &allowed)?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("OptimizationIntent@2") {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_V2_SCHEMA_INVALID".to_owned(),
+        ));
+    }
+    for key in [
+        "intent_id",
+        "job_id",
+        "project_id",
+        "candidate_id",
+        "reference_id",
+        "part_id",
+    ] {
+        let _ = required_id_from_object(object, key)?;
+    }
+    if object.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || object.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_SCOPE_DENIED".to_owned(),
+        ));
+    }
+    for key in [
+        "reference_sha256",
+        "program_sha256",
+        "camera_rig_sha256",
+        "canonical_sha256",
+    ] {
+        let _ = required_sha(object, key)?;
+    }
+    if let Some(action_run_id) = object.get("action_run_id") {
+        if !action_run_id.is_null() && !action_run_id.as_str().is_some_and(is_opaque_id) {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_ACTION_RUN_ID_INVALID".to_owned(),
+            ));
+        }
+    }
+    let canonical = object["canonical_sha256"]
+        .as_str()
+        .expect("required canonical hash");
+    let mut canonical_input = intent.clone();
+    canonical_input["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&canonical_input) != canonical {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_CANONICAL_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    if !is_sha256(intent_sha256) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_INTENT_OBJECT_HASH_INVALID".to_owned(),
+        ));
+    }
+
+    let camera_rig = object
+        .get("camera_rig")
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_CAMERA_RIG_REQUIRED".to_owned()))?;
+    validate_camera_rig(camera_rig, project_id, candidate_id)
+        .map_err(RuntimeError::InvalidInput)?;
+    if camera_rig.get("canonical_sha256") != object.get("camera_rig_sha256") {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_CAMERA_RIG_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    let frame_hash = camera_rig
+        .pointer("/subject_coordinate_frame/canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_SUBJECT_FRAME_MISSING".to_owned())
+        })?;
+    if !is_sha256(frame_hash) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_SUBJECT_FRAME_HASH_INVALID".to_owned(),
+        ));
+    }
+
+    let rig = object
+        .get("rig")
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_INTENT_RIG_REQUIRED".to_owned()))?;
+    validate_joint_rig(rig, candidate_id)?;
+    if rig
+        .get("subject_coordinate_frame_sha256")
+        .and_then(Value::as_str)
+        != Some(frame_hash)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RIG_FRAME_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    if rig.get("target_part_ids") != object.get("target_part_ids") {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RIG_TARGET_PART_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let part_id = object["part_id"].as_str().expect("validated part_id");
+    let target_part_ids = object
+        .get("target_part_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_TARGET_PART_IDS_REQUIRED".to_owned())
+        })?;
+    if target_part_ids.is_empty()
+        || target_part_ids
+            .iter()
+            .any(|value| value.as_str().is_none_or(|id| !is_opaque_id(id)))
+        || !target_part_ids
+            .iter()
+            .any(|value| value.as_str() == Some(part_id))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_TARGET_PART_IDS_INVALID".to_owned(),
+        ));
+    }
+    validate_joint_optimization_shape(object)?;
+
+    let candidate = runtime
+        .candidate(candidate_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned()))?;
+    if candidate.project_id != project_id {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_CANDIDATE_SCOPE_DENIED".to_owned(),
+        ));
+    }
+    let evidence = runtime
+        .store
+        .get_geometry_candidate_evidence(candidate_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_GEOMETRY_EVIDENCE_UNAVAILABLE".to_owned())
+        })?;
+    let reference_id = object["reference_id"]
+        .as_str()
+        .expect("validated reference_id");
+    let reference_sha256 = object["reference_sha256"]
+        .as_str()
+        .expect("validated reference hash");
+    let program_sha256 = object["program_sha256"]
+        .as_str()
+        .expect("validated program hash");
+    if evidence.project_id != project_id
+        || evidence.reference_id.as_deref() != Some(reference_id)
+        || evidence.reference_sha256.as_deref() != Some(reference_sha256)
+        || evidence.geometry_program_sha256 != program_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_LINEAGE_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let reference = runtime.reference(reference_id)?.ok_or_else(|| {
+        RuntimeError::InvalidInput("OPTIMIZATION_REFERENCE_UNAVAILABLE".to_owned())
+    })?;
+    if reference.project_id != project_id || reference.object_sha256 != reference_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_REFERENCE_SCOPE_DENIED".to_owned(),
+        ));
+    }
+    let program_object = runtime
+        .store
+        .get_object(&evidence.geometry_program_object_sha256)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_PROGRAM_OBJECT_UNAVAILABLE".to_owned())
+        })?;
+    let program_bytes = runtime.cas_read(&program_object.sha256)?;
+    if sha256_hex(&program_bytes) != evidence.geometry_program_object_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_PROGRAM_OBJECT_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    let mut program: Value = serde_json::from_slice(&program_bytes).map_err(|_| {
+        RuntimeError::InvalidInput("OPTIMIZATION_PROGRAM_OBJECT_INVALID".to_owned())
+    })?;
+    let hash_result = hash_geometry_program_with_runtime_worker(&program)
+        .map_err(|_| RuntimeError::InvalidInput("OPTIMIZATION_PROGRAM_HASH_FAILED".to_owned()))?;
+    if hash_result.get("canonical_sha256").and_then(Value::as_str) != Some(program_sha256) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_PROGRAM_LINEAGE_MISMATCH".to_owned(),
+        ));
+    }
+    program["canonical_sha256"] = Value::String(program_sha256.to_owned());
+    let artifact_sha256 = evidence.artifact_object_sha256.clone();
+    if candidate.prepared_object_sha256.as_deref() != Some(artifact_sha256.as_str())
+        && candidate.manifest_hash.as_deref() != Some(artifact_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_ARTIFACT_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+
+    let views = object
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_VIEWS_REQUIRED".to_owned()))?;
+    if !(6..=8).contains(&views.len()) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_VIEW_COUNT_INVALID".to_owned(),
+        ));
+    }
+    let mut view_ids = HashSet::new();
+    let mut kinds = HashSet::new();
+    let mut primary_count = 0usize;
+    let mut contexts = Vec::with_capacity(views.len());
+    for view in views {
+        let view_object = view
+            .as_object()
+            .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_VIEW_INVALID".to_owned()))?;
+        let view_id = required_id_from_object(view_object, "view_id")?;
+        let kind = view_object
+            .get("kind")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_VIEW_KIND_INVALID".to_owned())
+            })?;
+        if !is_weapon_view_kind(kind)
+            || !view_ids.insert(view_id.to_owned())
+            || !kinds.insert(kind.to_owned())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_DUPLICATE_VIEW_ID_OR_KIND".to_owned(),
+            ));
+        }
+        let target_sha256 = required_sha(view_object, "target_sha256")?.to_owned();
+        let camera = view_object.get("camera").ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_VIEW_CAMERA_REQUIRED".to_owned())
+        })?;
+        validate_camera_calibration_v2(camera).map_err(RuntimeError::InvalidInput)?;
+        let camera_hash = required_sha(view_object, "camera_hash")?.to_owned();
+        if camera.get("camera_hash").and_then(Value::as_str) != Some(camera_hash.as_str()) {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_VIEW_CAMERA_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let rig_view = camera_rig["views"]
+            .as_array()
+            .and_then(|values| {
+                values.iter().find(|candidate| {
+                    candidate.get("view_id").and_then(Value::as_str) == Some(view_id)
+                })
+            })
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_CAMERA_RIG_VIEW_MISSING".to_owned())
+            })?;
+        if rig_view.get("kind").and_then(Value::as_str) != Some(kind)
+            || rig_view.get("camera_hash").and_then(Value::as_str) != Some(camera_hash.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_CAMERA_RIG_VIEW_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let weight = view_object
+            .get("weight")
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && *value > 0.0 && *value <= 1.0)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_VIEW_WEIGHT_INVALID".to_owned())
+            })?;
+        let primary = view_object
+            .get("primary")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if primary {
+            primary_count += 1;
+        }
+        let target = runtime.read_silhouette_target(&target_sha256)?;
+        let target_reference_id = target
+            .get("reference_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_VIEW_TARGET_REFERENCE_MISSING".to_owned())
+            })?;
+        let target_reference_sha = target
+            .get("reference_sha256")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "OPTIMIZATION_VIEW_TARGET_REFERENCE_HASH_MISSING".to_owned(),
+                )
+            })?;
+        let target_reference = runtime.reference(target_reference_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_VIEW_TARGET_REFERENCE_UNAVAILABLE".to_owned())
+        })?;
+        if target_reference.project_id != project_id
+            || target_reference.object_sha256 != target_reference_sha
+        {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_VIEW_TARGET_REFERENCE_MISMATCH".to_owned(),
+            ));
+        }
+        let target_mask = runtime.target_mask(&target_sha256, &target)?.mask;
+        contexts.push(OptimizationViewContext {
+            view_id: view_id.to_owned(),
+            kind: kind.to_owned(),
+            target_sha256,
+            target,
+            target_mask,
+            camera: camera.clone(),
+            camera_hash,
+            weight,
+            primary,
+        });
+    }
+    if primary_count != 1
+        || !is_orthographic_view_kind("left")
+        || !["left", "right", "top", "bottom", "front", "back"]
+            .iter()
+            .all(|kind| kinds.contains(*kind))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_ORTHOGRAPHIC_VIEW_COVERAGE_INVALID".to_owned(),
+        ));
+    }
+    let primary = contexts.iter().find(|view| view.primary).ok_or_else(|| {
+        RuntimeError::InvalidInput("OPTIMIZATION_PRIMARY_VIEW_MISSING".to_owned())
+    })?;
+    Ok(OptimizationContext {
+        intent: intent.clone(),
+        intent_sha256: intent_sha256.to_owned(),
+        target: primary.target.clone(),
+        target_mask: primary.target_mask.clone(),
+        evaluation_objective: None,
+        evaluation_objective_sha256: None,
+        part_target_mask: None,
+        program,
+        camera: primary.camera.clone(),
+        rig: object["rig"].clone(),
+        part_id: part_id.to_owned(),
+        residual_variants: Vec::new(),
+        joint_views: contexts,
+        camera_rig: Some(camera_rig.clone()),
+        is_joint_multiview: true,
+    })
+}
+
+fn validate_joint_rig(value: &Value, candidate_id: &str) -> Result<(), RuntimeError> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_INVALID".to_owned()))?;
+    let allowed = [
+        "schema_version",
+        "rig_id",
+        "candidate_id",
+        "subject_coordinate_frame_sha256",
+        "target_part_ids",
+        "groups",
+        "parameters",
+        "canonical_sha256",
+    ];
+    if object.len() != allowed.len() || object.keys().any(|key| !allowed.contains(&key.as_str())) {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_UNKNOWN_FIELD".to_owned(),
+        ));
+    }
+    if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteRig@2")
+        || object.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_BINDING_INVALID".to_owned(),
+        ));
+    }
+    if object
+        .get("rig_id")
+        .and_then(Value::as_str)
+        .is_none_or(|id| !is_opaque_id(id))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_RIG_ID_INVALID".to_owned(),
+        ));
+    }
+    let canonical_sha256 = object
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_CANONICAL_HASH_INVALID".to_owned())
+        })?;
+    if !is_sha256(canonical_sha256) {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_CANONICAL_HASH_INVALID".to_owned(),
+        ));
+    }
+    let mut canonical_input = value.clone();
+    canonical_input["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&canonical_input) != canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_CANONICAL_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    let target_part_ids = object
+        .get("target_part_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_TARGET_PARTS_INVALID".to_owned())
+        })?;
+    if target_part_ids.is_empty()
+        || target_part_ids
+            .iter()
+            .any(|part| part.as_str().is_none_or(|id| !is_opaque_id(id)))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_TARGET_PARTS_INVALID".to_owned(),
+        ));
+    }
+    let frame_hash = object
+        .get("subject_coordinate_frame_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_FRAME_HASH_INVALID".to_owned())
+        })?;
+    if !is_sha256(frame_hash) {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_FRAME_HASH_INVALID".to_owned(),
+        ));
+    }
+    let parameters = object
+        .get("parameters")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_PARAMETERS_INVALID".to_owned())
+        })?;
+    if !(4..=64).contains(&parameters.len()) {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_PARAMETER_BUDGET".to_owned(),
+        ));
+    }
+    let mut parameter_ids = HashSet::new();
+    for parameter in parameters {
+        let parameter_object = parameter.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_PARAMETER_INVALID".to_owned())
+        })?;
+        let parameter_id = parameter_object
+            .get("parameter_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_PARAMETER_ID_INVALID".to_owned())
+            })?;
+        if !is_opaque_id(parameter_id) || !parameter_ids.insert(parameter_id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_V2_PARAMETER_ID_INVALID".to_owned(),
+            ));
+        }
+        let part_id = parameter_object
+            .get("part_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_PARAMETER_PART_INVALID".to_owned())
+            })?;
+        if !target_part_ids
+            .iter()
+            .any(|candidate| candidate.as_str() == Some(part_id))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_V2_PARAMETER_PART_NOT_TARGETED".to_owned(),
+            ));
+        }
+    }
+    let groups = object
+        .get("groups")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_GROUPS_INVALID".to_owned()))?;
+    if groups.is_empty() || groups.len() > 32 {
+        return Err(RuntimeError::InvalidInput(
+            "SILHOUETTE_RIG_V2_GROUPS_INVALID".to_owned(),
+        ));
+    }
+    let mut group_ids = HashSet::new();
+    let mut grouped_parameter_ids = HashSet::new();
+    for group in groups {
+        let group = group.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_GROUP_INVALID".to_owned())
+        })?;
+        let group_allowed = ["group_id", "parameter_ids", "mode", "axis"];
+        if group
+            .keys()
+            .any(|key| !group_allowed.contains(&key.as_str()))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_V2_GROUP_UNKNOWN_FIELD".to_owned(),
+            ));
+        }
+        let group_id = group
+            .get("group_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_GROUP_ID_INVALID".to_owned())
+            })?;
+        let mode = group.get("mode").and_then(Value::as_str).ok_or_else(|| {
+            RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_GROUP_MODE_INVALID".to_owned())
+        })?;
+        if !is_opaque_id(group_id)
+            || !group_ids.insert(group_id.to_owned())
+            || !matches!(mode, "independent" | "mirror" | "linked")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_V2_GROUP_INVALID".to_owned(),
+            ));
+        }
+        if let Some(axis) = group.get("axis").and_then(Value::as_str) {
+            if !matches!(axis, "x" | "y" | "z") {
+                return Err(RuntimeError::InvalidInput(
+                    "SILHOUETTE_RIG_V2_GROUP_AXIS_INVALID".to_owned(),
+                ));
+            }
+        }
+        let members = group
+            .get("parameter_ids")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("SILHOUETTE_RIG_V2_GROUP_PARAMETERS_INVALID".to_owned())
+            })?;
+        if members.is_empty()
+            || members
+                .iter()
+                .any(|member| member.as_str().is_none_or(|id| !parameter_ids.contains(id)))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_V2_GROUP_PARAMETERS_INVALID".to_owned(),
+            ));
+        }
+        if members.iter().any(|member| {
+            member
+                .as_str()
+                .is_none_or(|parameter_id| !grouped_parameter_ids.insert(parameter_id.to_owned()))
+        }) {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_RIG_V2_GROUP_PARAMETERS_OVERLAP".to_owned(),
+            ));
+        }
+    }
+    let mut legacy = object.clone();
+    legacy.insert(
+        "schema_version".to_owned(),
+        Value::String("SilhouetteRig@1".to_owned()),
+    );
+    legacy.remove("subject_coordinate_frame_sha256");
+    legacy.remove("target_part_ids");
+    legacy.remove("groups");
+    let mut canonical = Value::Object(legacy);
+    canonical["canonical_sha256"] = Value::String(String::new());
+    let canonical_hash = canonical_json_hash(&canonical);
+    canonical["canonical_sha256"] = Value::String(canonical_hash);
+    super::validate_silhouette_rig(&canonical, candidate_id)
+}
+
+fn validate_joint_optimization_shape(object: &Map<String, Value>) -> Result<(), RuntimeError> {
+    let fidelity = object
+        .get("fidelity")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_FIDELITY_INVALID".to_owned()))?;
+    if fidelity.get("coarse_resolution").and_then(Value::as_u64) != Some(128)
+        || fidelity.get("mid_resolution").and_then(Value::as_u64) != Some(256)
+        || fidelity.get("final_resolution").and_then(Value::as_u64) != Some(512)
+        || fidelity.get("final_top_k").and_then(Value::as_u64) != Some(2)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_FIDELITY_RESOLUTION_INVALID".to_owned(),
+        ));
+    }
+    let coarse = fidelity
+        .get("coarse_evaluations")
+        .and_then(Value::as_u64)
+        .filter(|value| (32..=48).contains(value))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_COARSE_BUDGET_INVALID".to_owned())
+        })?;
+    let mid = fidelity
+        .get("mid_top_k")
+        .and_then(Value::as_u64)
+        .filter(|value| (4..=8).contains(value))
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_MID_BUDGET_INVALID".to_owned()))?;
+    let budget = object
+        .get("budget")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_BUDGET_INVALID".to_owned()))?;
+    let max = budget
+        .get("max_evaluations")
+        .and_then(Value::as_u64)
+        .filter(|value| (42..=64).contains(value))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_EVALUATION_BUDGET_INVALID".to_owned())
+        })?;
+    if coarse + mid + 3 > max {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_EVALUATION_BUDGET_TOO_SMALL".to_owned(),
+        ));
+    }
+    for (key, range) in [
+        ("max_runtime_ms", 1_000..=120_000),
+        ("max_output_triangles", 1..=2_000_000),
+        ("max_worker_memory_bytes", 1_048_576..=536_870_912),
+    ] {
+        let value = budget
+            .get(key)
+            .and_then(Value::as_u64)
+            .ok_or_else(|| RuntimeError::InvalidInput(format!("OPTIMIZATION_{key}_INVALID")))?;
+        if !range.contains(&value) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "OPTIMIZATION_{key}_INVALID"
+            )));
+        }
+    }
+    let objective = object
+        .get("objective")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_OBJECTIVE_INVALID".to_owned()))?;
+    let weights = [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "landmark_coverage",
+        "landmark_nme",
+        "part_region",
+        "program_complexity",
+    ]
+    .iter()
+    .map(|key| {
+        objective
+            .get(*key)
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_OBJECTIVE_WEIGHT_INVALID".to_owned())
+            })
+    })
+    .collect::<Result<Vec<_>, _>>()?;
+    let sum = weights.iter().sum::<f64>();
+    if (sum - 1.0).abs() > 1.0e-6 {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_OBJECTIVE_WEIGHTS_MUST_SUM_TO_ONE".to_owned(),
+        ));
+    }
+    if weights[..5].iter().sum::<f64>() <= 1.0e-9 {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_OBJECTIVE_REQUIRES_VISUAL_WEIGHT".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 fn validate_optimization_residual(
@@ -3262,6 +4172,9 @@ fn validate_result(result: &Value, job_id: &str, intent_sha256: &str) -> Result<
     let object = result
         .as_object()
         .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_RESULT_INVALID".to_owned()))?;
+    if object.get("schema_version").and_then(Value::as_str) == Some("OptimizationResult@2") {
+        return validate_joint_result(result, object, job_id, intent_sha256);
+    }
     if object.get("schema_version").and_then(Value::as_str) != Some("OptimizationResult@1")
         || object.get("job_id").and_then(Value::as_str) != Some(job_id)
         || object.get("intent_sha256").and_then(Value::as_str) != Some(intent_sha256)
@@ -3366,11 +4279,128 @@ fn validate_result(result: &Value, job_id: &str, intent_sha256: &str) -> Result<
     Ok(())
 }
 
+fn validate_joint_result(
+    result: &Value,
+    object: &Map<String, Value>,
+    job_id: &str,
+    intent_sha256: &str,
+) -> Result<(), RuntimeError> {
+    if object.get("job_id").and_then(Value::as_str) != Some(job_id)
+        || object.get("intent_sha256").and_then(Value::as_str) != Some(intent_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RESULT_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    if !object
+        .get("non_regressing")
+        .and_then(Value::as_bool)
+        .is_some()
+        || !object
+            .get("strict_improvement")
+            .and_then(Value::as_bool)
+            .is_some()
+        || !object
+            .get("all_orthographic_views_non_regressing")
+            .and_then(Value::as_bool)
+            .is_some()
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RESULT_JOINT_GATE_FIELDS_INVALID".to_owned(),
+        ));
+    }
+    for key in [
+        "baseline_loss",
+        "best_loss",
+        "weighted_aggregate_loss",
+        "worst_view_loss",
+    ] {
+        if object
+            .get(key)
+            .and_then(Value::as_f64)
+            .is_none_or(|value| !value.is_finite() || value < 0.0)
+        {
+            return Err(RuntimeError::InvalidInput(format!(
+                "OPTIMIZATION_RESULT_{key}_INVALID"
+            )));
+        }
+    }
+    if object
+        .get("improved_view_count")
+        .and_then(Value::as_u64)
+        .is_none_or(|value| value > 8)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RESULT_IMPROVED_VIEW_COUNT_INVALID".to_owned(),
+        ));
+    }
+    for key in [
+        "candidate_program_object_sha256s",
+        "candidate_artifact_object_sha256s",
+        "evaluation_object_sha256s",
+    ] {
+        let values = object.get(key).and_then(Value::as_array).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!("OPTIMIZATION_RESULT_{key}_INVALID"))
+        })?;
+        if key != "evaluation_object_sha256s" && values.is_empty() {
+            return Err(RuntimeError::InvalidInput(format!(
+                "OPTIMIZATION_RESULT_{key}_INVALID"
+            )));
+        }
+        if values
+            .iter()
+            .any(|value| value.as_str().is_none_or(|hash| !is_sha256(hash)))
+        {
+            return Err(RuntimeError::InvalidInput(format!(
+                "OPTIMIZATION_RESULT_{key}_INVALID"
+            )));
+        }
+    }
+    let evaluations_count = object
+        .get("evaluations_count")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_RESULT_EVALUATIONS_COUNT_INVALID".to_owned())
+        })?;
+    if evaluations_count > 64
+        || object.get("checkpoint_sequence").and_then(Value::as_u64) != Some(evaluations_count)
+        || object
+            .get("evaluation_object_sha256s")
+            .and_then(Value::as_array)
+            .is_none_or(|values| values.len() as u64 != evaluations_count)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RESULT_SEQUENCE_INVALID".to_owned(),
+        ));
+    }
+    if object.get("search_strategy").and_then(Value::as_str) != Some(OPTIMIZATION_SEARCH_STRATEGY) {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RESULT_SEARCH_STRATEGY_MISMATCH".to_owned(),
+        ));
+    }
+    let canonical = object
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .filter(|hash| is_sha256(hash))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("OPTIMIZATION_RESULT_CANONICAL_INVALID".to_owned())
+        })?;
+    let mut input = result.clone();
+    input["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&input) != canonical {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RESULT_CANONICAL_HASH_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 fn load_optimization_checkpoint(
     runtime: &Runtime,
     checkpoint_sha256: &str,
     job_id: &str,
     intent_sha256: &str,
+    context: &OptimizationContext,
     coarse_count: usize,
     mid_top_k: usize,
     final_top_k: usize,
@@ -3444,7 +4474,15 @@ fn load_optimization_checkpoint(
             let hash = value.as_str().ok_or_else(|| {
                 RuntimeError::InvalidInput("OPTIMIZATION_RESULT_EVALUATIONS_INVALID".to_owned())
             })?;
-            load_evaluation_record(runtime, hash, job_id, coarse_count, index + 1)
+            load_evaluation_record(
+                runtime,
+                hash,
+                job_id,
+                intent_sha256,
+                context,
+                coarse_count,
+                index + 1,
+            )
         })
         .collect::<Result<Vec<_>, _>>()?;
     if object.get("evaluations_count").and_then(Value::as_u64) != Some(evaluations.len() as u64)
@@ -3511,6 +4549,8 @@ fn load_evaluation_record(
     runtime: &Runtime,
     object_sha256: &str,
     job_id: &str,
+    intent_sha256: &str,
+    context: &OptimizationContext,
     coarse_count: usize,
     expected_sequence: usize,
 ) -> Result<EvaluationRecord, RuntimeError> {
@@ -3523,12 +4563,21 @@ fn load_evaluation_record(
     let object = value
         .as_object()
         .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_EVALUATION_INVALID".to_owned()))?;
-    if object.get("schema_version").and_then(Value::as_str) != Some("OptimizationEvaluation@1")
-        || object.get("job_id").and_then(Value::as_str) != Some(job_id)
+    if !matches!(
+        object.get("schema_version").and_then(Value::as_str),
+        Some("OptimizationEvaluation@1" | "OptimizationEvaluation@2")
+    ) || object.get("job_id").and_then(Value::as_str) != Some(job_id)
         || object.get("sequence").and_then(Value::as_u64) != Some(expected_sequence as u64)
     {
         return Err(RuntimeError::InvalidInput(
             "OPTIMIZATION_EVALUATION_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    if context.is_joint_multiview
+        && object.get("schema_version").and_then(Value::as_str) != Some("OptimizationEvaluation@2")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_EVALUATION_SCHEMA_BINDING_MISMATCH".to_owned(),
         ));
     }
     let fidelity = object
@@ -3593,6 +4642,119 @@ fn load_evaluation_record(
         return Err(RuntimeError::InvalidInput(
             "OPTIMIZATION_EVALUATION_METRICS_HASH_MISMATCH".to_owned(),
         ));
+    }
+    if object.get("schema_version").and_then(Value::as_str) == Some("OptimizationEvaluation@2") {
+        if object.get("intent_sha256").and_then(Value::as_str) != Some(intent_sha256)
+            || context
+                .camera_rig
+                .as_ref()
+                .and_then(|rig| rig.get("canonical_sha256"))
+                != object.get("camera_rig_sha256")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_EVALUATION_CONTEXT_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let views = object
+            .get("views")
+            .and_then(Value::as_array)
+            .filter(|views| (6..=8).contains(&views.len()))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_EVALUATION_VIEWS_INVALID".to_owned())
+            })?;
+        let mut view_ids = HashSet::new();
+        let mut view_kinds = HashSet::new();
+        let mut primary_count = 0usize;
+        for (index, view) in views.iter().enumerate() {
+            let view = view.as_object().ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_EVALUATION_VIEW_INVALID".to_owned())
+            })?;
+            let view_id = view
+                .get("view_id")
+                .and_then(Value::as_str)
+                .filter(|id| is_opaque_id(id))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput("OPTIMIZATION_EVALUATION_VIEW_ID_INVALID".to_owned())
+                })?;
+            let kind = view
+                .get("kind")
+                .and_then(Value::as_str)
+                .filter(|kind| is_weapon_view_kind(kind))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "OPTIMIZATION_EVALUATION_VIEW_KIND_INVALID".to_owned(),
+                    )
+                })?;
+            if !view_ids.insert(view_id.to_owned()) || !view_kinds.insert(kind.to_owned()) {
+                return Err(RuntimeError::InvalidInput(
+                    "OPTIMIZATION_EVALUATION_VIEW_DUPLICATE".to_owned(),
+                ));
+            }
+            if view
+                .get("primary")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                primary_count += 1;
+            }
+            let Some(expected_view) = context.joint_views.get(index) else {
+                return Err(RuntimeError::InvalidInput(
+                    "OPTIMIZATION_EVALUATION_CONTEXT_VIEW_COUNT_MISMATCH".to_owned(),
+                ));
+            };
+            if view.get("view_id").and_then(Value::as_str) != Some(expected_view.view_id.as_str())
+                || view.get("kind").and_then(Value::as_str) != Some(expected_view.kind.as_str())
+                || view.get("target_sha256").and_then(Value::as_str)
+                    != Some(expected_view.target_sha256.as_str())
+                || view.get("camera_hash").and_then(Value::as_str)
+                    != Some(expected_view.camera_hash.as_str())
+                || view.get("weight") != Some(&Value::from(expected_view.weight))
+                || view.get("primary") != Some(&Value::from(expected_view.primary))
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "OPTIMIZATION_EVALUATION_VIEW_CONTEXT_MISMATCH".to_owned(),
+                ));
+            }
+            for key in ["target_sha256", "camera_hash"] {
+                if !view.get(key).and_then(Value::as_str).is_some_and(is_sha256) {
+                    return Err(RuntimeError::InvalidInput(format!(
+                        "OPTIMIZATION_EVALUATION_VIEW_{key}_INVALID"
+                    )));
+                }
+            }
+            if view
+                .get("weight")
+                .and_then(Value::as_f64)
+                .is_none_or(|weight| !weight.is_finite() || weight <= 0.0 || weight > 1.0)
+                || view
+                    .get("loss")
+                    .and_then(Value::as_f64)
+                    .is_none_or(|loss| !loss.is_finite() || loss < 0.0)
+                || view.get("metrics").is_none()
+                || view.get("pass_hashes").and_then(Value::as_array).is_none()
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "OPTIMIZATION_EVALUATION_VIEW_METRICS_INVALID".to_owned(),
+                ));
+            }
+        }
+        if primary_count != 1
+            || !["left", "right", "top", "bottom", "front", "back"]
+                .iter()
+                .all(|kind| view_kinds.contains(*kind))
+            || object
+                .get("weighted_aggregate_loss")
+                .and_then(Value::as_f64)
+                .is_none_or(|loss| !loss.is_finite() || loss < 0.0)
+            || object
+                .get("worst_view_loss")
+                .and_then(Value::as_f64)
+                .is_none_or(|loss| !loss.is_finite() || loss < 0.0)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "OPTIMIZATION_EVALUATION_JOINT_GATE_INVALID".to_owned(),
+            ));
+        }
     }
     let loss = object
         .get("loss")
@@ -3826,61 +4988,37 @@ fn deterministic_parameter_sets(rig: &Value, baseline: &[Value], count: usize) -
     if count == 0 || definitions.is_empty() {
         return sets;
     }
-    let surface_groups = surface_control_point_groups(&definitions);
-    if !surface_groups.is_empty() {
-        sets.push(baseline.to_vec());
-        let group_count = surface_groups.len();
-        for sequence in 1..count {
-            let mut parameters = baseline.to_vec();
-            let group_index = (sequence - 1) % group_count;
-            let cycle = (sequence - 1) / group_count;
-            let level = cycle / 2 + 1;
-            let direction = if cycle % 2 == 0 { 1.0 } else { -1.0 };
-            for coordinate in &surface_groups[group_index] {
-                let Some(definition) = definitions.get(*coordinate) else {
-                    continue;
-                };
-                let Some(selected) = parameters.get_mut(*coordinate) else {
-                    continue;
-                };
+    let groups = authored_parameter_groups(rig, &definitions);
+    sets.push(baseline.to_vec());
+    for sequence in 1..count {
+        let mut parameters = baseline.to_vec();
+        let group_index = (sequence - 1) % groups.len();
+        let cycle = (sequence - 1) / groups.len();
+        let level = cycle / 2 + 1;
+        let direction = if cycle % 2 == 0 { 1.0 } else { -1.0 };
+        let mirror = authored_group_is_mirror(rig, &definitions, &groups[group_index]);
+        for coordinate in &groups[group_index] {
+            if let (Some(definition), Some(selected)) = (
+                definitions.get(*coordinate),
+                parameters.get_mut(*coordinate),
+            ) {
                 let value = definition["value"].as_f64().unwrap_or(0.0);
-                let minimum = definition["min"].as_f64().unwrap_or(value);
-                let maximum = definition["max"].as_f64().unwrap_or(value);
+                let min = definition["min"].as_f64().unwrap_or(value);
+                let max = definition["max"].as_f64().unwrap_or(value);
                 let step = definition["step"].as_f64().unwrap_or(0.01).abs();
-                let delta = surface_control_point_delta(
+                let delta = parameter_probe_delta(
                     definition,
                     value,
                     step * level as f64,
                     direction,
-                    1,
+                    mirror
+                        || (rig.get("groups").is_none()
+                            && definition.get("semantic").and_then(Value::as_str)
+                                == Some("surface_control_point")),
                 );
-                selected["value"] = Value::from(stable_visual_metric(
-                    (value + delta).clamp(minimum, maximum),
-                ));
+                let next = (value + delta).clamp(min, max);
+                selected["value"] = Value::from(stable_visual_metric(next));
             }
-            sets.push(parameters);
-        }
-        return sets;
-    }
-    sets.push(baseline.to_vec());
-    for sequence in 1..count {
-        let mut parameters = baseline.to_vec();
-        let coordinate = (sequence - 1) % definitions.len();
-        let level = ((sequence - 1) / definitions.len()) / 2 + 1;
-        let direction = if ((sequence - 1) / definitions.len()) % 2 == 0 {
-            1.0
-        } else {
-            -1.0
-        };
-        if let (Some(definition), Some(selected)) =
-            (definitions.get(coordinate), parameters.get_mut(coordinate))
-        {
-            let value = definition["value"].as_f64().unwrap_or(0.0);
-            let min = definition["min"].as_f64().unwrap_or(value);
-            let max = definition["max"].as_f64().unwrap_or(value);
-            let step = definition["step"].as_f64().unwrap_or(0.01).abs();
-            let next = (value + direction * step * level as f64).clamp(min, max);
-            selected["value"] = Value::from(stable_visual_metric(next));
         }
         sets.push(parameters);
     }
@@ -3914,17 +5052,18 @@ fn adaptive_parameter_sets(rig: &Value, center: &[Value], count: usize) -> Vec<V
     if definitions.is_empty() || center.len() != definitions.len() {
         return Vec::new();
     }
-    let surface_groups = surface_control_point_groups(&definitions);
-    if !surface_groups.is_empty() {
+    let groups = authored_parameter_groups(rig, &definitions);
+    if groups.iter().any(|group| group.len() > 1) {
         let mut sets = Vec::with_capacity(count);
-        let group_count = surface_groups.len();
+        let group_count = groups.len();
         for sequence in 0..count {
             let pair_index = sequence / 2;
             let group_index = pair_index % group_count;
             let round = pair_index / group_count;
             let direction = if sequence % 2 == 0 { 1.0 } else { -1.0 };
+            let mirror = authored_group_is_mirror(rig, &definitions, &groups[group_index]);
             let mut parameters = center.to_vec();
-            for coordinate in &surface_groups[group_index] {
+            for coordinate in &groups[group_index] {
                 let Some(definition) = definitions.get(*coordinate) else {
                     continue;
                 };
@@ -3949,12 +5088,15 @@ fn adaptive_parameter_sets(rig: &Value, center: &[Value], count: usize) -> Vec<V
                 let span = (maximum - minimum).abs();
                 let shrink = 0.5_f64.powi(round as i32);
                 let magnitude = (step * shrink).max(span * 0.01).min(span * 0.5);
-                let delta = surface_control_point_delta(
+                let delta = parameter_probe_delta(
                     definition,
                     value,
                     magnitude,
                     direction,
-                    1,
+                    mirror
+                        || (rig.get("groups").is_none()
+                            && definition.get("semantic").and_then(Value::as_str)
+                                == Some("surface_control_point")),
                 );
                 if let Some(selected) = parameters.get_mut(*coordinate) {
                     selected["value"] = Value::from(stable_visual_metric(
@@ -4005,6 +5147,104 @@ fn adaptive_parameter_sets(rig: &Value, center: &[Value], count: usize) -> Vec<V
     sets
 }
 
+/// Resolve authored V2 parameter groups into deterministic probe lanes. An
+/// `independent` group means each member remains its own lane; `mirror` and
+/// `linked` members are one coupled lane. Parameters absent from the authored
+/// groups remain singleton lanes. Legacy rigs retain the existing bounded
+/// surface-control-point pairing behavior.
+fn authored_parameter_groups(rig: &Value, definitions: &[Value]) -> Vec<Vec<usize>> {
+    let Some(authored) = rig.get("groups").and_then(Value::as_array) else {
+        let groups = surface_control_point_groups(definitions);
+        return if groups.is_empty() {
+            (0..definitions.len()).map(|index| vec![index]).collect()
+        } else {
+            groups
+        };
+    };
+    let indexes = definitions
+        .iter()
+        .enumerate()
+        .filter_map(|(index, definition)| {
+            definition
+                .get("parameter_id")
+                .and_then(Value::as_str)
+                .map(|id| (id, index))
+        })
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut claimed = std::collections::HashSet::new();
+    let mut result = Vec::new();
+    for group in authored {
+        let Some(group_object) = group.as_object() else {
+            continue;
+        };
+        let mode = group_object
+            .get("mode")
+            .and_then(Value::as_str)
+            .unwrap_or("independent");
+        let members = group_object
+            .get("parameter_ids")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|id| id.as_str().and_then(|id| indexes.get(id).copied()))
+            .filter(|index| claimed.insert(*index))
+            .collect::<Vec<_>>();
+        if mode == "independent" {
+            result.extend(members.into_iter().map(|index| vec![index]));
+        } else if !members.is_empty() {
+            result.push(members);
+        }
+    }
+    result.extend(
+        (0..definitions.len())
+            .filter(|index| !claimed.contains(index))
+            .map(|index| vec![index]),
+    );
+    result
+}
+
+fn parameter_probe_delta(
+    definition: &Value,
+    value: f64,
+    magnitude: f64,
+    direction: f64,
+    mirror: bool,
+) -> f64 {
+    if definition.get("semantic").and_then(Value::as_str) == Some("surface_control_point") {
+        surface_control_point_delta(definition, value, magnitude, direction, 1)
+    } else if mirror {
+        let orientation = if value.abs() > f64::EPSILON {
+            value.signum()
+        } else {
+            1.0
+        };
+        direction * magnitude * orientation
+    } else {
+        direction * magnitude
+    }
+}
+
+fn authored_group_is_mirror(rig: &Value, definitions: &[Value], group: &[usize]) -> bool {
+    let Some(groups) = rig.get("groups").and_then(Value::as_array) else {
+        return false;
+    };
+    let parameter_ids = group
+        .iter()
+        .filter_map(|index| definitions.get(*index))
+        .filter_map(|definition| definition.get("parameter_id").and_then(Value::as_str))
+        .collect::<HashSet<_>>();
+    groups.iter().any(|candidate| {
+        candidate.get("mode").and_then(Value::as_str) == Some("mirror")
+            && candidate
+                .get("parameter_ids")
+                .and_then(Value::as_array)
+                .is_some_and(|ids| {
+                    ids.iter()
+                        .any(|id| id.as_str().is_some_and(|id| parameter_ids.contains(id)))
+                })
+    })
+}
+
 /// Group surface parameters into deterministic multi-control-point moves.
 /// The authored order is part of the Rig hash, so pairing consecutive surface
 /// controls gives a stable bounded lane without inventing topology or reading
@@ -4015,8 +5255,7 @@ fn surface_control_point_groups(definitions: &[Value]) -> Vec<Vec<usize>> {
         .iter()
         .enumerate()
         .filter_map(|(index, definition)| {
-            (definition.get("semantic").and_then(Value::as_str)
-                == Some("surface_control_point"))
+            (definition.get("semantic").and_then(Value::as_str) == Some("surface_control_point"))
                 .then_some(index)
         })
         .collect::<Vec<_>>();
@@ -4428,6 +5667,17 @@ fn evaluate_candidate(
     resolution: u32,
     _started_at: Instant,
 ) -> Result<EvaluationRecord, RuntimeError> {
+    if context.is_joint_multiview {
+        return evaluate_joint_candidate(
+            runtime,
+            context,
+            candidate,
+            candidate_index,
+            sequence,
+            fidelity,
+            resolution,
+        );
+    }
     let started = Instant::now();
     let passes = if fidelity == "final" {
         render_glb_with_runtime_worker(&candidate.glb, &context.camera).map_err(|error| {
@@ -4619,6 +5869,229 @@ fn evaluate_candidate(
     })
 }
 
+fn evaluate_joint_candidate(
+    runtime: &Runtime,
+    context: &OptimizationContext,
+    candidate: &CompiledCandidate,
+    candidate_index: usize,
+    sequence: usize,
+    fidelity: &str,
+    resolution: u32,
+) -> Result<EvaluationRecord, RuntimeError> {
+    let started = Instant::now();
+    let cameras = context
+        .joint_views
+        .iter()
+        .map(|view| view.camera.clone())
+        .collect::<Vec<_>>();
+    let batches =
+        render_worker::render_glb_fit_batch_at_resolution(&candidate.glb, &cameras, resolution)
+            .map_err(|error| {
+                RuntimeError::InvalidInput(format!("OPTIMIZATION_RENDER_FAILED: {error}"))
+            })?;
+    if batches.len() != context.joint_views.len() {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_JOINT_RENDER_COUNT_MISMATCH".to_owned(),
+        ));
+    }
+    let part_ids = candidate_part_ids(candidate)?;
+    let complexity_penalty = (candidate.triangle_count as f64
+        / context.intent["budget"]["max_output_triangles"]
+            .as_f64()
+            .unwrap_or(2_000_000.0)
+            .max(1.0))
+    .clamp(0.0, 1.0);
+    let objective = &context.intent["objective"];
+    let mut view_evaluations = Vec::with_capacity(context.joint_views.len());
+    let mut weighted_metrics = serde_json::Map::new();
+    let metric_names = [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "bbox_edge_error",
+        "centroid_error",
+        "landmark_coverage",
+        "landmark_nme",
+        "part_region_error",
+        "sdf_chamfer_px",
+    ];
+    let mut weighted_metric_sums = metric_names
+        .iter()
+        .map(|name| ((*name).to_owned(), 0.0))
+        .collect::<std::collections::HashMap<_, _>>();
+    let total_weight = context
+        .joint_views
+        .iter()
+        .map(|view| view.weight)
+        .sum::<f64>();
+    let mut weighted_losses = Vec::with_capacity(context.joint_views.len());
+    let mut worst_view_loss: f64 = 0.0;
+    let mut final_object_hashes = Vec::new();
+    let mut pass_hashes = Vec::new();
+    for (index, (view, passes)) in context.joint_views.iter().zip(batches).enumerate() {
+        let silhouette = passes
+            .iter()
+            .find(|pass| pass.pass == "silhouette")
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("OPTIMIZATION_SILHOUETTE_PASS_MISSING".to_owned())
+            })?;
+        let model_mask = decode_binary_mask_at_resolution(&silhouette.png, resolution as usize)?;
+        let target_mask = downsample_mask(&view.target_mask, 512, resolution as usize);
+        let part_context = passes
+            .iter()
+            .find(|pass| pass.pass == "part-id")
+            .map(|pass| (pass.png.as_slice(), part_ids.as_slice()));
+        let mut metrics = transient_loss_metrics_at_resolution(
+            &super::camera_fit_metrics_at_resolution(
+                &target_mask,
+                &model_mask,
+                resolution as usize,
+            ),
+            &model_mask,
+            resolution as usize,
+            view.target.get("landmarks"),
+            part_context,
+        );
+        let landmark_values = view
+            .target
+            .get("landmarks")
+            .and_then(Value::as_array)
+            .filter(|values| !values.is_empty());
+        let landmark_coverage = metrics
+            .get("landmark_coverage")
+            .and_then(Value::as_f64)
+            .unwrap_or(if landmark_values.is_some() { 0.0 } else { 1.0 });
+        let landmark_nme = metrics
+            .get("landmark_nme")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        let part_error = part_region_error_for_target(
+            &view.target,
+            &view.target_mask,
+            &context.part_id,
+            passes
+                .iter()
+                .find(|pass| pass.pass == "part-id")
+                .map(|pass| pass.png.as_slice()),
+            &part_ids,
+            resolution as usize,
+        );
+        metrics["landmark_coverage"] = Value::from(stable_visual_metric(landmark_coverage));
+        metrics["landmark_nme"] = Value::from(stable_visual_metric(landmark_nme));
+        metrics["part_region_error"] = Value::from(stable_visual_metric(part_error));
+        metrics["sdf_chamfer_px"] = Value::from(stable_visual_metric(
+            super::sdf_chamfer_px_at_resolution(&target_mask, &model_mask, resolution as usize),
+        ));
+        let loss = metric_loss(&metrics, objective, complexity_penalty);
+        weighted_losses.push((loss, view.weight));
+        worst_view_loss = worst_view_loss.max(loss);
+        for name in metric_names {
+            let value = metrics.get(name).and_then(Value::as_f64).unwrap_or(0.0);
+            *weighted_metric_sums.entry(name.to_owned()).or_default() += value * view.weight;
+        }
+        let mut view_pass_hashes = Vec::new();
+        for pass in passes {
+            let hash = if fidelity == "final" {
+                let object = runtime
+                    .put_object(
+                        &pass.png,
+                        None,
+                        "image/png",
+                        &format!("render-pass-{}-{}", view.view_id, pass.pass),
+                    )
+                    .map_err(|error| {
+                        RuntimeError::InvalidInput(format!(
+                            "OPTIMIZATION_RENDER_PASS_PUT_FAILED: {error}"
+                        ))
+                    })?;
+                final_object_hashes.push(object.record.sha256.clone());
+                object.record.sha256
+            } else {
+                sha256_hex(&pass.png)
+            };
+            pass_hashes.push(json!({"pass":format!("{}:{}", view.view_id, pass.pass),"sha256":hash,"width":pass.width,"height":pass.height}));
+            view_pass_hashes.push(
+                json!({"pass":pass.pass,"sha256":hash,"width":pass.width,"height":pass.height}),
+            );
+        }
+        view_evaluations.push(json!({
+            "view_id":view.view_id,
+            "kind":view.kind,
+            "target_sha256":view.target_sha256,
+            "camera_hash":view.camera_hash,
+            "weight":view.weight,
+            "primary":view.primary,
+            "metrics":metrics,
+            "loss":stable_visual_metric(loss),
+            "pass_hashes":view_pass_hashes,
+            "render_index":index
+        }));
+    }
+    for (name, sum) in weighted_metric_sums {
+        weighted_metrics.insert(
+            name,
+            Value::from(stable_visual_metric(sum / total_weight.max(1.0e-9))),
+        );
+    }
+    let aggregate_loss = weighted_loss(weighted_losses);
+    let primary_metrics = context
+        .joint_views
+        .iter()
+        .position(|view| view.primary)
+        .and_then(|index| view_evaluations.get(index))
+        .and_then(|view| view.get("metrics"))
+        .cloned()
+        .unwrap_or_else(|| Value::Object(weighted_metrics.clone()));
+    let render_sha256 = canonical_json_hash(&json!({
+        "schema_version":"RenderSet@2",
+        "fidelity":fidelity,
+        "resolution":resolution,
+        "views":view_evaluations.iter().map(|view| json!({"view_id":view["view_id"],"camera_hash":view["camera_hash"],"pass_hashes":view["pass_hashes"]})).collect::<Vec<_>>()
+    }));
+    let metrics_sha256 = canonical_json_hash(&primary_metrics);
+    let mut evaluation = json!({
+        "schema_version":"OptimizationEvaluation@2",
+        "evaluation_id":format!("optimization-evaluation-{}-{}", fidelity, candidate_index),
+        "job_id":context.intent["job_id"],
+        "intent_sha256":context.intent_sha256,
+        "camera_rig_sha256":context.camera_rig.as_ref().and_then(|rig| rig.get("canonical_sha256")).cloned().unwrap_or(Value::Null),
+        "sequence":sequence,
+        "fidelity":fidelity,
+        "resolution":resolution,
+        "program_sha256":candidate.program_sha256,
+        "render_sha256":render_sha256,
+        "metrics_sha256":metrics_sha256,
+        "metrics":primary_metrics,
+        "views":view_evaluations,
+        "weighted_aggregate_loss":stable_visual_metric(aggregate_loss),
+        "worst_view_loss":stable_visual_metric(worst_view_loss),
+        "improved_view_count":0,
+        "all_orthographic_views_non_regressing":true,
+        "loss":stable_visual_metric(aggregate_loss),
+        "complexity_penalty":stable_visual_metric(complexity_penalty),
+        "triangle_count":candidate.triangle_count,
+        "valid":true,
+        "duration_ms":started.elapsed().as_millis().min(120_000) as u64,
+        "pass_hashes":pass_hashes,
+        "canonical_sha256":""
+    });
+    evaluation["canonical_sha256"] = Value::String(canonical_json_hash(&evaluation));
+    let bytes = canonical_json_bytes(&evaluation)
+        .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
+    let object = runtime
+        .put_object(&bytes, None, "application/json", "optimization-evaluation")
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!("OPTIMIZATION_EVALUATION_PUT_FAILED: {error}"))
+        })?;
+    Ok(EvaluationRecord {
+        value: evaluation,
+        object_sha256: object.record.sha256,
+        candidate_index,
+        loss: aggregate_loss,
+        fidelity: fidelity.to_owned(),
+        final_object_hashes,
+    })
+}
+
 fn candidate_part_ids(candidate: &CompiledCandidate) -> Result<Vec<String>, RuntimeError> {
     let inspection = strict_glb_inspection(&candidate.glb)?;
     Ok(inspection.part_ids)
@@ -4630,24 +6103,40 @@ fn part_region_error(
     part_ids: &[String],
     resolution: usize,
 ) -> f64 {
+    part_region_error_for_target(
+        &context.target,
+        &context.target_mask,
+        &context.part_id,
+        part_png,
+        part_ids,
+        resolution,
+    )
+}
+
+fn part_region_error_for_target(
+    target_value: &Value,
+    target_mask: &[bool],
+    part_id: &str,
+    part_png: Option<&[u8]>,
+    part_ids: &[String],
+    resolution: usize,
+) -> f64 {
     let Some(part_png) = part_png else {
-        return if context
-            .target
+        return if target_value
             .get("parts")
             .and_then(Value::as_array)
             .is_some_and(|parts| {
                 parts
                     .iter()
-                    .any(|part| part["part_id"].as_str() == Some(context.part_id.as_str()))
+                    .any(|part| part["part_id"].as_str() == Some(part_id))
             }) {
             1.0
         } else {
             0.0
         };
     };
-    let Some(target_part) =
-        super::target_part_region_mask(&context.target, &context.part_id, &context.target_mask)
-            .or_else(|| super::target_part_boundary_mask(&context.target, &context.part_id))
+    let Some(target_part) = super::target_part_region_mask(target_value, part_id, target_mask)
+        .or_else(|| super::target_part_boundary_mask(target_value, part_id))
     else {
         return 0.0;
     };
@@ -4668,7 +6157,7 @@ fn part_region_error(
         if let Some(part_index) = super::part_color_index(pixel) {
             *value = part_ids
                 .get(part_index)
-                .is_some_and(|value| value == &context.part_id);
+                .is_some_and(|value| value == part_id);
         }
     }
     let intersection = target
@@ -4856,11 +6345,59 @@ fn compare_evaluation_quality_for_context(
     left: &EvaluationRecord,
     right: &EvaluationRecord,
 ) -> Ordering {
-    if context.evaluation_objective.is_some() {
+    if context.is_joint_multiview {
+        compare_joint_evaluation_quality(left, right)
+    } else if context.evaluation_objective.is_some() {
         compare_unified_evaluation_quality(left, right)
     } else {
         compare_evaluation_quality(left, right)
     }
+}
+
+fn compare_joint_evaluation_quality(left: &EvaluationRecord, right: &EvaluationRecord) -> Ordering {
+    let left_aggregate = left
+        .value
+        .get("weighted_aggregate_loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let right_aggregate = right
+        .value
+        .get("weighted_aggregate_loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    left_aggregate
+        .partial_cmp(&right_aggregate)
+        .unwrap_or(Ordering::Equal)
+        .then_with(|| {
+            let left_worst = left
+                .value
+                .get("worst_view_loss")
+                .and_then(Value::as_f64)
+                .unwrap_or(f64::INFINITY);
+            let right_worst = right
+                .value
+                .get("worst_view_loss")
+                .and_then(Value::as_f64)
+                .unwrap_or(f64::INFINITY);
+            left_worst
+                .partial_cmp(&right_worst)
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| {
+            right
+                .value
+                .get("improved_view_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                .cmp(
+                    &left
+                        .value
+                        .get("improved_view_count")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0),
+                )
+        })
+        .then_with(|| left.candidate_index.cmp(&right.candidate_index))
 }
 
 fn best_completed_evaluation<'a>(
@@ -4882,7 +6419,7 @@ fn best_completed_evaluation_for_context<'a>(
     evaluations: &'a [EvaluationRecord],
     context: &OptimizationContext,
 ) -> Option<&'a EvaluationRecord> {
-    if context.evaluation_objective.is_none() {
+    if !context.is_joint_multiview && context.evaluation_objective.is_none() {
         return best_completed_evaluation(evaluations);
     }
     for fidelity in ["final", "mid", "coarse"] {
@@ -4924,7 +6461,7 @@ fn best_result_evaluation_for_context<'a>(
     strict_improvement: bool,
     context: &OptimizationContext,
 ) -> Option<&'a EvaluationRecord> {
-    if context.evaluation_objective.is_none() {
+    if !context.is_joint_multiview && context.evaluation_objective.is_none() {
         return best_result_evaluation(evaluations, strict_improvement);
     }
     if strict_improvement {
@@ -5009,6 +6546,9 @@ fn compare_final_evaluations_for_context(
     proposal: &EvaluationRecord,
     context: &OptimizationContext,
 ) -> MultiObjectiveComparison {
+    if context.is_joint_multiview {
+        return compare_joint_multiview_evaluations(baseline, proposal);
+    }
     if context.evaluation_objective.is_none() {
         return compare_final_evaluations(baseline, proposal);
     }
@@ -5029,6 +6569,106 @@ fn compare_final_evaluations_for_context(
     MultiObjectiveComparison {
         non_regressing: global_non_regressing,
         strict_improvement: global_non_regressing && part_strict_improvement,
+    }
+}
+
+fn compare_joint_multiview_evaluations(
+    baseline: &EvaluationRecord,
+    proposal: &EvaluationRecord,
+) -> MultiObjectiveComparison {
+    if baseline.fidelity != "final" || proposal.fidelity != "final" {
+        return MultiObjectiveComparison {
+            non_regressing: false,
+            strict_improvement: false,
+        };
+    }
+    let Some(baseline_views) = baseline.value.get("views").and_then(Value::as_array) else {
+        return MultiObjectiveComparison {
+            non_regressing: false,
+            strict_improvement: false,
+        };
+    };
+    let Some(proposal_views) = proposal.value.get("views").and_then(Value::as_array) else {
+        return MultiObjectiveComparison {
+            non_regressing: false,
+            strict_improvement: false,
+        };
+    };
+    let mut all_non_regressing = true;
+    let mut all_orthographic_non_regressing = true;
+    let mut improved_view_count = 0usize;
+    let mut primary_strict = false;
+    for baseline_view in baseline_views {
+        let Some(view_id) = baseline_view.get("view_id").and_then(Value::as_str) else {
+            return MultiObjectiveComparison {
+                non_regressing: false,
+                strict_improvement: false,
+            };
+        };
+        let Some(proposal_view) = proposal_views
+            .iter()
+            .find(|view| view.get("view_id").and_then(Value::as_str) == Some(view_id))
+        else {
+            return MultiObjectiveComparison {
+                non_regressing: false,
+                strict_improvement: false,
+            };
+        };
+        let (non_regressing, strict) = metric_non_regressing(
+            baseline_view.get("metrics").unwrap_or(&Value::Null),
+            proposal_view.get("metrics").unwrap_or(&Value::Null),
+        );
+        all_non_regressing &= non_regressing;
+        let kind = baseline_view
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        if is_orthographic_view_kind(kind) {
+            all_orthographic_non_regressing &= non_regressing;
+        }
+        if strict {
+            improved_view_count += 1;
+        }
+        // `primary` is bound in the immutable view context and is copied into
+        // the evaluation so the comparison never re-infers a main view.
+        if baseline_view
+            .get("primary")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            primary_strict = strict;
+        }
+    }
+    let aggregate_baseline = baseline
+        .value
+        .get("weighted_aggregate_loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let aggregate_proposal = proposal
+        .value
+        .get("weighted_aggregate_loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let worst_baseline = baseline
+        .value
+        .get("worst_view_loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let worst_proposal = proposal
+        .value
+        .get("worst_view_loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let aggregate_strict = aggregate_proposal + STRICT_IMPROVEMENT_EPSILON < aggregate_baseline;
+    let worst_non_regressing = worst_proposal <= worst_baseline + STRICT_IMPROVEMENT_EPSILON;
+    let non_regressing =
+        all_non_regressing && all_orthographic_non_regressing && worst_non_regressing;
+    MultiObjectiveComparison {
+        non_regressing,
+        strict_improvement: non_regressing
+            && primary_strict
+            && aggregate_strict
+            && improved_view_count >= 3,
     }
 }
 
@@ -5073,6 +6713,21 @@ fn persist_optimization_state(
     event_kind: &str,
     next_stage: &str,
 ) -> Result<(), RuntimeError> {
+    if context.is_joint_multiview {
+        return persist_joint_optimization_state(
+            runtime,
+            job_id,
+            context,
+            evaluations,
+            candidates,
+            status,
+            progress,
+            proposal,
+            extra_reachable,
+            event_kind,
+            next_stage,
+        );
+    }
     let strict_improvement = proposal.as_ref().map(|value| value.0).unwrap_or(false);
     let non_regressing = proposal.as_ref().map(|value| value.1).unwrap_or(false);
     let proposal_hashes = proposal
@@ -5242,6 +6897,237 @@ fn persist_optimization_state(
     Ok(())
 }
 
+fn persist_joint_optimization_state(
+    runtime: &Runtime,
+    job_id: &str,
+    context: &OptimizationContext,
+    evaluations: &[EvaluationRecord],
+    candidates: &[CompiledCandidate],
+    status: &str,
+    progress: u8,
+    proposal: Option<(bool, bool, Vec<String>, Vec<String>)>,
+    extra_reachable: Vec<String>,
+    event_kind: &str,
+    next_stage: &str,
+) -> Result<(), RuntimeError> {
+    let strict_improvement = proposal.as_ref().map(|value| value.0).unwrap_or(false);
+    let non_regressing = proposal.as_ref().map(|value| value.1).unwrap_or(false);
+    let blocked_reasons = proposal
+        .as_ref()
+        .map(|value| value.3.clone())
+        .unwrap_or_default();
+    let baseline = evaluation_for_candidate(evaluations, 0, "final");
+    let best = if strict_improvement {
+        evaluations
+            .iter()
+            .filter(|evaluation| evaluation.fidelity == "final")
+            .filter(|evaluation| {
+                baseline.is_some_and(|baseline| {
+                    compare_joint_multiview_evaluations(baseline, evaluation).strict_improvement
+                })
+            })
+            .min_by(|left, right| compare_joint_evaluation_quality(left, right))
+    } else {
+        best_completed_evaluation_for_context(evaluations, context)
+    };
+    let baseline_loss = baseline
+        .and_then(|value| {
+            value
+                .value
+                .get("weighted_aggregate_loss")
+                .and_then(Value::as_f64)
+        })
+        .unwrap_or(0.0);
+    let best_loss = best
+        .and_then(|value| {
+            value
+                .value
+                .get("weighted_aggregate_loss")
+                .and_then(Value::as_f64)
+        })
+        .unwrap_or(baseline_loss);
+    let (
+        weighted_aggregate_loss,
+        worst_view_loss,
+        improved_view_count,
+        all_orthographic_views_non_regressing,
+    ) = match (baseline, best) {
+        (Some(baseline), Some(best))
+            if baseline.fidelity == "final" && best.fidelity == "final" =>
+        {
+            joint_result_metrics(baseline, best)
+        }
+        _ => (
+            best_loss,
+            best.and_then(|value| value.value.get("worst_view_loss").and_then(Value::as_f64))
+                .unwrap_or(0.0),
+            0,
+            true,
+        ),
+    };
+    let fidelity_counts = json!({
+        "coarse":evaluations.iter().filter(|evaluation| evaluation.fidelity == "coarse").count(),
+        "mid":evaluations.iter().filter(|evaluation| evaluation.fidelity == "mid").count(),
+        "final":evaluations.iter().filter(|evaluation| evaluation.fidelity == "final").count()
+    });
+    let proposal_status = if status == "running" {
+        "not-ready"
+    } else if strict_improvement {
+        "proposed"
+    } else if blocked_reasons
+        .iter()
+        .any(|reason| reason.contains("invalid"))
+    {
+        "blocked-invalid"
+    } else {
+        "blocked-no-improvement"
+    };
+    let promotion_status = if status == "running" {
+        "not-ready"
+    } else if strict_improvement {
+        "ready"
+    } else {
+        "blocked_joint_objective"
+    };
+    let mut result = json!({
+        "schema_version":"OptimizationResult@2",
+        "job_id":job_id,
+        "intent_sha256":context.intent_sha256,
+        "status":status,
+        "next_stage":next_stage,
+        "promotion_status":promotion_status,
+        "proposal_status":proposal_status,
+        "baseline_loss":stable_visual_metric(baseline_loss),
+        "best_loss":stable_visual_metric(best_loss),
+        "weighted_aggregate_loss":stable_visual_metric(weighted_aggregate_loss),
+        "worst_view_loss":stable_visual_metric(worst_view_loss),
+        "improved_view_count":improved_view_count,
+        "all_orthographic_views_non_regressing":all_orthographic_views_non_regressing,
+        "non_regressing":non_regressing,
+        "strict_improvement":strict_improvement,
+        "candidate_program_object_sha256s":candidates.iter().map(|candidate| Value::String(candidate.program_object_sha256.clone())).collect::<Vec<_>>(),
+        "candidate_artifact_object_sha256s":candidates.iter().map(|candidate| Value::String(candidate.artifact_object_sha256.clone())).collect::<Vec<_>>(),
+        "evaluation_object_sha256s":evaluations.iter().map(|evaluation| Value::String(evaluation.object_sha256.clone())).collect::<Vec<_>>(),
+        "evaluations_count":evaluations.len(),
+        "fidelity_counts":fidelity_counts,
+        "checkpoint_sequence":evaluations.len(),
+        "search_strategy":OPTIMIZATION_SEARCH_STRATEGY,
+        "blocked_reasons":blocked_reasons,
+        "canonical_sha256":""
+    });
+    result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+    validate_result(&result, job_id, &context.intent_sha256)?;
+    let bytes = canonical_json_bytes(&result)
+        .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
+    if bytes.len() > MAX_RESULT_BYTES {
+        return Err(RuntimeError::InvalidInput(
+            "OPTIMIZATION_RESULT_TOO_LARGE".to_owned(),
+        ));
+    }
+    let result_object = runtime
+        .put_object(&bytes, None, "application/json", "optimization-result")
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!("OPTIMIZATION_RESULT_PUT_FAILED: {error}"))
+        })?;
+    let current = runtime
+        .store
+        .get_job_record(job_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("OPTIMIZATION_JOB_NOT_FOUND".to_owned()))?;
+    let mut reachable = Vec::with_capacity(96);
+    reachable.push(context.intent_sha256.clone());
+    reachable.push(result_object.record.sha256.clone());
+    reachable.extend(
+        evaluations
+            .iter()
+            .map(|evaluation| evaluation.object_sha256.clone()),
+    );
+    reachable.extend(
+        evaluations
+            .iter()
+            .flat_map(|evaluation| evaluation.final_object_hashes.clone()),
+    );
+    reachable.extend(extra_reachable);
+    if let Some(previous) = current.checkpoint_sha256 {
+        reachable.push(previous);
+    }
+    reachable.sort();
+    reachable.dedup();
+    let next = JobRecord {
+        schema_version: current.schema_version,
+        job_id: current.job_id,
+        project_id: current.project_id,
+        kind: current.kind,
+        status: status.to_owned(),
+        progress,
+        request_sha256: current.request_sha256,
+        checkpoint_sha256: Some(result_object.record.sha256.clone()),
+        error_code: if status == "failed" {
+            Some("OPTIMIZATION_RUNTIME_FAILED".to_owned())
+        } else {
+            None
+        },
+        created_at: current.created_at,
+        updated_at: now_string(),
+    };
+    runtime.store.update_job_with_event(
+        &next,
+        event_kind,
+        &json!({"result_sha256":result_object.record.sha256,"intent_sha256":context.intent_sha256,"search_strategy":OPTIMIZATION_SEARCH_STRATEGY,"evaluations":evaluations.len(),"fidelity_counts":fidelity_counts,"best_loss":stable_visual_metric(best_loss),"strict_improvement":strict_improvement,"proposal_status":proposal_status}),
+        &reachable,
+    )?;
+    Ok(())
+}
+
+fn joint_result_metrics(
+    baseline: &EvaluationRecord,
+    proposal: &EvaluationRecord,
+) -> (f64, f64, usize, bool) {
+    let aggregate = proposal
+        .value
+        .get("weighted_aggregate_loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let worst = proposal
+        .value
+        .get("worst_view_loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let mut improved = 0usize;
+    let mut all_orthographic = true;
+    let Some(base_views) = baseline.value.get("views").and_then(Value::as_array) else {
+        return (aggregate, worst, 0, false);
+    };
+    let Some(proposal_views) = proposal.value.get("views").and_then(Value::as_array) else {
+        return (aggregate, worst, 0, false);
+    };
+    for base in base_views {
+        let Some(id) = base.get("view_id").and_then(Value::as_str) else {
+            return (aggregate, worst, 0, false);
+        };
+        let Some(next) = proposal_views
+            .iter()
+            .find(|view| view.get("view_id").and_then(Value::as_str) == Some(id))
+        else {
+            return (aggregate, worst, 0, false);
+        };
+        let (non_regressing, strict) = metric_non_regressing(
+            base.get("metrics").unwrap_or(&Value::Null),
+            next.get("metrics").unwrap_or(&Value::Null),
+        );
+        if is_orthographic_view_kind(
+            base.get("kind")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown"),
+        ) {
+            all_orthographic &= non_regressing;
+        }
+        if strict {
+            improved += 1;
+        }
+    }
+    (aggregate, worst, improved, all_orthographic)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5330,6 +7216,85 @@ mod tests {
     }
 
     #[test]
+    fn authored_group_modes_control_candidate_lanes() {
+        let rig = json!({
+            "groups":[
+                {"group_id":"linked-shell","parameter_ids":["width","height"],"mode":"linked"},
+                {"group_id":"mirror-shell","parameter_ids":["depth","offset"],"mode":"mirror","axis":"x"},
+                {"group_id":"independent-shell","parameter_ids":["scale"],"mode":"independent"}
+            ],
+            "parameters":[
+                {"parameter_id":"width","part_id":"shell","value":1.0,"min":0.5,"max":1.5,"step":0.1},
+                {"parameter_id":"height","part_id":"shell","value":2.0,"min":1.0,"max":3.0,"step":0.2},
+                {"parameter_id":"depth","part_id":"shell","value":0.8,"min":0.4,"max":1.2,"step":0.1},
+                {"parameter_id":"offset","part_id":"shell","value":-0.2,"min":-0.5,"max":0.5,"step":0.05},
+                {"parameter_id":"scale","part_id":"shell","value":1.0,"min":0.8,"max":1.2,"step":0.05}
+            ]
+        });
+        let baseline = baseline_parameters(&rig);
+        let coarse = deterministic_parameter_sets(&rig, &baseline, 4);
+        assert_eq!(coarse.len(), 4);
+        assert_ne!(coarse[1][0]["value"], baseline[0]["value"]);
+        assert_ne!(coarse[1][1]["value"], baseline[1]["value"]);
+        assert_eq!(coarse[1][2]["value"], baseline[2]["value"]);
+        assert_eq!(coarse[1][3]["value"], baseline[3]["value"]);
+        assert_eq!(coarse[2][0]["value"], baseline[0]["value"]);
+        assert_eq!(coarse[2][1]["value"], baseline[1]["value"]);
+        assert_ne!(coarse[2][2]["value"], baseline[2]["value"]);
+        assert_ne!(coarse[2][3]["value"], baseline[3]["value"]);
+        assert!(coarse[2][2]["value"].as_f64().unwrap() > baseline[2]["value"].as_f64().unwrap());
+        assert!(coarse[2][3]["value"].as_f64().unwrap() < baseline[3]["value"].as_f64().unwrap());
+        assert_eq!(coarse[3][0]["value"], baseline[0]["value"]);
+        assert_eq!(coarse[3][1]["value"], baseline[1]["value"]);
+        assert_eq!(coarse[3][2]["value"], baseline[2]["value"]);
+        assert_ne!(coarse[3][4]["value"], baseline[4]["value"]);
+
+        let adaptive = adaptive_parameter_sets(&rig, &baseline, 2);
+        assert_eq!(adaptive.len(), 2);
+        for candidate in adaptive {
+            assert_ne!(candidate[0]["value"], baseline[0]["value"]);
+            assert_ne!(candidate[1]["value"], baseline[1]["value"]);
+            assert_eq!(candidate[2]["value"], baseline[2]["value"]);
+            assert_eq!(candidate[3]["value"], baseline[3]["value"]);
+        }
+    }
+
+    #[test]
+    fn joint_objective_rejects_complexity_only_promotion() {
+        let intent = json!({
+            "fidelity": {
+                "coarse_resolution": 128,
+                "mid_resolution": 256,
+                "final_resolution": 512,
+                "coarse_evaluations": 32,
+                "mid_top_k": 4,
+                "final_top_k": 2
+            },
+            "budget": {
+                "max_evaluations": 42,
+                "max_runtime_ms": 1000,
+                "max_output_triangles": 1,
+                "max_worker_memory_bytes": 1048576
+            },
+            "objective": {
+                "silhouette_iou": 0.0,
+                "boundary_f1_4px": 0.0,
+                "landmark_coverage": 0.0,
+                "landmark_nme": 0.0,
+                "part_region": 0.0,
+                "program_complexity": 1.0
+            }
+        });
+        let error = validate_joint_optimization_shape(intent.as_object().unwrap())
+            .expect_err("complexity cannot be the only objective");
+        assert!(matches!(
+            error,
+            RuntimeError::InvalidInput(message)
+                if message == "OPTIMIZATION_OBJECTIVE_REQUIRES_VISUAL_WEIGHT"
+        ));
+    }
+
+    #[test]
     fn residual_lane_keeps_candidate_zero_unmodified() {
         let context = OptimizationContext {
             intent: Value::Null,
@@ -5344,6 +7309,9 @@ mod tests {
             rig: Value::Null,
             part_id: "shell".to_owned(),
             residual_variants: vec![json!({"schema_version":"OptimizationResidual@1"})],
+            joint_views: Vec::new(),
+            camera_rig: None,
+            is_joint_multiview: false,
         };
         assert!(candidate_residual(&context, 0).is_none());
         assert!(candidate_residual(&context, 1).is_some());
@@ -5406,6 +7374,76 @@ mod tests {
             fidelity: fidelity.to_owned(),
             final_object_hashes: Vec::new(),
         }
+    }
+
+    fn joint_metrics(delta: f64) -> Value {
+        json!({
+            "boundary_f1_4px":0.80 + delta,
+            "silhouette_iou":0.80 + delta,
+            "bbox_edge_error":0.20 - delta,
+            "centroid_error":0.20 - delta,
+            "landmark_coverage":1.0,
+            "landmark_nme":0.10,
+            "part_region_error":0.10 - delta,
+            "sdf_chamfer_px":10.0 - delta
+        })
+    }
+
+    fn joint_evaluation(
+        candidate_index: usize,
+        deltas: [f64; 6],
+        aggregate: f64,
+        worst: f64,
+    ) -> EvaluationRecord {
+        let kinds = ["left", "right", "top", "bottom", "front", "back"];
+        let views = kinds
+            .iter()
+            .zip(deltas)
+            .enumerate()
+            .map(|(index, (kind, delta))| {
+                json!({
+                    "view_id":format!("view-{kind}"),
+                    "kind":kind,
+                    "primary":index == 0,
+                    "metrics":joint_metrics(delta)
+                })
+            })
+            .collect::<Vec<_>>();
+        EvaluationRecord {
+            value: json!({
+                "schema_version":"OptimizationEvaluation@2",
+                "evaluation_id":format!("joint-{candidate_index}"),
+                "sequence":candidate_index as u64 + 1,
+                "fidelity":"final",
+                "views":views,
+                "weighted_aggregate_loss":aggregate,
+                "worst_view_loss":worst,
+                "metrics":joint_metrics(deltas[0])
+            }),
+            object_sha256: "c".repeat(64),
+            candidate_index,
+            loss: aggregate,
+            fidelity: "final".to_owned(),
+            final_object_hashes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn joint_gate_rejects_one_orthographic_view_regression() {
+        let baseline = joint_evaluation(0, [0.0; 6], 0.50, 0.60);
+        let proposal = joint_evaluation(1, [0.02, 0.02, -0.01, 0.02, 0.02, 0.02], 0.40, 0.55);
+        let comparison = compare_joint_multiview_evaluations(&baseline, &proposal);
+        assert!(!comparison.non_regressing);
+        assert!(!comparison.strict_improvement);
+    }
+
+    #[test]
+    fn joint_gate_requires_primary_and_three_strictly_better_views() {
+        let baseline = joint_evaluation(0, [0.0; 6], 0.50, 0.60);
+        let proposal = joint_evaluation(1, [0.02, 0.02, 0.0, 0.0, 0.0, 0.0], 0.40, 0.55);
+        let comparison = compare_joint_multiview_evaluations(&baseline, &proposal);
+        assert!(comparison.non_regressing);
+        assert!(!comparison.strict_improvement);
     }
 
     #[test]
@@ -5571,6 +7609,9 @@ mod tests {
             rig: Value::Null,
             part_id: "shell".to_owned(),
             residual_variants: Vec::new(),
+            joint_views: Vec::new(),
+            camera_rig: None,
+            is_joint_multiview: false,
         };
         let baseline = evaluation(
             "final",

@@ -2760,6 +2760,7 @@ mod tests {
                 {"node_id":"joint","operator_id":"forgecad.geometry.joint-stack@1","inputs":[],"parameters":{"shape":"joint-stack","radius_m":0.22,"depth_m":0.12,"ring_count":3,"ring_spacing_m":0.18,"radial_segments":12,"position_m":[-1.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
                 {"node_id":"extrude","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-0.3,-0.2],[0.3,-0.2],[0.35,0.15],[0.0,0.3],[-0.35,0.15]],"depth_m":0.25,"position_m":[1.0,0.5,0.0],"rotation_rad":[0.0,0.0,0.0]}},
                 {"node_id":"loft","operator_id":"forgecad.geometry.profile-loft@1","inputs":[],"parameters":{"shape":"profile-loft","profiles":[{"height_m":0.0,"points":[[-0.3,-0.2],[0.3,-0.2],[0.3,0.2],[-0.3,0.2]]},{"height_m":0.4,"points":[[-0.2,-0.12],[0.2,-0.12],[0.2,0.12],[-0.2,0.12]]}],"position_m":[1.0,1.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                {"node_id":"longitudinal-loft","operator_id":"forgecad.geometry.longitudinal-section-loft@1","inputs":[],"parameters":{"shape":"longitudinal-section-loft","sections":[{"station_m":-0.6,"points":[[-0.18,-0.12],[0.18,-0.12],[0.24,0.0],[0.18,0.12],[-0.18,0.12],[-0.24,0.0]]},{"station_m":0.0,"points":[[-0.30,-0.20],[0.30,-0.20],[0.38,0.0],[0.30,0.20],[-0.30,0.20],[-0.38,0.0]]},{"station_m":0.8,"points":[[-0.16,-0.10],[0.16,-0.10],[0.22,0.0],[0.16,0.10],[-0.16,0.10],[-0.22,0.0]]}],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
                 {"node_id":"revolve","operator_id":"forgecad.geometry.revolve@1","inputs":[],"parameters":{"shape":"revolve","profile":[[0.2,-0.2],[0.35,0.0],[0.2,0.2]],"radial_segments":16,"position_m":[-1.0,1.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
                 {"node_id":"sweep","operator_id":"forgecad.geometry.tube-sweep@1","inputs":[],"parameters":{"shape":"tube-sweep","path":[[-0.5,0.0,0.0],[0.0,0.3,0.2],[0.5,0.0,0.0]],"radius_m":0.08,"radial_segments":12,"cap_ends":true,"position_m":[0.0,1.8,0.0],"rotation_rad":[0.0,0.0,0.0]}},
                 {"node_id":"aggregate","operator_id":"forgecad.geometry.part-output@1","inputs":["panel","vent"],"parameters":{"shape":"part-output"}}
@@ -2770,6 +2771,7 @@ mod tests {
                 {"part_id":"joint-part","input_node_ids":["joint"],"material_zone_id":"zone-black-mechanical","solid":true},
                 {"part_id":"extrude-part","input_node_ids":["extrude"],"material_zone_id":"zone-white-shell","solid":true},
                 {"part_id":"loft-part","input_node_ids":["loft"],"material_zone_id":"zone-white-shell","solid":true},
+                {"part_id":"longitudinal-loft-part","input_node_ids":["longitudinal-loft"],"material_zone_id":"zone-white-shell","solid":true},
                 {"part_id":"revolve-part","input_node_ids":["revolve"],"material_zone_id":"zone-black-mechanical","solid":true},
                 {"part_id":"sweep-part","input_node_ids":["sweep"],"material_zone_id":"zone-emissive-amber","solid":true}
             ]
@@ -2788,7 +2790,7 @@ mod tests {
         let first = compile_geometry_program(&program).expect("D operator program");
         let second = compile_geometry_program(&program).expect("D operator program second");
         assert_eq!(first.glb, second.glb);
-        assert_eq!(first.part_ids.len(), 7);
+        assert_eq!(first.part_ids.len(), 8);
         assert!(first.triangle_count > 200);
         let inspection = integrity::inspect_glb(&first.glb).expect("D strict readback");
         assert!(
@@ -2805,6 +2807,10 @@ mod tests {
             .source_node_ids
             .iter()
             .any(|id| id == "aggregate"));
+        assert!(inspection
+            .source_node_ids
+            .iter()
+            .any(|id| id == "longitudinal-loft"));
     }
 
     fn surface_patch_program() -> Value {
@@ -3478,7 +3484,7 @@ mod tests {
         assert_eq!(declared, canonical_hash(&Value::Object(without_hash)));
         assert_eq!(
             catalog["operators"].as_array().expect("operators").len(),
-            16
+            17
         );
         assert_eq!(
             catalog["operators"][0]["operator_id"],

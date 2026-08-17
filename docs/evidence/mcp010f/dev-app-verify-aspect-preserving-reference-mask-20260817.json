@@ -1,0 +1,14 @@
+{
+  "build_cohort_sha256": "4a9a01eb349096605534b0d0de36b62aa1c0c63ac14af51d9920adfc8ed3d1aa",
+  "codesign": "ad-hoc deep strict PASS",
+  "resource_allowlist": [
+    "forgecad-geometry-worker",
+    "forgecad-mcp",
+    "forgecad-render-worker",
+    "forgecad-runtime"
+  ],
+  "runtime_probe": "NOT_RUN",
+  "schema_version": "ForgeCADDevAppPackageVerify@1",
+  "status": "PASS",
+  "task_id": "FGC-MCP010F-ASPECT-PRESERVING-REFERENCE-MASK"
+}

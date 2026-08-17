@@ -1,0 +1,77 @@
+{
+  "schema_version": "ForgeCADMCP010FReceiverProfileEnvelopeEvidence@1",
+  "task_id": "FGC-MCP010F-RECEIVER-PROFILE-ENVELOPE",
+  "recorded_at": "2026-08-17",
+  "scope": "fictional game and film visual asset only",
+  "runtime": {
+    "state": "Ready",
+    "build_cohort_match": true,
+    "build_cohort_sha256": "4a9a01eb349096605534b0d0de36b62aa1c0c63ac14af51d9920adfc8ed3d1aa"
+  },
+  "reference": {
+    "project_id": "project-8233f3b99c36490ebcae250da6d4f317",
+    "reference_id": "reference-261f95373b85400586d8a23eed8be79a",
+    "reference_sha256": "d8e25091ea23514a6bc22f5e45d497502d79fb0815a746f07829d1a109ce6049",
+    "source_dimensions": [1000, 220],
+    "aspect_preserving_automatic_target_sha256": "8eb177c40e1b984494ff367937c6886f11d5f4e3035806cebbe96ec4942d9835",
+        "clean_contour_target_sha256": "22c35989ad268a33d555b8798408c7d7bcc289789ffa633afeb78e2e4718caaa",
+        "clean_contour_mask_sha256": "5587303463ba468bf425faee9ab964adb3ace0fbd6526c1955f73bfb4244b8da",
+        "confirmed_contour_target_sha256": "c42a353a34c4d4013bd3a26dc872cb6b2eaa61007c912b197e657d8e0b025d6f",
+        "confirmed_contour_canonical_sha256": "22891fc6e42d5cd8050b4d52efd62e41c30b3fa21b672ef811051c5a660998b2",
+        "annotation_status": "user_confirmed",
+        "user_confirmed": true
+  },
+  "camera": {
+    "schema_version": "CameraCalibration@2",
+    "projection": "orthographic",
+    "camera_hash": "15ee5a740528d0b423efaf63bb20eacd6fe973aa52ee25ab7c51c328b2b09cc2",
+    "canonical_sha256": "4846c4ac5b0933c04a6334c1279bdd6bbe12d40ecbc5bd157e0d0d3fe1656d0c",
+    "ortho_scale": 9.0,
+    "view": "right"
+  },
+  "baseline": {
+    "candidate_id": "candidate-bd242b5852554dd5b92d905cce73dca3",
+    "artifact_sha256": "85afcf2fc1073eaa952b5ffe232f6dfff279a61fdd6545eaac040e1c6db3a009",
+    "metrics": {
+      "silhouette_iou": 0.580433270652,
+      "boundary_f1_4px": 0.29581498568,
+      "bbox_edge_error": 0.076171875,
+      "centroid_error": 0.003883254903
+    }
+  },
+  "rejected_uniform_scale_candidate": {
+    "candidate_id": "candidate-4472facf7eec42a283d36dfcfbe88446",
+    "reason": "bbox improved but silhouette IoU regressed",
+    "silhouette_iou": 0.524241302739,
+    "retained": false
+  },
+  "selected_review_candidate": {
+    "candidate_id": "candidate-3a8665878160400da75695e517864257",
+    "artifact_sha256": "a44745f7a01bddf46909608224264bd33a75ae2f2a97ce9fb8daf9cc5536c64f",
+    "program_sha256": "83e006ade7a71347bcad33256dbbd76a44f220d7571a71f2601ef2747ca8b84e",
+    "part_id": "receiver-core",
+    "operator_id": "forgecad.geometry.longitudinal-section-loft@1",
+    "profile_station_count": 16,
+    "triangle_count": 252,
+    "strict_glb_readback": "PASS",
+    "render_set_hash": "c2f06d82c8a775ccfb009a08bd583fa02fb2f80883994e15fd00074f0f601bdb",
+    "comparison_report_hash": "2c8532bd5225cdecab6a2596a1ecd56c531f7980946daaa04d7ddeacccca98d2",
+    "quality_report_hash": "2a1a89baa21e703d7871fda2ffbc163472de0106f38ab3d7bc76db32588f4cdd",
+    "metrics": {
+      "silhouette_iou": 0.927965967174,
+      "boundary_f1_4px": 0.913080476426,
+      "bbox_edge_error": 0.001953125,
+      "centroid_error": 0.003680825465
+    },
+    "numeric_silhouette_gates": "PASS",
+    "runtime_visual_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "gate_state": {
+        "reference_contour_user_confirmation": "PASS",
+    "reference_landmarks_regions": "NOT_RUN",
+    "other_view_coverage": "BLOCKED_REFERENCE_COVERAGE",
+    "pbr_unlocked": false,
+    "candidate_confirmed": false,
+    "exported": false
+  }
+}

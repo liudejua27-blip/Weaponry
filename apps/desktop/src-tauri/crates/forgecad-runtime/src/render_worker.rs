@@ -14,10 +14,7 @@ const RENDER_WORKER_BINARY: &str = "forgecad-render-worker";
 /// Launch the fixed Render Worker sibling through the generic Runtime
 /// transport seam. This module owns the Render Worker identity; Geometry
 /// Worker owns neither this binary nor this protocol.
-fn execute_render_worker(
-    operation: &str,
-    payload: Value,
-) -> Result<Value, GeometryWorkerError> {
+fn execute_render_worker(operation: &str, payload: Value) -> Result<Value, GeometryWorkerError> {
     geometry_worker::execute_sibling_worker(RENDER_WORKER_BINARY, operation, payload)
 }
 
@@ -111,8 +108,10 @@ pub(crate) fn render_glb_with_worker_identity(
         return Err(GeometryWorkerError::Protocol);
     }
     let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, glb);
-    let result =
-        execute_render_worker_with_metadata("render_glb", json!({"glb_base64":encoded,"camera":camera}))?;
+    let result = execute_render_worker_with_metadata(
+        "render_glb",
+        json!({"glb_base64":encoded,"camera":camera}),
+    )?;
     let object = strict_object(&result.result)?;
     require_exact_keys(
         object,

@@ -26,13 +26,8 @@ const STAGES: [&str; 6] = [
 /// views. Perspective, top, material and detail views are useful supplements,
 /// but none can replace a canonical front/back/left/right or rear-three-quarter
 /// view for an HQ_360 claim.
-const REQUIRED_HQ_REFERENCE_VIEWS: [&str; 5] = [
-    "front",
-    "back",
-    "left",
-    "right",
-    "rear-three-quarter",
-];
+const REQUIRED_HQ_REFERENCE_VIEWS: [&str; 5] =
+    ["front", "back", "left", "right", "rear-three-quarter"];
 
 impl Runtime {
     /// Create or resume one durable DesignSession. A new session is bound to
@@ -949,8 +944,7 @@ pub(crate) fn require_bound_authoring_context(
             )
         })?;
     if bindings.get("status").and_then(Value::as_str) != Some("bound")
-        || bindings.get("camera_hash").and_then(Value::as_str)
-            != Some(session.camera_hash.as_str())
+        || bindings.get("camera_hash").and_then(Value::as_str) != Some(session.camera_hash.as_str())
         || bindings.get("evidence_sha256").and_then(Value::as_str)
             != Some(session.evidence_sha256.as_str())
     {
@@ -1333,12 +1327,7 @@ fn session_from_observation(
         quality_status: quality_status.to_owned(),
         status: "active".to_owned(),
         stage_gate: gate,
-        next_actions: next_actions(
-            stage,
-            quality_status,
-            session_id,
-            &reference.reference_id,
-        ),
+        next_actions: next_actions(stage, quality_status, session_id, &reference.reference_id),
         rollback: no_session_rollback(),
         current_checkpoint_id: None,
         current_checkpoint_sha256: None,
@@ -1956,7 +1945,9 @@ fn validate_reference_canvas_bindings(
         .get("status")
         .and_then(Value::as_str)
         .ok_or_else(|| {
-            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_STATUS_REQUIRED".to_owned())
+            RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CANVAS_BINDINGS_STATUS_REQUIRED".to_owned(),
+            )
         })?;
     let target = object.get("target_sha256").ok_or_else(|| {
         RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_TARGET_REQUIRED".to_owned())
@@ -1964,13 +1955,11 @@ fn validate_reference_canvas_bindings(
     let camera_hash = object.get("camera_hash").ok_or_else(|| {
         RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_CAMERA_REQUIRED".to_owned())
     })?;
-    let camera_canonical = object
-        .get("camera_canonical_sha256")
-        .ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "AGENTIC_AUTHORING_CANVAS_BINDINGS_CAMERA_CANONICAL_REQUIRED".to_owned(),
-            )
-        })?;
+    let camera_canonical = object.get("camera_canonical_sha256").ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "AGENTIC_AUTHORING_CANVAS_BINDINGS_CAMERA_CANONICAL_REQUIRED".to_owned(),
+        )
+    })?;
     let evidence = object.get("evidence_sha256").ok_or_else(|| {
         RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_EVIDENCE_REQUIRED".to_owned())
     })?;
@@ -1987,16 +1976,22 @@ fn validate_reference_canvas_bindings(
             }
         }
         "bound" => {
-            let target_sha256 = target.as_str().filter(|value| is_sha256(value)).ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "AGENTIC_AUTHORING_CANVAS_TARGET_HASH_INVALID".to_owned(),
-                )
-            })?;
-            let camera_hash = camera_hash.as_str().filter(|value| is_sha256(value)).ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "AGENTIC_AUTHORING_CANVAS_CAMERA_HASH_INVALID".to_owned(),
-                )
-            })?;
+            let target_sha256 = target
+                .as_str()
+                .filter(|value| is_sha256(value))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_CANVAS_TARGET_HASH_INVALID".to_owned(),
+                    )
+                })?;
+            let camera_hash = camera_hash
+                .as_str()
+                .filter(|value| is_sha256(value))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_CANVAS_CAMERA_HASH_INVALID".to_owned(),
+                    )
+                })?;
             let camera_canonical = camera_canonical
                 .as_str()
                 .filter(|value| is_sha256(value))
@@ -2005,11 +2000,14 @@ fn validate_reference_canvas_bindings(
                         "AGENTIC_AUTHORING_CANVAS_CAMERA_CANONICAL_INVALID".to_owned(),
                     )
                 })?;
-            let evidence = evidence.as_str().filter(|value| is_sha256(value)).ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "AGENTIC_AUTHORING_CANVAS_EVIDENCE_HASH_INVALID".to_owned(),
-                )
-            })?;
+            let evidence = evidence
+                .as_str()
+                .filter(|value| is_sha256(value))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_CANVAS_EVIDENCE_HASH_INVALID".to_owned(),
+                    )
+                })?;
             if camera_hash != expected_camera_hash || evidence != expected_evidence_sha256 {
                 return Err(RuntimeError::InvalidInput(
                     "AGENTIC_AUTHORING_CANVAS_SESSION_LINEAGE_MISMATCH".to_owned(),
@@ -2580,16 +2578,22 @@ fn validate_reference_view_annotations(
             ));
         }
         (None, None) => {
-            let target_sha256 = target_value.as_str().filter(|hash| is_sha256(hash)).ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "AGENTIC_AUTHORING_VIEW_TARGET_HASH_INVALID".to_owned(),
-                )
-            })?;
-            let mask_sha256 = mask_value.as_str().filter(|hash| is_sha256(hash)).ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "AGENTIC_AUTHORING_VIEW_MASK_HASH_INVALID".to_owned(),
-                )
-            })?;
+            let target_sha256 = target_value
+                .as_str()
+                .filter(|hash| is_sha256(hash))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_VIEW_TARGET_HASH_INVALID".to_owned(),
+                    )
+                })?;
+            let mask_sha256 = mask_value
+                .as_str()
+                .filter(|hash| is_sha256(hash))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_VIEW_MASK_HASH_INVALID".to_owned(),
+                    )
+                })?;
             let target = runtime.read_silhouette_target(target_sha256)?;
             if target.get("reference_id").and_then(Value::as_str)
                 != Some(reference.reference_id.as_str())
@@ -2625,9 +2629,7 @@ fn validate_reference_view_annotations(
             RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_KIND_REQUIRED".to_owned())
         })?;
         if let Some(expected_source_view) = expected_reference_source_view(kind) {
-            if view_spec.get("source_view").and_then(Value::as_str)
-                != Some(expected_source_view)
-            {
+            if view_spec.get("source_view").and_then(Value::as_str) != Some(expected_source_view) {
                 return Err(RuntimeError::InvalidInput(
                     "AGENTIC_AUTHORING_VIEW_SPEC_SOURCE_VIEW_MISMATCH".to_owned(),
                 ));
@@ -2638,9 +2640,7 @@ fn validate_reference_view_annotations(
                 .get("visible_regions")
                 .and_then(Value::as_array)
                 .ok_or_else(|| {
-                    RuntimeError::InvalidInput(
-                        "AGENTIC_AUTHORING_VIEW_REGIONS_REQUIRED".to_owned(),
-                    )
+                    RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_REGIONS_REQUIRED".to_owned())
                 })?;
             let spec_region_ids: HashSet<&str> = view_spec
                 .get("regions")
@@ -2654,11 +2654,15 @@ fn validate_reference_view_annotations(
                 .filter_map(|region| region.get("region_id").and_then(Value::as_str))
                 .collect();
             for region in visible_regions {
-                let region_id = region.get("region_id").and_then(Value::as_str).ok_or_else(|| {
-                    RuntimeError::InvalidInput(
-                        "AGENTIC_AUTHORING_VIEW_REGION_ID_REQUIRED".to_owned(),
-                    )
-                })?;
+                let region_id =
+                    region
+                        .get("region_id")
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| {
+                            RuntimeError::InvalidInput(
+                                "AGENTIC_AUTHORING_VIEW_REGION_ID_REQUIRED".to_owned(),
+                            )
+                        })?;
                 if !spec_region_ids.contains(region_id) {
                     return Err(RuntimeError::InvalidInput(
                         "AGENTIC_AUTHORING_VIEW_REGION_BINDING_MISMATCH".to_owned(),
@@ -2897,10 +2901,7 @@ fn validate_coverage(value: &Value) -> Result<(), RuntimeError> {
 /// required/supplied/missing bookkeeping; this second gate binds that claim
 /// to the actual view entities so a caller cannot mark a six-view canvas as
 /// complete while submitting only one or two view objects.
-fn validate_coverage_view_bindings(
-    coverage: &Value,
-    views: &[Value],
-) -> Result<(), RuntimeError> {
+fn validate_coverage_view_bindings(coverage: &Value, views: &[Value]) -> Result<(), RuntimeError> {
     let coverage_object = coverage.as_object().ok_or_else(|| {
         RuntimeError::InvalidInput("AGENTIC_AUTHORING_COVERAGE_INVALID".to_owned())
     })?;
@@ -2925,9 +2926,7 @@ fn validate_coverage_view_bindings(
     let mut authored_kinds = HashSet::new();
     for view in views {
         let kind = view.get("kind").and_then(Value::as_str).ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_INVALID".to_owned(),
-            )
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_INVALID".to_owned())
         })?;
         if !supplied_kinds.contains(kind) {
             return Err(RuntimeError::InvalidInput(
@@ -2945,7 +2944,10 @@ fn validate_coverage_view_bindings(
             "AGENTIC_AUTHORING_COVERAGE_VIEW_BINDING_MISMATCH".to_owned(),
         ));
     }
-    if coverage_object.get("coverage_status").and_then(Value::as_str) == Some("complete")
+    if coverage_object
+        .get("coverage_status")
+        .and_then(Value::as_str)
+        == Some("complete")
         && coverage_object
             .get("missing_views")
             .and_then(Value::as_array)

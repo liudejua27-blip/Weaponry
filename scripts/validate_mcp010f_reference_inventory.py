@@ -46,6 +46,7 @@ TOPOLOGY = {
     "sphere",
     "profile-extrude",
     "profile-loft",
+    "longitudinal-section-loft",
     "revolve",
     "tube-sweep",
     "panel",

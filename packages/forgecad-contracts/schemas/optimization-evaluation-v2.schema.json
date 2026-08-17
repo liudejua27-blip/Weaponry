@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-evaluation-v2.schema.json",
+  "title": "ForgeCAD Joint Multi-View Optimization Evaluation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evaluation_id", "job_id", "intent_sha256", "camera_rig_sha256", "sequence", "fidelity", "resolution", "program_sha256", "render_sha256", "metrics_sha256", "metrics", "views", "weighted_aggregate_loss", "worst_view_loss", "improved_view_count", "all_orthographic_views_non_regressing", "loss", "complexity_penalty", "triangle_count", "valid", "duration_ms", "pass_hashes", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "OptimizationEvaluation@2"},
+    "evaluation_id": {"$ref": "#/$defs/id"},
+    "job_id": {"$ref": "#/$defs/id"},
+    "intent_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_rig_sha256": {"$ref": "#/$defs/sha256"},
+    "sequence": {"type": "integer", "minimum": 1, "maximum": 64},
+    "fidelity": {"enum": ["coarse", "mid", "final"]},
+    "resolution": {"enum": [128, 256, 512]},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "render_sha256": {"$ref": "#/$defs/sha256"},
+    "metrics_sha256": {"$ref": "#/$defs/sha256"},
+    "metrics": {"$ref": "https://forgecad.local/contracts/optimization-evaluation.schema.json#/properties/metrics"},
+    "views": {"type": "array", "minItems": 6, "maxItems": 8, "items": {"$ref": "#/$defs/view"}},
+    "weighted_aggregate_loss": {"type": "number", "minimum": 0},
+    "worst_view_loss": {"type": "number", "minimum": 0},
+    "improved_view_count": {"type": "integer", "minimum": 0, "maximum": 8},
+    "all_orthographic_views_non_regressing": {"type": "boolean"},
+    "loss": {"type": "number", "minimum": 0},
+    "complexity_penalty": {"type": "number", "minimum": 0, "maximum": 1},
+    "triangle_count": {"type": "integer", "minimum": 1, "maximum": 2000000},
+    "valid": {"type": "boolean"},
+    "duration_ms": {"type": "integer", "minimum": 0, "maximum": 120000},
+    "pass_hashes": {"type": "array", "items": {"$ref": "https://forgecad.local/contracts/optimization-evaluation.schema.json#/properties/pass_hashes/items"}},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["view_id", "kind", "target_sha256", "camera_hash", "weight", "primary", "metrics", "loss", "pass_hashes"],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/id"},
+        "kind": {"enum": ["left", "right", "top", "bottom", "front", "back", "front-three-quarter", "rear-three-quarter"]},
+        "target_sha256": {"$ref": "#/$defs/sha256"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "primary": {"type": "boolean"},
+        "metrics": {"$ref": "https://forgecad.local/contracts/optimization-evaluation.schema.json#/properties/metrics"},
+        "loss": {"type": "number", "minimum": 0},
+        "render_index": {"type": "integer", "minimum": 0, "maximum": 7},
+        "pass_hashes": {"type": "array", "items": {"$ref": "https://forgecad.local/contracts/optimization-evaluation.schema.json#/properties/pass_hashes/items"}}
+      }
+    }
+  }
+}

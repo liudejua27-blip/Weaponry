@@ -20,6 +20,7 @@ capabilities:
 operator_ids:
   - forgecad.geometry.profile-extrude@1
   - forgecad.geometry.profile-loft@1
+  - forgecad.geometry.longitudinal-section-loft@1
   - forgecad.geometry.subd-cage@1
   - forgecad.geometry.surface-patch@1
   - forgecad.geometry.surface-shell@1

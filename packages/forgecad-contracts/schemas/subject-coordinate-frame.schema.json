@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/subject-coordinate-frame.schema.json",
+  "title": "SubjectCoordinateFrame",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "frame_id", "handedness", "units", "up_axis", "forward_axis", "side_axis", "semantic_axes", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "SubjectCoordinateFrame@1"},
+    "frame_id": {"$ref": "#/$defs/id"},
+    "handedness": {"const": "right-handed"},
+    "units": {"const": "meter"},
+    "up_axis": {"const": "+Y"},
+    "forward_axis": {"const": "+X"},
+    "side_axis": {"const": "+Z"},
+    "semantic_axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["muzzle", "stock", "top", "bottom", "right", "left"],
+      "properties": {
+        "muzzle": {"const": "+X"},
+        "stock": {"const": "-X"},
+        "top": {"const": "+Y"},
+        "bottom": {"const": "-Y"},
+        "right": {"const": "+Z"},
+        "left": {"const": "-Z"}
+      }
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "schema_version": "ForgeCADReferenceContourWeaponEvidence@1",
+  "task_id": "FGC-MCP010F-reference-contour-weapon-graybox-20260817",
+  "scope": "fictional-game-film-visual-asset-only",
+  "source_reference": {
+    "sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "width": 1491,
+    "height": 1055,
+    "authorization": "user-provided",
+    "raw_bytes_recorded": false
+  },
+  "reference_views": [
+    {
+      "role": "right",
+      "reference_id": "reference-261f95373b85400586d8a23eed8be79a",
+      "sha256": "d8e25091b4572ba7e05ecc025149226620c168dd1c69df7b343b166034fb6049",
+      "review_status": "direction-confirmed-source"
+    },
+    {
+      "role": "top",
+      "reference_id": "reference-5b3e22039cb148108d294f4ff412ecfc",
+      "sha256": "dd26d9ffe09a2bba49b8d0b8a5435be42cd6cef866061c676858ab8482f25b15",
+      "silhouette_target_sha256": "a400ae2d60866757bab8c0bb16e90f9dda68adf30f24c0e07078e8ba7629e8da",
+      "review_status": "automatic-unreviewed"
+    },
+    {
+      "role": "front",
+      "reference_id": "reference-9ee75bd2d178499fa30bf0cae861c21c",
+      "sha256": "4b4171fef32f4a2fea8bf7f8800fd72b9d8b176719d2e59c5e24661a336b294e",
+      "silhouette_target_sha256": "f44178a2b5878e80822a7894d9529b774ab12a5bd19b7a775757736448d39d40",
+      "review_status": "automatic-unreviewed"
+    },
+    {
+      "role": "back",
+      "reference_id": "reference-40ae8724a4484459abd6cb808d1b40c0",
+      "sha256": "16334c03915e3e948c2d7bbbd73a39e1dd96701a5a1dfc193919a026bd46606c",
+      "silhouette_target_sha256": "c669c67e20fea0284b63cdbf895f5588627d7cd7a5b522fa2c438c6b0bc379bf",
+      "review_status": "automatic-unreviewed"
+    }
+  ],
+  "baseline": {
+    "candidate_id": "candidate-e6ec7627d70842b19e0bed1d65b4adb2",
+    "silhouette_iou": 0.734561622737,
+    "boundary_f1_4px": 0.504058358163,
+    "sdf_chamfer_px": 5.999560693919
+  },
+  "best_review_candidate": {
+    "candidate_id": "candidate-520f61e38f07435e886f4cb69318abd3",
+    "geometry_program_sha256": "a0275c479bef2013f1fcf53501b572bb0aeb2ea1151efd4a044a43425c9cf418",
+    "artifact_sha256": "0a26a48c073fa1a33f1d986c5ea3fafe27124fde022e5ff60ca54d294f6edab6",
+    "render_set_sha256": "ade646eb52ef338c9407d3641054d9b7436dcefd51cc0cc1a75cac9fcad78a4e",
+    "triangle_count": 480,
+    "part_count": 2,
+    "strict_glb_readback": "PASS",
+    "silhouette_iou": 0.900887573964,
+    "boundary_f1_4px": 0.865083929789,
+    "sdf_chamfer_px": 2.040837621219,
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "confirmed": false,
+    "exported": false
+  },
+  "candidate_comparison": {
+    "sha256": "e0cf0a572831fe0785c0d0122e152f9250d3fc223572bd32e14acffcc3291c56",
+    "winner_candidate_id": "candidate-520f61e38f07435e886f4cb69318abd3"
+  },
+  "modeling_record": [
+    "crop orthographic views from the authorized reference sheet",
+    "extract a global side contour and an explicitly observed rear open-frame void",
+    "simplify the global contour to the bounded profile-loft point budget",
+    "loft a shallow three-station primary shell",
+    "subtract the open-frame cavity with a bounded boolean",
+    "create the receiver energy core as an independent radial part",
+    "compile, strict-readback, render fixed AOVs and compare against the immutable side target",
+    "retain the best reviewable candidate without confirm or export"
+  ],
+  "known_failures": [
+    "boundary_f1_4px remains below the 0.90 visible-view gate",
+    "top/front/back targets are automatic and require human contour review",
+    "primary shell remains visually slab-like because profile-loft@1 lacks longitudinal stations",
+    "part and material separation is insufficient for final appearance",
+    "current per-triangle UV charting is unsuitable for continuous authored wear and inlay",
+    "a multi-volume compilation experiment was rejected and created no candidate"
+  ],
+  "gate_status": {
+    "structural_readback": "PASS",
+    "right_view_iou": "PASS",
+    "right_view_boundary": "FAIL",
+    "joint_multiview": "NOT_RUN_UNREVIEWED_TARGETS",
+    "material_surface": "LOCKED_PRIMARY_FORM_NOT_PASSED",
+    "human_review": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

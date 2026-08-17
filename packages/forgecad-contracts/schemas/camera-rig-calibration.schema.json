@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/camera-rig-calibration.schema.json",
+  "title": "CameraRigCalibration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rig_id", "project_id", "candidate_id", "subject_coordinate_frame", "origin_m", "object_scale_m", "renderer_revision", "views", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "CameraRigCalibration@1"},
+    "rig_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "subject_coordinate_frame": {"$ref": "https://forgecad.local/contracts/subject-coordinate-frame.schema.json"},
+    "origin_m": {"$ref": "#/$defs/vec3"},
+    "object_scale_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 100},
+    "renderer_revision": {"$ref": "#/$defs/id"},
+    "views": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/view"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec3": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}, {"type": "number"}], "items": false, "minItems": 3, "maxItems": 3},
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["view_id", "kind", "camera", "camera_hash", "weight", "primary"],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/id"},
+        "kind": {"enum": ["left", "right", "top", "bottom", "front", "back", "front-three-quarter", "rear-three-quarter"]},
+        "camera": {"$ref": "https://forgecad.local/contracts/camera-calibration-v2.schema.json"},
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "primary": {"type": "boolean"}
+      }
+    }
+  }
+}

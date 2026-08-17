@@ -35,6 +35,11 @@ pub enum ValidatedOperator {
         position_m: [f32; 3],
         rotation_rad: [f32; 3],
     },
+    LongitudinalSectionLoft {
+        sections: Vec<(f32, Vec<[f32; 2]>)>,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
     SurfacePatch {
         control_points: [[f32; 3]; SURFACE_PATCH_CONTROL_POINTS],
         u_segments: usize,
@@ -149,6 +154,10 @@ impl ValidatedOperator {
             Self::ProfileLoft { profiles, .. } => {
                 let points = profiles.first().map(|(_, p)| p.len()).unwrap_or(0) as u64;
                 2 * points.saturating_sub(2) + 2 * points * profiles.len().saturating_sub(1) as u64
+            }
+            Self::LongitudinalSectionLoft { sections, .. } => {
+                let points = sections.first().map(|(_, p)| p.len()).unwrap_or(0) as u64;
+                2 * points.saturating_sub(2) + 2 * points * sections.len().saturating_sub(1) as u64
             }
             Self::SurfacePatch {
                 u_segments,
@@ -336,6 +345,62 @@ pub fn validate_operator(
             }
             ValidatedOperator::ProfileLoft {
                 profiles,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.longitudinal-section-loft@1" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "longitudinal-section-loft accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &["shape", "sections", "position_m", "rotation_rad"],
+                "longitudinal-section-loft",
+            )?;
+            require_shape(parameters, "longitudinal-section-loft")?;
+            let sections_value = parameters
+                .get("sections")
+                .and_then(Value::as_array)
+                .ok_or_else(|| GeometryError::Invalid("sections must be an array".to_owned()))?;
+            if !(2..=MAX_LOFT_PROFILES).contains(&sections_value.len()) {
+                return Err(GeometryError::Invalid(
+                    "longitudinal section count is outside bounds".to_owned(),
+                ));
+            }
+            let mut sections: Vec<(f32, Vec<[f32; 2]>)> = Vec::with_capacity(sections_value.len());
+            let mut previous_station = f32::NEG_INFINITY;
+            for section_value in sections_value {
+                let section_object = section_value.as_object().ok_or_else(|| {
+                    GeometryError::Invalid("longitudinal section must be an object".to_owned())
+                })?;
+                require_exact_keys(
+                    section_object,
+                    &["station_m", "points"],
+                    "longitudinal section",
+                )?;
+                let station = number_field(section_object, "station_m", MAX_COORDINATE)?;
+                if station <= previous_station {
+                    return Err(GeometryError::Invalid(
+                        "longitudinal section stations must be strictly increasing".to_owned(),
+                    ));
+                }
+                previous_station = station;
+                let section = parse_points(section_object, "points", 3, MAX_PROFILE_POINTS)?;
+                require_nonzero_area(&section, "longitudinal-section-loft section")?;
+                if let Some((_, first)) = sections.first() {
+                    if first.len() != section.len() {
+                        return Err(GeometryError::Invalid(
+                            "all longitudinal sections must have the same point count".to_owned(),
+                        ));
+                    }
+                }
+                sections.push((station, section));
+            }
+            ValidatedOperator::LongitudinalSectionLoft {
+                sections,
                 position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
                 rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
             }
@@ -748,6 +813,16 @@ pub fn compile_operator(
             *rotation_rad,
             [1.0; 3],
         ),
+        ValidatedOperator::LongitudinalSectionLoft {
+            sections,
+            position_m,
+            rotation_rad,
+        } => transform_mesh(
+            longitudinal_section_loft_mesh(sections)?,
+            *position_m,
+            *rotation_rad,
+            [1.0; 3],
+        ),
         ValidatedOperator::SurfacePatch {
             control_points,
             u_segments,
@@ -987,6 +1062,7 @@ pub fn compile_operator(
     if matches!(
         operation,
         ValidatedOperator::ProfileLoft { .. }
+            | ValidatedOperator::LongitudinalSectionLoft { .. }
             | ValidatedOperator::SurfacePatch { .. }
             | ValidatedOperator::SurfaceShell { .. }
             | ValidatedOperator::SubdCage { .. }
@@ -1405,6 +1481,52 @@ fn profile_loft_mesh(
             [last[0][0], last[0][1], *last_z],
             [last[index][0], last[index][1], *last_z],
             [last[index + 1][0], last[index + 1][1], *last_z],
+        )?;
+    }
+    Ok(mesh)
+}
+
+/// Loft bounded Y/Z cross-sections along the subject's longitudinal +X axis.
+///
+/// `profile-loft@1` intentionally keeps its historical Z-station semantics.
+/// This separate operator prevents a side-view contour from becoming a thin
+/// slab while giving reference-driven products explicit width/depth stations.
+fn longitudinal_section_loft_mesh(
+    sections: &[(f32, Vec<[f32; 2]>)],
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let mut mesh = empty_mesh();
+    let first = oriented_profile(&sections[0].1);
+    for index in 1..first.len() - 1 {
+        push_triangle(
+            &mut mesh,
+            [sections[0].0, first[0][0], first[0][1]],
+            [sections[0].0, first[index][0], first[index][1]],
+            [sections[0].0, first[index + 1][0], first[index + 1][1]],
+        )?;
+    }
+    for level in 0..sections.len() - 1 {
+        let x0 = sections[level].0;
+        let x1 = sections[level + 1].0;
+        let p0 = oriented_profile(&sections[level].1);
+        let p1 = oriented_profile(&sections[level + 1].1);
+        for index in 0..p0.len() {
+            let next = (index + 1) % p0.len();
+            let a = [x0, p0[index][0], p0[index][1]];
+            let b = [x0, p0[next][0], p0[next][1]];
+            let c = [x1, p1[next][0], p1[next][1]];
+            let d = [x1, p1[index][0], p1[index][1]];
+            push_triangle(&mut mesh, a, c, b)?;
+            push_triangle(&mut mesh, a, d, c)?;
+        }
+    }
+    let (last_x, last_section) = sections.last().expect("validated longitudinal sections");
+    let last = oriented_profile(last_section);
+    for index in 1..last.len() - 1 {
+        push_triangle(
+            &mut mesh,
+            [*last_x, last[0][0], last[0][1]],
+            [*last_x, last[index + 1][0], last[index + 1][1]],
+            [*last_x, last[index][0], last[index][1]],
         )?;
     }
     Ok(mesh)
@@ -2214,6 +2336,81 @@ mod tests {
         let plain_mesh =
             compile_operator(&plain, &BTreeMap::new(), 250_000, 10_000).expect("plain mesh");
         assert_eq!(plain_mesh.indices.len() / 3, 12);
+    }
+
+    #[test]
+    fn longitudinal_section_loft_builds_x_station_volume() {
+        let parameters = json!({
+            "shape": "longitudinal-section-loft",
+            "sections": [
+                {"station_m": -1.0, "points": [[-0.18, -0.12], [0.18, -0.12], [0.18, 0.12], [-0.18, 0.12]]},
+                {"station_m": 0.0, "points": [[-0.42, -0.30], [0.42, -0.30], [0.42, 0.30], [-0.42, 0.30]]},
+                {"station_m": 1.4, "points": [[-0.12, -0.08], [0.12, -0.08], [0.12, 0.08], [-0.12, 0.08]]}
+            ],
+            "position_m": [0.0, 1.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0]
+        });
+        let (operation, triangle_count) = validate_operator(
+            "forgecad.geometry.longitudinal-section-loft@1",
+            &[],
+            parameters.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect("longitudinal loft should validate");
+        assert_eq!(triangle_count, 20);
+        let mesh = compile_operator(&operation, &BTreeMap::new(), 250_000, 10_000)
+            .expect("longitudinal loft mesh");
+        assert_eq!(mesh.indices.len() / 3, 20);
+        let min_x = mesh
+            .positions
+            .iter()
+            .map(|position| position[0])
+            .fold(f32::INFINITY, f32::min);
+        let max_x = mesh
+            .positions
+            .iter()
+            .map(|position| position[0])
+            .fold(f32::NEG_INFINITY, f32::max);
+        assert!((min_x + 1.0).abs() < 1.0e-6);
+        assert!((max_x - 1.4).abs() < 1.0e-6);
+        assert!(mesh.positions.iter().all(|position| position[1] > 0.5));
+    }
+
+    #[test]
+    fn longitudinal_section_loft_rejects_station_and_correspondence_drift() {
+        let non_increasing = json!({
+            "shape": "longitudinal-section-loft",
+            "sections": [
+                {"station_m": 0.0, "points": [[-0.2, -0.2], [0.2, -0.2], [0.2, 0.2], [-0.2, 0.2]]},
+                {"station_m": 0.0, "points": [[-0.1, -0.1], [0.1, -0.1], [0.1, 0.1], [-0.1, 0.1]]}
+            ],
+            "position_m": [0.0, 0.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0]
+        });
+        assert!(validate_operator(
+            "forgecad.geometry.longitudinal-section-loft@1",
+            &[],
+            non_increasing.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mismatched_points = json!({
+            "shape": "longitudinal-section-loft",
+            "sections": [
+                {"station_m": -0.5, "points": [[-0.2, -0.2], [0.2, -0.2], [0.2, 0.2], [-0.2, 0.2]]},
+                {"station_m": 0.5, "points": [[-0.1, -0.1], [0.1, -0.1], [0.0, 0.1]]}
+            ],
+            "position_m": [0.0, 0.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0]
+        });
+        assert!(validate_operator(
+            "forgecad.geometry.longitudinal-section-loft@1",
+            &[],
+            mismatched_points.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
     }
 
     #[test]

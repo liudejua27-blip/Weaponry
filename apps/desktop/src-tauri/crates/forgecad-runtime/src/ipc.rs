@@ -622,10 +622,10 @@ fn runtime_error_code(error: &RuntimeError) -> String {
                 return code.to_owned();
             }
             detail
-            .split(':')
-            .map(str::trim)
-            .find(|value| {
-                value.starts_with("AGENTIC_")
+                .split(':')
+                .map(str::trim)
+                .find(|value| {
+                    value.starts_with("AGENTIC_")
                     || value.starts_with("PRIMARY_FORM_REPAIR_")
                     || value.starts_with("SILHOUETTE_FIT_GEOMETRY_")
                     || value.starts_with("SILHOUETTE_FIT_RENDER_FAILED")
@@ -653,8 +653,8 @@ fn runtime_error_code(error: &RuntimeError) -> String {
                     || *value == "NOT_FOUND"
                     || value.starts_with("CANDIDATE_ARTIFACT_UNAVAILABLE")
                 })
-            .map(str::to_owned)
-            .map_or_else(|| format!("INVALID_INPUT: {detail}"), |code| code)
+                .map(str::to_owned)
+                .map_or_else(|| format!("INVALID_INPUT: {detail}"), |code| code)
         }
         RuntimeError::Store(StoreError::Contract { code, .. }) => {
             format!("STORE_CONTRACT: {code}")
@@ -669,9 +669,7 @@ fn runtime_error_code(error: &RuntimeError) -> String {
         RuntimeError::Store(StoreError::Cas(CasError::InvalidHash)) => {
             "STORE_CAS_INVALID_HASH".to_owned()
         }
-        RuntimeError::Store(StoreError::Cas(CasError::Corrupt)) => {
-            "STORE_CAS_CORRUPT".to_owned()
-        }
+        RuntimeError::Store(StoreError::Cas(CasError::Corrupt)) => "STORE_CAS_CORRUPT".to_owned(),
         RuntimeError::Store(StoreError::Cas(CasError::CapacityExceeded)) => {
             "STORE_CAS_CAPACITY_EXCEEDED".to_owned()
         }
@@ -681,8 +679,12 @@ fn runtime_error_code(error: &RuntimeError) -> String {
         RuntimeError::Store(StoreError::Cas(CasError::Io(_))) => "STORE_CAS_IO".to_owned(),
         RuntimeError::Store(StoreError::Io(_)) => "STORE_IO".to_owned(),
         RuntimeError::Store(StoreError::BackupUnavailable) => "STORE_BACKUP_UNAVAILABLE".to_owned(),
-        RuntimeError::Store(StoreError::MigrationVersionUnsupported) => "STORE_MIGRATION_UNSUPPORTED".to_owned(),
-        RuntimeError::Store(StoreError::LegacyDatabaseRejected) => "STORE_LEGACY_DATABASE_REJECTED".to_owned(),
+        RuntimeError::Store(StoreError::MigrationVersionUnsupported) => {
+            "STORE_MIGRATION_UNSUPPORTED".to_owned()
+        }
+        RuntimeError::Store(StoreError::LegacyDatabaseRejected) => {
+            "STORE_LEGACY_DATABASE_REJECTED".to_owned()
+        }
         RuntimeError::Store(StoreError::LockPoisoned) => "STORE_LOCK_POISONED".to_owned(),
         RuntimeError::Ipc(_) => "IPC_ERROR".to_owned(),
         RuntimeError::ProcessLock(_) => "RUNTIME_BUSY".to_owned(),

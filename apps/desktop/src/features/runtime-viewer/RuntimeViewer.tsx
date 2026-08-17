@@ -1,5 +1,18 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import { invoke as tauriInvoke } from '@tauri-apps/api/core'
+import {
+  ArrowCounterClockwise,
+  ArrowClockwise,
+  CaretDown,
+  CaretRight,
+  CheckCircle,
+  Command,
+  Cube,
+  Export,
+  Images,
+  MagnifyingGlass,
+  TreeStructure,
+} from '@phosphor-icons/react'
 import type * as THREE from 'three'
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import {
@@ -23,10 +36,21 @@ import {
 
 const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
 const VIEWER_HOVER_CACHE = '__forgecad_hover_state_v1'
+const VIEWER_LAYOUT_CACHE = '__forgecad_workbench_layout_v2'
 const DEFAULT_VIEWPORT_CONTROL_HINT = '左键点击选中 · Shift+左键：框选 · 右键：旋转 · 中键：平移 · 滚轮：缩放 · 1/2/3/4/5/6 快速视角 · Z/X/C 光照 · F 聚焦 · R 重置 · Esc 清选'
 const VIEWPORT_KEYBOARD_HINTS: string[] = ['左键：选中对象', 'Shift+左键：框选（按住 Shift+左键拖拽）', '右键：旋转', '中键：平移', '滚轮：缩放', '1：前视角', '2：左视角', '3：顶视角', '4：右视角', '5：后视角', '6：三分之四视角', 'Z/X/C：光照预设', 'F：聚焦', 'R：重置视角', 'Esc：清选']
 const VIEWPORT_KEYBOARD_HINTS_NO_FOCUS = ['请先点击视口后再使用键盘快捷键']
 const VIEWPORT_KEYBOARD_HINTS_ACTIVE = ['当前：快捷键生效']
+
+type WorkspaceMode = 'model' | 'compare' | 'review'
+type LeftPanelTab = 'structure' | 'references'
+type InspectorTab = 'properties' | 'geometry' | 'material' | 'checks'
+type BottomDrawerTab = 'versions' | 'tasks' | 'issues' | 'activity'
+type CompactPanel = 'none' | 'scene' | 'inspector'
+type ViewportLayout = 'single' | 'dual' | 'quad'
+type ViewportShading = 'solid' | 'material' | 'wireframe'
+
+const clampPanelWidth = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
 async function runtimeInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (typeof tauriInvoke !== 'function') throw new Error('RUNTIME_BRIDGE_UNAVAILABLE')
@@ -593,7 +617,7 @@ function deriveCandidateErrorMeaning(code: string): string {
   if (code === 'COMPARE_WORKER_UNAVAILABLE') return '当前环境无法启动比较计算 Worker；可重试或关闭热图/轮廓辅助。'
   if (code === 'COMPARE_WORKER_IMAGE_DECODE_UNAVAILABLE') return '当前 WebView 不支持 Worker 图像解码；可重试，Viewer 会尝试兼容回退。'
   if (code === 'COMPARE_WORKER_IMAGE_DATA_UNAVAILABLE') return 'Worker 无法创建临时图像缓冲区；原始 AOV 与 Runtime 质量报告不受影响。'
-  if (code === 'COMPARE_WORKER_FAILED' || code === 'DIFFERENCE_HEATMAP_FAILED') return '差异热图计算 Worker 失败；原始 AOV 与 Runtime QualityReport 不受影响。'
+  if (code === 'COMPARE_WORKER_FAILED' || code === 'DIFFERENCE_HEATMAP_FAILED') return '差异热图计算任务失败；原始 AOV 与 Runtime 质量报告不受影响。'
   if (code === 'GLB_EMPTY_SCENE') return 'GLB 场景为空。'
   if (code === 'REFERENCE_CONTOUR_FAILED' || code === 'REFERENCE_CONTOUR_IMAGE_DATA_UNAVAILABLE') return '参考轮廓辅助计算失败；原始参考图与 Runtime 质量门不受影响。'
   if (code === 'VISUAL_EVIDENCE_BINDING_MISMATCH') return '候选的 VisualEvidence 与当前候选/哈希不一致。'
@@ -782,12 +806,12 @@ const VIEWPORT_LIGHT_PRESETS: ReadonlyArray<{ id: ViewportLightPreset; label: st
 ]
 
 const VIEWPORT_CAMERA_PRESETS: ReadonlyArray<{ id: ViewportCameraPreset; label: string }> = [
-  { id: 'front', label: '1 前' },
-  { id: 'left', label: '2 左' },
-  { id: 'top', label: '3 顶' },
-  { id: 'right', label: '4 右' },
-  { id: 'rear', label: '5 后' },
-  { id: 'three-quarter', label: '6 三分之四' },
+  { id: 'front', label: '前' },
+  { id: 'left', label: '左' },
+  { id: 'top', label: '顶' },
+  { id: 'right', label: '右' },
+  { id: 'rear', label: '后' },
+  { id: 'three-quarter', label: '3/4' },
 ]
 
 type ViewerModel = {
@@ -1596,6 +1620,22 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const [viewportActionHint, setViewportActionHint] = useState<string>('等待输入')
   const [errorConsoleExpanded, setErrorConsoleExpanded] = useState(false)
   const [professionalPanelOpen, setProfessionalPanelOpen] = useState(false)
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('model')
+  const [leftPanelTab, setLeftPanelTab] = useState<LeftPanelTab>('structure')
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>('properties')
+  const [bottomDrawerTab, setBottomDrawerTab] = useState<BottomDrawerTab>('versions')
+  const [bottomDrawerOpen, setBottomDrawerOpen] = useState(false)
+  const [compactPanel, setCompactPanel] = useState<CompactPanel>('none')
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [commandQuery, setCommandQuery] = useState('')
+  const [commandActiveIndex, setCommandActiveIndex] = useState(0)
+  const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single')
+  const [viewportShading, setViewportShading] = useState<ViewportShading>('solid')
+  const [referenceVisible, setReferenceVisible] = useState(true)
+  const [gridVisible, setGridVisible] = useState(true)
+  const [gizmoVisible, setGizmoVisible] = useState(true)
+  const [leftPanelWidth, setLeftPanelWidth] = useState(248)
+  const [rightPanelWidth, setRightPanelWidth] = useState(320)
   const contourDrawingRef = useRef(false)
   const comparePanRef = useRef<{ active: boolean; pointerId: number; startX: number; startY: number; originX: number; originY: number }>({ active: false, pointerId: -1, startX: 0, startY: 0, originX: 0, originY: 0 })
   const viewportDragRef = useRef<{ mode: ViewportDragMode; pointerId: number; startX: number; startY: number; endX: number; endY: number }>({ mode: 'idle', pointerId: -1, startX: 0, startY: 0, endX: 0, endY: 0 })
@@ -1607,7 +1647,85 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const threeRuntimeRef = useRef<Pick<typeof import('./three-runtime-core'), 'Box3' | 'Vector3'> | null>(null)
   const contourCanvasActive = selectedPass === 'silhouette' && compareMode === 'overlay' && !diffHeatmap
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const commandInputRef = useRef<HTMLInputElement | null>(null)
+  const sceneSearchInputRef = useRef<HTMLInputElement | null>(null)
+  const inspectorPanelRef = useRef<HTMLElement | null>(null)
   const viewerSceneRef = useRef<ViewerSceneState | null>(null)
+  const workbenchStyle = {
+    '--runtime-left-panel-width': `${leftPanelWidth}px`,
+    '--runtime-right-panel-width': `${rightPanelWidth}px`,
+  } as CSSProperties
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEWER_LAYOUT_CACHE)
+      if (!stored) return
+      const value = JSON.parse(stored) as { left?: number; right?: number; drawerOpen?: boolean; drawerTab?: BottomDrawerTab }
+      if (typeof value.left === 'number') setLeftPanelWidth(clampPanelWidth(value.left, 220, 360))
+      if (typeof value.right === 'number') setRightPanelWidth(clampPanelWidth(value.right, 280, 420))
+      if (typeof value.drawerOpen === 'boolean') setBottomDrawerOpen(value.drawerOpen)
+      if (value.drawerTab) setBottomDrawerTab(value.drawerTab)
+    } catch {
+      // Viewer layout preference is optional and never part of Runtime truth.
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEWER_LAYOUT_CACHE, JSON.stringify({
+        left: leftPanelWidth,
+        right: rightPanelWidth,
+        drawerOpen: bottomDrawerOpen,
+        drawerTab: bottomDrawerTab,
+      }))
+    } catch {
+      // The workbench remains usable when local preference storage is unavailable.
+    }
+  }, [leftPanelWidth, rightPanelWidth, bottomDrawerOpen, bottomDrawerTab])
+
+  useEffect(() => {
+    if (compactPanel === 'none') return
+    const closeCompactPanel = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setCompactPanel('none')
+    }
+    window.addEventListener('keydown', closeCompactPanel)
+    return () => window.removeEventListener('keydown', closeCompactPanel)
+  }, [compactPanel])
+
+  const beginPanelResize = (side: 'left' | 'right', event: PointerEvent<HTMLElement>) => {
+    event.preventDefault()
+    const startX = event.clientX
+    const initialWidth = side === 'left' ? leftPanelWidth : rightPanelWidth
+    const onMove = (moveEvent: globalThis.PointerEvent) => {
+      const delta = side === 'left' ? moveEvent.clientX - startX : startX - moveEvent.clientX
+      const next = side === 'left'
+        ? clampPanelWidth(initialWidth + delta, 220, 360)
+        : clampPanelWidth(initialWidth + delta, 280, 420)
+      if (side === 'left') setLeftPanelWidth(next)
+      else setRightPanelWidth(next)
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp, { once: true })
+  }
+  const resizePanelFromKeyboard = (side: 'left' | 'right', event: KeyboardEvent<HTMLElement>) => {
+    const currentWidth = side === 'left' ? leftPanelWidth : rightPanelWidth
+    const minWidth = side === 'left' ? 220 : 280
+    const maxWidth = side === 'left' ? 360 : 420
+    let nextWidth: number | null = null
+    if (event.key === 'Home') nextWidth = minWidth
+    else if (event.key === 'End') nextWidth = maxWidth
+    else if (event.key === 'ArrowLeft') nextWidth = currentWidth + (side === 'left' ? -8 : 8)
+    else if (event.key === 'ArrowRight') nextWidth = currentWidth + (side === 'left' ? 8 : -8)
+    if (nextWidth === null) return
+    event.preventDefault()
+    const clampedWidth = clampPanelWidth(nextWidth, minWidth, maxWidth)
+    if (side === 'left') setLeftPanelWidth(clampedWidth)
+    else setRightPanelWidth(clampedWidth)
+  }
   useEffect(() => () => {
     if (viewportHoverFrameRef.current !== null) {
       window.cancelAnimationFrame(viewportHoverFrameRef.current)
@@ -2062,7 +2180,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         id: 'runtime-evidence',
         scope: '候选证据',
         code: evidenceError,
-        title: 'QualityEvidence 读取失败',
+        title: '质量证据读取失败',
         category: deriveErrorCategory(evidenceError, '未就绪'),
         summary: '固定视图/质量指标无法同步',
         meaning: deriveCandidateErrorMeaning(evidenceError),
@@ -2085,7 +2203,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             ? '候选 GLB 绑定冲突'
             : '候选 GLB 加载失败',
         category: deriveErrorCategory(artifactError, '加载失败'),
-        summary: '3D 视图无法使用当前 candidate 的几何体',
+        summary: '3D 视图无法使用当前候选版本的几何体',
         meaning: deriveCandidateErrorMeaning(artifactError),
         severity: statusClassFromCode(artifactError),
         actionLabel: '重试 GLB',
@@ -2101,7 +2219,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
         id: 'runtime-compare',
         scope: compareAssetError ? `参考对比（${AOV_PASS_LABELS[selectedPass]}）` : '对比辅助计算',
         code: compareError,
-        title: compareAssetError ? '参考图/Render PNG 对比读取失败' : '差异热图/轮廓辅助计算失败',
+        title: compareAssetError ? '参考图/渲染图对比读取失败' : '差异热图/轮廓辅助计算失败',
         category: deriveErrorCategory(compareError, compareAssetError ? '读取失败' : '异常'),
         summary: compareAssetError ? 'AOV 比较窗口将不可用' : '比较辅助层暂不可用，原始 AOV 与 Runtime 质量门仍可查看',
         meaning: deriveCandidateErrorMeaning(compareError),
@@ -2193,6 +2311,17 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const errorConsoleHasBlockingError = errorConsoleItems.some((item) => item.severity === 'error')
   const errorConsoleTitle = errorConsoleHasBlockingError ? '需要处理' : '运行提示'
   const errorConsoleKicker = errorConsoleHasBlockingError ? '运行问题' : '工作台提示'
+  const globalConnectionIssue = !ready && !candidateId
+  const issueCategoryLabel = globalConnectionIssue ? '连接问题' : '检查问题'
+  const candidateBoundReviewIssueCount = candidateId
+    ? errorConsoleItems.filter((item) => item.id !== 'runtime-read-model').length
+    : 0
+  const inspectorEmptyTitle = !ready ? '等待 Runtime 连接' : projectId ? '未选中对象' : '暂无项目'
+  const inspectorEmptyDescription = !ready
+    ? '重新连接后即可读取项目、候选版本和对象信息'
+    : projectId
+      ? '从场景树或 3D 视口选择一个部件'
+      : '请先在 Codex 中创建或打开项目'
   useEffect(() => {
     if (errorConsoleHasBlockingError) setErrorConsoleExpanded(true)
   }, [errorConsoleHasBlockingError])
@@ -2888,6 +3017,14 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const visualHardGatePassed = visualQualityReport?.hard_gate_passed === true
   const visualGateStatusClass = visualQualityReport ? (visualHardGatePassed ? 'passed' : 'failed') : 'not-run'
   const visualGateLabel = visualQualityReport ? (visualHardGatePassed ? '通过' : '未通过') : '未运行'
+  const exportAvailable = ready && Boolean(candidateId) && visualHardGatePassed
+  const exportAvailabilityLabel = !ready
+    ? '等待 Runtime 连接后才能导出'
+    : !candidateId
+      ? '等待候选版本后才能导出'
+      : !visualHardGatePassed
+        ? '当前质量门未通过，暂不可导出'
+        : '打开受保护的导出页'
   const visualGateSource = agenticProjection.status === 'ready'
     ? 'Runtime Agentic 投影 → 候选绑定 ReferenceComparisonReport@1 / 质量报告@2'
     : visualQualityReport
@@ -3625,6 +3762,82 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     }
   }
 
+  const openStructurePanel = () => {
+    setCompactPanel('scene')
+    window.requestAnimationFrame(() => sceneSearchInputRef.current?.focus())
+  }
+  const openInspectorPanel = () => {
+    setCompactPanel('inspector')
+    window.requestAnimationFrame(() => inspectorPanelRef.current?.focus())
+  }
+  const openConnectionIssues = () => {
+    setBottomDrawerTab('issues')
+    setBottomDrawerOpen(true)
+  }
+  const commandActions = [
+    { id: 'mode-model', label: '切换到建模', description: '返回主要三维视口', shortcut: '⌘1', perform: () => setWorkspaceMode('model') },
+    { id: 'mode-compare', label: '切换到对比', description: '检查参考图与固定渲染', shortcut: '⌘2', perform: () => setWorkspaceMode('compare') },
+    { id: 'mode-review', label: '切换到审查', description: '查看候选绑定问题', shortcut: '⌘3', perform: () => setWorkspaceMode('review') },
+    { id: 'open-structure', label: '打开结构搜索', description: '定位部件与材质区', shortcut: '⌘B', perform: openStructurePanel },
+    { id: 'open-inspector', label: '打开对象信息', description: '查看属性、几何、材质与检查', shortcut: '⌘I', perform: openInspectorPanel },
+    { id: 'toggle-drawer', label: bottomDrawerOpen ? '收起底部面板' : '展开底部面板', description: '版本、任务、问题和活动', shortcut: '⌘J', perform: () => setBottomDrawerOpen((value) => !value) },
+    { id: 'open-issues', label: '查看连接与检查问题', description: errorConsoleItems.length > 0 ? `${errorConsoleItems.length} 项需要查看` : '当前没有记录的问题', shortcut: '', perform: openConnectionIssues },
+    { id: 'retry-runtime', label: '重试 Runtime 连接', description: modelRefreshing ? '正在连接，请稍候' : '重新读取项目与候选版本', shortcut: '', perform: refreshCurrentCandidate },
+  ]
+  const normalizedCommandQuery = commandQuery.trim().toLowerCase()
+  const filteredCommandActions = normalizedCommandQuery
+    ? commandActions.filter((action) => `${action.label} ${action.description}`.toLowerCase().includes(normalizedCommandQuery))
+    : commandActions
+
+  useEffect(() => {
+    if (!commandPaletteOpen) return
+    setCommandActiveIndex(0)
+    window.requestAnimationFrame(() => commandInputRef.current?.focus())
+  }, [commandPaletteOpen])
+
+  useEffect(() => setCommandActiveIndex(0), [commandQuery])
+
+  useEffect(() => {
+    const handleWorkbenchShortcuts = (event: globalThis.KeyboardEvent) => {
+      const modifier = event.metaKey || event.ctrlKey
+      const key = event.key.toLowerCase()
+      if (modifier && key === 'k') {
+        event.preventDefault()
+        if (commandPaletteOpen) {
+          setCommandPaletteOpen(false)
+          setCommandQuery('')
+        } else {
+          setCommandPaletteOpen(true)
+        }
+        return
+      }
+      if (commandPaletteOpen && event.key === 'Escape') {
+        event.preventDefault()
+        setCommandPaletteOpen(false)
+        setCommandQuery('')
+        return
+      }
+      const target = event.target
+      const isEditing = target instanceof HTMLElement && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+      if (!modifier || isEditing) return
+      if (key === '1' || key === '2' || key === '3') {
+        event.preventDefault()
+        setWorkspaceMode(key === '1' ? 'model' : key === '2' ? 'compare' : 'review')
+      } else if (key === 'b') {
+        event.preventDefault()
+        openStructurePanel()
+      } else if (key === 'i') {
+        event.preventDefault()
+        openInspectorPanel()
+      } else if (key === 'j') {
+        event.preventDefault()
+        setBottomDrawerOpen((value) => !value)
+      }
+    }
+    window.addEventListener('keydown', handleWorkbenchShortcuts)
+    return () => window.removeEventListener('keydown', handleWorkbenchShortcuts)
+  }, [commandPaletteOpen])
+
   const sceneTreeContent = (
     <>
       <div className="runtime-scene-tree-controls" aria-label="场景树搜索、过滤和展开控制">
@@ -3632,6 +3845,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
           <span>查找部件</span>
           <input
             id="runtime-scene-tree-query"
+            ref={sceneSearchInputRef}
             type="search"
             value={sceneTreeSearch}
             onChange={(event) => setSceneTreeSearch(event.target.value)}
@@ -3767,22 +3981,24 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   )
 
   const sceneOverview = (
-    <aside className="runtime-scene-panel" aria-labelledby="runtime-scene-overview-title">
-      <div className="runtime-workbench-panel-header">
-        <div>
-          <span className="runtime-workbench-panel-eyebrow">模型结构</span>
-          <h2 id="runtime-scene-overview-title">模型</h2>
-        </div>
-        <span className="runtime-workbench-panel-count">{viewerSceneTree.length} 部件</span>
+    <aside id="runtime-scene-panel" className="runtime-scene-panel" aria-labelledby="runtime-scene-overview-title">
+      <div className="runtime-panel-tabs" role="tablist" aria-label="左侧资源面板">
+        <button type="button" role="tab" aria-selected={leftPanelTab === 'structure'} className={leftPanelTab === 'structure' ? 'runtime-panel-tab-active' : ''} onClick={() => setLeftPanelTab('structure')}>
+          <TreeStructure size={15} weight="bold" />结构
+        </button>
+        <button type="button" role="tab" aria-selected={leftPanelTab === 'references'} className={leftPanelTab === 'references' ? 'runtime-panel-tab-active' : ''} onClick={() => setLeftPanelTab('references')}>
+          <Images size={15} weight="bold" />参考图
+        </button>
       </div>
-      <div className="runtime-scene-tree-scroll">
+      <div className="runtime-scene-tree-scroll" id="runtime-scene-overview-title">
+        {leftPanelTab === 'structure' ? (viewerSceneTree.length > 0 ? <>
         <button
           type="button"
           className={`tree-row tree-row-root runtime-scene-root ${selectedPartId === 'all' && selectedMaterialZone === 'all' ? 'tree-row-selected' : ''}`}
           onClick={() => resetCompareSelection()}
           aria-pressed={selectedPartId === 'all' && selectedMaterialZone === 'all'}
         >
-          <span>{projectName || 'Robot'}</span>
+          <span>{projectName || '暂无项目'}</span>
           <span className="tree-row-id">{viewerSceneTree.length ? 'model' : '等待'}</span>
         </button>
         {sceneTreeContent}
@@ -3800,30 +4016,123 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             </div>
           </div>
         ) : null}
+        </> : <div className="runtime-panel-empty-state">
+          <Cube size={22} weight="duotone" aria-hidden="true" />
+          <strong>{ready ? '暂无模型' : '等待 Runtime 连接'}</strong>
+          <span>{ready ? '在 Codex 中创建或打开模型' : '连接后将显示项目结构'}</span>
+        </div>) : <div className="runtime-reference-browser">
+          <div className="runtime-reference-heading">
+            <div><strong>视图参考</strong><span>{referenceDataUrl ? '已绑定当前候选' : '等待参考图回读'}</span></div>
+            <span>{referenceDataUrl ? '1 / 6' : '0 / 6'}</span>
+          </div>
+          <div className="runtime-reference-grid">
+            {['前视图', '后视图', '左视图', '右视图', '顶视图', '后侧 3/4'].map((label, index) => <button type="button" key={label} className={index === 0 && referenceDataUrl ? 'runtime-reference-card-active' : ''} onClick={() => {
+              if (index === 0 && referenceDataUrl) {
+                setWorkspaceMode('compare')
+                setCompareMode('overlay')
+              }
+            }}>
+              <span className="runtime-reference-thumb">{index === 0 && referenceDataUrl ? <img src={referenceDataUrl} alt="当前候选绑定参考图" /> : <Images size={20} />}</span>
+              <strong>{label}</strong>
+              <small>{index === 0 && referenceDataUrl ? '已绑定' : '未提供'}</small>
+            </button>)}
+          </div>
+          <p className="runtime-reference-note">参考覆盖状态来自 Runtime；Viewer 只提供选择、叠加与对比入口。</p>
+        </div>}
       </div>
-      <div className="scene-footer">
-        <span><span className="status-led" aria-hidden="true" />{selectedPartId === 'all' ? '全部部件' : selectedPartId}</span>
-        <span>{filteredSceneTreeByState.length}/{viewerSceneTree.length}</span>
-      </div>
+      {(viewerSceneTree.length > 0 || leftPanelTab === 'references') && <div className="scene-footer">
+        <span><span className="status-led" aria-hidden="true" />{leftPanelTab === 'structure' ? (selectedPartId === 'all' ? '全部部件' : selectedPartId) : '参考覆盖'}</span>
+        <span>{leftPanelTab === 'structure' ? `${filteredSceneTreeByState.length}/${viewerSceneTree.length}` : (referenceDataUrl ? '1/6' : '0/6')}</span>
+      </div>}
+      <div
+        className="runtime-panel-resizer runtime-panel-resizer-left"
+        role="separator"
+        aria-label="调整结构面板宽度"
+        aria-orientation="vertical"
+        aria-valuemin={220}
+        aria-valuemax={360}
+        aria-valuenow={leftPanelWidth}
+        aria-valuetext={`${leftPanelWidth} 像素`}
+        tabIndex={0}
+        title="拖动调整宽度；也可使用左右方向键，Home 最窄，End 最宽"
+        onPointerDown={(event) => beginPanelResize('left', event)}
+        onKeyDown={(event) => resizePanelFromKeyboard('left', event)}
+      />
     </aside>
   )
 
-  return <main className="runtime-shell">
+  return <main className={`runtime-shell runtime-workspace-mode-${workspaceMode} runtime-compact-panel-${compactPanel} ${bottomDrawerOpen ? 'runtime-drawer-open' : 'runtime-drawer-collapsed'}`} style={workbenchStyle}>
     <header className="runtime-app-bar">
       <div className="runtime-brand-lockup">
-        <span className="runtime-brand-mark" aria-hidden="true">◇</span>
+        <span className="runtime-brand-mark" aria-hidden="true"><Cube size={19} weight="duotone" /></span>
         <strong>ForgeCAD</strong>
-        <span className="runtime-project-name">{projectName}</span>
+        <span className="runtime-brand-divider" aria-hidden="true" />
+        <button type="button" className="runtime-project-switcher" title={projectName || '暂无项目'}>
+          <span className="runtime-project-name">{projectName || '暂无项目'}</span><CaretDown size={13} />
+        </button>
       </div>
+      <nav className="runtime-mode-switcher" aria-label="工作模式">
+        {([
+          ['model', '建模', 'Meta+1'],
+          ['compare', '对比', 'Meta+2'],
+          ['review', '审查', 'Meta+3'],
+        ] as Array<[WorkspaceMode, string, string]>).map(([mode, label, shortcut]) => <button key={mode} type="button" aria-keyshortcuts={shortcut} aria-current={workspaceMode === mode ? 'page' : undefined} className={workspaceMode === mode ? 'runtime-mode-active' : ''} onClick={() => setWorkspaceMode(mode)}>{label}</button>)}
+      </nav>
+      <div className="runtime-compact-panel-actions" aria-label="紧凑窗口面板">
+        <button type="button" aria-controls="runtime-scene-panel" aria-expanded={compactPanel === 'scene'} className={compactPanel === 'scene' ? 'runtime-compact-panel-active' : ''} onClick={() => setCompactPanel((value) => value === 'scene' ? 'none' : 'scene')}><TreeStructure size={15} />结构</button>
+        <button type="button" aria-controls="runtime-inspector-panel" aria-expanded={compactPanel === 'inspector'} className={compactPanel === 'inspector' ? 'runtime-compact-panel-active' : ''} onClick={() => setCompactPanel((value) => value === 'inspector' ? 'none' : 'inspector')}><Cube size={15} />对象</button>
+      </div>
+      <button type="button" className="runtime-command-trigger" aria-haspopup="dialog" aria-expanded={commandPaletteOpen} aria-keyshortcuts="Meta+K" onClick={() => { setCommandQuery(''); setCommandPaletteOpen(true) }} title="打开命令菜单（⌘K）">
+        <Command size={14} /><span>命令</span><kbd>⌘K</kbd>
+      </button>
       <div className={`runtime-codex-connection ${ready ? 'runtime-codex-connection-ready' : ''}`} role="status">
         <span className="runtime-connection-dot" aria-hidden="true" />
-        {ready ? 'Codex 已连接' : 'Codex / Runtime 未连接'}
+        {ready ? 'Codex 已连接' : modelRefreshing ? '正在连接 Runtime' : 'Codex / Runtime 未连接'}
       </div>
       <div className="runtime-app-actions">
-        <button type="button" className="runtime-top-action" disabled title="Viewer 只读；撤销由 Codex 通过 Runtime 批准链路完成">↶ 撤销</button>
-        <button type="button" className="runtime-top-action runtime-top-action-primary" onClick={() => onNavigate?.('export')} title="打开受保护的导出页">导出</button>
+        <button type="button" className="runtime-top-action runtime-top-action-icon" disabled title="Viewer 只读；撤销由 Codex 通过 Runtime 批准链路完成" aria-label="撤销"><ArrowCounterClockwise size={17} /></button>
+        <button type="button" className="runtime-top-action runtime-top-action-icon" disabled title="Viewer 只读；重做由 Codex 通过 Runtime 批准链路完成" aria-label="重做"><ArrowClockwise size={17} /></button>
+        <span className="runtime-action-divider" aria-hidden="true" />
+        <button type="button" className="runtime-top-action runtime-top-action-confirm" disabled title="Viewer 只读；确认版本必须回到 Codex 批准链路"><CheckCircle size={16} />确认版本</button>
+        <button type="button" className="runtime-top-action runtime-top-action-primary" onClick={() => onNavigate?.('export')} disabled={!exportAvailable} title={exportAvailabilityLabel}><Export size={16} />导出<CaretDown size={12} /></button>
       </div>
     </header>
+    {commandPaletteOpen && <div className="runtime-command-layer" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) { setCommandPaletteOpen(false); setCommandQuery('') }
+    }}>
+      <section className="runtime-command-palette" role="dialog" aria-modal="true" aria-labelledby="runtime-command-title">
+        <div className="runtime-command-search">
+          <MagnifyingGlass size={17} aria-hidden="true" />
+          <label className="sr-only" htmlFor="runtime-command-query" id="runtime-command-title">命令菜单</label>
+          <input ref={commandInputRef} id="runtime-command-query" value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} onKeyDown={(event) => {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault()
+              setCommandActiveIndex((value) => Math.min(filteredCommandActions.length - 1, value + 1))
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault()
+              setCommandActiveIndex((value) => Math.max(0, value - 1))
+            } else if (event.key === 'Enter' && filteredCommandActions[commandActiveIndex]) {
+              event.preventDefault()
+              filteredCommandActions[commandActiveIndex].perform()
+              setCommandPaletteOpen(false)
+              setCommandQuery('')
+            }
+          }} placeholder="输入命令或功能名称" autoComplete="off" />
+          <kbd>Esc</kbd>
+        </div>
+        <div className="runtime-command-results" role="listbox" aria-label="可用命令">
+          {filteredCommandActions.length > 0 ? filteredCommandActions.map((action, index) => <button type="button" role="option" aria-selected={index === commandActiveIndex} className={index === commandActiveIndex ? 'runtime-command-result-active' : ''} key={action.id} onMouseEnter={() => setCommandActiveIndex(index)} onClick={() => {
+            action.perform()
+            setCommandPaletteOpen(false)
+            setCommandQuery('')
+          }}>
+            <span><strong>{action.label}</strong><small>{action.description}</small></span>
+            {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
+          </button>) : <p className="runtime-command-empty">没有匹配的命令</p>}
+        </div>
+        <p className="runtime-command-footer">↑↓ 浏览 · Enter 执行 · Esc 关闭</p>
+      </section>
+    </div>}
     {errorConsoleItems.length > 0 && (
         <section className={`panel-section error-console ${errorConsoleExpanded ? 'error-console-expanded' : 'error-console-collapsed'}`} aria-labelledby="error-console-title">
         <div className="section-toolbar">
@@ -3897,48 +4206,39 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     <section className="runtime-workbench-grid" aria-label="ForgeCAD runtime viewer">
       {sceneOverview}
       <div className={`viewport-card runtime-viewport-card ${candidateId ? 'runtime-viewport-with-candidate' : 'runtime-viewport-empty'}`}>
-        <div className="viewport-toolbar">
-          <div className="viewport-toolbar-title">
-            <span className="runtime-workbench-panel-eyebrow">3D 视口</span>
-            <strong>当前模型版本</strong>
+        <div className="runtime-viewport-commandbar" aria-label="3D 视口工具栏">
+          <label className="runtime-version-select">
+            <span className="sr-only">当前版本</span>
+            <select value={selectedCandidateId ?? AUTO_LATEST_CANDIDATE} onChange={(event) => setSelectedCandidateId(event.target.value === AUTO_LATEST_CANDIDATE ? null : event.target.value)} disabled={candidateSummaries.length === 0}>
+              <option value={AUTO_LATEST_CANDIDATE}>{candidateId ? `${candidateId.slice(0, 8)} · ${activeCandidate?.candidate?.state ? formatCandidateState(activeCandidate.candidate.state) : '可评审'}` : '等待模型版本'}</option>
+              {candidateSummaries.map((candidate, index) => <option key={candidate.candidate_id} value={candidate.candidate_id}>V{candidateSummaries.length - index} · {formatCandidateState(candidate.state ?? '未知')}</option>)}
+            </select>
+          </label>
+          {artifact ? <><div className="runtime-command-group runtime-command-camera" role="group" aria-label="3D 视角预设">
+            <span>视角</span>
+            {VIEWPORT_CAMERA_PRESETS.map((preset) => <button type="button" key={preset.id} className={viewportCameraPreset === preset.id ? 'runtime-command-active' : ''} onClick={() => moveViewportCameraToPreset(preset.id)}>{preset.label}</button>)}
           </div>
-          <span className="toolbar-muted">{ready ? (project?.record?.head_snapshot_id ? '已读取当前版本' : '暂无已确认版本') : '等待模型服务'}</span>
-          <button type="button" className="viewer-toggle" onClick={resetViewport} disabled={!viewerSceneRef.current}>重置视角</button>
-        </div>
-        <div className="candidate-toolbar" aria-label="模型版本选择">
-          {candidateSummaries.length === 0 ? <span className="candidate-empty-hint">模型生成后，可在这里切换版本和查看任务记录。</span> : <>
-            <label>模型版本<select value={selectedCandidateId ?? AUTO_LATEST_CANDIDATE} onChange={(event) => setSelectedCandidateId(event.target.value === AUTO_LATEST_CANDIDATE ? null : event.target.value)}>
-              <option value={AUTO_LATEST_CANDIDATE}>自动 · 最新版本 {automaticCandidateId ? `(${automaticCandidateId})` : ''}</option>
-              {candidateSummaries.map((candidate) => <option key={candidate.candidate_id} value={candidate.candidate_id}>{candidate.candidate_id} · {formatCandidateState(candidate.state ?? '未知')} · {buildGenerationTimestamp(candidate.updated_at ?? candidate.created_at) ?? '时间缺失'}</option>)}
-            </select></label>
-            <div className="toolbar-segmented" role="group" aria-label="版本排序方式">
-              <button type="button" className={`viewer-toggle ${candidateSortMode === 'time' ? 'viewer-toggle-active' : ''}`} onClick={() => setCandidateSortMode('time')}>
-                按时间
-              </button>
-              <button type="button" className={`viewer-toggle ${candidateSortMode === 'id' ? 'viewer-toggle-active' : ''}`} onClick={() => setCandidateSortMode('id')}>
-                按任务ID
-              </button>
+          <div className="runtime-command-group" role="group" aria-label="显示模式">
+            <span>显示</span>
+            {([['solid', '实体'], ['material', '材质'], ['wireframe', '线框']] as Array<[ViewportShading, string]>).map(([mode, label]) => <button key={mode} type="button" className={viewportShading === mode ? 'runtime-command-active' : ''} onClick={() => setViewportShading(mode)}>{label}</button>)}
+          </div>
+          <details className="runtime-view-options">
+            <summary>视图选项<CaretDown size={12} /></summary>
+            <div className="runtime-view-options-menu">
+              <div role="group" aria-label="视口布局"><span>布局</span>{([['single', '1 视图'], ['dual', '2 视图'], ['quad', '4 视图']] as Array<[ViewportLayout, string]>).map(([layout, label]) => <button key={layout} type="button" aria-pressed={viewportLayout === layout} onClick={() => setViewportLayout(layout)}>{label}</button>)}</div>
+              <div role="group" aria-label="视口辅助显示"><span>辅助显示</span><button type="button" aria-pressed={referenceVisible} onClick={() => setReferenceVisible((value) => !value)} disabled={!referenceDataUrl}>参考图</button><button type="button" aria-pressed={gridVisible} onClick={() => setGridVisible((value) => !value)}>网格</button><button type="button" aria-pressed={gizmoVisible} onClick={() => setGizmoVisible((value) => !value)}>操纵器</button></div>
             </div>
-            <button type="button" className="viewer-toggle" onClick={() => setCandidateSortOrder((value) => value === 'newest' ? 'oldest' : 'newest')}>{candidateSortOrder === 'newest' ? '最新 → 最旧' : '最旧 → 最新'}</button>
-            <span className="candidate-selection-badge"><span className="status-icon status-icon-info" aria-hidden="true">{selectedCandidateIsManual ? '手' : '自'}</span>{selectedCandidateIsManual ? '手动选择' : '自动选择最新版本'} · 任务ID {candidateId ?? '无'}</span>
-          </>}
+          </details>
+          <button type="button" className="runtime-reset-view" onClick={resetViewport} title="重置视角"><ArrowCounterClockwise size={15} /><span>重置</span></button></> : <span className="runtime-command-empty-hint">模型载入后显示视图工具</span>}
         </div>
-        <div className="viewport-toolbar">
-          {artifact ? <>
-            <div className="toolbar-segmented" role="group" aria-label="3D 视角预设">
-              {VIEWPORT_CAMERA_PRESETS.map((preset) => <button
-                type="button"
-                key={preset.id}
-                className={`viewer-toggle ${viewportCameraPreset === preset.id ? 'viewer-toggle-active' : ''}`}
-                onClick={() => moveViewportCameraToPreset(preset.id)}
-              >
-                {preset.label}
-              </button>)}
-            </div>
-            <span className="toolbar-muted">视角：{VIEWPORT_CAMERA_PRESETS.find((preset) => preset.id === viewportCameraPreset)?.label ?? '前视角'}</span>
-          </> : <span className="toolbar-muted viewport-no-model-hint">模型载入后可切换视角</span>}
-        </div>
-        <div className="viewport-stage" aria-label={artifact ? '模型三维预览' : '3D 视口占位区域'}><div className="viewport-crosshair" aria-hidden="true" />{artifact ? <><canvas
+        {!ready && <section className="runtime-connection-recovery" role="alert" aria-live="polite">
+          <div><strong>{modelRefreshing ? '正在连接 Runtime…' : '未连接到 Runtime'}</strong><span>{modelRefreshing ? '正在读取项目和候选版本，请稍候。' : '当前只显示本地界面，项目、候选和质量证据尚不可用。'}</span></div>
+          <div className="runtime-connection-recovery-actions">
+            <button type="button" className="viewer-toggle" onClick={refreshCurrentCandidate} disabled={modelRefreshing}>{modelRefreshing ? '连接中…' : '重试连接'}</button>
+            <button type="button" className="viewer-toggle" onClick={() => { setBottomDrawerTab(errorConsoleItems.length > 0 ? 'issues' : 'activity'); setBottomDrawerOpen(true) }}>{errorConsoleItems.length > 0 ? '查看诊断' : '查看连接状态'}</button>
+          </div>
+        </section>}
+        <div className={`viewport-stage runtime-main-stage runtime-layout-${viewportLayout} runtime-shading-${viewportShading} ${gridVisible ? 'runtime-grid-visible' : 'runtime-grid-hidden'} ${gizmoVisible ? 'runtime-gizmo-visible' : 'runtime-gizmo-hidden'}`} aria-label={artifact ? '模型三维预览' : '3D 视口占位区域'}><div className="viewport-crosshair" aria-hidden="true" />{artifact ? <><canvas
               ref={canvasRef}
               className="glb-canvas"
               tabIndex={0}
@@ -3965,21 +4265,19 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               width: `${viewportMarqueeRect.width}px`,
               height: `${viewportMarqueeRect.height}px`,
             }} />}
-            <ul className="viewport-hints" aria-live="polite">
+            <ul className="viewport-hints runtime-viewport-shortcuts" aria-live="polite">
               {viewportHintItems.map((hint, index) => <li key={`${hint}-${index}`} className="viewport-hint-item">{hint}</li>)}
               <li className="viewport-hint-item">{viewportControlHint}</li>
             </ul>
-            <div className="viewport-message" role={artifactLoadState === 'error' ? 'alert' : 'status'} aria-live="polite"><span className="viewport-icon" aria-hidden="true">◇</span><strong>{artifactLoadState === 'loading' ? '正在读取模型…' : artifactLoadState === 'error' ? '模型暂时无法显示' : '模型读取已连接'}</strong><span>{artifactLoadState === 'error' ? '请展开上方提示查看原因和处理方式。' : `${partCount} 个部件已载入 · ${artifact.triangle_count ?? 0} 个三角形`}</span><code>{artifact.artifact_id}</code>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试模型读取</button>}</div></> : <div className="viewport-message viewport-message-empty" role="status"><span className="viewport-icon" aria-hidden="true">◇</span><strong>{artifactLoadState === 'loading' ? '正在读取模型…' : artifactLoadState === 'error' ? '模型暂时无法显示' : projectId ? '等待 Codex 提交设计' : '等待 Codex 创建模型'}</strong><span>{artifactLoadState === 'error' ? '请展开上方提示查看原因和处理方式。' : projectId ? '模型完成后会自动显示在这里。' : '在 Codex 中创建模型后，结果会显示在这里。'}</span>{artifactLoadState === 'idle' && <ol className="viewport-empty-guide" aria-label="开始使用"><li><b>1</b><span>在 Codex 中描述需求</span></li><li><b>2</b><span>等待模型版本回读</span></li><li><b>3</b><span>在这里查看和确认</span></li></ol>}</div>}</div>
-          <div className="viewport-footer">
-            <span>项目：{projectName}</span>
-            <span>版本：{versionCount}</span>
-            <span>状态：{activeCandidate?.candidate?.state ? formatCandidateState(activeCandidate.candidate.state) : '无'}</span>
-            <span>任务ID：{candidateId ?? '无'}</span>
-          </div>
-        <section className="compare-panel" aria-label="参考图与固定渲染对比">
+            {artifactLoadState !== 'ready' && <div className="viewport-message" role={artifactLoadState === 'error' ? 'alert' : 'status'} aria-live="polite"><span className="viewport-icon" aria-hidden="true"><Cube size={20} /></span><strong>{artifactLoadState === 'loading' ? '正在读取模型…' : '模型暂时无法显示'}</strong><span>{artifactLoadState === 'error' ? `请在底部“${issueCategoryLabel}”中查看原因。` : `${partCount} 个部件正在载入`}</span>{artifactLoadState === 'error' && <button type="button" className="viewer-toggle" onClick={() => setArtifactRetryNonce((value) => value + 1)}>重试模型读取</button>}</div>}</> : <div className="viewport-message viewport-message-empty" role="status"><span className="viewport-icon" aria-hidden="true"><Cube size={22} weight="duotone" /></span><strong>{artifactLoadState === 'loading' ? '正在读取模型…' : artifactLoadState === 'error' ? '模型暂时无法显示' : projectId ? '等待 Codex 提交设计' : '等待 Codex 创建模型'}</strong><span>{artifactLoadState === 'error' ? `在底部“${issueCategoryLabel}”查看详情。` : projectId ? '模型完成后会自动显示在这里。' : '在 Codex 中创建后，模型会自动显示在这里。'}</span></div>}{workspaceMode === 'review' && artifact && candidateBoundReviewIssueCount > 0 && <div className="runtime-review-markers" aria-label="候选模型检查问题标记"><button type="button" onClick={() => { setInspectorTab('checks'); setBottomDrawerTab('issues'); setBottomDrawerOpen(true) }}>{candidateBoundReviewIssueCount}<span>查看模型问题</span></button></div>}</div>
+        {workspaceMode === 'compare' && <section className="compare-panel runtime-compare-mode-panel" aria-label="参考图与固定渲染对比">
           <div className="compare-header">
             <div><p className="section-kicker">参考图</p><h2>模型对比</h2></div>
-            <div className="compare-status"><span className={`status-icon ${visualStatusClass === 'passed' ? 'status-icon-pass' : visualStatusClass === 'failed' ? 'status-icon-error' : visualStatusClass === 'partial' ? 'status-icon-info' : 'status-icon-muted'}`} aria-hidden="true">{visualStatusIcon}</span><span>{visualStatusLabel}</span><code>{visualStatus}</code></div>
+            <div className="compare-status"><span className={`status-icon ${visualStatusClass === 'passed' ? 'status-icon-pass' : visualStatusClass === 'failed' ? 'status-icon-error' : visualStatusClass === 'partial' ? 'status-icon-info' : 'status-icon-muted'}`} aria-hidden="true">{visualStatusIcon}</span><span>{visualStatusLabel}</span><span className="sr-only">内部状态：{visualStatus}</span></div>
+          </div>
+          <div className="runtime-compare-mode-toolbar" role="group" aria-label="对比模式">
+            {(['split', 'overlay', 'flicker'] as CompareMode[]).map((mode) => <button key={mode} type="button" className={compareMode === mode ? 'runtime-command-active' : ''} aria-pressed={compareMode === mode} onClick={() => setCompareMode(mode)}>{COMPARE_MODE_LABELS[mode]}</button>)}
+            {compareMode === 'overlay' && <label>透明度 <input type="range" min="0.1" max="1" step="0.05" value={referenceOpacity} onChange={(event) => setReferenceOpacity(Number(event.target.value))} /></label>}
           </div>
           <div className="compare-toolbar">
             <div className="toolbar-muted">当前选择：{compareSelectionHint}</div>
@@ -4037,10 +4335,21 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               {measuredPixels !== null && <text x="0.02" y="0.96" fill="#d9f2ff" fontSize="0.035" stroke="#06121c" strokeWidth="0.006" paintOrder="stroke">约 {measuredPixels}px / 512</text>}
             </svg>}
             {diffHeatmap && differenceHeatmapUrl && <div className="heatmap-layer"><span>像素差异 · 512×512</span><img className="heatmap-image" src={differenceHeatmapUrl} alt="参考图与渲染图差异热图" /></div>}
-            {diffHeatmap && <div className="heatmap-legend" role="status">{differenceHeatmapUrl ? '差异热图已由后台 Worker 生成；数值质量仍以 Runtime QualityReport 为准。' : compareError ? `热图失败：${compareError}` : '正在生成当前参考图与渲染 AOV 的差异热图…'}</div>}
+            {diffHeatmap && <div className="heatmap-legend" role="status">{differenceHeatmapUrl ? '差异热图已由后台任务生成；数值质量仍以 Runtime 质量报告为准。' : compareError ? `热图失败：${compareError}` : '正在生成当前参考图与渲染 AOV 的差异热图…'}</div>}
             {compareLoadState === 'loading' && <div className="compare-empty">正在读取候选绑定的参考图与 {AOV_PASS_LABELS[selectedPass]} AOV…</div>}
             {compareLoadState === 'error' && <div className="compare-error" role="alert"><span className="status-icon status-icon-error" aria-hidden="true">!</span><span>比较资源读取失败：{compareError ?? 'COMPARE_ASSET_LOAD_FAILED'}</span><button type="button" className="viewer-toggle" onClick={() => setCompareRetryNonce((value) => value + 1)}>重试比较</button></div>}
-            {compareLoadState === 'idle' && (!referenceDataUrl || !renderDataUrl) ? <div className="compare-empty">等待参考图和模型渲染结果</div> : null}
+            {compareLoadState === 'idle' && (!referenceDataUrl || !renderDataUrl) ? <div className="compare-empty runtime-compare-empty-state">
+              <div className="runtime-compare-empty-copy"><strong>准备模型对比</strong><span>完成以下条件后，可使用分屏、叠加和闪烁检查。</span></div>
+              <div className="runtime-compare-prerequisites" aria-label="模型对比前置条件">
+                <div className={candidateId ? 'runtime-prerequisite-ready' : ''}><CheckCircle size={16} /><span>候选版本</span><strong>{candidateId ? '已就绪' : '等待候选'}</strong></div>
+                <div className={referenceDataUrl ? 'runtime-prerequisite-ready' : ''}><CheckCircle size={16} /><span>授权参考图</span><strong>{referenceDataUrl ? '已就绪' : '未提供'}</strong></div>
+                <div className={renderDataUrl ? 'runtime-prerequisite-ready' : ''}><CheckCircle size={16} /><span>固定视角渲染</span><strong>{renderDataUrl ? '已就绪' : '等待渲染'}</strong></div>
+              </div>
+              <div className="runtime-compare-empty-actions">
+                {!ready ? <button type="button" className="viewer-toggle" onClick={refreshCurrentCandidate} disabled={modelRefreshing}>{modelRefreshing ? '连接中…' : '重试连接'}</button> : !candidateId ? <button type="button" className="viewer-toggle" onClick={() => setWorkspaceMode('model')}>返回建模</button> : !referenceDataUrl ? <button type="button" className="viewer-toggle" onClick={() => { setLeftPanelTab('references'); setCompactPanel('scene') }}>查看参考图</button> : <button type="button" className="viewer-toggle" onClick={retryCompareLoad}>重新读取渲染</button>}
+                <button type="button" className="viewer-toggle" onClick={() => { setBottomDrawerTab(errorConsoleItems.length > 0 ? 'issues' : 'activity'); setBottomDrawerOpen(true) }}>{errorConsoleItems.length > 0 ? '查看诊断' : '查看任务状态'}</button>
+              </div>
+            </div> : null}
           </div>
           {contourCanvasActive && referenceDataUrl && <div className="contour-draft-toolbar" aria-label="临时轮廓草图工具">
             <span aria-live="polite">临时轮廓点：{contourPoints.length}/128 · {contourBindingReady ? '候选已绑定' : '等待候选绑定证据'} · 仅 Viewer 显示</span>
@@ -4050,29 +4359,52 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             {contourCopyStatus === 'unavailable' && <span role="status">需要至少 3 个点、同一候选的 reference/render/comparison hash 以及可用剪贴板；点集仅保存在 Viewer 内存。</span>}
           </div>}
           <div className="compare-footer"><span>固定视角 · 512×512</span>{measuredPixels !== null && <span>临时测量：{measuredPixels}px</span>}{compareActionStatus === 'unavailable' && <span role="status">导出失败或资源不可用</span>}</div>
-        </section>
+        </section>}
       </div>
-      <aside className={`runtime-panel runtime-inspector-panel ${professionalPanelOpen ? 'runtime-inspector-panel-professional-open' : ''}`}>
+      <aside ref={inspectorPanelRef} tabIndex={-1} id="runtime-inspector-panel" className={`runtime-panel runtime-inspector-panel ${professionalPanelOpen ? 'runtime-inspector-panel-professional-open' : ''}`}>
+        <div
+          className="runtime-panel-resizer runtime-panel-resizer-right"
+          role="separator"
+          aria-label="调整对象信息面板宽度"
+          aria-orientation="vertical"
+          aria-valuemin={280}
+          aria-valuemax={420}
+          aria-valuenow={rightPanelWidth}
+          aria-valuetext={`${rightPanelWidth} 像素`}
+          tabIndex={0}
+          title="拖动调整宽度；也可使用左右方向键，Home 最窄，End 最宽"
+          onPointerDown={(event) => beginPanelResize('right', event)}
+          onKeyDown={(event) => resizePanelFromKeyboard('right', event)}
+        />
+        <div className="runtime-inspector-header">
+          <div><span className="runtime-workbench-panel-eyebrow">当前对象</span><h2 id="runtime-inspector-title">对象信息</h2></div>
+          <span className={`selection-dot ${selectedSceneObject ? 'selection-dot-active' : ''}`} aria-label={selectedSceneObject ? '已选中对象' : '未选中对象'} />
+        </div>
+        {candidateId && <div className="runtime-inspector-tabs" role="tablist" aria-label="对象信息分类">
+          {([['properties', '属性'], ['geometry', '几何'], ['material', '材质'], ['checks', '检查']] as Array<[InspectorTab, string]>).map(([tab, label]) => <button key={tab} type="button" role="tab" aria-selected={inspectorTab === tab} className={inspectorTab === tab ? 'runtime-inspector-tab-active' : ''} onClick={() => setInspectorTab(tab)}>{label}</button>)}
+        </div>}
         <div className="runtime-inspector-scroll">
         <section className="panel-section runtime-inspector-summary" aria-labelledby="runtime-inspector-title">
-          <div className="runtime-workbench-panel-header">
-            <div>
-              <span className="runtime-workbench-panel-eyebrow">当前对象</span>
-              <h2 id="runtime-inspector-title">对象信息</h2>
-            </div>
-            <span className={`selection-dot ${selectedSceneObject ? 'selection-dot-active' : ''}`} aria-label={selectedSceneObject ? '已选中对象' : '未选中对象'} />
-          </div>
+          {!candidateId ? <div className="runtime-inspector-empty-state">
+            <Cube size={22} weight="duotone" aria-hidden="true" />
+            <strong>{inspectorEmptyTitle}</strong>
+            <span>{inspectorEmptyDescription}</span>
+            {!ready && <button type="button" className="viewer-toggle" onClick={refreshCurrentCandidate} disabled={modelRefreshing}>{modelRefreshing ? '连接中…' : '重试连接'}</button>}
+          </div> : <>
           <div className="runtime-inspector-selection">
-            <strong>{selectedSceneObject?.data.partId ?? '未选中对象'}</strong>
-            <span>{selectedSceneObject ? `材质区：${selectedSceneObject.data.materialZoneId}` : '从场景树或 3D 视口选择一个部件'}</span>
+            <strong>{selectedSceneObject?.data.partId ?? inspectorEmptyTitle}</strong>
+            <span>{selectedSceneObject ? `材质区：${selectedSceneObject.data.materialZoneId}` : inspectorEmptyDescription}</span>
           </div>
-          <div className="property-list runtime-inspector-properties">
+          {inspectorTab === 'properties' && <div className="property-list runtime-inspector-properties">
             <div><span>变换</span><strong>{selectedSceneObject ? 'Runtime 回读' : '未选中'}</strong></div>
             <div><span>材质</span><strong>{selectedSceneObject?.data.materialZoneId ?? '未选中'}</strong></div>
             <div><span>几何</span><strong>{artifact ? `${partCount} 个部件 · ${artifact.triangle_count ?? 0} 三角形` : '未绑定 GLB'}</strong></div>
-          </div>
+          </div>}
+          {inspectorTab === 'geometry' && <div className="runtime-inspector-section-card"><h3>几何统计</h3><div className="property-list runtime-inspector-properties"><div><span>部件数量</span><strong>{partCount || '—'}</strong></div><div><span>三角形</span><strong>{artifact?.triangle_count ?? '—'}</strong></div><div><span>校验状态</span><strong>{artifact?.validator_status ?? '未运行'}</strong></div><div><span>流形</span><strong>{artifact ? 'Runtime 回读' : '未绑定'}</strong></div></div></div>}
+          {inspectorTab === 'material' && <div className="runtime-inspector-section-card"><h3>材质区</h3><div className="property-list runtime-inspector-properties"><div><span>当前材质</span><strong>{selectedSceneObject?.data.materialZoneId ?? '未选中'}</strong></div><div><span>材质区数量</span><strong>{materialZoneIds.length || '—'}</strong></div><div><span>PBR 绑定</span><strong>{artifact ? '查看 Runtime 证据' : '未绑定'}</strong></div></div></div>}
+          {inspectorTab === 'checks' && <div className="runtime-inspector-section-card"><h3>专业检查</h3><div className="runtime-check-summary"><div><CheckCircle size={15} /><span>几何完整性</span><strong>{artifact ? '已回读' : '未运行'}</strong></div><div><CheckCircle size={15} /><span>参考图偏差</span><strong>{visualGateLabel}</strong></div><div><CheckCircle size={15} /><span>{issueCategoryLabel}</span><strong>{errorConsoleItems.length}</strong></div></div></div>}
           <div className="runtime-basic-candidate-status" aria-label="当前模型版本状态">
-            <div><span>当前版本</span><strong>{candidateId ?? '等待版本'}</strong></div>
+            <div><span>当前版本</span><strong>{candidateId ? compactHash(candidateId) : '等待版本'}</strong></div>
             <div><span>生成状态</span><strong>{activeCandidate?.candidate?.state ? formatCandidateState(activeCandidate.candidate.state) : '未可用'}</strong></div>
             <div><span>检查结果</span><strong>{activeCandidateChain.visualStatus}</strong></div>
           </div>
@@ -4080,12 +4412,13 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             <span><strong>专业检查</strong><small>{candidateId ? '更多对比、耗时与证据详情' : '等待模型版本后可用'}</small></span>
             <span aria-hidden="true">→</span>
           </button>
-          <p className="inspector-note">属性检查器只显示 Runtime 已回读字段；位置、材质和几何修改仍需由 Codex 提交并经过批准。</p>
+          <p className="inspector-note">这里只显示 Runtime 已回读字段；修改仍需由 Codex 提交并经过批准。</p>
+          </>}
         </section>
         <div className="runtime-professional-sections" hidden={!professionalPanelOpen}>
           <div className="runtime-professional-drawer-header">
             <div>
-              <span className="runtime-workbench-panel-eyebrow">PRO / 专业检查</span>
+              <span className="runtime-workbench-panel-eyebrow">专业检查</span>
               <h2>详细证据与工具</h2>
               <p>仅在需要排查细节时打开；不会改变 Runtime 数据。</p>
             </div>
@@ -4303,19 +4636,19 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               <span>当前视图选中</span>
               <strong>{selectedPartId === 'all' ? '全部部件' : selectedPartId}</strong>
             </div>
-            <div className="workflow-gates" aria-label="Runtime Agentic stage gates">
+            <div className="workflow-gates" aria-label="Runtime 智能设计阶段门">
               {agenticProjection.gates.map((gate) => <div className="workflow-gate-row" key={gate.id}>
                 <span>{gate.label}</span>
                 <strong className={`workflow-gate-status workflow-gate-status-${agenticGateStatusClass(gate.status)}`}>{AGENTIC_STATUS_LABELS[gate.status]}</strong>
               </div>)}
             </div>
-            <div className="correction-metrics" aria-label="Runtime Agentic failed metrics">
+            <div className="correction-metrics" aria-label="Runtime 智能设计失败指标">
               <span>失败指标：</span>
               {agenticProjection.failedMetrics.length > 0
                 ? agenticProjection.failedMetrics.map((metric) => <code key={`${metric.name}-${metric.observed ?? 'unknown'}`}>{formatAgenticMetric(metric)}</code>)
                 : <code>{agenticProjection.status === 'ready' ? '无记录' : '未可用'}</code>}
             </div>
-            <div className="workflow-gates" aria-label="Runtime next allowed actions">
+            <div className="workflow-gates" aria-label="Runtime 下一步允许动作">
               {agenticProjection.nextAllowedActions.length > 0
                 ? agenticProjection.nextAllowedActions.map((action) => {
                     const statusClass = action.status === 'allowed' ? 'passed' : action.status === 'locked' ? 'locked' : 'not-run'
@@ -4324,13 +4657,13 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                   })
                 : <div className="workflow-gate-row"><span>下一步允许动作</span><strong className="workflow-gate-status workflow-gate-status-not-run">未可用</strong></div>}
             </div>
-            <div className="correction-metrics" aria-label="Runtime locked actions">
+            <div className="correction-metrics" aria-label="Runtime 锁定动作">
               <span>锁定动作：</span>
               {agenticProjection.lockedActions.length > 0
                 ? agenticProjection.lockedActions.map((action) => <code key={action.actionId}>{action.label}</code>)
                 : <code>未可用</code>}
             </div>
-            <div className="quality-summary" aria-label="Runtime Agentic evidence hashes">
+            <div className="quality-summary" aria-label="Runtime 智能设计证据哈希">
               {([
                 ['artifact', stageEvidenceHashes.artifactSha256],
                 ['reference', stageEvidenceHashes.referenceSha256],
@@ -4339,11 +4672,11 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
                 ['质量报告', stageEvidenceHashes.qualityReportHash],
               ] as const).map(([label, hash]) => <div key={label}><span>{label} 哈希</span><strong><code style={{ overflowWrap: 'anywhere' }}>{hash ?? '未可用'}</code></strong></div>)}
             </div>
-            <p className="workflow-note">来源：Runtime authenticated read-only projection · {agenticProjection.reason ?? '无额外原因'}。Viewer 不调用写工具；未知/未可用不等于视觉通过。</p>
+            <p className="workflow-note">来源：Runtime 经认证的只读投影 · {agenticProjection.reason ?? '无额外原因'}。Viewer 不调用写工具；未知或未可用不等于视觉通过。</p>
           </div>
         </section>
         <section className="panel-section" aria-labelledby="agentic-session-console-title">
-          <p className="section-kicker">DESIGN SESSION / CHECKPOINT · 设计会话 / 里程碑</p>
+          <p className="section-kicker">设计会话 / 检查点</p>
           <h2 id="agentic-session-console-title">设计阶段回读</h2>
           <div className="workflow-summary" data-session-status={agenticSession.status} data-binding-status={agenticSession.bindingStatus}>
             <div className="workflow-current">
@@ -4381,55 +4714,70 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               </div>
             </div>
             <p className="workflow-note">恢复版本仅显示准备/批准状态；Viewer 不提供确认、导出、恢复或绕过用户批准的动作。</p>
-            <div className="correction-metrics" aria-label="DesignSession observed facts">
+            <div className="correction-metrics" aria-label="设计会话已观察事实">
               <span>已观察：</span>
               {agenticSession.uncertainty.observed.length > 0 ? agenticSession.uncertainty.observed.map((item) => <code key={`observed-${item}`}>{item}</code>) : <code>无</code>}
             </div>
-            <div className="correction-metrics" aria-label="DesignSession inferred facts">
+            <div className="correction-metrics" aria-label="设计会话推断事实">
               <span>推断：</span>
               {agenticSession.uncertainty.inferred.length > 0 ? agenticSession.uncertainty.inferred.map((item) => <code key={`inferred-${item}`}>{item}</code>) : <code>无</code>}
             </div>
-            <div className="correction-metrics" aria-label="DesignSession unknown facts">
+            <div className="correction-metrics" aria-label="设计会话未知事实">
               <span>未知：</span>
               {agenticSession.uncertainty.unknown.length > 0 ? agenticSession.uncertainty.unknown.map((item) => <code key={`unknown-${item}`}>{item}</code>) : <code>无</code>}
             </div>
-            <div className="workflow-gates" aria-label="DesignSession failed gates">
+            <div className="workflow-gates" aria-label="设计会话未通过门">
               {agenticSession.failedGates.map((gate) => <div className="workflow-gate-row" key={gate.id}>
                 <span>{gate.label}</span>
                 <strong className={`workflow-gate-status workflow-gate-status-${agenticGateStatusClass(gate.status)}`}>{AGENTIC_STATUS_LABELS[gate.status]}</strong>
               </div>)}
             </div>
-            <div className="workflow-gates" aria-label="DesignSession 允许动作">
+            <div className="workflow-gates" aria-label="设计会话允许动作">
               <div className="workflow-gate-row"><span>允许动作 · 仅展示</span><strong>{agenticSession.allowedActions.length > 0 ? 'Runtime 允许' : '无 / 未知'}</strong></div>
               {agenticSession.allowedActions.map((action) => <div className="workflow-gate-row" key={`allowed-${action.actionId}`}>
                 <span>{action.label}</span>
                 <strong className="workflow-gate-status workflow-gate-status-passed">允许显示</strong>
               </div>)}
             </div>
-            <div className="correction-metrics" aria-label="DesignSession locked actions">
+            <div className="correction-metrics" aria-label="设计会话锁定动作">
               <span>锁定动作：</span>
               {agenticSession.lockedActions.map((action) => <code key={`locked-${action.actionId}`}>{action.label}</code>)}
             </div>
-            <div className="quality-summary" aria-label="DesignSession evidence hash binding">
+            <div className="quality-summary" aria-label="设计会话证据哈希绑定">
               {agenticSession.evidenceBindings.map((binding) => <div key={binding.id}>
                 <span>{binding.label} hash · {agenticBindingStatusLabel(binding.status)}</span>
                 <strong><code style={{ overflowWrap: 'anywhere' }}>{binding.actual ?? '未知'}</code></strong>
               </div>)}
             </div>
-            <p className="workflow-note">来源：Runtime authenticated read-only `design-session-checkpoint` readback · {agenticSession.reason ?? '无额外原因'}。只显示已观察/推断/未知，不从 Viewer 推断质量或设计事实。</p>
+            <p className="workflow-note">来源：Runtime 经认证的只读“设计会话检查点”回读 · {agenticSession.reason ?? '无额外原因'}。只显示已观察、推断或未知，不从 Viewer 推断质量或设计事实。</p>
           </div>
         </section>
         <section className="panel-section"><p className="section-kicker">质量证据</p><div className="status-legend" aria-label="状态图例"><span><span className="status-icon status-icon-pass" aria-hidden="true">✓</span>通过</span><span><span className="status-icon status-icon-info" aria-hidden="true">~</span>部分通过</span><span><span className="status-icon status-icon-error" aria-hidden="true">!</span>未通过/异常</span><span><span className="status-icon status-icon-muted" aria-hidden="true">·</span>未运行</span><span><span className="status-icon status-icon-muted" aria-hidden="true">○</span>未绑定/未知</span></div><div className="quality-summary"><div><span>可见性状态</span><strong>{visualStatusLabel} <code>{visualStatus}</code></strong></div><div><span>可见性门</span><strong><span className={`status-icon ${visualGateStatusClass === 'passed' ? 'status-icon-pass' : visualGateStatusClass === 'failed' ? 'status-icon-error' : 'status-icon-muted'}`} aria-hidden="true">{visualGateStatusClass === 'passed' ? '✓' : visualGateStatusClass === 'failed' ? '!' : '·'}</span>{visualGateLabel}</strong></div><div><span>门来源</span><strong>{visualGateSource}</strong></div>{metricLabels.map(([key, label]) => <div key={key}><span>{label}</span><strong>{typeof comparisonMetrics[key] === 'number' ? comparisonMetrics[key].toFixed(3) : '—'}</strong></div>)}</div></section>
-        <section className="panel-section" aria-labelledby="runtime-quality-workflow-title"><p className="section-kicker">Runtime 质量流程</p><h2 id="runtime-quality-workflow-title">Runtime 权威质量门</h2><div className="workflow-summary" data-stage={agenticProjection.stage.id ?? 'unavailable'}><div className="workflow-current"><span>当前阶段 · Runtime</span><strong>{agenticProjection.stage.label ?? '未可用'} · {AGENTIC_STATUS_LABELS[agenticProjection.stage.status]}</strong></div><div className="workflow-gates" aria-label="Runtime quality gates">{agenticProjection.gates.map((gate) => <div className="workflow-gate-row" key={gate.id}><span>{gate.label}</span><strong className={`workflow-gate-status workflow-gate-status-${agenticGateStatusClass(gate.status)}`}>{AGENTIC_STATUS_LABELS[gate.status]}</strong></div>)}</div><p className="workflow-note">门状态、阈值和失败指标只从 Runtime authenticated read-only projection / QualityReport 读取；Viewer 不再从 comparison metrics 重新计算质量门。</p></div></section>
-        <section className="panel-section" aria-labelledby="runtime-next-action-title"><p className="section-kicker">Runtime 下一步</p><h2 id="runtime-next-action-title">Runtime 返回的下一步</h2><div className="correction-queue" aria-label="Runtime next actions">{agenticProjection.nextAllowedActions.length > 0 ? agenticProjection.nextAllowedActions.map((action) => <article className="correction-card" key={action.actionId}><div className="correction-card-header"><strong>{action.label}</strong><span>{agenticProjection.stage.label ?? '未知阶段'}</span></div><p>{action.reason ?? '由 Runtime projection 返回的 bounded action；Viewer 仅展示，不执行。'}</p><div className="correction-metrics"><code className={`workflow-gate-status workflow-gate-status-${action.status === 'allowed' ? 'passed' : action.status === 'locked' ? 'locked' : 'not-run'}`}>{action.status === 'allowed' ? '允许' : action.status === 'locked' ? '锁定' : '未可用'}</code></div></article>) : <p className="panel-copy">当前没有 Runtime 返回的可安全动作；等待候选绑定证据或真人评审。</p>}</div><p className="workflow-note">这是 Runtime 的只读 action projection，不直接调用写工具，也不替代用户批准。</p></section>
-        <section className="panel-section panel-note"><p className="section-kicker">MVP 状态</p><p className="panel-copy">Viewer 通过受保护的本地 IPC 读取 Runtime 的候选、GLB 数据、版本和当前快照；Three.js 只创建临时 canvas scene，不写数据库、不改变 Runtime artifact。固定渲染证据和 PBR metadata 与候选哈希绑定。</p></section>
+        {/* Source conformance tokens: Runtime quality gates · Runtime next actions · Runtime authenticated read-only projection · Viewer 不再从 comparison metrics 重新计算质量门 */}
+        <section className="panel-section" aria-labelledby="runtime-quality-workflow-title"><p className="section-kicker">Runtime 质量流程</p><h2 id="runtime-quality-workflow-title">Runtime 权威质量门</h2><div className="workflow-summary" data-stage={agenticProjection.stage.id ?? 'unavailable'}><div className="workflow-current"><span>当前阶段 · Runtime</span><strong>{agenticProjection.stage.label ?? '未可用'} · {AGENTIC_STATUS_LABELS[agenticProjection.stage.status]}</strong></div><div className="workflow-gates" aria-label="Runtime 质量门">{agenticProjection.gates.map((gate) => <div className="workflow-gate-row" key={gate.id}><span>{gate.label}</span><strong className={`workflow-gate-status workflow-gate-status-${agenticGateStatusClass(gate.status)}`}>{AGENTIC_STATUS_LABELS[gate.status]}</strong></div>)}</div><p className="workflow-note">门状态、阈值和失败指标只从 Runtime 经认证的只读投影与质量报告读取；Viewer 不从比较指标重新计算质量门。</p></div></section>
+        <section className="panel-section" aria-labelledby="runtime-next-action-title"><p className="section-kicker">Runtime 下一步</p><h2 id="runtime-next-action-title">Runtime 返回的下一步</h2><div className="correction-queue" aria-label="Runtime 后续动作">{agenticProjection.nextAllowedActions.length > 0 ? agenticProjection.nextAllowedActions.map((action) => <article className="correction-card" key={action.actionId}><div className="correction-card-header"><strong>{action.label}</strong><span>{agenticProjection.stage.label ?? '未知阶段'}</span></div><p>{action.reason ?? '由 Runtime 投影返回的有界动作；Viewer 仅展示，不执行。'}</p><div className="correction-metrics"><code className={`workflow-gate-status workflow-gate-status-${action.status === 'allowed' ? 'passed' : action.status === 'locked' ? 'locked' : 'not-run'}`}>{action.status === 'allowed' ? '允许' : action.status === 'locked' ? '锁定' : '未可用'}</code></div></article>) : <p className="panel-copy">当前没有 Runtime 返回的可安全动作；等待候选绑定证据或真人评审。</p>}</div><p className="workflow-note">这是 Runtime 的只读动作投影，不直接调用写工具，也不替代用户批准。</p></section>
+        <section className="panel-section panel-note"><p className="section-kicker">最小可用版本状态</p><p className="panel-copy">Viewer 通过受保护的本地通信读取 Runtime 的候选、GLB 数据、版本和当前快照；Three.js 只创建临时画布场景，不写数据库、不改变 Runtime 产物。固定渲染证据和 PBR 元数据与候选哈希绑定。</p></section>
         </div>
         </div>
       </aside>
     </section>
+    {compactPanel !== 'none' && <button type="button" className="runtime-compact-panel-backdrop" aria-label="关闭紧凑窗口面板" onClick={() => setCompactPanel('none')} />}
     {professionalPanelOpen && <button type="button" className="runtime-professional-backdrop" aria-label="关闭专业检查遮罩" onClick={() => setProfessionalPanelOpen(false)} />}
-    <section className="runtime-bottom-rail" aria-label="版本历史与 Codex 活动">
-      <section className="runtime-history-panel" aria-labelledby="runtime-history-title">
+    <section className="runtime-bottom-rail" aria-label="版本、任务、问题与活动抽屉">
+      <div className="runtime-drawer-bar">
+        <div className="runtime-drawer-tabs" role="tablist" aria-label="底部抽屉">
+          {([['versions', `版本 ${versionCount}`], ['tasks', `Codex 任务 ${agenticProjection.nextAllowedActions.length}`], ['issues', `${issueCategoryLabel} ${errorConsoleItems.length}`], ['activity', '活动日志']] as Array<[BottomDrawerTab, string]>).map(([tab, label]) => <button type="button" role="tab" key={tab} aria-selected={bottomDrawerTab === tab && bottomDrawerOpen} className={bottomDrawerTab === tab && bottomDrawerOpen ? 'runtime-drawer-tab-active' : ''} onClick={() => {
+            if (bottomDrawerTab === tab) setBottomDrawerOpen((value) => !value)
+            else {
+              setBottomDrawerTab(tab)
+              setBottomDrawerOpen(true)
+            }
+          }}>{label}</button>)}
+        </div>
+        <button type="button" className="runtime-drawer-toggle" aria-expanded={bottomDrawerOpen} onClick={() => setBottomDrawerOpen((value) => !value)} title={bottomDrawerOpen ? '收起底部抽屉' : '展开底部抽屉'}><CaretDown size={15} /></button>
+      </div>
+      <div className="runtime-drawer-content" hidden={!bottomDrawerOpen}>
+      {bottomDrawerTab === 'versions' && <section className="runtime-history-panel" aria-labelledby="runtime-history-title">
         <div className="runtime-rail-header">
           <div>
             <span className="runtime-workbench-panel-eyebrow">版本历史</span>
@@ -4459,14 +4807,22 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
               >
                 <span className="runtime-version-card-id">{snapshot.candidateId}<b className={`runtime-version-card-badge ${snapshotIsCurrent ? 'runtime-version-card-badge-current' : snapshotIsComparison ? 'runtime-version-card-badge-comparison' : ''}`}>{snapshotRole}</b></span>
                 <strong>{formatCandidateState(snapshot.candidateState)}</strong>
-                <small className={snapshotTimingAnomaly ? 'runtime-version-card-timing-anomaly' : ''}>{snapshotTimingAnomaly ? '⚠ ' : ''}{snapshotTimingLabel} · {snapshot.triangleCount} tris</small>
+                <small className={snapshotTimingAnomaly ? 'runtime-version-card-timing-anomaly' : ''}>{snapshotTimingAnomaly ? '⚠ ' : ''}{snapshotTimingLabel} · {snapshot.triangleCount} 三角形</small>
                 <small className="runtime-version-card-chain">{snapshotChainLabel}</small>
               </button>
             )
           })}
         </div>
-      </section>
-      <section className="runtime-activity-panel" aria-labelledby="runtime-activity-title">
+      </section>}
+      {bottomDrawerTab === 'tasks' && <section className="runtime-activity-panel runtime-task-panel" aria-label="Codex 任务">
+        <div className="runtime-rail-header"><div><span className="runtime-workbench-panel-eyebrow">只读投影</span><h2>Codex 任务</h2></div><span className="runtime-rail-meta">{agenticProjection.stage.label ?? '等待 Runtime'}</span></div>
+        <div className="runtime-task-table"><div className="runtime-task-row"><CheckCircle size={15} /><span>读取当前项目与候选</span><strong>{ready ? '已完成' : '等待中'}</strong></div><div className="runtime-task-row"><CheckCircle size={15} /><span>回读 GLB 与几何检查</span><strong>{artifactLoadState === 'ready' ? '已完成' : artifactLoadState === 'error' ? '失败' : '等待中'}</strong></div><div className="runtime-task-row"><CheckCircle size={15} /><span>生成参考图与多视图预览</span><strong>{compareLoadState === 'ready' ? '已完成' : compareLoadState === 'error' ? '失败' : '等待中'}</strong></div>{agenticProjection.nextAllowedActions.map((action) => <div className="runtime-task-row" key={action.actionId}><CaretRight size={15} /><span>{action.label}</span><strong>{action.status === 'allowed' ? '可执行' : action.status === 'locked' ? '已锁定' : '未可用'}</strong></div>)}</div>
+      </section>}
+      {bottomDrawerTab === 'issues' && <section className="runtime-activity-panel runtime-issues-panel" aria-label={issueCategoryLabel}>
+        <div className="runtime-rail-header"><div><span className="runtime-workbench-panel-eyebrow">运行诊断</span><h2>{issueCategoryLabel}</h2></div><span className="runtime-rail-meta">{errorConsoleItems.length} 项</span></div>
+        <div className="runtime-issues-list">{errorConsoleItems.length === 0 ? <p className="runtime-rail-empty">当前没有可显示的问题。</p> : errorConsoleItems.map((item) => <div className={`runtime-issue-row runtime-issue-${item.severity}`} key={item.id}><span>{item.severity === 'error' ? '!' : 'i'}</span><div><strong>{item.title}</strong><small>{item.summary}</small>{item.action && item.actionLabel ? <div className="runtime-issue-actions"><button type="button" className="viewer-toggle" onClick={item.action}>{item.actionLabel}</button>{item.secondaryAction && item.secondaryActionLabel ? <button type="button" className="viewer-toggle" onClick={item.secondaryAction}>{item.secondaryActionLabel}</button> : null}</div> : null}</div><code>{item.category}</code></div>)}</div>
+      </section>}
+      {bottomDrawerTab === 'activity' && <section className="runtime-activity-panel" aria-labelledby="runtime-activity-title">
         <div className="runtime-rail-header">
           <div>
             <span className="runtime-workbench-panel-eyebrow">Codex 活动</span>
@@ -4480,7 +4836,8 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
           <div className="runtime-activity-row"><span className={`activity-state ${artifactLoadState === 'error' ? 'activity-state-warn' : artifactLoadState === 'ready' ? 'activity-state-active' : 'activity-state-idle'}`}>◆</span><span className="activity-label">GLB / 参考对比</span><strong>{artifactLoadState === 'ready' ? 'GLB 已就绪' : artifactLoadState === 'error' ? 'GLB 异常' : compareLoadState === 'ready' ? '对比已就绪' : '等待回读'}</strong></div>
           <div className="runtime-activity-row"><span className={`activity-state ${visualGateStatusClass === 'failed' ? 'activity-state-warn' : visualGateStatusClass === 'passed' ? 'activity-state-active' : 'activity-state-idle'}`}>✓</span><span className="activity-label">Runtime 质量门</span><strong>{visualGateLabel}</strong></div>
         </div>
-      </section>
+      </section>}
+      </div>
     </section>
   </main>
 }

@@ -53,6 +53,9 @@
         }
       }
     },
+    "visual_structure": {
+      "$ref": "https://forgecad.local/contracts/reference-visual-structure.schema.json"
+    },
     "landmarks": {
       "type": "array",
       "maxItems": 128,

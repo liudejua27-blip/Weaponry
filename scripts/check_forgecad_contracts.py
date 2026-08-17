@@ -84,6 +84,7 @@ def check_mcp010b_contracts() -> None:
             "forgecad.geometry.primitive@2",
             "forgecad.geometry.profile-extrude@1",
             "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.longitudinal-section-loft@1",
             "forgecad.geometry.subd-cage@1",
             "forgecad.geometry.surface-patch@1",
             "forgecad.geometry.surface-shell@1",
@@ -115,6 +116,7 @@ def check_mcp010b_contracts() -> None:
             "#/$defs/sphere_parameters",
             "#/$defs/profile_extrude_parameters",
             "#/$defs/profile_loft_parameters",
+            "#/$defs/longitudinal_section_loft_parameters",
             "#/$defs/subd_cage_parameters",
             "#/$defs/surface_patch_parameters",
             "#/$defs/surface_shell_parameters",
@@ -571,9 +573,9 @@ def check_mcp010c_contracts() -> None:
         "ReferenceComparisonReport@1 must expose the fixed metric set and explicit partial/blocked status",
     )
     require(
-        comparison["properties"]["mask"]["properties"]["method"].get("const")
-        == "local-border-flood-fill-morphology",
-        "ReferenceComparisonReport@1 must use the local deterministic mask method",
+        comparison["properties"]["mask"]["properties"]["method"].get("enum")
+        == ["local-border-flood-fill-morphology", "silhouette-target"],
+        "ReferenceComparisonReport@1 must allow the deterministic local mask or an explicit silhouette target",
     )
 
     review = load_schema("visual-review-report.schema.json")
@@ -627,6 +629,7 @@ def check_mcp010e_contracts() -> None:
         "material-pack-manifest.schema.json": "MaterialPackManifest@1",
         "material-definition.schema.json": "MaterialDefinition@1",
         "texture-set.schema.json": "TextureSet@1",
+        "texture-set-v2.schema.json": "TextureSet@2",
         "texture-build-receipt.schema.json": "TextureBuildReceipt@1",
         "appearance-program-v2.schema.json": "AppearanceProgram@2",
         "appearance-prepare-result-v2.schema.json": "AppearancePrepareResult@2",
@@ -682,6 +685,36 @@ def check_mcp010e_contracts() -> None:
         and texture_fields["normal_convention"].get("enum") == ["OpenGL+Y", None]
         and texture_fields["width"].get("maximum") == 2048,
         "TextureSet@1 must use embedded PNGs and explicit OpenGL normal convention",
+    )
+    texture_v2 = load_schema("texture-set-v2.schema.json")
+    require_required(
+        texture_v2,
+        {
+            "schema_version",
+            "emissive_texture_id",
+            "clearcoat_texture_id",
+            "clearcoat_roughness_texture_id",
+            "clearcoat_normal_texture_id",
+            "derived_texture_receipt_sha256",
+        },
+        "TextureSet@2",
+    )
+    require(
+        texture_v2["$defs"]["texture"]["properties"]["semantic"].get("enum")
+        == [
+            "baseColor",
+            "normal",
+            "roughness",
+            "metallic",
+            "ao",
+            "emissive",
+            "clearcoat",
+            "clearcoatRoughness",
+            "clearcoatNormal",
+        ]
+        and texture_v2["$defs"]["texture"]["properties"]["width"].get("maximum")
+        == 2048,
+        "TextureSet@2 must add bounded emissive and complete clearcoat channels",
     )
     appearance = load_schema("appearance-program-v2.schema.json")
     require_required(
@@ -751,6 +784,33 @@ def check_mcp010f_silhouette_contracts() -> None:
         and target["properties"]["height"].get("const") == 512
         and target["properties"]["contour_points"].get("maxItems") == 512,
         "SilhouetteTarget@1 must use normalized 512x512 contour truth",
+    )
+    visual_structure = load_schema("reference-visual-structure.schema.json")
+    region = visual_structure["$defs"]["region"]
+    require(
+        region.get("additionalProperties") is False
+        and "mask_operation" not in region.get("required", [])
+        and region["properties"]["mask_operation"].get("enum")
+        == ["none", "subtract"],
+        "ReferenceVisualStructure@1 negative-space operation must be optional, closed and bounded",
+    )
+    reference_views = load_schema("reference-view-set-v2.schema.json")
+    require(
+        reference_views["properties"]["coordinate_policy"].get("const")
+        == "normalized-source-image"
+        and reference_views["properties"]["views"].get("maxItems") == 12
+        and reference_views["$defs"]["view"]["properties"]["silhouette_status"].get("enum")
+        == ["unavailable", "automatic-unreviewed", "user-confirmed"],
+        "ReferenceViewSet@2 must preserve bounded crops and explicit silhouette review state",
+    )
+    neutral_graph = load_schema("neutral-structure-graph.schema.json")
+    require(
+        neutral_graph["properties"]["decomposition_policy"].get("const")
+        == "visual-structure-not-functional-parts"
+        and neutral_graph["properties"]["global_contour_authority"].get("const") is True
+        and neutral_graph["$defs"]["region"]["properties"]["operation"].get("enum")
+        == ["add", "subtract", "material-only", "guide"],
+        "NeutralStructureGraph@1 must keep visual groups non-functional and preserve negative space",
     )
     camera_fit = load_schema("camera-fit-result.schema.json")
     require(

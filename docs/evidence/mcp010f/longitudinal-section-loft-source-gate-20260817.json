@@ -1,0 +1,67 @@
+{
+  "schema_version": "ForgeCADLongitudinalSectionLoftSourceGate@1",
+  "task_id": "FGC-MCP010F-longitudinal-section-loft-20260817",
+  "scope": "fictional-game-film-visual-asset-only",
+  "status": "PASS_WITH_SESSION_RELOAD_PENDING",
+  "operator": {
+    "operator_id": "forgecad.geometry.longitudinal-section-loft@1",
+    "axis": "+X",
+    "cross_section_plane": "Y/Z",
+    "section_count_bounds": [2, 16],
+    "point_count_bounds_per_section": [3, 64],
+    "closed_volume": true,
+    "legacy_profile_loft_semantics_changed": false
+  },
+  "validation": {
+    "strictly_increasing_stations": true,
+    "same_point_count_across_sections": true,
+    "nonzero_section_area": true,
+    "finite_bounded_coordinates": true,
+    "exact_parameter_keys": true,
+    "zero_inputs": true
+  },
+  "source_gates": {
+    "focused_operator_tests": "PASS_5_OF_5",
+    "deterministic_geometry_program_compile": "PASS",
+    "strict_glb_readback": "PASS",
+    "semantic_lineage": "PASS",
+    "runtime_skill_registry": "PASS_4_OF_4",
+    "runtime_agentic_action_with_same_cohort_workers": "PASS_9_OF_9",
+    "contracts": "PASS_142_SCHEMAS",
+    "skill_registry": "PASS_12_BUNDLES",
+    "worker_check": "PASS",
+    "diff_check": "PASS"
+  },
+  "packaged_probe": {
+    "path": "docs/evidence/mcp010f/longitudinal-section-loft-packaged-probe-20260817.json",
+    "build_cohort_sha256": "a5d38dd4dbb42548c1627e624d75575e4879cbcb631ab2c134579c21b3a88784",
+    "operator_catalog_sha256": "6b42404b3d418c763edaeb605ada1a4ddf588748990a7a654db1183d9d0eea2c",
+    "operator_catalog": "17 entries / 17 active",
+    "strict_glb_readback": "PASS",
+    "semantic_parts": 10,
+    "triangle_count": 620,
+    "persistent_user_data_touched": false
+  },
+  "baseline_release_gates": {
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "release_docs_walkthrough": "BLOCKED_CONTRACT_SCHEMA_CONTENT_SET_HASH_DRIFT",
+    "mcp010f_test": "BLOCKED_STAGE0_TRUTH_CONTRACT_SCHEMA_CONTENT_SET_HASH_DRIFT"
+  },
+  "current_project_continuation": {
+    "source_candidate_id": "candidate-520f61e38f07435e886f4cb69318abd3",
+    "source_candidate_right_iou": 0.900887573964,
+    "source_candidate_right_boundary_f1_4px": 0.865083929789,
+    "current_codex_mcp_build_cohort_sha256": "515ff62d67d327d1b893e76991c6fb6534be9a4f7f2c1019e70f8034db3ab59b",
+    "current_codex_mcp_operator_catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+    "installed_dev_app_build_cohort_sha256": "a5d38dd4dbb42548c1627e624d75575e4879cbcb631ab2c134579c21b3a88784",
+    "installed_dev_app_operator_catalog_sha256": "6b42404b3d418c763edaeb605ada1a4ddf588748990a7a654db1183d9d0eea2c",
+    "new_longitudinal_weapon_candidate": "NOT_RUN_CURRENT_CODEX_MCP_SESSION_BINDS_PREINSTALL_COHORT",
+    "required_next_step": "reload Codex MCP session and prepare a new unconfirmed candidate with reference-driven longitudinal sections",
+    "confirm": false,
+    "export": false,
+    "pbr_unlock": false
+  }
+}

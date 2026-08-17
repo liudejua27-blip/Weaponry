@@ -1,0 +1,69 @@
+{
+  "schema_version": "ForgeCADEvidence@1",
+  "task_id": "FGC-MCP010F-WEAPON-LONGITUDINAL-LIVE-GRAYBOX",
+  "recorded_at_local_date": "2026-08-17",
+  "scope": "authorized fictional game/film visual asset; nonfunctional reference-driven graybox only",
+  "build_cohort_sha256": "a5d38dd4dbb42548c1627e624d75575e4879cbcb631ab2c134579c21b3a88784",
+  "operator_catalog_sha256": "6b42404b3d418c763edaeb605ada1a4ddf588748990a7a654db1183d9d0eea2c",
+  "reference": {
+    "reference_id": "reference-261f95373b85400586d8a23eed8be79a",
+    "object_sha256": "d8e25091ea23514a6bc22f5e45d497502d79fb0815a746f07829d1a109ce6049",
+    "target_sha256": "1c63ee4915daa919e18b6c04b822f5d0dce463936a2da3c0cf64ac772f0dfb69",
+    "annotation_status": "unreviewed"
+  },
+  "attempts": [
+    {
+      "kind": "single-longitudinal-volume",
+      "candidate_id": "candidate-a52a0f9fcad54f35a12f5924aeb7d8e2",
+      "program_sha256": "194b63d9ebe655c497c268381a494be199df94fa7360145f51f73c617d65634d",
+      "artifact_sha256": "66f987127f27e81c0b643f6911f6d1c7a36492bff7f39ba4768c0584689a8fb9",
+      "triangle_count": 188,
+      "strict_glb_readback": "PASS",
+      "silhouette_iou": 0.330854832719,
+      "boundary_f1_4px": 0.087694717995,
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "kind": "continuity-modules-open-frame-grip",
+      "candidate_id": "candidate-b560eab099d1437fb3af707bc7ec3f58",
+      "program_sha256": "3bda6ace973d561a8f8b00e41977fad4fdc3dc7a2b04d06b8ccfc0ddfac79a82",
+      "artifact_sha256": "1b9d0f38ab2c1124e7c22d6cce7661960f67f662e40d8a62178793c2e290be03",
+      "triangle_count": 320,
+      "strict_glb_readback": "PASS",
+      "silhouette_iou": 0.499552600546,
+      "boundary_f1_4px": 0.036521878421,
+      "sdf_chamfer_px": 50.6292100557,
+      "status": "QUALITY_TARGET_NOT_MET"
+    },
+    {
+      "kind": "continuity-modules-with-dorsal-spine",
+      "candidate_id": "candidate-bd242b5852554dd5b92d905cce73dca3",
+      "program_sha256": "09f01496af02b3682c8919527abd870f3e2255622554afa1654ceb828ed83b10",
+      "artifact_sha256": "85afcf2fc1073eaa952b5ffe232f6dfff279a61fdd6545eaac040e1c6db3a009",
+      "triangle_count": 396,
+      "strict_glb_readback": "PASS",
+      "render_set_hash": "ac18aa422a1adab0c075d187c0dca481d8196f125a735fc55df320d9344a3a3d",
+      "comparison_report_hash": "35b40ce85d00807b372ddccc8bc46c36baf61aa12f50db44fbc0704d741fefe1",
+      "quality_report_hash": "c10af7eada2da4d356848e6dfefb1162e7998edee4100ec2630e4ce0df491da8",
+      "silhouette_iou": 0.63324188766,
+      "boundary_f1_4px": 0.039951997973,
+      "bbox_edge_error": 0.0390625,
+      "centroid_error": 0.100641821568,
+      "status": "QUALITY_TARGET_NOT_MET"
+    }
+  ],
+  "historical_visible_side_baseline": {
+    "candidate_id": "candidate-520f61e38f07435e886f4cb69318abd3",
+    "silhouette_iou": 0.900887573964,
+    "boundary_f1_4px": 0.865083929789,
+    "render_evidence_status": "STALE_BUILD_COHORT_NOT_COMPARABLE_IN_CURRENT_SESSION"
+  },
+  "decision": {
+    "promote_new_candidate": false,
+    "confirm": false,
+    "export": false,
+    "pbr_unlock": false,
+    "reason": "The new operator is structurally valid and the measured dorsal correction improved current-cohort IoU, but the visible boundary gate remains far below 0.90 and the render framing clips the primary form.",
+    "next_action": "repair orthographic side-view framing and contour-to-section projection before another receiver-core geometry round"
+  }
+}

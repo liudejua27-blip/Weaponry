@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/optimization-result-v2.schema.json",
+  "title": "ForgeCAD Joint Multi-View Optimization Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "job_id", "intent_sha256", "status", "next_stage", "promotion_status", "proposal_status", "baseline_loss", "best_loss", "weighted_aggregate_loss", "worst_view_loss", "improved_view_count", "all_orthographic_views_non_regressing", "non_regressing", "strict_improvement", "candidate_program_object_sha256s", "candidate_artifact_object_sha256s", "evaluation_object_sha256s", "evaluations_count", "fidelity_counts", "checkpoint_sequence", "search_strategy", "blocked_reasons", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "OptimizationResult@2"},
+    "job_id": {"$ref": "#/$defs/id"},
+    "intent_sha256": {"$ref": "#/$defs/sha256"},
+    "status": {"enum": ["running", "succeeded", "failed", "cancelled"]},
+    "next_stage": {"enum": ["coarse", "mid", "final", "done"]},
+    "promotion_status": {"enum": ["not-ready", "ready", "blocked", "blocked_joint_objective"]},
+    "proposal_status": {"enum": ["not-ready", "proposed", "blocked-no-improvement", "blocked-invalid"]},
+    "baseline_loss": {"type": "number", "minimum": 0},
+    "best_loss": {"type": "number", "minimum": 0},
+    "weighted_aggregate_loss": {"type": "number", "minimum": 0},
+    "worst_view_loss": {"type": "number", "minimum": 0},
+    "improved_view_count": {"type": "integer", "minimum": 0, "maximum": 8},
+    "all_orthographic_views_non_regressing": {"type": "boolean"},
+    "non_regressing": {"type": "boolean"},
+    "strict_improvement": {"type": "boolean"},
+    "candidate_program_object_sha256s": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/sha256"}},
+    "candidate_artifact_object_sha256s": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/sha256"}},
+    "evaluation_object_sha256s": {"type": "array", "items": {"$ref": "#/$defs/sha256"}},
+    "evaluations_count": {"type": "integer", "minimum": 0, "maximum": 64},
+    "fidelity_counts": {"type": "object", "additionalProperties": false, "required": ["coarse", "mid", "final"], "properties": {"coarse": {"type": "integer", "minimum": 0}, "mid": {"type": "integer", "minimum": 0}, "final": {"type": "integer", "minimum": 0}}},
+    "checkpoint_sequence": {"type": "integer", "minimum": 0, "maximum": 64},
+    "search_strategy": {"$ref": "#/$defs/id"},
+    "blocked_reasons": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/id"}},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

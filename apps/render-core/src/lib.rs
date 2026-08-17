@@ -204,17 +204,21 @@ struct RasterHit {
     uv_stretch: f32,
 }
 
+#[derive(Clone, Copy)]
+enum CameraProjection {
+    Perspective { focal: f32 },
+    Orthographic { scale: f32 },
+}
+
 type Mat4 = [[f32; 4]; 4];
 
 /// Render a self-contained GLB using the C-stage fixed camera contract. This
 /// is deliberately a small deterministic software renderer: node transforms,
-/// perspective projection, a depth buffer, fixed GGX-like direct lighting and
-/// deterministic 2x supersampling are all product-owned and offline. It does
-/// not accept shaders, scripts, URLs or material paths from the request.
-pub fn render_perspective_glb(
-    glb: &[u8],
-    camera: &Value,
-) -> Result<Vec<RenderPass>, RenderError> {
+/// V1 perspective and V2 orthographic projections, a depth buffer, fixed
+/// GGX-like direct lighting and deterministic 2x supersampling are all
+/// product-owned and offline. It does not accept shaders, scripts, URLs or
+/// material paths from the request.
+pub fn render_perspective_glb(glb: &[u8], camera: &Value) -> Result<Vec<RenderPass>, RenderError> {
     render_perspective_glb_at_resolution(glb, camera, 512)
 }
 
@@ -315,7 +319,7 @@ fn render_perspective_glb_at_resolution_with_passes(
             "GLB has no scene mesh instances".to_owned(),
         ));
     }
-    let (camera_position, forward, right, up, fov_y, near, far) = parse_camera(camera)?;
+    let (camera_position, forward, right, up, projection, near, far) = parse_camera(camera)?;
     let textures = if requested_passes.contains(&"beauty") {
         embedded_render_textures(&root, &views, &binary)?
     } else {
@@ -347,7 +351,6 @@ fn render_perspective_glb_at_resolution_with_passes(
     let sample_width = raster_resolution;
     let sample_height = raster_resolution;
     let mut hits = vec![None::<RasterHit>; (sample_width * sample_height) as usize];
-    let focal = 1.0 / (fov_y.to_radians() * 0.5).tan();
     let aspect = width as f32 / height as f32;
     let mut rendered_triangles = 0usize;
 
@@ -376,9 +379,8 @@ fn render_perspective_glb_at_resolution_with_passes(
             let normal_accessor = attributes
                 .get("NORMAL")
                 .and_then(Value::as_u64)
-                .ok_or_else(|| {
-                    RenderError::Invalid("GLB NORMAL accessor is missing".to_owned())
-                })? as usize;
+                .ok_or_else(|| RenderError::Invalid("GLB NORMAL accessor is missing".to_owned()))?
+                as usize;
             let uv_accessor = attributes
                 .get("TEXCOORD_0")
                 .and_then(Value::as_u64)
@@ -445,8 +447,14 @@ fn render_perspective_glb_at_resolution_with_passes(
                     }
                     let x = dot3(relative, right);
                     let y = dot3(relative, up);
-                    let ndc_x = (x * focal / aspect) / z;
-                    let ndc_y = (y * focal) / z;
+                    let (ndc_x, ndc_y) = match projection {
+                        CameraProjection::Perspective { focal } => {
+                            ((x * focal / aspect) / z, (y * focal) / z)
+                        }
+                        CameraProjection::Orthographic { scale } => {
+                            ((x / (scale * aspect * 0.5)), (y / (scale * 0.5)))
+                        }
+                    };
                     projected[slot] = PerspectiveVertex {
                         screen_x: (ndc_x * 0.5 + 0.5) * sample_width as f32,
                         screen_y: (1.0 - (ndc_y * 0.5 + 0.5)) * sample_height as f32,
@@ -554,12 +562,28 @@ fn render_perspective_glb_at_resolution_with_passes(
 
 fn parse_camera(
     camera: &Value,
-) -> Result<([f32; 3], [f32; 3], [f32; 3], [f32; 3], f32, f32, f32), RenderError> {
+) -> Result<
+    (
+        [f32; 3],
+        [f32; 3],
+        [f32; 3],
+        [f32; 3],
+        CameraProjection,
+        f32,
+        f32,
+    ),
+    RenderError,
+> {
     let object = camera
         .as_object()
         .ok_or_else(|| RenderError::Invalid("camera must be an object".to_owned()))?;
-    if object.get("schema_version").and_then(Value::as_str) != Some("CameraCalibration@1")
-        || object.get("projection").and_then(Value::as_str) != Some("perspective")
+    let schema_version = object.get("schema_version").and_then(Value::as_str);
+    let projection = object.get("projection").and_then(Value::as_str);
+    if !matches!(
+        schema_version,
+        Some("CameraCalibration@1" | "CameraCalibration@2")
+    ) || !matches!(projection, Some("perspective" | "orthographic"))
+        || (schema_version == Some("CameraCalibration@1") && projection != Some("perspective"))
         || object.get("coordinate_system").and_then(Value::as_str)
             != Some("right-handed-y-up-meter")
         || object
@@ -574,7 +598,7 @@ fn parse_camera(
             != Some(512)
     {
         return Err(RenderError::Invalid(
-            "CameraCalibration@1 is not the fixed perspective contract".to_owned(),
+            "CameraCalibration is not the fixed bounded camera contract".to_owned(),
         ));
     }
     let transform = object
@@ -595,11 +619,6 @@ fn parse_camera(
             "camera basis is degenerate".to_owned(),
         ));
     }
-    let fov_y = object
-        .get("fov_y_degrees")
-        .and_then(Value::as_f64)
-        .ok_or_else(|| RenderError::Invalid("camera fov is missing".to_owned()))?
-        as f32;
     let near = object
         .get("near_m")
         .and_then(Value::as_f64)
@@ -610,12 +629,47 @@ fn parse_camera(
         .and_then(Value::as_f64)
         .ok_or_else(|| RenderError::Invalid("camera far is missing".to_owned()))?
         as f32;
-    if !(fov_y > 1.0 && fov_y < 179.0 && near > 0.0 && far > near) {
+    if !(near > 0.0 && far > near) {
         return Err(RenderError::Invalid(
-            "camera perspective limits are invalid".to_owned(),
+            "camera clipping limits are invalid".to_owned(),
         ));
     }
-    Ok((position, forward, right, up, fov_y, near, far))
+    let projection = match projection {
+        Some("perspective") => {
+            let fov_y = object
+                .get("fov_y_degrees")
+                .and_then(Value::as_f64)
+                .ok_or_else(|| RenderError::Invalid("camera fov is missing".to_owned()))?
+                as f32;
+            if !(fov_y > 1.0 && fov_y < 179.0) {
+                return Err(RenderError::Invalid(
+                    "camera perspective limits are invalid".to_owned(),
+                ));
+            }
+            CameraProjection::Perspective {
+                focal: 1.0 / (fov_y.to_radians() * 0.5).tan(),
+            }
+        }
+        Some("orthographic") => {
+            let scale = object
+                .get("ortho_scale")
+                .and_then(Value::as_f64)
+                .ok_or_else(|| RenderError::Invalid("camera ortho scale is missing".to_owned()))?
+                as f32;
+            if !(scale.is_finite() && scale > 0.0 && scale <= 100.0) {
+                return Err(RenderError::Invalid(
+                    "camera orthographic limits are invalid".to_owned(),
+                ));
+            }
+            CameraProjection::Orthographic { scale }
+        }
+        _ => {
+            return Err(RenderError::Invalid(
+                "camera projection is invalid".to_owned(),
+            ))
+        }
+    };
+    Ok((position, forward, right, up, projection, near, far))
 }
 
 fn required_vec3(value: Option<&Value>, label: &str) -> Result<[f32; 3], RenderError> {
@@ -644,10 +698,7 @@ fn required_vec3(value: Option<&Value>, label: &str) -> Result<[f32; 3], RenderE
     Ok(result)
 }
 
-fn scene_mesh_instances(
-    root: &Value,
-    nodes: &[Value],
-) -> Result<Vec<(usize, Mat4)>, RenderError> {
+fn scene_mesh_instances(root: &Value, nodes: &[Value]) -> Result<Vec<(usize, Mat4)>, RenderError> {
     if nodes.is_empty() {
         return Err(RenderError::Invalid("GLB nodes are missing".to_owned()));
     }
@@ -700,9 +751,10 @@ fn collect_node_instances(
         for child in children {
             collect_node_instances(
                 nodes,
-                child.as_u64().ok_or_else(|| {
-                    RenderError::Invalid("GLB child index is invalid".to_owned())
-                })? as usize,
+                child
+                    .as_u64()
+                    .ok_or_else(|| RenderError::Invalid("GLB child index is invalid".to_owned()))?
+                    as usize,
                 transform,
                 visited,
                 instances,
@@ -738,9 +790,10 @@ fn node_transform(node: &Map<String, Value>) -> Result<Mat4, RenderError> {
         }
         let mut result = [[0.0; 4]; 4];
         for (index, value) in matrix.iter().enumerate() {
-            result[index % 4][index / 4] = value.as_f64().ok_or_else(|| {
-                RenderError::Invalid("GLB node matrix is non-numeric".to_owned())
-            })? as f32;
+            result[index % 4][index / 4] = value
+                .as_f64()
+                .ok_or_else(|| RenderError::Invalid("GLB node matrix is non-numeric".to_owned()))?
+                as f32;
         }
         return Ok(result);
     }
@@ -759,9 +812,7 @@ fn node_transform(node: &Map<String, Value>) -> Result<Mat4, RenderError> {
             .and_then(Value::as_array)
             .map(|values| {
                 if values.len() != 4 {
-                    return Err(RenderError::Invalid(
-                        "node rotation is invalid".to_owned(),
-                    ));
+                    return Err(RenderError::Invalid("node rotation is invalid".to_owned()));
                 }
                 Ok([
                     values[0].as_f64().ok_or_else(|| {
@@ -1325,9 +1376,7 @@ fn parse_glb(glb: &[u8]) -> Result<(Value, Vec<u8>), RenderError> {
     }
     let json_len = u32::from_le_bytes(glb[12..16].try_into().unwrap()) as usize;
     if &glb[16..20] != b"JSON" || 20 + json_len + 8 > glb.len() {
-        return Err(RenderError::Invalid(
-            "GLB JSON chunk is invalid".to_owned(),
-        ));
+        return Err(RenderError::Invalid("GLB JSON chunk is invalid".to_owned()));
     }
     let root = serde_json::from_slice(&glb[20..20 + json_len])
         .map_err(|error| RenderError::Invalid(error.to_string()))?;
@@ -1337,9 +1386,7 @@ fn parse_glb(glb: &[u8]) -> Result<(Value, Vec<u8>), RenderError> {
     if &glb[binary_offset + 4..binary_offset + 8] != b"BIN\0"
         || binary_offset + 8 + binary_len != glb.len()
     {
-        return Err(RenderError::Invalid(
-            "GLB BIN chunk is invalid".to_owned(),
-        ));
+        return Err(RenderError::Invalid("GLB BIN chunk is invalid".to_owned()));
     }
     Ok((root, glb[binary_offset + 8..].to_vec()))
 }
@@ -1692,5 +1739,55 @@ mod tests {
         );
     }
 
+    #[test]
+    fn camera_parser_accepts_bounded_orthographic_v2() {
+        let camera = json!({
+            "schema_version":"CameraCalibration@2",
+            "camera_hash":"a".repeat(64),
+            "projection":"orthographic",
+            "transform":{
+                "position_m":[0.0,0.0,20.0],
+                "target_m":[0.0,0.0,0.0],
+                "up":[0.0,1.0,0.0]
+            },
+            "fov_y_degrees":null,
+            "ortho_scale":2.4,
+            "near_m":0.05,
+            "far_m":100.0,
+            "resolution":{"width":512,"height":512},
+            "coordinate_system":"right-handed-y-up-meter",
+            "renderer_revision":"forgecad-renderer-2",
+            "canonical_sha256":"b".repeat(64)
+        });
+        let (_, _, _, _, projection, near, far) =
+            parse_camera(&camera).expect("orthographic camera");
+        assert!(
+            matches!(projection, CameraProjection::Orthographic { scale } if (scale - 2.4).abs() < f32::EPSILON)
+        );
+        assert_eq!(near, 0.05);
+        assert_eq!(far, 100.0);
+    }
 
+    #[test]
+    fn camera_parser_rejects_orthographic_v1() {
+        let camera = json!({
+            "schema_version":"CameraCalibration@1",
+            "camera_hash":"a".repeat(64),
+            "projection":"orthographic",
+            "transform":{
+                "position_m":[0.0,0.0,20.0],
+                "target_m":[0.0,0.0,0.0],
+                "up":[0.0,1.0,0.0]
+            },
+            "fov_y_degrees":null,
+            "ortho_scale":2.4,
+            "near_m":0.05,
+            "far_m":100.0,
+            "resolution":{"width":512,"height":512},
+            "coordinate_system":"right-handed-y-up-meter",
+            "renderer_revision":"forgecad-renderer-2",
+            "canonical_sha256":"b".repeat(64)
+        });
+        assert!(parse_camera(&camera).is_err());
+    }
 }

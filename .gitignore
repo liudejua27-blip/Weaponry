@@ -34,5 +34,6 @@ apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/target/
 apps/geometry-worker/target/
 apps/render-worker/target/
+apps/render-core/target/
 .forgecad-target/
 output/packaged-macos-alpha/

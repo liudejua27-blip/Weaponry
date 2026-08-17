@@ -126,6 +126,7 @@
             "forgecad.geometry.primitive@2",
             "forgecad.geometry.profile-extrude@1",
             "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.longitudinal-section-loft@1",
             "forgecad.geometry.subd-cage@1",
             "forgecad.geometry.surface-patch@1",
             "forgecad.geometry.surface-shell@1",
@@ -155,6 +156,7 @@
             {"$ref": "#/$defs/sphere_parameters"},
             {"$ref": "#/$defs/profile_extrude_parameters"},
             {"$ref": "#/$defs/profile_loft_parameters"},
+            {"$ref": "#/$defs/longitudinal_section_loft_parameters"},
             {"$ref": "#/$defs/subd_cage_parameters"},
             {"$ref": "#/$defs/surface_patch_parameters"},
             {"$ref": "#/$defs/surface_shell_parameters"},
@@ -319,6 +321,31 @@
           "minItems": 2,
           "maxItems": 16,
           "items": {"$ref": "#/$defs/loft_profile"}
+        },
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "longitudinal_section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["station_m", "points"],
+      "properties": {
+        "station_m": {"$ref": "#/$defs/coordinate_scalar"},
+        "points": {"$ref": "#/$defs/profile_points"}
+      }
+    },
+    "longitudinal_section_loft_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "sections", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "longitudinal-section-loft"},
+        "sections": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {"$ref": "#/$defs/longitudinal_section"}
         },
         "position_m": {"$ref": "#/$defs/coordinate_vector"},
         "rotation_rad": {"$ref": "#/$defs/radian_vector"}

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/neutral-structure-graph.schema.json",
+  "title": "NeutralStructureGraph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "reference_view_set_sha256",
+    "decomposition_policy",
+    "global_contour_authority",
+    "continuity_groups",
+    "regions",
+    "review_status",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "NeutralStructureGraph@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "reference_view_set_sha256": {"$ref": "#/$defs/sha256"},
+    "decomposition_policy": {"const": "visual-structure-not-functional-parts"},
+    "global_contour_authority": {"const": true},
+    "continuity_groups": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/group"}
+    },
+    "regions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 96,
+      "items": {"$ref": "#/$defs/region"}
+    },
+    "review_status": {"enum": ["unreviewed", "user-confirmed"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1}
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["continuity_group_id", "role", "continuity_policy", "depth_source"],
+      "properties": {
+        "continuity_group_id": {"$ref": "#/$defs/id"},
+        "role": {"enum": ["outer-spine", "lower-frame", "receiver-core", "energy-channel", "muzzle", "rear-shell", "top-spine", "side-armor", "luminous-core", "material-inlay", "unknown"]},
+        "continuity_policy": {"enum": ["continuous", "overlapping-shell", "enclosed", "independent"]},
+        "depth_source": {"enum": ["multi-view-observed", "bounded-inference", "unknown"]}
+      }
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region_id",
+        "continuity_group_id",
+        "source_view_id",
+        "operation",
+        "contour_points",
+        "observation_status",
+        "confidence"
+      ],
+      "properties": {
+        "region_id": {"$ref": "#/$defs/id"},
+        "continuity_group_id": {"$ref": "#/$defs/id"},
+        "source_view_id": {"$ref": "#/$defs/id"},
+        "operation": {"enum": ["add", "subtract", "material-only", "guide"]},
+        "contour_points": {"type": "array", "minItems": 3, "maxItems": 512, "items": {"$ref": "#/$defs/point"}},
+        "observation_status": {"enum": ["observed", "inferred", "unknown"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}

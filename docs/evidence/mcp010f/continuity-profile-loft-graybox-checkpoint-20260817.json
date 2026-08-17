@@ -1,0 +1,85 @@
+{
+  "schema_version": "ForgeCADContinuityGrayboxCheckpoint@1",
+  "task_id": "FGC-MCP010F-CONTINUITY-GRAYBOX",
+  "recorded_at_local_date": "2026-08-17",
+  "status": "WORKFLOW_CHECKPOINT_MCP_RESTART_REQUIRED",
+  "scope": "authorized fictional game/film visual asset; nonfunctional reference-driven graybox only",
+  "project": {
+    "project_id": "project-8233f3b99c36490ebcae250da6d4f317"
+  },
+  "reference": {
+    "reference_id": "reference-261f95373b85400586d8a23eed8be79a",
+    "object_sha256": "d8e25091ea23514a6bc22f5e45d497502d79fb0815a746f07829d1a109ce6049",
+    "canonical_sha256": "5eaf21abf9aaef52c3c8095e6ddcee9abf8e0a5ef40c849480c1171205f8c41a",
+    "width": 1000,
+    "height": 220,
+    "authorization": "user_authorized",
+    "import": "PASS_INLINE_CONTENT_AFTER_RUNTIME_RESTART"
+  },
+  "silhouette_target": {
+    "target_id": "silhouette-target-5b00cd7ef2fd4ce88a03e6e29dc3e3da",
+    "target_sha256": "1c63ee4915daa919e18b6c04b822f5d0dce463936a2da3c0cf64ac772f0dfb69",
+    "mask_sha256": "f5bf19f41cf422172b6a90c84357730d7c7a1b96cd67150e41b8a04ddbfc9549",
+    "contour_point_count": 78,
+    "annotation_status": "unreviewed",
+    "visual_structure_binding": "BLOCKED_OLD_MCP_INPUT_SCHEMA"
+  },
+  "neutral_visual_structure": {
+    "decomposition_type": "visual-geometry-not-functional",
+    "global_contour_authority": true,
+    "functional_part_claim_allowed": false,
+    "regions_may_overlap": true,
+    "region_count": 8,
+    "line_flow_count": 4,
+    "orchestration_sha256": "dd3939076b18b1246fad5505560aeda6dcd92bdc2b9ca9889ac61df36313d99e",
+    "runtime_binding": "NOT_RUN_PENDING_CURRENT_MCP_RESTART"
+  },
+  "inventory": {
+    "validation": "PASS",
+    "inventory_sha256": "c123a93d7ffe32df91c4dfbe75b6db4e6b2ab0055901a5c5e6934b46e7d803c8",
+    "operator_catalog": "PASS_LIVE_ACTIVE_OPERATORS",
+    "assetpack_manifest": "PASS_ASSETPACK_MATERIALS",
+    "lineflow_plan_status": "READY_FOR_SINGLE_PART_FLOW_REVIEW",
+    "lineflow_plan_sha256": "fe316e7ec980162c82df28dc1da02907631f7080312d662bacb0d336575a405d",
+    "surface_material_unlocked": false
+  },
+  "graybox": {
+    "representation": "profile-loft continuity modules",
+    "operator_id": "forgecad.geometry.profile-loft@1",
+    "node_count": 9,
+    "part_count": 9,
+    "triangle_count": 264,
+    "canonical_sha256": "6800f837fd5b0ad0f1d049ef20b032d376672d83535d377b2d62098889f31243",
+    "operator_catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+    "worker_compile": "PASS_STRICT_GLB_READBACK",
+    "uv_status": "passed_structural_only",
+    "tangent_status": "passed_structural_only",
+    "candidate_created": false,
+    "runtime_write": "NOT_RUN_CURRENT_MCP_TRANSPORT_CLOSED"
+  },
+  "root_cause_and_repair": {
+    "initial_failure": "installed Runtime and Geometry Worker produced different canonical hashes for one unchanged program",
+    "misreported_error": "GEOMETRY_REJECTED was folded into RUNTIME_UNAVAILABLE",
+    "source_fix": "generic GEOMETRY_* Runtime errors now retain a typed geometry rejection family",
+    "focused_test": "PASS ipc_request_errors_keep_typed_codes_without_leaking_details",
+    "installed_build_cohort_sha256": "f7619bd050dd67791b51bfc44b1d93e170b309d8109a48b8070bcb16ec1ea8ed",
+    "codesign": "PASS_AD_HOC_DEEP_STRICT",
+    "notarization": "NOT_RUN"
+  },
+  "quality": {
+    "reference_comparison": "NOT_RUN",
+    "boundary_f1_4px": "NOT_RUN",
+    "silhouette_iou": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "visual_status": "NOT_RUN",
+    "hq_360_status": "BLOCKED_REFERENCE_COVERAGE",
+    "details_uv_pbr": "LOCKED_UNTIL_PRIMARY_FORM_PASS"
+  },
+  "next_action": [
+    "Restart Codex Desktop so the ForgeCAD MCP process uses installed cohort f7619bd0...",
+    "Require capabilities_get.build_cohort_match=true and read ponytail-preflight@0.1.0",
+    "Bind the neutral visual_structure through reference_mask_refine_prepare or a new immutable target",
+    "Hash and prepare the unchanged graybox program, then strict artifact readback",
+    "Run fixed right-side reference comparison and stop if the silhouette gate fails"
+  ]
+}

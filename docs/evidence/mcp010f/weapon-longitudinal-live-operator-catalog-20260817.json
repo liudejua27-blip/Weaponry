@@ -1,0 +1,24 @@
+{
+  "schema_version": "OperatorCatalog@1",
+  "catalog_id": "forgecad-mcp010d-hard-surface",
+  "canonical_sha256": "6b42404b3d418c763edaeb605ada1a4ddf588748990a7a654db1183d9d0eea2c",
+  "operators": [
+    {"operator_id": "forgecad.geometry.primitive@2", "status": "active"},
+    {"operator_id": "forgecad.geometry.profile-extrude@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.profile-loft@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.longitudinal-section-loft@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.subd-cage@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.surface-patch@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.surface-shell@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.revolve@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.tube-sweep@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.transform@2", "status": "active"},
+    {"operator_id": "forgecad.geometry.mirror@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.array@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.panel@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.vent-array@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.joint-stack@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.part-output@1", "status": "active"},
+    {"operator_id": "forgecad.geometry.boolean@1", "status": "active"}
+  ]
+}

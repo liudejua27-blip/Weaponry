@@ -7,7 +7,7 @@
     "max_triangles": 250000,
     "max_worker_memory_bytes": 536870912
   },
-  "canonical_sha256": "34b1b16ea176bca47caea42973393037bb3d53642b88a2f2c0eaaa37c9566f28",
+  "canonical_sha256": "7743c4f4f44e133bd97256f765e017c30cb3648bdd68f9986f894f329e5d6d6a",
   "capabilities": {
     "dynamic_code": false,
     "filesystem_read": false,
@@ -22,6 +22,7 @@
   "operator_ids": [
     "forgecad.geometry.profile-extrude@1",
     "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.longitudinal-section-loft@1",
     "forgecad.geometry.subd-cage@1",
     "forgecad.geometry.surface-patch@1",
     "forgecad.geometry.surface-shell@1",

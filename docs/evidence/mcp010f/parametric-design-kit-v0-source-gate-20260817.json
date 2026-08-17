@@ -10,7 +10,7 @@
       "parametric-design-kit-request.schema.json",
       "parametric-design-kit-program.schema.json"
     ],
-    "schema_count": 129,
+    "schema_count": 136,
     "contract_checker": "PASS"
   },
   "kits": [

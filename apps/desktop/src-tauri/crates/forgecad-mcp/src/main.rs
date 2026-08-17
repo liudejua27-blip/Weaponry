@@ -651,9 +651,9 @@ fn mcp010f_write_tool_names() -> Vec<String> {
         "reference_mask_prepare",
         "reference_mask_refine_prepare",
     ]
-        .into_iter()
-        .map(str::to_owned)
-        .collect()
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
 }
 
 fn silhouette_target_part_property() -> Value {
@@ -676,6 +676,54 @@ fn silhouette_target_part_property() -> Value {
                     "height":{"type":"number","minimum":0,"maximum":1}
                 },
                 "additionalProperties":false
+            }
+        },
+        "additionalProperties":false
+    })
+}
+
+fn reference_visual_structure_property() -> Value {
+    json!({
+        "type":["object","null"],
+        "required":["regions","line_flows"],
+        "properties":{
+            "regions":{
+                "type":"array",
+                "minItems":1,
+                "maxItems":64,
+                "items":{
+                    "type":"object",
+                    "required":["structure_id","visual_role","continuity_group_id","layer_index","boundary_relationship","visibility","depth_policy","profile_policy","contour_points"],
+                    "properties":{
+                        "structure_id":id_property(),
+                        "visual_role":{"enum":["outer-flowing-shell","open-frame","primary-volume","floating-shell","layered-body","terminal-assembly","luminous-core","internal-channel","material-transition","unknown-visual-region"]},
+                        "continuity_group_id":id_property(),
+                        "layer_index":{"type":"integer","minimum":-16,"maximum":16},
+                        "boundary_relationship":{"enum":["shared","overlap","independent","enclosed"]},
+                        "visibility":{"enum":["observed","inferred","unknown"]},
+                        "depth_policy":{"enum":["from-multiview","bounded-inference","unknown"]},
+                        "profile_policy":{"enum":["preserve-continuity","closed-profile","revolved-profile","material-only"]},
+                        "mask_operation":{"enum":["none","subtract"]},
+                        "contour_points":{"type":"array","minItems":3,"maxItems":256,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}}
+                    },
+                    "additionalProperties":false
+                }
+            },
+            "line_flows":{
+                "type":"array",
+                "maxItems":128,
+                "items":{
+                    "type":"object",
+                    "required":["line_flow_id","continuity_group_id","kind","visibility","points"],
+                    "properties":{
+                        "line_flow_id":id_property(),
+                        "continuity_group_id":id_property(),
+                        "kind":{"enum":["ridge","valley","seam","light-channel","occlusion-edge"]},
+                        "visibility":{"enum":["observed","inferred","unknown"]},
+                        "points":{"type":"array","minItems":2,"maxItems":256,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}}
+                    },
+                    "additionalProperties":false
+                }
             }
         },
         "additionalProperties":false
@@ -1652,6 +1700,7 @@ fn mcp010f_write_tools() -> Vec<Value> {
                     "contour_points":{"type":["array","null"],"maxItems":512,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}},
                     "landmarks":{"type":["array","null"],"maxItems":128,"items":{"type":"object"}},
                     "parts":{"type":["array","null"],"maxItems":64,"items":silhouette_target_part_property()},
+                    "visual_structure":reference_visual_structure_property(),
                     "user_confirmed":{"type":"boolean","description":"Explicit user confirmation that the contour and observed annotations are ready for a partial-view benchmark; automatic flood-fill remains exploratory."}
                 },
                 "additionalProperties":false
@@ -1672,6 +1721,7 @@ fn mcp010f_write_tools() -> Vec<Value> {
                     "contour_points":{"type":"array","minItems":3,"maxItems":512,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}},
                     "landmarks":{"type":["array","null"],"maxItems":128,"items":{"type":"object"}},
                     "parts":{"type":["array","null"],"maxItems":64,"items":silhouette_target_part_property()},
+                    "visual_structure":reference_visual_structure_property(),
                     "user_confirmed":{"type":"boolean","description":"Explicit user confirmation that the refined contour and observed annotations are ready for a partial-view benchmark."}
                 },
                 "additionalProperties":false
@@ -3251,15 +3301,37 @@ fn map_ipc_error(error: IpcError) -> String {
                     format!("{code}: Runtime Primary Form request rejected")
                 }
                 _ if code.starts_with("SILHOUETTE_OBJECTIVE_") => {
-                    format!(
-                        "{code}: Runtime silhouette evaluation objective request rejected"
-                    )
+                    format!("{code}: Runtime silhouette evaluation objective request rejected")
                 }
                 _ if code.starts_with("SILHOUETTE_PART_ERROR_") => {
                     format!("{code}: Runtime Part contour evidence request rejected")
                 }
                 _ if code.starts_with("OPTIMIZATION_") => {
                     format!("{code}: Runtime optimization request rejected")
+                }
+                // Geometry compile/readback failures are typed Runtime
+                // rejections, not transport outages. Preserve the bounded
+                // machine-readable family so Codex can correct one profile
+                // or Part instead of repeatedly restarting a healthy Runtime.
+                _ if code.starts_with("GEOMETRY_") => {
+                    format!("{code}: Runtime geometry request rejected")
+                }
+                // Runtime emits stable REFERENCE_* codes for authorization,
+                // attachment, image inspection and project-binding failures.
+                // Preserve only the machine-readable family across IPC; the
+                // detail is deliberately not forwarded because it may contain
+                // user input or local paths.  These are request failures, not
+                // transport outages, so runtime_error_value must not mark
+                // them retryable as RUNTIME_UNAVAILABLE.
+                _ if code.starts_with("REFERENCE_") => {
+                    format!("{code}: Runtime reference request rejected")
+                }
+                // The same distinction is needed when CAS/SQLite validation
+                // rejects an import.  Keep the code bounded and path-free so
+                // a live package can report the real storage boundary without
+                // weakening the Runtime/CAS ownership model.
+                _ if code.starts_with("STORE_") => {
+                    format!("{code}: Runtime store rejected the request")
                 }
                 _ => "RUNTIME_UNAVAILABLE: Runtime request failed".to_owned(),
             }
@@ -3806,9 +3878,7 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         }
         "job_result_get" => {
             let id = required_id(arguments, "job_id")?;
-            runtime
-                .job_result(id)
-                .map_err(|error| error.to_string())
+            runtime.job_result(id).map_err(|error| error.to_string())
         }
         "job_events_read" => {
             let id = required_id(arguments, "job_id")?;
@@ -3944,6 +4014,66 @@ fn canonicalize_optimization_job_wire(arguments: &Value) -> Result<Value, String
     // preferred and arbitrary hashes remain rejected; this only closes the
     // typed JSON transport gap without minting a new camera identity.
     let mut normalized_intent = Value::Object(intent.clone());
+    if intent.get("schema_version").and_then(Value::as_str) == Some("OptimizationIntent@2") {
+        if let Some(camera_rig) = normalized_intent.get("camera_rig").cloned() {
+            let camera_rig = rebind_camera_rig_v2_wire(&camera_rig)?;
+            let rig_hash = camera_rig
+                .get("canonical_sha256")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    "INVALID_INPUT: optimization camera rig canonical_sha256 is required".to_owned()
+                })?
+                .to_owned();
+            normalized_intent["camera_rig_sha256"] = Value::String(rig_hash);
+            normalized_intent["camera_rig"] = camera_rig;
+        }
+        if let Some(views) = normalized_intent.get("views").cloned() {
+            let views = views
+                .as_array()
+                .ok_or_else(|| {
+                    "INVALID_INPUT: optimization intent views must be an array".to_owned()
+                })?
+                .iter()
+                .map(|view| {
+                    let mut view = view.as_object().cloned().ok_or_else(|| {
+                        "INVALID_INPUT: optimization intent view must be an object".to_owned()
+                    })?;
+                    let camera = view.get("camera").cloned().ok_or_else(|| {
+                        "INVALID_INPUT: optimization intent view camera is required".to_owned()
+                    })?;
+                    let camera = rebind_camera_v2_wire(&camera)?;
+                    let camera_hash = camera.get("camera_hash").cloned().ok_or_else(|| {
+                        "INVALID_INPUT: optimization intent view camera_hash is required".to_owned()
+                    })?;
+                    view.insert("camera".to_owned(), camera);
+                    view.insert("camera_hash".to_owned(), camera_hash);
+                    Ok(Value::Object(view))
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            normalized_intent["views"] = Value::Array(views);
+        }
+        if let Some(rig) = normalized_intent.get("rig").cloned() {
+            normalized_intent["rig"] = rebind_canonical_object(&rig, true)?;
+        }
+        if let Some(objective) = normalized_intent.get("objective").cloned() {
+            normalized_intent["objective"] = normalize_continuous_numbers(&objective, false);
+        }
+        let mut normalized_hash_input = normalized_intent.clone();
+        normalized_hash_input["canonical_sha256"] = Value::String(String::new());
+        let normalized_intent_hash = canonical_json_hash(&normalized_hash_input);
+        if supplied_intent_hash != wire_intent_hash
+            && supplied_intent_hash != normalized_intent_hash
+        {
+            return Err(
+                "OPTIMIZATION_INTENT_INVALID: canonical_sha256 does not bind the wire payload"
+                    .to_owned(),
+            );
+        }
+        normalized_intent["canonical_sha256"] = Value::String(normalized_intent_hash);
+        let mut rebound_arguments = arguments.clone();
+        rebound_arguments["intent"] = normalized_intent;
+        return Ok(rebound_arguments);
+    }
     if let Some(camera) = normalized_intent.get("camera").cloned() {
         if camera.get("schema_version").and_then(Value::as_str) == Some("CameraCalibration@1") {
             normalized_intent["camera"] = json!({
@@ -3993,6 +4123,65 @@ fn canonicalize_optimization_job_wire(arguments: &Value) -> Result<Value, String
     let mut rebound_arguments = arguments.clone();
     rebound_arguments["intent"] = rebound_intent;
     Ok(rebound_arguments)
+}
+
+fn rebind_camera_v2_wire(value: &Value) -> Result<Value, String> {
+    let mut camera = normalize_continuous_numbers(value, true);
+    if camera.get("schema_version").and_then(Value::as_str) != Some("CameraCalibration@2") {
+        return Err("INVALID_INPUT: optimization V2 camera schema_version is required".to_owned());
+    }
+    camera["camera_hash"] = Value::String(String::new());
+    camera["canonical_sha256"] = Value::String(String::new());
+    let camera_hash = canonical_json_hash(&camera);
+    camera["camera_hash"] = Value::String(camera_hash);
+    camera["canonical_sha256"] = Value::String(String::new());
+    let canonical_hash = canonical_json_hash(&camera);
+    camera["canonical_sha256"] = Value::String(canonical_hash);
+    Ok(camera)
+}
+
+fn rebind_camera_rig_v2_wire(value: &Value) -> Result<Value, String> {
+    let mut rig = normalize_continuous_numbers(value, true);
+    if let Some(views) = rig.get("views").cloned() {
+        let views = views
+            .as_array()
+            .ok_or_else(|| {
+                "INVALID_INPUT: optimization camera rig views must be an array".to_owned()
+            })?
+            .iter()
+            .map(|view| {
+                let mut view = view.as_object().cloned().ok_or_else(|| {
+                    "INVALID_INPUT: optimization camera rig view must be an object".to_owned()
+                })?;
+                let camera = view.get("camera").cloned().ok_or_else(|| {
+                    "INVALID_INPUT: optimization camera rig view camera is required".to_owned()
+                })?;
+                let camera = rebind_camera_v2_wire(&camera)?;
+                let camera_hash = camera.get("camera_hash").cloned().ok_or_else(|| {
+                    "INVALID_INPUT: optimization camera rig view camera_hash is required".to_owned()
+                })?;
+                view.insert("camera".to_owned(), camera);
+                view.insert("camera_hash".to_owned(), camera_hash);
+                Ok(Value::Object(view))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        rig["views"] = Value::Array(views);
+    }
+    rig["canonical_sha256"] = Value::String(String::new());
+    let canonical_hash = canonical_json_hash(&rig);
+    rig["canonical_sha256"] = Value::String(canonical_hash);
+    Ok(rig)
+}
+
+fn rebind_canonical_object(value: &Value, preserve_resolution: bool) -> Result<Value, String> {
+    let mut object = normalize_continuous_numbers(value, preserve_resolution);
+    if !object.is_object() {
+        return Err("INVALID_INPUT: optimization hashed object must be an object".to_owned());
+    }
+    object["canonical_sha256"] = Value::String(String::new());
+    let canonical_hash = canonical_json_hash(&object);
+    object["canonical_sha256"] = Value::String(canonical_hash);
+    Ok(object)
 }
 
 fn normalize_continuous_numbers(value: &Value, preserve_resolution: bool) -> Value {
@@ -4516,6 +4705,10 @@ mod tests {
             "GEOMETRY_PROGRAM_HASH_REJECTED: Runtime geometry hash request rejected (GEOMETRY_WORKER_REJECTED)"
         );
         assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest("GEOMETRY_REJECTED".to_owned(),)),
+            "GEOMETRY_REJECTED: Runtime geometry request rejected"
+        );
+        assert_eq!(
             map_ipc_error(IpcError::RuntimeRequest(
                 "SILHOUETTE_OBJECTIVE_TARGET_LINEAGE_MISMATCH".to_owned(),
             )),
@@ -4526,6 +4719,16 @@ mod tests {
                 "OPTIMIZATION_INTENT_INVALID".to_owned(),
             )),
             "OPTIMIZATION_INTENT_INVALID: Runtime optimization request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "REFERENCE_TRANSFER_UNAVAILABLE: attachment could not be read".to_owned(),
+            )),
+            "REFERENCE_TRANSFER_UNAVAILABLE: Runtime reference request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest("STORE_CAS_IO".to_owned())),
+            "STORE_CAS_IO: Runtime store rejected the request"
         );
         assert!(map_ipc_error(IpcError::Io(std::io::Error::other("socket")))
             .starts_with("RUNTIME_UNAVAILABLE:"));
@@ -4598,10 +4801,26 @@ mod tests {
                 tool["inputSchema"]["properties"]["user_confirmed"]["type"],
                 "boolean"
             );
-            assert!(tool["inputSchema"]["properties"]["user_confirmed"]["description"]
-                .as_str()
+            assert!(
+                tool["inputSchema"]["properties"]["user_confirmed"]["description"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Explicit user confirmation")
+            );
+            let structure = &tool["inputSchema"]["properties"]["visual_structure"];
+            assert_eq!(structure["additionalProperties"], false);
+            assert_eq!(structure["properties"]["regions"]["minItems"], 1);
+            assert!(
+                structure["properties"]["regions"]["items"]["properties"]["visual_role"]["enum"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&Value::String("outer-flowing-shell".to_owned()))
+            );
+            assert!(structure["properties"]["regions"]["items"]["properties"]
+                ["boundary_relationship"]["enum"]
+                .as_array()
                 .unwrap()
-                .contains("Explicit user confirmation"));
+                .contains(&Value::String("overlap".to_owned())));
         }
     }
 
@@ -4670,23 +4889,29 @@ mod tests {
             }),
         )
         .expect("PDK MCP response");
-        assert_eq!(response["result"]["isError"], Value::Null);
+        assert_eq!(
+            response["result"]["isError"],
+            Value::Null,
+            "Parametric Design Kit must remain usable through the MCP read-only hash route: {response}"
+        );
         assert_eq!(
             response["result"]["structuredContent"]["schema_version"],
             "ParametricDesignKitProgram@1"
         );
         assert_eq!(
-            response["result"]["structuredContent"]["geometry_program"]["nodes"][0]
-                ["operator_id"],
+            response["result"]["structuredContent"]["geometry_program"]["nodes"][0]["operator_id"],
             "forgecad.geometry.primitive@2"
         );
         let candidates = match &backend {
-            Backend::InProcess(runtime) => runtime
-                .candidates(&project.project_id)
-                .expect("candidates"),
+            Backend::InProcess(runtime) => {
+                runtime.candidates(&project.project_id).expect("candidates")
+            }
             _ => unreachable!("test backend"),
         };
-        assert!(candidates.is_empty(), "read-only PDK must not create candidates");
+        assert!(
+            candidates.is_empty(),
+            "read-only PDK must not create candidates"
+        );
     }
 
     #[test]
@@ -4915,9 +5140,135 @@ mod tests {
             restored["intent"]["rig"]["parameters"][0]["control_point_index"],
             json!(7)
         );
-        assert!(restored["intent"]["rig"]["parameters"][0]["control_point_index"]
-            .as_u64()
-            .is_some());
+        assert!(
+            restored["intent"]["rig"]["parameters"][0]["control_point_index"]
+                .as_u64()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn optimization_job_wire_rebinds_joint_multiview_camera_rig() {
+        fn camera(kind_index: usize) -> Value {
+            let mut value = json!({
+                "schema_version":"CameraCalibration@2",
+                "camera_hash":"",
+                "projection":"orthographic",
+                "transform":{
+                    "position_m":[20.0 + kind_index as f64,0.0,0.0],
+                    "target_m":[0.0,0.0,0.0],
+                    "up":[0.0,1.0,0.0]
+                },
+                "fov_y_degrees":null,
+                "ortho_scale":2.4,
+                "near_m":0.05,
+                "far_m":100.0,
+                "resolution":{"width":512,"height":512},
+                "coordinate_system":"right-handed-y-up-meter",
+                "renderer_revision":"forgecad-renderer-2",
+                "canonical_sha256":""
+            });
+            value["camera_hash"] = Value::String(canonical_json_hash(&value));
+            value["canonical_sha256"] = Value::String(canonical_json_hash(&value));
+            value
+        }
+        let kinds = ["left", "right", "top", "bottom", "front", "back"];
+        let mut rig_views = Vec::new();
+        let mut intent_views = Vec::new();
+        for (index, kind) in kinds.iter().enumerate() {
+            let mut value = camera(index);
+            // Simulate a JSON client spelling a continuous coordinate as an
+            // integer; nested identities are intentionally stale and must be
+            // rebound by the canonical wire adapter.
+            if index == 0 {
+                value["transform"]["position_m"][0] = json!(20);
+            }
+            let view_id = format!("weapon-{kind}");
+            let target_sha256 = format!("{:0>64}", index + 1);
+            let camera_hash = value["camera_hash"].clone();
+            rig_views.push(json!({
+                "view_id":view_id,
+                "kind":kind,
+                "camera":value,
+                "camera_hash":camera_hash,
+                "weight":1.0,
+                "primary":index == 0
+            }));
+            let intent_camera = rig_views.last().expect("rig view")["camera"].clone();
+            intent_views.push(json!({
+                "view_id":format!("weapon-{kind}"),
+                "kind":kind,
+                "target_sha256":target_sha256,
+                "camera":intent_camera,
+                "camera_hash":camera_hash,
+                "weight":1.0,
+                "primary":index == 0
+            }));
+        }
+        let mut camera_rig = json!({
+            "schema_version":"CameraRigCalibration@1",
+            "rig_id":"weapon-rig-wire-test",
+            "project_id":"project-joint-wire-test",
+            "candidate_id":"candidate-joint-wire-test",
+            "subject_coordinate_frame":{"schema_version":"SubjectCoordinateFrame@1","frame_id":"frame","canonical_sha256":"a".repeat(64)},
+            "origin_m":[0.0,0.0,0.0],
+            "object_scale_m":2.4,
+            "renderer_revision":"forgecad-renderer-2",
+            "views":rig_views,
+            "canonical_sha256":""
+        });
+        camera_rig["canonical_sha256"] = Value::String(canonical_json_hash(&camera_rig));
+        let camera_rig_sha256 = camera_rig["canonical_sha256"].clone();
+        let rig_frame_sha256 = "b".repeat(64);
+        let mut rig = json!({
+            "schema_version":"SilhouetteRig@2",
+            "rig_id":"weapon-silhouette-rig-wire-test",
+            "candidate_id":"candidate-joint-wire-test",
+            "subject_coordinate_frame_sha256":rig_frame_sha256,
+            "target_part_ids":["receiver"],
+            "groups":[{"group_id":"receiver-group","parameter_ids":["receiver-width"],"mode":"independent"}],
+            "parameters":[{"parameter_id":"receiver-width","part_id":"receiver","semantic":"width","value":1.0,"min":0.5,"max":1.5,"step":0.1,"unit":"meter"},{"parameter_id":"receiver-height","part_id":"receiver","semantic":"height","value":1.0,"min":0.5,"max":1.5,"step":0.1,"unit":"meter"},{"parameter_id":"receiver-depth","part_id":"receiver","semantic":"depth","value":1.0,"min":0.5,"max":1.5,"step":0.1,"unit":"meter"},{"parameter_id":"receiver-offset","part_id":"receiver","semantic":"offset_x","value":0.0,"min":-0.5,"max":0.5,"step":0.1,"unit":"meter"}],
+            "canonical_sha256":""
+        });
+        rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
+        let mut intent = json!({
+            "schema_version":"OptimizationIntent@2",
+            "intent_id":"intent-joint-wire-test",
+            "job_id":"job-joint-wire-test",
+            "project_id":"project-joint-wire-test",
+            "candidate_id":"candidate-joint-wire-test",
+            "reference_id":"reference-joint-wire-test",
+            "reference_sha256":"a".repeat(64),
+            "program_sha256":"b".repeat(64),
+            "camera_rig_sha256":camera_rig_sha256,
+            "camera_rig":camera_rig,
+            "views":intent_views,
+            "part_id":"receiver",
+            "target_part_ids":["receiver"],
+            "stage":"primary-form",
+            "rig":rig,
+            "fidelity":{"coarse_resolution":128,"mid_resolution":256,"final_resolution":512,"final_top_k":2},
+            "budget":{"max_evaluations":48},
+            "objective":{"silhouette_iou":1.0},
+            "canonical_sha256":""
+        });
+        intent["canonical_sha256"] = Value::String(canonical_json_hash(&intent));
+        let restored = canonicalize_optimization_job_wire(&json!({"intent":intent}))
+            .expect("joint camera rig wire rebind");
+        let restored_intent = &restored["intent"];
+        assert_eq!(restored_intent["schema_version"], "OptimizationIntent@2");
+        assert_eq!(
+            restored_intent["camera_rig"]["canonical_sha256"],
+            restored_intent["camera_rig_sha256"]
+        );
+        assert_eq!(
+            restored_intent["camera_rig"]["views"][0]["camera"]["camera_hash"],
+            restored_intent["camera_rig"]["views"][0]["camera_hash"]
+        );
+        let mut canonical = restored_intent.clone();
+        let expected = canonical["canonical_sha256"].clone();
+        canonical["canonical_sha256"] = Value::String(String::new());
+        assert_eq!(expected, Value::String(canonical_json_hash(&canonical)));
     }
 
     #[test]
@@ -5263,7 +5614,7 @@ mod tests {
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 73);
+        assert_eq!(enabled.len(), 74);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -5372,7 +5723,10 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}),
         )
         .expect("tools/list response");
-        assert_eq!(enabled["result"]["tools"].as_array().map(Vec::len), Some(73));
+        assert_eq!(
+            enabled["result"]["tools"].as_array().map(Vec::len),
+            Some(74)
+        );
 
         session.write_tools_enabled = false;
         let disabled = handle(
@@ -5381,7 +5735,10 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("read-only tools/list response");
-        assert_eq!(disabled["result"]["tools"].as_array().map(Vec::len), Some(41));
+        assert_eq!(
+            disabled["result"]["tools"].as_array().map(Vec::len),
+            Some(41)
+        );
     }
 
     #[cfg(unix)]
@@ -5553,7 +5910,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 73);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 74);
 
         let imported = handle(
             &mut backend,

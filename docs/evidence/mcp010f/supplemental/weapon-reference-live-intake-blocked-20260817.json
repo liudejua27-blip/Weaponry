@@ -1,0 +1,101 @@
+{
+  "schema_version": "ForgeCADWeaponReferenceLiveIntakeDiagnostic@1",
+  "task_id": "FGC-MCP010F-WEAPON-LIVE-INTAKE",
+  "recorded_at_local_date": "2026-08-17",
+  "status": "BLOCKED",
+  "scope": "authorized fictional game/film laser-rifle reference intake; nonfunctional visual asset only",
+  "build": {
+    "mcp_build_cohort_sha256": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+    "preflight_skill_id": "ponytail-preflight",
+    "preflight_skill_version": "0.1.0",
+    "preflight_skill_knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "preflight_skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1"
+  },
+  "project": {
+    "project_id": "project-8233f3b99c36490ebcae250da6d4f317",
+    "project_create": "PASS",
+    "canonical_sha256": "8b6babd9d47f9650498cb7b73a1fb4e2016c16b413eb235f007ca3b8d7ef5fa6",
+    "active_revision": 0,
+    "head": null
+  },
+  "authorized_reference": {
+    "authorization": "user_authorized",
+    "declaration": "User-authorized fictional laser-rifle concept sheet for nonfunctional game/film 3D asset design.",
+    "mime": "image/png",
+    "sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+    "image_dimensions": {
+      "width": 1491,
+      "height": 1055
+    },
+    "byte_length": 2460031,
+    "content_recorded": false,
+    "source_path_recorded": false
+  },
+  "runtime_observation": {
+    "runtime_status_before": {
+      "state": "Ready",
+      "retryable": false
+    },
+    "doctor_before": "PASS: mcp_protocol, runtime_endpoint, runtime_supervisor, stdio_lifecycle",
+    "runtime_status_after": {
+      "state": "Ready",
+      "retryable": false
+    },
+    "doctor_after": "PASS: mcp_protocol, runtime_endpoint, runtime_supervisor, stdio_lifecycle",
+    "project_get_after_failure": "PASS",
+    "reference_get_control": "INVALID_INPUT for nonexistent reference id; Runtime IPC path is reachable"
+  },
+  "source_runtime_unit_tests": {
+    "command": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --lib reference_import --offline",
+    "result": "PASS",
+    "passed": 4,
+    "failed": 0
+  },
+  "reference_import_attempts": [
+    {
+      "source_kind": "codex_local_file",
+      "payload": "authorized local image descriptor; path intentionally omitted",
+      "outcome": "BLOCKED",
+      "error_code": "RUNTIME_UNAVAILABLE",
+      "evidence_ids": [],
+      "retryable": true
+    },
+    {
+      "source_kind": "inline_content",
+      "payload": "same authorized image supplied as inline PNG content; bytes intentionally omitted",
+      "outcome": "BLOCKED",
+      "error_code": "RUNTIME_UNAVAILABLE",
+      "evidence_ids": [],
+      "retryable": true
+    },
+    {
+      "source_kind": "inline_content_tiny_control",
+      "payload": "independent tiny valid PNG control; bytes intentionally omitted",
+      "outcome": "BLOCKED",
+      "error_code": "RUNTIME_UNAVAILABLE",
+      "evidence_ids": [],
+      "retryable": true
+    }
+  ],
+  "write_effects": {
+    "project_metadata": "CREATED",
+    "reference_evidence": "NOT_CREATED",
+    "cas_object": "NOT_CREATED",
+    "candidate": "NOT_CREATED",
+    "geometry_version": "NOT_CREATED",
+    "optimization_job": "NOT_CREATED",
+    "six_identity_views": "NOT_CREATED"
+  },
+  "interpretation": {
+    "current_blocker": "The live reference_import write path returns RUNTIME_UNAVAILABLE for both the real authorized image and an independent tiny inline control while Runtime status and ordinary project reads remain Ready/working.",
+    "not_a_reference_quality_result": true,
+    "not_a_geometry_quality_result": true,
+    "no_candidate_was_created_to_avoid_unbound_reference_truth": true
+  },
+  "next_action": {
+    "required": "Rebind the active Codex MCP/Runtime to the current installed build cohort, then repeat skill_get -> capabilities_get -> runtime_status/doctor -> operator_catalog_get -> skill_list -> reference_import once.",
+    "if_reproduced": "Debug the packaged reference_import dispatch/transport or MCP-Runtime binary mismatch using the tiny inline control before attempting any six-view or OptimizationIntent@2 write.",
+    "after_import_only": "Create six typed ReferenceCanvas view cards from the imported composite sheet, then bind camera/target/evidence hashes and run the joint V2 optimization/readback/compare chain.",
+    "quality_gate": "No likeness, HQ_360, geometry, optimization, or export claim is made by this receipt."
+  }
+}

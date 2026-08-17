@@ -1,0 +1,73 @@
+{
+  "schema_version": "ForgeCADFictionalEnergyRifleProfileSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_TYPED_PROFILE_STRUCTURAL_ONLY",
+  "scope": "original fictional nonfunctional game-display asset",
+  "contract_surface": {
+    "new_schemas": [
+      "fictional-energy-rifle-profile.schema.json",
+      "fictional-energy-rifle-plan.schema.json"
+    ],
+    "schema_count_after_change": 138,
+    "contract_checker": "PASS",
+    "manifest_sha256": "4c0566d9f630e6013d731f681eb8ffd67e7210c02f8991fa19439391019857fe",
+    "schema_content_set_sha256": "91144f292a082c121900794ac3b3afa48bf256e342caf960bd10b4700e11d2a1",
+    "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))"
+  },
+  "profile_boundary": {
+    "scope_constant": "fictional-game-asset",
+    "nonfunctional_asset_required": true,
+    "allowed_pdk_kits": [
+      "forgecad.kit.housing@1",
+      "forgecad.kit.panel@1",
+      "forgecad.kit.frame@1",
+      "forgecad.kit.vent@1",
+      "forgecad.kit.joint@1",
+      "forgecad.kit.sensor@1"
+    ],
+    "max_macro_intents": 12,
+    "strict_relationship_bounds": true,
+    "material_source": "offline first-party AssetPack only"
+  },
+  "source_files": {
+    "profile_module_sha256": "d6276739308586ce1e4f6f07bbfc1fe21170edb460f5d1cfdcde4847a0c967c8",
+    "profile_schema_sha256": "ed06bde07a784b70174f26363fe5014facbfccbf0f9a2575a0743b5ff3a2e6ce",
+    "plan_schema_sha256": "0a082bdc4605bb38f55ee94db53cb93fe99c8934ceda75fdb6977c5f2180ce84",
+    "contracts_manifest_sha256": "4c0566d9f630e6013d731f681eb8ffd67e7210c02f8991fa19439391019857fe"
+  },
+  "focused_tests": {
+    "profile_expands_deterministically_to_bounded_pdk_requests": "PASS",
+    "functional_scope_and_operator_drift_rejected": "PASS",
+    "relationship_and_canonical_drift_rejected": "PASS",
+    "runtime_profile_module_tests": "PASS_3_TESTS",
+    "contracts_check": "PASS_138_SCHEMAS",
+    "rustfmt_and_git_diff_check": "PASS"
+  },
+  "runtime_boundary": {
+    "candidate_created": false,
+    "cas_written": false,
+    "sqlite_written": false,
+    "version_created": false,
+    "runtime_write_performed": false,
+    "quality_status": "structural_only",
+    "user_approval": "required_before_geometry_prepare"
+  },
+  "unrun_gates": [
+    "live_codex_desktop_restart_and_cohort_match",
+    "authorized_reference_import_and_reference_compare",
+    "strict_glb_readback_after_geometry_prepare",
+    "joint_multiview_visual_likeness",
+    "pbr_likeness",
+    "human_review",
+    "export_restart_hash",
+    "hq_360"
+  ],
+  "limitations": [
+    "The profile is a typed visual brief and PDK expansion aid, not a general CAD kernel or model generator.",
+    "The plan does not create a candidate or execute geometry; normal Runtime hash, Worker, readback, compare and approval gates remain mandatory.",
+    "No real-world construction, dimensions, manufacturing, ballistic, operating or performance detail is represented or supported.",
+    "HQ_360 remains blocked until authorized multi-view reference coverage and candidate-bound evidence exist."
+  ],
+  "canonical_sha256": "1c82243502f8f2981506db05ffb75a92de8d15fa582c3ddfa5b4a56147b3cb9f"
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/reference-view-set-v2.schema.json",
+  "title": "ReferenceViewSetV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "source_reference_id",
+    "source_reference_sha256",
+    "coordinate_policy",
+    "views",
+    "review_status",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ReferenceViewSet@2"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "source_reference_id": {"$ref": "#/$defs/id"},
+    "source_reference_sha256": {"$ref": "#/$defs/sha256"},
+    "coordinate_policy": {"const": "normalized-source-image"},
+    "views": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {"$ref": "#/$defs/view"}
+    },
+    "review_status": {"enum": ["unreviewed", "user-confirmed"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "unit": {"type": "number", "minimum": 0, "maximum": 1},
+    "crop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": {"$ref": "#/$defs/unit"},
+        "y": {"$ref": "#/$defs/unit"},
+        "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+      }
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "role",
+        "crop",
+        "direction_status",
+        "silhouette_status",
+        "reference_id",
+        "reference_sha256"
+      ],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/id"},
+        "role": {"enum": ["left", "right", "front", "back", "top", "bottom", "front-three-quarter", "rear-three-quarter", "detail"]},
+        "crop": {"$ref": "#/$defs/crop"},
+        "direction_status": {"enum": ["observed", "inferred", "unknown"]},
+        "silhouette_status": {"enum": ["unavailable", "automatic-unreviewed", "user-confirmed"]},
+        "reference_id": {"$ref": "#/$defs/id"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "silhouette_target_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": "ForgeCADReferenceVisualStructureSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_GATE_WITH_VISUAL_QUALITY_UNCHANGED",
+  "scope": "reference-evidence-only",
+  "contract": {
+    "schema_version": "ReferenceVisualStructure@1",
+    "schema_file": "packages/forgecad-contracts/schemas/reference-visual-structure.schema.json",
+    "schema_count": 139,
+    "schema_content_set_sha256": "d5511b416978c713694318da63feffc714139c4ec78635122062302d709f821d",
+    "silhouette_target_field": "visual_structure",
+    "backward_compatible_optional_field": true
+  },
+  "policy": {
+    "decomposition_type": "visual-geometry-not-functional",
+    "global_contour_authority": true,
+    "functional_part_claim_allowed": false,
+    "regions_may_overlap": true,
+    "shared_boundaries_allowed": true,
+    "contour_refinement_invalidates_review": true,
+    "runtime_owns_canonical_hash": true
+  },
+  "transport": {
+    "prepare_tools": [
+      "reference_mask_prepare",
+      "reference_mask_refine_prepare"
+    ],
+    "read_tool": "silhouette_target_get",
+    "read_tool_count": 41,
+    "write_tool_count": 33,
+    "total_tool_count": 74,
+    "new_tool_added": false
+  },
+  "tests": {
+    "contracts_check": "PASS_139_SCHEMAS",
+    "runtime_overlapping_regions_roundtrip": "PASS",
+    "runtime_refinement_review_invalidation": "PASS",
+    "mcp_closed_input_schema": "PASS",
+    "mcp_check": "PASS",
+    "mcp010f_source_gate": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "state_change": {
+    "candidate_created": false,
+    "version_created": false,
+    "confirm_or_export_called": false,
+    "persistent_user_data_touched": false
+  },
+  "quality": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "camera_binding": "MISMATCH",
+    "human_visual_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "next_action": "author a user-reviewed neutral visual structure target from the supplied multi-view reference before generating a new primary-form candidate"
+}

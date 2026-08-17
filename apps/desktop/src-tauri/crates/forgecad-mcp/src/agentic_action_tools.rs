@@ -216,7 +216,9 @@ impl AgenticActionTool {
         match self {
             Self::DesignActionRunGet => "design_action_run_get",
             Self::DesignActionRunPrepare => "design_action_run_prepare",
-            Self::DesignActionOptimizationProposalPrepare => "design_action_optimization_proposal_prepare",
+            Self::DesignActionOptimizationProposalPrepare => {
+                "design_action_optimization_proposal_prepare"
+            }
             Self::RepairIntentRunPrepare => "repair_intent_run_prepare",
             Self::RepairApplyPrepare => "repair_apply_prepare",
             Self::RepairApplyConfirm => "repair_apply_confirm",
@@ -523,7 +525,10 @@ fn repair_intent_run_schema() -> Value {
             ("source_evidence_sha256".to_owned(), sha256_property()),
             ("reference_sha256".to_owned(), sha256_property()),
             ("action".to_owned(), bounded_action_schema()),
-            ("proposal".to_owned(), repair_proposal_without_intent_property()),
+            (
+                "proposal".to_owned(),
+                repair_proposal_without_intent_property(),
+            ),
             ("requested_stage".to_owned(), stage_property()),
             ("input_sha256".to_owned(), sha256_property()),
             ("approved".to_owned(), json!({"const": true})),
@@ -874,9 +879,9 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
     if !is_tool(name) {
         return Ok(());
     }
-    let object = value
-        .as_object()
-        .ok_or_else(|| "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response must be an object".to_owned())?;
+    let object = value.as_object().ok_or_else(|| {
+        "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response must be an object".to_owned()
+    })?;
     for (key, expected) in [
         ("project_id", binding.project_id.as_deref()),
         ("session_id", binding.session_id.as_deref()),
@@ -895,7 +900,8 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
         && object.get("schema_version").and_then(Value::as_str) != Some("DesignActionRun@1")
     {
         return Err(
-            "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: prepare response is not DesignActionRun@1".to_owned(),
+            "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: prepare response is not DesignActionRun@1"
+                .to_owned(),
         );
     }
     if name == "design_action_optimization_proposal_prepare"
@@ -908,8 +914,7 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
         );
     }
     if name == "repair_intent_run_prepare"
-        && (object.get("schema_version").and_then(Value::as_str)
-            != Some("RepairIntentRunResult@1")
+        && (object.get("schema_version").and_then(Value::as_str) != Some("RepairIntentRunResult@1")
             || object.get("confirm_allowed") != Some(&Value::Bool(false))
             || object.get("source_candidate_unchanged") != Some(&Value::Bool(true)))
     {
@@ -939,9 +944,9 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
 
 pub fn bind_response(name: &str, value: &Value, binding: &mut Binding) -> Result<(), String> {
     validate_response(name, value, binding)?;
-    let object = value
-        .as_object()
-        .ok_or_else(|| "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response must be an object".to_owned())?;
+    let object = value.as_object().ok_or_else(|| {
+        "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: response must be an object".to_owned()
+    })?;
     for key in ["project_id", "session_id", "candidate_id", "run_id"] {
         let value = object
             .get(key)
@@ -1686,7 +1691,9 @@ mod tests {
             ["enum"]
             .as_array()
             .expect("runtime parameter patch strategies");
-        assert!(strategies.iter().any(|value| value == "primitive-dimensions-v1"));
+        assert!(strategies
+            .iter()
+            .any(|value| value == "primitive-dimensions-v1"));
         assert!(strategies
             .iter()
             .any(|value| value == "surface-control-points-v1"));

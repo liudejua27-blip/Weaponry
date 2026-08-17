@@ -54,10 +54,11 @@ const ACTION_KINDS: [&str; 16] = [
     "uv-pbr",
 ];
 
-const OPERATOR_IDS: [&str; 16] = [
+const OPERATOR_IDS: [&str; 17] = [
     "forgecad.geometry.primitive@2",
     "forgecad.geometry.profile-extrude@1",
     "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.longitudinal-section-loft@1",
     "forgecad.geometry.subd-cage@1",
     "forgecad.geometry.surface-patch@1",
     "forgecad.geometry.surface-shell@1",
@@ -947,7 +948,10 @@ impl Runtime {
                 RuntimeError::InvalidInput("REPAIR_INTENT_RUN_PROPOSAL_REQUIRED".to_owned())
             })?;
         if proposal.keys().any(|key| {
-            !matches!(key.as_str(), "geometry_program" | "view_spec" | "camera" | "view_evaluations")
+            !matches!(
+                key.as_str(),
+                "geometry_program" | "view_spec" | "camera" | "view_evaluations"
+            )
         }) || !proposal.contains_key("geometry_program")
             || !proposal.contains_key("view_spec")
             || !proposal.contains_key("camera")
@@ -1001,12 +1005,11 @@ impl Runtime {
             "project_id":project_id,
             "candidate_id":candidate_id
         }))?;
-        let bound_observation = self.bound_agentic_observation(
-            project_id,
-            Some(candidate_id),
-            observation_sha256,
-        )?;
-        if bound_observation.get("canonical_sha256").and_then(Value::as_str)
+        let bound_observation =
+            self.bound_agentic_observation(project_id, Some(candidate_id), observation_sha256)?;
+        if bound_observation
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
             != Some(observation_sha256)
         {
             return Err(RuntimeError::InvalidInput(
@@ -1018,9 +1021,7 @@ impl Runtime {
             .store
             .get_object(intent_object_sha256)?
             .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "REPAIR_INTENT_RUN_INTENT_OBJECT_UNAVAILABLE".to_owned(),
-                )
+                RuntimeError::InvalidInput("REPAIR_INTENT_RUN_INTENT_OBJECT_UNAVAILABLE".to_owned())
             })?;
         if intent_metadata.mime != "application/json"
             || intent_metadata.kind != "agentic-repair-intent"
@@ -1035,7 +1036,10 @@ impl Runtime {
         if intent.get("schema_version").and_then(Value::as_str) != Some("RepairIntent@1")
             || intent.get("canonical_sha256").and_then(Value::as_str) != Some(intent_sha256)
             || canonical_json_hash(&intent_without_hash) != intent_sha256
-            || !matches!(intent.get("status").and_then(Value::as_str), Some("proposed" | "approved"))
+            || !matches!(
+                intent.get("status").and_then(Value::as_str),
+                Some("proposed" | "approved")
+            )
             || intent.get("approval_required") != Some(&Value::Bool(true))
             || intent.get("runtime_write") != Some(&Value::Bool(false))
         {
@@ -1074,7 +1078,9 @@ impl Runtime {
         let intent_scope = intent
             .get("scope")
             .and_then(Value::as_object)
-            .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_INTENT_RUN_SCOPE_INVALID".to_owned()))?;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("REPAIR_INTENT_RUN_SCOPE_INVALID".to_owned())
+            })?;
         let action_object = action.as_object().ok_or_else(|| {
             RuntimeError::InvalidInput("REPAIR_INTENT_RUN_ACTION_INVALID".to_owned())
         })?;
@@ -1091,7 +1097,9 @@ impl Runtime {
         let intent_action = intent
             .get("action")
             .and_then(Value::as_object)
-            .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_INTENT_RUN_ACTION_INVALID".to_owned()))?;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("REPAIR_INTENT_RUN_ACTION_INVALID".to_owned())
+            })?;
         if intent_action.get("action_kind").and_then(Value::as_str) != Some("bounded-repair")
             || intent_action.get("bounded") != Some(&Value::Bool(true))
             || intent_action.get("parameter_changes") != action_object.get("parameter_changes")
@@ -1103,8 +1111,12 @@ impl Runtime {
         let precondition = intent
             .get("precondition")
             .and_then(Value::as_object)
-            .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_INTENT_RUN_PRECONDITION_INVALID".to_owned()))?;
-        if precondition.get("current_candidate_state_sha256").and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("REPAIR_INTENT_RUN_PRECONDITION_INVALID".to_owned())
+            })?;
+        if precondition
+            .get("current_candidate_state_sha256")
+            .and_then(Value::as_str)
             != Some(candidate.canonical_sha256.as_str())
             || precondition.get("evidence_sha256").and_then(Value::as_str)
                 != Some(source_evidence_sha256)
@@ -1314,12 +1326,11 @@ impl Runtime {
                     .to_owned(),
             ));
         }
-        let bound_observation = self.bound_agentic_observation(
-            project_id,
-            Some(candidate_id),
-            observation_sha256,
-        )?;
-        if bound_observation.get("canonical_sha256").and_then(Value::as_str)
+        let bound_observation =
+            self.bound_agentic_observation(project_id, Some(candidate_id), observation_sha256)?;
+        if bound_observation
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
             != Some(observation_sha256)
         {
             return Err(RuntimeError::InvalidInput(
@@ -1473,18 +1484,12 @@ impl Runtime {
         if matches!(
             action.get("action_kind").and_then(Value::as_str),
             Some("primary-form-adjustment" | "bounded-repair")
-        )
-            && object.get("proposal").is_none_or(Value::is_null)
+        ) && object.get("proposal").is_none_or(Value::is_null)
             && object.get("optimization_intent").is_none()
             && object.get("view_spec").is_none_or(Value::is_null)
         {
             return execute_direct_primary_form_action(
-                self,
-                run,
-                action,
-                &session,
-                &candidate,
-                &visual,
+                self, run, action, &session, &candidate, &visual,
             );
         }
 
@@ -1528,9 +1533,7 @@ impl Runtime {
             run["optimization_intent_sha256"] = optimization["intent_sha256"].clone();
         }
 
-        let automatic_parameter_patch = if object
-            .get("proposal")
-            .is_none_or(Value::is_null)
+        let automatic_parameter_patch = if object.get("proposal").is_none_or(Value::is_null)
             && object.get("optimization_intent").is_none()
         {
             let view_spec = object.get("view_spec").filter(|value| !value.is_null());
@@ -1814,11 +1817,8 @@ fn persist_blocked_run(
 fn persist_reference_request_run(runtime: &Runtime, mut run: Value) -> Result<Value, RuntimeError> {
     run["status"] = Value::String("blocked".to_owned());
     run["completed_stage"] = Value::Null;
-    run["stage_results"]["prepare"] = stage_result(
-        "blocked",
-        None,
-        Some("reference-coverage-requested"),
-    );
+    run["stage_results"]["prepare"] =
+        stage_result("blocked", None, Some("reference-coverage-requested"));
     run["quality_status"] = Value::String("BLOCKED_REFERENCE_COVERAGE".to_owned());
     run["failed_gates"] = json!(["reference-coverage"]);
     run["allowed_actions"] = json!(["request-reference", "inspect", "retry"]);
@@ -2057,7 +2057,10 @@ fn stable_proposal_failure_code(error: &RuntimeError) -> String {
     let code_detail = detail
         .strip_prefix("invalid runtime input: ")
         .unwrap_or(detail.as_str());
-    if let Some(suffix) = code_detail.split_once("CONTRACT_OUTPUT_INVALID:").map(|(_, value)| value) {
+    if let Some(suffix) = code_detail
+        .split_once("CONTRACT_OUTPUT_INVALID:")
+        .map(|(_, value)| value)
+    {
         let suffix = suffix
             .chars()
             .filter(|character| {
@@ -2249,7 +2252,11 @@ fn runtime_parameter_patch_strategy(action: &Value) -> Result<&'static str, Runt
         let parameter_id = change
             .get("parameter_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| RuntimeError::InvalidInput("ACTION_PARAMETER_PATCH_INVALID: parameter_id".to_owned()))?;
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "ACTION_PARAMETER_PATCH_INVALID: parameter_id".to_owned(),
+                )
+            })?;
         let semantic = runtime_parameter_semantic(parameter_id).ok_or_else(|| {
             RuntimeError::InvalidInput(format!(
                 "ACTION_PARAMETER_PATCH_UNSUPPORTED: parameter_id {parameter_id}"
@@ -2300,21 +2307,28 @@ fn runtime_parameter_node_supports(
             .get("size_m")
             .and_then(Value::as_array)
             .is_some_and(|values| values.len() == 3 && values[index].as_f64().is_some()),
-        RuntimeParameterSemantic::Position(index) if primitive_or_panel || surface_operator => parameters
-            .get("position_m")
-            .and_then(Value::as_array)
-            .is_some_and(|values| values.len() == 3 && values[index].as_f64().is_some()),
-        RuntimeParameterSemantic::Rotation(index) if primitive_or_panel || surface_operator => parameters
-            .get("rotation_rad")
-            .and_then(Value::as_array)
-            .is_some_and(|values| values.len() == 3 && values[index].as_f64().is_some()),
+        RuntimeParameterSemantic::Position(index) if primitive_or_panel || surface_operator => {
+            parameters
+                .get("position_m")
+                .and_then(Value::as_array)
+                .is_some_and(|values| values.len() == 3 && values[index].as_f64().is_some())
+        }
+        RuntimeParameterSemantic::Rotation(index) if primitive_or_panel || surface_operator => {
+            parameters
+                .get("rotation_rad")
+                .and_then(Value::as_array)
+                .is_some_and(|values| values.len() == 3 && values[index].as_f64().is_some())
+        }
         RuntimeParameterSemantic::Radius if primitive_or_panel => {
             parameters.get("radius_m").and_then(Value::as_f64).is_some()
         }
         RuntimeParameterSemantic::Thickness
             if panel_operator || operator_id == Some("forgecad.geometry.surface-shell@1") =>
         {
-            parameters.get("thickness_m").and_then(Value::as_f64).is_some()
+            parameters
+                .get("thickness_m")
+                .and_then(Value::as_f64)
+                .is_some()
         }
         RuntimeParameterSemantic::Bevel if panel_operator => {
             parameters.get("bevel_m").and_then(Value::as_f64).is_some()
@@ -2375,13 +2389,8 @@ fn runtime_parameter_relationship_valid(
         .get("size_m")
         .and_then(Value::as_array)
         .and_then(|values| {
-            (values.len() == 3).then(|| {
-                [
-                    values[0].as_f64(),
-                    values[1].as_f64(),
-                    values[2].as_f64(),
-                ]
-            })
+            (values.len() == 3)
+                .then(|| [values[0].as_f64(), values[1].as_f64(), values[2].as_f64()])
         });
     let Some([Some(width), Some(height), Some(depth)]) = size else {
         return false;
@@ -3124,7 +3133,9 @@ fn execute_direct_primary_form_action(
     let part_id = action
         .get("target_id")
         .and_then(Value::as_str)
-        .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_ACTION_PART_REQUIRED".to_owned()))?;
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("PRIMARY_FORM_ACTION_PART_REQUIRED".to_owned())
+        })?;
     let target_sha256 = visual.target_sha256.as_deref().ok_or_else(|| {
         RuntimeError::InvalidInput(
             "PRIMARY_FORM_ACTION_TARGET_REQUIRED: visual evidence has no bound silhouette target"
@@ -3150,11 +3161,8 @@ fn execute_direct_primary_form_action(
         "canonical_sha256":""
     });
     request["canonical_sha256"] = Value::String(canonical_json_hash(&request));
-    let result = runtime.primary_form_repair_prepare(
-        &session.project_id,
-        base_version_id,
-        request,
-    )?;
+    let result =
+        runtime.primary_form_repair_prepare(&session.project_id, base_version_id, request)?;
     let result_object = runtime.put_object(
         &canonical_json_bytes(&result)
             .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
@@ -3173,12 +3181,10 @@ fn execute_direct_primary_form_action(
         visual.quality_status.clone()
     };
     run["status"] = Value::String(if prepared { "completed" } else { "blocked" }.to_owned());
-    run["completed_stage"] = Value::String(if prepared { "evaluate" } else { "prepare" }.to_owned());
-    run["stage_results"] = direct_primary_form_stage_results(
-        &result,
-        &result_object.record.sha256,
-        prepared,
-    );
+    run["completed_stage"] =
+        Value::String(if prepared { "evaluate" } else { "prepare" }.to_owned());
+    run["stage_results"] =
+        direct_primary_form_stage_results(&result, &result_object.record.sha256, prepared);
     run["quality_status"] = Value::String(quality_status.clone());
     run["failed_gates"] = json!(if prepared {
         if quality_status == "PARTIAL_VISIBLE_VIEW_PASS" {
@@ -3197,11 +3203,7 @@ fn execute_direct_primary_form_action(
     persist_run(runtime, &run)
 }
 
-fn direct_primary_form_stage_results(
-    result: &Value,
-    result_sha256: &str,
-    prepared: bool,
-) -> Value {
+fn direct_primary_form_stage_results(result: &Value, result_sha256: &str, prepared: bool) -> Value {
     let mut stages = initial_stage_results();
     stages["prepare"] = stage_result("completed", Some(result_sha256), None);
     if prepared {
@@ -3220,11 +3222,7 @@ fn direct_primary_form_stage_results(
         stages["render"] = stage_result("completed", render_set_hash, None);
         stages["evaluate"] = stage_result("completed", quality_hash, None);
     } else {
-        stages["compile"] = stage_result(
-            "blocked",
-            None,
-            Some("primary-form-no-improvement"),
-        );
+        stages["compile"] = stage_result("blocked", None, Some("primary-form-no-improvement"));
         stages["readback"] = stage_result("blocked", None, Some("primary-form-not-prepared"));
         stages["render"] = stage_result("blocked", None, Some("primary-form-not-prepared"));
         stages["evaluate"] = stage_result("blocked", None, Some("primary-form-not-prepared"));
@@ -3338,9 +3336,7 @@ fn validate_view_evaluations(
         }
         super::validate_reference_view_spec(view_spec, &reference)?;
         if let Some(authored_view_spec) = authored_view.get("view_spec") {
-            if authored_view_spec.get("canonical_sha256")
-                != view_spec.get("canonical_sha256")
-            {
+            if authored_view_spec.get("canonical_sha256") != view_spec.get("canonical_sha256") {
                 return Err(RuntimeError::InvalidInput(
                     "REPAIR_VIEW_BINDING_MISMATCH: view spec differs from ReferenceCanvas"
                         .to_owned(),
@@ -3365,8 +3361,7 @@ fn validate_view_evaluations(
             if target.get("reference_id").and_then(Value::as_str) != Some(reference_id.as_str())
                 || target.get("reference_sha256").and_then(Value::as_str)
                     != Some(reference_sha256.as_str())
-                || target.get("mask_sha256").and_then(Value::as_str)
-                    != mask_sha256.as_deref()
+                || target.get("mask_sha256").and_then(Value::as_str) != mask_sha256.as_deref()
             {
                 return Err(RuntimeError::InvalidInput(
                     "REPAIR_VIEW_BINDING_MISMATCH: target lineage differs".to_owned(),
@@ -3443,21 +3438,20 @@ fn validate_cross_view_evaluation_coverage(
         })?;
     let expected = supplied
         .iter()
-        .map(|value| value.as_str().ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "REPAIR_VIEW_EVALUATIONS_COVERAGE_INVALID: supplied view kind is invalid"
-                    .to_owned(),
-            )
-        }))
+        .map(|value| {
+            value.as_str().ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "REPAIR_VIEW_EVALUATIONS_COVERAGE_INVALID: supplied view kind is invalid"
+                        .to_owned(),
+                )
+            })
+        })
         .collect::<Result<HashSet<_>, _>>()?;
     let actual = evaluations
         .iter()
         .map(|evaluation| evaluation.kind.as_str())
         .collect::<HashSet<_>>();
-    if expected.len() != evaluations.len()
-        || expected.len() != actual.len()
-        || expected != actual
-    {
+    if expected.len() != evaluations.len() || expected.len() != actual.len() || expected != actual {
         return Err(RuntimeError::InvalidInput(
             "REPAIR_VIEW_EVALUATIONS_COVERAGE_MISMATCH: every supplied view must be evaluated exactly once"
                 .to_owned(),
@@ -3511,10 +3505,8 @@ fn evaluate_cross_view_proposal(
         if let Some(target_sha256) = view.target_sha256.as_deref() {
             baseline_request["target_sha256"] = Value::String(target_sha256.to_owned());
         }
-        let baseline = runtime.prepare_reference_comparison(
-            &session.project_id,
-            baseline_request,
-        )?;
+        let baseline =
+            runtime.prepare_reference_comparison(&session.project_id, baseline_request)?;
         let mut proposal_request = json!({
                 "project_id":session.project_id,
                 "candidate_id":proposal_candidate.candidate_id,
@@ -3528,10 +3520,8 @@ fn evaluate_cross_view_proposal(
         if let Some(target_sha256) = view.target_sha256.as_deref() {
             proposal_request["target_sha256"] = Value::String(target_sha256.to_owned());
         }
-        let proposal = runtime.prepare_reference_comparison(
-            &session.project_id,
-            proposal_request,
-        )?;
+        let proposal =
+            runtime.prepare_reference_comparison(&session.project_id, proposal_request)?;
         let baseline_report = baseline
             .get("comparison_report")
             .and_then(Value::as_object)
@@ -4352,13 +4342,10 @@ fn verify_visual_bindings(
         .get("camera_object_sha256")
         .and_then(Value::as_str)
         .filter(|hash| is_sha256(hash))
-        .ok_or_else(|| {
-            RuntimeError::InvalidInput("CAMERA_EVIDENCE_UNAVAILABLE".to_owned())
-        })?;
+        .ok_or_else(|| RuntimeError::InvalidInput("CAMERA_EVIDENCE_UNAVAILABLE".to_owned()))?;
     let camera = read_json_object(runtime, camera_object_sha256)?;
     super::validate_camera_calibration(&camera)?;
-    if camera.get("camera_hash").and_then(Value::as_str)
-        != Some(session.camera_hash.as_str())
+    if camera.get("camera_hash").and_then(Value::as_str) != Some(session.camera_hash.as_str())
         || camera.get("camera_hash").and_then(Value::as_str)
             != render_set.get("camera_hash").and_then(Value::as_str)
     {
@@ -4432,8 +4419,7 @@ fn verify_visual_bindings(
             ));
         }
         let target = runtime.read_silhouette_target(target_sha256)?;
-        if target.get("reference_id").and_then(Value::as_str)
-            != Some(session.reference_id.as_str())
+        if target.get("reference_id").and_then(Value::as_str) != Some(session.reference_id.as_str())
         {
             return Err(RuntimeError::InvalidInput(
                 "SILHOUETTE_TARGET_REFERENCE_MISMATCH".to_owned(),
@@ -4950,25 +4936,19 @@ fn rig_from_action(
         .get("parameter_changes")
         .and_then(Value::as_array)
         .ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "PRIMARY_FORM_ACTION_PARAMETER_CHANGES_REQUIRED".to_owned(),
-            )
+            RuntimeError::InvalidInput("PRIMARY_FORM_ACTION_PARAMETER_CHANGES_REQUIRED".to_owned())
         })?;
     let mut parameters = Vec::with_capacity(changes.len());
     for change in changes {
         let object = change.as_object().ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "PRIMARY_FORM_ACTION_PARAMETER_CHANGE_INVALID".to_owned(),
-            )
+            RuntimeError::InvalidInput("PRIMARY_FORM_ACTION_PARAMETER_CHANGE_INVALID".to_owned())
         })?;
         let parameter_id = object
             .get("parameter_id")
             .and_then(Value::as_str)
             .filter(|value| !value.is_empty())
             .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "PRIMARY_FORM_ACTION_PARAMETER_ID_REQUIRED".to_owned(),
-                )
+                RuntimeError::InvalidInput("PRIMARY_FORM_ACTION_PARAMETER_ID_REQUIRED".to_owned())
             })?;
         if !is_opaque_id(parameter_id) {
             return Err(RuntimeError::InvalidInput(
@@ -4976,18 +4956,11 @@ fn rig_from_action(
             ));
         }
         let semantic = primary_form_parameter_semantic(parameter_id).ok_or_else(|| {
-            RuntimeError::InvalidInput(
-                "PRIMARY_FORM_ACTION_PARAMETER_UNSUPPORTED".to_owned(),
-            )
+            RuntimeError::InvalidInput("PRIMARY_FORM_ACTION_PARAMETER_UNSUPPORTED".to_owned())
         })?;
-        let unit = object
-            .get("unit")
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                RuntimeError::InvalidInput(
-                    "PRIMARY_FORM_ACTION_PARAMETER_UNIT_REQUIRED".to_owned(),
-                )
-            })?;
+        let unit = object.get("unit").and_then(Value::as_str).ok_or_else(|| {
+            RuntimeError::InvalidInput("PRIMARY_FORM_ACTION_PARAMETER_UNIT_REQUIRED".to_owned())
+        })?;
         let rotation_unit = matches!(semantic, "rotation_x" | "rotation_y" | "rotation_z");
         if !(if rotation_unit {
             matches!(unit, "radian" | "ratio")
@@ -5060,14 +5033,11 @@ fn primary_form_parameter_semantic(parameter_id: &str) -> Option<&'static str> {
         (parameter_id == suffix
             || parameter_id.ends_with(&format!("-{suffix}"))
             || parameter_id.ends_with(&format!("_{suffix}")))
-            .then_some(semantic)
+        .then_some(semantic)
     })
 }
 
-fn primary_form_finite_number(
-    object: &Map<String, Value>,
-    key: &str,
-) -> Result<f64, RuntimeError> {
+fn primary_form_finite_number(object: &Map<String, Value>, key: &str) -> Result<f64, RuntimeError> {
     let value = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
         RuntimeError::InvalidInput(format!("PRIMARY_FORM_ACTION_PARAMETER_{key}_INVALID"))
     })?;
@@ -5189,14 +5159,13 @@ mod tests {
             .to_string()
             .contains("DESIGN_ACTION_EXECUTION_PAYLOAD_REQUIRED"));
 
-        let invalid =
-            validate_execution_payload(
-                &action,
-                Some(&Value::String("nope".to_owned())),
-                None,
-                None,
-            )
-                .expect_err("bounded repair proposal must be an object");
+        let invalid = validate_execution_payload(
+            &action,
+            Some(&Value::String("nope".to_owned())),
+            None,
+            None,
+        )
+        .expect_err("bounded repair proposal must be an object");
         assert!(invalid
             .to_string()
             .contains("DESIGN_ACTION_EXECUTION_PAYLOAD_INVALID"));
@@ -5327,13 +5296,19 @@ mod tests {
         );
         assert!(runtime_parameter_relationship_valid(
             "forgecad.geometry.panel@1",
-            &json!({"size_m":[1.66,1.12,0.68]}).as_object().unwrap().clone(),
+            &json!({"size_m":[1.66,1.12,0.68]})
+                .as_object()
+                .unwrap()
+                .clone(),
             RuntimeParameterSemantic::Thickness,
             0.20
         ));
         assert!(runtime_parameter_relationship_valid(
             "forgecad.geometry.panel@1",
-            &json!({"size_m":[1.66,1.12,0.68]}).as_object().unwrap().clone(),
+            &json!({"size_m":[1.66,1.12,0.68]})
+                .as_object()
+                .unwrap()
+                .clone(),
             RuntimeParameterSemantic::Bevel,
             0.14
         ));
@@ -5355,7 +5330,10 @@ mod tests {
         ));
         assert!(!runtime_parameter_relationship_valid(
             "forgecad.geometry.panel@1",
-            &json!({"size_m":[1.66,1.12,0.68]}).as_object().unwrap().clone(),
+            &json!({"size_m":[1.66,1.12,0.68]})
+                .as_object()
+                .unwrap()
+                .clone(),
             RuntimeParameterSemantic::Bevel,
             0.60
         ));

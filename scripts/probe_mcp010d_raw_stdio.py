@@ -228,6 +228,21 @@ def draft(project_id: str, catalog_hash: str) -> dict[str, Any]:
                 },
             },
             {
+                "node_id": "longitudinal-loft",
+                "operator_id": "forgecad.geometry.longitudinal-section-loft@1",
+                "inputs": [],
+                "parameters": {
+                    "shape": "longitudinal-section-loft",
+                    "sections": [
+                        {"station_m": -0.6, "points": [[-0.18, -0.12], [0.18, -0.12], [0.24, 0.0], [0.18, 0.12], [-0.18, 0.12], [-0.24, 0.0]]},
+                        {"station_m": 0.0, "points": [[-0.30, -0.20], [0.30, -0.20], [0.38, 0.0], [0.30, 0.20], [-0.30, 0.20], [-0.38, 0.0]]},
+                        {"station_m": 0.8, "points": [[-0.16, -0.10], [0.16, -0.10], [0.22, 0.0], [0.16, 0.10], [-0.16, 0.10], [-0.22, 0.0]]},
+                    ],
+                    "position_m": [0.0, 0.0, 0.0],
+                    "rotation_rad": [0.0, 0.0, 0.0],
+                },
+            },
+            {
                 "node_id": "revolve",
                 "operator_id": "forgecad.geometry.revolve@1",
                 "inputs": [],
@@ -352,6 +367,12 @@ def draft(project_id: str, catalog_hash: str) -> dict[str, Any]:
                 "solid": True,
             },
             {
+                "part_id": "longitudinal-loft-part",
+                "input_node_ids": ["longitudinal-loft"],
+                "material_zone_id": "zone-white-shell",
+                "solid": True,
+            },
+            {
                 "part_id": "revolve-part",
                 "input_node_ids": ["revolve"],
                 "material_zone_id": "zone-black-mechanical",
@@ -462,6 +483,7 @@ def main() -> int:
             "forgecad.geometry.primitive@2",
             "forgecad.geometry.profile-extrude@1",
             "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.longitudinal-section-loft@1",
             "forgecad.geometry.subd-cage@1",
             "forgecad.geometry.surface-patch@1",
             "forgecad.geometry.surface-shell@1",
@@ -480,7 +502,7 @@ def main() -> int:
             set(operators) == expected_operator_ids
             and len(catalog.get("operators", [])) == len(expected_operator_ids)
             and all(value.get("status") == "active" for value in operators.values()),
-            "OperatorCatalog current truth drifted: expected exactly 16 active operators",
+            "OperatorCatalog current truth drifted: expected exactly 17 active operators",
         )
         require(
             operators.get("forgecad.geometry.boolean@1", {}).get("status") == "active"
@@ -534,6 +556,7 @@ def main() -> int:
                 "joint",
                 "profile",
                 "loft",
+                "longitudinal-loft",
                 "revolve",
                 "sweep",
                 "boolean-difference",
@@ -570,7 +593,8 @@ def main() -> int:
         )
         d_result = {
             "status": "PASS",
-            "operator_catalog": "16 entries / 16 active / boolean union+difference/intersection active",
+            "operator_catalog": "17 entries / 17 active / longitudinal section loft and boolean union+difference/intersection active",
+            "operator_catalog_sha256": catalog_hash,
             "operators": sorted(expected_operator_ids),
             "geometry_program": "GeometryProgram@2 DAG",
             "semantic_parts": len(artifact.get("part_ids", [])),

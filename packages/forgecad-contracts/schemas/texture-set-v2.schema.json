@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/texture-set-v2.schema.json",
+  "title": "TextureSetV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "texture_set_id",
+    "base_color_texture_id",
+    "normal_texture_id",
+    "roughness_texture_id",
+    "metallic_texture_id",
+    "ao_texture_id",
+    "emissive_texture_id",
+    "clearcoat_texture_id",
+    "clearcoat_roughness_texture_id",
+    "clearcoat_normal_texture_id",
+    "derived_texture_receipt_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "TextureSet@2"},
+    "texture_set_id": {"$ref": "#/$defs/id"},
+    "base_color_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "normal_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "roughness_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "metallic_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "ao_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "emissive_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "clearcoat_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "clearcoat_roughness_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "clearcoat_normal_texture_id": {"$ref": "#/$defs/nullable_id"},
+    "derived_texture_receipt_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "texture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["texture_id", "file", "sha256", "semantic", "color_space", "normal_convention", "width", "height"],
+      "properties": {
+        "texture_id": {"$ref": "#/$defs/id"},
+        "file": {"type": "string", "pattern": "^textures/[A-Za-z0-9_.-]+\\.png$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "semantic": {"enum": ["baseColor", "normal", "roughness", "metallic", "ao", "emissive", "clearcoat", "clearcoatRoughness", "clearcoatNormal"]},
+        "color_space": {"enum": ["sRGB", "linear"]},
+        "normal_convention": {"type": ["string", "null"], "enum": ["OpenGL+Y", null]},
+        "width": {"type": "integer", "minimum": 1, "maximum": 2048},
+        "height": {"type": "integer", "minimum": 1, "maximum": 2048}
+      }
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": "ForgeCADCodexReferenceInventory@1",
+  "reference": {
+    "reference_sha256": "d8e25091ea23514a6bc22f5e45d497502d79fb0815a746f07829d1a109ce6049",
+    "source": "user-authorized-reference",
+    "width": 1000,
+    "height": 220,
+    "coverage": {
+      "front": "unknown",
+      "back": "unknown",
+      "left": "unknown",
+      "right": "visible",
+      "feet": "unknown"
+    }
+  },
+  "quality_contract": {
+    "target": "PARTIAL_VISIBLE_VIEW_PASS",
+    "visual_gate": "MCP010C_REFERENCE_COMPARISON",
+    "max_correction_rounds": 5,
+    "metric_priority": [
+      "boundary_f1_4px",
+      "silhouette_iou",
+      "bbox_edge_error",
+      "centroid_error",
+      "landmark_coverage_and_nme",
+      "region_iou"
+    ],
+    "stop_on": [
+      "QUALITY_TARGET_NOT_MET",
+      "reference_binding_incomplete",
+      "unknown_operator",
+      "readback_integrity_error",
+      "catalog_or_candidate_hash_mismatch"
+    ],
+    "hq_360_status": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "detail_inventory": [
+    {
+      "detail_id": "receiver-core-primary-volume",
+      "semantic_part_id": "receiver-core",
+      "feature": "continuous tapered primary volume with explicit longitudinal width stations",
+      "evidence": "observed",
+      "criticality": "identity",
+      "topology_strategy": "longitudinal-section-loft",
+      "operator_ids": ["forgecad.geometry.longitudinal-section-loft@1"],
+      "material_zone_id": "white-dielectric-clearcoat",
+      "line_flow": "rear-shell-to-receiver-core-to-forebody",
+      "confidence": 0.96,
+      "review_signal": "silhouette",
+      "status": "planned"
+    }
+  ],
+  "correction_state": {
+    "current_stage": "silhouette",
+    "current_candidate_status": "QUALITY_TARGET_NOT_MET",
+    "rounds_used": 0,
+    "rounds_remaining": 5,
+    "confirmation_allowed": false,
+    "human_review": "NOT_RUN",
+    "full_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "persistent_user_data_touched": false
+}

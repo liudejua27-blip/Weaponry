@@ -1,0 +1,321 @@
+{
+  "base_candidate_id": "candidate-3a8665878160400da75695e517864257",
+  "base_program_sha256": "83e006ade7a71347bcad33256dbbd76a44f220d7571a71f2601ef2747ca8b84e",
+  "camera": {
+    "camera_hash": "15ee5a740528d0b423efaf63bb20eacd6fe973aa52ee25ab7c51c328b2b09cc2",
+    "canonical_sha256": "4846c4ac5b0933c04a6334c1279bdd6bbe12d40ecbc5bd157e0d0d3fe1656d0c",
+    "schema_version": "CameraCalibrationRef@1"
+  },
+  "candidate_confirmed": false,
+  "confirmed_contour_baseline": {
+    "candidate_id": "candidate-3a8665878160400da75695e517864257",
+    "comparison_report_object_sha256": "2c8532bd5225cdecab6a2596a1ecd56c531f7980946daaa04d7ddeacccca98d2",
+    "metrics": {
+      "bbox_edge_error": 0.001953125,
+      "boundary_f1_4px": 0.913080476426,
+      "centroid_error": 0.003680825465,
+      "critical_region_min_iou": 1.0,
+      "landmark_coverage": 0.0,
+      "landmark_nme": 1.0,
+      "region_median_iou": 0.0,
+      "silhouette_iou": 0.927965967174
+    },
+    "quality_report_object_sha256": "a5e05d91411a2105a58d510661baf3853ae6f0d10eab667f5c4e50d21af6cb89",
+    "render_set_object_sha256": "c2f06d82c8a775ccfb009a08bd583fa02fb2f80883994e15fd00074f0f601bdb",
+    "status": "QUALITY_TARGET_NOT_MET",
+    "view_spec_canonical_sha256": "3575563773eb695a90c59a0f0cf2474025a11ec19a6d114d8e25ac59a4ac6a44"
+  },
+  "confirmed_target_sha256": "c42a353a34c4d4013bd3a26dc872cb6b2eaa61007c912b197e657d8e0b025d6f",
+  "exported": false,
+  "operator_catalog_sha256": "6b42404b3d418c763edaeb605ada1a4ddf588748990a7a654db1183d9d0eea2c",
+  "pbr_unlock_condition": "human-visible secondary structure review plus no-regression evidence",
+  "pbr_unlocked": false,
+  "project_id": "project-8233f3b99c36490ebcae250da6d4f317",
+  "reference_id": "reference-261f95373b85400586d8a23eed8be79a",
+  "schema_version": "ForgeCADWeaponSecondaryStructureLoop@1",
+  "scope": "fictional game and film visual asset only",
+  "selected_review_candidate": {
+    "artifact_id": "8456dd72bc395e5c464627a1db4d6136888ae5587837ba48f0ffab5198dec63b",
+    "artifact_sha256": "8456dd72bc395e5c464627a1db4d6136888ae5587837ba48f0ffab5198dec63b",
+    "candidate_id": "candidate-58dafc5e3ba243c29fd749ea56ddf978",
+    "material_zone_count": 4,
+    "material_zone_ids": [
+      "white-dielectric-clearcoat",
+      "black-anodized-metal",
+      "brushed-steel",
+      "warm-orange-emissive"
+    ],
+    "part_count": 16,
+    "part_ids": [
+      "receiver-core",
+      "upper-armor-shell",
+      "lower-keel-shell",
+      "rear-mechanical-inset",
+      "energy-core-housing",
+      "energy-core-ring",
+      "energy-core-emitter",
+      "energy-guide-channel",
+      "receiver-vent-bank",
+      "dorsal-rail",
+      "upper-forward-plate",
+      "upper-rear-plate",
+      "lower-forward-shroud",
+      "core-rear-collar",
+      "core-forward-collar",
+      "muzzle-terminal-inset"
+    ],
+    "program_sha256": "342b100f00e7164e8543c029c5566d6a5d892878086f7dc23d74c84c40dc6ea0",
+    "strict_glb_readback": "PASS",
+    "triangle_count": 1212
+  },
+  "selected_review_comparison": {
+    "candidate_id": "candidate-58dafc5e3ba243c29fd749ea56ddf978",
+    "comparison_report_object_sha256": "97b7229a3951f06005b5ca5d9cd47ce56aa5936fb8ca0bec63b5a1e261fe6f5d",
+    "metrics": {
+      "bbox_edge_error": 0.001953125,
+      "boundary_f1_4px": 0.913080476426,
+      "centroid_error": 0.003680825465,
+      "critical_region_min_iou": 1.0,
+      "landmark_coverage": 0.0,
+      "landmark_nme": 1.0,
+      "region_median_iou": 0.0,
+      "silhouette_iou": 0.927965967174
+    },
+    "quality_report_object_sha256": "5523e05c23b0b20782a9138aeac2c9ca11945ba0aa7b6196a16a705da40c46f0",
+    "render_set_object_sha256": "48b5c39f4e588dc2cd6bf19f379579609e3f4e4e2a5ff6d190362433acf2b288",
+    "status": "QUALITY_TARGET_NOT_MET",
+    "view_spec_canonical_sha256": "3575563773eb695a90c59a0f0cf2474025a11ec19a6d114d8e25ac59a4ac6a44"
+  },
+  "skills": {
+    "hard_surface_detail_manifest_sha256": "18e75fd766abab2fd600213af377b57cc395ee6496f4a0d72b9dabeb753e69b7",
+    "ponytail_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1"
+  },
+  "stages": [
+    {
+      "comparison": {
+        "candidate_id": "candidate-a6da06080270493d888fb864391a6b34",
+        "comparison_report_object_sha256": "b3b52f7830adc1dfb2599c3b400fa1ce6f2ff2657ccc3ece9d19fe60a3c89fdf",
+        "metrics": {
+          "bbox_edge_error": 0.001953125,
+          "boundary_f1_4px": 0.913080476426,
+          "centroid_error": 0.003680825465,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "silhouette_iou": 0.927965967174
+        },
+        "quality_report_object_sha256": "bd3fc1c4787881f795ee2a062133564e2ec0afd74065ab67b3832cc604d2458a",
+        "render_set_object_sha256": "0d2b02d7f28231d30c86c9f7e84778cbcdc243fbdbe6f5aae02128ac8b5b5a79",
+        "status": "QUALITY_TARGET_NOT_MET",
+        "view_spec_canonical_sha256": "3575563773eb695a90c59a0f0cf2474025a11ec19a6d114d8e25ac59a4ac6a44"
+      },
+      "metric_deltas_vs_retained": {
+        "bbox_edge_error": 0.0,
+        "boundary_f1_4px": 0.0,
+        "centroid_error": 0.0,
+        "silhouette_iou": 0.0
+      },
+      "no_regression_gate": "PASS",
+      "prepared": {
+        "artifact_id": "e6bbaeae833e08446145a53a98c6a8483366194b97cb5e41d7cbbd6e33575f43",
+        "artifact_sha256": "e6bbaeae833e08446145a53a98c6a8483366194b97cb5e41d7cbbd6e33575f43",
+        "candidate_id": "candidate-a6da06080270493d888fb864391a6b34",
+        "material_zone_count": 2,
+        "material_zone_ids": [
+          "white-dielectric-clearcoat",
+          "black-anodized-metal"
+        ],
+        "part_count": 4,
+        "part_ids": [
+          "receiver-core",
+          "upper-armor-shell",
+          "lower-keel-shell",
+          "rear-mechanical-inset"
+        ],
+        "program_sha256": "ea3f0ba49aba9b9da0265e8468655bea6fa57220e73d8a9db1a553bea8d95e8e",
+        "strict_glb_readback": "PASS",
+        "triangle_count": 376
+      },
+      "retained": true,
+      "stage_id": "armor-layering"
+    },
+    {
+      "comparison": {
+        "candidate_id": "candidate-7c06ddb76686429794cfaaaac1987bbb",
+        "comparison_report_object_sha256": "2a852527ef92ba61d814b40a231e85fe420ace3524b86dd810b86776e9d7fe12",
+        "metrics": {
+          "bbox_edge_error": 0.001953125,
+          "boundary_f1_4px": 0.913080476426,
+          "centroid_error": 0.003680825465,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "silhouette_iou": 0.927965967174
+        },
+        "quality_report_object_sha256": "f2783bff7d3f5c85f1817916bd8648ca0f957ba029a12608b9686b6a3bb233a7",
+        "render_set_object_sha256": "4bc4f307fd1e58975ea8cccd6b01180135f47c75ab4de26a5f64d470957b1252",
+        "status": "QUALITY_TARGET_NOT_MET",
+        "view_spec_canonical_sha256": "3575563773eb695a90c59a0f0cf2474025a11ec19a6d114d8e25ac59a4ac6a44"
+      },
+      "metric_deltas_vs_retained": {
+        "bbox_edge_error": 0.0,
+        "boundary_f1_4px": 0.0,
+        "centroid_error": 0.0,
+        "silhouette_iou": 0.0
+      },
+      "no_regression_gate": "PASS",
+      "prepared": {
+        "artifact_id": "60ea49d4ffd7c78cf087f4e18baae2eb6960247538b115854a34abfd2514fb4b",
+        "artifact_sha256": "60ea49d4ffd7c78cf087f4e18baae2eb6960247538b115854a34abfd2514fb4b",
+        "candidate_id": "candidate-7c06ddb76686429794cfaaaac1987bbb",
+        "material_zone_count": 4,
+        "material_zone_ids": [
+          "white-dielectric-clearcoat",
+          "black-anodized-metal",
+          "brushed-steel",
+          "warm-orange-emissive"
+        ],
+        "part_count": 7,
+        "part_ids": [
+          "receiver-core",
+          "upper-armor-shell",
+          "lower-keel-shell",
+          "rear-mechanical-inset",
+          "energy-core-housing",
+          "energy-core-ring",
+          "energy-core-emitter"
+        ],
+        "program_sha256": "2169dc84e8ff92f28d1a069eb656c5b22fc01fa194e2cbb1a02edf6bf817ddbc",
+        "strict_glb_readback": "PASS",
+        "triangle_count": 952
+      },
+      "retained": true,
+      "stage_id": "energy-core"
+    },
+    {
+      "comparison": {
+        "candidate_id": "candidate-fd85a3ac74684e0eb70524168f8ba916",
+        "comparison_report_object_sha256": "69cd8cdeaddfb4db33a9a7bd1fa6effb2b1512d755641cbc848866194d44d992",
+        "metrics": {
+          "bbox_edge_error": 0.001953125,
+          "boundary_f1_4px": 0.913080476426,
+          "centroid_error": 0.003680825465,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "silhouette_iou": 0.927965967174
+        },
+        "quality_report_object_sha256": "e8bc8b79dafedcc7442c1cbed1df200885c4160fff3ff0e3770b337122e1958f",
+        "render_set_object_sha256": "197a969dac329e39239a50f4faab61807113a805016d9f2b63104a0392358058",
+        "status": "QUALITY_TARGET_NOT_MET",
+        "view_spec_canonical_sha256": "3575563773eb695a90c59a0f0cf2474025a11ec19a6d114d8e25ac59a4ac6a44"
+      },
+      "metric_deltas_vs_retained": {
+        "bbox_edge_error": 0.0,
+        "boundary_f1_4px": 0.0,
+        "centroid_error": 0.0,
+        "silhouette_iou": 0.0
+      },
+      "no_regression_gate": "PASS",
+      "prepared": {
+        "artifact_id": "10a87a2f84d1afaa8e3727098a00677e486b5f628b4d9bc3b92aaee43aaaf58f",
+        "artifact_sha256": "10a87a2f84d1afaa8e3727098a00677e486b5f628b4d9bc3b92aaee43aaaf58f",
+        "candidate_id": "candidate-fd85a3ac74684e0eb70524168f8ba916",
+        "material_zone_count": 4,
+        "material_zone_ids": [
+          "white-dielectric-clearcoat",
+          "black-anodized-metal",
+          "brushed-steel",
+          "warm-orange-emissive"
+        ],
+        "part_count": 10,
+        "part_ids": [
+          "receiver-core",
+          "upper-armor-shell",
+          "lower-keel-shell",
+          "rear-mechanical-inset",
+          "energy-core-housing",
+          "energy-core-ring",
+          "energy-core-emitter",
+          "energy-guide-channel",
+          "receiver-vent-bank",
+          "dorsal-rail"
+        ],
+        "program_sha256": "b574b5fe06154ecf1fa6f1aa22709de63a5f5053bb5d382e8cf82124980edd0a",
+        "strict_glb_readback": "PASS",
+        "triangle_count": 1100
+      },
+      "retained": true,
+      "stage_id": "surface-linework"
+    },
+    {
+      "comparison": {
+        "candidate_id": "candidate-58dafc5e3ba243c29fd749ea56ddf978",
+        "comparison_report_object_sha256": "97b7229a3951f06005b5ca5d9cd47ce56aa5936fb8ca0bec63b5a1e261fe6f5d",
+        "metrics": {
+          "bbox_edge_error": 0.001953125,
+          "boundary_f1_4px": 0.913080476426,
+          "centroid_error": 0.003680825465,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "silhouette_iou": 0.927965967174
+        },
+        "quality_report_object_sha256": "5523e05c23b0b20782a9138aeac2c9ca11945ba0aa7b6196a16a705da40c46f0",
+        "render_set_object_sha256": "48b5c39f4e588dc2cd6bf19f379579609e3f4e4e2a5ff6d190362433acf2b288",
+        "status": "QUALITY_TARGET_NOT_MET",
+        "view_spec_canonical_sha256": "3575563773eb695a90c59a0f0cf2474025a11ec19a6d114d8e25ac59a4ac6a44"
+      },
+      "metric_deltas_vs_retained": {
+        "bbox_edge_error": 0.0,
+        "boundary_f1_4px": 0.0,
+        "centroid_error": 0.0,
+        "silhouette_iou": 0.0
+      },
+      "no_regression_gate": "PASS",
+      "prepared": {
+        "artifact_id": "8456dd72bc395e5c464627a1db4d6136888ae5587837ba48f0ffab5198dec63b",
+        "artifact_sha256": "8456dd72bc395e5c464627a1db4d6136888ae5587837ba48f0ffab5198dec63b",
+        "candidate_id": "candidate-58dafc5e3ba243c29fd749ea56ddf978",
+        "material_zone_count": 4,
+        "material_zone_ids": [
+          "white-dielectric-clearcoat",
+          "black-anodized-metal",
+          "brushed-steel",
+          "warm-orange-emissive"
+        ],
+        "part_count": 16,
+        "part_ids": [
+          "receiver-core",
+          "upper-armor-shell",
+          "lower-keel-shell",
+          "rear-mechanical-inset",
+          "energy-core-housing",
+          "energy-core-ring",
+          "energy-core-emitter",
+          "energy-guide-channel",
+          "receiver-vent-bank",
+          "dorsal-rail",
+          "upper-forward-plate",
+          "upper-rear-plate",
+          "lower-forward-shroud",
+          "core-rear-collar",
+          "core-forward-collar",
+          "muzzle-terminal-inset"
+        ],
+        "program_sha256": "342b100f00e7164e8543c029c5566d6a5d892878086f7dc23d74c84c40dc6ea0",
+        "strict_glb_readback": "PASS",
+        "triangle_count": 1212
+      },
+      "retained": true,
+      "stage_id": "panel-relief"
+    }
+  ],
+  "status": "SECONDARY_STRUCTURE_NUMERIC_GATE_PASS",
+  "task_id": "FGC-MCP010F-WEAPON-SECONDARY-STRUCTURE",
+  "visual_review_required": true
+}

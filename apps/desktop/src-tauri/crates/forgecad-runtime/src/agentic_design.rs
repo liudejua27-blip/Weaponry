@@ -125,18 +125,14 @@ impl Runtime {
         candidate_id: Option<&str>,
         observation_sha256: &str,
     ) -> Result<Value, RuntimeError> {
-        let observation = self.bound_agentic_observation(
-            project_id,
-            candidate_id,
-            observation_sha256,
-        )?;
+        let observation =
+            self.bound_agentic_observation(project_id, candidate_id, observation_sha256)?;
         observation
             .get("design_stage_plan")
             .cloned()
             .ok_or_else(|| {
                 RuntimeError::InvalidInput(
-                    "AGENTIC_PROJECTION_INVALID: observation omitted design_stage_plan"
-                        .to_owned(),
+                    "AGENTIC_PROJECTION_INVALID: observation omitted design_stage_plan".to_owned(),
                 )
             })
     }
@@ -177,11 +173,8 @@ impl Runtime {
         candidate_id: Option<&str>,
         observation_sha256: &str,
     ) -> Result<Value, RuntimeError> {
-        let observation = self.bound_agentic_observation(
-            project_id,
-            candidate_id,
-            observation_sha256,
-        )?;
+        let observation =
+            self.bound_agentic_observation(project_id, candidate_id, observation_sha256)?;
         observation
             .get("design_critic_report")
             .cloned()
@@ -214,11 +207,8 @@ impl Runtime {
         candidate_id: &str,
         observation_sha256: &str,
     ) -> Result<Value, RuntimeError> {
-        let observation = self.bound_agentic_observation(
-            project_id,
-            Some(candidate_id),
-            observation_sha256,
-        )?;
+        let observation =
+            self.bound_agentic_observation(project_id, Some(candidate_id), observation_sha256)?;
         observation
             .get("visual_evidence_bundle")
             .cloned()
@@ -258,9 +248,7 @@ impl Runtime {
         if candidate_id.is_some() && observed_candidate_id != candidate_id {
             return Err(binding_error("cached observation candidate differs"));
         }
-        if observation.get("canonical_sha256").and_then(Value::as_str)
-            != Some(observation_sha256)
-        {
+        if observation.get("canonical_sha256").and_then(Value::as_str) != Some(observation_sha256) {
             return Err(RuntimeError::InvalidInput(
                 "AGENTIC_OBSERVATION_STALE: follow-up projection does not match scene_observe_get"
                     .to_owned(),
@@ -2346,7 +2334,10 @@ fn read_primary_form_error_context(
     match runtime.silhouette_part_error(project_id, request) {
         Ok(result) => Ok(Some(result)),
         Err(RuntimeError::InvalidInput(detail))
-            if detail.starts_with("SILHOUETTE_PART_ERROR_UNAVAILABLE:") => Ok(None),
+            if detail.starts_with("SILHOUETTE_PART_ERROR_UNAVAILABLE:") =>
+        {
+            Ok(None)
+        }
         Err(error) => Err(error),
     }
 }
@@ -3641,9 +3632,9 @@ fn primary_form_focus(part_error: Option<&Value>) -> (Option<String>, &'static s
         .get("parts")
         .and_then(Value::as_array)
         .and_then(|parts| {
-            parts.iter().find(|part| {
-                part.get("part_id").and_then(Value::as_str) == Some(focus_part_id)
-            })
+            parts
+                .iter()
+                .find(|part| part.get("part_id").and_then(Value::as_str) == Some(focus_part_id))
         })
         .and_then(|part| part.get("visibility").and_then(Value::as_str))
         .map(|visibility| match visibility {
@@ -3917,9 +3908,8 @@ fn build_critic_report(context: &ProjectionContext, stage_plan: &Value) -> Value
             .filter_map(|issue| issue.get("issue_id").and_then(Value::as_str))
             .take(8)
             .collect::<Vec<_>>();
-        let repair_key = canonical_json_hash(
-            &json!({"issue_ids":issue_ids,"lineage":context.lineage.clone()}),
-        );
+        let repair_key =
+            canonical_json_hash(&json!({"issue_ids":issue_ids,"lineage":context.lineage.clone()}));
         vec![json!({
             "repair_intent_id":format!("repair-{}", &repair_key[..24]),
             "stage":stage,

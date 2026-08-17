@@ -1,13 +1,13 @@
 # ForgeCAD Runtime Viewer
 
-当前 Stage 0 覆盖（2026-08-17）：129 Schema、41 read + 33 opt-in write = 74 tools；Viewer 仍只读。`repair_intent_run_prepare` 为 Codex/Runtime 的 CAS-bound staged-run source slice，Viewer 不调用它，也不提供 Repair apply/confirm。
+当前 Stage 0 覆盖（2026-08-17）：138 Schema、41 read + 33 opt-in write = 74 tools；Viewer 仍只读。`repair_intent_run_prepare` 为 Codex/Runtime 的 CAS-bound staged-run source slice，Viewer 不调用它，也不提供 Repair apply/confirm。
 
-版本：2026-08-14
-状态：当前源码口径为 129 Schema、41 read + 33 opt-in write = 74；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。第一阶段又接入 Runtime-authenticated Agentic projection，Viewer 可归一化显示 stage/gate/action/evidence hash，并按 project/candidate 读取 durable DesignSession/Checkpoint read model；唯一 `in_progress` 为 `FGC-MCP010F`。Runtime-owned `primary_form_repair_prepare` 现在先执行 `PrimaryFormAcceptance@1` same-camera retention，再产生 staged candidate/evidence；长时间搜索另由 `primary_form_repair_job_prepare` 排队，并通过 `job_get`/`job_events_read`/`job_result_get` 读取终态 CAS 结果，Viewer 仍只读、不重算质量。provisional observation 的 packaged Viewer binding、正式 VoiceOver、真人/PBR/360 与发布级 packaged E2E 仍 `NOT_RUN/BLOCKED`；Viewer 不提供 durable 写入，通用单动作 orchestrator 与 Repair 应用尚未实现。
+版本：2026-08-17
+状态：当前源码口径为 138 Schema、41 read + 33 opt-in write = 74；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。第一阶段又接入 Runtime-authenticated Agentic projection，Viewer 可归一化显示 stage/gate/action/evidence hash，并按 project/candidate 读取 durable DesignSession/Checkpoint read model；唯一 `in_progress` 为 `FGC-MCP010F`。Runtime-owned `primary_form_repair_prepare` 现在先执行 `PrimaryFormAcceptance@1` same-camera retention，再产生 staged candidate/evidence；长时间搜索另由 `primary_form_repair_job_prepare` 排队，并通过 `job_get`/`job_events_read`/`job_result_get` 读取终态 CAS 结果，Viewer 仍只读、不重算质量。provisional observation 的 packaged Viewer binding、正式 VoiceOver、真人/PBR/360 与发布级 packaged E2E 仍 `NOT_RUN/BLOCKED`；Viewer 不提供 durable 写入，通用单动作 orchestrator 与 Repair 应用尚未实现。
 
 Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
 
-<!-- forgecad-stage0: schemas=129 schema_set_sha256=baaf541b3efac29997cd164f224d9fb528347956de99c2f7e668de36517b1dff read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=139 schema_set_sha256=c66615a0edf6bfcfa13c333b43f1b1756d6db678be7dd9e5249738381e41448b read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 ## 1. 产品角色
 
@@ -26,14 +26,13 @@ ADR-0026 后，Viewer 的目标角色升级为只读 **design stage console**：
 ## 2. 页面模型
 
 ```text
-┌ Project / Runtime / Codex connection / current version ┐
-├ Assembly tree ┬──────── single 3D viewport ────────┬ Inspector ┤
-│ Part hierarchy│ candidate / version / explode      │ Part      │
-│ versions      │ selection / isolate / compare      │ Material  │
-│ jobs          │ one WebGL context                  │ UV/Quality│
-├───────────────┴─────────────────────────────────────┴───────────┤
-│ Reference & fixed views | Quality issues | Job events           │
-└─────────────────────────────────────────────────────────────────┘
+┌ ForgeCAD / project ─── Modeling | Compare | Review ─── Codex / export ┐
+├ Structure | References ┬────── one primary 3D viewport ─────┬ Inspector ┤
+│ searchable Part tree   │ layout / camera / shading / aids   │ tabs      │
+│ reference thumbnails   │ compare or review mode when chosen │ read-only │
+├────────────────────────┴─────────────────────────────────────┴───────────┤
+│ Versions | Codex tasks | Quality issues | Activity log · collapsed rail │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 只允许一个交互 WebGL renderer/context。固定视图和 AOV 是 Runtime 生成的 CAS 工件；Viewer 展示而不重新定义质量事实。
@@ -60,6 +59,8 @@ ReferenceCanvas | DesignSpec | Stage gates | Critic issues | Next allowed action
 ## 4. 状态和一致性
 
 Viewer 只消费 Runtime read model：`RuntimeConnection`、`ProjectSummary`、`ActiveDesignSnapshot`、`CandidateSummary`、`SelectionState`、`JobProjection`、`QualitySummary`。它没有本地版本头，不用 localStorage 恢复产品状态，不把旧请求结果覆盖新候选。
+
+Viewer 允许把左右面板宽度、底部抽屉展开状态和抽屉标签保存为本机界面偏好；这些字段不包含 project/candidate/version/hash，也不能恢复或覆盖 Runtime 产品状态。
 
 每个屏幕必须显示 project ID、version/candidate ID 和 connection freshness。Runtime 断开、Schema 不兼容或版本漂移时进入明确只读诊断状态；不能展示可以点击却会走 legacy 路径的按钮。
 
@@ -118,6 +119,19 @@ Viewer 始终只读；选择是 ephemeral，永久修改回到 Codex。当前 UI
 - 生成耗时独立面板按任务 ID 展示平均耗时、候选状态成功率和异常计数；缺失、未来时间、无法解析和超长耗时使用图标、文本和边框共同提示。状态图例统一区分通过、未通过/异常、未运行/未知。
 
 本轮源码/build 验证：`desktop:typecheck`、Vite production build、`check_mcp010f_viewer.py`、Tauri `cargo check --offline` 和 `git diff --check` 均通过；本地浏览器空 Runtime 诊断与比较模式/标尺开关 smoke 通过。正式 packaged WebView/GPU、VoiceOver、真人视觉、PBR likeness、export/restart hash 和 360 仍按上文保持 `NOT_RUN/BLOCKED`。
+
+### 5.4 2026-08-17 Canvas-first 布局升级
+
+- 顶部改为项目切换、`建模 / 对比 / 审查` 三模式和只读批准边界；确认按钮保持禁用并明确回到 Codex，导出继续进入受保护页面。
+- 左侧固定为 `结构 / 参考图` 两个标签，默认宽度 248px；右侧固定为 `属性 / 几何 / 材质 / 检查` 四个标签，默认宽度 320px。两侧支持 220–360px / 280–420px 有界拖动与键盘方向键、Home、End 调整，只持久化界面宽度。
+- 中央视口把版本、`1/2/4` 布局、相机、实体/材质/线框、参考图/网格/Gizmo 和重置收进单一紧凑工具栏；建模模式不再常驻参考比较，避免压缩主视口。
+- 参考比较只在对比模式出现，保留分屏、叠加、闪烁、AOV、热图、标尺和筛选；无候选、参考图或固定视角渲染时显示逐项前置条件与对应恢复动作，不再只显示空白占位。审查模式保留 3D 视口，且只有候选绑定问题才显示空间标记。
+- Runtime 断连时，顶部状态、中央恢复横幅、对象信息和底部“连接问题”保持同一语义；重试和诊断均可直接操作。导出仅在 Runtime 已连接、存在候选版本且权威质量门通过时可用。
+- 版本、Codex 任务、连接/检查问题和活动日志改为默认 42px 的底部抽屉，展开为 238px；问题行提供真实恢复动作。900px 以下不再删除左右面板，而由顶部“结构 / 对象”按钮打开覆盖式抽屉，并支持 Esc 或遮罩关闭。
+- 后续按“低信息密度、低视觉噪音”收敛默认态：无模型时隐藏搜索、筛选、四类对象标签和成排禁用视图控件，只保留版本入口、连接恢复和单句空状态；模型可用后再显示相机与显示模式，布局和辅助显示收进“视图选项”。
+- 桌面键盘路径新增 `⌘K` 命令菜单，支持搜索、上下键和 Enter 执行；`⌘1/2/3` 切换建模/对比/审查，`⌘B` 聚焦结构搜索，`⌘I` 打开对象信息，`⌘J` 展开或收起底部面板。鼠标路径仍保留，不要求用户记忆快捷键。
+- 用户可见的基础路径统一为简体中文；Runtime、Codex、GLB、AOV、PBR 等保留为产品名或专业缩写，内部原始状态仅用于无障碍/诊断，不作为主文案。
+- 1672×941、900×900 与 720×800 空 Runtime 浏览器证据已验证恢复、对比前置条件、导出禁用、命令菜单、紧凑抽屉、Esc 关闭、面板键盘缩放和文字无重叠；控制台无 warning/error。该证据只证明 current-source UI 布局与交互，不替代当前安装包、真实模型质量或 reference likeness。
 
 ## 6. 可访问性与性能
 
