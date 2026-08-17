@@ -10,6 +10,7 @@ cc = "1.2"
 base64 = "0.22"
 forgecad-core = { path = "../desktop/src-tauri/crates/forgecad-core" }
 forgecad-worker-protocol = { path = "../desktop/src-tauri/crates/forgecad-worker-protocol" }
+image = { version = "0.25.10", default-features = false, features = ["png"] }
 libc = "0.2"
 mikktspace = "=0.3.0"
 sha2 = "0.10"

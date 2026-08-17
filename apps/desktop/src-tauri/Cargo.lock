@@ -866,6 +866,7 @@ dependencies = [
  "cc",
  "forgecad-core",
  "forgecad-worker-protocol",
+ "image",
  "libc",
  "mikktspace",
  "serde_json",

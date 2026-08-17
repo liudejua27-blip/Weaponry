@@ -14,6 +14,10 @@ pub use forgecad_worker_protocol::{
     material_pack_manifest, material_pack_manifest_sha256, operator_catalog,
     operator_catalog_sha256,
 };
+use image::{
+    codecs::png::{CompressionType, FilterType, PngEncoder},
+    ExtendedColorType, ImageEncoder,
+};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
@@ -1885,8 +1889,7 @@ fn pack_material_json(definition: &Value, texture_set_id: Option<&str>) -> Value
         Some("metal-surface") => json!({
             "base_color":"metal010_color",
             "normal":"metal010_normal_gl",
-            "roughness":"metal010_roughness",
-            "metallic":"metal010_metalness"
+            "metallic_roughness":"metal010_metallic_roughness"
         }),
         // The bundled Plastic006 color map is a black engineering-plastic
         // surface.  The white dielectric armor uses the same texture set for
@@ -1894,12 +1897,12 @@ fn pack_material_json(definition: &Value, texture_set_id: Option<&str>) -> Value
         // baseColorFactor instead of multiplying by a black albedo.
         Some("plastic-surface") if material_id == "white-dielectric-clearcoat" => json!({
             "normal":"plastic006_normal_gl",
-            "roughness":"plastic006_roughness"
+            "metallic_roughness":"plastic006_metallic_roughness"
         }),
         Some("plastic-surface") => json!({
             "base_color":"plastic006_color",
             "normal":"plastic006_normal_gl",
-            "roughness":"plastic006_roughness"
+            "metallic_roughness":"plastic006_metallic_roughness"
         }),
         _ => json!({}),
     };
@@ -2250,11 +2253,7 @@ fn write_glb(
     let mut textures = Vec::new();
     let mut texture_indices = HashMap::<String, usize>::new();
     for key in &texture_keys {
-        let bytes = pack_texture_bytes(key).ok_or_else(|| {
-            GeometryError::Invalid(format!(
-                "offline material pack texture is unavailable: {key}"
-            ))
-        })?;
+        let bytes = pack_texture_bytes(key)?;
         if bytes.len() > 16 * 1024 * 1024 {
             return Err(GeometryError::Invalid(
                 "offline material pack texture exceeds its per-image bound".to_owned(),
@@ -2264,7 +2263,7 @@ fn write_glb(
             binary.push(0);
         }
         let offset = binary.len();
-        binary.extend_from_slice(bytes);
+        binary.extend_from_slice(&bytes);
         while binary.len() % 4 != 0 {
             binary.push(0);
         }
@@ -2285,7 +2284,7 @@ fn write_glb(
         };
         for (slot, field) in [
             ("base_color", "baseColorTexture"),
-            ("roughness", "metallicRoughnessTexture"),
+            ("metallic_roughness", "metallicRoughnessTexture"),
         ] {
             if let Some(key) = keys.get(slot).and_then(Value::as_str) {
                 if let Some(index) = texture_indices.get(key) {
@@ -2377,38 +2376,96 @@ fn write_glb(
     Ok(glb)
 }
 
-fn pack_texture_bytes(key: &str) -> Option<&'static [u8]> {
+fn pack_texture_bytes(key: &str) -> Result<Vec<u8>, GeometryError> {
     match key {
-        "metal010_color" => Some(include_bytes!(concat!(
+        "metal010_color" => Ok(include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_color.png"
-        ))),
-        "metal010_normal_gl" => Some(include_bytes!(concat!(
+        )).to_vec()),
+        "metal010_normal_gl" => Ok(include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_normal_gl.png"
-        ))),
-        "metal010_roughness" => Some(include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_roughness.png"
-        ))),
-        "metal010_metalness" => Some(include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_metalness.png"
-        ))),
-        "plastic006_color" => Some(include_bytes!(concat!(
+        )).to_vec()),
+        "metal010_metallic_roughness" => pack_metallic_roughness_texture(
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_roughness.png"
+            )),
+            Some(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_metalness.png"
+            ))),
+        ),
+        "plastic006_color" => Ok(include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/plastic006_color.png"
-        ))),
-        "plastic006_normal_gl" => Some(include_bytes!(concat!(
+        )).to_vec()),
+        "plastic006_normal_gl" => Ok(include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/plastic006_normal_gl.png"
+        )).to_vec()),
+        "plastic006_metallic_roughness" => pack_metallic_roughness_texture(
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/plastic006_roughness.png"
+            )),
+            None,
+        ),
+        _ => Err(GeometryError::Invalid(format!(
+            "offline material pack texture is unavailable: {key}"
         ))),
-        "plastic006_roughness" => Some(include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/plastic006_roughness.png"
-        ))),
-        _ => None,
     }
+}
+
+/// Build a canonical glTF metallic-roughness texture from the source pack's
+/// separate linear grayscale maps.  glTF stores roughness in G and metallic
+/// in B; R is intentionally set to 255 because it is unused.  This is kept in
+/// the fixed worker rather than accepting a user path or image payload, so the
+/// result stays deterministic and source-bound.
+fn pack_metallic_roughness_texture(
+    roughness_bytes: &[u8],
+    metallic_bytes: Option<&[u8]>,
+) -> Result<Vec<u8>, GeometryError> {
+    let roughness = image::load_from_memory(roughness_bytes)
+        .map_err(|error| {
+            GeometryError::Invalid(format!("roughness texture decode failed: {error}"))
+        })?
+        .to_luma8();
+    let metallic = metallic_bytes
+        .map(|bytes| {
+            image::load_from_memory(bytes)
+                .map(|image| image.to_luma8())
+                .map_err(|error| {
+                    GeometryError::Invalid(format!("metallic texture decode failed: {error}"))
+                })
+        })
+        .transpose()?;
+    if let Some(metallic) = metallic.as_ref() {
+        if metallic.dimensions() != roughness.dimensions() {
+            return Err(GeometryError::Invalid(
+                "metallic and roughness textures must have matching dimensions".to_owned(),
+            ));
+        }
+    }
+    let (width, height) = roughness.dimensions();
+    let mut packed = Vec::with_capacity(width as usize * height as usize * 3);
+    for y in 0..height {
+        for x in 0..width {
+            let roughness_value = roughness.get_pixel(x, y)[0];
+            let metallic_value = metallic
+                .as_ref()
+                .map(|texture| texture.get_pixel(x, y)[0])
+                .unwrap_or(0);
+            packed.extend_from_slice(&[255, roughness_value, metallic_value]);
+        }
+    }
+    let mut encoded = Vec::new();
+    PngEncoder::new_with_quality(&mut encoded, CompressionType::Best, FilterType::NoFilter)
+        .write_image(&packed, width, height, ExtendedColorType::Rgb8)
+        .map_err(|error| {
+            GeometryError::Invalid(format!("metallic-roughness texture encode failed: {error}"))
+        })?;
+    Ok(encoded)
 }
 
 fn ordered_unique_part_ids(parts: &[PartMesh]) -> Vec<String> {
@@ -3160,23 +3217,82 @@ mod tests {
         assert!(root
             .get("images")
             .and_then(Value::as_array)
-            .is_some_and(|v| v.len() >= 6));
+            .is_some_and(|v| v.len() >= 5));
         assert!(root
             .get("textures")
             .and_then(Value::as_array)
-            .is_some_and(|v| v.len() >= 6));
+            .is_some_and(|v| v.len() >= 5));
         assert_eq!(root["extras"]["forgecad"]["uv_atlas"]["resolution"], 512);
         assert!(
             root["extras"]["forgecad"]["texture_count"]
                 .as_u64()
                 .unwrap()
-                >= 6
+                >= 5
         );
+        let image_names = root["images"]
+            .as_array()
+            .expect("embedded material images")
+            .iter()
+            .filter_map(|image| image.get("name").and_then(Value::as_str))
+            .collect::<Vec<_>>();
+        assert!(image_names.contains(&"metal010_metallic_roughness"));
+        assert!(image_names.contains(&"plastic006_metallic_roughness"));
+        assert!(!image_names.contains(&"metal010_roughness"));
+        assert!(!image_names.contains(&"metal010_metalness"));
+        let metal_material = root["materials"]
+            .as_array()
+            .expect("materials")
+            .iter()
+            .find(|material| material["name"] == "zone-black-mechanical")
+            .expect("metal material");
+        assert!(metal_material["pbrMetallicRoughness"]
+            .get("metallicRoughnessTexture")
+            .is_some());
 
         let mut invalid = appearance;
         invalid["material_pack_manifest_sha256"] = Value::String("0".repeat(64));
         invalid["canonical_sha256"] = Value::String(canonical_hash(&without_hash(&invalid)));
         assert!(compile_geometry_program_with_appearance(&geometry, Some(&invalid)).is_err());
+    }
+
+    #[test]
+    fn mcp010e_metallic_roughness_texture_uses_g_for_roughness_and_b_for_metallic() {
+        let roughness = image::load_from_memory(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_roughness.png"
+        )))
+        .expect("metal roughness source")
+        .to_luma8();
+        let metallic = image::load_from_memory(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/textures/metal010_metalness.png"
+        )))
+        .expect("metallic source")
+        .to_luma8();
+        let packed = image::load_from_memory(
+            &pack_texture_bytes("metal010_metallic_roughness").expect("packed MR texture"),
+        )
+        .expect("packed MR PNG")
+        .to_rgb8();
+        assert_eq!(packed.dimensions(), roughness.dimensions());
+        assert_eq!(packed.dimensions(), metallic.dimensions());
+        for y in (0..packed.height()).step_by(31) {
+            for x in (0..packed.width()).step_by(29) {
+                let source_roughness = roughness.get_pixel(x, y)[0];
+                let source_metallic = metallic.get_pixel(x, y)[0];
+                let pixel = packed.get_pixel(x, y);
+                assert_eq!(pixel[0], 255, "unused R channel must be deterministic");
+                assert_eq!(pixel[1], source_roughness, "roughness must be glTF G");
+                assert_eq!(pixel[2], source_metallic, "metallic must be glTF B");
+            }
+        }
+
+        let plastic = image::load_from_memory(
+            &pack_texture_bytes("plastic006_metallic_roughness").expect("plastic packed MR"),
+        )
+        .expect("plastic packed MR PNG")
+        .to_rgb8();
+        assert!(plastic.pixels().all(|pixel| pixel[2] == 0));
     }
 
     #[test]
@@ -3196,7 +3312,6 @@ mod tests {
             white["pbrMetallicRoughness"]["baseColorFactor"],
             json!([0.82, 0.86, 0.9, 1.0])
         );
-
     }
 
     #[test]
