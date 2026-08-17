@@ -1,0 +1,50 @@
+{
+  "schema_version": "ForgeCADPbrChannelRepairReceipt@1",
+  "task_id": "FGC-MCP010E-PBR-MR-CORRECTNESS",
+  "recorded_on": "2026-08-17",
+  "status": "source-structural-pass",
+  "scope": [
+    "fixed Worker-owned glTF metallicRoughnessTexture lowering",
+    "deterministic offline AssetPack source binding",
+    "linear grayscale roughness/metallic channel preservation"
+  ],
+  "implementation": {
+    "source_files": [
+      "apps/geometry-worker/Cargo.toml",
+      "apps/geometry-worker/src/lib.rs"
+    ],
+    "metal_texture": {
+      "texture_id": "metal010_metallic_roughness",
+      "g": "metal010_roughness",
+      "b": "metal010_metalness",
+      "r": "255_unused"
+    },
+    "plastic_texture": {
+      "texture_id": "plastic006_metallic_roughness",
+      "g": "plastic006_roughness",
+      "b": "0_no_metallic_source",
+      "r": "255_unused"
+    },
+    "external_paths_or_payloads": false
+  },
+  "gates": {
+    "metallic_roughness_channel_test": "PASS",
+    "mcp010e_worker_tests": "PASS_3",
+    "geometry_worker_lib_tests": "PASS_29",
+    "desktop_cargo_check_locked": "PASS",
+    "forgecad_contracts": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "khronos_gltf_validator": "NOT_RUN",
+    "packaged_desktop_visual": "NOT_RUN",
+    "human_visual_review": "NOT_RUN"
+  },
+  "limitations": [
+    "This receipt proves channel correctness and structural readback only; it does not prove PBR likeness or overall high-quality 3D.",
+    "The installed Dev.app was not rebuilt in this slice; packaged/runtime visual gates remain separate.",
+    "UV chart quality, robust profile triangulation, sweep frames, self-intersection, LOD and cross-renderer validation remain open."
+  ],
+  "persistent_user_data_touched": false
+}

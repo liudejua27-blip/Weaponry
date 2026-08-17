@@ -9,6 +9,7 @@
     "512px deterministic UV atlas with bounded padding",
     "fixed mikktspace@0.3.0 tangent generation and OpenGL +Y convention",
     "embedded PNG metallic-roughness/normal/AO/emissive PBR and clearcoat/emissive-strength lowering",
+    "deterministic metallic-roughness channel repair: G=roughness, B=metallic, dielectric B=0",
     "fixed renderer samples embedded baseColor/normal/metallic-roughness/AO/emissive textures with authored white-shell factor preservation, clearcoat and emissive strength",
     "nine same-hash render passes and MCP image block readback"
   ],
@@ -66,6 +67,7 @@
     "docs/evidence/mcp010e/dev-app-package-verify.json",
     "docs/evidence/mcp010e/dev-app-probe.json",
     "docs/evidence/mcp010e/focused-gates.json",
+    "docs/evidence/mcp010e/pbr-metallic-roughness-channel-repair-20260817.json",
     "docs/evidence/adoption/mikktspace/0.3.0.yaml",
     "packages/forgecad-assets/forgecad-hard-surface-robot/1.0.0/manifest.json",
     "script/test_mcp010e.sh"
