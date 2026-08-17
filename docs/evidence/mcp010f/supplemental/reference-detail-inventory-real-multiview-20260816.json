@@ -1,0 +1,98 @@
+{
+  "schema_version": "ForgeCADCodexReferenceInventory@1",
+  "status": "multi_view_current_source_coverage_observed",
+  "recorded_on": "2026-08-16",
+  "source_evidence": "docs/evidence/mcp010f/supplemental/real-codex-cli-current-20260816-multiview-reference-canvas-observation-v6.json",
+  "reference": {
+    "reference_set_sha256": "d219355d0a9c2064446d207a9f37949bf57b3c9561159899a5a1083aa02ecab3",
+    "source": "user-authorized-reference-set",
+    "width": 1254,
+    "height": 1254,
+    "view": "multi-view humanoid hard-surface reference set",
+    "coverage": {
+      "front": "observed",
+      "back": "observed",
+      "left": "observed",
+      "right": "observed",
+      "perspective": "observed",
+      "rear_three_quarter": "observed",
+      "feet": "observed"
+    },
+    "views": [
+      {
+        "kind": "perspective",
+        "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd"
+      },
+      {
+        "kind": "front",
+        "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4"
+      },
+      {
+        "kind": "back",
+        "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834"
+      },
+      {
+        "kind": "left",
+        "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4"
+      },
+      {
+        "kind": "right",
+        "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698"
+      },
+      {
+        "kind": "rear-three-quarter",
+        "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3"
+      }
+    ]
+  },
+  "quality_contract": {
+    "target": "MULTI_VIEW_REFERENCE_COVERAGE_ELIGIBLE",
+    "visual_gate": "MCP010C_REFERENCE_COMPARISON",
+    "max_correction_rounds": 5,
+    "metric_priority": [
+      "boundary_f1_4px",
+      "silhouette_iou",
+      "bbox_edge_error",
+      "centroid_error",
+      "landmark_coverage_and_nme",
+      "region_iou"
+    ],
+    "stop_on": [
+      "QUALITY_TARGET_NOT_MET",
+      "reference_binding_incomplete",
+      "unknown_operator",
+      "readback_integrity_error",
+      "catalog_or_candidate_hash_mismatch"
+    ],
+    "hq_360_status": "ELIGIBLE_REFERENCE_COVERAGE",
+    "visual_quality_status": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "confirmation_allowed": false
+  },
+  "correction_state": {
+    "current_stage": "primary-form",
+    "current_candidate_status": "QUALITY_TARGET_NOT_MET",
+    "current_source_baseline": {
+      "candidate_id": "candidate-b8b99f39d41f460ca1051c4aefe8e302",
+      "parts": 26,
+      "triangles": 4704,
+      "silhouette_iou": 0.741047132807,
+      "boundary_f1_4px": 0.32876512261,
+      "bbox_edge_error": 0.0078125,
+      "centroid_error": 0.007878177805,
+      "landmark_coverage": 0.139498432602,
+      "landmark_nme": 0.087015499392,
+      "region_median_iou": 0.869403198991,
+      "critical_region_min_iou": 0.666288576965
+    },
+    "next_round": "primary-form-multi-view",
+    "confirmation_allowed": false,
+    "human_review": "NOT_RUN",
+    "full_360": "ELIGIBLE_REFERENCE_COVERAGE"
+  },
+  "persistent_user_data_touched": false,
+  "limitations": [
+    "The side-view left/right labels follow upload order; the two supplied side images are visually similar and were not independently anatomically verified.",
+    "Coverage eligibility does not establish silhouette likeness, PBR quality, human review, confirmation, export restart hash, or a general HQ_360_PASS."
+  ]
+}

@@ -174,6 +174,27 @@ pub struct Runtime {
     _process_lock: Option<process_lock::ProcessLock>,
 }
 
+/// One Runtime-derived view used by the Primary Form multi-view acceptance
+/// boundary.  The camera is deliberately inferred from the typed view kind
+/// and then calibrated only for framing against that view's reference mask;
+/// it is not presented as an observed camera claim from the source image.
+#[derive(Debug, Clone)]
+struct PrimaryFormReferenceView {
+    view_id: String,
+    kind: String,
+    reference: ReferenceEvidenceRecord,
+    reference_mask: ReferenceMask,
+    view_spec: Value,
+    camera: Value,
+}
+
+#[derive(Debug, Clone)]
+struct PrimaryFormMultiViewContext {
+    reference_canvas_sha256: String,
+    primary_view_id: String,
+    views: Vec<PrimaryFormReferenceView>,
+}
+
 fn camera_fit_cache_key(project_id: &str, candidate_id: &str, target_sha256: &str) -> String {
     format!("{project_id}\n{candidate_id}\n{target_sha256}")
 }
@@ -2513,6 +2534,35 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         } else {
             primary_form_view_spec(&reference, &target, target_sha256)?
         };
+        // A complete durable ReferenceCanvas upgrades this action from a
+        // perspective-only acceptance check to a Runtime-owned multi-view
+        // acceptance check.  The primary target/camera remain authoritative
+        // for the existing single-view contract; the additional views are
+        // attached as a separate evidence object and can only veto staging
+        // when they regress.  Unknown source-image cameras are inferred by
+        // Runtime from the typed view kind and bounded against each reference
+        // mask, never copied into the authoring canvas as observed facts.
+        let primary_target_mask = self.target_mask(target_sha256, &target)?;
+        let multi_view_context = build_primary_form_multiview_context(
+            self,
+            project_id,
+            source_candidate_id,
+            reference_id,
+            &source_glb,
+        )?
+        .map(|mut context| {
+            if let Some(primary) = context
+                .views
+                .iter_mut()
+                .find(|view| view.reference.reference_id == reference_id)
+            {
+                primary.reference_mask = primary_target_mask.clone();
+                primary.view_spec = view_spec.clone();
+                primary.camera = selected_camera.clone();
+                context.primary_view_id = primary.view_id.clone();
+            }
+            context
+        });
         let source_compare = compare_glb_metrics_at_camera(
             self,
             project_id,
@@ -2553,17 +2603,17 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             &proposed_artifact.glb,
             &proposed_inspection.part_ids,
         )?;
-        let source_loss = camera_fit_loss(
+        let single_view_source_loss = camera_fit_loss(
             source_compare
                 .get("metrics")
                 .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: source metrics".to_owned()))?,
         );
-        let proposed_loss = camera_fit_loss(
+        let single_view_proposed_loss = camera_fit_loss(
             proposed_compare
                 .get("metrics")
                 .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: proposal metrics".to_owned()))?,
         );
-        let strict_same_camera_improvement = primary_form_strict_same_camera_improvement(
+        let single_view_strict_improvement = primary_form_strict_same_camera_improvement(
             source_compare
                 .get("metrics")
                 .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: source metrics".to_owned()))?,
@@ -2571,6 +2621,40 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 .get("metrics")
                 .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_REPAIR_ACCEPTANCE_INVALID: proposal metrics".to_owned()))?,
         );
+        let multi_view_evaluation = multi_view_context
+            .as_ref()
+            .map(|context| {
+                evaluate_primary_form_multiview(
+                    self,
+                    project_id,
+                    source_candidate_id,
+                    context,
+                    &source_glb,
+                    &source_inspection.part_ids,
+                    &proposed_artifact.glb,
+                    &proposed_inspection.part_ids,
+                )
+            })
+            .transpose()?;
+        if let Some(evaluation) = multi_view_evaluation.as_ref() {
+            result["multi_view_evaluation"] = evaluation.clone();
+        }
+        let (source_loss, proposed_loss, strict_same_camera_improvement) =
+            if let Some(evaluation) = multi_view_evaluation.as_ref() {
+                (
+                    evaluation["source_loss"].as_f64().unwrap_or(single_view_source_loss),
+                    evaluation["proposal_loss"].as_f64().unwrap_or(single_view_proposed_loss),
+                    evaluation["strict_improvement"]
+                        .as_bool()
+                        .unwrap_or(single_view_strict_improvement),
+                )
+            } else {
+                (
+                    single_view_source_loss,
+                    single_view_proposed_loss,
+                    single_view_strict_improvement,
+                )
+            };
         result["acceptance"] = json!({
             "schema_version":"PrimaryFormAcceptance@1",
             "source_candidate_id":source_candidate_id,
@@ -7714,6 +7798,426 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
     }
 }
 
+fn primary_form_reference_source_view(kind: &str) -> &'static str {
+    match kind {
+        "front" => "front",
+        "back" => "back",
+        "left" => "left",
+        "right" => "right",
+        "rear-three-quarter" => "rear-three-quarter",
+        "perspective" => "three-quarter",
+        _ => "unknown",
+    }
+}
+
+/// Build a deterministic, Runtime-owned camera seed for one authored view
+/// kind.  The source image does not provide a metric camera calibration, so
+/// this is explicitly an inferred orientation.  Framing is calibrated later
+/// against the reference mask; no user camera claim is rewritten.
+fn primary_form_inferred_camera(kind: &str) -> Value {
+    let (position, target) = match kind {
+        "front" => ([0.0, 3.0, 6.0], [0.0, 1.5, 0.0]),
+        "back" => ([0.0, 3.0, -6.0], [0.0, 1.5, 0.0]),
+        "left" => ([-6.0, 3.0, 0.0], [0.0, 1.5, 0.0]),
+        "right" => ([6.0, 3.0, 0.0], [0.0, 1.5, 0.0]),
+        "rear-three-quarter" => ([4.0, 3.0, -6.0], [0.0, 1.5, 0.0]),
+        _ => ([4.0, 3.0, 6.0], [0.0, 1.5, 0.0]),
+    };
+    let mut camera = default_camera_calibration();
+    if let Some(transform) = camera.get_mut("transform").and_then(Value::as_object_mut) {
+        transform.insert("position_m".to_owned(), json!(position));
+        transform.insert("target_m".to_owned(), json!(target));
+    }
+    stable_camera_calibration_hashes(camera)
+}
+
+fn primary_form_reference_view_spec(
+    reference: &ReferenceEvidenceRecord,
+    view_id: &str,
+    kind: &str,
+) -> Result<Value, RuntimeError> {
+    let mut view_spec = json!({
+        "schema_version":"ReferenceViewSpec@1",
+        "reference_id":reference.reference_id,
+        "reference_sha256":reference.object_sha256,
+        "view_id":view_id,
+        "source_view":primary_form_reference_source_view(kind),
+        "image":{
+            "width":reference.width,
+            "height":reference.height,
+            "rotation_degrees":0,
+            "crop":{"x":0,"y":0,"width":1,"height":1}
+        },
+        "landmarks":[],
+        "regions":[],
+        "canonical_sha256":""
+    });
+    view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+    validate_reference_view_spec(&view_spec, reference)?;
+    Ok(view_spec)
+}
+
+/// Resolve the complete ReferenceCanvas into the bounded view set consumed by
+/// Primary Form.  This is intentionally a read-only projection over durable
+/// authoring truth.  An incomplete canvas returns `None`, preserving the
+/// historical single-view path; a complete canvas with malformed bindings
+/// fails closed instead of silently dropping a view.
+fn build_primary_form_multiview_context(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate_id: &str,
+    primary_reference_id: &str,
+    source_glb: &[u8],
+) -> Result<Option<PrimaryFormMultiViewContext>, RuntimeError> {
+    let Some((canvas, canvas_sha256)) =
+        agentic_session::durable_reference_canvas_for_binding(runtime, project_id, Some(candidate_id))?
+    else {
+        return Ok(None);
+    };
+    let complete = canvas
+        .get("coverage")
+        .and_then(|coverage| coverage.get("coverage_status"))
+        .and_then(Value::as_str)
+        == Some("complete")
+        && canvas
+            .pointer("/coverage/missing_views")
+            .and_then(Value::as_array)
+            .is_some_and(Vec::is_empty);
+    if !complete {
+        return Ok(None);
+    }
+    let authored_views = canvas
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_MULTIVIEW_BLOCKED: ReferenceCanvas views are missing".to_owned(),
+            )
+        })?;
+    let required_kinds = [
+        "front",
+        "back",
+        "left",
+        "right",
+        "perspective",
+        "rear-three-quarter",
+    ];
+    let mut selected = Vec::with_capacity(required_kinds.len());
+    for kind in required_kinds {
+        let view = authored_views
+            .iter()
+            .find(|view| view.get("kind").and_then(Value::as_str) == Some(kind))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "PRIMARY_FORM_MULTIVIEW_BLOCKED: required {kind} view is missing"
+                ))
+            })?;
+        let view_object = view.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_MULTIVIEW_BLOCKED: ReferenceCanvas view is invalid".to_owned(),
+            )
+        })?;
+        let view_id = required_value_id(view_object.get("view_id"), "view_id")?.to_owned();
+        let reference_id = required_value_id(view_object.get("reference_id"), "reference_id")?;
+        let reference_sha256 = required_value_sha(view_object.get("reference_sha256"), "reference_sha256")?;
+        let reference = runtime.reference(reference_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_MULTIVIEW_BLOCKED: authored reference is missing".to_owned(),
+            )
+        })?;
+        if reference.project_id != project_id || reference.object_sha256 != reference_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRIMARY_FORM_MULTIVIEW_BLOCKED: authored reference binding drifted".to_owned(),
+            ));
+        }
+        let view_spec = primary_form_reference_view_spec(&reference, &view_id, kind)?;
+        let reference_mask = reference_mask_png(&runtime.cas_read(&reference.object_sha256)?)?;
+        selected.push((
+            view_id,
+            kind.to_owned(),
+            reference,
+            reference_mask,
+            view_spec,
+            primary_form_inferred_camera(kind),
+        ));
+    }
+
+    let base_cameras = selected
+        .iter()
+        .map(|(_, _, _, _, _, camera)| camera.clone())
+        .collect::<Vec<_>>();
+    let base_passes = render_worker::render_glb_fit_batch_at_resolution(source_glb, &base_cameras, 512)
+        .map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: base render: {error}"
+            ))
+        })?;
+    if base_passes.len() != selected.len() {
+        return Err(RuntimeError::InvalidInput(
+            "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: base render count mismatch"
+                .to_owned(),
+        ));
+    }
+    let mut framing_candidates = Vec::with_capacity(selected.len() * 2);
+    let mut candidate_indices = Vec::with_capacity(selected.len());
+    for (index, (_, _, _, reference_mask, _, base_camera)) in selected.iter().enumerate() {
+        let model_mask = base_passes
+            .get(index)
+            .and_then(|passes| passes.iter().find(|pass| pass.pass == "silhouette"))
+            .map(|pass| decode_binary_mask(&pass.png))
+            .transpose()
+            .map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: base silhouette: {error}"
+                ))
+            })?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: base silhouette missing"
+                        .to_owned(),
+                )
+            })?;
+        let candidates = [
+            calibrate_default_camera_height_only(base_camera, &reference_mask.mask, &model_mask),
+            calibrate_default_camera(base_camera, &reference_mask.mask, &model_mask),
+        ];
+        let mut indices = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            indices.push(framing_candidates.len());
+            framing_candidates.push(candidate);
+        }
+        candidate_indices.push(indices);
+    }
+    let framing_passes = render_worker::render_glb_fit_batch_at_resolution(
+        source_glb,
+        &framing_candidates,
+        512,
+    )
+    .map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: framing render: {error}"
+        ))
+    })?;
+    if framing_passes.len() != framing_candidates.len() {
+        return Err(RuntimeError::InvalidInput(
+            "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: framing render count mismatch"
+                .to_owned(),
+        ));
+    }
+
+    let mut views = Vec::with_capacity(selected.len());
+    for (index, (view_id, kind, reference, reference_mask, view_spec, base_camera)) in
+        selected.into_iter().enumerate()
+    {
+        let base_model = base_passes[index]
+            .iter()
+            .find(|pass| pass.pass == "silhouette")
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: base silhouette missing"
+                        .to_owned(),
+                )
+            })
+            .and_then(|pass| decode_binary_mask(&pass.png))?;
+        let mut camera = base_camera;
+        let mut best_score = camera_fit_score(&reference_mask.mask, &base_model);
+        for candidate_index in &candidate_indices[index] {
+            let candidate_model = framing_passes[*candidate_index]
+                .iter()
+                .find(|pass| pass.pass == "silhouette")
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "PRIMARY_FORM_MULTIVIEW_CAMERA_CALIBRATION_FAILED: framing silhouette missing"
+                            .to_owned(),
+                    )
+                })
+                .and_then(|pass| decode_binary_mask(&pass.png))?;
+            let score = camera_fit_score(&reference_mask.mask, &candidate_model);
+            if score > best_score {
+                best_score = score;
+                camera = framing_candidates[*candidate_index].clone();
+            }
+        }
+        views.push(PrimaryFormReferenceView {
+            view_id,
+            kind,
+            reference,
+            reference_mask,
+            view_spec,
+            camera,
+        });
+    }
+    let primary_view_id = views
+        .iter()
+        .find(|view| view.reference.reference_id == primary_reference_id)
+        .map(|view| view.view_id.clone())
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_MULTIVIEW_BLOCKED: primary reference is not in ReferenceCanvas"
+                    .to_owned(),
+            )
+        })?;
+    Ok(Some(PrimaryFormMultiViewContext {
+        reference_canvas_sha256: canvas_sha256,
+        primary_view_id,
+        views,
+    }))
+}
+
+fn compare_glb_against_primary_form_reference(
+    project_id: &str,
+    candidate_id: &str,
+    view: &PrimaryFormReferenceView,
+    glb: &[u8],
+    part_ids: &[String],
+) -> Result<Value, RuntimeError> {
+    validate_camera_calibration(&view.camera)?;
+    let render_passes = render_glb_with_runtime_worker(glb, &view.camera).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRIMARY_FORM_MULTIVIEW_COMPARE_RENDER_FAILED: {error}"
+        ))
+    })?;
+    let model_mask = render_passes
+        .iter()
+        .find(|pass| pass.pass == "silhouette")
+        .map(|pass| decode_binary_mask(&pass.png))
+        .transpose()?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRIMARY_FORM_MULTIVIEW_COMPARE_RENDER_FAILED: silhouette pass missing"
+                    .to_owned(),
+            )
+        })?;
+    let part_context = render_passes
+        .iter()
+        .find(|pass| pass.pass == "part-id")
+        .map(|pass| (pass.png.as_slice(), part_ids));
+    let mut metrics = compare_masks_with_parts(
+        &view.reference_mask.mask,
+        &model_mask,
+        &view.view_spec,
+        part_context,
+    );
+    metrics["sdf_chamfer_px"] = Value::from(stable_visual_metric(
+        sdf_chamfer_px(&view.reference_mask.mask, &model_mask),
+    ));
+    Ok(json!({
+        "project_id":project_id,
+        "candidate_id":candidate_id,
+        "view_id":view.view_id,
+        "reference_id":view.reference.reference_id,
+        "reference_sha256":view.reference.object_sha256,
+        "camera_hash":view.camera["camera_hash"].clone(),
+        "metrics":metrics,
+        "visual_status":if visible_view_gate_passes(&metrics) {"PARTIAL_VISIBLE_VIEW_PASS"} else {"QUALITY_TARGET_NOT_MET"}
+    }))
+}
+
+fn evaluate_primary_form_multiview(
+    _runtime: &Runtime,
+    project_id: &str,
+    source_candidate_id: &str,
+    context: &PrimaryFormMultiViewContext,
+    source_glb: &[u8],
+    source_part_ids: &[String],
+    proposal_glb: &[u8],
+    proposal_part_ids: &[String],
+) -> Result<Value, RuntimeError> {
+    let mut view_evaluations = Vec::with_capacity(context.views.len());
+    let mut source_total = 0.0;
+    let mut proposal_total = 0.0;
+    let mut all_non_regressing = true;
+    let mut all_visible_pass = true;
+    let mut primary_strict = false;
+    for view in &context.views {
+        let source = compare_glb_against_primary_form_reference(
+            project_id,
+            source_candidate_id,
+            view,
+            source_glb,
+            source_part_ids,
+        )?;
+        let proposal = compare_glb_against_primary_form_reference(
+            project_id,
+            source_candidate_id,
+            view,
+            proposal_glb,
+            proposal_part_ids,
+        )?;
+        let source_metrics = source
+            .get("metrics")
+            .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_MULTIVIEW_SOURCE_METRICS_MISSING".to_owned()))?;
+        let proposal_metrics = proposal
+            .get("metrics")
+            .ok_or_else(|| RuntimeError::InvalidInput("PRIMARY_FORM_MULTIVIEW_PROPOSAL_METRICS_MISSING".to_owned()))?;
+        let source_loss = camera_fit_loss(source_metrics);
+        let proposal_loss = camera_fit_loss(proposal_metrics);
+        let non_regressing = primary_form_metric_ordering(proposal_metrics, source_metrics)
+            != Ordering::Greater;
+        let strict_improvement = primary_form_metrics_improve(proposal_metrics, source_metrics);
+        if view.view_id == context.primary_view_id {
+            primary_strict = strict_improvement;
+        }
+        all_non_regressing &= non_regressing;
+        all_visible_pass &= proposal
+            .get("visual_status")
+            .and_then(Value::as_str)
+            == Some("PARTIAL_VISIBLE_VIEW_PASS");
+        source_total += source_loss;
+        proposal_total += proposal_loss;
+        view_evaluations.push(json!({
+            "view_id":view.view_id,
+            "kind":view.kind,
+            "reference_id":view.reference.reference_id,
+            "reference_sha256":view.reference.object_sha256,
+            "view_spec":view.view_spec,
+            "camera":view.camera,
+            "camera_source":"runtime-inferred-from-view-kind-and-reference-mask",
+            "source_metrics":source_metrics,
+            "proposal_metrics":proposal_metrics,
+            "source_status":source["visual_status"].clone(),
+            "proposal_status":proposal["visual_status"].clone(),
+            "source_loss":stable_visual_metric(source_loss),
+            "proposal_loss":stable_visual_metric(proposal_loss),
+            "non_regressing":non_regressing,
+            "strict_improvement":strict_improvement
+        }));
+    }
+    let count = context.views.len() as f64;
+    let source_loss = stable_visual_metric(source_total / count);
+    let proposal_loss = stable_visual_metric(proposal_total / count);
+    let strict_improvement = primary_strict
+        && all_non_regressing
+        && proposal_loss + 1.0e-12 < source_loss;
+    let mut result = json!({
+        "schema_version":"PrimaryFormMultiViewEvaluation@1",
+        "project_id":project_id,
+        "source_candidate_id":source_candidate_id,
+        "reference_canvas_sha256":context.reference_canvas_sha256,
+        "primary_view_id":context.primary_view_id,
+        "view_count":context.views.len(),
+        "objective":"primary-view-strict-and-all-views-non-regressing",
+        "camera_source":"runtime-inferred-from-view-kind-and-reference-mask",
+        "views":view_evaluations,
+        "aggregate_status":if all_visible_pass {"PARTIAL_VISIBLE_VIEW_PASS"} else {"QUALITY_TARGET_NOT_MET"},
+        "hard_gate_passed":all_visible_pass,
+        "source_loss":source_loss,
+        "proposal_loss":proposal_loss,
+        "strict_improvement":strict_improvement,
+        "non_regressing":all_non_regressing,
+        "limitations":[
+            "camera_claims_remain_unknown_in_reference_canvas",
+            "camera_orientation_is_inferred_from_typed_view_kind",
+            "human_visual_review_not_run",
+            "export_restart_hash_not_run"
+        ],
+        "canonical_sha256":""
+    });
+    result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+    validate_primary_form_multiview_evaluation(&result)?;
+    Ok(result)
+}
+
 fn validate_id(id: &str) -> Result<(), RuntimeError> {
     if !is_opaque_id(id) {
         return Err(RuntimeError::InvalidInput("invalid opaque id".to_owned()));
@@ -9304,6 +9808,9 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
     if value.get("part_id").is_some() {
         keys.push("part_id");
     }
+    if value.get("multi_view_evaluation").is_some() {
+        keys.push("multi_view_evaluation");
+    }
     let object = exact_object(value, &keys, "PrimaryFormRepairPrepareResult@1")?;
     if object.get("part_id").is_some() {
         required_contract_identifier(
@@ -9311,6 +9818,16 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
             "part_id",
             "PrimaryFormRepairPrepareResult@1",
         )?;
+    }
+    if let Some(multi_view) = object.get("multi_view_evaluation") {
+        validate_primary_form_multiview_evaluation(multi_view)?;
+        if multi_view.get("project_id") != object.get("project_id")
+            || multi_view.get("source_candidate_id") != object.get("source_candidate_id")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: Primary Form multi-view scope drifted".to_owned(),
+            ));
+        }
     }
     if object.get("schema_version").and_then(Value::as_str)
         != Some("PrimaryFormRepairPrepareResult@1")
@@ -9436,6 +9953,303 @@ fn validate_primary_form_repair_prepare_result(value: &Value) -> Result<(), Runt
     }
     required_contract_sha256(object, "canonical_sha256", "PrimaryFormRepairPrepareResult@1")?;
     verify_output_canonical_hash(value, "PrimaryFormRepairPrepareResult@1")
+}
+
+fn validate_primary_form_multiview_metrics(
+    value: &Value,
+    context: &str,
+) -> Result<(), RuntimeError> {
+    let object = value.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "CONTRACT_OUTPUT_INVALID: {context} must be an object"
+        ))
+    })?;
+    for key in [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "bbox_edge_error",
+        "centroid_error",
+        "landmark_coverage",
+        "landmark_nme",
+        "region_median_iou",
+        "critical_region_min_iou",
+        "sdf_chamfer_px",
+    ] {
+        let number = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: {context}.{key} is missing"
+            ))
+        })?;
+        if !number.is_finite()
+            || number < 0.0
+            || (matches!(
+                key,
+                "silhouette_iou"
+                    | "boundary_f1_4px"
+                    | "landmark_coverage"
+                    | "landmark_nme"
+                    | "region_median_iou"
+                    | "critical_region_min_iou"
+            ) && number > 1.0)
+        {
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: {context}.{key} is invalid"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_primary_form_multiview_evaluation(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "project_id",
+            "source_candidate_id",
+            "reference_canvas_sha256",
+            "primary_view_id",
+            "view_count",
+            "objective",
+            "camera_source",
+            "views",
+            "aggregate_status",
+            "hard_gate_passed",
+            "source_loss",
+            "proposal_loss",
+            "strict_improvement",
+            "non_regressing",
+            "limitations",
+            "canonical_sha256",
+        ],
+        "PrimaryFormMultiViewEvaluation@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("PrimaryFormMultiViewEvaluation@1")
+        || object.get("objective").and_then(Value::as_str)
+            != Some("primary-view-strict-and-all-views-non-regressing")
+        || object.get("camera_source").and_then(Value::as_str)
+            != Some("runtime-inferred-from-view-kind-and-reference-mask")
+        || !matches!(
+            object.get("aggregate_status").and_then(Value::as_str),
+            Some("PARTIAL_VISIBLE_VIEW_PASS" | "QUALITY_TARGET_NOT_MET")
+        )
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 constants drifted"
+                .to_owned(),
+        ));
+    }
+    required_contract_identifier(
+        object,
+        "project_id",
+        "PrimaryFormMultiViewEvaluation@1",
+    )?;
+    required_contract_identifier(
+        object,
+        "source_candidate_id",
+        "PrimaryFormMultiViewEvaluation@1",
+    )?;
+    required_contract_identifier(
+        object,
+        "primary_view_id",
+        "PrimaryFormMultiViewEvaluation@1",
+    )?;
+    required_contract_sha256(
+        object,
+        "reference_canvas_sha256",
+        "PrimaryFormMultiViewEvaluation@1",
+    )?;
+    let view_count = object
+        .get("view_count")
+        .and_then(Value::as_u64)
+        .filter(|count| (2..=8).contains(count))
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view_count"
+                    .to_owned(),
+            )
+        })?;
+    let views = object
+        .get("views")
+        .and_then(Value::as_array)
+        .filter(|views| views.len() == view_count as usize)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 views".to_owned(),
+            )
+        })?;
+    let mut view_ids = HashSet::new();
+    let mut has_primary = false;
+    for view in views {
+        let view = exact_object(
+            view,
+            &[
+                "view_id",
+                "kind",
+                "reference_id",
+                "reference_sha256",
+                "view_spec",
+                "camera",
+                "camera_source",
+                "source_metrics",
+                "proposal_metrics",
+                "source_status",
+                "proposal_status",
+                "source_loss",
+                "proposal_loss",
+                "non_regressing",
+                "strict_improvement",
+            ],
+            "PrimaryFormMultiViewEvaluation@1.view",
+        )?;
+        let view_id = required_contract_identifier(
+            view,
+            "view_id",
+            "PrimaryFormMultiViewEvaluation@1.view",
+        )?;
+        if !view_ids.insert(view_id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 duplicate view_id"
+                    .to_owned(),
+            ));
+        }
+        if view_id
+            == object
+                .get("primary_view_id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+        {
+            has_primary = true;
+        }
+        required_contract_identifier(
+            view,
+            "kind",
+            "PrimaryFormMultiViewEvaluation@1.view",
+        )?;
+        required_contract_identifier(
+            view,
+            "reference_id",
+            "PrimaryFormMultiViewEvaluation@1.view",
+        )?;
+        required_contract_sha256(
+            view,
+            "reference_sha256",
+            "PrimaryFormMultiViewEvaluation@1.view",
+        )?;
+        if view.get("camera_source").and_then(Value::as_str)
+            != Some("runtime-inferred-from-view-kind-and-reference-mask")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 camera source"
+                    .to_owned(),
+            ));
+        }
+        let view_spec = view.get("view_spec").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view_spec".to_owned(),
+            )
+        })?;
+        if view_spec.get("schema_version").and_then(Value::as_str)
+            != Some("ReferenceViewSpec@1")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view_spec schema"
+                    .to_owned(),
+            ));
+        }
+        verify_output_canonical_hash(view_spec, "ReferenceViewSpec@1")?;
+        validate_camera_calibration(view.get("camera").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 camera".to_owned(),
+            )
+        })?)?;
+        for (key, maximum) in [("source_loss", f64::INFINITY), ("proposal_loss", f64::INFINITY)] {
+            let loss = view.get(key).and_then(Value::as_f64).ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view {key}"
+                ))
+            })?;
+            if !loss.is_finite() || loss < 0.0 || loss > maximum {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view {key}"
+                )));
+            }
+        }
+        for key in ["source_metrics", "proposal_metrics"] {
+            validate_primary_form_multiview_metrics(
+                view.get(key).ok_or_else(|| {
+                    RuntimeError::InvalidInput(format!(
+                        "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view {key}"
+                    ))
+                })?,
+                &format!("PrimaryFormMultiViewEvaluation@1.view.{key}"),
+            )?;
+        }
+        if !matches!(
+            view.get("source_status").and_then(Value::as_str),
+            Some("PARTIAL_VISIBLE_VIEW_PASS" | "QUALITY_TARGET_NOT_MET")
+        ) || !matches!(
+            view.get("proposal_status").and_then(Value::as_str),
+            Some("PARTIAL_VISIBLE_VIEW_PASS" | "QUALITY_TARGET_NOT_MET")
+        ) || view.get("non_regressing").and_then(Value::as_bool).is_none()
+            || view.get("strict_improvement").and_then(Value::as_bool).is_none()
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 view gates"
+                    .to_owned(),
+            ));
+        }
+    }
+    if !has_primary {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 primary view missing"
+                .to_owned(),
+        ));
+    }
+    for key in ["source_loss", "proposal_loss"] {
+        let loss = object.get(key).and_then(Value::as_f64).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 {key}"
+            ))
+        })?;
+        if !loss.is_finite() || loss < 0.0 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 {key}"
+            )));
+        }
+    }
+    for key in ["hard_gate_passed", "strict_improvement", "non_regressing"] {
+        if object.get(key).and_then(Value::as_bool).is_none() {
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 {key}"
+            )));
+        }
+    }
+    let limitations = object
+        .get("limitations")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 limitations"
+                    .to_owned(),
+            )
+        })?;
+    if limitations.is_empty()
+        || limitations.iter().any(|value| {
+            value.as_str().is_none_or(|text| text.is_empty() || text.len() > 256)
+        })
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PrimaryFormMultiViewEvaluation@1 limitations".to_owned(),
+        ));
+    }
+    required_contract_sha256(
+        object,
+        "canonical_sha256",
+        "PrimaryFormMultiViewEvaluation@1",
+    )?;
+    verify_output_canonical_hash(value, "PrimaryFormMultiViewEvaluation@1")
 }
 
 fn validate_primary_form_acceptance(
@@ -10691,6 +11505,7 @@ fn validate_appearance_prepare_result_v2_output(value: &Value) -> Result<(), Run
     Ok(())
 }
 
+#[derive(Debug, Clone)]
 struct ReferenceMask {
     mask: Vec<bool>,
     png: Vec<u8>,
@@ -16156,6 +16971,87 @@ mod tests {
         assert_eq!(canonical_json_hash(&normalized), canonical_json_hash(&expected));
         assert_eq!(normalized["integral_float"].as_i64(), Some(1));
         assert_eq!(normalized["negative_zero"].as_i64(), Some(0));
+    }
+
+    #[test]
+    fn primary_form_multiview_evaluation_is_closed_and_hash_bound() {
+        fn metrics() -> Value {
+            json!({
+                "silhouette_iou":0.75,
+                "boundary_f1_4px":0.38,
+                "bbox_edge_error":0.02,
+                "centroid_error":0.01,
+                "landmark_coverage":0.0,
+                "landmark_nme":0.0,
+                "region_median_iou":0.0,
+                "critical_region_min_iou":0.0,
+                "sdf_chamfer_px":12.0
+            })
+        }
+
+        fn view(view_id: &str, reference_id: &str, reference_sha256: &str) -> Value {
+            let mut view_spec = json!({
+                "schema_version":"ReferenceViewSpec@1",
+                "reference_id":reference_id,
+                "reference_sha256":reference_sha256,
+                "view_id":view_id,
+                "source_view":"front",
+                "image":{"width":512,"height":512,"rotation_degrees":0,"crop":{"x":0,"y":0,"width":1,"height":1}},
+                "landmarks":[],
+                "regions":[],
+                "canonical_sha256":""
+            });
+            view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
+            let camera = default_camera_calibration();
+            json!({
+                "view_id":view_id,
+                "kind":"front",
+                "reference_id":reference_id,
+                "reference_sha256":reference_sha256,
+                "view_spec":view_spec,
+                "camera":camera,
+                "camera_source":"runtime-inferred-from-view-kind-and-reference-mask",
+                "source_metrics":metrics(),
+                "proposal_metrics":metrics(),
+                "source_status":"QUALITY_TARGET_NOT_MET",
+                "proposal_status":"QUALITY_TARGET_NOT_MET",
+                "source_loss":12.0,
+                "proposal_loss":12.0,
+                "non_regressing":true,
+                "strict_improvement":false
+            })
+        }
+
+        let reference_sha256 = "a".repeat(64);
+        let mut evaluation = json!({
+            "schema_version":"PrimaryFormMultiViewEvaluation@1",
+            "project_id":"project-1",
+            "source_candidate_id":"candidate-1",
+            "reference_canvas_sha256":"b".repeat(64),
+            "primary_view_id":"view-front",
+            "view_count":2,
+            "objective":"primary-view-strict-and-all-views-non-regressing",
+            "camera_source":"runtime-inferred-from-view-kind-and-reference-mask",
+            "views":[
+                view("view-front","reference-front",&reference_sha256),
+                view("view-back","reference-back",&reference_sha256)
+            ],
+            "aggregate_status":"QUALITY_TARGET_NOT_MET",
+            "hard_gate_passed":false,
+            "source_loss":12.0,
+            "proposal_loss":12.0,
+            "strict_improvement":false,
+            "non_regressing":true,
+            "limitations":["camera_claims_remain_unknown_in_reference_canvas"],
+            "canonical_sha256":""
+        });
+        evaluation["canonical_sha256"] = Value::String(canonical_json_hash(&evaluation));
+        validate_primary_form_multiview_evaluation(&evaluation)
+            .expect("valid multi-view evaluation contract");
+
+        let mut tampered = evaluation.clone();
+        tampered["views"][0]["proposal_loss"] = json!(11.0);
+        assert!(validate_primary_form_multiview_evaluation(&tampered).is_err());
     }
 
     fn v2_restore_program(project_id: &str) -> Value {

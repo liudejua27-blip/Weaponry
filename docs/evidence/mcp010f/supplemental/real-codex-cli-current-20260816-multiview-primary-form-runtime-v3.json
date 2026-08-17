@@ -1,0 +1,4596 @@
+{
+  "allowed_read_only_events": 4,
+  "aov_order": [
+    "beauty",
+    "silhouette",
+    "depth",
+    "normal",
+    "ao",
+    "part-id",
+    "material-id",
+    "wireframe",
+    "uv-stretch"
+  ],
+  "artifact_id": "29c5efa8fc79c9dd57f8324d96a60730315beb2b2bf068430e06cff86563d65e",
+  "artifact_sha256": "29c5efa8fc79c9dd57f8324d96a60730315beb2b2bf068430e06cff86563d65e",
+  "authoring_context_binding": {
+    "coverage_status": "complete",
+    "design_spec_id": "design-spec-real-codex",
+    "design_spec_object_sha256": "8212f63414dc9b6f4f3fb7ed38ae360b33910f4bd721b746ec6d8a01bbf23bec",
+    "hq_360_status": "eligible",
+    "missing_views": [],
+    "observation_sha256": "675d45bba018eb4e7fcb9055bc123173473f86d5f9d54989fe00aee974efead8",
+    "reference_canvas_id": "reference-canvas-real-codex",
+    "reference_canvas_object_sha256": "ab9807568b0431077de3a6712ffa66bee30a0aa16b152460c70b1a176be8505a",
+    "reference_set_sha256": "7bd8c090516737e4ae64c42257c16db49b548a37c66b7ddaa21b2f3e45b20c35",
+    "reference_view_count": 6,
+    "session_id": "design-session-be9258ad460a4a6badbfa5dcb16eebff",
+    "status": "PASS_DURABLE_REFERENCE_CANVAS_DESIGN_SPEC",
+    "supplied_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "perspective",
+      "rear-three-quarter"
+    ]
+  },
+  "authoring_mode": {
+    "argument_summary": {
+      "canvas": {
+        "declared": "",
+        "declared_empty_for_runtime_canonicalization": true,
+        "declared_matches_recomputed": true,
+        "object_sha256": "f326c2f272977cfcd65f2c4f96e89371a4bf630618b977b873657a0230340273",
+        "present": true,
+        "recomputed": "f326c2f272977cfcd65f2c4f96e89371a4bf630618b977b873657a0230340273"
+      },
+      "context_keys": [
+        "design_spec",
+        "reference_canvas"
+      ],
+      "design_spec": {
+        "declared": "",
+        "declared_empty_for_runtime_canonicalization": true,
+        "declared_matches_recomputed": true,
+        "object_sha256": "414d41eadd4020b2d665f0e2773da36caf1fafa44e09b47fdf0b73b9d50b71bd",
+        "present": true,
+        "recomputed": "414d41eadd4020b2d665f0e2773da36caf1fafa44e09b47fdf0b73b9d50b71bd"
+      },
+      "expected_spec_binding_matches_canvas_object": null,
+      "spec_reference_canvas_sha256": "ab9807568b0431077de3a6712ffa66bee30a0aa16b152460c70b1a176be8505a",
+      "status": "completed"
+    },
+    "explicit_failure_codes": [],
+    "status": "EXPLICIT_CODEX_AUTHORING"
+  },
+  "boundary_error": {
+    "metrics": {
+      "bbox_edge_error": 0.0078125,
+      "boundary_f1_4px": 0.32876512261,
+      "centroid_error": 0.007878177805,
+      "sdf_chamfer_px": 16.725810827693,
+      "silhouette_iou": 0.741047132807
+    },
+    "parts": [
+      {
+        "boundary_error_px": 31.824175738524,
+        "centroid_delta_px": [
+          19.67960251046,
+          18.601324965132
+        ],
+        "height_ratio": 0.490909090909,
+        "model_bbox": [
+          0.399217221135,
+          0.019569471624,
+          0.647749510763,
+          0.232876712329
+        ],
+        "model_pixels": 9560,
+        "part_id": "head-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.567514677104,
+          0.097847358121,
+          0.592954990215,
+          0.20156555773
+        ],
+        "target_boundary_pixels": 6,
+        "visibility": "inferred",
+        "width_ratio": 0.109375
+      },
+      {
+        "boundary_error_px": 1.0,
+        "centroid_delta_px": [
+          -38.061723280862,
+          12.818972659486
+        ],
+        "height_ratio": 0.030303030303,
+        "model_bbox": [
+          0.381604696673,
+          0.109589041096,
+          0.536203522505,
+          0.172211350294
+        ],
+        "model_pixels": 2414,
+        "part_id": "visor",
+        "status": "ready",
+        "target_bbox": [
+          0.383561643836,
+          0.166340508806,
+          0.383561643836,
+          0.166340508806
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.0125
+      },
+      {
+        "boundary_error_px": 59.976256649931,
+        "centroid_delta_px": [
+          -40.115443192202,
+          74.582800284293
+        ],
+        "height_ratio": 0.021582733813,
+        "model_bbox": [
+          0.363992172211,
+          0.234833659491,
+          0.702544031311,
+          0.504892367906
+        ],
+        "model_pixels": 6566,
+        "part_id": "chest-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.471624266145,
+          0.778864970646,
+          0.47553816047
+        ],
+        "target_boundary_pixels": 3,
+        "visibility": "inferred",
+        "width_ratio": 1.367816091954
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.352250489237,
+          0.295499021526,
+          0.610567514677,
+          0.442270058708
+        ],
+        "model_pixels": 5624,
+        "part_id": "chest-vent",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.414872798434,
+          0.350293542074,
+          0.567514677104,
+          0.487279843444
+        ],
+        "model_pixels": 3492,
+        "part_id": "chest-core",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.47553816047,
+          0.225048923679,
+          0.569471624266,
+          0.299412915851
+        ],
+        "model_pixels": 1351,
+        "part_id": "neck",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 85.654148228936,
+        "centroid_delta_px": [
+          143.090704647676,
+          -26.502248875562
+        ],
+        "height_ratio": 0.081967213115,
+        "model_bbox": [
+          0.41095890411,
+          0.477495107632,
+          0.616438356164,
+          0.594911937378
+        ],
+        "model_pixels": 2668,
+        "part_id": "pelvis",
+        "status": "ready",
+        "target_bbox": [
+          0.778864970646,
+          0.47553816047,
+          0.780821917808,
+          0.483365949119
+        ],
+        "target_boundary_pixels": 2,
+        "visibility": "inferred",
+        "width_ratio": 0.018867924528
+      },
+      {
+        "boundary_error_px": 30.413812651491,
+        "centroid_delta_px": [
+          58.176056338028,
+          -32.329812206573
+        ],
+        "height_ratio": 0.02380952381,
+        "model_bbox": [
+          0.283757338552,
+          0.289628180039,
+          0.759295499022,
+          0.369863013699
+        ],
+        "model_pixels": 852,
+        "part_id": "shoulder-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.749510763209,
+          0.260273972603,
+          0.749510763209,
+          0.260273972603
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.004098360656
+      },
+      {
+        "boundary_error_px": 34.613100730979,
+        "centroid_delta_px": [
+          -105.200489795918,
+          -6.619591836735
+        ],
+        "height_ratio": 0.2,
+        "model_bbox": [
+          0.238747553816,
+          0.299412915851,
+          0.765166340509,
+          0.444227005871
+        ],
+        "model_pixels": 6125,
+        "part_id": "shoulder-armor-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.303326810176,
+          0.336594911937,
+          0.309197651663,
+          0.363992172211
+        ],
+        "target_boundary_pixels": 5,
+        "visibility": "inferred",
+        "width_ratio": 0.014814814815
+      },
+      {
+        "boundary_error_px": 44.931862600137,
+        "centroid_delta_px": [
+          -60.404941660947,
+          9.631434454358
+        ],
+        "height_ratio": 0.954954954955,
+        "model_bbox": [
+          0.236790606654,
+          0.363992172211,
+          0.794520547945,
+          0.579256360078
+        ],
+        "model_pixels": 8742,
+        "part_id": "upper-arm-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.303326810176,
+          0.399217221135,
+          0.780821917808,
+          0.60469667319
+        ],
+        "target_boundary_pixels": 3,
+        "visibility": "inferred",
+        "width_ratio": 0.856643356643
+      },
+      {
+        "boundary_error_px": 9.055385138137,
+        "centroid_delta_px": [
+          -141.056152927121,
+          -26.281959378734
+        ],
+        "height_ratio": 0.015625,
+        "model_bbox": [
+          0.240704500978,
+          0.500978473581,
+          0.788649706458,
+          0.624266144814
+        ],
+        "model_pixels": 837,
+        "part_id": "elbow-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.510763209393,
+          0.315068493151,
+          0.510763209393
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.003558718861
+      },
+      {
+        "boundary_error_px": 32.617670931994,
+        "centroid_delta_px": [
+          -146.625727106532,
+          -14.619494764833
+        ],
+        "height_ratio": 0.081081081081,
+        "model_bbox": [
+          0.232876712329,
+          0.506849315068,
+          0.788649706458,
+          0.794520547945
+        ],
+        "model_pixels": 6017,
+        "part_id": "forearm-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.289628180039,
+          0.600782778865,
+          0.297455968689,
+          0.622309197652
+        ],
+        "target_boundary_pixels": 2,
+        "visibility": "inferred",
+        "width_ratio": 0.017543859649
+      },
+      {
+        "boundary_error_px": 38.865756246854,
+        "centroid_delta_px": [
+          -32.434677241683,
+          29.82639347874
+        ],
+        "height_ratio": 0.183333333333,
+        "model_bbox": [
+          0.236790606654,
+          0.636007827789,
+          0.778864970646,
+          0.868884540117
+        ],
+        "model_pixels": 4539,
+        "part_id": "hand-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.227005870841,
+          0.800391389432,
+          0.727984344423,
+          0.841487279843
+        ],
+        "target_boundary_pixels": 4,
+        "visibility": "inferred",
+        "width_ratio": 0.924460431655
+      },
+      {
+        "boundary_error_px": 31.810814737933,
+        "centroid_delta_px": [
+          -113.796306013223,
+          -0.174362472453
+        ],
+        "height_ratio": 0.469798657718,
+        "model_bbox": [
+          0.315068493151,
+          0.542074363992,
+          0.671232876712,
+          0.831702544031
+        ],
+        "model_pixels": 19058,
+        "part_id": "thigh-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.262230919765,
+          0.585127201566,
+          0.307240704501,
+          0.720156555773
+        ],
+        "target_boundary_pixels": 4,
+        "visibility": "inferred",
+        "width_ratio": 0.131147540984
+      },
+      {
+        "boundary_error_px": 78.854563488341,
+        "centroid_delta_px": [
+          89.723107569721,
+          -2.687250996016
+        ],
+        "height_ratio": 1.368421052632,
+        "model_bbox": [
+          0.407045009785,
+          0.514677103718,
+          0.643835616438,
+          0.587084148728
+        ],
+        "model_pixels": 502,
+        "part_id": "hip-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.780821917808,
+          0.504892367906,
+          0.786692759295,
+          0.60469667319
+        ],
+        "target_boundary_pixels": 2,
+        "visibility": "inferred",
+        "width_ratio": 0.032786885246
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.420743639922,
+          0.757338551859,
+          0.457925636008,
+          0.782778864971
+        ],
+        "model_pixels": 87,
+        "part_id": "knee-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 33.976559763317,
+        "centroid_delta_px": [
+          -46.79646836528,
+          10.615455041297
+        ],
+        "height_ratio": 0.5078125,
+        "model_bbox": [
+          0.336594911937,
+          0.751467710372,
+          0.657534246575,
+          1.0
+        ],
+        "model_pixels": 11408,
+        "part_id": "shin-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.227005870841,
+          0.853228962818,
+          0.592954990215,
+          0.978473581213
+        ],
+        "target_boundary_pixels": 18,
+        "visibility": "inferred",
+        "width_ratio": 1.139393939394
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.362035225049,
+          0.381604696673,
+          0.620352250489,
+          0.481409001957
+        ],
+        "model_pixels": 375,
+        "part_id": "cable-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.442270058708,
+          0.473581213307,
+          0.52446183953,
+          0.571428571429
+        ],
+        "model_pixels": 687,
+        "part_id": "core-ribs",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.438356164384,
+          0.487279843444,
+          0.491193737769,
+          0.526418786693
+        ],
+        "model_pixels": 430,
+        "part_id": "amber-sensor",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.389432485323,
+          0.172211350294,
+          0.520547945205,
+          0.183953033268
+        ],
+        "model_pixels": 424,
+        "part_id": "visor-edge",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.454011741683,
+          0.275929549902,
+          0.497064579256,
+          0.356164383562
+        ],
+        "model_pixels": 488,
+        "part_id": "chest-ridge",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.252446183953,
+          0.318982387476,
+          0.659491193738,
+          0.430528375734
+        ],
+        "model_pixels": 2037,
+        "part_id": "shoulder-trim-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.236790606654,
+          0.536203522505,
+          0.72602739726,
+          0.769080234834
+        ],
+        "model_pixels": 2409,
+        "part_id": "forearm-rail-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 33.889784317695,
+        "centroid_delta_px": [
+          -83.54231227652,
+          -5.236591179976
+        ],
+        "height_ratio": 0.020408163265,
+        "model_bbox": [
+          0.358121330724,
+          0.493150684932,
+          0.608610567515,
+          0.587084148728
+        ],
+        "model_pixels": 1678,
+        "part_id": "hip-flank-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.328767123288,
+          0.528375733855,
+          0.328767123288,
+          0.528375733855
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.007751937984
+      },
+      {
+        "boundary_error_px": 31.243489003626,
+        "centroid_delta_px": [
+          24.20347826087,
+          4.201304347826
+        ],
+        "height_ratio": 0.634920634921,
+        "model_bbox": [
+          0.334637964775,
+          0.743639921722,
+          0.583170254403,
+          0.864970645793
+        ],
+        "model_pixels": 2300,
+        "part_id": "knee-cap-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.320939334638,
+          0.771037181996,
+          0.569471624266,
+          0.847358121331
+        ],
+        "target_boundary_pixels": 5,
+        "visibility": "inferred",
+        "width_ratio": 1.0
+      }
+    ],
+    "recommended_part_ids": [
+      "pelvis",
+      "hip-pair",
+      "chest-shell",
+      "upper-arm-pair",
+      "hand-pair",
+      "shoulder-armor-pair",
+      "shin-pair",
+      "hip-flank-pair",
+      "forearm-pair",
+      "head-shell",
+      "thigh-pair",
+      "knee-cap-pair",
+      "shoulder-pair",
+      "elbow-pair",
+      "visor"
+    ],
+    "source": "canonical_observation"
+  },
+  "boundary_error_count": 26,
+  "build_cohorts": {
+    "mcp": "39e71fd509269908a3a127a4db901147baa01e9f54b36f3b21dad68e21354c82",
+    "render_worker": "39e71fd509269908a3a127a4db901147baa01e9f54b36f3b21dad68e21354c82",
+    "runtime": "39e71fd509269908a3a127a4db901147baa01e9f54b36f3b21dad68e21354c82",
+    "worker": "39e71fd509269908a3a127a4db901147baa01e9f54b36f3b21dad68e21354c82"
+  },
+  "camera_binding_status": "PASS_CAMERA_FIT_TO_COMPARE",
+  "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+  "canonical_compare_in_silhouette": true,
+  "canonical_observation": {
+    "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+    "canonical_sha256": "675d45bba018eb4e7fcb9055bc123173473f86d5f9d54989fe00aee974efead8",
+    "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+    "read_only": true,
+    "schema_version": "AgenticSceneObserveResult@1"
+  },
+  "canonical_part_error": {
+    "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+    "canonical_sha256": "9b7caff1477351bd1ff936b7ef9ef7b16d52a7d66a0e527fa5f0190e44969c30",
+    "metrics": {
+      "bbox_edge_error": 0.0078125,
+      "boundary_f1_4px": 0.32876512261,
+      "centroid_error": 0.007878177805,
+      "sdf_chamfer_px": 16.725810827693,
+      "silhouette_iou": 0.741047132807
+    },
+    "parts": [
+      {
+        "boundary_error_px": 31.824175738524,
+        "centroid_delta_px": [
+          19.67960251046,
+          18.601324965132
+        ],
+        "height_ratio": 0.490909090909,
+        "model_bbox": [
+          0.399217221135,
+          0.019569471624,
+          0.647749510763,
+          0.232876712329
+        ],
+        "model_pixels": 9560,
+        "part_id": "head-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.567514677104,
+          0.097847358121,
+          0.592954990215,
+          0.20156555773
+        ],
+        "target_boundary_pixels": 6,
+        "visibility": "inferred",
+        "width_ratio": 0.109375
+      },
+      {
+        "boundary_error_px": 1.0,
+        "centroid_delta_px": [
+          -38.061723280862,
+          12.818972659486
+        ],
+        "height_ratio": 0.030303030303,
+        "model_bbox": [
+          0.381604696673,
+          0.109589041096,
+          0.536203522505,
+          0.172211350294
+        ],
+        "model_pixels": 2414,
+        "part_id": "visor",
+        "status": "ready",
+        "target_bbox": [
+          0.383561643836,
+          0.166340508806,
+          0.383561643836,
+          0.166340508806
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.0125
+      },
+      {
+        "boundary_error_px": 59.976256649931,
+        "centroid_delta_px": [
+          -40.115443192202,
+          74.582800284293
+        ],
+        "height_ratio": 0.021582733813,
+        "model_bbox": [
+          0.363992172211,
+          0.234833659491,
+          0.702544031311,
+          0.504892367906
+        ],
+        "model_pixels": 6566,
+        "part_id": "chest-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.471624266145,
+          0.778864970646,
+          0.47553816047
+        ],
+        "target_boundary_pixels": 3,
+        "visibility": "inferred",
+        "width_ratio": 1.367816091954
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.352250489237,
+          0.295499021526,
+          0.610567514677,
+          0.442270058708
+        ],
+        "model_pixels": 5624,
+        "part_id": "chest-vent",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.414872798434,
+          0.350293542074,
+          0.567514677104,
+          0.487279843444
+        ],
+        "model_pixels": 3492,
+        "part_id": "chest-core",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.47553816047,
+          0.225048923679,
+          0.569471624266,
+          0.299412915851
+        ],
+        "model_pixels": 1351,
+        "part_id": "neck",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 85.654148228936,
+        "centroid_delta_px": [
+          143.090704647676,
+          -26.502248875562
+        ],
+        "height_ratio": 0.081967213115,
+        "model_bbox": [
+          0.41095890411,
+          0.477495107632,
+          0.616438356164,
+          0.594911937378
+        ],
+        "model_pixels": 2668,
+        "part_id": "pelvis",
+        "status": "ready",
+        "target_bbox": [
+          0.778864970646,
+          0.47553816047,
+          0.780821917808,
+          0.483365949119
+        ],
+        "target_boundary_pixels": 2,
+        "visibility": "inferred",
+        "width_ratio": 0.018867924528
+      },
+      {
+        "boundary_error_px": 30.413812651491,
+        "centroid_delta_px": [
+          58.176056338028,
+          -32.329812206573
+        ],
+        "height_ratio": 0.02380952381,
+        "model_bbox": [
+          0.283757338552,
+          0.289628180039,
+          0.759295499022,
+          0.369863013699
+        ],
+        "model_pixels": 852,
+        "part_id": "shoulder-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.749510763209,
+          0.260273972603,
+          0.749510763209,
+          0.260273972603
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.004098360656
+      },
+      {
+        "boundary_error_px": 34.613100730979,
+        "centroid_delta_px": [
+          -105.200489795918,
+          -6.619591836735
+        ],
+        "height_ratio": 0.2,
+        "model_bbox": [
+          0.238747553816,
+          0.299412915851,
+          0.765166340509,
+          0.444227005871
+        ],
+        "model_pixels": 6125,
+        "part_id": "shoulder-armor-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.303326810176,
+          0.336594911937,
+          0.309197651663,
+          0.363992172211
+        ],
+        "target_boundary_pixels": 5,
+        "visibility": "inferred",
+        "width_ratio": 0.014814814815
+      },
+      {
+        "boundary_error_px": 44.931862600137,
+        "centroid_delta_px": [
+          -60.404941660947,
+          9.631434454358
+        ],
+        "height_ratio": 0.954954954955,
+        "model_bbox": [
+          0.236790606654,
+          0.363992172211,
+          0.794520547945,
+          0.579256360078
+        ],
+        "model_pixels": 8742,
+        "part_id": "upper-arm-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.303326810176,
+          0.399217221135,
+          0.780821917808,
+          0.60469667319
+        ],
+        "target_boundary_pixels": 3,
+        "visibility": "inferred",
+        "width_ratio": 0.856643356643
+      },
+      {
+        "boundary_error_px": 9.055385138137,
+        "centroid_delta_px": [
+          -141.056152927121,
+          -26.281959378734
+        ],
+        "height_ratio": 0.015625,
+        "model_bbox": [
+          0.240704500978,
+          0.500978473581,
+          0.788649706458,
+          0.624266144814
+        ],
+        "model_pixels": 837,
+        "part_id": "elbow-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.510763209393,
+          0.315068493151,
+          0.510763209393
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.003558718861
+      },
+      {
+        "boundary_error_px": 32.617670931994,
+        "centroid_delta_px": [
+          -146.625727106532,
+          -14.619494764833
+        ],
+        "height_ratio": 0.081081081081,
+        "model_bbox": [
+          0.232876712329,
+          0.506849315068,
+          0.788649706458,
+          0.794520547945
+        ],
+        "model_pixels": 6017,
+        "part_id": "forearm-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.289628180039,
+          0.600782778865,
+          0.297455968689,
+          0.622309197652
+        ],
+        "target_boundary_pixels": 2,
+        "visibility": "inferred",
+        "width_ratio": 0.017543859649
+      },
+      {
+        "boundary_error_px": 38.865756246854,
+        "centroid_delta_px": [
+          -32.434677241683,
+          29.82639347874
+        ],
+        "height_ratio": 0.183333333333,
+        "model_bbox": [
+          0.236790606654,
+          0.636007827789,
+          0.778864970646,
+          0.868884540117
+        ],
+        "model_pixels": 4539,
+        "part_id": "hand-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.227005870841,
+          0.800391389432,
+          0.727984344423,
+          0.841487279843
+        ],
+        "target_boundary_pixels": 4,
+        "visibility": "inferred",
+        "width_ratio": 0.924460431655
+      },
+      {
+        "boundary_error_px": 31.810814737933,
+        "centroid_delta_px": [
+          -113.796306013223,
+          -0.174362472453
+        ],
+        "height_ratio": 0.469798657718,
+        "model_bbox": [
+          0.315068493151,
+          0.542074363992,
+          0.671232876712,
+          0.831702544031
+        ],
+        "model_pixels": 19058,
+        "part_id": "thigh-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.262230919765,
+          0.585127201566,
+          0.307240704501,
+          0.720156555773
+        ],
+        "target_boundary_pixels": 4,
+        "visibility": "inferred",
+        "width_ratio": 0.131147540984
+      },
+      {
+        "boundary_error_px": 78.854563488341,
+        "centroid_delta_px": [
+          89.723107569721,
+          -2.687250996016
+        ],
+        "height_ratio": 1.368421052632,
+        "model_bbox": [
+          0.407045009785,
+          0.514677103718,
+          0.643835616438,
+          0.587084148728
+        ],
+        "model_pixels": 502,
+        "part_id": "hip-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.780821917808,
+          0.504892367906,
+          0.786692759295,
+          0.60469667319
+        ],
+        "target_boundary_pixels": 2,
+        "visibility": "inferred",
+        "width_ratio": 0.032786885246
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.420743639922,
+          0.757338551859,
+          0.457925636008,
+          0.782778864971
+        ],
+        "model_pixels": 87,
+        "part_id": "knee-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 33.976559763317,
+        "centroid_delta_px": [
+          -46.79646836528,
+          10.615455041297
+        ],
+        "height_ratio": 0.5078125,
+        "model_bbox": [
+          0.336594911937,
+          0.751467710372,
+          0.657534246575,
+          1.0
+        ],
+        "model_pixels": 11408,
+        "part_id": "shin-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.227005870841,
+          0.853228962818,
+          0.592954990215,
+          0.978473581213
+        ],
+        "target_boundary_pixels": 18,
+        "visibility": "inferred",
+        "width_ratio": 1.139393939394
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.362035225049,
+          0.381604696673,
+          0.620352250489,
+          0.481409001957
+        ],
+        "model_pixels": 375,
+        "part_id": "cable-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.442270058708,
+          0.473581213307,
+          0.52446183953,
+          0.571428571429
+        ],
+        "model_pixels": 687,
+        "part_id": "core-ribs",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.438356164384,
+          0.487279843444,
+          0.491193737769,
+          0.526418786693
+        ],
+        "model_pixels": 430,
+        "part_id": "amber-sensor",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.389432485323,
+          0.172211350294,
+          0.520547945205,
+          0.183953033268
+        ],
+        "model_pixels": 424,
+        "part_id": "visor-edge",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.454011741683,
+          0.275929549902,
+          0.497064579256,
+          0.356164383562
+        ],
+        "model_pixels": 488,
+        "part_id": "chest-ridge",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.252446183953,
+          0.318982387476,
+          0.659491193738,
+          0.430528375734
+        ],
+        "model_pixels": 2037,
+        "part_id": "shoulder-trim-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.236790606654,
+          0.536203522505,
+          0.72602739726,
+          0.769080234834
+        ],
+        "model_pixels": 2409,
+        "part_id": "forearm-rail-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 33.889784317695,
+        "centroid_delta_px": [
+          -83.54231227652,
+          -5.236591179976
+        ],
+        "height_ratio": 0.020408163265,
+        "model_bbox": [
+          0.358121330724,
+          0.493150684932,
+          0.608610567515,
+          0.587084148728
+        ],
+        "model_pixels": 1678,
+        "part_id": "hip-flank-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.328767123288,
+          0.528375733855,
+          0.328767123288,
+          0.528375733855
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.007751937984
+      },
+      {
+        "boundary_error_px": 31.243489003626,
+        "centroid_delta_px": [
+          24.20347826087,
+          4.201304347826
+        ],
+        "height_ratio": 0.634920634921,
+        "model_bbox": [
+          0.334637964775,
+          0.743639921722,
+          0.583170254403,
+          0.864970645793
+        ],
+        "model_pixels": 2300,
+        "part_id": "knee-cap-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.320939334638,
+          0.771037181996,
+          0.569471624266,
+          0.847358121331
+        ],
+        "target_boundary_pixels": 5,
+        "visibility": "inferred",
+        "width_ratio": 1.0
+      }
+    ],
+    "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+    "recommended_part_ids": [
+      "pelvis",
+      "hip-pair",
+      "chest-shell",
+      "upper-arm-pair",
+      "hand-pair",
+      "shoulder-armor-pair",
+      "shin-pair",
+      "hip-flank-pair",
+      "forearm-pair",
+      "head-shell",
+      "thigh-pair",
+      "knee-cap-pair",
+      "shoulder-pair",
+      "elbow-pair",
+      "visor"
+    ],
+    "render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+    "schema_version": "SilhouettePartErrorResult@1",
+    "target_sha256": "2c7b5e676678a12c435b4e707fff418a45fc89900fa10c525ff12547f97ce891"
+  },
+  "catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+  "codex_exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "codex_sandbox": "workspace-write",
+  "codex_turn_count": 13,
+  "comparison_camera_canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af",
+  "comparison_camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+  "comparison_metrics": {
+    "bbox_edge_error": 0.0078125,
+    "boundary_f1_4px": 0.32876512261,
+    "centroid_error": 0.007878177805,
+    "critical_region_min_iou": 1.0,
+    "landmark_coverage": 0.0,
+    "landmark_nme": 1.0,
+    "region_median_iou": 0.0,
+    "silhouette_iou": 0.741047132807
+  },
+  "comparison_report_hash": "c9c25875b7ff00c711cf56474fb761d24522c15103428ccfb98beaf07e191fd0",
+  "detail_material_stages": "LOCKED_UNTIL_SILHOUETTE_GATE",
+  "expected_sequences": {
+    "authoring": [
+      "capabilities_get",
+      "runtime_status",
+      "doctor",
+      "operator_catalog_get",
+      "skill_list",
+      "geometry_program_hash",
+      "geometry_prepare"
+    ],
+    "boundary": [],
+    "compare": [],
+    "part_contour": [],
+    "primary_form_repair": [
+      "primary_form_repair_job_prepare",
+      "job_get",
+      "job_result_get"
+    ],
+    "render": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "ao",
+      "part-id",
+      "material-id",
+      "wireframe",
+      "uv-stretch"
+    ],
+    "review": [
+      "visual_review_submit",
+      "quality_get"
+    ],
+    "setup": [
+      "skill_get",
+      "project_create",
+      "reference_import",
+      "reference_import",
+      "reference_import",
+      "reference_import",
+      "reference_import",
+      "reference_import",
+      "reference_get",
+      "reference_get",
+      "reference_get",
+      "reference_get",
+      "reference_get",
+      "reference_get"
+    ],
+    "silhouette": [
+      "silhouette_target_get",
+      "camera_fit_prepare",
+      "job_get",
+      "candidate_get",
+      "artifact_readback_get",
+      "reference_compare_prepare",
+      "session_create_or_resume",
+      "scene_observe_get",
+      "silhouette_rig_hash"
+    ],
+    "silhouette_target": [
+      "reference_mask_prepare"
+    ]
+  },
+  "geometry_route": "detail",
+  "geometry_variant": "surface-linework",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "job_id": "job-ab6a1614b2744dbf91b3b37465dc6277",
+  "material_variant": "armor-shell-zones",
+  "mcp_tool_calls": [
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "e89af33634e7254d35a799ac40fcba6c724fcb07d8cb9395a3692805b616916c",
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "schema_version": "Project@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "active_snapshot_revision",
+        "canonical_sha256",
+        "created_at",
+        "head_snapshot_id",
+        "name",
+        "policy",
+        "project_id",
+        "schema_version",
+        "updated_at"
+      ],
+      "tool": "project_create"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "573a8fd9fd30b66b445c1921337e1e9bd088ca34d20c30a673a0791082037225",
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "schema_version": "ReferenceMaskPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "mask_sha256",
+        "project_id",
+        "reference_id",
+        "schema_version",
+        "target",
+        "target_sha256"
+      ],
+      "target_sha256": "2c7b5e676678a12c435b4e707fff418a45fc89900fa10c525ff12547f97ce891",
+      "tool": "reference_mask_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "build_cohort_match",
+        "build_cohort_sha256",
+        "contract_set",
+        "contract_versions",
+        "ipc_transport",
+        "limitations",
+        "mcp_build_cohort_sha256",
+        "mcp_protocol_versions",
+        "mcp_transport",
+        "mcp_write_tool_names",
+        "mcp_write_tools_enabled",
+        "operator_catalog_sha256",
+        "resource_uris",
+        "runtime_version",
+        "status",
+        "supports_authenticated_ipc",
+        "supports_cas",
+        "supports_geometry_execution",
+        "supports_job_read",
+        "supports_reference_import",
+        "supports_render_execution",
+        "supports_resource_read",
+        "supports_skill_registry",
+        "supports_snapshot_read",
+        "tool_manifest_hash",
+        "write_model"
+      ],
+      "tool": "capabilities_get"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeSupervisorStatus@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "retryable",
+        "schema_version",
+        "source",
+        "state"
+      ],
+      "tool": "runtime_status"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeDoctor@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "checks",
+        "retryable",
+        "runtime",
+        "schema_version",
+        "scope",
+        "state"
+      ],
+      "tool": "doctor"
+    },
+    {
+      "canonical_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+      "schema_version": "OperatorCatalog@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "catalog_id",
+        "geometry_program_schema_version",
+        "operators",
+        "schema_version"
+      ],
+      "tool": "operator_catalog_get"
+    },
+    {
+      "schema_version": "SkillListResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "schema_version",
+        "skills"
+      ],
+      "tool": "skill_list"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "9c9094e1f1e2ae8a7808cece11d069b6e1901cb59e129e3fd7a4ec8dd0a9dc14",
+      "schema_version": "GeometryProgramHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "geometry_program_schema_version",
+        "operator_catalog_sha256",
+        "schema_version",
+        "validation_status"
+      ],
+      "tool": "geometry_program_hash"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "artifact": {
+        "artifact_id": "29c5efa8fc79c9dd57f8324d96a60730315beb2b2bf068430e06cff86563d65e",
+        "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+        "mime": "model/gltf-binary",
+        "part_ids": [
+          "head-shell",
+          "visor",
+          "chest-shell",
+          "chest-vent",
+          "chest-core",
+          "neck",
+          "pelvis",
+          "shoulder-pair",
+          "shoulder-armor-pair",
+          "upper-arm-pair",
+          "elbow-pair",
+          "forearm-pair",
+          "hand-pair",
+          "thigh-pair",
+          "hip-pair",
+          "knee-pair",
+          "shin-pair",
+          "cable-pair",
+          "core-ribs",
+          "amber-sensor",
+          "visor-edge",
+          "chest-ridge",
+          "shoulder-trim-pair",
+          "forearm-rail-pair",
+          "hip-flank-pair",
+          "knee-cap-pair"
+        ],
+        "size_bytes": 778800,
+        "triangle_count": 4704,
+        "validator_status": "passed"
+      },
+      "schema_version": "GeometryPrepareResult@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact",
+        "candidate",
+        "job",
+        "operator_catalog",
+        "schema_version"
+      ],
+      "tool": "geometry_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "7ea08f235383368d181fe54e731df60e041fa5d97e04fabdad8af52773cc7676",
+      "schema_version": "SilhouetteTarget@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "contour_points",
+        "coordinate_space",
+        "height",
+        "landmarks",
+        "mask_sha256",
+        "parts",
+        "reference_id",
+        "reference_sha256",
+        "schema_version",
+        "source",
+        "target_id",
+        "width"
+      ],
+      "tool": "silhouette_target_get"
+    },
+    {
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "canonical_sha256": "af7083c651d33bb9e03c6b12407e31b6838e2e1e4fa5fd659962337937632842",
+      "schema_version": "CameraFitResult@1",
+      "selected_camera": {
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "candidates",
+        "canonical_sha256",
+        "schema_version",
+        "selected_camera",
+        "status",
+        "target_sha256"
+      ],
+      "target_sha256": "2c7b5e676678a12c435b4e707fff418a45fc89900fa10c525ff12547f97ce891",
+      "tool": "camera_fit_prepare"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "canonical_sha256": "175f7759af3c3f7a1ba20ca1018f0919865c778e59c960defd4dad744b2024f0",
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "schema_version": "Candidate@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "base_version_id",
+        "candidate_id",
+        "canonical_sha256",
+        "created_at",
+        "error_code",
+        "manifest_hash",
+        "prepared_object_id",
+        "prepared_object_sha256",
+        "project_id",
+        "quality_hard_gate_passed",
+        "quality_report_id",
+        "request_sha256",
+        "schema_version",
+        "source_version_id",
+        "state",
+        "updated_at"
+      ],
+      "tool": "candidate_get"
+    },
+    {
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "canonical_sha256": "5073663c549164f487049a53b9bd5a727520372ccb0c2ba077b613381d3d5161",
+      "schema_version": "ArtifactReadback@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact_id",
+        "candidate_id",
+        "canonical_sha256",
+        "hard_gate_passed",
+        "integrity",
+        "material_zone_ids",
+        "mime",
+        "object_sha256",
+        "operator_catalog_sha256",
+        "part_bindings",
+        "part_ids",
+        "program_sha256",
+        "readback_config_sha256",
+        "schema_version",
+        "size_bytes",
+        "source_node_ids",
+        "triangle_count",
+        "validator_status"
+      ],
+      "tool": "artifact_readback_get"
+    },
+    {
+      "camera": {
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af"
+      },
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "ReferenceComparisonPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "camera",
+        "camera_object_sha256",
+        "candidate_id",
+        "comparison_report",
+        "comparison_report_hash",
+        "comparison_report_object_sha256",
+        "quality_report",
+        "quality_report_object_sha256",
+        "reference_id",
+        "render_set",
+        "render_set_hash",
+        "render_set_object_sha256",
+        "schema_version"
+      ],
+      "tool": "reference_compare_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "schema_version": "AgenticSessionResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "authoring_context",
+        "candidate_id",
+        "documents",
+        "durable",
+        "lineage",
+        "object_sha256",
+        "project_id",
+        "read_only",
+        "revision",
+        "schema_version",
+        "session",
+        "session_id",
+        "status"
+      ],
+      "tool": "session_create_or_resume"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "canonical_sha256": "675d45bba018eb4e7fcb9055bc123173473f86d5f9d54989fe00aee974efead8",
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "schema_version": "AgenticSceneObserveResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate",
+        "candidate_id",
+        "candidate_selection",
+        "canonical_sha256",
+        "design_critic_report",
+        "design_session",
+        "design_stage_plan",
+        "lineage",
+        "model_understanding_bundle",
+        "project",
+        "project_id",
+        "projection_status",
+        "quality",
+        "read_only",
+        "reference_canvas",
+        "schema_version",
+        "semantic_scene_graph",
+        "snapshot",
+        "visual_evidence_bundle"
+      ],
+      "tool": "scene_observe_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "596ed953c01515d9871e2d79ba7d9e96aa2c98c6d1f2310a36cc8c1e295b066b",
+      "schema_version": "SilhouetteRigHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "schema_version",
+        "silhouette_rig_schema_version",
+        "validation_status"
+      ],
+      "tool": "silhouette_rig_hash"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "primary_form_repair_job_prepare"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "schema_version": "RuntimeJobResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "job",
+        "result",
+        "result_sha256",
+        "schema_version"
+      ],
+      "tool": "job_result_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "argument_pass": "beauty",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "silhouette",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "depth",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "normal",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "ao",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "part-id",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "material-id",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "wireframe",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "uv-stretch",
+      "argument_render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "schema_version": "VisualReviewSubmitResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "review",
+        "review_object_sha256",
+        "schema_version"
+      ],
+      "tool": "visual_review_submit"
+    },
+    {
+      "candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "canonical_sha256": "2e8484e5ff5ac735f71eb698a67df53774e2e6fc6ed631497b9271e8068758d3",
+      "schema_version": "QualityReport@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact_sha256",
+        "candidate_id",
+        "canonical_sha256",
+        "comparison_report_hash",
+        "hard_gate_passed",
+        "human_receipt_hash",
+        "limitations",
+        "program_sha256",
+        "quality_report_id",
+        "reference_id",
+        "reference_sha256",
+        "render_set_hash",
+        "schema_version",
+        "structural_status",
+        "visual_status"
+      ],
+      "tool": "quality_get"
+    }
+  ],
+  "part_contour_fit": null,
+  "part_contour_part_id": null,
+  "part_contour_rig_sha256": null,
+  "part_contour_sequence_parts": [],
+  "part_contour_sequence_requested": false,
+  "part_contour_trial_requested": false,
+  "part_count": 26,
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "primary_form_composition_lineage": null,
+  "primary_form_multi_view_evaluation": {
+    "aggregate_status": "QUALITY_TARGET_NOT_MET",
+    "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+    "canonical_sha256": "ad6481585135d1d5b2d524f10178f7aefb4488a0ca05515233aa2ec9846bbb92",
+    "hard_gate_passed": false,
+    "limitations": [
+      "camera_claims_remain_unknown_in_reference_canvas",
+      "camera_orientation_is_inferred_from_typed_view_kind",
+      "human_visual_review_not_run",
+      "export_restart_hash_not_run"
+    ],
+    "non_regressing": false,
+    "objective": "primary-view-strict-and-all-views-non-regressing",
+    "primary_view_id": "three-quarter-user-reference",
+    "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+    "proposal_loss": 0.541965433208,
+    "reference_canvas_sha256": "ab9807568b0431077de3a6712ffa66bee30a0aa16b152460c70b1a176be8505a",
+    "schema_version": "PrimaryFormMultiViewEvaluation@1",
+    "source_candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+    "source_loss": 0.530908240794,
+    "strict_improvement": false,
+    "view_count": 6,
+    "views": [
+      {
+        "camera": {
+          "camera_hash": "114dcc70f6378e4782f566008770c6082d13fa400702ce9e2b91a18c4386b67f",
+          "canonical_sha256": "df03efe8456c17063c3e650c62cf6b80f4647ccbdaba328922749de169c366a5",
+          "coordinate_system": "right-handed-y-up-meter",
+          "far_m": 20,
+          "fov_y_degrees": 42,
+          "near_m": 0.05,
+          "projection": "perspective",
+          "renderer_revision": "forgecad-renderer-2",
+          "resolution": {
+            "height": 512,
+            "width": 512
+          },
+          "schema_version": "CameraCalibration@1",
+          "transform": {
+            "position_m": [
+              0,
+              3,
+              6
+            ],
+            "target_m": [
+              0,
+              1.5,
+              0
+            ],
+            "up": [
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+        "kind": "front",
+        "non_regressing": false,
+        "proposal_loss": 0.569687728464,
+        "proposal_metrics": {
+          "bbox_edge_error": 0.15625,
+          "boundary_f1_4px": 0.184318217201,
+          "centroid_error": 0.015112462681,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 25.480388401584,
+          "silhouette_iou": 0.45971118851
+        },
+        "proposal_status": "QUALITY_TARGET_NOT_MET",
+        "reference_id": "reference-8eb5cbd8c9ca409f91aa3cb0500bea66",
+        "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+        "source_loss": 0.552806002518,
+        "source_metrics": {
+          "bbox_edge_error": 0.1171875,
+          "boundary_f1_4px": 0.205192367845,
+          "centroid_error": 0.005951542071,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 23.033999594997,
+          "silhouette_iou": 0.477960416646
+        },
+        "source_status": "QUALITY_TARGET_NOT_MET",
+        "strict_improvement": false,
+        "view_id": "front-user-reference",
+        "view_spec": {
+          "canonical_sha256": "6e04d42b3e900aa3c3a3b6c62ea68bcaf031de96137ba17c89e5f017bcce08c9",
+          "image": {
+            "crop": {
+              "height": 1,
+              "width": 1,
+              "x": 0,
+              "y": 0
+            },
+            "height": 1254,
+            "rotation_degrees": 0,
+            "width": 1254
+          },
+          "landmarks": [],
+          "reference_id": "reference-8eb5cbd8c9ca409f91aa3cb0500bea66",
+          "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+          "regions": [],
+          "schema_version": "ReferenceViewSpec@1",
+          "source_view": "front",
+          "view_id": "front-user-reference"
+        }
+      },
+      {
+        "camera": {
+          "camera_hash": "4e582d94535859666cfdd0d75fa0b4d62d029ed3268690639de5692cf6400240",
+          "canonical_sha256": "930d1fcdfc3590642b376b6f8720e89f38f98b1493feee2e8a80cae1f2319dcd",
+          "coordinate_system": "right-handed-y-up-meter",
+          "far_m": 20,
+          "fov_y_degrees": 42,
+          "near_m": 0.05,
+          "projection": "perspective",
+          "renderer_revision": "forgecad-renderer-2",
+          "resolution": {
+            "height": 512,
+            "width": 512
+          },
+          "schema_version": "CameraCalibration@1",
+          "transform": {
+            "position_m": [
+              0,
+              3,
+              -6
+            ],
+            "target_m": [
+              0,
+              1.5,
+              0
+            ],
+            "up": [
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+        "kind": "back",
+        "non_regressing": false,
+        "proposal_loss": 0.565596903521,
+        "proposal_metrics": {
+          "bbox_edge_error": 0.103515625,
+          "boundary_f1_4px": 0.159788738415,
+          "centroid_error": 0.026452026682,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 25.060823817941,
+          "silhouette_iou": 0.493726720251
+        },
+        "proposal_status": "QUALITY_TARGET_NOT_MET",
+        "reference_id": "reference-2859d96d37ab429ca3975f0ac2b8e82f",
+        "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+        "source_loss": 0.546523952165,
+        "source_metrics": {
+          "bbox_edge_error": 0.087890625,
+          "boundary_f1_4px": 0.20331072897,
+          "centroid_error": 0.030853625035,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 21.847115500571,
+          "silhouette_iou": 0.503594094388
+        },
+        "source_status": "QUALITY_TARGET_NOT_MET",
+        "strict_improvement": false,
+        "view_id": "back-user-reference",
+        "view_spec": {
+          "canonical_sha256": "1c90c439c5c55c351a1a84174233fe058e8db5690483de64472f98a04f40c9e9",
+          "image": {
+            "crop": {
+              "height": 1,
+              "width": 1,
+              "x": 0,
+              "y": 0
+            },
+            "height": 1254,
+            "rotation_degrees": 0,
+            "width": 1254
+          },
+          "landmarks": [],
+          "reference_id": "reference-2859d96d37ab429ca3975f0ac2b8e82f",
+          "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+          "regions": [],
+          "schema_version": "ReferenceViewSpec@1",
+          "source_view": "back",
+          "view_id": "back-user-reference"
+        }
+      },
+      {
+        "camera": {
+          "camera_hash": "567a79e933e051c7c0c7917c0e82bf9fd02afff9bd4af1352da4788ce3ffe9f6",
+          "canonical_sha256": "8e6648c78414ab255c654173d852c9a477dc003485472f495268015a24cd731e",
+          "coordinate_system": "right-handed-y-up-meter",
+          "far_m": 20,
+          "fov_y_degrees": 42,
+          "near_m": 0.05,
+          "projection": "perspective",
+          "renderer_revision": "forgecad-renderer-2",
+          "resolution": {
+            "height": 512,
+            "width": 512
+          },
+          "schema_version": "CameraCalibration@1",
+          "transform": {
+            "position_m": [
+              -5.7691859547196565,
+              2.837049284569652,
+              0.26192097208701437
+            ],
+            "target_m": [
+              -0.02476404802594412,
+              1.4009438078962235,
+              0.26192097208701437
+            ],
+            "up": [
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+        "kind": "left",
+        "non_regressing": false,
+        "proposal_loss": 0.562146265818,
+        "proposal_metrics": {
+          "bbox_edge_error": 0.060546875,
+          "boundary_f1_4px": 0.139758432352,
+          "centroid_error": 0.024294611639,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 18.298207692873,
+          "silhouette_iou": 0.515407915994
+        },
+        "proposal_status": "QUALITY_TARGET_NOT_MET",
+        "reference_id": "reference-25fe1e1d6aae496990dbb9ff08237241",
+        "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+        "source_loss": 0.525585931042,
+        "source_metrics": {
+          "bbox_edge_error": 0.0625,
+          "boundary_f1_4px": 0.219659875578,
+          "centroid_error": 0.010161041007,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 16.930989655782,
+          "silhouette_iou": 0.544487800695
+        },
+        "source_status": "QUALITY_TARGET_NOT_MET",
+        "strict_improvement": false,
+        "view_id": "left-user-reference",
+        "view_spec": {
+          "canonical_sha256": "21928e04af086b5e4b323d5869ac7c54e19719c871b9f3209e2f1e60c3018dc9",
+          "image": {
+            "crop": {
+              "height": 1,
+              "width": 1,
+              "x": 0,
+              "y": 0
+            },
+            "height": 1254,
+            "rotation_degrees": 0,
+            "width": 1254
+          },
+          "landmarks": [],
+          "reference_id": "reference-25fe1e1d6aae496990dbb9ff08237241",
+          "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+          "regions": [],
+          "schema_version": "ReferenceViewSpec@1",
+          "source_view": "left",
+          "view_id": "left-user-reference"
+        }
+      },
+      {
+        "camera": {
+          "camera_hash": "0e20bdf36c17dd6f9b202dc1246255247952be98ea191f0be78ae508c55a9e72",
+          "canonical_sha256": "22e3caa7e1b4514e43f4925554a9b3d75396455e60c9d96198450da560b15b4c",
+          "coordinate_system": "right-handed-y-up-meter",
+          "far_m": 20,
+          "fov_y_degrees": 42,
+          "near_m": 0.05,
+          "projection": "perspective",
+          "renderer_revision": "forgecad-renderer-2",
+          "resolution": {
+            "height": 512,
+            "width": 512
+          },
+          "schema_version": "CameraCalibration@1",
+          "transform": {
+            "position_m": [
+              5.720647773279352,
+              2.9301619433198383,
+              0
+            ],
+            "target_m": [
+              0,
+              1.5,
+              0
+            ],
+            "up": [
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+        "kind": "right",
+        "non_regressing": true,
+        "proposal_loss": 0.586369746705,
+        "proposal_metrics": {
+          "bbox_edge_error": 0.04296875,
+          "boundary_f1_4px": 0.127620647251,
+          "centroid_error": 0.067420482653,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 21.67518772057,
+          "silhouette_iou": 0.446781296252
+        },
+        "proposal_status": "QUALITY_TARGET_NOT_MET",
+        "reference_id": "reference-7ea47ad8e327480cae6e40bdbfaab456",
+        "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+        "source_loss": 0.597010830911,
+        "source_metrics": {
+          "bbox_edge_error": 0.04296875,
+          "boundary_f1_4px": 0.121521833559,
+          "centroid_error": 0.063687732652,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 23.130097819641,
+          "silhouette_iou": 0.411716858004
+        },
+        "source_status": "QUALITY_TARGET_NOT_MET",
+        "strict_improvement": true,
+        "view_id": "right-user-reference",
+        "view_spec": {
+          "canonical_sha256": "6310fb49fe75ccf90ccedceefa02770bc73fa91e7c0d227a2f23c16d30a15c72",
+          "image": {
+            "crop": {
+              "height": 1,
+              "width": 1,
+              "x": 0,
+              "y": 0
+            },
+            "height": 1254,
+            "rotation_degrees": 0,
+            "width": 1254
+          },
+          "landmarks": [],
+          "reference_id": "reference-7ea47ad8e327480cae6e40bdbfaab456",
+          "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+          "regions": [],
+          "schema_version": "ReferenceViewSpec@1",
+          "source_view": "right",
+          "view_id": "right-user-reference"
+        }
+      },
+      {
+        "camera": {
+          "camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+          "canonical_sha256": "6509a7b73c09145a07ad60fe9c30f99f9e7d829b251b460ca9e92c2c014a52c6",
+          "coordinate_system": "right-handed-y-up-meter",
+          "far_m": 20,
+          "fov_y_degrees": 42,
+          "near_m": 0.05,
+          "projection": "perspective",
+          "renderer_revision": "forgecad-renderer-2",
+          "resolution": {
+            "height": 512,
+            "width": 512
+          },
+          "schema_version": "CameraCalibration@1",
+          "transform": {
+            "position_m": [
+              3.2031692672154204,
+              1.9165187925819376,
+              5.021936056683209
+            ],
+            "target_m": [
+              -0.08310042393959455,
+              1.3514750507028412,
+              0.09253151995068604
+            ],
+            "up": [
+              -0.05266585714018249,
+              0.9954825459785784,
+              -0.07899878571027376
+            ]
+          }
+        },
+        "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+        "kind": "perspective",
+        "non_regressing": true,
+        "proposal_loss": 0.408114527162,
+        "proposal_metrics": {
+          "bbox_edge_error": 0.033203125,
+          "boundary_f1_4px": 0.392553090172,
+          "centroid_error": 0.0036925465,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 13.447207788691,
+          "silhouette_iou": 0.756928086147
+        },
+        "proposal_status": "QUALITY_TARGET_NOT_MET",
+        "reference_id": "reference-450e9ab98b394d1da91eaca6dedc0330",
+        "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+        "source_loss": 0.426273344219,
+        "source_metrics": {
+          "bbox_edge_error": 0.00390625,
+          "boundary_f1_4px": 0.339780826338,
+          "centroid_error": 0.004143176227,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 15.96022772595,
+          "silhouette_iou": 0.747420807905
+        },
+        "source_status": "QUALITY_TARGET_NOT_MET",
+        "strict_improvement": true,
+        "view_id": "three-quarter-user-reference",
+        "view_spec": {
+          "canonical_sha256": "d95827b60aa77932af8b481c5686248f5a068414a7035d0dee591598219c6345",
+          "image": {
+            "crop": {
+              "height": 1,
+              "width": 1,
+              "x": 0,
+              "y": 0
+            },
+            "height": 1254,
+            "rotation_degrees": 0,
+            "width": 1254
+          },
+          "landmarks": [],
+          "reference_id": "reference-450e9ab98b394d1da91eaca6dedc0330",
+          "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+          "regions": [],
+          "schema_version": "ReferenceViewSpec@1",
+          "source_view": "three-quarter",
+          "view_id": "three-quarter-user-reference"
+        }
+      },
+      {
+        "camera": {
+          "camera_hash": "b15e7c9975e50be62d23233d2c1f9a6df1cca6966cd167dad0f789c567ef6bfd",
+          "canonical_sha256": "5ec732c58efd6c3113e6d2300fa02ca8dc49555f7fed5ac5ddfe43d4684074d4",
+          "coordinate_system": "right-handed-y-up-meter",
+          "far_m": 20,
+          "fov_y_degrees": 42,
+          "near_m": 0.05,
+          "projection": "perspective",
+          "renderer_revision": "forgecad-renderer-2",
+          "resolution": {
+            "height": 512,
+            "width": 512
+          },
+          "schema_version": "CameraCalibration@1",
+          "transform": {
+            "position_m": [
+              4,
+              3,
+              -6
+            ],
+            "target_m": [
+              0,
+              1.5,
+              0
+            ],
+            "up": [
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+        "kind": "rear-three-quarter",
+        "non_regressing": false,
+        "proposal_loss": 0.559877427578,
+        "proposal_metrics": {
+          "bbox_edge_error": 0.109375,
+          "boundary_f1_4px": 0.126910180707,
+          "centroid_error": 0.030946978662,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 26.162804902978,
+          "silhouette_iou": 0.567120704697
+        },
+        "proposal_status": "QUALITY_TARGET_NOT_MET",
+        "reference_id": "reference-5970644b772649cea3cd24ed19ff6089",
+        "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+        "source_loss": 0.537249383909,
+        "source_metrics": {
+          "bbox_edge_error": 0.109375,
+          "boundary_f1_4px": 0.180482155011,
+          "centroid_error": 0.028910644722,
+          "critical_region_min_iou": 1.0,
+          "landmark_coverage": 0.0,
+          "landmark_nme": 1.0,
+          "region_median_iou": 0.0,
+          "sdf_chamfer_px": 24.013337953938,
+          "silhouette_iou": 0.581145873348
+        },
+        "source_status": "QUALITY_TARGET_NOT_MET",
+        "strict_improvement": false,
+        "view_id": "rear-three-quarter-user-reference",
+        "view_spec": {
+          "canonical_sha256": "a810c0b4aacb7e88980cf6d102803bc537c0196c0eaf9c00d8a1eed9201a9c17",
+          "image": {
+            "crop": {
+              "height": 1,
+              "width": 1,
+              "x": 0,
+              "y": 0
+            },
+            "height": 1254,
+            "rotation_degrees": 0,
+            "width": 1254
+          },
+          "landmarks": [],
+          "reference_id": "reference-5970644b772649cea3cd24ed19ff6089",
+          "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+          "regions": [],
+          "schema_version": "ReferenceViewSpec@1",
+          "source_view": "rear-three-quarter",
+          "view_id": "rear-three-quarter-user-reference"
+        }
+      }
+    ]
+  },
+  "primary_form_repair": {
+    "acceptance_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+    "acceptance_proposal_loss": 0.541965433208,
+    "acceptance_source_loss": 0.530908240794,
+    "acceptance_status": "retained_source",
+    "acceptance_strict_improvement": false,
+    "candidate_state": "unchanged",
+    "fit_evaluations": 64,
+    "fit_metrics": {
+      "bbox_edge_error": 0.033203125,
+      "boundary_f1_4px": 0.392553090172,
+      "centroid_error": 0.0036925465,
+      "sdf_chamfer_px": 13.447207788691,
+      "silhouette_iou": 0.756928086147
+    },
+    "fit_status": "quality_target_not_met",
+    "multi_view_evaluation": {
+      "aggregate_status": "QUALITY_TARGET_NOT_MET",
+      "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+      "canonical_sha256": "ad6481585135d1d5b2d524f10178f7aefb4488a0ca05515233aa2ec9846bbb92",
+      "hard_gate_passed": false,
+      "limitations": [
+        "camera_claims_remain_unknown_in_reference_canvas",
+        "camera_orientation_is_inferred_from_typed_view_kind",
+        "human_visual_review_not_run",
+        "export_restart_hash_not_run"
+      ],
+      "non_regressing": false,
+      "objective": "primary-view-strict-and-all-views-non-regressing",
+      "primary_view_id": "three-quarter-user-reference",
+      "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+      "proposal_loss": 0.541965433208,
+      "reference_canvas_sha256": "ab9807568b0431077de3a6712ffa66bee30a0aa16b152460c70b1a176be8505a",
+      "schema_version": "PrimaryFormMultiViewEvaluation@1",
+      "source_candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "source_loss": 0.530908240794,
+      "strict_improvement": false,
+      "view_count": 6,
+      "views": [
+        {
+          "camera": {
+            "camera_hash": "114dcc70f6378e4782f566008770c6082d13fa400702ce9e2b91a18c4386b67f",
+            "canonical_sha256": "df03efe8456c17063c3e650c62cf6b80f4647ccbdaba328922749de169c366a5",
+            "coordinate_system": "right-handed-y-up-meter",
+            "far_m": 20,
+            "fov_y_degrees": 42,
+            "near_m": 0.05,
+            "projection": "perspective",
+            "renderer_revision": "forgecad-renderer-2",
+            "resolution": {
+              "height": 512,
+              "width": 512
+            },
+            "schema_version": "CameraCalibration@1",
+            "transform": {
+              "position_m": [
+                0,
+                3,
+                6
+              ],
+              "target_m": [
+                0,
+                1.5,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ]
+            }
+          },
+          "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+          "kind": "front",
+          "non_regressing": false,
+          "proposal_loss": 0.569687728464,
+          "proposal_metrics": {
+            "bbox_edge_error": 0.15625,
+            "boundary_f1_4px": 0.184318217201,
+            "centroid_error": 0.015112462681,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 25.480388401584,
+            "silhouette_iou": 0.45971118851
+          },
+          "proposal_status": "QUALITY_TARGET_NOT_MET",
+          "reference_id": "reference-8eb5cbd8c9ca409f91aa3cb0500bea66",
+          "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+          "source_loss": 0.552806002518,
+          "source_metrics": {
+            "bbox_edge_error": 0.1171875,
+            "boundary_f1_4px": 0.205192367845,
+            "centroid_error": 0.005951542071,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 23.033999594997,
+            "silhouette_iou": 0.477960416646
+          },
+          "source_status": "QUALITY_TARGET_NOT_MET",
+          "strict_improvement": false,
+          "view_id": "front-user-reference",
+          "view_spec": {
+            "canonical_sha256": "6e04d42b3e900aa3c3a3b6c62ea68bcaf031de96137ba17c89e5f017bcce08c9",
+            "image": {
+              "crop": {
+                "height": 1,
+                "width": 1,
+                "x": 0,
+                "y": 0
+              },
+              "height": 1254,
+              "rotation_degrees": 0,
+              "width": 1254
+            },
+            "landmarks": [],
+            "reference_id": "reference-8eb5cbd8c9ca409f91aa3cb0500bea66",
+            "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+            "regions": [],
+            "schema_version": "ReferenceViewSpec@1",
+            "source_view": "front",
+            "view_id": "front-user-reference"
+          }
+        },
+        {
+          "camera": {
+            "camera_hash": "4e582d94535859666cfdd0d75fa0b4d62d029ed3268690639de5692cf6400240",
+            "canonical_sha256": "930d1fcdfc3590642b376b6f8720e89f38f98b1493feee2e8a80cae1f2319dcd",
+            "coordinate_system": "right-handed-y-up-meter",
+            "far_m": 20,
+            "fov_y_degrees": 42,
+            "near_m": 0.05,
+            "projection": "perspective",
+            "renderer_revision": "forgecad-renderer-2",
+            "resolution": {
+              "height": 512,
+              "width": 512
+            },
+            "schema_version": "CameraCalibration@1",
+            "transform": {
+              "position_m": [
+                0,
+                3,
+                -6
+              ],
+              "target_m": [
+                0,
+                1.5,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ]
+            }
+          },
+          "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+          "kind": "back",
+          "non_regressing": false,
+          "proposal_loss": 0.565596903521,
+          "proposal_metrics": {
+            "bbox_edge_error": 0.103515625,
+            "boundary_f1_4px": 0.159788738415,
+            "centroid_error": 0.026452026682,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 25.060823817941,
+            "silhouette_iou": 0.493726720251
+          },
+          "proposal_status": "QUALITY_TARGET_NOT_MET",
+          "reference_id": "reference-2859d96d37ab429ca3975f0ac2b8e82f",
+          "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+          "source_loss": 0.546523952165,
+          "source_metrics": {
+            "bbox_edge_error": 0.087890625,
+            "boundary_f1_4px": 0.20331072897,
+            "centroid_error": 0.030853625035,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 21.847115500571,
+            "silhouette_iou": 0.503594094388
+          },
+          "source_status": "QUALITY_TARGET_NOT_MET",
+          "strict_improvement": false,
+          "view_id": "back-user-reference",
+          "view_spec": {
+            "canonical_sha256": "1c90c439c5c55c351a1a84174233fe058e8db5690483de64472f98a04f40c9e9",
+            "image": {
+              "crop": {
+                "height": 1,
+                "width": 1,
+                "x": 0,
+                "y": 0
+              },
+              "height": 1254,
+              "rotation_degrees": 0,
+              "width": 1254
+            },
+            "landmarks": [],
+            "reference_id": "reference-2859d96d37ab429ca3975f0ac2b8e82f",
+            "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+            "regions": [],
+            "schema_version": "ReferenceViewSpec@1",
+            "source_view": "back",
+            "view_id": "back-user-reference"
+          }
+        },
+        {
+          "camera": {
+            "camera_hash": "567a79e933e051c7c0c7917c0e82bf9fd02afff9bd4af1352da4788ce3ffe9f6",
+            "canonical_sha256": "8e6648c78414ab255c654173d852c9a477dc003485472f495268015a24cd731e",
+            "coordinate_system": "right-handed-y-up-meter",
+            "far_m": 20,
+            "fov_y_degrees": 42,
+            "near_m": 0.05,
+            "projection": "perspective",
+            "renderer_revision": "forgecad-renderer-2",
+            "resolution": {
+              "height": 512,
+              "width": 512
+            },
+            "schema_version": "CameraCalibration@1",
+            "transform": {
+              "position_m": [
+                -5.7691859547196565,
+                2.837049284569652,
+                0.26192097208701437
+              ],
+              "target_m": [
+                -0.02476404802594412,
+                1.4009438078962235,
+                0.26192097208701437
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ]
+            }
+          },
+          "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+          "kind": "left",
+          "non_regressing": false,
+          "proposal_loss": 0.562146265818,
+          "proposal_metrics": {
+            "bbox_edge_error": 0.060546875,
+            "boundary_f1_4px": 0.139758432352,
+            "centroid_error": 0.024294611639,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 18.298207692873,
+            "silhouette_iou": 0.515407915994
+          },
+          "proposal_status": "QUALITY_TARGET_NOT_MET",
+          "reference_id": "reference-25fe1e1d6aae496990dbb9ff08237241",
+          "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+          "source_loss": 0.525585931042,
+          "source_metrics": {
+            "bbox_edge_error": 0.0625,
+            "boundary_f1_4px": 0.219659875578,
+            "centroid_error": 0.010161041007,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 16.930989655782,
+            "silhouette_iou": 0.544487800695
+          },
+          "source_status": "QUALITY_TARGET_NOT_MET",
+          "strict_improvement": false,
+          "view_id": "left-user-reference",
+          "view_spec": {
+            "canonical_sha256": "21928e04af086b5e4b323d5869ac7c54e19719c871b9f3209e2f1e60c3018dc9",
+            "image": {
+              "crop": {
+                "height": 1,
+                "width": 1,
+                "x": 0,
+                "y": 0
+              },
+              "height": 1254,
+              "rotation_degrees": 0,
+              "width": 1254
+            },
+            "landmarks": [],
+            "reference_id": "reference-25fe1e1d6aae496990dbb9ff08237241",
+            "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+            "regions": [],
+            "schema_version": "ReferenceViewSpec@1",
+            "source_view": "left",
+            "view_id": "left-user-reference"
+          }
+        },
+        {
+          "camera": {
+            "camera_hash": "0e20bdf36c17dd6f9b202dc1246255247952be98ea191f0be78ae508c55a9e72",
+            "canonical_sha256": "22e3caa7e1b4514e43f4925554a9b3d75396455e60c9d96198450da560b15b4c",
+            "coordinate_system": "right-handed-y-up-meter",
+            "far_m": 20,
+            "fov_y_degrees": 42,
+            "near_m": 0.05,
+            "projection": "perspective",
+            "renderer_revision": "forgecad-renderer-2",
+            "resolution": {
+              "height": 512,
+              "width": 512
+            },
+            "schema_version": "CameraCalibration@1",
+            "transform": {
+              "position_m": [
+                5.720647773279352,
+                2.9301619433198383,
+                0
+              ],
+              "target_m": [
+                0,
+                1.5,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ]
+            }
+          },
+          "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+          "kind": "right",
+          "non_regressing": true,
+          "proposal_loss": 0.586369746705,
+          "proposal_metrics": {
+            "bbox_edge_error": 0.04296875,
+            "boundary_f1_4px": 0.127620647251,
+            "centroid_error": 0.067420482653,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 21.67518772057,
+            "silhouette_iou": 0.446781296252
+          },
+          "proposal_status": "QUALITY_TARGET_NOT_MET",
+          "reference_id": "reference-7ea47ad8e327480cae6e40bdbfaab456",
+          "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+          "source_loss": 0.597010830911,
+          "source_metrics": {
+            "bbox_edge_error": 0.04296875,
+            "boundary_f1_4px": 0.121521833559,
+            "centroid_error": 0.063687732652,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 23.130097819641,
+            "silhouette_iou": 0.411716858004
+          },
+          "source_status": "QUALITY_TARGET_NOT_MET",
+          "strict_improvement": true,
+          "view_id": "right-user-reference",
+          "view_spec": {
+            "canonical_sha256": "6310fb49fe75ccf90ccedceefa02770bc73fa91e7c0d227a2f23c16d30a15c72",
+            "image": {
+              "crop": {
+                "height": 1,
+                "width": 1,
+                "x": 0,
+                "y": 0
+              },
+              "height": 1254,
+              "rotation_degrees": 0,
+              "width": 1254
+            },
+            "landmarks": [],
+            "reference_id": "reference-7ea47ad8e327480cae6e40bdbfaab456",
+            "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+            "regions": [],
+            "schema_version": "ReferenceViewSpec@1",
+            "source_view": "right",
+            "view_id": "right-user-reference"
+          }
+        },
+        {
+          "camera": {
+            "camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+            "canonical_sha256": "6509a7b73c09145a07ad60fe9c30f99f9e7d829b251b460ca9e92c2c014a52c6",
+            "coordinate_system": "right-handed-y-up-meter",
+            "far_m": 20,
+            "fov_y_degrees": 42,
+            "near_m": 0.05,
+            "projection": "perspective",
+            "renderer_revision": "forgecad-renderer-2",
+            "resolution": {
+              "height": 512,
+              "width": 512
+            },
+            "schema_version": "CameraCalibration@1",
+            "transform": {
+              "position_m": [
+                3.2031692672154204,
+                1.9165187925819376,
+                5.021936056683209
+              ],
+              "target_m": [
+                -0.08310042393959455,
+                1.3514750507028412,
+                0.09253151995068604
+              ],
+              "up": [
+                -0.05266585714018249,
+                0.9954825459785784,
+                -0.07899878571027376
+              ]
+            }
+          },
+          "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+          "kind": "perspective",
+          "non_regressing": true,
+          "proposal_loss": 0.408114527162,
+          "proposal_metrics": {
+            "bbox_edge_error": 0.033203125,
+            "boundary_f1_4px": 0.392553090172,
+            "centroid_error": 0.0036925465,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 13.447207788691,
+            "silhouette_iou": 0.756928086147
+          },
+          "proposal_status": "QUALITY_TARGET_NOT_MET",
+          "reference_id": "reference-450e9ab98b394d1da91eaca6dedc0330",
+          "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+          "source_loss": 0.426273344219,
+          "source_metrics": {
+            "bbox_edge_error": 0.00390625,
+            "boundary_f1_4px": 0.339780826338,
+            "centroid_error": 0.004143176227,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 15.96022772595,
+            "silhouette_iou": 0.747420807905
+          },
+          "source_status": "QUALITY_TARGET_NOT_MET",
+          "strict_improvement": true,
+          "view_id": "three-quarter-user-reference",
+          "view_spec": {
+            "canonical_sha256": "d95827b60aa77932af8b481c5686248f5a068414a7035d0dee591598219c6345",
+            "image": {
+              "crop": {
+                "height": 1,
+                "width": 1,
+                "x": 0,
+                "y": 0
+              },
+              "height": 1254,
+              "rotation_degrees": 0,
+              "width": 1254
+            },
+            "landmarks": [],
+            "reference_id": "reference-450e9ab98b394d1da91eaca6dedc0330",
+            "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+            "regions": [],
+            "schema_version": "ReferenceViewSpec@1",
+            "source_view": "three-quarter",
+            "view_id": "three-quarter-user-reference"
+          }
+        },
+        {
+          "camera": {
+            "camera_hash": "b15e7c9975e50be62d23233d2c1f9a6df1cca6966cd167dad0f789c567ef6bfd",
+            "canonical_sha256": "5ec732c58efd6c3113e6d2300fa02ca8dc49555f7fed5ac5ddfe43d4684074d4",
+            "coordinate_system": "right-handed-y-up-meter",
+            "far_m": 20,
+            "fov_y_degrees": 42,
+            "near_m": 0.05,
+            "projection": "perspective",
+            "renderer_revision": "forgecad-renderer-2",
+            "resolution": {
+              "height": 512,
+              "width": 512
+            },
+            "schema_version": "CameraCalibration@1",
+            "transform": {
+              "position_m": [
+                4,
+                3,
+                -6
+              ],
+              "target_m": [
+                0,
+                1.5,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ]
+            }
+          },
+          "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+          "kind": "rear-three-quarter",
+          "non_regressing": false,
+          "proposal_loss": 0.559877427578,
+          "proposal_metrics": {
+            "bbox_edge_error": 0.109375,
+            "boundary_f1_4px": 0.126910180707,
+            "centroid_error": 0.030946978662,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 26.162804902978,
+            "silhouette_iou": 0.567120704697
+          },
+          "proposal_status": "QUALITY_TARGET_NOT_MET",
+          "reference_id": "reference-5970644b772649cea3cd24ed19ff6089",
+          "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+          "source_loss": 0.537249383909,
+          "source_metrics": {
+            "bbox_edge_error": 0.109375,
+            "boundary_f1_4px": 0.180482155011,
+            "centroid_error": 0.028910644722,
+            "critical_region_min_iou": 1.0,
+            "landmark_coverage": 0.0,
+            "landmark_nme": 1.0,
+            "region_median_iou": 0.0,
+            "sdf_chamfer_px": 24.013337953938,
+            "silhouette_iou": 0.581145873348
+          },
+          "source_status": "QUALITY_TARGET_NOT_MET",
+          "strict_improvement": false,
+          "view_id": "rear-three-quarter-user-reference",
+          "view_spec": {
+            "canonical_sha256": "a810c0b4aacb7e88980cf6d102803bc537c0196c0eaf9c00d8a1eed9201a9c17",
+            "image": {
+              "crop": {
+                "height": 1,
+                "width": 1,
+                "x": 0,
+                "y": 0
+              },
+              "height": 1254,
+              "rotation_degrees": 0,
+              "width": 1254
+            },
+            "landmarks": [],
+            "reference_id": "reference-5970644b772649cea3cd24ed19ff6089",
+            "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+            "regions": [],
+            "schema_version": "ReferenceViewSpec@1",
+            "source_view": "rear-three-quarter",
+            "view_id": "rear-three-quarter-user-reference"
+          }
+        }
+      ]
+    },
+    "part_id": null,
+    "prepared_candidate_id": null,
+    "quality_status": "not-run",
+    "source_candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+    "staged_comparison_report_hash": null,
+    "staged_quality_report_hash": null,
+    "staged_render_set_hash": null,
+    "status": "no_improvement"
+  },
+  "primary_form_repair_intent_sha256": "ad78ff0cb782cdbd786f34146a13f129ef56f88c9bf55da4ffe19366bd95a62e",
+  "primary_form_repair_requested": true,
+  "primary_form_repair_steps": [
+    {
+      "acceptance": {
+        "camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+        "proposal_loss": 0.541965433208,
+        "source_loss": 0.530908240794,
+        "status": "retained_source",
+        "strict_improvement": false
+      },
+      "camera_canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af",
+      "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+      "fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+      "fit_evaluations": 64,
+      "fit_loss": 0.3087495134300643,
+      "intent_sha256": "ad78ff0cb782cdbd786f34146a13f129ef56f88c9bf55da4ffe19366bd95a62e",
+      "multi_view_evaluation": {
+        "aggregate_status": "QUALITY_TARGET_NOT_MET",
+        "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+        "canonical_sha256": "ad6481585135d1d5b2d524f10178f7aefb4488a0ca05515233aa2ec9846bbb92",
+        "hard_gate_passed": false,
+        "limitations": [
+          "camera_claims_remain_unknown_in_reference_canvas",
+          "camera_orientation_is_inferred_from_typed_view_kind",
+          "human_visual_review_not_run",
+          "export_restart_hash_not_run"
+        ],
+        "non_regressing": false,
+        "objective": "primary-view-strict-and-all-views-non-regressing",
+        "primary_view_id": "three-quarter-user-reference",
+        "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+        "proposal_loss": 0.541965433208,
+        "reference_canvas_sha256": "ab9807568b0431077de3a6712ffa66bee30a0aa16b152460c70b1a176be8505a",
+        "schema_version": "PrimaryFormMultiViewEvaluation@1",
+        "source_candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+        "source_loss": 0.530908240794,
+        "strict_improvement": false,
+        "view_count": 6,
+        "views": [
+          {
+            "camera": {
+              "camera_hash": "114dcc70f6378e4782f566008770c6082d13fa400702ce9e2b91a18c4386b67f",
+              "canonical_sha256": "df03efe8456c17063c3e650c62cf6b80f4647ccbdaba328922749de169c366a5",
+              "coordinate_system": "right-handed-y-up-meter",
+              "far_m": 20,
+              "fov_y_degrees": 42,
+              "near_m": 0.05,
+              "projection": "perspective",
+              "renderer_revision": "forgecad-renderer-2",
+              "resolution": {
+                "height": 512,
+                "width": 512
+              },
+              "schema_version": "CameraCalibration@1",
+              "transform": {
+                "position_m": [
+                  0,
+                  3,
+                  6
+                ],
+                "target_m": [
+                  0,
+                  1.5,
+                  0
+                ],
+                "up": [
+                  0,
+                  1,
+                  0
+                ]
+              }
+            },
+            "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+            "kind": "front",
+            "non_regressing": false,
+            "proposal_loss": 0.569687728464,
+            "proposal_metrics": {
+              "bbox_edge_error": 0.15625,
+              "boundary_f1_4px": 0.184318217201,
+              "centroid_error": 0.015112462681,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 25.480388401584,
+              "silhouette_iou": 0.45971118851
+            },
+            "proposal_status": "QUALITY_TARGET_NOT_MET",
+            "reference_id": "reference-8eb5cbd8c9ca409f91aa3cb0500bea66",
+            "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+            "source_loss": 0.552806002518,
+            "source_metrics": {
+              "bbox_edge_error": 0.1171875,
+              "boundary_f1_4px": 0.205192367845,
+              "centroid_error": 0.005951542071,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 23.033999594997,
+              "silhouette_iou": 0.477960416646
+            },
+            "source_status": "QUALITY_TARGET_NOT_MET",
+            "strict_improvement": false,
+            "view_id": "front-user-reference",
+            "view_spec": {
+              "canonical_sha256": "6e04d42b3e900aa3c3a3b6c62ea68bcaf031de96137ba17c89e5f017bcce08c9",
+              "image": {
+                "crop": {
+                  "height": 1,
+                  "width": 1,
+                  "x": 0,
+                  "y": 0
+                },
+                "height": 1254,
+                "rotation_degrees": 0,
+                "width": 1254
+              },
+              "landmarks": [],
+              "reference_id": "reference-8eb5cbd8c9ca409f91aa3cb0500bea66",
+              "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+              "regions": [],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "front",
+              "view_id": "front-user-reference"
+            }
+          },
+          {
+            "camera": {
+              "camera_hash": "4e582d94535859666cfdd0d75fa0b4d62d029ed3268690639de5692cf6400240",
+              "canonical_sha256": "930d1fcdfc3590642b376b6f8720e89f38f98b1493feee2e8a80cae1f2319dcd",
+              "coordinate_system": "right-handed-y-up-meter",
+              "far_m": 20,
+              "fov_y_degrees": 42,
+              "near_m": 0.05,
+              "projection": "perspective",
+              "renderer_revision": "forgecad-renderer-2",
+              "resolution": {
+                "height": 512,
+                "width": 512
+              },
+              "schema_version": "CameraCalibration@1",
+              "transform": {
+                "position_m": [
+                  0,
+                  3,
+                  -6
+                ],
+                "target_m": [
+                  0,
+                  1.5,
+                  0
+                ],
+                "up": [
+                  0,
+                  1,
+                  0
+                ]
+              }
+            },
+            "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+            "kind": "back",
+            "non_regressing": false,
+            "proposal_loss": 0.565596903521,
+            "proposal_metrics": {
+              "bbox_edge_error": 0.103515625,
+              "boundary_f1_4px": 0.159788738415,
+              "centroid_error": 0.026452026682,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 25.060823817941,
+              "silhouette_iou": 0.493726720251
+            },
+            "proposal_status": "QUALITY_TARGET_NOT_MET",
+            "reference_id": "reference-2859d96d37ab429ca3975f0ac2b8e82f",
+            "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+            "source_loss": 0.546523952165,
+            "source_metrics": {
+              "bbox_edge_error": 0.087890625,
+              "boundary_f1_4px": 0.20331072897,
+              "centroid_error": 0.030853625035,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 21.847115500571,
+              "silhouette_iou": 0.503594094388
+            },
+            "source_status": "QUALITY_TARGET_NOT_MET",
+            "strict_improvement": false,
+            "view_id": "back-user-reference",
+            "view_spec": {
+              "canonical_sha256": "1c90c439c5c55c351a1a84174233fe058e8db5690483de64472f98a04f40c9e9",
+              "image": {
+                "crop": {
+                  "height": 1,
+                  "width": 1,
+                  "x": 0,
+                  "y": 0
+                },
+                "height": 1254,
+                "rotation_degrees": 0,
+                "width": 1254
+              },
+              "landmarks": [],
+              "reference_id": "reference-2859d96d37ab429ca3975f0ac2b8e82f",
+              "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+              "regions": [],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "back",
+              "view_id": "back-user-reference"
+            }
+          },
+          {
+            "camera": {
+              "camera_hash": "567a79e933e051c7c0c7917c0e82bf9fd02afff9bd4af1352da4788ce3ffe9f6",
+              "canonical_sha256": "8e6648c78414ab255c654173d852c9a477dc003485472f495268015a24cd731e",
+              "coordinate_system": "right-handed-y-up-meter",
+              "far_m": 20,
+              "fov_y_degrees": 42,
+              "near_m": 0.05,
+              "projection": "perspective",
+              "renderer_revision": "forgecad-renderer-2",
+              "resolution": {
+                "height": 512,
+                "width": 512
+              },
+              "schema_version": "CameraCalibration@1",
+              "transform": {
+                "position_m": [
+                  -5.7691859547196565,
+                  2.837049284569652,
+                  0.26192097208701437
+                ],
+                "target_m": [
+                  -0.02476404802594412,
+                  1.4009438078962235,
+                  0.26192097208701437
+                ],
+                "up": [
+                  0,
+                  1,
+                  0
+                ]
+              }
+            },
+            "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+            "kind": "left",
+            "non_regressing": false,
+            "proposal_loss": 0.562146265818,
+            "proposal_metrics": {
+              "bbox_edge_error": 0.060546875,
+              "boundary_f1_4px": 0.139758432352,
+              "centroid_error": 0.024294611639,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 18.298207692873,
+              "silhouette_iou": 0.515407915994
+            },
+            "proposal_status": "QUALITY_TARGET_NOT_MET",
+            "reference_id": "reference-25fe1e1d6aae496990dbb9ff08237241",
+            "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+            "source_loss": 0.525585931042,
+            "source_metrics": {
+              "bbox_edge_error": 0.0625,
+              "boundary_f1_4px": 0.219659875578,
+              "centroid_error": 0.010161041007,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 16.930989655782,
+              "silhouette_iou": 0.544487800695
+            },
+            "source_status": "QUALITY_TARGET_NOT_MET",
+            "strict_improvement": false,
+            "view_id": "left-user-reference",
+            "view_spec": {
+              "canonical_sha256": "21928e04af086b5e4b323d5869ac7c54e19719c871b9f3209e2f1e60c3018dc9",
+              "image": {
+                "crop": {
+                  "height": 1,
+                  "width": 1,
+                  "x": 0,
+                  "y": 0
+                },
+                "height": 1254,
+                "rotation_degrees": 0,
+                "width": 1254
+              },
+              "landmarks": [],
+              "reference_id": "reference-25fe1e1d6aae496990dbb9ff08237241",
+              "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+              "regions": [],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "left",
+              "view_id": "left-user-reference"
+            }
+          },
+          {
+            "camera": {
+              "camera_hash": "0e20bdf36c17dd6f9b202dc1246255247952be98ea191f0be78ae508c55a9e72",
+              "canonical_sha256": "22e3caa7e1b4514e43f4925554a9b3d75396455e60c9d96198450da560b15b4c",
+              "coordinate_system": "right-handed-y-up-meter",
+              "far_m": 20,
+              "fov_y_degrees": 42,
+              "near_m": 0.05,
+              "projection": "perspective",
+              "renderer_revision": "forgecad-renderer-2",
+              "resolution": {
+                "height": 512,
+                "width": 512
+              },
+              "schema_version": "CameraCalibration@1",
+              "transform": {
+                "position_m": [
+                  5.720647773279352,
+                  2.9301619433198383,
+                  0
+                ],
+                "target_m": [
+                  0,
+                  1.5,
+                  0
+                ],
+                "up": [
+                  0,
+                  1,
+                  0
+                ]
+              }
+            },
+            "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+            "kind": "right",
+            "non_regressing": true,
+            "proposal_loss": 0.586369746705,
+            "proposal_metrics": {
+              "bbox_edge_error": 0.04296875,
+              "boundary_f1_4px": 0.127620647251,
+              "centroid_error": 0.067420482653,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 21.67518772057,
+              "silhouette_iou": 0.446781296252
+            },
+            "proposal_status": "QUALITY_TARGET_NOT_MET",
+            "reference_id": "reference-7ea47ad8e327480cae6e40bdbfaab456",
+            "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+            "source_loss": 0.597010830911,
+            "source_metrics": {
+              "bbox_edge_error": 0.04296875,
+              "boundary_f1_4px": 0.121521833559,
+              "centroid_error": 0.063687732652,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 23.130097819641,
+              "silhouette_iou": 0.411716858004
+            },
+            "source_status": "QUALITY_TARGET_NOT_MET",
+            "strict_improvement": true,
+            "view_id": "right-user-reference",
+            "view_spec": {
+              "canonical_sha256": "6310fb49fe75ccf90ccedceefa02770bc73fa91e7c0d227a2f23c16d30a15c72",
+              "image": {
+                "crop": {
+                  "height": 1,
+                  "width": 1,
+                  "x": 0,
+                  "y": 0
+                },
+                "height": 1254,
+                "rotation_degrees": 0,
+                "width": 1254
+              },
+              "landmarks": [],
+              "reference_id": "reference-7ea47ad8e327480cae6e40bdbfaab456",
+              "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+              "regions": [],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "right",
+              "view_id": "right-user-reference"
+            }
+          },
+          {
+            "camera": {
+              "camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+              "canonical_sha256": "6509a7b73c09145a07ad60fe9c30f99f9e7d829b251b460ca9e92c2c014a52c6",
+              "coordinate_system": "right-handed-y-up-meter",
+              "far_m": 20,
+              "fov_y_degrees": 42,
+              "near_m": 0.05,
+              "projection": "perspective",
+              "renderer_revision": "forgecad-renderer-2",
+              "resolution": {
+                "height": 512,
+                "width": 512
+              },
+              "schema_version": "CameraCalibration@1",
+              "transform": {
+                "position_m": [
+                  3.2031692672154204,
+                  1.9165187925819376,
+                  5.021936056683209
+                ],
+                "target_m": [
+                  -0.08310042393959455,
+                  1.3514750507028412,
+                  0.09253151995068604
+                ],
+                "up": [
+                  -0.05266585714018249,
+                  0.9954825459785784,
+                  -0.07899878571027376
+                ]
+              }
+            },
+            "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+            "kind": "perspective",
+            "non_regressing": true,
+            "proposal_loss": 0.408114527162,
+            "proposal_metrics": {
+              "bbox_edge_error": 0.033203125,
+              "boundary_f1_4px": 0.392553090172,
+              "centroid_error": 0.0036925465,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 13.447207788691,
+              "silhouette_iou": 0.756928086147
+            },
+            "proposal_status": "QUALITY_TARGET_NOT_MET",
+            "reference_id": "reference-450e9ab98b394d1da91eaca6dedc0330",
+            "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+            "source_loss": 0.426273344219,
+            "source_metrics": {
+              "bbox_edge_error": 0.00390625,
+              "boundary_f1_4px": 0.339780826338,
+              "centroid_error": 0.004143176227,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 15.96022772595,
+              "silhouette_iou": 0.747420807905
+            },
+            "source_status": "QUALITY_TARGET_NOT_MET",
+            "strict_improvement": true,
+            "view_id": "three-quarter-user-reference",
+            "view_spec": {
+              "canonical_sha256": "d95827b60aa77932af8b481c5686248f5a068414a7035d0dee591598219c6345",
+              "image": {
+                "crop": {
+                  "height": 1,
+                  "width": 1,
+                  "x": 0,
+                  "y": 0
+                },
+                "height": 1254,
+                "rotation_degrees": 0,
+                "width": 1254
+              },
+              "landmarks": [],
+              "reference_id": "reference-450e9ab98b394d1da91eaca6dedc0330",
+              "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+              "regions": [],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "three-quarter",
+              "view_id": "three-quarter-user-reference"
+            }
+          },
+          {
+            "camera": {
+              "camera_hash": "b15e7c9975e50be62d23233d2c1f9a6df1cca6966cd167dad0f789c567ef6bfd",
+              "canonical_sha256": "5ec732c58efd6c3113e6d2300fa02ca8dc49555f7fed5ac5ddfe43d4684074d4",
+              "coordinate_system": "right-handed-y-up-meter",
+              "far_m": 20,
+              "fov_y_degrees": 42,
+              "near_m": 0.05,
+              "projection": "perspective",
+              "renderer_revision": "forgecad-renderer-2",
+              "resolution": {
+                "height": 512,
+                "width": 512
+              },
+              "schema_version": "CameraCalibration@1",
+              "transform": {
+                "position_m": [
+                  4,
+                  3,
+                  -6
+                ],
+                "target_m": [
+                  0,
+                  1.5,
+                  0
+                ],
+                "up": [
+                  0,
+                  1,
+                  0
+                ]
+              }
+            },
+            "camera_source": "runtime-inferred-from-view-kind-and-reference-mask",
+            "kind": "rear-three-quarter",
+            "non_regressing": false,
+            "proposal_loss": 0.559877427578,
+            "proposal_metrics": {
+              "bbox_edge_error": 0.109375,
+              "boundary_f1_4px": 0.126910180707,
+              "centroid_error": 0.030946978662,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 26.162804902978,
+              "silhouette_iou": 0.567120704697
+            },
+            "proposal_status": "QUALITY_TARGET_NOT_MET",
+            "reference_id": "reference-5970644b772649cea3cd24ed19ff6089",
+            "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+            "source_loss": 0.537249383909,
+            "source_metrics": {
+              "bbox_edge_error": 0.109375,
+              "boundary_f1_4px": 0.180482155011,
+              "centroid_error": 0.028910644722,
+              "critical_region_min_iou": 1.0,
+              "landmark_coverage": 0.0,
+              "landmark_nme": 1.0,
+              "region_median_iou": 0.0,
+              "sdf_chamfer_px": 24.013337953938,
+              "silhouette_iou": 0.581145873348
+            },
+            "source_status": "QUALITY_TARGET_NOT_MET",
+            "strict_improvement": false,
+            "view_id": "rear-three-quarter-user-reference",
+            "view_spec": {
+              "canonical_sha256": "a810c0b4aacb7e88980cf6d102803bc537c0196c0eaf9c00d8a1eed9201a9c17",
+              "image": {
+                "crop": {
+                  "height": 1,
+                  "width": 1,
+                  "x": 0,
+                  "y": 0
+                },
+                "height": 1254,
+                "rotation_degrees": 0,
+                "width": 1254
+              },
+              "landmarks": [],
+              "reference_id": "reference-5970644b772649cea3cd24ed19ff6089",
+              "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+              "regions": [],
+              "schema_version": "ReferenceViewSpec@1",
+              "source_view": "rear-three-quarter",
+              "view_id": "rear-three-quarter-user-reference"
+            }
+          }
+        ]
+      },
+      "observation_candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "observation_sha256": "675d45bba018eb4e7fcb9055bc123173473f86d5f9d54989fe00aee974efead8",
+      "part_id": null,
+      "prepared_candidate_id": null,
+      "rig_sha256": "596ed953c01515d9871e2d79ba7d9e96aa2c98c6d1f2310a36cc8c1e295b066b",
+      "source_candidate_id": "candidate-48d0464b4de6464297555312bce6d424",
+      "status": "no_improvement",
+      "step": 1,
+      "target_sha256": "2c7b5e676678a12c435b4e707fff418a45fc89900fa10c525ff12547f97ce891"
+    }
+  ],
+  "primary_form_runtime_compare": false,
+  "program_sha256": "9c9094e1f1e2ae8a7808cece11d069b6e1901cb59e129e3fd7a4ec8dd0a9dc14",
+  "project_id": "project-efcb5789fd7c488a8a61a7690147734c",
+  "protocol_version": "2025-06-18",
+  "quality_claim": "QUALITY_TARGET_NOT_MET_OR_NOT_CLAIMED",
+  "quality_hard_gate_passed": false,
+  "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+  "recorded_at": "2026-08-16T14:21:41Z",
+  "reference_coverage": {
+    "coverage_status": "complete",
+    "hq_360_status": "eligible",
+    "missing_views": [],
+    "required_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "perspective",
+      "rear-three-quarter"
+    ],
+    "supplied_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "perspective",
+      "rear-three-quarter"
+    ]
+  },
+  "reference_height": 1254,
+  "reference_id": "reference-450e9ab98b394d1da91eaca6dedc0330",
+  "reference_path_recorded": false,
+  "reference_set_sha256": "7bd8c090516737e4ae64c42257c16db49b548a37c66b7ddaa21b2f3e45b20c35",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "reference_view_count": 6,
+  "reference_views": [
+    {
+      "height": 1254,
+      "kind": "perspective",
+      "reference_id": "reference-450e9ab98b394d1da91eaca6dedc0330",
+      "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+      "view_id": "three-quarter-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "front",
+      "reference_id": "reference-8eb5cbd8c9ca409f91aa3cb0500bea66",
+      "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+      "view_id": "front-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "back",
+      "reference_id": "reference-2859d96d37ab429ca3975f0ac2b8e82f",
+      "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+      "view_id": "back-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "left",
+      "reference_id": "reference-25fe1e1d6aae496990dbb9ff08237241",
+      "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+      "view_id": "left-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "right",
+      "reference_id": "reference-7ea47ad8e327480cae6e40bdbfaab456",
+      "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+      "view_id": "right-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "rear-three-quarter",
+      "reference_id": "reference-5970644b772649cea3cd24ed19ff6089",
+      "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+      "view_id": "rear-three-quarter-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    }
+  ],
+  "reference_width": 1254,
+  "render_pass_calls": 9,
+  "render_pass_image_blocks": "NOT_OBSERVED_IN_SANITIZED_CLI_EVENTS",
+  "render_pass_order": [
+    "beauty",
+    "silhouette",
+    "depth",
+    "normal",
+    "ao",
+    "part-id",
+    "material-id",
+    "wireframe",
+    "uv-stretch"
+  ],
+  "render_set_hash": "9ea0572966f637f726b5b77dc70c0f422fb613a1d5604a9e81dfebbfcca3e974",
+  "review_recovered_after_tool_drift": false,
+  "scene_observation_schema": "AgenticSceneObserveResult@1",
+  "scene_observation_sha256": "675d45bba018eb4e7fcb9055bc123173473f86d5f9d54989fe00aee974efead8",
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "side_effect_events": [
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "b48a8d8117c7f432fdb426016acad232534416739e66a9992c22a2d5d95d5955",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "b48a8d8117c7f432fdb426016acad232534416739e66a9992c22a2d5d95d5955",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    }
+  ],
+  "silhouette_camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+  "silhouette_first": true,
+  "silhouette_fit": {
+    "evaluations": 64,
+    "iterations": 2,
+    "loss": null,
+    "metrics": {
+      "bbox_edge_error": 0.033203125,
+      "boundary_f1_4px": 0.392553090172,
+      "centroid_error": 0.0036925465,
+      "sdf_chamfer_px": 13.447207788691,
+      "silhouette_iou": 0.756928086147
+    },
+    "status": "quality_target_not_met"
+  },
+  "silhouette_fit_camera_canonical_sha256": "6509a7b73c09145a07ad60fe9c30f99f9e7d829b251b460ca9e92c2c014a52c6",
+  "silhouette_fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+  "silhouette_fit_intent_sha256": null,
+  "silhouette_gate": "QUALITY_TARGET_NOT_MET",
+  "silhouette_rig_sha256": "596ed953c01515d9871e2d79ba7d9e96aa2c98c6d1f2310a36cc8c1e295b066b",
+  "silhouette_sequence": [
+    "skill_get",
+    "reference_mask_prepare",
+    "camera_fit_prepare",
+    "job_get",
+    "candidate_get",
+    "artifact_readback_get",
+    "reference_compare_prepare",
+    "skill_get"
+  ],
+  "silhouette_stage_sequences": {
+    "fit": [],
+    "observation": [
+      "skill_get",
+      "silhouette_target_get",
+      "camera_fit_prepare",
+      "job_get",
+      "candidate_get",
+      "artifact_readback_get",
+      "reference_compare_prepare",
+      "skill_get"
+    ],
+    "part_contour": [],
+    "repair": [
+      "skill_get",
+      "primary_form_repair_job_prepare",
+      "job_get",
+      "job_get",
+      "job_get",
+      "job_get",
+      "job_get",
+      "job_get",
+      "job_get",
+      "job_result_get"
+    ],
+    "target": [
+      "skill_get",
+      "reference_mask_prepare"
+    ]
+  },
+  "silhouette_target_sha256": "2c7b5e676678a12c435b4e707fff418a45fc89900fa10c525ff12547f97ce891",
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+  "task_id": "FGC-MCP010C",
+  "triangle_count": 4704,
+  "unrelated_side_effects": false,
+  "validator_status": "passed",
+  "view_spec_sha256": "d95827b60aa77932af8b481c5686248f5a068414a7035d0dee591598219c6345",
+  "visual_intake": {
+    "landmark_count": 0,
+    "region_count": 0,
+    "source_sha256": null,
+    "status": "NOT_PROVIDED"
+  },
+  "visual_quality_claim": "NOT_CLAIMED",
+  "visual_review_status": "needs_revision"
+}

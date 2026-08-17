@@ -56,13 +56,13 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "e76d0a40d4f3c5142091c9cd12f53007d531c5189a74b6e81500004dcb32d4c3",
+  "canonical_sha256": "52e5d05a2d0561e28ce88fc58c2c3247561239a3c7d7b1710ae18a70631d6e6c",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
       "manifest_sha256": "3f5f5ebe6786f477b50dc1cd0136dc7a5af5de754b9e3df5aa27cdcbba5b0f14",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-      "schema_content_set_sha256": "0d036f0a9f9951b665adb593b362feabfa90ca0ed21b73d54169ce2a7b36228a",
+      "schema_content_set_sha256": "58bf8449b6c213a8f6b90acf8c73701fb63638878a28bc19b78b697462068ce4",
       "schema_count": 125
     },
     "mcp_tools": {
@@ -162,7 +162,7 @@
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
       "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "5d232469d8696be27f767e8a248ad9826d1ee659792223628b1cb5b6b3b5df59",
+      "runtime_source_sha256": "84b170a2709b3a475993522cc46d287398a9cf7adba98271baf02bc5df6bb339",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "57dbdabc0cc6df77f5870d6b4f01d5e2f1676b17121f48112c44aea85cf755f5"
     }

@@ -1,7 +1,7 @@
 # ForgeCAD 产品定义
 
 版本：2026-08-13
-状态：单用户 MVP host golden path 已完成；MCP005–009 geometry/appearance/render/limited-quality/change/version/export 可用，真实 Codex CLI 主链已通过；MCP010F 仍为 `QUALITY_TARGET_NOT_MET`。ADR-0026 已把后续方向定义为 Agentic Design Runtime，但 DesignSession/SemanticSceneGraph/ReferenceCanvas/Critic loop 仍是目标设计，尚未成为当前实现能力。
+状态：单用户 MVP host golden path 已完成；MCP005–009 geometry/appearance/render/limited-quality/change/version/export 可用，真实 Codex CLI 主链已通过；MCP010F 仍为 `QUALITY_TARGET_NOT_MET`。ADR-0026 的 Agentic Design Runtime 已落地一部分当前实现：Runtime-owned durable `ReferenceCanvas@1`/`DesignSpec@1`、candidate-bound Observation、Session/Checkpoint/RepairIntent prepare/readback 已有 source/transport 证据；通用单动作 orchestrator、Repair 应用、多视图视觉通过、人评和发布级闭环仍未完成。
 
 ## 1. 一句话
 

@@ -1,0 +1,3962 @@
+{
+  "allowed_read_only_events": 14,
+  "aov_order": [
+    "beauty",
+    "silhouette",
+    "depth",
+    "normal",
+    "ao",
+    "part-id",
+    "material-id",
+    "wireframe",
+    "uv-stretch"
+  ],
+  "artifact_id": "3c79ac3911305c02be17300c38b4abf609bd9b915683897e3f0ee703c416fd00",
+  "artifact_sha256": "3c79ac3911305c02be17300c38b4abf609bd9b915683897e3f0ee703c416fd00",
+  "authoring_context_binding": {
+    "coverage_status": "complete",
+    "design_spec_id": "design-spec-real-codex",
+    "design_spec_object_sha256": "f41d289886c1821dd1722fb08a56baa8db7ea40ae18bb27a9d3b76524f65f1b6",
+    "hq_360_status": "eligible",
+    "missing_views": [],
+    "observation_sha256": "5bb1af1d8353131dc8d5112bc62b3a702cdc41744ad367a1e8a0e47d6aef4e5f",
+    "reference_canvas_id": "reference-canvas-real-codex",
+    "reference_canvas_object_sha256": "58d126190f1841a68b3bc2eb502a88b53cc042f8d263b7ff207173169986dbe7",
+    "reference_set_sha256": "bbdb3da3aa91073af602251055f08f5bc236658284408c709c3b0d20a580668d",
+    "reference_view_count": 6,
+    "session_id": "design-session-ca91298fd20a468f9bfc6a7f0dad5223",
+    "status": "PASS_DURABLE_REFERENCE_CANVAS_DESIGN_SPEC",
+    "supplied_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "perspective",
+      "rear-three-quarter"
+    ]
+  },
+  "authoring_mode": {
+    "argument_summary": {
+      "canvas": {
+        "declared": "",
+        "declared_empty_for_runtime_canonicalization": true,
+        "declared_matches_recomputed": true,
+        "object_sha256": "2c6cfaea713d9fd04d3ad954ee4405b58a50afa210cea52926029070f41847dd",
+        "present": true,
+        "recomputed": "2c6cfaea713d9fd04d3ad954ee4405b58a50afa210cea52926029070f41847dd"
+      },
+      "context_keys": [
+        "design_spec",
+        "reference_canvas"
+      ],
+      "design_spec": {
+        "declared": "",
+        "declared_empty_for_runtime_canonicalization": true,
+        "declared_matches_recomputed": true,
+        "object_sha256": "3b4b9e537e62870c48f70c272e7e8f8143453e1cec35883381883f551b4cd10c",
+        "present": true,
+        "recomputed": "3b4b9e537e62870c48f70c272e7e8f8143453e1cec35883381883f551b4cd10c"
+      },
+      "expected_spec_binding_matches_canvas_object": null,
+      "spec_reference_canvas_sha256": "58d126190f1841a68b3bc2eb502a88b53cc042f8d263b7ff207173169986dbe7",
+      "status": "completed"
+    },
+    "explicit_failure_codes": [],
+    "status": "EXPLICIT_CODEX_AUTHORING"
+  },
+  "boundary_error": {
+    "metrics": {
+      "bbox_edge_error": 0.0078125,
+      "boundary_f1_4px": 0.349459870714,
+      "centroid_error": 0.010214623257,
+      "sdf_chamfer_px": 16.185921736505,
+      "silhouette_iou": 0.748479421044
+    },
+    "parts": [
+      {
+        "boundary_error_px": 31.824175738524,
+        "centroid_delta_px": [
+          19.514776274714,
+          18.311168921263
+        ],
+        "height_ratio": 0.482142857143,
+        "model_bbox": [
+          0.399217221135,
+          0.019569471624,
+          0.647749510763,
+          0.236790606654
+        ],
+        "model_pixels": 9610,
+        "part_id": "head-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.567514677104,
+          0.097847358121,
+          0.592954990215,
+          0.20156555773
+        ],
+        "target_boundary_pixels": 6,
+        "visibility": "inferred",
+        "width_ratio": 0.109375
+      },
+      {
+        "boundary_error_px": 1.0,
+        "centroid_delta_px": [
+          -38.061723280862,
+          12.818972659486
+        ],
+        "height_ratio": 0.030303030303,
+        "model_bbox": [
+          0.381604696673,
+          0.109589041096,
+          0.536203522505,
+          0.172211350294
+        ],
+        "model_pixels": 2414,
+        "part_id": "visor",
+        "status": "ready",
+        "target_bbox": [
+          0.383561643836,
+          0.166340508806,
+          0.383561643836,
+          0.166340508806
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.0125
+      },
+      {
+        "boundary_error_px": 58.10450750944,
+        "centroid_delta_px": [
+          -64.04038329911,
+          90.482203969884
+        ],
+        "height_ratio": 0.217391304348,
+        "model_bbox": [
+          0.377690802348,
+          0.236790606654,
+          0.776908023483,
+          0.504892367906
+        ],
+        "model_pixels": 6818,
+        "part_id": "chest-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.471624266145,
+          0.778864970646,
+          0.528375733855
+        ],
+        "target_boundary_pixels": 3,
+        "visibility": "inferred",
+        "width_ratio": 1.160975609756
+      },
+      {
+        "boundary_error_px": 7.615773105864,
+        "centroid_delta_px": [
+          -55.474217638691,
+          -36.963371266003
+        ],
+        "height_ratio": 0.013157894737,
+        "model_bbox": [
+          0.352250489237,
+          0.295499021526,
+          0.610567514677,
+          0.442270058708
+        ],
+        "model_pixels": 5624,
+        "part_id": "chest-vent",
+        "status": "ready",
+        "target_bbox": [
+          0.365949119374,
+          0.281800391389,
+          0.365949119374,
+          0.281800391389
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.007518796992
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.414872798434,
+          0.350293542074,
+          0.567514677104,
+          0.487279843444
+        ],
+        "model_pixels": 3492,
+        "part_id": "chest-core",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.47553816047,
+          0.225048923679,
+          0.577299412916,
+          0.301369863014
+        ],
+        "model_pixels": 1687,
+        "part_id": "neck",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.414872798434,
+          0.469667318982,
+          0.622309197652,
+          0.58904109589
+        ],
+        "model_pixels": 2856,
+        "part_id": "pelvis",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 17.0,
+        "centroid_delta_px": [
+          -163.823943661972,
+          0.670187793427
+        ],
+        "height_ratio": 0.02380952381,
+        "model_bbox": [
+          0.283757338552,
+          0.289628180039,
+          0.759295499022,
+          0.369863013699
+        ],
+        "model_pixels": 852,
+        "part_id": "shoulder-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.324853228963,
+          0.315068493151,
+          0.324853228963
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.004098360656
+      },
+      {
+        "boundary_error_px": 32.380297363527,
+        "centroid_delta_px": [
+          -104.750489795918,
+          -4.369591836735
+        ],
+        "height_ratio": 0.506666666667,
+        "model_bbox": [
+          0.238747553816,
+          0.299412915851,
+          0.765166340509,
+          0.444227005871
+        ],
+        "model_pixels": 6125,
+        "part_id": "shoulder-armor-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.303326810176,
+          0.3228962818,
+          0.315068493151,
+          0.39530332681
+        ],
+        "target_boundary_pixels": 8,
+        "visibility": "inferred",
+        "width_ratio": 0.025925925926
+      },
+      {
+        "boundary_error_px": 47.035364212783,
+        "centroid_delta_px": [
+          -37.166846422852,
+          2.202863025787
+        ],
+        "height_ratio": 0.954954954955,
+        "model_bbox": [
+          0.236790606654,
+          0.363992172211,
+          0.794520547945,
+          0.579256360078
+        ],
+        "model_pixels": 8742,
+        "part_id": "upper-arm-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.303326810176,
+          0.399217221135,
+          0.784735812133,
+          0.60469667319
+        ],
+        "target_boundary_pixels": 7,
+        "visibility": "inferred",
+        "width_ratio": 0.863636363636
+      },
+      {
+        "boundary_error_px": 38.0,
+        "centroid_delta_px": [
+          -141.056152927121,
+          -28.281959378734
+        ],
+        "height_ratio": 0.015625,
+        "model_bbox": [
+          0.240704500978,
+          0.500978473581,
+          0.788649706458,
+          0.624266144814
+        ],
+        "model_pixels": 837,
+        "part_id": "elbow-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.506849315068,
+          0.315068493151,
+          0.506849315068
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.003558718861
+      },
+      {
+        "boundary_error_px": 32.946702523833,
+        "centroid_delta_px": [
+          -145.768584249389,
+          -20.690923336262
+        ],
+        "height_ratio": 0.432432432432,
+        "model_bbox": [
+          0.232876712329,
+          0.506849315068,
+          0.788649706458,
+          0.794520547945
+        ],
+        "model_pixels": 6017,
+        "part_id": "forearm-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.283757338552,
+          0.510763209393,
+          0.315068493151,
+          0.634050880626
+        ],
+        "target_boundary_pixels": 7,
+        "visibility": "inferred",
+        "width_ratio": 0.059649122807
+      },
+      {
+        "boundary_error_px": 36.14396378484,
+        "centroid_delta_px": [
+          -147.934677241683,
+          -1.17360652126
+        ],
+        "height_ratio": 0.575,
+        "model_bbox": [
+          0.236790606654,
+          0.636007827789,
+          0.778864970646,
+          0.868884540117
+        ],
+        "model_pixels": 4539,
+        "part_id": "hand-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.227005870841,
+          0.696673189824,
+          0.270058708415,
+          0.829745596869
+        ],
+        "target_boundary_pixels": 4,
+        "visibility": "inferred",
+        "width_ratio": 0.08273381295
+      },
+      {
+        "boundary_error_px": 35.69313659515,
+        "centroid_delta_px": [
+          116.791427378093,
+          63.564634019004
+        ],
+        "height_ratio": 0.006711409396,
+        "model_bbox": [
+          0.315068493151,
+          0.542074363992,
+          0.671232876712,
+          0.831702544031
+        ],
+        "model_pixels": 19154,
+        "part_id": "thigh-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.727984344423,
+          0.800391389432,
+          0.727984344423,
+          0.800391389432
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.005464480874
+      },
+      {
+        "boundary_error_px": 78.771822373232,
+        "centroid_delta_px": [
+          94.933085501859,
+          23.795539033457
+        ],
+        "height_ratio": 0.026315789474,
+        "model_bbox": [
+          0.407045009785,
+          0.514677103718,
+          0.643835616438,
+          0.587084148728
+        ],
+        "model_pixels": 538,
+        "part_id": "hip-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.780821917808,
+          0.60469667319,
+          0.780821917808,
+          0.60469667319
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.008196721311
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.420743639922,
+          0.757338551859,
+          0.457925636008,
+          0.782778864971
+        ],
+        "model_pixels": 87,
+        "part_id": "knee-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 34.935758132689,
+        "centroid_delta_px": [
+          -35.685357254169,
+          6.726566152408
+        ],
+        "height_ratio": 0.5546875,
+        "model_bbox": [
+          0.336594911937,
+          0.751467710372,
+          0.657534246575,
+          1.0
+        ],
+        "model_pixels": 11408,
+        "part_id": "shin-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.227005870841,
+          0.841487279843,
+          0.714285714286,
+          0.978473581213
+        ],
+        "target_boundary_pixels": 18,
+        "visibility": "inferred",
+        "width_ratio": 1.515151515152
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.362035225049,
+          0.381604696673,
+          0.620352250489,
+          0.481409001957
+        ],
+        "model_pixels": 375,
+        "part_id": "cable-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.442270058708,
+          0.473581213307,
+          0.52446183953,
+          0.571428571429
+        ],
+        "model_pixels": 718,
+        "part_id": "core-ribs",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.438356164384,
+          0.487279843444,
+          0.491193737769,
+          0.526418786693
+        ],
+        "model_pixels": 430,
+        "part_id": "amber-sensor",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.389432485323,
+          0.172211350294,
+          0.520547945205,
+          0.183953033268
+        ],
+        "model_pixels": 424,
+        "part_id": "visor-edge",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.454011741683,
+          0.275929549902,
+          0.497064579256,
+          0.356164383562
+        ],
+        "model_pixels": 488,
+        "part_id": "chest-ridge",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.252446183953,
+          0.318982387476,
+          0.659491193738,
+          0.430528375734
+        ],
+        "model_pixels": 2037,
+        "part_id": "shoulder-trim-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.236790606654,
+          0.536203522505,
+          0.72602739726,
+          0.769080234834
+        ],
+        "model_pixels": 2409,
+        "part_id": "forearm-rail-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 42.047592083257,
+        "centroid_delta_px": [
+          -83.058892815077,
+          -5.027679623086
+        ],
+        "height_ratio": 0.020408163265,
+        "model_bbox": [
+          0.358121330724,
+          0.493150684932,
+          0.608610567515,
+          0.587084148728
+        ],
+        "model_pixels": 1698,
+        "part_id": "hip-flank-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.328767123288,
+          0.528375733855,
+          0.328767123288,
+          0.528375733855
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.007751937984
+      },
+      {
+        "boundary_error_px": 29.532191263286,
+        "centroid_delta_px": [
+          48.45347826087,
+          1.151304347826
+        ],
+        "height_ratio": 0.634920634921,
+        "model_bbox": [
+          0.334637964775,
+          0.743639921722,
+          0.583170254403,
+          0.864970645793
+        ],
+        "model_pixels": 2300,
+        "part_id": "knee-cap-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.545988258317,
+          0.771037181996,
+          0.569471624266,
+          0.847358121331
+        ],
+        "target_boundary_pixels": 4,
+        "visibility": "inferred",
+        "width_ratio": 0.1015625
+      }
+    ],
+    "recommended_part_ids": [
+      "hip-pair",
+      "chest-shell",
+      "upper-arm-pair",
+      "hip-flank-pair",
+      "elbow-pair",
+      "hand-pair",
+      "thigh-pair",
+      "shin-pair",
+      "forearm-pair",
+      "shoulder-armor-pair",
+      "head-shell",
+      "knee-cap-pair",
+      "shoulder-pair",
+      "chest-vent",
+      "visor"
+    ],
+    "source": "canonical_observation"
+  },
+  "boundary_error_count": 26,
+  "build_cohorts": {
+    "mcp": "d52261ffdf44e07a2a4762b16c80f433a824080f0530fad64bbd32a153eb9c04",
+    "render_worker": "d52261ffdf44e07a2a4762b16c80f433a824080f0530fad64bbd32a153eb9c04",
+    "runtime": "d52261ffdf44e07a2a4762b16c80f433a824080f0530fad64bbd32a153eb9c04",
+    "worker": "d52261ffdf44e07a2a4762b16c80f433a824080f0530fad64bbd32a153eb9c04"
+  },
+  "camera_binding_status": "PASS_SILHOUETTE_FIT_TO_COMPARE",
+  "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+  "canonical_compare_in_silhouette": false,
+  "canonical_observation": {
+    "candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+    "canonical_sha256": "5bb1af1d8353131dc8d5112bc62b3a702cdc41744ad367a1e8a0e47d6aef4e5f",
+    "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+    "read_only": true,
+    "schema_version": "AgenticSceneObserveResult@1"
+  },
+  "canonical_part_error": {
+    "candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+    "canonical_sha256": "bdb45a9001c3a30962d90ef0ba940d687438f1543b88fd3ed1d9f22eec7c8d26",
+    "metrics": {
+      "bbox_edge_error": 0.0078125,
+      "boundary_f1_4px": 0.349459870714,
+      "centroid_error": 0.010214623257,
+      "sdf_chamfer_px": 16.185921736505,
+      "silhouette_iou": 0.748479421044
+    },
+    "parts": [
+      {
+        "boundary_error_px": 31.824175738524,
+        "centroid_delta_px": [
+          19.514776274714,
+          18.311168921263
+        ],
+        "height_ratio": 0.482142857143,
+        "model_bbox": [
+          0.399217221135,
+          0.019569471624,
+          0.647749510763,
+          0.236790606654
+        ],
+        "model_pixels": 9610,
+        "part_id": "head-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.567514677104,
+          0.097847358121,
+          0.592954990215,
+          0.20156555773
+        ],
+        "target_boundary_pixels": 6,
+        "visibility": "inferred",
+        "width_ratio": 0.109375
+      },
+      {
+        "boundary_error_px": 1.0,
+        "centroid_delta_px": [
+          -38.061723280862,
+          12.818972659486
+        ],
+        "height_ratio": 0.030303030303,
+        "model_bbox": [
+          0.381604696673,
+          0.109589041096,
+          0.536203522505,
+          0.172211350294
+        ],
+        "model_pixels": 2414,
+        "part_id": "visor",
+        "status": "ready",
+        "target_bbox": [
+          0.383561643836,
+          0.166340508806,
+          0.383561643836,
+          0.166340508806
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.0125
+      },
+      {
+        "boundary_error_px": 58.10450750944,
+        "centroid_delta_px": [
+          -64.04038329911,
+          90.482203969884
+        ],
+        "height_ratio": 0.217391304348,
+        "model_bbox": [
+          0.377690802348,
+          0.236790606654,
+          0.776908023483,
+          0.504892367906
+        ],
+        "model_pixels": 6818,
+        "part_id": "chest-shell",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.471624266145,
+          0.778864970646,
+          0.528375733855
+        ],
+        "target_boundary_pixels": 3,
+        "visibility": "inferred",
+        "width_ratio": 1.160975609756
+      },
+      {
+        "boundary_error_px": 7.615773105864,
+        "centroid_delta_px": [
+          -55.474217638691,
+          -36.963371266003
+        ],
+        "height_ratio": 0.013157894737,
+        "model_bbox": [
+          0.352250489237,
+          0.295499021526,
+          0.610567514677,
+          0.442270058708
+        ],
+        "model_pixels": 5624,
+        "part_id": "chest-vent",
+        "status": "ready",
+        "target_bbox": [
+          0.365949119374,
+          0.281800391389,
+          0.365949119374,
+          0.281800391389
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.007518796992
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.414872798434,
+          0.350293542074,
+          0.567514677104,
+          0.487279843444
+        ],
+        "model_pixels": 3492,
+        "part_id": "chest-core",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.47553816047,
+          0.225048923679,
+          0.577299412916,
+          0.301369863014
+        ],
+        "model_pixels": 1687,
+        "part_id": "neck",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.414872798434,
+          0.469667318982,
+          0.622309197652,
+          0.58904109589
+        ],
+        "model_pixels": 2856,
+        "part_id": "pelvis",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 17.0,
+        "centroid_delta_px": [
+          -163.823943661972,
+          0.670187793427
+        ],
+        "height_ratio": 0.02380952381,
+        "model_bbox": [
+          0.283757338552,
+          0.289628180039,
+          0.759295499022,
+          0.369863013699
+        ],
+        "model_pixels": 852,
+        "part_id": "shoulder-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.324853228963,
+          0.315068493151,
+          0.324853228963
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.004098360656
+      },
+      {
+        "boundary_error_px": 32.380297363527,
+        "centroid_delta_px": [
+          -104.750489795918,
+          -4.369591836735
+        ],
+        "height_ratio": 0.506666666667,
+        "model_bbox": [
+          0.238747553816,
+          0.299412915851,
+          0.765166340509,
+          0.444227005871
+        ],
+        "model_pixels": 6125,
+        "part_id": "shoulder-armor-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.303326810176,
+          0.3228962818,
+          0.315068493151,
+          0.39530332681
+        ],
+        "target_boundary_pixels": 8,
+        "visibility": "inferred",
+        "width_ratio": 0.025925925926
+      },
+      {
+        "boundary_error_px": 47.035364212783,
+        "centroid_delta_px": [
+          -37.166846422852,
+          2.202863025787
+        ],
+        "height_ratio": 0.954954954955,
+        "model_bbox": [
+          0.236790606654,
+          0.363992172211,
+          0.794520547945,
+          0.579256360078
+        ],
+        "model_pixels": 8742,
+        "part_id": "upper-arm-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.303326810176,
+          0.399217221135,
+          0.784735812133,
+          0.60469667319
+        ],
+        "target_boundary_pixels": 7,
+        "visibility": "inferred",
+        "width_ratio": 0.863636363636
+      },
+      {
+        "boundary_error_px": 38.0,
+        "centroid_delta_px": [
+          -141.056152927121,
+          -28.281959378734
+        ],
+        "height_ratio": 0.015625,
+        "model_bbox": [
+          0.240704500978,
+          0.500978473581,
+          0.788649706458,
+          0.624266144814
+        ],
+        "model_pixels": 837,
+        "part_id": "elbow-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.315068493151,
+          0.506849315068,
+          0.315068493151,
+          0.506849315068
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.003558718861
+      },
+      {
+        "boundary_error_px": 32.946702523833,
+        "centroid_delta_px": [
+          -145.768584249389,
+          -20.690923336262
+        ],
+        "height_ratio": 0.432432432432,
+        "model_bbox": [
+          0.232876712329,
+          0.506849315068,
+          0.788649706458,
+          0.794520547945
+        ],
+        "model_pixels": 6017,
+        "part_id": "forearm-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.283757338552,
+          0.510763209393,
+          0.315068493151,
+          0.634050880626
+        ],
+        "target_boundary_pixels": 7,
+        "visibility": "inferred",
+        "width_ratio": 0.059649122807
+      },
+      {
+        "boundary_error_px": 36.14396378484,
+        "centroid_delta_px": [
+          -147.934677241683,
+          -1.17360652126
+        ],
+        "height_ratio": 0.575,
+        "model_bbox": [
+          0.236790606654,
+          0.636007827789,
+          0.778864970646,
+          0.868884540117
+        ],
+        "model_pixels": 4539,
+        "part_id": "hand-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.227005870841,
+          0.696673189824,
+          0.270058708415,
+          0.829745596869
+        ],
+        "target_boundary_pixels": 4,
+        "visibility": "inferred",
+        "width_ratio": 0.08273381295
+      },
+      {
+        "boundary_error_px": 35.69313659515,
+        "centroid_delta_px": [
+          116.791427378093,
+          63.564634019004
+        ],
+        "height_ratio": 0.006711409396,
+        "model_bbox": [
+          0.315068493151,
+          0.542074363992,
+          0.671232876712,
+          0.831702544031
+        ],
+        "model_pixels": 19154,
+        "part_id": "thigh-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.727984344423,
+          0.800391389432,
+          0.727984344423,
+          0.800391389432
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.005464480874
+      },
+      {
+        "boundary_error_px": 78.771822373232,
+        "centroid_delta_px": [
+          94.933085501859,
+          23.795539033457
+        ],
+        "height_ratio": 0.026315789474,
+        "model_bbox": [
+          0.407045009785,
+          0.514677103718,
+          0.643835616438,
+          0.587084148728
+        ],
+        "model_pixels": 538,
+        "part_id": "hip-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.780821917808,
+          0.60469667319,
+          0.780821917808,
+          0.60469667319
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.008196721311
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.420743639922,
+          0.757338551859,
+          0.457925636008,
+          0.782778864971
+        ],
+        "model_pixels": 87,
+        "part_id": "knee-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 34.935758132689,
+        "centroid_delta_px": [
+          -35.685357254169,
+          6.726566152408
+        ],
+        "height_ratio": 0.5546875,
+        "model_bbox": [
+          0.336594911937,
+          0.751467710372,
+          0.657534246575,
+          1.0
+        ],
+        "model_pixels": 11408,
+        "part_id": "shin-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.227005870841,
+          0.841487279843,
+          0.714285714286,
+          0.978473581213
+        ],
+        "target_boundary_pixels": 18,
+        "visibility": "inferred",
+        "width_ratio": 1.515151515152
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.362035225049,
+          0.381604696673,
+          0.620352250489,
+          0.481409001957
+        ],
+        "model_pixels": 375,
+        "part_id": "cable-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.442270058708,
+          0.473581213307,
+          0.52446183953,
+          0.571428571429
+        ],
+        "model_pixels": 718,
+        "part_id": "core-ribs",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.438356164384,
+          0.487279843444,
+          0.491193737769,
+          0.526418786693
+        ],
+        "model_pixels": 430,
+        "part_id": "amber-sensor",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.389432485323,
+          0.172211350294,
+          0.520547945205,
+          0.183953033268
+        ],
+        "model_pixels": 424,
+        "part_id": "visor-edge",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.454011741683,
+          0.275929549902,
+          0.497064579256,
+          0.356164383562
+        ],
+        "model_pixels": 488,
+        "part_id": "chest-ridge",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.252446183953,
+          0.318982387476,
+          0.659491193738,
+          0.430528375734
+        ],
+        "model_pixels": 2037,
+        "part_id": "shoulder-trim-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 512.0,
+        "centroid_delta_px": [
+          0.0,
+          0.0
+        ],
+        "height_ratio": 0.0,
+        "model_bbox": [
+          0.236790606654,
+          0.536203522505,
+          0.72602739726,
+          0.769080234834
+        ],
+        "model_pixels": 2409,
+        "part_id": "forearm-rail-pair",
+        "status": "empty_target_part",
+        "target_bbox": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_boundary_pixels": 0,
+        "visibility": "inferred",
+        "width_ratio": 0.0
+      },
+      {
+        "boundary_error_px": 42.047592083257,
+        "centroid_delta_px": [
+          -83.058892815077,
+          -5.027679623086
+        ],
+        "height_ratio": 0.020408163265,
+        "model_bbox": [
+          0.358121330724,
+          0.493150684932,
+          0.608610567515,
+          0.587084148728
+        ],
+        "model_pixels": 1698,
+        "part_id": "hip-flank-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.328767123288,
+          0.528375733855,
+          0.328767123288,
+          0.528375733855
+        ],
+        "target_boundary_pixels": 1,
+        "visibility": "inferred",
+        "width_ratio": 0.007751937984
+      },
+      {
+        "boundary_error_px": 29.532191263286,
+        "centroid_delta_px": [
+          48.45347826087,
+          1.151304347826
+        ],
+        "height_ratio": 0.634920634921,
+        "model_bbox": [
+          0.334637964775,
+          0.743639921722,
+          0.583170254403,
+          0.864970645793
+        ],
+        "model_pixels": 2300,
+        "part_id": "knee-cap-pair",
+        "status": "ready",
+        "target_bbox": [
+          0.545988258317,
+          0.771037181996,
+          0.569471624266,
+          0.847358121331
+        ],
+        "target_boundary_pixels": 4,
+        "visibility": "inferred",
+        "width_ratio": 0.1015625
+      }
+    ],
+    "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+    "recommended_part_ids": [
+      "hip-pair",
+      "chest-shell",
+      "upper-arm-pair",
+      "hip-flank-pair",
+      "elbow-pair",
+      "hand-pair",
+      "thigh-pair",
+      "shin-pair",
+      "forearm-pair",
+      "shoulder-armor-pair",
+      "head-shell",
+      "knee-cap-pair",
+      "shoulder-pair",
+      "chest-vent",
+      "visor"
+    ],
+    "render_set_hash": "f806c04ff513bc4180d9247eb79e12497976d19cd345c3a0faa851cccdbe3299",
+    "schema_version": "SilhouettePartErrorResult@1",
+    "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f"
+  },
+  "catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+  "codex_exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "codex_sandbox": "workspace-write",
+  "codex_turn_count": 24,
+  "comparison_camera_canonical_sha256": "6509a7b73c09145a07ad60fe9c30f99f9e7d829b251b460ca9e92c2c014a52c6",
+  "comparison_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+  "comparison_metrics": {
+    "bbox_edge_error": 0.00390625,
+    "boundary_f1_4px": 0.365212592204,
+    "centroid_error": 0.000847581879,
+    "critical_region_min_iou": 0.665539897162,
+    "landmark_coverage": 0.206896551724,
+    "landmark_nme": 0.076490335181,
+    "region_median_iou": 0.908686656579,
+    "silhouette_iou": 0.75398920488
+  },
+  "comparison_report_hash": "2f7b8156c8f2dbc0a475f3940661d7b3a532521d9b462c0ab48754b9ba6df820",
+  "detail_material_stages": "LOCKED_UNTIL_SILHOUETTE_GATE",
+  "expected_sequences": {
+    "authoring": [
+      "capabilities_get",
+      "runtime_status",
+      "doctor",
+      "operator_catalog_get",
+      "skill_list",
+      "geometry_program_hash",
+      "geometry_prepare"
+    ],
+    "boundary": [],
+    "compare": [],
+    "part_contour": [],
+    "primary_form_repair": [
+      "primary_form_repair_job_prepare",
+      "job_get",
+      "job_result_get"
+    ],
+    "render": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "ao",
+      "part-id",
+      "material-id",
+      "wireframe",
+      "uv-stretch"
+    ],
+    "review": [
+      "visual_review_submit",
+      "quality_get"
+    ],
+    "setup": [
+      "skill_get",
+      "project_create",
+      "reference_import",
+      "reference_import",
+      "reference_import",
+      "reference_import",
+      "reference_import",
+      "reference_import",
+      "reference_get",
+      "reference_get",
+      "reference_get",
+      "reference_get",
+      "reference_get",
+      "reference_get"
+    ],
+    "silhouette": [
+      "silhouette_target_get",
+      "camera_fit_prepare",
+      "job_get",
+      "candidate_get",
+      "artifact_readback_get",
+      "reference_compare_prepare",
+      "session_create_or_resume",
+      "scene_observe_get",
+      "silhouette_rig_hash"
+    ],
+    "silhouette_target": [
+      "reference_mask_prepare"
+    ]
+  },
+  "geometry_route": "detail",
+  "geometry_variant": "surface-linework",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "job_id": "job-e7dfdb6b1c2642dc9705c69eda0bbe09",
+  "material_variant": "armor-shell-zones",
+  "mcp_tool_calls": [
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "f9d6aef28a2c845fbec5dee1c4c4834563698fd4ca76ed960fc04c8a27f08587",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "Project@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "active_snapshot_revision",
+        "canonical_sha256",
+        "created_at",
+        "head_snapshot_id",
+        "name",
+        "policy",
+        "project_id",
+        "schema_version",
+        "updated_at"
+      ],
+      "tool": "project_create"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "ReferenceGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "6c26b7ee54487c803e4b0e10d33c7ea32eab40d197ee3eef240db52fd6f0c43c",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "ReferenceMaskPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "mask_sha256",
+        "project_id",
+        "reference_id",
+        "schema_version",
+        "target",
+        "target_sha256"
+      ],
+      "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f",
+      "tool": "reference_mask_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "build_cohort_match",
+        "build_cohort_sha256",
+        "contract_set",
+        "contract_versions",
+        "ipc_transport",
+        "limitations",
+        "mcp_build_cohort_sha256",
+        "mcp_protocol_versions",
+        "mcp_transport",
+        "mcp_write_tool_names",
+        "mcp_write_tools_enabled",
+        "operator_catalog_sha256",
+        "resource_uris",
+        "runtime_version",
+        "status",
+        "supports_authenticated_ipc",
+        "supports_cas",
+        "supports_geometry_execution",
+        "supports_job_read",
+        "supports_reference_import",
+        "supports_render_execution",
+        "supports_resource_read",
+        "supports_skill_registry",
+        "supports_snapshot_read",
+        "tool_manifest_hash",
+        "write_model"
+      ],
+      "tool": "capabilities_get"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeSupervisorStatus@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "retryable",
+        "schema_version",
+        "source",
+        "state"
+      ],
+      "tool": "runtime_status"
+    },
+    {
+      "retryable": false,
+      "schema_version": "ForgeCADRuntimeDoctor@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "checks",
+        "retryable",
+        "runtime",
+        "schema_version",
+        "scope",
+        "state"
+      ],
+      "tool": "doctor"
+    },
+    {
+      "canonical_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+      "schema_version": "OperatorCatalog@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "catalog_id",
+        "geometry_program_schema_version",
+        "operators",
+        "schema_version"
+      ],
+      "tool": "operator_catalog_get"
+    },
+    {
+      "schema_version": "SkillListResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "schema_version",
+        "skills"
+      ],
+      "tool": "skill_list"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "9b9d5121e645d89aaeed13c9602c6d5270b64e1ca95a6ab18d9dd4977313c914",
+      "schema_version": "GeometryProgramHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "geometry_program_schema_version",
+        "operator_catalog_sha256",
+        "schema_version",
+        "validation_status"
+      ],
+      "tool": "geometry_program_hash"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "artifact": {
+        "artifact_id": "61e4001fab8df3a26e1e8e654ab21197865f02121d468244d73d6d4ead52de67",
+        "candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+        "mime": "model/gltf-binary",
+        "part_ids": [
+          "head-shell",
+          "visor",
+          "chest-shell",
+          "chest-vent",
+          "chest-core",
+          "neck",
+          "pelvis",
+          "shoulder-pair",
+          "shoulder-armor-pair",
+          "upper-arm-pair",
+          "elbow-pair",
+          "forearm-pair",
+          "hand-pair",
+          "thigh-pair",
+          "hip-pair",
+          "knee-pair",
+          "shin-pair",
+          "cable-pair",
+          "core-ribs",
+          "amber-sensor",
+          "visor-edge",
+          "chest-ridge",
+          "shoulder-trim-pair",
+          "forearm-rail-pair",
+          "hip-flank-pair",
+          "knee-cap-pair"
+        ],
+        "size_bytes": 778800,
+        "triangle_count": 4704,
+        "validator_status": "passed"
+      },
+      "schema_version": "GeometryPrepareResult@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact",
+        "candidate",
+        "job",
+        "operator_catalog",
+        "schema_version"
+      ],
+      "tool": "geometry_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "ce2ad0db258a4f42d07c456ad0841c6cbe36972f50c705bcf9ed232bb4078baf",
+      "schema_version": "SilhouetteTarget@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "contour_points",
+        "coordinate_space",
+        "height",
+        "landmarks",
+        "mask_sha256",
+        "parts",
+        "reference_id",
+        "reference_sha256",
+        "schema_version",
+        "source",
+        "target_id",
+        "width"
+      ],
+      "tool": "silhouette_target_get"
+    },
+    {
+      "candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+      "canonical_sha256": "30dfbbf92a884243c49da0f8b99b2253130ac18631c779028b51e9c20bb760a4",
+      "schema_version": "CameraFitResult@1",
+      "selected_camera": {
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "candidates",
+        "canonical_sha256",
+        "schema_version",
+        "selected_camera",
+        "status",
+        "target_sha256"
+      ],
+      "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f",
+      "tool": "camera_fit_prepare"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+      "canonical_sha256": "c995983c6aa605927ec6cde657f096f9f04507c3a54bc34439aad6e3410fecca",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "Candidate@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "base_version_id",
+        "candidate_id",
+        "canonical_sha256",
+        "created_at",
+        "error_code",
+        "manifest_hash",
+        "prepared_object_id",
+        "prepared_object_sha256",
+        "project_id",
+        "quality_hard_gate_passed",
+        "quality_report_id",
+        "request_sha256",
+        "schema_version",
+        "source_version_id",
+        "state",
+        "updated_at"
+      ],
+      "tool": "candidate_get"
+    },
+    {
+      "candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+      "canonical_sha256": "ead6c9e9eabcdbf548fcdd6d3777fbcf702e3b1c788cd674bc90438058e3feb7",
+      "schema_version": "ArtifactReadback@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact_id",
+        "candidate_id",
+        "canonical_sha256",
+        "hard_gate_passed",
+        "integrity",
+        "material_zone_ids",
+        "mime",
+        "object_sha256",
+        "operator_catalog_sha256",
+        "part_bindings",
+        "part_ids",
+        "program_sha256",
+        "readback_config_sha256",
+        "schema_version",
+        "size_bytes",
+        "source_node_ids",
+        "triangle_count",
+        "validator_status"
+      ],
+      "tool": "artifact_readback_get"
+    },
+    {
+      "camera": {
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af"
+      },
+      "candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+      "schema_version": "ReferenceComparisonPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "camera",
+        "camera_object_sha256",
+        "candidate_id",
+        "comparison_report",
+        "comparison_report_hash",
+        "comparison_report_object_sha256",
+        "quality_report",
+        "quality_report_object_sha256",
+        "reference_id",
+        "render_set",
+        "render_set_hash",
+        "render_set_object_sha256",
+        "schema_version"
+      ],
+      "tool": "reference_compare_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "AgenticSessionResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "authoring_context",
+        "candidate_id",
+        "documents",
+        "durable",
+        "lineage",
+        "object_sha256",
+        "project_id",
+        "read_only",
+        "revision",
+        "schema_version",
+        "session",
+        "session_id",
+        "status"
+      ],
+      "tool": "session_create_or_resume"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+      "canonical_sha256": "0b817dc59fd13bba881f1146488a68d90d29eabe28e2f2ae4d4b3cdd363e0a71",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "AgenticSceneObserveResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate",
+        "candidate_id",
+        "candidate_selection",
+        "canonical_sha256",
+        "design_critic_report",
+        "design_session",
+        "design_stage_plan",
+        "lineage",
+        "model_understanding_bundle",
+        "project",
+        "project_id",
+        "projection_status",
+        "quality",
+        "read_only",
+        "reference_canvas",
+        "schema_version",
+        "semantic_scene_graph",
+        "snapshot",
+        "visual_evidence_bundle"
+      ],
+      "tool": "scene_observe_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "ed8102c2b0da97743bd3c2354ba10b05cea037d0ee91af410cdee7f11b7016e4",
+      "schema_version": "SilhouetteRigHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "schema_version",
+        "silhouette_rig_schema_version",
+        "validation_status"
+      ],
+      "tool": "silhouette_rig_hash"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "primary_form_repair_job_prepare"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "schema_version": "RuntimeJobResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "job",
+        "result",
+        "result_sha256",
+        "schema_version"
+      ],
+      "tool": "job_result_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "ce2ad0db258a4f42d07c456ad0841c6cbe36972f50c705bcf9ed232bb4078baf",
+      "schema_version": "SilhouetteTarget@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "contour_points",
+        "coordinate_space",
+        "height",
+        "landmarks",
+        "mask_sha256",
+        "parts",
+        "reference_id",
+        "reference_sha256",
+        "schema_version",
+        "source",
+        "target_id",
+        "width"
+      ],
+      "tool": "silhouette_target_get"
+    },
+    {
+      "candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "canonical_sha256": "fd6b8dd3ecabd960162a523fad357cf21df6cf63359e48343fc9d47f69ffa849",
+      "schema_version": "CameraFitResult@1",
+      "selected_camera": {
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "candidates",
+        "canonical_sha256",
+        "schema_version",
+        "selected_camera",
+        "status",
+        "target_sha256"
+      ],
+      "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f",
+      "tool": "camera_fit_prepare"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "canonical_sha256": "da3f9a4b6f692b54dd57160fb5ad981be8bd14881a32023db43c63199e8c9fed",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "Candidate@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "base_version_id",
+        "candidate_id",
+        "canonical_sha256",
+        "created_at",
+        "error_code",
+        "manifest_hash",
+        "prepared_object_id",
+        "prepared_object_sha256",
+        "project_id",
+        "quality_hard_gate_passed",
+        "quality_report_id",
+        "request_sha256",
+        "schema_version",
+        "source_version_id",
+        "state",
+        "updated_at"
+      ],
+      "tool": "candidate_get"
+    },
+    {
+      "candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "canonical_sha256": "c04838d5f25d61a7ac1f7ca1a877af02c73a60cc77a552196fd0e2bebe1ca072",
+      "schema_version": "ArtifactReadback@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact_id",
+        "candidate_id",
+        "canonical_sha256",
+        "hard_gate_passed",
+        "integrity",
+        "material_zone_ids",
+        "mime",
+        "object_sha256",
+        "operator_catalog_sha256",
+        "part_bindings",
+        "part_ids",
+        "program_sha256",
+        "readback_config_sha256",
+        "schema_version",
+        "size_bytes",
+        "source_node_ids",
+        "triangle_count",
+        "validator_status"
+      ],
+      "tool": "artifact_readback_get"
+    },
+    {
+      "camera": {
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af"
+      },
+      "candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "schema_version": "ReferenceComparisonPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "camera",
+        "camera_object_sha256",
+        "candidate_id",
+        "comparison_report",
+        "comparison_report_hash",
+        "comparison_report_object_sha256",
+        "quality_report",
+        "quality_report_object_sha256",
+        "reference_id",
+        "render_set",
+        "render_set_hash",
+        "render_set_object_sha256",
+        "schema_version"
+      ],
+      "tool": "reference_compare_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "AgenticSessionResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "authoring_context",
+        "candidate_id",
+        "documents",
+        "durable",
+        "lineage",
+        "object_sha256",
+        "project_id",
+        "read_only",
+        "revision",
+        "schema_version",
+        "session",
+        "session_id",
+        "status"
+      ],
+      "tool": "session_create_or_resume"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "canonical_sha256": "e1f7f6e88f73f3e2d7b8019f618cda3a05278e101f1443f4c5477b93596eda63",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "AgenticSceneObserveResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate",
+        "candidate_id",
+        "candidate_selection",
+        "canonical_sha256",
+        "design_critic_report",
+        "design_session",
+        "design_stage_plan",
+        "lineage",
+        "model_understanding_bundle",
+        "project",
+        "project_id",
+        "projection_status",
+        "quality",
+        "read_only",
+        "reference_canvas",
+        "schema_version",
+        "semantic_scene_graph",
+        "snapshot",
+        "visual_evidence_bundle"
+      ],
+      "tool": "scene_observe_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "670aaddf62704e5b5065b028e0fc2a3fcabe6d66cb6d75e3cb2ded6a952c0485",
+      "schema_version": "SilhouetteRigHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "schema_version",
+        "silhouette_rig_schema_version",
+        "validation_status"
+      ],
+      "tool": "silhouette_rig_hash"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "primary_form_repair_job_prepare"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "schema_version": "RuntimeJobResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "job",
+        "result",
+        "result_sha256",
+        "schema_version"
+      ],
+      "tool": "job_result_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "ce2ad0db258a4f42d07c456ad0841c6cbe36972f50c705bcf9ed232bb4078baf",
+      "schema_version": "SilhouetteTarget@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "contour_points",
+        "coordinate_space",
+        "height",
+        "landmarks",
+        "mask_sha256",
+        "parts",
+        "reference_id",
+        "reference_sha256",
+        "schema_version",
+        "source",
+        "target_id",
+        "width"
+      ],
+      "tool": "silhouette_target_get"
+    },
+    {
+      "candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "canonical_sha256": "456be1785a9658c3b710353b6658d9e01e767a5f1f534a5bcb00b63ec4a49b93",
+      "schema_version": "CameraFitResult@1",
+      "selected_camera": {
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af"
+      },
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "candidates",
+        "canonical_sha256",
+        "schema_version",
+        "selected_camera",
+        "status",
+        "target_sha256"
+      ],
+      "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f",
+      "tool": "camera_fit_prepare"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "canonical_sha256": "48f6cb1f6094f88be752cb4eeef1b06a5fe0c8dd37281b497d538135533b6316",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "Candidate@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "base_version_id",
+        "candidate_id",
+        "canonical_sha256",
+        "created_at",
+        "error_code",
+        "manifest_hash",
+        "prepared_object_id",
+        "prepared_object_sha256",
+        "project_id",
+        "quality_hard_gate_passed",
+        "quality_report_id",
+        "request_sha256",
+        "schema_version",
+        "source_version_id",
+        "state",
+        "updated_at"
+      ],
+      "tool": "candidate_get"
+    },
+    {
+      "candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "canonical_sha256": "df445354efc5a922d3a11b9b7241bfcdcddfe64b6623d245d572f30c67a1e1ce",
+      "schema_version": "ArtifactReadback@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact_id",
+        "candidate_id",
+        "canonical_sha256",
+        "hard_gate_passed",
+        "integrity",
+        "material_zone_ids",
+        "mime",
+        "object_sha256",
+        "operator_catalog_sha256",
+        "part_bindings",
+        "part_ids",
+        "program_sha256",
+        "readback_config_sha256",
+        "schema_version",
+        "size_bytes",
+        "source_node_ids",
+        "triangle_count",
+        "validator_status"
+      ],
+      "tool": "artifact_readback_get"
+    },
+    {
+      "camera": {
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af"
+      },
+      "candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "schema_version": "ReferenceComparisonPrepareResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "camera",
+        "camera_object_sha256",
+        "candidate_id",
+        "comparison_report",
+        "comparison_report_hash",
+        "comparison_report_object_sha256",
+        "quality_report",
+        "quality_report_object_sha256",
+        "reference_id",
+        "render_set",
+        "render_set_hash",
+        "render_set_object_sha256",
+        "schema_version"
+      ],
+      "tool": "reference_compare_prepare"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "AgenticSessionResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "authoring_context",
+        "candidate_id",
+        "documents",
+        "durable",
+        "lineage",
+        "object_sha256",
+        "project_id",
+        "read_only",
+        "revision",
+        "schema_version",
+        "session",
+        "session_id",
+        "status"
+      ],
+      "tool": "session_create_or_resume"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "canonical_sha256": "5bb1af1d8353131dc8d5112bc62b3a702cdc41744ad367a1e8a0e47d6aef4e5f",
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "schema_version": "AgenticSceneObserveResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate",
+        "candidate_id",
+        "candidate_selection",
+        "canonical_sha256",
+        "design_critic_report",
+        "design_session",
+        "design_stage_plan",
+        "lineage",
+        "model_understanding_bundle",
+        "project",
+        "project_id",
+        "projection_status",
+        "quality",
+        "read_only",
+        "reference_canvas",
+        "schema_version",
+        "semantic_scene_graph",
+        "snapshot",
+        "visual_evidence_bundle"
+      ],
+      "tool": "scene_observe_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "3f203cdd69de485678063606fd8b0fc0d6cb83053bafebd4d2ad767d81e72744",
+      "schema_version": "SilhouetteRigHashResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "canonical_sha256",
+        "schema_version",
+        "silhouette_rig_schema_version",
+        "validation_status"
+      ],
+      "tool": "silhouette_rig_hash"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "primary_form_repair_job_prepare"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "created_at",
+        "error_code",
+        "job_id",
+        "kind",
+        "progress",
+        "project_id",
+        "status",
+        "updated_at"
+      ],
+      "tool": "job_get"
+    },
+    {
+      "schema_version": "RuntimeJobResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "job",
+        "result",
+        "result_sha256",
+        "schema_version"
+      ],
+      "tool": "job_result_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "argument_pass": "beauty",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "silhouette",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "depth",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "normal",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "ao",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "part-id",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "material-id",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "wireframe",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "argument_pass": "uv-stretch",
+      "argument_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "schema_version": "RenderPassGet@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "candidate_id",
+        "height",
+        "mime",
+        "pass",
+        "render_set_hash",
+        "schema_version",
+        "sha256",
+        "width"
+      ],
+      "tool": "render_pass_get"
+    },
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "schema_version": "VisualReviewSubmitResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "review",
+        "review_object_sha256",
+        "schema_version"
+      ],
+      "tool": "visual_review_submit"
+    },
+    {
+      "candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "canonical_sha256": "acefdb0bab804f1506130eeb0982758af4587b140e5e8d3bfea8e6b6f7855173",
+      "schema_version": "QualityReport@2",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "artifact_sha256",
+        "candidate_id",
+        "canonical_sha256",
+        "comparison_report_hash",
+        "hard_gate_passed",
+        "human_receipt_hash",
+        "limitations",
+        "program_sha256",
+        "quality_report_id",
+        "reference_id",
+        "reference_sha256",
+        "render_set_hash",
+        "schema_version",
+        "structural_status",
+        "visual_status"
+      ],
+      "tool": "quality_get"
+    }
+  ],
+  "part_contour_fit": null,
+  "part_contour_part_id": null,
+  "part_contour_rig_sha256": null,
+  "part_contour_sequence_parts": [
+    "chest-shell",
+    "pelvis",
+    "hip-pair"
+  ],
+  "part_contour_sequence_requested": true,
+  "part_contour_trial_requested": false,
+  "part_count": 26,
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "primary_form_composition_lineage": {
+    "accepted_step_count": 3,
+    "canonical_sha256": "dc8d9059c3693d1c9577b2262dd4f8dbd9bc5303e962095b18424a38b4f1ec36",
+    "final_candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+    "initial_candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+    "observation_policy": "one_candidate_bound_agentic_observation_per_step",
+    "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+    "requested_part_ids": [
+      "chest-shell",
+      "pelvis",
+      "hip-pair"
+    ],
+    "schema_version": "ForgeCADPrimaryFormCompositionLineage@1",
+    "search_owner": "forgecad-runtime",
+    "step_count": 3,
+    "steps": [
+      {
+        "acceptance_status": "accepted",
+        "acceptance_strict_improvement": true,
+        "camera_canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af",
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+        "intent_sha256": "16385792b1d2b8c68555a72abbeefce30335d6281f88532a56204ba1838798a1",
+        "next_candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+        "observation_candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+        "observation_sha256": "0b817dc59fd13bba881f1146488a68d90d29eabe28e2f2ae4d4b3cdd363e0a71",
+        "part_id": "chest-shell",
+        "prepared_candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+        "rig_sha256": "ed8102c2b0da97743bd3c2354ba10b05cea037d0ee91af410cdee7f11b7016e4",
+        "source_candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+        "status": "prepared",
+        "step": 1,
+        "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f"
+      },
+      {
+        "acceptance_status": "accepted",
+        "acceptance_strict_improvement": true,
+        "camera_canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af",
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+        "intent_sha256": "bd7225ecd8085a7d11039cda54b08c153c9499d0747092ea20e6b300037bc94d",
+        "next_candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+        "observation_candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+        "observation_sha256": "e1f7f6e88f73f3e2d7b8019f618cda3a05278e101f1443f4c5477b93596eda63",
+        "part_id": "pelvis",
+        "prepared_candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+        "rig_sha256": "670aaddf62704e5b5065b028e0fc2a3fcabe6d66cb6d75e3cb2ded6a952c0485",
+        "source_candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+        "status": "prepared",
+        "step": 2,
+        "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f"
+      },
+      {
+        "acceptance_status": "accepted",
+        "acceptance_strict_improvement": true,
+        "camera_canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af",
+        "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+        "fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+        "intent_sha256": "01ce6225a7dae66f301b6a14328240cf2ea052a8972b9e6c2f6467cf65c650c4",
+        "next_candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+        "observation_candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+        "observation_sha256": "5bb1af1d8353131dc8d5112bc62b3a702cdc41744ad367a1e8a0e47d6aef4e5f",
+        "part_id": "hip-pair",
+        "prepared_candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+        "rig_sha256": "3f203cdd69de485678063606fd8b0fc0d6cb83053bafebd4d2ad767d81e72744",
+        "source_candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+        "status": "prepared",
+        "step": 3,
+        "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f"
+      }
+    ],
+    "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f"
+  },
+  "primary_form_repair": {
+    "acceptance_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+    "acceptance_proposal_loss": 0.391426467318,
+    "acceptance_source_loss": 0.391622264749,
+    "acceptance_status": "accepted",
+    "acceptance_strict_improvement": true,
+    "candidate_state": "staged_new_candidate",
+    "fit_evaluations": 64,
+    "fit_metrics": {
+      "bbox_edge_error": 0.00390625,
+      "boundary_f1_4px": 0.365212592204,
+      "centroid_error": 0.000847581879,
+      "sdf_chamfer_px": 15.328639477379,
+      "silhouette_iou": 0.75398920488
+    },
+    "fit_status": "quality_target_not_met",
+    "part_id": "hip-pair",
+    "prepared_candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "source_candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+    "staged_comparison_report_hash": "2f7b8156c8f2dbc0a475f3940661d7b3a532521d9b462c0ab48754b9ba6df820",
+    "staged_quality_report_hash": "a718dded5e4b334a6a006779297b0bde2bdefb8e3717f6df6ed3d4708949fa43",
+    "staged_render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+    "status": "prepared"
+  },
+  "primary_form_repair_intent_sha256": "01ce6225a7dae66f301b6a14328240cf2ea052a8972b9e6c2f6467cf65c650c4",
+  "primary_form_repair_requested": true,
+  "primary_form_repair_steps": [
+    {
+      "acceptance": {
+        "camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+        "proposal_loss": 0.392010181051,
+        "source_loss": 0.407578402917,
+        "status": "accepted",
+        "strict_improvement": true
+      },
+      "camera_canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af",
+      "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+      "fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+      "fit_evaluations": 64,
+      "fit_loss": 0.3532214505904623,
+      "intent_sha256": "16385792b1d2b8c68555a72abbeefce30335d6281f88532a56204ba1838798a1",
+      "observation_candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+      "observation_sha256": "0b817dc59fd13bba881f1146488a68d90d29eabe28e2f2ae4d4b3cdd363e0a71",
+      "part_id": "chest-shell",
+      "prepared_candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "rig_sha256": "ed8102c2b0da97743bd3c2354ba10b05cea037d0ee91af410cdee7f11b7016e4",
+      "source_candidate_id": "candidate-428bfcd9d1194d82b06befdab8e19aaa",
+      "status": "prepared",
+      "step": 1,
+      "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f"
+    },
+    {
+      "acceptance": {
+        "camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+        "proposal_loss": 0.391622264749,
+        "source_loss": 0.392010181051,
+        "status": "accepted",
+        "strict_improvement": true
+      },
+      "camera_canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af",
+      "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+      "fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+      "fit_evaluations": 64,
+      "fit_loss": 0.35282208188892183,
+      "intent_sha256": "bd7225ecd8085a7d11039cda54b08c153c9499d0747092ea20e6b300037bc94d",
+      "observation_candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "observation_sha256": "e1f7f6e88f73f3e2d7b8019f618cda3a05278e101f1443f4c5477b93596eda63",
+      "part_id": "pelvis",
+      "prepared_candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "rig_sha256": "670aaddf62704e5b5065b028e0fc2a3fcabe6d66cb6d75e3cb2ded6a952c0485",
+      "source_candidate_id": "candidate-8d108dda12f7430f880908d98879ad1c",
+      "status": "prepared",
+      "step": 2,
+      "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f"
+    },
+    {
+      "acceptance": {
+        "camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+        "proposal_loss": 0.391426467318,
+        "source_loss": 0.391622264749,
+        "status": "accepted",
+        "strict_improvement": true
+      },
+      "camera_canonical_sha256": "3245ec72a982dbe01bd678646f3b48b9f650be085a3d6135fc0b6acf0f2297af",
+      "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+      "fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+      "fit_evaluations": 64,
+      "fit_loss": 0.3526240172768002,
+      "intent_sha256": "01ce6225a7dae66f301b6a14328240cf2ea052a8972b9e6c2f6467cf65c650c4",
+      "observation_candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "observation_sha256": "5bb1af1d8353131dc8d5112bc62b3a702cdc41744ad367a1e8a0e47d6aef4e5f",
+      "part_id": "hip-pair",
+      "prepared_candidate_id": "candidate-d6334eca68224b88a1928f34b6fb148c",
+      "rig_sha256": "3f203cdd69de485678063606fd8b0fc0d6cb83053bafebd4d2ad767d81e72744",
+      "source_candidate_id": "candidate-8a1d84e0bc4f4e37919360fae0c827e0",
+      "status": "prepared",
+      "step": 3,
+      "target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f"
+    }
+  ],
+  "primary_form_runtime_compare": true,
+  "program_sha256": "ad077d12ffadfecd120a58c92f87813a0faa7e5b8e8859ddb4f7998a8a2d6332",
+  "project_id": "project-83fbde153c3f49a989178834830bc0a8",
+  "protocol_version": "2025-06-18",
+  "quality_claim": "QUALITY_TARGET_NOT_MET_OR_NOT_CLAIMED",
+  "quality_hard_gate_passed": false,
+  "quality_visual_status": "QUALITY_TARGET_NOT_MET",
+  "recorded_at": "2026-08-16T12:38:44Z",
+  "reference_coverage": {
+    "coverage_status": "complete",
+    "hq_360_status": "eligible",
+    "missing_views": [],
+    "required_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "perspective",
+      "rear-three-quarter"
+    ],
+    "supplied_views": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "perspective",
+      "rear-three-quarter"
+    ]
+  },
+  "reference_height": 1254,
+  "reference_id": "reference-5b6dc7fbbd5c4bc9b88dd92dda554c01",
+  "reference_path_recorded": false,
+  "reference_set_sha256": "bbdb3da3aa91073af602251055f08f5bc236658284408c709c3b0d20a580668d",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "reference_view_count": 6,
+  "reference_views": [
+    {
+      "height": 1254,
+      "kind": "perspective",
+      "reference_id": "reference-5b6dc7fbbd5c4bc9b88dd92dda554c01",
+      "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+      "view_id": "three-quarter-user-reference",
+      "visual_intake": {
+        "landmark_count": 15,
+        "region_count": 8,
+        "source_sha256": "77b2ff137e126f62eadd34f98b03e04620e3e3489640984e851f1e98ddf72ba9",
+        "status": "PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "front",
+      "reference_id": "reference-3dda1b89967d428d8d287f57f90e8178",
+      "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+      "view_id": "front-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "back",
+      "reference_id": "reference-15ecf3ebdec24d77b8718782f18bc327",
+      "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+      "view_id": "back-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "left",
+      "reference_id": "reference-edf4bbef61794d48abdf6deb0389e75f",
+      "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+      "view_id": "left-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "right",
+      "reference_id": "reference-2582fa4d29c34220a99f44aab468bd32",
+      "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+      "view_id": "right-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "rear-three-quarter",
+      "reference_id": "reference-df041d5c2f3144dfa0f10cee3d46ea1f",
+      "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+      "view_id": "rear-three-quarter-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    }
+  ],
+  "reference_width": 1254,
+  "render_pass_calls": 9,
+  "render_pass_image_blocks": "NOT_OBSERVED_IN_SANITIZED_CLI_EVENTS",
+  "render_pass_order": [
+    "beauty",
+    "silhouette",
+    "depth",
+    "normal",
+    "ao",
+    "part-id",
+    "material-id",
+    "wireframe",
+    "uv-stretch"
+  ],
+  "render_set_hash": "bbcb5423d6d7207788c2ca14d6fab55aca706d63dc000c8c0157c50e3916e37a",
+  "review_recovered_after_tool_drift": false,
+  "scene_observation_schema": "AgenticSceneObserveResult@1",
+  "scene_observation_sha256": "5bb1af1d8353131dc8d5112bc62b3a702cdc41744ad367a1e8a0e47d6aef4e5f",
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "side_effect_events": [
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "2beae62c4c58fce383b733b8ff9f6411d5e43e4c6c3e1b2e0fc62418cf5f8f0a",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "2beae62c4c58fce383b733b8ff9f6411d5e43e4c6c3e1b2e0fc62418cf5f8f0a",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "b48a8d8117c7f432fdb426016acad232534416739e66a9992c22a2d5d95d5955",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "b48a8d8117c7f432fdb426016acad232534416739e66a9992c22a2d5d95d5955",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "in_progress",
+      "type": "command_execution"
+    },
+    {
+      "classification": "codex_skill_read_only",
+      "command_sha256": "5d9bd44be3f6eb87a419ad879d74cb670d6a62b8d3cd6dc5d4b1277d4a31327e",
+      "command_token_basename": [
+        "zsh",
+        "-lc",
+        "SKILL.md"
+      ],
+      "command_token_count": 3,
+      "status": "completed",
+      "type": "command_execution"
+    }
+  ],
+  "silhouette_camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+  "silhouette_first": true,
+  "silhouette_fit": {
+    "evaluations": 64,
+    "iterations": 2,
+    "loss": null,
+    "metrics": {
+      "bbox_edge_error": 0.00390625,
+      "boundary_f1_4px": 0.365212592204,
+      "centroid_error": 0.000847581879,
+      "sdf_chamfer_px": 15.328639477379,
+      "silhouette_iou": 0.75398920488
+    },
+    "status": "quality_target_not_met"
+  },
+  "silhouette_fit_camera_canonical_sha256": "6509a7b73c09145a07ad60fe9c30f99f9e7d829b251b460ca9e92c2c014a52c6",
+  "silhouette_fit_camera_hash": "16bf4e6d246f901eafc91308f6e5b389206f2f16e647212f9481c6c80a9a1960",
+  "silhouette_fit_intent_sha256": null,
+  "silhouette_gate": "QUALITY_TARGET_NOT_MET",
+  "silhouette_rig_sha256": "3f203cdd69de485678063606fd8b0fc0d6cb83053bafebd4d2ad767d81e72744",
+  "silhouette_sequence": [
+    "skill_get",
+    "reference_mask_prepare",
+    "silhouette_target_get",
+    "camera_fit_prepare",
+    "job_get",
+    "candidate_get",
+    "artifact_readback_get",
+    "reference_compare_prepare",
+    "skill_get"
+  ],
+  "silhouette_stage_sequences": {
+    "fit": [],
+    "observation": [
+      "skill_get",
+      "silhouette_target_get",
+      "camera_fit_prepare",
+      "job_get",
+      "candidate_get",
+      "artifact_readback_get",
+      "reference_compare_prepare",
+      "skill_get",
+      "session_create_or_resume"
+    ],
+    "part_contour": [],
+    "repair": [
+      "skill_get",
+      "primary_form_repair_job_prepare",
+      "job_get",
+      "job_get",
+      "job_get",
+      "job_get",
+      "job_get",
+      "job_result_get",
+      "job_get",
+      "job_get",
+      "job_result_get"
+    ],
+    "target": [
+      "skill_get",
+      "reference_mask_prepare"
+    ]
+  },
+  "silhouette_target_sha256": "dd455001ba8abb165b68d6e7bd567eaade244cf701a204198a5e4f5b7b9f850f",
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "PASS_WITH_QUALITY_TARGET_NOT_MET",
+  "task_id": "FGC-MCP010C",
+  "triangle_count": 4704,
+  "unrelated_side_effects": false,
+  "validator_status": "passed",
+  "view_spec_sha256": "11144262b4639a2d6748e594a269aa78c562981b8e65a77d09a57004d8a4c844",
+  "visual_intake": {
+    "landmark_count": 15,
+    "region_count": 8,
+    "source_sha256": "77b2ff137e126f62eadd34f98b03e04620e3e3489640984e851f1e98ddf72ba9",
+    "status": "PROVIDED"
+  },
+  "visual_quality_claim": "NOT_CLAIMED",
+  "visual_review_status": "needs_revision"
+}

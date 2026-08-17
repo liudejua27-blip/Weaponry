@@ -61,6 +61,171 @@ def keyed_evidence_path(row: dict[str, Any], path_key: str, hash_key: str) -> Pa
     return path
 
 
+def view_fingerprint(receipt: dict[str, Any]) -> list[tuple[str, str]]:
+    views = receipt.get("reference_views")
+    if views is None:
+        views = receipt.get("reference", {}).get("views") if isinstance(receipt.get("reference"), dict) else None
+    require(isinstance(views, list), "multi-view reference receipt is missing reference_views")
+    fingerprint: list[tuple[str, str]] = []
+    for view in views:
+        require(isinstance(view, dict), "multi-view reference receipt contains an invalid view")
+        kind = view.get("kind")
+        reference_sha256 = view.get("reference_sha256")
+        require(isinstance(kind, str) and isinstance(reference_sha256, str), "multi-view view fingerprint is incomplete")
+        fingerprint.append((kind, reference_sha256))
+    return sorted(fingerprint)
+
+
+def validate_primary_form_multiview_evaluation(
+    primary: dict[str, Any], row: dict[str, Any]
+) -> None:
+    evaluation = primary.get("primary_form_multi_view_evaluation")
+    require(isinstance(evaluation, dict), "current Primary Form multi-view evaluation is missing")
+    expected = row.get("multi_view_evaluation")
+    require(isinstance(expected, dict), "current multi-view evaluation ledger expectation is missing")
+    require(evaluation.get("schema_version") == expected["schema_version"], "multi-view evaluation schema drifted")
+    require(evaluation.get("project_id") == row["project_id"], "multi-view evaluation project drifted")
+    require(evaluation.get("source_candidate_id") == row["final_candidate_id"], "multi-view evaluation source candidate drifted")
+    require(evaluation.get("reference_canvas_sha256") == expected["reference_canvas_sha256"], "multi-view evaluation canvas drifted")
+    require(evaluation.get("view_count") == expected["view_count"], "multi-view evaluation view count drifted")
+    for key in (
+        "primary_view_id",
+        "aggregate_status",
+        "hard_gate_passed",
+        "strict_improvement",
+        "non_regressing",
+        "source_loss",
+        "proposal_loss",
+        "objective",
+        "camera_source",
+    ):
+        require(evaluation.get(key) == expected[key], f"multi-view evaluation drifted: {key}")
+    limitations = evaluation.get("limitations")
+    require(
+        isinstance(limitations, list)
+        and set(expected["required_limitations"]).issubset(limitations),
+        "multi-view evaluation limitations drifted",
+    )
+
+    views = evaluation.get("views")
+    expected_views = expected.get("views")
+    require(isinstance(views, list) and isinstance(expected_views, list), "multi-view evaluation views are missing")
+    require(len(views) == expected["view_count"] == len(expected_views), "multi-view evaluation view cardinality drifted")
+    expected_by_kind = {item["kind"]: item for item in expected_views}
+    observed_by_kind: dict[str, dict[str, Any]] = {}
+    for view in views:
+        require(isinstance(view, dict), "multi-view evaluation contains an invalid view")
+        kind = view.get("kind")
+        require(isinstance(kind, str) and kind in expected_by_kind, "multi-view evaluation contains an unexpected view kind")
+        require(kind not in observed_by_kind, "multi-view evaluation contains duplicate view kinds")
+        observed_by_kind[kind] = view
+        view_expectation = expected_by_kind[kind]
+        for key in (
+            "reference_sha256",
+            "source_loss",
+            "proposal_loss",
+            "strict_improvement",
+            "non_regressing",
+        ):
+            require(view.get(key) == view_expectation[key], f"multi-view {kind} drifted: {key}")
+        require(view.get("camera_source") == expected["camera_source"], f"multi-view {kind} camera source drifted")
+        for metric_key in ("silhouette_iou", "boundary_f1_4px"):
+            source_metrics = view.get("source_metrics")
+            proposal_metrics = view.get("proposal_metrics")
+            require(isinstance(source_metrics, dict) and isinstance(proposal_metrics, dict), f"multi-view {kind} metrics missing")
+            require(source_metrics.get(metric_key) == view_expectation[f"source_{metric_key}"], f"multi-view {kind} source {metric_key} drifted")
+            require(proposal_metrics.get(metric_key) == view_expectation[f"proposal_{metric_key}"], f"multi-view {kind} proposal {metric_key} drifted")
+    require(set(observed_by_kind) == set(expected_by_kind), "multi-view evaluation view kinds drifted")
+
+    steps = primary.get("primary_form_repair_steps")
+    require(isinstance(steps, list) and len(steps) == 1, "current multi-view evaluation step count drifted")
+    step = steps[0]
+    require(step.get("part_id") is None, "current multi-view evaluation unexpectedly selected a semantic Part")
+    require(step.get("status") == "no_improvement", "current multi-view evaluation step status drifted")
+    acceptance = step.get("acceptance")
+    require(isinstance(acceptance, dict), "current multi-view evaluation acceptance is missing")
+    require(acceptance.get("status") == "retained_source", "current multi-view evaluation acceptance crossed the candidate boundary")
+    require(acceptance.get("strict_improvement") is False, "current multi-view evaluation acceptance was promoted")
+    require(step.get("multi_view_evaluation") == evaluation, "multi-view evaluation was not preserved in the step receipt")
+
+
+def validate_current_multiview_primary_form(ledger: dict[str, Any]) -> None:
+    row = ledger.get("current_multiview_primary_form_transport")
+    require(isinstance(row, dict), "current multi-view Primary Form ledger row is missing")
+    observation = load_json(
+        keyed_evidence_path(row, "observation_evidence_path", "observation_evidence_sha256")
+    )
+    primary = load_json(
+        keyed_evidence_path(row, "primary_form_evidence_path", "primary_form_evidence_sha256")
+    )
+    coverage = load_json(
+        keyed_evidence_path(row, "coverage_evidence_path", "coverage_evidence_sha256")
+    )
+    inventory = load_json(
+        keyed_evidence_path(row, "inventory_evidence_path", "inventory_evidence_sha256")
+    )
+
+    require(row.get("status") == primary.get("status") == "PASS_WITH_QUALITY_TARGET_NOT_MET", "current multi-view status drifted")
+    require(row.get("build_cohorts") == primary.get("build_cohorts"), "current multi-view build cohorts drifted")
+    cohorts = row.get("build_cohorts")
+    require(isinstance(cohorts, dict) and set(cohorts) == {"mcp", "runtime", "worker", "render_worker"}, "current multi-view cohort keys drifted")
+    require(len(set(cohorts.values())) == 1, "current multi-view cohort is not unified")
+    require(observation.get("build_cohorts") == cohorts, "multi-view observation cohort drifted")
+
+    require(observation.get("status") == "PASS_BOUNDARY_ONLY", "multi-view observation was promoted")
+    require(observation.get("authoring_mode", {}).get("status") == row["authoring_mode"], "multi-view observation authoring mode drifted")
+    require(primary.get("authoring_mode", {}).get("status") == row["authoring_mode"], "current Primary Form authoring mode drifted")
+    require(observation.get("reference_view_count") == row["reference_view_count"], "multi-view observation view count drifted")
+    observation_coverage = observation.get("reference_coverage")
+    require(isinstance(observation_coverage, dict), "multi-view observation coverage is missing")
+    require(observation_coverage.get("coverage_status") == row["coverage"]["coverage_status"], "multi-view observation coverage status drifted")
+    require(observation_coverage.get("missing_views") == row["coverage"]["missing_views"], "multi-view observation missing views drifted")
+    require(observation_coverage.get("hq_360_status") == "eligible", "multi-view observation 360 eligibility drifted")
+    require(observation.get("persistent_user_data_touched") is False, "multi-view observation touched persistent data")
+    require(observation.get("unrelated_side_effects") is False, "multi-view observation produced unrelated side effects")
+
+    require(view_fingerprint(observation) == view_fingerprint(primary), "multi-view reference bytes drifted between observation and Primary Form")
+    require(inventory.get("status") == "multi_view_current_source_coverage_observed", "multi-view inventory status drifted")
+    require(inventory.get("source_evidence") == row["observation_evidence_path"], "multi-view inventory source binding drifted")
+    require(view_fingerprint(inventory) == view_fingerprint(primary), "multi-view inventory reference bytes drifted")
+
+    require(coverage.get("status") == "PASS", "360 coverage probe did not pass")
+    require(coverage.get("full_360_reference") == "PASS", "360 coverage probe status drifted")
+    require(coverage.get("missing_coverage_views") == [], "360 coverage probe still has missing views")
+    require(coverage.get("persistent_user_data_touched") is False, "360 coverage probe touched persistent data")
+
+    require(primary.get("reference_set_sha256") == row["reference_set_sha256"], "current multi-view reference-set hash drifted")
+    require(primary.get("reference_view_count") == row["reference_view_count"], "current Primary Form view count drifted")
+    require(primary.get("project_id") == row["project_id"], "current multi-view project drifted")
+    require(primary.get("reference_id") == row["reference_id"], "current multi-view primary reference drifted")
+    require(primary.get("candidate_id") == row["final_candidate_id"], "current multi-view candidate drifted")
+    context = primary.get("authoring_context_binding")
+    require(isinstance(context, dict), "current multi-view durable authoring context is missing")
+    require(context.get("status") == row["durable_context_status"], "current multi-view durable context status drifted")
+    require(context.get("coverage_status") == "complete", "current multi-view durable context coverage drifted")
+    require(context.get("missing_views") == [], "current multi-view durable context has missing views")
+    require(context.get("reference_view_count") == row["reference_view_count"], "current multi-view durable context view count drifted")
+    require(primary.get("comparison_metrics") == row["comparison_metrics"], "current multi-view comparison metrics drifted")
+    steps = primary.get("primary_form_repair_steps")
+    require(isinstance(steps, list) and len(steps) == 1, "current multi-view Primary Form step count drifted")
+    require([step.get("part_id") for step in steps] == row["primary_form_parts"], "current multi-view Primary Form part order drifted")
+    require(steps[0].get("acceptance", {}).get("status") == "retained_source", "current multi-view Primary Form acceptance crossed the candidate boundary")
+    require(steps[0].get("acceptance", {}).get("strict_improvement") is False, "current multi-view Primary Form strict improvement was promoted")
+    require(primary.get("primary_form_composition_lineage") is None, "current multi-view composition lineage advanced a rejected candidate")
+    validate_primary_form_multiview_evaluation(primary, row)
+    require(primary.get("quality_visual_status") == row["quality_visual_status"], "current multi-view quality status drifted")
+    require(primary.get("quality_hard_gate_passed") is row["quality_hard_gate_passed"], "current multi-view hard gate was promoted")
+    require(primary.get("visual_review_status") == row["visual_review_status"], "current multi-view review status drifted")
+    require(primary.get("human_review") == row["human_review"], "current multi-view human review status drifted")
+    require(primary.get("pbr_material_pack") == row["pbr_material_pack"], "current multi-view PBR status drifted")
+    require(primary.get("render_pass_calls") == 9, "current multi-view AOV count drifted")
+    require(primary.get("candidate_confirmed") in (None, False), "current multi-view candidate crossed confirm boundary")
+    require(primary.get("version_count") in (None, 0), "current multi-view created a version")
+    require(primary.get("export") in (None, "NOT_RUN"), "current multi-view exported")
+    require(primary.get("persistent_user_data_touched") is False, "current multi-view Primary Form touched persistent data")
+    require(primary.get("unrelated_side_effects") is False, "current multi-view Primary Form produced unrelated side effects")
+
+
 def require_same_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
     require(set(value) == expected, f"{label} key set drifted")
 
@@ -70,6 +235,8 @@ def main() -> int:
     require(ledger.get("schema_version") == "ForgeCADMCP010FCurrentQualityEvidenceLedger@1", "schema version drifted")
     require(ledger.get("task_id") == "FGC-MCP010F", "task id drifted")
     require(ledger.get("status") == "PASS_EVIDENCE_LEDGER_WITH_QUALITY_TARGET_NOT_MET", "ledger status drifted")
+
+    validate_current_multiview_primary_form(ledger)
 
     source_row = ledger["current_source_transport"]
     source_path = evidence_path(source_row)
@@ -168,6 +335,89 @@ def main() -> int:
     require(primary.get("version_count") in (None, 0), "latest current Primary Form created a version")
     require(primary.get("export") in (None, "NOT_RUN"), "latest current Primary Form exported")
     require(primary.get("persistent_user_data_touched") is primary_row["persistent_user_data_touched"], "latest current Primary Form touched persistent data")
+
+    trial_row = observation_row.get("latest_primary_form_trial")
+    require(isinstance(trial_row, dict), "latest current Primary Form trial row is missing")
+    trial_path = evidence_path(trial_row)
+    trial = load_json(trial_path)
+    require(trial.get("status") == trial_row["status"], "latest current Primary Form trial status drifted")
+    require(trial.get("build_cohorts") == observation_row["build_cohorts"], "latest current Primary Form trial cohorts drifted")
+    require(trial.get("reference_sha256") == observation_row["reference_sha256"], "latest current Primary Form trial reference hash drifted")
+    require(trial.get("reference_set_sha256") == observation_row["reference_set_sha256"], "latest current Primary Form trial reference-set hash drifted")
+    require(trial.get("scene_observation_schema") == observation_row["observation_schema"], "latest current Primary Form trial observation schema drifted")
+    require(trial.get("scene_observation_sha256") == trial_row["observation_sha256"], "latest current Primary Form trial observation hash drifted")
+    require(trial.get("project_id") == trial_row["project_id"], "latest current Primary Form trial project drifted")
+    require(trial.get("reference_id") == trial_row["reference_id"], "latest current Primary Form trial reference id drifted")
+    require(trial.get("candidate_id") == trial_row["final_candidate_id"], "latest current Primary Form trial candidate drifted")
+    require(trial.get("comparison_metrics") == trial_row["comparison_metrics"], "latest current Primary Form trial metrics drifted")
+    trial_steps = trial.get("primary_form_repair_steps")
+    require(isinstance(trial_steps, list) and len(trial_steps) == trial_row["accepted_steps"], "latest current Primary Form trial step count drifted")
+    require([step.get("part_id") for step in trial_steps] == trial_row["accepted_parts"], "latest current Primary Form trial part order drifted")
+    require(all(step.get("acceptance", {}).get("status") == "accepted" for step in trial_steps), "latest current Primary Form trial acceptance drifted")
+    require(all(step.get("acceptance", {}).get("strict_improvement") is True for step in trial_steps), "latest current Primary Form trial strict-improvement boundary drifted")
+    require(trial.get("quality_visual_status") == trial_row["quality_visual_status"], "latest current Primary Form trial visual status drifted")
+    require(trial.get("visual_review_status") == trial_row["visual_review_status"], "latest current Primary Form trial review status drifted")
+    require(trial.get("quality_hard_gate_passed") is trial_row["quality_hard_gate_passed"], "latest current Primary Form trial quality gate drifted")
+    require(trial.get("quality_claim") == trial_row["quality_claim"], "latest current Primary Form trial quality claim drifted")
+    require(trial.get("candidate_confirmed") in (None, False), "latest current Primary Form trial crossed confirm boundary")
+    require(trial.get("version_count") in (None, 0), "latest current Primary Form trial created a version")
+    require(trial.get("export") in (None, "NOT_RUN"), "latest current Primary Form trial exported")
+    require(trial.get("persistent_user_data_touched") is trial_row["persistent_user_data_touched"], "latest current Primary Form trial touched persistent data")
+    trial_coverage = trial.get("reference_coverage")
+    require(isinstance(trial_coverage, dict), "latest current Primary Form trial coverage is missing")
+    require(trial_coverage.get("missing_views") == observation_row["coverage"]["missing_views"], "latest current Primary Form trial missing view coverage drifted")
+    require(trial_coverage.get("hq_360_status") == observation_row["coverage"]["hq_360"], "latest current Primary Form trial 360 coverage boundary drifted")
+
+    previous_trial_row = observation_row.get("previous_primary_form_trial")
+    require(isinstance(previous_trial_row, dict), "previous current Primary Form trial row is missing")
+    previous_trial = load_json(evidence_path(previous_trial_row))
+    require(previous_trial.get("status") == previous_trial_row["status"], "previous current Primary Form trial status drifted")
+    require(previous_trial.get("build_cohorts") == observation_row["build_cohorts"], "previous current Primary Form trial cohorts drifted")
+    require(previous_trial.get("reference_sha256") == observation_row["reference_sha256"], "previous current Primary Form trial reference hash drifted")
+    require(previous_trial.get("reference_set_sha256") == observation_row["reference_set_sha256"], "previous current Primary Form trial reference-set hash drifted")
+    require(previous_trial.get("scene_observation_schema") == observation_row["observation_schema"], "previous current Primary Form trial observation schema drifted")
+    require(previous_trial.get("scene_observation_sha256") == previous_trial_row["observation_sha256"], "previous current Primary Form trial observation hash drifted")
+    require(previous_trial.get("project_id") == previous_trial_row["project_id"], "previous current Primary Form trial project drifted")
+    require(previous_trial.get("reference_id") == previous_trial_row["reference_id"], "previous current Primary Form trial reference id drifted")
+    require(previous_trial.get("candidate_id") == previous_trial_row["final_candidate_id"], "previous current Primary Form trial candidate drifted")
+    require(previous_trial.get("comparison_metrics") == previous_trial_row["comparison_metrics"], "previous current Primary Form trial metrics drifted")
+    previous_steps = previous_trial.get("primary_form_repair_steps")
+    require(isinstance(previous_steps, list) and len(previous_steps) == previous_trial_row["accepted_steps"], "previous current Primary Form trial step count drifted")
+    require([step.get("part_id") for step in previous_steps] == previous_trial_row["accepted_parts"], "previous current Primary Form trial part order drifted")
+    require(all(step.get("acceptance", {}).get("status") == "accepted" for step in previous_steps), "previous current Primary Form trial acceptance drifted")
+    require(all(step.get("acceptance", {}).get("strict_improvement") is True for step in previous_steps), "previous current Primary Form trial strict-improvement boundary drifted")
+    require(previous_trial.get("candidate_confirmed") in (None, False), "previous current Primary Form trial crossed confirm boundary")
+    require(previous_trial.get("version_count") in (None, 0), "previous current Primary Form trial created a version")
+    require(previous_trial.get("export") in (None, "NOT_RUN"), "previous current Primary Form trial exported")
+    require(previous_trial.get("persistent_user_data_touched") is previous_trial_row["persistent_user_data_touched"], "previous current Primary Form trial touched persistent data")
+
+    blocked_trial_row = observation_row.get("blocked_primary_form_trial")
+    require(isinstance(blocked_trial_row, dict), "blocked current Primary Form trial row is missing")
+    blocked_trial = load_json(evidence_path(blocked_trial_row))
+    require(blocked_trial.get("status") == "BLOCKED", "blocked current Primary Form trial was promoted")
+    require(blocked_trial.get("build_cohorts") == observation_row["build_cohorts"], "blocked current Primary Form trial cohorts drifted")
+    require(blocked_trial.get("reference_sha256") == observation_row["reference_sha256"], "blocked current Primary Form trial reference hash drifted")
+    require(blocked_trial.get("reference_set_sha256") == observation_row["reference_set_sha256"], "blocked current Primary Form trial reference-set hash drifted")
+    require(blocked_trial.get("scene_observation_schema") == observation_row["observation_schema"], "blocked current Primary Form trial observation schema drifted")
+    require(blocked_trial.get("scene_observation_sha256") == blocked_trial_row["observation_sha256"], "blocked current Primary Form trial observation hash drifted")
+    require(blocked_trial.get("project_id") == blocked_trial_row["project_id"], "blocked current Primary Form trial project drifted")
+    require(blocked_trial.get("reference_id") == blocked_trial_row["reference_id"], "blocked current Primary Form trial reference id drifted")
+    require(blocked_trial.get("candidate_id") == blocked_trial_row["final_candidate_id"], "blocked current Primary Form trial candidate drifted")
+    require(blocked_trial.get("comparison_metrics") == blocked_trial_row["comparison_metrics"], "blocked current Primary Form trial metrics drifted")
+    blocked_steps = blocked_trial.get("primary_form_repair_steps")
+    require(isinstance(blocked_steps, list) and len(blocked_steps) == blocked_trial_row["accepted_steps"], "blocked current Primary Form trial step count drifted")
+    require([step.get("part_id") for step in blocked_steps] == blocked_trial_row["accepted_parts"], "blocked current Primary Form trial part order drifted")
+    require(all(step.get("acceptance", {}).get("status") == "accepted" for step in blocked_steps), "blocked current Primary Form trial acceptance drifted")
+    require(all(step.get("acceptance", {}).get("strict_improvement") is True for step in blocked_steps), "blocked current Primary Form trial strict-improvement boundary drifted")
+    require(blocked_trial.get("unrelated_side_effects") is True, "blocked current Primary Form trial side-effect boundary drifted")
+    require(blocked_trial.get("candidate_confirmed") in (None, False), "blocked current Primary Form trial crossed confirm boundary")
+    require(blocked_trial.get("version_count") in (None, 0), "blocked current Primary Form trial created a version")
+    require(blocked_trial.get("export") in (None, "NOT_RUN"), "blocked current Primary Form trial exported")
+    require(blocked_trial.get("persistent_user_data_touched") is blocked_trial_row["persistent_user_data_touched"], "blocked current Primary Form trial touched persistent data")
+    blocked_coverage = blocked_trial.get("reference_coverage")
+    require(isinstance(blocked_coverage, dict), "blocked current Primary Form trial coverage is missing")
+    require(blocked_coverage.get("missing_views") == observation_row["coverage"]["missing_views"], "blocked current Primary Form trial missing view coverage drifted")
+    require(blocked_coverage.get("hq_360_status") == observation_row["coverage"]["hq_360"], "blocked current Primary Form trial 360 coverage boundary drifted")
 
     negative_path = keyed_evidence_path(
         observation_row, "negative_authoring_evidence_path", "negative_authoring_evidence_sha256"

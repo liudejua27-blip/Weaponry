@@ -572,10 +572,12 @@ def run_required_codex_turn(
     inventing or replaying any Runtime state in the probe.
     """
     aggregate: list[dict[str, Any]] = []
-    # Boundary-only runs intentionally never retry a potentially mutating
-    # authoring session.  They are meant to prove the observation boundary,
-    # not to spend several timeout windows replaying the same external host.
-    attempt_limit = 1 if options.boundary_only else max_attempts
+    # The explicit ReferenceCanvas/DesignSpec session passes max_attempts=1
+    # because it is the only potentially mutating authoring boundary in this
+    # observation route.  Earlier discovery/hash/prepare and readback stages
+    # remain bounded-retry safe inside the probe's isolated temporary Runtime;
+    # a single Codex tool-choice drift must not erase an otherwise valid run.
+    attempt_limit = max_attempts
     for attempt in range(attempt_limit):
         retry_note = ""
         if attempt:
@@ -639,18 +641,29 @@ def authoring_argument_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
         canonical_input = dict(value)
         canonical_input["canonical_sha256"] = ""
         recomputed = canonical_hash(canonical_input)
+        runtime_object = dict(canonical_input)
+        runtime_object["canonical_sha256"] = recomputed
         return {
             "present": True,
             "declared": declared if isinstance(declared, str) else None,
+            "declared_empty_for_runtime_canonicalization": declared == "",
             "recomputed": recomputed,
             "object_sha256": canonical_hash(value),
-            "declared_matches_recomputed": declared == recomputed,
+            "runtime_canonical_sha256": recomputed,
+            "runtime_object_sha256": canonical_hash(runtime_object),
+            "declared_matches_recomputed": declared == "" or declared == recomputed,
         }
 
     canvas = context.get("reference_canvas")
     spec = context.get("design_spec")
     canvas_summary = digest_pair(canvas)
     spec_summary = digest_pair(spec)
+    if isinstance(canvas, dict):
+        canvas_summary.update({
+            "view_count": len(canvas.get("views", [])) if isinstance(canvas.get("views"), list) else None,
+            "unknown_count": len(canvas.get("unknowns", [])) if isinstance(canvas.get("unknowns"), list) else None,
+            "claim_count": len(canvas.get("claims", [])) if isinstance(canvas.get("claims"), list) else None,
+        })
     if isinstance(spec, dict):
         spec_summary.update({
             "reference_canvas_sha256": spec.get("reference_canvas_sha256"),
@@ -664,9 +677,17 @@ def authoring_argument_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
         "context_keys": sorted(context),
         "canvas": canvas_summary,
         "design_spec": spec_summary,
-        "expected_binding_matches_argument_object": (
-            isinstance(spec, dict)
-            and spec.get("reference_canvas_sha256") == canvas_summary.get("object_sha256")
+        # With a blank producer-owned canonical field the wire object hash is
+        # intentionally not the Runtime-stored object hash.  This diagnostic
+        # predicts the Runtime CAS object hash after canonicalization without
+        # treating it as Runtime truth.
+        "expected_binding_matches_argument_runtime_object": (
+            None
+            if canvas_summary.get("declared_empty_for_runtime_canonicalization")
+            else (
+                isinstance(spec, dict)
+                and spec.get("reference_canvas_sha256") == canvas_summary.get("runtime_object_sha256")
+            )
         ),
     }
 
@@ -1300,6 +1321,11 @@ def reference_canvas_authoring_context(
         "canonical_sha256": "",
         "created_at": created_at,
     }
+    # Codex/serde serializes integral floats such as 0.0 and 1.0 as JSON
+    # integers.  ForgeCAD canonical hashes are JSON-number-type sensitive, so
+    # normalize the exact wire representation before deriving either object
+    # hash or the DesignSpec canvas binding.
+    canvas = normalize_numeric_representation(canvas)
     # Runtime keeps two related but distinct digests: the object canonical
     # field is computed with that field blank, while DesignSpec binds to the
     # CAS object hash of the fully canonicalized JSON that Runtime stores.
@@ -1401,6 +1427,15 @@ def reference_canvas_authoring_context(
         "canonical_sha256": "",
         "created_at": created_at,
     }
+    spec = normalize_numeric_representation(spec)
+    spec["canonical_sha256"] = canonical_hash(spec)
+    # The Runtime is the canonical producer.  Leave these two producer-owned
+    # fields blank on the Codex wire so a model cannot accidentally replace a
+    # field hash with the full object hash while copying the payload.  The
+    # DesignSpec still carries the exact expected CAS object hash for the
+    # Runtime-created ReferenceCanvas, so binding remains fail-closed.
+    canvas["canonical_sha256"] = ""
+    spec["canonical_sha256"] = ""
     return {
         "reference_canvas": canvas,
         "design_spec": spec,
@@ -1536,11 +1571,6 @@ def reference_canvas_authoring_context_multi(
                 "question": "Which forms continue around the hidden surfaces of this supplied view?",
                 "state": state("unknown", 0.0, evidence),
             },
-            {
-                "region_id": f"unknown-{kind}-camera-calibration",
-                "question": "What physical camera and focal length produced this supplied view?",
-                "state": state("unknown", 0.0, evidence),
-            },
         ]
 
     views: list[dict[str, Any]] = []
@@ -1567,13 +1597,13 @@ def reference_canvas_authoring_context_multi(
             "visible_regions": visible_regions(record),
             "unknown_regions": unknown_regions(record),
         })
-        claims.append({
-            "claim_id": f"claim-supplied-{record['kind']}",
-            "subject_kind": "view",
-            "subject_id": record["view_id"],
-            "statement": f"The supplied {record['kind']} image is user-authorized; hidden coverage remains explicit.",
-            "state": state("observed", 0.98, evidence),
-        })
+    claims.append({
+        "claim_id": "claim-supplied-reference-set",
+        "subject_kind": "canvas",
+        "subject_id": "reference-canvas-real-codex",
+        "statement": "The listed reference views are user-authorized; hidden geometry and camera calibration remain explicit.",
+        "state": state("observed", 0.98, all_evidence),
+    })
 
     canvas_id = "reference-canvas-real-codex"
     spec_id = "design-spec-real-codex"
@@ -1611,6 +1641,7 @@ def reference_canvas_authoring_context_multi(
         "canonical_sha256": "",
         "created_at": created_at,
     }
+    canvas = normalize_numeric_representation(canvas)
     canvas["canonical_sha256"] = canonical_hash(canvas)
     canvas_object_sha256 = canonical_hash(canvas)
 
@@ -1639,64 +1670,43 @@ def reference_canvas_authoring_context_multi(
         "category": "hard-surface humanoid visual asset",
         "style": f"white shell with dark mechanical understructure, inferred from {len(normalized)} authorized view(s)",
         "primary_forms": [{
-            "form_id": "humanoid-primary-form",
-            "name": "Humanoid primary form",
-            "role": "main-body",
-            "description": "Visible body envelope; hidden depth remains explicit until coverage and comparison pass.",
             "state": state("inferred", 0.82, all_evidence),
         }],
         "proportions": [],
         "semantic_parts": [{
-            "part_id": "scene",
-            "role": "root",
-            "parent_id": None,
-            "symmetry": "unknown",
-            "material_zone_ids": ["zone-white-shell", "zone-black-mechanical"],
             "state": state("inferred", 0.72, all_evidence),
         }],
         "material_language": [],
         "stage_goals": [
             {
                 "stage": "reference-canvas",
-                "objective": "Bind authorized references and coverage before primary form.",
-                "allowed_action_kinds": ["coverage-annotation", "checkpoint"],
-                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
-                "exit_gate": gate("reference-canvas", ["reference-authorized"], ["reference-coverage"], ["tertiary-detail", "uv-pbr", "export"]),
+                "objective": "Bind authorized references before primary form.",
+                "exit_gate": {"stage": "reference-canvas", "status": "unknown"},
             },
             {
                 "stage": "primary-form",
-                "objective": "Converge visible primary silhouette and proportions across supplied views.",
-                "allowed_action_kinds": ["primary-blockout", "bounded-repair", "checkpoint"],
-                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
-                "exit_gate": gate("primary-form", ["primary-silhouette"], ["primary-silhouette", "primary-proportion"], ["tertiary-detail", "uv-pbr", "export"]),
+                "objective": "Converge primary silhouette across supplied views.",
+                "exit_gate": {"stage": "primary-form", "status": "unknown"},
             },
             {
                 "stage": "secondary-structure",
                 "objective": "Add secondary structure after primary form.",
-                "allowed_action_kinds": ["secondary-structure", "bounded-repair", "checkpoint"],
-                "forbidden_action_kinds": ["tertiary-detail", "uv-pbr", "export"],
-                "exit_gate": gate("secondary-structure", ["secondary-structure"], ["visible-view"], ["tertiary-detail", "uv-pbr", "export"]),
+                "exit_gate": {"stage": "secondary-structure", "status": "unknown"},
             },
             {
                 "stage": "tertiary-detail",
                 "objective": "Keep tertiary detail locked until form and coverage pass.",
-                "allowed_action_kinds": ["tertiary-detail", "checkpoint"],
-                "forbidden_action_kinds": ["uv-pbr", "export"],
-                "exit_gate": gate("tertiary-detail", ["tertiary-detail", "visible-view"], ["visible-view"], ["uv-pbr", "export"]),
+                "exit_gate": {"stage": "tertiary-detail", "status": "unknown"},
             },
             {
                 "stage": "uv-pbr",
                 "objective": "Bind UV, tangent and PBR after geometry gates.",
-                "allowed_action_kinds": ["material-zone", "uv-pbr", "checkpoint"],
-                "forbidden_action_kinds": ["export"],
-                "exit_gate": gate("uv-pbr", ["uv-tangent-pbr", "visible-view"], ["uv-tangent-pbr"], ["export"]),
+                "exit_gate": {"stage": "uv-pbr", "status": "unknown"},
             },
             {
                 "stage": "final-review",
                 "objective": "Require multi-view comparison, review and restart-safe export evidence.",
-                "allowed_action_kinds": ["final-review", "human-review", "export", "checkpoint"],
-                "forbidden_action_kinds": [],
-                "exit_gate": gate("final-review", ["multi-view-compare"], ["multi-view-compare", "human-review", "export-restart-hash"], ["export"]),
+                "exit_gate": {"stage": "final-review", "status": "unknown"},
             },
         ],
         "risks": [],
@@ -1704,6 +1714,13 @@ def reference_canvas_authoring_context_multi(
         "canonical_sha256": "",
         "created_at": created_at,
     }
+    spec = normalize_numeric_representation(spec)
+    spec["canonical_sha256"] = canonical_hash(spec)
+    # See the single-view authoring context above: Runtime owns these
+    # canonical fields, while the DesignSpec's canvas binding remains the
+    # precomputed hash of the fully canonicalized Runtime canvas object.
+    canvas["canonical_sha256"] = ""
+    spec["canonical_sha256"] = ""
     return {"reference_canvas": canvas, "design_spec": spec}
 
 
@@ -1975,13 +1992,72 @@ def authoring_mode_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
     codes = sorted({str(item.get("structured", {}).get("code")) for item in failed if isinstance(item.get("structured"), dict) and item.get("structured", {}).get("code")})
     if not successful:
         return {"status": "NOT_RUN", "explicit_failure_codes": codes}
-    arguments = successful[-1].get("arguments")
-    if isinstance(arguments, dict) and "authoring_context" in arguments:
-        return {"status": "EXPLICIT_CODEX_AUTHORING", "explicit_failure_codes": codes}
-    return {
-        "status": "RUNTIME_DEFAULT_AFTER_EXPLICIT_FAILURE" if codes else "RUNTIME_DEFAULT_AUTHORING",
+
+    # Keep only digest/binding facts from the raw Codex event.  The compact
+    # receipt intentionally omits the authoring payload itself, but without
+    # these bounded facts a canonical mismatch cannot distinguish client
+    # rewriting from a producer-side hash bug.
+    argument_summary: dict[str, Any] | None = None
+    authoring_calls = [
+        item
+        for item in items
+        if item.get("type") == "mcp_tool_call"
+        and item.get("server") == "forgecad"
+        and item.get("tool") == "session_create_or_resume"
+    ]
+    for item in reversed(authoring_calls):
+        arguments = item.get("arguments")
+        if not isinstance(arguments, dict):
+            continue
+        context = arguments.get("authoring_context")
+        if not isinstance(context, dict):
+            argument_summary = {"authoring_context": "missing", "status": item.get("status")}
+            continue
+
+        def digest_pair(value: Any) -> dict[str, Any]:
+            if not isinstance(value, dict):
+                return {"present": False}
+            declared = value.get("canonical_sha256")
+            canonical_input = dict(value)
+            canonical_input["canonical_sha256"] = ""
+            recomputed = canonical_hash(canonical_input)
+            return {
+                "present": True,
+                "declared": declared if isinstance(declared, str) else None,
+                "declared_empty_for_runtime_canonicalization": declared == "",
+                "recomputed": recomputed,
+                "object_sha256": canonical_hash(value),
+                "declared_matches_recomputed": declared == "" or declared == recomputed,
+            }
+
+        canvas = context.get("reference_canvas")
+        spec = context.get("design_spec")
+        canvas_summary = digest_pair(canvas)
+        spec_summary = digest_pair(spec)
+        argument_summary = {
+            "status": item.get("status"),
+            "context_keys": sorted(context),
+            "canvas": canvas_summary,
+            "design_spec": spec_summary,
+            "spec_reference_canvas_sha256": spec.get("reference_canvas_sha256") if isinstance(spec, dict) else None,
+            "expected_spec_binding_matches_canvas_object": (
+                None
+                if canvas_summary.get("declared_empty_for_runtime_canonicalization")
+                else (
+                    isinstance(spec, dict)
+                    and spec.get("reference_canvas_sha256") == canvas_summary.get("object_sha256")
+                )
+            ),
+        }
+        break
+
+    result = {
+        "status": "EXPLICIT_CODEX_AUTHORING" if isinstance(successful[-1].get("arguments"), dict) and "authoring_context" in successful[-1].get("arguments", {}) else "RUNTIME_DEFAULT_AFTER_EXPLICIT_FAILURE" if codes else "RUNTIME_DEFAULT_AUTHORING",
         "explicit_failure_codes": codes,
     }
+    if argument_summary is not None:
+        result["argument_summary"] = argument_summary
+    return result
 
 
 def silhouette_observation_prompt(project_id: str, candidate_id: str) -> str:
@@ -2089,7 +2165,11 @@ def run_split_silhouette_observation(
             SILHOUETTE_AUTHORING_SEQUENCE,
             turn_outputs,
             "ReferenceCanvas/DesignSpec durable authoring",
-            max_attempts=1,
+            # A multi-view payload is the largest explicit authoring turn and
+            # a real Codex may spend one turn explaining or selecting no tool
+            # at all.  Retry that failed/no-call turn once; a completed
+            # session still returns immediately and is never replayed.
+            max_attempts=2 if not allow_runtime_default_authoring else 1,
         )
     except RuntimeError as explicit_error:
         # A real Codex can normalize or recompute a large nested authoring
@@ -2197,7 +2277,9 @@ In step 2 replace the literal RUNTIME_HASH inside rig.canonical_sha256 with the 
 
 def primary_form_repair_prompt(request: dict[str, Any]) -> str:
     request_json = json.dumps(request, ensure_ascii=False, separators=(",", ":"))
-    return f"""Use the ForgeCAD MCP server now. Complete this one bounded asynchronous action, then stop:
+    return f"""Use only the ForgeCAD MCP server. Do not use shell, filesystem, browser, images, other MCP servers or arbitrary code. Do not open or execute forgecad-mcp-workflow.md or any other local workflow file.
+
+Complete this one bounded asynchronous action, then stop:
 1) Call primary_form_repair_job_prepare with this exact JSON object: {request_json}
 2) Poll job_get with the returned job_id until the Runtime job is terminal. Do not stop while it is queued or running.
 3) When the job status is succeeded, call job_result_get with the exact job_id and return its typed result.
@@ -2827,8 +2909,21 @@ def main() -> int:
                     "reference_sha256": imported_sha,
                 })
             if len(get_results) != len(local_reference_records):
-                if len(local_reference_records) == 1:
-                    reference_id_for_readback = imported_references[0]["reference_id"]
+                # A real Codex setup turn can stop after the import batch and
+                # return only a prefix of the readback batch.  Imports are
+                # already Runtime-bound at this point, so recover only the
+                # missing reference IDs one at a time instead of replaying
+                # reference_import and creating duplicate evidence objects.
+                readbacks_by_id: dict[str, dict[str, Any]] = {}
+                for get_result in get_results:
+                    readback = field(get_result, "reference") or get_result
+                    readback_id = field(readback, "reference_id")
+                    if isinstance(readback_id, str) and readback_id not in readbacks_by_id:
+                        readbacks_by_id[readback_id] = get_result
+                for imported in imported_references:
+                    reference_id_for_readback = imported["reference_id"]
+                    if reference_id_for_readback in readbacks_by_id:
+                        continue
                     setup_readback = run_codex_turn(
                         options,
                         environment,
@@ -2838,9 +2933,19 @@ def main() -> int:
                     turn_outputs.append(setup_readback)
                     setup_readback_items = event_items(setup_readback.stdout)
                     setup_calls.extend(mcp_calls(setup_readback_items))
-                    get_results = structured_results(setup_readback_items, "reference_get")
-                else:
-                    raise RuntimeError("Codex setup did not return one readback per reference view")
+                    recovered = structured_results(setup_readback_items, "reference_get")
+                    if len(recovered) != 1:
+                        raise RuntimeError(
+                            f"Codex setup recovery did not return one readback for reference {reference_id_for_readback}"
+                        )
+                    recovered_readback = field(recovered[0], "reference") or recovered[0]
+                    recovered_id = field(recovered_readback, "reference_id")
+                    if recovered_id != reference_id_for_readback:
+                        raise RuntimeError(
+                            f"Codex setup recovery returned the wrong reference_id for {reference_id_for_readback}"
+                        )
+                    readbacks_by_id[reference_id_for_readback] = recovered[0]
+                get_results = [readbacks_by_id[imported["reference_id"]] for imported in imported_references]
             if len(get_results) != len(local_reference_records):
                 raise RuntimeError("Codex setup did not return reference metadata readback")
             runtime_reference_records: list[dict[str, Any]] = []
@@ -3123,6 +3228,11 @@ def main() -> int:
                                 "proposal_loss": field(step["result"], "acceptance", "proposal_loss"),
                                 "camera_hash": field(step["result"], "acceptance", "camera_hash"),
                             },
+                            # Preserve the Runtime-owned cross-view evidence
+                            # projection without image bytes or local paths.
+                            # Its absence is meaningful for incomplete canvases;
+                            # never synthesize it in the probe.
+                            "multi_view_evaluation": field(step["result"], "multi_view_evaluation"),
                             "prepared_candidate_id": step["staged"]["candidate_id"] if step["status"] == "prepared" else None,
                         })
                         partial_evidence["primary_form_repair_steps"] = primary_form_repair_steps
@@ -3688,7 +3798,11 @@ def main() -> int:
                     "acceptance_source_loss": field(primary_form_repair_result or {}, "acceptance", "source_loss"),
                     "acceptance_proposal_loss": field(primary_form_repair_result or {}, "acceptance", "proposal_loss"),
                     "acceptance_camera_hash": field(primary_form_repair_result or {}, "acceptance", "camera_hash"),
+                    "multi_view_evaluation": field(primary_form_repair_result or {}, "multi_view_evaluation"),
                 } if options.primary_form_repair else None,
+                "primary_form_multi_view_evaluation": field(
+                    primary_form_repair_result or {}, "multi_view_evaluation"
+                ),
                 "primary_form_runtime_compare": primary_form_runtime_compare,
                 "canonical_compare_in_silhouette": canonical_compare_in_silhouette,
                 "aov_order": list(AOV_ORDER),

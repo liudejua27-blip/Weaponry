@@ -1,0 +1,153 @@
+{
+  "build_cohorts": {
+    "mcp": "d52261ffdf44e07a2a4762b16c80f433a824080f0530fad64bbd32a153eb9c04",
+    "render_worker": "d52261ffdf44e07a2a4762b16c80f433a824080f0530fad64bbd32a153eb9c04",
+    "runtime": "d52261ffdf44e07a2a4762b16c80f433a824080f0530fad64bbd32a153eb9c04",
+    "worker": "d52261ffdf44e07a2a4762b16c80f433a824080f0530fad64bbd32a153eb9c04"
+  },
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "mcp_tool_calls": [
+    {
+      "schema_version": "SkillGetResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "knowledge",
+        "schema_version",
+        "skill"
+      ],
+      "tool": "skill_get"
+    },
+    {
+      "canonical_sha256": "5c33f5989d3077c394e50a7ee97aac9366b511fa7bac3c199624be2808c098f2",
+      "project_id": "project-44756ae2e52847c39aad2d887c0bdab4",
+      "schema_version": "Project@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "active_snapshot_revision",
+        "canonical_sha256",
+        "created_at",
+        "head_snapshot_id",
+        "name",
+        "policy",
+        "project_id",
+        "schema_version",
+        "updated_at"
+      ],
+      "tool": "project_create"
+    },
+    {
+      "schema_version": "ReferenceImportResult@1",
+      "server": "forgecad",
+      "status": "completed",
+      "structured_keys": [
+        "reference",
+        "schema_version"
+      ],
+      "tool": "reference_import"
+    }
+  ],
+  "pbr_material_pack": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "reason": "Codex setup did not return one import result per reference view",
+  "recorded_at": "2026-08-16T12:12:41Z",
+  "reference_path_recorded": false,
+  "reference_view_count": 6,
+  "reference_views": [
+    {
+      "height": 1254,
+      "kind": "perspective",
+      "reference_id": null,
+      "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+      "view_id": "three-quarter-user-reference",
+      "visual_intake": {
+        "landmark_count": 15,
+        "region_count": 8,
+        "source_sha256": "77b2ff137e126f62eadd34f98b03e04620e3e3489640984e851f1e98ddf72ba9",
+        "status": "PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "front",
+      "reference_id": null,
+      "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+      "view_id": "front-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "back",
+      "reference_id": null,
+      "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+      "view_id": "back-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "left",
+      "reference_id": null,
+      "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+      "view_id": "left-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "right",
+      "reference_id": null,
+      "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+      "view_id": "right-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    },
+    {
+      "height": 1254,
+      "kind": "rear-three-quarter",
+      "reference_id": null,
+      "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+      "view_id": "rear-three-quarter-user-reference",
+      "visual_intake": {
+        "landmark_count": 0,
+        "region_count": 0,
+        "source_sha256": null,
+        "status": "NOT_PROVIDED"
+      },
+      "width": 1254
+    }
+  ],
+  "schema_version": "ForgeCADMCP010CCodexCliProbe@1",
+  "scope": "real Codex CLI source-built fixed-render/compare/review transport",
+  "silhouette_fit_intent_sha256": null,
+  "source_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "source_size_bytes": 2165094,
+  "status": "BLOCKED",
+  "task_id": "FGC-MCP010C",
+  "visual_quality_claim": "NOT_CLAIMED"
+}

@@ -58,6 +58,7 @@
     },
     "candidate_state": {"enum": ["unchanged", "staged_new_candidate"]},
     "version_created": {"const": false},
+    "multi_view_evaluation": {"$ref": "#/$defs/multi_view_evaluation"},
     "canonical_sha256": {"$ref": "#/$defs/sha256"}
   },
   "$defs": {
@@ -124,6 +125,121 @@
         "render_set": {"$ref": "https://forgecad.local/contracts/render-set-v2.schema.json"},
         "comparison_report": {"$ref": "https://forgecad.local/contracts/reference-comparison-report.schema.json"},
         "quality_report": {"$ref": "https://forgecad.local/contracts/quality-report-v2.schema.json"}
+      }
+    },
+    "multi_view_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "source_candidate_id",
+        "reference_canvas_sha256",
+        "primary_view_id",
+        "view_count",
+        "objective",
+        "camera_source",
+        "views",
+        "aggregate_status",
+        "hard_gate_passed",
+        "source_loss",
+        "proposal_loss",
+        "strict_improvement",
+        "non_regressing",
+        "limitations",
+        "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "PrimaryFormMultiViewEvaluation@1"},
+        "project_id": {"$ref": "#/$defs/identifier"},
+        "source_candidate_id": {"$ref": "#/$defs/identifier"},
+        "reference_canvas_sha256": {"$ref": "#/$defs/sha256"},
+        "primary_view_id": {"$ref": "#/$defs/identifier"},
+        "view_count": {"type": "integer", "minimum": 2, "maximum": 8},
+        "objective": {"const": "primary-view-strict-and-all-views-non-regressing"},
+        "camera_source": {"const": "runtime-inferred-from-view-kind-and-reference-mask"},
+        "views": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/multi_view"}
+        },
+        "aggregate_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET"]},
+        "hard_gate_passed": {"type": "boolean"},
+        "source_loss": {"type": "number", "minimum": 0},
+        "proposal_loss": {"type": "number", "minimum": 0},
+        "strict_improvement": {"type": "boolean"},
+        "non_regressing": {"type": "boolean"},
+        "limitations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1, "maxLength": 256}
+        },
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "multi_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "kind",
+        "reference_id",
+        "reference_sha256",
+        "view_spec",
+        "camera",
+        "camera_source",
+        "source_metrics",
+        "proposal_metrics",
+        "source_status",
+        "proposal_status",
+        "source_loss",
+        "proposal_loss",
+        "non_regressing",
+        "strict_improvement"
+      ],
+      "properties": {
+        "view_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"$ref": "#/$defs/identifier"},
+        "reference_id": {"$ref": "#/$defs/identifier"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"},
+        "view_spec": {"$ref": "https://forgecad.local/contracts/reference-view-spec.schema.json"},
+        "camera": {"$ref": "https://forgecad.local/contracts/camera-calibration.schema.json"},
+        "camera_source": {"const": "runtime-inferred-from-view-kind-and-reference-mask"},
+        "source_metrics": {"$ref": "#/$defs/multi_view_metrics"},
+        "proposal_metrics": {"$ref": "#/$defs/multi_view_metrics"},
+        "source_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET"]},
+        "proposal_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET"]},
+        "source_loss": {"type": "number", "minimum": 0},
+        "proposal_loss": {"type": "number", "minimum": 0},
+        "non_regressing": {"type": "boolean"},
+        "strict_improvement": {"type": "boolean"}
+      }
+    },
+    "multi_view_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "silhouette_iou",
+        "boundary_f1_4px",
+        "bbox_edge_error",
+        "centroid_error",
+        "landmark_coverage",
+        "landmark_nme",
+        "region_median_iou",
+        "critical_region_min_iou",
+        "sdf_chamfer_px"
+      ],
+      "properties": {
+        "silhouette_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "boundary_f1_4px": {"type": "number", "minimum": 0, "maximum": 1},
+        "bbox_edge_error": {"type": "number", "minimum": 0},
+        "centroid_error": {"type": "number", "minimum": 0},
+        "landmark_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "landmark_nme": {"type": "number", "minimum": 0, "maximum": 1},
+        "region_median_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "critical_region_min_iou": {"type": "number", "minimum": 0, "maximum": 1},
+        "sdf_chamfer_px": {"type": "number", "minimum": 0}
       }
     }
   }

@@ -168,7 +168,12 @@ expected_set = canonical_hash([
 assert canvas["reference_set_sha256"] == expected_set
 canvas_without_hash = dict(canvas)
 canvas_without_hash["canonical_sha256"] = ""
-assert canvas["canonical_sha256"] == canonical_hash(canvas_without_hash)
+# The Runtime owns producer canonical fields on the Codex wire.  The helper
+# still precomputes DesignSpec.reference_canvas_sha256 against the fully
+# canonicalized Runtime object, but leaves this transport field blank so a
+# client cannot replace the field hash with the object hash.
+assert canvas["canonical_sha256"] == ""
+assert len(complete["design_spec"]["reference_canvas_sha256"]) == 64
 
 changed = [dict(item) for item in ordered]
 changed[-1] = dict(changed[-1], reference_sha256="f" * 64)

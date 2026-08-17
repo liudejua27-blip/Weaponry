@@ -1,0 +1,32 @@
+{
+  "schema_version": "ForgeCADMCP010FHQ360Probe@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_BLOCKED",
+  "full_360_reference": "BLOCKED_REFERENCE_COVERAGE",
+  "required_views": [
+    "front",
+    "back",
+    "left",
+    "right",
+    "rear_three_quarter"
+  ],
+  "observed_coverage": {
+    "front": "visible_or_partial",
+    "back": "unknown",
+    "left": "partial",
+    "right": "visible_or_partial",
+    "rear_three_quarter": "cropped_or_unknown",
+    "feet": "cropped_or_unknown"
+  },
+  "missing_coverage_views": [
+    "back",
+    "rear_three_quarter"
+  ],
+  "quality_contract_hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "correction_state_hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "persistent_user_data_touched": false,
+  "limitations": [
+    "One-image inputs still block full 360 gate until all required orthographic views are available.",
+    "This probe does not alter quality score, only confirms coverage status."
+  ]
+}
