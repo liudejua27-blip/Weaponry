@@ -1,0 +1,76 @@
+{
+  "schema_version": "ForgeCADWeaponBlockoutPlan@1",
+  "asset_id": "weaponry-modular-rifle-001",
+  "title": "Modular sci-fi rifle / Blockout 01",
+  "scope": "non-functional game/film visual asset",
+  "source_kind": "codex-authored-original-design",
+  "reference_status": "NOT_PROVIDED",
+  "reference_coverage": {
+    "front": "unknown",
+    "back": "unknown",
+    "left": "unknown",
+    "right": "unknown",
+    "top": "unknown",
+    "bottom": "unknown"
+  },
+  "coordinate_system": "right-handed-y-up",
+  "units": {
+    "length": "meter",
+    "angle": "radian"
+  },
+  "design_language": [
+    "long forward barrel axis",
+    "tapered receiver wedge",
+    "layered side armor",
+    "dark mechanical core with warm indicator accents",
+    "controlled bilateral detail symmetry"
+  ],
+  "stages": [
+    {
+      "stage": "blockout",
+      "status": "ready_for_typed_hash",
+      "exit_gate": "silhouette and proportion review before tertiary detail"
+    },
+    {
+      "stage": "primary-form",
+      "status": "locked",
+      "exit_gate": "candidate-bound reference comparison with fixed camera"
+    },
+    {
+      "stage": "secondary-structure",
+      "status": "locked",
+      "exit_gate": "non-regressing boundary and silhouette metrics"
+    },
+    {
+      "stage": "tertiary-detail",
+      "status": "locked",
+      "exit_gate": "approved detail inventory and stable Part lineage"
+    },
+    {
+      "stage": "production-geometry",
+      "status": "locked",
+      "exit_gate": "UV/tangent/PBR/readback and human review"
+    }
+  ],
+  "parts": [
+    {"part_id":"receiver-core","role":"primary-form","observability":"inferred","operator_ids":["forgecad.geometry.panel@1","forgecad.geometry.profile-loft@1"],"material_zone_id":"dark-painted-metal"},
+    {"part_id":"barrel-assembly","role":"primary-form","observability":"inferred","operator_ids":["forgecad.geometry.primitive@2","forgecad.geometry.joint-stack@1"],"material_zone_id":"brushed-steel"},
+    {"part_id":"stock-shell","role":"primary-form","observability":"inferred","operator_ids":["forgecad.geometry.profile-extrude@1"],"material_zone_id":"engineering-plastic"},
+    {"part_id":"grip-module","role":"primary-form","observability":"inferred","operator_ids":["forgecad.geometry.profile-extrude@1"],"material_zone_id":"engineering-plastic"},
+    {"part_id":"magazine-module","role":"primary-form","observability":"inferred","operator_ids":["forgecad.geometry.panel@1"],"material_zone_id":"black-anodized-metal"},
+    {"part_id":"energy-core","role":"identity-accent","observability":"inferred","operator_ids":["forgecad.geometry.primitive@2"],"material_zone_id":"warm-orange-emissive"},
+    {"part_id":"optic-rail","role":"secondary-structure","observability":"inferred","operator_ids":["forgecad.geometry.panel@1"],"material_zone_id":"black-anodized-metal"},
+    {"part_id":"side-armor","role":"secondary-structure","observability":"inferred","operator_ids":["forgecad.geometry.panel@1","forgecad.geometry.mirror@1"],"material_zone_id":"dark-painted-metal"},
+    {"part_id":"vent-array","role":"secondary-structure","observability":"inferred","operator_ids":["forgecad.geometry.vent-array@1","forgecad.geometry.mirror@1"],"material_zone_id":"black-anodized-metal"},
+    {"part_id":"rear-joint","role":"secondary-structure","observability":"inferred","operator_ids":["forgecad.geometry.joint-stack@1"],"material_zone_id":"brushed-steel"},
+    {"part_id":"cable-run","role":"secondary-structure","observability":"inferred","operator_ids":["forgecad.geometry.tube-sweep@1","forgecad.geometry.mirror@1"],"material_zone_id":"joint-rubber"},
+    {"part_id":"status-light","role":"identity-accent","observability":"inferred","operator_ids":["forgecad.geometry.panel@1"],"material_zone_id":"warm-orange-emissive"}
+  ],
+  "quality_contract": {
+    "structural": ["closed GeometryProgram@2", "active OperatorCatalog hash", "stable semantic Part sinks", "strict GLB readback"],
+    "visual": ["fixed-camera silhouette compare", "boundary-first correction", "reference coverage explicitly bound"],
+    "human": ["independent visual review required before confirmation"],
+    "not_claimed": ["real-world function", "manufacturing dimensions", "weapon performance", "high-quality likeness", "360-degree pass"]
+  },
+  "next_safe_action": "obtain an authorized rifle reference or approve this original design brief, then create a dedicated Runtime project before geometry_prepare"
+}

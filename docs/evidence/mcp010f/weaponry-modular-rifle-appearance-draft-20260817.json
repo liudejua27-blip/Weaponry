@@ -1,0 +1,14 @@
+{
+  "schema_version": "AppearanceProgram@1",
+  "project_id": "weaponry-modular-rifle-001",
+  "geometry_program_sha256": "fc012fd0c6e0c75800475689bb5bb73455e6f5f1666086007c70e8d06ccd6e7b",
+  "material_zones": [
+    {"zone_id":"dark-painted-metal","part_ids":["receiver-core","side-armor"],"base_color":[0.18,0.22,0.28,1.0],"metallic":0.72,"roughness":0.3,"emissive":[0.0,0.0,0.0]},
+    {"zone_id":"brushed-steel","part_ids":["barrel-assembly","rear-joint"],"base_color":[0.48,0.54,0.6,1.0],"metallic":0.86,"roughness":0.2,"emissive":[0.0,0.0,0.0]},
+    {"zone_id":"engineering-plastic","part_ids":["stock-shell","grip-module"],"base_color":[0.28,0.34,0.4,1.0],"metallic":0.22,"roughness":0.4,"emissive":[0.0,0.0,0.0]},
+    {"zone_id":"black-anodized-metal","part_ids":["magazine-module","optic-rail","vent-array"],"base_color":[0.025,0.035,0.05,1.0],"metallic":0.82,"roughness":0.24,"emissive":[0.0,0.0,0.0]},
+    {"zone_id":"warm-orange-emissive","part_ids":["energy-core","status-light"],"base_color":[0.12,0.025,0.005,1.0],"metallic":0.2,"roughness":0.22,"emissive":[1.0,0.12,0.01]},
+    {"zone_id":"joint-rubber","part_ids":["cable-run"],"base_color":[0.02,0.025,0.03,1.0],"metallic":0.05,"roughness":0.65,"emissive":[0.0,0.0,0.0]}
+  ],
+  "canonical_sha256": "3fffeecc1013b988425e1caecee372242480381c0f68d6e89b453791112d9c35"
+}

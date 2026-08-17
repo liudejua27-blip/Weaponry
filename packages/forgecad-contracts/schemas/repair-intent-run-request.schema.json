@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/repair-intent-run-request.schema.json",
+  "title": "ForgeCAD RepairIntent Run Prepare Request",
+  "description": "Approval-gated execution of one immutable CAS-bound RepairIntent through the Runtime-owned bounded prepare, compile, readback, render and compare loop.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "run_id",
+    "intent_sha256",
+    "intent_object_sha256",
+    "observation_sha256",
+    "source_evidence_sha256",
+    "reference_sha256",
+    "action",
+    "proposal",
+    "requested_stage",
+    "input_sha256",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "idempotency_key"
+  ],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "session_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "run_id": {"$ref": "#/$defs/identifier"},
+    "intent_sha256": {"$ref": "#/$defs/sha256"},
+    "intent_object_sha256": {"$ref": "#/$defs/sha256"},
+    "observation_sha256": {"$ref": "#/$defs/sha256"},
+    "source_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "action": {"$ref": "https://forgecad.local/contracts/design-action-run.schema.json#/$defs/action"},
+    "proposal": {"$ref": "#/$defs/proposal"},
+    "requested_stage": {"$ref": "https://forgecad.local/contracts/design-action-run.schema.json#/$defs/stage"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "approved": {"const": true},
+    "approval_receipt_id": {"$ref": "#/$defs/identifier"},
+    "approval_summary": {"$ref": "#/$defs/safe_text"},
+    "approval_expires_at": {"$ref": "#/$defs/safe_text"},
+    "approval_session_id": {"$ref": "#/$defs/identifier"},
+    "idempotency_key": {"$ref": "#/$defs/identifier"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {"anyOf": [
+        {"pattern": "^[/\\\\]"},
+        {"pattern": "^[A-Za-z]:[/\\\\]"},
+        {"pattern": "^(file|data|https?|ftp|ssh|git)://"},
+        {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+        {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+        {"pattern": "[Ss][Ee][Cc][Rr][Ee][Tt]\\s*[:=]"},
+        {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+      ]}
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry_program", "view_spec", "camera"],
+      "properties": {
+        "geometry_program": {"type": "object"},
+        "view_spec": {"type": "object"},
+        "camera": {"type": "object"},
+        "view_evaluations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {"type": "object", "additionalProperties": false}
+        }
+      }
+    }
+  }
+}

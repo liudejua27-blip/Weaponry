@@ -9,12 +9,14 @@ commands; packaged/current-cohort UI E2E remains a separate gate.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 VIEWER = ROOT / "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx"
 APP = ROOT / "apps/desktop/src/App.tsx"
+TAURI_MAIN = ROOT / "apps/desktop/src-tauri/src/main.rs"
 STYLES = ROOT / "apps/desktop/src/styles.css"
 TAURI_VIEWER = ROOT / "apps/desktop/src-tauri/src/viewer.rs"
 COMPARE_WORKER = ROOT / "apps/desktop/src/features/runtime-viewer/compare-worker.ts"
@@ -24,6 +26,7 @@ AGENTIC_DESIGN = ROOT / "apps/desktop/src/features/runtime-viewer/agentic-design
 def main() -> int:
     source = VIEWER.read_text(encoding="utf-8")
     app_source = APP.read_text(encoding="utf-8")
+    tauri_main_source = TAURI_MAIN.read_text(encoding="utf-8")
     styles = STYLES.read_text(encoding="utf-8")
     tauri_source = TAURI_VIEWER.read_text(encoding="utf-8")
     agentic_source = AGENTIC_DESIGN.read_text(encoding="utf-8")
@@ -170,6 +173,30 @@ def main() -> int:
         raise SystemExit(f"Viewer source surface is missing required tokens: {missing}")
     if "<RuntimeViewer" not in app_source or "from './features/runtime-viewer/RuntimeViewer'" not in app_source:
         raise SystemExit("Desktop App must mount the Runtime Viewer as its only product entry surface")
+    expected_runtime_commands = sorted({
+        "viewer_read_model",
+        "viewer_read_model_summary",
+        "viewer_artifact_bytes",
+        "viewer_reference_bytes",
+        "viewer_render_pass",
+        "viewer_visual_evidence",
+        "viewer_agentic_projection",
+        "viewer_agentic_session",
+    })
+    actual_runtime_commands = sorted(set(re.findall(
+        r"runtimeInvoke(?:<[^>]+>)?\(\s*['\"]([^'\"]+)", source
+    )))
+    if actual_runtime_commands != expected_runtime_commands:
+        raise SystemExit(
+            "Viewer invokes a Runtime command outside its read-only allowlist: "
+            f"{actual_runtime_commands}"
+        )
+    actual_tauri_commands = sorted(set(re.findall(r"\bviewer_[a-z_]+\b", tauri_main_source)))
+    if actual_tauri_commands != expected_runtime_commands:
+        raise SystemExit(
+            "Tauri Viewer command registration drifted from the read-only allowlist: "
+            f"{actual_tauri_commands}"
+        )
     forbidden_app_entry_tokens = [
         'type="file"',
         "<textarea",
@@ -217,6 +244,25 @@ def main() -> int:
     leaked = [token for token in forbidden_write_tokens if token in source]
     if leaked:
         raise SystemExit(f"Viewer source contains Runtime write calls: {leaked}")
+    snapshot_start = source.find("const exportCompareSnapshot = async () => {")
+    snapshot_end = source.find("  const measuredPixels", snapshot_start)
+    if snapshot_start < 0 or snapshot_end < 0:
+        raise SystemExit("Viewer local compare snapshot boundary is missing")
+    snapshot_source = source[snapshot_start:snapshot_end]
+    local_snapshot_forbidden = [
+        "runtimeInvoke",
+        "tauriInvoke",
+        "fetch(",
+        "candidate_confirm",
+        "export_confirm",
+        "writeFile",
+    ]
+    leaked_local_snapshot_tokens = [token for token in local_snapshot_forbidden if token in snapshot_source]
+    if leaked_local_snapshot_tokens:
+        raise SystemExit(
+            "Viewer compare snapshot must remain a local transient download: "
+            f"{leaked_local_snapshot_tokens}"
+        )
     if "read-only IPC client" not in tauri_source or "read_model" not in tauri_source:
         raise SystemExit("Viewer Tauri bridge is missing its read-only projection boundary")
     worker_source = COMPARE_WORKER.read_text(encoding="utf-8")

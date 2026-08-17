@@ -1,5 +1,9 @@
 # ForgeCAD Agentic Design Runtime 重规划
 
+2026-08-17 P2 binding follow-up：RenderSet camera CAS 与 RepairIntent observation hash 已纳入 Runtime 生产/回读边界；最新 Dev.app isolated real-reference run 完成 compile/readback/render/compare/evaluate 后按严格视觉门 blocked，保留 staged-only、source unchanged、no confirm/version/export。receipt：`docs/evidence/mcp010f/real-reference-repair-intent-run-observation-cas-20260817.json`。
+
+2026-08-17 当前 source/package slice：`repair_intent_run_prepare` 已把 CAS RepairIntent 校验、exact observation/reference/camera/candidate binding 和 bounded compile/readback/render/compare 连接起来；最终 Dev.app 的真实授权参考 packaged transport 已通过，但在 camera evidence gate blocked，只产 staged candidate。Repair apply/confirm、完整 orchestrator 与视觉质量门仍未完成。当前工具面为 129 Schema、41 read + 33 opt-in write = 74 tools。
+
 版本：2026-08-13
 状态：目标架构计划；observe/plan projection、嵌套只读 projection producer/consumer conformance、durable session/checkpoint/RepairIntent prepare/readback 与 MCP010F 窄范围 Primary Form 单动作 prepare/evaluate 已实现并通过各自证据；durable/reference/DesignSpec 完整 producer、通用单动作 orchestrator、Repair 应用和完整视觉闭环仍未完成，不改变 MCP010F 的 `QUALITY_TARGET_NOT_MET` 事实
 
@@ -205,7 +209,7 @@ allowed: true
 
 ## 7. 文档和任务落地
 
-当前源码为 `125 Schema / 41 read + 32 opt-in write = 73 tools`。`RenderSet@2` 已携带 Runtime-authenticated Render Worker cohort/status，Viewer 只读消费；durable prepare/readback 与 Primary Form 窄范围 prepare/evaluate/async-Job slice 已有各自 focused/source/real-Codex receipt；建议下一批文档/代码任务：
+当前源码为 `129 Schema / 41 read + 33 opt-in write = 74 tools`。`RenderSet@2` 已携带 Runtime-authenticated Render Worker cohort/status，Viewer 只读消费；durable prepare/readback、CAS-bound RepairIntentRun 与 Primary Form 窄范围 prepare/evaluate/async-Job slice 已有各自 focused/source/real-Codex receipt；建议下一批文档/代码任务：
 
 1. 为 durable/reference/DesignSpec producer 增加剩余完整 producer/consumer conformance，避免字段漂移；嵌套只读 projection checker 已完成，回执见 `scripts/check_agentic_projection_receipt.py`；
 2. 将当前 Primary Form 窄范围链路抽象为通用单动作 `prepare -> compile -> readback -> render -> evaluate` orchestrator，但仍不绕过用户批准；

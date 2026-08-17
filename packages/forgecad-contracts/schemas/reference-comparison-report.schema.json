@@ -15,6 +15,7 @@
     "render_set_hash": {"$ref": "#/$defs/sha256"},
     "view_id": {"$ref": "#/$defs/identifier"},
     "camera_hash": {"$ref": "#/$defs/sha256"},
+    "benchmark_eligibility": {"enum": ["READY_PARTIAL_VIEW", "BLOCKED_USER_CONFIRMATION_REQUIRED"]},
     "mask": {
       "type": "object",
       "additionalProperties": false,

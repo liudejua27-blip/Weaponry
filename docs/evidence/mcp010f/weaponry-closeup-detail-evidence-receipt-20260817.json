@@ -1,0 +1,35 @@
+{
+  "schema_version": "ForgeCADWeaponCloseupDetailEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "asset_id": "weaponry-modular-rifle-001",
+  "status": "PASS_CLOSEUP_RENDER_TRANSPORT_WITH_DETAIL_GAPS",
+  "source_geometry_program_sha256": "fc012fd0c6e0c75800475689bb5bb73455e6f5f1666086007c70e8d06ccd6e7b",
+  "source_appearance_program_sha256": "3fffeecc1013b988425e1caecee372242480381c0f68d6e89b453791112d9c35",
+  "source_artifact_sha256": "799f7ce0d236db3fb44836df8d8871db8275826c6c187cb8df7f6024a4cbd221",
+  "renderer": {"component":"forgecad-render-worker","renderer_revision":"forgecad-renderer-2","build_cohort_sha256":"906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8","resolution":"512x512","aov_count":9,"aov_order":["beauty","silhouette","depth","normal","ao","part-id","material-id","wireframe","uv-stretch"]},
+  "views": [
+    {"view_id":"receiver-left-closeup","focus_part_ids":["receiver-core","side-armor","vent-array"],"framing_status":"VISIBLE_STRUCTURAL_DETAIL","beauty_sha256":"06157d99c58bddd5c2cebb50f3735e6997f2ff30036caa382d9e32558bf8fccf","part_id_sha256":"dacbc69ca678b29e94daf8b7f6aa8467b8898c282aa4eb6d7d6ae316875394d9","material_id_sha256":"aa47819af507b6d731662b1e14a1ae7af579b3694789cb789629a887e2e762c1"},
+    {"view_id":"receiver-right-closeup","focus_part_ids":["receiver-core","side-armor","vent-array"],"framing_status":"VISIBLE_STRUCTURAL_DETAIL","beauty_sha256":"0af08811b35fb0ef650b5217fae9cfe8acbb4f342bdf7c6ec0a0867443f51bbe","part_id_sha256":"27c495c28885dffa4425341546f2135834c21360710c85eb9db3409fe0b53f44","material_id_sha256":"f5adedd166f39eebcb65b04ed6fc3d03f2d1821721c702aa4c7ec67e41706a7c"},
+    {"view_id":"energy-core-closeup","focus_part_ids":["energy-core","receiver-core","status-light"],"framing_status":"OCCLUDED_NOT_OBSERVABLE","beauty_sha256":"48e991f631fca425b6da23ccd4fe579cb22f3043ec095f1fe2fc5927a4560daf","part_id_sha256":"76a4a57ec7b08e96b6fbe4cc9e64731d3458e84a9165432462de40bfb5ca2f13","material_id_sha256":"e940ae7d3df00468145fc871655690c6293984f37064d9c3e926a84730849073"},
+    {"view_id":"barrel-transition-closeup","focus_part_ids":["barrel-assembly","receiver-core"],"framing_status":"VISIBLE_STRUCTURAL_DETAIL","beauty_sha256":"79f144e7f3a54e39b58ccc6f762abc65efe089a296eb4c8589e0d3df0b52151d","part_id_sha256":"e434089a5a042862e5bceb260b488f515a626835a0399d9f2e5ece989445b4d5","material_id_sha256":"73bb967c0d34fdf93a8f7239b9405cd307112959df02d8d3bf9cc7fc9f981186"},
+    {"view_id":"stock-interface-closeup","focus_part_ids":["stock-shell","grip-module","magazine-module","rear-joint"],"framing_status":"PARTIAL_FRAMING_STRUCTURAL_ONLY","beauty_sha256":"cb821f4ad74ce016aa8c877ac376f1ff7f5425e731b25f9b7c2d396c7b763b36","part_id_sha256":"ac87823189fdbdb754cfd955f0b31895618bba86949077ebadbcefe6e67eb2ed","material_id_sha256":"020ba0b0d75a5d837db82bb7b8fe69ad1942b55684ad519f37597d2b7741152b"},
+    {"view_id":"optic-and-vent-closeup","focus_part_ids":["optic-rail","vent-array","side-armor","status-light"],"framing_status":"VISIBLE_STRUCTURAL_DETAIL","beauty_sha256":"e5f9bede52332ebcc47304620df872fda3862d101bb48f2676f4b4a492c32609","part_id_sha256":"74d2e7b3f6ae1baabe103b714bde0537324edec81439ece760ef5b184b43c76a","material_id_sha256":"29d202421f1471057f8145b84ca93dfdd58bcede73f5943b6d44006d2b6f6ba1"}
+  ],
+  "detail_review": {
+    "feature_line_f1": "NOT_RUN",
+    "panel_boundary_f1": "NOT_RUN",
+    "detail_density_error": "NOT_RUN",
+    "bevel_consistency": "NOT_RUN",
+    "floating_detail_count": "NOT_RUN",
+    "intersection_count": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "reference_comparison": "BLOCKED_REFERENCE_NOT_PROVIDED"
+  },
+  "findings": [
+    {"severity":"P1","part_id":"energy-core","finding":"The inferred energy core is not externally observable in the selected close-up; a typed window/seat or revised visibility decision is required before ornament work.","next_action":"one-Part energy-core-window or energy-core-seat proposal after user brief/reference review"},
+    {"severity":"P2","part_id":"stock-shell","finding":"Close-up framing is partial and does not prove tertiary detail quality.","next_action":"reframe or add a dedicated stock-side view after the primary form is approved"},
+    {"severity":"P2","part_id":"receiver-core","finding":"Receiver and vent layers are readable in structural AOVs, but no reference-bound feature-line score exists.","next_action":"supply an authorized close-up reference and run candidate-bound compare"}
+  ],
+  "persistence_boundary": {"runtime_project_id":null,"candidate_id":null,"version_id":null,"runtime_cas_write":false,"candidate_confirmed":false,"export_performed":false},
+  "quality_boundary": {"claim":"close-up render transport and structural observability only","visual_likeness":"NOT_RUN","pbr_texture_fidelity":"NOT_RUN","hq_360":"BLOCKED_REFERENCE_COVERAGE","production_ready":"NOT_RUN"}
+}

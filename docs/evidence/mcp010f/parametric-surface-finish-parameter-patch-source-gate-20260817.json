@@ -1,0 +1,56 @@
+{
+  "schema_version": "ForgeCADMCP010FP2ParametricSurfaceFinishSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_TYPED_PANEL_FINISH_PATCH_FAIL_CLOSED",
+  "scope": {
+    "runtime_parameter_patch_strategy": "hard-surface-finish-v1",
+    "supported_parameter_ids": ["*thickness", "*bevel"],
+    "supported_operators": {
+      "forgecad.geometry.panel@1": ["thickness_m", "bevel_m"],
+      "forgecad.geometry.surface-shell@1": ["thickness_m"]
+    },
+    "source_candidate_mutation": false,
+    "confirm_or_export": false
+  },
+  "geometry_relationships": {
+    "panel_thickness_le_size_z": true,
+    "panel_bevel_twice_lt_min_xy": true,
+    "surface_shell_thickness_positive_and_bounded": true,
+    "mixed_patch_families_rejected": true,
+    "ambiguous_source_node_rejected": true
+  },
+  "source": {
+    "runtime_agentic_action_rs_sha256": "938ed66ee4f0d7c90729fb7519be4a62670c345a5ca63769ddda88e729d70880",
+    "mcp_agentic_action_tools_rs_sha256": "bc8274096bb52ace9cf7cf90c8308e832d1a669fb3f4a8343496767d7ce900c0",
+    "tool_manifest_summary_sha256": "468ea082f44f07c86a7e0e1723bb1579ae3aa920e718b6e5459313303e63be0f",
+    "tool_manifest_canonical_sha256": "7ced259e4a8474598d24fa56fe812ce6f7a3ec9c756ddf10edd83e69c526b609",
+    "tool_manifest_write_enabled_sha256": "863d41926c5c444fe298b7c96a85478f9a9b5e3940ee7ddb89370cffc135afad",
+    "mcp_tool_counts": {"read": 41, "write": 33, "total": 74}
+  },
+  "verification": {
+    "runtime_parameter_patch_unit": "PASS",
+    "panel_operator_support_and_relationship_negative_fixtures": "PASS",
+    "mcp_runtime_workspace_check": "PASS",
+    "forgecad_contracts": "PASS_127_SCHEMAS",
+    "agentic_contracts": "PASS_13_SCHEMAS_POSITIVE_AND_NEGATIVE_FIXTURES",
+    "mcp010f_full_source_gate": "PASS_WITH_INTENTIONAL_FAILED_VISUAL_ASSERTIONS",
+    "persistent_user_data_touched": false,
+    "packaged_or_live_desktop": "NOT_RUN_SOURCE_ONLY"
+  },
+  "quality_boundary": {
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "likeness_claim": "NOT_CLAIMED",
+    "human_review": "NOT_RUN",
+    "pbr_material_quality": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "not_claimed": [
+    "Parametric Design Kit v0 complete",
+    "generic macro producer",
+    "real panel-finish likeness improvement",
+    "packaged cohort or live Codex restart"
+  ],
+  "canonical_sha256": "5691a861b74768bb508404998a6b820c97334025ecb03810ab21881d9ed4aa76"
+}

@@ -1,0 +1,39 @@
+project: opensubdiv
+source_url: https://github.com/PixarAnimationStudios/OpenSubdiv
+revision: 4951f30c00f395aa831a9fc42577cc28ce46fa81
+identity: controlled-source-research
+license_name: Tomorrow Open Source Technology License 1.0
+license_spdx: LicenseRef-TOMORROW-OPEN-SOURCE-TECHNOLOGY-1.0
+license_file: LICENSE.txt
+license_file_git_blob: aa357669b831a0bc7ebb827181b060782b580f24
+license_file_sha256: 9211071ceaea05cec948f44a025ede3030f41506960d68b50e7ddb6edc2abe5b
+notice_file: NOTICE.txt
+notice_file_git_blob: baec75f37bf57e15d9b3eb61155185f70b72e43e
+notice_file_sha256: c9a283f0d3752b74d348a57e1d45e71cf69651ce6cbdce866983e459f6422c7c
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - opensubdiv/far/topologyRefiner.h
+  - opensubdiv/far/patchTable.h
+  - opensubdiv/sdc/catmarkScheme.h
+candidate_source_git_blobs:
+  opensubdiv/far/topologyRefiner.h: be79f6b3b64b9e7b076e8f76ee6cca59d8554be8
+  opensubdiv/far/patchTable.h: 2eda5f2aedeabecb3c2216067b2f635de96b08d9
+  opensubdiv/sdc/catmarkScheme.h: 04116ca1b69e713bc9d7d9504984574c32e9d22f
+target: bounded offline subdivision/refinement evaluation for product-owned geometry workers
+denied_capabilities:
+  - cmake_build
+  - gpu_backend_or_shader_execution
+  - filesystem_read
+  - filesystem_write
+  - network
+  - dynamic_code
+  - direct_runtime_state_write
+lockfile_or_package_change: false
+static_security_review:
+  - selected headers expose topology/refinement types only; no network, process execution, environment, or arbitrary script entry point was observed
+  - full repository includes optional GPU/build surfaces; those paths remain outside the candidate cache and require a separate review
+  - license is non-SPDX-standard TSL text and therefore requires legal/package review before any distribution use
+approval: research-authorized
+next_gate: isolate a CPU-only bounded evaluator, then run deterministic topology, memory, timeout, and malformed-mesh benchmarks with a complete dependency SBOM
+fallback_or_removal_plan: Keep the current product-owned bounded operators and discard the research cache if license, determinism, resource, or visual regression review fails.

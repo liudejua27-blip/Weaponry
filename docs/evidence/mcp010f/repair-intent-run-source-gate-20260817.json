@@ -1,0 +1,81 @@
+{
+  "schema_version": "ForgeCADMCP010FP2RepairIntentRunSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_FAIL_CLOSED_CAMERA_BOUND_REPAIR_INTENT_RUN",
+  "source": {
+    "mcp_main_rs_sha256": "85b5bee2bcf2a8a6f67a0223e7be47c5e1d1c90033d072516da57a709716e684",
+    "mcp_agentic_action_tools_rs_sha256": "57ac65447607312cf4749a70f3d50b97a46d65c1b1d9e79cb20f670b26973c6a",
+    "runtime_agentic_action_rs_sha256": "dd7759f7a6fb9b911b0e4ef3296ee1d9e88603c0bedc81aaa6b29cc6b0468856",
+    "runtime_lib_rs_sha256": "59c887c552afc2a29cc0c24609cc48ca0e3d018b3bff809469836fed1e347c0b",
+    "request_schema_sha256": "1f270303e53fd467466c5e5a2cbe114ac17f6623d40fef2a51f0ef90e105e446",
+    "result_schema_sha256": "a6f5d2f8bd423dd9c466521cbc2142642a79b3d549aaad61e051556cae9fd845",
+    "contract_manifest_sha256": "a66fa719ccf4cea41e3434f97fd654c45531dfd07f69076597bf391629094e8b",
+    "schema_count": 127,
+    "mcp_tool_counts": {
+      "read": 41,
+      "write": 33,
+      "total": 74
+    },
+    "tool_manifest_summary_sha256": "4f3ce4fe5562c2b2d36c50c73c25ad1ed7ef1ea4a11e309d7eb8cdc266117878"
+  },
+  "package": {
+    "build_cohort_sha256": "18c9fb86cafc7e7baf2356e2efe9db404e6530fdeae54d33c0a9beba94fbae40",
+    "install_receipt": "docs/evidence/mcp010f/dev-app-install-observation-binding-fix-20260817.json",
+    "probe_receipt": "docs/evidence/mcp010f/real-reference-repair-intent-run-observation-cas-20260817.json",
+    "install": "PASS",
+    "isolated_preflight_and_ready_probe": "PASS_REAL_REFERENCE",
+    "build_cohort_match": true,
+    "repair_intent_run_positive_transport": "PASS_REPAIR_INTENT_RUN_REAL_REFERENCE_CAMERA_BOUND_BLOCKED_VISUAL_GATE",
+    "camera_binding_fix_source": "PASS_RENDERSET_V2_EMBEDS_CAMERA_OBJECT_SHA256",
+    "camera_binding_fix_packaged_probe": "PASS_RENDER_COMPLETED_REAL_REFERENCE_VISUAL_GATE_STILL_BLOCKED",
+    "codex_desktop_restart_gate": "NOT_RUN"
+  },
+  "boundary": {
+    "intent_source": "Runtime-owned CAS object with kind=agentic-repair-intent and RepairIntent@1 canonical hash",
+    "required_bindings": [
+      "project_id",
+      "session_id",
+      "candidate_id",
+      "run_id",
+      "intent_sha256",
+      "intent_object_sha256",
+      "observation_sha256",
+      "source_evidence_sha256",
+      "reference_sha256",
+      "camera_hash",
+      "candidate_state_sha256"
+    ],
+    "action_scope": "bounded-repair / part",
+    "recompute_steps": ["compile", "readback", "render", "compare"],
+    "caller_intent_override": "rejected",
+    "candidate_mutation": "isolated staged candidate only",
+    "source_candidate_unchanged": true,
+    "repair_apply_prepare": "separate follow-up transaction",
+    "confirm_allowed": false,
+    "version_or_export": "not performed"
+  },
+  "verification": {
+    "forgecad_contracts_checker": "PASS_127_SCHEMAS",
+    "agentic_contract_checker": "PASS_13_SCHEMAS_POSITIVE_AND_NEGATIVE_FIXTURES",
+    "mcp_agentic_action_tests": "PASS_10",
+    "runtime_agentic_action_tests": "PASS_8_EXISTING_PLUS_DISPATCH_TARGETED",
+    "mcp010f_full_source_gate": "PASS_WITH_INTENTIONAL_FAILED_VISUAL_ASSERTIONS",
+    "stage0_truth": "PASS_WITH_EXPECTED_CAMERA_AND_TRUTH_BINDING_FAILURES_RETAINED",
+    "persistent_user_data_touched": false,
+    "packaged_positive_repair_intent_run": "PASS_REPAIR_INTENT_RUN_REAL_REFERENCE_CAMERA_BOUND_BLOCKED_VISUAL_GATE",
+    "render_set_camera_object_binding": "PASS_SOURCE_AND_PACKAGED_RENDER_COMPLETED",
+    "live_codex_desktop": "NOT_RUN_RESTART_REQUIRED"
+  },
+  "not_claimed": [
+    "full_generic_repair_orchestrator",
+    "repair_apply_prepare_or_confirm",
+    "real_multiview_reference_intake",
+    "camera_calibration_or_likeness_pass",
+    "PBR_or_material_quality",
+    "independent_human_visual_review",
+    "export_restart_hash",
+    "HQ_360_PASS"
+  ],
+  "canonical_sha256": "8a9c70fae1d24e2a44192f03fc2a438af0d32fb068a32d251aeb0d8517d0b39a"
+}

@@ -1,7 +1,7 @@
 # ForgeCAD Codex-only MVP 执行计划
 
-版本：2026-08-13
-状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done；FGC-MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source-focused in_progress（packaged/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 的 Agentic Design Runtime 已落地 projection、durable prepare/readback、独立 stage batch、带父程序哈希链校验的可选 cumulative-program composition merge prepare 和 `repair_apply_prepare` CAS-backed apply-intent boundary；正向 merge candidate、Repair 实际应用、用户批准后的晋级和视觉门仍未完成。
+版本：2026-08-17
+状态：MCP005–MCP009 MVP host golden path 已收口；FGC-MCP010A done；FGC-MCP010B structural source Gate PASS 但 Darwin OS memory hard cap deferred/NOT_RUN；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source-focused in_progress（packaged/人评/360 子门 NOT_RUN/BLOCKED）。2026-08-17 最新 PDK v0 source Gate 与完整 `script/test_mcp010f.sh` source Gate PASS，源码已重建并安装 Dev.app cohort `6f00a58a2b71fd87a9e70844915ef33c3d640200f283ac6601c1da6ca553ed50`，package/probe PASS；当前真实授权参考隔离 RepairIntent 回归仍以既有 cohort receipt 为准，已走到 evaluate 后按 `QUALITY_TARGET_NOT_MET` blocked；无 confirm/version/export。Codex Desktop live restart 仍 `NOT_RUN`。ADR-0026 的 Agentic Design Runtime 已落地 projection、durable prepare/readback、独立 stage batch、带父程序哈希链校验的可选 cumulative-program composition merge prepare 和 `repair_apply_prepare` CAS-backed apply-intent boundary；正向 merge candidate、Repair 实际应用、用户批准后的晋级和视觉门仍未完成。
 
 ## 1. 产品策略
 

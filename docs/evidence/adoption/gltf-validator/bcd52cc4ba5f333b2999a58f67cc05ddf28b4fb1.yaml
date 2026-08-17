@@ -1,0 +1,41 @@
+project: gltf-validator
+source_url: https://github.com/KhronosGroup/glTF-Validator
+revision: bcd52cc4ba5f333b2999a58f67cc05ddf28b4fb1
+identity: controlled-source-research
+license_spdx: Apache-2.0
+license_file: LICENSE
+license_file_git_blob: d645695673349e3947e8e5ae42332d0ac3164cd7
+license_file_sha256: cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+notice_file: NOTICES
+notice_file_git_blob: ec355247a135fa81114fbeaa904bdb219d4cd74
+notice_file_sha256: d7a1cefe85110c1308632d0384b7a67a18c125193e54175c50d1982d8c81a2f4
+package_file: node/package.json
+package_file_git_blob: 5a9151e7b16b009cabab76cf1d67d55540a3e846
+package_file_sha256: 6fe1d92de43691dbc509e69d34ecfbd0d57120ea645e13eadb04aa5750914305
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - node/index.js
+  - node/package.json
+candidate_source_git_blobs:
+  node/index.js: 8e51775c4e1c06ec2bafbfaf15f6c831ca88f96b
+candidate_source_sha256:
+  node/index.js: c5bd63d3955d1ffb28acd3b2bf0d430aefec8acf317f417536ad14db29f4081f
+  node/package.json: 6fe1d92de43691dbc509e69d34ecfbd0d57120ea645e13eadb04aa5750914305
+target: external GLB validation receipt only; Runtime readback remains authoritative
+denied_capabilities:
+  - network
+  - filesystem_read
+  - filesystem_write
+  - external_resource_callback
+  - arbitrary_uri_or_absolute_path
+  - dynamic_code
+  - direct_runtime_state_write
+lockfile_or_package_change: false
+static_security_review:
+  - node/index.js is a thin byte/string wrapper around the compiled validator and showed no process, network, filesystem, or environment access
+  - the upstream API supports externalResourceFunction and URI/report fields; any future wrapper must accept in-memory bytes only, disable external resources, normalize URI fields, and bound issue/output sizes
+  - NOTICES contains transitive component licenses; a complete SBOM is required before packaging
+approval: research-authorized
+next_gate: build an isolated validator worker/report normalizer and run malformed GLB, external-resource denial, report determinism, timeout, memory, and version-compatibility tests
+fallback_or_removal_plan: Retain Runtime GLB readback as the only product gate and omit the external validator if isolation or report normalization is not proven.

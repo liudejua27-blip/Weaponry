@@ -5,7 +5,7 @@
 //! SQLite/CAS mutation to the Store.  It never confirms a candidate, creates a
 //! version, or treats a failed visual gate as a pass.
 
-use super::{canonical_json_hash, sha256_hex, Runtime, RuntimeError};
+use super::{canonical_json_hash, normalize_json_numbers, sha256_hex, Runtime, RuntimeError};
 use forgecad_contracts::{is_opaque_id, is_sha256, CandidateRecord, ReferenceEvidenceRecord};
 use forgecad_store::{AgenticCheckpointRecord, AgenticSessionRecord};
 use serde_json::{json, Map, Value};
@@ -20,6 +20,18 @@ const STAGES: [&str; 6] = [
     "tertiary-detail",
     "uv-pbr",
     "final-review",
+];
+
+/// A complete high-quality reference set must contain the five identity
+/// views. Perspective, top, material and detail views are useful supplements,
+/// but none can replace a canonical front/back/left/right or rear-three-quarter
+/// view for an HQ_360 claim.
+const REQUIRED_HQ_REFERENCE_VIEWS: [&str; 5] = [
+    "front",
+    "back",
+    "left",
+    "right",
+    "rear-three-quarter",
 ];
 
 impl Runtime {
@@ -116,6 +128,8 @@ impl Runtime {
                 project_id,
                 reference_canvas_id,
                 &reference,
+                camera_hash,
+                evidence_sha256,
             )?,
             None => canonical_value(build_reference_canvas(&reference, reference_canvas_id)),
         };
@@ -903,6 +917,136 @@ pub(crate) fn durable_reference_canvas_for_session_binding(
     Ok((canvas, session.reference_canvas_sha256))
 }
 
+/// Require an explicit, hash-bound authoring context before a design action
+/// can compile or compare geometry.  `session_create_or_resume` deliberately
+/// retains a conservative default canvas for observation-only intake, but
+/// that fallback must never become an implicit visual-quality input.  Every
+/// supplied view therefore needs its own ViewSpec, target/mask pair and
+/// non-unknown camera claim; the top-level binding must also point at the
+/// session's evidence.  This function is read-only and never changes CAS or
+/// candidate state.
+pub(crate) fn require_bound_authoring_context(
+    runtime: &Runtime,
+    session: &AgenticSessionRecord,
+) -> Result<Value, RuntimeError> {
+    let context = read_authoring_context(runtime, session)?;
+    let canvas = context
+        .get("reference_canvas")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: durable ReferenceCanvas is missing"
+                    .to_owned(),
+            )
+        })?;
+    let bindings = canvas
+        .get("bindings")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: ReferenceCanvas bindings are missing"
+                    .to_owned(),
+            )
+        })?;
+    if bindings.get("status").and_then(Value::as_str) != Some("bound")
+        || bindings.get("camera_hash").and_then(Value::as_str)
+            != Some(session.camera_hash.as_str())
+        || bindings.get("evidence_sha256").and_then(Value::as_str)
+            != Some(session.evidence_sha256.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: default or stale ReferenceCanvas bindings cannot drive a design action"
+                .to_owned(),
+        ));
+    }
+
+    let coverage = canvas
+        .get("coverage")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: coverage is missing".to_owned(),
+            )
+        })?;
+    let supplied = coverage
+        .get("supplied_views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: supplied views are missing".to_owned(),
+            )
+        })?;
+    let views = canvas
+        .get("views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: views are missing".to_owned(),
+            )
+        })?;
+    for supplied_kind in supplied {
+        let kind = supplied_kind.as_str().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: supplied view kind is invalid".to_owned(),
+            )
+        })?;
+        let view = views
+            .iter()
+            .find(|view| view.get("kind").and_then(Value::as_str) == Some(kind))
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: supplied view {kind} is not authored"
+                ))
+            })?;
+        let target = view.get("target_sha256").and_then(Value::as_str);
+        let mask = view.get("mask_sha256").and_then(Value::as_str);
+        if !target.is_some_and(is_sha256) || !mask.is_some_and(is_sha256) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: supplied view {kind} needs a hash-bound target/mask"
+            )));
+        }
+        let view_spec = view
+            .get("view_spec")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: supplied view {kind} needs ReferenceViewSpec"
+                ))
+            })?;
+        if !view_spec
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .is_some_and(is_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(format!(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: supplied view {kind} ViewSpec is not canonical"
+            )));
+        }
+        let camera_claim = view
+            .get("camera_claim")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: supplied view {kind} camera claim is missing"
+                ))
+            })?;
+        if !matches!(
+            camera_claim.get("visibility").and_then(Value::as_str),
+            Some("observed" | "inferred")
+        ) || !camera_claim
+            .get("camera_hash")
+            .and_then(Value::as_str)
+            .is_some_and(is_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(format!(
+                "AGENTIC_EXPLICIT_AUTHORING_REQUIRED: supplied view {kind} camera is unknown"
+            )));
+        }
+    }
+    Ok(context)
+}
+
 fn read_authoring_object(
     runtime: &Runtime,
     object_sha256: &str,
@@ -1368,6 +1512,63 @@ mod tests {
             "invalid runtime input: AGENTIC_AUTHORING_COVERAGE_VIEW_BINDING_MISMATCH"
         );
     }
+
+    #[test]
+    fn complete_coverage_requires_core_hq_reference_views() {
+        let coverage = json!({
+            "required_views":["front","back","left","right","perspective"],
+            "supplied_views":["front","back","left","right","perspective"],
+            "missing_views":[],
+            "coverage_status":"complete",
+            "hq_360_status":"eligible",
+            "evidence_refs":[{"kind":"reference","sha256":"a".repeat(64)}]
+        });
+        let error = validate_coverage(&coverage)
+            .expect_err("perspective cannot replace rear-three-quarter in HQ coverage");
+        assert_eq!(
+            error.to_string(),
+            "invalid runtime input: AGENTIC_AUTHORING_COVERAGE_CORE_VIEWS_REQUIRED"
+        );
+    }
+
+    #[test]
+    fn coverage_rejects_duplicate_or_extra_authored_view_kinds() {
+        let coverage = json!({
+            "required_views":["front","perspective"],
+            "supplied_views":["front","perspective"],
+            "missing_views":[],
+            "coverage_status":"complete",
+            "hq_360_status":"eligible",
+            "evidence_refs":[{"kind":"reference","sha256":"a".repeat(64)}]
+        });
+        let duplicate = validate_coverage_view_bindings(
+            &coverage,
+            &[
+                json!({"kind":"front"}),
+                json!({"kind":"front"}),
+                json!({"kind":"perspective"}),
+            ],
+        )
+        .expect_err("duplicate view kinds must fail closed");
+        assert_eq!(
+            duplicate.to_string(),
+            "invalid runtime input: AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_DUPLICATE"
+        );
+
+        let extra = validate_coverage_view_bindings(
+            &coverage,
+            &[
+                json!({"kind":"front"}),
+                json!({"kind":"perspective"}),
+                json!({"kind":"detail"}),
+            ],
+        )
+        .expect_err("an authored view outside supplied coverage must fail closed");
+        assert_eq!(
+            extra.to_string(),
+            "invalid runtime input: AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_NOT_SUPPLIED"
+        );
+    }
 }
 
 fn checkpoint_actions(gate: &Value, allowed: bool) -> Vec<String> {
@@ -1556,6 +1757,8 @@ fn build_reference_canvas_from_authoring(
     project_id: &str,
     canvas_id: &str,
     primary_reference: &ReferenceEvidenceRecord,
+    expected_camera_hash: &str,
+    expected_evidence_sha256: &str,
 ) -> Result<Value, RuntimeError> {
     let authoring = authoring_object(authoring)?;
     let canvas = authoring
@@ -1572,6 +1775,7 @@ fn build_reference_canvas_from_authoring(
             "canvas_id",
             "project_id",
             "reference_set_sha256",
+            "bindings",
             "views",
             "coverage",
             "unknowns",
@@ -1619,6 +1823,9 @@ fn build_reference_canvas_from_authoring(
                 "kind",
                 "authorization",
                 "image_dimensions",
+                "view_spec",
+                "target_sha256",
+                "mask_sha256",
                 "camera_claim",
                 "visible_regions",
                 "unknown_regions",
@@ -1668,6 +1875,7 @@ fn build_reference_canvas_from_authoring(
         validate_camera_claim(view_object.get("camera_claim").ok_or_else(|| {
             RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_CAMERA_REQUIRED".to_owned())
         })?)?;
+        validate_reference_view_annotations(runtime, view_object, &reference)?;
         validate_regions(view_object.get("visible_regions").ok_or_else(|| {
             RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_REGIONS_REQUIRED".to_owned())
         })?)?;
@@ -1695,6 +1903,17 @@ fn build_reference_canvas_from_authoring(
             "AGENTIC_AUTHORING_REFERENCE_SET_HASH_MISMATCH".to_owned(),
         ));
     }
+    validate_reference_canvas_bindings(
+        runtime,
+        canvas_object.get("bindings").ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_REQUIRED".to_owned())
+        })?,
+        views,
+        project_id,
+        primary_reference,
+        expected_camera_hash,
+        expected_evidence_sha256,
+    )?;
     let coverage = canvas_object.get("coverage").ok_or_else(|| {
         RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_COVERAGE_REQUIRED".to_owned())
     })?;
@@ -1708,6 +1927,138 @@ fn build_reference_canvas_from_authoring(
     })?)?;
     required_authoring_text(canvas_object, "created_at", "ReferenceCanvas")?;
     canonicalize_authoring_value(canvas, "ReferenceCanvas@1")
+}
+
+fn validate_reference_canvas_bindings(
+    runtime: &Runtime,
+    value: &Value,
+    views: &[Value],
+    project_id: &str,
+    primary_reference: &ReferenceEvidenceRecord,
+    expected_camera_hash: &str,
+    expected_evidence_sha256: &str,
+) -> Result<(), RuntimeError> {
+    let object = value.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_INVALID".to_owned())
+    })?;
+    reject_authoring_keys(
+        object,
+        &[
+            "status",
+            "target_sha256",
+            "camera_hash",
+            "camera_canonical_sha256",
+            "evidence_sha256",
+        ],
+        "ReferenceCanvas.bindings",
+    )?;
+    let status = object
+        .get("status")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_STATUS_REQUIRED".to_owned())
+        })?;
+    let target = object.get("target_sha256").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_TARGET_REQUIRED".to_owned())
+    })?;
+    let camera_hash = object.get("camera_hash").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_CAMERA_REQUIRED".to_owned())
+    })?;
+    let camera_canonical = object
+        .get("camera_canonical_sha256")
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CANVAS_BINDINGS_CAMERA_CANONICAL_REQUIRED".to_owned(),
+            )
+        })?;
+    let evidence = object.get("evidence_sha256").ok_or_else(|| {
+        RuntimeError::InvalidInput("AGENTIC_AUTHORING_CANVAS_BINDINGS_EVIDENCE_REQUIRED".to_owned())
+    })?;
+    match status {
+        "unbound" => {
+            if !target.is_null()
+                || !camera_hash.is_null()
+                || !camera_canonical.is_null()
+                || !evidence.is_null()
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_CANVAS_UNBOUND_LINEAGE_MUST_BE_NULL".to_owned(),
+                ));
+            }
+        }
+        "bound" => {
+            let target_sha256 = target.as_str().filter(|value| is_sha256(value)).ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_CANVAS_TARGET_HASH_INVALID".to_owned(),
+                )
+            })?;
+            let camera_hash = camera_hash.as_str().filter(|value| is_sha256(value)).ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_CANVAS_CAMERA_HASH_INVALID".to_owned(),
+                )
+            })?;
+            let camera_canonical = camera_canonical
+                .as_str()
+                .filter(|value| is_sha256(value))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_CANVAS_CAMERA_CANONICAL_INVALID".to_owned(),
+                    )
+                })?;
+            let evidence = evidence.as_str().filter(|value| is_sha256(value)).ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_CANVAS_EVIDENCE_HASH_INVALID".to_owned(),
+                )
+            })?;
+            if camera_hash != expected_camera_hash || evidence != expected_evidence_sha256 {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_CANVAS_SESSION_LINEAGE_MISMATCH".to_owned(),
+                ));
+            }
+            let target = runtime.read_silhouette_target(target_sha256)?;
+            let target_reference_id = target
+                .get("reference_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_CANVAS_TARGET_REFERENCE_MISSING".to_owned(),
+                    )
+                })?;
+            let target_reference_sha256 = target
+                .get("reference_sha256")
+                .and_then(Value::as_str)
+                .filter(|value| is_sha256(value))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_CANVAS_TARGET_REFERENCE_HASH_INVALID".to_owned(),
+                    )
+                })?;
+            if target_reference_id != primary_reference.reference_id
+                || target_reference_sha256 != primary_reference.object_sha256
+                || !views.iter().any(|view| {
+                    view.get("reference_id").and_then(Value::as_str) == Some(target_reference_id)
+                        && view.get("reference_sha256").and_then(Value::as_str)
+                            == Some(target_reference_sha256)
+                })
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_CANVAS_TARGET_REFERENCE_BINDING_MISMATCH".to_owned(),
+                ));
+            }
+            runtime.cas_read(evidence).map_err(|_| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_CANVAS_EVIDENCE_OBJECT_NOT_FOUND".to_owned(),
+                )
+            })?;
+            let _ = (project_id, camera_canonical);
+        }
+        _ => {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CANVAS_BINDINGS_STATUS_INVALID".to_owned(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn build_design_spec_from_authoring(
@@ -1955,7 +2306,8 @@ fn canonicalize_authoring_value(
     };
     value["canonical_sha256"] = Value::String(String::new());
     let canonical = canonical_json_hash(&value);
-    if !supplied.is_empty() && supplied != canonical {
+    let normalized_canonical = canonical_json_hash(&normalize_json_numbers(&value));
+    if !supplied.is_empty() && supplied != canonical && supplied != normalized_canonical {
         return Err(RuntimeError::InvalidInput(
             "AGENTIC_AUTHORING_CANONICAL_MISMATCH".to_owned(),
         ));
@@ -2115,7 +2467,13 @@ fn validate_camera_claim(value: &Value) -> Result<(), RuntimeError> {
     })?;
     reject_authoring_keys(
         object,
-        &["visibility", "camera_hash", "claim", "evidence_refs"],
+        &[
+            "visibility",
+            "camera_hash",
+            "camera_canonical_sha256",
+            "claim",
+            "evidence_refs",
+        ],
         "camera_claim",
     )?;
     let visibility = object
@@ -2127,8 +2485,13 @@ fn validate_camera_claim(value: &Value) -> Result<(), RuntimeError> {
     let camera_hash = object.get("camera_hash").ok_or_else(|| {
         RuntimeError::InvalidInput("AGENTIC_AUTHORING_CAMERA_HASH_REQUIRED".to_owned())
     })?;
+    let camera_canonical = object
+        .get("camera_canonical_sha256")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let camera_canonical_present = object.contains_key("camera_canonical_sha256");
     match visibility {
-        "unknown" if !camera_hash.is_null() => {
+        "unknown" if !camera_hash.is_null() || !camera_canonical.is_null() => {
             return Err(RuntimeError::InvalidInput(
                 "AGENTIC_AUTHORING_UNKNOWN_CAMERA_MUST_BE_NULL".to_owned(),
             ))
@@ -2136,6 +2499,13 @@ fn validate_camera_claim(value: &Value) -> Result<(), RuntimeError> {
         "observed" | "inferred" if !camera_hash.as_str().is_some_and(is_sha256) => {
             return Err(RuntimeError::InvalidInput(
                 "AGENTIC_AUTHORING_CAMERA_HASH_INVALID".to_owned(),
+            ))
+        }
+        "observed" | "inferred"
+            if camera_canonical_present && !camera_canonical.as_str().is_some_and(is_sha256) =>
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_CAMERA_CANONICAL_HASH_INVALID".to_owned(),
             ))
         }
         "unknown" | "observed" | "inferred" => {}
@@ -2189,6 +2559,128 @@ fn validate_camera_claim(value: &Value) -> Result<(), RuntimeError> {
         )?;
     }
     Ok(())
+}
+
+/// Validate the durable, per-view annotation lineage when an authoring
+/// producer supplies it.  Older single-view canvases may omit these optional
+/// fields; a multi-view canvas that carries them must bind the target mask and
+/// the exact ReferenceViewSpec to the same imported reference.
+fn validate_reference_view_annotations(
+    runtime: &Runtime,
+    view: &Map<String, Value>,
+    reference: &ReferenceEvidenceRecord,
+) -> Result<(), RuntimeError> {
+    let target_value = view.get("target_sha256").cloned().unwrap_or(Value::Null);
+    let mask_value = view.get("mask_sha256").cloned().unwrap_or(Value::Null);
+    match (target_value.as_null(), mask_value.as_null()) {
+        (Some(()), Some(())) => {}
+        (Some(()), None) | (None, Some(())) => {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_VIEW_MASK_TARGET_PAIR_REQUIRED".to_owned(),
+            ));
+        }
+        (None, None) => {
+            let target_sha256 = target_value.as_str().filter(|hash| is_sha256(hash)).ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_VIEW_TARGET_HASH_INVALID".to_owned(),
+                )
+            })?;
+            let mask_sha256 = mask_value.as_str().filter(|hash| is_sha256(hash)).ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_VIEW_MASK_HASH_INVALID".to_owned(),
+                )
+            })?;
+            let target = runtime.read_silhouette_target(target_sha256)?;
+            if target.get("reference_id").and_then(Value::as_str)
+                != Some(reference.reference_id.as_str())
+                || target.get("reference_sha256").and_then(Value::as_str)
+                    != Some(reference.object_sha256.as_str())
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_VIEW_TARGET_REFERENCE_BINDING_MISMATCH".to_owned(),
+                ));
+            }
+            if target.get("mask_sha256").and_then(Value::as_str) != Some(mask_sha256) {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_VIEW_TARGET_MASK_BINDING_MISMATCH".to_owned(),
+                ));
+            }
+            runtime.cas_read(mask_sha256).map_err(|_| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_VIEW_MASK_OBJECT_NOT_FOUND".to_owned(),
+                )
+            })?;
+        }
+    }
+
+    if let Some(view_spec) = view.get("view_spec") {
+        if view_spec.get("view_id").and_then(Value::as_str)
+            != view.get("view_id").and_then(Value::as_str)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_VIEW_SPEC_ID_MISMATCH".to_owned(),
+            ));
+        }
+        let kind = view.get("kind").and_then(Value::as_str).ok_or_else(|| {
+            RuntimeError::InvalidInput("AGENTIC_AUTHORING_VIEW_KIND_REQUIRED".to_owned())
+        })?;
+        if let Some(expected_source_view) = expected_reference_source_view(kind) {
+            if view_spec.get("source_view").and_then(Value::as_str)
+                != Some(expected_source_view)
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_VIEW_SPEC_SOURCE_VIEW_MISMATCH".to_owned(),
+                ));
+            }
+        }
+        if target_value.is_string() {
+            let visible_regions = view
+                .get("visible_regions")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_VIEW_REGIONS_REQUIRED".to_owned(),
+                    )
+                })?;
+            let spec_region_ids: HashSet<&str> = view_spec
+                .get("regions")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_VIEW_SPEC_REGIONS_REQUIRED".to_owned(),
+                    )
+                })?
+                .iter()
+                .filter_map(|region| region.get("region_id").and_then(Value::as_str))
+                .collect();
+            for region in visible_regions {
+                let region_id = region.get("region_id").and_then(Value::as_str).ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_VIEW_REGION_ID_REQUIRED".to_owned(),
+                    )
+                })?;
+                if !spec_region_ids.contains(region_id) {
+                    return Err(RuntimeError::InvalidInput(
+                        "AGENTIC_AUTHORING_VIEW_REGION_BINDING_MISMATCH".to_owned(),
+                    ));
+                }
+            }
+        }
+        super::validate_reference_view_spec(view_spec, reference)?;
+    }
+    Ok(())
+}
+
+fn expected_reference_source_view(kind: &str) -> Option<&'static str> {
+    match kind {
+        "perspective" => Some("three-quarter"),
+        "front" => Some("front"),
+        "back" => Some("back"),
+        "left" => Some("left"),
+        "right" => Some("right"),
+        "rear-three-quarter" => Some("rear-three-quarter"),
+        _ => None,
+    }
 }
 
 fn validate_regions(value: &Value) -> Result<(), RuntimeError> {
@@ -2382,6 +2874,14 @@ fn validate_coverage(value: &Value) -> Result<(), RuntimeError> {
                 "AGENTIC_AUTHORING_COVERAGE_COMPLETE_STATUS_MISMATCH".to_owned(),
             ));
         }
+        if REQUIRED_HQ_REFERENCE_VIEWS
+            .iter()
+            .any(|kind| !required_set.contains(kind))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_COVERAGE_CORE_VIEWS_REQUIRED".to_owned(),
+            ));
+        }
     } else if !matches!(status, "partial" | "blocked") || hq != "BLOCKED_REFERENCE_COVERAGE" {
         return Err(RuntimeError::InvalidInput(
             "AGENTIC_AUTHORING_COVERAGE_BLOCKED_STATUS_MISMATCH".to_owned(),
@@ -2412,14 +2912,35 @@ fn validate_coverage_view_bindings(
                 "AGENTIC_AUTHORING_COVERAGE_SUPPLIED_VIEWS_INVALID".to_owned(),
             )
         })?;
-    let authored_kinds: HashSet<&str> = views
+    let supplied_kinds: HashSet<&str> = supplied
         .iter()
-        .filter_map(|view| view.get("kind").and_then(Value::as_str))
-        .collect();
-    if supplied.iter().any(|kind| {
-        kind.as_str()
-            .is_none_or(|kind| !authored_kinds.contains(kind))
-    }) {
+        .map(|kind| {
+            kind.as_str().ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_AUTHORING_COVERAGE_SUPPLIED_VIEWS_INVALID".to_owned(),
+                )
+            })
+        })
+        .collect::<Result<HashSet<_>, _>>()?;
+    let mut authored_kinds = HashSet::new();
+    for view in views {
+        let kind = view.get("kind").and_then(Value::as_str).ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_INVALID".to_owned(),
+            )
+        })?;
+        if !supplied_kinds.contains(kind) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_NOT_SUPPLIED".to_owned(),
+            ));
+        }
+        if !authored_kinds.insert(kind) {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_DUPLICATE".to_owned(),
+            ));
+        }
+    }
+    if authored_kinds != supplied_kinds {
         return Err(RuntimeError::InvalidInput(
             "AGENTIC_AUTHORING_COVERAGE_VIEW_BINDING_MISMATCH".to_owned(),
         ));
@@ -2692,6 +3213,7 @@ fn build_reference_canvas(reference: &ReferenceEvidenceRecord, canvas_id: &str) 
         "canvas_id":canvas_id,
         "project_id":reference.project_id,
         "reference_set_sha256":reference.object_sha256,
+        "bindings":{"status":"unbound","target_sha256":null,"camera_hash":null,"camera_canonical_sha256":null,"evidence_sha256":null},
         "views":[{
             "view_id":format!("{}-perspective",canvas_id),
             "reference_id":reference.reference_id,

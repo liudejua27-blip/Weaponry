@@ -1,0 +1,43 @@
+{
+  "schema_version": "ForgeCADMCP010FCoreReferenceCoverageGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_WITH_FAIL_CLOSED_HQ_COVERAGE",
+  "source": {
+    "runtime_session_sha256": "85b711b5480d4b6c575ad5738c577887bfeaab8c71368b8eed14b39d118e7cda",
+    "reference_canvas_schema_sha256": "f2b5c0d254ed31ccfa284a1bf75f6a7bee057f0e552e8b97f000f4b1b60744c6",
+    "schema_content_set_sha256": "286428e4f755c1b61fe9cc0801505e7ce455bc80997c3391cf912f5b4b0b6f16"
+  },
+  "behavior": {
+    "complete_hq_requires": [
+      "front",
+      "back",
+      "left",
+      "right",
+      "rear-three-quarter"
+    ],
+    "supplemental_views": ["perspective", "top", "material", "detail"],
+    "supplemental_views_cannot_replace_core": true,
+    "partial_or_blocked_coverage_remains_allowed": true,
+    "hq_360_status_without_core_views": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "verification": {
+    "runtime_tests": [
+      "agentic_session::tests::complete_coverage_requires_authored_view_entities",
+      "agentic_session::tests::complete_coverage_requires_core_hq_reference_views"
+    ],
+    "runtime_test_result": "PASS",
+    "agentic_contract_checker": "PASS",
+    "stage0_truth": "PASS_WITH_INTENTIONAL_HISTORICAL_FAILURES"
+  },
+  "not_claimed": [
+    "real multi-view reference bytes",
+    "reference likeness",
+    "PBR likeness",
+    "human review",
+    "export/restart hash",
+    "HQ_360_PASS",
+    "live Codex Desktop restart"
+  ],
+  "canonical_sha256": "921e982b9c945c4bc9612b858b6698014a546f8e70ae12113b0c1f359c21ec84"
+}

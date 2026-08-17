@@ -1,0 +1,40 @@
+project: materialx
+source_url: https://github.com/AcademySoftwareFoundation/MaterialX
+revision: 7b64921ef1d42f2d57871e9d2c43dc11f041f26b
+identity: controlled-source-research
+license_spdx: Apache-2.0
+license_file: LICENSE
+license_file_git_blob: d9a10c0d8e868ebf8da0b3dc95bb0be634c34bfe
+license_file_sha256: a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - source/MaterialXCore/Document.h
+  - source/MaterialXCore/Element.h
+  - source/MaterialXCore/Node.h
+candidate_source_git_blobs:
+  source/MaterialXCore/Document.h: ab01bbbc114b3476d96d33f5e9ab35a6553a6076
+  source/MaterialXCore/Element.h: df8f67b9637bfafb9691f1323ca8bd7273601a17
+  source/MaterialXCore/Node.h: d6700b45fbbbc9e245ec9753bff14d2eb7dcc407
+candidate_source_sha256:
+  source/MaterialXCore/Document.h: a307b07ab6610065acdd3b17e926861b985f61a8c73de3435c74b520f9987be9
+  source/MaterialXCore/Element.h: d7adb2415d2debf5c0cc5b6d1b36065534b5b89f2ba009d555569c0426aaa6ce
+  source/MaterialXCore/Node.h: 0e8f79f49c0481cbb2e3fd587c56631ed56a5bbd086604c40aad89e33df9318f
+target: reference-only MaterialZone/PBR graph semantics for a product-owned translator
+denied_capabilities:
+  - cmake_build
+  - shader_generation
+  - renderer_or_viewer
+  - filesystem_read
+  - filesystem_write
+  - network
+  - python_or_javascript_binding
+  - direct_runtime_state_write
+lockfile_or_package_change: false
+static_security_review:
+  - selected headers expose document, element, node, and color-management metadata; no process, network, or dynamic-code entry point was observed
+  - full MaterialX includes build, shader, viewer, Python, and JavaScript surfaces; those are explicitly outside this receipt
+  - source semantics may inform a schema but do not authorize MaterialX documents or renderer state as ForgeCAD truth
+approval: research-authorized
+next_gate: define a product-owned MaterialZone/PBR graph schema, then run bounded graph validation, color-space, provenance, and glTF lowering benchmarks without linking the full runtime
+fallback_or_removal_plan: Keep the existing embedded glTF metallic-roughness subset and discard the research cache if graph or licensing review fails.

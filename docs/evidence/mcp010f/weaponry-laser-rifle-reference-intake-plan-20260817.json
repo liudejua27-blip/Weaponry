@@ -1,0 +1,85 @@
+{
+  "schema_version": "ForgeCADWeaponReferenceIntakePlan@1",
+  "task_id": "FGC-MCP010F",
+  "asset_id": "weaponry-modular-laser-rifle-001",
+  "reference_sha256": "1964704a62ed7a841b4d49c370b8d46f4626e201daad29092a9c39a40b4c4109",
+  "plan_status": "ready_for_reference_bound_authoring",
+  "execution_policy": {
+    "runtime_is_sole_writer": true,
+    "allow_arbitrary_scripts": false,
+    "allow_unbound_geometry_edit": false,
+    "allow_confirmation": false,
+    "quality_claim_allowed": false
+  },
+  "design_read": {
+    "identity": "long white-and-black energy rifle with a circular receiver core, open rear stock, layered spine and cyan light channels",
+    "primary_form_order": [
+      "barrel-forebody-shell",
+      "receiver-body-shell",
+      "energy-core-housing",
+      "grip-trigger-frame",
+      "stock-shell",
+      "muzzle-aperture-ring"
+    ],
+    "secondary_form_order": [
+      "barrel-inner-rails",
+      "receiver-side-armor",
+      "top-spine-fin",
+      "underbarrel-brace",
+      "rear-end-cap",
+      "cyan-channel-ports"
+    ],
+    "closeup_order": [
+      "energy-core-lens",
+      "muzzle-aperture-ring",
+      "gold-engraving-inset"
+    ]
+  },
+  "reference_coverage": {
+    "primary_views": ["left-side", "right-side", "front-view", "back-view", "top-view", "bottom-view"],
+    "three_quarter_views": ["front-three-quarter", "rear-three-quarter"],
+    "closeup_views": ["receiver-body-detail", "muzzle-front-assembly", "energy-core-detail"],
+    "hq_360_status": "BLOCKED_REFERENCE_COVERAGE",
+    "note": "This board is excellent for a partial visible-view pass, but it is not a substitute for a full authored reference set with per-view masks, landmarks and canonical cameras."
+  },
+  "internal_targets_not_official_metrics": {
+    "primary_side_silhouette_iou": 0.92,
+    "primary_side_boundary_f1_4px": 0.85,
+    "other_main_view_iou_median": 0.86,
+    "closeup_feature_boundary_f1": 0.85,
+    "floating_or_intersection_count": 0,
+    "human_review_score": 8
+  },
+  "material_resolution": {
+    "available": [
+      "white-dielectric-clearcoat",
+      "dark-painted-metal",
+      "black-anodized-metal",
+      "brushed-steel",
+      "engineering-plastic",
+      "joint-rubber",
+      "micro-scratch-coat"
+    ],
+    "missing_for_reference_match": ["cyan-emissive", "gold-anodized-accent"],
+    "do_not_substitute": "warm-orange-emissive must not be presented as a visual match for the reference's cyan lighting"
+  },
+  "blocking_evidence": {
+    "runtime_status": "Ready",
+    "doctor_status": "Ready",
+    "preflight_status": "PASS",
+    "capability_surface": "advertises reference import and writes",
+    "callable_surface": "does not expose reference import, project create, geometry prepare, appearance prepare or reference compare prepare in this session",
+    "status": "BLOCKED_LIVE_WRITE_TOOL_EXPOSURE_MISMATCH",
+    "recovery": "restart or refresh the MCP session, then re-run the preflight and exact tool-manifest check before any authoring action"
+  },
+  "next_authoring_sequence": [
+    "bind the reference into Runtime CAS and create a new project without touching existing candidates",
+    "author per-view masks, landmarks and canonical cameras for the six orthographic and two three-quarter views",
+    "run a boundary-only silhouette candidate comparison for the primary side views",
+    "apply typed primary-form changes in the order listed above, one bounded proposal at a time",
+    "add reviewed cyan and gold material definitions or explicitly retain the material-gap status",
+    "run the receiver, muzzle and energy-core close-up AOV bundle",
+    "only after strict readback, comparison, PBR/AOV evidence and independent human review consider a partial-view pass"
+  ],
+  "persistent_user_data_touched": false
+}

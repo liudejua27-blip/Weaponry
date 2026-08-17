@@ -1103,7 +1103,7 @@ def main() -> int:
             "MCP/Runtime build cohorts did not match",
         )
 
-    data_root = args.data_root.resolve()
+    data_root = args.data_root.absolute()
     require(not data_root.exists(), "MCP010E data root must not pre-exist")
     data_root.mkdir(mode=0o700, parents=True)
     ready_path = data_root / "ipc" / "ready.json"

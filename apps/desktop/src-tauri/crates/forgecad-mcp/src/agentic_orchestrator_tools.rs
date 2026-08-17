@@ -19,13 +19,14 @@ const ACTION_KINDS: [&str; 6] = [
     "tertiary-detail",
     "bounded-repair",
 ];
-const STAGE_FIELDS: [&str; 13] = [
+const STAGE_FIELDS: [&str; 14] = [
     "project_id",
     "session_id",
     "candidate_id",
     "batch_id",
     "requested_stage",
     "actions",
+    "observation_sha256",
     "input_sha256",
     "approved",
     "approval_receipt_id",
@@ -34,13 +35,14 @@ const STAGE_FIELDS: [&str; 13] = [
     "approval_session_id",
     "idempotency_key",
 ];
-const COMPOSITION_FIELDS: [&str; 14] = [
+const COMPOSITION_FIELDS: [&str; 15] = [
     "project_id",
     "session_id",
     "candidate_id",
     "composition_id",
     "requested_stage",
     "actions",
+    "observation_sha256",
     "input_sha256",
     "approved",
     "approval_receipt_id",
@@ -138,7 +140,7 @@ fn input_schema() -> Value {
         "type":"object",
         "required":[
             "project_id","session_id","candidate_id","batch_id","requested_stage","actions",
-            "input_sha256","approved","approval_receipt_id","approval_summary","approval_expires_at","idempotency_key"
+            "observation_sha256","input_sha256","approved","approval_receipt_id","approval_summary","approval_expires_at","idempotency_key"
         ],
         "properties":{
             "project_id":id_property(),
@@ -163,6 +165,7 @@ fn input_schema() -> Value {
                     "additionalProperties":false
                 }
             },
+            "observation_sha256":sha256_property(),
             "input_sha256":sha256_property(),
             "approved":{"const":true},
             "approval_receipt_id":id_property(),
@@ -225,7 +228,7 @@ fn composition_input_schema() -> Value {
         "type":"object",
         "required":[
             "project_id","session_id","candidate_id","composition_id","requested_stage","actions",
-            "input_sha256","approved","approval_receipt_id","approval_summary","approval_expires_at","idempotency_key"
+            "observation_sha256","input_sha256","approved","approval_receipt_id","approval_summary","approval_expires_at","idempotency_key"
         ],
         "properties":{
             "project_id":id_property(),
@@ -249,6 +252,7 @@ fn composition_input_schema() -> Value {
                     "additionalProperties":false
                 }
             },
+            "observation_sha256":sha256_property(),
             "input_sha256":sha256_property(),
             "approved":{"const":true},
             "approval_receipt_id":id_property(),
@@ -351,6 +355,7 @@ pub fn validate_call(name: &str, arguments: &Value, binding: &Binding) -> Result
             "candidate_id",
             "batch_id",
             "requested_stage",
+            "observation_sha256",
             "input_sha256",
             "approval_receipt_id",
             "approval_summary",
@@ -364,6 +369,7 @@ pub fn validate_call(name: &str, arguments: &Value, binding: &Binding) -> Result
             "candidate_id",
             "composition_id",
             "requested_stage",
+            "observation_sha256",
             "input_sha256",
             "approval_receipt_id",
             "approval_summary",

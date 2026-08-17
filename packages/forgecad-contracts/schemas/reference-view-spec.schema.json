@@ -58,7 +58,16 @@
         "y": {"type": "number", "minimum": 0, "maximum": 1},
         "visibility": {"$ref": "#/$defs/visibility"},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1}
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
     },
     "region": {
       "type": "object",
@@ -72,7 +81,16 @@
         "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
         "visibility": {"$ref": "#/$defs/visibility"},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1}
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
     }
   }
 }

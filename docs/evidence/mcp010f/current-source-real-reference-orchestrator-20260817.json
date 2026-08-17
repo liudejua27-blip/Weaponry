@@ -1,0 +1,20 @@
+{
+  "build_cohorts": {
+    "geometry_worker": "6f00a58a2b71fd87a9e70844915ef33c3d640200f283ac6601c1da6ca553ed50",
+    "mcp": "6f00a58a2b71fd87a9e70844915ef33c3d640200f283ac6601c1da6ca553ed50",
+    "render_worker": "6f00a58a2b71fd87a9e70844915ef33c3d640200f283ac6601c1da6ca553ed50",
+    "runtime": "6f00a58a2b71fd87a9e70844915ef33c3d640200f283ac6601c1da6ca553ed50"
+  },
+  "candidate_confirmed": false,
+  "execution_mode": "runtime-owned-auto-parameter-patch-v1",
+  "expected_build_cohort_sha256": "6f00a58a2b71fd87a9e70844915ef33c3d640200f283ac6601c1da6ca553ed50",
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "reason": "MCP tool failed for design_stage_run_prepare: {\"code\": \"INVALID_INPUT\", \"evidence_ids\": [], \"message\": \"Runtime request rejected\", \"next_action\": \"Read capabilities_get and correct the request or wait for the required MCP task.\", \"retryable\": false, \"schema_version\": \"RuntimeError@1\"}",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "schema_version": "ForgeCADMCP010FDesignActionRealReferenceProbe@1",
+  "status": "BLOCKED",
+  "surface_backed_chest_shell": false,
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": "ForgeCADMCP010FReferenceCoverageBoundaryReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_AND_PACKAGED_EXACT_COVERAGE_BOUNDARY",
+  "source": {
+    "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/agentic_session.rs",
+    "coverage_rule": "each supplied view kind maps to exactly one authored view card; duplicate, extra, and missing kinds fail closed",
+    "focused_regression": "coverage_rejects_duplicate_or_extra_authored_view_kinds",
+    "focused_regression_result": "PASS",
+    "full_mcp010f_source_gate": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING"
+  },
+  "package": {
+    "build_cohort_sha256": "820a542fabe3503f0b8cf6c86e84f578e7b074d79d07401a9a3f865dc60709b4",
+    "install_receipt": "docs/evidence/mcp010f/dev-app-install-capability-tools-list-fail-closed-v2-20260817.json",
+    "probe_receipt": "docs/evidence/mcp010f/dev-app-probe-capability-tools-list-fail-closed-v2-20260817.json",
+    "install": "PASS",
+    "isolated_probe": "PASS"
+  },
+  "coverage": {
+    "supplied_kind_to_authored_view_cardinality": "EXACTLY_ONE",
+    "duplicate_kind_fixture": "PASS_BLOCKED_AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_DUPLICATE",
+    "extra_kind_fixture": "PASS_BLOCKED_AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_NOT_SUPPLIED",
+    "missing_kind_fixture": "PASS_BLOCKED_AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_MISSING",
+    "real_multiview_authoring": "NOT_RUN_USER_AUTHORIZED_VIEWS_REQUIRED"
+  },
+  "quality_claim": "EXACT_REFERENCE_COVERAGE_ENTITY_BOUNDARY_ONLY; not a real multi-view, likeness, PBR, human-review, export/restart, or HQ_360 pass"
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": "ForgeCADWeaponCloseupDetailPlan@1",
+  "task_id": "FGC-MCP010F",
+  "asset_id": "weaponry-modular-rifle-001",
+  "status": "READY_FOR_LOCAL_STRUCTURAL_CLOSEUP",
+  "source_geometry_program_sha256": "fc012fd0c6e0c75800475689bb5bb73455e6f5f1666086007c70e8d06ccd6e7b",
+  "source_artifact_sha256": "799f7ce0d236db3fb44836df8d8871db8275826c6c187cb8df7f6024a4cbd221",
+  "reference_status": "NOT_PROVIDED",
+  "camera_binding": "local_preview_only; not a Runtime CameraCalibration or reference comparison binding",
+  "ordered_aov_passes": ["beauty","silhouette","depth","normal","ao","part-id","material-id","wireframe","uv-stretch"],
+  "views": [
+    {"view_id":"receiver-left-closeup","focus_part_ids":["receiver-core","side-armor","vent-array"],"detail_levels":["secondary","tertiary"],"target_m":[0.0,1.35,0.0],"position_m":[1.55,1.75,3.45],"fov_y_degrees":32.0},
+    {"view_id":"receiver-right-closeup","focus_part_ids":["receiver-core","side-armor","vent-array"],"detail_levels":["secondary","tertiary"],"target_m":[0.0,1.35,0.0],"position_m":[1.55,1.75,-3.45],"fov_y_degrees":32.0},
+    {"view_id":"energy-core-closeup","focus_part_ids":["energy-core","receiver-core","status-light"],"detail_levels":["secondary","tertiary"],"target_m":[0.08,1.28,0.0],"position_m":[1.85,1.62,3.35],"fov_y_degrees":34.0},
+    {"view_id":"barrel-transition-closeup","focus_part_ids":["barrel-assembly","receiver-core"],"detail_levels":["secondary","tertiary"],"target_m":[3.25,1.38,0.0],"position_m":[4.65,1.7,2.55],"fov_y_degrees":28.0},
+    {"view_id":"stock-interface-closeup","focus_part_ids":["stock-shell","grip-module","magazine-module","rear-joint"],"detail_levels":["secondary","tertiary"],"target_m":[-1.05,0.82,0.0],"position_m":[-2.9,1.35,2.55],"fov_y_degrees":28.0},
+    {"view_id":"optic-and-vent-closeup","focus_part_ids":["optic-rail","vent-array","side-armor","status-light"],"detail_levels":["secondary","tertiary"],"target_m":[0.2,1.65,0.0],"position_m":[1.3,2.55,2.8],"fov_y_degrees":30.0}
+  ],
+  "review_fields": ["feature_line_continuity","panel_boundary_readability","detail_density","bevel_highlight","floating_detail","intersection","part_id_coverage","material_id_coverage"],
+  "quality_boundary": {"feature_line_f1":"NOT_RUN","panel_boundary_f1":"NOT_RUN","detail_density_error":"NOT_RUN","floating_detail_count":"NOT_RUN","intersection_count":"NOT_RUN","human_review":"NOT_RUN","visual_likeness":"BLOCKED_REFERENCE_NOT_PROVIDED","hq_360":"BLOCKED_REFERENCE_COVERAGE"}
+}

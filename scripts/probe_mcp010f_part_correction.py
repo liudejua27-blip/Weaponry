@@ -226,10 +226,34 @@ PART_EVIDENCE_ALIASES = {
 }
 
 PART_PARAMETER_PREFIXES = {
+    "head-shell": "head",
+    "visor": "visor",
     "chest-shell": "chest",
+    "chest-vent": "chest-vent",
+    "chest-core": "chest-core",
+    "neck": "neck",
+    "pelvis": "pelvis",
+    "shoulder-pair": "shoulder",
     "shoulder-armor-left": "shoulder",
     "shoulder-armor-right": "shoulder",
+    "shoulder-armor-pair": "shoulder-armor",
+    "upper-arm-pair": "upper-arm",
+    "elbow-pair": "elbow",
+    "forearm-pair": "forearm",
+    "hand-pair": "hand",
+    "thigh-pair": "thigh",
+    "hip-pair": "hip",
     "shin-pair": "shin",
+    "cable-pair": "cable",
+    "core-ribs": "core-ribs",
+    "amber-sensor": "amber-sensor",
+    "visor-edge": "visor-edge",
+    "chest-ridge": "chest-ridge",
+    "shoulder-trim-pair": "shoulder-trim",
+    "forearm-rail-pair": "forearm-rail",
+    "hip-flank-pair": "hip-flank",
+    "knee-pair": "knee",
+    "knee-cap-pair": "knee-cap",
 }
 
 

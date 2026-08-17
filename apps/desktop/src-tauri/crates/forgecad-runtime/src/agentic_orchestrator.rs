@@ -59,6 +59,7 @@ impl Runtime {
                 "batch_id",
                 "requested_stage",
                 "actions",
+                "observation_sha256",
                 "input_sha256",
                 "approved",
                 "approval_receipt_id",
@@ -75,6 +76,7 @@ impl Runtime {
         let candidate_id = required_id(object, "candidate_id")?;
         let batch_id = required_id(object, "batch_id")?;
         let requested_stage = required_stage(object, "requested_stage")?;
+        let observation_sha256 = required_sha(object, "observation_sha256")?;
         let input_sha256 = required_sha(object, "input_sha256")?;
         let _idempotency_key = required_id(object, "idempotency_key")?;
         if object
@@ -92,13 +94,35 @@ impl Runtime {
             .ok_or_else(|| RuntimeError::InvalidInput("actions is required".to_owned()))?;
         validate_batch_actions(actions)?;
 
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        if session.project_id != project_id
+            || session.candidate_id != candidate_id
+            || session.current_stage != requested_stage
+        {
+            return Err(RuntimeError::InvalidInput(
+                "DESIGN_STAGE_SCOPE_OR_STAGE_MISMATCH".to_owned(),
+            ));
+        }
+        if !is_sha256(&session.observation_sha256)
+            || session.observation_sha256 != observation_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_OBSERVATION_STALE: supplied observation is not the durable session observation"
+                    .to_owned(),
+            ));
+        }
+
         let input_binding = json!({
             "project_id":project_id,
             "session_id":session_id,
             "candidate_id":candidate_id,
             "batch_id":batch_id,
             "requested_stage":requested_stage,
-            "actions":actions
+            "actions":actions,
+            "observation_sha256":observation_sha256
         });
         let expected_input_sha256 = canonical_json_hash(&input_binding);
         let numeric_compatibility_input_sha256 =
@@ -138,24 +162,13 @@ impl Runtime {
                     session_id,
                     candidate_id,
                     batch_id,
+                    observation_sha256,
                     input_sha256,
                 )?;
                 return Ok(result);
             }
         }
 
-        let session = self
-            .store
-            .get_agentic_session(session_id)?
-            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
-        if session.project_id != project_id
-            || session.candidate_id != candidate_id
-            || session.current_stage != requested_stage
-        {
-            return Err(RuntimeError::InvalidInput(
-                "DESIGN_STAGE_SCOPE_OR_STAGE_MISMATCH".to_owned(),
-            ));
-        }
         self.session_get(json!({
             "session_id":session_id,
             "project_id":project_id,
@@ -222,7 +235,8 @@ impl Runtime {
                 "candidate_id":candidate_id,
                 "run_id":run_id,
                 "action":action,
-                "requested_stage":requested_stage
+                "requested_stage":requested_stage,
+                "observation_sha256":observation_sha256
             });
             if let Some(proposal) = action_object.get("proposal") {
                 action_input["proposal"] = proposal.clone();
@@ -247,6 +261,7 @@ impl Runtime {
                 "action":action,
                 "input_sha256":action_input_sha256,
                 "requested_stage":requested_stage,
+                "observation_sha256":observation_sha256,
                 "approved":true,
                 "approval_receipt_id":object.get("approval_receipt_id").cloned().unwrap_or(Value::Null),
                 "approval_summary":object.get("approval_summary").cloned().unwrap_or(Value::Null),
@@ -332,6 +347,7 @@ impl Runtime {
             "project_id":project_id,
             "candidate_id":candidate_id,
             "requested_stage":requested_stage,
+            "observation_sha256":observation_sha256,
             "input_sha256":input_sha256,
             "job_id":job.job_id,
             "job_status":final_job_status,
@@ -401,6 +417,7 @@ impl Runtime {
                 "composition_id",
                 "requested_stage",
                 "actions",
+                "observation_sha256",
                 "input_sha256",
                 "approved",
                 "approval_receipt_id",
@@ -418,6 +435,7 @@ impl Runtime {
         let candidate_id = required_id(object, "candidate_id")?;
         let composition_id = required_id(object, "composition_id")?;
         let requested_stage = required_stage(object, "requested_stage")?;
+        let observation_sha256 = required_sha(object, "observation_sha256")?;
         let input_sha256 = required_sha(object, "input_sha256")?;
         let _idempotency_key = required_id(object, "idempotency_key")?;
         if object
@@ -435,13 +453,35 @@ impl Runtime {
             .ok_or_else(|| RuntimeError::InvalidInput("actions is required".to_owned()))?;
         validate_composition_actions(actions)?;
 
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        if session.project_id != project_id
+            || session.candidate_id != candidate_id
+            || session.current_stage != requested_stage
+        {
+            return Err(RuntimeError::InvalidInput(
+                "DESIGN_COMPOSITION_SCOPE_OR_STAGE_MISMATCH".to_owned(),
+            ));
+        }
+        if !is_sha256(&session.observation_sha256)
+            || session.observation_sha256 != observation_sha256
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_OBSERVATION_STALE: supplied observation is not the durable session observation"
+                    .to_owned(),
+            ));
+        }
+
         let mut input_binding = json!({
             "project_id":project_id,
             "session_id":session_id,
             "candidate_id":candidate_id,
             "composition_id":composition_id,
             "requested_stage":requested_stage,
-            "actions":actions
+            "actions":actions,
+            "observation_sha256":observation_sha256
         });
         if let Some(merge) = object.get("merge") {
             input_binding["merge"] = merge.clone();
@@ -484,24 +524,13 @@ impl Runtime {
                     session_id,
                     candidate_id,
                     composition_id,
+                    observation_sha256,
                     input_sha256,
                 )?;
                 return Ok(result);
             }
         }
 
-        let session = self
-            .store
-            .get_agentic_session(session_id)?
-            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
-        if session.project_id != project_id
-            || session.candidate_id != candidate_id
-            || session.current_stage != requested_stage
-        {
-            return Err(RuntimeError::InvalidInput(
-                "DESIGN_COMPOSITION_SCOPE_OR_STAGE_MISMATCH".to_owned(),
-            ));
-        }
         self.session_get(json!({
             "session_id":session_id,
             "project_id":project_id,
@@ -580,7 +609,8 @@ impl Runtime {
             "candidate_id":candidate_id,
             "batch_id":batch_id,
             "requested_stage":requested_stage,
-            "actions":batch_actions
+            "actions":batch_actions,
+            "observation_sha256":observation_sha256
         }));
         let batch_request = json!({
             "project_id":project_id,
@@ -589,6 +619,7 @@ impl Runtime {
             "batch_id":batch_id,
             "requested_stage":requested_stage,
             "actions":batch_actions,
+            "observation_sha256":observation_sha256,
             "input_sha256":batch_input_sha256,
             "approved":true,
             "approval_receipt_id":object.get("approval_receipt_id").cloned().unwrap_or(Value::Null),
@@ -682,6 +713,7 @@ impl Runtime {
                     candidate_id,
                     composition_id,
                     requested_stage,
+                    observation_sha256,
                     input_sha256,
                     plan,
                 ) {
@@ -756,6 +788,7 @@ impl Runtime {
             "project_id":project_id,
             "candidate_id":candidate_id,
             "requested_stage":requested_stage,
+            "observation_sha256":observation_sha256,
             "input_sha256":input_sha256,
             "job_id":job.job_id,
             "job_status":final_job_status,
@@ -835,6 +868,7 @@ impl Runtime {
         candidate_id: &str,
         composition_id: &str,
         requested_stage: &str,
+        observation_sha256: &str,
         input_sha256: &str,
         plan: &CompositionMergePlan,
     ) -> Result<Value, RuntimeError> {
@@ -861,6 +895,7 @@ impl Runtime {
             "run_id":run_id,
             "action":action,
             "requested_stage":requested_stage,
+            "observation_sha256":observation_sha256,
             "proposal":plan.final_proposal.clone()
         });
         let action_input_sha256 = canonical_json_hash(&action_input);
@@ -872,6 +907,7 @@ impl Runtime {
             "action":action,
             "input_sha256":action_input_sha256,
             "requested_stage":requested_stage,
+            "observation_sha256":observation_sha256,
             "approved":true,
             "approval_receipt_id":request.get("approval_receipt_id").cloned().unwrap_or(Value::Null),
             "approval_summary":format!("Compile cumulative composition {composition_id} into a review candidate"),
@@ -1389,6 +1425,7 @@ fn validate_stage_batch_result(
     session_id: &str,
     candidate_id: &str,
     batch_id: &str,
+    observation_sha256: &str,
     input_sha256: &str,
 ) -> Result<(), RuntimeError> {
     let object = result.as_object().ok_or_else(|| {
@@ -1401,6 +1438,7 @@ fn validate_stage_batch_result(
         || object.get("session_id").and_then(Value::as_str) != Some(session_id)
         || object.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
         || object.get("batch_id").and_then(Value::as_str) != Some(batch_id)
+        || object.get("observation_sha256").and_then(Value::as_str) != Some(observation_sha256)
         || object.get("job_id").and_then(Value::as_str) != Some(batch_id)
         || object.get("input_sha256").and_then(Value::as_str) != Some(input_sha256)
     {
@@ -1441,6 +1479,7 @@ fn validate_composition_result(
     session_id: &str,
     candidate_id: &str,
     composition_id: &str,
+    observation_sha256: &str,
     input_sha256: &str,
 ) -> Result<(), RuntimeError> {
     let object = result.as_object().ok_or_else(|| {
@@ -1453,6 +1492,7 @@ fn validate_composition_result(
         || object.get("session_id").and_then(Value::as_str) != Some(session_id)
         || object.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
         || object.get("composition_id").and_then(Value::as_str) != Some(composition_id)
+        || object.get("observation_sha256").and_then(Value::as_str) != Some(observation_sha256)
         || object.get("job_id").and_then(Value::as_str) != Some(composition_id)
         || object.get("input_sha256").and_then(Value::as_str) != Some(input_sha256)
     {

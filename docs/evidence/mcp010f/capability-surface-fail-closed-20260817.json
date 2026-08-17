@@ -1,0 +1,48 @@
+{
+  "schema_version": "ForgeCADMCP010FCapabilitySurfaceReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_AND_PACKAGED_WRITE_SURFACE_FAIL_CLOSED",
+  "source": {
+    "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
+    "sha256": "07cb14b34210d1b2e143085c3ae145633dffffb496efd6c81b9556a4c2f54e3b",
+    "behavior": "requested write tools are advertised only when packaged MCP and Runtime build cohorts match; missing or different Runtime cohort advertises read-only capabilities and records BUILD_COHORT_MISMATCH"
+  },
+  "regression": {
+    "test": "tests::capabilities_write_surface_fails_closed_on_cohort_mismatch",
+    "result": "PASS",
+    "cases": [
+      "different cohorts -> writes disabled",
+      "missing Runtime cohort with packaged MCP cohort -> writes disabled",
+      "matching cohorts -> requested writes preserved",
+      "ordinary source/test build without embedded cohort -> opt-in compatibility preserved",
+      "write opt-in false -> writes disabled"
+    ]
+  },
+  "package": {
+    "build_cohort_sha256": "820a542fabe3503f0b8cf6c86e84f578e7b074d79d07401a9a3f865dc60709b4",
+    "install_receipt": "docs/evidence/mcp010f/dev-app-install-capability-tools-list-fail-closed-v2-20260817.json",
+    "probe_receipt": "docs/evidence/mcp010f/dev-app-probe-capability-tools-list-fail-closed-v2-20260817.json",
+    "install": "PASS",
+    "isolated_probe": "PASS",
+    "codex_desktop_restart_gate": "NOT_RUN",
+    "mismatch_transport_probe": {
+      "result": "PASS",
+      "tools_list_count": 41,
+      "tools_list_write_count": 0,
+      "capabilities_build_cohort_match": false,
+      "capabilities_mcp_write_tools_enabled": false,
+      "capabilities_disabled_reason": "BUILD_COHORT_MISMATCH"
+    }
+  },
+  "live_session": {
+    "runtime_build_cohort_sha256": "41945cc48f600abb1601e82ed11ec116b5f6c55a6066f6777268c2d540c705c7",
+    "mcp_build_cohort_sha256": "3e6debdabdb56dff44e630918553dcfbaf9d2ae0503c23d144307eed33c53b34",
+    "build_cohort_match": false,
+    "capabilities_write_tools_enabled": true,
+    "preflight": "PASS_READ_ONLY",
+    "status": "BLOCKED_LIVE_MCP_RESTART_REQUIRED",
+    "claim_boundary": "source/package fail-closed is proven; the already-running Codex Desktop session has not reloaded the package and cannot be used for design actions"
+  },
+  "quality_boundary": "This receipt proves capability advertisement safety and package alignment only; it does not prove reference likeness, multi-view coverage, PBR, human review, export/restart hash, or HQ_360."
+}

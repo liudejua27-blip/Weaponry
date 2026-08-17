@@ -1,0 +1,47 @@
+{
+  "schema_version": "ForgeCADMCP010FP1ReferenceViewBindingHardening@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_FAIL_CLOSED_VIEW_BINDING",
+  "source": {
+    "runtime_lib_rs_sha256": "d1a106afa0f08a9e876c674810bd8f4a014d0190fe94e11f1a63f647eeeb5b91",
+    "agentic_session_rs_sha256": "5d264c6c4f7d9d579a8562969cab51db9c1f42988d917b6b375d8e2e75c6e194",
+    "reference_canvas_schema_sha256": "be2d1d5b51bab31acacc8ea9f17b08ab4c58fd2d3a1c2317af240ecfda6436f2",
+    "reference_view_spec_schema_sha256": "87ec3ea69c075e6e66542c9ef60a0611a23714fcee092400e0e3dd41c07b2e60",
+    "schema_content_set_sha256": "210d0a0f14ecf6af3a35b317af093d6d540d0e8c0fd652cc4e7c3259e399bc3a"
+  },
+  "behavior": {
+    "target_and_mask_require_view_spec": true,
+    "core_kind_source_view_mapping": {
+      "perspective": "three-quarter",
+      "front": "front",
+      "back": "back",
+      "left": "left",
+      "right": "right",
+      "rear-three-quarter": "rear-three-quarter"
+    },
+    "landmark_ids_unique": true,
+    "region_ids_unique": true,
+    "unknown_landmark_or_region_confidence_must_be_zero": true,
+    "region_bounds_must_stay_inside_image": true,
+    "targeted_visible_region_ids_must_exist_in_view_spec": true
+  },
+  "verification": {
+    "agentic_contracts": "PASS",
+    "runtime_reference_view_spec_tests": "PASS",
+    "runtime_complete_core_view_tests": "PASS",
+    "stage0_truth": "PASS_WITH_INTENTIONAL_FAILED_VISUAL_ASSERTIONS",
+    "persistent_user_data_touched": false,
+    "packaged_or_live_desktop": "NOT_RUN"
+  },
+  "not_claimed": [
+    "real front/back/left/right/rear-three-quarter reference intake",
+    "camera calibration or likeness improvement",
+    "PBR or material quality",
+    "human visual review",
+    "export/restart hash",
+    "HQ_360_PASS",
+    "live Codex restart"
+  ],
+  "canonical_sha256": "0b1c7a4637367d2f164517477f465419142c690e0650911e343466946af97cba"
+}

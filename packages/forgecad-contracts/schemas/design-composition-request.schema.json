@@ -12,6 +12,7 @@
     "composition_id",
     "requested_stage",
     "actions",
+    "observation_sha256",
     "input_sha256",
     "approved",
     "approval_receipt_id",
@@ -25,6 +26,7 @@
     "candidate_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
     "composition_id": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/identifier"},
     "requested_stage": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/stage"},
+    "observation_sha256": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/sha256"},
     "actions": {
       "type": "array",
       "minItems": 2,

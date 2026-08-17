@@ -37,3 +37,8 @@ tauri = { version = "2", features = [] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
+# Explicit test-only wiring for the isolated Viewer IPC fixture. Production
+# builds leave these disabled; the fixture must never silently replace sibling
+# Worker transport when a normal package is compiled.
+test-render-worker-fallback = ["forgecad-runtime/test-render-worker-fallback"]
+test-geometry-worker-fallback = ["forgecad-runtime/test-geometry-worker-fallback"]

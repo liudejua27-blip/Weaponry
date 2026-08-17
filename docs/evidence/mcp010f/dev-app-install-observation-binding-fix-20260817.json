@@ -1,0 +1,21 @@
+{
+  "build_cohort_sha256": "18c9fb86cafc7e7baf2356e2efe9db404e6530fdeae54d33c0a9beba94fbae40",
+  "codesign": "ad-hoc deep strict PASS",
+  "developer_id": "NOT_RUN",
+  "installed_app": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app",
+  "notarization": "NOT_RUN",
+  "previous_app_backup": "retained",
+  "resource_sha256": {
+    "forgecad-geometry-worker": "f5744b7f3d135622d88e1071d1cb12246a9cb426f437c0b221d80e266e9185db",
+    "forgecad-mcp": "a73e4bc1a5dbc63fe4a2fa50a0f4921986f990bd82863f3713505084f5c8dd90",
+    "forgecad-render-worker": "f3e1241a89bffa3964caed84ea33f749c441aecc0b56d3a32b5caa54fd35e8e9",
+    "forgecad-runtime": "e2b1ece149164b6ee598692686d69b1e9fdf8e38b2fa26627bbb82bf7049e03d"
+  },
+  "schema_version": "ForgeCADDevAppInstallReceipt@1",
+  "source_file_count": 613,
+  "source_revision": "aade327c2abee25b0c9180928a7fb0392f7fdc59",
+  "source_worktree_dirty": true,
+  "status": "PASS",
+  "task_id": "FGC-MCP010F-observation-binding-fix",
+  "viewer_sha256": "ec96e3f8fbc61a04ce5be117509ab236f392119400c8988f625bc8182e80e07d"
+}

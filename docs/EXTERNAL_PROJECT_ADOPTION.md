@@ -1,7 +1,7 @@
 # 外部项目、Blender 与 GitHub 采用清单
 
-版本：2026-08-13
-状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 与 MCP010D 固定 revision Manifold C API 已以受限 Worker 方式进入产品源码；xatlas、Khronos Validator 和其他第三方仍未进入产品真值。ADR-0026 新增 Pi Agent、Omniverse Kit、OpenUSD、FreeCAD、build123d/CadQuery、BlenderMCP、Trimesh、MaterialX、TRELLIS.2/Hunyuan3D 的研究边界；用户另授权 Luna 对 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 进行冻结 revision 的选择性源文件研究。
+版本：2026-08-17
+状态：MCP010E source-focused 采用决策；固定 `mikktspace@0.3.0` 与 MCP010D 固定 revision Manifold C API 已以受限 Worker 方式进入产品源码；xatlas、Khronos Validator、OpenSubdiv、MaterialX、OpenColorIO 和其他第三方仍未进入产品真值。本轮按用户授权完成了固定 revision 的逐文件研究 receipt、许可证 hash、候选路径和静态能力审查；这些项目全部仍为 `research-authorized`，没有 lockfile/package/Runtime 变更。ADR-0026 新增 Pi Agent、Omniverse Kit、OpenUSD、FreeCAD、build123d/CadQuery、BlenderMCP、Trimesh、MaterialX、TRELLIS.2/Hunyuan3D 的研究边界；用户另授权 Luna 对 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 进行冻结 revision 的选择性源文件研究。
 
 ## 1. 采用规则
 

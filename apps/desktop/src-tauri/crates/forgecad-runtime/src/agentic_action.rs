@@ -98,6 +98,7 @@ struct ViewEvaluation {
     confidence: f64,
     reference_id: String,
     reference_sha256: String,
+    target_sha256: Option<String>,
     view_spec: Value,
     camera: Value,
 }
@@ -269,6 +270,10 @@ impl Runtime {
             "project_id":project_id,
             "candidate_id":source_candidate_id
         }))?;
+        // A conservative/default session may be read for intake, but it is
+        // never sufficient to prepare a Repair application intent.  Re-read
+        // the explicit ReferenceCanvas lineage before any candidate/job work.
+        super::agentic_session::require_bound_authoring_context(self, &session)?;
 
         let source_candidate = self.candidate(source_candidate_id)?.ok_or_else(|| {
             RuntimeError::InvalidInput("NOT_FOUND: source candidate not found".to_owned())
@@ -680,6 +685,7 @@ impl Runtime {
             "project_id": project_id,
             "candidate_id": source_candidate_id
         }))?;
+        super::agentic_session::require_bound_authoring_context(self, &session)?;
 
         let source_candidate = self.candidate(source_candidate_id)?.ok_or_else(|| {
             RuntimeError::InvalidInput("NOT_FOUND: source candidate not found".to_owned())
@@ -885,6 +891,330 @@ impl Runtime {
         Ok(output)
     }
 
+    /// Execute one durable RepairIntent through the Runtime-owned bounded
+    /// prepare/compile/readback/render/evaluate loop. The CAS intent is the
+    /// source of truth for the proposed repair; callers provide only the
+    /// candidate-bound GeometryProgram/ViewSpec/camera payload. This keeps
+    /// critic output, execution and the later RepairApply transaction on one
+    /// exact intent lineage without allowing implicit confirmation.
+    pub fn repair_intent_run_prepare(&self, request: Value) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "repair_intent_run_prepare")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "project_id",
+                "session_id",
+                "candidate_id",
+                "run_id",
+                "intent_sha256",
+                "intent_object_sha256",
+                "observation_sha256",
+                "source_evidence_sha256",
+                "reference_sha256",
+                "action",
+                "proposal",
+                "requested_stage",
+                "input_sha256",
+                "approved",
+                "approval_receipt_id",
+                "approval_summary",
+                "approval_expires_at",
+                "approval_session_id",
+                "idempotency_key",
+            ],
+        )?;
+        validate_approval(object)?;
+
+        let project_id = required_id(object, "project_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let candidate_id = required_id(object, "candidate_id")?;
+        let run_id = required_id(object, "run_id")?;
+        let intent_sha256 = required_sha(object, "intent_sha256")?;
+        let intent_object_sha256 = required_sha(object, "intent_object_sha256")?;
+        let observation_sha256 = required_sha(object, "observation_sha256")?;
+        let source_evidence_sha256 = required_sha(object, "source_evidence_sha256")?;
+        let reference_sha256 = required_sha(object, "reference_sha256")?;
+        let requested_stage = required_stage(object, "requested_stage")?;
+        let input_sha256 = required_sha(object, "input_sha256")?;
+        let action = object
+            .get("action")
+            .ok_or_else(|| RuntimeError::InvalidInput("action is required".to_owned()))?;
+        validate_action(action)?;
+        let proposal = object
+            .get("proposal")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput("REPAIR_INTENT_RUN_PROPOSAL_REQUIRED".to_owned())
+            })?;
+        if proposal.keys().any(|key| {
+            !matches!(key.as_str(), "geometry_program" | "view_spec" | "camera" | "view_evaluations")
+        }) || !proposal.contains_key("geometry_program")
+            || !proposal.contains_key("view_spec")
+            || !proposal.contains_key("camera")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_PROPOSAL_INVALID".to_owned(),
+            ));
+        }
+
+        let input_binding = json!({
+            "project_id":project_id,
+            "session_id":session_id,
+            "candidate_id":candidate_id,
+            "run_id":run_id,
+            "intent_sha256":intent_sha256,
+            "intent_object_sha256":intent_object_sha256,
+            "observation_sha256":observation_sha256,
+            "source_evidence_sha256":source_evidence_sha256,
+            "reference_sha256":reference_sha256,
+            "action":action,
+            "proposal":proposal,
+            "requested_stage":requested_stage
+        });
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        let numeric_compatibility_input_sha256 =
+            canonical_json_hash(&normalize_action_input_numbers(&input_binding));
+        if input_sha256 != expected_input_sha256
+            && input_sha256 != numeric_compatibility_input_sha256
+        {
+            return Err(RuntimeError::InvalidInput(format!(
+                "REPAIR_INTENT_RUN_INPUT_HASH_MISMATCH: expected={expected_input_sha256} numeric_compatibility={numeric_compatibility_input_sha256} actual={input_sha256}"
+            )));
+        }
+
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        validate_session_scope(&session, session_id, project_id, candidate_id)?;
+        if session.observation_sha256 != observation_sha256
+            || session.evidence_sha256 != source_evidence_sha256
+            || session.reference_sha256 != reference_sha256
+            || session.current_stage != requested_stage
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_SESSION_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        self.session_get(json!({
+            "session_id":session_id,
+            "project_id":project_id,
+            "candidate_id":candidate_id
+        }))?;
+        let bound_observation = self.bound_agentic_observation(
+            project_id,
+            Some(candidate_id),
+            observation_sha256,
+        )?;
+        if bound_observation.get("canonical_sha256").and_then(Value::as_str)
+            != Some(observation_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_OBSERVATION_STALE".to_owned(),
+            ));
+        }
+
+        let intent_metadata = self
+            .store
+            .get_object(intent_object_sha256)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "REPAIR_INTENT_RUN_INTENT_OBJECT_UNAVAILABLE".to_owned(),
+                )
+            })?;
+        if intent_metadata.mime != "application/json"
+            || intent_metadata.kind != "agentic-repair-intent"
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_INTENT_METADATA_MISMATCH".to_owned(),
+            ));
+        }
+        let intent = read_json_object(self, intent_object_sha256)?;
+        let mut intent_without_hash = intent.clone();
+        intent_without_hash["canonical_sha256"] = Value::String(String::new());
+        if intent.get("schema_version").and_then(Value::as_str) != Some("RepairIntent@1")
+            || intent.get("canonical_sha256").and_then(Value::as_str) != Some(intent_sha256)
+            || canonical_json_hash(&intent_without_hash) != intent_sha256
+            || !matches!(intent.get("status").and_then(Value::as_str), Some("proposed" | "approved"))
+            || intent.get("approval_required") != Some(&Value::Bool(true))
+            || intent.get("runtime_write") != Some(&Value::Bool(false))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_INTENT_INVALID".to_owned(),
+            ));
+        }
+        for (key, expected) in [
+            ("project_id", project_id),
+            ("session_id", session_id),
+            ("candidate_id", candidate_id),
+            ("reference_id", session.reference_id.as_str()),
+            ("reference_sha256", reference_sha256),
+            ("camera_hash", session.camera_hash.as_str()),
+            ("observation_sha256", observation_sha256),
+            ("source_evidence_sha256", source_evidence_sha256),
+            ("stage", requested_stage),
+        ] {
+            if intent.get(key).and_then(Value::as_str) != Some(expected) {
+                return Err(RuntimeError::InvalidInput(
+                    "REPAIR_INTENT_RUN_INTENT_BINDING_MISMATCH".to_owned(),
+                ));
+            }
+        }
+        let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
+        })?;
+        if candidate.project_id != project_id
+            || intent.get("candidate_state_sha256").and_then(Value::as_str)
+                != Some(candidate.canonical_sha256.as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_CANDIDATE_STALE".to_owned(),
+            ));
+        }
+        let intent_scope = intent
+            .get("scope")
+            .and_then(Value::as_object)
+            .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_INTENT_RUN_SCOPE_INVALID".to_owned()))?;
+        let action_object = action.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput("REPAIR_INTENT_RUN_ACTION_INVALID".to_owned())
+        })?;
+        if action_object.get("action_kind").and_then(Value::as_str) != Some("bounded-repair")
+            || action_object.get("scope_kind").and_then(Value::as_str) != Some("part")
+            || action_object.get("bounded") != Some(&Value::Bool(true))
+            || intent_scope.get("kind").and_then(Value::as_str) != Some("part")
+            || intent_scope.get("part_id") != action_object.get("target_id")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_SCOPE_MISMATCH".to_owned(),
+            ));
+        }
+        let intent_action = intent
+            .get("action")
+            .and_then(Value::as_object)
+            .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_INTENT_RUN_ACTION_INVALID".to_owned()))?;
+        if intent_action.get("action_kind").and_then(Value::as_str) != Some("bounded-repair")
+            || intent_action.get("bounded") != Some(&Value::Bool(true))
+            || intent_action.get("parameter_changes") != action_object.get("parameter_changes")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_ACTION_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+        let precondition = intent
+            .get("precondition")
+            .and_then(Value::as_object)
+            .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_INTENT_RUN_PRECONDITION_INVALID".to_owned()))?;
+        if precondition.get("current_candidate_state_sha256").and_then(Value::as_str)
+            != Some(candidate.canonical_sha256.as_str())
+            || precondition.get("evidence_sha256").and_then(Value::as_str)
+                != Some(source_evidence_sha256)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_PRECONDITION_MISMATCH".to_owned(),
+            ));
+        }
+        if intent.get("recompute")
+            != Some(&json!({
+                "steps":["compile","readback","render","compare"],
+                "must_rebind_reference":true,
+                "must_rebind_camera":true,
+                "confirm_allowed":false
+            }))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_RECOMPUTE_INVALID".to_owned(),
+            ));
+        }
+
+        let mut bound_proposal = Value::Object(proposal.clone());
+        if bound_proposal.get("repair_intent").is_some() {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_INTENT_RUN_PROPOSAL_MUST_NOT_OVERRIDE_INTENT".to_owned(),
+            ));
+        }
+        bound_proposal["repair_intent"] = intent;
+        let action_input = json!({
+            "project_id":project_id,
+            "session_id":session_id,
+            "candidate_id":candidate_id,
+            "run_id":run_id,
+            "action":action,
+            "requested_stage":requested_stage,
+            "observation_sha256":observation_sha256,
+            "proposal":bound_proposal
+        });
+        let action_input_sha256 = canonical_json_hash(&action_input);
+        let action_run = self.design_action_run_prepare(json!({
+            "project_id":project_id,
+            "session_id":session_id,
+            "candidate_id":candidate_id,
+            "run_id":run_id,
+            "action":action,
+            "input_sha256":action_input_sha256,
+            "requested_stage":requested_stage,
+            "approved":true,
+            "approval_receipt_id":object.get("approval_receipt_id").cloned().unwrap_or(Value::Null),
+            "approval_summary":object.get("approval_summary").cloned().unwrap_or(Value::Null),
+            "approval_expires_at":object.get("approval_expires_at").cloned().unwrap_or(Value::Null),
+            "approval_session_id":object.get("approval_session_id").cloned().unwrap_or(Value::String(session_id.to_owned())),
+            "idempotency_key":format!("repair-intent-run-{}", &action_input_sha256[..24]),
+            "observation_sha256":observation_sha256,
+            "proposal":bound_proposal
+        }))?;
+        let run_proposal = action_run.get("proposal").and_then(Value::as_object);
+        let strict_improvement = run_proposal
+            .and_then(|value| value.get("strict_improvement"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let non_regressing = run_proposal
+            .and_then(|value| value.get("non_regressing"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let quality_status = action_run
+            .get("quality_status")
+            .and_then(Value::as_str)
+            .unwrap_or("QUALITY_TARGET_NOT_MET");
+        let reviewable = strict_improvement
+            && non_regressing
+            && quality_status == "PARTIAL_VISIBLE_VIEW_PASS"
+            && run_proposal
+                .and_then(|value| value.get("promotion"))
+                .and_then(Value::as_str)
+                == Some("reviewable");
+        let mut result = json!({
+            "schema_version":"RepairIntentRunResult@1",
+            "project_id":project_id,
+            "session_id":session_id,
+            "candidate_id":candidate_id,
+            "run_id":run_id,
+            "intent_sha256":intent_sha256,
+            "intent_object_sha256":intent_object_sha256,
+            "input_sha256":input_sha256,
+            "observation_sha256":observation_sha256,
+            "source_evidence_sha256":source_evidence_sha256,
+            "reference_sha256":reference_sha256,
+            "status":if reviewable {"reviewable"} else {"blocked"},
+            "run_status":action_run.get("status").cloned().unwrap_or(Value::String("blocked".to_owned())),
+            "quality_status":quality_status,
+            "action_run_sha256":action_run.get("canonical_sha256").cloned().unwrap_or(Value::Null),
+            "action_run":action_run,
+            "proposal_candidate_id":run_proposal.and_then(|value| value.get("candidate_id")).cloned().unwrap_or(Value::Null),
+            "proposal_candidate_state_sha256":run_proposal.and_then(|value| value.get("candidate_state_sha256")).cloned().unwrap_or(Value::Null),
+            "prepared_object_sha256":run_proposal.and_then(|value| value.get("artifact_sha256")).cloned().unwrap_or(Value::Null),
+            "quality_report_id":run_proposal.and_then(|value| value.get("quality_report_sha256")).cloned().unwrap_or(Value::Null),
+            "apply_status":if reviewable {"ready_for_repair_apply_prepare"} else {"blocked"},
+            "next_transaction":if reviewable {"repair_apply_prepare"} else {"inspect_or_retry"},
+            "confirm_allowed":false,
+            "source_candidate_unchanged":true,
+            "active_design_state_mutated":false,
+            "runtime_write":false,
+            "persistent_user_data_touched":false,
+            "canonical_sha256":""
+        });
+        result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+        Ok(result)
+    }
+
     /// Execute the bounded P0 action loop over the current immutable
     /// candidate.  The action is an approved, typed intent; this first slice
     /// uses it to authorize a deterministic revalidation pass and does not
@@ -996,6 +1326,13 @@ impl Runtime {
                 "AGENTIC_OBSERVATION_STALE: supplied observation does not match the current Runtime projection"
                     .to_owned(),
             ));
+        }
+        let action_kind = action
+            .get("action_kind")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !matches!(action_kind, "request-reference" | "checkpoint") {
+            super::agentic_session::require_bound_authoring_context(self, &session)?;
         }
         let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
             RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
@@ -1828,6 +2165,8 @@ enum RuntimeParameterSemantic {
     Position(usize),
     Rotation(usize),
     Radius,
+    Thickness,
+    Bevel,
     SurfaceControlPoint { index: usize, axis: usize },
 }
 
@@ -1873,8 +2212,22 @@ fn runtime_parameter_semantic(parameter_id: &str) -> Option<RuntimeParameterSema
         Some(RuntimeParameterSemantic::Rotation(2))
     } else if matches("radius") {
         Some(RuntimeParameterSemantic::Radius)
+    } else if matches("thickness") {
+        Some(RuntimeParameterSemantic::Thickness)
+    } else if matches("bevel") {
+        Some(RuntimeParameterSemantic::Bevel)
     } else {
         None
+    }
+}
+
+fn runtime_parameter_strategy(semantic: RuntimeParameterSemantic) -> &'static str {
+    match semantic {
+        RuntimeParameterSemantic::SurfaceControlPoint { .. } => "surface-control-points-v1",
+        RuntimeParameterSemantic::Thickness | RuntimeParameterSemantic::Bevel => {
+            "hard-surface-finish-v1"
+        }
+        _ => "primitive-dimensions-v1",
     }
 }
 
@@ -1890,7 +2243,7 @@ fn runtime_parameter_patch_strategy(action: &Value) -> Result<&'static str, Runt
         .ok_or_else(|| {
             RuntimeError::InvalidInput("REPAIR_PARAMETER_CHANGES_REQUIRED".to_owned())
         })?;
-    let mut surface = None;
+    let mut family = None;
     let mut seen = HashSet::new();
     for change in changes {
         let parameter_id = change
@@ -1907,22 +2260,18 @@ fn runtime_parameter_patch_strategy(action: &Value) -> Result<&'static str, Runt
                 "ACTION_PARAMETER_PATCH_INVALID: duplicate semantic parameter".to_owned(),
             ));
         }
-        let is_surface = matches!(semantic, RuntimeParameterSemantic::SurfaceControlPoint { .. });
-        if let Some(previous) = surface {
-            if previous != is_surface {
+        let semantic_family = runtime_parameter_strategy(semantic);
+        if let Some(previous) = family {
+            if previous != semantic_family {
                 return Err(RuntimeError::InvalidInput(
                     "ACTION_PARAMETER_PATCH_STRATEGY_PARAMETER_MISMATCH".to_owned(),
                 ));
             }
         } else {
-            surface = Some(is_surface);
+            family = Some(semantic_family);
         }
     }
-    Ok(if surface == Some(true) {
-        "surface-control-points-v1"
-    } else {
-        "primitive-dimensions-v1"
-    })
+    family.ok_or_else(|| RuntimeError::InvalidInput("REPAIR_PARAMETER_CHANGES_REQUIRED".to_owned()))
 }
 
 fn runtime_parameter_node_supports(
@@ -1942,6 +2291,7 @@ fn runtime_parameter_node_supports(
                 | "forgecad.geometry.surface-shell@1"
         )
     );
+    let panel_operator = operator_id == Some("forgecad.geometry.panel@1");
     let Some(parameters) = node.get("parameters").and_then(Value::as_object) else {
         return false;
     };
@@ -1960,6 +2310,14 @@ fn runtime_parameter_node_supports(
             .is_some_and(|values| values.len() == 3 && values[index].as_f64().is_some()),
         RuntimeParameterSemantic::Radius if primitive_or_panel => {
             parameters.get("radius_m").and_then(Value::as_f64).is_some()
+        }
+        RuntimeParameterSemantic::Thickness
+            if panel_operator || operator_id == Some("forgecad.geometry.surface-shell@1") =>
+        {
+            parameters.get("thickness_m").and_then(Value::as_f64).is_some()
+        }
+        RuntimeParameterSemantic::Bevel if panel_operator => {
+            parameters.get("bevel_m").and_then(Value::as_f64).is_some()
         }
         RuntimeParameterSemantic::SurfaceControlPoint { index, axis } if surface_operator => {
             parameters
@@ -1984,6 +2342,8 @@ fn runtime_parameter_value_in_bounds(semantic: RuntimeParameterSemantic, value: 
             (-2.0 * std::f64::consts::PI..=2.0 * std::f64::consts::PI).contains(&value)
         }
         RuntimeParameterSemantic::Radius => value > 0.0 && value <= 5.0,
+        RuntimeParameterSemantic::Thickness => value > 0.0 && value <= 10.0,
+        RuntimeParameterSemantic::Bevel => value >= 0.0 && value <= 5.0,
         RuntimeParameterSemantic::SurfaceControlPoint { .. } => (-10.0..=10.0).contains(&value),
     }
 }
@@ -1994,9 +2354,42 @@ fn runtime_parameter_unit_allowed(semantic: RuntimeParameterSemantic, unit: &str
         RuntimeParameterSemantic::Size(_)
         | RuntimeParameterSemantic::Position(_)
         | RuntimeParameterSemantic::Radius
+        | RuntimeParameterSemantic::Thickness
+        | RuntimeParameterSemantic::Bevel
         | RuntimeParameterSemantic::SurfaceControlPoint { .. } => {
             matches!(unit, "meter" | "ratio")
         }
+    }
+}
+
+fn runtime_parameter_relationship_valid(
+    operator_id: &str,
+    parameters: &Map<String, Value>,
+    semantic: RuntimeParameterSemantic,
+    proposed: f64,
+) -> bool {
+    if operator_id != "forgecad.geometry.panel@1" {
+        return true;
+    }
+    let size = parameters
+        .get("size_m")
+        .and_then(Value::as_array)
+        .and_then(|values| {
+            (values.len() == 3).then(|| {
+                [
+                    values[0].as_f64(),
+                    values[1].as_f64(),
+                    values[2].as_f64(),
+                ]
+            })
+        });
+    let Some([Some(width), Some(height), Some(depth)]) = size else {
+        return false;
+    };
+    match semantic {
+        RuntimeParameterSemantic::Thickness => proposed <= depth,
+        RuntimeParameterSemantic::Bevel => proposed * 2.0 < width.min(height),
+        _ => true,
     }
 }
 
@@ -2095,8 +2488,10 @@ fn materialize_runtime_parameter_patch_proposal(
                 "ACTION_PARAMETER_PATCH_INVALID: strategy is required".to_owned(),
             )
         })?;
-    let surface_control_point_strategy = strategy == "surface-control-points-v1";
-    if !matches!(strategy, "primitive-dimensions-v1" | "surface-control-points-v1") {
+    if !matches!(
+        strategy,
+        "primitive-dimensions-v1" | "surface-control-points-v1" | "hard-surface-finish-v1"
+    ) {
         return Err(RuntimeError::InvalidInput(
             "ACTION_PARAMETER_PATCH_UNSUPPORTED: strategy is unavailable".to_owned(),
         ));
@@ -2165,9 +2560,7 @@ fn materialize_runtime_parameter_patch_proposal(
                 "ACTION_PARAMETER_PATCH_UNSUPPORTED: parameter_id {parameter_id}"
             ))
         })?;
-        if surface_control_point_strategy
-            != matches!(semantic, RuntimeParameterSemantic::SurfaceControlPoint { .. })
-        {
+        if runtime_parameter_strategy(semantic) != strategy {
             return Err(RuntimeError::InvalidInput(
                 "ACTION_PARAMETER_PATCH_STRATEGY_PARAMETER_MISMATCH".to_owned(),
             ));
@@ -2306,6 +2699,10 @@ fn materialize_runtime_parameter_patch_proposal(
                 .and_then(|values| values.get(index))
                 .and_then(Value::as_f64),
             RuntimeParameterSemantic::Radius => parameters.get("radius_m").and_then(Value::as_f64),
+            RuntimeParameterSemantic::Thickness => {
+                parameters.get("thickness_m").and_then(Value::as_f64)
+            }
+            RuntimeParameterSemantic::Bevel => parameters.get("bevel_m").and_then(Value::as_f64),
             RuntimeParameterSemantic::SurfaceControlPoint { index, axis } => parameters
                 .get("control_points")
                 .and_then(Value::as_array)
@@ -2344,6 +2741,11 @@ fn materialize_runtime_parameter_patch_proposal(
                 "ACTION_PARAMETER_PATCH_OUT_OF_BOUNDS".to_owned(),
             ));
         }
+        if !runtime_parameter_relationship_valid(operator_id, parameters, semantic, proposed) {
+            return Err(RuntimeError::InvalidInput(
+                "ACTION_PARAMETER_PATCH_GEOMETRY_RELATIONSHIP_INVALID".to_owned(),
+            ));
+        }
         let proposed_value = runtime_parameter_number(proposed, parameter_id)?;
         match semantic {
             RuntimeParameterSemantic::Size(index) => {
@@ -2375,6 +2777,12 @@ fn materialize_runtime_parameter_patch_proposal(
             }
             RuntimeParameterSemantic::Radius => {
                 parameters.insert("radius_m".to_owned(), proposed_value);
+            }
+            RuntimeParameterSemantic::Thickness => {
+                parameters.insert("thickness_m".to_owned(), proposed_value);
+            }
+            RuntimeParameterSemantic::Bevel => {
+                parameters.insert("bevel_m".to_owned(), proposed_value);
             }
             RuntimeParameterSemantic::SurfaceControlPoint { index, axis } => {
                 let points = parameters
@@ -2436,6 +2844,7 @@ fn materialize_runtime_parameter_patch_proposal(
         "reference_id":session.reference_id,
         "reference_sha256":session.reference_sha256,
         "camera_hash":session.camera_hash,
+        "observation_sha256":session.observation_sha256,
         "source_evidence_sha256":session.evidence_sha256,
         "source_critic_report_id":format!("critic-report-{critic_prefix}"),
         "source_critic_report_sha256":source_visual.quality_sha256,
@@ -2928,6 +3337,42 @@ fn validate_view_evaluations(
             ));
         }
         super::validate_reference_view_spec(view_spec, &reference)?;
+        if let Some(authored_view_spec) = authored_view.get("view_spec") {
+            if authored_view_spec.get("canonical_sha256")
+                != view_spec.get("canonical_sha256")
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "REPAIR_VIEW_BINDING_MISMATCH: view spec differs from ReferenceCanvas"
+                        .to_owned(),
+                ));
+            }
+        }
+        let target_sha256 = authored_view
+            .get("target_sha256")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        let mask_sha256 = authored_view
+            .get("mask_sha256")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        if target_sha256.is_some() != mask_sha256.is_some() {
+            return Err(RuntimeError::InvalidInput(
+                "REPAIR_VIEW_BINDING_MISMATCH: target and mask must be paired".to_owned(),
+            ));
+        }
+        if let Some(target_sha256) = target_sha256.as_deref() {
+            let target = runtime.read_silhouette_target(target_sha256)?;
+            if target.get("reference_id").and_then(Value::as_str) != Some(reference_id.as_str())
+                || target.get("reference_sha256").and_then(Value::as_str)
+                    != Some(reference_sha256.as_str())
+                || target.get("mask_sha256").and_then(Value::as_str)
+                    != mask_sha256.as_deref()
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "REPAIR_VIEW_BINDING_MISMATCH: target lineage differs".to_owned(),
+                ));
+            }
+        }
         let camera = object
             .get("camera")
             .ok_or_else(|| RuntimeError::InvalidInput("REPAIR_VIEW_CAMERA_REQUIRED".to_owned()))?;
@@ -2963,11 +3408,62 @@ fn validate_view_evaluations(
             confidence,
             reference_id,
             reference_sha256,
+            target_sha256,
             view_spec: view_spec.clone(),
             camera: camera.clone(),
         });
     }
+    validate_cross_view_evaluation_coverage(&canvas, &result)?;
     Ok(Some(result))
+}
+
+/// A cross-view proposal is only meaningful when it evaluates every supplied
+/// view in the durable ReferenceCanvas exactly once.  Checking only the
+/// number of entries is insufficient: a caller could repeat two easy views
+/// while a complete canvas silently omits the rear or side reference.
+fn validate_cross_view_evaluation_coverage(
+    canvas: &Value,
+    evaluations: &[ViewEvaluation],
+) -> Result<(), RuntimeError> {
+    let coverage = canvas
+        .get("coverage")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REPAIR_VIEW_EVALUATIONS_COVERAGE_INVALID: coverage is missing".to_owned(),
+            )
+        })?;
+    let supplied = coverage
+        .get("supplied_views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REPAIR_VIEW_EVALUATIONS_COVERAGE_INVALID: supplied views are missing".to_owned(),
+            )
+        })?;
+    let expected = supplied
+        .iter()
+        .map(|value| value.as_str().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "REPAIR_VIEW_EVALUATIONS_COVERAGE_INVALID: supplied view kind is invalid"
+                    .to_owned(),
+            )
+        }))
+        .collect::<Result<HashSet<_>, _>>()?;
+    let actual = evaluations
+        .iter()
+        .map(|evaluation| evaluation.kind.as_str())
+        .collect::<HashSet<_>>();
+    if expected.len() != evaluations.len()
+        || expected.len() != actual.len()
+        || expected != actual
+    {
+        return Err(RuntimeError::InvalidInput(
+            "REPAIR_VIEW_EVALUATIONS_COVERAGE_MISMATCH: every supplied view must be evaluated exactly once"
+                .to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -3002,9 +3498,7 @@ fn evaluate_cross_view_proposal(
     let mut baseline_total = 0.0;
     let mut proposal_total = 0.0;
     for view in view_evaluations {
-        let baseline = runtime.prepare_reference_comparison(
-            &session.project_id,
-            json!({
+        let mut baseline_request = json!({
                 "project_id":session.project_id,
                 "candidate_id":source_candidate.candidate_id,
                 "session_id":session.session_id,
@@ -3013,11 +3507,15 @@ fn evaluate_cross_view_proposal(
                 "view_id":view.view_id,
                 "view_spec":view.view_spec,
                 "camera":view.camera
-            }),
-        )?;
-        let proposal = runtime.prepare_reference_comparison(
+        });
+        if let Some(target_sha256) = view.target_sha256.as_deref() {
+            baseline_request["target_sha256"] = Value::String(target_sha256.to_owned());
+        }
+        let baseline = runtime.prepare_reference_comparison(
             &session.project_id,
-            json!({
+            baseline_request,
+        )?;
+        let mut proposal_request = json!({
                 "project_id":session.project_id,
                 "candidate_id":proposal_candidate.candidate_id,
                 "session_id":session.session_id,
@@ -3026,7 +3524,13 @@ fn evaluate_cross_view_proposal(
                 "view_id":view.view_id,
                 "view_spec":view.view_spec,
                 "camera":view.camera
-            }),
+        });
+        if let Some(target_sha256) = view.target_sha256.as_deref() {
+            proposal_request["target_sha256"] = Value::String(target_sha256.to_owned());
+        }
+        let proposal = runtime.prepare_reference_comparison(
+            &session.project_id,
+            proposal_request,
         )?;
         let baseline_report = baseline
             .get("comparison_report")
@@ -3282,6 +3786,7 @@ fn validate_repair_proposal(
         ("reference_id", session.reference_id.as_str()),
         ("reference_sha256", session.reference_sha256.as_str()),
         ("camera_hash", session.camera_hash.as_str()),
+        ("observation_sha256", session.observation_sha256.as_str()),
     ] {
         if intent_object.get(key).and_then(Value::as_str) != Some(expected) {
             return Err(RuntimeError::InvalidInput(
@@ -4483,7 +4988,12 @@ fn rig_from_action(
                     "PRIMARY_FORM_ACTION_PARAMETER_UNIT_REQUIRED".to_owned(),
                 )
             })?;
-        if !matches!(unit, "meter" | "ratio") {
+        let rotation_unit = matches!(semantic, "rotation_x" | "rotation_y" | "rotation_z");
+        if !(if rotation_unit {
+            matches!(unit, "radian" | "ratio")
+        } else {
+            matches!(unit, "meter" | "ratio")
+        }) {
             return Err(RuntimeError::InvalidInput(
                 "PRIMARY_FORM_ACTION_PARAMETER_UNIT_UNSUPPORTED".to_owned(),
             ));
@@ -4538,6 +5048,12 @@ fn primary_form_parameter_semantic(parameter_id: &str) -> Option<&'static str> {
         ("height", "height"),
         ("depth", "depth"),
         ("scale", "scale"),
+        ("rotation-x", "rotation_x"),
+        ("rotation_x", "rotation_x"),
+        ("rotation-y", "rotation_y"),
+        ("rotation_y", "rotation_y"),
+        ("rotation-z", "rotation_z"),
+        ("rotation_z", "rotation_z"),
     ]
     .into_iter()
     .find_map(|(suffix, semantic)| {
@@ -4687,6 +5203,45 @@ mod tests {
     }
 
     #[test]
+    fn cross_view_evaluation_requires_every_supplied_kind_once() {
+        let canvas = json!({
+            "coverage": {
+                "supplied_views": ["front", "back"]
+            }
+        });
+        let evaluation = |kind: &str| ViewEvaluation {
+            view_id: format!("view-{kind}"),
+            kind: kind.to_owned(),
+            visibility: "observed".to_owned(),
+            confidence: 1.0,
+            reference_id: "reference-1".to_owned(),
+            reference_sha256: "a".repeat(64),
+            target_sha256: None,
+            view_spec: json!({}),
+            camera: json!({}),
+        };
+
+        assert!(validate_cross_view_evaluation_coverage(
+            &canvas,
+            &[evaluation("front"), evaluation("back")]
+        )
+        .is_ok());
+        let missing = validate_cross_view_evaluation_coverage(&canvas, &[evaluation("front")])
+            .expect_err("missing supplied view unexpectedly passed");
+        assert!(missing
+            .to_string()
+            .contains("REPAIR_VIEW_EVALUATIONS_COVERAGE_MISMATCH"));
+        let duplicate_kind = validate_cross_view_evaluation_coverage(
+            &canvas,
+            &[evaluation("front"), evaluation("front")],
+        )
+        .expect_err("duplicate supplied kind unexpectedly passed");
+        assert!(duplicate_kind
+            .to_string()
+            .contains("REPAIR_VIEW_EVALUATIONS_COVERAGE_MISMATCH"));
+    }
+
+    #[test]
     fn geometry_design_stages_require_the_same_typed_proposal() {
         for action_kind in [
             "primary-blockout",
@@ -4737,6 +5292,82 @@ mod tests {
             runtime_parameter_patch_strategy(&surface_action).expect("surface strategy"),
             "surface-control-points-v1"
         );
+
+        let mut pose_action = action;
+        pose_action["parameter_changes"] = json!([{
+            "parameter_id":"head-rotation-y",
+            "before":0.0,
+            "after":0.18,
+            "minimum":-0.6,
+            "maximum":0.6,
+            "unit":"radian"
+        }]);
+        assert!(validate_execution_payload(&pose_action, None, None, Some(&view_spec)).is_ok());
+        assert_eq!(
+            runtime_parameter_patch_strategy(&pose_action).expect("pose strategy"),
+            "primitive-dimensions-v1"
+        );
+
+        let mut panel_action = json!({
+            "action_id":"panel-finish-patch-action",
+            "action_kind":"secondary-structure",
+            "scope_kind":"part",
+            "target_id":"chest-shell",
+            "operator_id":"forgecad.geometry.panel@1",
+            "parameter_changes":[
+                {"parameter_id":"panel-thickness","before":0.18,"after":0.20,"minimum":0.10,"maximum":0.30,"unit":"meter"},
+                {"parameter_id":"panel-bevel","before":0.12,"after":0.14,"minimum":0.0,"maximum":0.30,"unit":"meter"}
+            ],
+            "bounded":true,
+            "description":"Adjust panel thickness and corner bevel within the source panel envelope"
+        });
+        assert_eq!(
+            runtime_parameter_patch_strategy(&panel_action).expect("panel finish strategy"),
+            "hard-surface-finish-v1"
+        );
+        assert!(runtime_parameter_relationship_valid(
+            "forgecad.geometry.panel@1",
+            &json!({"size_m":[1.66,1.12,0.68]}).as_object().unwrap().clone(),
+            RuntimeParameterSemantic::Thickness,
+            0.20
+        ));
+        assert!(runtime_parameter_relationship_valid(
+            "forgecad.geometry.panel@1",
+            &json!({"size_m":[1.66,1.12,0.68]}).as_object().unwrap().clone(),
+            RuntimeParameterSemantic::Bevel,
+            0.14
+        ));
+        let panel_node = json!({
+            "operator_id":"forgecad.geometry.panel@1",
+            "parameters":{"size_m":[1.66,1.12,0.68],"thickness_m":0.18,"bevel_m":0.12}
+        });
+        assert!(runtime_parameter_node_supports(
+            panel_node.as_object().unwrap(),
+            RuntimeParameterSemantic::Thickness
+        ));
+        assert!(runtime_parameter_node_supports(
+            panel_node.as_object().unwrap(),
+            RuntimeParameterSemantic::Bevel
+        ));
+        assert!(!runtime_parameter_node_supports(
+            panel_node.as_object().unwrap(),
+            RuntimeParameterSemantic::SurfaceControlPoint { index: 0, axis: 0 }
+        ));
+        assert!(!runtime_parameter_relationship_valid(
+            "forgecad.geometry.panel@1",
+            &json!({"size_m":[1.66,1.12,0.68]}).as_object().unwrap().clone(),
+            RuntimeParameterSemantic::Bevel,
+            0.60
+        ));
+        panel_action["parameter_changes"] = json!([
+            {"parameter_id":"panel-bevel","before":0.12,"after":0.14,"minimum":0.0,"maximum":0.30,"unit":"meter"},
+            {"parameter_id":"panel-width","before":1.66,"after":1.70,"minimum":1.4,"maximum":1.9,"unit":"meter"}
+        ]);
+        let mixed = runtime_parameter_patch_strategy(&panel_action)
+            .expect_err("finish and primitive patch families must not mix");
+        assert!(mixed
+            .to_string()
+            .contains("ACTION_PARAMETER_PATCH_STRATEGY_PARAMETER_MISMATCH"));
     }
 
     #[test]

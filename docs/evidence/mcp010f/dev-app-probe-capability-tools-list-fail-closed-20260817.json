@@ -1,0 +1,13 @@
+{
+  "build_cohort_match": true,
+  "build_cohort_sha256": "275fbf9a37ecc160ffaf2027cc7ffe19bb4355c7f65535db30ffedf030375b30",
+  "codex_desktop_restart_gate": "NOT_RUN",
+  "isolated_project_create": "PASS",
+  "persistent_user_data_touched": false,
+  "ponytail_preflight": "PASS",
+  "protocol_version": "2025-06-18",
+  "runtime_state": "Ready",
+  "schema_version": "ForgeCADMCP010ADevProbe@1",
+  "status": "PASS",
+  "task_id": "FGC-MCP010A"
+}

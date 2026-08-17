@@ -394,7 +394,7 @@ def main() -> int:
             and runtime_identity.get("build_cohort_sha256") == args.expected_build_cohort,
             "MCP/Runtime build cohorts did not match",
         )
-    data_root = args.data_root.resolve()
+    data_root = args.data_root.absolute()
     if data_root.exists():
         raise GateFailure("MCP010D data root must not pre-exist")
     data_root.mkdir(mode=0o700, parents=True)
@@ -458,10 +458,13 @@ def main() -> int:
         require(isinstance(catalog_hash, str) and len(catalog_hash) == 64, "catalog hash missing")
         catalog = client.tool("operator_catalog_get")
         operators = {entry.get("operator_id"): entry for entry in catalog.get("operators", [])}
-        required_active = {
+        expected_operator_ids = {
+            "forgecad.geometry.primitive@2",
             "forgecad.geometry.profile-extrude@1",
             "forgecad.geometry.profile-loft@1",
             "forgecad.geometry.subd-cage@1",
+            "forgecad.geometry.surface-patch@1",
+            "forgecad.geometry.surface-shell@1",
             "forgecad.geometry.revolve@1",
             "forgecad.geometry.tube-sweep@1",
             "forgecad.geometry.transform@2",
@@ -474,10 +477,10 @@ def main() -> int:
             "forgecad.geometry.part-output@1",
         }
         require(
-            required_active.issubset(
-                {key for key, value in operators.items() if value.get("status") == "active"}
-            ),
-            "OperatorCatalog did not advertise all active MCP010D operators",
+            set(operators) == expected_operator_ids
+            and len(catalog.get("operators", [])) == len(expected_operator_ids)
+            and all(value.get("status") == "active" for value in operators.values()),
+            "OperatorCatalog current truth drifted: expected exactly 16 active operators",
         )
         require(
             operators.get("forgecad.geometry.boolean@1", {}).get("status") == "active"
@@ -568,7 +571,7 @@ def main() -> int:
         d_result = {
             "status": "PASS",
             "operator_catalog": "16 entries / 16 active / boolean union+difference/intersection active",
-            "operators": sorted(required_active),
+            "operators": sorted(expected_operator_ids),
             "geometry_program": "GeometryProgram@2 DAG",
             "semantic_parts": len(artifact.get("part_ids", [])),
             "triangle_count": artifact.get("triangle_count"),

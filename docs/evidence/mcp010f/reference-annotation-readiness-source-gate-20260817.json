@@ -1,0 +1,66 @@
+{
+  "schema_version": "ForgeCADMCP010FReferenceAnnotationReadinessSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_AND_PACKAGED_WITH_FAIL_CLOSED_QUALITY_BOUNDARY",
+  "package": {
+    "build_cohort_sha256": "896105d3ab204babd415738bf66f572ea5c4be41df1ee83a26da3deed6bb42c7",
+    "install_receipt": "docs/evidence/mcp010f/dev-app-install-reference-annotation-readiness-20260817-v2.json",
+    "probe_receipt": "docs/evidence/mcp010f/dev-app-probe-reference-annotation-readiness-20260817-v2.json",
+    "install_status": "PASS",
+    "probe_status": "PASS",
+    "build_cohort_match": true,
+    "codex_desktop_restart_gate": "NOT_RUN"
+  },
+  "source_hashes": {
+    "runtime_lib_rs": "d0ab031651de0b613c229c6ae44e54a1ae070c4827ecd3b93cfd100486c7ae12",
+    "mcp_main_rs": "e8aaf29ff2dd2f368249564a5a4c0de8d16b4b661f39b9430cadaccddfad852b",
+    "silhouette_target_schema": "69bf8c61e45f7d4b3f8e35ecc2521f7b3530c993784965fa6426bfc3f3767b80",
+    "reference_comparison_report_schema": "f78194f0384709e5822153dbffaeabd65cd273cc8c98ec937be374c1d5f7e2cc",
+    "quality_report_v2_schema": "4cb45e8589d46e2cc4ac370727dd6331d278fdc84d8e2743301dd6c47bd610e3",
+    "schema_content_set_sha256": "286428e4f755c1b61fe9cc0801505e7ce455bc80997c3391cf912f5b4b0b6f16"
+  },
+  "boundary": {
+    "automatic_flood_fill": "exploratory_only",
+    "explicit_user_confirmed_contour": "required_for_benchmark_readiness",
+    "required_observation_fields": [
+      "user_confirmed=true",
+      "observed Part regions",
+      "at_least_three observed target landmarks",
+      "at_least_three observed view landmarks",
+      "observed view regions",
+      "canonical camera hash binding"
+    ],
+    "ready_status": "READY_PARTIAL_VIEW",
+    "blocked_status": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+    "automatic_path_quality_status": "QUALITY_TARGET_NOT_MET",
+    "human_visual_review": "NOT_RUN"
+  },
+  "tests": {
+    "runtime_focused": [
+      "visible_view_gate_rejects_exploratory_thresholds_and_accepts_strict_metrics",
+      "silhouette_target_is_hash_bound_and_refinement_is_immutable",
+      "automatic_silhouette_target_round_trips_float_contour_hash",
+      "c_fixed_renderer_persists_nine_aovs_and_review_chain"
+    ],
+    "mcp_public_schema": "reference_mask_tools_advertise_explicit_user_confirmation",
+    "agentic_contracts": "PASS",
+    "mcp010f_full_gate": "PASS",
+    "release_baseline": [
+      "release:docs-walkthrough",
+      "repository:integrity",
+      "release:safety-scope",
+      "release:secrets-files",
+      "release:license-sbom",
+      "git diff --check"
+    ]
+  },
+  "not_claimed": [
+    "real_robot_likeness",
+    "PBR_likeness",
+    "independent_human_review",
+    "export_restart_hash",
+    "HQ_360_PASS",
+    "Codex_Desktop_restart"
+  ]
+}

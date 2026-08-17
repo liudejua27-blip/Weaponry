@@ -1,0 +1,40 @@
+{
+  "schema_version": "ForgeCADMCP010FLiveCohortCheck@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "BLOCKED_LIVE_MCP_RESTART_REQUIRED",
+  "source_package": {
+    "build_cohort_sha256": "41945cc48f600abb1601e82ed11ec116b5f6c55a6066f6777268c2d540c705c7",
+    "package_install": "docs/evidence/mcp010f/dev-app-install-reference-coverage-20260817.json",
+    "package_probe": "docs/evidence/mcp010f/dev-app-probe-reference-coverage-20260817.json",
+    "expected_total_tools": 73,
+    "expected_read_tools": 41,
+    "expected_write_tools": 32
+  },
+  "live_capabilities": {
+    "build_cohort_match": false,
+    "runtime_build_cohort_sha256": "41945cc48f600abb1601e82ed11ec116b5f6c55a6066f6777268c2d540c705c7",
+    "mcp_build_cohort_sha256": "3e6debdabdb56dff44e630918553dcfbaf9d2ae0503c23d144307eed33c53b34",
+    "mcp_write_tools_enabled": true,
+    "tool_manifest_hash": "ef6aad95ed504a083d816589de7a033b35b7f0781c308a5c5fbb3827bdcd193d",
+    "operator_catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf"
+  },
+  "preflight": {
+    "skill_id": "ponytail-preflight",
+    "version": "0.1.0",
+    "status": "PASS_READ_ONLY",
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1"
+  },
+  "restart_gate": {
+    "codex_desktop_restart": "REQUIRED_USER_ACTION",
+    "safe_recheck": "capabilities_get_then_skill_get_then_skill_list_and_operator_catalog_get",
+    "design_actions": "BLOCKED_UNTIL_COHORT_MATCH"
+  },
+  "quality_boundary": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "real_multiview": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "claim": "LIVE_COHORT_DIAGNOSTIC_ONLY"
+  }
+}

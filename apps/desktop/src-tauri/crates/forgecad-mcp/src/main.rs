@@ -334,7 +334,11 @@ fn handle(backend: &mut Backend, session: &mut Session, request: &Value) -> Opti
             Some(json!({"code":"CONTRACT_VERSION_UNSUPPORTED"})),
         ),
         "tools/list" => id.map(|id| {
-            json!({"jsonrpc":"2.0","id":id,"result":{"tools":tools_with_writes(session.write_tools_enabled)}})
+            let write_tools_enabled = advertised_write_tools_enabled(
+                backend,
+                session.write_tools_enabled,
+            );
+            json!({"jsonrpc":"2.0","id":id,"result":{"tools":tools_with_writes(write_tools_enabled)}})
         }),
         "resources/list" => resources_list(backend, id),
         "resources/templates/list" => id.map(|id| {
@@ -492,6 +496,11 @@ fn augment_capabilities_payload(
         .and_then(Value::as_str)
         .map(str::to_owned);
     let mcp_build_cohort = build_cohort_sha256();
+    let effective_write_tools_enabled = effective_write_tools_enabled(
+        write_tools_enabled,
+        runtime_build_cohort.as_deref(),
+        mcp_build_cohort.as_deref(),
+    );
     object.insert(
         "mcp_build_cohort_sha256".to_owned(),
         mcp_build_cohort
@@ -511,15 +520,24 @@ fn augment_capabilities_payload(
     );
     object.insert(
         "tool_manifest_hash".to_owned(),
-        Value::String(tool_manifest_hash(write_tools_enabled)),
+        Value::String(tool_manifest_hash(effective_write_tools_enabled)),
     );
     object.insert(
         "mcp_write_tools_enabled".to_owned(),
-        Value::Bool(write_tools_enabled),
+        Value::Bool(effective_write_tools_enabled),
     );
+    if !effective_write_tools_enabled
+        && mcp_build_cohort.is_some()
+        && runtime_build_cohort.as_ref() != mcp_build_cohort.as_ref()
+    {
+        object.insert(
+            "mcp_write_tools_disabled_reason".to_owned(),
+            Value::String("BUILD_COHORT_MISMATCH".to_owned()),
+        );
+    }
     object.insert(
         "mcp_write_tool_names".to_owned(),
-        if write_tools_enabled {
+        if effective_write_tools_enabled {
             Value::Array(
                 all_write_tool_names()
                     .into_iter()
@@ -531,6 +549,48 @@ fn augment_capabilities_payload(
         },
     );
     Ok(value)
+}
+
+/// A packaged MCP adapter must not advertise write tools when its embedded
+/// cohort cannot be proven equal to the Runtime cohort.  Source/test builds
+/// may omit the compile-time cohort and retain their existing opt-in behavior;
+/// once the adapter carries a cohort, a missing or different Runtime cohort is
+/// a fail-closed read-only state.
+fn effective_write_tools_enabled(
+    requested: bool,
+    runtime_build_cohort: Option<&str>,
+    mcp_build_cohort: Option<&str>,
+) -> bool {
+    if !requested {
+        return false;
+    }
+    match mcp_build_cohort {
+        Some(local) => runtime_build_cohort == Some(local),
+        None => true,
+    }
+}
+
+fn advertised_write_tools_enabled(backend: &mut Backend, requested: bool) -> bool {
+    if !requested {
+        return false;
+    }
+    let Some(local_build_cohort) = build_cohort_sha256() else {
+        // Ordinary source/test builds intentionally omit a cohort and retain
+        // the existing explicit opt-in behavior.
+        return true;
+    };
+    let Ok(runtime_capabilities) = backend_call(backend, "capabilities_get", &json!({})) else {
+        // A packaged adapter cannot prove a matching Runtime while degraded.
+        return false;
+    };
+    let runtime_build_cohort = runtime_capabilities
+        .get("build_cohort_sha256")
+        .and_then(Value::as_str);
+    effective_write_tools_enabled(
+        true,
+        runtime_build_cohort,
+        Some(local_build_cohort.as_str()),
+    )
 }
 
 fn mcp004_write_opt_in(backend: &Backend) -> bool {
@@ -749,15 +809,47 @@ fn read_only_tools() -> Vec<Value> {
         ),
         tool(
             "geometry_program_hash",
-            "Validate a hash-free GeometryProgram@2 draft and return the Runtime-owned canonical hash without compiling or persisting a candidate",
+            "Validate a hash-free GeometryProgram@2 draft, or expand one bounded ParametricDesignKitRequest@1 into a typed program, and return Runtime-owned hashes without compiling or persisting a candidate",
             json!({
                 "type":"object",
                 "additionalProperties":false,
-                "required":["schema_version","geometry_program_draft"],
                 "properties":{
-                    "schema_version":{"const":"GeometryProgramHashRequest@1"},
-                    "geometry_program_draft":{"type":"object"}
-                }
+                    "schema_version":{"type":"string"},
+                    "geometry_program_draft":{"type":"object"},
+                    "project_id":id_property(),
+                    "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                    "kit_id":{"type":"string"},
+                    "part_id":id_property(),
+                    "material_zone_id":id_property(),
+                    "intent":{"type":"object"},
+                    "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                },
+                "oneOf":[
+                    {
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","geometry_program_draft"],
+                        "properties":{
+                            "schema_version":{"const":"GeometryProgramHashRequest@1"},
+                            "geometry_program_draft":{"type":"object"}
+                        }
+                    },
+                    {
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","project_id","representation_plan_sha256","kit_id","part_id","material_zone_id","intent","input_sha256"],
+                        "properties":{
+                            "schema_version":{"const":"ParametricDesignKitRequest@1"},
+                            "project_id":id_property(),
+                            "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                            "kit_id":{"enum":["forgecad.kit.housing@1","forgecad.kit.panel@1","forgecad.kit.vent@1","forgecad.kit.joint@1","forgecad.kit.sensor@1","forgecad.kit.frame@1"]},
+                            "part_id":id_property(),
+                            "material_zone_id":id_property(),
+                            "intent":{"type":"object"},
+                            "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                        }
+                    }
+                ]
             }),
             true,
         ),
@@ -792,14 +884,14 @@ fn read_only_tools() -> Vec<Value> {
                                     "properties":{
                                         "parameter_id":id_property(),
                                         "part_id":id_property(),
-                                        "semantic":{"enum":["width","height","depth","offset_x","offset_y","offset_z","scale","surface_control_point"]},
+                                        "semantic":{"enum":["width","height","depth","offset_x","offset_y","offset_z","scale","rotation_x","rotation_y","rotation_z","surface_control_point"]},
                                         "control_point_index":{"type":"integer","minimum":0,"maximum":255},
                                         "axis":{"enum":["x","y","z"]},
                                         "value":{"type":"number"},
                                         "min":{"type":"number"},
                                         "max":{"type":"number"},
                                         "step":{"type":"number","minimum":0},
-                                        "unit":{"enum":["meter","ratio"]}
+                                        "unit":{"enum":["meter","radian","ratio"]}
                                     }
                                 }
                             }
@@ -1559,7 +1651,8 @@ fn mcp010f_write_tools() -> Vec<Value> {
                     "reference_id":id_property(),
                     "contour_points":{"type":["array","null"],"maxItems":512,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}},
                     "landmarks":{"type":["array","null"],"maxItems":128,"items":{"type":"object"}},
-                    "parts":{"type":["array","null"],"maxItems":64,"items":silhouette_target_part_property()}
+                    "parts":{"type":["array","null"],"maxItems":64,"items":silhouette_target_part_property()},
+                    "user_confirmed":{"type":"boolean","description":"Explicit user confirmation that the contour and observed annotations are ready for a partial-view benchmark; automatic flood-fill remains exploratory."}
                 },
                 "additionalProperties":false
             }),
@@ -1578,7 +1671,8 @@ fn mcp010f_write_tools() -> Vec<Value> {
                     "base_target_sha256":sha256_property(),
                     "contour_points":{"type":"array","minItems":3,"maxItems":512,"items":{"type":"array","minItems":2,"maxItems":2,"items":{"type":"number","minimum":0,"maximum":1}}},
                     "landmarks":{"type":["array","null"],"maxItems":128,"items":{"type":"object"}},
-                    "parts":{"type":["array","null"],"maxItems":64,"items":silhouette_target_part_property()}
+                    "parts":{"type":["array","null"],"maxItems":64,"items":silhouette_target_part_property()},
+                    "user_confirmed":{"type":"boolean","description":"Explicit user confirmation that the refined contour and observed annotations are ready for a partial-view benchmark."}
                 },
                 "additionalProperties":false
             }),
@@ -1892,6 +1986,7 @@ fn validate_tool_schema_shape(
                 | "minItems"
                 | "maxItems"
                 | "uniqueItems"
+                | "description"
         )
     }) {
         return Err(());
@@ -1988,6 +2083,12 @@ fn validate_tool_schema_shape(
         ) {
             return Err(());
         }
+    }
+    if object
+        .get("description")
+        .is_some_and(|value| !value.is_string())
+    {
+        return Err(());
     }
     if let Some(value) = object.get("items") {
         validate_tool_schema_shape(value, depth + 1, budget)?;
@@ -2227,7 +2328,7 @@ fn call_tool(
     params: Option<&Value>,
     session: &mut Session,
 ) -> Option<Value> {
-    let write_tools_enabled = session.write_tools_enabled;
+    let write_tools_enabled = advertised_write_tools_enabled(backend, session.write_tools_enabled);
     let Some(id) = id else { return None };
     let Some(params) = params.and_then(Value::as_object) else {
         return Some(
@@ -2890,6 +2991,27 @@ fn map_ipc_error(error: IpcError) -> String {
             }
             let code = detail.split(':').next().unwrap_or(detail.as_str()).trim();
             match code {
+                "GEOMETRY_PROGRAM_HASH_REJECTED" => {
+                    let reason = detail
+                        .split_once("GEOMETRY_PROGRAM_HASH_REJECTED:")
+                        .map(|(_, value)| value.trim())
+                        .filter(|value| !value.is_empty())
+                        .map(|value| {
+                            [
+                                "request shape",
+                                "schema or project binding",
+                                "GEOMETRY_WORKER_PROTOCOL",
+                                "GEOMETRY_WORKER_REJECTED",
+                            ]
+                            .into_iter()
+                            .find(|candidate| value.starts_with(candidate))
+                            .unwrap_or("request shape or worker contract validation")
+                        })
+                        .unwrap_or("request shape or worker contract validation");
+                    format!(
+                        "GEOMETRY_PROGRAM_HASH_REJECTED: Runtime geometry hash request rejected ({reason})"
+                    )
+                }
                 "INVALID_INPUT" => {
                     // Keep the adapter free of user payloads and local paths,
                     // but preserve the stable stage code when Runtime has
@@ -2975,6 +3097,20 @@ fn map_ipc_error(error: IpcError) -> String {
                                     );
                                 }
                             }
+                            format!("{code}: Runtime design request rejected")
+                        }
+                        _ if stage.starts_with("ACTION_")
+                            || stage.starts_with("GEOMETRY_")
+                            || stage.starts_with("REFERENCE_")
+                            || stage.starts_with("VISUAL_")
+                            || stage.starts_with("QUALITY_")
+                            || stage.starts_with("ARTIFACT_")
+                            || stage.starts_with("PROJECT_SCOPE_")
+                            || stage == "NOT_FOUND" => {
+                            let code = stage
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("DESIGN_RUNTIME_REJECTED");
                             format!("{code}: Runtime design request rejected")
                         }
                         "SILHOUETTE_FIT_INVALID" => {
@@ -3355,6 +3491,7 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         "design_action_run_get"
         | "design_action_run_prepare"
         | "design_action_optimization_proposal_prepare"
+        | "repair_intent_run_prepare"
         | "repair_apply_prepare"
         | "repair_apply_confirm" => match name {
             "design_action_run_get" => runtime
@@ -3365,6 +3502,9 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .map_err(|error| error.to_string()),
             "design_action_optimization_proposal_prepare" => runtime
                 .design_action_optimization_proposal_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "repair_intent_run_prepare" => runtime
+                .repair_intent_run_prepare(arguments.clone())
                 .map_err(|error| error.to_string()),
             "repair_apply_prepare" => runtime
                 .repair_apply_prepare(arguments.clone())
@@ -4371,6 +4511,12 @@ mod tests {
         );
         assert_eq!(
             map_ipc_error(IpcError::RuntimeRequest(
+                "GEOMETRY_PROGRAM_HASH_REJECTED: GEOMETRY_WORKER_REJECTED".to_owned(),
+            )),
+            "GEOMETRY_PROGRAM_HASH_REJECTED: Runtime geometry hash request rejected (GEOMETRY_WORKER_REJECTED)"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
                 "SILHOUETTE_OBJECTIVE_TARGET_LINEAGE_MISMATCH".to_owned(),
             )),
             "SILHOUETTE_OBJECTIVE_TARGET_LINEAGE_MISMATCH: Runtime silhouette evaluation objective request rejected"
@@ -4424,10 +4570,10 @@ mod tests {
             "ForgeCADMcpToolManifestSummary@1"
         );
         assert_eq!(summary["read_count"], 41);
-        assert_eq!(summary["write_count"], 32);
-        assert_eq!(summary["total_count"], 73);
+        assert_eq!(summary["write_count"], 33);
+        assert_eq!(summary["total_count"], 74);
         assert_eq!(summary["read_names"].as_array().unwrap().len(), 41);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 32);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 33);
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -4440,6 +4586,26 @@ mod tests {
     }
 
     #[test]
+    fn reference_mask_tools_advertise_explicit_user_confirmation() {
+        let tools = tools_with_writes(true);
+        for name in ["reference_mask_prepare", "reference_mask_refine_prepare"] {
+            let tool = tools
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .expect("reference mask tool");
+            assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+            assert_eq!(
+                tool["inputSchema"]["properties"]["user_confirmed"]["type"],
+                "boolean"
+            );
+            assert!(tool["inputSchema"]["properties"]["user_confirmed"]["description"]
+                .as_str()
+                .unwrap()
+                .contains("Explicit user confirmation"));
+        }
+    }
+
+    #[test]
     fn geometry_program_hash_is_a_default_read_only_tool() {
         let tools = tools_with_writes(false);
         let tool = tools
@@ -4447,14 +4613,80 @@ mod tests {
             .find(|tool| tool["name"] == "geometry_program_hash")
             .expect("geometry_program_hash tool");
         assert_eq!(tool["annotations"]["readOnlyHint"], true);
-        assert_eq!(
-            tool["inputSchema"]["properties"]["schema_version"]["const"],
-            "GeometryProgramHashRequest@1"
-        );
+        let branches = tool["inputSchema"]["oneOf"]
+            .as_array()
+            .expect("geometry_program_hash has direct and PDK branches");
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"] == "GeometryProgramHashRequest@1"
+        }));
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"] == "ParametricDesignKitRequest@1"
+        }));
         assert_eq!(
             tool["inputSchema"]["additionalProperties"], false,
             "the public envelope must remain closed"
         );
+    }
+
+    #[test]
+    fn parametric_design_kit_request_round_trips_through_read_only_mcp() {
+        let (mut backend, mut session) = initialized();
+        let project = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .create_project("MCP PDK v0 transport", json!({"scope":"test"}))
+                .expect("project"),
+            _ => unreachable!("test backend"),
+        };
+        let mut request = json!({
+            "schema_version":"ParametricDesignKitRequest@1",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"a".repeat(64),
+            "kit_id":"forgecad.kit.sensor@1",
+            "part_id":"sensor",
+            "material_zone_id":"zone-black-mechanical",
+            "intent":{
+                "radius_m":0.12,
+                "height_m":0.32,
+                "radial_segments":16,
+                "position_m":[0.0,2.0,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            },
+            "input_sha256":""
+        });
+        let mut input_binding = request.clone();
+        input_binding
+            .as_object_mut()
+            .expect("PDK request object")
+            .remove("input_sha256");
+        request["input_sha256"] = Value::String(canonical_json_hash(&input_binding));
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":17,
+                "method":"tools/call",
+                "params":{"name":"geometry_program_hash","arguments":request}
+            }),
+        )
+        .expect("PDK MCP response");
+        assert_eq!(response["result"]["isError"], Value::Null);
+        assert_eq!(
+            response["result"]["structuredContent"]["schema_version"],
+            "ParametricDesignKitProgram@1"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["geometry_program"]["nodes"][0]
+                ["operator_id"],
+            "forgecad.geometry.primitive@2"
+        );
+        let candidates = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .candidates(&project.project_id)
+                .expect("candidates"),
+            _ => unreachable!("test backend"),
+        };
+        assert!(candidates.is_empty(), "read-only PDK must not create candidates");
     }
 
     #[test]
@@ -5103,6 +5335,53 @@ mod tests {
             assert!(error.starts_with("BUILD_COHORT_MISMATCH:"));
             assert_eq!(runtime_error_value(&error)["code"], "BUILD_COHORT_MISMATCH");
         }
+    }
+
+    #[test]
+    fn capabilities_write_surface_fails_closed_on_cohort_mismatch() {
+        let local = "a".repeat(64);
+        let other = "b".repeat(64);
+        assert!(!effective_write_tools_enabled(
+            true,
+            Some(&other),
+            Some(&local)
+        ));
+        assert!(!effective_write_tools_enabled(true, None, Some(&local)));
+        assert!(effective_write_tools_enabled(
+            true,
+            Some(&local),
+            Some(&local)
+        ));
+        assert!(effective_write_tools_enabled(true, None, None));
+        assert!(!effective_write_tools_enabled(
+            false,
+            Some(&local),
+            Some(&local)
+        ));
+    }
+
+    #[test]
+    fn tools_list_preserves_explicit_opt_in_for_ordinary_source_builds() {
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("runtime"));
+        let mut session = Session::new();
+        session.state = SessionState::Ready;
+        session.write_tools_enabled = true;
+        let enabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}),
+        )
+        .expect("tools/list response");
+        assert_eq!(enabled["result"]["tools"].as_array().map(Vec::len), Some(73));
+
+        session.write_tools_enabled = false;
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+        )
+        .expect("read-only tools/list response");
+        assert_eq!(disabled["result"]["tools"].as_array().map(Vec::len), Some(41));
     }
 
     #[cfg(unix)]

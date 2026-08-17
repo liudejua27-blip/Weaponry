@@ -1,0 +1,88 @@
+{
+  "schema_version": "ForgeCADWeaponryPrimaryFormOptimizationReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "asset_id": "weaponry-modular-rifle-001",
+  "status": "PASS_STRUCTURAL_PRIMARY_FORM_AND_APPEARANCE",
+  "design_scope": "original static non-functional sci-fi game/film prop; inferred without a user reference",
+  "build_cohort_sha256": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+  "operator_catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+  "baseline": {
+    "program_sha256": "adc4a0604ae0596dd64b71314defeef2681e1df786575b0e60d935dff6d0dbfc",
+    "node_count": 17,
+    "part_count": 12,
+    "triangle_count": 1932,
+    "glb_sha256": "01f361a64ac2899140440ad67f274a029ad744814331cd90ad8b4280ca077b96",
+    "glb_bytes": 325008
+  },
+  "optimized": {
+    "geometry_program_sha256": "fc012fd0c6e0c75800475689bb5bb73455e6f5f1666086007c70e8d06ccd6e7b",
+    "appearance_program_sha256": "3fffeecc1013b988425e1caecee372242480381c0f68d6e89b453791112d9c35",
+    "node_count": 25,
+    "part_count": 12,
+    "triangle_count": 2780,
+    "glb_sha256": "799f7ce0d236db3fb44836df8d8871db8275826c6c187cb8df7f6024a4cbd221",
+    "glb_bytes": 468504,
+    "uv_status": "passed",
+    "tangent_status": "passed",
+    "material_zone_count": 6,
+    "material_zone_ids": ["dark-painted-metal","brushed-steel","engineering-plastic","black-anodized-metal","warm-orange-emissive","joint-rubber"]
+  },
+  "primary_form_changes": [
+    "tapered receiver wedge and top cap",
+    "front receiver shroud with a stepped barrel transition",
+    "segmented barrel rings and three-ring muzzle stack",
+    "angled stock shell with a typed spine insert",
+    "ergonomic grip and bounded heel joint",
+    "magazine latch, optic mount, mirrored side armor and vent flow retained"
+  ],
+  "material_changes": [
+    "raised dark-painted-metal and engineering-plastic values for controlled preview readability",
+    "separated brushed-steel and black-anodized-metal roughness response",
+    "preserved warm-orange emissive energy/status accents"
+  ],
+  "strict_checks": {
+    "geometry_program_hash": "PASS",
+    "geometry_compile": "PASS",
+    "glb_strict_readback": "PASS",
+    "uv_tangent_readback": "PASS",
+    "render_fixed": "PASS",
+    "render_perspective_aov_count": 9,
+    "render_resolution": "512x512",
+    "deterministic_compile_repeat": "PASS",
+    "first_optic_mount_variant": "REJECTED_NON_MANIFOLD_EDGE",
+    "optic_mount_recovery": "PASS_TYPED_PANEL_REPLACEMENT"
+  },
+  "aov_sha256": {
+    "beauty": "4f9f649834e4e29b644466438d1be1a7f5685cfe2a9ebb8793360e5c88c013e2",
+    "silhouette": "467a4414f1c9eb4871afdd776a91acb592ef254522d13230909485d6fead99ca",
+    "depth": "b048322a5d26c5caf6445e71407c2b11f5f70a64536b73e36b2d4493b6b37e5a",
+    "normal": "50f98a9d89b55bdbedbf1472bff5875bf038308ede591de8a39822b0c064f872",
+    "ao": "3e913c8f94e47e8b1ad2837301abb916e93bc246221759a82609f491737b834b",
+    "part-id": "ceb0d92652f1d10dedd3f3691609b60c908873dde4ebdaa9cea5e706ab3a6db3",
+    "material-id": "9841db629f71d285ae3a05723348939579124f180743e849391a3ab7afc71049",
+    "wireframe": "8270e86f0ea87f698d7f52ac9257bf308b32605d215667119a9510d1ff2e0d05",
+    "uv-stretch": "61ac707d7d8d924f8d3b1b23007cb225b38bef98fb12f4132c5cfbb9da91c17c"
+  },
+  "source_artifacts": [
+    "docs/evidence/mcp010f/weaponry-modular-rifle-primary-form-draft-20260817.json",
+    "docs/evidence/mcp010f/weaponry-modular-rifle-appearance-draft-20260817.json"
+  ],
+  "temporary_artifact_policy": {
+    "glb_and_pngs": "temporary worker outputs; hashes recorded, not Runtime CAS or candidate data",
+    "runtime_project_id": null,
+    "candidate_id": null,
+    "version_id": null,
+    "candidate_persisted": false,
+    "confirm_allowed": false,
+    "export_performed": false
+  },
+  "quality_boundary": {
+    "comparison_to_baseline": "qualitative_preview_only",
+    "reference_status": "BLOCKED_REFERENCE_NOT_PROVIDED",
+    "visual_likeness": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "production_export": "NOT_RUN",
+    "claim": "structural primary-form and bounded PBR-zone improvement only; not a high-quality or game-ready acceptance"
+  }
+}

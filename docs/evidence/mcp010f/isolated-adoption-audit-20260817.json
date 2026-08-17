@@ -1,0 +1,66 @@
+{
+  "schema_version": "ForgeCADMCP010FIsolatedAdoptionAudit@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "RESEARCH_AUTHORIZED_NOT_ADOPTED",
+  "scope": "official upstream GitHub revision metadata, license/notice hashes, selected source hashes, and static capability audit only",
+  "sources": [
+    {
+      "project": "opensubdiv",
+      "revision": "4951f30c00f395aa831a9fc42577cc28ce46fa81",
+      "license": "Tomorrow Open Source Technology License 1.0",
+      "receipt": "docs/evidence/adoption/opensubdiv/4951f30c00f395aa831a9fc42577cc28ce46fa81.yaml",
+      "decision": "RESEARCH_AUTHORIZED_NOT_ADOPTED",
+      "reason": "non-SPDX TSL requires legal review; CPU-only isolation, SBOM, determinism, resource and malformed-topology gates remain"
+    },
+    {
+      "project": "xatlas",
+      "revision": "f700c7790aaa030e794b52ba7791a05c085faf0c",
+      "license": "MIT",
+      "receipt": "docs/evidence/adoption/xatlas/f700c7790aaa030e794b52ba7791a05c085faf0c.yaml",
+      "decision": "RESEARCH_AUTHORIZED_NOT_ADOPTED",
+      "reason": "threaded UV atlas source requires typed Worker isolation, transitive SBOM, seam/overlap, determinism and resource gates"
+    },
+    {
+      "project": "gltf-validator",
+      "revision": "bcd52cc4ba5f333b2999a58f67cc05ddf28b4fb1",
+      "license": "Apache-2.0",
+      "receipt": "docs/evidence/adoption/gltf-validator/bcd52cc4ba5f333b2999a58f67cc05ddf28b4fb1.yaml",
+      "decision": "RESEARCH_AUTHORIZED_NOT_ADOPTED",
+      "reason": "external-resource callback and URI/report fields must be denied or normalized; isolated bytes-only report worker and transitive SBOM remain"
+    },
+    {
+      "project": "materialx",
+      "revision": "7b64921ef1d42f2d57871e9d2c43dc11f041f26b",
+      "license": "Apache-2.0",
+      "receipt": "docs/evidence/adoption/materialx/7b64921ef1d42f2d57871e9d2c43dc11f041f26b.yaml",
+      "decision": "RESEARCH_AUTHORIZED_NOT_ADOPTED",
+      "reason": "only graph semantics are studied; full runtime, shader, viewer, Python and JavaScript surfaces stay excluded"
+    },
+    {
+      "project": "opencolorio",
+      "revision": "c52966a6677723d5bd2dbef0ccec3fed9cbc3790",
+      "license": "BSD-3-Clause",
+      "receipt": "docs/evidence/adoption/opencolorio/c52966a6677723d5bd2dbef0ccec3fed9cbc3790.yaml",
+      "decision": "RESEARCH_AUTHORIZED_NOT_ADOPTED",
+      "reason": "color transforms require explicit config provenance, third-party SBOM and deterministic cross-platform tests; fixed renderer remains authoritative"
+    }
+  ],
+  "package_or_lockfile_changed": false,
+  "runtime_allowlist_changed": false,
+  "active_skill_registry_changed": false,
+  "network_or_upstream_install_executed": false,
+  "full_sbom_completed": false,
+  "malicious_input_benchmark_completed": false,
+  "determinism_benchmark_completed": false,
+  "not_claimed": [
+    "accepted dependency",
+    "installed plugin or Skill",
+    "Runtime integration",
+    "visual quality or PBR likeness",
+    "GLB validator PASS",
+    "UV quality PASS",
+    "color-management quality PASS"
+  ],
+  "canonical_sha256": "f196b470ab886e3b296f8c7b8c13e751dae9ca1500ae8bccbee0305ed02c8c98"
+}

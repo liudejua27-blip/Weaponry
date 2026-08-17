@@ -1,0 +1,25 @@
+{
+  "schema_version": "ForgeCADMCP010FLiveCohortMismatch@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "BLOCKED_USER_RESTART_REQUIRED",
+  "installed_package": {
+    "build_cohort_sha256": "896105d3ab204babd415738bf66f572ea5c4be41df1ee83a26da3deed6bb42c7",
+    "install_receipt": "docs/evidence/mcp010f/dev-app-install-reference-annotation-readiness-20260817-v2.json",
+    "probe_receipt": "docs/evidence/mcp010f/dev-app-probe-reference-annotation-readiness-20260817-v2.json"
+  },
+  "live_capabilities_observation": {
+    "runtime_build_cohort_sha256": "41945cc48f600abb1601e82ed11ec116b5f6c55a6066f6777268c2d540c705c7",
+    "mcp_build_cohort_sha256": "3e6debdabdb56dff44e630918553dcfbaf9d2ae0503c23d144307eed33c53b34",
+    "build_cohort_match": false,
+    "mcp_write_tools_enabled": true,
+    "tool_manifest_hash": "ef6aad95ed504a083d816589de7a033b35b7f0781c308a5c5fbb3827bdcd193d"
+  },
+  "safety_boundary": {
+    "read_only_diagnostics": "allowed",
+    "design_or_write_actions": "blocked_until_user_safely_restarts_Codex_Desktop",
+    "persistent_user_data_touched": false,
+    "do_not_promote_live_old_cohort_to_current_package": true
+  },
+  "next_step": "User safely restarts Codex Desktop, then rechecks capabilities_get, skill_get ponytail-preflight@0.1.0, tools/list and Operator catalog before any design write."
+}

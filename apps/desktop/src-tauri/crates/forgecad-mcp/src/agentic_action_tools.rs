@@ -71,7 +71,7 @@ const OPERATOR_IDS: [&str; 16] = [
 
 const READ_FIELDS: [&str; 4] = ["project_id", "session_id", "candidate_id", "run_id"];
 
-const WRITE_FIELDS: [&str; 16] = [
+const WRITE_FIELDS: [&str; 17] = [
     "project_id",
     "session_id",
     "candidate_id",
@@ -85,9 +85,32 @@ const WRITE_FIELDS: [&str; 16] = [
     "approval_expires_at",
     "approval_session_id",
     "idempotency_key",
+    "observation_sha256",
     "proposal",
     "optimization_intent",
     "view_spec",
+];
+
+const REPAIR_INTENT_RUN_FIELDS: [&str; 19] = [
+    "project_id",
+    "session_id",
+    "candidate_id",
+    "run_id",
+    "intent_sha256",
+    "intent_object_sha256",
+    "observation_sha256",
+    "action",
+    "proposal",
+    "requested_stage",
+    "input_sha256",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "idempotency_key",
+    "source_evidence_sha256",
+    "reference_sha256",
 ];
 
 const OPTIMIZATION_PROPOSAL_FIELDS: [&str; 13] = [
@@ -151,6 +174,7 @@ pub enum AgenticActionTool {
     DesignActionRunGet,
     DesignActionRunPrepare,
     DesignActionOptimizationProposalPrepare,
+    RepairIntentRunPrepare,
     RepairApplyPrepare,
     RepairApplyConfirm,
 }
@@ -181,6 +205,7 @@ impl AgenticActionTool {
             "design_action_optimization_proposal_prepare" => {
                 Self::DesignActionOptimizationProposalPrepare
             }
+            "repair_intent_run_prepare" => Self::RepairIntentRunPrepare,
             "repair_apply_prepare" => Self::RepairApplyPrepare,
             "repair_apply_confirm" => Self::RepairApplyConfirm,
             _ => return None,
@@ -192,6 +217,7 @@ impl AgenticActionTool {
             Self::DesignActionRunGet => "design_action_run_get",
             Self::DesignActionRunPrepare => "design_action_run_prepare",
             Self::DesignActionOptimizationProposalPrepare => "design_action_optimization_proposal_prepare",
+            Self::RepairIntentRunPrepare => "repair_intent_run_prepare",
             Self::RepairApplyPrepare => "repair_apply_prepare",
             Self::RepairApplyConfirm => "repair_apply_confirm",
         }
@@ -202,6 +228,7 @@ impl AgenticActionTool {
             Self::DesignActionRunGet => ToolKind::Read,
             Self::DesignActionRunPrepare
             | Self::DesignActionOptimizationProposalPrepare
+            | Self::RepairIntentRunPrepare
             | Self::RepairApplyPrepare
             | Self::RepairApplyConfirm => ToolKind::Write,
         }
@@ -212,6 +239,7 @@ impl AgenticActionTool {
             self,
             Self::DesignActionRunPrepare
                 | Self::DesignActionOptimizationProposalPrepare
+                | Self::RepairIntentRunPrepare
                 | Self::RepairApplyPrepare
                 | Self::RepairApplyConfirm
         )
@@ -312,6 +340,7 @@ pub fn write_tool_names() -> Vec<String> {
     [
         AgenticActionTool::DesignActionRunPrepare,
         AgenticActionTool::DesignActionOptimizationProposalPrepare,
+        AgenticActionTool::RepairIntentRunPrepare,
         AgenticActionTool::RepairApplyPrepare,
         AgenticActionTool::RepairApplyConfirm,
     ]
@@ -338,6 +367,7 @@ pub fn write_tools() -> Vec<Value> {
     [
         AgenticActionTool::DesignActionRunPrepare,
         AgenticActionTool::DesignActionOptimizationProposalPrepare,
+        AgenticActionTool::RepairIntentRunPrepare,
         AgenticActionTool::RepairApplyPrepare,
         AgenticActionTool::RepairApplyConfirm,
     ]
@@ -381,6 +411,9 @@ fn tool_definition(tool: AgenticActionTool) -> Value {
         AgenticActionTool::DesignActionOptimizationProposalPrepare => {
             "Read one completed ActionRun-bound CADFit OptimizationJob, recompile its strict-improvement GeometryProgram into a separate reviewable candidate, and bind an explicit ReferenceViewSpec comparison. It never changes the source candidate, parent ActionRun, version history, Repair or confirmation state."
         }
+        AgenticActionTool::RepairIntentRunPrepare => {
+            "Execute one immutable, CAS-bound RepairIntent through the Runtime-owned bounded compile, readback, render and compare loop. The intent and observation hashes are revalidated before a separate review candidate is prepared; source candidate, version history and confirmation remain unchanged."
+        }
         AgenticActionTool::RepairApplyPrepare => {
             "Prepare a CAS-backed, replayable Repair application intent by revalidating the source candidate, RepairIntent, proposal candidate and visual evidence. It never mutates the active snapshot/version; final candidate confirmation or cross-view promotion remains a separate user-approved transaction."
         }
@@ -418,6 +451,7 @@ fn input_schema_for(tool: AgenticActionTool) -> Value {
         AgenticActionTool::DesignActionOptimizationProposalPrepare => {
             optimization_proposal_schema()
         }
+        AgenticActionTool::RepairIntentRunPrepare => repair_intent_run_schema(),
         AgenticActionTool::RepairApplyPrepare => repair_apply_schema(),
         AgenticActionTool::RepairApplyConfirm => repair_apply_confirm_schema(),
     }
@@ -448,6 +482,9 @@ fn write_schema() -> Value {
             "approved",
             "approval_receipt_id",
             "approval_summary",
+            "approval_expires_at",
+            "approval_session_id",
+            "observation_sha256",
             "idempotency_key",
         ],
         Map::from_iter([
@@ -464,9 +501,37 @@ fn write_schema() -> Value {
             ("approval_expires_at".to_owned(), safe_text_property(64)),
             ("approval_session_id".to_owned(), id_property()),
             ("idempotency_key".to_owned(), id_property()),
+            ("observation_sha256".to_owned(), sha256_property()),
             ("proposal".to_owned(), repair_proposal_property()),
             ("optimization_intent".to_owned(), intent_property()),
             ("view_spec".to_owned(), json!({"type":"object"})),
+        ]),
+    )
+}
+
+fn repair_intent_run_schema() -> Value {
+    object_schema(
+        REPAIR_INTENT_RUN_FIELDS.to_vec(),
+        Map::from_iter([
+            ("project_id".to_owned(), id_property()),
+            ("session_id".to_owned(), id_property()),
+            ("candidate_id".to_owned(), id_property()),
+            ("run_id".to_owned(), id_property()),
+            ("intent_sha256".to_owned(), sha256_property()),
+            ("intent_object_sha256".to_owned(), sha256_property()),
+            ("observation_sha256".to_owned(), sha256_property()),
+            ("source_evidence_sha256".to_owned(), sha256_property()),
+            ("reference_sha256".to_owned(), sha256_property()),
+            ("action".to_owned(), bounded_action_schema()),
+            ("proposal".to_owned(), repair_proposal_without_intent_property()),
+            ("requested_stage".to_owned(), stage_property()),
+            ("input_sha256".to_owned(), sha256_property()),
+            ("approved".to_owned(), json!({"const": true})),
+            ("approval_receipt_id".to_owned(), id_property()),
+            ("approval_summary".to_owned(), safe_text_property(512)),
+            ("approval_expires_at".to_owned(), safe_text_property(64)),
+            ("approval_session_id".to_owned(), id_property()),
+            ("idempotency_key".to_owned(), id_property()),
         ]),
     )
 }
@@ -688,7 +753,7 @@ fn repair_proposal_property() -> Value {
                         "required": ["schema_version", "strategy"],
                         "properties": {
                             "schema_version": {"const": "RuntimeParameterPatch@1"},
-                            "strategy": {"enum": ["primitive-dimensions-v1", "surface-control-points-v1"]}
+                            "strategy": {"enum": ["primitive-dimensions-v1", "surface-control-points-v1", "hard-surface-finish-v1"]}
                         },
                         "additionalProperties": false
                     },
@@ -698,6 +763,36 @@ fn repair_proposal_property() -> Value {
                 "additionalProperties": false
             }
         ]
+    })
+}
+
+fn repair_proposal_without_intent_property() -> Value {
+    json!({
+        "type": "object",
+        "required": ["geometry_program", "view_spec", "camera"],
+        "properties": {
+            "geometry_program": {"type":"object"},
+            "view_spec": {"type":"object"},
+            "camera": {"type":"object"},
+            "view_evaluations": {
+                "type":"array",
+                "minItems":2,
+                "maxItems":8,
+                "items": {
+                    "type":"object",
+                    "required":["view_id","reference_id","reference_sha256","view_spec","camera"],
+                    "properties": {
+                        "view_id": id_property(),
+                        "reference_id": id_property(),
+                        "reference_sha256": sha256_property(),
+                        "view_spec": {"type":"object"},
+                        "camera": {"type":"object"}
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "additionalProperties": false
     })
 }
 
@@ -730,6 +825,7 @@ pub fn validate_call(name: &str, arguments: &Value, binding: &Binding) -> Result
         AgenticActionTool::DesignActionOptimizationProposalPrepare => {
             &OPTIMIZATION_PROPOSAL_FIELDS[..]
         }
+        AgenticActionTool::RepairIntentRunPrepare => &REPAIR_INTENT_RUN_FIELDS[..],
         AgenticActionTool::RepairApplyPrepare => &REPAIR_APPLY_FIELDS[..],
         AgenticActionTool::RepairApplyConfirm => &REPAIR_APPLY_CONFIRM_FIELDS[..],
     };
@@ -740,6 +836,9 @@ pub fn validate_call(name: &str, arguments: &Value, binding: &Binding) -> Result
         AgenticActionTool::RepairApplyPrepare | AgenticActionTool::RepairApplyConfirm
     ) {
         validate_repair_apply(object, binding, tool)?;
+    } else if matches!(tool, AgenticActionTool::RepairIntentRunPrepare) {
+        validate_scope(object, binding)?;
+        validate_repair_intent_run(object)?;
     } else if matches!(
         tool,
         AgenticActionTool::DesignActionOptimizationProposalPrepare
@@ -805,6 +904,17 @@ pub fn validate_response(name: &str, value: &Value, binding: &Binding) -> Result
     {
         return Err(
                 "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: optimization proposal response has an invalid schema"
+                .to_owned(),
+        );
+    }
+    if name == "repair_intent_run_prepare"
+        && (object.get("schema_version").and_then(Value::as_str)
+            != Some("RepairIntentRunResult@1")
+            || object.get("confirm_allowed") != Some(&Value::Bool(false))
+            || object.get("source_candidate_unchanged") != Some(&Value::Bool(true)))
+    {
+        return Err(
+            "AGENTIC_ACTION_RUNTIME_OUTPUT_INVALID: RepairIntentRun response is not fail-closed"
                 .to_owned(),
         );
     }
@@ -939,6 +1049,52 @@ fn validate_repair_apply(
     if object.get("approval_session_id") != object.get("session_id") {
         return Err(
             "AGENTIC_REPAIR_APPLY_SCOPE_MISMATCH: approval_session_id must match session_id"
+                .to_owned(),
+        );
+    }
+    Ok(())
+}
+
+fn validate_repair_intent_run(object: &Map<String, Value>) -> Result<(), String> {
+    for key in [
+        "intent_sha256",
+        "intent_object_sha256",
+        "observation_sha256",
+        "source_evidence_sha256",
+        "reference_sha256",
+        "input_sha256",
+    ] {
+        required_sha256(object, key)?;
+    }
+    let action = object
+        .get("action")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "AGENTIC_REPAIR_INTENT_RUN_ACTION_REQUIRED".to_owned())?;
+    if action.get("action_kind").and_then(Value::as_str) != Some("bounded-repair")
+        || action.get("scope_kind").and_then(Value::as_str) != Some("part")
+        || action.get("target_id").and_then(Value::as_str).is_none()
+        || action.get("bounded") != Some(&Value::Bool(true))
+    {
+        return Err("AGENTIC_REPAIR_INTENT_RUN_ACTION_INVALID".to_owned());
+    }
+    if !object.get("proposal").is_some_and(Value::is_object) {
+        return Err("AGENTIC_REPAIR_INTENT_RUN_PROPOSAL_REQUIRED".to_owned());
+    }
+    if object.get("approved") != Some(&Value::Bool(true)) {
+        return Err("AGENTIC_REPAIR_INTENT_RUN_APPROVAL_REQUIRED".to_owned());
+    }
+    for key in [
+        "approval_receipt_id",
+        "approval_session_id",
+        "idempotency_key",
+    ] {
+        required_id(object, key)?;
+    }
+    required_safe_text(object, "approval_summary", 512)?;
+    required_safe_text(object, "approval_expires_at", 64)?;
+    if object.get("approval_session_id") != object.get("session_id") {
+        return Err(
+            "AGENTIC_REPAIR_INTENT_RUN_SCOPE_MISMATCH: approval_session_id must match session_id"
                 .to_owned(),
         );
     }
@@ -1352,7 +1508,48 @@ mod tests {
             "approval_summary": "Approve one bounded action run",
             "approval_expires_at": "2030-01-01T00:00:00Z",
             "approval_session_id": "session-1",
+            "observation_sha256": "b".repeat(64),
             "idempotency_key": "action-run-1"
+        })
+    }
+
+    fn repair_intent_run_prepare() -> Value {
+        json!({
+            "project_id":"project-1",
+            "session_id":"session-1",
+            "candidate_id":"candidate-1",
+            "run_id":"run-1",
+            "intent_sha256":"a".repeat(64),
+            "intent_object_sha256":"b".repeat(64),
+            "observation_sha256":"c".repeat(64),
+            "source_evidence_sha256":"d".repeat(64),
+            "reference_sha256":"e".repeat(64),
+            "action":{
+                "action_id":"repair-action-1",
+                "action_kind":"bounded-repair",
+                "scope_kind":"part",
+                "target_id":"main-body",
+                "operator_id":"forgecad.geometry.transform@2",
+                "parameter_changes":[{
+                    "parameter_id":"body-width",
+                    "before":1.0,
+                    "after":1.05,
+                    "minimum":0.5,
+                    "maximum":1.5,
+                    "unit":"ratio"
+                }],
+                "bounded":true,
+                "description":"Adjust one bounded body parameter"
+            },
+            "proposal":{"geometry_program":{},"view_spec":{},"camera":{}},
+            "requested_stage":"primary-form",
+            "input_sha256":"f".repeat(64),
+            "approved":true,
+            "approval_receipt_id":"approval-repair-1",
+            "approval_summary":"Approve one CAS-bound bounded RepairIntent run",
+            "approval_expires_at":"2030-01-01T00:00:00Z",
+            "approval_session_id":"session-1",
+            "idempotency_key":"repair-intent-run-1"
         })
     }
 
@@ -1405,15 +1602,16 @@ mod tests {
         let read = read_tools();
         let write = write_tools();
         assert_eq!(read.len(), 1);
-        assert_eq!(write.len(), 4);
+        assert_eq!(write.len(), 5);
         assert_eq!(read[0]["name"], "design_action_run_get");
         assert_eq!(write[0]["name"], "design_action_run_prepare");
         assert_eq!(
             write[1]["name"],
             "design_action_optimization_proposal_prepare"
         );
-        assert_eq!(write[2]["name"], "repair_apply_prepare");
-        assert_eq!(write[3]["name"], "repair_apply_confirm");
+        assert_eq!(write[2]["name"], "repair_intent_run_prepare");
+        assert_eq!(write[3]["name"], "repair_apply_prepare");
+        assert_eq!(write[4]["name"], "repair_apply_confirm");
         assert_eq!(read[0]["annotations"]["readOnlyHint"], true);
         assert_eq!(read[0]["annotations"]["writeIntent"], false);
         assert_eq!(read[0]["annotations"]["approvalRequired"], false);
@@ -1446,6 +1644,9 @@ mod tests {
             "approved",
             "approval_receipt_id",
             "approval_summary",
+            "approval_expires_at",
+            "approval_session_id",
+            "observation_sha256",
             "idempotency_key",
         ] {
             assert!(write_schema["required"]
@@ -1489,6 +1690,9 @@ mod tests {
         assert!(strategies
             .iter()
             .any(|value| value == "surface-control-points-v1"));
+        assert!(strategies
+            .iter()
+            .any(|value| value == "hard-surface-finish-v1"));
         assert_eq!(variants[1]["additionalProperties"], false);
     }
 
@@ -1502,6 +1706,12 @@ mod tests {
         });
         assert!(validate_call("design_action_run_get", &read, &binding()).is_ok());
         assert!(validate_call("design_action_run_prepare", &prepare(), &binding()).is_ok());
+        assert!(validate_call(
+            "repair_intent_run_prepare",
+            &repair_intent_run_prepare(),
+            &binding()
+        )
+        .is_ok());
     }
 
     #[test]
@@ -1689,6 +1899,7 @@ mod tests {
                 "design_action_run_get".to_owned(),
                 "design_action_run_prepare".to_owned(),
                 "design_action_optimization_proposal_prepare".to_owned(),
+                "repair_intent_run_prepare".to_owned(),
                 "repair_apply_prepare".to_owned(),
                 "repair_apply_confirm".to_owned()
             ]

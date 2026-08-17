@@ -99,6 +99,8 @@ const VISIBLE_LANDMARK_COVERAGE_MIN: f64 = 0.80;
 const VISIBLE_LANDMARK_NME_MAX: f64 = 0.03;
 const VISIBLE_REGION_MEDIAN_IOU_MIN: f64 = 0.85;
 const VISIBLE_CRITICAL_REGION_IOU_MIN: f64 = 0.85;
+const VISIBLE_VIEW_THRESHOLD_REVISION: &str = "visible-view-gates@1";
+const VISIBLE_VIEW_THRESHOLD_SOURCE: &str = "forgecad-runtime-visible-view-gates";
 // A full 37+27 camera neighborhood is useful for offline research, but it is
 // too slow for the product's single MCP request window on the fixed Worker.
 // Keep the Runtime path deterministic and auditable with eight coarse probes;
@@ -289,6 +291,11 @@ impl Runtime {
                 "GEOMETRY_PROGRAM_HASH_REJECTED: request must be an object".to_owned(),
             )
         })?;
+        if object.get("schema_version").and_then(Value::as_str)
+            == Some("ParametricDesignKitRequest@1")
+        {
+            return self.parametric_design_kit_program(object);
+        }
         let allowed = ["schema_version", "geometry_program_draft"];
         if object.len() != allowed.len()
             || !allowed.iter().all(|key| object.contains_key(*key))
@@ -322,6 +329,133 @@ impl Runtime {
             ));
         }
         validate_geometry_program_hash_result_output(&result)?;
+        Ok(result)
+    }
+
+    /// Expand one bounded Parametric Design Kit intent into a Runtime-owned
+    /// GeometryProgram@2 draft.  This is deliberately exposed through the
+    /// existing read-only authoring/hash boundary: it performs no candidate,
+    /// CAS, SQLite, version, or Job write.  The returned program can be sent
+    /// to `geometry_prepare`, where the normal strict GLB/readback and later
+    /// visual/approval gates still apply.
+    fn parametric_design_kit_program(
+        &self,
+        object: &serde_json::Map<String, Value>,
+    ) -> Result<Value, RuntimeError> {
+        validate_request_keys(
+            object,
+            &[
+                "schema_version",
+                "project_id",
+                "representation_plan_sha256",
+                "kit_id",
+                "part_id",
+                "material_zone_id",
+                "intent",
+                "input_sha256",
+            ],
+            "parametric_design_kit_prepare",
+        )?;
+        if object.get("schema_version").and_then(Value::as_str)
+            != Some("ParametricDesignKitRequest@1")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PARAMETRIC_DESIGN_KIT_INVALID: schema_version is unsupported".to_owned(),
+            ));
+        }
+        let project_id = required_value_id(object.get("project_id"), "project_id")?;
+        let representation_plan_sha256 =
+            required_value_sha(object.get("representation_plan_sha256"), "representation_plan_sha256")?;
+        let kit_id = object
+            .get("kit_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PARAMETRIC_DESIGN_KIT_INVALID: kit_id is required".to_owned(),
+                )
+            })?;
+        let part_id = required_value_id(object.get("part_id"), "part_id")?;
+        let material_zone_id = required_value_id(object.get("material_zone_id"), "material_zone_id")?;
+        let intent = object
+            .get("intent")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PARAMETRIC_DESIGN_KIT_INVALID: intent must be an object".to_owned(),
+                )
+            })?;
+        let input_sha256 = required_value_sha(object.get("input_sha256"), "input_sha256")?;
+        let mut input_binding = Value::Object(object.clone());
+        input_binding
+            .as_object_mut()
+            .expect("object clone is an object")
+            .remove("input_sha256");
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        if input_sha256 != expected_input_sha256 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PARAMETRIC_DESIGN_KIT_INPUT_HASH_MISMATCH: expected={expected_input_sha256} actual={input_sha256}"
+            )));
+        }
+
+        let (operator_id, parameters, parameter_ids) =
+            expand_parametric_design_kit(kit_id, intent)?;
+        let node_id = format!("{}-{}", kit_id.replace("forgecad.kit.", "kit-"), part_id);
+        let node_id = node_id.replace('@', "-");
+        let draft = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":project_id,
+            "representation_plan_sha256":representation_plan_sha256,
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{"max_nodes":16,"max_triangles":50000,"max_glb_bytes":16777216,"max_worker_memory_bytes":134217728,"max_runtime_ms":5000},
+            "nodes":[{"node_id":node_id,"operator_id":operator_id,"inputs":[],"parameters":parameters}],
+            "part_outputs":[{"part_id":part_id,"input_node_ids":[node_id],"material_zone_id":material_zone_id,"solid":true}]
+        });
+        let hash_result = hash_geometry_program_with_runtime_worker(&draft).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PARAMETRIC_DESIGN_KIT_GEOMETRY_REJECTED: {error}"
+            ))
+        })?;
+        let program_sha256 = hash_result
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PARAMETRIC_DESIGN_KIT_GEOMETRY_HASH_INVALID".to_owned(),
+                )
+            })?
+            .to_owned();
+        if hash_result
+            .get("operator_catalog_sha256")
+            .and_then(Value::as_str)
+            != Some(operator_catalog_sha256().as_str())
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PARAMETRIC_DESIGN_KIT_OPERATOR_CATALOG_MISMATCH".to_owned(),
+            ));
+        }
+        let intent_sha256 = canonical_json_hash(&Value::Object(intent.clone()));
+        let mut geometry_program = draft;
+        geometry_program["canonical_sha256"] = Value::String(program_sha256.clone());
+        let mut result = json!({
+            "schema_version":"ParametricDesignKitProgram@1",
+            "kit_id":kit_id,
+            "project_id":project_id,
+            "representation_plan_sha256":representation_plan_sha256,
+            "part_id":part_id,
+            "material_zone_id":material_zone_id,
+            "intent_sha256":intent_sha256,
+            "program_sha256":program_sha256,
+            "geometry_program":geometry_program,
+            "source_map":[{"part_id":part_id,"node_id":node_id,"operator_id":operator_id,"material_zone_id":material_zone_id,"parameter_ids":parameter_ids}],
+            "validator_status":"passed",
+            "quality_status":"structural_only",
+            "limitations":["candidate_not_created","visual_quality_not_evaluated","user_approval_required_before_geometry_prepare"],
+            "canonical_sha256":""
+        });
+        result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+        validate_parametric_design_kit_program(&result)?;
         Ok(result)
     }
 
@@ -405,7 +539,7 @@ impl Runtime {
         let object = request.as_object().ok_or_else(|| {
             RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: request must be an object".to_owned())
         })?;
-        validate_request_keys(object, &["project_id", "reference_id", "contour_points", "landmarks", "parts"], "reference_mask_prepare")?;
+        validate_request_keys(object, &["project_id", "reference_id", "contour_points", "landmarks", "parts", "user_confirmed"], "reference_mask_prepare")?;
         if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
             return Err(RuntimeError::InvalidInput(
                 "PROJECT_SCOPE_DENIED: reference mask project differs".to_owned(),
@@ -423,6 +557,13 @@ impl Runtime {
         let contour_points = parse_contour_points(object.get("contour_points"))?;
         let landmarks = parse_target_landmarks(object.get("landmarks"))?;
         let parts = parse_target_parts(object.get("parts"))?;
+        let user_confirmed = request_user_confirmed(object, "reference_mask_prepare")?;
+        if user_confirmed && contour_points.is_none() {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: user confirmation requires an explicit contour"
+                    .to_owned(),
+            ));
+        }
         let automatic = reference_mask_png(&self.cas_read(&reference.object_sha256)?)?;
         self.store_silhouette_target(
             project_id,
@@ -432,6 +573,7 @@ impl Runtime {
             parts,
             automatic,
             contour_points.is_none(),
+            user_confirmed,
             None,
         )
     }
@@ -447,7 +589,7 @@ impl Runtime {
         let object = request.as_object().ok_or_else(|| {
             RuntimeError::InvalidInput("REFERENCE_MASK_INVALID: request must be an object".to_owned())
         })?;
-        validate_request_keys(object, &["project_id", "base_target_sha256", "contour_points", "landmarks", "parts"], "reference_mask_refine_prepare")?;
+        validate_request_keys(object, &["project_id", "base_target_sha256", "contour_points", "landmarks", "parts", "user_confirmed"], "reference_mask_refine_prepare")?;
         if object.get("project_id").and_then(Value::as_str) != Some(project_id) {
             return Err(RuntimeError::InvalidInput(
                 "PROJECT_SCOPE_DENIED: reference mask project differs".to_owned(),
@@ -477,6 +619,7 @@ impl Runtime {
             Some(value) => parse_target_parts(Some(value))?,
             None => base.get("parts").cloned().unwrap_or_else(|| json!([])),
         };
+        let user_confirmed = request_user_confirmed(object, "reference_mask_refine_prepare")?;
         let automatic = reference_mask_png(&self.cas_read(&reference.object_sha256)?)?;
         self.store_silhouette_target(
             project_id,
@@ -486,6 +629,7 @@ impl Runtime {
             parts,
             automatic,
             false,
+            user_confirmed,
             Some(base_sha),
         )
     }
@@ -2519,8 +2663,20 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 source_inspection.failure_codes.join(",")
             )));
         }
-        let selected_camera = result["fit_result"]["selected_camera"].clone();
-        // This exact view spec and camera are reused for source and proposal.
+        let acceptance_camera = result["fit_result"]["baseline_camera"].clone();
+        validate_camera_calibration(&acceptance_camera).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRIMARY_FORM_REPAIR_INVALID: baseline acceptance camera: {error}"
+            ))
+        })?;
+        // The bounded fit may refine a transient camera while searching the
+        // geometry/camera neighborhood. That camera remains part of the fit
+        // evidence, but it must not silently replace the canonical camera
+        // selected by the preceding silhouette observation. Final source /
+        // proposal acceptance and the candidate-bound RenderSet therefore
+        // reuse the Runtime-owned baseline camera byte-for-byte. This keeps
+        // observation -> repair -> compare on one fixed camera while still
+        // allowing the fit result to report its exploratory winner.
         // A fit winner is not accepted merely because its transient camera
         // loss improved; the source artifact must survive the same final
         // 512px Render Worker comparison before a new candidate is staged.
@@ -2558,7 +2714,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             {
                 primary.reference_mask = primary_target_mask.clone();
                 primary.view_spec = view_spec.clone();
-                primary.camera = selected_camera.clone();
+                primary.camera = acceptance_camera.clone();
                 context.primary_view_id = primary.view_id.clone();
             }
             context
@@ -2570,7 +2726,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             reference_id,
             target_sha256,
             &view_spec,
-            &selected_camera,
+            &acceptance_camera,
             &source_glb,
             &source_inspection.part_ids,
         )?;
@@ -2599,7 +2755,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             reference_id,
             target_sha256,
             &view_spec,
-            &selected_camera,
+            &acceptance_camera,
             &proposed_artifact.glb,
             &proposed_inspection.part_ids,
         )?;
@@ -2662,7 +2818,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "proposal_candidate_id":Value::Null,
             "target_sha256":target_sha256,
             "reference_id":reference_id,
-            "camera_hash":selected_camera["camera_hash"].clone(),
+            "camera_hash":acceptance_camera["camera_hash"].clone(),
             "source_loss":stable_visual_metric(source_loss),
             "proposal_loss":stable_visual_metric(proposed_loss),
             "strict_improvement":strict_same_camera_improvement,
@@ -2748,7 +2904,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 "candidate_id":prepared_candidate_id,
                 "reference_id":reference_id,
                 "view_spec":view_spec,
-                "camera":selected_camera,
+                "camera":acceptance_camera,
                 "target_sha256":target_sha256
             }),
         )?;
@@ -3466,8 +3622,14 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         parts: Value,
         automatic: ReferenceMask,
         automatic_source: bool,
+        user_confirmed: bool,
         parent_target_sha256: Option<&str>,
     ) -> Result<Value, RuntimeError> {
+        if automatic_source && user_confirmed {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_MASK_INVALID: automatic target cannot be user-confirmed".to_owned(),
+            ));
+        }
         let mask = if let Some(points) = contour_points {
             rasterize_contour(points)
         } else {
@@ -3487,13 +3649,14 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         let mut target = json!({
             "schema_version":"SilhouetteTarget@1",
             "target_id":format!("silhouette-target-{}", Uuid::new_v4().simple()),
-            "reference_id":reference.reference_id,
-            "reference_sha256":reference.object_sha256,
+            "reference_id":reference.reference_id.clone(),
+            "reference_sha256":reference.object_sha256.clone(),
             "mask_sha256":mask_object.record.sha256,
             "width":512,
             "height":512,
             "coordinate_space":"normalized_reference_image",
             "source":if automatic_source {"automatic"} else {"user_refined"},
+            "annotation_status":if user_confirmed {"user_confirmed"} else {"unreviewed"},
             "contour_points":points,
             "parts":parts,
             "landmarks":landmarks,
@@ -4006,6 +4169,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "program_sha256":inspection.program_sha256,
             "reference_id":reference_id,
             "camera_hash":camera["camera_hash"].clone(),
+            "camera_object_sha256":camera_object.record.sha256.clone(),
             "renderer_hash":sha256_hex(b"forgecad-renderer@2-fixed-perspective-ggx-aov"),
             "render_worker_build_cohort_sha256":render_worker_cohort.clone(),
             "render_worker_binding_status":render_worker_binding_status(render_worker_cohort.as_ref()),
@@ -4043,7 +4207,18 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
                 .get("part-id")
                 .map(|bytes| (bytes.as_slice(), inspection.part_ids.as_slice())),
         );
-        let visual_status = if visible_view_gate_passes(&metrics) {
+        let annotation_readiness = reference_annotation_readiness(
+            self,
+            project_id,
+            candidate_id,
+            reference_id,
+            target_sha256.as_deref(),
+            view_spec,
+            &camera,
+        )?;
+        let visual_status = if annotation_readiness.benchmark_eligibility == "READY_PARTIAL_VIEW"
+            && visible_view_gate_passes(&metrics)
+        {
             "PARTIAL_VISIBLE_VIEW_PASS"
         } else {
             "QUALITY_TARGET_NOT_MET"
@@ -4057,6 +4232,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "reference_sha256":reference.object_sha256,
             "render_set_hash":render_set_hash,
             "camera_hash":camera["camera_hash"].clone(),
+            "benchmark_eligibility":annotation_readiness.benchmark_eligibility,
             "mask":{"method":"local-border-flood-fill-morphology","revision":"mask-2","sha256":mask_object.record.sha256,"width":512,"height":512},
             "metrics":metrics,
             "status":visual_status,
@@ -4073,6 +4249,21 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         )?;
         let comparison_hash = comparison_object.record.sha256.clone();
         let quality_id = format!("quality-c-{}", Uuid::new_v4().simple());
+        let mut limitations = vec![
+            "human_visual_review_not_run".to_owned(),
+            "single_reference_view_only".to_owned(),
+            "HQ_360_PASS_BLOCKED_REFERENCE_COVERAGE".to_owned(),
+        ];
+        limitations.push(format!(
+            "benchmark_eligibility:{}",
+            annotation_readiness.benchmark_eligibility
+        ));
+        limitations.extend(
+            annotation_readiness
+                .reasons
+                .iter()
+                .map(|reason| format!("reference_annotation:{reason}")),
+        );
         let mut quality = json!({
             "schema_version":"QualityReport@2",
             "quality_report_id":quality_id,
@@ -4087,7 +4278,12 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "structural_status":"passed",
             "visual_status":visual_status,
             "hard_gate_passed":visual_status == "PARTIAL_VISIBLE_VIEW_PASS",
-            "limitations":["human_visual_review_not_run","single_reference_view_only","HQ_360_PASS_BLOCKED_REFERENCE_COVERAGE"],
+            "threshold_revision":VISIBLE_VIEW_THRESHOLD_REVISION,
+            "threshold_policy_sha256":visible_view_threshold_policy_sha256(),
+            "threshold_source":VISIBLE_VIEW_THRESHOLD_SOURCE,
+            "metric_gate_results":visible_view_gate_checks(&metrics),
+            "benchmark_eligibility":annotation_readiness.benchmark_eligibility,
+            "limitations":limitations,
             "canonical_sha256":""
         });
         quality["canonical_sha256"] = Value::String(canonical_json_hash(&quality));
@@ -5623,6 +5819,13 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
         )?;
 
         let camera = default_camera_calibration();
+        let camera_object = self.put_object(
+            &canonical_json_bytes(&camera)
+                .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?,
+            None,
+            "application/json",
+            "camera-calibration",
+        )?;
         let render_result = render_glb_with_runtime_worker_identity(&artifact.glb, &camera)
             .map_err(|error| RuntimeError::InvalidInput(format!("RENDER_REJECTED: {error}")))?;
         let render_worker_cohort = render_result.build_cohort_sha256.clone();
@@ -5659,6 +5862,7 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "program_sha256":inspection.program_sha256,
             "reference_id":reference_id,
             "camera_hash":camera_hash,
+            "camera_object_sha256":camera_object.record.sha256.clone(),
             "renderer_hash":renderer_hash,
             "render_worker_build_cohort_sha256":render_worker_cohort.clone(),
             "render_worker_binding_status":render_worker_binding_status(render_worker_cohort.as_ref()),
@@ -5726,6 +5930,10 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             "structural_status":"passed",
             "visual_status":"not-run",
             "hard_gate_passed":false,
+            "threshold_revision":VISIBLE_VIEW_THRESHOLD_REVISION,
+            "threshold_policy_sha256":visible_view_threshold_policy_sha256(),
+            "threshold_source":VISIBLE_VIEW_THRESHOLD_SOURCE,
+            "metric_gate_results":[],
             "limitations":["MCP010E material/UV/PBR structural gate; reference comparison and human visual review are separate MCP010C evidence."],
             "canonical_sha256":""
         });
@@ -7297,14 +7505,20 @@ fn projected_part_boundary_error(segments: &[Value], part_id: &str) -> Option<f6
             | "checkpoint_get"
             | "checkpoint_restore_prepare"
             | "design_action_run_prepare"
-            | "design_action_run_get" => match method {
+            | "repair_intent_run_prepare"
+            | "design_action_run_get"
+            | "design_stage_run_prepare"
+            | "design_composition_prepare" => match method {
                 "session_create_or_resume" => self.session_create_or_resume(payload.clone()),
                 "session_get" => self.session_get(payload.clone()),
                 "checkpoint_prepare" => self.checkpoint_prepare(payload.clone()),
                 "checkpoint_get" => self.checkpoint_get(payload.clone()),
                 "checkpoint_restore_prepare" => self.checkpoint_restore_prepare(payload.clone()),
                 "design_action_run_prepare" => self.design_action_run_prepare(payload.clone()),
+                "repair_intent_run_prepare" => self.repair_intent_run_prepare(payload.clone()),
                 "design_action_run_get" => self.design_action_run_get(payload.clone()),
+                "design_stage_run_prepare" => self.design_stage_run_prepare(payload.clone()),
+                "design_composition_prepare" => self.design_composition_prepare(payload.clone()),
                 _ => unreachable!("Agentic session IPC method dispatch arm is exhaustive"),
             },
             "optimization_job_get" | "optimization_job_prepare" | "optimization_job_resume" => {
@@ -8915,7 +9129,175 @@ fn validate_reference_canvas_view_camera(
             "REFERENCE_VIEW_CAMERA_BINDING_MISMATCH".to_owned(),
         ));
     }
+    if let Some(claimed_canonical) = camera_claim
+        .get("camera_canonical_sha256")
+        .and_then(Value::as_str)
+    {
+        if camera.get("canonical_sha256").and_then(Value::as_str) != Some(claimed_canonical) {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_VIEW_CAMERA_CANONICAL_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+    }
     Ok(())
+}
+
+struct ReferenceAnnotationReadiness {
+    benchmark_eligibility: &'static str,
+    reasons: Vec<&'static str>,
+}
+
+impl ReferenceAnnotationReadiness {
+    fn blocked(reasons: Vec<&'static str>) -> Self {
+        Self {
+            benchmark_eligibility: "BLOCKED_USER_CONFIRMATION_REQUIRED",
+            reasons,
+        }
+    }
+
+    fn ready() -> Self {
+        Self {
+            benchmark_eligibility: "READY_PARTIAL_VIEW",
+            reasons: Vec::new(),
+        }
+    }
+}
+
+/// Decide whether a reference comparison is allowed to become benchmark
+/// evidence.  Automatic flood-fill remains useful for observation and
+/// exploratory fit, but it is never a benchmark target.  Promotion requires
+/// an explicit user-confirmed contour, authored Part regions and landmarks,
+/// visible regions and a canonical per-view camera binding.  This gate is
+/// intentionally stricter than the observation/action boundary: Codex may
+/// still inspect or stage a bounded repair while the evidence remains
+/// visibly blocked.
+fn reference_annotation_readiness(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate_id: &str,
+    reference_id: &str,
+    target_sha256: Option<&str>,
+    view_spec: &Value,
+    camera: &Value,
+) -> Result<ReferenceAnnotationReadiness, RuntimeError> {
+    let mut reasons = Vec::new();
+    let Some(target_sha256) = target_sha256 else {
+        reasons.push("REFERENCE_TARGET_REQUIRED");
+        return Ok(ReferenceAnnotationReadiness::blocked(reasons));
+    };
+    let target = runtime.read_silhouette_target(target_sha256)?;
+    if target.get("reference_id").and_then(Value::as_str) != Some(reference_id) {
+        reasons.push("REFERENCE_TARGET_BINDING_MISMATCH");
+    }
+    if target.get("source").and_then(Value::as_str) != Some("user_refined") {
+        reasons.push("REFERENCE_CONTOUR_NOT_USER_REFINED");
+    }
+    if target.get("annotation_status").and_then(Value::as_str) != Some("user_confirmed") {
+        reasons.push("REFERENCE_CONTOUR_USER_CONFIRMATION_REQUIRED");
+    }
+    let parts = target.get("parts").and_then(Value::as_array);
+    if parts.is_none_or(|values| {
+        values.is_empty()
+            || values.iter().any(|part| {
+                part.get("visibility").and_then(Value::as_str) != Some("observed")
+                    || part.get("region").is_none()
+            })
+    }) {
+        reasons.push("REFERENCE_PART_MASKS_REQUIRED");
+    }
+    let landmarks = target.get("landmarks").and_then(Value::as_array);
+    if landmarks.is_none_or(|values| {
+        values.len() < 3
+            || values.iter().any(|landmark| {
+                landmark.get("visibility").and_then(Value::as_str) != Some("observed")
+            })
+    }) {
+        reasons.push("REFERENCE_LANDMARKS_REQUIRED");
+    }
+
+    let view_landmarks = view_spec.get("landmarks").and_then(Value::as_array);
+    if view_landmarks.is_none_or(|values| {
+        values.len() < 3
+            || values.iter().any(|landmark| {
+                landmark.get("visibility").and_then(Value::as_str) != Some("observed")
+            })
+    }) {
+        reasons.push("REFERENCE_VIEW_LANDMARKS_REQUIRED");
+    }
+    if view_spec
+        .get("regions")
+        .and_then(Value::as_array)
+        .is_none_or(|values| {
+            values.is_empty()
+                || values.iter().any(|region| {
+                    region.get("visibility").and_then(Value::as_str) != Some("observed")
+                })
+        })
+    {
+        reasons.push("REFERENCE_VIEW_REGIONS_REQUIRED");
+    }
+
+    let canvas = agentic_session::durable_reference_canvas_for_binding(
+        runtime,
+        project_id,
+        Some(candidate_id),
+    )?;
+    if let Some((canvas, _canvas_sha256)) = canvas {
+        let view_id = view_spec.get("view_id").and_then(Value::as_str);
+        let view = canvas
+            .get("views")
+            .and_then(Value::as_array)
+            .and_then(|views| {
+                views.iter().find(|view| {
+                    view_id.is_some_and(|view_id| view.get("view_id").and_then(Value::as_str) == Some(view_id))
+                        && view.get("reference_id").and_then(Value::as_str) == Some(reference_id)
+                })
+            });
+        let Some(view) = view else {
+            reasons.push("REFERENCE_CANVAS_VIEW_REQUIRED");
+            return Ok(ReferenceAnnotationReadiness::blocked(reasons));
+        };
+        if view.get("target_sha256").and_then(Value::as_str) != Some(target_sha256)
+            || view
+                .get("mask_sha256")
+                .and_then(Value::as_str)
+                != target.get("mask_sha256").and_then(Value::as_str)
+        {
+            reasons.push("REFERENCE_CANVAS_TARGET_MASK_BINDING_MISMATCH");
+        }
+        if view
+            .get("visible_regions")
+            .and_then(Value::as_array)
+            .is_none_or(|regions| {
+                regions.is_empty()
+                    || regions.iter().any(|region| {
+                        region
+                            .pointer("/state/visibility")
+                            .and_then(Value::as_str)
+                            != Some("observed")
+                    })
+            })
+        {
+            reasons.push("REFERENCE_VISIBLE_REGIONS_REQUIRED");
+        }
+        let camera_claim = view.get("camera_claim").and_then(Value::as_object);
+        if camera_claim.is_none_or(|claim| {
+            claim.get("visibility").and_then(Value::as_str) != Some("observed")
+                || claim.get("camera_hash").and_then(Value::as_str)
+                    != camera.get("camera_hash").and_then(Value::as_str)
+                || claim
+                    .get("camera_canonical_sha256")
+                    .and_then(Value::as_str)
+                    != camera.get("canonical_sha256").and_then(Value::as_str)
+        }) {
+            reasons.push("REFERENCE_CAMERA_CANONICAL_BINDING_REQUIRED");
+        }
+    }
+    if reasons.is_empty() {
+        Ok(ReferenceAnnotationReadiness::ready())
+    } else {
+        Ok(ReferenceAnnotationReadiness::blocked(reasons))
+    }
 }
 
 fn validate_silhouette_evaluation_objective(value: &Value) -> Result<(), RuntimeError> {
@@ -9035,6 +9417,10 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
         ));
     }
     let mut view_ids = HashSet::new();
+    let mut view_kinds = HashSet::new();
+    let mut all_proposal_pass = true;
+    let mut all_non_regressing = true;
+    let mut all_strict_improvement = true;
     for evaluation in evaluations {
         let evaluation = evaluation.as_object().ok_or_else(|| {
             RuntimeError::InvalidInput(
@@ -9049,6 +9435,38 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
         if !view_ids.insert(view_id.to_owned()) {
             return Err(RuntimeError::InvalidInput(
                 "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 duplicate view_id".to_owned(),
+            ));
+        }
+        let kind = evaluation
+            .get("kind")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 kind is invalid"
+                        .to_owned(),
+                )
+            })?;
+        if !matches!(
+            kind,
+            "front"
+                | "back"
+                | "left"
+                | "right"
+                | "top"
+                | "perspective"
+                | "three-quarter"
+                | "rear-three-quarter"
+                | "detail"
+        ) {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 kind is unsupported"
+                    .to_owned(),
+            ));
+        }
+        if !view_kinds.insert(kind) {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 duplicate view kind"
+                    .to_owned(),
             ));
         }
         for key in [
@@ -9067,6 +9485,23 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
                 )));
             }
         }
+        for key in ["baseline_status", "proposal_status"] {
+            let status = evaluation.get(key).and_then(Value::as_str).ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1.{key} is invalid"
+                ))
+            })?;
+            if !matches!(
+                status,
+                "PARTIAL_VISIBLE_VIEW_PASS"
+                    | "QUALITY_TARGET_NOT_MET"
+                    | "BLOCKED_REFERENCE_COVERAGE"
+            ) {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1.{key} is invalid"
+                )));
+            }
+        }
         for key in ["non_regressing", "strict_improvement"] {
             if evaluation.get(key).and_then(Value::as_bool).is_none() {
                 return Err(RuntimeError::InvalidInput(format!(
@@ -9074,6 +9509,43 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
                 )));
             }
         }
+        all_proposal_pass &= evaluation
+            .get("proposal_status")
+            .and_then(Value::as_str)
+            == Some("PARTIAL_VISIBLE_VIEW_PASS");
+        all_non_regressing &= evaluation
+            .get("non_regressing")
+            .and_then(Value::as_bool)
+            == Some(true);
+        all_strict_improvement &= evaluation
+            .get("strict_improvement")
+            .and_then(Value::as_bool)
+            == Some(true);
+    }
+    let supplied_kinds = coverage
+        .get("supplied_views")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 supplied views are invalid"
+                    .to_owned(),
+            )
+        })?
+        .iter()
+        .map(|value| {
+            value.as_str().ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 supplied view kind is invalid"
+                        .to_owned(),
+                )
+            })
+        })
+        .collect::<Result<HashSet<_>, _>>()?;
+    if supplied_kinds != view_kinds {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 evaluations do not cover supplied views"
+                .to_owned(),
+        ));
     }
     let aggregate_status = object
         .get("aggregate_status")
@@ -9087,12 +9559,40 @@ fn validate_cross_view_evidence_bundle(value: &Value) -> Result<(), RuntimeError
             "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 aggregate_status is invalid".to_owned(),
         ));
     }
-    if object.get("hard_gate_passed").and_then(Value::as_bool).is_none()
-        || object.get("strict_improvement").and_then(Value::as_bool).is_none()
-        || object.get("non_regressing").and_then(Value::as_bool).is_none()
-    {
+    let coverage_complete = coverage.get("coverage_status").and_then(Value::as_str)
+        == Some("complete")
+        && coverage
+            .get("missing_views")
+            .and_then(Value::as_array)
+            .is_some_and(Vec::is_empty);
+    let expected_aggregate_status = if !coverage_complete {
+        "BLOCKED_REFERENCE_COVERAGE"
+    } else if all_proposal_pass {
+        "PARTIAL_VISIBLE_VIEW_PASS"
+    } else {
+        "QUALITY_TARGET_NOT_MET"
+    };
+    if aggregate_status != expected_aggregate_status {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 aggregate status does not match per-view gates"
+                .to_owned(),
+        ));
+    }
+    let hard_gate_passed = object.get("hard_gate_passed").and_then(Value::as_bool);
+    let strict_improvement = object.get("strict_improvement").and_then(Value::as_bool);
+    let non_regressing = object.get("non_regressing").and_then(Value::as_bool);
+    if hard_gate_passed.is_none() || strict_improvement.is_none() || non_regressing.is_none() {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 gate fields are invalid".to_owned(),
+        ));
+    }
+    if hard_gate_passed != Some(coverage_complete && all_proposal_pass)
+        || strict_improvement != Some(all_strict_improvement)
+        || non_regressing != Some(all_non_regressing)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: CrossViewEvidenceBundle@1 aggregate gates do not match per-view gates"
+                .to_owned(),
         ));
     }
     let promotion = object
@@ -9203,17 +9703,34 @@ fn validate_reference_view_spec(
             "ReferenceViewSpec@1.landmarks exceeds 128 items".to_owned(),
         ));
     }
+    let mut landmark_ids = std::collections::HashSet::new();
     for landmark in landmarks {
         let landmark = exact_object(
             landmark,
             &["landmark_id", "x", "y", "visibility", "confidence"],
             "ReferenceViewSpec@1.landmark",
         )?;
-        required_contract_identifier(landmark, "landmark_id", "ReferenceViewSpec@1.landmark")?;
+        let landmark_id = required_contract_identifier(
+            landmark,
+            "landmark_id",
+            "ReferenceViewSpec@1.landmark",
+        )?;
+        if !landmark_ids.insert(landmark_id) {
+            return Err(RuntimeError::InvalidInput(
+                "ReferenceViewSpec@1.landmark IDs must be unique".to_owned(),
+            ));
+        }
         validate_normalized_coordinate(landmark, "x", "ReferenceViewSpec@1.landmark")?;
         validate_normalized_coordinate(landmark, "y", "ReferenceViewSpec@1.landmark")?;
         validate_visibility(landmark, "visibility", "ReferenceViewSpec@1.landmark")?;
-        validate_unit_number(landmark, "confidence", "ReferenceViewSpec@1.landmark")?;
+        let confidence = validate_unit_number(landmark, "confidence", "ReferenceViewSpec@1.landmark")?;
+        if landmark.get("visibility").and_then(Value::as_str) == Some("unknown")
+            && confidence != 0.0
+        {
+            return Err(RuntimeError::InvalidInput(
+                "ReferenceViewSpec@1.unknown landmark confidence must be zero".to_owned(),
+            ));
+        }
     }
     let regions = object
         .get("regions")
@@ -9226,6 +9743,7 @@ fn validate_reference_view_spec(
             "ReferenceViewSpec@1.regions exceeds 64 items".to_owned(),
         ));
     }
+    let mut region_ids = std::collections::HashSet::new();
     for region in regions {
         let region = exact_object(
             region,
@@ -9240,18 +9758,36 @@ fn validate_reference_view_spec(
             ],
             "ReferenceViewSpec@1.region",
         )?;
-        required_contract_identifier(region, "region_id", "ReferenceViewSpec@1.region")?;
-        for key in ["x", "y", "width", "height", "confidence"] {
-            validate_unit_number(region, key, "ReferenceViewSpec@1.region")?;
+        let region_id = required_contract_identifier(region, "region_id", "ReferenceViewSpec@1.region")?;
+        if !region_ids.insert(region_id) {
+            return Err(RuntimeError::InvalidInput(
+                "ReferenceViewSpec@1.region IDs must be unique".to_owned(),
+            ));
         }
-        if region.get("width").and_then(Value::as_f64).unwrap_or(0.0) <= 0.0
-            || region.get("height").and_then(Value::as_f64).unwrap_or(0.0) <= 0.0
+        let x = validate_unit_number(region, "x", "ReferenceViewSpec@1.region")?;
+        let y = validate_unit_number(region, "y", "ReferenceViewSpec@1.region")?;
+        let width = validate_unit_number(region, "width", "ReferenceViewSpec@1.region")?;
+        let height = validate_unit_number(region, "height", "ReferenceViewSpec@1.region")?;
+        let confidence = validate_unit_number(region, "confidence", "ReferenceViewSpec@1.region")?;
+        if x + width > 1.0 || y + height > 1.0 {
+            return Err(RuntimeError::InvalidInput(
+                "ReferenceViewSpec@1.region bounds exceed the image".to_owned(),
+            ));
+        }
+        if width <= 0.0 || height <= 0.0
         {
             return Err(RuntimeError::InvalidInput(
                 "ReferenceViewSpec@1.region dimensions must be positive".to_owned(),
             ));
         }
         validate_visibility(region, "visibility", "ReferenceViewSpec@1.region")?;
+        if region.get("visibility").and_then(Value::as_str) == Some("unknown")
+            && confidence != 0.0
+        {
+            return Err(RuntimeError::InvalidInput(
+                "ReferenceViewSpec@1.unknown region confidence must be zero".to_owned(),
+            ));
+        }
     }
     verify_output_canonical_hash(value, "ReferenceViewSpec@1")
 }
@@ -9506,7 +10042,10 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
             "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1 must be an object".to_owned(),
         )
     })?;
-    if (object.len() != 13 && object.len() != 14)
+    let expected_len = 13
+        + if object.contains_key("annotation_status") { 1 } else { 0 }
+        + if object.contains_key("parent_target_sha256") { 1 } else { 0 };
+    if object.len() != expected_len
         || [
             "schema_version",
             "target_id",
@@ -9535,6 +10074,7 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
                 "height",
                 "coordinate_space",
                 "source",
+                "annotation_status",
                 "contour_points",
                 "parts",
                 "landmarks",
@@ -9557,6 +10097,18 @@ fn validate_silhouette_target(value: &Value) -> Result<(), RuntimeError> {
     {
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1 constants drifted".to_owned(),
+        ));
+    }
+    let annotation_status = object
+        .get("annotation_status")
+        .and_then(Value::as_str)
+        .unwrap_or("unreviewed");
+    if !matches!(annotation_status, "unreviewed" | "user_confirmed")
+        || (annotation_status == "user_confirmed"
+            && object.get("source").and_then(Value::as_str) != Some("user_refined"))
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: SilhouetteTarget@1 annotation status is invalid".to_owned(),
         ));
     }
     if let Some(parent_target_sha256) = object.get("parent_target_sha256") {
@@ -10895,6 +11447,7 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
             "program_sha256",
             "reference_id",
             "camera_hash",
+            "camera_object_sha256",
             "renderer_hash",
             "render_worker_build_cohort_sha256",
             "render_worker_binding_status",
@@ -10921,6 +11474,7 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
         "artifact_sha256",
         "program_sha256",
         "camera_hash",
+        "camera_object_sha256",
         "renderer_hash",
     ] {
         required_contract_sha256(object, key, "RenderSet@2")?;
@@ -11047,7 +11601,7 @@ fn validate_render_set_v2_output(value: &Value) -> Result<(), RuntimeError> {
 }
 
 fn validate_reference_comparison_report(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(
+    let object = exact_object_with_optional(
         value,
         &[
             "schema_version",
@@ -11063,6 +11617,7 @@ fn validate_reference_comparison_report(value: &Value) -> Result<(), RuntimeErro
             "status",
             "canonical_sha256",
         ],
+        &["benchmark_eligibility"],
         "ReferenceComparisonReport@1",
     )?;
     if object.get("schema_version").and_then(Value::as_str) != Some("ReferenceComparisonReport@1")
@@ -11155,6 +11710,14 @@ fn validate_reference_comparison_report(value: &Value) -> Result<(), RuntimeErro
             "CONTRACT_OUTPUT_INVALID: visible-view pass does not meet strict contour gates"
                 .to_owned(),
         ));
+    }
+    if let Some(eligibility) = object.get("benchmark_eligibility").and_then(Value::as_str) {
+        if !matches!(eligibility, "READY_PARTIAL_VIEW" | "BLOCKED_USER_CONFIRMATION_REQUIRED") {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: ReferenceComparisonReport@1 benchmark eligibility is invalid"
+                    .to_owned(),
+            ));
+        }
     }
     verify_output_canonical_hash(value, "ReferenceComparisonReport@1")
 }
@@ -11360,7 +11923,7 @@ fn validate_bounded_text(
 }
 
 fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> {
-    let object = exact_object(
+    let object = exact_object_with_optional(
         value,
         &[
             "schema_version",
@@ -11376,9 +11939,14 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
             "structural_status",
             "visual_status",
             "hard_gate_passed",
+            "threshold_revision",
+            "threshold_policy_sha256",
+            "threshold_source",
+            "metric_gate_results",
             "limitations",
             "canonical_sha256",
         ],
+        &["benchmark_eligibility"],
         "QualityReport@2",
     )?;
     if object.get("schema_version").and_then(Value::as_str) != Some("QualityReport@2")
@@ -11408,8 +11976,88 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
         "program_sha256",
         "render_set_hash",
         "comparison_report_hash",
+        "threshold_policy_sha256",
     ] {
         required_contract_sha256(object, key, "QualityReport@2")?;
+    }
+    if object.get("threshold_revision").and_then(Value::as_str)
+        != Some(VISIBLE_VIEW_THRESHOLD_REVISION)
+        || object.get("threshold_source").and_then(Value::as_str)
+            != Some(VISIBLE_VIEW_THRESHOLD_SOURCE)
+        || object.get("threshold_policy_sha256").and_then(Value::as_str)
+            != Some(visible_view_threshold_policy_sha256().as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: QualityReport@2 threshold policy is not Runtime-owned"
+                .to_owned(),
+        ));
+    }
+    let metric_gate_results = object
+        .get("metric_gate_results")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: QualityReport@2 metric_gate_results is invalid"
+                    .to_owned(),
+            )
+        })?;
+    if metric_gate_results.len() > visible_view_threshold_specs().len() {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: QualityReport@2 metric_gate_results exceeds the threshold policy"
+                .to_owned(),
+        ));
+    }
+    let expected_specs = visible_view_threshold_specs();
+    let mut seen_metrics = HashSet::new();
+    for result in metric_gate_results {
+        let result = exact_object(
+            result,
+            &[
+                "metric_name",
+                "direction",
+                "observed",
+                "threshold",
+                "status",
+            ],
+            "QualityReport@2.metric_gate_results",
+        )?;
+        let metric_name = result
+            .get("metric_name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: QualityReport@2 metric name is invalid".to_owned(),
+                )
+            })?;
+        let (_, expected_direction, expected_threshold) = expected_specs
+            .iter()
+            .find(|(name, _, _)| *name == metric_name)
+            .copied()
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "CONTRACT_OUTPUT_INVALID: QualityReport@2 metric is not in the threshold policy"
+                        .to_owned(),
+                )
+            })?;
+        if !seen_metrics.insert(metric_name.to_owned())
+            || result.get("direction").and_then(Value::as_str) != Some(expected_direction)
+            || result
+                .get("threshold")
+                .and_then(Value::as_f64)
+                != Some(expected_threshold)
+            || !matches!(
+                result.get("status").and_then(Value::as_str),
+                Some("passed" | "failed" | "not-run")
+            )
+            || result
+                .get("observed")
+                .is_none_or(|value| !value.is_null() && !value.as_f64().is_some_and(f64::is_finite))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: QualityReport@2 metric gate result drifted"
+                    .to_owned(),
+            ));
+        }
     }
     for key in ["reference_id", "reference_sha256", "human_receipt_hash"] {
         if !object.get(key).is_some_and(|value| {
@@ -11443,6 +12091,20 @@ fn validate_quality_report_v2_output(value: &Value) -> Result<(), RuntimeError> 
         return Err(RuntimeError::InvalidInput(
             "CONTRACT_OUTPUT_INVALID: QualityReport@2 visual gate/status mismatch".to_owned(),
         ));
+    }
+    if visual_status != "not-run" && seen_metrics.len() != expected_specs.len() {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: QualityReport@2 visible status requires all metric gate results"
+                .to_owned(),
+        ));
+    }
+    if let Some(eligibility) = object.get("benchmark_eligibility").and_then(Value::as_str) {
+        if !matches!(eligibility, "READY_PARTIAL_VIEW" | "BLOCKED_USER_CONFIRMATION_REQUIRED") {
+            return Err(RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: QualityReport@2 benchmark eligibility is invalid"
+                    .to_owned(),
+            ));
+        }
     }
     verify_output_canonical_hash(value, "QualityReport@2")
 }
@@ -11509,6 +12171,19 @@ fn validate_appearance_prepare_result_v2_output(value: &Value) -> Result<(), Run
 struct ReferenceMask {
     mask: Vec<bool>,
     png: Vec<u8>,
+}
+
+fn request_user_confirmed(
+    object: &serde_json::Map<String, Value>,
+    context: &str,
+) -> Result<bool, RuntimeError> {
+    match object.get("user_confirmed") {
+        None => Ok(false),
+        Some(Value::Bool(value)) => Ok(*value),
+        Some(_) => Err(RuntimeError::InvalidInput(format!(
+            "REFERENCE_MASK_INVALID: {context}.user_confirmed must be a boolean"
+        ))),
+    }
 }
 
 fn parse_contour_points(value: Option<&Value>) -> Result<Option<Vec<[f64; 2]>>, RuntimeError> {
@@ -12691,14 +13366,23 @@ fn validate_silhouette_rig(value: &Value, candidate_id: &str) -> Result<(), Runt
         let max = entry.get("max").and_then(Value::as_f64).unwrap_or(f64::NAN);
         let step = entry.get("step").and_then(Value::as_f64).unwrap_or(f64::NAN);
         if !value.is_finite() || !min.is_finite() || !max.is_finite() || !step.is_finite() || min > value || value > max || step <= 0.0 || min >= max { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: parameter bounds".to_owned())); }
-        if !matches!(semantic, Some("width" | "height" | "depth" | "offset_x" | "offset_y" | "offset_z" | "scale" | "surface_control_point")) { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: semantic".to_owned())); }
+        if matches!(semantic, Some("rotation_x" | "rotation_y" | "rotation_z"))
+            && (min < -2.0 * std::f64::consts::PI || max > 2.0 * std::f64::consts::PI)
+        {
+            return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: rotation bounds".to_owned()));
+        }
+        if !matches!(semantic, Some("width" | "height" | "depth" | "offset_x" | "offset_y" | "offset_z" | "scale" | "rotation_x" | "rotation_y" | "rotation_z" | "surface_control_point")) { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: semantic".to_owned())); }
         if semantic == Some("surface_control_point")
             && (entry.get("control_point_index").and_then(Value::as_u64).is_none_or(|index| index > 255)
                 || !matches!(entry.get("axis").and_then(Value::as_str), Some("x" | "y" | "z")))
         {
             return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: surface control point".to_owned()));
         }
-        if !matches!(entry.get("unit").and_then(Value::as_str), Some("meter" | "ratio")) { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: unit".to_owned())); }
+        let allowed_unit = match semantic {
+            Some("rotation_x" | "rotation_y" | "rotation_z") => matches!(entry.get("unit").and_then(Value::as_str), Some("radian" | "ratio")),
+            _ => matches!(entry.get("unit").and_then(Value::as_str), Some("meter" | "ratio")),
+        };
+        if !allowed_unit { return Err(RuntimeError::InvalidInput("SILHOUETTE_RIG_INVALID: unit".to_owned())); }
     }
     required_contract_sha256(object, "canonical_sha256", "SilhouetteRig@1")?;
     verify_output_canonical_hash(value, "SilhouetteRig@1")
@@ -13174,7 +13858,7 @@ fn materialize_rig_geometry_program(
                 }
                 continue;
             }
-            if matches!(semantic, "offset_x" | "offset_y" | "offset_z" | "scale") {
+            if matches!(semantic, "offset_x" | "offset_y" | "offset_z" | "scale" | "rotation_x" | "rotation_y" | "rotation_z") {
                 // A bilateral Part is often authored as `source -> transform
                 // -> mirror`. Applying a camera-plane offset to the source
                 // node moves the two mirrored sides in opposite directions;
@@ -13245,7 +13929,7 @@ fn materialize_rig_geometry_program(
                         | "forgecad.geometry.part-output@1"
                 );
                 let should_apply = match semantic {
-                    "offset_x" | "offset_y" | "offset_z" | "scale" => {
+                    "offset_x" | "offset_y" | "offset_z" | "scale" | "rotation_x" | "rotation_y" | "rotation_z" => {
                         if has_transform { is_transform } else { is_source_geometry }
                     }
                     "width" | "height" | "depth" => is_source_geometry,
@@ -13471,6 +14155,40 @@ fn apply_rig_parameter_to_node(
         return false;
     }
     match semantic {
+        "rotation_x" | "rotation_y" | "rotation_z" => {
+            let Some(vector) = parameters.get_mut("rotation_rad").and_then(Value::as_array_mut) else {
+                return false;
+            };
+            if vector.len() != 3 {
+                return false;
+            }
+            let axis = match semantic {
+                "rotation_x" => 0,
+                "rotation_y" => 1,
+                _ => 2,
+            };
+            // Rotation Rig values are absolute authored angles in radians;
+            // materialization applies only the typed delta to the output
+            // Transform so a source Part's existing pose is preserved.  A
+            // ratio is a multiplier around the authored angle and is rejected
+            // when that angle is zero because no meaningful normalized edit
+            // exists in that case.
+            let delta = if unit == "ratio" {
+                if base_value.abs() <= f64::EPSILON {
+                    return false;
+                }
+                base_value * (value - 1.0)
+            } else {
+                value - base_value
+            };
+            let old = vector[axis].as_f64().unwrap_or(0.0);
+            let next = old + delta;
+            if !next.is_finite() || !(-2.0 * std::f64::consts::PI..=2.0 * std::f64::consts::PI).contains(&next) {
+                return false;
+            }
+            vector[axis] = Value::from(next);
+            true
+        }
         "offset_x" | "offset_y" | "offset_z" => {
             let key = if parameters.contains_key("translation_m") {
                 "translation_m"
@@ -15431,11 +16149,7 @@ fn visible_view_gate_passes(metrics: &Value) -> bool {
         .all(|check| check.get("status").and_then(Value::as_str) == Some("passed"))
 }
 
-/// Return the Runtime-owned visible-view gate records used by both the
-/// QualityReport producer and read-only Agentic critic projections. Keeping the
-/// thresholds and comparison direction here prevents a projection layer from
-/// silently inventing a second quality gate.
-fn visible_view_gate_checks(metrics: &Value) -> Vec<Value> {
+fn visible_view_threshold_specs() -> [(&'static str, &'static str, f64); 8] {
     [
         ("silhouette_iou", "min", VISIBLE_SILHOUETTE_IOU_MIN),
         ("boundary_f1_4px", "min", VISIBLE_BOUNDARY_F1_MIN),
@@ -15450,7 +16164,32 @@ fn visible_view_gate_checks(metrics: &Value) -> Vec<Value> {
             VISIBLE_CRITICAL_REGION_IOU_MIN,
         ),
     ]
-    .into_iter()
+}
+
+fn visible_view_threshold_policy() -> Value {
+    json!({
+        "schema_version":"VisibleViewThresholdPolicy@1",
+        "revision":VISIBLE_VIEW_THRESHOLD_REVISION,
+        "source":VISIBLE_VIEW_THRESHOLD_SOURCE,
+        "metrics":visible_view_threshold_specs().into_iter().map(|(metric_name, direction, threshold)| json!({
+            "metric_name":metric_name,
+            "direction":direction,
+            "threshold":threshold
+        })).collect::<Vec<_>>()
+    })
+}
+
+fn visible_view_threshold_policy_sha256() -> String {
+    canonical_json_hash(&visible_view_threshold_policy())
+}
+
+/// Return the Runtime-owned visible-view gate records used by both the
+/// QualityReport producer and read-only Agentic critic projections. Keeping the
+/// thresholds and comparison direction here prevents a projection layer from
+/// silently inventing a second quality gate.
+fn visible_view_gate_checks(metrics: &Value) -> Vec<Value> {
+    visible_view_threshold_specs()
+        .into_iter()
     .map(|(metric_name, direction, threshold)| {
         let observed = metrics
             .get(metric_name)
@@ -16360,6 +17099,549 @@ fn exact_object<'a>(
     Ok(object)
 }
 
+fn pdk_exact_intent_keys(
+    intent: &serde_json::Map<String, Value>,
+    required: &[&str],
+    kit_id: &str,
+) -> Result<(), RuntimeError> {
+    if intent.len() != required.len()
+        || required.iter().any(|key| !intent.contains_key(*key))
+        || intent.keys().any(|key| !required.contains(&key.as_str()))
+    {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PARAMETRIC_DESIGN_KIT_INTENT_INVALID: {kit_id} intent has an unexpected field set"
+        )));
+    }
+    Ok(())
+}
+
+fn pdk_number(
+    intent: &serde_json::Map<String, Value>,
+    key: &str,
+    minimum: f64,
+    maximum: f64,
+    kit_id: &str,
+) -> Result<f64, RuntimeError> {
+    let value = intent.get(key).and_then(Value::as_f64).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "PARAMETRIC_DESIGN_KIT_INTENT_INVALID: {kit_id}.{key} must be a finite number"
+        ))
+    })?;
+    if !value.is_finite() || value <= minimum || value > maximum {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PARAMETRIC_DESIGN_KIT_INTENT_OUT_OF_BOUNDS: {kit_id}.{key} must be > {minimum} and <= {maximum}"
+        )));
+    }
+    Ok(value)
+}
+
+fn pdk_vector3(
+    intent: &serde_json::Map<String, Value>,
+    key: &str,
+    minimum: f64,
+    maximum: f64,
+    kit_id: &str,
+) -> Result<Vec<f64>, RuntimeError> {
+    let values = intent.get(key).and_then(Value::as_array).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "PARAMETRIC_DESIGN_KIT_INTENT_INVALID: {kit_id}.{key} must be a three-vector"
+        ))
+    })?;
+    if values.len() != 3 {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PARAMETRIC_DESIGN_KIT_INTENT_INVALID: {kit_id}.{key} must contain exactly three values"
+        )));
+    }
+    let mut output = Vec::with_capacity(3);
+    for value in values {
+        let value = value.as_f64().ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "PARAMETRIC_DESIGN_KIT_INTENT_INVALID: {kit_id}.{key} contains a non-number"
+            ))
+        })?;
+        if !value.is_finite() || value < minimum || value > maximum {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PARAMETRIC_DESIGN_KIT_INTENT_OUT_OF_BOUNDS: {kit_id}.{key} values must be >= {minimum} and <= {maximum}"
+            )));
+        }
+        output.push(value);
+    }
+    Ok(output)
+}
+
+fn pdk_u64(
+    intent: &serde_json::Map<String, Value>,
+    key: &str,
+    minimum: u64,
+    maximum: u64,
+    kit_id: &str,
+) -> Result<u64, RuntimeError> {
+    let value = intent.get(key).and_then(Value::as_u64).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "PARAMETRIC_DESIGN_KIT_INTENT_INVALID: {kit_id}.{key} must be an unsigned integer"
+        ))
+    })?;
+    if !(minimum..=maximum).contains(&value) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PARAMETRIC_DESIGN_KIT_INTENT_OUT_OF_BOUNDS: {kit_id}.{key} must be between {minimum} and {maximum}"
+        )));
+    }
+    Ok(value)
+}
+
+fn pdk_position_rotation(
+    intent: &serde_json::Map<String, Value>,
+    kit_id: &str,
+) -> Result<(Vec<f64>, Vec<f64>), RuntimeError> {
+    let position = pdk_vector3(intent, "position_m", -10.0, 10.0, kit_id)?;
+    let rotation = pdk_vector3(
+        intent,
+        "rotation_rad",
+        -std::f64::consts::TAU,
+        std::f64::consts::TAU,
+        kit_id,
+    )?;
+    Ok((position, rotation))
+}
+
+fn expand_parametric_design_kit(
+    kit_id: &str,
+    intent: &serde_json::Map<String, Value>,
+) -> Result<(String, Value, Vec<String>), RuntimeError> {
+    match kit_id {
+        "forgecad.kit.housing@1" | "forgecad.kit.panel@1" | "forgecad.kit.frame@1" => {
+            pdk_exact_intent_keys(
+                intent,
+                &[
+                    "size_m",
+                    "thickness_m",
+                    "bevel_m",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                kit_id,
+            )?;
+            let size = pdk_vector3(intent, "size_m", 0.0, 10.0, kit_id)?;
+            if size.iter().any(|value| *value <= 0.0) {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "PARAMETRIC_DESIGN_KIT_INTENT_OUT_OF_BOUNDS: {kit_id}.size_m values must be > 0"
+                )));
+            }
+            let thickness = pdk_number(intent, "thickness_m", 0.0, 10.0, kit_id)?;
+            let bevel = pdk_number(intent, "bevel_m", 0.0, 5.0, kit_id)?;
+            if thickness > size[2] {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "PARAMETRIC_DESIGN_KIT_GEOMETRY_RELATIONSHIP_INVALID: {kit_id}.thickness_m must not exceed size_m.z"
+                )));
+            }
+            if bevel * 2.0 >= size[0].min(size[1]) {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "PARAMETRIC_DESIGN_KIT_GEOMETRY_RELATIONSHIP_INVALID: {kit_id}.bevel_m must leave positive panel edges"
+                )));
+            }
+            let (position, rotation) = pdk_position_rotation(intent, kit_id)?;
+            Ok((
+                "forgecad.geometry.panel@1".to_owned(),
+                json!({
+                    "shape":"panel",
+                    "size_m":size,
+                    "thickness_m":thickness,
+                    "bevel_m":bevel,
+                    "position_m":position,
+                    "rotation_rad":rotation
+                }),
+                vec![
+                    "size_m".to_owned(),
+                    "thickness_m".to_owned(),
+                    "bevel_m".to_owned(),
+                    "position_m".to_owned(),
+                    "rotation_rad".to_owned(),
+                ],
+            ))
+        }
+        "forgecad.kit.vent@1" => {
+            pdk_exact_intent_keys(
+                intent,
+                &[
+                    "width_m",
+                    "height_m",
+                    "depth_m",
+                    "slot_count",
+                    "slot_width_m",
+                    "slot_spacing_m",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                kit_id,
+            )?;
+            let width = pdk_number(intent, "width_m", 0.0, 10.0, kit_id)?;
+            let height = pdk_number(intent, "height_m", 0.0, 10.0, kit_id)?;
+            let depth = pdk_number(intent, "depth_m", 0.0, 10.0, kit_id)?;
+            let slot_count = pdk_u64(intent, "slot_count", 1, 32, kit_id)?;
+            let slot_width = pdk_number(intent, "slot_width_m", 0.0, 10.0, kit_id)?;
+            let slot_spacing = pdk_number(intent, "slot_spacing_m", 0.0, 10.0, kit_id)?;
+            let occupied = slot_width * slot_count as f64
+                + slot_spacing * slot_count.saturating_sub(1) as f64;
+            if occupied > width {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "PARAMETRIC_DESIGN_KIT_GEOMETRY_RELATIONSHIP_INVALID: {kit_id} slots exceed width_m"
+                )));
+            }
+            let (position, rotation) = pdk_position_rotation(intent, kit_id)?;
+            Ok((
+                "forgecad.geometry.vent-array@1".to_owned(),
+                json!({
+                    "shape":"vent-array",
+                    "width_m":width,
+                    "height_m":height,
+                    "depth_m":depth,
+                    "slot_count":slot_count,
+                    "slot_width_m":slot_width,
+                    "slot_spacing_m":slot_spacing,
+                    "position_m":position,
+                    "rotation_rad":rotation
+                }),
+                vec![
+                    "width_m".to_owned(),
+                    "height_m".to_owned(),
+                    "depth_m".to_owned(),
+                    "slot_count".to_owned(),
+                    "slot_width_m".to_owned(),
+                    "slot_spacing_m".to_owned(),
+                    "position_m".to_owned(),
+                    "rotation_rad".to_owned(),
+                ],
+            ))
+        }
+        "forgecad.kit.joint@1" => {
+            pdk_exact_intent_keys(
+                intent,
+                &[
+                    "radius_m",
+                    "depth_m",
+                    "ring_count",
+                    "ring_spacing_m",
+                    "radial_segments",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                kit_id,
+            )?;
+            let radius = pdk_number(intent, "radius_m", 0.0, 5.0, kit_id)?;
+            let depth = pdk_number(intent, "depth_m", 0.0, 10.0, kit_id)?;
+            let ring_count = pdk_u64(intent, "ring_count", 1, 16, kit_id)?;
+            let ring_spacing = pdk_number(intent, "ring_spacing_m", 0.0, 10.0, kit_id)?;
+            let radial_segments = pdk_u64(intent, "radial_segments", 8, 64, kit_id)?;
+            if ring_spacing * ring_count.saturating_sub(1) as f64 > depth {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "PARAMETRIC_DESIGN_KIT_GEOMETRY_RELATIONSHIP_INVALID: {kit_id} rings exceed depth_m"
+                )));
+            }
+            let (position, rotation) = pdk_position_rotation(intent, kit_id)?;
+            Ok((
+                "forgecad.geometry.joint-stack@1".to_owned(),
+                json!({
+                    "shape":"joint-stack",
+                    "radius_m":radius,
+                    "depth_m":depth,
+                    "ring_count":ring_count,
+                    "ring_spacing_m":ring_spacing,
+                    "radial_segments":radial_segments,
+                    "position_m":position,
+                    "rotation_rad":rotation
+                }),
+                vec![
+                    "radius_m".to_owned(),
+                    "depth_m".to_owned(),
+                    "ring_count".to_owned(),
+                    "ring_spacing_m".to_owned(),
+                    "radial_segments".to_owned(),
+                    "position_m".to_owned(),
+                    "rotation_rad".to_owned(),
+                ],
+            ))
+        }
+        "forgecad.kit.sensor@1" => {
+            pdk_exact_intent_keys(
+                intent,
+                &[
+                    "radius_m",
+                    "height_m",
+                    "radial_segments",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                kit_id,
+            )?;
+            let radius = pdk_number(intent, "radius_m", 0.0, 5.0, kit_id)?;
+            let height = pdk_number(intent, "height_m", 0.0, 10.0, kit_id)?;
+            let radial_segments = pdk_u64(intent, "radial_segments", 8, 64, kit_id)?;
+            let (position, rotation) = pdk_position_rotation(intent, kit_id)?;
+            Ok((
+                "forgecad.geometry.primitive@2".to_owned(),
+                json!({
+                    "shape":"cylinder",
+                    "radius_m":radius,
+                    "height_m":height,
+                    "radial_segments":radial_segments,
+                    "position_m":position,
+                    "rotation_rad":rotation
+                }),
+                vec![
+                    "radius_m".to_owned(),
+                    "height_m".to_owned(),
+                    "radial_segments".to_owned(),
+                    "position_m".to_owned(),
+                    "rotation_rad".to_owned(),
+                ],
+            ))
+        }
+        _ => Err(RuntimeError::InvalidInput(format!(
+            "PARAMETRIC_DESIGN_KIT_INVALID: unsupported kit_id {kit_id}"
+        ))),
+    }
+}
+
+fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "kit_id",
+            "project_id",
+            "representation_plan_sha256",
+            "part_id",
+            "material_zone_id",
+            "intent_sha256",
+            "program_sha256",
+            "geometry_program",
+            "source_map",
+            "validator_status",
+            "quality_status",
+            "limitations",
+            "canonical_sha256",
+        ],
+        "ParametricDesignKitProgram@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("ParametricDesignKitProgram@1")
+        || !matches!(
+            object.get("kit_id").and_then(Value::as_str),
+            Some(
+                "forgecad.kit.housing@1"
+                    | "forgecad.kit.panel@1"
+                    | "forgecad.kit.vent@1"
+                    | "forgecad.kit.joint@1"
+                    | "forgecad.kit.sensor@1"
+                    | "forgecad.kit.frame@1"
+            )
+        )
+        || object.get("validator_status").and_then(Value::as_str) != Some("passed")
+        || object.get("quality_status").and_then(Value::as_str) != Some("structural_only")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ParametricDesignKitProgram@1 constants drifted".to_owned(),
+        ));
+    }
+    let kit_id = object
+        .get("kit_id")
+        .and_then(Value::as_str)
+        .expect("kit_id constant was checked");
+    let project_id = required_contract_identifier(object, "project_id", "ParametricDesignKitProgram@1")?;
+    let representation_plan_sha256 = required_contract_sha256(
+        object,
+        "representation_plan_sha256",
+        "ParametricDesignKitProgram@1",
+    )?;
+    let part_id = required_contract_identifier(object, "part_id", "ParametricDesignKitProgram@1")?;
+    let material_zone_id = required_contract_identifier(
+        object,
+        "material_zone_id",
+        "ParametricDesignKitProgram@1",
+    )?;
+    let intent_sha256 = required_contract_sha256(object, "intent_sha256", "ParametricDesignKitProgram@1")?;
+    let program_sha256 = required_contract_sha256(object, "program_sha256", "ParametricDesignKitProgram@1")?;
+    required_contract_sha256(object, "canonical_sha256", "ParametricDesignKitProgram@1")?;
+    verify_output_canonical_hash(value, "ParametricDesignKitProgram@1")?;
+
+    let program = object.get("geometry_program").ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ParametricDesignKitProgram@1.geometry_program is missing"
+                .to_owned(),
+        )
+    })?;
+    let program_object = program.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ParametricDesignKitProgram@1.geometry_program must be an object"
+                .to_owned(),
+        )
+    })?;
+    exact_object(
+        program,
+        &[
+            "schema_version",
+            "project_id",
+            "representation_plan_sha256",
+            "operator_catalog_sha256",
+            "units",
+            "budgets",
+            "nodes",
+            "part_outputs",
+            "canonical_sha256",
+        ],
+        "ParametricDesignKitProgram@1.geometry_program",
+    )?;
+    let program_canonical = required_contract_sha256(
+        program_object,
+        "canonical_sha256",
+        "ParametricDesignKitProgram@1.geometry_program",
+    )?;
+    if program_canonical != program_sha256
+        || program_object.get("schema_version").and_then(Value::as_str) != Some("GeometryProgram@2")
+        || program_object.get("project_id").and_then(Value::as_str) != Some(project_id.as_str())
+        || program_object
+            .get("representation_plan_sha256")
+            .and_then(Value::as_str)
+            != Some(representation_plan_sha256.as_str())
+        || program_object
+            .get("operator_catalog_sha256")
+            .and_then(Value::as_str)
+            != Some(operator_catalog_sha256().as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ParametricDesignKitProgram@1 geometry program binding drifted"
+                .to_owned(),
+        ));
+    }
+    let mut program_hash_input = program.clone();
+    program_hash_input
+        .as_object_mut()
+        .expect("GeometryProgram@2 is an object")
+        .remove("canonical_sha256");
+    if canonical_json_hash(&program_hash_input) != program_sha256
+        && canonical_json_hash(&normalize_json_numbers(&program_hash_input)) != program_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ParametricDesignKitProgram@1 program hash does not bind the program"
+                .to_owned(),
+        ));
+    }
+    let nodes = program_object
+        .get("nodes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: nodes missing".to_owned()))?;
+    let part_outputs = program_object
+        .get("part_outputs")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: part_outputs missing".to_owned()))?;
+    if nodes.len() != 1 || part_outputs.len() != 1 {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PDK program must contain exactly one node and one part output"
+                .to_owned(),
+        ));
+    }
+    let node = exact_object(
+        &nodes[0],
+        &["node_id", "operator_id", "inputs", "parameters"],
+        "ParametricDesignKitProgram@1.geometry_program.nodes[0]",
+    )?;
+    let output = exact_object(
+        &part_outputs[0],
+        &["part_id", "input_node_ids", "material_zone_id", "solid"],
+        "ParametricDesignKitProgram@1.geometry_program.part_outputs[0]",
+    )?;
+    let source_map = object
+        .get("source_map")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: source_map missing".to_owned()))?;
+    if source_map.len() != 1 {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PDK source_map must contain exactly one binding".to_owned(),
+        ));
+    }
+    let mapping = exact_object(
+        &source_map[0],
+        &["part_id", "node_id", "operator_id", "material_zone_id", "parameter_ids"],
+        "ParametricDesignKitProgram@1.source_map[0]",
+    )?;
+    let node_id = required_contract_identifier(node, "node_id", "PDK node")?;
+    let node_operator = required_contract_operator(node, "operator_id", "PDK node")?;
+    let output_part = required_contract_identifier(output, "part_id", "PDK output")?;
+    let output_zone = required_contract_identifier(output, "material_zone_id", "PDK output")?;
+    let input_nodes = output
+        .get("input_node_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: PDK input nodes missing".to_owned()))?;
+    if input_nodes.len() != 1 || input_nodes[0].as_str() != Some(node_id.as_str())
+        || output_part != part_id
+        || output_zone != material_zone_id
+        || output.get("solid").and_then(Value::as_bool) != Some(true)
+        || mapping.get("part_id").and_then(Value::as_str) != Some(part_id.as_str())
+        || mapping.get("node_id").and_then(Value::as_str) != Some(node_id.as_str())
+        || mapping.get("operator_id").and_then(Value::as_str) != Some(node_operator.as_str())
+        || mapping.get("material_zone_id").and_then(Value::as_str) != Some(material_zone_id.as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PDK source map does not bind program outputs".to_owned(),
+        ));
+    }
+    if !matches!(
+        node_operator.as_str(),
+        "forgecad.geometry.panel@1"
+            | "forgecad.geometry.vent-array@1"
+            | "forgecad.geometry.joint-stack@1"
+            | "forgecad.geometry.primitive@2"
+    ) {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PDK operator is not allowlisted".to_owned(),
+        ));
+    }
+    let parameter_ids = mapping
+        .get("parameter_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: PDK parameter ids missing".to_owned()))?;
+    if parameter_ids.is_empty()
+        || parameter_ids.iter().any(|value| {
+            value
+                .as_str()
+                .is_none_or(|parameter_id| !is_opaque_id(parameter_id))
+        })
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PDK parameter ids are invalid".to_owned(),
+        ));
+    }
+    if intent_sha256.is_empty() || program_sha256.is_empty() || kit_id.is_empty() {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: PDK binding hashes are empty".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn exact_object_with_optional<'a>(
+    value: &'a Value,
+    required: &[&str],
+    optional: &[&str],
+    context: &str,
+) -> Result<&'a serde_json::Map<String, Value>, RuntimeError> {
+    let object = value.as_object().ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "CONTRACT_OUTPUT_INVALID: {context} must be an object"
+        ))
+    })?;
+    if required.iter().any(|key| !object.contains_key(*key))
+        || object.keys().any(|key| {
+            !required.contains(&key.as_str()) && !optional.contains(&key.as_str())
+        })
+    {
+        return Err(RuntimeError::InvalidInput(format!(
+            "CONTRACT_OUTPUT_INVALID: {context} has an unexpected field set"
+        )));
+    }
+    Ok(object)
+}
+
 fn required_contract_identifier(
     object: &serde_json::Map<String, Value>,
     key: &str,
@@ -16373,6 +17655,30 @@ fn required_contract_identifier(
     if !is_opaque_id(value) {
         return Err(RuntimeError::InvalidInput(format!(
             "CONTRACT_OUTPUT_INVALID: {context}.{key} is not an identifier"
+        )));
+    }
+    Ok(value.to_owned())
+}
+
+fn required_contract_operator(
+    object: &serde_json::Map<String, Value>,
+    key: &str,
+    context: &str,
+) -> Result<String, RuntimeError> {
+    let value = object.get(key).and_then(Value::as_str).ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "CONTRACT_OUTPUT_INVALID: {context}.{key} is missing"
+        ))
+    })?;
+    if !matches!(
+        value,
+        "forgecad.geometry.panel@1"
+            | "forgecad.geometry.vent-array@1"
+            | "forgecad.geometry.joint-stack@1"
+            | "forgecad.geometry.primitive@2"
+    ) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "CONTRACT_OUTPUT_INVALID: {context}.{key} is not an active PDK operator"
         )));
     }
     Ok(value.to_owned())
@@ -16951,6 +18257,102 @@ mod tests {
             candidate_id: prepared.candidate.candidate_id,
             object_hash: object.record.sha256,
         }
+    }
+
+    fn reference_view_spec_fixture(
+        runtime: &Runtime,
+        project_id: &str,
+        landmarks: Value,
+        regions: Value,
+    ) -> (ReferenceEvidenceRecord, Value) {
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project_id.to_owned(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "ReferenceViewSpec validation fixture".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference import")
+            .reference;
+        let mut spec = json!({
+            "schema_version":"ReferenceViewSpec@1",
+            "reference_id":reference.reference_id,
+            "reference_sha256":reference.object_sha256,
+            "view_id":"view-validation",
+            "source_view":"front",
+            "image":{"width":reference.width,"height":reference.height,"rotation_degrees":0,"crop":{"x":0,"y":0,"width":1,"height":1}},
+            "landmarks":landmarks,
+            "regions":regions,
+            "canonical_sha256":""
+        });
+        spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+        (reference, spec)
+    }
+
+    #[test]
+    fn reference_view_spec_rejects_duplicate_ids_and_out_of_bounds_regions() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("ReferenceViewSpec validation", json!({"profile":"mvp"}))
+            .expect("project");
+        let (reference, mut duplicate) = reference_view_spec_fixture(
+            &runtime,
+            &project.project_id,
+            json!([
+                {"landmark_id":"nose","x":0.5,"y":0.5,"visibility":"observed","confidence":1.0},
+                {"landmark_id":"nose","x":0.6,"y":0.5,"visibility":"observed","confidence":1.0}
+            ]),
+            json!([]),
+        );
+        let duplicate_error = validate_reference_view_spec(&duplicate, &reference)
+            .expect_err("duplicate landmark IDs must fail closed");
+        assert!(duplicate_error.to_string().contains("landmark IDs must be unique"));
+
+        duplicate["landmarks"] = json!([]);
+        duplicate["regions"] = json!([
+            {"region_id":"shell","x":0.8,"y":0.1,"width":0.4,"height":0.2,"visibility":"observed","confidence":1.0}
+        ]);
+        duplicate["canonical_sha256"] = Value::String(canonical_json_hash(&duplicate));
+        let region_error = validate_reference_view_spec(&duplicate, &reference)
+            .expect_err("region boxes outside the image must fail closed");
+        assert!(region_error.to_string().contains("bounds exceed the image"));
+    }
+
+    #[test]
+    fn reference_view_spec_rejects_nonzero_unknown_confidence() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("ReferenceViewSpec unknown confidence", json!({"profile":"mvp"}))
+            .expect("project");
+        let (reference, mut spec) = reference_view_spec_fixture(
+            &runtime,
+            &project.project_id,
+            json!([
+                {"landmark_id":"hidden","x":0.5,"y":0.5,"visibility":"unknown","confidence":0.4}
+            ]),
+            json!([
+                {"region_id":"hidden-region","x":0.1,"y":0.1,"width":0.2,"height":0.2,"visibility":"unknown","confidence":0.3}
+            ]),
+        );
+        let landmark_error = validate_reference_view_spec(&spec, &reference)
+            .expect_err("unknown landmark confidence must be zero");
+        assert!(landmark_error
+            .to_string()
+            .contains("unknown landmark confidence must be zero"));
+
+        spec["landmarks"] = json!([]);
+        spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+        let region_error = validate_reference_view_spec(&spec, &reference)
+            .expect_err("unknown region confidence must be zero");
+        assert!(region_error
+            .to_string()
+            .contains("unknown region confidence must be zero"));
     }
 
     #[test]
@@ -17618,6 +19020,14 @@ mod tests {
                 json!({"candidate_id":candidate_id,"reference_id":reference.reference_id,"view_spec":view_spec}),
             )
             .expect("fixed renderer comparison");
+        assert_eq!(
+            _baseline_visual["quality_report"]["benchmark_eligibility"],
+            "BLOCKED_USER_CONFIRMATION_REQUIRED"
+        );
+        assert_eq!(
+            _baseline_visual["quality_report"]["visual_status"],
+            "QUALITY_TARGET_NOT_MET"
+        );
         let target = runtime
             .prepare_reference_mask(
                 &project.project_id,
@@ -17863,6 +19273,41 @@ mod tests {
             })
             .expect("matched reference import")
             .reference;
+        let matched_reference_mask = reference_mask_png(
+            &runtime
+                .cas_read(&matched_reference.object_sha256)
+                .expect("matched reference bytes"),
+        )
+        .expect("matched reference mask");
+        let matched_contour = contour_points_from_mask(&matched_reference_mask.mask);
+        assert!(matched_contour.len() >= 3);
+        let matched_contour_end = matched_contour.len().saturating_sub(1);
+        let matched_reference_envelope = mask_envelope(&matched_reference_mask.mask)
+            .expect("matched reference envelope");
+        let matched_landmark_x = matched_reference_envelope.centroid_x;
+        let matched_landmark_y = matched_reference_envelope.centroid_y;
+        let matched_target = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":matched_reference.reference_id.clone(),
+                    "contour_points":matched_contour,
+                    "landmarks":[
+                        {"landmark_id":"fixture-top","x":matched_landmark_x,"y":matched_landmark_y,"visibility":"observed"},
+                        {"landmark_id":"fixture-center","x":matched_landmark_x,"y":matched_landmark_y,"visibility":"observed"},
+                        {"landmark_id":"fixture-bottom","x":matched_landmark_x,"y":matched_landmark_y,"visibility":"observed"}
+                    ],
+                    "parts":[{"part_id":"fixture-body","start_index":0,"end_index":matched_contour_end,"visibility":"observed","region":{"region_id":"fixture-body-region","x":0.1,"y":0.1,"width":0.8,"height":0.8}}],
+                    "user_confirmed":true
+                }),
+            )
+            .expect("confirmed matched reference target");
+        let matched_target_sha256 = matched_target["target_sha256"]
+            .as_str()
+            .expect("matched target hash")
+            .to_owned();
+        assert_eq!(matched_target["target"]["annotation_status"], "user_confirmed");
         let mut matched_view_spec = json!({
             "schema_version":"ReferenceViewSpec@1",
             "reference_id":matched_reference.reference_id,
@@ -17870,7 +19315,11 @@ mod tests {
             "view_id":"renderer-self-match",
             "source_view":"three-quarter",
             "image":{"width":512,"height":512,"rotation_degrees":0.0,"crop":{"x":0.0,"y":0.0,"width":1.0,"height":1.0}},
-            "landmarks":[{"landmark_id":"fixture-center","x":0.5,"y":0.5,"visibility":"observed","confidence":1.0}],
+            "landmarks":[
+                {"landmark_id":"fixture-top","x":matched_landmark_x,"y":matched_landmark_y,"visibility":"observed","confidence":1.0},
+                {"landmark_id":"fixture-center","x":matched_landmark_x,"y":matched_landmark_y,"visibility":"observed","confidence":1.0},
+                {"landmark_id":"fixture-bottom","x":matched_landmark_x,"y":matched_landmark_y,"visibility":"observed","confidence":1.0}
+            ],
             "regions":[{"region_id":"fixture-core","x":0.40234375,"y":0.466796875,"width":0.197265625,"height":0.248046875,"visibility":"observed","confidence":1.0}],
             "canonical_sha256":""
         });
@@ -17879,12 +19328,16 @@ mod tests {
         let matched = runtime
             .prepare_reference_comparison(
                 &project.project_id,
-                json!({"candidate_id":candidate_id,"reference_id":matched_reference.reference_id,"view_spec":matched_view_spec}),
+                json!({"candidate_id":candidate_id,"reference_id":matched_reference.reference_id,"view_spec":matched_view_spec,"target_sha256":matched_target_sha256}),
             )
             .expect("self-rendered reference comparison");
         assert_eq!(
             matched["quality_report"]["visual_status"],
-            "PARTIAL_VISIBLE_VIEW_PASS"
+            "PARTIAL_VISIBLE_VIEW_PASS",
+        );
+        assert_eq!(
+            matched["quality_report"]["benchmark_eligibility"],
+            "READY_PARTIAL_VIEW"
         );
         let matched_render_set_hash = matched["render_set_object_sha256"]
             .as_str()
@@ -18475,6 +19928,10 @@ mod tests {
             "structural_status":"passed",
             "visual_status":"not-run",
             "hard_gate_passed":false,
+            "threshold_revision":VISIBLE_VIEW_THRESHOLD_REVISION,
+            "threshold_policy_sha256":visible_view_threshold_policy_sha256(),
+            "threshold_source":VISIBLE_VIEW_THRESHOLD_SOURCE,
+            "metric_gate_results":[],
             "limitations":["reference_compare_not_run"],
             "canonical_sha256":""
         });
@@ -18606,6 +20063,144 @@ mod tests {
     }
 
     #[test]
+    fn parametric_design_kit_expands_deterministically_without_persistence() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("PDK v0 source test", json!({"profile":"mvp"}))
+            .expect("project");
+        let make_request = |kit_id: &str, part_id: &str, material_zone_id: &str, intent: Value| {
+            let mut request = json!({
+                "schema_version":"ParametricDesignKitRequest@1",
+                "project_id":project.project_id.clone(),
+                "representation_plan_sha256":"a".repeat(64),
+                "kit_id":kit_id,
+                "part_id":part_id,
+                "material_zone_id":material_zone_id,
+                "intent":intent,
+                "input_sha256":""
+            });
+            let mut input_binding = request.clone();
+            input_binding
+                .as_object_mut()
+                .expect("request object")
+                .remove("input_sha256");
+            request["input_sha256"] = Value::String(canonical_json_hash(&input_binding));
+            request
+        };
+        let request = make_request(
+            "forgecad.kit.panel@1",
+            "chest-shell",
+            "zone-white-shell",
+            json!({
+                "size_m":[1.2,1.6,0.55],
+                "thickness_m":0.12,
+                "bevel_m":0.04,
+                "position_m":[0.0,1.7,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            }),
+        );
+        let before = json!({
+            "projects":runtime.projects().expect("projects"),
+            "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+            "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+        });
+        let result = runtime
+            .geometry_program_hash(&request)
+            .expect("PDK expansion");
+        assert_eq!(result["schema_version"], "ParametricDesignKitProgram@1");
+        assert_eq!(result["kit_id"], "forgecad.kit.panel@1");
+        assert_eq!(result["quality_status"], "structural_only");
+        assert_eq!(result["validator_status"], "passed");
+        assert_eq!(
+            result["geometry_program"]["nodes"][0]["operator_id"],
+            "forgecad.geometry.panel@1"
+        );
+        assert_eq!(result["source_map"][0]["part_id"], "chest-shell");
+        assert!(result["program_sha256"]
+            .as_str()
+            .is_some_and(forgecad_contracts::is_sha256));
+        assert_eq!(
+            runtime
+                .geometry_program_hash(&request)
+                .expect("repeat PDK expansion"),
+            result,
+            "PDK expansion must be deterministic"
+        );
+        let after = json!({
+            "projects":runtime.projects().expect("projects"),
+            "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+            "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+        });
+        assert_eq!(before, after, "PDK expansion must not persist Runtime state");
+    }
+
+    #[test]
+    fn parametric_design_kit_rejects_relationship_and_slot_overflow() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("PDK v0 negative tests", json!({"profile":"mvp"}))
+            .expect("project");
+        let make_request = |kit_id: &str, part_id: &str, material_zone_id: &str, intent: Value| {
+            let mut request = json!({
+                "schema_version":"ParametricDesignKitRequest@1",
+                "project_id":project.project_id.clone(),
+                "representation_plan_sha256":"b".repeat(64),
+                "kit_id":kit_id,
+                "part_id":part_id,
+                "material_zone_id":material_zone_id,
+                "intent":intent,
+                "input_sha256":""
+            });
+            let mut input_binding = request.clone();
+            input_binding
+                .as_object_mut()
+                .expect("request object")
+                .remove("input_sha256");
+            request["input_sha256"] = Value::String(canonical_json_hash(&input_binding));
+            request
+        };
+        let too_thick = make_request(
+            "forgecad.kit.housing@1",
+            "housing",
+            "zone-white-shell",
+            json!({
+                "size_m":[1.0,1.0,0.1],
+                "thickness_m":0.2,
+                "bevel_m":0.02,
+                "position_m":[0.0,0.0,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            }),
+        );
+        let error = runtime
+            .geometry_program_hash(&too_thick)
+            .expect_err("panel thickness relation must fail");
+        assert!(error
+            .to_string()
+            .contains("PARAMETRIC_DESIGN_KIT_GEOMETRY_RELATIONSHIP_INVALID"));
+        let too_many_slots = make_request(
+            "forgecad.kit.vent@1",
+            "vent",
+            "zone-black-mechanical",
+            json!({
+                "width_m":0.5,
+                "height_m":0.2,
+                "depth_m":0.1,
+                "slot_count":4,
+                "slot_width_m":0.2,
+                "slot_spacing_m":0.1,
+                "position_m":[0.0,0.0,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            }),
+        );
+        let error = runtime
+            .geometry_program_hash(&too_many_slots)
+            .expect_err("vent slot overflow must fail");
+        assert!(error
+            .to_string()
+            .contains("PARAMETRIC_DESIGN_KIT_GEOMETRY_RELATIONSHIP_INVALID"));
+    }
+
+    #[test]
     fn optimization_job_methods_reach_runtime_ipc_dispatch() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
@@ -18624,6 +20219,39 @@ mod tests {
         let detail = error.to_string();
         assert!(detail.contains("NOT_FOUND: optimization job not found"));
         assert!(!detail.contains("unsupported IPC method"));
+    }
+
+    #[test]
+    fn repair_intent_run_reaches_runtime_ipc_dispatch() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let error = runtime
+            .dispatch_ipc("repair_intent_run_prepare", &json!({}))
+            .expect_err("incomplete RepairIntentRun must be handled by its typed route");
+        let detail = error.to_string();
+        assert!(
+            detail.contains("DESIGN_ACTION_APPROVAL_REQUIRED"),
+            "unexpected RepairIntentRun dispatch error: {detail}"
+        );
+        assert!(!detail.contains("unsupported IPC method"));
+    }
+
+    #[test]
+    fn design_orchestrator_methods_reach_runtime_ipc_dispatch() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        for (method, expected) in [
+            ("design_stage_run_prepare", "AGENTIC_APPROVAL_REQUIRED"),
+            ("design_composition_prepare", "AGENTIC_APPROVAL_REQUIRED"),
+        ] {
+            let error = runtime
+                .dispatch_ipc(method, &json!({}))
+                .expect_err("incomplete design orchestrator request must use its typed route");
+            let detail = error.to_string();
+            assert!(
+                detail.contains(expected),
+                "unexpected {method} dispatch error: {detail}"
+            );
+            assert!(!detail.contains("unsupported IPC method"));
+        }
     }
 
     #[test]
@@ -19074,6 +20702,7 @@ mod tests {
             .expect("target");
         assert_eq!(first["schema_version"], "ReferenceMaskPrepareResult@1");
         assert_eq!(first["target"]["source"], "user_refined");
+        assert_eq!(first["target"]["annotation_status"], "unreviewed");
         validate_reference_mask_prepare_result(&first).expect("target contract");
         let first_hash = first["target_sha256"].as_str().unwrap().to_owned();
         let refined = runtime
@@ -19089,6 +20718,7 @@ mod tests {
         assert_ne!(refined["target_sha256"], first["target_sha256"]);
         assert_eq!(runtime.silhouette_target_get(&first_hash).unwrap()["target_id"], first["target"]["target_id"]);
         assert_eq!(refined["target"]["source"], "user_refined");
+        assert_eq!(refined["target"]["annotation_status"], "unreviewed");
         assert_eq!(refined["target"]["parent_target_sha256"], first_hash);
         assert!(runtime
             .refine_reference_mask(
@@ -19145,6 +20775,7 @@ mod tests {
                     png: Vec::new(),
                 },
                 true,
+                false,
                 None,
             )
             .expect("automatic target");
@@ -19156,6 +20787,17 @@ mod tests {
             .expect("automatic target readback");
         assert_eq!(readback["schema_version"], "SilhouetteTarget@1");
         assert_eq!(readback["source"], "automatic");
+        assert_eq!(readback["annotation_status"], "unreviewed");
+        assert!(runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id.clone(),
+                    "user_confirmed":true
+                }),
+            )
+            .is_err());
     }
 
     #[test]
@@ -19737,6 +21379,15 @@ mod tests {
             runtime.versions(Some(&project.project_id)).unwrap().len(),
             before_primary_form_versions
         );
+        if primary_form["acceptance"].is_object() {
+            // The refined fit camera is exploratory evidence only. Final
+            // acceptance must stay on the canonical baseline camera that was
+            // bound by the preceding silhouette observation.
+            assert_eq!(
+                primary_form["acceptance"]["camera_hash"],
+                primary_form["fit_result"]["baseline_camera"]["camera_hash"]
+            );
+        }
         if primary_form["status"] == "prepared" {
             assert_eq!(primary_form["candidate_state"], "staged_new_candidate");
             assert_eq!(
@@ -21049,6 +22700,58 @@ mod tests {
     }
 
     #[test]
+    fn rig_materialization_applies_bounded_pose_rotation_to_output_transform() {
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-rig-pose-rotation",
+            "nodes":[
+                {"node_id":"head-shell","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[0.8,0.5,0.6],"position_m":[0.0,2.8,0.0],"rotation_rad":[0.0,0.12,0.0]}}
+            ],
+            "part_outputs":[{"part_id":"head-shell","input_node_ids":["head-shell"],"material_zone_id":"zone-white-shell","solid":true}],
+            "canonical_sha256":""
+        });
+        let rig = json!({"parameters":[
+            {"parameter_id":"head-rotation-y","part_id":"head-shell","semantic":"rotation_y","value":0.0,"min":-0.6,"max":0.6,"step":0.08,"unit":"radian"}
+        ]});
+        let selected = vec![json!({"parameter_id":"head-rotation-y","part_id":"head-shell","value":0.24})];
+        let (materialized, applied) = materialize_rig_geometry_program(&program, &rig, &selected, None)
+            .expect("materialize pose rotation");
+        assert_eq!(applied, 1);
+        let source = materialized["nodes"].as_array().unwrap().iter()
+            .find(|node| node["node_id"] == "head-shell")
+            .expect("head source");
+        assert_eq!(source["parameters"]["rotation_rad"], json!([0.0, 0.12, 0.0]));
+        let transform = materialized["nodes"].as_array().unwrap().iter()
+            .find(|node| node["operator_id"] == "forgecad.geometry.transform@2")
+            .expect("pose output transform");
+        assert_eq!(transform["parameters"]["rotation_rad"], json!([0.0, 0.24, 0.0]));
+        assert_eq!(materialized["part_outputs"][0]["input_node_ids"][0], transform["node_id"]);
+    }
+
+    #[test]
+    fn silhouette_rig_rejects_unbounded_or_wrong_unit_pose_rotation() {
+        let mut rig = json!({
+            "schema_version":"SilhouetteRig@1",
+            "rig_id":"pose-rig",
+            "candidate_id":"candidate-pose",
+            "parameters":[{"parameter_id":"head-rotation-y","part_id":"head-shell","semantic":"rotation_y","value":0.0,"min":-0.6,"max":0.6,"step":0.08,"unit":"radian"}],
+            "canonical_sha256":""
+        });
+        rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
+        validate_silhouette_rig(&rig, "candidate-pose").expect("bounded pose rig");
+
+        let mut wrong_unit = rig.clone();
+        wrong_unit["parameters"][0]["unit"] = Value::String("meter".to_owned());
+        wrong_unit["canonical_sha256"] = Value::String(canonical_json_hash(&wrong_unit));
+        assert!(validate_silhouette_rig(&wrong_unit, "candidate-pose").is_err());
+
+        let mut too_wide = rig;
+        too_wide["parameters"][0]["min"] = json!(-7.0);
+        too_wide["canonical_sha256"] = Value::String(canonical_json_hash(&too_wide));
+        assert!(validate_silhouette_rig(&too_wide, "candidate-pose").is_err());
+    }
+
+    #[test]
     fn rig_materialization_scales_profile_and_operator_specific_dimensions() {
         let program = json!({
             "schema_version":"GeometryProgram@2",
@@ -22167,15 +23870,23 @@ mod tests {
             "canonical_sha256":""
         });
         view_spec["canonical_sha256"] = Value::String(canonical_json_hash(&view_spec));
-        runtime
+        let target_sha256 = target["target_sha256"]
+            .as_str()
+            .expect("target hash")
+            .to_owned();
+        let mask_sha256 = target["mask_sha256"]
+            .as_str()
+            .expect("mask hash")
+            .to_owned();
+        let comparison = runtime
             .prepare_reference_comparison(
                 &project.project_id,
                 json!({
                     "project_id":project.project_id.clone(),
                     "candidate_id":candidate_id.clone(),
                     "reference_id":reference.reference_id.clone(),
-                    "view_spec":view_spec,
-                    "target_sha256":target["target_sha256"].clone()
+                    "view_spec":view_spec.clone(),
+                    "target_sha256":target_sha256.clone()
                 }),
             )
             .expect("comparison");
@@ -22188,6 +23899,138 @@ mod tests {
             .as_str()
             .expect("quality evidence hash")
             .to_owned();
+        let camera_canonical_sha256 = comparison["camera"]["canonical_sha256"]
+            .as_str()
+            .expect("camera canonical hash")
+            .to_owned();
+        let evidence_ref = json!({"kind":"reference","sha256":reference.object_sha256.clone()});
+        let evidence_refs = json!([evidence_ref.clone()]);
+        let state = json!({
+            "visibility":"observed",
+            "confidence":0.9,
+            "evidence_refs":evidence_refs.clone()
+        });
+        let unknown_state = json!({
+            "visibility":"unknown",
+            "confidence":0.0,
+            "evidence_refs":evidence_refs.clone()
+        });
+        let mut authoring_canvas = json!({
+            "schema_version":"ReferenceCanvas@1",
+            "canvas_id":"reference-canvas-bounded-action",
+            "project_id":project.project_id.clone(),
+            "reference_set_sha256":reference.object_sha256.clone(),
+            "bindings":{
+                "status":"bound",
+                "target_sha256":target_sha256.clone(),
+                "camera_hash":camera_hash.clone(),
+                "camera_canonical_sha256":camera_canonical_sha256.clone(),
+                "evidence_sha256":evidence_sha256.clone()
+            },
+            "views":[{
+                "view_id":"bounded-action-view",
+                "reference_id":reference.reference_id.clone(),
+                "reference_sha256":reference.object_sha256.clone(),
+                "kind":"perspective",
+                "authorization":{
+                    "user_authorized":true,
+                    "declaration":reference.authorization.declaration.clone(),
+                    "evidence_refs":evidence_refs.clone()
+                },
+                "image_dimensions":{"width":reference.width,"height":reference.height},
+                "view_spec":view_spec.clone(),
+                "target_sha256":target_sha256.clone(),
+                "mask_sha256":mask_sha256.clone(),
+                "camera_claim":{
+                    "visibility":"observed",
+                    "camera_hash":camera_hash.clone(),
+                    "camera_canonical_sha256":camera_canonical_sha256.clone(),
+                    "claim":"Runtime-selected camera is bound to this reference view comparison.",
+                    "evidence_refs":[
+                        {"kind":"camera","sha256":camera_hash.clone()},
+                        {"kind":"comparison","sha256":evidence_sha256.clone()}
+                    ]
+                },
+                "visible_regions":[],
+                "unknown_regions":[{
+                    "region_id":"unknown-hidden-depth",
+                    "question":"Which forms continue around the hidden surfaces of this supplied view?",
+                    "state":unknown_state.clone()
+                }]
+            }],
+            "coverage":{
+                "required_views":["front","back","left","right","perspective","rear-three-quarter"],
+                "supplied_views":["perspective"],
+                "missing_views":["front","back","left","right","rear-three-quarter"],
+                "coverage_status":"blocked",
+                "hq_360_status":"BLOCKED_REFERENCE_COVERAGE",
+                "evidence_refs":evidence_refs.clone()
+            },
+            "unknowns":[{
+                "unknown_id":"unknown-reference-coverage",
+                "scope_kind":"scene",
+                "scope_id":"scene",
+                "question":"Which required reference views are still unavailable?",
+                "state":unknown_state.clone()
+            }],
+            "claims":[{
+                "claim_id":"claim-bounded-action-view",
+                "subject_kind":"view",
+                "subject_id":"bounded-action-view",
+                "statement":"The supplied perspective image is user-authorized; hidden coverage remains explicit.",
+                "state":state.clone()
+            }],
+            "canonical_sha256":"",
+            "created_at":"2026-08-17T00:00:00Z"
+        });
+        let mut canvas_hash_input = authoring_canvas.clone();
+        canvas_hash_input["canonical_sha256"] = Value::String(String::new());
+        let canvas_canonical_sha256 = canonical_json_hash(&canvas_hash_input);
+        authoring_canvas["canonical_sha256"] = Value::String(canvas_canonical_sha256);
+        // DesignSpec binds the exact CAS object hash, which includes the
+        // populated canonical field; this is distinct from the canonical
+        // content hash used to validate the canvas itself.
+        let canvas_sha256 = canonical_json_hash(&authoring_canvas);
+        let stage_goals = [
+            "reference-canvas",
+            "primary-form",
+            "secondary-structure",
+            "tertiary-detail",
+            "uv-pbr",
+            "final-review",
+        ]
+        .into_iter()
+        .map(|stage| {
+            json!({
+                "stage":stage,
+                "objective":format!("Bounded {stage} gate"),
+                "allowed_action_kinds":["bounded-repair","checkpoint"],
+                "forbidden_action_kinds":[],
+                "exit_gate":{"stage":stage,"status":"unknown"}
+            })
+        })
+        .collect::<Vec<_>>();
+        let authoring_context = json!({
+            "reference_canvas":authoring_canvas,
+            "design_spec":{
+                "schema_version":"DesignSpec@1",
+                "spec_id":"design-spec-bounded-action",
+                "project_id":project.project_id.clone(),
+                "reference_canvas_id":"reference-canvas-bounded-action",
+                "reference_canvas_sha256":canvas_sha256,
+                "category":"hard-surface test asset",
+                "style":"bounded fixture",
+                "primary_forms":[{"form_id":"primary-form","name":"Primary form","role":"main-body","description":"Bounded test form","state":state.clone()}],
+                "proportions":[],
+                "semantic_parts":[{"part_id":"scene","role":"root","parent_id":null,"symmetry":"unknown","material_zone_ids":[],"state":state.clone()}],
+                "material_language":[],
+                "stage_goals":stage_goals,
+                "risks":[],
+                "unknowns":[],
+                "canonical_sha256":"",
+                "created_at":"2026-08-17T00:00:00Z"
+            }
+        });
         let session_id = "design-session-bounded-action";
         let session = runtime
             .session_create_or_resume(json!({
@@ -22202,7 +24045,8 @@ mod tests {
                 "evidence_sha256":evidence_sha256,
                 "approved":true,
                 "approval_receipt_id":"bounded-action-session-approval",
-                "approval_summary":"Approve bounded action session"
+                "approval_summary":"Approve bounded action session",
+                "authoring_context":authoring_context
             }))
             .expect("session");
         assert_eq!(session["session"]["current_stage"], "primary-form");
@@ -22314,10 +24158,81 @@ mod tests {
                 "session_id":session_id,
                 "candidate_id":candidate_id,
                 "run_id":run_id
-            }))
+        }))
             .expect("action readback");
         assert_eq!(read, first);
         assert_eq!(runtime.versions(Some(session["project_id"].as_str().unwrap())).unwrap().len(), before_versions);
+
+        // The conservative session path remains valid for intake and
+        // observation, but it must never silently become a geometry action
+        // input.  Use a lexically later id so the store's candidate binding
+        // lookup selects this just-created fallback session for the negative
+        // assertion below.
+        let blocked_session_id = "zz-default-authoring-blocked";
+        let blocked_session = runtime
+            .session_create_or_resume(json!({
+                "session_id":blocked_session_id,
+                "project_id":project.project_id.clone(),
+                "candidate_id":candidate_id.clone(),
+                "idempotency_key":"default-authoring-session",
+                "reference_id":reference.reference_id.clone(),
+                "design_spec_id":"design-spec-default-authoring",
+                "reference_canvas_id":"reference-canvas-default-authoring",
+                "camera_hash":camera_hash.clone(),
+                "evidence_sha256":evidence_sha256.clone(),
+                "approved":true,
+                "approval_receipt_id":"default-authoring-session-approval",
+                "approval_summary":"Observe conservative intake session"
+            }))
+            .expect("default session");
+        assert_eq!(
+            blocked_session["authoring_context"]["reference_canvas"]["bindings"]["status"],
+            "unbound"
+        );
+        let blocked_observation = runtime
+            .agentic_scene_observe(&project.project_id, Some(&candidate_id))
+            .expect("default action observation");
+        let blocked_observation_sha256 = blocked_observation["canonical_sha256"]
+            .as_str()
+            .expect("default observation hash")
+            .to_owned();
+        let blocked_run_id = "action-run-default-authoring-blocked";
+        let blocked_input_sha256 = canonical_json_hash(&json!({
+            "project_id":project.project_id.clone(),
+            "session_id":blocked_session_id,
+            "candidate_id":candidate_id.clone(),
+            "run_id":blocked_run_id,
+            "action":action.clone(),
+            "requested_stage":"primary-form",
+            "observation_sha256":blocked_observation_sha256.clone()
+        }));
+        let blocked_error = runtime
+            .design_action_run_prepare(json!({
+                "project_id":project.project_id.clone(),
+                "session_id":blocked_session_id,
+                "candidate_id":candidate_id.clone(),
+                "run_id":blocked_run_id,
+                "action":action,
+                "input_sha256":blocked_input_sha256,
+                "observation_sha256":blocked_observation_sha256,
+                "requested_stage":"primary-form",
+                "approved":true,
+                "approval_receipt_id":"default-authoring-action-approval",
+                "approval_summary":"Attempt action from conservative intake session",
+                "approval_session_id":blocked_session_id,
+                "idempotency_key":"default-authoring-action-once"
+            }))
+            .expect_err("default authoring must be blocked before geometry");
+        assert!(blocked_error
+            .to_string()
+            .contains("AGENTIC_EXPLICIT_AUTHORING_REQUIRED"));
+        assert_eq!(
+            runtime
+                .versions(Some(&project.project_id))
+                .expect("versions after blocked action")
+                .len(),
+            before_versions
+        );
     }
 
     #[test]
@@ -22408,6 +24323,7 @@ mod tests {
             "program_sha256": "a".repeat(64),
             "reference_id": "reference-cohort-test",
             "camera_hash": "a".repeat(64),
+            "camera_object_sha256": "a".repeat(64),
             "renderer_hash": "a".repeat(64),
             "render_worker_build_cohort_sha256": null,
             "render_worker_binding_status": "cohort_unavailable",

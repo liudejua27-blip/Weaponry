@@ -1,0 +1,129 @@
+{
+  "schema_version": "ForgeCADMCP010FRealFiveViewCalibrationReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "status": "QUALITY_TARGET_NOT_MET",
+  "build_cohort_sha256": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+  "project_id": "project-3a17b760c7664648bda6a5d7054b9a34",
+  "candidate_id": "candidate-9bf3d7f0a84d4c0dbba22cc99974193d",
+  "artifact_sha256": "4f2b8c32b2761182421d1a9ef539cd018d357a3d8b9eb92824a9638db01ae396",
+  "structural_readback": {
+    "status": "passed",
+    "validator_status": "passed",
+    "hard_gate_passed": true,
+    "part_count": 41,
+    "triangle_count": 11260
+  },
+  "reference_views": [
+    {
+      "kind": "front",
+      "reference_id": "reference-da0e2ec8311e4a93a4b1d3428e40f060",
+      "reference_sha256": "fed46faed5465b7109b9ec496d4dae444e92777cc69dee3396cb9a88b7b331d4",
+      "target_sha256": "d22e93888c051e6cee73aea7f380fbe6e118d4c29ca36f1d2e1ab87b9a79f51d",
+      "camera_hash": "e3895d48f25ffe360915961c956e406ecf9d323b23ed4544dd2daeb5105a7937",
+      "render_set_hash": "27cdffd15c90d2dc85129125bf19f7b390c0c223c1fe39fb3f07fe93ad6c98df",
+      "comparison_report_sha256": "4f202064e9423746e2d224499104ea6ff5a0bdc65dc5f1211377b0762b6d8ea4",
+      "status": "QUALITY_TARGET_NOT_MET",
+      "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+      "metrics": {
+        "silhouette_iou": 0.409266153719,
+        "boundary_f1_4px": 0.168975981855,
+        "bbox_edge_error": 0.310546875,
+        "centroid_error": 0.126361466051
+      }
+    },
+    {
+      "kind": "back",
+      "reference_id": "reference-c91779e18bda412180d23c12f4db2a3f",
+      "reference_sha256": "4654deec40fe424bf415b48467dec06ce874e9af5c2f4619a3e5fe51b4bf8834",
+      "target_sha256": "c1292567fb540b9fea52e3150d0f5c2bd9506b75dc9231c5f8c6c750887a78aa",
+      "camera_hash": "e3895d48f25ffe360915961c956e406ecf9d323b23ed4544dd2daeb5105a7937",
+      "render_set_hash": "a26f035332967a69356bd067d25dfa6f20384b2495492de1ebd16e6c006836ac",
+      "comparison_report_sha256": "db1f8e9e677839592b495277a41196b2b659c1d685bd99107a2bbbfc8c52d4ce",
+      "status": "QUALITY_TARGET_NOT_MET",
+      "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+      "metrics": {
+        "silhouette_iou": 0.403530895334,
+        "boundary_f1_4px": 0.174364452574,
+        "bbox_edge_error": 0.310546875,
+        "centroid_error": 0.12788216587
+      }
+    },
+    {
+      "kind": "left",
+      "reference_id": "reference-b6f956d74a8c447a9525003df2f60733",
+      "reference_sha256": "b8bbac960be0474af717de841ba6c5403d15bb76404e70486d3ddc7b22b3eba4",
+      "target_sha256": "063dd2ef65eb3b161ef9903c56f894ab6e7dbe32e05bf3976c0199dd5c47c845",
+      "camera_hash": "63db4990d509e15f37a35aa8862d713ea77c92f35f8903c68da14956912e498e",
+      "render_set_hash": "1c5aba50bf4c92e038c5ff15c15b9b2b7e8b578ca05591cb0cad495d28301967",
+      "comparison_report_sha256": "7ae15b9ff3dc5c6fc54e2d108b11931bdbde0b61099a4be589e25798567e73e2",
+      "status": "QUALITY_TARGET_NOT_MET",
+      "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+      "metrics": {
+        "silhouette_iou": 0.324944663651,
+        "boundary_f1_4px": 0.144301370196,
+        "bbox_edge_error": 0.234375,
+        "centroid_error": 0.12004727591
+      }
+    },
+    {
+      "kind": "right",
+      "reference_id": "reference-46552d9e956743bf9bd68b37a105d3ea",
+      "reference_sha256": "63063a2f5c3886f3db51379a94d2e66256acc037c67b5553ebe96347bdd77698",
+      "target_sha256": "d630c81dbd529e0401b622b98d4f1d3f29eb3b212df5b87e5f9e4be527798a39",
+      "camera_hash": "e3895d48f25ffe360915961c956e406ecf9d323b23ed4544dd2daeb5105a7937",
+      "render_set_hash": "1947407a1cf04a0eec8fdda310e69040a1fcba421a118f400c453a0f65dafe8a",
+      "comparison_report_sha256": "a09ff9ad13fc37ceed0a268925e425eea844c976fceaf0d1f797fb862e4b188d",
+      "status": "QUALITY_TARGET_NOT_MET",
+      "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+      "metrics": {
+        "silhouette_iou": 0.312432551481,
+        "boundary_f1_4px": 0.251473405162,
+        "bbox_edge_error": 0.318359375,
+        "centroid_error": 0.200706089328
+      }
+    },
+    {
+      "kind": "rear-three-quarter",
+      "reference_id": "reference-c082ed3aeb6c4640985440f797175326",
+      "reference_sha256": "f96fb6bb2054f74fdd72cbb8d686541d1d47f2a8bf378cdd0bb195e97c7500a3",
+      "target_sha256": "8fc56cb2bf5af2b702e11cbbdadaf48dd333d888d2b529cfee166b78e0ce9c7e",
+      "camera_hash": "e3895d48f25ffe360915961c956e406ecf9d323b23ed4544dd2daeb5105a7937",
+      "render_set_hash": "b09613c5aba9acb1c559bf580658fe4619217fe9e1ff213a0856b2f30d98cf2a",
+      "comparison_report_sha256": "3d5885f3aa9b7d48d627b99cb6ab8e9f9775e1fc5b4a8f6ddfa466de22621bec",
+      "status": "QUALITY_TARGET_NOT_MET",
+      "benchmark_eligibility": "BLOCKED_USER_CONFIRMATION_REQUIRED",
+      "metrics": {
+        "silhouette_iou": 0.390478459941,
+        "boundary_f1_4px": 0.203171160202,
+        "bbox_edge_error": 0.3046875,
+        "centroid_error": 0.137001207235
+      }
+    }
+  ],
+  "primary_form_repair": {
+    "job_id": "job-primary-form-8f9cf815ec30400581836b933badeb1a",
+    "job_status": "succeeded",
+    "result_sha256": "d7a8339603fd10c6501f018b304b6431231c7382edd31ed986c1dc3d49049326",
+    "result_status": "no_improvement",
+    "quality_status": "not-run",
+    "candidate_state": "unchanged",
+    "candidate_confirmed": false
+  },
+  "gates": {
+    "runtime_ready": true,
+    "build_cohort_match": true,
+    "fixed_nine_aov_renderer": "same_cohort_verified",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "human_visual_review": "NOT_RUN",
+    "version_count": 0,
+    "candidate_confirmed": false
+  },
+  "limitations": [
+    "automatic silhouette targets are unreviewed exploratory masks",
+    "user-confirmed contour, landmarks, regions and Part masks are missing",
+    "view-specific camera authoring is not yet represented in the reference target",
+    "current candidate is a structural primitive blockout, not a likeness-approved high-quality asset"
+  ],
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": true
+}

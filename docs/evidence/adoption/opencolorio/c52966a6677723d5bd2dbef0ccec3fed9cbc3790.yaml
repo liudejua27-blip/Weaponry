@@ -1,0 +1,39 @@
+project: opencolorio
+source_url: https://github.com/AcademySoftwareFoundation/OpenColorIO
+revision: c52966a6677723d5bd2dbef0ccec3fed9cbc3790
+identity: controlled-source-research
+license_spdx: BSD-3-Clause
+license_file: LICENSE
+license_file_git_blob: a934d463c1526d2dfe3ba72fb18f1e455d416995
+license_file_sha256: 82a40c52065ee968aa62015735e84378ac11425db7a233e6a2dcd2c83fc24276
+third_party_file: THIRD-PARTY.md
+third_party_file_git_blob: 0403d9b191fe1a92965db5cb512f6ae0947b9431
+third_party_file_sha256: 2e0df1b675fcd133b78360b4d40539518ea1c2081be68e91a456fb9db51c5009
+research_status: authorized
+vendored_files: []
+candidate_source_paths:
+  - src/OpenColorIO/ColorSpace.cpp
+  - src/OpenColorIO/Config.cpp
+candidate_source_git_blobs:
+  src/OpenColorIO/ColorSpace.cpp: 946c7286c1503e57a18f4c7c84c7d09ad5ed003a
+  src/OpenColorIO/Config.cpp: 1b5a8c70db080cec80eb46e4b8a39a16e49c26ac
+candidate_source_sha256:
+  src/OpenColorIO/ColorSpace.cpp: b04d0ae1a99eff87f712a61b5ba082e818a10db8f62bf520a9eab5f4357a3fda
+  src/OpenColorIO/Config.cpp: 1a49cadd2f50351b759ff591c3d179c6bfba56920c7bb02423746e4ac7373bc3
+target: reference-only scene-linear/display-transform semantics for explicit render evidence
+denied_capabilities:
+  - cmake_build
+  - filesystem_read
+  - filesystem_write
+  - network
+  - dynamic_code
+  - display-driver_or_gpu_side_effects
+  - direct_runtime_state_write
+lockfile_or_package_change: false
+static_security_review:
+  - selected source is color-space/config logic with no observed network, process execution, environment, or dynamic loading entry point
+  - THIRD-PARTY.md lists additional licenses and must be included in any future SBOM/legal review
+  - OCIO configuration files, display transforms, and reference images must remain explicit CAS evidence; they cannot silently change fixed renderer truth
+approval: research-authorized
+next_gate: specify a small product-owned color-transform contract and run deterministic scene-linear/encoded-output, config provenance, malformed-config, and cross-platform tests before any runtime adoption
+fallback_or_removal_plan: Keep the current fixed renderer color semantics and record display transforms explicitly if the isolated OCIO review fails.

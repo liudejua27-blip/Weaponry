@@ -66,5 +66,7 @@ ponytail-preflight
 - 不执行 upstream `package.json` scripts，不运行 hook，不安装 npm dependency，不把
   上游 prompt、代码或文件路径写进几何真值。
 - 更新该 Skill 时必须同时通过 Bundle integrity、MCP order test、文档/许可证 Gate，且
-  不得改写 `QUALITY_TARGET_NOT_MET`、`INCOMPLETE_TRUTH_BINDING` 或 `boolean@1`
-  unavailable 的现有事实。
+  不得改写 `QUALITY_TARGET_NOT_MET` 或 `INCOMPLETE_TRUTH_BINDING`。当前
+  `boolean@1` 仅以已验收 receipt 支持 bounded same-Part union/difference/intersection；
+  更早 cohort 中的 unavailable/deferred 结论必须保留为历史事实，不能被 Skill 更新
+  伪造为通用 Boolean 能力。

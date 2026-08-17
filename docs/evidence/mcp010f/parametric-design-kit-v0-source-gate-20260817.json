@@ -1,0 +1,65 @@
+{
+  "schema_version": "ForgeCADMCP010FParametricDesignKitV0SourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_TYPED_MACRO_STRUCTURAL_ONLY",
+  "source_revision": "aade327c2abee25b0c9180928a7fb0392f7fdc59",
+  "source_dirty": true,
+  "contract_surface": {
+    "new_schemas": [
+      "parametric-design-kit-request.schema.json",
+      "parametric-design-kit-program.schema.json"
+    ],
+    "schema_count": 129,
+    "contract_checker": "PASS"
+  },
+  "kits": [
+    "forgecad.kit.housing@1",
+    "forgecad.kit.panel@1",
+    "forgecad.kit.vent@1",
+    "forgecad.kit.joint@1",
+    "forgecad.kit.sensor@1",
+    "forgecad.kit.frame@1"
+  ],
+  "operator_expansion": {
+    "panel_family": "forgecad.geometry.panel@1",
+    "vent": "forgecad.geometry.vent-array@1",
+    "joint": "forgecad.geometry.joint-stack@1",
+    "sensor": "forgecad.geometry.primitive@2",
+    "program_nodes": 1,
+    "part_outputs": 1,
+    "source_map": "exact_part_node_operator_material_zone_parameter_binding",
+    "bounds": "finite_typed_dimensions_positions_rotations_counts_and_relationships"
+  },
+  "focused_tests": [
+    "parametric_design_kit_expands_deterministically_without_persistence: PASS",
+    "parametric_design_kit_rejects_relationship_and_slot_overflow: PASS",
+    "geometry_program_hash_is_a_default_read_only_tool: PASS",
+    "cargo_check_forgecad_runtime: PASS",
+    "script/test_mcp010f.sh_full_source_gate: PASS",
+    "packaged_parametric_design_kit_read_only_round_trip: PASS"
+  ],
+  "runtime_boundary": {
+    "candidate_created": false,
+    "cas_written": false,
+    "sqlite_written": false,
+    "version_created": false,
+    "user_approval": "required_before_geometry_prepare",
+    "quality_status": "structural_only"
+  },
+  "unrun_gates": [
+    "live_codex_desktop_restart_and_cohort_match",
+    "real_multiview_reference_authoring",
+    "visual_likeness",
+    "pbr_likeness",
+    "human_review",
+    "export_restart_hash",
+    "hq_360"
+  ],
+  "limitations": [
+    "This is a Runtime-owned typed macro expansion, not a general CAD kernel or arbitrary plugin host.",
+    "The six kits emit one bounded GeometryProgram node; they do not create a candidate, run compare, or claim visual quality.",
+    "OpenSubdiv, xatlas, Khronos glTF Validator, MaterialX, and OpenColorIO remain research-authorized but not adopted into Runtime truth."
+  ],
+  "canonical_sha256": "47136dddab4bccdff777e1b2c9f597b6e4173c5e4744d26a1fee316a87d6e328"
+}

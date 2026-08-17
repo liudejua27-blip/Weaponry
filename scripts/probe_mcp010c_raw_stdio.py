@@ -173,7 +173,7 @@ def main() -> int:
     else:
         mcp_identity = runtime_identity = None
 
-    data_root = args.data_root.resolve()
+    data_root = args.data_root.absolute()
     require(not data_root.exists(), "isolated C data root must not pre-exist")
     data_root.mkdir(mode=0o700, parents=True)
     reference_bytes = bytes.fromhex(

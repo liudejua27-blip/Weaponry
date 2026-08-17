@@ -1,0 +1,59 @@
+{
+  "schema_version": "GeometryProgram@2",
+  "project_id": "weaponry-modular-rifle-001",
+  "representation_plan_sha256": "d60d6a0301e1ad1d36bff86829df095c8f03f0bb94c9d0477d710c343b5ff41a",
+  "operator_catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+  "units": {
+    "length": "meter",
+    "angle": "radian",
+    "coordinate_system": "right-handed-y-up"
+  },
+  "budgets": {
+    "max_nodes": 32,
+    "max_triangles": 100000,
+    "max_glb_bytes": 67108864,
+    "max_worker_memory_bytes": 536870912,
+    "max_runtime_ms": 10000
+  },
+  "nodes": [
+    {"node_id":"receiver_core","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[2.85,0.96,1.02],"thickness_m":0.18,"bevel_m":0.09,"position_m":[0,1.18,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"receiver_wedge","operator_id":"forgecad.geometry.profile-loft@1","inputs":[],"parameters":{"shape":"profile-loft","profiles":[{"height_m":0.0,"points":[[-1.45,-0.48],[0.95,-0.48],[1.45,-0.1],[1.2,0.42],[-1.3,0.48],[-1.52,0.06]]},{"height_m":0.68,"points":[[-1.18,-0.36],[0.88,-0.36],[1.18,-0.06],[0.98,0.32],[-1.08,0.36],[-1.24,0.04]]}],"position_m":[0,1.22,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"receiver_top_cap","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-0.92,-0.2],[0.88,-0.2],[1.04,-0.04],[0.72,0.2],[-0.72,0.2],[-1.06,0.02]],"depth_m":0.72,"position_m":[0.1,1.67,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"receiver_front_shroud","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-0.42,-0.28],[0.46,-0.28],[0.58,-0.08],[0.46,0.28],[-0.36,0.28],[-0.52,0.06]],"depth_m":0.86,"position_m":[1.55,1.36,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"barrel","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"cylinder","radius_m":0.13,"height_m":3.65,"radial_segments":24,"position_m":[3.0,1.38,0],"rotation_rad":[0,0,1.5707963267948966]}},
+    {"node_id":"barrel_ring_a","operator_id":"forgecad.geometry.joint-stack@1","inputs":[],"parameters":{"shape":"joint-stack","radius_m":0.24,"depth_m":0.16,"ring_count":2,"ring_spacing_m":0.1,"radial_segments":24,"position_m":[2.6,1.38,0],"rotation_rad":[0,0,1.5707963267948966]}},
+    {"node_id":"barrel_ring_b","operator_id":"forgecad.geometry.joint-stack@1","inputs":[],"parameters":{"shape":"joint-stack","radius_m":0.21,"depth_m":0.16,"ring_count":2,"ring_spacing_m":0.1,"radial_segments":24,"position_m":[3.35,1.38,0],"rotation_rad":[0,0,1.5707963267948966]}},
+    {"node_id":"muzzle","operator_id":"forgecad.geometry.joint-stack@1","inputs":[],"parameters":{"shape":"joint-stack","radius_m":0.3,"depth_m":0.34,"ring_count":3,"ring_spacing_m":0.14,"radial_segments":24,"position_m":[4.8,1.38,0],"rotation_rad":[0,0,1.5707963267948966]}},
+    {"node_id":"stock","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-1.6,-0.45],[-0.25,-0.45],[0.22,-0.26],[0.18,0.26],[-0.25,0.46],[-1.42,0.34],[-1.82,0.02]],"depth_m":0.84,"position_m":[-1.72,1.02,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"stock_spine","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-1.38,-0.18],[-0.2,-0.18],[0.1,-0.04],[-0.2,0.18],[-1.38,0.18]],"depth_m":0.54,"position_m":[-1.14,1.06,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"grip","operator_id":"forgecad.geometry.profile-extrude@1","inputs":[],"parameters":{"shape":"profile-extrude","profile":[[-0.34,-0.3],[0.3,-0.22],[0.2,0.38],[-0.12,0.48],[-0.34,0.12]],"depth_m":0.64,"position_m":[-0.15,0.18,0],"rotation_rad":[0,0,-0.18]}},
+    {"node_id":"grip_heel","operator_id":"forgecad.geometry.joint-stack@1","inputs":[],"parameters":{"shape":"joint-stack","radius_m":0.18,"depth_m":0.14,"ring_count":2,"ring_spacing_m":0.1,"radial_segments":20,"position_m":[-0.22,0.55,0],"rotation_rad":[1.5707963267948966,0,0]}},
+    {"node_id":"magazine","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[0.8,1.12,0.68],"thickness_m":0.16,"bevel_m":0.07,"position_m":[-0.5,0.43,0],"rotation_rad":[0,0,-0.12]}},
+    {"node_id":"mag_latch","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[0.38,0.1,0.48],"thickness_m":0.04,"bevel_m":0.02,"position_m":[-0.45,0.96,0.38],"rotation_rad":[0,0,0]}},
+    {"node_id":"energy_core","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"ellipsoid","radii_m":[0.48,0.26,0.26],"longitude_segments":24,"latitude_segments":12,"position_m":[0.2,1.31,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"optic_rail","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[1.8,0.14,0.38],"thickness_m":0.08,"bevel_m":0.03,"position_m":[0.1,1.9,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"optic_mount","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[0.34,0.22,0.28],"thickness_m":0.06,"bevel_m":0.02,"position_m":[0.42,2.06,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"side_panel","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[1.72,0.52,0.11],"thickness_m":0.05,"bevel_m":0.025,"position_m":[0.15,1.25,0.56],"rotation_rad":[0,0,0]}},
+    {"node_id":"side_panel_mirror","operator_id":"forgecad.geometry.mirror@1","inputs":["side_panel"],"parameters":{"shape":"mirror","axis":"z","offset_m":0}},
+    {"node_id":"vent_slots","operator_id":"forgecad.geometry.vent-array@1","inputs":[],"parameters":{"shape":"vent-array","width_m":1.2,"height_m":0.38,"depth_m":0.09,"slot_count":5,"slot_width_m":0.1,"slot_spacing_m":0.13,"position_m":[-0.35,1.24,0.64],"rotation_rad":[0,0,0]}},
+    {"node_id":"vent_slots_mirror","operator_id":"forgecad.geometry.mirror@1","inputs":["vent_slots"],"parameters":{"shape":"mirror","axis":"z","offset_m":0}},
+    {"node_id":"rear_joint","operator_id":"forgecad.geometry.joint-stack@1","inputs":[],"parameters":{"shape":"joint-stack","radius_m":0.24,"depth_m":0.16,"ring_count":3,"ring_spacing_m":0.12,"radial_segments":20,"position_m":[-1.24,1.28,0],"rotation_rad":[1.5707963267948966,0,0]}},
+    {"node_id":"cable","operator_id":"forgecad.geometry.tube-sweep@1","inputs":[],"parameters":{"shape":"tube-sweep","path":[[-1,1.58,0.48],[-0.52,1.64,0.48],[0.1,1.5,0.48],[0.62,1.42,0.48]],"radius_m":0.035,"radial_segments":12,"cap_ends":true,"position_m":[0,0,0],"rotation_rad":[0,0,0]}},
+    {"node_id":"cable_mirror","operator_id":"forgecad.geometry.mirror@1","inputs":["cable"],"parameters":{"shape":"mirror","axis":"z","offset_m":0}},
+    {"node_id":"status_light","operator_id":"forgecad.geometry.panel@1","inputs":[],"parameters":{"shape":"panel","size_m":[0.65,0.09,0.06],"thickness_m":0.025,"bevel_m":0.012,"position_m":[0.52,1.56,0.6],"rotation_rad":[0,0,0]}}
+  ],
+  "part_outputs": [
+    {"part_id":"receiver-core","input_node_ids":["receiver_core","receiver_wedge","receiver_top_cap","receiver_front_shroud"],"material_zone_id":"dark-painted-metal","solid":true},
+    {"part_id":"barrel-assembly","input_node_ids":["barrel","barrel_ring_a","barrel_ring_b","muzzle"],"material_zone_id":"brushed-steel","solid":true},
+    {"part_id":"stock-shell","input_node_ids":["stock","stock_spine"],"material_zone_id":"engineering-plastic","solid":true},
+    {"part_id":"grip-module","input_node_ids":["grip","grip_heel"],"material_zone_id":"engineering-plastic","solid":true},
+    {"part_id":"magazine-module","input_node_ids":["magazine","mag_latch"],"material_zone_id":"black-anodized-metal","solid":true},
+    {"part_id":"energy-core","input_node_ids":["energy_core"],"material_zone_id":"warm-orange-emissive","solid":true},
+    {"part_id":"optic-rail","input_node_ids":["optic_rail","optic_mount"],"material_zone_id":"black-anodized-metal","solid":true},
+    {"part_id":"side-armor","input_node_ids":["side_panel_mirror"],"material_zone_id":"dark-painted-metal","solid":true},
+    {"part_id":"vent-array","input_node_ids":["vent_slots_mirror"],"material_zone_id":"black-anodized-metal","solid":true},
+    {"part_id":"rear-joint","input_node_ids":["rear_joint"],"material_zone_id":"brushed-steel","solid":true},
+    {"part_id":"cable-run","input_node_ids":["cable_mirror"],"material_zone_id":"joint-rubber","solid":true},
+    {"part_id":"status-light","input_node_ids":["status_light"],"material_zone_id":"warm-orange-emissive","solid":true}
+  ]
+}

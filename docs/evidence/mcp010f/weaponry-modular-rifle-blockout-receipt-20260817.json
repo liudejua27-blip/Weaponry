@@ -1,0 +1,86 @@
+{
+  "schema_version": "ForgeCADWeaponBlockoutReceipt@1",
+  "asset_id": "weaponry-modular-rifle-001",
+  "status": "PASS_STRUCTURAL_BLOCKOUT",
+  "scope": "offline product-owned Geometry Worker; no Runtime candidate write",
+  "worker_protocol": "forgecad-worker-protocol@1",
+  "build_cohort_sha256": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+  "operator_catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+  "representation_plan_sha256": "d60d6a0301e1ad1d36bff86829df095c8f03f0bb94c9d0477d710c343b5ff41a",
+  "program_sha256": "adc4a0604ae0596dd64b71314defeef2681e1df786575b0e60d935dff6d0dbfc",
+  "geometry": {
+    "node_count": 17,
+    "part_count": 12,
+    "triangle_count": 1932,
+    "part_ids": [
+      "receiver-core",
+      "barrel-assembly",
+      "stock-shell",
+      "grip-module",
+      "magazine-module",
+      "energy-core",
+      "optic-rail",
+      "side-armor",
+      "vent-array",
+      "rear-joint",
+      "cable-run",
+      "status-light"
+    ],
+    "material_zone_ids": [
+      "dark-painted-metal",
+      "brushed-steel",
+      "engineering-plastic",
+      "black-anodized-metal",
+      "warm-orange-emissive",
+      "joint-rubber"
+    ]
+  },
+  "artifact": {
+    "mime": "model/gltf-binary",
+    "glb_sha256": "01f361a64ac2899140440ad67f274a029ad744814331cd90ad8b4280ca077b96",
+    "glb_bytes": 325008,
+    "retention": "temporary_only"
+  },
+  "strict_readback": {
+    "status": "PASS",
+    "source": "fixed Geometry Worker internal inspect_glb",
+    "uv_status": "passed",
+    "tangent_status": "passed",
+    "integrity_counters": "zero_reported"
+  },
+  "render_preview": {
+    "status": "PASS_STRUCTURAL_PREVIEW",
+    "worker_build_cohort_sha256": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+    "result_schema": "RenderWorkerResult@1",
+    "resolution": [256, 256],
+    "passes": ["beauty", "silhouette", "normal", "part-id"],
+    "beauty_png_sha256": "7287c27bec2138c50602dfaa04bb4ad0e782e1ab85a576afb6e415d493b1312e",
+    "retention": "temporary_only",
+    "visual_quality_claim": false
+  },
+  "runtime_state": {
+    "project_id": null,
+    "candidate_id": null,
+    "version_id": null,
+    "candidate_persistence": "NOT_RUN",
+    "source_candidate_unchanged": true,
+    "confirm_allowed": false,
+    "export_allowed": false
+  },
+  "quality": {
+    "reference_status": "NOT_PROVIDED",
+    "fixed_camera_compare": "NOT_RUN",
+    "visual_review": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "high_quality_claim": false,
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "This is an original static sci-fi visual blockout, not a copy of a game asset.",
+    "No user-authorized weapon reference has been imported, so no likeness or proportion score exists.",
+    "No Blender executable or Blender authoring worker was used; the Runtime-owned typed Rust Worker is the only geometry executor.",
+    "UV/PBR channel plumbing is structurally present in the Worker result, but appearance_prepare and PBR likeness are not run.",
+    "The temporary GLB was not placed in CAS, a Runtime project, a version, or an export path."
+  ],
+  "next_safe_action": "create a dedicated Runtime project and import an authorized reference (or explicitly approve this original brief) before geometry_prepare and candidate-bound comparison"
+}

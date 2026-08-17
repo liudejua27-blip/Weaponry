@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/parametric-design-kit-request.schema.json",
+  "title": "ParametricDesignKitRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "representation_plan_sha256",
+    "kit_id",
+    "part_id",
+    "material_zone_id",
+    "intent",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ParametricDesignKitRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "kit_id": {
+      "enum": [
+        "forgecad.kit.housing@1",
+        "forgecad.kit.panel@1",
+        "forgecad.kit.vent@1",
+        "forgecad.kit.joint@1",
+        "forgecad.kit.sensor@1",
+        "forgecad.kit.frame@1"
+      ]
+    },
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "intent": {"type": "object"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -50,6 +50,11 @@ OBSERVATION_STATE_SCHEMAS = {
     "visual-evidence-bundle.schema.json",
 }
 
+REPAIR_INTENT_RUN_SCHEMAS = {
+    "repair-intent-run-request.schema.json": "RepairIntentRunRequest@1",
+    "repair-intent-run-result.schema.json": "RepairIntentRunResult@1",
+}
+
 HASH = "a" * 64
 REFERENCE_HASH = "b" * 64
 CAMERA_HASH = "c" * 64
@@ -538,6 +543,13 @@ def make_fixtures() -> dict[str, dict[str, Any]]:
             "canvas_id": "canvas-1",
             "project_id": "project-1",
             "reference_set_sha256": CANONICAL_HASH,
+            "bindings": {
+                "status": "unbound",
+                "target_sha256": None,
+                "camera_hash": None,
+                "camera_canonical_sha256": None,
+                "evidence_sha256": None,
+            },
             "views": [{
                 "view_id": "view-perspective",
                 "reference_id": "reference-1",
@@ -549,9 +561,12 @@ def make_fixtures() -> dict[str, dict[str, Any]]:
                     "evidence_refs": [evidence("reference", REFERENCE_HASH)],
                 },
                 "image_dimensions": {"width": 1024, "height": 1024},
+                "target_sha256": None,
+                "mask_sha256": None,
                 "camera_claim": {
                     "visibility": "observed",
                     "camera_hash": CAMERA_HASH,
+                    "camera_canonical_sha256": CANONICAL_HASH,
                     "claim": "The perspective camera is supplied by the reference evidence.",
                     "evidence_refs": [evidence("camera", CAMERA_HASH)],
                 },
@@ -1004,6 +1019,105 @@ def check_action_run_contract(manifest: dict[str, Any]) -> None:
     require(not is_valid(schema, unpaired_checkpoint), "unpaired stage checkpoint hash was accepted")
 
 
+def check_repair_intent_run_contract(manifest: dict[str, Any]) -> None:
+    """Check the P2 CAS-bound run request/result pair and fail-closed flags."""
+    registry = load_schema_registry(manifest)
+    request_schema = load_json(SCHEMA_ROOT / "repair-intent-run-request.schema.json")
+    result_schema = load_json(SCHEMA_ROOT / "repair-intent-run-result.schema.json")
+    require(
+        request_schema.get("$id") == "https://forgecad.local/contracts/repair-intent-run-request.schema.json"
+        and result_schema.get("$id") == "https://forgecad.local/contracts/repair-intent-run-result.schema.json",
+        "RepairIntent run schema IDs drifted",
+    )
+    require(
+        request_schema["properties"]["approved"].get("const") is True
+        and result_schema["properties"]["confirm_allowed"].get("const") is False
+        and result_schema["properties"]["source_candidate_unchanged"].get("const") is True
+        and result_schema["properties"]["runtime_write"].get("const") is False,
+        "RepairIntent run approval/source mutation boundary drifted",
+    )
+    action = {
+        "action_id": "repair-action-1",
+        "action_kind": "bounded-repair",
+        "scope_kind": "part",
+        "target_id": "main-body",
+        "operator_id": "forgecad.geometry.transform@2",
+        "parameter_changes": [{
+            "parameter_id": "body-width",
+            "before": 1.0,
+            "after": 1.05,
+            "minimum": 0.5,
+            "maximum": 1.5,
+            "unit": "ratio",
+        }],
+        "bounded": True,
+        "description": "Adjust one bounded body parameter.",
+    }
+    request = {
+        "project_id": "project-1",
+        "session_id": "session-1",
+        "candidate_id": "candidate-1",
+        "run_id": "run-1",
+        "intent_sha256": HASH,
+        "intent_object_sha256": HASH,
+        "observation_sha256": EVIDENCE_HASH,
+        "source_evidence_sha256": EVIDENCE_HASH,
+        "reference_sha256": REFERENCE_HASH,
+        "action": action,
+        "proposal": {"geometry_program": {}, "view_spec": {}, "camera": {}},
+        "requested_stage": "primary-form",
+        "input_sha256": HASH,
+        "approved": True,
+        "approval_receipt_id": "approval-1",
+        "approval_summary": "Approve one bounded CAS-bound RepairIntent run.",
+        "approval_expires_at": "2030-01-01T00:00:00Z",
+        "approval_session_id": "session-1",
+        "idempotency_key": "repair-run-1",
+    }
+    require(is_valid(request_schema, request, registry), "positive RepairIntent run request rejected")
+    unknown = copy.deepcopy(request)
+    unknown["unexpected"] = True
+    require(not is_valid(request_schema, unknown, registry), "RepairIntent run request accepted unknown field")
+    unapproved = copy.deepcopy(request)
+    unapproved["approved"] = False
+    require(not is_valid(request_schema, unapproved, registry), "RepairIntent run request accepted without approval")
+
+    result = {
+        "schema_version": "RepairIntentRunResult@1",
+        "project_id": "project-1",
+        "session_id": "session-1",
+        "candidate_id": "candidate-1",
+        "run_id": "run-1",
+        "intent_sha256": HASH,
+        "intent_object_sha256": HASH,
+        "input_sha256": HASH,
+        "observation_sha256": EVIDENCE_HASH,
+        "source_evidence_sha256": EVIDENCE_HASH,
+        "reference_sha256": REFERENCE_HASH,
+        "status": "blocked",
+        "run_status": "completed",
+        "quality_status": "QUALITY_TARGET_NOT_MET",
+        "action_run_sha256": HASH,
+        "action_run": {},
+        "proposal_candidate_id": "candidate-2",
+        "proposal_candidate_state_sha256": HASH,
+        "prepared_object_sha256": HASH,
+        "quality_report_id": HASH,
+        "apply_status": "blocked",
+        "next_transaction": "inspect_or_retry",
+        "confirm_allowed": False,
+        "source_candidate_unchanged": True,
+        "active_design_state_mutated": False,
+        "runtime_write": False,
+        "persistent_user_data_touched": False,
+        "canonical_sha256": CANONICAL_HASH,
+    }
+    require(is_valid(result_schema, result), "positive RepairIntent run result rejected")
+    unsafe_result = copy.deepcopy(result)
+    unsafe_result["confirm_allowed"] = True
+    require(not is_valid(result_schema, unsafe_result), "RepairIntent run result accepted confirm_allowed=true")
+
+
 def set_path(value: Any, path: tuple[Any, ...], replacement: Any) -> None:
     cursor = value
     for key in path[:-1]:
@@ -1011,7 +1125,10 @@ def set_path(value: Any, path: tuple[Any, ...], replacement: Any) -> None:
     cursor[path[-1]] = replacement
 
 
-def assert_binding_fixtures(fixtures: dict[str, dict[str, Any]]) -> None:
+def assert_binding_fixtures(
+    fixtures: dict[str, dict[str, Any]],
+    schemas: dict[str, dict[str, Any]],
+) -> None:
     session = fixtures["design-session.schema.json"]
     checkpoint = fixtures["design-checkpoint.schema.json"]
     plan = fixtures["design-stage-plan.schema.json"]
@@ -1026,6 +1143,34 @@ def assert_binding_fixtures(fixtures: dict[str, dict[str, Any]]) -> None:
     require(mismatch["reference_sha256"] != fixtures["reference-canvas.schema.json"]["views"][0]["reference_sha256"], "negative reference mismatch fixture was not created")
     require(mismatch["candidate_id"] == checkpoint["candidate_id"], "negative binding fixture lost candidate identity")
 
+    view_pair_mismatch = copy.deepcopy(fixtures["reference-canvas.schema.json"])
+    view_pair_mismatch["views"][0]["target_sha256"] = HASH
+    require(
+        not is_valid(schemas["reference-canvas.schema.json"], view_pair_mismatch),
+        "per-view target without mask was accepted",
+    )
+
+    target_without_view_spec = copy.deepcopy(fixtures["reference-canvas.schema.json"])
+    target_without_view_spec["views"][0]["target_sha256"] = HASH
+    target_without_view_spec["views"][0]["mask_sha256"] = HASH
+    require(
+        not is_valid(schemas["reference-canvas.schema.json"], target_without_view_spec),
+        "per-view target/mask without ReferenceViewSpec was accepted",
+    )
+
+    unknown_camera_canonical = copy.deepcopy(fixtures["reference-canvas.schema.json"])
+    unknown_camera_canonical["views"][0]["camera_claim"] = {
+        "visibility": "unknown",
+        "camera_hash": None,
+        "camera_canonical_sha256": CANONICAL_HASH,
+        "claim": "Camera is not known.",
+        "evidence_refs": [evidence("reference", REFERENCE_HASH)],
+    }
+    require(
+        not is_valid(schemas["reference-canvas.schema.json"], unknown_camera_canonical),
+        "unknown camera with canonical hash was accepted",
+    )
+
 
 def main() -> int:
     manifest = load_json(MANIFEST)
@@ -1033,6 +1178,8 @@ def main() -> int:
     require(set(EXPECTED) <= declared, "manifest is missing one or more agentic schemas")
     require("design-action-run.schema.json" in declared, "manifest is missing DesignActionRun@1")
     check_action_run_contract(manifest)
+    require(set(REPAIR_INTENT_RUN_SCHEMAS) <= declared, "manifest is missing RepairIntent run schemas")
+    check_repair_intent_run_contract(manifest)
 
     schemas: dict[str, dict[str, Any]] = {}
     for filename, version in EXPECTED.items():
@@ -1056,6 +1203,23 @@ def main() -> int:
         bad_hash = copy.deepcopy(positive)
         bad_hash["canonical_sha256"] = "not-a-sha256"
         require(not is_valid(schema, bad_hash), f"invalid canonical hash accepted: {filename}")
+
+    # A complete coverage claim must name the five identity views. A
+    # perspective supplement cannot stand in for rear-three-quarter; otherwise
+    # an authoring payload could unlock HQ_360 with an incomplete view set.
+    incomplete_hq = copy.deepcopy(fixtures["reference-canvas.schema.json"])
+    incomplete_hq["coverage"] = {
+        **incomplete_hq["coverage"],
+        "required_views": ["front", "back", "left", "right", "perspective"],
+        "supplied_views": ["front", "back", "left", "right", "perspective"],
+        "missing_views": [],
+        "coverage_status": "complete",
+        "hq_360_status": "eligible",
+    }
+    require(
+        not is_valid(schemas["reference-canvas.schema.json"], incomplete_hq),
+        "complete ReferenceCanvas coverage accepted without rear-three-quarter",
+    )
 
     safety_targets: dict[str, tuple[Any, ...]] = {
         "semantic-scene-graph.schema.json": ("parts", 0, "name"),
@@ -1086,7 +1250,7 @@ def main() -> int:
     raw_bytes["raw_bytes"] = "AA=="
     require(not is_valid(schemas["visual-evidence-bundle.schema.json"], raw_bytes), "raw bytes field accepted")
 
-    assert_binding_fixtures(fixtures)
+    assert_binding_fixtures(fixtures, schemas)
     session = copy.deepcopy(fixtures["design-session.schema.json"])
     session["rollback"]["relation"] = "requested"
     session["rollback"]["target_checkpoint_id"] = None
@@ -1104,7 +1268,7 @@ def main() -> int:
     repair["recompute"]["confirm_allowed"] = True
     require(not is_valid(schemas["repair-intent.schema.json"], repair), "repair intent can confirm before recompute")
 
-    print(f"Agentic contracts OK: {len(EXPECTED) + 1} schemas; positive and negative fixtures passed")
+    print(f"Agentic contracts OK: {len(EXPECTED) + len(REPAIR_INTENT_RUN_SCHEMAS) + 1} schemas; positive and negative fixtures passed")
     return 0
 
 

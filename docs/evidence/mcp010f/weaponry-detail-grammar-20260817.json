@@ -1,0 +1,51 @@
+{
+  "schema_version": "ForgeCADWeaponDetailGrammar@1",
+  "task_id": "FGC-MCP010F",
+  "asset_id": "weaponry-modular-rifle-001",
+  "status": "ORCHESTRATION_DRAFT_ONLY",
+  "activation_status": "NOT_ACTIVE_PRODUCT_SKILL",
+  "source_geometry_program_sha256": "fc012fd0c6e0c75800475689bb5bb73455e6f5f1666086007c70e8d06ccd6e7b",
+  "source_artifact_sha256": "799f7ce0d236db3fb44836df8d8871db8275826c6c187cb8df7f6024a4cbd221",
+  "purpose": "Bounded Codex-side grammar for secondary and tertiary hard-surface detail; it does not write Runtime/CAS and is not a Blender or arbitrary-script API.",
+  "detail_layers": [
+    {"level":"primary","intent":"global silhouette, mass distribution and envelope","allowed_representations":["profile-extrude","profile-loft","panel","joint-stack"],"gate":"must be stable before detail"},
+    {"level":"secondary","intent":"panel hierarchy, structural transitions and major vents","allowed_representations":["panel","profile-extrude","profile-loft","vent-array","joint-stack","mirror"],"gate":"one feature explains one visible seam or functional transition"},
+    {"level":"tertiary","intent":"small plates, grooves, fasteners, ports and cable interfaces","allowed_representations":["panel","vent-array","joint-stack","tube-sweep","mirror"],"gate":"must be assigned to a focus region and close-up evidence"},
+    {"level":"micro","intent":"scratches, grain, fine engraving and tiny wear","allowed_representations":["material-channel","normal-detail","decal"],"gate":"defer to bake/PBR; do not turn all micro detail into geometry"}
+  ],
+  "feature_tokens": [
+    {"token":"panel-break","semantic":"separate armor or housing layer","default_level":"secondary","preferred_operators":["forgecad.geometry.panel@1","forgecad.geometry.profile-extrude@1"],"parameter_bounds":{"thickness_m":[0.015,0.12],"bevel_m":[0.004,0.05]},"constraints":["must not change the primary envelope","must have one named parent Part","must not float or cross an unexplained fold"]},
+    {"token":"inset-groove","semantic":"recessed feature line or interface seam","default_level":"tertiary","preferred_operators":["forgecad.geometry.vent-array@1","forgecad.geometry.panel@1"],"parameter_bounds":{"width_m":[0.01,0.08],"depth_m":[0.005,0.04],"spacing_m":[0.02,0.3]},"constraints":["follow one continuous line flow","stop before a major crease","do not use material contrast to hide a missing groove"]},
+    {"token":"vent-port","semantic":"functional cooling or exhaust opening","default_level":"secondary","preferred_operators":["forgecad.geometry.vent-array@1"],"parameter_bounds":{"slot_count":[2,12],"slot_width_m":[0.02,0.16],"slot_spacing_m":[0.03,0.24]},"constraints":["spacing must be monotonic","array must remain inside its host Part","part-id and material-id must isolate the array"]},
+    {"token":"mechanical-interface","semantic":"ring, latch, hinge or fastener group","default_level":"tertiary","preferred_operators":["forgecad.geometry.joint-stack@1","forgecad.geometry.panel@1"],"parameter_bounds":{"radius_m":[0.015,0.35],"ring_count":[1,8]},"constraints":["must explain a connection","no duplicate coincident rings","strict manifold readback required"]},
+    {"token":"cable-transition","semantic":"cable or tube entering a housing","default_level":"tertiary","preferred_operators":["forgecad.geometry.tube-sweep@1"],"parameter_bounds":{"radius_m":[0.008,0.08],"radial_segments":[8,24]},"constraints":["path endpoints must terminate on named Parts","no unsupported free-floating cable","avoid silhouette changes unless explicitly reviewed"]},
+    {"token":"ornament-relief","semantic":"raised or engraved motif on an existing surface","default_level":"tertiary","preferred_operators":["curve-projection-planned","relief-planned"],"parameter_bounds":{"height_m":[0.0005,0.012],"width_m":[0.001,0.025]},"constraints":["planned only until a bounded projection/relief operator is active","must not cross a primary crease","must not hide a failed silhouette","must have a focus-region close-up"]},
+    {"token":"crystal-seat","semantic":"energy-core mount, clamp or guard","default_level":"secondary","preferred_operators":["profile-loft","panel","joint-stack"],"parameter_bounds":{"clearance_m":[0.002,0.06],"symmetry":"bilateral-or-explicit-asymmetric"},"constraints":["core and seat are separate semantic Parts","emissive material cannot compensate for missing housing","check occlusion and intersection in close-up"]},
+    {"token":"emissive-channel","semantic":"thin light guide or status indicator","default_level":"tertiary","preferred_operators":["panel","material-channel"],"parameter_bounds":{"width_m":[0.004,0.05],"emissive_strength":[0.2,8.0]},"constraints":["must be attached to a host Part","must remain subordinate to the primary form","do not claim shader/VFX parity from a static emissive factor"]}
+  ],
+  "composition_rules": {
+    "primary_focus_count": 1,
+    "secondary_focus_count": [3,5],
+    "quiet_area_ratio_target": [0.35,0.6],
+    "line_flow": ["receiver-spine","vent-array","energy-core","barrel-transition","stock-interface"],
+    "symmetry_policy": "mirror only when the source brief explicitly supports bilateral symmetry; otherwise use separate semantic Parts",
+    "density_policy": "increase detail near functional transitions and focus regions; keep broad panels quiet"
+  },
+  "failure_modes": [
+    "detail added to compensate for a failed primary silhouette",
+    "floating detail or unsupported intersection",
+    "repeated vents with inconsistent spacing",
+    "ornament crossing a major crease or changing the envelope",
+    "all surfaces equally noisy with no visual hierarchy",
+    "micro-detail modeled as geometry instead of normal/roughness/decal channels",
+    "a material or emissive change used to hide a geometry regression"
+  ],
+  "validation_contract": {
+    "required_evidence": ["source_program_hash","source_artifact_hash","part-id AOV","material-id AOV","normal AOV","wireframe AOV","close-up camera manifest"],
+    "structural_checks": ["strict GLB readback","uv/tangent readback","zero non-manifold edges","zero floating-detail findings when a validator is available"],
+    "visual_checks": ["feature-line comparison","panel-boundary comparison","detail-density review","bevel-highlight review"],
+    "human_review": "NOT_RUN",
+    "reference_comparison": "BLOCKED_REFERENCE_NOT_PROVIDED",
+    "quality_claim": "not eligible for high-quality acceptance until reference-bound close-up compare and human review exist"
+  }
+}

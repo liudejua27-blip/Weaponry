@@ -41,6 +41,7 @@ MID_TOP_K = 4
 FINAL_TOP_K = 2
 FINAL_CONTROLS = 1
 EXPECTED_EVALUATIONS = COARSE_EVALUATIONS + MID_TOP_K + FINAL_TOP_K + FINAL_CONTROLS
+TOOL_MANIFEST_SUMMARY = Path(__file__).resolve().parents[1] / "docs" / "evidence" / "mcp010f" / "source-tool-manifest-summary.json"
 
 
 def require(condition: bool, message: str) -> None:
@@ -52,6 +53,28 @@ def tool_value(client: McpClient, name: str, arguments: dict[str, Any]) -> dict[
     value = client.tool(name, arguments)
     require(isinstance(value, dict), f"{name} did not return a typed object")
     return value
+
+
+def current_tool_names() -> set[str]:
+    """Read the checked-in generated manifest instead of freezing a count in a probe."""
+    try:
+        summary = json.loads(TOOL_MANIFEST_SUMMARY.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise GateFailure(f"current tool manifest summary unavailable: {exc}") from exc
+    require(summary.get("schema_version") == "ForgeCADMcpToolManifestSummary@1", "tool manifest summary schema drifted")
+    read_names = summary.get("read_names")
+    write_names = summary.get("write_names")
+    require(isinstance(read_names, list) and isinstance(write_names, list), "tool manifest summary names were unavailable")
+    names = [*read_names, *write_names]
+    require(
+        len(names) == summary.get("total_count")
+        and len(read_names) == summary.get("read_count")
+        and len(write_names) == summary.get("write_count")
+        and len(names) == len(set(names)),
+        "tool manifest summary counts or uniqueness drifted",
+    )
+    require(all(isinstance(name, str) and name for name in names), "tool manifest summary contains an invalid tool name")
+    return set(names)
 
 
 def main() -> int:
@@ -67,12 +90,14 @@ def main() -> int:
     args = parser.parse_args()
 
     require(args.mcp.is_file() and args.runtime.is_file(), "optimization probe binaries were unavailable")
+    mcp_identity = build_identity(args.mcp)
+    runtime_identity = build_identity(args.runtime)
     if args.expected_build_cohort:
         require(len(args.expected_build_cohort) == 64, "invalid expected build cohort")
-        require(build_identity(args.mcp).get("build_cohort_sha256") == args.expected_build_cohort, "MCP cohort mismatch")
-        require(build_identity(args.runtime).get("build_cohort_sha256") == args.expected_build_cohort, "Runtime cohort mismatch")
+        require(mcp_identity.get("build_cohort_sha256") == args.expected_build_cohort, "MCP cohort mismatch")
+        require(runtime_identity.get("build_cohort_sha256") == args.expected_build_cohort, "Runtime cohort mismatch")
 
-    data_root = args.data_root.resolve()
+    data_root = args.data_root.absolute()
     require(not data_root.exists(), "isolated optimization data root must not pre-exist")
     data_root.mkdir(mode=0o700, parents=True)
     ready_path = data_root / "ipc" / "ready.json"
@@ -121,7 +146,11 @@ def main() -> int:
 
         listed = client.request("tools/list")
         tools = listed.get("result", {}).get("tools")
-        require(isinstance(tools, list) and len(tools) == 73, "current MCP tool manifest was not 73 tools")
+        require(isinstance(tools, list), "current MCP tool manifest was unavailable")
+        listed_names = {tool.get("name") for tool in tools if isinstance(tool, dict)}
+        expected_names = current_tool_names()
+        require(listed_names == expected_names, "MCP tool names drifted from the generated current manifest")
+        manifest_summary = json.loads(TOOL_MANIFEST_SUMMARY.read_text(encoding="utf-8"))
         preflight = tool_value(client, "skill_get", {"skill_id": "ponytail-preflight", "version": "0.1.0"})
         require(preflight.get("skill", {}).get("skill_id") == "ponytail-preflight", "Ponytail preflight did not bind")
 
@@ -298,6 +327,18 @@ def main() -> int:
             "schema_version": "ForgeCADMCP010FOptimizationRawStdioProbe@1",
             "task_id": "FGC-MCP010F",
             "status": "PASS",
+            "mcp_build_cohort_sha256": mcp_identity.get("build_cohort_sha256"),
+            "runtime_build_cohort_sha256": runtime_identity.get("build_cohort_sha256"),
+            "expected_build_cohort_sha256": args.expected_build_cohort,
+            "tool_manifest": {
+                "schema_version": manifest_summary.get("schema_version"),
+                "canonical_sha256": manifest_summary.get("canonical_sha256"),
+                "read_count": manifest_summary.get("read_count"),
+                "write_count": manifest_summary.get("write_count"),
+                "total_count": manifest_summary.get("total_count"),
+                "listed_count": len(listed_names),
+                "exact_name_match": listed_names == expected_names,
+            },
             "search_strategy": result.get("search_strategy"),
             "job_kind": "design_optimization",
             "job_status": job.get("status"),

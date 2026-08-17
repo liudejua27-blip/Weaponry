@@ -1,7 +1,7 @@
 # Luna GitHub 受控复刻操作手册
 
-版本：2026-08-13  
-状态：用户已授权五个指定上游项目的受控研究和选择性源文件复刻；这不是依赖采用、Skill 安装或 Runtime 集成授权。
+版本：2026-08-17
+状态：用户已授权指定上游项目的受控研究和选择性源文件复刻；本轮已对 OpenSubdiv、xatlas、glTF-Validator、MaterialX、OpenColorIO 固定 revision 取得许可证/候选文件审计 receipt。这不是依赖采用、Skill 安装或 Runtime 集成授权；所有新增 receipt 仍为 `research-authorized`。
 
 ## 1. 目的与边界
 
@@ -12,7 +12,7 @@ Luna 可以从下表的冻结 revision 读取、下载并在隔离研究缓存�
 - `forgecad-runtime` 仍是唯一永久状态写者；
 - MCP 仍是薄 `stdio` adapter，Viewer 仍是只读；
 - 当前只有 `mikktspace@0.3.0` 是已接受的外部依赖；
-- Manifold 已完成固定 revision 的 product-owned isolated Worker adoption，`boolean@1` 当前开放同一 Part 的 bounded union/difference/intersection；MaterialX 和其余项目尚未进入 lockfile、安装包或 Runtime；
+- Manifold 已完成固定 revision 的 product-owned isolated Worker adoption，`boolean@1` 当前开放同一 Part 的 bounded union/difference/intersection；MaterialX、OpenSubdiv、xatlas、glTF-Validator、OpenColorIO 和其余项目尚未进入 lockfile、安装包或 Runtime；
 - 当前唯一 `in_progress` 是 `FGC-MCP010F`。本手册只准备后续设计和评估，不得借此跳过现有质量真值或改写 `QUALITY_TARGET_NOT_MET`。
 
 ## 2. 允许的上游快照
@@ -24,6 +24,10 @@ Luna 可以从下表的冻结 revision 读取、下载并在隔离研究缓存�
 | [CadQuery](https://github.com/CadQuery/cadquery) | `d6729f51bf1ed183f110aacdbc6238e4a5110c96` | Apache-2.0 | Workplane/Sketch/selector/assembly 的参数化表达方式 | 静态研究缓存；再定义 bounded macro/schema 和 Rust Worker 实现 |
 | [Manifold](https://github.com/elalish/manifold) | `969b1417afdee87dbc6147cf676bc04799418ec2` | Apache-2.0 | robust manifold mesh、C API 边界、拓扑测试 | **accepted：product-owned isolated C API/FFI Worker；启用同一 Part union/difference/intersection；通用 mesh 仍隔离研究** |
 | [MaterialX](https://github.com/AcademySoftwareFoundation/MaterialX) | `a7b2d60aa682656b6fed72f760685612aa3a87c6` | Apache-2.0 | material document/node/definition、look/material graph 和 PBR 映射 | 静态研究缓存；再定义 MaterialZone/PBR translator 的数据合同 |
+| [OpenSubdiv](https://github.com/PixarAnimationStudios/OpenSubdiv) | `4951f30c00f395aa831a9fc42577cc28ce46fa81` | Tomorrow Open Source Technology License 1.0 | CPU subdivision/refinement API shape | 静态研究缓存；TSL 法务、CPU worker、资源/确定性 Gate |
+| [xatlas](https://github.com/jpcy/xatlas) | `f700c7790aaa030e794b52ba7791a05c085faf0c` | MIT | chart segmentation、seam/atlas packing | 静态研究缓存；typed Worker、transitive SBOM、确定性/资源 Gate |
+| [Khronos glTF-Validator](https://github.com/KhronosGroup/glTF-Validator) | `bcd52cc4ba5f333b2999a58f67cc05ddf28b4fb1` | Apache-2.0 | 外部 GLB validation report | 静态研究缓存；bytes-only wrapper、external-resource denial、report normalization |
+| [OpenColorIO](https://github.com/AcademySoftwareFoundation/OpenColorIO) | `c52966a6677723d5bd2dbef0ccec3fed9cbc3790` | BSD-3-Clause | scene-linear/display transform semantics | 静态研究缓存；explicit config provenance、deterministic transform Gate |
 
 上述 revision、许可证文件 Git blob 和候选路径记录在 `docs/evidence/adoption/<project>/<revision>.yaml`。这些记录的 `approval: research-authorized` 明确表示“可研究”，不表示 `accepted`。
 

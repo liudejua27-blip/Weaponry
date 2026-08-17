@@ -4,7 +4,7 @@
   "title": "QualityReportV2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "quality_report_id", "candidate_id", "artifact_sha256", "program_sha256", "reference_id", "reference_sha256", "render_set_hash", "comparison_report_hash", "human_receipt_hash", "structural_status", "visual_status", "hard_gate_passed", "limitations", "canonical_sha256"],
+  "required": ["schema_version", "quality_report_id", "candidate_id", "artifact_sha256", "program_sha256", "reference_id", "reference_sha256", "render_set_hash", "comparison_report_hash", "human_receipt_hash", "structural_status", "visual_status", "hard_gate_passed", "threshold_revision", "threshold_policy_sha256", "threshold_source", "metric_gate_results", "limitations", "canonical_sha256"],
   "properties": {
     "schema_version": {"const": "QualityReport@2"},
     "quality_report_id": {"$ref": "#/$defs/identifier"},
@@ -16,10 +16,30 @@
     "view_id": {"$ref": "#/$defs/identifier"},
     "render_set_hash": {"$ref": "#/$defs/sha256"},
     "comparison_report_hash": {"$ref": "#/$defs/sha256"},
+    "benchmark_eligibility": {"enum": ["READY_PARTIAL_VIEW", "BLOCKED_USER_CONFIRMATION_REQUIRED"]},
     "human_receipt_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
     "structural_status": {"enum": ["passed", "failed", "not-run"]},
     "visual_status": {"enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE", "not-run"]},
     "hard_gate_passed": {"type": "boolean"},
+    "threshold_revision": {"const": "visible-view-gates@1"},
+    "threshold_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "threshold_source": {"const": "forgecad-runtime-visible-view-gates"},
+    "metric_gate_results": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metric_name", "direction", "observed", "threshold", "status"],
+        "properties": {
+          "metric_name": {"enum": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou", "critical_region_min_iou"]},
+          "direction": {"enum": ["min", "max"]},
+          "observed": {"type": ["number", "null"]},
+          "threshold": {"type": "number"},
+          "status": {"enum": ["passed", "failed", "not-run"]}
+        }
+      }
+    },
     "limitations": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
     "canonical_sha256": {"$ref": "#/$defs/sha256"}
   },

@@ -1,0 +1,38 @@
+{
+  "schema_version": "ForgeCADMCP010FReferenceCoverageExactBinding@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_AND_PACKAGED_EXACT_COVERAGE_BOUNDARY",
+  "source_hashes": {
+    "agentic_session_rs": "33913ea3c7e60b8cd4b89a2ca8ec0014d5c4265f632d006812bf056808957030",
+    "agentic_action_rs": "88564eee2cc234af4b989a041ff1192f529241c3790ad581c910cf9a32f2b4cd",
+    "runtime_lib_rs": "a507c4cb026db7cae4750c9d2dfd3fd976d370c8b7b91eefcef8999d25f21dcc",
+    "mcp_main_rs": "0b538308366ea892d24e13c616013d2498a0bc68e15b7fa6689b77878b862fae"
+  },
+  "package": {
+    "build_cohort_sha256": "41945cc48f600abb1601e82ed11ec116b5f6c55a6066f6777268c2d540c705c7",
+    "install_receipt": "docs/evidence/mcp010f/dev-app-install-reference-coverage-20260817.json",
+    "probe_receipt": "docs/evidence/mcp010f/dev-app-probe-reference-coverage-20260817.json",
+    "install_status": "PASS",
+    "probe_status": "PASS",
+    "ponytail_preflight": "PASS",
+    "codex_desktop_restart_gate": "NOT_RUN"
+  },
+  "coverage_boundary": {
+    "supplied_kind_to_authored_view_cardinality": "EXACTLY_ONE",
+    "duplicate_kind_fixture": "PASS_BLOCKED_AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_DUPLICATE",
+    "extra_kind_fixture": "PASS_BLOCKED_AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_NOT_SUPPLIED",
+    "missing_kind_fixture": "PASS_BLOCKED_AGENTIC_AUTHORING_COVERAGE_VIEW_BINDING_MISMATCH",
+    "real_multiview_authoring": "NOT_RUN_USER_AUTHORIZED_VIEWS_REQUIRED",
+    "synthetic_six_view_promotion": "RETAINED_SEPARATE_FIXTURE_ONLY"
+  },
+  "quality_boundary": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "camera_binding": "HISTORICAL_STAGE0_MISMATCH_RETAINED",
+    "human_visual_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "claim": "EXACT_REFERENCE_COVERAGE_ENTITY_BOUNDARY_ONLY"
+  }
+}

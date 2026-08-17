@@ -1,11 +1,13 @@
 # ForgeCAD 测试策略
 
+2026-08-17 P2 source/package Gate：`repair_intent_run_prepare` 的 CAS intent/observation/reference/camera/candidate 绑定、bounded action scope、staged-only 与 no-confirm boundary 已由 MCP/Runtime focused tests、完整 `script/test_mcp010f.sh` 与最终 Dev.app 真实参考 transport 覆盖；receipt：`docs/evidence/mcp010f/repair-intent-run-source-gate-20260817.json`。packaged transport PASS 但 camera evidence gate blocked；Repair apply、live restart 与视觉质量仍分别 `NOT_RUN/BLOCKED`。
+
 版本：2026-08-09
 状态：MCP001–009 focused Gates 已建立；FGC-MCP010A done；MCP010B structural source Gate、MCP010C renderer/compare source Gate、MCP010D operator/Skill source Gate、MCP010E AssetPack/PBR source Gate 和 MCP010F Viewer/contour source Gate 已通过；Agentic observe/plan projection、scene/stage 嵌套只读 projection conformance 与 durable session/checkpoint/RepairIntent prepare/readback isolated Gate 已通过；durable/reference/DesignSpec producer、单动作 orchestrator、Repair 应用、同一候选的 packaged/human/PBR/export/360 子门仍 `NOT_RUN/BLOCKED`
 
 Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。源码门 PASS 不等于产品质量 PASS：attempt35 只是 provisional retained observation，它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，camera 绑定 `MISMATCH`，packaged Viewer binding 为 `NOT_RUN_DIFFERENT_COHORT_AND_ARTIFACT`。
 
-<!-- forgecad-stage0: schemas=125 schema_set_sha256=58bf8449b6c213a8f6b90acf8c73701fb63638878a28bc19b78b697462068ce4 read_tools=41 write_tools=32 total_tools=73 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=129 schema_set_sha256=baaf541b3efac29997cd164f224d9fb528347956de99c2f7e668de36517b1dff read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 ## 1. 证据层级
 
@@ -62,7 +64,7 @@ MVP 不预设一个没有校准的相似度数字作为营销门。MCP009 真实
 | 010A | docs/integrity、安全/许可证、同 revision binaries、raw stdio/CLI、用户重启后的真实 Codex capability/project/build hash |
 | 010B | V2 Schema、损坏 index/source/hash/winding/UV、primitive topology/normal、五次 deterministic GLB/readback |
 | 010C | synthetic camera recovery、z-buffer/occlusion、九 AOV hash、mask/IoU/F1/landmark/region、四个 MCP 工具和错误合同 |
-| 010D | 每个已实现 Operator 正/负 fixture、预算/超时/崩溃、mirror/Part lineage；当前 11 个 D Operator 与 fixed sibling Worker Gate PASS；Manifold 恶意输入/FFI/determinism/source-ID adoption 仍 NOT_RUN，boolean unavailable |
+| 010D | 每个已实现 Operator 正/负 fixture、预算/超时/崩溃、mirror/Part lineage；当前 16-entry/16-active catalog 与 fixed sibling Worker Gate PASS；Manifold bounded C ABI/FFI、恶意输入/确定性/source-ID/残余切线 focused Gate 已通过，任意 mesh Boolean 仍 unavailable |
 | 010E | AssetPack/hash/license/SBOM、颜色空间、UV/tangent、无 external URI、纹理预算、Runtime readback + glTF Validator |
 | 010F | Viewer 单 context、compare/selection/isolate/explosion/a11y、真实 Codex change/confirm/restore/export/restart 同 hash、人工评分 |
 

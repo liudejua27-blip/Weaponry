@@ -1,0 +1,52 @@
+{
+  "schema_version": "ForgeCADMCP010FExplicitAuthoringActionBoundary@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "PASS_SOURCE_AND_PACKAGED_BOUNDARY",
+  "package": {
+    "build_cohort_sha256": "9c537aa1e8c05e212e75388d77a0846b814c0253c3f0b144d425debc9bfc446e",
+    "install_receipt": "docs/evidence/mcp010f/dev-app-install-explicit-authoring-action-gate-final-20260817.json",
+    "probe_receipt": "docs/evidence/mcp010f/dev-app-probe-explicit-authoring-action-gate-final-20260817.json",
+    "install_status": "PASS",
+    "probe_status": "PASS",
+    "codex_desktop_restart_gate": "NOT_RUN"
+  },
+  "source_hashes": {
+    "agentic_session_rs": "f2cd084986ab41688d5bae65c96708e9398ae0500880ff69370656b9fa5ba6be",
+    "agentic_action_rs": "88564eee2cc234af4b989a041ff1192f529241c3790ad581c910cf9a32f2b4cd",
+    "runtime_lib_rs": "a507c4cb026db7cae4750c9d2dfd3fd976d370c8b7b91eefcef8999d25f21dcc",
+    "mcp_main_rs": "0b538308366ea892d24e13c616013d2498a0bc68e15b7fa6689b77878b862fae"
+  },
+  "boundary": {
+    "default_session": "observation_only",
+    "required_binding_status": "bound",
+    "required_per_view_fields": [
+      "target_sha256",
+      "mask_sha256",
+      "view_spec.canonical_sha256",
+      "camera_claim.visibility",
+      "camera_claim.camera_hash"
+    ],
+    "checked_actions": [
+      "design_action_run_prepare",
+      "repair_apply_prepare",
+      "repair_apply_confirm"
+    ],
+    "positive_explicit_authoring_action": "PASS",
+    "negative_default_authoring_action": "PASS_BLOCKED_AGENTIC_EXPLICIT_AUTHORING_REQUIRED",
+    "blocked_path": {
+      "geometry_compile": "NOT_RUN",
+      "comparison": "NOT_RUN",
+      "candidate_version_write": "NOT_RUN",
+      "persistent_user_data_touched": false
+    }
+  },
+  "quality_boundary": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "human_visual_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "claim": "LINEAGE_AND_ACTION_BOUNDARY_ONLY"
+  }
+}

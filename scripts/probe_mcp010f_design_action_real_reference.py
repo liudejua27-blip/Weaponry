@@ -34,7 +34,12 @@ from probe_mcp010b_raw_stdio import (  # noqa: E402
     shutdown_runtime,
     wait_for_ready,
 )
-from probe_mcp010c_codex_cli import view_spec  # noqa: E402
+from probe_mcp010c_codex_cli import (  # noqa: E402
+    bind_reference_canvas_authoring_context,
+    normalize_numeric_representation,
+    reference_canvas_authoring_context,
+    view_spec,
+)
 from probe_mcp010e_raw_stdio import (  # noqa: E402
     canonical_hash,
     png_dimensions,
@@ -269,6 +274,11 @@ def main() -> int:
         action="store_true",
         help="Use a real surface-shell@1 chest Part and exercise surface-control-points-v1 through RuntimeParameterPatch@1.",
     )
+    parser.add_argument(
+        "--with-repair-intent-run",
+        action="store_true",
+        help="After the legacy ActionRun proposal, replay the same CAS-bound RepairIntent through repair_intent_run_prepare.",
+    )
     args = parser.parse_args()
     require(
         not (
@@ -290,6 +300,11 @@ def main() -> int:
         or args.runtime_parameter_patch
         or args.runtime_action_auto_patch,
         "surface-backed chest probe requires an isolated Runtime parameter patch path",
+    )
+    require(
+        not args.with_repair_intent_run
+        or not (args.runtime_parameter_patch or args.runtime_action_auto_patch or args.with_optimization or args.with_orchestrator),
+        "repair_intent_run_prepare probe is isolated from parameter-patch, CADFit and stage-batch extensions",
     )
 
     source = args.reference.expanduser().resolve()
@@ -332,6 +347,7 @@ def main() -> int:
 
     runtime: subprocess.Popen[str] | None = None
     client: McpClient | None = None
+    repair_client: McpClient | None = None
     optimization_client: McpClient | None = None
     ready: dict[str, Any] | None = None
     receipt: dict[str, Any] = {
@@ -421,6 +437,8 @@ def main() -> int:
             "candidate_get",
             "version_list",
         }
+        if args.with_repair_intent_run:
+            required_tools.add("repair_intent_run_prepare")
         if args.with_optimization:
             required_tools.update(
                 {
@@ -591,6 +609,11 @@ def main() -> int:
         baseline_quality_id = baseline_quality.get("quality_report_id")
         baseline_quality_sha256 = baseline_compare.get("quality_report_object_sha256")
         require(isinstance(baseline_quality_id, str) and isinstance(baseline_quality_sha256, str), "baseline quality evidence was incomplete")
+        camera_canonical_sha256 = camera.get("canonical_sha256")
+        require(
+            isinstance(camera_canonical_sha256, str) and len(camera_canonical_sha256) == 64,
+            "comparison camera canonical hash was unavailable",
+        )
 
         observation = tool_value(
             client,
@@ -605,6 +628,59 @@ def main() -> int:
         # is the same evidence hash used by the in-process ActionRun fixture.
         session_evidence_sha256 = baseline_quality_sha256
 
+        target_result = tool_value(
+            client,
+            "reference_mask_prepare",
+            {
+                "project_id": project_id,
+                "reference_id": reference_id,
+                "landmarks": [
+                    {key: item[key] for key in ("landmark_id", "x", "y", "visibility")}
+                    for item in landmarks
+                ],
+                "parts": [],
+                "user_confirmed": False,
+            },
+        )
+        target_sha256 = target_result.get("target_sha256")
+        mask_sha256 = target_result.get("mask_sha256")
+        require(
+            isinstance(target_sha256, str)
+            and len(target_sha256) == 64
+            and isinstance(mask_sha256, str)
+            and len(mask_sha256) == 64,
+            "explicit authoring target/mask hashes were unavailable",
+        )
+        authoring_context = reference_canvas_authoring_context(
+            project_id,
+            reference_id,
+            reference_sha256,
+            width,
+            height,
+            {"landmarks": landmarks, "regions": regions},
+        )
+        # Keep the actual authoring payload in the same numeric representation
+        # used by authoring_canonical_hash.  Otherwise an integral 0.0/1.0 in
+        # the wire JSON can hash differently from the normalized value used
+        # to populate ReferenceCanvas/DesignSpec canonical fields.
+        authoring_context = normalize_numeric_representation(authoring_context)
+        bind_reference_canvas_authoring_context(
+            authoring_context,
+            target_sha256=target_sha256,
+            camera_hash=camera_hash,
+            camera_canonical_sha256=camera_canonical_sha256,
+            evidence_sha256=session_evidence_sha256,
+            view_bindings={
+                "three-quarter-user-reference": {
+                    "target_sha256": target_sha256,
+                    "mask_sha256": mask_sha256,
+                    "camera_hash": camera_hash,
+                    "camera_canonical_sha256": camera_canonical_sha256,
+                    "evidence_sha256": session_evidence_sha256,
+                }
+            },
+        )
+
         session_id = "design-session-real-action-run"
         session_result = tool_value(
             client,
@@ -615,18 +691,24 @@ def main() -> int:
                 "candidate_id": baseline["candidate_id"],
                 "idempotency_key": "real-action-session-idempotency",
                 "reference_id": reference_id,
-                "design_spec_id": "design-spec-real-action-run",
-                "reference_canvas_id": "reference-canvas-real-action-run",
+                "design_spec_id": "design-spec-real-codex",
+                "reference_canvas_id": "reference-canvas-real-codex",
                 "camera_hash": camera_hash,
                 "evidence_sha256": session_evidence_sha256,
                 "approved": True,
                 "approval_receipt_id": "real-action-session-approval",
                 "approval_summary": "Create an isolated ActionRun design session",
                 "approval_expires_at": "2030-01-01T00:00:00Z",
+                "authoring_context": authoring_context,
             },
         )
         session = session_result.get("session") or {}
         require(session.get("session_id") == session_id, "session did not bind the requested id")
+        session_observation_sha256 = session.get("observation_sha256")
+        require(
+            isinstance(session_observation_sha256, str) and len(session_observation_sha256) == 64,
+            "durable session observation hash was unavailable",
+        )
         requested_stage = session.get("current_stage")
         require(requested_stage == "primary-form", f"ActionRun stage was not primary-form: {requested_stage}")
         session_read = tool_value(
@@ -721,6 +803,7 @@ def main() -> int:
                 "reference_id": reference_id,
                 "reference_sha256": reference_sha256,
                 "camera_hash": camera_hash,
+                "observation_sha256": session_observation_sha256,
                 "source_evidence_sha256": session_evidence_sha256,
                 "source_critic_report_id": baseline_quality_id,
                 "source_critic_report_sha256": baseline_quality_sha256,
@@ -781,6 +864,7 @@ def main() -> int:
             "run_id": run_id,
             "action": action,
             "requested_stage": requested_stage,
+            "observation_sha256": session_observation_sha256,
         }
         if proposal is None:
             input_binding["view_spec"] = reference_view_spec
@@ -803,6 +887,7 @@ def main() -> int:
             "action": action,
             "input_sha256": input_sha256,
             "requested_stage": requested_stage,
+            "observation_sha256": session_observation_sha256,
             **approval,
         }
         if proposal is None:
@@ -830,11 +915,247 @@ def main() -> int:
                     or args.runtime_action_auto_patch
                     or args.with_optimization
                     or args.with_orchestrator
+                    or args.with_repair_intent_run
                 )
                 and action_result.get("status") == "blocked",
                 f"ActionRun did not complete: {json.dumps(action_result, ensure_ascii=False, sort_keys=True)[:6000]}",
             )
             proposal_summary = None
+
+        repair_intent_run_receipt: dict[str, Any] | None = None
+        if args.with_repair_intent_run:
+            # The MCP adapter binds a session to the first ActionRun's
+            # run_id. Use a second preflighted stdio session for the wrapper
+            # so its distinct run_id cannot be mistaken for a cross-scope
+            # request; both sessions still share this isolated Runtime.
+            repair_client = McpClient(args.mcp, environment, max(args.timeout, 30.0))
+            repair_initialized = repair_client.request(
+                "initialize",
+                {
+                    "protocolVersion": MCP_PROTOCOL_VERSION,
+                    "capabilities": {},
+                    "clientInfo": {"name": "mcp010f-repair-intent-run", "version": "1"},
+                },
+            )
+            require(
+                repair_initialized.get("result", {}).get("protocolVersion") == MCP_PROTOCOL_VERSION,
+                "RepairIntent MCP initialize failed",
+            )
+            repair_client.notify("notifications/initialized")
+            read_ponytail_preflight(repair_client)
+            repair_run_client = repair_client
+            intent_source = "action-run"
+            checkpoint_id: str | None = None
+            if (
+                action_result.get("status") == "completed"
+                and isinstance(proposal_summary, dict)
+                and isinstance(proposal, dict)
+                and isinstance(proposal.get("repair_intent"), dict)
+            ):
+                intent_sha256 = proposal_summary.get("intent_sha256")
+                intent_object_sha256 = proposal_summary.get("intent_object_sha256")
+                require(
+                    isinstance(intent_sha256, str)
+                    and len(intent_sha256) == 64
+                    and isinstance(intent_object_sha256, str)
+                    and len(intent_object_sha256) == 64,
+                    "ActionRun did not expose both CAS-bound RepairIntent hashes",
+                )
+                wrapper_action = copy.deepcopy(action)
+                wrapper_action["action_id"] = "repair-intent-run-real-chest-width"
+                wrapper_action["action_kind"] = "bounded-repair"
+                wrapper_proposal = copy.deepcopy(proposal)
+                wrapper_proposal.pop("repair_intent", None)
+                wrapper_run_id = "repair-intent-run-real-chest-width"
+            else:
+                # A real reference commonly fails the visual gate before the
+                # legacy ActionRun emits a proposal summary. Exercise the new
+                # CAS-bound wrapper independently by first persisting the
+                # Runtime-owned failed checkpoint and deriving its approved
+                # RepairIntent. This still runs the same compile/readback/
+                # render/compare path and must remain blocked/review-only.
+                intent_source = "checkpoint-restore"
+                checkpoint_result = tool_value(
+                    client,
+                    "checkpoint_prepare",
+                    {
+                        "session_id": session_id,
+                        "project_id": project_id,
+                        "candidate_id": baseline["candidate_id"],
+                        "visual_state": "fail",
+                        "evidence_sha256": session_evidence_sha256,
+                        "stage": requested_stage,
+                        "checkpoint_type": "stage-fail",
+                        "candidate_state_sha256": baseline["candidate_state_sha256"],
+                        "artifact_sha256": baseline["artifact_sha256"],
+                        "reference_id": reference_id,
+                        "reference_sha256": reference_sha256,
+                        "camera_hash": camera_hash,
+                        "idempotency_key": "real-repair-intent-run-failed-checkpoint",
+                        "approved": True,
+                        "approval_receipt_id": "real-repair-intent-run-checkpoint-approval",
+                        "approval_summary": "Persist the isolated failed visual checkpoint before RepairIntent replay",
+                        "approval_expires_at": "2030-01-01T00:00:00Z",
+                    },
+                )
+                checkpoint = checkpoint_result.get("checkpoint")
+                require(isinstance(checkpoint, dict), "RepairIntent wrapper checkpoint was unavailable")
+                checkpoint_id = checkpoint.get("checkpoint_id")
+                checkpoint_sha256 = checkpoint.get("canonical_sha256")
+                require(
+                    isinstance(checkpoint_id, str)
+                    and isinstance(checkpoint_sha256, str)
+                    and len(checkpoint_sha256) == 64,
+                    "RepairIntent wrapper checkpoint binding was incomplete",
+                )
+                restore_result = tool_value(
+                    client,
+                    "checkpoint_restore_prepare",
+                    {
+                        "checkpoint_id": checkpoint_id,
+                        "checkpoint_sha256": checkpoint_sha256,
+                        "session_id": session_id,
+                        "project_id": project_id,
+                        "candidate_id": baseline["candidate_id"],
+                        "visual_state": "fail",
+                        "idempotency_key": "real-repair-intent-run-checkpoint-restore",
+                        "approved": True,
+                        "approval_receipt_id": "real-repair-intent-run-restore-approval",
+                        "approval_summary": "Prepare the isolated CAS-bound RepairIntent wrapper",
+                        "approval_expires_at": "2030-01-01T00:00:00Z",
+                    },
+                )
+                restore_intent = restore_result.get("intent")
+                require(isinstance(restore_intent, dict), "checkpoint restore did not return a RepairIntent")
+                intent_sha256 = restore_intent.get("canonical_sha256")
+                intent_object_sha256 = restore_result.get("intent_object_sha256")
+                require(
+                    isinstance(intent_sha256, str)
+                    and len(intent_sha256) == 64
+                    and isinstance(intent_object_sha256, str)
+                    and len(intent_object_sha256) == 64,
+                    "checkpoint restore did not expose both CAS-bound RepairIntent hashes",
+                )
+                intent_action = restore_intent.get("action")
+                require(isinstance(intent_action, dict), "checkpoint RepairIntent action was unavailable")
+                wrapper_action = {
+                    "action_id": "repair-intent-run-real-checkpoint-restore",
+                    "action_kind": "bounded-repair",
+                    "scope_kind": "part",
+                    "target_id": "scene",
+                    "operator_id": intent_action.get("operator_id", "forgecad.geometry.primitive@2"),
+                    "parameter_changes": copy.deepcopy(intent_action.get("parameter_changes")),
+                    "bounded": True,
+                    "description": "Replay one failed-checkpoint RepairIntent without mutating source state",
+                }
+                require(
+                    isinstance(wrapper_action["parameter_changes"], list)
+                    and wrapper_action["parameter_changes"],
+                    "checkpoint RepairIntent parameter changes were unavailable",
+                )
+                wrapper_proposal = {
+                    "geometry_program": copy.deepcopy(baseline["program"]),
+                    "view_spec": copy.deepcopy(reference_view_spec),
+                    "camera": copy.deepcopy(camera),
+                }
+                wrapper_run_id = "repair-intent-run-real-checkpoint-restore"
+            wrapper_input_binding = {
+                "project_id": project_id,
+                "session_id": session_id,
+                "candidate_id": baseline["candidate_id"],
+                "run_id": wrapper_run_id,
+                "intent_sha256": intent_sha256,
+                "intent_object_sha256": intent_object_sha256,
+                "observation_sha256": session_observation_sha256,
+                "source_evidence_sha256": session_evidence_sha256,
+                "reference_sha256": reference_sha256,
+                "action": wrapper_action,
+                "proposal": wrapper_proposal,
+                "requested_stage": requested_stage,
+            }
+            wrapper_input_sha256 = canonical_hash(
+                normalize_action_input_numbers(wrapper_input_binding)
+            )
+            wrapper_request = {
+                **wrapper_input_binding,
+                "input_sha256": wrapper_input_sha256,
+                "approved": True,
+                "approval_receipt_id": "real-repair-intent-run-approval",
+                "approval_summary": "Run one CAS-bound bounded RepairIntent and return staged evidence only",
+                "approval_expires_at": "2030-01-01T00:00:00Z",
+                "approval_session_id": session_id,
+                "idempotency_key": "real-repair-intent-run-idempotency",
+            }
+            repair_intent_run = tool_value(
+                repair_run_client,
+                "repair_intent_run_prepare",
+                wrapper_request,
+            )
+            require(
+                repair_intent_run.get("schema_version") == "RepairIntentRunResult@1"
+                and repair_intent_run.get("run_id") == wrapper_run_id
+                and repair_intent_run.get("input_sha256") == wrapper_input_sha256
+                and repair_intent_run.get("intent_sha256") == intent_sha256
+                and repair_intent_run.get("intent_object_sha256") == intent_object_sha256
+                and repair_intent_run.get("confirm_allowed") is False
+                and repair_intent_run.get("source_candidate_unchanged") is True
+                and repair_intent_run.get("active_design_state_mutated") is False
+                and repair_intent_run.get("runtime_write") is False
+                and repair_intent_run.get("persistent_user_data_touched") is False,
+                "repair_intent_run_prepare returned an invalid source-bound result: "
+                + json.dumps(repair_intent_run, ensure_ascii=False, sort_keys=True)[:8000],
+            )
+            nested_action_run = repair_intent_run.get("action_run")
+            require(
+                isinstance(nested_action_run, dict)
+                and nested_action_run.get("schema_version") == "DesignActionRun@1"
+                and nested_action_run.get("runtime_write") is False
+                and nested_action_run.get("persistent_user_data_touched") is False,
+                "repair_intent_run_prepare omitted its bounded ActionRun receipt",
+            )
+            repair_intent_run_replay = tool_value(
+                repair_run_client,
+                "repair_intent_run_prepare",
+                wrapper_request,
+            )
+            require(
+                repair_intent_run_replay.get("canonical_sha256")
+                == repair_intent_run.get("canonical_sha256"),
+                "repair_intent_run_prepare replay changed its immutable result receipt",
+            )
+            source_after_repair_intent_run = tool_value(
+                repair_run_client,
+                "candidate_get",
+                {"candidate_id": baseline["candidate_id"]},
+            )
+            source_after_repair_intent_run = (
+                source_after_repair_intent_run.get("candidate")
+                if isinstance(source_after_repair_intent_run.get("candidate"), dict)
+                else source_after_repair_intent_run
+            )
+            require(
+                source_after_repair_intent_run.get("canonical_sha256")
+                == baseline["candidate_state_sha256"],
+                "repair_intent_run_prepare mutated the source candidate",
+            )
+            repair_intent_run_receipt = {
+                "run_id": wrapper_run_id,
+                "run_sha256": repair_intent_run.get("canonical_sha256"),
+                "replay_sha256": repair_intent_run_replay.get("canonical_sha256"),
+                "input_sha256": wrapper_input_sha256,
+                "intent_sha256": intent_sha256,
+                "intent_object_sha256": intent_object_sha256,
+                "action_run_sha256": nested_action_run.get("canonical_sha256"),
+                "action_run_status": nested_action_run.get("status"),
+                "quality_status": repair_intent_run.get("quality_status"),
+                "status": repair_intent_run.get("status"),
+                "intent_source": intent_source,
+                "checkpoint_id": checkpoint_id,
+                "source_candidate_unchanged": True,
+                "confirm_allowed": False,
+                "persistent_user_data_touched": False,
+                "quality_claim": "NO_LIKENESS_PASS_CLAIM; CAS_BOUND_REPAIR_INTENT_RUN_TRANSPORT_ONLY",
+            }
 
         replay = tool_value(client, "design_action_run_prepare", action_request)
         require(replay.get("canonical_sha256") == action_result.get("canonical_sha256"), "ActionRun replay changed its receipt hash")
@@ -882,6 +1203,7 @@ def main() -> int:
                 "batch_id": batch_id,
                 "requested_stage": requested_stage,
                 "actions": batch_actions,
+                "observation_sha256": session_observation_sha256,
             }
             batch_request = {
                 **batch_input_binding,
@@ -927,6 +1249,7 @@ def main() -> int:
                     "run_id": batch_run_id,
                     "action": batch_action,
                     "requested_stage": requested_stage,
+                    "observation_sha256": session_observation_sha256,
                     "view_spec": reference_view_spec,
                 }
                 expected_child_input_sha256 = canonical_hash(child_input_binding)
@@ -1412,6 +1735,9 @@ def main() -> int:
         receipt.update(
             {
                 "status": (
+                    "PASS_REPAIR_INTENT_RUN_REAL_REFERENCE"
+                    if args.with_repair_intent_run
+                    else (
                     "PASS_ACTION_RUN_RUNTIME_AUTO_PARAMETER_PATCH_STAGE_BATCH"
                     if args.with_orchestrator and args.runtime_action_auto_patch
                     and action_result.get("status") == "completed"
@@ -1436,6 +1762,7 @@ def main() -> int:
                                 )
                             )
                         )
+                    )
                     )
                     )
                 ),
@@ -1489,6 +1816,9 @@ def main() -> int:
                 "preflight": preflight,
             }
         )
+        if repair_intent_run_receipt is not None:
+            receipt["repair_intent_run"] = repair_intent_run_receipt
+            receipt["quality_claim"] = "NO_LIKENESS_PASS_CLAIM; CAS_BOUND_REPAIR_INTENT_RUN_TRANSPORT_ONLY"
         if optimization_receipt is not None:
             receipt["optimization"] = optimization_receipt
             receipt["quality_claim"] = "NO_LIKENESS_PASS_CLAIM; ACTION_RUN_BOUND_CADFIT_HANDOFF_ONLY"
@@ -1508,6 +1838,11 @@ def main() -> int:
         if optimization_client is not None:
             try:
                 optimization_client.close()
+            except BaseException:
+                pass
+        if repair_client is not None:
+            try:
+                repair_client.close()
             except BaseException:
                 pass
         if client is not None:
@@ -1531,6 +1866,7 @@ def main() -> int:
     write_evidence(args.evidence, receipt)
     print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
     return 0 if receipt["status"] in {
+        "PASS_REPAIR_INTENT_RUN_REAL_REFERENCE",
         "PASS_ACTION_RUN_REAL_REFERENCE",
         "PASS_ACTION_RUN_CADFIT_HANDOFF",
         "PASS_ACTION_RUN_RUNTIME_PARAMETER_PATCH",

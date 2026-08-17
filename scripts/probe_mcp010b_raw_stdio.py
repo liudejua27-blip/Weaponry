@@ -417,7 +417,10 @@ def main() -> int:
             and runtime_identity.get("build_cohort_sha256") == expected_cohort,
             "explicit MCP/Runtime binaries did not match the expected build cohort",
         )
-    data_root = args.data_root.resolve()
+    # Preserve the short /var/... spelling on macOS. Path.resolve() expands
+    # it to /private/var/... and can push the authenticated Unix socket over
+    # the 100-byte platform limit before the Runtime has published Ready.
+    data_root = args.data_root.absolute()
     if data_root.exists():
         raise GateFailure("isolated MCP010B data root must not pre-exist")
     data_root.mkdir(mode=0o700, parents=True)

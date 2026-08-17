@@ -635,7 +635,22 @@ fn runtime_error_code(error: &RuntimeError) -> String {
                     || value.starts_with("SILHOUETTE_RIG_")
                     || value.starts_with("SILHOUETTE_PART_ERROR_")
                     || value.starts_with("SILHOUETTE_OBJECTIVE_")
+                    || value.starts_with("DESIGN_")
                     || value.starts_with("OPTIMIZATION_")
+                    // DesignActionRun intentionally keeps the implementation
+                    // detail inside Runtime, but its bounded failure families
+                    // still need to survive the IPC boundary as stable codes.
+                    // Do not forward the detail text; only the machine-readable
+                    // prefix is retained below.
+                    || value.starts_with("REPAIR_")
+                    || value.starts_with("ACTION_")
+                    || value.starts_with("GEOMETRY_")
+                    || value.starts_with("REFERENCE_")
+                    || value.starts_with("VISUAL_")
+                    || value.starts_with("QUALITY_")
+                    || value.starts_with("ARTIFACT_")
+                    || value.starts_with("PROJECT_SCOPE_")
+                    || *value == "NOT_FOUND"
                     || value.starts_with("CANDIDATE_ARTIFACT_UNAVAILABLE")
                 })
             .map(str::to_owned)

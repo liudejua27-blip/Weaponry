@@ -1,0 +1,129 @@
+{
+  "build_cohort_sha256": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+  "build_cohorts": {
+    "geometry_worker": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+    "mcp": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+    "render_worker": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+    "runtime": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8"
+  },
+  "camera_hash": "2cd35f435839f80e364a15a6930ffe37c2145925d6a5b455ccffd30873953736",
+  "candidate_confirmed": false,
+  "catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf",
+  "completed_stage": "evaluate",
+  "execution_mode": "runtime-owned-auto-parameter-patch-v1",
+  "expected_build_cohort_sha256": "906c8decb7aec90e8854bb0b7eb4d650dd3895851b556a62a1c8d16557aa17c8",
+  "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review": "NOT_RUN",
+  "image_bytes_recorded": false,
+  "orchestrator": {
+    "action_run_input_sha256": "2f61ddd88464db1a4b9178d0151538b1b1a504e599f422ea104a2229948b13ba",
+    "action_run_quality_status": "QUALITY_TARGET_NOT_MET",
+    "action_run_sha256": "5a0db70c0a463d240f9dbb6f4bb0e85ea740d9f06df1ecc36dc2841230e52cb6",
+    "action_run_status": "completed",
+    "batch_id": "design-stage-batch-real-reference",
+    "batch_sha256": "b4cd73c90fa317ae4c4729e98ce2fb831973a5e757e1294ef8b11738f8a0d80b",
+    "caller_supplied_full_proposal": false,
+    "completed_count": 1,
+    "execution_mode": "independent-reviewable-actions",
+    "job_status": "failed",
+    "next_action_index": 0,
+    "proposal_candidate_id": "candidate-7ed694bab1f44f5ea8eea05615b4c087",
+    "quality_claim": "NO_LIKENESS_PASS_CLAIM; REAL_REFERENCE_STAGE_ORCHESTRATOR_GATE_ONLY",
+    "replay_sha256": "b4cd73c90fa317ae4c4729e98ce2fb831973a5e757e1294ef8b11738f8a0d80b",
+    "source_candidate_unchanged": true,
+    "status": "blocked",
+    "version_count": 0,
+    "view_spec_forwarded": true
+  },
+  "persistent_user_data_touched": false,
+  "preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "project_id": "project-0f85420d818e43b99603d10ed0b9491e",
+  "proposal": {
+    "artifact_sha256": "c413d3af4db50bd16d591f249dffafe0c07b409767db6fac91ae60d114efe84d",
+    "baseline_score": 5.642296286778,
+    "candidate_id": "candidate-1f3fea91d1624c94bd01d59fa4fd57c2",
+    "candidate_state_sha256": "0be42dafb5bdc9281e476c0a89897967a5407ecade0aa1c0943ca08028caef4b",
+    "comparison_report_sha256": "78e760c49abe3d708af435720f28ab93ac4dd4eaac61cc6252fadac2d651c4bf",
+    "confirm_allowed": false,
+    "cross_view_evidence_sha256": null,
+    "geometry_program_sha256": "49799f3c26968ea7318aa5210b0488bfe999a18b0dbc56d7d517c7b34476b2bc",
+    "intent_object_sha256": "3fb4485f03c814bd58c071e27cb10377defaa29528e0e3fb212b760b13933532",
+    "intent_sha256": "127ea666153b410b5d90f750a74cce1dcfd3790c6a89fc801e6eb9774c020776",
+    "non_regressing": false,
+    "promotion": "rejected-regression",
+    "proposal_score": 5.6538052661239995,
+    "quality_report_sha256": "03654fd8572f3a11f40fec817b2643f6103f08af9a7f53866d3fcef15de2787e",
+    "render_set_sha256": "68130beac3bd48a6a4f5983bdc38f51259dbfecc4ad1b70e92d9cf0ed63204bf",
+    "strict_improvement": false,
+    "visual_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "quality_claim": "NO_LIKENESS_PASS_CLAIM; ACTION_RUN_PROPOSAL_TRANSPORT_AND_GATE_ONLY",
+  "reference_id": "reference-58d8840faf4e4417a6d114449a5f15b6",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "repair_probe_gate": null,
+  "repair_probe_status": "completed",
+  "replay_sha256": "50f8f0330105e67c7604546cb97a11fe901ab29645d1b1e4efe6ee97a91939c3",
+  "run_id": "design-action-run-real-chest-width",
+  "run_sha256": "50f8f0330105e67c7604546cb97a11fe901ab29645d1b1e4efe6ee97a91939c3",
+  "run_status": "completed",
+  "runtime_parameter_patch": {
+    "action_changes_authoritative": true,
+    "caller_supplied_full_proposal": false,
+    "parameter_ids": [
+      "chest-width"
+    ],
+    "runtime_materialized_geometry_program": true,
+    "schema_version": "RuntimeParameterPatch@1",
+    "source_candidate_unchanged": true,
+    "strategy": "primitive-dimensions-v1",
+    "surface_backed_chest_shell": false
+  },
+  "schema_version": "ForgeCADMCP010FDesignActionRealReferenceProbe@1",
+  "scope": "real authorized reference, one chest-shell Part, isolated Runtime/MCP/Worker process",
+  "session_evidence_sha256": "e572fa5d02603ea998418e7bcbe6c7037e8bfc7a8a70927a2dbebe2fd95263d5",
+  "session_id": "design-session-real-action-run",
+  "source_artifact_sha256": "ba31afa754d2b5fdb8f61375ce68862ad0c376ce096a85ad7eec63f6ccf4055d",
+  "source_candidate_id": "candidate-f609ddc59760412c8ff2ad7ae489a20c",
+  "source_candidate_state_sha256": "f6e33ac9fa9bede01cbbb6d99943e9c44aa2211afe101dd8e6e2c94aa3c3c856",
+  "source_program_sha256": "6cabff7c786666fa2d9f41c5afce86aef90fc8aa1f1c92138bc24961fcd1a10d",
+  "source_quality_report_id": "quality-c-3fdfdfa09f7f45628de60d2a81a6802a",
+  "source_quality_report_sha256": "e572fa5d02603ea998418e7bcbe6c7037e8bfc7a8a70927a2dbebe2fd95263d5",
+  "source_visual_status": "QUALITY_TARGET_NOT_MET",
+  "stage_results": {
+    "compile": {
+      "hash": "ba31afa754d2b5fdb8f61375ce68862ad0c376ce096a85ad7eec63f6ccf4055d",
+      "reason": null,
+      "status": "completed"
+    },
+    "evaluate": {
+      "hash": "e572fa5d02603ea998418e7bcbe6c7037e8bfc7a8a70927a2dbebe2fd95263d5",
+      "reason": null,
+      "status": "completed"
+    },
+    "prepare": {
+      "hash": "2e1c903fe464e32948b89a70068160a7fb9e136f8738518ca1bd87f11f0f39b2",
+      "reason": null,
+      "status": "completed"
+    },
+    "readback": {
+      "hash": "e6203c209bc8951f87706b1113cd17dc902a91e95c52f13b4a0ba1fb9a381ffa",
+      "reason": null,
+      "status": "completed"
+    },
+    "render": {
+      "hash": "cba4c20c328e66c28edac41b1900b1e15d656fa00b6fd967772dc97d6198b0d6",
+      "reason": null,
+      "status": "completed"
+    }
+  },
+  "status": "PASS_ACTION_RUN_RUNTIME_AUTO_PARAMETER_PATCH_STAGE_BATCH",
+  "surface_backed_chest_shell": false,
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

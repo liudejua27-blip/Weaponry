@@ -29,6 +29,7 @@
     "height": {"const": 512},
     "coordinate_space": {"const": "normalized_reference_image"},
     "source": {"enum": ["automatic", "user_refined"]},
+    "annotation_status": {"enum": ["unreviewed", "user_confirmed"]},
     "parent_target_sha256": {"$ref": "#/$defs/sha256"},
     "contour_points": {
       "type": "array",

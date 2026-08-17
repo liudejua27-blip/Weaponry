@@ -1,0 +1,20 @@
+{
+  "build_cohorts": {
+    "geometry_worker": "a97802e87bd8a512bc5ab8cf8c0f387a2c48fb6df0ef1ff638757306dcd5e6e7",
+    "mcp": "a97802e87bd8a512bc5ab8cf8c0f387a2c48fb6df0ef1ff638757306dcd5e6e7",
+    "render_worker": "a97802e87bd8a512bc5ab8cf8c0f387a2c48fb6df0ef1ff638757306dcd5e6e7",
+    "runtime": "a97802e87bd8a512bc5ab8cf8c0f387a2c48fb6df0ef1ff638757306dcd5e6e7"
+  },
+  "candidate_confirmed": false,
+  "execution_mode": "caller-owned-full-geometry-program-v1",
+  "expected_build_cohort_sha256": "a97802e87bd8a512bc5ab8cf8c0f387a2c48fb6df0ef1ff638757306dcd5e6e7",
+  "image_bytes_recorded": false,
+  "persistent_user_data_touched": false,
+  "reason": "MCP tool failed for repair_intent_run_prepare: {\"code\": \"REPAIR_INTENT_RUN_INTENT_BINDING_MISMATCH\", \"evidence_ids\": [], \"message\": \"Runtime design request rejected\", \"next_action\": \"Read capabilities_get and correct the request or wait for the required MCP task.\", \"retryable\": false, \"schema_version\": \"RuntimeError@1\"}",
+  "reference_sha256": "b9cb687e2cb6b2646bd47236efb76edeb27ccac5f1efdf595f9342f133c1cadd",
+  "schema_version": "ForgeCADMCP010FDesignActionRealReferenceProbe@1",
+  "status": "BLOCKED",
+  "surface_backed_chest_shell": false,
+  "task_id": "FGC-MCP010F",
+  "version_count": 0
+}

@@ -3478,7 +3478,7 @@ mod tests {
         assert_eq!(declared, canonical_hash(&Value::Object(without_hash)));
         assert_eq!(
             catalog["operators"].as_array().expect("operators").len(),
-            15
+            16
         );
         assert_eq!(
             catalog["operators"][0]["operator_id"],

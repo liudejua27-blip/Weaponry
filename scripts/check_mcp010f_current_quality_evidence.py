@@ -723,6 +723,55 @@ def main() -> int:
     require(any(int(value) >= 2 for value in (latest.get("surface_changed_control_point_counts") or {}).values()), "latest real-reference did not materialize multiple surface control points")
     require(latest_path != source_path and latest_path != optimization_path, "latest real-reference receipt was merged with another cohort")
 
+    orchestrator_row = ledger["latest_real_reference_orchestrator_transport"]
+    orchestrator_path = evidence_path(orchestrator_row)
+    orchestrator = load_json(orchestrator_path)
+    for key in (
+        "status",
+        "expected_build_cohort_sha256",
+        "build_cohorts",
+        "reference_sha256",
+        "execution_mode",
+        "candidate_confirmed",
+        "version_count",
+        "persistent_user_data_touched",
+    ):
+        require(orchestrator.get(key) == orchestrator_row[key], f"latest orchestrator field drifted: {key}")
+    orchestrator_cohorts = orchestrator["build_cohorts"]
+    require(set(orchestrator_cohorts) == {"mcp", "runtime", "geometry_worker", "render_worker"}, "latest orchestrator worker keys drifted")
+    require(len(set(orchestrator_cohorts.values())) == 1, "latest orchestrator binaries are not unified")
+    require(orchestrator_cohorts["mcp"] == orchestrator_row["expected_build_cohort_sha256"], "latest orchestrator cohort does not match expected")
+    batch = orchestrator.get("orchestrator")
+    require(isinstance(batch, dict), "latest orchestrator batch receipt is missing")
+    for key in (
+        "batch_id",
+        "batch_sha256",
+        "replay_sha256",
+        "job_status",
+        "status",
+        "completed_count",
+        "next_action_index",
+        "action_run_sha256",
+        "action_run_input_sha256",
+        "action_run_status",
+        "action_run_quality_status",
+        "view_spec_forwarded",
+        "caller_supplied_full_proposal",
+        "proposal_candidate_id",
+        "source_candidate_unchanged",
+        "version_count",
+        "quality_claim",
+    ):
+        require(batch.get(key) == orchestrator_row.get(key if key not in {"status"} else "status_detail"), f"latest orchestrator batch field drifted: {key}")
+    require(batch.get("batch_sha256") == batch.get("replay_sha256"), "latest orchestrator replay hash drifted")
+    require(batch.get("status") == "blocked" and batch.get("job_status") == "failed", "latest orchestrator quality stop boundary drifted")
+    require(batch.get("completed_count") == 1 and batch.get("next_action_index") == 0, "latest orchestrator action count boundary drifted")
+    require(batch.get("view_spec_forwarded") is True and batch.get("caller_supplied_full_proposal") is False, "latest orchestrator proposal boundary drifted")
+    require(batch.get("source_candidate_unchanged") is True, "latest orchestrator mutated the source candidate")
+    require(batch.get("action_run_quality_status") == "QUALITY_TARGET_NOT_MET", "latest orchestrator visual quality was promoted")
+    require(orchestrator.get("runtime_parameter_patch", {}).get("runtime_materialized_geometry_program") is True, "latest orchestrator did not materialize its Runtime parameter patch")
+    require(orchestrator_path != latest_path and orchestrator_path != source_path, "latest orchestrator receipt was merged with another cohort")
+
     viewer_row = ledger["latest_viewer_read_model_transport"]
     viewer_path = evidence_path(viewer_row)
     viewer = load_json(viewer_path)
@@ -906,6 +955,7 @@ def main() -> int:
         "same_cohort_unified_objective": "PASS_UNIFIED_OBJECTIVE_TRANSPORT_BLOCKED_PROMOTION",
         "same_cohort_unified_objective_optimization": "PASS_UNIFIED_OBJECTIVE_CADFIT_READY_QUALITY_TARGET_NOT_MET",
         "latest_real_reference_surface": "PASS_CURRENT_COHORT_CADFIT_SURFACE_MATERIALIZATION_MANIFOLD_BOOLEAN_WITH_QUALITY_TARGET_NOT_MET",
+        "latest_real_reference_orchestrator": "PASS_STAGE_BATCH_ACTION_RUN_RUNTIME_PARAMETER_PATCH_WITH_QUALITY_TARGET_NOT_MET",
         "latest_viewer_read_model": "PASS_CURRENT_COHORT_EXACT_CANDIDATE_RENDERSET_COMPARISON_READ_ONLY",
         "current_visual_quality": "QUALITY_TARGET_NOT_MET",
         "historical_observation": "RETAINED_BLOCKED_INCOMPLETE_BINDING",

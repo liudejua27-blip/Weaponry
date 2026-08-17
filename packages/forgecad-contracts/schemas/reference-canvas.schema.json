@@ -9,6 +9,7 @@
     "canvas_id",
     "project_id",
     "reference_set_sha256",
+    "bindings",
     "views",
     "coverage",
     "unknowns",
@@ -21,6 +22,7 @@
     "canvas_id": {"$ref": "#/$defs/identifier"},
     "project_id": {"$ref": "#/$defs/identifier"},
     "reference_set_sha256": {"$ref": "#/$defs/sha256"},
+    "bindings": {"$ref": "#/$defs/bindings"},
     "views": {
       "type": "array",
       "minItems": 1,
@@ -160,6 +162,9 @@
         "kind": {"$ref": "#/$defs/view_kind"},
         "authorization": {"$ref": "#/$defs/authorization"},
         "image_dimensions": {"$ref": "#/$defs/image_dimensions"},
+        "view_spec": {"$ref": "https://forgecad.local/contracts/reference-view-spec.schema.json"},
+        "target_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "mask_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
         "camera_claim": {"$ref": "#/$defs/camera_claim"},
         "visible_regions": {
           "type": "array",
@@ -173,7 +178,36 @@
           "uniqueItems": true,
           "items": {"$ref": "#/$defs/unknown_region"}
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"target_sha256": {"type": "null"}},
+            "required": ["target_sha256"]
+          },
+          "then": {"properties": {"mask_sha256": {"type": "null"}}}
+        },
+        {
+          "if": {
+            "properties": {"target_sha256": {"type": "string"}},
+            "required": ["target_sha256"]
+          },
+          "then": {
+            "properties": {
+              "mask_sha256": {"$ref": "#/$defs/sha256"}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"target_sha256": {"type": "string"}},
+            "required": ["target_sha256"]
+          },
+          "then": {
+            "required": ["view_spec"]
+          }
+        }
+      ]
     },
     "authorization": {
       "type": "object",
@@ -207,6 +241,7 @@
       "properties": {
         "visibility": {"$ref": "#/$defs/visibility"},
         "camera_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "camera_canonical_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
         "claim": {"$ref": "#/$defs/safe_text"},
         "evidence_refs": {
           "type": "array",
@@ -230,6 +265,24 @@
             "required": ["visibility"]
           },
           "then": {"properties": {"camera_hash": {"$ref": "#/$defs/sha256"}}}
+        },
+        {
+          "if": {
+            "properties": {"visibility": {"const": "unknown"}},
+            "required": ["visibility"]
+          },
+          "then": {"properties": {"camera_canonical_sha256": {"const": null}}}
+        },
+        {
+          "if": {
+            "properties": {"camera_hash": {"type": "string"}},
+            "required": ["camera_hash"]
+          },
+          "then": {
+            "properties": {
+              "camera_canonical_sha256": {"$ref": "#/$defs/sha256"}
+            }
+          }
         }
       ]
     },
@@ -328,6 +381,28 @@
               "hq_360_status": {"const": "eligible"}
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "coverage_status": {"const": "complete"},
+              "hq_360_status": {"const": "eligible"}
+            },
+            "required": ["coverage_status", "hq_360_status"]
+          },
+          "then": {
+            "properties": {
+              "required_views": {
+                "allOf": [
+                  {"contains": {"const": "front"}},
+                  {"contains": {"const": "back"}},
+                  {"contains": {"const": "left"}},
+                  {"contains": {"const": "right"}},
+                  {"contains": {"const": "rear-three-quarter"}}
+                ]
+              }
+            }
+          }
         }
       ]
     },
@@ -369,6 +444,54 @@
         "statement": {"$ref": "#/$defs/safe_text"},
         "state": {"$ref": "#/$defs/state"}
       }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "target_sha256",
+        "camera_hash",
+        "camera_canonical_sha256",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "status": {"enum": ["unbound", "bound"]},
+        "target_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "camera_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "camera_canonical_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "evidence_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "unbound"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "target_sha256": {"const": null},
+              "camera_hash": {"const": null},
+              "camera_canonical_sha256": {"const": null},
+              "evidence_sha256": {"const": null}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"status": {"const": "bound"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "target_sha256": {"$ref": "#/$defs/sha256"},
+              "camera_hash": {"$ref": "#/$defs/sha256"},
+              "camera_canonical_sha256": {"$ref": "#/$defs/sha256"},
+              "evidence_sha256": {"$ref": "#/$defs/sha256"}
+            }
+          }
+        }
+      ]
     }
   }
 }

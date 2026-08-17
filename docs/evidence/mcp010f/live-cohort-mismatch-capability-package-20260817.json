@@ -1,0 +1,32 @@
+{
+  "schema_version": "ForgeCADMCP010FLiveCohortDiagnostic@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-17",
+  "status": "BLOCKED_LIVE_MCP_RESTART_REQUIRED",
+  "source_package": {
+    "build_cohort_sha256": "820a542fabe3503f0b8cf6c86e84f578e7b074d79d07401a9a3f865dc60709b4",
+    "install_receipt": "docs/evidence/mcp010f/dev-app-install-capability-tools-list-fail-closed-v2-20260817.json",
+    "probe_receipt": "docs/evidence/mcp010f/dev-app-probe-capability-tools-list-fail-closed-v2-20260817.json",
+    "status": "PASS"
+  },
+  "live_capabilities_get": {
+    "runtime_build_cohort_sha256": "41945cc48f600abb1601e82ed11ec116b5f6c55a6066f6777268c2d540c705c7",
+    "mcp_build_cohort_sha256": "3e6debdabdb56dff44e630918553dcfbaf9d2ae0503c23d144307eed33c53b34",
+    "build_cohort_match": false,
+    "mcp_write_tools_enabled": true,
+    "tool_manifest_hash": "ef6aad95ed504a083d816589de7a033b35b7f0781c308a5c5fbb3827bdcd193d",
+    "operator_catalog_sha256": "b0b239cb7b9bd600a1e171ecdcd359100eaba9048d3241e790d10bcd7a53bebf"
+  },
+  "preflight": {
+    "skill_id": "ponytail-preflight",
+    "version": "0.1.0",
+    "status": "PASS_READ_ONLY",
+    "knowledge_canonical_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_manifest_canonical_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1"
+  },
+  "boundary": {
+    "design_actions": "BLOCKED_UNTIL_COHORT_MATCH",
+    "safe_next_step": "user must safely restart Codex Desktop so its stdio MCP session reloads the installed package",
+    "quality_claim": "LIVE_COHORT_DIAGNOSTIC_ONLY"
+  }
+}

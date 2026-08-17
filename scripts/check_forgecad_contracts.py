@@ -603,6 +603,22 @@ def check_mcp010c_contracts() -> None:
         and quality["properties"]["hard_gate_passed"].get("type") == "boolean",
         "QualityReport@2 must distinguish visual status from structural hard gates",
     )
+    require(
+        set(
+            [
+                "threshold_revision",
+                "threshold_policy_sha256",
+                "threshold_source",
+                "metric_gate_results",
+            ]
+        ).issubset(set(quality.get("required", [])))
+        and quality["properties"]["threshold_revision"].get("const") == "visible-view-gates@1"
+        and quality["properties"]["threshold_source"].get("const")
+        == "forgecad-runtime-visible-view-gates"
+        and quality["properties"]["threshold_policy_sha256"].get("$ref") == "#/$defs/sha256"
+        and quality["properties"]["metric_gate_results"].get("maxItems") == 8,
+        "QualityReport@2 must emit Runtime-owned threshold policy and metric gate results",
+    )
 
 
 def check_mcp010e_contracts() -> None:
