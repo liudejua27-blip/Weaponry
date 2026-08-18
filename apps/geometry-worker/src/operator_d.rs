@@ -13,13 +13,29 @@ use super::{
     PrimitiveNodeMesh, ValidatedV2Primitive, MAX_COORDINATE, MAX_DIMENSION,
 };
 use serde_json::{Map, Value};
-use std::collections::BTreeMap;
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_PROFILE_POINTS: usize = 64;
 const MAX_LOFT_PROFILES: usize = 16;
+const MAX_LOFT_V2_RESAMPLE_POINTS: usize = 64;
+const MAX_LOFT_V2_INTERPOLATION_RINGS: usize = 16;
 const MAX_SWEEP_POINTS: usize = 128;
 const SURFACE_PATCH_CONTROL_POINTS: usize = 16;
 const MAX_SUBD_CONTROL_POINTS: usize = 256;
+
+#[derive(Debug, Clone, Copy)]
+enum ProfileLoftV2Interpolation {
+    Linear,
+    CatmullRom,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProfileLoftV2Ring {
+    station_m: f32,
+    points: Vec<[f32; 2]>,
+    corner_flags: Vec<bool>,
+}
 
 #[derive(Debug, Clone)]
 pub enum ValidatedOperator {
@@ -32,6 +48,15 @@ pub enum ValidatedOperator {
     },
     ProfileLoft {
         profiles: Vec<(f32, Vec<[f32; 2]>)>,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    /// Profile-loft@2 is intentionally kept as a Worker-side typed kernel
+    /// until the Runtime contracts/catalog are promoted in a separate change.
+    /// Validation materializes all resampled/interpolated rings before mesh
+    /// allocation, so compile cannot silently accept a malformed intermediate.
+    ProfileLoftV2 {
+        rings: Vec<ProfileLoftV2Ring>,
         position_m: [f32; 3],
         rotation_rad: [f32; 3],
     },
@@ -154,6 +179,11 @@ impl ValidatedOperator {
             Self::ProfileLoft { profiles, .. } => {
                 let points = profiles.first().map(|(_, p)| p.len()).unwrap_or(0) as u64;
                 2 * points.saturating_sub(2) + 2 * points * profiles.len().saturating_sub(1) as u64
+            }
+            Self::ProfileLoftV2 { rings, .. } => {
+                let points = rings.first().map(|ring| ring.points.len()).unwrap_or(0) as u64;
+                let ring_count = rings.len() as u64;
+                2 * points.saturating_sub(2) + 2 * points * ring_count.saturating_sub(1)
             }
             Self::LongitudinalSectionLoft { sections, .. } => {
                 let points = sections.first().map(|(_, p)| p.len()).unwrap_or(0) as u64;
@@ -345,6 +375,114 @@ pub fn validate_operator(
             }
             ValidatedOperator::ProfileLoft {
                 profiles,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.profile-loft@2" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "profile-loft@2 accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "profiles",
+                    "resample_points",
+                    "interpolation",
+                    "interpolation_rings",
+                    "preserve_corners",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "profile-loft@2",
+            )?;
+            require_shape(parameters, "profile-loft-v2")?;
+            let resample_points = bounded_count(
+                parameters,
+                "resample_points",
+                4,
+                MAX_LOFT_V2_RESAMPLE_POINTS,
+            )?;
+            let interpolation = match parameters.get("interpolation").and_then(Value::as_str) {
+                Some("linear") => ProfileLoftV2Interpolation::Linear,
+                Some("catmull-rom") => ProfileLoftV2Interpolation::CatmullRom,
+                _ => {
+                    return Err(GeometryError::Invalid(
+                        "profile-loft@2 interpolation must be linear or catmull-rom".to_owned(),
+                    ))
+                }
+            };
+            let interpolation_rings = bounded_count(
+                parameters,
+                "interpolation_rings",
+                0,
+                MAX_LOFT_V2_INTERPOLATION_RINGS,
+            )?;
+            let preserve_corners = bool_field(parameters, "preserve_corners")?;
+            let profiles_value = parameters
+                .get("profiles")
+                .and_then(Value::as_array)
+                .ok_or_else(|| GeometryError::Invalid("profiles must be an array".to_owned()))?;
+            if !(2..=MAX_LOFT_PROFILES).contains(&profiles_value.len()) {
+                return Err(GeometryError::Invalid(
+                    "profile-loft@2 profiles count is outside bounds".to_owned(),
+                ));
+            }
+
+            let mut profiles = Vec::with_capacity(profiles_value.len());
+            let mut previous_station = f32::NEG_INFINITY;
+            let mut winding_positive: Option<bool> = None;
+            for profile_value in profiles_value {
+                let profile_object = profile_value.as_object().ok_or_else(|| {
+                    GeometryError::Invalid("profile-loft@2 profile must be an object".to_owned())
+                })?;
+                require_exact_keys(
+                    profile_object,
+                    &["station_m", "points", "corner_indices"],
+                    "profile-loft@2 profile",
+                )?;
+                let station_m = number_field(profile_object, "station_m", MAX_COORDINATE)?;
+                if station_m <= previous_station {
+                    return Err(GeometryError::Invalid(
+                        "profile-loft@2 stations must be strictly increasing".to_owned(),
+                    ));
+                }
+                previous_station = station_m;
+                let points = parse_points(profile_object, "points", 3, MAX_PROFILE_POINTS)?;
+                validate_simple_profile(&points, "profile-loft@2 profile")?;
+                let area = signed_area(&points);
+                if !area.is_finite() || area.abs() <= 1.0e-5 {
+                    return Err(GeometryError::Invalid(
+                        "profile-loft@2 profile has zero or non-finite area".to_owned(),
+                    ));
+                }
+                let positive = area > 0.0;
+                if let Some(expected) = winding_positive {
+                    if expected != positive {
+                        return Err(GeometryError::Invalid(
+                            "profile-loft@2 profile winding must be consistent".to_owned(),
+                        ));
+                    }
+                } else {
+                    winding_positive = Some(positive);
+                }
+                let corner_indices =
+                    parse_corner_indices(profile_object, "corner_indices", points.len())?;
+                profiles.push((station_m, points, corner_indices));
+            }
+
+            let rings = build_profile_loft_v2_rings(
+                &profiles,
+                resample_points,
+                interpolation,
+                interpolation_rings,
+                preserve_corners,
+            )?;
+            ValidatedOperator::ProfileLoftV2 {
+                rings,
                 position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
                 rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
             }
@@ -813,6 +951,16 @@ pub fn compile_operator(
             *rotation_rad,
             [1.0; 3],
         ),
+        ValidatedOperator::ProfileLoftV2 {
+            rings,
+            position_m,
+            rotation_rad,
+        } => transform_mesh(
+            profile_loft_v2_mesh(rings)?,
+            *position_m,
+            *rotation_rad,
+            [1.0; 3],
+        ),
         ValidatedOperator::LongitudinalSectionLoft {
             sections,
             position_m,
@@ -1091,6 +1239,13 @@ pub fn compile_operator(
 /// curved surface.  A cosine threshold intentionally leaves 90-degree caps
 /// and hard panel edges crisp while joining adjacent profile/ring facets.
 fn smooth_curved_normals(mesh: &mut PrimitiveNodeMesh) {
+    smooth_curved_normals_with_hard_points(mesh, &BTreeSet::new());
+}
+
+fn smooth_curved_normals_with_hard_points(
+    mesh: &mut PrimitiveNodeMesh,
+    hard_positions: &BTreeSet<(u32, u32, u32)>,
+) {
     const COMPATIBLE_NORMAL_DOT: f32 = 0.55;
     if mesh.positions.len() != mesh.normals.len() || mesh.indices.len() % 3 != 0 {
         return;
@@ -1130,6 +1285,19 @@ fn smooth_curved_normals(mesh: &mut PrimitiveNodeMesh) {
     }
     for indices in groups.values() {
         if indices.len() < 2 {
+            continue;
+        }
+        if indices.iter().any(|index| {
+            let position = mesh.positions[*index];
+            hard_positions.contains(&(
+                position[0].to_bits(),
+                position[1].to_bits(),
+                position[2].to_bits(),
+            ))
+        }) {
+            // Explicit/detected profile corners are crease anchors.  Keeping
+            // the duplicated chart normals untouched preserves the authored
+            // hard break even when neighbouring facets are otherwise smooth.
             continue;
         }
         for &index in indices {
@@ -1320,6 +1488,36 @@ fn parse_points_from_array(
     Ok(points)
 }
 
+fn parse_corner_indices(
+    object: &Map<String, Value>,
+    key: &str,
+    point_count: usize,
+) -> Result<Vec<usize>, GeometryError> {
+    let values = object
+        .get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid(format!("{key} must be an array")))?;
+    if values.len() > point_count || values.len() > MAX_PROFILE_POINTS {
+        return Err(GeometryError::Invalid(format!(
+            "{key} count is outside bounds"
+        )));
+    }
+    let mut indices = Vec::with_capacity(values.len());
+    for value in values {
+        let index = value.as_u64().ok_or_else(|| {
+            GeometryError::Invalid(format!("{key} must contain non-negative integers"))
+        })? as usize;
+        if index >= point_count || indices.contains(&index) {
+            return Err(GeometryError::Invalid(format!(
+                "{key} contains a duplicate or out-of-range index"
+            )));
+        }
+        indices.push(index);
+    }
+    indices.sort_unstable();
+    Ok(indices)
+}
+
 fn parse_vec3_array(
     parameters: &Map<String, Value>,
     key: &str,
@@ -1376,12 +1574,519 @@ fn require_nonzero_area(profile: &[[f32; 2]], label: &str) -> Result<(), Geometr
     Ok(())
 }
 
+fn subtract2(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
+    [a[0] - b[0], a[1] - b[1]]
+}
+
+fn add2(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
+    [a[0] + b[0], a[1] + b[1]]
+}
+
+fn scale2(value: [f32; 2], scalar: f32) -> [f32; 2] {
+    [value[0] * scalar, value[1] * scalar]
+}
+
+fn dot2(a: [f32; 2], b: [f32; 2]) -> f32 {
+    a[0] * b[0] + a[1] * b[1]
+}
+
+fn cross2(a: [f32; 2], b: [f32; 2]) -> f32 {
+    a[0] * b[1] - a[1] * b[0]
+}
+
+fn length2(value: [f32; 2]) -> f32 {
+    dot2(value, value).sqrt()
+}
+
+fn lerp2(a: [f32; 2], b: [f32; 2], t: f32) -> [f32; 2] {
+    add2(a, scale2(subtract2(b, a), t))
+}
+
+/// Reject a profile before any resampling.  A profile is deliberately a
+/// simple polygon rather than a general winding/path expression: accepting
+/// self-intersections here would make the cap triangulation and station
+/// correspondence ambiguous.
+fn validate_simple_profile(profile: &[[f32; 2]], label: &str) -> Result<(), GeometryError> {
+    const EDGE_EPSILON_SQUARED: f32 = 1.0e-10;
+    if profile.len() < 3 {
+        return Err(GeometryError::Invalid(format!(
+            "{label} requires at least three points"
+        )));
+    }
+    for index in 0..profile.len() {
+        let next = (index + 1) % profile.len();
+        let edge = subtract2(profile[next], profile[index]);
+        if !edge[0].is_finite() || !edge[1].is_finite() || dot2(edge, edge) <= EDGE_EPSILON_SQUARED
+        {
+            return Err(GeometryError::Invalid(format!(
+                "{label} contains a zero-length edge"
+            )));
+        }
+    }
+    for first in 0..profile.len() {
+        let first_next = (first + 1) % profile.len();
+        for second in (first + 1)..profile.len() {
+            let second_next = (second + 1) % profile.len();
+            // Adjacent edges are allowed to meet at their shared vertex.  The
+            // edge pair (0,last) is adjacent as well.
+            if first == second
+                || first_next == second
+                || second_next == first
+                || (first == 0 && second_next == 0)
+            {
+                continue;
+            }
+            if segments_intersect(
+                profile[first],
+                profile[first_next],
+                profile[second],
+                profile[second_next],
+            ) {
+                return Err(GeometryError::Invalid(format!(
+                    "{label} contains a self-intersection"
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn segments_intersect(a: [f32; 2], b: [f32; 2], c: [f32; 2], d: [f32; 2]) -> bool {
+    const EPSILON: f32 = 1.0e-6;
+    let ab = subtract2(b, a);
+    let ac = subtract2(c, a);
+    let ad = subtract2(d, a);
+    let cd = subtract2(d, c);
+    let ca = subtract2(a, c);
+    let cb = subtract2(b, c);
+    let o1 = cross2(ab, ac);
+    let o2 = cross2(ab, ad);
+    let o3 = cross2(cd, ca);
+    let o4 = cross2(cd, cb);
+    let opposite = |left: f32, right: f32| {
+        (left > EPSILON && right < -EPSILON) || (left < -EPSILON && right > EPSILON)
+    };
+    if opposite(o1, o2) && opposite(o3, o4) {
+        return true;
+    }
+    let on_segment = |p: [f32; 2], start: [f32; 2], end: [f32; 2]| {
+        p[0] >= start[0].min(end[0]) - EPSILON
+            && p[0] <= start[0].max(end[0]) + EPSILON
+            && p[1] >= start[1].min(end[1]) - EPSILON
+            && p[1] <= start[1].max(end[1]) + EPSILON
+    };
+    (o1.abs() <= EPSILON && on_segment(c, a, b))
+        || (o2.abs() <= EPSILON && on_segment(d, a, b))
+        || (o3.abs() <= EPSILON && on_segment(a, c, d))
+        || (o4.abs() <= EPSILON && on_segment(b, c, d))
+}
+
 fn oriented_profile(profile: &[[f32; 2]]) -> Vec<[f32; 2]> {
     if signed_area(profile) >= 0.0 {
         profile.to_vec()
     } else {
         profile.iter().rev().copied().collect()
     }
+}
+
+fn oriented_profile_with_corners(
+    profile: &[[f32; 2]],
+    corner_indices: &[usize],
+) -> (Vec<[f32; 2]>, Vec<usize>) {
+    if signed_area(profile) >= 0.0 {
+        (profile.to_vec(), corner_indices.to_vec())
+    } else {
+        (
+            profile.iter().rev().copied().collect(),
+            corner_indices
+                .iter()
+                .map(|index| profile.len() - 1 - *index)
+                .collect(),
+        )
+    }
+}
+
+fn detected_corner_indices(profile: &[[f32; 2]]) -> Vec<usize> {
+    const CORNER_COSINE_LIMIT: f32 = 0.82;
+    let mut indices = Vec::new();
+    for index in 0..profile.len() {
+        let previous = profile[(index + profile.len() - 1) % profile.len()];
+        let current = profile[index];
+        let next = profile[(index + 1) % profile.len()];
+        let incoming = subtract2(previous, current);
+        let outgoing = subtract2(next, current);
+        let denominator = length2(incoming) * length2(outgoing);
+        if denominator <= f32::EPSILON {
+            continue;
+        }
+        let cosine = dot2(incoming, outgoing) / denominator;
+        if cosine.is_finite() && cosine <= CORNER_COSINE_LIMIT {
+            indices.push(index);
+        }
+    }
+    indices
+}
+
+fn merge_corner_indices(
+    profile: &[[f32; 2]],
+    explicit: &[usize],
+    preserve_corners: bool,
+) -> Vec<usize> {
+    let mut indices = BTreeSet::new();
+    if preserve_corners {
+        indices.extend(explicit.iter().copied());
+        indices.extend(detected_corner_indices(profile));
+    }
+    indices.into_iter().collect()
+}
+
+/// Resample a simple closed contour by perimeter distance.  Explicit and
+/// detected corners become fixed anchors; the remaining samples are allocated
+/// by interval length with a stable largest-remainder rule.  This avoids the
+/// common failure where uniform sampling silently moves a weapon's sharp
+/// silhouette corners off their intended positions.
+fn resample_closed_profile(
+    profile: &[[f32; 2]],
+    corner_indices: &[usize],
+    sample_count: usize,
+) -> Result<ProfileLoftV2Ring, GeometryError> {
+    if !(3..=MAX_PROFILE_POINTS).contains(&profile.len()) {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 profile point count is outside bounds".to_owned(),
+        ));
+    }
+    if !(4..=MAX_LOFT_V2_RESAMPLE_POINTS).contains(&sample_count) {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 resample_points is outside bounds".to_owned(),
+        ));
+    }
+    let mut cumulative = vec![0.0f32; profile.len() + 1];
+    for index in 0..profile.len() {
+        cumulative[index + 1] = cumulative[index]
+            + length2(subtract2(
+                profile[(index + 1) % profile.len()],
+                profile[index],
+            ));
+    }
+    let perimeter = *cumulative.last().expect("closed profile cumulative length");
+    if !perimeter.is_finite() || perimeter <= 1.0e-5 {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 profile perimeter is invalid".to_owned(),
+        ));
+    }
+
+    let mut anchors = BTreeSet::new();
+    // Keep the authored start as a deterministic phase anchor even when it is
+    // not a crease.  Other profiles are phase-aligned after resampling.
+    anchors.insert(0usize);
+    anchors.extend(corner_indices.iter().copied());
+    if anchors.len() > sample_count {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 resample_points cannot preserve all corners".to_owned(),
+        ));
+    }
+    let anchors = anchors.into_iter().collect::<Vec<_>>();
+    let interval_count = anchors.len();
+    let mut lengths = Vec::with_capacity(interval_count);
+    for interval in 0..interval_count {
+        let start_index = anchors[interval];
+        let end_index = anchors[(interval + 1) % interval_count];
+        let start = cumulative[start_index];
+        let mut end = cumulative[end_index];
+        if interval + 1 == interval_count {
+            end += perimeter;
+        }
+        let length = end - start;
+        if !length.is_finite() || length <= 1.0e-7 {
+            return Err(GeometryError::Invalid(
+                "profile-loft@2 corner anchors are coincident".to_owned(),
+            ));
+        }
+        lengths.push(length);
+    }
+    let extra = sample_count - interval_count;
+    let mut allocations = vec![1usize; interval_count];
+    let mut remainders = Vec::with_capacity(interval_count);
+    let extra_f = extra as f32;
+    let mut assigned_extra = 0usize;
+    for (index, length) in lengths.iter().copied().enumerate() {
+        let ideal = if extra == 0 {
+            0.0
+        } else {
+            length / perimeter * extra_f
+        };
+        let floor = ideal.floor() as usize;
+        allocations[index] += floor;
+        assigned_extra += floor;
+        remainders.push((ideal - floor as f32, index));
+    }
+    remainders.sort_by(
+        |(left_remainder, left_index), (right_remainder, right_index)| {
+            right_remainder
+                .partial_cmp(left_remainder)
+                .unwrap_or(Ordering::Equal)
+                .then_with(|| left_index.cmp(right_index))
+        },
+    );
+    for (_, index) in remainders
+        .into_iter()
+        .take(extra.saturating_sub(assigned_extra))
+    {
+        allocations[index] += 1;
+    }
+
+    let is_corner = |index: usize| corner_indices.binary_search(&index).is_ok();
+    let mut points = Vec::with_capacity(sample_count);
+    let mut corner_flags = Vec::with_capacity(sample_count);
+    for interval in 0..interval_count {
+        let start_index = anchors[interval];
+        let start_distance = cumulative[start_index];
+        let end_distance = start_distance + lengths[interval];
+        points.push(profile[start_index]);
+        corner_flags.push(is_corner(start_index));
+        for step in 1..allocations[interval] {
+            let distance =
+                start_distance + lengths[interval] * (step as f32 / allocations[interval] as f32);
+            points.push(sample_profile_distance(
+                profile,
+                &cumulative,
+                perimeter,
+                distance,
+            ));
+            corner_flags.push(false);
+        }
+        debug_assert!(end_distance.is_finite());
+    }
+    if points.len() != sample_count || corner_flags.len() != sample_count {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 resampling produced an invalid sample count".to_owned(),
+        ));
+    }
+    validate_simple_profile(&points, "profile-loft@2 resampled profile")?;
+    if signed_area(&points) <= 1.0e-5 {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 resampled profile winding is invalid".to_owned(),
+        ));
+    }
+    Ok(ProfileLoftV2Ring {
+        station_m: 0.0,
+        points,
+        corner_flags,
+    })
+}
+
+fn sample_profile_distance(
+    profile: &[[f32; 2]],
+    cumulative: &[f32],
+    perimeter: f32,
+    mut distance: f32,
+) -> [f32; 2] {
+    distance = distance.rem_euclid(perimeter);
+    let mut edge = 0usize;
+    while edge + 1 < cumulative.len() && cumulative[edge + 1] < distance {
+        edge += 1;
+    }
+    if edge >= profile.len() {
+        return profile[0];
+    }
+    let edge_length = cumulative[edge + 1] - cumulative[edge];
+    if edge_length <= f32::EPSILON {
+        return profile[edge];
+    }
+    let t = ((distance - cumulative[edge]) / edge_length).clamp(0.0, 1.0);
+    lerp2(profile[edge], profile[(edge + 1) % profile.len()], t)
+}
+
+fn normalized_ring_points(points: &[[f32; 2]]) -> (Vec<[f32; 2]>, [f32; 2], f32) {
+    let mut center = [0.0f32; 2];
+    for point in points {
+        center = add2(center, *point);
+    }
+    let inverse_count = 1.0 / points.len() as f32;
+    center = scale2(center, inverse_count);
+    let mut radius_squared = 0.0f32;
+    for point in points {
+        let delta = subtract2(*point, center);
+        radius_squared += dot2(delta, delta);
+    }
+    let radius = (radius_squared * inverse_count).sqrt().max(1.0e-5);
+    (
+        points
+            .iter()
+            .map(|point| scale2(subtract2(*point, center), 1.0 / radius))
+            .collect(),
+        center,
+        radius,
+    )
+}
+
+fn align_ring_phase(reference: &[[f32; 2]], candidate: &mut ProfileLoftV2Ring) {
+    if reference.len() != candidate.points.len() || reference.is_empty() {
+        return;
+    }
+    let (reference_normalized, _, _) = normalized_ring_points(reference);
+    let (candidate_normalized, _, _) = normalized_ring_points(&candidate.points);
+    let sample_count = reference.len();
+    let mut best_shift = 0usize;
+    let mut best_cost = f32::INFINITY;
+    for shift in 0..sample_count {
+        let mut cost = 0.0f32;
+        for index in 0..sample_count {
+            let delta = subtract2(
+                reference_normalized[index],
+                candidate_normalized[(index + shift) % sample_count],
+            );
+            cost += dot2(delta, delta);
+        }
+        if cost < best_cost - 1.0e-7 {
+            best_cost = cost;
+            best_shift = shift;
+        }
+    }
+    if best_shift == 0 {
+        return;
+    }
+    let points = candidate.points.clone();
+    let flags = candidate.corner_flags.clone();
+    for index in 0..sample_count {
+        candidate.points[index] = points[(index + best_shift) % sample_count];
+        candidate.corner_flags[index] = flags[(index + best_shift) % sample_count];
+    }
+}
+
+fn catmull_rom2(p0: [f32; 2], p1: [f32; 2], p2: [f32; 2], p3: [f32; 2], t: f32) -> [f32; 2] {
+    let t2 = t * t;
+    let t3 = t2 * t;
+    scale2(
+        add2(
+            add2(scale2(p1, 2.0), scale2(subtract2(p2, p0), t)),
+            add2(
+                scale2(
+                    add2(
+                        add2(scale2(p0, 2.0), scale2(p1, -5.0)),
+                        add2(scale2(p2, 4.0), scale2(p3, -1.0)),
+                    ),
+                    t2,
+                ),
+                scale2(
+                    add2(
+                        add2(scale2(p0, -1.0), scale2(p1, 3.0)),
+                        add2(scale2(p2, -3.0), p3),
+                    ),
+                    t3,
+                ),
+            ),
+        ),
+        0.5,
+    )
+}
+
+fn build_profile_loft_v2_rings(
+    profiles: &[(f32, Vec<[f32; 2]>, Vec<usize>)],
+    resample_points: usize,
+    interpolation: ProfileLoftV2Interpolation,
+    interpolation_rings: usize,
+    preserve_corners: bool,
+) -> Result<Vec<ProfileLoftV2Ring>, GeometryError> {
+    let mut sampled = Vec::with_capacity(profiles.len());
+    for (station_m, profile, explicit_corners) in profiles {
+        let (oriented, oriented_explicit_corners) =
+            oriented_profile_with_corners(profile, explicit_corners);
+        let corners = merge_corner_indices(&oriented, &oriented_explicit_corners, preserve_corners);
+        let mut ring = resample_closed_profile(&oriented, &corners, resample_points)?;
+        ring.station_m = *station_m;
+        sampled.push(ring);
+    }
+    let reference = sampled[0].points.clone();
+    for ring in sampled.iter_mut().skip(1) {
+        align_ring_phase(&reference, ring);
+    }
+
+    let total_rings = sampled
+        .len()
+        .checked_add(
+            (sampled.len() - 1)
+                .checked_mul(interpolation_rings)
+                .ok_or_else(|| {
+                    GeometryError::Invalid(
+                        "profile-loft@2 interpolation ring count overflow".to_owned(),
+                    )
+                })?,
+        )
+        .ok_or_else(|| {
+            GeometryError::Invalid("profile-loft@2 interpolation ring count overflow".to_owned())
+        })?;
+    if total_rings < 2 || total_rings > 257 {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 total ring count is outside bounds".to_owned(),
+        ));
+    }
+
+    let mut rings = Vec::with_capacity(total_rings);
+    for interval in 0..(sampled.len() - 1) {
+        let left = &sampled[interval];
+        let right = &sampled[interval + 1];
+        rings.push(left.clone());
+        for step in 1..=interpolation_rings {
+            let t = step as f32 / (interpolation_rings + 1) as f32;
+            let mut points = Vec::with_capacity(resample_points);
+            let mut corner_flags = Vec::with_capacity(resample_points);
+            for point_index in 0..resample_points {
+                let point = match interpolation {
+                    ProfileLoftV2Interpolation::Linear => {
+                        lerp2(left.points[point_index], right.points[point_index], t)
+                    }
+                    ProfileLoftV2Interpolation::CatmullRom => {
+                        let p0 = if interval == 0 {
+                            left.points[point_index]
+                        } else {
+                            sampled[interval - 1].points[point_index]
+                        };
+                        let p3 = if interval + 2 >= sampled.len() {
+                            right.points[point_index]
+                        } else {
+                            sampled[interval + 2].points[point_index]
+                        };
+                        catmull_rom2(
+                            p0,
+                            left.points[point_index],
+                            right.points[point_index],
+                            p3,
+                            t,
+                        )
+                    }
+                };
+                if !point[0].is_finite() || !point[1].is_finite() {
+                    return Err(GeometryError::Invalid(
+                        "profile-loft@2 interpolation emitted non-finite point".to_owned(),
+                    ));
+                }
+                points.push(point);
+                corner_flags
+                    .push(left.corner_flags[point_index] || right.corner_flags[point_index]);
+            }
+            validate_simple_profile(&points, "profile-loft@2 interpolated ring")?;
+            if signed_area(&points) <= 1.0e-5 {
+                return Err(GeometryError::Invalid(
+                    "profile-loft@2 interpolation changed profile winding".to_owned(),
+                ));
+            }
+            rings.push(ProfileLoftV2Ring {
+                station_m: left.station_m + (right.station_m - left.station_m) * t,
+                points,
+                corner_flags,
+            });
+        }
+    }
+    rings.push(sampled.last().expect("at least two profiles").clone());
+    for pair in rings.windows(2) {
+        if pair[1].station_m <= pair[0].station_m {
+            return Err(GeometryError::Invalid(
+                "profile-loft@2 ring stations must be strictly increasing".to_owned(),
+            ));
+        }
+    }
+    Ok(rings)
 }
 
 fn push_triangle(
@@ -1484,6 +2189,138 @@ fn profile_loft_mesh(
         )?;
     }
     Ok(mesh)
+}
+
+fn profile_loft_v2_mesh(rings: &[ProfileLoftV2Ring]) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let first = rings.first().ok_or_else(|| {
+        GeometryError::Invalid("profile-loft@2 requires at least two rings".to_owned())
+    })?;
+    if rings.len() < 2 || first.points.len() < 3 {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 ring topology is invalid".to_owned(),
+        ));
+    }
+    let point_count = first.points.len();
+    if rings
+        .iter()
+        .any(|ring| ring.points.len() != point_count || ring.corner_flags.len() != point_count)
+    {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 ring correspondence is invalid".to_owned(),
+        ));
+    }
+    let cap_triangles = triangulate_simple_polygon(&first.points)?;
+    let mut mesh = empty_mesh();
+    for [a, b, c] in &cap_triangles {
+        push_triangle(
+            &mut mesh,
+            [first.station_m, first.points[*a][0], first.points[*a][1]],
+            [first.station_m, first.points[*c][0], first.points[*c][1]],
+            [first.station_m, first.points[*b][0], first.points[*b][1]],
+        )?;
+    }
+    for pair in rings.windows(2) {
+        let left = &pair[0];
+        let right = &pair[1];
+        for index in 0..point_count {
+            let next = (index + 1) % point_count;
+            let a = [left.station_m, left.points[index][0], left.points[index][1]];
+            let b = [left.station_m, left.points[next][0], left.points[next][1]];
+            let c = [
+                right.station_m,
+                right.points[next][0],
+                right.points[next][1],
+            ];
+            let d = [
+                right.station_m,
+                right.points[index][0],
+                right.points[index][1],
+            ];
+            push_triangle(&mut mesh, a, b, c)?;
+            push_triangle(&mut mesh, a, c, d)?;
+        }
+    }
+    let last = rings.last().expect("at least two rings");
+    let cap_triangles = triangulate_simple_polygon(&last.points)?;
+    for [a, b, c] in &cap_triangles {
+        push_triangle(
+            &mut mesh,
+            [last.station_m, last.points[*a][0], last.points[*a][1]],
+            [last.station_m, last.points[*b][0], last.points[*b][1]],
+            [last.station_m, last.points[*c][0], last.points[*c][1]],
+        )?;
+    }
+    let hard_positions = rings
+        .iter()
+        .flat_map(|ring| {
+            ring.points
+                .iter()
+                .zip(ring.corner_flags.iter())
+                .filter_map(|(point, is_corner)| {
+                    is_corner.then_some((
+                        ring.station_m.to_bits(),
+                        point[0].to_bits(),
+                        point[1].to_bits(),
+                    ))
+                })
+        })
+        .collect::<BTreeSet<_>>();
+    smooth_curved_normals_with_hard_points(&mut mesh, &hard_positions);
+    Ok(mesh)
+}
+
+/// Deterministically triangulate one validated, counter-clockwise simple
+/// polygon. A fan is not valid for arbitrary concave hard-surface profiles;
+/// stable ear clipping keeps endpoint caps inside the authored silhouette.
+fn triangulate_simple_polygon(profile: &[[f32; 2]]) -> Result<Vec<[usize; 3]>, GeometryError> {
+    if profile.len() < 3 || signed_area(profile) <= 1.0e-5 {
+        return Err(GeometryError::Invalid(
+            "profile-loft@2 cap profile must be counter-clockwise and non-zero".to_owned(),
+        ));
+    }
+    let mut remaining = (0..profile.len()).collect::<Vec<_>>();
+    let mut triangles = Vec::with_capacity(profile.len() - 2);
+    while remaining.len() > 3 {
+        let mut clipped = false;
+        for cursor in 0..remaining.len() {
+            let previous = remaining[(cursor + remaining.len() - 1) % remaining.len()];
+            let current = remaining[cursor];
+            let next = remaining[(cursor + 1) % remaining.len()];
+            let a = profile[previous];
+            let b = profile[current];
+            let c = profile[next];
+            if cross2(subtract2(b, a), subtract2(c, b)) <= 1.0e-7 {
+                continue;
+            }
+            if remaining.iter().copied().any(|candidate| {
+                candidate != previous
+                    && candidate != current
+                    && candidate != next
+                    && point_in_or_on_triangle(profile[candidate], a, b, c)
+            }) {
+                continue;
+            }
+            triangles.push([previous, current, next]);
+            remaining.remove(cursor);
+            clipped = true;
+            break;
+        }
+        if !clipped {
+            return Err(GeometryError::Invalid(
+                "profile-loft@2 cap triangulation failed".to_owned(),
+            ));
+        }
+    }
+    triangles.push([remaining[0], remaining[1], remaining[2]]);
+    Ok(triangles)
+}
+
+fn point_in_or_on_triangle(point: [f32; 2], a: [f32; 2], b: [f32; 2], c: [f32; 2]) -> bool {
+    const EPSILON: f32 = 1.0e-7;
+    let ab = cross2(subtract2(b, a), subtract2(point, a));
+    let bc = cross2(subtract2(c, b), subtract2(point, b));
+    let ca = cross2(subtract2(a, c), subtract2(point, c));
+    ab >= -EPSILON && bc >= -EPSILON && ca >= -EPSILON
 }
 
 /// Loft bounded Y/Z cross-sections along the subject's longitudinal +X axis.
@@ -2411,6 +3248,124 @@ mod tests {
             &BTreeMap::new(),
         )
         .is_err());
+    }
+
+    fn profile_loft_v2_parameters() -> Value {
+        json!({
+            "shape": "profile-loft-v2",
+            "profiles": [
+                {
+                    "station_m": -1.0,
+                    "points": [[-0.30,-0.18],[0.30,-0.18],[0.42,0.0],[0.20,0.22],[-0.20,0.22],[-0.42,0.0]],
+                    "corner_indices": [0,1,2,3,4,5]
+                },
+                {
+                    "station_m": 0.4,
+                    "points": [[0.18,-0.12],[0.28,0.0],[0.12,0.18],[-0.12,0.18],[-0.28,0.0],[-0.18,-0.12]],
+                    "corner_indices": [0,1,2,3,4,5]
+                },
+                {
+                    "station_m": 1.6,
+                    "points": [[-0.14,-0.10],[0.14,-0.10],[0.20,0.0],[0.0,0.17],[-0.20,0.0]],
+                    "corner_indices": [0,1,2,3,4]
+                }
+            ],
+            "resample_points": 16,
+            "interpolation": "linear",
+            "interpolation_rings": 2,
+            "preserve_corners": true,
+            "position_m": [0.0,0.0,0.0],
+            "rotation_rad": [0.0,0.0,0.0]
+        })
+    }
+
+    #[test]
+    fn profile_loft_v2_resamples_aligns_and_builds_longitudinal_x_volume() {
+        let parameters = profile_loft_v2_parameters();
+        let (operation, triangle_count) = validate_operator(
+            "forgecad.geometry.profile-loft@2",
+            &[],
+            parameters.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect("profile loft v2 should validate");
+        // Three authored rings plus two interpolated rings in each interval.
+        assert_eq!(triangle_count, 220);
+        let first = compile_operator(&operation, &BTreeMap::new(), 250_000, 10_000)
+            .expect("profile loft v2 mesh");
+        let second = compile_operator(&operation, &BTreeMap::new(), 250_000, 10_000)
+            .expect("profile loft v2 deterministic mesh");
+        assert_eq!(first.positions, second.positions);
+        assert_eq!(first.indices, second.indices);
+        assert_eq!(first.indices.len() / 3, triangle_count as usize);
+        let min_x = first
+            .positions
+            .iter()
+            .map(|position| position[0])
+            .fold(f32::INFINITY, f32::min);
+        let max_x = first
+            .positions
+            .iter()
+            .map(|position| position[0])
+            .fold(f32::NEG_INFINITY, f32::max);
+        assert!((min_x + 1.0).abs() < 1.0e-6);
+        assert!((max_x - 1.6).abs() < 1.0e-6);
+    }
+
+    #[test]
+    fn profile_loft_v2_rejects_self_intersection_and_duplicate_closure() {
+        let mut bow_tie = profile_loft_v2_parameters();
+        bow_tie["profiles"][0]["points"] =
+            json!([[-0.2, -0.2], [0.2, 0.2], [-0.2, 0.2], [0.2, -0.2]]);
+        bow_tie["profiles"][0]["corner_indices"] = json!([]);
+        assert!(validate_operator(
+            "forgecad.geometry.profile-loft@2",
+            &[],
+            bow_tie.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut duplicate_closure = profile_loft_v2_parameters();
+        duplicate_closure["profiles"][0]["points"] = json!([
+            [-0.2, -0.2],
+            [0.2, -0.2],
+            [0.2, 0.2],
+            [-0.2, 0.2],
+            [-0.2, -0.2]
+        ]);
+        duplicate_closure["profiles"][0]["corner_indices"] = json!([]);
+        assert!(validate_operator(
+            "forgecad.geometry.profile-loft@2",
+            &[],
+            duplicate_closure.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn profile_loft_v2_ear_clips_concave_caps() {
+        let profile = [
+            [-0.4, -0.3],
+            [0.4, -0.3],
+            [0.4, 0.3],
+            [0.0, 0.05],
+            [-0.4, 0.3],
+        ];
+        validate_simple_profile(&profile, "concave fixture").expect("simple concave profile");
+        let triangles = triangulate_simple_polygon(&profile).expect("ear-clipped cap");
+        assert_eq!(triangles.len(), profile.len() - 2);
+        let triangle_area = triangles
+            .iter()
+            .map(|[a, b, c]| {
+                cross2(
+                    subtract2(profile[*b], profile[*a]),
+                    subtract2(profile[*c], profile[*a]),
+                ) * 0.5
+            })
+            .sum::<f32>();
+        assert!((triangle_area - signed_area(&profile)).abs() < 1.0e-5);
     }
 
     #[test]

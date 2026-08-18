@@ -1,0 +1,76 @@
+{
+  "schema_version": "CrossSectionPlan@1",
+  "plan_id": "cross-plan-visual-001",
+  "project_id": "fictional-asset-001",
+  "scope": "fictional-game-asset",
+  "nonfunctional_asset": true,
+  "reference_view_set_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "reference_view_ids": ["view-side"],
+  "coordinate_frame": {
+    "length_unit": "meter",
+    "handedness": "right-handed",
+    "up_axis": "y",
+    "longitudinal_axis": "x",
+    "section_plane": "yz",
+    "axis_direction": "+x"
+  },
+  "station_policy": {
+    "ordering": "strictly-increasing-x",
+    "closed_profiles": true,
+    "equal_point_count": true,
+    "point_order": "counter-clockwise-viewed-from-positive-x",
+    "max_station_count": 16,
+    "max_points_per_station": 64
+  },
+  "stations": [
+    {
+      "station_id": "section-rear",
+      "position_m": -0.6,
+      "continuity_group_id": "shell-spine",
+      "closed": true,
+      "points": [
+        [-0.18, -0.14],
+        [0.18, -0.14],
+        [0.21, 0.14],
+        [-0.21, 0.14],
+        [-0.18, -0.14]
+      ],
+      "observation_status": "observed",
+      "confidence": 0.82,
+      "source_view_ids": ["view-side"]
+    },
+    {
+      "station_id": "section-mid",
+      "position_m": 0,
+      "continuity_group_id": "shell-spine",
+      "closed": true,
+      "points": [
+        [-0.22, -0.16],
+        [0.22, -0.16],
+        [0.25, 0.16],
+        [-0.25, 0.16],
+        [-0.22, -0.16]
+      ],
+      "observation_status": "observed",
+      "confidence": 0.9,
+      "source_view_ids": ["view-side"]
+    },
+    {
+      "station_id": "section-front",
+      "position_m": 0.6,
+      "continuity_group_id": "shell-spine",
+      "closed": true,
+      "points": [
+        [-0.14, -0.11],
+        [0.14, -0.11],
+        [0.17, 0.11],
+        [-0.17, 0.11],
+        [-0.14, -0.11]
+      ],
+      "observation_status": "inferred",
+      "confidence": 0.55,
+      "source_view_ids": []
+    }
+  ],
+  "canonical_sha256": "7524a9b79203750843fabe9d24a801261a598f92c30129f2ed46c90dbc6d52cf"
+}

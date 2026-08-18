@@ -111,15 +111,15 @@
         "status": {"enum": ["unknown", "partial", "complete"]},
         "observed_views": {
           "type": "array",
-          "maxItems": 8,
+          "maxItems": 12,
           "uniqueItems": true,
-          "items": {"enum": ["front", "back", "left", "right", "top", "perspective", "three-quarter", "rear-three-quarter"]}
+          "items": {"enum": ["front", "back", "left", "right", "top", "bottom", "perspective", "three-quarter", "front-three-quarter", "rear-three-quarter", "material", "detail"]}
         },
         "missing_views": {
           "type": "array",
-          "maxItems": 8,
+          "maxItems": 12,
           "uniqueItems": true,
-          "items": {"enum": ["front", "back", "left", "right", "top", "perspective", "three-quarter", "rear-three-quarter"]}
+          "items": {"enum": ["front", "back", "left", "right", "top", "bottom", "perspective", "three-quarter", "front-three-quarter", "rear-three-quarter", "material", "detail"]}
         },
         "reason": {"$ref": "https://forgecad.local/contracts/agentic-projection-primitives.schema.json#/$defs/safe_text"}
       }

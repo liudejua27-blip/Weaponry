@@ -54,10 +54,11 @@ const ACTION_KINDS: [&str; 16] = [
     "uv-pbr",
 ];
 
-const OPERATOR_IDS: [&str; 17] = [
+const OPERATOR_IDS: [&str; 18] = [
     "forgecad.geometry.primitive@2",
     "forgecad.geometry.profile-extrude@1",
     "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.profile-loft@2",
     "forgecad.geometry.longitudinal-section-loft@1",
     "forgecad.geometry.subd-cage@1",
     "forgecad.geometry.surface-patch@1",

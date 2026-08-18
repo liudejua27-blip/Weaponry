@@ -3022,15 +3022,19 @@ fn build_reference_canvas(
 }
 
 fn projection_coverage_from_authoring(canvas: &Value) -> Value {
-    const PROJECTED_VIEWS: [&str; 8] = [
+    const PROJECTED_VIEWS: [&str; 12] = [
         "front",
         "back",
         "left",
         "right",
         "top",
+        "bottom",
         "perspective",
         "three-quarter",
+        "front-three-quarter",
         "rear-three-quarter",
+        "material",
+        "detail",
     ];
     let coverage = canvas.get("coverage");
     let observed_views = coverage
@@ -4105,6 +4109,35 @@ mod tests {
             })
             .expect("reference")
             .reference
+    }
+
+    #[test]
+    fn reference_canvas_projection_preserves_every_supported_view_kind() {
+        let views = json!([
+            "front",
+            "back",
+            "left",
+            "right",
+            "top",
+            "bottom",
+            "perspective",
+            "three-quarter",
+            "front-three-quarter",
+            "rear-three-quarter",
+            "material",
+            "detail"
+        ]);
+        let canvas = json!({
+            "coverage": {
+                "supplied_views": views,
+                "missing_views": [],
+                "coverage_status": "complete"
+            }
+        });
+        let projection = projection_coverage_from_authoring(&canvas);
+        assert_eq!(projection["status"], "complete");
+        assert_eq!(projection["observed_views"], views);
+        assert_eq!(projection["missing_views"], json!([]));
     }
 
     #[test]

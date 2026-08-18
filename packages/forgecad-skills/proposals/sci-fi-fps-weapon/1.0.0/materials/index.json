@@ -1,0 +1,48 @@
+{
+  "schema_version": "SkillMaterialIndex@1",
+  "skill_id": "sci-fi-fps-weapon",
+  "network": false,
+  "asset_payload_included": false,
+  "materials": [
+    {
+      "material_id": "white-dielectric-clearcoat",
+      "kind": "gltf-metallic-roughness-subset",
+      "channels": ["baseColor", "metallic", "roughness", "normal", "ao"],
+      "source": "forgecad-first-party-bounded-declaration",
+      "license_spdx": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "provenance_status": "declaration_only"
+    },
+    {
+      "material_id": "dark-painted-metal",
+      "kind": "gltf-metallic-roughness-subset",
+      "channels": ["baseColor", "metallic", "roughness", "normal", "ao"],
+      "source": "forgecad-first-party-bounded-declaration",
+      "license_spdx": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "provenance_status": "declaration_only"
+    },
+    {
+      "material_id": "black-anodized-metal",
+      "kind": "gltf-metallic-roughness-subset",
+      "channels": ["baseColor", "metallic", "roughness", "normal", "ao"],
+      "source": "forgecad-first-party-bounded-declaration",
+      "license_spdx": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "provenance_status": "declaration_only"
+    },
+    {
+      "material_id": "engineering-plastic",
+      "kind": "gltf-metallic-roughness-subset",
+      "channels": ["baseColor", "metallic", "roughness", "normal", "ao"],
+      "source": "forgecad-first-party-bounded-declaration",
+      "license_spdx": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "provenance_status": "declaration_only"
+    },
+    {
+      "material_id": "warm-orange-emissive",
+      "kind": "gltf-metallic-roughness-subset",
+      "channels": ["baseColor", "emissive", "metallic", "roughness"],
+      "source": "forgecad-first-party-bounded-declaration",
+      "license_spdx": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "provenance_status": "declaration_only"
+    }
+  ]
+}

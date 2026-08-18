@@ -56,14 +56,14 @@
     }
   },
   "observation_id": "robot-three-quarter-visible-view-attempt35-provisional",
-  "canonical_sha256": "bc9d283e50493aff1cb0b6459aaa9a2c933aab09c9313bbe1d1e83938584fee2",
+  "canonical_sha256": "3876169ad53f9bbcebd7cfb9ef1781ce5d20a8011c9b587b87c3e176bdd5b357",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
-      "manifest_sha256": "62f934cf32d6ab83635ebc5f0d2fbd078fdcb7d5c8d4105aa14b7b2fa223ec66",
+      "manifest_sha256": "c7ebabec45c29e134e6bf46c7544696658598fc7f8469bfcea7ece93b2cabeae",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-      "schema_content_set_sha256": "4b8840c96e25c746415b69ee6d3b0b6cfc5dccfecca39e6a98ce99b55586a700",
-      "schema_count": 142
+      "schema_content_set_sha256": "8b292d3ea73475b9ad6c8ebe1eb6521d3dd8834a9410441f113524cef79d4759",
+      "schema_count": 147
     },
     "mcp_tools": {
       "read_count": 41,
@@ -150,7 +150,7 @@
         "visual_review_submit"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "7e695d7c60848c658326c6135d7fb18b58d678c723ee2a2c207308048c63a892",
+      "source_sha256": "178009b3fa2d6431790abc2ec38a54a913e2bf03657bf73ac1a4b9b04d987a07",
     "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
       "summary_receipt_sha256": "5ea2f0c611cac9070b63025b1d6298324a811a165af7c7df691975a9648dfdf1"
     },
@@ -161,9 +161,9 @@
     "visible_view_policy": {
       "authority": "RUNTIME_SOURCE_POLICY_NOT_EMBEDDED_IN_ATTEMPT35_RECEIPT",
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
-      "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
+      "fit_plan_projection_sha256": "543491266884f806ae56af633718f8b3f1ad4c9c8a871f4b82de530356fc7f34",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "62ecb05121433bfda2ba9dc3ec88ee6f8385d1fcc28da8462b0a94689d83d4c5",
+      "runtime_source_sha256": "aec2653a7703c5e13047d8f950d8b1d2d7de9e4625627795dd4620980ec22861",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "6fda8fa87e362e056dd8a2cb62ecdc063ff4c04d3f12c46ac74a193caba80cc3"
     }

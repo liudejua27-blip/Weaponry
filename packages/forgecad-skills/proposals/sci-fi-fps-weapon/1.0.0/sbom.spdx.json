@@ -1,0 +1,24 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "forgecad-skill-sci-fi-fps-weapon-proposal",
+  "documentNamespace": "https://forgecad.local/sbom/skill/sci-fi-fps-weapon/1.0.0",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package",
+      "name": "forgecad-skill-sci-fi-fps-weapon",
+      "versionInfo": "1.0.0",
+      "licenseConcluded": "LicenseRef-ForgeCAD-FIRST-PARTY",
+      "downloadLocation": "NOASSERTION"
+    }
+  ],
+  "annotations": [
+    {
+      "annotationType": "OTHER",
+      "annotator": "Tool: forgecad-first-party-proposal",
+      "annotationDate": "2026-08-18T00:00:00Z",
+      "comment": "Declarative target-design metadata only; no executable, model, texture, or external asset payload."
+    }
+  ]
+}

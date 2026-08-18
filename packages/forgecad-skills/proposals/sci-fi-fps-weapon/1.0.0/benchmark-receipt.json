@@ -1,0 +1,15 @@
+{
+  "schema_version": "SkillBenchmarkReceipt@1",
+  "skill_id": "sci-fi-fps-weapon",
+  "version": "1.0.0",
+  "status": "passed",
+  "suite_id": "sci-fi-fps-weapon-structural-smoke",
+  "fixture_sha256": "18f169298a3f528611d19c15312c0f9eb68e472f0fa47d8a8eaaca831c38fa28",
+  "metrics": {
+    "schema_and_binding_shape": 1,
+    "dag_and_operator_lock": 1,
+    "forbidden_capabilities": 0,
+    "external_asset_payloads": 0
+  },
+  "reason": "Static proposal contract/metadata safety only; the unregistered proposal has no Runtime consumer or weapon MaterialPack, so geometry/render/quality/human/export/360 PASS is not claimed."
+}

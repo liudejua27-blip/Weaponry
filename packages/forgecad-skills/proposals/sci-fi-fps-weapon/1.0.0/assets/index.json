@@ -1,0 +1,9 @@
+{
+  "schema_version": "SkillAssetIndex@1",
+  "skill_id": "sci-fi-fps-weapon",
+  "network": false,
+  "external_assets_allowed": false,
+  "assets": [],
+  "required_asset_packs": [],
+  "note": "No model, texture, logo, pattern, or external payload is included. A future first-party offline AssetPack must be hash/license/provenance bound before registration."
+}

@@ -1,0 +1,78 @@
+{
+  "schema_version": "WeaponDesignGraph@1",
+  "graph_id": "weapon-visual-graph-001",
+  "project_id": "fictional-asset-001",
+  "scope": "fictional-game-asset",
+  "nonfunctional_asset": true,
+  "reference_view_set_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "cross_section_plan_sha256": "7524a9b79203750843fabe9d24a801261a598f92c30129f2ed46c90dbc6d52cf",
+  "sketch_program_sha256": "88e34a1e3c62074b3abf2e7029b0e21ffa25054b25b9a5fb9a99b23fa2738a9c",
+  "decomposition_policy": "visual-structure-not-functional-parts",
+  "global_contour_authority": true,
+  "quality_status": "structural_only",
+  "review_status": "unreviewed",
+  "hq_360_status": "BLOCKED_REFERENCE_COVERAGE",
+  "runtime_write_performed": false,
+  "user_approval_required": true,
+  "nodes": [
+    {
+      "node_id": "graph-shell",
+      "role": "primary-shell",
+      "source_kind": "cross-section",
+      "source_id": "shell-spine",
+      "observation_status": "observed",
+      "confidence": 0.9
+    },
+    {
+      "node_id": "graph-panel",
+      "role": "secondary-panel",
+      "source_kind": "sketch",
+      "source_id": "sketch-mid",
+      "observation_status": "observed",
+      "confidence": 0.82
+    },
+    {
+      "node_id": "graph-void",
+      "role": "negative-space",
+      "source_kind": "bounded-inference",
+      "source_id": "void-recess",
+      "observation_status": "inferred",
+      "confidence": 0.55
+    },
+    {
+      "node_id": "graph-accent",
+      "role": "accent-layer",
+      "source_kind": "sketch",
+      "source_id": "accent-mid",
+      "observation_status": "inferred",
+      "confidence": 0.55
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "edge-shell-panel",
+      "source_node_id": "graph-shell",
+      "target_node_id": "graph-panel",
+      "relation": "contains",
+      "observation_status": "observed",
+      "confidence": 0.82
+    },
+    {
+      "edge_id": "edge-shell-void",
+      "source_node_id": "graph-shell",
+      "target_node_id": "graph-void",
+      "relation": "shared-boundary",
+      "observation_status": "inferred",
+      "confidence": 0.55
+    },
+    {
+      "edge_id": "edge-panel-accent",
+      "source_node_id": "graph-panel",
+      "target_node_id": "graph-accent",
+      "relation": "derived-from",
+      "observation_status": "inferred",
+      "confidence": 0.55
+    }
+  ],
+  "canonical_sha256": "b6710b1793af19caa96ffc46461d78a369cd231596d146e6bbcb7e5dedc62394"
+}

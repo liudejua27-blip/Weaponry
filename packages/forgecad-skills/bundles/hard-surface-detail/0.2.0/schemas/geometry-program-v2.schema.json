@@ -126,6 +126,7 @@
             "forgecad.geometry.primitive@2",
             "forgecad.geometry.profile-extrude@1",
             "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.profile-loft@2",
             "forgecad.geometry.longitudinal-section-loft@1",
             "forgecad.geometry.subd-cage@1",
             "forgecad.geometry.surface-patch@1",
@@ -156,6 +157,7 @@
             {"$ref": "#/$defs/sphere_parameters"},
             {"$ref": "#/$defs/profile_extrude_parameters"},
             {"$ref": "#/$defs/profile_loft_parameters"},
+            {"$ref": "#/$defs/profile_loft_v2_parameters"},
             {"$ref": "#/$defs/longitudinal_section_loft_parameters"},
             {"$ref": "#/$defs/subd_cage_parameters"},
             {"$ref": "#/$defs/surface_patch_parameters"},
@@ -322,6 +324,41 @@
           "maxItems": 16,
           "items": {"$ref": "#/$defs/loft_profile"}
         },
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "profile_loft_v2_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["station_m", "points", "corner_indices"],
+      "properties": {
+        "station_m": {"$ref": "#/$defs/coordinate_scalar"},
+        "points": {"$ref": "#/$defs/profile_points"},
+        "corner_indices": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0, "maximum": 63}
+        }
+      }
+    },
+    "profile_loft_v2_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "profiles", "resample_points", "interpolation", "interpolation_rings", "preserve_corners", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "profile-loft-v2"},
+        "profiles": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {"$ref": "#/$defs/profile_loft_v2_profile"}
+        },
+        "resample_points": {"type": "integer", "minimum": 4, "maximum": 64},
+        "interpolation": {"enum": ["linear", "catmull-rom"]},
+        "interpolation_rings": {"type": "integer", "minimum": 0, "maximum": 16},
+        "preserve_corners": {"type": "boolean"},
         "position_m": {"$ref": "#/$defs/coordinate_vector"},
         "rotation_rad": {"$ref": "#/$defs/radian_vector"}
       }

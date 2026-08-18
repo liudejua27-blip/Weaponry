@@ -135,7 +135,9 @@
         "left",
         "right",
         "top",
+        "bottom",
         "perspective",
+        "front-three-quarter",
         "rear-three-quarter",
         "material",
         "detail"

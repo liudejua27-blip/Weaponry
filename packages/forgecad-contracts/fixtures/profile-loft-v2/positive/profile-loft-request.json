@@ -1,0 +1,71 @@
+{
+  "schema_version": "ProfileLoftRequest@2",
+  "operator_id": "forgecad.geometry.profile-loft@2",
+  "project_id": "weapon-demo",
+  "feature_id": "receiver-core-main",
+  "part_id": "receiver-core",
+  "material_zone_id": "zone-white-shell",
+  "cross_section_plan": {
+    "schema_version": "CrossSectionPlan@1",
+    "plan_id": "receiver-core-plan",
+    "project_id": "weapon-demo",
+    "scope": "fictional-game-asset",
+    "nonfunctional_asset": true,
+    "reference_view_set_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "reference_view_ids": ["left", "right", "top"],
+    "coordinate_frame": {
+      "length_unit": "meter",
+      "handedness": "right-handed",
+      "up_axis": "y",
+      "longitudinal_axis": "x",
+      "section_plane": "yz",
+      "axis_direction": "+x"
+    },
+    "station_policy": {
+      "ordering": "strictly-increasing-x",
+      "closed_profiles": true,
+      "equal_point_count": false,
+      "point_order": "counter-clockwise-viewed-from-positive-x",
+      "max_station_count": 16,
+      "max_points_per_station": 64
+    },
+    "stations": [
+      {
+        "station_id": "receiver-core-front",
+        "position_m": -0.5,
+        "continuity_group_id": "receiver-core-shell",
+        "closed": true,
+        "points": [[-0.18, -0.10], [0.18, -0.10], [0.22, 0.10], [-0.22, 0.10]],
+        "corner_indices": [0, 1, 2, 3],
+        "observation_status": "observed",
+        "confidence": 0.95,
+        "source_view_ids": ["left", "right"]
+      },
+      {
+        "station_id": "receiver-core-rear",
+        "position_m": 0.5,
+        "continuity_group_id": "receiver-core-shell",
+        "closed": true,
+        "points": [[-0.24, -0.12], [0.24, -0.12], [0.30, 0.0], [0.24, 0.12], [-0.28, 0.12]],
+        "corner_indices": [0, 1, 2, 3, 4],
+        "observation_status": "inferred",
+        "confidence": 0.72,
+        "source_view_ids": ["left", "top"]
+      }
+    ],
+    "canonical_sha256": "2a1bc9497c8ca064118c33a2c940a2f545bce5b5d01aabf8a145cae0404fea28"
+  },
+  "continuity_policy": {
+    "policy_id": "profile-loft-continuity@1",
+    "surface_continuity": "g0-only",
+    "profile_point_correspondence": "canonical-phase-arc-length",
+    "station_interpolation": "linear",
+    "interpolation_rings": 2,
+    "resample_points": 16,
+    "preserve_corners": true,
+    "endpoint_caps": "ear-clipped-planar",
+    "hole_policy": "reject",
+    "shared_boundary_policy": "none"
+  },
+  "input_sha256": "15e5b505af683024653ba1ee4690bd17f89476683b93f50465edc4e190604acc"
+}

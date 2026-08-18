@@ -1,0 +1,8 @@
+{
+  "schema_version": "WeaponDesignGraph@1",
+  "graph_id": "weapon-graph-invalid",
+  "project_id": "fictional-asset-001",
+  "scope": "fictional-game-asset",
+  "nonfunctional_asset": true,
+  "runtime_write_performed": true
+}

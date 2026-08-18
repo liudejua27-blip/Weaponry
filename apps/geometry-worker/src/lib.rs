@@ -3484,12 +3484,17 @@ mod tests {
         assert_eq!(declared, canonical_hash(&Value::Object(without_hash)));
         assert_eq!(
             catalog["operators"].as_array().expect("operators").len(),
-            17
+            18
         );
         assert_eq!(
             catalog["operators"][0]["operator_id"],
             "forgecad.geometry.primitive@2"
         );
+        assert!(catalog["operators"]
+            .as_array()
+            .expect("operators")
+            .iter()
+            .any(|operator| operator["operator_id"] == "forgecad.geometry.profile-loft@2"));
     }
 
     #[test]

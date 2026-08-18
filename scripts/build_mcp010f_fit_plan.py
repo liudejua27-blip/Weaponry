@@ -244,7 +244,19 @@ def validate_view_spec(value: dict[str, Any]) -> dict[str, Any]:
     reference_id = require_identifier(value.get("reference_id"), "view.reference_id")
     require_sha(value.get("reference_sha256"), "view.reference_sha256")
     require_identifier(value.get("view_id"), "view.view_id")
-    if value.get("source_view") not in {"front", "back", "left", "right", "rear-three-quarter", "three-quarter", "unknown"}:
+    if value.get("source_view") not in {
+        "front",
+        "back",
+        "left",
+        "right",
+        "top",
+        "bottom",
+        "front-three-quarter",
+        "rear-three-quarter",
+        "detail",
+        "three-quarter",
+        "unknown",
+    }:
         fail("view.source_view is invalid")
     require_sha(value.get("canonical_sha256"), "view.canonical_sha256")
     if canonical_hash(value) != value["canonical_sha256"]:

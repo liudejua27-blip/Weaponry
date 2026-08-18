@@ -34,7 +34,7 @@ pub use forgecad_contracts::{
     SkillGetResult, SkillListResult, CONTRACT_SET, MCP_PROTOCOL_COMPAT_VERSION,
     MCP_PROTOCOL_VERSION, MCP_PROTOCOL_VERSIONS,
 };
-pub use forgecad_core::{canonical_json_bytes, canonical_json_hash, sha256_hex};
+pub use forgecad_core::{canonical_json_bytes, canonical_json_hash, feature_graph, sha256_hex};
 pub use forgecad_store::{
     CasError, CasObject, CasStore, CrossViewEvidenceRecord, Store, StoreError, VisualEvidenceRecord,
 };
@@ -295,6 +295,9 @@ impl Runtime {
         {
             return self.parametric_design_kit_program(object);
         }
+        if object.get("schema_version").and_then(Value::as_str) == Some("ProfileLoftRequest@2") {
+            return self.profile_loft_program(object);
+        }
         let allowed = ["schema_version", "geometry_program_draft"];
         if object.len() != allowed.len()
             || !allowed.iter().all(|key| object.contains_key(*key))
@@ -454,6 +457,213 @@ impl Runtime {
         });
         result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
         validate_parametric_design_kit_program(&result)?;
+        Ok(result)
+    }
+
+    /// Expand one bounded semantic `profile-loft@2` request into the fixed v2
+    /// Worker kernel. The contract is deliberately G0-only: Catmull-Rom is a
+    /// positional sampling policy, not a claim of verified G1/G2 continuity.
+    ///
+    /// This is a read-only producer.  It hashes and validates a typed draft,
+    /// but it never creates a Candidate, Job, CAS object, Version or export.
+    fn profile_loft_program(
+        &self,
+        object: &serde_json::Map<String, Value>,
+    ) -> Result<Value, RuntimeError> {
+        validate_request_keys(
+            object,
+            &[
+                "schema_version",
+                "operator_id",
+                "project_id",
+                "feature_id",
+                "part_id",
+                "material_zone_id",
+                "cross_section_plan",
+                "continuity_policy",
+                "input_sha256",
+            ],
+            "profile_loft_request_v2",
+        )?;
+        if object.get("schema_version").and_then(Value::as_str) != Some("ProfileLoftRequest@2")
+            || object.get("operator_id").and_then(Value::as_str)
+                != Some("forgecad.geometry.profile-loft@2")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: schema_version or operator_id is unsupported".to_owned(),
+            ));
+        }
+        let project_id = required_value_id(object.get("project_id"), "project_id")?;
+        let feature_id = required_value_id(object.get("feature_id"), "feature_id")?;
+        let part_id = required_value_id(object.get("part_id"), "part_id")?;
+        let material_zone_id =
+            required_value_id(object.get("material_zone_id"), "material_zone_id")?;
+        let plan = object.get("cross_section_plan").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: cross_section_plan is required".to_owned(),
+            )
+        })?;
+        let (plan_sha256, stations, station_ids, continuity_group_ids) =
+            validate_profile_loft_cross_section_plan(plan, project_id)?;
+        let continuity_policy = object.get("continuity_policy").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: continuity_policy is required".to_owned(),
+            )
+        })?;
+        validate_profile_loft_continuity_policy(continuity_policy)?;
+        let interpolation = match continuity_policy
+            .get("station_interpolation")
+            .and_then(Value::as_str)
+        {
+            Some("linear") => "linear",
+            Some("catmull-rom-position-only") => "catmull-rom",
+            _ => unreachable!("continuity policy was validated"),
+        };
+        let interpolation_rings = continuity_policy["interpolation_rings"]
+            .as_u64()
+            .expect("continuity policy was validated");
+        let resample_points = continuity_policy["resample_points"]
+            .as_u64()
+            .expect("continuity policy was validated");
+        let preserve_corners = continuity_policy["preserve_corners"]
+            .as_bool()
+            .expect("continuity policy was validated");
+
+        let input_sha256 = required_value_sha(object.get("input_sha256"), "input_sha256")?;
+        let mut input_binding = Value::Object(object.clone());
+        input_binding
+            .as_object_mut()
+            .expect("request clone is an object")
+            .remove("input_sha256");
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        if input_sha256 != expected_input_sha256 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PROFILE_LOFT_INPUT_HASH_MISMATCH: expected={expected_input_sha256} actual={input_sha256}"
+            )));
+        }
+
+        let lowered_operator_id = "forgecad.geometry.profile-loft@2";
+        let lowerer_active = operator_catalog()
+            .get("operators")
+            .and_then(Value::as_array)
+            .and_then(|operators| {
+                operators.iter().find(|entry| {
+                    entry.get("operator_id").and_then(Value::as_str) == Some(lowered_operator_id)
+                })
+            })
+            .and_then(|entry| entry.get("status"))
+            .and_then(Value::as_str)
+            == Some("active");
+        if !lowerer_active {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_OPERATOR_UNAVAILABLE: profile-loft@2 is not active"
+                    .to_owned(),
+            ));
+        }
+
+        let estimated_triangles = stations
+            .first()
+            .map(|(_, _points, _)| {
+                let ring_count = stations.len().saturating_add(
+                    stations
+                        .len()
+                        .saturating_sub(1)
+                        .saturating_mul(interpolation_rings as usize),
+                );
+                2_u64
+                    .saturating_mul(resample_points.saturating_sub(2))
+                    .saturating_add(
+                        2_u64
+                            .saturating_mul(resample_points)
+                            .saturating_mul(ring_count.saturating_sub(1) as u64),
+                    )
+            })
+            .unwrap_or(1)
+            .max(1);
+        let profiles = stations
+            .iter()
+            .map(|(station_m, points, corner_indices)| {
+                json!({"station_m":station_m,"points":points,"corner_indices":corner_indices})
+            })
+            .collect::<Vec<_>>();
+        let node = json!({
+            "node_id": feature_id,
+            "operator_id": lowered_operator_id,
+            "inputs": [],
+            "parameters": {
+                "shape": "profile-loft-v2",
+                "profiles": profiles,
+                "resample_points": resample_points,
+                "interpolation": interpolation,
+                "interpolation_rings": interpolation_rings,
+                "preserve_corners": preserve_corners,
+                "position_m": [0.0, 0.0, 0.0],
+                "rotation_rad": [0.0, 0.0, 0.0]
+            }
+        });
+        let draft = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":project_id,
+            "representation_plan_sha256":plan_sha256,
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{"max_nodes":1,"max_triangles":estimated_triangles,"max_glb_bytes":16777216,"max_worker_memory_bytes":134217728,"max_runtime_ms":5000},
+            "nodes":[node],
+            "part_outputs":[{"part_id":part_id,"input_node_ids":[feature_id],"material_zone_id":material_zone_id,"solid":true}]
+        });
+        let hash_result = hash_geometry_program_with_runtime_worker(&draft).map_err(|error| {
+            RuntimeError::InvalidInput(format!("PROFILE_LOFT_GEOMETRY_REJECTED: {error}"))
+        })?;
+        let program_sha256 = hash_result
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PROFILE_LOFT_GEOMETRY_HASH_INVALID: Runtime returned no canonical hash"
+                        .to_owned(),
+                )
+            })?
+            .to_owned();
+        let mut geometry_program = draft;
+        geometry_program["canonical_sha256"] = Value::String(program_sha256.clone());
+        let mut result = json!({
+            "schema_version":"ProfileLoftProgram@2",
+            "operator_id":"forgecad.geometry.profile-loft@2",
+            "lowered_operator_id":lowered_operator_id,
+            "project_id":project_id,
+            "feature_id":feature_id,
+            "part_id":part_id,
+            "material_zone_id":material_zone_id,
+            "cross_section_plan_sha256":plan_sha256,
+            "continuity_policy":continuity_policy,
+            "geometry_program":geometry_program,
+            "program_sha256":program_sha256,
+            "source_map":{
+                "feature_id":feature_id,
+                "part_id":part_id,
+                "material_zone_id":material_zone_id,
+                "station_ids":station_ids,
+                "continuity_group_ids":continuity_group_ids,
+                "operator_id":"forgecad.geometry.profile-loft@2",
+                "lowered_operator_id":lowered_operator_id,
+                "realized_surface_continuity":"g0-only"
+            },
+            "validator_status":"passed",
+            "quality_status":"structural_only",
+            "runtime_write_performed":false,
+            "user_approval_required":true,
+            "limitations":[
+                "candidate_not_created",
+                "visual_quality_not_evaluated",
+                "user_approval_required_before_geometry_prepare",
+                "g1_g2_continuity_not_claimed",
+                "holes_and_islands_rejected"
+            ],
+            "canonical_sha256":""
+        });
+        result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+        validate_profile_loft_program_output(&result)?;
         Ok(result)
     }
 
@@ -10135,6 +10345,30 @@ fn validate_reference_view_spec(
     required_contract_identifier(object, "view_id", "ReferenceViewSpec@1")?;
     required_contract_sha256(object, "reference_sha256", "ReferenceViewSpec@1")?;
     required_contract_sha256(object, "canonical_sha256", "ReferenceViewSpec@1")?;
+    let source_view = object
+        .get("source_view")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("ReferenceViewSpec@1.source_view is invalid".to_owned())
+        })?;
+    if !matches!(
+        source_view,
+        "front"
+            | "back"
+            | "left"
+            | "right"
+            | "top"
+            | "bottom"
+            | "front-three-quarter"
+            | "rear-three-quarter"
+            | "detail"
+            | "three-quarter"
+            | "unknown"
+    ) {
+        return Err(RuntimeError::InvalidInput(
+            "ReferenceViewSpec@1.source_view is unsupported".to_owned(),
+        ));
+    }
     let image = object
         .get("image")
         .and_then(Value::as_object)
@@ -19453,6 +19687,658 @@ fn expand_parametric_design_kit(
     }
 }
 
+fn validate_profile_loft_cross_section_plan(
+    value: &Value,
+    expected_project_id: &str,
+) -> Result<
+    (
+        String,
+        Vec<(f64, Vec<Value>, Vec<Value>)>,
+        Vec<String>,
+        Vec<String>,
+    ),
+    RuntimeError,
+> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "plan_id",
+            "project_id",
+            "scope",
+            "nonfunctional_asset",
+            "reference_view_set_sha256",
+            "reference_view_ids",
+            "coordinate_frame",
+            "station_policy",
+            "stations",
+            "canonical_sha256",
+        ],
+        "CrossSectionPlan@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("CrossSectionPlan@1")
+        || object.get("nonfunctional_asset").and_then(Value::as_bool) != Some(true)
+        || !matches!(
+            object.get("scope").and_then(Value::as_str),
+            Some("fictional-game-asset" | "fictional-film-visual-asset")
+        )
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PROFILE_LOFT_INVALID: CrossSectionPlan scope is not a fictional nonfunctional asset"
+                .to_owned(),
+        ));
+    }
+    let project_id = required_contract_identifier(object, "project_id", "CrossSectionPlan@1")?;
+    if project_id != expected_project_id {
+        return Err(RuntimeError::InvalidInput(
+            "PROJECT_SCOPE_DENIED: CrossSectionPlan project differs from ProfileLoftRequest"
+                .to_owned(),
+        ));
+    }
+    let reference_view_set_sha256 =
+        required_contract_sha256(object, "reference_view_set_sha256", "CrossSectionPlan@1")?;
+    let reference_view_ids = object
+        .get("reference_view_ids")
+        .and_then(Value::as_array)
+        .filter(|values| !values.is_empty() && values.len() <= 12)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan reference_view_ids are invalid".to_owned(),
+            )
+        })?;
+    let mut declared_view_ids = HashSet::new();
+    for value in reference_view_ids {
+        let value = value.as_str().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan reference view id is invalid".to_owned(),
+            )
+        })?;
+        if !is_opaque_id(value) || !declared_view_ids.insert(value.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan reference view ids are not unique opaque ids"
+                    .to_owned(),
+            ));
+        }
+    }
+    let coordinate_frame = exact_object(
+        object.get("coordinate_frame").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan coordinate_frame is missing".to_owned(),
+            )
+        })?,
+        &[
+            "length_unit",
+            "handedness",
+            "up_axis",
+            "longitudinal_axis",
+            "section_plane",
+            "axis_direction",
+        ],
+        "CrossSectionPlan@1.coordinate_frame",
+    )?;
+    if coordinate_frame.get("length_unit").and_then(Value::as_str) != Some("meter")
+        || coordinate_frame.get("handedness").and_then(Value::as_str) != Some("right-handed")
+        || coordinate_frame.get("up_axis").and_then(Value::as_str) != Some("y")
+        || coordinate_frame
+            .get("longitudinal_axis")
+            .and_then(Value::as_str)
+            != Some("x")
+        || coordinate_frame
+            .get("section_plane")
+            .and_then(Value::as_str)
+            != Some("yz")
+        || coordinate_frame
+            .get("axis_direction")
+            .and_then(Value::as_str)
+            != Some("+x")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PROFILE_LOFT_INVALID: CrossSectionPlan coordinate frame must be meter/right-handed/y-up/x/yz/+x"
+                .to_owned(),
+        ));
+    }
+    let station_policy = exact_object(
+        object.get("station_policy").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan station_policy is missing".to_owned(),
+            )
+        })?,
+        &[
+            "ordering",
+            "closed_profiles",
+            "equal_point_count",
+            "point_order",
+            "max_station_count",
+            "max_points_per_station",
+        ],
+        "CrossSectionPlan@1.station_policy",
+    )?;
+    if station_policy.get("ordering").and_then(Value::as_str) != Some("strictly-increasing-x")
+        || station_policy
+            .get("closed_profiles")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || station_policy
+            .get("equal_point_count")
+            .and_then(Value::as_bool)
+            .is_none()
+        || station_policy.get("point_order").and_then(Value::as_str)
+            != Some("counter-clockwise-viewed-from-positive-x")
+        || station_policy
+            .get("max_station_count")
+            .and_then(Value::as_u64)
+            != Some(16)
+        || station_policy
+            .get("max_points_per_station")
+            .and_then(Value::as_u64)
+            != Some(64)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PROFILE_LOFT_INVALID: CrossSectionPlan station policy is unsupported".to_owned(),
+        ));
+    }
+    let stations_value = object
+        .get("stations")
+        .and_then(Value::as_array)
+        .filter(|values| values.len() >= 2 && values.len() <= 16)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan requires 2-16 stations".to_owned(),
+            )
+        })?;
+    let mut stations = Vec::with_capacity(stations_value.len());
+    let mut station_ids = Vec::with_capacity(stations_value.len());
+    let mut continuity_groups = HashSet::new();
+    let mut previous_position = None;
+    for station_value in stations_value {
+        let station = exact_object_with_optional(
+            station_value,
+            &[
+                "station_id",
+                "position_m",
+                "continuity_group_id",
+                "closed",
+                "points",
+                "observation_status",
+                "confidence",
+                "source_view_ids",
+            ],
+            &["corner_indices"],
+            "CrossSectionPlan@1.station",
+        )?;
+        let station_id =
+            required_contract_identifier(station, "station_id", "CrossSectionPlan@1.station")?;
+        if !station_ids.iter().all(|value| value != &station_id) {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan station ids are not unique".to_owned(),
+            ));
+        }
+        let position = station
+            .get("position_m")
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && (-10.0..=10.0).contains(value))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PROFILE_LOFT_INVALID: CrossSectionPlan station position is invalid".to_owned(),
+                )
+            })?;
+        if previous_position.is_some_and(|previous| position <= previous) {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan stations must be strictly increasing along +X"
+                    .to_owned(),
+            ));
+        }
+        previous_position = Some(position);
+        let continuity_group_id = required_contract_identifier(
+            station,
+            "continuity_group_id",
+            "CrossSectionPlan@1.station",
+        )?;
+        continuity_groups.insert(continuity_group_id);
+        if station.get("closed").and_then(Value::as_bool) != Some(true) {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan stations must be closed".to_owned(),
+            ));
+        }
+        let observation_status = station
+            .get("observation_status")
+            .and_then(Value::as_str)
+            .filter(|value| matches!(*value, "observed" | "inferred" | "unknown"))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PROFILE_LOFT_INVALID: CrossSectionPlan observation_status is invalid"
+                        .to_owned(),
+                )
+            })?;
+        let confidence = station
+            .get("confidence")
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PROFILE_LOFT_INVALID: CrossSectionPlan confidence is invalid".to_owned(),
+                )
+            })?;
+        if observation_status == "unknown" && confidence != 0.0 {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: unknown CrossSectionPlan stations require confidence=0"
+                    .to_owned(),
+            ));
+        }
+        let source_view_ids = station
+            .get("source_view_ids")
+            .and_then(Value::as_array)
+            .filter(|values| !values.is_empty() && values.len() <= 8)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PROFILE_LOFT_INVALID: CrossSectionPlan station source views are invalid"
+                        .to_owned(),
+                )
+            })?;
+        if source_view_ids.iter().any(|value| {
+            value
+                .as_str()
+                .is_none_or(|value| !declared_view_ids.contains(value))
+        }) {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan station references an undeclared view"
+                    .to_owned(),
+            ));
+        }
+        let points = station
+            .get("points")
+            .and_then(Value::as_array)
+            .filter(|values| values.len() >= 3 && values.len() <= 64)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PROFILE_LOFT_INVALID: CrossSectionPlan profile point count is invalid"
+                        .to_owned(),
+                )
+            })?;
+        let corner_indices = station
+            .get("corner_indices")
+            .map(|value| {
+                let values = value.as_array().filter(|values| values.len() <= points.len()).ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "PROFILE_LOFT_INVALID: CrossSectionPlan corner_indices are invalid".to_owned(),
+                    )
+                })?;
+                let mut seen = HashSet::new();
+                values
+                    .iter()
+                    .map(|value| {
+                        let index = value.as_u64().filter(|index| (*index as usize) < points.len()).ok_or_else(|| {
+                            RuntimeError::InvalidInput(
+                                "PROFILE_LOFT_INVALID: CrossSectionPlan corner index is outside the profile".to_owned(),
+                            )
+                        })?;
+                        if !seen.insert(index) {
+                            return Err(RuntimeError::InvalidInput(
+                                "PROFILE_LOFT_INVALID: CrossSectionPlan corner indices are not unique".to_owned(),
+                            ));
+                        }
+                        Ok(json!(index))
+                    })
+                    .collect::<Result<Vec<_>, RuntimeError>>()
+            })
+            .transpose()?
+            .unwrap_or_default();
+        let mut section_points = Vec::with_capacity(points.len());
+        let mut signed_area = 0.0;
+        for (index, point_value) in points.iter().enumerate() {
+            let point = point_value
+                .as_array()
+                .filter(|value| value.len() == 2)
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "PROFILE_LOFT_INVALID: CrossSectionPlan points must be pairs".to_owned(),
+                    )
+                })?;
+            let y = point[0]
+                .as_f64()
+                .filter(|value| value.is_finite() && (-5.0..=5.0).contains(value))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "PROFILE_LOFT_INVALID: CrossSectionPlan point coordinate is invalid"
+                            .to_owned(),
+                    )
+                })?;
+            let z = point[1]
+                .as_f64()
+                .filter(|value| value.is_finite() && (-5.0..=5.0).contains(value))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "PROFILE_LOFT_INVALID: CrossSectionPlan point coordinate is invalid"
+                            .to_owned(),
+                    )
+                })?;
+            let next = points[(index + 1) % points.len()]
+                .as_array()
+                .expect("point shape was validated");
+            let next_y = next[0].as_f64().expect("point coordinate was validated");
+            let next_z = next[1].as_f64().expect("point coordinate was validated");
+            signed_area += y * next_z - next_y * z;
+            section_points.push(json!([y, z]));
+        }
+        if signed_area <= 1.0e-8 {
+            return Err(RuntimeError::InvalidInput(
+                "PROFILE_LOFT_INVALID: CrossSectionPlan profile must be non-zero and counter-clockwise viewed from +X".to_owned(),
+            ));
+        }
+        station_ids.push(station_id);
+        stations.push((position, section_points, corner_indices));
+    }
+    let plan_sha256 = required_contract_sha256(object, "canonical_sha256", "CrossSectionPlan@1")?;
+    let mut plan_without_hash = value.clone();
+    plan_without_hash["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&plan_without_hash) != plan_sha256
+        && canonical_json_hash(&normalize_json_numbers(&plan_without_hash)) != plan_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PROFILE_LOFT_INVALID: CrossSectionPlan canonical_sha256 does not bind its content"
+                .to_owned(),
+        ));
+    }
+    let mut continuity_group_ids = continuity_groups.into_iter().collect::<Vec<_>>();
+    continuity_group_ids.sort();
+    let _ = reference_view_set_sha256;
+    Ok((plan_sha256, stations, station_ids, continuity_group_ids))
+}
+
+fn validate_profile_loft_continuity_policy(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "policy_id",
+            "surface_continuity",
+            "profile_point_correspondence",
+            "station_interpolation",
+            "interpolation_rings",
+            "resample_points",
+            "preserve_corners",
+            "endpoint_caps",
+            "hole_policy",
+            "shared_boundary_policy",
+        ],
+        "profile-loft-continuity@1",
+    )?;
+    if object.get("policy_id").and_then(Value::as_str) != Some("profile-loft-continuity@1")
+        || object.get("surface_continuity").and_then(Value::as_str) != Some("g0-only")
+        || object
+            .get("profile_point_correspondence")
+            .and_then(Value::as_str)
+            != Some("canonical-phase-arc-length")
+        || !matches!(
+            object.get("station_interpolation").and_then(Value::as_str),
+            Some("linear" | "catmull-rom-position-only")
+        )
+        || object
+            .get("interpolation_rings")
+            .and_then(Value::as_u64)
+            .is_none_or(|value| value > 16)
+        || object
+            .get("resample_points")
+            .and_then(Value::as_u64)
+            .is_none_or(|value| !(4..=64).contains(&value))
+        || object.get("preserve_corners").and_then(Value::as_bool).is_none()
+        || object.get("endpoint_caps").and_then(Value::as_str) != Some("ear-clipped-planar")
+        || object.get("hole_policy").and_then(Value::as_str) != Some("reject")
+        || object.get("shared_boundary_policy").and_then(Value::as_str) != Some("none")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PROFILE_LOFT_INVALID: continuity_policy is not a supported bounded policy".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_profile_loft_program_output(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "operator_id",
+            "lowered_operator_id",
+            "project_id",
+            "feature_id",
+            "part_id",
+            "material_zone_id",
+            "cross_section_plan_sha256",
+            "continuity_policy",
+            "geometry_program",
+            "program_sha256",
+            "source_map",
+            "validator_status",
+            "quality_status",
+            "runtime_write_performed",
+            "user_approval_required",
+            "limitations",
+            "canonical_sha256",
+        ],
+        "ProfileLoftProgram@2",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("ProfileLoftProgram@2")
+        || object.get("operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.profile-loft@2")
+        || object.get("lowered_operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.profile-loft@2")
+        || object.get("validator_status").and_then(Value::as_str) != Some("passed")
+        || object.get("quality_status").and_then(Value::as_str) != Some("structural_only")
+        || object
+            .get("runtime_write_performed")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || object
+            .get("user_approval_required")
+            .and_then(Value::as_bool)
+            != Some(true)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 constants drifted".to_owned(),
+        ));
+    }
+    let project_id = required_contract_identifier(object, "project_id", "ProfileLoftProgram@2")?;
+    let feature_id = required_contract_identifier(object, "feature_id", "ProfileLoftProgram@2")?;
+    let part_id = required_contract_identifier(object, "part_id", "ProfileLoftProgram@2")?;
+    let material_zone_id =
+        required_contract_identifier(object, "material_zone_id", "ProfileLoftProgram@2")?;
+    let plan_sha256 =
+        required_contract_sha256(object, "cross_section_plan_sha256", "ProfileLoftProgram@2")?;
+    let program_sha256 =
+        required_contract_sha256(object, "program_sha256", "ProfileLoftProgram@2")?;
+    required_contract_sha256(object, "canonical_sha256", "ProfileLoftProgram@2")?;
+    validate_profile_loft_continuity_policy(
+        object
+            .get("continuity_policy")
+            .expect("continuity policy field was required"),
+    )?;
+    if object
+        .get("continuity_policy")
+        .and_then(|value| value.get("surface_continuity"))
+        .and_then(Value::as_str)
+        != Some("g0-only")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 realized continuity must be g0-only"
+                .to_owned(),
+        ));
+    }
+    verify_output_canonical_hash(value, "ProfileLoftProgram@2")?;
+
+    let program = object.get("geometry_program").ok_or_else(|| {
+        RuntimeError::InvalidInput("CONTRACT_OUTPUT_INVALID: geometry_program".to_owned())
+    })?;
+    let program_object = exact_object(
+        program,
+        &[
+            "schema_version",
+            "project_id",
+            "representation_plan_sha256",
+            "operator_catalog_sha256",
+            "units",
+            "budgets",
+            "nodes",
+            "part_outputs",
+            "canonical_sha256",
+        ],
+        "ProfileLoftProgram@2.geometry_program",
+    )?;
+    if program_object.get("schema_version").and_then(Value::as_str) != Some("GeometryProgram@2")
+        || program_object.get("project_id").and_then(Value::as_str) != Some(project_id.as_str())
+        || program_object
+            .get("representation_plan_sha256")
+            .and_then(Value::as_str)
+            != Some(plan_sha256.as_str())
+        || program_object
+            .get("operator_catalog_sha256")
+            .and_then(Value::as_str)
+            != Some(operator_catalog_sha256().as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 geometry program binding drifted"
+                .to_owned(),
+        ));
+    }
+    let program_canonical = required_contract_sha256(
+        program_object,
+        "canonical_sha256",
+        "ProfileLoftProgram@2.geometry_program",
+    )?;
+    if program_canonical != program_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 program hash does not bind the program"
+                .to_owned(),
+        ));
+    }
+    let mut program_without_hash = program.clone();
+    program_without_hash
+        .as_object_mut()
+        .expect("GeometryProgram@2 is an object")
+        .remove("canonical_sha256");
+    if canonical_json_hash(&program_without_hash) != program_sha256
+        && canonical_json_hash(&normalize_json_numbers(&program_without_hash)) != program_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 geometry hash is not canonical"
+                .to_owned(),
+        ));
+    }
+    let nodes = program_object
+        .get("nodes")
+        .and_then(Value::as_array)
+        .filter(|values| values.len() == 1)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: profile loft node count".to_owned(),
+            )
+        })?;
+    let node = exact_object(
+        &nodes[0],
+        &["node_id", "operator_id", "inputs", "parameters"],
+        "ProfileLoftProgram@2.geometry_program.nodes[0]",
+    )?;
+    if node.get("node_id").and_then(Value::as_str) != Some(feature_id.as_str())
+        || node.get("operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.profile-loft@2")
+        || node
+            .get("inputs")
+            .and_then(Value::as_array)
+            .is_none_or(|values| !values.is_empty())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 node lowering drifted".to_owned(),
+        ));
+    }
+    let parameters = node
+        .get("parameters")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: profile loft parameters".to_owned(),
+            )
+        })?;
+    if parameters.get("shape").and_then(Value::as_str) != Some("profile-loft-v2")
+        || parameters
+            .get("position_m")
+            .and_then(Value::as_array)
+            .is_none_or(|values| values.len() != 3)
+        || parameters
+            .get("rotation_rad")
+            .and_then(Value::as_array)
+            .is_none_or(|values| values.len() != 3)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 worker parameters drifted".to_owned(),
+        ));
+    }
+    let outputs = program_object
+        .get("part_outputs")
+        .and_then(Value::as_array)
+        .filter(|values| values.len() == 1)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: profile loft output count".to_owned(),
+            )
+        })?;
+    let output = exact_object(
+        &outputs[0],
+        &["part_id", "input_node_ids", "material_zone_id", "solid"],
+        "ProfileLoftProgram@2.geometry_program.part_outputs[0]",
+    )?;
+    if output.get("part_id").and_then(Value::as_str) != Some(part_id.as_str())
+        || output.get("material_zone_id").and_then(Value::as_str) != Some(material_zone_id.as_str())
+        || output.get("solid").and_then(Value::as_bool) != Some(true)
+        || output
+            .get("input_node_ids")
+            .and_then(Value::as_array)
+            .is_none_or(|values| {
+                values.len() != 1 || values[0].as_str() != Some(feature_id.as_str())
+            })
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 Part sink does not bind the feature"
+                .to_owned(),
+        ));
+    }
+    let source_map = exact_object(
+        object
+            .get("source_map")
+            .expect("source map field was required"),
+        &[
+            "feature_id",
+            "part_id",
+            "material_zone_id",
+            "station_ids",
+            "continuity_group_ids",
+            "operator_id",
+            "lowered_operator_id",
+            "realized_surface_continuity",
+        ],
+        "ProfileLoftProgram@2.source_map",
+    )?;
+    if source_map.get("feature_id").and_then(Value::as_str) != Some(feature_id.as_str())
+        || source_map.get("part_id").and_then(Value::as_str) != Some(part_id.as_str())
+        || source_map.get("material_zone_id").and_then(Value::as_str)
+            != Some(material_zone_id.as_str())
+        || source_map.get("operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.profile-loft@2")
+        || source_map
+            .get("lowered_operator_id")
+            .and_then(Value::as_str)
+            != Some("forgecad.geometry.profile-loft@2")
+        || source_map
+            .get("realized_surface_continuity")
+            .and_then(Value::as_str)
+            != Some("g0-only")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: ProfileLoftProgram@2 source map does not bind the feature"
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 fn validate_parametric_design_kit_program(value: &Value) -> Result<(), RuntimeError> {
     let object = exact_object(
         value,
@@ -20425,6 +21311,43 @@ mod tests {
         assert!(region_error
             .to_string()
             .contains("unknown region confidence must be zero"));
+    }
+
+    #[test]
+    fn reference_view_spec_accepts_full_reference_view_set_and_rejects_unknown_values() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("ReferenceViewSpec view kinds", json!({"profile":"mvp"}))
+            .expect("project");
+        let (reference, mut spec) =
+            reference_view_spec_fixture(&runtime, &project.project_id, json!([]), json!([]));
+
+        for source_view in [
+            "front",
+            "back",
+            "left",
+            "right",
+            "top",
+            "bottom",
+            "front-three-quarter",
+            "rear-three-quarter",
+            "detail",
+            "three-quarter",
+            "unknown",
+        ] {
+            spec["source_view"] = Value::String(source_view.to_owned());
+            spec["canonical_sha256"] = Value::String(String::new());
+            spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+            validate_reference_view_spec(&spec, &reference)
+                .unwrap_or_else(|error| panic!("{source_view} must be accepted: {error}"));
+        }
+
+        spec["source_view"] = Value::String("underside-oblique".to_owned());
+        spec["canonical_sha256"] = Value::String(String::new());
+        spec["canonical_sha256"] = Value::String(canonical_json_hash(&spec));
+        let error = validate_reference_view_spec(&spec, &reference)
+            .expect_err("undeclared source views must fail closed");
+        assert!(error.to_string().contains("source_view is unsupported"));
     }
 
     #[test]
@@ -22290,6 +23213,114 @@ mod tests {
         assert!(error
             .to_string()
             .contains("PARAMETRIC_DESIGN_KIT_GEOMETRY_RELATIONSHIP_INVALID"));
+    }
+
+    fn profile_loft_v2_request(project_id: &str) -> Value {
+        let mut plan = json!({
+            "schema_version":"CrossSectionPlan@1",
+            "plan_id":"receiver-core-plan",
+            "project_id":project_id,
+            "scope":"fictional-game-asset",
+            "nonfunctional_asset":true,
+            "reference_view_set_sha256":"b".repeat(64),
+            "reference_view_ids":["left","right","top"],
+            "coordinate_frame":{"length_unit":"meter","handedness":"right-handed","up_axis":"y","longitudinal_axis":"x","section_plane":"yz","axis_direction":"+x"},
+            "station_policy":{"ordering":"strictly-increasing-x","closed_profiles":true,"equal_point_count":false,"point_order":"counter-clockwise-viewed-from-positive-x","max_station_count":16,"max_points_per_station":64},
+            "stations":[
+                {"station_id":"front","position_m":-0.6,"continuity_group_id":"receiver-shell","closed":true,"points":[[-0.18,-0.10],[0.18,-0.10],[0.22,0.10],[-0.22,0.10]],"corner_indices":[0,1,2,3],"observation_status":"observed","confidence":0.95,"source_view_ids":["left","right"]},
+                {"station_id":"middle","position_m":0.0,"continuity_group_id":"receiver-shell","closed":true,"points":[[-0.28,-0.14],[0.28,-0.14],[0.34,0.0],[0.26,0.16],[-0.26,0.16],[-0.34,0.0]],"corner_indices":[0,1,2,3,4,5],"observation_status":"observed","confidence":0.9,"source_view_ids":["left","top"]},
+                {"station_id":"rear","position_m":0.8,"continuity_group_id":"receiver-shell","closed":true,"points":[[-0.20,-0.11],[0.20,-0.11],[0.26,0.0],[0.18,0.13],[-0.20,0.13]],"corner_indices":[0,1,2,3,4],"observation_status":"inferred","confidence":0.72,"source_view_ids":["left","top"]}
+            ],
+            "canonical_sha256":""
+        });
+        plan["canonical_sha256"] = Value::String(canonical_json_hash(&plan));
+        let mut request = json!({
+            "schema_version":"ProfileLoftRequest@2",
+            "operator_id":"forgecad.geometry.profile-loft@2",
+            "project_id":project_id,
+            "feature_id":"receiver-core-main",
+            "part_id":"receiver-core",
+            "material_zone_id":"zone-white-shell",
+            "cross_section_plan":plan,
+            "continuity_policy":{
+                "policy_id":"profile-loft-continuity@1",
+                "surface_continuity":"g0-only",
+                "profile_point_correspondence":"canonical-phase-arc-length",
+                "station_interpolation":"linear",
+                "interpolation_rings":2,
+                "resample_points":16,
+                "preserve_corners":true,
+                "endpoint_caps":"ear-clipped-planar",
+                "hole_policy":"reject",
+                "shared_boundary_policy":"none"
+            },
+            "input_sha256":""
+        });
+        let mut binding = request.clone();
+        binding
+            .as_object_mut()
+            .expect("profile loft request")
+            .remove("input_sha256");
+        request["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        request
+    }
+
+    #[test]
+    fn profile_loft_v2_expands_deterministically_and_compiles_without_persistence() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("Profile loft v2 source test", json!({"profile":"mvp"}))
+            .expect("project");
+        let request = profile_loft_v2_request(&project.project_id);
+        let before = json!({
+            "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+            "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+        });
+        let result = runtime.geometry_program_hash(&request).expect("profile loft v2 expansion");
+        assert_eq!(result["schema_version"], "ProfileLoftProgram@2");
+        assert_eq!(result["geometry_program"]["nodes"][0]["operator_id"], "forgecad.geometry.profile-loft@2");
+        assert_eq!(result["quality_status"], "structural_only");
+        assert_eq!(result["runtime_write_performed"], false);
+        assert_eq!(runtime.geometry_program_hash(&request).expect("repeat expansion"), result);
+        let after = json!({
+            "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+            "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+        });
+        assert_eq!(before, after, "profile loft hashing must remain read-only");
+
+        let prepared = runtime
+            .prepare_geometry_candidate(
+                &project.project_id,
+                None,
+                json!({"typed":"geometry","geometry_program":result["geometry_program"].clone()}),
+            )
+            .expect("profile loft v2 program compiles through the fixed worker");
+        assert_eq!(prepared["schema_version"], "GeometryPrepareResult@2");
+    }
+
+    #[test]
+    fn profile_loft_v2_rejects_unverified_continuity_and_wrong_winding() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("Profile loft v2 negative test", json!({"profile":"mvp"}))
+            .expect("project");
+        let mut g1 = profile_loft_v2_request(&project.project_id);
+        g1["continuity_policy"]["surface_continuity"] = json!("g1-required");
+        let mut binding = g1.clone();
+        binding.as_object_mut().unwrap().remove("input_sha256");
+        g1["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        assert!(runtime.geometry_program_hash(&g1).is_err());
+
+        let mut reversed = profile_loft_v2_request(&project.project_id);
+        reversed["cross_section_plan"]["stations"][0]["points"] =
+            json!([[-0.22,0.10],[0.22,0.10],[0.18,-0.10],[-0.18,-0.10]]);
+        reversed["cross_section_plan"]["canonical_sha256"] = json!("");
+        let plan_hash = canonical_json_hash(&reversed["cross_section_plan"]);
+        reversed["cross_section_plan"]["canonical_sha256"] = Value::String(plan_hash);
+        let mut binding = reversed.clone();
+        binding.as_object_mut().unwrap().remove("input_sha256");
+        reversed["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        assert!(runtime.geometry_program_hash(&reversed).is_err());
     }
 
     #[test]

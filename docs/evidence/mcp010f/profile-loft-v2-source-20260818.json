@@ -1,0 +1,52 @@
+{
+  "schema_version": "ForgeCADProfileLoftV2SourceReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_at": "2026-08-18T00:00:00+08:00",
+  "scope": "source-contract-worker-runtime-mcp",
+  "status": "PASS_STRUCTURAL_SOURCE_ONLY",
+  "operator_id": "forgecad.geometry.profile-loft@2",
+  "contracts": ["ProfileLoftRequest@2", "ProfileLoftProgram@2", "CrossSectionPlan@1", "GeometryProgram@2"],
+  "implemented": [
+    "longitudinal_x_axis_station_loft",
+    "unequal_profile_point_count_arc_length_resampling",
+    "deterministic_cyclic_phase_alignment",
+    "explicit_and_detected_corner_preservation",
+    "bounded_linear_or_catmull_rom_position_sampling",
+    "bounded_intermediate_rings",
+    "duplicate_edge_and_self_intersection_rejection",
+    "consistent_counter_clockwise_winding",
+    "deterministic_ear_clipped_concave_endpoint_caps",
+    "runtime_owned_hash_bound_read_only_program_expansion",
+    "fixed_worker_candidate_compile_compatibility"
+  ],
+  "focused_gates": {
+    "contracts_147": "PASS",
+    "weapon_foundation": "PASS",
+    "profile_loft_v2_source_checker": "PASS",
+    "geometry_worker_34_tests": "PASS_AFTER_EXPECTED_CATALOG_COUNT_UPDATE",
+    "profile_loft_v2_worker_tests": "8_PASS",
+    "runtime_profile_loft_v2_tests": "2_PASS",
+    "runtime_full_suite": "189_PASS_0_FAIL_12_IGNORED",
+    "worker_protocol_tests": "2_PASS",
+    "runtime_mcp_compile": "PASS",
+    "stage0_truth": "PASS_WITH_EXISTING_QUALITY_FAILURES_PRESERVED"
+  },
+  "fail_closed": [
+    "g1_and_g2_continuity_not_claimed",
+    "holes_and_islands_rejected",
+    "arbitrary_scripts_paths_urls_network_and_secrets_not_admitted",
+    "no_candidate_confirm_export_or_version_write_from_geometry_program_hash"
+  ],
+  "not_run_or_not_met": [
+    "real_user_reference_candidate",
+    "candidate_bound_multiview_visual_comparison",
+    "pbr_material_likeness",
+    "independent_human_review",
+    "export_restart_hash",
+    "hq_360"
+  ],
+  "quality_status": "QUALITY_TARGET_NOT_MET",
+  "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+  "camera_binding": "MISMATCH",
+  "persistent_user_data_touched": false
+}

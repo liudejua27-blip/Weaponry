@@ -1,0 +1,19 @@
+# Product-owned operator lock; the proposal contains no executable operator.
+# Availability is still subject to the live Runtime catalog and a future consumer.
+forgecad.geometry.primitive@2 = forgecad-runtime-builtin
+forgecad.geometry.profile-extrude@1 = forgecad-runtime-builtin
+forgecad.geometry.profile-loft@1 = forgecad-runtime-builtin
+forgecad.geometry.longitudinal-section-loft@1 = forgecad-runtime-builtin
+forgecad.geometry.subd-cage@1 = forgecad-runtime-builtin
+forgecad.geometry.surface-patch@1 = forgecad-runtime-builtin
+forgecad.geometry.surface-shell@1 = forgecad-runtime-builtin
+forgecad.geometry.revolve@1 = forgecad-runtime-builtin
+forgecad.geometry.tube-sweep@1 = forgecad-runtime-builtin
+forgecad.geometry.transform@2 = forgecad-runtime-builtin
+forgecad.geometry.mirror@1 = forgecad-runtime-builtin
+forgecad.geometry.array@1 = forgecad-runtime-builtin
+forgecad.geometry.panel@1 = forgecad-runtime-builtin
+forgecad.geometry.vent-array@1 = forgecad-runtime-builtin
+forgecad.geometry.joint-stack@1 = forgecad-runtime-builtin
+forgecad.geometry.boolean@1 = forgecad-runtime-builtin
+forgecad.geometry.part-output@1 = forgecad-runtime-builtin

@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/weapon-design-graph.schema.json",
+  "title": "WeaponDesignGraph",
+  "description": "A neutral visual-structure graph for a fictional game or film asset; roles describe visible forms and never manufacturing or operational function.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "graph_id",
+    "project_id",
+    "scope",
+    "nonfunctional_asset",
+    "reference_view_set_sha256",
+    "cross_section_plan_sha256",
+    "sketch_program_sha256",
+    "decomposition_policy",
+    "global_contour_authority",
+    "quality_status",
+    "review_status",
+    "hq_360_status",
+    "runtime_write_performed",
+    "user_approval_required",
+    "nodes",
+    "edges",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "WeaponDesignGraph@1"},
+    "graph_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "scope": {"enum": ["fictional-game-asset", "fictional-film-visual-asset"]},
+    "nonfunctional_asset": {"const": true},
+    "reference_view_set_sha256": {"$ref": "#/$defs/sha256"},
+    "cross_section_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "sketch_program_sha256": {"$ref": "#/$defs/sha256"},
+    "decomposition_policy": {"const": "visual-structure-not-functional-parts"},
+    "global_contour_authority": {"const": true},
+    "quality_status": {"const": "structural_only"},
+    "review_status": {"enum": ["unreviewed", "user-confirmed"]},
+    "hq_360_status": {"enum": ["BLOCKED_REFERENCE_COVERAGE", "ELIGIBLE_FOR_HQ_360_REVIEW"]},
+    "runtime_write_performed": {"const": false},
+    "user_approval_required": {"const": true},
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/node"}
+    },
+    "edges": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/edge"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "visibility": {
+      "enum": ["observed", "inferred", "unknown"]
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "role",
+        "source_kind",
+        "source_id",
+        "observation_status",
+        "confidence"
+      ],
+      "properties": {
+        "node_id": {"$ref": "#/$defs/identifier"},
+        "role": {
+          "enum": [
+            "primary-shell",
+            "secondary-panel",
+            "continuity-group",
+            "negative-space",
+            "accent-layer",
+            "guide",
+            "unknown"
+          ]
+        },
+        "source_kind": {
+          "enum": ["reference", "cross-section", "sketch", "bounded-inference"]
+        },
+        "source_id": {"$ref": "#/$defs/identifier"},
+        "observation_status": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"observation_status": {"const": "unknown"}},
+            "required": ["observation_status"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_id",
+        "source_node_id",
+        "target_node_id",
+        "relation",
+        "observation_status",
+        "confidence"
+      ],
+      "properties": {
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "source_node_id": {"$ref": "#/$defs/identifier"},
+        "target_node_id": {"$ref": "#/$defs/identifier"},
+        "relation": {
+          "enum": [
+            "contains",
+            "continuity",
+            "shared-boundary",
+            "derived-from",
+            "symmetry"
+          ]
+        },
+        "observation_status": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"observation_status": {"const": "unknown"}},
+            "required": ["observation_status"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
+    }
+  }
+}

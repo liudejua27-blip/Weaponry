@@ -10,7 +10,7 @@
     "reference_id": {"$ref": "#/$defs/identifier"},
     "reference_sha256": {"$ref": "#/$defs/sha256"},
     "view_id": {"$ref": "#/$defs/identifier"},
-    "source_view": {"enum": ["front", "back", "left", "right", "rear-three-quarter", "three-quarter", "unknown"]},
+    "source_view": {"enum": ["front", "back", "left", "right", "top", "bottom", "front-three-quarter", "rear-three-quarter", "detail", "three-quarter", "unknown"]},
     "image": {
       "type": "object",
       "additionalProperties": false,

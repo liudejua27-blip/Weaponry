@@ -857,7 +857,7 @@ fn read_only_tools() -> Vec<Value> {
         ),
         tool(
             "geometry_program_hash",
-            "Validate a hash-free GeometryProgram@2 draft, or expand one bounded ParametricDesignKitRequest@1 into a typed program, and return Runtime-owned hashes without compiling or persisting a candidate",
+            "Validate a hash-free GeometryProgram@2 draft, or expand one bounded ParametricDesignKitRequest@1/profile-loft@2 request into a typed program, and return Runtime-owned hashes without compiling or persisting a candidate",
             json!({
                 "type":"object",
                 "additionalProperties":false,
@@ -894,6 +894,22 @@ fn read_only_tools() -> Vec<Value> {
                             "part_id":id_property(),
                             "material_zone_id":id_property(),
                             "intent":{"type":"object"},
+                            "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                        }
+                    },
+                    {
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","operator_id","project_id","feature_id","part_id","material_zone_id","cross_section_plan","continuity_policy","input_sha256"],
+                        "properties":{
+                            "schema_version":{"const":"ProfileLoftRequest@2"},
+                            "operator_id":{"const":"forgecad.geometry.profile-loft@2"},
+                            "project_id":id_property(),
+                            "feature_id":id_property(),
+                            "part_id":id_property(),
+                            "material_zone_id":id_property(),
+                            "cross_section_plan":{"$ref":"https://forgecad.local/contracts/profile-loft-request-v2.schema.json#/$defs/cross_section_plan"},
+                            "continuity_policy":{"$ref":"https://forgecad.local/contracts/profile-loft-request-v2.schema.json#/$defs/continuity_policy"},
                             "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
                         }
                     }
@@ -4840,6 +4856,11 @@ mod tests {
         }));
         assert!(branches.iter().any(|branch| {
             branch["properties"]["schema_version"]["const"] == "ParametricDesignKitRequest@1"
+        }));
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"] == "ProfileLoftRequest@2"
+                && branch["properties"]["operator_id"]["const"]
+                    == "forgecad.geometry.profile-loft@2"
         }));
         assert_eq!(
             tool["inputSchema"]["additionalProperties"], false,
