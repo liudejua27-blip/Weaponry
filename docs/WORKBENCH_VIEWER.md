@@ -1,13 +1,47 @@
 # ForgeCAD Runtime Viewer
 
-当前 Stage 0 覆盖（2026-08-17）：138 Schema、41 read + 33 opt-in write = 74 tools；Viewer 仍只读。`repair_intent_run_prepare` 为 Codex/Runtime 的 CAS-bound staged-run source slice，Viewer 不调用它，也不提供 Repair apply/confirm。
+2026-08-22 `CandidateMaterialSurfaceQuality@1` public positive fixture：`Geometry → CandidateTopologyQuality@1 → AppearanceProgram@3 → TextureBuild@2 → SurfaceBake@1 → AppearanceSourceLineage@1 → CandidateMaterialSurfaceQuality@1` 的 `prepare → same-key replay → get → Runtime drop/reopen → restart get` 通过 **1/1（111.72s）**；Runtime focused **5/5**、Store full **74/74**、Contracts **350**。CAS inventory unchanged；stable `artifact_id` 与 GLB object SHA-256、MaterialPack CAS kind 精确区分，合法 UV/tangent rebuild 不计入 geometry-preservation 漂移。该结果仅为 `structural_only`；V2 animated-socket-particles 仍无完整 public `prepare → Store → restart get`，durable end-to-end=`NOT_RUN`/`BLOCKED_FIXTURE_CHAIN`；visual/commercial=`NOT_PROVEN`，human/engine=`NOT_RUN`，stage/confirm/version/export=false。证据：`docs/evidence/mcp010f/candidate-material-surface-quality-public-positive-source-gate-20260822.json`。
+
+最终同 cohort 修订口径：强制 build cohort `724278fe8f6777c8b3d07bc5058208aee90aa5c700db5f9284d6297126fa79f6` 下 material focused **5/5（112.63s）**；Runtime full **310 passed / 0 failed / 20 ignored**（330 total，201.91s），且 public material fixture 明确在该 full run 内执行。此前 **111.72s** 仅为 public fixture 单测时长；两者都只支持 `structural_only`，不提升 visual/commercial、human/engine 或 stage/confirm/version/export 状态。
+
+数值口径：当前 source 为 **375 schemas / 26/26 active operators / 85 read + 64 write = 149 tools**；本文的 291/118、284/116、271/112、264/110、257/108、231/100、229/99、227/98、221/96、215/94、210/92、204/91、201/90、197/90、195/90、193/90、191/90、187/89、177/84、175/83、173/82、170/80、168/79、166/78、164/78、162/77、160/76 仅作 historical prior slice 保留。
+
+2026-08-22 `FictionalEnergyVfxAnimatedSocketParticlesSequence@2` 双候选 source slice：Contracts **350**；Store V2 focused **2/2**、Store full **74/74**；Runtime V2 仅低层 focused **6/6**、cargo check **PASS**；MCP V2 **3/3**；同 cohort `724278fe8f6777c8b3d07bc5058208aee90aa5c700db5f9284d6297126fa79f6` Runtime full **309 passed / 0 failed / 20 ignored**（191.06s）、MCP full **128 passed / 0 failed / 0 ignored**（1.93s），这些是全量回归，不是 V2 public `prepare → Store → restart get` 正向 fixture。V1/V2 隔离；V2 仅证明 1..16 frame、geometry/appearance 双 candidate/delivery/AnchorSet bridge 以及 Store FK/reachability/idempotence/conflict/rollback 的结构面。完整双候选 public Runtime `prepare → Store → restart get` 正向 fixture 尚不存在，durable end-to-end=`NOT_RUN` / `BLOCKED_FIXTURE_CHAIN`，不能声称正向 durable。该 slice 为 `structural_only`；visual/commercial=`NOT_PROVEN`，human/engine=`NOT_RUN`，stage/confirm/version/export=false。证据：`docs/evidence/mcp010f/fictional-energy-vfx-animated-socket-particles-v2-dual-candidate-source-gate-20260822.json`。
+
+2026-08-20 `recessed-channel@1` 本轮只增加 Geometry/Runtime/MCP/Skill source capability，没有新增 Viewer 写入口或把 channel 解释为宿主编辑历史。Viewer 仍按现有 Part/MaterialZone/readback 投影结果；package/live UI、VoiceOver 与视觉/人评状态不变。
+
+2026-08-20 Mechanical Animation Viewer source slice 现有三个认证、只读 Tauri/Runtime IPC 入口：inventory、verified clip detail，以及 immutable schedule 内的 single-tick Runtime frame preview。Viewer 只把 Runtime 双 Worker 已验证的 rigid Part delta 应用到 GLB 唯一 identity Part owner；embedded animation、Bone/SkinnedMesh、未知/重复/嵌套/nonidentity owner 全部 fail closed，动画与 explosion 在一次 baseline-reset effect 中组合。playhead、展开和选择都是临时 UI 状态；无自动连续播放、Viewer 本地 pose 求值、prepare/confirm 或永久写入。该 slice 是 `structural_only`，不是 Armature、skin、IK、NLA/F-Curve、GLB animation、Blender/Python parity 或视觉 PASS；package/live UI E2E、正式 VoiceOver 与真人门仍未运行。
+
+2026-08-19 Authoring Mesh Edit Prepare 只新增 Runtime/MCP approval-gated staging surface；Viewer 本轮没有新增直接 mesh 编辑器或写入口。新 candidate 仍通过既有只读 candidate/read-model 查看，确认必须回到 Codex 审批链；不得把它展示成 Blender/BMesh/Python/plugin parity 或视觉质量通过。
+
+2026-08-19 Render Evidence Replay 本轮只新增 Runtime/MCP 只读 surface，没有新增 Viewer 重放按钮或第二质量门。未来 Viewer 若展示，只能呈现 same-cohort/profile、九 AOV byte/pixel exact 和 structural-only limitations；不得从该结果推导 visual/PBR/human PASS。package/live Viewer 与 VoiceOver 状态未升级。
+
+2026-08-19 Mechanical Pose Geometry Preview 目前只存在于 Runtime/MCP source read surface；本轮未新增 Viewer timeline、playback、armature、skin 或持久 artifact UI。未来 Viewer 只能把它标为 caller-authored rigid pose 的 transient structural preview，不能把 hash/readback当 durable candidate/version 或原资产 rig provenance；package/live Viewer、VoiceOver、visual/human Gate 未升级。
+
+2026-08-19 当前 Subdivision artifact-lineage 已有 Runtime-owned immutable CAS sidecar 与只读 getter，但本轮未新增 Viewer 写入口或展示 UI。未来 Viewer 只能经 read model 显示 candidate-local、source-primitive-local triangle lineage，并明确 no glTF V/E/C、cross-version false、structural-only；package/live Viewer、VoiceOver、视觉/人评状态未升级。
+
+2026-08-19 当前 Subdivision artifact-lineage 仍是 Runtime/MCP 只读 source slice；Viewer 本轮未新增写入口，也不把 reconstructed projection 冒充 durable sidecar。未来 Viewer 若显示它，只能标注 source-primitive-local triangle identity、no glTF V/E/C identity、cross-version false 和 structural-only；package/live Viewer、VoiceOver、视觉/人评状态不变。
+
+2026-08-19 historical Subdivision root-lineage source slice：本轮未改 Viewer，也未把 mapping 持久化到 artifact/GLB 或 Viewer read model。Viewer 不得把 preview ID 当 artifact/cross-version ID；package/live Viewer、正式 VoiceOver、visual/human Gate 不因本 structural PASS 升级。
+
+2026-08-19 historical Boolean Operand Lineage Runtime/MCP 只读 source slice 当时为 164 schemas、19/19 active operators、45 read + 33 opt-in write = 78 tools。本轮未改 Viewer，也未把 lineage 持久化进 GLB 或 Viewer read model；package/live Viewer、正式 VoiceOver、visual/human Gate 不因该 source structural PASS 而升级。source receipt：`docs/evidence/mcp010f/blender-boolean-operand-lineage-source-gate-20260819.json`。
+
+2026-08-19 Render Evidence Integrity 是 Runtime/MCP 只读 historical source slice，该 slice 当时为 162 schemas、19/19 active operators、44 read + 33 opt-in write = 77 tools。本轮未改 Viewer；Viewer 仍消费既有 RenderSet/quality read model，不自行重算 CAS/PNG/threshold 结论。package/live Viewer、正式 VoiceOver、visual/human Gate 不因该 source structural PASS 而升级。
+
+2026-08-19 Mechanical Pose Sequence Preview 是 Runtime/MCP 只读 historical source slice，该 slice 当时为 160 schemas、19/19 active operators、43 read + 33 opt-in write = 76 tools。本轮未改 Viewer，未生成 candidate、timeline、playback、armature 或 skin UI；package/live Viewer、正式 VoiceOver、visual/human Gate 均不因 source structural PASS 而升级。receipt：`docs/evidence/mcp010f/blender-mechanical-pose-sequence-preview-source-gate-20260819.json`。
+
+2026-08-18 historical Parametric Group v2 是 Runtime/MCP 只读 source slice；该 slice 当时为 158 schemas。本轮未改 Viewer，未生成 candidate、timeline 或 node editor UI。receipt：`docs/evidence/mcp010f/blender-parametric-group-v2-source-gate-20260818.json`。
+
+2026-08-18 historical source slice 当时为 160 Schema、43 read + 33 opt-in write = 76 tools。Mechanical pose、Modifier evaluation v2 与 Subdivision evaluation v2 均由 Codex/MCP/Runtime 只读消费；Viewer 当前不新增姿态时间轴、骨骼编辑器或持久 pose 状态，也不重算 hierarchy/hash。`RenderProfile@1`/AOV lineage 由 Worker 和 Runtime 生产、Viewer 只读消费；`topology_snapshot_get` 仍是 Runtime/MCP read model。既有 Viewer source/package smoke 与视觉 Gate 继续分开记录。
+
+2026-08-17 历史 Stage 0 覆盖为 138 Schema；该阶段随后达到 144 Schema、41 read + 33 opt-in write = 74 tools；Viewer 仍只读。`repair_intent_run_prepare` 为 Codex/Runtime 的 CAS-bound staged-run source slice，Viewer 不调用它，也不提供 Repair apply/confirm。
 
 版本：2026-08-17
-状态：当前源码口径为 138 Schema、41 read + 33 opt-in write = 74；MCP008–009 已实现只读 GLB canvas，MCP010F 已实现 source Viewer 的九 AOV、reference compare、Part/MaterialZone 筛选、临时 explosion、diff/contour 辅助，并通过 packaged CLI read-model、原生窗口与核心控件 smoke。第一阶段又接入 Runtime-authenticated Agentic projection，Viewer 可归一化显示 stage/gate/action/evidence hash，并按 project/candidate 读取 durable DesignSession/Checkpoint read model；唯一 `in_progress` 为 `FGC-MCP010F`。Runtime-owned `primary_form_repair_prepare` 现在先执行 `PrimaryFormAcceptance@1` same-camera retention，再产生 staged candidate/evidence；长时间搜索另由 `primary_form_repair_job_prepare` 排队，并通过 `job_get`/`job_events_read`/`job_result_get` 读取终态 CAS 结果，Viewer 仍只读、不重算质量。provisional observation 的 packaged Viewer binding、正式 VoiceOver、真人/PBR/360 与发布级 packaged E2E 仍 `NOT_RUN/BLOCKED`；Viewer 不提供 durable 写入，通用单动作 orchestrator 与 Repair 应用尚未实现。
+状态：当前源码口径为 290 Schema、26/26 active operators、69 read + 49 opt-in write = 118；MCP010F source Viewer 在原有九 AOV、reference compare、Part/MaterialZone、explosion、diff/contour 和 mechanical clip inspector 之上，新增 candidate-state-bound Provenance Graph。图以紧凑纵向树显示 GeometryProgram/Operator DAG/ArtifactReadback/GeometryQuality，并且只在 Runtime 完整验证后显示 visual 与 animation 分支；不加入任何写按钮。唯一 `in_progress` 仍为 `FGC-MCP010F`；本轮 package/live UI E2E、正式 VoiceOver、真人/PBR/export-restart/360 仍 `NOT_RUN/BLOCKED`，Viewer 不提供 durable 写入。
 
 Stage 0 Viewer 证据边界读取 `docs/evidence/mcp010f/current-benchmark-truth.json`：attempt35 只是 provisional retained observation，为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，fit/compare camera 为 `MISMATCH`；现有 packaged Viewer receipt 又来自不同 cohort/artifact，未绑定 attempt35。故已实现的 Viewer surface 和 package smoke 只能证明读取/交互表面，不能证明同一 candidate 的视觉、PBR、human、export/restart 或 360 通过。
 
-<!-- forgecad-stage0: schemas=139 schema_set_sha256=c66615a0edf6bfcfa13c333b43f1b1756d6db678be7dd9e5249738381e41448b read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=404 schema_set_sha256=a2517bd579b3caf769182c87aab9252323c8cfc9a5acd9ae0a779911c80d963a read_tools=91 write_tools=69 total_tools=160 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 ## 1. 产品角色
 

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-clip-v2-prepare-result.schema.json",
+  "title": "MechanicalAnimationClipPrepareResult@2",
+  "description": "The restart-readable result of an appearance-aware durable clip prepare. It never confirms a candidate, advances a stage, creates a version or exports.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "clip", "durable_link", "replayed", "restart_hash_verified", "runtime_write_performed", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed", "quality_status"],
+  "properties": {
+    "schema_version": {"const": "MechanicalAnimationClipPrepareResult@2"},
+    "clip": {"$ref": "https://forgecad.local/contracts/mechanical-animation-clip-v2.schema.json"},
+    "durable_link": {"$ref": "https://forgecad.local/contracts/mechanical-animation-clip-v2-link.schema.json"},
+    "replayed": {"type": "boolean"},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"const": true},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "quality_status": {"const": "structural_only"}
+  }
+}

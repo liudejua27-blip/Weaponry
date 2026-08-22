@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-render-set.schema.json",
+  "title": "FictionalEnergyVfxRenderSet@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "render_set_id", "frame_key_sha256", "candidate_id", "artifact_sha256", "program_sha256", "effect_materialization_policy", "camera_hash", "camera_object_sha256", "renderer_hash", "render_profile", "render_profile_sha256", "aov_definition_sha256", "color_pipeline_sha256", "id_palette_definition_sha256", "render_worker_build_cohort_sha256", "render_worker_binding_status", "width", "height", "passes", "pass_artifacts", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxRenderSet@1"},
+    "render_set_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "frame_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "candidate_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "artifact_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "program_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "effect_materialization_policy": {"const": "independent-effect-material-zone@1"},
+    "camera_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+    "camera_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "renderer_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+    "render_profile": {"$ref": "render-profile.schema.json"},
+    "render_profile_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "aov_definition_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "color_pipeline_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "id_palette_definition_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "render_worker_build_cohort_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "render_worker_binding_status": {"const": "same_cohort_verified"},
+    "width": {"const": 512},
+    "height": {"const": 512},
+    "passes": {"const": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]},
+    "pass_artifacts": {"type": "object", "additionalProperties": false, "required": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"], "properties": {"beauty": {"$ref": "#/$defs/pass"}, "silhouette": {"$ref": "#/$defs/pass"}, "depth": {"$ref": "#/$defs/pass"}, "normal": {"$ref": "#/$defs/pass"}, "ao": {"$ref": "#/$defs/pass"}, "part-id": {"$ref": "#/$defs/pass"}, "material-id": {"$ref": "#/$defs/pass"}, "wireframe": {"$ref": "#/$defs/pass"}, "uv-stretch": {"$ref": "#/$defs/pass"}}},
+    "canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+  },
+  "$defs": {
+    "pass": {"type": "object", "additionalProperties": false, "required": ["sha256", "mime", "size_bytes", "width", "height", "channels", "color_space"], "properties": {"sha256": {"$ref": "common.schema.json#/$defs/sha256"}, "mime": {"const": "image/png"}, "size_bytes": {"type": "integer", "minimum": 1, "maximum": 4194304}, "width": {"const": 512}, "height": {"const": 512}, "channels": {"const": "rgba8"}, "color_space": {"enum": ["srgb", "data"]}}}
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "schema_version": "ForgeCADBlenderModifierStackSourceGate@1",
+  "recorded_on": "2026-08-18",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_FOCUSED",
+  "cohort_status": "HISTORICAL_PRE_TOPOLOGY_SLICE",
+  "research": {
+    "upstream": "blender/blender",
+    "frozen_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "adoption_mode": "reference-only-clean-room-contract",
+    "repository_cloned": false,
+    "upstream_code_copied": false,
+    "upstream_executed": false,
+    "license_boundary": "Blender GPL source is not vendored or linked; concepts were rewritten as ForgeCAD-owned typed contracts"
+  },
+  "implemented": {
+    "request_contract": "GeometryModifierStackRequest@1",
+    "result_contract": "GeometryModifierStackProgram@1",
+    "read_tool": "geometry_program_hash",
+    "active_modifier_allowlist": [
+      "forgecad.geometry.transform@2",
+      "forgecad.geometry.mirror@1",
+      "forgecad.geometry.array@1"
+    ],
+    "read_only": true,
+    "runtime_unique_writer_preserved": true,
+    "candidate_created": false,
+    "persistent_state_touched": false,
+    "schema_count": 144,
+    "active_operator_count": 17,
+    "read_tool_count": 41,
+    "write_tool_count": 33
+  },
+  "focused_gates": [
+    {
+      "command": "npm run contracts:check",
+      "status": "PASS",
+      "result": "ForgeCAD contracts OK: 144 schemas"
+    },
+    {
+      "command": "cargo test -p forgecad-runtime geometry_modifier_stack --offline",
+      "status": "PASS",
+      "result": "2 passed; 0 failed"
+    },
+    {
+      "command": "cargo test -p forgecad-mcp geometry_modifier_stack --offline",
+      "status": "PASS",
+      "result": "1 passed; 0 failed"
+    }
+  ],
+  "negative_coverage": [
+    "duplicate modifier id rejected",
+    "input hash drift rejected",
+    "non-unary Boolean rejected from v1 stack",
+    "generated node id collision rejected",
+    "wrong modifier parameter branch rejected at MCP schema boundary",
+    "modifier and base-node nested unknown fields plus cross-branch fields rejected at MCP schema boundary",
+    "unknown fields rejected",
+    "invalid operator parameters rejected by the existing Geometry Worker"
+  ],
+  "broader_gates": [
+    {
+      "command": "script/test_runtime_workers.sh",
+      "status": "PASS",
+      "result": "186 passed; 0 failed; 12 ignored"
+    },
+    {
+      "command": "cargo test -p forgecad-mcp --offline",
+      "status": "PASS",
+      "result": "70 passed; 0 failed"
+    },
+    {
+      "command": "python3 scripts/check_mcp010f_stage0_truth.py",
+      "status": "PASS_WITH_RETAINED_VISUAL_FAILURES",
+      "result": "source truth PASS; camera MISMATCH; benchmark BLOCKED_INCOMPLETE_BINDING"
+    },
+    {
+      "command": "release docs/integrity/safety/secrets/license gates",
+      "status": "PASS",
+      "result": "all six mandatory document and repository gates passed"
+    },
+    {
+      "command": "script/test_mcp010f.sh",
+      "status": "PARTIAL_ENVIRONMENT_BLOCKED",
+      "result": "contracts, truth, quality ledger and Viewer source checks passed; desktop typecheck was not run because tsc is absent from this worktree"
+    }
+  ],
+  "quality_truth": {
+    "structural_status": "PASS_SOURCE_FOCUSED",
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "packaged_current_cohort": "NOT_RUN",
+    "human_visual_review": "NOT_RUN"
+  },
+  "limitations": [
+    "No generic editable mesh or BMesh implementation",
+    "No generic bevel or weighted-normal operator",
+    "No arbitrary-topology subdivision modifier",
+    "No EEVEE or Cycles backend",
+    "No armature, skin, action, F-curve or timeline",
+    "No Python or arbitrary plugin execution"
+  ]
+}

@@ -4,7 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 F_GATE_TARGET="$(mktemp -d "${TMPDIR:-/tmp}/forgecad-mcp010f-tauri.XXXXXX")"
-trap 'rm -rf "$F_GATE_TARGET"' EXIT
+F_GEOMETRY_EXACT_EVIDENCE=""
+cleanup_gate_artifacts() {
+  rm -rf "$F_GATE_TARGET"
+  if [[ -n "$F_GEOMETRY_EXACT_EVIDENCE" ]]; then
+    rm -f "$F_GEOMETRY_EXACT_EVIDENCE"
+  fi
+}
+trap cleanup_gate_artifacts EXIT
 
 python3 scripts/check_mcp010f_stage0_truth.py
 python3 scripts/check_mcp010f_current_quality_evidence.py
@@ -634,7 +641,16 @@ expected = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
 require_equal(actual, expected)
 PY
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --workspace --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/geometry-worker/Cargo.toml clean_room_authoring_mesh_compiles_deterministically_and_fails_closed --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-store bounded_read_rejects_oversized_object_before_loading_it --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-store authoring_mesh_edit --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp tool_manifest_summary_is_derived_from_the_actual_enabled_manifests --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp render_evidence_replay_tool_is_closed_read_only_and_dispatches --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp geometry_program_hash_wire_budget_fails_closed_before_transport --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp mechanical_animation_clip_tools_are_closed_and_write_split --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-store bounded_read_rejects_growth_after_metadata_observation --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime replay_aov_budget_is_rejected_before_any_cas_read --offline
+CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime integrity_binary_budget_is_rejected_before_any_cas_read --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback visible_view_gate_rejects_exploratory_thresholds_and_accepts_strict_metrics --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback silhouette_target_is_hash_bound_and_refinement_is_immutable --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback automatic_silhouette_target_round_trips_float_contour_hash --offline
@@ -643,6 +659,85 @@ CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --man
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback contour_fit_part_proposal_and_candidate_compare_are_bounded_and_read_only --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback bounded_agentic_action_run_executes_primary_form_and_round_trips_immutably --offline
 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --features test-render-worker-fallback --offline silhouette_part_error
+F_REPLAY_COHORT_SHA256="$(python3 - <<'PY'
+import hashlib
+from pathlib import Path
+
+paths = [
+    Path("apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs"),
+    Path("apps/desktop/src-tauri/crates/forgecad-runtime/src/render_worker.rs"),
+    Path("apps/desktop/src-tauri/crates/forgecad-runtime/src/render_evidence_integrity.rs"),
+    Path("apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs"),
+    Path("apps/geometry-worker/src/lib.rs"),
+    Path("apps/render-core/src/lib.rs"),
+    Path("apps/render-worker/src/main.rs"),
+]
+digest = hashlib.sha256()
+for path in paths:
+    digest.update(path.as_posix().encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+)"
+FORGECAD_BUILD_COHORT_SHA256="$F_REPLAY_COHORT_SHA256" CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo build --manifest-path apps/render-worker/Cargo.toml --bin forgecad-render-worker --offline
+FORGECAD_BUILD_COHORT_SHA256="$F_REPLAY_COHORT_SHA256" CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo build --manifest-path apps/geometry-worker/Cargo.toml --bin forgecad-geometry-worker --offline
+FORGECAD_BUILD_COHORT_SHA256="$F_REPLAY_COHORT_SHA256" FORGECAD_TEST_REQUIRE_SAME_COHORT_REPLAY=1 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime c_visual_evidence_export_and_restart_keep_hashes_stable --offline
+F_ANIMATION_COHORT_SHA256="$(python3 - <<'PY'
+import hashlib
+from pathlib import Path
+
+paths = [
+    Path("apps/desktop/src-tauri/Cargo.toml"),
+    Path("apps/desktop/src-tauri/Cargo.lock"),
+]
+for root in [
+    Path("apps/desktop/src-tauri/crates/forgecad-contracts"),
+    Path("apps/desktop/src-tauri/crates/forgecad-core"),
+    Path("apps/desktop/src-tauri/crates/forgecad-runtime"),
+    Path("apps/desktop/src-tauri/crates/forgecad-store"),
+    Path("apps/desktop/src-tauri/crates/forgecad-worker-protocol"),
+    Path("apps/geometry-worker"),
+]:
+    paths.extend(
+        path
+        for path in root.rglob("*")
+        if path.is_file() and "target" not in path.relative_to(root).parts
+    )
+paths = sorted(set(paths), key=lambda path: path.as_posix())
+digest = hashlib.sha256()
+for path in paths:
+    digest.update(path.as_posix().encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+)"
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo build --manifest-path apps/geometry-worker/Cargo.toml --bin forgecad-geometry-worker --offline
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --bin forgecad-runtime -p forgecad-mcp --bin forgecad-mcp --offline
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime authoring_mesh_edit_prepare_stages_exact_candidate_atomically_and_replays_idempotently --offline
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp authoring_topology_and_edit_preview_round_trip_as_closed_read_only_mcp_tools --offline
+F_AUTHORING_PREPARE_RAW_PARENT="$(mktemp -d /tmp/forgecad-authoring-prepare-gate.XXXXXX)"
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" FORGECAD_GEOMETRY_WORKER_COMMAND="$F_GATE_TARGET/debug/forgecad-geometry-worker" python3 scripts/probe_mcp010d_raw_stdio.py \
+  --mcp "$F_GATE_TARGET/debug/forgecad-mcp" \
+  --runtime "$F_GATE_TARGET/debug/forgecad-runtime" \
+  --data-root "$F_AUTHORING_PREPARE_RAW_PARENT/data" \
+  --expected-build-cohort "$F_ANIMATION_COHORT_SHA256" \
+  --exercise-authoring-prepare >/dev/null
+F_GEOMETRY_EXACT_RAW_PARENT="$(mktemp -d /tmp/forgecad-geometry-exact-gate.XXXXXX)"
+F_GEOMETRY_EXACT_EVIDENCE="$(mktemp docs/evidence/mcp010f/.geometry-exact-gate.XXXXXX)"
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" FORGECAD_GEOMETRY_WORKER_COMMAND="$F_GATE_TARGET/debug/forgecad-geometry-worker" python3 scripts/probe_mcp010d_raw_stdio.py \
+  --mcp "$F_GATE_TARGET/debug/forgecad-mcp" \
+  --runtime "$F_GATE_TARGET/debug/forgecad-runtime" \
+  --data-root "$F_GEOMETRY_EXACT_RAW_PARENT/data" \
+  --expected-build-cohort "$F_ANIMATION_COHORT_SHA256" \
+  --exercise-exact-geometry-prepare \
+  --evidence "$F_GEOMETRY_EXACT_EVIDENCE" >/dev/null
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp mechanical_animation_clip_mcp_dispatches_and_summarizes_nested_preview --offline
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" FORGECAD_TEST_REQUIRE_SAME_COHORT_ANIMATION_CLIP=1 CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime mechanical_animation_clip_is_durable_same_cohort_and_replays_scheduled_frames --offline
+FORGECAD_BUILD_COHORT_SHA256="$F_ANIMATION_COHORT_SHA256" CARGO_TARGET_DIR="$F_GATE_TARGET" script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime mechanical_animation_clip_rejects_oversized_source_artifact_and_program_before_writes --offline
 git diff --check
 
 python3 - docs/evidence/mcp010f/current-benchmark-truth.json <<'PY'

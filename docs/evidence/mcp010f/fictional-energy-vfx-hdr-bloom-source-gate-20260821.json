@@ -1,0 +1,68 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F/VFX-HDR-BLOOM-07",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_STRUCTURAL_DURABLE_BOUNDED_HDR_BLOOM_GATE",
+  "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+  "current_source": {
+    "schema_count": 257,
+    "schema_content_set_sha256": "ed3ced861f630b1cd399cccb7e71d3b561d8e3c5cf6be503e9d259ef79300048",
+    "read_tool_count": 64,
+    "write_tool_count": 44,
+    "total_tool_count": 108,
+    "read_tool": "fictional_energy_vfx_hdr_bloom_get",
+    "write_tool": "fictional_energy_vfx_hdr_bloom_prepare"
+  },
+  "source_files": [
+    {"path": "apps/render-core/src/lib.rs", "sha256": "bec3e803d625aaf621eb7df5439b0f76eb495894385fcdb5607fa14bd62943d1"},
+    {"path": "apps/render-worker/src/main.rs", "sha256": "c8ad0b8bef903169b16dbc782dc30aad8db7b26e16770fa416dbfb40fc97e141"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs", "sha256": "3904b8812e938ed29acf8d6863ebf4aa2c010b30084fa4bf57ccfb65f12a35a9"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/render_worker.rs", "sha256": "1bc24baac91a80345e4056cf08369df48582583fbe3b10b3f7460981e9290b37"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/game_asset_delivery.rs", "sha256": "ad150938d923b27256f43b0392b217582014adc53ff21d8387c9fec8791c6a89"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs", "sha256": "3c77499bb364ba2c6ca30c9f45607df510e3e8237a5dfc478be50f24b0b05144"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs", "sha256": "5fcf5ca94ee2f70e2a309e8e0db65bb660d9e5c0fe12f007530162175ca43b29"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs", "sha256": "6881d5614620f491e0a97f6b953be0043d687db13a2f8816ad173d2889f32f54"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs", "sha256": "265e33b26ec825cf1297cfde47a06a741bba1d716b056456b530bafa8aa9fca4"},
+    {"path": "packages/forgecad-contracts/manifest.json", "sha256": "73b8958775723e91771be7912349d6c40d7091603da75d08c9c98b5520670631"},
+    {"path": "docs/evidence/mcp010f/source-tool-manifest-summary.json", "sha256": "6858bf7d31218cc3f0a298effe40d823bc1e3d2888ab0bb9607d314ded715d74"}
+  ],
+  "bloom": {
+    "resolution": [512, 512],
+    "threshold": 1.0,
+    "radius_px": 8,
+    "intensity": 4.0,
+    "hdr_clamp": 16.0,
+    "blur_passes": 2,
+    "worker_passes": ["emissive-source", "bloom-contribution"],
+    "base_nine_aovs_enter_bloom_worker": false,
+    "base_nine_aov_cas_hashes_verified": true,
+    "double_worker_byte_exact": true,
+    "exact_material_zone_binding": true,
+    "cas_sqlite_durable_link": true,
+    "idempotent_prepare": true,
+    "runtime_restart_readback_verified": true,
+    "invalid_profile_zero_write_verified": true,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "tests": [
+    {"name": "contracts checker", "result": "PASS_257_SCHEMAS"},
+    {"name": "isolated HDR bloom Worker determinism and AOV isolation", "result": "PASS_1_OF_1", "duration_seconds": 35.50, "filtered_out": 257},
+    {"name": "forced-cohort HDR bloom durability and base binding", "result": "PASS_1_OF_1", "duration_seconds": 103.31, "filtered_out": 257},
+    {"name": "MCP compiled manifest derivation", "result": "PASS_64_READ_44_WRITE_108_TOTAL"},
+    {"name": "MCP closed read/write split", "result": "PASS"}
+  ],
+  "truth_boundaries": {
+    "hdr_bloom_rendered": true,
+    "particles_rendered": false,
+    "trails_rendered": false,
+    "glb_socket_transform_executed": false,
+    "actual_engine_roundtrip": false,
+    "human_review": "NOT_RUN",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_status": "MISMATCH",
+    "hq360_status": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

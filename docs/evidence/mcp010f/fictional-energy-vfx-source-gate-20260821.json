@@ -1,0 +1,62 @@
+{
+  "schema_version": "ForgeCADFictionalEnergyVfxSourceGate@1",
+  "task_id": "FGC-MCP010F-VFX-PROFILE-01",
+  "status": "PASS_DURABLE_STRUCTURAL_INTENT_ONLY",
+  "contracts": {
+    "schema_count": 227,
+    "vfx_schema_count": 6,
+    "closed_contract_checker": "PASS"
+  },
+  "runtime": {
+    "durable_cas_profile": "PASS",
+    "sqlite_link_and_reachability": "PASS",
+    "temporary_cas_rollback_on_link_failure": "PASS_SOURCE_REVIEW",
+    "idempotent_replay": "PASS",
+    "restart_get": "PASS",
+    "negative_sample_rejected": "PASS",
+    "candidate_confirmed": false,
+    "export_performed": false
+  },
+  "mcp": {
+    "read_tool": "fictional_energy_vfx_get",
+    "write_tool": "fictional_energy_vfx_prepare",
+    "default_write_visibility": "HIDDEN",
+    "write_opt_in_required": true,
+    "read_count": 58,
+    "write_count": 40,
+    "total_count": 98,
+    "wire_budget_bytes": 1048576
+  },
+  "raw_stdio_receipt": "docs/evidence/mcp010f/fictional-energy-vfx-raw-stdio-20260821.json",
+  "threejs_receipt": "docs/evidence/mcp010f/threejs-fictional-energy-vfx-profile-consumer-20260821.json",
+  "material_pack": {
+    "pack_id": "forgecad-fictional-energy-weapon-2k",
+    "canonical_sha256": "a1866a469621e39e36b669e8c99202ff853967cfcf65fb047e7f26d216bcc5d6",
+    "verified_scope": "allowlisted-static-emissive-material-definition-only",
+    "glb_material_zone_binding_verified": false
+  },
+  "execution": {
+    "typed_time_sampled_emissive_intent": "PASS",
+    "threejs_linear_sample_math": "PASS_STRUCTURAL_CONSUMER_ONLY",
+    "material_animation_rendered": false,
+    "bloom_rendered": false,
+    "particles_rendered": false,
+    "trails_rendered": false,
+    "actual_commercial_engine_roundtrip": false
+  },
+  "semantic_scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+  "functional_semantics": false,
+  "quality_status": "structural_only",
+  "overall_visual_status": "QUALITY_TARGET_NOT_MET",
+  "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+  "camera_status": "MISMATCH",
+  "hq360_status": "BLOCKED_REFERENCE_COVERAGE",
+  "limitations": [
+    "sampled emissive values are persisted intent and are not rendered animation",
+    "static MaterialPack definition presence does not prove GLB MaterialZone binding",
+    "bloom, particles and trails are not implemented",
+    "Three.js receipt proves only deterministic profile parsing and interpolation math",
+    "Godot, Unity and Unreal remain NOT_RUN",
+    "structural gates do not establish likeness or production game readiness"
+  ]
+}

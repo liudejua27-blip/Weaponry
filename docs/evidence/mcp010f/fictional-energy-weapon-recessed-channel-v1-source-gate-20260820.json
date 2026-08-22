@@ -1,0 +1,99 @@
+{
+  "schema_version": "ForgeCADRecessedChannelV1SourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-20",
+  "status": "PASS_SOURCE_STRUCTURAL_RECESSED_CHANNEL_V1",
+  "safe_scope": "legal nonfunctional fictional game and film visual assets only",
+  "current_source_counts": {
+    "schemas": 195,
+    "operator_catalog_entries": 24,
+    "active_operators": 24,
+    "mcp_read_tools": 54,
+    "mcp_write_tools": 36,
+    "mcp_total_tools": 90
+  },
+  "operator": {
+    "operator_id": "forgecad.geometry.recessed-channel@1",
+    "path_frame": "planar-xy-z-up@1",
+    "input_arity": {"min": 0, "max": 0},
+    "output_kind": "triangle-mesh",
+    "semantic_scope": "one standalone semantic PartOutput",
+    "implemented_geometry": [
+      "two to thirty-two bounded planar XY stations",
+      "variable width and depth",
+      "floor ratio and closed side walls",
+      "bounded edge bevel",
+      "start and end transitions",
+      "closed end caps",
+      "one connected watertight component",
+      "220-triangle deterministic fixture",
+      "1276-triangle operator upper bound"
+    ],
+    "fail_closed": [
+      "unknown executable path URL and script fields",
+      "non-finite and out-of-range values",
+      "nonzero input arity",
+      "zero-length near-reverse self-intersecting and collinearly overlapping paths",
+      "non-intersecting centerlines with overlapping swept envelopes",
+      "depth width bevel and transition relationship drift",
+      "triangle budget and canonical hash drift",
+      "operator-to-parameter schema drift",
+      "boundary non-manifold winding connected-component and strict GLB readback failures"
+    ]
+  },
+  "source_sha256": {
+    "geometry_program_v2_schema": "7f21844db4475e1d7e21b9203a0e0ec04af42b106e1886f5df74fa33da27433c",
+    "worker_protocol_catalog": "70cff6bef1f463f3fe323086f28da271591eb3a32b27cf40e6b7a0dc9802af3c",
+    "geometry_operator": "83c2623a53fb9d678eb1df287ddb53f33c582b8eecf15144c018a833e0ddb485",
+    "geometry_worker": "03af65136ee539fc952fc61beaec960fd367a599263cd84de3b1ec27c2bcf3da",
+    "runtime_skill_allowlist": "45fe281f06e8e8c60f0606efc29e01f93f54d771811548fe7fb4341e5fcb8133",
+    "runtime_main": "ac361d660a9207852437b8e25a54c34a2ce58dba413e397e0c5b6fca89871734",
+    "runtime_agentic_allowlist": "aff2e55bd4ae13ff1728203b996ecee0498aefdb3d9594dec751e8088f7acd55",
+    "mcp_agentic_allowlist": "cc743e1afeec2edf76d90137454a164a9f64cf7ed8b2c9054a7684d04d48b386",
+    "mcp_main": "30c3b0c5d12609aef46fce09592c983905720c1e03bb8f0b8397686dfc2b39a2",
+    "skill_registry": "bf489edbbb0f8fc0de5fe2ce1758b0641036553c354b33f1b51ea3c64477c6c7",
+    "skill_trust_manifest": "92f94196cd71d60892ae04a0f8849ccda4eadc1bb9cbe29ac190c79c2ca00919",
+    "hard_surface_detail_manifest": "95edb98eed4f9d76b39b8670bc853675c5142f05671b3174d6d0b2cb0a5d654e",
+    "hard_surface_detail_operator_lock": "b29307de2dadb46764d4eb77cc3b5ee00d20e4065801f57ea589a2caac07f3b9",
+    "hard_surface_detail_recipe": "863f595d11fa94e39c86172ac88712239a2b31749d6ed4521f809179603a5be5",
+    "modifier_stack_schema": "e421e8b9f2b35a9ecb80345ce9a6b006653ce293fb4de647c4defd1dbd438c86",
+    "fictional_energy_rifle_profile_schema": "82f437a3749c38b49cfb385dc3ee118a1272fb0b05e81f007092fb3493dad90d",
+    "contract_checker": "55968f63e6f93990646c1bfd375e555fdae1e4b0fc0ff066f8f081594a158bc5"
+  },
+  "verification": {
+    "geometry_worker_recessed_channel_focused": "PASS_5_OF_5",
+    "geometry_worker_full": "PASS_57_OF_57",
+    "worker_protocol": "PASS_3_OF_3",
+    "contracts": "PASS_195_SCHEMAS",
+    "runtime_skill_registry": "PASS_4_OF_4",
+    "mcp_modifier_dispatch": "PASS_1_OF_1",
+    "first_party_skill_registry": "PASS_12_DECLARATIVE_SKILLS",
+    "legal_parameter_differentials": "PASS_PATH_WIDTH_DEPTH_BEVEL_START_END_AND_SEGMENTS",
+    "strict_topology": "PASS_CONNECTED_COMPONENT_1_BOUNDARY_0_NON_MANIFOLD_0",
+    "independent_luna_gate_review": "PASS_P0_0_P1_0_AFTER_SECOND_REVIEW",
+    "repository_integrity": "PASS_AFTER_REMOVING_REBUILDABLE_RUST_TARGET_OUTPUTS",
+    "release_docs_walkthrough": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "persistent_user_data_touched": false,
+  "downloads_or_external_assets": false,
+  "quality_boundaries": {
+    "current_weapon_candidate_recompiled_with_recessed_channel_v1": "NOT_RUN",
+    "same_candidate_multiview": "NOT_RUN",
+    "pbr_visual": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "package_live": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "overall_quality_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "known_limitations": [
+    "recessed-channel@1 is a bounded standalone semantic Part grammar and not an arbitrary host-mesh cut operation",
+    "the path frame is planar XY and not a general three-dimensional parallel-transport sweep",
+    "energy-core@1 and arbitrary-edge bevel are not implemented by this slice",
+    "this receipt is structural source evidence and is not a commercial visual-quality claim"
+  ]
+}

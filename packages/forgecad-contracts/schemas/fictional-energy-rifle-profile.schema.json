@@ -182,6 +182,36 @@
         "rotation_rad": {"$ref": "#/$defs/vector3"}
       }
     },
+    "channel_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stations", "path_frame", "floor_width_ratio", "edge_bevel_m", "start_transition_m", "end_transition_m", "transition_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "stations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["point_m", "width_m", "depth_m"],
+            "properties": {
+              "point_m": {"$ref": "#/$defs/vector3"},
+              "width_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 10},
+              "depth_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 10}
+            }
+          }
+        },
+        "path_frame": {"const": "planar-xy-z-up@1"},
+        "floor_width_ratio": {"type": "number", "exclusiveMinimum": 0.1, "maximum": 0.8},
+        "edge_bevel_m": {"type": "number", "minimum": 0, "maximum": 5},
+        "start_transition_m": {"type": "number", "minimum": 0, "maximum": 5},
+        "end_transition_m": {"type": "number", "minimum": 0, "maximum": 5},
+        "transition_segments": {"type": "integer", "minimum": 1, "maximum": 4},
+        "position_m": {"$ref": "#/$defs/vector3"},
+        "rotation_rad": {"$ref": "#/$defs/vector3"}
+      }
+    },
     "joint_intent": {
       "type": "object",
       "additionalProperties": false,
@@ -195,6 +225,30 @@
         "position_m": {"$ref": "#/$defs/vector3"},
         "rotation_rad": {"$ref": "#/$defs/vector3"}
       }
+    },
+    "energy_core_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "outer_radius_m", "inner_radius_m", "depth_m", "radial_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "component": {"enum": ["guard-ring", "mechanical-ring", "emitter-core", "mechanical-backplate"]},
+        "outer_radius_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 5},
+        "inner_radius_m": {"type": "number", "minimum": 0, "maximum": 5},
+        "depth_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 10},
+        "radial_segments": {"type": "integer", "minimum": 12, "maximum": 64},
+        "position_m": {"$ref": "#/$defs/vector3"},
+        "rotation_rad": {"$ref": "#/$defs/vector3"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"component": {"enum": ["guard-ring", "mechanical-ring"]}}, "required": ["component"]},
+          "then": {"properties": {"inner_radius_m": {"type": "number", "exclusiveMinimum": 0.00001, "maximum": 5}}}
+        },
+        {
+          "if": {"properties": {"component": {"enum": ["emitter-core", "mechanical-backplate"]}}, "required": ["component"]},
+          "then": {"properties": {"inner_radius_m": {"const": 0}}}
+        }
+      ]
     },
     "sensor_intent": {
       "type": "object",
@@ -228,6 +282,8 @@
             "forgecad.kit.housing@1",
             "forgecad.kit.panel@1",
             "forgecad.kit.vent@1",
+            "forgecad.kit.channel@1",
+            "forgecad.kit.energy-core@1",
             "forgecad.kit.joint@1",
             "forgecad.kit.sensor@1",
             "forgecad.kit.frame@1"
@@ -237,6 +293,9 @@
           "enum": [
             "forgecad.geometry.panel@1",
             "forgecad.geometry.vent-array@1",
+            "forgecad.geometry.vent-array@2",
+            "forgecad.geometry.recessed-channel@1",
+            "forgecad.geometry.energy-core@1",
             "forgecad.geometry.joint-stack@1",
             "forgecad.geometry.primitive@2"
           ]
@@ -257,8 +316,16 @@
           "then": {"properties": {"intent": {"$ref": "#/$defs/vent_intent"}}}
         },
         {
+          "if": {"properties": {"kit_id": {"const": "forgecad.kit.channel@1"}}, "required": ["kit_id"]},
+          "then": {"properties": {"intent": {"$ref": "#/$defs/channel_intent"}}}
+        },
+        {
           "if": {"properties": {"kit_id": {"const": "forgecad.kit.joint@1"}}, "required": ["kit_id"]},
           "then": {"properties": {"intent": {"$ref": "#/$defs/joint_intent"}}}
+        },
+        {
+          "if": {"properties": {"kit_id": {"const": "forgecad.kit.energy-core@1"}}, "required": ["kit_id"]},
+          "then": {"properties": {"intent": {"$ref": "#/$defs/energy_core_intent"}}}
         },
         {
           "if": {"properties": {"kit_id": {"const": "forgecad.kit.sensor@1"}}, "required": ["kit_id"]},

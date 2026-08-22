@@ -1,0 +1,11 @@
+ForgeCAD offline AssetPack source notice
+
+The derived texture inputs named in manifest.json are CC0 assets:
+
+- ambientCG Metal010 and Plastic006: https://docs.ambientcg.com/license/
+- Poly Haven Studio Small 03: https://polyhaven.com/license
+
+The downloaded source archives are kept outside the repository in the local
+adoption cache. This file records the license URLs and the manifest records
+the source and derived SHA-256 values. No Blender, USDC, MTLX, or arbitrary
+script from the source archives is redistributed by this pack.

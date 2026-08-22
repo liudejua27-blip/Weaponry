@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/render-evidence-integrity.schema.json",
+  "title": "RenderEvidenceIntegrity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "projection_status",
+    "read_only",
+    "project_id",
+    "candidate_id",
+    "artifact_sha256",
+    "artifact_readback_object_sha256",
+    "program_sha256",
+    "reference_id",
+    "reference_sha256",
+    "request_sha256",
+    "camera_binding",
+    "object_hashes",
+    "source_bytes_binding",
+    "render_profile_binding",
+    "aov_artifacts",
+    "comparison_mask_binding",
+    "comparison_status",
+    "quality_gate_binding",
+    "binding_status",
+    "runtime_write_performed",
+    "max_response_bytes",
+    "limitations",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "RenderEvidenceIntegrity@1"},
+    "projection_status": {"const": "projection/read-only"},
+    "read_only": {"const": true},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_binding": {"$ref": "#/$defs/camera_binding"},
+    "object_hashes": {"$ref": "#/$defs/object_hashes"},
+    "source_bytes_binding": {"$ref": "#/$defs/source_bytes_binding"},
+    "render_profile_binding": {"$ref": "#/$defs/render_profile_binding"},
+    "aov_artifacts": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "prefixItems": [
+        {"$ref": "#/$defs/beauty_aov"},
+        {"$ref": "#/$defs/data_aov_silhouette"},
+        {"$ref": "#/$defs/data_aov_depth"},
+        {"$ref": "#/$defs/data_aov_normal"},
+        {"$ref": "#/$defs/data_aov_ao"},
+        {"$ref": "#/$defs/data_aov_part_id"},
+        {"$ref": "#/$defs/data_aov_material_id"},
+        {"$ref": "#/$defs/data_aov_wireframe"},
+        {"$ref": "#/$defs/data_aov_uv_stretch"}
+      ],
+      "items": false
+    },
+    "comparison_mask_binding": {"$ref": "#/$defs/comparison_mask_binding"},
+    "comparison_status": {"$ref": "#/$defs/visual_status"},
+    "quality_gate_binding": {"$ref": "#/$defs/quality_gate_binding"},
+    "binding_status": {"const": "passed"},
+    "runtime_write_performed": {"const": false},
+    "max_response_bytes": {"const": 1048576},
+    "limitations": {
+      "const": [
+        "CURRENT_SOURCE_COHORT_ONLY",
+        "HISTORICAL_RECEIPTS_NOT_REPAIRED",
+        "STRUCTURAL_INTEGRITY_DOES_NOT_PROVE_VISUAL_QUALITY",
+        "NO_HUMAN_REVIEW_INFERENCE",
+        "NO_CYCLES_EEVEE_OR_OCIO_PARITY",
+        "SINGLE_VIEW_ONLY",
+        "CAMERA_FIT_PROVENANCE_NOT_ASSERTED",
+        "DOWNSTREAM_HUMAN_PBR_EXPORT_RESTART_HQ360_NOT_EVALUATED"
+      ]
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "visual_status": {
+      "enum": ["PARTIAL_VISIBLE_VIEW_PASS", "QUALITY_TARGET_NOT_MET", "BLOCKED_REFERENCE_COVERAGE"]
+    },
+    "camera_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "camera_hash",
+        "camera_object_sha256",
+        "camera_canonical_sha256",
+        "render_set_camera_hash",
+        "comparison_camera_hash",
+        "identity_hash_verified",
+        "object_hash_verified",
+        "status"
+      ],
+      "properties": {
+        "camera_hash": {"$ref": "#/$defs/sha256"},
+        "camera_object_sha256": {"$ref": "#/$defs/sha256"},
+        "camera_canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "render_set_camera_hash": {"$ref": "#/$defs/sha256"},
+        "comparison_camera_hash": {"$ref": "#/$defs/sha256"},
+        "identity_hash_verified": {"const": true},
+        "object_hash_verified": {"const": true},
+        "status": {"const": "same_camera_verified"}
+      }
+    },
+    "object_hash_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_sha256", "canonical_sha256", "object_hash_verified"],
+      "properties": {
+        "object_sha256": {"$ref": "#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"},
+        "object_hash_verified": {"const": true}
+      }
+    },
+    "object_hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_readback", "render_set", "comparison_report", "quality_report"],
+      "properties": {
+        "artifact_readback": {"$ref": "#/$defs/object_hash_row"},
+        "render_set": {"$ref": "#/$defs/object_hash_row"},
+        "comparison_report": {"$ref": "#/$defs/object_hash_row"},
+        "quality_report": {"$ref": "#/$defs/object_hash_row"}
+      }
+    },
+    "source_bytes_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cas_object_sha256", "bytes_sha256", "size_bytes", "mime", "cas_hash_verified"],
+      "properties": {
+        "cas_object_sha256": {"$ref": "#/$defs/sha256"},
+        "bytes_sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "mime": {"type": "string", "minLength": 1, "maxLength": 128},
+        "cas_hash_verified": {"const": true}
+      }
+    },
+    "source_bytes_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "reference"],
+      "properties": {
+        "artifact": {"$ref": "#/$defs/source_bytes_row"},
+        "reference": {"$ref": "#/$defs/source_bytes_row"}
+      }
+    },
+    "comparison_mask_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mask_object_sha256", "mask_bytes_sha256", "width", "height", "mime", "channels", "object_hash_verified", "png_decode_verified"],
+      "properties": {
+        "mask_object_sha256": {"$ref": "#/$defs/sha256"},
+        "mask_bytes_sha256": {"$ref": "#/$defs/sha256"},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "mime": {"const": "image/png"},
+        "channels": {"const": "rgba8"},
+        "object_hash_verified": {"const": true},
+        "png_decode_verified": {"const": true}
+      }
+    },
+    "quality_gate_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visual_status", "hard_gate_passed", "threshold_revision", "threshold_policy_sha256", "threshold_source", "metric_gate_results"],
+      "properties": {
+        "visual_status": {"$ref": "#/$defs/visual_status"},
+        "hard_gate_passed": {"type": "boolean"},
+        "threshold_revision": {"const": "visible-view-gates@1"},
+        "threshold_policy_sha256": {"$ref": "#/$defs/sha256"},
+        "threshold_source": {"const": "forgecad-runtime-visible-view-gates"},
+        "metric_gate_results": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/metric_gate_result"}
+        }
+      }
+    },
+    "metric_gate_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_name", "direction", "observed", "threshold", "status"],
+      "properties": {
+        "metric_name": {"enum": ["silhouette_iou", "boundary_f1_4px", "bbox_edge_error", "centroid_error", "landmark_coverage", "landmark_nme", "region_median_iou", "critical_region_min_iou"]},
+        "direction": {"enum": ["min", "max"]},
+        "observed": {"type": "number", "minimum": 0, "maximum": 1},
+        "threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "status": {"enum": ["passed", "failed"]}
+      }
+    },
+    "render_profile_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "renderer_hash",
+        "render_profile_sha256",
+        "aov_definition_sha256",
+        "color_pipeline_sha256",
+        "id_palette_definition_sha256",
+        "render_worker_build_cohort_sha256",
+        "render_worker_binding_status"
+      ],
+      "properties": {
+        "renderer_hash": {"$ref": "#/$defs/sha256"},
+        "render_profile_sha256": {"$ref": "#/$defs/sha256"},
+        "aov_definition_sha256": {"$ref": "#/$defs/sha256"},
+        "color_pipeline_sha256": {"$ref": "#/$defs/sha256"},
+        "id_palette_definition_sha256": {"$ref": "#/$defs/sha256"},
+        "render_worker_build_cohort_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "render_worker_binding_status": {"enum": ["same_cohort_verified", "cohort_unavailable"]}
+      }
+    },
+    "aov_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pass", "cas_object_sha256", "bytes_sha256", "size_bytes", "width", "height", "mime", "channels", "color_space",
+        "cas_hash_verified", "png_decode_verified"
+      ],
+      "properties": {
+        "pass": {"type": "string"},
+        "cas_object_sha256": {"$ref": "#/$defs/sha256"},
+        "bytes_sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "mime": {"const": "image/png"},
+        "channels": {"const": "rgba8"},
+        "color_space": {"enum": ["srgb", "data"]},
+        "cas_hash_verified": {"const": true},
+        "png_decode_verified": {"const": true}
+      }
+    },
+    "beauty_aov": {
+      "allOf": [
+        {"$ref": "#/$defs/aov_base"},
+        {"properties": {"pass": {"const": "beauty"}, "color_space": {"const": "srgb"}}}
+      ]
+    },
+    "data_aov_silhouette": {"allOf": [{"$ref": "#/$defs/aov_base"}, {"properties": {"pass": {"const": "silhouette"}, "color_space": {"const": "data"}}}]},
+    "data_aov_depth": {"allOf": [{"$ref": "#/$defs/aov_base"}, {"properties": {"pass": {"const": "depth"}, "color_space": {"const": "data"}}}]},
+    "data_aov_normal": {"allOf": [{"$ref": "#/$defs/aov_base"}, {"properties": {"pass": {"const": "normal"}, "color_space": {"const": "data"}}}]},
+    "data_aov_ao": {"allOf": [{"$ref": "#/$defs/aov_base"}, {"properties": {"pass": {"const": "ao"}, "color_space": {"const": "data"}}}]},
+    "data_aov_part_id": {"allOf": [{"$ref": "#/$defs/aov_base"}, {"properties": {"pass": {"const": "part-id"}, "color_space": {"const": "data"}}}]},
+    "data_aov_material_id": {"allOf": [{"$ref": "#/$defs/aov_base"}, {"properties": {"pass": {"const": "material-id"}, "color_space": {"const": "data"}}}]},
+    "data_aov_wireframe": {"allOf": [{"$ref": "#/$defs/aov_base"}, {"properties": {"pass": {"const": "wireframe"}, "color_space": {"const": "data"}}}]},
+    "data_aov_uv_stretch": {"allOf": [{"$ref": "#/$defs/aov_base"}, {"properties": {"pass": {"const": "uv-stretch"}, "color_space": {"const": "data"}}}]}
+  }
+}

@@ -46,6 +46,8 @@ def main() -> int:
         if not root.exists():
             continue
         for path in root.rglob("*"):
+            if "target" in path.relative_to(root).parts:
+                continue
             if not path.is_file() or path.suffix in {".png", ".jpg", ".webp", ".ico", ".icns"}:
                 continue
             text = path.read_text(encoding="utf-8", errors="ignore").lower()

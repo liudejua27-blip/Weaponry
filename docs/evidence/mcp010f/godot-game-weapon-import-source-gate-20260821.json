@@ -1,0 +1,81 @@
+{
+  "schema_version": "ForgeCadGodotGameWeaponImportSourceGate@1",
+  "task_id": "GAME-ENGINE-IMPORT-13",
+  "status": "PASS_EXTERNAL_GODOT_IMPORT_STRUCTURAL",
+  "evidence_mode": "external-evidence-only-not-runtime-durable-truth",
+  "contract_count": 291,
+  "godot": {
+    "version": "4.7.2.stable.official.ed1daf0bf",
+    "binary_sha256": "c7cccbf8fb143e34e02fd6521e09be2c2b974f0d5db080b19071c9c570718ccf",
+    "download_zip_sha256": "c58a24e31d720be9d62f60cb5627c4e695fb72f21b0cfe1bc9ccaa9a3b3ba63e",
+    "macos_signature_identifier": "org.godotengine.godot",
+    "macos_team_identifier": "6K46PWY5DM",
+    "headless_import": "PASS",
+    "packed_scene_resource_loader_readback": "PASS"
+  },
+  "import_projection": {
+    "glb_scene_count": 4,
+    "lod_triangle_counts": [304, 176, 112],
+    "lod_strictly_decreasing": true,
+    "mesh_count_per_scene": 5,
+    "material_signature_exact": true,
+    "socket_count_per_scene": 6,
+    "socket_node_kind": "Node3D",
+    "socket_parent_local_trs_exact": true,
+    "source_gltf_channel_count": 10,
+    "godot_optimized_semantic_track_count": 2,
+    "cross_loader_world_trs_at_start_and_half_exact": true,
+    "animated_socket_names": [
+      "forgecad-anchor-socket-energy-core-vfx",
+      "forgecad-anchor-socket-magazine-well"
+    ],
+    "collision_proxy_count": 5,
+    "collision_shape_kind": "BoxShape3D",
+    "collision_sidecar_readback": "PASS"
+  },
+  "source_cohort_boundary": {
+    "static_and_animated_runtime_projects_are_independent": true,
+    "cross_project_runtime_lineage_claimed": false,
+    "runtime_godot_link_or_table_added": false,
+    "runtime_cas_kind_added": false,
+    "historical_game_engine_import_readiness_mutated": false
+  },
+  "replay": {
+    "fresh_isolated_project_each_run": true,
+    "canonical_receipt_replay_exact": true,
+    "canonical_sha256": "4b24daacd49a50faf58e78d40147351d2a2810f1e9a04648fe491574cea1b753",
+    "wrong_binary_hash_fail_closed": true
+  },
+  "source_sha256": {
+    "runtime_probe_source": "cb68f8474e46a5a3eec03b67fc004f6b732fcd5e208a573db94ccb7e0e77e945",
+    "python_harness": "8947bf78c01d066f53e0269a12a80451c435620d0793f67cd121bac5460ee2c4",
+    "godot_probe": "2fbd67d2251dd5a3ea76d6adcd1b15ea34fcfeab19638b7c6a67918f09d2d71e",
+    "threejs_semantic_probe": "2ed64b234ebe7477ff228cfdcb745f369782c5c09efcdf63582e48242b910722",
+    "receipt_schema": "501b591e7e08193ace2b3eb5af882f555c8d07ccaa100ddc2dfb8ac2caf21240",
+    "contract_checker": "f1fbee9c7c2fe3e02cc241df7e9cc69392043d6c61c5b628520dda93d943d059",
+    "consumer_receipt": "106048fbd339e00b3b8a2e9e32c55d7df9ad575fa100a2a8636c1cbf53f4b78a"
+  },
+  "truth_boundaries": {
+    "actual_godot_headless_import": true,
+    "actual_engine_roundtrip": true,
+    "commercial_engine_roundtrip": false,
+    "unity": "NOT_RUN",
+    "unreal": "NOT_RUN",
+    "physics_simulation": "NOT_RUN",
+    "hitbox_semantics": false,
+    "visual_quality": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "candidate_confirmed": false,
+    "export_performed": false,
+    "quality_status": "structural_only"
+  },
+  "retained_blockers": [
+    "QUALITY_TARGET_NOT_MET",
+    "INCOMPLETE_TRUTH_BINDING",
+    "MISMATCH",
+    "BLOCKED_REFERENCE_COVERAGE",
+    "HUMAN_REVIEW_NOT_RUN",
+    "CONFIRM_VERSION_EXPORT_NOT_RUN",
+    "UNITY_UNREAL_NOT_RUN"
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": "ForgeCADGameAssetAutoLodSourceGate@1",
+  "task_id": "FGC-MCP010F-GAME-DELIVERY-03",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_RUNTIME_TYPED_LOD_PROGRAM_DERIVATION_PREVIEW",
+  "implemented": {
+    "request_contract": "GameAssetLodDeriveRequest@1",
+    "result_contract": "GameAssetLodDeriveResult@1",
+    "default_read_tool": "game_asset_lod_derive",
+    "derive_policy": "runtime-owned-typed-segment-lowering-lod1-half-lod2-quarter@1",
+    "source_candidate_and_artifact_binding": "PASS",
+    "allowlisted_tessellation_lowering": "PASS",
+    "lod_triangle_counts": [256, 128, 64],
+    "worker_replay_count_per_level": 2,
+    "worker_byte_exact": true,
+    "stable_part_and_material_bindings": "PASS",
+    "part_aabb_envelope": "PASS_WITHIN_10_PERCENT",
+    "runtime_write_performed": false,
+    "persistent_user_data_touched": false,
+    "default_read_invocation_without_write_opt_in": "PASS",
+    "final_mcp_wire_bytes": 9019,
+    "materialization_required": true,
+    "closed_python_field": "REJECTED_INVALID_TOOL_PARAMS",
+    "raw_stdio_receipt": "docs/evidence/mcp010f/game-asset-auto-lod-raw-stdio-20260821.json"
+  },
+  "capability_counts": {
+    "schemas": 215,
+    "read_tools": 56,
+    "write_tools": 38,
+    "total_tools": 94
+  },
+  "source_sha256": {
+    "runtime_game_asset_delivery": "c4454544649c54c20342f0bba5bacea6c9514b2f898f9c3ff4546f28141bba00",
+    "runtime_lib": "381e697ee1dd7168e5980c6e2e187600339b76367bcce69868b6c00973b2508f",
+    "runtime_ipc": "6ddf3b5dd360275d6842953ead733c1de32e4a33871e826817a806909e5a59bf",
+    "mcp": "85685b87d172aefc830e3abd2b1070e307a7b3f885bc4d9365292bd3787ac3c7",
+    "request_schema": "3575e1700023c09cf6137b111aa129cb658d4d83e83690833148fd2d6b1c5c2a",
+    "result_schema": "8c39e3cddcc8e558396d2d2a0923703a1cab7a4807ae1dec8dceeb5133f3aa62",
+    "raw_probe": "cc4974cbfcbea517edba71b5336f593a76032c983d1725ccf46f53df246c1b72",
+    "raw_receipt": "d268e31ea7d1aa5c21916e280f1a86d162d1d781bddbf8639b9bc32caaaead68"
+  },
+  "limitations": [
+    "This is allowlisted typed tessellation parameter lowering, not generic mesh simplification, arbitrary GLB decimation, QEM or retopology.",
+    "The returned GeometryProgram variants and artifact hashes are transient memory-only previews and require explicit geometry_prepare materialization before candidate-bound delivery.",
+    "Appearance, silhouette, PBR, texture and reference-likeness validation are NOT_RUN for the derived variants.",
+    "Unity, Unreal and Godot LODGroup or collider round-trips are NOT_RUN; Three.js structural parsing does not substitute for a commercial engine gate.",
+    "No candidate was confirmed or exported, and quality_status remains structural_only."
+  ]
+}

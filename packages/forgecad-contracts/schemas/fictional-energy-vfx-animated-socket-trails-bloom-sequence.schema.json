@@ -1,0 +1,496 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-trails-bloom-sequence.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "timestamp": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "FictionalEnergyVfxAnimatedSocketTrailsBloomSequenceFrame@1"
+        },
+        "frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 14
+        },
+        "sample_time_ticks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "trail_sequence_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_sequence_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_color_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_id_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_depth_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "particle_sequence_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_frame_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bloom_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "camera_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "camera_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_profile_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_worker_build_cohort_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_bloom_profile_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_opaque_depth_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_aov_byte_exact_verified": {
+          "const": true,
+          "type": "boolean"
+        },
+        "base_opaque_depth_byte_exact_reused": {
+          "const": true,
+          "type": "boolean"
+        },
+        "bloom_pass_byte_exact_reused": {
+          "const": true,
+          "type": "boolean"
+        },
+        "particle_passes_byte_exact_reused": {
+          "const": true,
+          "type": "boolean"
+        },
+        "trail_passes_byte_exact_reused": {
+          "const": true,
+          "type": "boolean"
+        },
+        "base_bloom_mutated": {
+          "const": false,
+          "type": "boolean"
+        },
+        "particle_passes_mutated": {
+          "const": false,
+          "type": "boolean"
+        },
+        "trail_passes_mutated": {
+          "const": false,
+          "type": "boolean"
+        },
+        "trail_bloom_input": {
+          "const": true,
+          "type": "boolean"
+        },
+        "trail_emissive_source_rendered": {
+          "const": true,
+          "type": "boolean"
+        },
+        "trail_bloom_contribution_rendered": {
+          "const": true,
+          "type": "boolean"
+        },
+        "trail_bloom_rendered": {
+          "const": true,
+          "type": "boolean"
+        },
+        "trail_bloom_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_bloom_seed_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_emissive_source_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_bloom_contribution_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_set_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "receipt_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "schema_version",
+        "frame_index",
+        "sample_time_ticks",
+        "trail_sequence_key_sha256",
+        "trail_sequence_canonical_sha256",
+        "trail_frame_canonical_sha256",
+        "trail_color_object_sha256",
+        "trail_id_object_sha256",
+        "trail_depth_object_sha256",
+        "particle_sequence_frame_canonical_sha256",
+        "base_frame_key_sha256",
+        "bloom_key_sha256",
+        "camera_object_sha256",
+        "camera_identity_sha256",
+        "render_profile_sha256",
+        "render_worker_build_cohort_sha256",
+        "trail_bloom_profile_sha256",
+        "base_opaque_depth_object_sha256",
+        "base_aov_byte_exact_verified",
+        "base_opaque_depth_byte_exact_reused",
+        "bloom_pass_byte_exact_reused",
+        "particle_passes_byte_exact_reused",
+        "trail_passes_byte_exact_reused",
+        "base_bloom_mutated",
+        "particle_passes_mutated",
+        "trail_passes_mutated",
+        "trail_bloom_input",
+        "trail_emissive_source_rendered",
+        "trail_bloom_contribution_rendered",
+        "trail_bloom_rendered",
+        "trail_bloom_key_sha256",
+        "trail_bloom_seed_sha256",
+        "trail_emissive_source_object_sha256",
+        "trail_bloom_contribution_object_sha256",
+        "render_set_object_sha256",
+        "receipt_object_sha256",
+        "canonical_sha256",
+        "created_at"
+      ]
+    },
+    "trail_bloom_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": {
+          "const": 1,
+          "type": "number"
+        },
+        "source_gain": {
+          "const": 8,
+          "type": "number"
+        },
+        "radius_px": {
+          "const": 8,
+          "type": "integer"
+        },
+        "intensity": {
+          "const": 4,
+          "type": "number"
+        },
+        "hdr_clamp": {
+          "const": 16,
+          "type": "number"
+        },
+        "blur_passes": {
+          "const": 2,
+          "type": "integer"
+        },
+        "kernel": {
+          "const": "separable-box-two-pass-fixed-radius@1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "threshold",
+        "source_gain",
+        "radius_px",
+        "intensity",
+        "hdr_clamp",
+        "blur_passes",
+        "kernel"
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketTrailsBloomSequence@1"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "candidate_id": {
+      "$ref": "#/$defs/id"
+    },
+    "candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_materialization_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_id": {
+      "$ref": "#/$defs/id"
+    },
+    "animation_clip_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_node_id_encoding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_roles_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_identity_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_worker_build_cohort_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_schedule_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 15
+    },
+    "sample_time_ticks": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1000000
+      },
+      "minItems": 1,
+      "maxItems": 15,
+      "uniqueItems": true
+    },
+    "frame_scope": {
+      "const": "lod0-animation-trails-bloom-source-frames-1-15@1"
+    },
+    "trails_bloom_sequence_policy": {
+      "const": "projection-driven-animated-socket-trails-bloom@1"
+    },
+    "trail_sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "trail_sequence_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "trail_key_scope": {
+      "const": "animated-socket-trails-sequence-frame-binding@1"
+    },
+    "trail_count": {
+      "const": 2,
+      "type": "integer"
+    },
+    "trail_emitter_roles": {
+      "const": [
+        "muzzle-vfx",
+        "energy-core-vfx"
+      ],
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "trail_bloom_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "trail_bloom_profile": {
+      "$ref": "#/$defs/trail_bloom_profile"
+    },
+    "frames": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/frame"
+      },
+      "minItems": 1,
+      "maxItems": 15
+    },
+    "sequence_status": {
+      "const": "runtime-owned-durable-fictional-energy-vfx-animated-socket-trails-bloom-sequence"
+    },
+    "quality_status": {
+      "const": "structural_only"
+    },
+    "visual_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "commercial_fps_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "human_review_status": {
+      "const": "NOT_RUN"
+    },
+    "commercial_engine_status": {
+      "const": "NOT_RUN"
+    },
+    "runtime_write_performed": {
+      "const": true
+    },
+    "restart_hash_verified": {
+      "const": true
+    },
+    "candidate_confirmed": {
+      "const": false
+    },
+    "version_created": {
+      "const": false
+    },
+    "export_performed": {
+      "const": false
+    },
+    "actual_engine_roundtrip": {
+      "const": false
+    },
+    "production_stage_advanced": {
+      "const": false
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "created_at": {
+      "$ref": "#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "delivery_manifest_object_sha256",
+    "source_artifact_sha256",
+    "projection_key_sha256",
+    "projection_object_sha256",
+    "projection_canonical_sha256",
+    "animated_socket_materialization_key_sha256",
+    "animated_artifact_sha256",
+    "animated_socket_anchor_set_object_sha256",
+    "animated_socket_anchor_set_canonical_sha256",
+    "animation_clip_id",
+    "animation_clip_object_sha256",
+    "animation_clip_canonical_sha256",
+    "animation_receipt_object_sha256",
+    "animation_receipt_canonical_sha256",
+    "vfx_profile_object_sha256",
+    "vfx_profile_canonical_sha256",
+    "socket_node_id_encoding_sha256",
+    "socket_roles_sha256",
+    "camera_object_sha256",
+    "camera_identity_sha256",
+    "render_profile_sha256",
+    "render_worker_build_cohort_sha256",
+    "sample_schedule_sha256",
+    "sample_count",
+    "sample_time_ticks",
+    "frame_scope",
+    "trails_bloom_sequence_policy",
+    "trail_sequence_key_sha256",
+    "trail_sequence_canonical_sha256",
+    "trail_key_scope",
+    "trail_count",
+    "trail_emitter_roles",
+    "trail_bloom_profile_sha256",
+    "trail_bloom_profile",
+    "frames",
+    "sequence_status",
+    "quality_status",
+    "visual_quality_status",
+    "commercial_fps_quality_status",
+    "human_review_status",
+    "commercial_engine_status",
+    "runtime_write_performed",
+    "restart_hash_verified",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "actual_engine_roundtrip",
+    "production_stage_advanced",
+    "input_sha256",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "title": "FictionalEnergyVfxAnimatedSocketTrailsBloomSequence@1",
+  "type": "object"
+}

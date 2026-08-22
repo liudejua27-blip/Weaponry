@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/viewer-provenance-graph-request.schema.json",
+  "title": "ViewerProvenanceGraphRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "artifact_id",
+    "max_nodes",
+    "max_edges",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ViewerProvenanceGraphRequest@1"},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "candidate_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "candidate_state_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "artifact_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "max_nodes": {"const": 64},
+    "max_edges": {"const": 128},
+    "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

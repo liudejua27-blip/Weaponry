@@ -1,0 +1,102 @@
+{
+  "schema_version": "ForgeCADBlenderAuthoringMeshSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-19",
+  "status": "PASS_SOURCE_STRUCTURAL_AUTHORING_MESH_OPERATOR_ONLY",
+  "scope": {
+    "operator_id": "forgecad.geometry.authoring-mesh@1",
+    "topology_policy": "triangle-quad-manifold-with-boundary@1",
+    "source_contract": "GeometryProgram@2",
+    "runtime_writer_boundary": "unchanged",
+    "arbitrary_script_or_plugin": false,
+    "blender_runtime_dependency": false
+  },
+  "current_source_truth": {
+    "contract_schemas": 183,
+    "operator_catalog_entries": 21,
+    "operator_catalog_active": 21,
+    "operator_catalog_sha256": "a59771fd90226545f30d9b2ae366e7e7a9ab851f47305498a6f692fda8eb5770",
+    "mcp_read_tools": 52,
+    "mcp_write_tools": 35,
+    "mcp_total_tools": 87
+  },
+  "implemented": [
+    "EXPLICIT_PRODUCT_OWNED_VERTEX_EDGE_LOOP_FACE_INPUT",
+    "STABLE_OPAQUE_ELEMENT_IDS_NOT_ARRAY_OR_GLB_IDS",
+    "TRIANGLE_AND_QUAD_FACE_WINDING",
+    "ROTATION_CANONICAL_FACE_LOOP_ORDER",
+    "OPEN_BOUNDARY_ALLOWED",
+    "NON_MANIFOLD_AND_INCONSISTENT_WINDING_REJECTED",
+    "DUPLICATE_UNUSED_DANGLING_AND_DEGENERATE_TOPOLOGY_REJECTED",
+    "DETERMINISTIC_FIXED_WORKER_TRIANGULATION",
+    "STRICT_GLB_READBACK_AND_SEMANTIC_PART_BINDING",
+    "FIRST_PARTY_SKILL_AND_AGENTIC_ALLOWLIST_BINDING",
+    "PYTHON_AND_UNKNOWN_EXECUTABLE_FIELDS_REJECTED"
+  ],
+  "bounds": {
+    "vertices_max": 1536,
+    "edges_max": 1536,
+    "loops_max": 1536,
+    "faces_max": 512,
+    "face_arity": [3, 4],
+    "coordinate_abs_m_max": 10,
+    "geometry_program_max_triangles": 250000,
+    "glb_bytes_max": 67108864,
+    "worker_memory_bytes_max": 536870912,
+    "worker_runtime_ms_max": 10000
+  },
+  "focused_evidence": {
+    "geometry_worker_tests": "42 passed; 0 failed",
+    "authoring_mesh_test": "deterministic GLB, 2 triangles, strict readback, bad winding/dangling/unused and duplicate vertex/repeated face element/duplicate face/non-manifold/coordinate and array and triangle budget/python-path-url-env-plugin-network fail closed",
+    "workspace_cargo_check": "PASS",
+    "mcp010d_raw_stdio": {
+      "status": "PASS",
+      "semantic_parts": 11,
+      "triangle_count": 622,
+      "artifact_readback": "ArtifactReadback@2 hard_gate_passed",
+      "negative_authoring_mesh_executable_field": "PASS",
+      "negative_geometry_prepare_fields": "python/path/url/env/plugin/network rejected with project state unchanged",
+      "persistent_user_data_touched": false
+    },
+    "contract_checker": "ForgeCAD contracts OK: 183 schemas",
+    "skill_checker": "MCP006 Skill registry OK: 12 first-party declarative Skills",
+    "stage0_truth": "PASS"
+  },
+  "source_hashes": {
+    "geometry_program_schema_sha256": "ac91feb6441d7028c048f83416e998f3a5687da3109be47107a0531258a0fb64",
+    "geometry_operator_source_sha256": "7fb3fd74eb7c8502df6c5ab213509bc5d4ea5bf8be7c0873e3ef2a03f784d5bb",
+    "geometry_worker_source_sha256": "c4e790ca433efcd2216e6899ce28029ae83d7203104a180481f18e7ccd78fcad",
+    "worker_protocol_sha256": "7ae2ad9ae58e1777a5d40be355d18a9e9a7bf629198003b8ca3fd8f8ebbf16ae",
+    "skill_registry_sha256": "821857da4f901f23a0879d7a112e0dc5414f165af2eec7fa9d3df6f8717c6a81",
+    "runtime_skill_registry_source_sha256": "6556fa814078a63693ec223a08b09c264e0d68e14dcc8519326b15f273398383",
+    "hard_surface_skill_manifest_sha256": "1721c0f0fa02fa17f5b82626bd89cd96fa1c553fd1fa7c4938b183204f285196",
+    "contract_checker_sha256": "bcc518f066eddf4c7f9004cae626ebf1847e4178f05e6bfe1c2b3b03046167ce",
+    "raw_probe_sha256": "9030a384f9a78f747b7088a62f4af5ba478f0f355537acd5fcb000ecfe232816"
+  },
+  "upstream_research": {
+    "policy": "GPL reference-only clean-room behavior study; no Blender code, binary, BMesh structs, BMOP implementation, Python API or plugin copied or linked",
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "official_bmesh_api": "https://docs.blender.org/api/current/bmesh.html",
+    "official_mesh_api": "https://docs.blender.org/api/5.0/bpy.types.Mesh.html",
+    "frozen_mesh_types": "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/makesdna/DNA_mesh_types.h",
+    "frozen_bmesh_types": "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/bmesh/bmesh_class.hh"
+  },
+  "not_implemented": [
+    "CANDIDATE_BOUND_AUTHORING_TOPOLOGY_READ_MODEL",
+    "TRANSLATE_VERTICES_EDIT_PREVIEW",
+    "SINGLE_FACE_EXTRUDE_EDIT_PREVIEW",
+    "SELECTION_AND_HIDDEN_STATE",
+    "NGON_HOLES_DISSOLVE_COLLAPSE_KNIFE_LOOP_CUT_SCULPT",
+    "GENERAL_BMESH_OR_BLENDER_PARITY",
+    "BLENDER_PYTHON_ADDON_OR_PLUGIN_RUNTIME",
+    "CYCLES_OR_EEVEE",
+    "PACKAGE_LIVE_HUMAN_VISUAL_OR_HQ360_ACCEPTANCE"
+  ],
+  "quality_truth": {
+    "visible_view": "QUALITY_TARGET_NOT_MET",
+    "benchmark_evidence": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "hq360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "canonical_sha256": "a8666f4ae06ea03ad1b47bc3a7f10be047c39e0ae812c8773cf4b6139f08cf0b"
+}

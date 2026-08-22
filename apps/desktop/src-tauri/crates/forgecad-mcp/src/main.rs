@@ -25,6 +25,7 @@ const INSTRUCTIONS: &str = "ForgeCAD is a local Codex-only 3D Runtime. Before an
 const PONYTAIL_PREFLIGHT_SKILL_ID: &str = "ponytail-preflight";
 const PONYTAIL_PREFLIGHT_VERSION: &str = "0.1.0";
 const PONYTAIL_PREFLIGHT_REQUIRED: &str = "PONYTAIL_PREFLIGHT_REQUIRED: call skill_get with ponytail-preflight@0.1.0 before using ForgeCAD design tools or another Skill";
+const READ_MODEL_MCP_WIRE_MAX_BYTES: usize = 1024 * 1024;
 
 enum Backend {
     #[allow(dead_code)]
@@ -646,6 +647,22 @@ fn mcp010c_write_tool_names() -> Vec<String> {
 
 fn mcp010f_write_tool_names() -> Vec<String> {
     [
+        "authoring_mesh_edit_prepare",
+        "mechanical_animation_clip_prepare",
+        "mechanical_animation_glb_prepare",
+        "game_asset_delivery_prepare",
+        "game_weapon_anchor_prepare",
+        "game_weapon_glb_socket_prepare",
+        "game_weapon_animated_glb_socket_prepare",
+        "appearance_source_lineage_prepare",
+        "fictional_energy_vfx_prepare",
+        "fictional_energy_vfx_rendered_frame_prepare",
+        "fictional_energy_vfx_rendered_sequence_prepare",
+        "fictional_energy_vfx_hdr_bloom_prepare",
+        "fictional_energy_vfx_particles_prepare",
+        "fictional_energy_vfx_trails_prepare",
+        "fictional_energy_vfx_trails_bloom_prepare",
+        "subdivision_artifact_lineage_prepare",
         "primary_form_repair_prepare",
         "primary_form_repair_job_prepare",
         "reference_mask_prepare",
@@ -838,6 +855,155 @@ fn read_only_tools() -> Vec<Value> {
             true,
         ),
         tool(
+            "topology_snapshot_get",
+            "Read one complete, bounded Part topology projection from an admitted ArtifactReadback@2. IDs are artifact-bound only; this is evaluated triangulated GLB topology, not an authoring cage or visual-quality claim.",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","project_id","artifact_id","candidate_id","part_id","artifact_readback_sha256","program_sha256","operator_catalog_sha256","readback_config_sha256","snapshot_policy_sha256","max_face_count"],
+                "properties":{
+                    "schema_version":{"const":"TopologySnapshotRequest@1"},
+                    "project_id":id_property(),
+                    "artifact_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                    "candidate_id":id_property(),
+                    "part_id":id_property(),
+                    "artifact_readback_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                    "program_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                    "operator_catalog_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                    "readback_config_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                    "snapshot_policy_sha256":{"const":"7d6b64a92c00841d80ec887542ff11b968fd387f7b5bdf5b4b4522a52ff1af28"},
+                    "max_face_count":{"type":"integer","minimum":1,"maximum":512}
+                }
+            }),
+            true,
+        ),
+        tool(
+            "authoring_topology_get",
+            "Read exact candidate-bound source V/E/Loop/Face data from one direct authoring-mesh@1 Part. This is a bounded structural read model, not evaluated GLB topology, BMesh, persistent editing or visual-quality evidence.",
+            authoring_topology_request_schema(),
+            true,
+        ),
+        tool(
+            "authoring_mesh_edit_preview",
+            "Apply one bounded translate-vertices or single-face-extrude edit to a transient candidate-bound authoring program and return deterministic Worker hashes/readback without writing CAS, candidates or versions.",
+            authoring_mesh_edit_preview_schema(),
+            true,
+        ),
+        tool(
+            "mechanical_pose_evaluate",
+            "Evaluate one candidate-bound rigid mechanical RestFrame and bounded scalar PoseAction at one integer tick or preview at most 16 ordered ticks. Returns structural local/world poses only; it never materializes geometry, skinning, a timeline or an animation asset.",
+            mechanical_pose_evaluate_schema(),
+            true,
+        ),
+        tool(
+            "mechanical_pose_geometry_preview",
+            "Compile one candidate-bound authored rigid-link pose as a transient derived GeometryProgram and strict fixed-Worker GLB readback. It writes no CAS, candidate or version and does not prove an original asset rig, animation system or visual quality.",
+            mechanical_pose_geometry_preview_schema(),
+            true,
+        ),
+        tool(
+            "mechanical_animation_clip_get",
+            "Read one immutable Runtime-owned rigid MechanicalAnimationClip and its exact candidate/artifact/source-Worker binding from SQLite and CAS. This is read-only and does not evaluate a frame or claim armature, skinning, timeline, NLA, F-Curve, driver or Python parity.",
+            mechanical_animation_clip_get_schema(),
+            true,
+        ),
+        tool(
+            "game_asset_delivery_get",
+            "Read and re-verify one Runtime-owned durable game delivery link and its exact LOD, collision, readiness and manifest CAS objects after restart. This is structural evidence only and does not claim automatic LOD generation, export or a Unity, Unreal or Godot round-trip.",
+            game_asset_delivery_get_schema(),
+            true,
+        ),
+        tool(
+            "game_asset_lod_derive",
+            "Derive deterministic LOD1 and LOD2 GeometryProgram variants from one exact durable geometry candidate by lowering only allowlisted typed tessellation parameters. Runtime compiles each level twice through the fixed Worker, writes no state, and fails when the 75/50 percent triangle targets are unreachable.",
+            game_asset_lod_derive_schema(),
+            true,
+        ),
+        tool(
+            "appearance_source_lineage_get",
+            "Read and re-verify one Runtime-owned durable Appearance source lineage sidecar, including the exact AppearanceProgram, GeometryProgram evidence, MaterialPack provenance, TextureBuild and optional surface-bake receipt, and three candidate-bound LOD ArtifactReadback inventories after restart.",
+            appearance_source_lineage_get_schema(),
+            true,
+        ),
+        tool(
+            "game_weapon_anchor_get",
+            "Read and re-verify one Runtime-owned fictional-weapon anchor metadata sidecar bound to an exact durable LOD delivery. This proves typed transforms and bindings only; it does not claim real GLB anchor nodes, pivots, hitboxes, ballistics or a commercial-engine import.",
+            game_weapon_anchor_get_schema(),
+            true,
+        ),
+        tool(
+            "game_weapon_glb_socket_get",
+            "Read and re-verify one Runtime-owned derived GLB socket materialization across exactly three LODs. The summary exposes only hash-bound readback, six named empty-node counts and structural truth flags; it never returns GLB bytes, claims a commercial-engine round-trip or reports visual quality.",
+            game_weapon_glb_socket_get_schema(),
+            true,
+        ),
+        tool(
+            "game_weapon_animated_glb_socket_get",
+            "Read and re-verify one Runtime-owned animated GLB socket materialization bound to the source MechanicalAnimationGlbReceipt, delivery LOD0 and AnchorSet. The summary exposes only animation/readable-content hash bindings, six named-node counts and structural truth flags; it never returns GLB bytes, claims a commercial-engine round-trip or reports visual quality.",
+            game_weapon_animated_glb_socket_get_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_get",
+            "Read and re-verify one Runtime-owned fictional energy VFX intent profile bound to an exact delivery, anchor sidecar and allowlisted MaterialPack. This is structural sampled-emissive intent only; no material animation, bloom, particles, trails or commercial-engine round-trip has executed.",
+            fictional_energy_vfx_get_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_frame_sample",
+            "Sample the two exact durable fictional energy emissive intent curves at one bounded integer tick using LINEAR interpolation, once-clamp and loop-modulo semantics. This read-only result does not prove a GLB MaterialZone binding, render a frame, write CAS or claim bloom, particles, trails or engine execution.",
+            fictional_energy_vfx_frame_sample_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_appearance_frame_sample",
+            "Re-read three exact durable AppearanceProgram GLBs and sample the bound fictional energy emissive intent curves only after their MaterialPack, MaterialZone and stable material IDs match across every LOD. This read-only structural proof does not render a frame, write CAS or claim bloom, particles, trails or engine execution.",
+            fictional_energy_vfx_appearance_frame_sample_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_rendered_frame_get",
+            "Re-read one Runtime-owned durable sampled-emissive LOD0 frame, its dedicated RenderSet and nine fixed AOV PNG bindings after restart. This proves deterministic structural rendering only, not animation sequence, bloom, particles, trails, engine execution or visual quality.",
+            fictional_energy_vfx_rendered_frame_get_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_rendered_sequence_get",
+            "Re-read one Runtime-owned bounded sampled-emissive LOD0 sequence, its ordered independent frame links, fixed camera and nine-AOV receipts after restart. This proves same-cohort structural sequence evidence only, not engine material animation, bloom, particles, trails or visual quality.",
+            fictional_energy_vfx_rendered_sequence_get_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_hdr_bloom_get",
+            "Re-read one Runtime-owned fixed-profile HDR bloom frame, its independent emissive-source and bloom-contribution PNGs, and the exact durable nine-AOV base-frame hash binding after restart. This proves bounded post-process evidence only; it does not claim particles, trails, engine execution or visual quality.",
+            fictional_energy_vfx_hdr_bloom_get_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_particles_get",
+            "Re-read one Runtime-owned typed-particle frame, its three independent particle PNGs, exact LOD0 owner-node transforms, and unchanged base-nine-AOV plus Bloom hash bindings after restart. This is structural evidence only; it does not claim trails, GLB sockets, engine execution or visual quality.",
+            fictional_energy_vfx_particles_get_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_trails_get",
+            "Re-read one Runtime-owned particle-history typed-trail frame, its independent trail color/ID/depth PNGs, ordered particle receipts and unchanged base-nine-AOV, Bloom and particle hash bindings after restart. V1 does not feed trails into Bloom and does not claim GLB sockets, engine execution or visual quality.",
+            fictional_energy_vfx_trails_get_schema(),
+            true,
+        ),
+        tool(
+            "fictional_energy_vfx_trails_bloom_get",
+            "Re-read one Runtime-owned fixed-profile typed-trail HDR Bloom frame with independent trail-emissive-source and trail-bloom-contribution PNGs. Inputs are the existing trail color/depth and current base opaque depth; base AOV, base Bloom, particle and source-trail passes are byte-exact reused. This does not report the original bloom_rendered flag, rerender particles or trails, invoke a commercial engine or claim visual quality.",
+            fictional_energy_vfx_trails_bloom_get_schema(),
+            true,
+        ),
+        tool(
+            "mechanical_animation_clip_preview_get",
+            "Read one scheduled tick from an immutable MechanicalAnimationClip and compile it twice through the fixed Geometry Worker as transient exact replay evidence. This writes no Runtime state and remains rigid-part structural evidence only.",
+            mechanical_animation_clip_preview_schema(),
+            true,
+        ),
+        tool(
             "candidate_get",
             "Read one prepared candidate",
             json!({"type":"object","required":["candidate_id"],"properties":{"candidate_id":{"type":"string","minLength":1}},"additionalProperties":false}),
@@ -857,7 +1023,7 @@ fn read_only_tools() -> Vec<Value> {
         ),
         tool(
             "geometry_program_hash",
-            "Validate a hash-free GeometryProgram@2 draft, or expand one bounded ParametricDesignKitRequest@1 into a typed program, and return Runtime-owned hashes without compiling or persisting a candidate",
+            "Validate a hash-free GeometryProgram@2 draft, expand one bounded ParametricDesignKitRequest@1 or immutable first-party ParametricDesignKitRequest@2 geometry-group template, lower or compare one ordered modifier stack, or evaluate one bounded regular quad-grid smooth/crease subdivision request; return Runtime-owned structural hashes without compiling, caching or persisting a candidate",
             json!({
                 "type":"object",
                 "additionalProperties":false,
@@ -867,9 +1033,21 @@ fn read_only_tools() -> Vec<Value> {
                     "project_id":id_property(),
                     "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
                     "kit_id":{"type":"string"},
+                    "template_id":{"type":"string"},
+                    "instance_id":id_property(),
                     "part_id":id_property(),
                     "material_zone_id":id_property(),
+                    "solid":{"type":"boolean"},
+                    "base_node":{"type":"object"},
+                    "modifiers":{"type":"array"},
+                    "previous_evaluation":{"type":["object","null"]},
                     "intent":{"type":"object"},
+                    "parameters":{"type":"object"},
+                    "control_cage":{"type":"object"},
+                    "crease_edges":{"type":"array"},
+                    "policy":{"type":"object"},
+                    "transform":{"type":"object"},
+                    "budgets":{"type":"object"},
                     "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
                 },
                 "oneOf":[
@@ -882,6 +1060,7 @@ fn read_only_tools() -> Vec<Value> {
                             "geometry_program_draft":{"type":"object"}
                         }
                     },
+                    parametric_group_request_branch_schema(),
                     {
                         "type":"object",
                         "additionalProperties":false,
@@ -895,6 +1074,162 @@ fn read_only_tools() -> Vec<Value> {
                             "material_zone_id":id_property(),
                             "intent":{"type":"object"},
                             "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                        }
+                    },
+                    {
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","project_id","representation_plan_sha256","part_id","material_zone_id","solid","base_node","modifiers","input_sha256"],
+                        "properties":{
+                            "schema_version":{"const":"GeometryModifierStackRequest@1"},
+                            "project_id":id_property(),
+                            "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                            "part_id":id_property(),
+                            "material_zone_id":id_property(),
+                            "solid":{"type":"boolean"},
+                            "base_node":modifier_stack_base_node_schema(),
+                            "modifiers":{
+                                "type":"array",
+                                "minItems":1,
+                                "maxItems":8,
+                                "items":modifier_stack_item_schema()
+                            },
+                            "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                        }
+                    },
+                    modifier_evaluation_request_schema(),
+                    {
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","project_id","representation_plan_sha256","part_id","material_zone_id","solid","control_cage","policy","transform","budgets","input_sha256"],
+                        "properties":{
+                            "schema_version":{"const":"SubdivisionEvaluationRequest@2"},
+                            "project_id":id_property(),
+                            "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                            "part_id":id_property(),
+                            "material_zone_id":id_property(),
+                            "solid":{"const":false},
+                            "control_cage":{
+                                "type":"object",
+                                "additionalProperties":false,
+                                "required":["u_points","v_points","control_points"],
+                                "properties":{
+                                    "u_points":{"type":"integer","minimum":2,"maximum":16},
+                                    "v_points":{"type":"integer","minimum":2,"maximum":16},
+                                    "control_points":{
+                                        "type":"array","minItems":4,"maxItems":256,
+                                        "items":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-10.0,"maximum":10.0}}
+                                    }
+                                }
+                            },
+                            "policy":{
+                                "type":"object",
+                                "additionalProperties":false,
+                                "required":["scheme","subdivision_levels","boundary_interpolation","crease_mode","face_varying_interpolation","limit_surface","adaptive"],
+                                "properties":{
+                                    "scheme":{"const":"catmull-clark-uniform-regular-quad-grid"},
+                                    "subdivision_levels":{"type":"integer","minimum":0,"maximum":2},
+                                    "boundary_interpolation":{"const":"edge-and-corner"},
+                                    "crease_mode":{"const":"unsupported"},
+                                    "face_varying_interpolation":{"const":"worker-triangle-chart-postprocess"},
+                                    "limit_surface":{"const":false},
+                                    "adaptive":{"const":false}
+                                }
+                            },
+                            "transform":{
+                                "type":"object","additionalProperties":false,
+                                "required":["position_m","rotation_rad"],
+                                "properties":{
+                                    "position_m":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-10.0,"maximum":10.0}},
+                                    "rotation_rad":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-6.283185307179586,"maximum":6.283185307179586}}
+                                }
+                            },
+                            "budgets":{
+                                "type":"object","additionalProperties":false,
+                                "required":["max_nodes","max_triangles","max_glb_bytes","max_worker_memory_bytes","max_runtime_ms"],
+                                "properties":{
+                                    "max_nodes":{"type":"integer","minimum":1,"maximum":512},
+                                    "max_triangles":{"type":"integer","minimum":1,"maximum":250000},
+                                    "max_glb_bytes":{"type":"integer","minimum":1,"maximum":67108864},
+                                    "max_worker_memory_bytes":{"type":"integer","minimum":1,"maximum":536870912},
+                                    "max_runtime_ms":{"type":"integer","minimum":1,"maximum":10000}
+                                }
+                            },
+                            "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                        }
+                    },
+                    {
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","project_id","representation_plan_sha256","part_id","material_zone_id","solid","control_cage","crease_edges","policy","transform","budgets","input_sha256"],
+                        "properties":{
+                            "schema_version":{"const":"SubdivisionCreaseEvaluationRequest@1"},
+                            "project_id":id_property(),
+                            "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                            "part_id":id_property(),
+                            "material_zone_id":id_property(),
+                            "solid":{"const":false},
+                            "control_cage":{
+                                "type":"object",
+                                "additionalProperties":false,
+                                "required":["u_points","v_points","control_points"],
+                                "properties":{
+                                    "u_points":{"type":"integer","minimum":3,"maximum":16},
+                                    "v_points":{"type":"integer","minimum":3,"maximum":16},
+                                    "control_points":{
+                                        "type":"array","minItems":9,"maxItems":256,
+                                        "items":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-10.0,"maximum":10.0}}
+                                    }
+                                }
+                            },
+                            "crease_edges":{
+                                "description":"Runtime validates each edge against the regular-grid interior adjacency rules, then lexicographically normalizes the complete edge set before checking input_sha256.",
+                                "type":"array","minItems":1,"maxItems":128,
+                                "items":{
+                                    "type":"object","additionalProperties":false,
+                                    "required":["vertex_a","vertex_b","sharpness_levels"],
+                                    "properties":{
+                                        "vertex_a":{"type":"integer","minimum":0,"maximum":254},
+                                        "vertex_b":{"type":"integer","minimum":1,"maximum":255},
+                                        "sharpness_levels":{"type":"integer","minimum":1,"maximum":2}
+                                    }
+                                }
+                            },
+                            "policy":{
+                                "type":"object",
+                                "additionalProperties":false,
+                                "required":["scheme","subdivision_levels","boundary_interpolation","crease_method","sharpness_domain","face_varying_interpolation","limit_surface","adaptive"],
+                                "properties":{
+                                    "scheme":{"const":"catmull-clark-uniform-regular-quad-grid"},
+                                    "subdivision_levels":{"type":"integer","minimum":1,"maximum":2},
+                                    "boundary_interpolation":{"const":"edge-only"},
+                                    "crease_method":{"const":"uniform-integer-level-decay@1"},
+                                    "sharpness_domain":{"const":"integer-levels-1-to-2"},
+                                    "face_varying_interpolation":{"const":"worker-triangle-chart-postprocess"},
+                                    "limit_surface":{"const":false},
+                                    "adaptive":{"const":false}
+                                }
+                            },
+                            "transform":{
+                                "type":"object","additionalProperties":false,
+                                "required":["position_m","rotation_rad"],
+                                "properties":{
+                                    "position_m":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-10.0,"maximum":10.0}},
+                                    "rotation_rad":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-6.283185307179586,"maximum":6.283185307179586}}
+                                }
+                            },
+                            "budgets":{
+                                "type":"object","additionalProperties":false,
+                                "required":["max_nodes","max_triangles","max_glb_bytes","max_worker_memory_bytes","max_runtime_ms"],
+                                "properties":{
+                                    "max_nodes":{"type":"integer","minimum":1,"maximum":512},
+                                    "max_triangles":{"type":"integer","minimum":1,"maximum":250000},
+                                    "max_glb_bytes":{"type":"integer","minimum":1,"maximum":67108864},
+                                    "max_worker_memory_bytes":{"type":"integer","minimum":1,"maximum":536870912},
+                                    "max_runtime_ms":{"type":"integer","minimum":1,"maximum":10000}
+                                }
+                            },
+                            "input_sha256":{"description":"SHA-256 of the closed request without input_sha256 after Runtime lexicographically normalizes crease_edges.","type":"string","pattern":"^[0-9a-f]{64}$"}
                         }
                     }
                 ]
@@ -943,6 +1278,36 @@ fn read_only_tools() -> Vec<Value> {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }),
+            true,
+        ),
+        tool(
+            "silhouette_fit_intent_hash",
+            "Validate a hash-free silhouette fit intent and return the Runtime-owned canonical hash without rendering or persisting anything",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","project_id","candidate_id","target_sha256","rig","base_camera","optimizer"],
+                "properties":{
+                    "schema_version":{"const":"SilhouetteFitIntentHashRequest@1"},
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property(),
+                    "rig":{"type":"object"},
+                    "base_camera":{"type":"object"},
+                    "view_spec":{"type":"object"},
+                    "optimizer":{
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["algorithm","max_iterations","max_evaluations","step_fraction"],
+                        "properties":{
+                            "algorithm":{"enum":["grid","coordinate_descent"]},
+                            "max_iterations":{"type":"integer","minimum":1,"maximum":8},
+                            "max_evaluations":{"type":"integer","minimum":1,"maximum":64},
+                            "step_fraction":{"type":"number","exclusiveMinimum":0,"maximum":0.5}
                         }
                     }
                 }
@@ -1000,8 +1365,9 @@ fn read_only_tools() -> Vec<Value> {
             "Run a bounded deterministic camera and SilhouetteRig fit proposal against the reference mask; it never mutates the candidate.",
             json!({
                 "type":"object",
-                "required":["project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
+                "required":["schema_version","project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
                 "properties":{
+                    "schema_version":{"const":"SilhouetteFitIntent@1"},
                     "project_id":id_property(),"candidate_id":id_property(),"target_sha256":sha256_property(),
                     "rig":{"type":"object"},"base_camera":{"type":"object"},
                     "optimizer":{"type":"object","required":["algorithm","max_iterations","max_evaluations","step_fraction"],"properties":{"algorithm":{"enum":["grid","coordinate_descent"]},"max_iterations":{"type":"integer","minimum":1,"maximum":8},"max_evaluations":{"type":"integer","minimum":1,"maximum":64},"step_fraction":{"type":"number","minimum":0.000001,"maximum":0.5}},"additionalProperties":false},
@@ -1065,8 +1431,17 @@ fn read_only_tools() -> Vec<Value> {
         ),
         tool(
             "material_pack_get",
-            "Read the immutable offline forgecad-hard-surface-robot MaterialPack manifest, texture hashes and color-space rules",
-            json!({"type":"object","additionalProperties":false}),
+            "Read one compile-time allowlisted immutable offline MaterialPack manifest, texture hashes and color-space rules; omitting pack_id preserves the historical robot-pack default",
+            json!({
+                "type":"object",
+                "properties":{
+                    "pack_id":{
+                        "type":"string",
+                        "enum":["forgecad-hard-surface-robot","forgecad-fictional-energy-weapon","forgecad-fictional-energy-weapon-2k"]
+                    }
+                },
+                "additionalProperties":false
+            }),
             true,
         ),
         tool(
@@ -1122,6 +1497,89 @@ fn read_only_tools() -> Vec<Value> {
                     "pass":{"enum":["beauty","silhouette","depth","normal","ao","part-id","material-id","wireframe","uv-stretch"]}
                 },
                 "additionalProperties":false
+            }),
+            true,
+        ),
+        tool(
+            "boolean_operand_lineage_preview",
+            "Read a bounded fixed-Worker projection of evaluated Boolean triangle runs and their left/right operand source. Face IDs are evaluated identities, not original authoring faces, are not persisted in the current GLB, and do not prove visual quality.",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","geometry_program","boolean_node_id","max_lineage_runs","canonical_sha256"],
+                "properties":{
+                    "schema_version":{"const":"BooleanOperandLineageRequest@1"},
+                    "geometry_program":{"type":"object","maxProperties":9},
+                    "boolean_node_id":id_property(),
+                    "max_lineage_runs":{"type":"integer","minimum":1,"maximum":4096},
+                    "canonical_sha256":sha256_property()
+                }
+            }),
+            true,
+        ),
+        tool(
+            "subdivision_topology_lineage_preview",
+            "Read a complete-within-scope fixed-Worker mapping from one exact subd-cage@2 control vertex/edge/quad root to evaluated quad topology. IDs are program/evaluation-bound, not GLB or artifact IDs; corner paths, weights, persistence and visual quality are explicitly unavailable.",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","geometry_program","subdivision_node_id","max_lineage_elements","canonical_sha256"],
+                "properties":{
+                    "schema_version":{"const":"SubdivisionTopologyLineageRequest@1"},
+                    "geometry_program":{"type":"object","maxProperties":9},
+                    "subdivision_node_id":id_property(),
+                    "max_lineage_elements":{"type":"integer","minimum":1,"maximum":25000},
+                    "canonical_sha256":sha256_property()
+                }
+            }),
+            true,
+        ),
+        tool(
+            "subdivision_artifact_lineage_get",
+            "Read an exact candidate/artifact-bound Subdivision lineage projection. Runtime revalidates durable V2 evidence, replays the persisted program to byte-identical GLB, and maps evaluated quads to source-primitive-local triangles. The projection is not a persisted sidecar, exposes no glTF vertex/edge/corner IDs, and proves structural lineage only.",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","project_id","candidate_id","artifact_id","artifact_readback_sha256","subdivision_node_id","max_lineage_elements","canonical_sha256"],
+                "properties":{
+                    "schema_version":{"const":"SubdivisionArtifactLineageRequest@1"},
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "artifact_id":sha256_property(),
+                    "artifact_readback_sha256":sha256_property(),
+                    "subdivision_node_id":id_property(),
+                    "max_lineage_elements":{"type":"integer","minimum":1,"maximum":25000},
+                    "canonical_sha256":sha256_property()
+                }
+            }),
+            true,
+        ),
+        tool(
+            "subdivision_artifact_lineage_sidecar_get",
+            "Read one Runtime-owned Link@1 for the exact candidate/artifact-bound Subdivision lineage sidecar. This is a default read-only lookup: it does not write SQLite, CAS, candidate, version or sidecar state, and it does not promote reconstructed lineage into visual or package quality.",
+            subdivision_artifact_lineage_sidecar_request_schema(),
+            true,
+        ),
+        tool(
+            "render_evidence_integrity_get",
+            "Deeply verify one exact current candidate-bound render evidence cohort: camera and JSON CAS objects plus all nine 512x512 RGBA8 AOV hashes, sizes, order and color semantics. Read-only structural integrity only; historical receipts and visual quality are not repaired or promoted.",
+            render_evidence_integrity_request_schema(),
+            true,
+        ),
+        tool(
+            "render_evidence_replay_get",
+            "Re-run the fixed Render Worker twice for one exact integrity-bound artifact and camera, require the same Worker cohort, and compare all nine persisted AOV PNG and decoded RGBA8 bytes. Read-only structural replay only; no image bytes are returned and no visual-quality or Blender renderer parity is inferred.",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","candidate_state_sha256","integrity_request","replay_policy","canonical_sha256"],
+                "properties":{
+                    "schema_version":{"const":"RenderEvidenceReplayRequest@1"},
+                    "candidate_state_sha256":sha256_property(),
+                    "integrity_request":render_evidence_integrity_request_schema(),
+                    "replay_policy":{"const":"fixed-worker-nine-aov-byte-replay-read-only@1"},
+                    "canonical_sha256":sha256_property()
+                }
             }),
             true,
         ),
@@ -1240,6 +1698,1710 @@ fn nullable_id_property() -> Value {
 
 fn sha256_property() -> Value {
     json!({"type":"string","pattern":"^[0-9a-f]{64}$"})
+}
+
+fn render_evidence_integrity_request_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","candidate_id","artifact_sha256","artifact_readback_object_sha256","program_sha256",
+            "reference_id","reference_sha256","camera_hash","camera_object_sha256",
+            "render_set_object_sha256","comparison_report_object_sha256",
+            "quality_report_object_sha256","canonical_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"RenderEvidenceIntegrityRequest@1"},
+            "project_id":id_property(),
+            "candidate_id":id_property(),
+            "artifact_sha256":sha256_property(),
+            "artifact_readback_object_sha256":sha256_property(),
+            "program_sha256":sha256_property(),
+            "reference_id":id_property(),
+            "reference_sha256":sha256_property(),
+            "camera_hash":sha256_property(),
+            "camera_object_sha256":sha256_property(),
+            "render_set_object_sha256":sha256_property(),
+            "comparison_report_object_sha256":sha256_property(),
+            "quality_report_object_sha256":sha256_property(),
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn subdivision_artifact_lineage_sidecar_request_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","candidate_id","artifact_id",
+            "artifact_readback_sha256","subdivision_node_id","max_lineage_elements",
+            "canonical_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"SubdivisionArtifactLineageSidecarRequest@1"},
+            "project_id":id_property(),
+            "candidate_id":id_property(),
+            "artifact_id":sha256_property(),
+            "artifact_readback_sha256":sha256_property(),
+            "subdivision_node_id":id_property(),
+            "max_lineage_elements":{"type":"integer","minimum":1,"maximum":25000},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn authoring_topology_request_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","candidate_id","artifact_id",
+            "artifact_readback_sha256",
+            "program_sha256","operator_catalog_sha256","readback_config_sha256",
+            "authoring_node_id","part_id","authoring_topology_policy_sha256",
+            "max_response_bytes"
+        ],
+        "properties":{
+            "schema_version":{"const":"AuthoringTopologyRequest@1"},
+            "project_id":id_property(),
+            "candidate_id":id_property(),
+            "artifact_id":sha256_property(),
+            "artifact_readback_sha256":sha256_property(),
+            "program_sha256":sha256_property(),
+            "operator_catalog_sha256":sha256_property(),
+            "readback_config_sha256":sha256_property(),
+            "authoring_node_id":id_property(),
+            "part_id":id_property(),
+            "authoring_topology_policy_sha256":{"const":"a6fb36a530e49537673b66d65ecb6e4fb4f51ffb3e7d01a0980be71f28cb367d"},
+            "max_response_bytes":{"const":1048576}
+        }
+    })
+}
+
+fn authoring_mesh_edit_preview_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","topology_request","base_topology_sha256","edit","edit_policy_sha256","input_sha256"],
+        "properties":{
+            "schema_version":{"const":"AuthoringMeshEditPreviewRequest@1"},
+            "topology_request":authoring_topology_request_schema(),
+            "base_topology_sha256":sha256_property(),
+            "edit":{
+                "oneOf":[
+                    {
+                        "type":"object","additionalProperties":false,
+                        "required":["operation","vertex_ids","delta_m"],
+                        "properties":{
+                            "operation":{"const":"translate_vertices"},
+                            "vertex_ids":{"type":"array","minItems":1,"maxItems":64,"uniqueItems":true,"items":id_property()},
+                            "delta_m":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-1.0,"maximum":1.0}}
+                        }
+                    },
+                    {
+                        "type":"object","additionalProperties":false,
+                        "required":["operation","face_id","distance_m"],
+                        "properties":{
+                            "operation":{"const":"single_face_extrude"},
+                            "face_id":id_property(),
+                            "distance_m":{"type":"number","minimum":0.000001,"maximum":1.0}
+                        }
+                    }
+                ]
+            },
+            "edit_policy_sha256":{"const":"1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae"},
+            "input_sha256":sha256_property()
+        }
+    })
+}
+
+fn authoring_mesh_edit_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","source_candidate_id","base_version_id",
+            "preview_request","expected_preview_canonical_sha256","idempotency_key",
+            "max_response_bytes","input_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"AuthoringMeshEditPrepareRequest@1"},
+            "project_id":id_property(),
+            "source_candidate_id":id_property(),
+            "base_version_id":nullable_id_property(),
+            "preview_request":authoring_mesh_edit_preview_schema(),
+            "expected_preview_canonical_sha256":sha256_property(),
+            "idempotency_key":{
+                "type":"string",
+                "pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+            },
+            "max_response_bytes":{"const":1048576},
+            "input_sha256":sha256_property()
+        }
+    })
+}
+
+fn mechanical_pose_evaluate_schema() -> Value {
+    json!({
+        "oneOf":[
+            mechanical_pose_single_request_schema(),
+            mechanical_pose_sequence_request_schema()
+        ]
+    })
+}
+
+fn mechanical_pose_geometry_preview_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","pose_evaluation_request","preview_policy","input_sha256"],
+        "properties":{
+            "schema_version":{"const":"MechanicalPoseGeometryPreviewRequest@1"},
+            "pose_evaluation_request":mechanical_pose_single_request_schema(),
+            "preview_policy":{"const":"transient-derived-program-worker-readback@1"},
+            "input_sha256":sha256_property()
+        }
+    })
+}
+
+fn mechanical_animation_clip_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","clip_id","pose_sequence_request","clip_policy","input_sha256"],
+        "properties":{
+            "schema_version":{"const":"MechanicalAnimationClipPrepareRequest@1"},
+            "clip_id":opaque_id_property(),
+            "pose_sequence_request":mechanical_pose_sequence_request_schema(),
+            "clip_policy":{"const":"runtime-owned-immutable-cas-rigid-mechanical-action@1"},
+            "input_sha256":sha256_property()
+        }
+    })
+}
+
+fn mechanical_animation_clip_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","candidate_id","clip_id","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"MechanicalAnimationClipGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "candidate_id":opaque_id_property(),
+            "clip_id":opaque_id_property(),
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn mechanical_animation_glb_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","candidate_id","candidate_state_sha256","clip_id","materialization_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"MechanicalAnimationGlbPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "candidate_id":opaque_id_property(),
+            "candidate_state_sha256":sha256_property(),
+            "clip_id":opaque_id_property(),
+            "materialization_policy":{"const":"rigid-node-trs-gltf-linear-scheduled-samples@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_asset_delivery_prepare_schema() -> Value {
+    let lod = json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["level","candidate_id","candidate_state_sha256","artifact_sha256","artifact_readback_sha256"],
+        "properties":{
+            "level":{"type":"integer","minimum":0,"maximum":2},
+            "candidate_id":opaque_id_property(),
+            "candidate_state_sha256":sha256_property(),
+            "artifact_sha256":sha256_property(),
+            "artifact_readback_sha256":sha256_property()
+        }
+    });
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","lods","animation","lod_policy","collision_policy","readiness_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"GameAssetDeliveryPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "lods":{"type":"array","minItems":3,"maxItems":3,"items":lod},
+            "animation":{"oneOf":[
+                {"type":"null"},
+                {
+                    "type":"object",
+                    "additionalProperties":false,
+                    "required":["clip_id","animated_artifact_sha256","receipt_object_sha256"],
+                    "properties":{
+                        "clip_id":opaque_id_property(),
+                        "animated_artifact_sha256":sha256_property(),
+                        "receipt_object_sha256":sha256_property()
+                    }
+                }
+            ]},
+            "lod_policy":{"const":"authored-three-level-part-stable-progressive-triangles@1"},
+            "collision_policy":{"const":"per-part-aabb-box-from-lod2-visual-geometry@1"},
+            "readiness_policy":{"const":"engine-neutral-gltf2-embedded-assets-stable-names@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_asset_delivery_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256"],
+        "properties":{
+            "schema_version":{"const":"GameAssetDeliveryGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property()
+        }
+    })
+}
+
+fn appearance_source_lineage_prepare_schema() -> Value {
+    let lod = json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["level","candidate_id","candidate_state_sha256","artifact_sha256","artifact_readback_sha256"],
+        "properties":{
+            "level":{"type":"integer","minimum":0,"maximum":2},
+            "candidate_id":opaque_id_property(),
+            "candidate_state_sha256":sha256_property(),
+            "artifact_sha256":sha256_property(),
+            "artifact_readback_sha256":sha256_property()
+        }
+    });
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","candidate_id","candidate_state_sha256","source_replay_worker_cohort_sha256","appearance_program","geometry_program_object_sha256","material_pack_manifest_sha256","texture_build_receipt_sha256","candidate_surface_bake_receipt_sha256","uv_binding_sha256","lods","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"AppearanceSourceLineagePrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "candidate_id":opaque_id_property(),
+            "candidate_state_sha256":sha256_property(),
+            "source_replay_worker_cohort_sha256":sha256_property(),
+            "appearance_program":{"type":"object"},
+            "geometry_program_object_sha256":sha256_property(),
+            "material_pack_manifest_sha256":sha256_property(),
+            "texture_build_receipt_sha256":sha256_property(),
+            "candidate_surface_bake_receipt_sha256":{"type":["string","null"],"pattern":"^[0-9a-f]{64}$"},
+            "uv_binding_sha256":sha256_property(),
+            "lods":{"type":"array","minItems":3,"maxItems":3,"items":lod},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn appearance_source_lineage_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","candidate_id","appearance_program_sha256","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"AppearanceSourceLineageGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "candidate_id":opaque_id_property(),
+            "appearance_program_sha256":sha256_property(),
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_asset_lod_derive_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","source_candidate_id",
+            "source_candidate_state_sha256","source_artifact_sha256",
+            "source_artifact_readback_sha256","source_geometry_program_sha256",
+            "source_operator_catalog_sha256","source_readback_config_sha256",
+            "derive_policy","canonical_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"GameAssetLodDeriveRequest@1"},
+            "project_id":opaque_id_property(),
+            "source_candidate_id":opaque_id_property(),
+            "source_candidate_state_sha256":sha256_property(),
+            "source_artifact_sha256":sha256_property(),
+            "source_artifact_readback_sha256":sha256_property(),
+            "source_geometry_program_sha256":sha256_property(),
+            "source_operator_catalog_sha256":sha256_property(),
+            "source_readback_config_sha256":sha256_property(),
+            "derive_policy":{"const":"runtime-owned-typed-segment-lowering-lod1-half-lod2-quarter@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_weapon_anchor_prepare_schema() -> Value {
+    let anchor = json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["anchor_id","role","parent_kind","owner_part_id","local_translation_m","local_rotation_quat_xyzw","local_scale_xyz"],
+        "properties":{
+            "anchor_id":opaque_id_property(),
+            "role":{"enum":["weapon-root","grip-primary","muzzle-vfx","magazine-well","sight-primary","energy-core-vfx"]},
+            "parent_kind":{"enum":["synthetic-scene-root","part-node"]},
+            "owner_part_id":{"oneOf":[{"type":"null"},opaque_id_property()]},
+            "local_translation_m":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-10.0,"maximum":10.0}},
+            "local_rotation_quat_xyzw":{"type":"array","minItems":4,"maxItems":4,"items":{"type":"number","minimum":-1.0,"maximum":1.0}},
+            "local_scale_xyz":{"const":[1.0,1.0,1.0]}
+        }
+    });
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","anchor_policy","anchors","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"GameWeaponAnchorPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "anchor_policy":{"const":"weapon-rh-x-forward-y-up-model-space-six-role@1"},
+            "anchors":{"type":"array","minItems":6,"maxItems":6,"items":anchor},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_weapon_anchor_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256"],
+        "properties":{
+            "schema_version":{"const":"GameWeaponAnchorGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_weapon_glb_socket_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version",
+            "project_id",
+            "delivery_manifest_object_sha256",
+            "anchor_set_object_sha256",
+            "materialization_policy",
+            "lod_scope",
+            "canonical_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"GameWeaponGlbSocketMaterializationPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "anchor_set_object_sha256":sha256_property(),
+            "materialization_policy":{"const":"gltf-anchor-node-materialization-preserve-renderable-content@1"},
+            "lod_scope":{"const":"lod0-lod1-lod2@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_weapon_glb_socket_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","socket_materialization_key_sha256"],
+        "properties":{
+            "schema_version":{"const":"GameWeaponGlbSocketMaterializationGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "socket_materialization_key_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_weapon_animated_glb_socket_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version",
+            "project_id",
+            "delivery_manifest_object_sha256",
+            "anchor_set_object_sha256",
+            "source_candidate_id",
+            "source_candidate_state_sha256",
+            "source_animated_artifact_sha256",
+            "source_animation_receipt_object_sha256",
+            "materialization_policy",
+            "canonical_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"GameWeaponAnimatedGlbSocketMaterializationPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "anchor_set_object_sha256":sha256_property(),
+            "source_candidate_id":opaque_id_property(),
+            "source_candidate_state_sha256":sha256_property(),
+            "source_animated_artifact_sha256":sha256_property(),
+            "source_animation_receipt_object_sha256":sha256_property(),
+            "materialization_policy":{"const":"gltf-animated-anchor-node-materialization-preserve-animations-renderable-content@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn game_weapon_animated_glb_socket_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","animated_socket_materialization_key_sha256"],
+        "properties":{
+            "schema_version":{"const":"GameWeaponAnimatedGlbSocketMaterializationGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "animated_socket_materialization_key_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_effect_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["effect_id","anchor_id","effect_kind","material_id","color_linear_rgb","duration_ticks","sample_time_ticks","emissive_strength_samples","loop_mode","lod_visibility"],
+        "allOf":[
+            {"if":{"properties":{"effect_id":{"const":"muzzle-pulse"}},"required":["effect_id"]},"then":{"properties":{"material_id":{"const":"energy-cyan-muzzle-emissive"}}}},
+            {"if":{"properties":{"effect_id":{"const":"energy-core-breathe"}},"required":["effect_id"]},"then":{"properties":{"material_id":{"const":"energy-cyan-emissive"}}}}
+        ],
+        "properties":{
+            "effect_id":opaque_id_property(),
+            "anchor_id":{"enum":["socket-muzzle-vfx","socket-energy-core-vfx"]},
+            "effect_kind":{"enum":["muzzle-emissive-pulse","energy-core-emissive-breathe"]},
+            "material_id":{"enum":["energy-cyan-muzzle-emissive","energy-cyan-emissive"]},
+            "color_linear_rgb":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":0.0,"maximum":1.0}},
+            "duration_ticks":{"type":"integer","minimum":1,"maximum":10000},
+            "sample_time_ticks":{"type":"array","minItems":2,"maxItems":16,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":10000}},
+            "emissive_strength_samples":{"type":"array","minItems":2,"maxItems":16,"items":{"type":"number","minimum":0.0,"maximum":16.0}},
+            "loop_mode":{"enum":["once","loop"]},
+            "lod_visibility":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"boolean"}}
+        }
+    })
+}
+
+fn fictional_energy_vfx_prepare_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","anchor_set_object_sha256","material_pack_id","material_pack_manifest_sha256","vfx_policy","effects","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "anchor_set_object_sha256":sha256_property(),
+            "material_pack_id":{"const":"forgecad-fictional-energy-weapon-2k"},
+            "material_pack_manifest_sha256":sha256_property(),
+            "vfx_policy":{"const":"fictional-energy-two-effect-time-sampled-emissive-intent@1"},
+            "effects":{"type":"array","minItems":2,"maxItems":2,"items":fictional_energy_vfx_effect_schema()},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_get_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_frame_sample_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","sample_time_ticks","sampling_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxFrameSampleRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "vfx_profile_object_sha256":sha256_property(),
+            "sample_time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+            "sampling_policy":{"const":"integer-tick-linear-once-clamp-loop-modulo-duration@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_appearance_frame_sample_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","sample_time_ticks","sampling_policy","appearance_binding_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxAppearanceFrameSampleRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "vfx_profile_object_sha256":sha256_property(),
+            "sample_time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+            "sampling_policy":{"const":"integer-tick-linear-once-clamp-loop-modulo-duration@1"},
+            "appearance_binding_policy":{"const":"three-lod-appearance-program-glb-material-zone-stable-id@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_rendered_frame_prepare_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","sample_time_ticks","sampling_policy","appearance_binding_policy","effect_materialization_policy","lod_level","camera_policy","render_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxFrameRenderPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "vfx_profile_object_sha256":sha256_property(),
+            "sample_time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+            "sampling_policy":{"const":"integer-tick-linear-once-clamp-loop-modulo-duration@1"},
+            "appearance_binding_policy":{"const":"three-lod-appearance-program-glb-material-zone-stable-id@1"},
+            "effect_materialization_policy":{"const":"independent-effect-material-zone@1"},
+            "lod_level":{"const":0},
+            "camera_policy":{"const":"runtime-fixed-default-camera-calibration@1"},
+            "render_policy":{"const":"lod0-nine-aov-double-worker-byte-exact-reservation-safe@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_rendered_frame_get_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["schema_version","project_id","frame_key_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxRenderedFrameGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "frame_key_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_rendered_sequence_prepare_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","sample_time_ticks","sampling_policy","appearance_binding_policy","effect_materialization_policy","lod_level","camera_policy","render_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxSequenceRenderPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "vfx_profile_object_sha256":sha256_property(),
+            "sample_time_ticks":{"type":"array","minItems":2,"maxItems":16,"items":{"type":"integer","minimum":0,"maximum":1000000}},
+            "sampling_policy":{"const":"integer-tick-linear-once-clamp-loop-modulo-duration@1"},
+            "appearance_binding_policy":{"const":"three-lod-appearance-program-glb-material-zone-stable-id@1"},
+            "effect_materialization_policy":{"const":"independent-effect-material-zone@1"},
+            "lod_level":{"const":0},
+            "camera_policy":{"const":"runtime-fixed-default-camera-calibration@1"},
+            "render_policy":{"const":"lod0-nine-aov-sequence-same-cohort-byte-exact-reservation-safe@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_rendered_sequence_get_schema() -> Value {
+    json!({
+        "type":"object","additionalProperties":false,
+        "required":["schema_version","project_id","sequence_key_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxRenderedSequenceGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "sequence_key_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_hdr_bloom_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","base_frame_key_sha256","bloom_profile","bloom_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxHdrBloomFrameRenderPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "vfx_profile_object_sha256":sha256_property(),
+            "base_frame_key_sha256":sha256_property(),
+            "bloom_profile":{
+                "type":"object",
+                "additionalProperties":false,
+                "required":["threshold","radius_px","intensity","hdr_clamp"],
+                "properties":{
+                    "threshold":{"const":1.0},
+                    "radius_px":{"const":8},
+                    "intensity":{"const":4.0},
+                    "hdr_clamp":{"const":16.0}
+                }
+            },
+            "bloom_policy":{"const":"lod0-hdr-emissive-source-two-pass-fixed-kernel-base-aov-byte-exact@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_hdr_bloom_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","bloom_key_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxHdrBloomFrameGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "bloom_key_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_particles_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","anchor_set_object_sha256","base_frame_key_sha256","bloom_key_sha256","sample_time_ticks","particle_policy","emitter_policy","render_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxParticlesFrameRenderPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "vfx_profile_object_sha256":sha256_property(),
+            "anchor_set_object_sha256":sha256_property(),
+            "base_frame_key_sha256":sha256_property(),
+            "bloom_key_sha256":sha256_property(),
+            "sample_time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+            "particle_policy":{"const":"two-closed-emitters-hash-seeded-typed-attributes@1"},
+            "emitter_policy":{"const":"muzzle-burst-24-energy-core-sparks-32@1"},
+            "render_policy":{"const":"lod0-three-typed-particle-aov-depth-tested-base-bloom-byte-exact@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_particles_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","particle_key_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxParticlesFrameGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "particle_key_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_trails_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","anchor_set_object_sha256","base_frame_key_sha256","bloom_key_sha256","current_particle_key_sha256","particle_history_key_sha256s","sample_time_ticks","trail_policy","history_policy","render_policy","bloom_input","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxTrailsFrameRenderPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "vfx_profile_object_sha256":sha256_property(),
+            "anchor_set_object_sha256":sha256_property(),
+            "base_frame_key_sha256":sha256_property(),
+            "bloom_key_sha256":sha256_property(),
+            "current_particle_key_sha256":sha256_property(),
+            "particle_history_key_sha256s":{"type":"array","minItems":1,"maxItems":4,"uniqueItems":true,"items":sha256_property()},
+            "sample_time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+            "trail_policy":{"const":"two-closed-history-bound-polyline-trails@1"},
+            "history_policy":{"const":"one-to-four-strictly-earlier-particle-frames@1"},
+            "render_policy":{"const":"lod0-three-typed-trail-aov-depth-tested-base-bloom-particles-byte-exact-no-bloom-input@1"},
+            "bloom_input":{"const":false},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_trails_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","trail_key_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxTrailsFrameGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "trail_key_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_trails_bloom_prepare_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version",
+            "project_id",
+            "delivery_manifest_object_sha256",
+            "vfx_profile_object_sha256",
+            "anchor_set_object_sha256",
+            "base_frame_key_sha256",
+            "bloom_key_sha256",
+            "source_trail_key_sha256",
+            "trail_bloom_profile",
+            "trail_bloom_policy",
+            "input_policy",
+            "occlusion_policy",
+            "render_policy",
+            "canonical_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxTrailsBloomFrameRenderPrepareRequest@1"},
+            "project_id":opaque_id_property(),
+            "delivery_manifest_object_sha256":sha256_property(),
+            "vfx_profile_object_sha256":sha256_property(),
+            "anchor_set_object_sha256":sha256_property(),
+            "base_frame_key_sha256":sha256_property(),
+            "bloom_key_sha256":sha256_property(),
+            "source_trail_key_sha256":sha256_property(),
+            "trail_bloom_profile":{
+                "type":"object",
+                "additionalProperties":false,
+                "required":["threshold","source_gain","radius_px","intensity","hdr_clamp","blur_passes","kernel"],
+                "properties":{
+                    "threshold":{"const":1.0},
+                    "source_gain":{"const":8.0},
+                    "radius_px":{"const":8},
+                    "intensity":{"const":4.0},
+                    "hdr_clamp":{"const":16.0},
+                    "blur_passes":{"const":2},
+                    "kernel":{"const":"separable-box-two-pass-fixed-radius@1"}
+                }
+            },
+            "trail_bloom_policy":{"const":"lod0-typed-trails-hdr-source-two-pass-fixed-kernel@1"},
+            "input_policy":{"const":"existing-trail-color-depth-plus-current-base-opaque-depth-byte-exact@1"},
+            "occlusion_policy":{"const":"current-base-opaque-depth-before-trail-depth-reversed-normalized-u8-epsilon-1e-4@1"},
+            "render_policy":{"const":"lod0-trail-bloom-two-new-passes-base-bloom-particles-trails-byte-exact-reused@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn fictional_energy_vfx_trails_bloom_get_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","trail_bloom_key_sha256"],
+        "properties":{
+            "schema_version":{"const":"FictionalEnergyVfxTrailsBloomFrameGetRequest@1"},
+            "project_id":opaque_id_property(),
+            "trail_bloom_key_sha256":sha256_property()
+        }
+    })
+}
+
+fn mechanical_animation_clip_preview_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","candidate_id","clip_id","sample_time_ticks","preview_policy","canonical_sha256"],
+        "properties":{
+            "schema_version":{"const":"MechanicalAnimationClipPreviewRequest@1"},
+            "project_id":opaque_id_property(),
+            "candidate_id":opaque_id_property(),
+            "clip_id":opaque_id_property(),
+            "sample_time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+            "preview_policy":{"const":"single-tick-transient-double-worker-replay@1"},
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn mechanical_pose_single_request_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","artifact_id","candidate_id",
+            "artifact_readback_sha256","program_sha256","operator_catalog_sha256",
+            "readback_config_sha256","rest_frame_draft","pose_action_draft",
+            "sample_time_ticks","input_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"MechanicalPoseEvaluationRequest@1"},
+            "project_id":opaque_id_property(),
+            "artifact_id":sha256_property(),
+            "candidate_id":opaque_id_property(),
+            "artifact_readback_sha256":sha256_property(),
+            "program_sha256":sha256_property(),
+            "operator_catalog_sha256":sha256_property(),
+            "readback_config_sha256":sha256_property(),
+            "rest_frame_draft":mechanical_rest_frame_draft_schema(),
+            "pose_action_draft":{"oneOf":[{"type":"null"},mechanical_pose_action_draft_schema()]},
+            "sample_time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+            "input_sha256":sha256_property()
+        }
+    })
+}
+
+fn mechanical_pose_sequence_request_schema() -> Value {
+    let mut schema = mechanical_pose_single_request_schema();
+    schema["properties"]["schema_version"] =
+        json!({"const":"MechanicalPoseSequencePreviewRequest@1"});
+    schema["properties"]["sample_time_ticks"] = json!({
+        "type":"array",
+        "minItems":1,
+        "maxItems":16,
+        "uniqueItems":true,
+        "items":{"type":"integer","minimum":0,"maximum":1000000}
+    });
+    schema
+}
+
+fn opaque_id_property() -> Value {
+    json!({"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"})
+}
+
+fn mechanical_rest_frame_draft_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","rest_frame_id","coordinate_system","transform_convention",
+            "root_link_id","links","parent_map"
+        ],
+        "properties":{
+            "schema_version":{"const":"MechanicalRestFrameDraft@1"},
+            "rest_frame_id":opaque_id_property(),
+            "coordinate_system":{"const":"forgecad-rh-y-up-m@1"},
+            "transform_convention":{"const":"column-vector-trs-quaternion@1"},
+            "root_link_id":opaque_id_property(),
+            "links":{
+                "type":"array","minItems":1,"maxItems":64,
+                "items":mechanical_link_draft_schema()
+            },
+            "parent_map":{
+                "type":"array","minItems":0,"maxItems":63,
+                "items":{
+                    "type":"object","additionalProperties":false,
+                    "required":["child_link_id","parent_link_id"],
+                    "properties":{
+                        "child_link_id":opaque_id_property(),
+                        "parent_link_id":opaque_id_property()
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn mechanical_link_draft_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "link_id","part_id","source_node_ids","joint_type","rest_translation_m",
+            "rest_rotation_quat_xyzw","axis_local","limit_min","limit_max","value_unit"
+        ],
+        "properties":{
+            "link_id":opaque_id_property(),
+            "part_id":opaque_id_property(),
+            "source_node_ids":{
+                "type":"array","minItems":1,"maxItems":16,"items":opaque_id_property()
+            },
+            "joint_type":{"enum":["fixed","revolute","prismatic"]},
+            "rest_translation_m":bounded_array_schema(3,-10.0,10.0),
+            "rest_rotation_quat_xyzw":bounded_array_schema(4,-1.0,1.0),
+            "axis_local":{"oneOf":[{"type":"null"},bounded_array_schema(3,-1.0,1.0)]},
+            "limit_min":{"oneOf":[{"type":"null"},{"type":"number","minimum":-3.141592653589793,"maximum":3.141592653589793}]},
+            "limit_max":{"oneOf":[{"type":"null"},{"type":"number","minimum":-3.141592653589793,"maximum":3.141592653589793}]},
+            "value_unit":{"enum":["none","radian","meter"]}
+        }
+    })
+}
+
+fn mechanical_pose_action_draft_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","action_id","timebase_hz","duration_ticks","interpolation",
+            "extrapolation","unkeyed_policy","channels"
+        ],
+        "properties":{
+            "schema_version":{"const":"MechanicalPoseActionDraft@1"},
+            "action_id":opaque_id_property(),
+            "timebase_hz":{"const":1000},
+            "duration_ticks":{"type":"integer","minimum":1,"maximum":1000000},
+            "interpolation":{"const":"linear@1"},
+            "extrapolation":{"const":"clamp@1"},
+            "unkeyed_policy":{"const":"rest@1"},
+            "channels":{
+                "type":"array","minItems":1,"maxItems":64,
+                "items":{
+                    "type":"object","additionalProperties":false,
+                    "required":["link_id","value_unit","keys"],
+                    "properties":{
+                        "link_id":opaque_id_property(),
+                        "value_unit":{"enum":["radian","meter"]},
+                        "keys":{
+                            "type":"array","minItems":1,"maxItems":32,
+                            "items":{
+                                "type":"object","additionalProperties":false,
+                                "required":["time_ticks","value"],
+                                "properties":{
+                                    "time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+                                    "value":{"type":"number","minimum":-3.141592653589793,"maximum":3.141592653589793}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn bounded_array_schema(length: usize, minimum: f64, maximum: f64) -> Value {
+    json!({
+        "type":"array","minItems":length,"maxItems":length,
+        "items":{"type":"number","minimum":minimum,"maximum":maximum}
+    })
+}
+
+fn parametric_group_request_branch_schema() -> Value {
+    let common = |template_id: &str, parameters: Value| {
+        json!({
+            "type":"object",
+            "additionalProperties":false,
+            "required":["schema_version","project_id","representation_plan_sha256","template_id","instance_id","part_id","material_zone_id","parameters","input_sha256"],
+            "properties":{
+                "schema_version":{"const":"ParametricDesignKitRequest@2"},
+                "project_id":opaque_id_property(),
+                "representation_plan_sha256":sha256_property(),
+                "template_id":{"const":template_id},
+                "instance_id":opaque_id_property(),
+                "part_id":opaque_id_property(),
+                "material_zone_id":opaque_id_property(),
+                "parameters":parameters,
+                "input_sha256":sha256_property()
+            }
+        })
+    };
+    json!({
+        "oneOf":[
+            common("forgecad.group.rounded-box@1", json!({
+                "type":"object","additionalProperties":false,
+                "required":["size_m","position_m","rotation_rad","bevel_width_m","bevel_segments","bevel_profile","crease_angle_rad"],
+                "properties":{
+                    "size_m":bounded_vec3_schema(0.0,10.0,true),
+                    "position_m":bounded_vec3_schema(-10.0,10.0,false),
+                    "rotation_rad":bounded_vec3_schema(-6.283185307179586,6.283185307179586,false),
+                    "bevel_width_m":{"type":"number","exclusiveMinimum":0.0,"maximum":5.0},
+                    "bevel_segments":{"type":"integer","minimum":1,"maximum":4},
+                    "bevel_profile":{"type":"number","minimum":0.25,"maximum":0.75},
+                    "crease_angle_rad":{"type":"number","minimum":0.0,"maximum":3.141592653589793}
+                }
+            })),
+            common("forgecad.group.mirrored-box@1", json!({
+                "type":"object","additionalProperties":false,
+                "required":["size_m","position_m","rotation_rad","mirror_axis","mirror_offset_m","crease_angle_rad"],
+                "properties":{
+                    "size_m":bounded_vec3_schema(0.0,10.0,true),
+                    "position_m":bounded_vec3_schema(-10.0,10.0,false),
+                    "rotation_rad":bounded_vec3_schema(-6.283185307179586,6.283185307179586,false),
+                    "mirror_axis":{"enum":["x","y","z"]},
+                    "mirror_offset_m":{"type":"number","minimum":-10.0,"maximum":10.0},
+                    "crease_angle_rad":{"type":"number","minimum":0.0,"maximum":3.141592653589793}
+                }
+            })),
+            common("forgecad.group.arrayed-cylinder@1", json!({
+                "type":"object","additionalProperties":false,
+                "required":["radius_m","height_m","radial_segments","position_m","rotation_rad","array_count","array_offset_m","crease_angle_rad"],
+                "properties":{
+                    "radius_m":{"type":"number","exclusiveMinimum":0.0,"maximum":5.0},
+                    "height_m":{"type":"number","exclusiveMinimum":0.0,"maximum":10.0},
+                    "radial_segments":{"type":"integer","minimum":8,"maximum":64},
+                    "position_m":bounded_vec3_schema(-10.0,10.0,false),
+                    "rotation_rad":bounded_vec3_schema(-6.283185307179586,6.283185307179586,false),
+                    "array_count":{"type":"integer","minimum":1,"maximum":32},
+                    "array_offset_m":bounded_vec3_schema(-10.0,10.0,false),
+                    "crease_angle_rad":{"type":"number","minimum":0.0,"maximum":3.141592653589793}
+                }
+            }))
+        ]
+    })
+}
+
+fn modifier_stack_item_schema() -> Value {
+    json!({
+        "oneOf":[
+            modifier_stack_variant_schema(
+                "forgecad.geometry.transform@2",
+                json!({
+                    "type":"object","additionalProperties":false,
+                    "required":["shape","translation_m","rotation_rad","scale"],
+                    "properties":{
+                        "shape":{"const":"transform"},
+                        "translation_m":bounded_vec3_schema(-10.0, 10.0, false),
+                        "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false),
+                        "scale":bounded_vec3_schema(0.0, 10.0, true)
+                    }
+                })
+            ),
+            modifier_stack_variant_schema(
+                "forgecad.geometry.mirror@1",
+                json!({
+                    "type":"object","additionalProperties":false,
+                    "required":["shape","axis","offset_m"],
+                    "properties":{
+                        "shape":{"const":"mirror"},
+                        "axis":{"enum":["x","y","z"]},
+                        "offset_m":{"type":"number","minimum":-10.0,"maximum":10.0}
+                    }
+                })
+            ),
+            modifier_stack_variant_schema(
+                "forgecad.geometry.array@1",
+                json!({
+                    "type":"object","additionalProperties":false,
+                    "required":["shape","count","offset_m"],
+                    "properties":{
+                        "shape":{"const":"array"},
+                        "count":{"type":"integer","minimum":1,"maximum":32},
+                        "offset_m":bounded_vec3_schema(-10.0, 10.0, false)
+                    }
+                })
+            ),
+            modifier_stack_variant_schema(
+                "forgecad.geometry.bevel@1",
+                json!({
+                    "type":"object","additionalProperties":false,
+                    "required":["shape","width_m","segments","profile","edge_scope","clamp_overlap"],
+                    "properties":{
+                        "shape":{"const":"bevel"},
+                        "width_m":bounded_number_schema(0.0, 5.0, true),
+                        "segments":{"type":"integer","minimum":1,"maximum":4},
+                        "profile":{"type":"number","minimum":0.25,"maximum":0.75},
+                        "edge_scope":{"const":"all-source-box-edges"},
+                        "clamp_overlap":{"type":"boolean"}
+                    }
+                })
+            ),
+            modifier_stack_variant_schema(
+                "forgecad.geometry.normal-policy@1",
+                json!({
+                    "type":"object","additionalProperties":false,
+                    "required":["shape","weighting","crease_angle_rad","keep_sharp","output_domain"],
+                    "properties":{
+                        "shape":{"const":"normal-policy"},
+                        "weighting":{"const":"face-area-x-corner-angle"},
+                        "crease_angle_rad":{"type":"number","minimum":0.0,"maximum":3.141592653589793},
+                        "keep_sharp":{"const":true},
+                        "output_domain":{"const":"corner"}
+                    }
+                })
+            )
+        ]
+    })
+}
+
+fn modifier_evaluation_request_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["schema_version","project_id","representation_plan_sha256","part_id","material_zone_id","solid","base_node","modifiers","previous_evaluation","input_sha256"],
+        "properties":{
+            "schema_version":{"const":"GeometryModifierEvaluationRequest@2"},
+            "project_id":id_property(),
+            "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+            "part_id":id_property(),
+            "material_zone_id":id_property(),
+            "solid":{"type":"boolean"},
+            "base_node":modifier_stack_base_node_schema(),
+            "modifiers":{
+                "type":"array",
+                "minItems":1,
+                "maxItems":8,
+                "items":modifier_stack_item_schema()
+            },
+            "previous_evaluation":{
+                "oneOf":[
+                    {"type":"null"},
+                    modifier_evaluation_signature_schema()
+                ]
+            },
+            "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+        }
+    })
+}
+
+fn modifier_apply_request_schema() -> Value {
+    json!({
+        "oneOf":[
+            modifier_apply_request_v1_schema(),
+            modifier_apply_request_v2_schema()
+        ]
+    })
+}
+
+fn modifier_apply_request_v1_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","source_candidate_id",
+            "source_candidate_canonical_sha256","source_artifact_sha256",
+            "source_artifact_readback_sha256",
+            "source_geometry_program_sha256","source_operator_catalog_sha256",
+            "source_readback_config_sha256","source_part_id","base_version_id",
+            "modifiers","idempotency_key","max_response_bytes","input_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"GeometryModifierApplyRequest@1"},
+            "project_id":id_property(),
+            "source_candidate_id":id_property(),
+            "source_candidate_canonical_sha256":sha256_property(),
+            "source_artifact_sha256":sha256_property(),
+            "source_artifact_readback_sha256":sha256_property(),
+            "source_geometry_program_sha256":sha256_property(),
+            "source_operator_catalog_sha256":sha256_property(),
+            "source_readback_config_sha256":sha256_property(),
+            "source_part_id":id_property(),
+            "base_version_id":nullable_id_property(),
+            "modifiers":{
+                "type":"array",
+                "minItems":1,
+                "maxItems":8,
+                "items":modifier_stack_item_schema()
+            },
+            "idempotency_key":id_property(),
+            "max_response_bytes":{"const":1048576},
+            "input_sha256":sha256_property()
+        }
+    })
+}
+
+fn modifier_apply_request_v2_schema() -> Value {
+    // This is deliberately a separate closed request rather than an additive
+    // widening of @1.  @2 is the candidate-bound single-edge bevel slice:
+    // exactly one stable source edge on one direct authoring-mesh@1 Part.
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","source_candidate_id",
+            "source_candidate_canonical_sha256","source_artifact_sha256",
+            "source_artifact_readback_sha256","source_geometry_program_sha256",
+            "source_operator_catalog_sha256","source_readback_config_sha256",
+            "source_part_id","source_terminal_node_id",
+            "source_authoring_topology_sha256","source_edge_id","bevel_m",
+            "segments","profile","clamp_overlap","base_version_id",
+            "idempotency_key","max_response_bytes","input_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"GeometryModifierApplyRequest@2"},
+            "project_id":id_property(),
+            "source_candidate_id":id_property(),
+            "source_candidate_canonical_sha256":sha256_property(),
+            "source_artifact_sha256":sha256_property(),
+            "source_artifact_readback_sha256":sha256_property(),
+            "source_geometry_program_sha256":sha256_property(),
+            "source_operator_catalog_sha256":sha256_property(),
+            "source_readback_config_sha256":sha256_property(),
+            "source_part_id":id_property(),
+            "source_terminal_node_id":id_property(),
+            "source_authoring_topology_sha256":sha256_property(),
+            "source_edge_id":id_property(),
+            "bevel_m":{"type":"number","exclusiveMinimum":0.0,"maximum":0.25},
+            "segments":{"type":"integer","minimum":1,"maximum":4},
+            "profile":{"type":"number","minimum":0.25,"maximum":0.75},
+            "clamp_overlap":{"type":"boolean"},
+            "base_version_id":nullable_id_property(),
+            "idempotency_key":id_property(),
+            "max_response_bytes":{"const":1048576},
+            "input_sha256":sha256_property()
+        }
+    })
+}
+
+fn modifier_evaluation_signature_schema() -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":[
+            "schema_version","project_id","representation_plan_sha256","part_id",
+            "material_zone_id","solid","source_input_sha256","stack_definition_sha256",
+            "evaluation_sha256","output_sha256","evaluation_policy_sha256",
+            "operator_catalog_sha256","catalog_cohort_sha256","cache_key_sha256",
+            "stages","canonical_sha256"
+        ],
+        "properties":{
+            "schema_version":{"const":"GeometryModifierEvaluationSignature@1"},
+            "project_id":id_property(),
+            "representation_plan_sha256":sha256_property(),
+            "part_id":id_property(),
+            "material_zone_id":id_property(),
+            "solid":{"type":"boolean"},
+            "source_input_sha256":sha256_property(),
+            "stack_definition_sha256":sha256_property(),
+            "evaluation_sha256":sha256_property(),
+            "output_sha256":sha256_property(),
+            "evaluation_policy_sha256":sha256_property(),
+            "operator_catalog_sha256":sha256_property(),
+            "catalog_cohort_sha256":sha256_property(),
+            "cache_key_sha256":sha256_property(),
+            "stages":{
+                "type":"array",
+                "minItems":1,
+                "maxItems":8,
+                "items":{
+                    "type":"object",
+                    "additionalProperties":false,
+                    "required":["order_index","modifier_id","enabled","operator_id","parameters_sha256","definition_sha256","input_evaluation_sha256","output_evaluation_sha256","stage_cache_key_sha256"],
+                    "properties":{
+                        "order_index":{"type":"integer","minimum":0,"maximum":7},
+                        "modifier_id":id_property(),
+                        "enabled":{"type":"boolean"},
+                        "operator_id":{"enum":["forgecad.geometry.transform@2","forgecad.geometry.mirror@1","forgecad.geometry.array@1","forgecad.geometry.bevel@1","forgecad.geometry.normal-policy@1"]},
+                        "parameters_sha256":sha256_property(),
+                        "definition_sha256":sha256_property(),
+                        "input_evaluation_sha256":sha256_property(),
+                        "output_evaluation_sha256":sha256_property(),
+                        "stage_cache_key_sha256":sha256_property()
+                    }
+                }
+            },
+            "canonical_sha256":sha256_property()
+        }
+    })
+}
+
+fn modifier_stack_variant_schema(operator_id: &str, parameters: Value) -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["modifier_id","enabled","operator_id","parameters"],
+        "properties":{
+            "modifier_id":id_property(),
+            "enabled":{"type":"boolean"},
+            "operator_id":{"const":operator_id},
+            "parameters":parameters
+        }
+    })
+}
+
+fn modifier_stack_base_node_schema() -> Value {
+    json!({
+        "oneOf":[
+            modifier_stack_base_node_variant_schema("forgecad.geometry.primitive@2", modifier_stack_primitive_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.profile-extrude@1", modifier_stack_profile_extrude_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.profile-loft@1", modifier_stack_profile_loft_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.longitudinal-section-loft@1", modifier_stack_longitudinal_loft_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.subd-cage@1", modifier_stack_subd_cage_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.surface-patch@1", modifier_stack_surface_patch_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.revolve@1", modifier_stack_revolve_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.tube-sweep@1", modifier_stack_tube_sweep_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.panel@1", modifier_stack_panel_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.vent-array@1", modifier_stack_vent_array_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.vent-array@2", modifier_stack_vent_array_v2_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.recessed-channel@1", modifier_stack_recessed_channel_parameters_schema()),
+            modifier_stack_base_node_variant_schema("forgecad.geometry.joint-stack@1", modifier_stack_joint_stack_parameters_schema())
+        ]
+    })
+}
+
+fn modifier_stack_base_node_variant_schema(operator_id: &str, parameters: Value) -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":["node_id","operator_id","inputs","parameters"],
+        "properties":{
+            "node_id":id_property(),
+            "operator_id":{"const":operator_id},
+            "inputs":{"type":"array","maxItems":0},
+            "parameters":parameters
+        }
+    })
+}
+
+fn modifier_stack_primitive_parameters_schema() -> Value {
+    json!({
+        "oneOf":[
+            closed_parameters_schema(
+                &["shape","size_m","position_m","rotation_rad"],
+                json!({
+                    "shape":{"const":"box"},
+                    "size_m":bounded_vec3_schema(0.0, 10.0, true),
+                    "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+                    "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+                })
+            ),
+            closed_parameters_schema(
+                &["shape","radius_m","height_m","radial_segments","position_m","rotation_rad"],
+                json!({
+                    "shape":{"const":"cylinder"},
+                    "radius_m":bounded_number_schema(0.0, 5.0, true),
+                    "height_m":bounded_number_schema(0.0, 10.0, true),
+                    "radial_segments":{"type":"integer","minimum":8,"maximum":64},
+                    "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+                    "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+                })
+            ),
+            closed_parameters_schema(
+                &["shape","radii_m","longitude_segments","latitude_segments","position_m","rotation_rad"],
+                json!({
+                    "shape":{"const":"ellipsoid"},
+                    "radii_m":bounded_vec3_schema(0.0, 5.0, true),
+                    "longitude_segments":{"type":"integer","minimum":8,"maximum":64},
+                    "latitude_segments":{"type":"integer","minimum":4,"maximum":64},
+                    "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+                    "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+                })
+            ),
+            closed_parameters_schema(
+                &["shape","radius_m","longitude_segments","latitude_segments","position_m","rotation_rad"],
+                json!({
+                    "shape":{"const":"sphere"},
+                    "radius_m":bounded_number_schema(0.0, 5.0, true),
+                    "longitude_segments":{"type":"integer","minimum":8,"maximum":64},
+                    "latitude_segments":{"type":"integer","minimum":4,"maximum":64},
+                    "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+                    "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+                })
+            )
+        ]
+    })
+}
+
+fn modifier_stack_profile_extrude_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &["shape", "profile", "depth_m", "position_m", "rotation_rad"],
+        json!({
+            "shape":{"const":"profile-extrude"},
+            "profile":profile_points_schema(3, 64),
+            "depth_m":bounded_number_schema(0.0, 10.0, true),
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_profile_loft_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &["shape", "profiles", "position_m", "rotation_rad"],
+        json!({
+            "shape":{"const":"profile-loft"},
+            "profiles":{
+                "type":"array","minItems":2,"maxItems":16,
+                "items":closed_parameters_schema(
+                    &["height_m","points"],
+                    json!({
+                        "height_m":bounded_number_schema(-10.0, 10.0, false),
+                        "points":profile_points_schema(3, 64)
+                    })
+                )
+            },
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_longitudinal_loft_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &["shape", "sections", "position_m", "rotation_rad"],
+        json!({
+            "shape":{"const":"longitudinal-section-loft"},
+            "sections":{
+                "type":"array","minItems":2,"maxItems":16,
+                "items":closed_parameters_schema(
+                    &["station_m","points"],
+                    json!({
+                        "station_m":bounded_number_schema(-10.0, 10.0, false),
+                        "points":profile_points_schema(3, 64)
+                    })
+                )
+            },
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_subd_cage_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "control_points",
+            "u_points",
+            "v_points",
+            "subdivision_levels",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"subd-cage"},
+            "control_points":{"type":"array","minItems":4,"maxItems":256,"items":bounded_vec3_schema(-10.0, 10.0, false)},
+            "u_points":{"type":"integer","minimum":2,"maximum":16},
+            "v_points":{"type":"integer","minimum":2,"maximum":16},
+            "subdivision_levels":{"type":"integer","minimum":0,"maximum":2},
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_surface_patch_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "control_points",
+            "u_segments",
+            "v_segments",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"surface-patch"},
+            "control_points":{"type":"array","minItems":16,"maxItems":16,"items":bounded_vec3_schema(-10.0, 10.0, false)},
+            "u_segments":{"type":"integer","minimum":4,"maximum":32},
+            "v_segments":{"type":"integer","minimum":4,"maximum":32},
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_revolve_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "profile",
+            "radial_segments",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"revolve"},
+            "profile":profile_points_schema(2, 64),
+            "radial_segments":{"type":"integer","minimum":8,"maximum":64},
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_tube_sweep_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "path",
+            "radius_m",
+            "radial_segments",
+            "cap_ends",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"tube-sweep"},
+            "path":{"type":"array","minItems":2,"maxItems":128,"items":bounded_vec3_schema(-10.0, 10.0, false)},
+            "radius_m":bounded_number_schema(0.0, 5.0, true),
+            "radial_segments":{"type":"integer","minimum":8,"maximum":64},
+            "cap_ends":{"type":"boolean"},
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_panel_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "size_m",
+            "thickness_m",
+            "bevel_m",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"panel"},
+            "size_m":bounded_vec3_schema(0.0, 10.0, true),
+            "thickness_m":bounded_number_schema(0.0, 10.0, true),
+            "bevel_m":bounded_number_schema(0.0, 10.0, true),
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_vent_array_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "width_m",
+            "height_m",
+            "depth_m",
+            "slot_count",
+            "slot_width_m",
+            "slot_spacing_m",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"vent-array"},
+            "width_m":bounded_number_schema(0.0, 10.0, true),
+            "height_m":bounded_number_schema(0.0, 10.0, true),
+            "depth_m":bounded_number_schema(0.0, 10.0, true),
+            "slot_count":{"type":"integer","minimum":1,"maximum":32},
+            "slot_width_m":bounded_number_schema(0.0, 10.0, true),
+            "slot_spacing_m":bounded_number_schema(0.0, 10.0, true),
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_vent_array_v2_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "width_m",
+            "height_m",
+            "depth_m",
+            "face_thickness_m",
+            "backing_depth_m",
+            "backing_gap_m",
+            "slot_count",
+            "slot_width_m",
+            "slot_spacing_m",
+            "slot_margin_m",
+            "slot_edge_bevel_m",
+            "bevel_segments",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"vent-array"},
+            "width_m":bounded_number_schema(0.0, 10.0, true),
+            "height_m":bounded_number_schema(0.0, 10.0, true),
+            "depth_m":bounded_number_schema(0.0, 10.0, true),
+            "face_thickness_m":bounded_number_schema(0.0, 10.0, true),
+            "backing_depth_m":bounded_number_schema(0.0, 10.0, true),
+            "backing_gap_m":bounded_number_schema(0.0, 10.0, true),
+            "slot_count":{"type":"integer","minimum":1,"maximum":32},
+            "slot_width_m":bounded_number_schema(0.0, 10.0, true),
+            "slot_spacing_m":bounded_number_schema(0.0, 10.0, true),
+            "slot_margin_m":bounded_number_schema(0.0, 10.0, true),
+            "slot_edge_bevel_m":bounded_number_schema(0.0, 10.0, true),
+            "bevel_segments":{"type":"integer","minimum":1,"maximum":4},
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_recessed_channel_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "stations",
+            "path_frame",
+            "floor_width_ratio",
+            "edge_bevel_m",
+            "start_transition_m",
+            "end_transition_m",
+            "transition_segments",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"recessed-channel"},
+            "stations":{
+                "type":"array","minItems":2,"maxItems":32,
+                "items":closed_parameters_schema(
+                    &["point_m","width_m","depth_m"],
+                    json!({
+                        "point_m":bounded_vec3_schema(-10.0, 10.0, false),
+                        "width_m":bounded_number_schema(0.0, 10.0, true),
+                        "depth_m":bounded_number_schema(0.0, 10.0, true)
+                    })
+                )
+            },
+            "path_frame":{"const":"planar-xy-z-up@1"},
+            "floor_width_ratio":{"type":"number","exclusiveMinimum":0.1,"maximum":0.8},
+            "edge_bevel_m":{"type":"number","minimum":0.0,"maximum":5.0},
+            "start_transition_m":{"type":"number","minimum":0.0,"maximum":5.0},
+            "end_transition_m":{"type":"number","minimum":0.0,"maximum":5.0},
+            "transition_segments":{"type":"integer","minimum":1,"maximum":4},
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn modifier_stack_joint_stack_parameters_schema() -> Value {
+    closed_parameters_schema(
+        &[
+            "shape",
+            "radius_m",
+            "depth_m",
+            "ring_count",
+            "ring_spacing_m",
+            "radial_segments",
+            "position_m",
+            "rotation_rad",
+        ],
+        json!({
+            "shape":{"const":"joint-stack"},
+            "radius_m":bounded_number_schema(0.0, 5.0, true),
+            "depth_m":bounded_number_schema(0.0, 10.0, true),
+            "ring_count":{"type":"integer","minimum":1,"maximum":16},
+            "ring_spacing_m":bounded_number_schema(0.0, 10.0, true),
+            "radial_segments":{"type":"integer","minimum":8,"maximum":64},
+            "position_m":bounded_vec3_schema(-10.0, 10.0, false),
+            "rotation_rad":bounded_vec3_schema(-6.283185307179586, 6.283185307179586, false)
+        }),
+    )
+}
+
+fn closed_parameters_schema(required: &[&str], properties: Value) -> Value {
+    json!({
+        "type":"object",
+        "additionalProperties":false,
+        "required":required,
+        "properties":properties
+    })
+}
+
+fn profile_points_schema(min_items: usize, max_items: usize) -> Value {
+    json!({
+        "type":"array",
+        "minItems":min_items,
+        "maxItems":max_items,
+        "items":{
+            "type":"array","minItems":2,"maxItems":2,
+            "items":bounded_number_schema(-10.0, 10.0, false)
+        }
+    })
+}
+
+fn bounded_number_schema(minimum: f64, maximum: f64, exclusive_minimum: bool) -> Value {
+    if exclusive_minimum {
+        json!({"type":"number","exclusiveMinimum":minimum,"maximum":maximum})
+    } else {
+        json!({"type":"number","minimum":minimum,"maximum":maximum})
+    }
+}
+
+fn bounded_vec3_schema(minimum: f64, maximum: f64, exclusive_minimum: bool) -> Value {
+    let item = if exclusive_minimum {
+        json!({"type":"number","exclusiveMinimum":minimum,"maximum":maximum})
+    } else {
+        json!({"type":"number","minimum":minimum,"maximum":maximum})
+    };
+    json!({"type":"array","minItems":3,"maxItems":3,"items":item})
 }
 
 fn request_property() -> Value {
@@ -1463,21 +3625,74 @@ fn mcp005_write_tools() -> Vec<Value> {
 fn mcp007_write_tools() -> Vec<Value> {
     vec![write_tool_with_transaction(
         "geometry_prepare",
-        "Compile a bounded typed GeometryProgram into a multi-part GLB candidate. First read ponytail-preflight@0.1.0 with skill_get in this MCP session. GeometryProgram@2 is catalog-hash-bound and returns strict BIN/accessor ArtifactReadback@2; GeometryProgram@1 remains the legacy-compatible MVP path. Read forgecad://operators/catalog before using V2. No permanent version is created until a later approval confirm.",
+        "Compile a bounded typed GeometryProgram into a multi-part GLB candidate. First read ponytail-preflight@0.1.0 with skill_get in this MCP session. Legacy calls omit idempotency_key. Exact calls add idempotency_key, explicitly bind base_version_id to the current version or null for an empty head, and accept exactly one direct GeometryProgram@2, one closed GeometryModifierEvaluationRequest@2, one legacy candidate-bound GeometryModifierApplyRequest@1, or one exact GeometryModifierApplyRequest@2. The @2 path is limited to one stable source edge on one direct authoring-mesh@1 Part, is exposed only through the authenticated explicit write opt-in, and stages a reviewable candidate only: it does not confirm, create a version, or export. Exact paths use byte-exact same-cohort Worker replay and one Runtime transaction; MCP responses contain readback metadata, never raw GLB bytes. No permanent version is created until a later approval confirm.",
         json!({
-            "type":"object",
-            "required":["project_id","request"],
-            "properties":{
-                "project_id":id_property(),
-                "base_version_id":nullable_id_property(),
-                "request":{
+            "oneOf":[
+                {
                     "type":"object",
-                    "required":["typed","geometry_program"],
-                    "properties":{"typed":{"const":"geometry"},"reference_id":id_property(),"geometry_program":{"type":"object"}},
+                    "required":["project_id","request"],
+                    "properties":{
+                        "project_id":id_property(),
+                        "base_version_id":nullable_id_property(),
+                        "request":{
+                            "type":"object",
+                            "required":["typed","geometry_program"],
+                            "properties":{"typed":{"const":"geometry"},"reference_id":id_property(),"geometry_program":{"type":"object"}},
+                            "additionalProperties":false
+                        }
+                    },
+                    "additionalProperties":false
+                },
+                {
+                    "type":"object",
+                    "required":["project_id","base_version_id","idempotency_key","request"],
+                    "properties":{
+                        "project_id":id_property(),
+                        "base_version_id":nullable_id_property(),
+                        "idempotency_key":id_property(),
+                        "request":{
+                            "oneOf":[
+                                {
+                                    "type":"object",
+                                    "required":["typed","geometry_program"],
+                                    "properties":{
+                                        "typed":{"const":"geometry"},
+                                        "reference_id":id_property(),
+                                        "geometry_program":{
+                                            "type":"object",
+                                            "required":["schema_version"],
+                                            "properties":{"schema_version":{"const":"GeometryProgram@2"}}
+                                        }
+                                    },
+                                    "additionalProperties":false
+                                },
+                                {
+                                    "type":"object",
+                                    "required":["typed","modifier_evaluation_request","modifier_evaluation_sha256"],
+                                    "properties":{
+                                        "typed":{"const":"geometry"},
+                                        "reference_id":id_property(),
+                                        "modifier_evaluation_request":modifier_evaluation_request_schema(),
+                                        "modifier_evaluation_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                                    },
+                                    "additionalProperties":false
+                                },
+                                {
+                                    "type":"object",
+                                    "required":["typed","modifier_apply_request","modifier_apply_sha256"],
+                                    "properties":{
+                                        "typed":{"const":"geometry"},
+                                        "modifier_apply_request":modifier_apply_request_schema(),
+                                        "modifier_apply_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                                    },
+                                    "additionalProperties":false
+                                }
+                            ]
+                        }
+                    },
                     "additionalProperties":false
                 }
-            },
-            "additionalProperties":false
+            ]
         }),
         false,
         false,
@@ -1620,6 +3835,134 @@ fn mcp010c_write_tools() -> Vec<Value> {
 
 fn mcp010f_write_tools() -> Vec<Value> {
     vec![
+        write_tool_with_transaction(
+            "authoring_mesh_edit_prepare",
+            "Explicitly replay one bounded candidate-bound authoring mesh edit through the fixed Geometry Worker and atomically stage the exact derived program, GLB, strict readback, evidence, Job and reviewable candidate. This Runtime-owned write is idempotent, creates no version, performs no confirm or export, and accepts no Blender/Python/plugin payload.",
+            authoring_mesh_edit_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "mechanical_animation_clip_prepare",
+            "Explicitly validate and materialize one bounded rigid MechanicalPose sequence as an immutable Runtime-owned CAS clip plus exact SQLite Link. Runtime replays the source artifact twice through the fixed Geometry Worker and requires one non-null same-build cohort before writing; this never confirms a candidate/version or claims Blender armature, skinning, timeline, NLA, F-Curve, driver or Python parity.",
+            mechanical_animation_clip_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "mechanical_animation_glb_prepare",
+            "Materialize one immutable Runtime-owned rigid MechanicalAnimationClip into a standard bounded glTF 2.0 animation in CAS. Every Part receives LINEAR translation and quaternion rotation channels from scheduled double-Worker-verified frames; strict readback preserves the exact static source projection and rejects skinning, morph targets, scripts and custom animation payloads. This prepare never confirms a candidate/version and does not perform an external export.",
+            mechanical_animation_glb_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "game_asset_delivery_prepare",
+            "Validate exactly three independently authored and compiled candidate-bound LOD GLBs, require stable Part/MaterialZone coverage, progressive 75/50 percent triangle budgets and bounded spatial envelopes, then derive one conservative gameplay-only AABB collision box per Part from actual LOD2 POSITION bytes. Runtime stores immutable CAS receipts only; this never confirms, exports, adds physical properties or claims a Unity, Unreal, Godot or Three.js round-trip.",
+            game_asset_delivery_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "appearance_source_lineage_prepare",
+            "Atomically materialize one Runtime-owned durable Appearance source lineage sidecar bound to one candidate/project/Worker cohort, allowlisted AppearanceProgram and MaterialPack, TextureBuild receipt, optional CandidateSurfaceBake receipt, exact GeometryProgram evidence and three strict LOD GLB/ArtifactReadback/Part inventory bindings. This prepare never confirms, exports or changes quality gates; missing or tampered source objects fail closed.",
+            appearance_source_lineage_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "game_weapon_anchor_prepare",
+            "Persist one closed six-role fictional-weapon metadata anchor sidecar for an exact durable LOD delivery. Runtime validates the synthetic identity root, five unique Part-bound helpers, finite unit-quaternion TRS, +X muzzle placement and all LOD bindings. It does not rewrite GLB nodes, prove pivots, define hitboxes or invoke a commercial engine.",
+            game_weapon_anchor_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "game_weapon_glb_socket_prepare",
+            "Materialize six Runtime-owned named empty socket nodes into derived LOD0, LOD1 and LOD2 GLBs while preserving source renderable content, meshes, materials, animations and BIN bytes by exact hash-bound readback. This prepare never confirms or exports a candidate, invokes a commercial engine, returns GLB bytes or claims functional weapon semantics or visual quality.",
+            game_weapon_glb_socket_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "game_weapon_animated_glb_socket_prepare",
+            "Materialize six Runtime-owned named empty socket nodes into the animated LOD0 GLB while preserving the source MechanicalAnimationGlb renderable projection, animations, channels, samplers and BIN bytes by exact hash-bound readback. This prepare never confirms or exports a candidate, invokes a commercial engine, returns GLB bytes or claims functional weapon semantics or visual quality.",
+            game_weapon_animated_glb_socket_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "fictional_energy_vfx_prepare",
+            "Persist one closed fictional energy VFX intent profile bound to an exact durable delivery, anchor sidecar and allowlisted 2K MaterialPack. Runtime validates two bounded emissive sample curves, but does not execute material animation, bloom, particles, trails, confirmation, export or a commercial-engine round-trip.",
+            fictional_energy_vfx_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "fictional_energy_vfx_rendered_frame_prepare",
+            "Render one exact LOD0 sampled-emissive frame twice through the fixed same-cohort Render Worker, require byte-identical nine-AOV replay, and atomically persist the dedicated RenderSet, nine PNGs and receipt through reservation-protected CAS plus one SQLite link. This never confirms, versions or exports the candidate and does not claim a full animation sequence, bloom, particles, trails, engine execution or visual quality.",
+            fictional_energy_vfx_rendered_frame_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "fictional_energy_vfx_rendered_sequence_prepare",
+            "Render an ordered bounded sequence of exact LOD0 sampled-emissive frames through the fixed same-cohort Render Worker and durably persist one sequence receipt/link over its independent fixed-camera nine-AOV frame links. This never confirms, versions or exports the candidate and does not claim engine material animation, bloom, particles, trails or visual quality.",
+            fictional_energy_vfx_rendered_sequence_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "fictional_energy_vfx_hdr_bloom_prepare",
+            "Render one exact durable sampled-emissive LOD0 base frame through the fixed two-pass HDR emissive-source and bloom-contribution Worker operation, require same-cohort byte-exact replay, verify the existing nine-AOV base frame by hash, and atomically persist two independent PNGs plus a RenderSet, receipt and SQLite Link. This never rerenders or mutates the base AOVs, confirms a candidate, exports or invokes a commercial engine.",
+            fictional_energy_vfx_hdr_bloom_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "fictional_energy_vfx_particles_prepare",
+            "Derive two closed typed-particle emitters from exact durable hashes and resolved LOD0 Part-node world transforms, render three independent depth-tested particle passes twice through the same-cohort Render Worker, verify the base nine AOV and Bloom hashes remain byte-exact, and atomically persist the receipt, RenderSet, PNGs and SQLite link. This does not create GLB sockets, trails, engine execution, confirmation or export.",
+            fictional_energy_vfx_particles_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "fictional_energy_vfx_trails_prepare",
+            "Derive two closed typed trails from one to four ordered durable particle-history frames and the current particle frame, render independent depth-tested trail color/ID/depth passes twice through the same-cohort Render Worker, verify base AOV, Bloom and particle pass hashes remain byte-exact, and atomically persist CAS plus one SQLite link. V1 explicitly excludes trails from Bloom and does not create GLB sockets, engine execution, confirmation or export.",
+            fictional_energy_vfx_trails_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "fictional_energy_vfx_trails_bloom_prepare",
+            "Render one fixed-profile typed-trail HDR source and trail-bloom contribution pair from existing trail color/depth plus the current base opaque depth. Runtime verifies the base AOV, base Bloom, particle and source-trail pass objects are byte-exact reused, writes only the two new independent PNG passes and their receipt/link, and never reports the original bloom_rendered flag or rerenders particles/trails.",
+            fictional_energy_vfx_trails_bloom_prepare_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
+        write_tool_with_transaction(
+            "subdivision_artifact_lineage_prepare",
+            "Explicitly prepare and write one Runtime-owned Subdivision lineage sidecar Link@1 for the exact candidate/artifact binding. This is a write operation exposed only through the authenticated explicit write opt-in; MCP never writes CAS or SQLite directly, and the returned structuredContent is the Runtime Link@1 result.",
+            subdivision_artifact_lineage_sidecar_request_schema(),
+            false,
+            true,
+            "MCP010F",
+        ),
         write_tool_with_transaction(
             "primary_form_repair_prepare",
             "Run one Runtime-owned bounded Primary Form repair: fit the typed SilhouetteRig, compile the selected GeometryProgram through the Geometry Worker, validate strict readback, render the same camera through the isolated Render Worker, compare source and proposal, and return only a staged candidate when strict same-camera improvement is proven. It never confirms a version or exports an asset.",
@@ -2129,7 +4472,13 @@ fn validate_tool_schema_shape(
     if let Some(value) = object.get("pattern") {
         if !matches!(
             value.as_str(),
-            Some("^[0-9a-f]{64}$" | "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+            Some(
+                "^[0-9a-f]{64}$"
+                    | "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+                    | "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+                    | "^[A-Za-z0-9._:-]+$"
+                    | "^[0-9]{1,10}$",
+            )
         ) {
             return Err(());
         }
@@ -2256,6 +4605,31 @@ fn validate_value_against_tool_schema(
                             .next()
                             .is_some_and(|first| first.is_ascii_alphanumeric())
                 }
+                "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$" => {
+                    !string.is_empty()
+                        && string.chars().count() <= 128
+                        && string
+                            .chars()
+                            .next()
+                            .is_some_and(|first| first.is_ascii_alphanumeric())
+                        && string.chars().all(|character| {
+                            character.is_ascii_alphanumeric()
+                                || matches!(character, '.' | '_' | ':' | '-')
+                        })
+                }
+                "^[A-Za-z0-9._:-]+$" => {
+                    !string.is_empty()
+                        && string.chars().count() <= 128
+                        && string.chars().all(|character| {
+                            character.is_ascii_alphanumeric()
+                                || matches!(character, '.' | '_' | ':' | '-')
+                        })
+                }
+                "^[0-9]{1,10}$" => {
+                    !string.is_empty()
+                        && string.len() <= 10
+                        && string.bytes().all(|byte| byte.is_ascii_digit())
+                }
                 _ => false,
             };
             if !matches {
@@ -2372,6 +4746,1387 @@ fn is_lowercase_sha256(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
+fn fictional_energy_vfx_mcp_summary(name: &str, value: &Value) -> Option<String> {
+    if !matches!(
+        name,
+        "fictional_energy_vfx_prepare"
+            | "fictional_energy_vfx_get"
+            | "fictional_energy_vfx_frame_sample"
+            | "fictional_energy_vfx_appearance_frame_sample"
+            | "fictional_energy_vfx_rendered_frame_prepare"
+            | "fictional_energy_vfx_rendered_frame_get"
+            | "fictional_energy_vfx_rendered_sequence_prepare"
+            | "fictional_energy_vfx_rendered_sequence_get"
+            | "fictional_energy_vfx_hdr_bloom_prepare"
+            | "fictional_energy_vfx_hdr_bloom_get"
+            | "fictional_energy_vfx_particles_prepare"
+            | "fictional_energy_vfx_particles_get"
+            | "fictional_energy_vfx_trails_prepare"
+            | "fictional_energy_vfx_trails_get"
+            | "fictional_energy_vfx_trails_bloom_prepare"
+            | "fictional_energy_vfx_trails_bloom_get"
+    ) {
+        return None;
+    }
+    let is_hdr_bloom = matches!(
+        name,
+        "fictional_energy_vfx_hdr_bloom_prepare" | "fictional_energy_vfx_hdr_bloom_get"
+    );
+    let is_particles = matches!(
+        name,
+        "fictional_energy_vfx_particles_prepare" | "fictional_energy_vfx_particles_get"
+    );
+    let is_trails = matches!(
+        name,
+        "fictional_energy_vfx_trails_prepare" | "fictional_energy_vfx_trails_get"
+    );
+    let is_trails_bloom = matches!(
+        name,
+        "fictional_energy_vfx_trails_bloom_prepare" | "fictional_energy_vfx_trails_bloom_get"
+    );
+    let value_or_null = |candidate: Option<&Value>| candidate.cloned().unwrap_or(Value::Null);
+    let mut summary = Map::new();
+    summary.insert(
+        "schema_version".to_owned(),
+        Value::String("FictionalEnergyVfxMcpSummary@1".to_owned()),
+    );
+    summary.insert("operation".to_owned(), Value::String(name.to_owned()));
+    summary.insert(
+        "vfx_profile_object_sha256".to_owned(),
+        value_or_null(
+            value
+                .get("vfx_profile_object_sha256")
+                .or_else(|| value.pointer("/link/vfx_profile_object_sha256")),
+        ),
+    );
+    summary.insert(
+        "delivery_manifest_object_sha256".to_owned(),
+        value_or_null(
+            value
+                .pointer("/durable_link/delivery_manifest_object_sha256")
+                .or_else(|| value.pointer("/link/delivery_manifest_object_sha256")),
+        ),
+    );
+    summary.insert(
+        "effect_ids".to_owned(),
+        value
+            .pointer("/vfx_profile/effects")
+            .or_else(|| value.get("effects"))
+            .and_then(Value::as_array)
+            .map(|effects| {
+                Value::Array(
+                    effects
+                        .iter()
+                        .map(|effect| value_or_null(effect.get("effect_id")))
+                        .collect(),
+                )
+            })
+            .unwrap_or(Value::Null),
+    );
+    summary.insert(
+        "execution_mode".to_owned(),
+        value_or_null(
+            value
+                .pointer("/vfx_profile/execution_mode")
+                .or_else(|| value.get("sampling_policy")),
+        ),
+    );
+    summary.insert(
+        "glb_material_zone_binding_verified".to_owned(),
+        value
+            .get("glb_material_zone_binding_verified")
+            .cloned()
+            .unwrap_or(Value::Bool(false)),
+    );
+    summary.insert(
+        "lod_appearance_binding_count".to_owned(),
+        value
+            .get("lod_appearance_bindings")
+            .and_then(Value::as_array)
+            .map(|values| Value::from(values.len() as u64))
+            .unwrap_or(Value::Null),
+    );
+    summary.insert(
+        "sequence_key_sha256".to_owned(),
+        value_or_null(value.get("sequence_key_sha256")),
+    );
+    summary.insert(
+        "frame_count".to_owned(),
+        value_or_null(value.get("frame_count")),
+    );
+    summary.insert(
+        "frame_key_sha256s".to_owned(),
+        value_or_null(
+            value
+                .pointer("/durable_link/frame_key_sha256s")
+                .or_else(|| value.pointer("/link/frame_key_sha256s"))
+                .or_else(|| value.pointer("/receipt/frame_key_sha256s")),
+        ),
+    );
+    summary.insert(
+        "same_camera_verified".to_owned(),
+        value_or_null(value.pointer("/receipt/fixed_camera_verified")),
+    );
+    summary.insert(
+        "same_worker_cohort_verified".to_owned(),
+        value_or_null(value.pointer("/receipt/same_worker_cohort_verified")),
+    );
+    summary.insert(
+        "independent_effect_material_zones_verified".to_owned(),
+        value_or_null(value.pointer("/receipt/independent_effect_material_zones_verified")),
+    );
+    summary.insert("emissive_animation_rendered".to_owned(), Value::Bool(false));
+    summary.insert(
+        "bloom_rendered".to_owned(),
+        if is_hdr_bloom {
+            value
+                .pointer("/receipt/bloom_rendered")
+                .cloned()
+                .unwrap_or(Value::Bool(true))
+        } else {
+            Value::Bool(false)
+        },
+    );
+    summary.insert(
+        "particles_rendered".to_owned(),
+        if is_particles {
+            value
+                .pointer("/receipt/typed_particles_rendered")
+                .cloned()
+                .unwrap_or(Value::Bool(true))
+        } else {
+            Value::Bool(false)
+        },
+    );
+    summary.insert(
+        "trails_rendered".to_owned(),
+        if is_trails {
+            value
+                .pointer("/receipt/typed_trails_rendered")
+                .cloned()
+                .unwrap_or(Value::Bool(true))
+        } else {
+            Value::Bool(false)
+        },
+    );
+    summary.insert(
+        "trail_bloom_key_sha256".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .get("trail_bloom_key_sha256")
+                    .or_else(|| value.pointer("/receipt/trail_bloom_key_sha256"))
+                    .or_else(|| value.pointer("/link/trail_bloom_key_sha256")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "source_trail_key_sha256".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .get("source_trail_key_sha256")
+                    .or_else(|| value.pointer("/receipt/source_trail_key_sha256"))
+                    .or_else(|| value.pointer("/link/source_trail_key_sha256")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "trail_bloom_rendered".to_owned(),
+        if is_trails_bloom {
+            value
+                .pointer("/receipt/trail_bloom_rendered")
+                .or_else(|| value.pointer("/render_set/trail_bloom_rendered"))
+                .cloned()
+                .unwrap_or(Value::Bool(false))
+        } else {
+            Value::Bool(false)
+        },
+    );
+    summary.insert(
+        "trail_bloom_source_rendered".to_owned(),
+        if is_trails_bloom {
+            value
+                .pointer("/receipt/trail_bloom_source_rendered")
+                .or_else(|| value.pointer("/render_set/trail_bloom_source_rendered"))
+                .cloned()
+                .unwrap_or(Value::Bool(false))
+        } else {
+            Value::Bool(false)
+        },
+    );
+    summary.insert(
+        "trail_bloom_contribution_rendered".to_owned(),
+        if is_trails_bloom {
+            value
+                .pointer("/receipt/trail_bloom_contribution_rendered")
+                .or_else(|| value.pointer("/render_set/trail_bloom_contribution_rendered"))
+                .cloned()
+                .unwrap_or(Value::Bool(false))
+        } else {
+            Value::Bool(false)
+        },
+    );
+    let input = if is_trails_bloom {
+        let mut input = Map::new();
+        input.insert(
+            "input_policy".to_owned(),
+            value_or_null(
+                value
+                    .pointer("/receipt/input_policy")
+                    .or_else(|| value.pointer("/render_set/input_policy")),
+            ),
+        );
+        input.insert(
+            "source_trail_key_sha256".to_owned(),
+            value_or_null(
+                value
+                    .get("source_trail_key_sha256")
+                    .or_else(|| value.pointer("/receipt/source_trail_key_sha256"))
+                    .or_else(|| value.pointer("/link/source_trail_key_sha256")),
+            ),
+        );
+        input.insert(
+            "source_trail_color_object_sha256".to_owned(),
+            value_or_null(
+                value
+                    .pointer("/receipt/source_trail_color_object_sha256")
+                    .or_else(|| value.pointer("/link/source_trail_color_object_sha256")),
+            ),
+        );
+        input.insert(
+            "source_trail_id_object_sha256".to_owned(),
+            value_or_null(
+                value
+                    .pointer("/receipt/source_trail_id_object_sha256")
+                    .or_else(|| value.pointer("/link/source_trail_id_object_sha256")),
+            ),
+        );
+        input.insert(
+            "source_trail_depth_object_sha256".to_owned(),
+            value_or_null(
+                value
+                    .pointer("/receipt/source_trail_depth_object_sha256")
+                    .or_else(|| value.pointer("/link/source_trail_depth_object_sha256")),
+            ),
+        );
+        input.insert(
+            "base_opaque_depth_object_sha256".to_owned(),
+            value_or_null(
+                value
+                    .pointer("/receipt/base_opaque_depth_object_sha256")
+                    .or_else(|| value.pointer("/link/base_opaque_depth_object_sha256")),
+            ),
+        );
+        input.insert(
+            "base_opaque_depth_byte_exact_reused".to_owned(),
+            value_or_null(value.pointer("/receipt/base_opaque_depth_byte_exact_reused")),
+        );
+        Value::Object(input)
+    } else {
+        Value::Null
+    };
+    summary.insert("input".to_owned(), input);
+    let trail_bloom_input = if is_trails_bloom {
+        let mut input = Map::new();
+        input.insert(
+            "source_trail_color_depth_and_current_base_opaque_depth".to_owned(),
+            Value::Bool(true),
+        );
+        input.insert(
+            "input_policy".to_owned(),
+            value_or_null(
+                value
+                    .pointer("/receipt/input_policy")
+                    .or_else(|| value.pointer("/render_set/input_policy")),
+            ),
+        );
+        input.insert(
+            "base_opaque_depth_object_sha256".to_owned(),
+            value_or_null(
+                value
+                    .pointer("/receipt/base_opaque_depth_object_sha256")
+                    .or_else(|| value.pointer("/link/base_opaque_depth_object_sha256")),
+            ),
+        );
+        input.insert(
+            "source_trail_key_sha256".to_owned(),
+            value_or_null(
+                value
+                    .get("source_trail_key_sha256")
+                    .or_else(|| value.pointer("/receipt/source_trail_key_sha256"))
+                    .or_else(|| value.pointer("/link/source_trail_key_sha256")),
+            ),
+        );
+        Value::Object(input)
+    } else {
+        Value::Null
+    };
+    summary.insert("trail_bloom_input".to_owned(), trail_bloom_input);
+    let trail_bloom_pass_artifacts =
+        if is_trails_bloom {
+            let mut artifacts = Map::new();
+            artifacts.insert(
+                "source".to_owned(),
+                value_or_null(
+                    value.pointer("/receipt/source_pass").or_else(|| {
+                        value.pointer("/render_set/pass_artifacts/trail-emissive-source")
+                    }),
+                ),
+            );
+            artifacts.insert(
+                "contribution".to_owned(),
+                value_or_null(value.pointer("/receipt/contribution_pass").or_else(|| {
+                    value.pointer("/render_set/pass_artifacts/trail-bloom-contribution")
+                })),
+            );
+            Value::Object(artifacts)
+        } else {
+            Value::Null
+        };
+    summary.insert(
+        "trail_bloom_pass_artifacts".to_owned(),
+        trail_bloom_pass_artifacts,
+    );
+    summary.insert(
+        "trail_bloom_passes".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/pass_artifacts")
+                    .or_else(|| value.pointer("/render_set/pass_artifacts")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "trail_count".to_owned(),
+        if is_trails {
+            value_or_null(value.pointer("/receipt/trail_count"))
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "segment_count".to_owned(),
+        if is_trails {
+            value_or_null(value.pointer("/receipt/segment_count"))
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "current_particle_key_sha256".to_owned(),
+        if is_trails {
+            value_or_null(
+                value
+                    .pointer("/receipt/current_particle_key_sha256")
+                    .or_else(|| value.pointer("/link/current_particle_key_sha256")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "particle_history_key_sha256s".to_owned(),
+        if is_trails {
+            value_or_null(
+                value
+                    .pointer("/receipt/particle_history_key_sha256s")
+                    .or_else(|| value.pointer("/link/particle_history_key_sha256s")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "history_time_ticks".to_owned(),
+        if is_trails {
+            value_or_null(value.pointer("/receipt/history_time_ticks"))
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "trail_passes".to_owned(),
+        if is_trails {
+            value_or_null(value.pointer("/receipt/pass_artifacts"))
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "source_trail_passes".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/source_trail_passes")
+                    .or_else(|| value.pointer("/render_set/source_trail_passes")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "base_aov_byte_exact_verified".to_owned(),
+        if is_trails || is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/base_aov_byte_exact_verified")
+                    .or_else(|| value.pointer("/render_set/base_aov_byte_exact_verified")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "base_opaque_depth_byte_exact_reused".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/base_opaque_depth_byte_exact_reused")
+                    .or_else(|| value.pointer("/render_set/base_opaque_depth_byte_exact_reused")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "bloom_pass_byte_exact_reused".to_owned(),
+        if is_trails || is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/bloom_pass_byte_exact_reused")
+                    .or_else(|| value.pointer("/render_set/bloom_pass_byte_exact_reused")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "particle_passes_byte_exact_reused".to_owned(),
+        if is_trails || is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/particle_passes_byte_exact_reused")
+                    .or_else(|| value.pointer("/render_set/particle_passes_byte_exact_reused")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "source_trail_passes_byte_exact_reused".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/source_trail_passes_byte_exact_reused")
+                    .or_else(|| value.pointer("/render_set/source_trail_passes_byte_exact_reused")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "base_bloom_mutated".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/base_bloom_mutated")
+                    .or_else(|| value.pointer("/render_set/base_bloom_mutated")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "particle_passes_mutated".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/particle_passes_mutated")
+                    .or_else(|| value.pointer("/render_set/particle_passes_mutated")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "trail_passes_mutated".to_owned(),
+        if is_trails_bloom {
+            value_or_null(
+                value
+                    .pointer("/receipt/trail_passes_mutated")
+                    .or_else(|| value.pointer("/render_set/trail_passes_mutated")),
+            )
+        } else {
+            Value::Null
+        },
+    );
+    summary.insert(
+        "runtime_write_performed".to_owned(),
+        Value::Bool(matches!(
+            name,
+            "fictional_energy_vfx_prepare"
+                | "fictional_energy_vfx_rendered_frame_prepare"
+                | "fictional_energy_vfx_rendered_sequence_prepare"
+                | "fictional_energy_vfx_hdr_bloom_prepare"
+                | "fictional_energy_vfx_particles_prepare"
+                | "fictional_energy_vfx_trails_prepare"
+                | "fictional_energy_vfx_trails_bloom_prepare"
+        )),
+    );
+    summary.insert("candidate_confirmed".to_owned(), Value::Bool(false));
+    summary.insert("export_performed".to_owned(), Value::Bool(false));
+    summary.insert("actual_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert(
+        "quality_status".to_owned(),
+        Value::String("structural_only".to_owned()),
+    );
+    summary.insert("structured_content_complete".to_owned(), Value::Bool(true));
+    Some(serde_json::to_string(&Value::Object(summary)).unwrap_or_else(|_| "{}".to_owned()))
+}
+
+fn game_weapon_glb_socket_mcp_summary(name: &str, value: &Value) -> Option<String> {
+    if !matches!(
+        name,
+        "game_weapon_glb_socket_prepare" | "game_weapon_glb_socket_get"
+    ) {
+        return None;
+    }
+    let is_prepare = name == "game_weapon_glb_socket_prepare";
+    let receipt = value
+        .get("receipt")
+        .or_else(|| value.pointer("/durable_link/receipt"))
+        .or_else(|| value.pointer("/link/receipt"));
+    let link = value.get("link").or_else(|| value.get("durable_link"));
+    let value_or_null = |candidate: Option<&Value>| candidate.cloned().unwrap_or(Value::Null);
+    let lookup = |field: &str| {
+        value
+            .get(field)
+            .or_else(|| receipt.and_then(|object| object.get(field)))
+            .or_else(|| link.and_then(|object| object.get(field)))
+    };
+    let levels = value
+        .get("levels")
+        .or_else(|| receipt.and_then(|object| object.get("levels")))
+        .and_then(Value::as_array);
+
+    let mut lod_summaries = Vec::with_capacity(3);
+    let mut all_renderable_exact = true;
+    let mut all_bin_exact = true;
+    let mut all_nodes_materialized = true;
+    for lod_level in 0..3usize {
+        let lod = levels.and_then(|items| {
+            items.iter().find(|item| {
+                item.get("lod_level").and_then(Value::as_u64) == Some(lod_level as u64)
+            })
+        });
+        let lookup_lod = |field: &str| lod.and_then(|item| item.get(field));
+        let source_node_count = value_or_null(lookup_lod("source_node_count"));
+        let derived_node_count = value_or_null(lookup_lod("derived_node_count"));
+        let socket_nodes_materialized = lookup_lod("socket_nodes_materialized")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let renderable_exact = lookup_lod("source_renderable_projection_exact")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let bin_exact = lookup_lod("source_bin_byte_exact")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        all_renderable_exact &= renderable_exact;
+        all_bin_exact &= bin_exact;
+        all_nodes_materialized &= socket_nodes_materialized;
+
+        let mut summary = Map::new();
+        summary.insert(
+            "lod_level".to_owned(),
+            lod.and_then(|item| item.get("lod_level"))
+                .cloned()
+                .unwrap_or_else(|| Value::from(lod_level as u64)),
+        );
+        for field in [
+            "source_artifact_sha256",
+            "source_artifact_readback_sha256",
+            "derived_artifact_sha256",
+            "derived_artifact_readback_sha256",
+            "source_renderable_inventory_sha256",
+            "derived_renderable_inventory_sha256",
+            "socket_node_inventory_sha256",
+            "source_bin_sha256",
+            "derived_bin_sha256",
+        ] {
+            summary.insert(field.to_owned(), value_or_null(lookup_lod(field)));
+        }
+        summary.insert("source_node_count".to_owned(), source_node_count);
+        summary.insert("derived_node_count".to_owned(), derived_node_count);
+        summary.insert("socket_node_count".to_owned(), Value::from(6_u64));
+        summary.insert(
+            "source_renderable_projection_exact".to_owned(),
+            Value::Bool(renderable_exact),
+        );
+        summary.insert("source_bin_byte_exact".to_owned(), Value::Bool(bin_exact));
+        summary.insert(
+            "socket_nodes_materialized".to_owned(),
+            Value::Bool(socket_nodes_materialized),
+        );
+        lod_summaries.push(Value::Object(summary));
+    }
+
+    let mut summary = Map::new();
+    summary.insert(
+        "schema_version".to_owned(),
+        Value::String("GameWeaponGlbSocketMcpSummary@1".to_owned()),
+    );
+    summary.insert("operation".to_owned(), Value::String(name.to_owned()));
+    for field in [
+        "socket_materialization_key_sha256",
+        "receipt_object_sha256",
+        "project_id",
+        "delivery_manifest_object_sha256",
+        "anchor_set_object_sha256",
+        "anchor_set_canonical_sha256",
+        "request_sha256",
+        "socket_materialization_policy",
+        "lod_scope",
+        "socket_node_id_encoding_sha256",
+    ] {
+        summary.insert(field.to_owned(), value_or_null(lookup(field)));
+    }
+    summary.insert("lod_readback".to_owned(), Value::Array(lod_summaries));
+    summary.insert("socket_node_count".to_owned(), Value::from(6_u64));
+    summary.insert(
+        "socket_node_counts".to_owned(),
+        Value::Array(vec![
+            Value::from(6_u64),
+            Value::from(6_u64),
+            Value::from(6_u64),
+        ]),
+    );
+    summary.insert(
+        "source_renderable_projection_exact".to_owned(),
+        Value::Bool(all_renderable_exact),
+    );
+    summary.insert(
+        "source_bin_byte_exact".to_owned(),
+        Value::Bool(all_bin_exact),
+    );
+    summary.insert(
+        "socket_nodes_materialized".to_owned(),
+        Value::Bool(all_nodes_materialized),
+    );
+    summary.insert("restart_hash_verified".to_owned(), Value::Bool(!is_prepare));
+    summary.insert(
+        "runtime_write_performed".to_owned(),
+        Value::Bool(is_prepare),
+    );
+    summary.insert("candidate_confirmed".to_owned(), Value::Bool(false));
+    summary.insert("export_performed".to_owned(), Value::Bool(false));
+    summary.insert("actual_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert(
+        "quality_status".to_owned(),
+        Value::String("structural_only".to_owned()),
+    );
+    summary.insert("glb_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("commercial_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert("structured_content_complete".to_owned(), Value::Bool(true));
+    Some(serde_json::to_string(&Value::Object(summary)).unwrap_or_else(|_| "{}".to_owned()))
+}
+
+fn game_weapon_animated_glb_socket_mcp_summary(name: &str, value: &Value) -> Option<String> {
+    if !matches!(
+        name,
+        "game_weapon_animated_glb_socket_prepare" | "game_weapon_animated_glb_socket_get"
+    ) {
+        return None;
+    }
+    let is_prepare = name == "game_weapon_animated_glb_socket_prepare";
+    let receipt = value
+        .get("receipt")
+        .or_else(|| value.pointer("/durable_link/receipt"))
+        .or_else(|| value.pointer("/link/receipt"));
+    let link = value.get("link").or_else(|| value.get("durable_link"));
+    let value_or_null = |candidate: Option<&Value>| candidate.cloned().unwrap_or(Value::Null);
+    let lookup = |field: &str| {
+        value
+            .get(field)
+            .or_else(|| receipt.and_then(|object| object.get(field)))
+            .or_else(|| link.and_then(|object| object.get(field)))
+    };
+    let bool_lookup =
+        |field: &str| Value::Bool(lookup(field).and_then(Value::as_bool).unwrap_or(false));
+    let mut summary = Map::new();
+    summary.insert(
+        "schema_version".to_owned(),
+        Value::String("GameWeaponAnimatedGlbSocketMcpSummary@1".to_owned()),
+    );
+    summary.insert("operation".to_owned(), Value::String(name.to_owned()));
+    for field in [
+        "animated_socket_materialization_key_sha256",
+        "source_artifact_sha256",
+        "source_artifact_readback_sha256",
+        "animated_artifact_sha256",
+        "animated_artifact_readback_sha256",
+        "derived_animated_socket_artifact_sha256",
+        "derived_animated_socket_artifact_readback_sha256",
+        "receipt_object_sha256",
+        "animation_receipt_object_sha256",
+        "animation_receipt_canonical_sha256",
+        "project_id",
+        "candidate_id",
+        "candidate_state_sha256",
+        "delivery_manifest_object_sha256",
+        "lod0_artifact_sha256",
+        "anchor_set_object_sha256",
+        "anchor_set_canonical_sha256",
+        "request_sha256",
+        "socket_materialization_policy",
+        "lod_scope",
+        "socket_node_id_encoding_sha256",
+        "source_animation_projection_sha256",
+        "derived_animation_projection_sha256",
+        "source_animation_validation_sha256",
+        "derived_animation_validation_sha256",
+        "source_renderable_inventory_sha256",
+        "derived_renderable_inventory_sha256",
+        "source_bin_sha256",
+        "derived_bin_sha256",
+        "socket_node_inventory_sha256",
+    ] {
+        summary.insert(field.to_owned(), value_or_null(lookup(field)));
+    }
+    for field in [
+        "sampler_count",
+        "channel_count",
+        "node_count",
+        "source_node_count",
+        "derived_node_count",
+    ] {
+        summary.insert(field.to_owned(), value_or_null(lookup(field)));
+    }
+    summary.insert(
+        "socket_node_count".to_owned(),
+        value_or_null(lookup("socket_node_count")),
+    );
+    for field in [
+        "animations_preserved",
+        "channels_preserved",
+        "samplers_preserved",
+        "renderable_projection_exact",
+        "bin_byte_exact",
+        "source_static_projection_exact",
+        "no_skinning",
+        "no_morph_targets",
+        "socket_nodes_materialized",
+    ] {
+        summary.insert(field.to_owned(), bool_lookup(field));
+    }
+    summary.insert(
+        "restart_hash_verified".to_owned(),
+        lookup("restart_hash_verified")
+            .cloned()
+            .unwrap_or_else(|| Value::Bool(!is_prepare)),
+    );
+    summary.insert(
+        "runtime_write_performed".to_owned(),
+        lookup("runtime_write_performed")
+            .cloned()
+            .unwrap_or_else(|| Value::Bool(is_prepare)),
+    );
+    summary.insert("candidate_confirmed".to_owned(), Value::Bool(false));
+    summary.insert("export_performed".to_owned(), Value::Bool(false));
+    summary.insert("actual_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert("functional_semantics".to_owned(), Value::Bool(false));
+    summary.insert(
+        "quality_status".to_owned(),
+        Value::String("structural_only".to_owned()),
+    );
+    summary.insert("structural_only".to_owned(), Value::Bool(true));
+    summary.insert("glb_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("commercial_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert("structured_content_complete".to_owned(), Value::Bool(true));
+    Some(serde_json::to_string(&Value::Object(summary)).unwrap_or_else(|_| "{}".to_owned()))
+}
+
+fn game_weapon_animated_glb_socket_v2_mcp_summary(name: &str, value: &Value) -> Option<String> {
+    if !matches!(
+        name,
+        "game_weapon_animated_glb_socket_v2_prepare" | "game_weapon_animated_glb_socket_v2_get"
+    ) {
+        return None;
+    }
+    let is_prepare = name == "game_weapon_animated_glb_socket_v2_prepare";
+    let receipt = value.get("receipt");
+    let durable_link = value.get("durable_link");
+    let lookup = |field: &str| {
+        value
+            .get(field)
+            .or_else(|| receipt.and_then(|record| record.get(field)))
+            .or_else(|| durable_link.and_then(|record| record.get(field)))
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+    let mut summary = Map::new();
+    summary.insert(
+        "schema_version".to_owned(),
+        Value::String("GameWeaponAnimatedGlbSocketMaterializationMcpSummary@2".to_owned()),
+    );
+    summary.insert("operation".to_owned(), Value::String(name.to_owned()));
+    for field in [
+        "animated_socket_materialization_key_sha256",
+        "derived_animated_socket_artifact_sha256",
+        "receipt_object_sha256",
+        "project_id",
+        "appearance_candidate_id",
+        "appearance_candidate_state_sha256",
+        "appearance_delivery_manifest_object_sha256",
+        "clip_id",
+        "clip_object_sha256",
+        "clip_sha256",
+        "anchor_set_object_sha256",
+        "anchor_set_canonical_sha256",
+        "socket_materialization_policy",
+        "lod_scope",
+        "materialization_status",
+        "validator_status",
+    ] {
+        summary.insert(field.to_owned(), lookup(field));
+    }
+    for field in [
+        "animations_preserved",
+        "channels_preserved",
+        "samplers_preserved",
+        "renderable_projection_exact",
+        "bin_byte_exact",
+        "source_static_projection_exact",
+        "appearance_material_projection_exact",
+        "material_pack_identity_exact",
+        "socket_nodes_materialized",
+        "hard_gate_passed",
+    ] {
+        summary.insert(
+            field.to_owned(),
+            lookup(field)
+                .as_bool()
+                .map(Value::Bool)
+                .unwrap_or(Value::Bool(false)),
+        );
+    }
+    summary.insert(
+        "replayed".to_owned(),
+        value.get("replayed").cloned().unwrap_or(Value::Bool(false)),
+    );
+    summary.insert(
+        "restart_hash_verified".to_owned(),
+        value
+            .get("restart_hash_verified")
+            .cloned()
+            .unwrap_or(Value::Bool(true)),
+    );
+    summary.insert(
+        "runtime_write_performed".to_owned(),
+        value
+            .get("runtime_write_performed")
+            .cloned()
+            .unwrap_or(Value::Bool(is_prepare)),
+    );
+    summary.insert("candidate_confirmed".to_owned(), Value::Bool(false));
+    summary.insert("version_created".to_owned(), Value::Bool(false));
+    summary.insert("export_performed".to_owned(), Value::Bool(false));
+    summary.insert("production_stage_advanced".to_owned(), Value::Bool(false));
+    summary.insert("actual_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert(
+        "quality_status".to_owned(),
+        Value::String("structural_only".to_owned()),
+    );
+    summary.insert(
+        "visual_quality_status".to_owned(),
+        Value::String("NOT_PROVEN".to_owned()),
+    );
+    summary.insert(
+        "commercial_fps_quality_status".to_owned(),
+        Value::String("NOT_PROVEN".to_owned()),
+    );
+    summary.insert(
+        "human_review_status".to_owned(),
+        Value::String("NOT_RUN".to_owned()),
+    );
+    summary.insert(
+        "commercial_engine_status".to_owned(),
+        Value::String("NOT_RUN".to_owned()),
+    );
+    summary.insert("structured_content_complete".to_owned(), Value::Bool(true));
+    Some(serde_json::to_string(&Value::Object(summary)).unwrap_or_else(|_| "{}".to_owned()))
+}
+
+fn fictional_energy_vfx_animated_socket_attachment_mcp_summary(
+    name: &str,
+    value: &Value,
+) -> Option<String> {
+    if !matches!(
+        name,
+        "fictional_energy_vfx_animated_socket_attachment_prepare"
+            | "fictional_energy_vfx_animated_socket_attachment_get"
+    ) {
+        return None;
+    }
+    let is_prepare = name == "fictional_energy_vfx_animated_socket_attachment_prepare";
+    let attachment = value.get("attachment").and_then(Value::as_object);
+    let value_or_null = |field: &str| {
+        attachment
+            .and_then(|object| object.get(field))
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+    let frames = attachment
+        .and_then(|object| object.get("frames"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .map(|frame| {
+                    let mut summary = Map::new();
+                    for field in [
+                        "frame_index",
+                        "sample_time_ticks",
+                        "animation_pose_readback_sha256",
+                        "socket_transform_inventory_sha256",
+                        "socket_transform_readback_sha256",
+                        "emitter_socket_bindings_sha256",
+                        "trail_socket_bindings_sha256",
+                        "base_frame_key_sha256",
+                        "bloom_key_sha256",
+                        "particle_key_sha256",
+                        "trail_key_sha256",
+                        "trail_bloom_key_sha256",
+                        "canonical_sha256",
+                    ] {
+                        summary.insert(
+                            field.to_owned(),
+                            frame.get(field).cloned().unwrap_or(Value::Null),
+                        );
+                    }
+                    Value::Object(summary)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut summary = Map::new();
+    summary.insert(
+        "schema_version".to_owned(),
+        Value::String("FictionalEnergyVfxAnimatedSocketAttachmentMcpSummary@1".to_owned()),
+    );
+    summary.insert("operation".to_owned(), Value::String(name.to_owned()));
+    for field in [
+        "attachment_key_sha256",
+        "project_id",
+        "delivery_manifest_object_sha256",
+        "candidate_id",
+        "candidate_state_sha256",
+        "source_artifact_sha256",
+        "animated_socket_materialization_key_sha256",
+        "animated_socket_anchor_set_object_sha256",
+        "animated_socket_anchor_set_canonical_sha256",
+        "animation_clip_id",
+        "animation_clip_object_sha256",
+        "animation_clip_canonical_sha256",
+        "animated_artifact_sha256",
+        "animation_receipt_object_sha256",
+        "animation_receipt_canonical_sha256",
+        "vfx_profile_object_sha256",
+        "vfx_profile_canonical_sha256",
+        "vfx_sequence_key_sha256",
+        "vfx_sequence_canonical_sha256",
+        "attachment_policy",
+        "socket_node_id_encoding_sha256",
+        "socket_roles_sha256",
+        "frame_scope",
+        "attachment_status",
+        "canonical_sha256",
+    ] {
+        summary.insert(field.to_owned(), value_or_null(field));
+    }
+    summary.insert("frame_count".to_owned(), Value::from(frames.len() as u64));
+    summary.insert("frames".to_owned(), Value::Array(frames));
+    summary.insert(
+        "replayed".to_owned(),
+        value.get("replayed").cloned().unwrap_or(Value::Bool(false)),
+    );
+    summary.insert(
+        "restart_hash_verified".to_owned(),
+        value
+            .get("restart_hash_verified")
+            .cloned()
+            .unwrap_or(Value::Bool(!is_prepare)),
+    );
+    summary.insert(
+        "runtime_write_performed".to_owned(),
+        value
+            .get("runtime_write")
+            .cloned()
+            .unwrap_or(Value::Bool(is_prepare)),
+    );
+    for field in [
+        "quality_status",
+        "visual_quality_status",
+        "commercial_fps_quality_status",
+        "human_review_status",
+        "commercial_engine_status",
+    ] {
+        summary.insert(
+            field.to_owned(),
+            value
+                .get(field)
+                .cloned()
+                .unwrap_or_else(|| Value::String("NOT_PROVEN".to_owned())),
+        );
+    }
+    summary.insert("actual_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert("production_stage_advanced".to_owned(), Value::Bool(false));
+    summary.insert("candidate_confirmed".to_owned(), Value::Bool(false));
+    summary.insert("version_created".to_owned(), Value::Bool(false));
+    summary.insert("export_performed".to_owned(), Value::Bool(false));
+    summary.insert("glb_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("png_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("aov_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("structured_content_complete".to_owned(), Value::Bool(true));
+    Some(serde_json::to_string(&Value::Object(summary)).unwrap_or_else(|_| "{}".to_owned()))
+}
+
+fn fictional_energy_vfx_animated_socket_attachment_v2_mcp_summary(
+    name: &str,
+    value: &Value,
+) -> Option<String> {
+    if !matches!(
+        name,
+        "fictional_energy_vfx_animated_socket_attachment_v2_prepare"
+            | "fictional_energy_vfx_animated_socket_attachment_v2_get"
+    ) {
+        return None;
+    }
+    let is_prepare = name == "fictional_energy_vfx_animated_socket_attachment_v2_prepare";
+    let attachment = value.get("attachment").and_then(Value::as_object);
+    let value_or_null = |field: &str| {
+        attachment
+            .and_then(|object| object.get(field))
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+    let frames = attachment
+        .and_then(|object| object.get("frames"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .map(|frame| {
+                    let mut summary = Map::new();
+                    for field in [
+                        "frame_index",
+                        "projection_frame_index",
+                        "particle_sequence_frame_index",
+                        "sample_time_ticks",
+                        "animation_pose_readback_sha256",
+                        "socket_transform_inventory_sha256",
+                        "socket_transform_readback_sha256",
+                        "emitter_socket_bindings_sha256",
+                        "trail_socket_bindings_sha256",
+                        "base_frame_key_sha256",
+                        "bloom_key_sha256",
+                        "particle_key_sha256",
+                        "trail_key_sha256",
+                        "trail_bloom_key_sha256",
+                        "projection_frame_canonical_sha256",
+                        "particle_sequence_frame_canonical_sha256",
+                        "trail_sequence_frame_canonical_sha256",
+                        "trail_bloom_sequence_frame_canonical_sha256",
+                        "canonical_sha256",
+                    ] {
+                        summary.insert(
+                            field.to_owned(),
+                            frame.get(field).cloned().unwrap_or(Value::Null),
+                        );
+                    }
+                    Value::Object(summary)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut summary = Map::new();
+    summary.insert(
+        "schema_version".to_owned(),
+        Value::String("FictionalEnergyVfxAnimatedSocketAttachmentMcpSummary@2".to_owned()),
+    );
+    summary.insert("operation".to_owned(), Value::String(name.to_owned()));
+    for field in [
+        "attachment_key_sha256",
+        "project_id",
+        "delivery_manifest_object_sha256",
+        "candidate_id",
+        "candidate_state_sha256",
+        "source_artifact_sha256",
+        "animated_socket_materialization_key_sha256",
+        "animated_socket_anchor_set_object_sha256",
+        "animated_socket_anchor_set_canonical_sha256",
+        "animation_clip_id",
+        "animation_clip_object_sha256",
+        "animation_clip_canonical_sha256",
+        "animated_artifact_sha256",
+        "animation_receipt_object_sha256",
+        "animation_receipt_canonical_sha256",
+        "vfx_profile_object_sha256",
+        "vfx_profile_canonical_sha256",
+        "projection_key_sha256",
+        "projection_object_sha256",
+        "projection_canonical_sha256",
+        "particle_sequence_key_sha256",
+        "particle_sequence_canonical_sha256",
+        "trail_sequence_key_sha256",
+        "trail_sequence_canonical_sha256",
+        "trail_bloom_sequence_key_sha256",
+        "trail_bloom_sequence_canonical_sha256",
+        "attachment_policy",
+        "socket_node_id_encoding_sha256",
+        "socket_roles_sha256",
+        "frame_scope",
+        "attachment_status",
+        "canonical_sha256",
+    ] {
+        summary.insert(field.to_owned(), value_or_null(field));
+    }
+    summary.insert("frame_count".to_owned(), Value::from(frames.len() as u64));
+    summary.insert("frames".to_owned(), Value::Array(frames));
+    summary.insert(
+        "replayed".to_owned(),
+        value
+            .get("replayed")
+            .cloned()
+            .unwrap_or(Value::Bool(!is_prepare)),
+    );
+    summary.insert(
+        "restart_hash_verified".to_owned(),
+        value
+            .get("restart_hash_verified")
+            .cloned()
+            .unwrap_or(Value::Bool(!is_prepare)),
+    );
+    summary.insert(
+        "runtime_write_performed".to_owned(),
+        value
+            .get("runtime_write")
+            .cloned()
+            .unwrap_or(Value::Bool(is_prepare)),
+    );
+    for field in [
+        "quality_status",
+        "visual_quality_status",
+        "commercial_fps_quality_status",
+        "human_review_status",
+        "commercial_engine_status",
+    ] {
+        summary.insert(
+            field.to_owned(),
+            value
+                .get(field)
+                .cloned()
+                .unwrap_or_else(|| Value::String("NOT_PROVEN".to_owned())),
+        );
+    }
+    summary.insert("actual_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert("production_stage_advanced".to_owned(), Value::Bool(false));
+    summary.insert("candidate_confirmed".to_owned(), Value::Bool(false));
+    summary.insert("version_created".to_owned(), Value::Bool(false));
+    summary.insert("export_performed".to_owned(), Value::Bool(false));
+    summary.insert("glb_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("png_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("aov_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("structured_content_complete".to_owned(), Value::Bool(true));
+    Some(serde_json::to_string(&Value::Object(summary)).unwrap_or_else(|_| "{}".to_owned()))
+}
+
+fn fictional_energy_vfx_animated_socket_attachment_v3_mcp_summary(
+    name: &str,
+    value: &Value,
+) -> Option<String> {
+    if !matches!(
+        name,
+        "fictional_energy_vfx_animated_socket_attachment_v3_prepare"
+            | "fictional_energy_vfx_animated_socket_attachment_v3_get"
+    ) {
+        return None;
+    }
+    let is_prepare = name == "fictional_energy_vfx_animated_socket_attachment_v3_prepare";
+    let attachment = value.get("attachment").and_then(Value::as_object);
+    let value_or_null = |field: &str| {
+        attachment
+            .and_then(|object| object.get(field))
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+    let frames = attachment
+        .and_then(|object| object.get("frames"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .map(|frame| {
+                    let mut summary = Map::new();
+                    for field in [
+                        "frame_index",
+                        "sample_time_ticks",
+                        "projection_frame_index",
+                        "particle_sequence_frame_index",
+                        "trail_frame_index",
+                        "trail_bloom_frame_index",
+                        "projection_frame_canonical_sha256",
+                        "projection_socket_transform_inventory_sha256",
+                        "projection_socket_transform_readback_sha256",
+                        "particle_sequence_key_sha256",
+                        "particle_sequence_frame_canonical_sha256",
+                        "trail_sequence_key_sha256",
+                        "trail_sequence_frame_canonical_sha256",
+                        "trail_key_sha256",
+                        "trail_inventory_sha256",
+                        "trail_id_encoding_sha256",
+                        "emitter_binding_sha256",
+                        "trail_bloom_sequence_key_sha256",
+                        "trail_bloom_sequence_frame_canonical_sha256",
+                        "trail_bloom_key_sha256",
+                        "trail_bloom_seed_sha256",
+                        "base_frame_key_sha256",
+                        "bloom_key_sha256",
+                        "camera_object_sha256",
+                        "camera_identity_sha256",
+                        "render_profile_sha256",
+                        "render_worker_build_cohort_sha256",
+                        "canonical_sha256",
+                    ] {
+                        summary.insert(
+                            field.to_owned(),
+                            frame.get(field).cloned().unwrap_or(Value::Null),
+                        );
+                    }
+                    Value::Object(summary)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut summary = Map::new();
+    summary.insert(
+        "schema_version".to_owned(),
+        Value::String("FictionalEnergyVfxAnimatedSocketAttachmentMcpSummary@3".to_owned()),
+    );
+    summary.insert("operation".to_owned(), Value::String(name.to_owned()));
+    for field in [
+        "attachment_key_sha256",
+        "project_id",
+        "geometry_candidate_id",
+        "geometry_candidate_state_sha256",
+        "geometry_delivery_manifest_object_sha256",
+        "geometry_artifact_sha256",
+        "appearance_candidate_id",
+        "appearance_candidate_state_sha256",
+        "appearance_delivery_manifest_object_sha256",
+        "appearance_artifact_sha256",
+        "material_surface_quality_id",
+        "material_surface_quality_report_object_sha256",
+        "material_surface_quality_canonical_sha256",
+        "geometry_preservation_projection_sha256",
+        "animated_socket_materialization_key_sha256",
+        "animated_artifact_sha256",
+        "animated_socket_anchor_set_object_sha256",
+        "animated_socket_anchor_set_canonical_sha256",
+        "appearance_anchor_set_object_sha256",
+        "appearance_anchor_set_canonical_sha256",
+        "anchor_binding_sha256",
+        "animation_clip_id",
+        "animation_clip_object_sha256",
+        "animation_clip_canonical_sha256",
+        "animation_receipt_object_sha256",
+        "animation_receipt_canonical_sha256",
+        "projection_key_sha256",
+        "projection_object_sha256",
+        "projection_canonical_sha256",
+        "particle_sequence_key_sha256",
+        "particle_sequence_canonical_sha256",
+        "trail_sequence_key_sha256",
+        "trail_sequence_canonical_sha256",
+        "trail_bloom_sequence_key_sha256",
+        "trail_bloom_sequence_canonical_sha256",
+        "vfx_profile_object_sha256",
+        "vfx_profile_canonical_sha256",
+        "trail_bloom_profile_sha256",
+        "socket_node_id_encoding_sha256",
+        "socket_roles_sha256",
+        "camera_object_sha256",
+        "camera_identity_sha256",
+        "render_profile_sha256",
+        "render_worker_build_cohort_sha256",
+        "sample_schedule_sha256",
+        "sample_count",
+        "attachment_policy",
+        "frame_scope",
+        "attachment_receipt_object_sha256",
+        "attachment_receipt_canonical_sha256",
+        "attachment_status",
+        "canonical_sha256",
+    ] {
+        summary.insert(field.to_owned(), value_or_null(field));
+    }
+    summary.insert("frame_count".to_owned(), Value::from(frames.len() as u64));
+    summary.insert("frames".to_owned(), Value::Array(frames));
+    summary.insert(
+        "replayed".to_owned(),
+        value
+            .get("replayed")
+            .cloned()
+            .unwrap_or(Value::Bool(!is_prepare)),
+    );
+    summary.insert(
+        "restart_hash_verified".to_owned(),
+        value
+            .get("restart_hash_verified")
+            .cloned()
+            .unwrap_or(Value::Bool(true)),
+    );
+    summary.insert(
+        "runtime_write_performed".to_owned(),
+        value
+            .get("runtime_write")
+            .cloned()
+            .unwrap_or(Value::Bool(is_prepare)),
+    );
+    for field in [
+        "quality_status",
+        "visual_quality_status",
+        "commercial_fps_quality_status",
+        "human_review_status",
+        "commercial_engine_status",
+    ] {
+        summary.insert(
+            field.to_owned(),
+            value
+                .get(field)
+                .cloned()
+                .unwrap_or_else(|| Value::String("NOT_PROVEN".to_owned())),
+        );
+    }
+    summary.insert("actual_engine_roundtrip".to_owned(), Value::Bool(false));
+    summary.insert("production_stage_advanced".to_owned(), Value::Bool(false));
+    summary.insert("candidate_confirmed".to_owned(), Value::Bool(false));
+    summary.insert("version_created".to_owned(), Value::Bool(false));
+    summary.insert("export_performed".to_owned(), Value::Bool(false));
+    summary.insert("glb_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("png_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("aov_bytes_in_summary".to_owned(), Value::Bool(false));
+    summary.insert("structured_content_complete".to_owned(), Value::Bool(true));
+    Some(serde_json::to_string(&Value::Object(summary)).unwrap_or_else(|_| "{}".to_owned()))
+}
+
 fn call_tool(
     backend: &mut Backend,
     id: Option<Value>,
@@ -2486,6 +6241,114 @@ fn call_tool(
                     "isError":true,
                     "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
                     "structuredContent":runtime_error_value("MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "subdivision_artifact_lineage_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_SUBDIVISION_ARTIFACT_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_SUBDIVISION_ARTIFACT_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "mechanical_animation_clip_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_MECHANICAL_ANIMATION_CLIP_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_MECHANICAL_ANIMATION_CLIP_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "mechanical_animation_glb_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_MECHANICAL_ANIMATION_GLB_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_MECHANICAL_ANIMATION_GLB_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "game_asset_delivery_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_GAME_ASSET_DELIVERY_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_GAME_ASSET_DELIVERY_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "appearance_source_lineage_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_APPEARANCE_SOURCE_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_APPEARANCE_SOURCE_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "game_weapon_anchor_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_GAME_WEAPON_ANCHOR_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_GAME_WEAPON_ANCHOR_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "game_weapon_animated_glb_socket_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_GAME_WEAPON_ANIMATED_GLB_SOCKET_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_GAME_WEAPON_ANIMATED_GLB_SOCKET_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "fictional_energy_vfx_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0","id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_FICTIONAL_ENERGY_VFX_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_FICTIONAL_ENERGY_VFX_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if is_mcp010f_write_tool(name) {
+            return Some(json!({
+                "jsonrpc":"2.0","id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
+                }
+            }));
+        }
+        if name == "authoring_mesh_edit_prepare" {
+            return Some(json!({
+                "jsonrpc":"2.0",
+                "id":id,
+                "result":{
+                    "isError":true,
+                    "content":[{"type":"text","text":serde_json::to_string(&runtime_error_value("MCP010F_AUTHORING_MESH_EDIT_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")).unwrap_or_else(|_| "{}".to_owned())}],
+                    "structuredContent":runtime_error_value("MCP010F_AUTHORING_MESH_EDIT_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required")
                 }
             }));
         }
@@ -2766,11 +6629,405 @@ fn call_tool(
             if is_ponytail_preflight_read(name, &arguments) {
                 session.ponytail_preflight_read = true;
             }
-            Some(json!({
+            let content_text = if name == "topology_snapshot_get" {
+                serde_json::to_string(&json!({
+                    "schema_version":"TopologySnapshotMcpSummary@1",
+                    "artifact_id":value.get("artifact_id"),
+                    "candidate_id":value.get("candidate_id"),
+                    "part_id":value.get("part_id"),
+                    "counts":value.get("counts"),
+                    "topology":value.get("topology"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "authoring_topology_get" {
+                serde_json::to_string(&json!({
+                    "schema_version":"AuthoringTopologyMcpSummary@1",
+                    "artifact_id":value.get("artifact_id"),
+                    "candidate_id":value.get("candidate_id"),
+                    "authoring_node_id":value.get("authoring_node_id"),
+                    "part_id":value.get("part_id"),
+                    "counts":value.get("counts"),
+                    "topology_sha256":value.get("topology_sha256"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "authoring_mesh_edit_preview" {
+                serde_json::to_string(&json!({
+                    "schema_version":"AuthoringMeshEditPreviewMcpSummary@1",
+                    "candidate_id":value.get("candidate_id"),
+                    "source_artifact_id":value.get("source_artifact_id"),
+                    "source_program_sha256":value.get("source_program_sha256"),
+                    "derived_program_sha256":value.get("derived_program_sha256"),
+                    "operation":value.get("operation"),
+                    "counts":value.get("counts"),
+                    "derived_replay":value.get("derived_replay"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "authoring_mesh_edit_prepare" {
+                serde_json::to_string(&json!({
+                    "schema_version":"AuthoringMeshEditPrepareMcpSummary@1",
+                    "source_candidate_id":value.get("source_candidate_id"),
+                    "new_candidate_id":value.get("new_candidate_id"),
+                    "derived_artifact_sha256":value.get("derived_artifact_sha256"),
+                    "derived_program_sha256":value.get("derived_program_sha256"),
+                    "preview_canonical_sha256":value.get("preview_canonical_sha256"),
+                    "edit_lineage_sha256":value.get("edit_lineage_sha256"),
+                    "runtime_write_performed":value.get("runtime_write_performed"),
+                    "confirm_status":value.get("confirm_status"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "mechanical_pose_evaluate" {
+                serde_json::to_string(&json!({
+                    "schema_version":"MechanicalPoseMcpSummary@1",
+                    "result_schema_version":value.get("schema_version"),
+                    "artifact_id":value.get("artifact_id"),
+                    "candidate_id":value.get("candidate_id"),
+                    "sample_time_ticks":value.get("sample_time_ticks"),
+                    "evaluated_pose_sha256":value.get("evaluated_pose_sha256"),
+                    "sequence_sha256":value.get("sequence_sha256"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "mechanical_pose_geometry_preview" {
+                serde_json::to_string(&json!({
+                    "schema_version":"MechanicalPoseGeometryPreviewMcpSummary@1",
+                    "candidate_id":value.get("candidate_id"),
+                    "source_artifact_id":value.get("source_artifact_id"),
+                    "source_program_sha256":value.get("source_program_sha256"),
+                    "posed_program_sha256":value.get("posed_program_sha256"),
+                    "part_deltas_sha256":value.get("part_deltas_sha256"),
+                    "transient_artifact":value.get("transient_artifact"),
+                    "runtime_write_performed":false,
+                    "quality_status":value.get("quality_status"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if matches!(
+                name,
+                "mechanical_animation_clip_v2_prepare" | "mechanical_animation_clip_v2_get"
+            ) {
+                let is_prepare = name == "mechanical_animation_clip_v2_prepare";
+                let clip = value.get("clip");
+                let link = value.get("durable_link");
+                serde_json::to_string(&json!({
+                    "schema_version":"MechanicalAnimationClipV2McpSummary@2",
+                    "operation":name,
+                    "clip_id":clip.and_then(|record| record.get("clip_id")),
+                    "project_id":clip.and_then(|record| record.get("project_id")),
+                    "appearance_candidate_id":clip.and_then(|record| record.get("appearance_candidate_id")),
+                    "appearance_artifact_sha256":clip.and_then(|record| record.get("appearance_artifact_sha256")),
+                    "source_geometry_artifact_sha256":clip.and_then(|record| record.get("source_geometry_artifact_sha256")),
+                    "clip_object_sha256":link.and_then(|record| record.get("clip_object_sha256")),
+                    "clip_sha256":clip.and_then(|record| record.get("clip_sha256")),
+                    "source_replay_worker_cohort_sha256":clip.and_then(|record| record.get("source_replay_worker_cohort_sha256")),
+                    "write_intent":if is_prepare {"explicit_runtime_appearance_aware_clip_prepare_write"} else {"read_only_durable_appearance_aware_clip_lookup"},
+                    "runtime_write_performed":value.get("runtime_write_performed"),
+                    "restart_hash_verified":value.get("restart_hash_verified"),
+                    "replayed":value.get("replayed"),
+                    "quality_status":"structural_only",
+                    "visual_quality_status":"NOT_PROVEN",
+                    "commercial_fps_quality_status":"NOT_PROVEN",
+                    "human_review_status":"NOT_RUN",
+                    "commercial_engine_status":"NOT_RUN",
+                    "candidate_confirmed":false,
+                    "version_created":false,
+                    "export_performed":false,
+                    "raw_glb_bytes":false,
+                    "raw_png_bytes":false,
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "mechanical_animation_clip_v2_preview" {
+                serde_json::to_string(&json!({
+                    "schema_version":"MechanicalAnimationClipV2PreviewMcpSummary@2",
+                    "operation":name,
+                    "project_id":value.get("project_id"),
+                    "appearance_candidate_id":value.get("appearance_candidate_id"),
+                    "clip_id":value.get("clip_id"),
+                    "sample_time_ticks":value.get("sample_time_ticks"),
+                    "frame_sha256":value.get("frame_sha256"),
+                    "source_replay_worker_cohort_sha256":value.get("source_replay_worker_cohort_sha256"),
+                    "appearance_transient_artifact_sha256":value.get("appearance_transient_artifact_sha256"),
+                    "appearance_transient_artifact_readback_sha256":value.get("appearance_transient_artifact_readback_sha256"),
+                    "appearance_transient_program_sha256":value.get("appearance_transient_program_sha256"),
+                    "appearance_replay_worker_cohort_sha256":value.get("appearance_replay_worker_cohort_sha256"),
+                    "appearance_program_sha256":value.get("appearance_program_sha256"),
+                    "material_pack_manifest_sha256":value.get("material_pack_manifest_sha256"),
+                    "geometry_preservation_projection_sha256":value.get("geometry_preservation_projection_sha256"),
+                    "geometry_materialization":value.get("geometry_materialization"),
+                    "appearance_materialization":value.get("appearance_materialization"),
+                    "runtime_write_performed":false,
+                    "persistent_user_data_touched":false,
+                    "quality_status":"structural_only",
+                    "visual_quality_status":"NOT_PROVEN",
+                    "commercial_fps_quality_status":"NOT_PROVEN",
+                    "human_review_status":"NOT_RUN",
+                    "commercial_engine_status":"NOT_RUN",
+                    "raw_glb_bytes":false,
+                    "raw_png_bytes":false,
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if matches!(
+                name,
+                "mechanical_animation_glb_v2_prepare" | "mechanical_animation_glb_v2_get"
+            ) {
+                let is_prepare = name == "mechanical_animation_glb_v2_prepare";
+                serde_json::to_string(&json!({
+                    "schema_version":"MechanicalAnimationGlbV2McpSummary@2",
+                    "operation":name,
+                    "animation_glb_key_sha256":value.get("animation_glb_key_sha256"),
+                    "animated_artifact_sha256":value.get("animated_artifact_sha256"),
+                    "animated_artifact_size_bytes":value.get("animated_artifact_size_bytes"),
+                    "receipt_object_sha256":value.get("receipt_object_sha256"),
+                    "project_id":value.pointer("/receipt/project_id"),
+                    "appearance_candidate_id":value.pointer("/receipt/appearance_candidate_id"),
+                    "clip_id":value.pointer("/receipt/clip_id"),
+                    "write_intent":if is_prepare {"explicit_runtime_appearance_aware_animated_glb_prepare_write"} else {"read_only_durable_appearance_aware_animated_glb_lookup"},
+                    "runtime_write_performed":value.get("runtime_write_performed"),
+                    "restart_hash_verified":value.get("restart_hash_verified"),
+                    "replayed":value.get("replayed"),
+                    "quality_status":"structural_only",
+                    "visual_quality_status":"NOT_PROVEN",
+                    "commercial_fps_quality_status":"NOT_PROVEN",
+                    "human_review_status":"NOT_RUN",
+                    "commercial_engine_status":"NOT_RUN",
+                    "candidate_confirmed":false,
+                    "version_created":false,
+                    "export_performed":false,
+                    "raw_glb_bytes":false,
+                    "raw_png_bytes":false,
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if matches!(
+                name,
+                "mechanical_animation_clip_prepare" | "mechanical_animation_clip_get"
+            ) {
+                let is_prepare = name == "mechanical_animation_clip_prepare";
+                serde_json::to_string(&json!({
+                    "schema_version":"MechanicalAnimationClipMcpSummary@1",
+                    "operation":name,
+                    "clip_id":value.get("clip_id"),
+                    "candidate_id":value.get("candidate_id"),
+                    "artifact_id":value.get("artifact_id"),
+                    "clip_object_sha256":value.get("clip_object_sha256"),
+                    "source_replay_worker_cohort_sha256":value.get("source_replay_worker_cohort_sha256"),
+                    "write_intent":if is_prepare {"explicit_runtime_clip_prepare_write"} else {"read_only_durable_clip_lookup"},
+                    "runtime_write_performed":is_prepare,
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if matches!(
+                name,
+                "game_weapon_anchor_prepare" | "game_weapon_anchor_get"
+            ) {
+                serde_json::to_string(&json!({
+                    "schema_version":"GameWeaponAnchorMcpSummary@1",
+                    "operation":name,
+                    "anchor_set_object_sha256":value.get("anchor_set_object_sha256").or_else(|| value.pointer("/link/anchor_set_object_sha256")),
+                    "delivery_manifest_object_sha256":value.pointer("/durable_link/delivery_manifest_object_sha256").or_else(|| value.pointer("/link/delivery_manifest_object_sha256")),
+                    "anchor_roles":value.pointer("/anchor_set/anchors").and_then(Value::as_array).map(|anchors| anchors.iter().map(|anchor| anchor.get("role")).collect::<Vec<_>>()),
+                    "animation_follow_status":value.pointer("/anchor_set/animation_follow_status"),
+                    "pivot_status":value.pointer("/anchor_set/pivot_status"),
+                    "runtime_write_performed":if name == "game_weapon_anchor_prepare" { Value::Bool(true) } else { value.get("runtime_write_performed").cloned().unwrap_or(Value::Bool(false)) },
+                    "candidate_confirmed":false,
+                    "export_performed":false,
+                    "actual_engine_roundtrip":false,
+                    "quality_status":"structural_only",
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if let Some(summary) = game_weapon_glb_socket_mcp_summary(name, &value) {
+                summary
+            } else if let Some(summary) = game_weapon_animated_glb_socket_mcp_summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                game_weapon_animated_glb_socket_v2_mcp_summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                fictional_energy_vfx_animated_socket_attachment_mcp_summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                fictional_energy_vfx_animated_socket_attachment_v2_mcp_summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) =
+                fictional_energy_vfx_animated_socket_attachment_v3_mcp_summary(name, &value)
+            {
+                summary
+            } else if let Some(summary) = fictional_energy_vfx_mcp_summary(name, &value) {
+                summary
+            } else if name == "mechanical_animation_clip_preview_get" {
+                let pose_geometry_preview = value.get("pose_geometry_preview");
+                serde_json::to_string(&json!({
+                    "schema_version":"MechanicalAnimationClipPreviewMcpSummary@1",
+                    "clip_id":value.get("clip_id"),
+                    "candidate_id":value.get("candidate_id"),
+                    "sample_time_ticks":value.get("sample_time_ticks"),
+                    "transient_artifact":pose_geometry_preview.and_then(|preview| preview.get("transient_artifact")),
+                    "worker_replay":pose_geometry_preview.and_then(|preview| preview.get("worker_replay")),
+                    "runtime_write_performed":false,
+                    "quality_status":value.get("quality_status"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "mechanical_animation_glb_prepare" {
+                serde_json::to_string(&json!({
+                    "schema_version":"MechanicalAnimationGlbMcpSummary@1",
+                    "animated_artifact_sha256":value.get("animated_artifact_sha256"),
+                    "animated_artifact_size_bytes":value.get("animated_artifact_size_bytes"),
+                    "receipt_object_sha256":value.get("receipt_object_sha256"),
+                    "candidate_id":value.pointer("/receipt/candidate_id"),
+                    "clip_id":value.pointer("/receipt/clip_id"),
+                    "channel_count":value.pointer("/receipt/channel_count"),
+                    "validator_status":value.pointer("/receipt/validator_status"),
+                    "quality_status":value.pointer("/receipt/quality_status"),
+                    "candidate_confirmed":false,
+                    "export_performed":false,
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if matches!(
+                name,
+                "game_asset_delivery_prepare" | "game_asset_delivery_get" | "game_asset_lod_derive"
+            ) {
+                serde_json::to_string(&json!({
+                    "schema_version":"GameAssetDeliveryMcpSummary@1",
+                    "operation":name,
+                    "lod_receipt_object_sha256":value.get("lod_receipt_object_sha256").or_else(|| value.pointer("/link/lod_receipt_object_sha256")),
+                    "collision_proxy_object_sha256":value.get("collision_proxy_object_sha256").or_else(|| value.pointer("/link/collision_proxy_object_sha256")),
+                    "readiness_object_sha256":value.get("readiness_object_sha256").or_else(|| value.pointer("/link/readiness_object_sha256")),
+                    "delivery_manifest_object_sha256":value.get("delivery_manifest_object_sha256").or_else(|| value.pointer("/link/delivery_manifest_object_sha256")),
+                    "triangle_counts":value.pointer("/lod_receipt/levels").and_then(Value::as_array).map(|levels| levels.iter().map(|level| level.get("triangle_count")).collect::<Vec<_>>()),
+                    "collision_proxy_count":value.pointer("/collision_proxy_set/proxies").and_then(Value::as_array).map(Vec::len),
+                    "threejs_status":value.pointer("/readiness/engine_results/threejs"),
+                    "durable_restart_hash_verified":value.get("restart_hash_verified"),
+                    "derive_levels":value.get("levels").and_then(Value::as_array).map(|levels| levels.iter().map(|level| json!({"level":level.get("level"),"triangle_count":level.get("triangle_count"),"geometry_program_sha256":level.get("geometry_program_sha256")})).collect::<Vec<_>>()),
+                    "runtime_write_performed":value.get("runtime_write_performed"),
+                    "candidate_confirmed":false,
+                    "export_performed":false,
+                    "actual_engine_roundtrip":false,
+                    "quality_status":"structural_only",
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if matches!(
+                name,
+                "appearance_source_lineage_prepare" | "appearance_source_lineage_get"
+            ) {
+                serde_json::to_string(&json!({
+                    "schema_version":"AppearanceSourceLineageMcpSummary@1",
+                    "operation":name,
+                    "sidecar_object_sha256":value.get("sidecar_object_sha256"),
+                    "appearance_program_sha256":value.pointer("/durable_link/appearance_program_sha256"),
+                    "geometry_program_sha256":value.pointer("/durable_link/geometry_program_sha256"),
+                    "material_pack_manifest_sha256":value.pointer("/durable_link/material_pack_manifest_sha256"),
+                    "texture_build_receipt_sha256":value.pointer("/durable_link/texture_build_receipt_sha256"),
+                    "candidate_surface_bake_receipt_sha256":value.pointer("/durable_link/candidate_surface_bake_receipt_sha256"),
+                    "lod_count":value.pointer("/durable_link/lod_candidate_ids").and_then(Value::as_array).map(Vec::len),
+                    "lod_artifact_readback_object_sha256s":value.pointer("/durable_link/lod_artifact_readback_object_sha256s"),
+                    "lod_part_binding_inventory_sha256s":value.pointer("/durable_link/lod_part_binding_inventory_sha256s"),
+                    "runtime_write_performed":value.get("runtime_write_performed"),
+                    "candidate_confirmed":false,
+                    "export_performed":false,
+                    "quality_status":"structural_only",
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "render_evidence_replay_get" {
+                serde_json::to_string(&json!({
+                    "schema_version":"RenderEvidenceReplayMcpSummary@1",
+                    "candidate_id":value.get("candidate_id"),
+                    "artifact_sha256":value.get("artifact_sha256"),
+                    "camera_hash":value.get("camera_hash"),
+                    "source_render_set_object_sha256":value.get("source_render_set_object_sha256"),
+                    "replay_status":value.get("replay_status"),
+                    "determinism_claim":value.get("determinism_claim"),
+                    "worker_cohort_binding":value.get("worker_cohort_binding"),
+                    "runtime_write_performed":false,
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "boolean_operand_lineage_preview" {
+                serde_json::to_string(&json!({
+                    "schema_version":"BooleanOperandLineageMcpSummary@1",
+                    "program_sha256":value.get("program_sha256"),
+                    "boolean_node_id":value.get("boolean_node_id"),
+                    "operation":value.get("operation"),
+                    "output_triangle_count":value.get("output_triangle_count"),
+                    "lineage_run_count":value.get("lineage_run_count"),
+                    "lineage_sha256":value.get("lineage_sha256"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "subdivision_topology_lineage_preview" {
+                serde_json::to_string(&json!({
+                    "schema_version":"SubdivisionTopologyLineageMcpSummary@1",
+                    "program_sha256":value.get("program_sha256"),
+                    "subdivision_node_id":value.get("subdivision_node_id"),
+                    "lineage_kind":value.get("lineage_kind"),
+                    "lineage_element_count":value.get("lineage_element_count"),
+                    "lineage_sha256":value.get("lineage_sha256"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if name == "subdivision_artifact_lineage_get" {
+                serde_json::to_string(&json!({
+                    "schema_version":"SubdivisionArtifactLineageMcpSummary@1",
+                    "project_id":value.get("project_id"),
+                    "candidate_id":value.get("candidate_id"),
+                    "artifact_id":value.get("artifact_id"),
+                    "subdivision_node_id":value.get("subdivision_node_id"),
+                    "part_id":value.get("part_id"),
+                    "max_lineage_elements":value.get("max_lineage_elements"),
+                    "lineage_element_count":value.get("lineage_element_count"),
+                    "lineage_sha256":value.get("lineage_sha256"),
+                    "artifact_binding_sha256":value.get("artifact_binding_sha256"),
+                    "canonical_sha256":value.get("canonical_sha256"),
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else if matches!(
+                name,
+                "subdivision_artifact_lineage_sidecar_get" | "subdivision_artifact_lineage_prepare"
+            ) {
+                let is_prepare = name == "subdivision_artifact_lineage_prepare";
+                serde_json::to_string(&json!({
+                    "schema_version":"SubdivisionArtifactLineageMcpSummary@1",
+                    "operation":name,
+                    "write_intent":if is_prepare {"explicit_runtime_prepare_write"} else {"read_only_sidecar_lookup"},
+                    "runtime_write_performed":is_prepare,
+                    "text":if is_prepare {"Runtime explicitly writes the Runtime-owned Subdivision lineage sidecar Link."} else {"Read-only sidecar Link lookup; this call performs no write."},
+                    "structured_content_complete":true
+                }))
+                .unwrap_or_else(|_| "{}".to_owned())
+            } else {
+                serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned())
+            };
+            let response = json!({
                 "jsonrpc":"2.0",
                 "id":id,
-                "result":{"content":[{"type":"text","text":serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":value}
-            }))
+                "result":{"content":[{"type":"text","text":content_text}],"structuredContent":value}
+            });
+            Some(apply_read_model_mcp_wire_budget(name, response))
         }
         Err(error) => Some(json!({
             "jsonrpc":"2.0",
@@ -2778,6 +7035,112 @@ fn call_tool(
             "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&runtime_error_value(&error)).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":runtime_error_value(&error)}
         })),
     }
+}
+
+fn apply_read_model_mcp_wire_budget(name: &str, response: Value) -> Value {
+    let bounded = matches!(
+        name,
+        "geometry_prepare"
+            | "topology_snapshot_get"
+            | "authoring_topology_get"
+            | "authoring_mesh_edit_preview"
+            | "authoring_mesh_edit_prepare"
+            | "mechanical_pose_evaluate"
+            | "mechanical_pose_geometry_preview"
+            | "mechanical_animation_clip_prepare"
+            | "mechanical_animation_clip_get"
+            | "mechanical_animation_clip_preview_get"
+            | "mechanical_animation_clip_v2_prepare"
+            | "mechanical_animation_clip_v2_get"
+            | "mechanical_animation_clip_v2_preview"
+            | "mechanical_animation_glb_v2_prepare"
+            | "mechanical_animation_glb_v2_get"
+            | "mechanical_animation_glb_prepare"
+            | "game_asset_delivery_prepare"
+            | "game_asset_delivery_get"
+            | "game_asset_lod_derive"
+            | "appearance_source_lineage_prepare"
+            | "appearance_source_lineage_get"
+            | "candidate_material_surface_quality_prepare"
+            | "candidate_material_surface_quality_get"
+            | "candidate_animation_vfx_quality_prepare"
+            | "candidate_animation_vfx_quality_get"
+            | "candidate_animation_vfx_quality_v2_prepare"
+            | "candidate_animation_vfx_quality_v2_get"
+            | "production_stage_transition_v2_prepare"
+            | "production_stage_transition_v2_get"
+            | "game_weapon_anchor_prepare"
+            | "game_weapon_anchor_get"
+            | "game_weapon_glb_socket_prepare"
+            | "game_weapon_glb_socket_get"
+            | "game_weapon_animated_glb_socket_prepare"
+            | "game_weapon_animated_glb_socket_get"
+            | "game_weapon_animated_glb_socket_v2_prepare"
+            | "game_weapon_animated_glb_socket_v2_get"
+            | "fictional_energy_vfx_animated_socket_attachment_prepare"
+            | "fictional_energy_vfx_animated_socket_attachment_get"
+            | "fictional_energy_vfx_animated_socket_attachment_v2_prepare"
+            | "fictional_energy_vfx_animated_socket_attachment_v2_get"
+            | "fictional_energy_vfx_animated_socket_attachment_v3_prepare"
+            | "fictional_energy_vfx_animated_socket_attachment_v3_get"
+            | "game_weapon_animated_glb_socket_transform_projection_prepare"
+            | "game_weapon_animated_glb_socket_transform_projection_get"
+            | "game_weapon_animated_glb_socket_transform_projection_v2_prepare"
+            | "game_weapon_animated_glb_socket_transform_projection_v2_get"
+            | "fictional_energy_vfx_animated_socket_particles_sequence_prepare"
+            | "fictional_energy_vfx_animated_socket_particles_sequence_get"
+            | "fictional_energy_vfx_animated_socket_particles_sequence_v2_prepare"
+            | "fictional_energy_vfx_animated_socket_particles_sequence_v2_get"
+            | "fictional_energy_vfx_animated_socket_trails_sequence_prepare"
+            | "fictional_energy_vfx_animated_socket_trails_sequence_get"
+            | "fictional_energy_vfx_animated_socket_trails_sequence_v2_prepare"
+            | "fictional_energy_vfx_animated_socket_trails_sequence_v2_get"
+            | "fictional_energy_vfx_animated_socket_trails_bloom_sequence_prepare"
+            | "fictional_energy_vfx_animated_socket_trails_bloom_sequence_get"
+            | "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_prepare"
+            | "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_get"
+            | "fictional_energy_vfx_prepare"
+            | "fictional_energy_vfx_get"
+            | "fictional_energy_vfx_frame_sample"
+            | "fictional_energy_vfx_appearance_frame_sample"
+            | "fictional_energy_vfx_rendered_frame_prepare"
+            | "fictional_energy_vfx_rendered_frame_get"
+            | "fictional_energy_vfx_rendered_sequence_prepare"
+            | "fictional_energy_vfx_rendered_sequence_get"
+            | "fictional_energy_vfx_hdr_bloom_prepare"
+            | "fictional_energy_vfx_hdr_bloom_get"
+            | "fictional_energy_vfx_particles_prepare"
+            | "fictional_energy_vfx_particles_get"
+            | "fictional_energy_vfx_trails_prepare"
+            | "fictional_energy_vfx_trails_get"
+            | "fictional_energy_vfx_trails_bloom_prepare"
+            | "fictional_energy_vfx_trails_bloom_get"
+            | "render_evidence_integrity_get"
+            | "render_evidence_replay_get"
+            | "boolean_operand_lineage_preview"
+            | "subdivision_topology_lineage_preview"
+            | "subdivision_artifact_lineage_get"
+            | "subdivision_artifact_lineage_sidecar_get"
+            | "subdivision_artifact_lineage_prepare"
+            | "geometry_program_hash"
+    );
+    if !bounded {
+        return response;
+    }
+    let exceeds_budget = serde_json::to_vec(&response)
+        .map(|bytes| bytes.len() > READ_MODEL_MCP_WIRE_MAX_BYTES)
+        .unwrap_or(true);
+    if !exceeds_budget {
+        return response;
+    }
+    let error = runtime_error_value(
+        "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED: serialized tools/call response exceeds 1 MiB",
+    );
+    json!({
+        "jsonrpc":"2.0",
+        "id":response["id"].clone(),
+        "result":{"isError":true,"content":[{"type":"text","text":serde_json::to_string(&error).unwrap_or_else(|_| "{}".to_owned())}],"structuredContent":error}
+    })
 }
 
 fn is_ponytail_preflight_read(name: &str, arguments: &Value) -> bool {
@@ -2852,6 +7215,30 @@ fn dispatch_tool_with_build_cohort(
             "MCP009_CHANGE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required".to_owned()
         } else if is_mcp010c_write_tool(name) {
             "MCP010C_VISUAL_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
+        } else if name == "subdivision_artifact_lineage_prepare" {
+            "MCP010F_SUBDIVISION_ARTIFACT_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
+        } else if name == "mechanical_animation_clip_prepare" {
+            "MCP010F_MECHANICAL_ANIMATION_CLIP_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
+        } else if name == "mechanical_animation_glb_prepare" {
+            "MCP010F_MECHANICAL_ANIMATION_GLB_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
+        } else if name == "game_asset_delivery_prepare" {
+            "MCP010F_GAME_ASSET_DELIVERY_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
+        } else if name == "appearance_source_lineage_prepare" {
+            "MCP010F_APPEARANCE_SOURCE_LINEAGE_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
+        } else if name == "game_weapon_anchor_prepare" {
+            "MCP010F_GAME_WEAPON_ANCHOR_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
+        } else if name == "game_weapon_animated_glb_socket_prepare" {
+            "MCP010F_GAME_WEAPON_ANIMATED_GLB_SOCKET_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
+                .to_owned()
+        } else if name == "authoring_mesh_edit_prepare" {
+            "MCP010F_AUTHORING_MESH_EDIT_WRITE_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
                 .to_owned()
         } else if is_mcp010f_write_tool(name) {
             "MCP010F_PRIMARY_FORM_TOOLS_DISABLED: explicit authenticated IPC opt-in is required"
@@ -2962,10 +7349,19 @@ fn backend_write_call(
     arguments: &Value,
     local_build_cohort: Option<&str>,
 ) -> Result<Value, String> {
+    // Authenticated IPC bypasses dispatch_in_process, so restore the same
+    // deterministic JSON float representation before sending a fit intent.
+    // Without this, a valid client hash can be rejected only on the packaged
+    // path even though the in-process backend accepts the identical request.
+    let canonicalized_arguments = if name == "silhouette_fit_prepare" {
+        canonicalize_silhouette_fit_wire(arguments)?
+    } else {
+        arguments.clone()
+    };
     let Some(local_build_cohort) = local_build_cohort else {
         // Ordinary and test builds intentionally omit a cohort and retain the
         // existing source-development behavior.
-        return backend_call(backend, name, arguments);
+        return backend_call(backend, name, &canonicalized_arguments);
     };
     match backend {
         Backend::AuthenticatedIpc(client) => {
@@ -2973,7 +7369,9 @@ fn backend_write_call(
                 .call("capabilities_get", json!({}))
                 .map_err(map_ipc_error)?;
             require_matching_build_cohort(Some(local_build_cohort), &runtime_capabilities)?;
-            client.call(name, arguments.clone()).map_err(map_ipc_error)
+            client
+                .call(name, canonicalized_arguments)
+                .map_err(map_ipc_error)
         }
         Backend::DynamicIpc(dynamic) => {
             let endpoint = dynamic.endpoint()?;
@@ -2982,13 +7380,15 @@ fn backend_write_call(
                 .call("capabilities_get", json!({}))
                 .map_err(map_ipc_error)?;
             require_matching_build_cohort(Some(local_build_cohort), &runtime_capabilities)?;
-            client.call(name, arguments.clone()).map_err(map_ipc_error)
+            client
+                .call(name, canonicalized_arguments)
+                .map_err(map_ipc_error)
         }
         Backend::InProcess(runtime) => {
             let runtime_capabilities =
                 serde_json::to_value(runtime.capabilities()).map_err(|error| error.to_string())?;
             require_matching_build_cohort(Some(local_build_cohort), &runtime_capabilities)?;
-            dispatch_in_process(runtime, name, arguments)
+            dispatch_in_process(runtime, name, &canonicalized_arguments)
         }
         Backend::Unavailable(detail) => Err(format!("RUNTIME_UNAVAILABLE: {detail}")),
     }
@@ -3015,13 +7415,18 @@ fn require_matching_build_cohort(
 }
 
 fn backend_call(backend: &mut Backend, name: &str, arguments: &Value) -> Result<Value, String> {
+    let canonicalized_arguments = if name == "silhouette_fit_prepare" {
+        canonicalize_silhouette_fit_wire(arguments)?
+    } else {
+        arguments.clone()
+    };
     match backend {
-        Backend::AuthenticatedIpc(client) => {
-            client.call(name, arguments.clone()).map_err(map_ipc_error)
-        }
-        Backend::DynamicIpc(dynamic) => dynamic.call(name, arguments),
+        Backend::AuthenticatedIpc(client) => client
+            .call(name, canonicalized_arguments)
+            .map_err(map_ipc_error),
+        Backend::DynamicIpc(dynamic) => dynamic.call(name, &canonicalized_arguments),
         Backend::Unavailable(detail) => Err(format!("RUNTIME_UNAVAILABLE: {detail}")),
-        Backend::InProcess(runtime) => dispatch_in_process(runtime, name, arguments),
+        Backend::InProcess(runtime) => dispatch_in_process(runtime, name, &canonicalized_arguments),
     }
 }
 
@@ -3305,6 +7710,31 @@ fn map_ipc_error(error: IpcError) -> String {
                 }
                 _ if code.starts_with("SILHOUETTE_PART_ERROR_") => {
                     format!("{code}: Runtime Part contour evidence request rejected")
+                }
+                "SILHOUETTE_FIT_INVALID" => {
+                    let reason = detail
+                        .split_once("SILHOUETTE_FIT_INVALID:")
+                        .map(|(_, value)| value.trim())
+                        .unwrap_or("");
+                    let reason = [
+                        "canonical_sha256 does not bind intent",
+                        "rig is required",
+                        "base_camera is required",
+                        "optimizer is required",
+                        "optimizer.algorithm is required",
+                        "unsupported optimizer",
+                        "optimizer.step_fraction is required",
+                        "optimizer.step_fraction is outside (0,0.5]",
+                        "candidate not found",
+                        "target not found",
+                    ]
+                    .into_iter()
+                    .find(|candidate| reason.starts_with(candidate))
+                    .unwrap_or("request shape or numeric canonicalization");
+                    format!("SILHOUETTE_FIT_INVALID: Runtime fit intent rejected ({reason})")
+                }
+                _ if code.starts_with("SILHOUETTE_FIT_") => {
+                    format!("{code}: Runtime silhouette fit request rejected")
                 }
                 _ if code.starts_with("OPTIMIZATION_") => {
                     format!("{code}: Runtime optimization request rejected")
@@ -3590,7 +8020,48 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         | "session_get"
         | "checkpoint_prepare"
         | "checkpoint_get"
-        | "checkpoint_restore_prepare" => match name {
+        | "checkpoint_restore_prepare"
+        | "production_stage_transition_prepare"
+        | "production_stage_transition_get"
+        | "production_stage_transition_v2_prepare"
+        | "production_stage_transition_v2_get"
+        | "candidate_topology_quality_prepare"
+        | "candidate_topology_quality_get"
+        | "candidate_material_surface_quality_prepare"
+        | "candidate_material_surface_quality_get"
+        | "candidate_animation_vfx_quality_prepare"
+        | "candidate_animation_vfx_quality_get"
+        | "candidate_animation_vfx_quality_v2_prepare"
+        | "candidate_animation_vfx_quality_v2_get"
+        | "mechanical_animation_clip_v2_prepare"
+        | "mechanical_animation_clip_v2_get"
+        | "mechanical_animation_clip_v2_preview"
+        | "mechanical_animation_glb_v2_prepare"
+        | "mechanical_animation_glb_v2_get"
+        | "game_weapon_animated_glb_socket_v2_prepare"
+        | "game_weapon_animated_glb_socket_v2_get"
+        | "fictional_energy_vfx_animated_socket_attachment_prepare"
+        | "fictional_energy_vfx_animated_socket_attachment_get"
+        | "fictional_energy_vfx_animated_socket_attachment_v2_prepare"
+        | "fictional_energy_vfx_animated_socket_attachment_v2_get"
+        | "fictional_energy_vfx_animated_socket_attachment_v3_prepare"
+        | "fictional_energy_vfx_animated_socket_attachment_v3_get"
+        | "game_weapon_animated_glb_socket_transform_projection_prepare"
+        | "game_weapon_animated_glb_socket_transform_projection_get"
+        | "game_weapon_animated_glb_socket_transform_projection_v2_prepare"
+        | "game_weapon_animated_glb_socket_transform_projection_v2_get"
+        | "fictional_energy_vfx_animated_socket_particles_sequence_prepare"
+        | "fictional_energy_vfx_animated_socket_particles_sequence_get"
+        | "fictional_energy_vfx_animated_socket_particles_sequence_v2_prepare"
+        | "fictional_energy_vfx_animated_socket_particles_sequence_v2_get"
+        | "fictional_energy_vfx_animated_socket_trails_sequence_prepare"
+        | "fictional_energy_vfx_animated_socket_trails_sequence_get"
+        | "fictional_energy_vfx_animated_socket_trails_sequence_v2_prepare"
+        | "fictional_energy_vfx_animated_socket_trails_sequence_v2_get"
+        | "fictional_energy_vfx_animated_socket_trails_bloom_sequence_prepare"
+        | "fictional_energy_vfx_animated_socket_trails_bloom_sequence_get"
+        | "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_prepare"
+        | "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_get" => match name {
             "session_create_or_resume" => runtime
                 .session_create_or_resume(arguments.clone())
                 .map_err(|error| error.to_string()),
@@ -3606,13 +8077,138 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
             "checkpoint_restore_prepare" => runtime
                 .checkpoint_restore_prepare(arguments.clone())
                 .map_err(|error| error.to_string()),
+            "production_stage_transition_prepare" => runtime
+                .production_stage_transition_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_stage_transition_get" => runtime
+                .production_stage_transition_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_stage_transition_v2_prepare" => runtime
+                .production_stage_transition_v2_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "production_stage_transition_v2_get" => runtime
+                .production_stage_transition_v2_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "candidate_topology_quality_prepare" => runtime
+                .candidate_topology_quality_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "candidate_topology_quality_get" => runtime
+                .candidate_topology_quality_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "candidate_material_surface_quality_prepare" => runtime
+                .candidate_material_surface_quality_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "candidate_material_surface_quality_get" => runtime
+                .candidate_material_surface_quality_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "candidate_animation_vfx_quality_prepare" => runtime
+                .candidate_animation_vfx_quality_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "candidate_animation_vfx_quality_get" => runtime
+                .candidate_animation_vfx_quality_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "candidate_animation_vfx_quality_v2_prepare" => runtime
+                .candidate_animation_vfx_quality_v2_prepare(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "candidate_animation_vfx_quality_v2_get" => runtime
+                .candidate_animation_vfx_quality_v2_get(arguments.clone())
+                .map_err(|error| error.to_string()),
+            "mechanical_animation_clip_v2_prepare" => runtime
+                .mechanical_animation_clip_v2_prepare(arguments)
+                .map_err(|error| error.to_string()),
+            "mechanical_animation_clip_v2_get" => runtime
+                .mechanical_animation_clip_v2_get(arguments)
+                .map_err(|error| error.to_string()),
+            "mechanical_animation_clip_v2_preview" => runtime
+                .mechanical_animation_clip_v2_preview_get(arguments)
+                .map_err(|error| error.to_string()),
+            "mechanical_animation_glb_v2_prepare" => runtime
+                .mechanical_animation_glb_v2_prepare(arguments)
+                .map_err(|error| error.to_string()),
+            "mechanical_animation_glb_v2_get" => runtime
+                .mechanical_animation_glb_v2_get(arguments)
+                .map_err(|error| error.to_string()),
+            "game_weapon_animated_glb_socket_v2_prepare" => runtime
+                .game_weapon_animated_glb_socket_v2_prepare(arguments)
+                .map_err(|error| error.to_string()),
+            "game_weapon_animated_glb_socket_v2_get" => runtime
+                .game_weapon_animated_glb_socket_v2_get(arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_attachment_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_attachment_prepare(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_attachment_get" => runtime
+                .fictional_energy_vfx_animated_socket_attachment_get(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_attachment_v2_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_attachment_v2_prepare(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_attachment_v2_get" => runtime
+                .fictional_energy_vfx_animated_socket_attachment_v2_get(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_attachment_v3_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_attachment_v3_prepare(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_attachment_v3_get" => runtime
+                .fictional_energy_vfx_animated_socket_attachment_v3_get(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "game_weapon_animated_glb_socket_transform_projection_prepare" => runtime
+                .game_weapon_animated_glb_socket_transform_projection_prepare(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "game_weapon_animated_glb_socket_transform_projection_get" => runtime
+                .game_weapon_animated_glb_socket_transform_projection_get(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "game_weapon_animated_glb_socket_transform_projection_v2_prepare" => runtime
+                .game_weapon_animated_glb_socket_transform_projection_v2_prepare(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "game_weapon_animated_glb_socket_transform_projection_v2_get" => runtime
+                .game_weapon_animated_glb_socket_transform_projection_v2_get(&arguments.clone())
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_particles_sequence_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_particles_sequence_prepare(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_particles_sequence_get" => runtime
+                .fictional_energy_vfx_animated_socket_particles_sequence_get(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_particles_sequence_v2_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_particles_sequence_v2_prepare(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_particles_sequence_v2_get" => runtime
+                .fictional_energy_vfx_animated_socket_particles_sequence_v2_get(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_trails_sequence_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_trails_sequence_prepare(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_trails_sequence_get" => runtime
+                .fictional_energy_vfx_animated_socket_trails_sequence_get(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_trails_sequence_v2_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_trails_sequence_v2_prepare(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_trails_sequence_v2_get" => runtime
+                .fictional_energy_vfx_animated_socket_trails_sequence_v2_get(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_trails_bloom_sequence_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_trails_bloom_sequence_prepare(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_trails_bloom_sequence_get" => runtime
+                .fictional_energy_vfx_animated_socket_trails_bloom_sequence_get(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_prepare" => runtime
+                .fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_prepare(&arguments)
+                .map_err(|error| error.to_string()),
+            "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_get" => runtime
+                .fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_get(&arguments)
+                .map_err(|error| error.to_string()),
             _ => unreachable!("agentic write tool dispatch arm is exhaustive"),
         },
         "capabilities_get" => {
             serde_json::to_value(runtime.capabilities()).map_err(|error| error.to_string())
         }
         "operator_catalog_get" => Ok(runtime.active_operator_catalog()),
-        "material_pack_get" => Ok(runtime.material_pack_manifest()),
+        "material_pack_get" => runtime
+            .material_pack_get(arguments)
+            .map_err(|error| error.to_string()),
         "agentic_scene_observe" => {
             let project_id = required_id(arguments, "project_id")?;
             runtime
@@ -3664,6 +8260,12 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .silhouette_rig_hash(project_id, arguments)
                 .map_err(|error| error.to_string())
         }
+        "silhouette_fit_intent_hash" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .silhouette_fit_intent_hash(project_id, arguments)
+                .map_err(|error| error.to_string())
+        }
         "silhouette_target_get" => {
             let target_sha256 = required_sha256(arguments, "target_sha256")?;
             runtime
@@ -3700,6 +8302,120 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .render_pass_get(render_set_hash, pass)
                 .map_err(|error| error.to_string())
         }
+        "render_evidence_integrity_get" => runtime
+            .render_evidence_integrity_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "render_evidence_replay_get" => runtime
+            .render_evidence_replay_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "boolean_operand_lineage_preview" => runtime
+            .boolean_operand_lineage_preview(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "subdivision_topology_lineage_preview" => runtime
+            .subdivision_topology_lineage_preview(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "subdivision_artifact_lineage_get" => runtime
+            .subdivision_artifact_lineage_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "subdivision_artifact_lineage_sidecar_get" => runtime
+            .subdivision_artifact_lineage_sidecar_get(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "subdivision_artifact_lineage_prepare" => runtime
+            .subdivision_artifact_lineage_prepare(arguments.clone())
+            .map_err(|error| error.to_string()),
+        "mechanical_animation_clip_prepare" => runtime
+            .mechanical_animation_clip_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "mechanical_animation_clip_get" => runtime
+            .mechanical_animation_clip_get(arguments)
+            .map_err(|error| error.to_string()),
+        "mechanical_animation_clip_preview_get" => runtime
+            .mechanical_animation_clip_preview_get(arguments)
+            .map_err(|error| error.to_string()),
+        "mechanical_animation_glb_prepare" => runtime
+            .mechanical_animation_glb_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "game_asset_delivery_prepare" => runtime
+            .game_asset_delivery_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "game_asset_delivery_get" => runtime
+            .game_asset_delivery_get(arguments)
+            .map_err(|error| error.to_string()),
+        "game_asset_lod_derive" => runtime
+            .game_asset_lod_derive(arguments)
+            .map_err(|error| error.to_string()),
+        "appearance_source_lineage_prepare" => runtime
+            .appearance_source_lineage_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "appearance_source_lineage_get" => runtime
+            .appearance_source_lineage_get(arguments)
+            .map_err(|error| error.to_string()),
+        "game_weapon_anchor_prepare" => runtime
+            .game_weapon_anchor_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "game_weapon_anchor_get" => runtime
+            .game_weapon_anchor_get(arguments)
+            .map_err(|error| error.to_string()),
+        "game_weapon_glb_socket_prepare" => runtime
+            .game_weapon_glb_socket_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "game_weapon_glb_socket_get" => runtime
+            .game_weapon_glb_socket_get(arguments)
+            .map_err(|error| error.to_string()),
+        "game_weapon_animated_glb_socket_prepare" => runtime
+            .game_weapon_animated_glb_socket_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "game_weapon_animated_glb_socket_get" => runtime
+            .game_weapon_animated_glb_socket_get(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_prepare" => runtime
+            .fictional_energy_vfx_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_get" => runtime
+            .fictional_energy_vfx_get(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_frame_sample" => runtime
+            .fictional_energy_vfx_frame_sample(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_appearance_frame_sample" => runtime
+            .fictional_energy_vfx_appearance_frame_sample(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_rendered_frame_prepare" => runtime
+            .fictional_energy_vfx_rendered_frame_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_rendered_frame_get" => runtime
+            .fictional_energy_vfx_rendered_frame_get(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_rendered_sequence_prepare" => runtime
+            .fictional_energy_vfx_rendered_sequence_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_rendered_sequence_get" => runtime
+            .fictional_energy_vfx_rendered_sequence_get(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_hdr_bloom_prepare" => runtime
+            .fictional_energy_vfx_hdr_bloom_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_hdr_bloom_get" => runtime
+            .fictional_energy_vfx_hdr_bloom_get(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_particles_prepare" => runtime
+            .fictional_energy_vfx_particles_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_particles_get" => runtime
+            .fictional_energy_vfx_particles_get(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_trails_prepare" => runtime
+            .fictional_energy_vfx_trails_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_trails_get" => runtime
+            .fictional_energy_vfx_trails_get(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_trails_bloom_prepare" => runtime
+            .fictional_energy_vfx_trails_bloom_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "fictional_energy_vfx_trails_bloom_get" => runtime
+            .fictional_energy_vfx_trails_bloom_get(arguments)
+            .map_err(|error| error.to_string()),
         "project_list" => {
             serde_json::to_value(runtime.projects().map_err(|error| error.to_string())?)
                 .map_err(|error| error.to_string())
@@ -3733,14 +8449,38 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
         }
         "geometry_prepare" => {
             let project_id = required_id(arguments, "project_id")?;
-            let base_version_id = arguments.get("base_version_id").and_then(Value::as_str);
             let request = arguments
                 .get("request")
                 .cloned()
                 .unwrap_or_else(|| json!({}));
-            runtime
-                .prepare_geometry_candidate(project_id, base_version_id, request)
-                .map_err(|error| error.to_string())
+            if let Some(idempotency_value) = arguments.get("idempotency_key") {
+                let idempotency_key = idempotency_value
+                    .as_str()
+                    .ok_or_else(|| "idempotency_key must be a non-null identifier".to_owned())?;
+                let base_version_id = match arguments.get("base_version_id") {
+                    Some(Value::Null) => None,
+                    Some(Value::String(value)) => Some(value.as_str()),
+                    Some(_) => {
+                        return Err("base_version_id must be an identifier or null".to_owned())
+                    }
+                    None => {
+                        return Err("HEAD_BINDING_REQUIRED: exact geometry prepare requires an explicit base_version_id field".to_owned())
+                    }
+                };
+                runtime
+                    .prepare_geometry_candidate_exact(
+                        project_id,
+                        base_version_id,
+                        idempotency_key,
+                        request,
+                    )
+                    .map_err(|error| error.to_string())
+            } else {
+                let base_version_id = arguments.get("base_version_id").and_then(Value::as_str);
+                runtime
+                    .prepare_geometry_candidate(project_id, base_version_id, request)
+                    .map_err(|error| error.to_string())
+            }
         }
         "reference_compare_prepare" => {
             let project_id = required_id(arguments, "project_id")?;
@@ -3832,6 +8572,50 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .artifact_readback(artifact_id, candidate_id)
                 .map_err(|error| error.to_string())
         }
+        "topology_snapshot_get" => {
+            let project_id = required_id(arguments, "project_id")?;
+            let artifact_id = required_sha256(arguments, "artifact_id")?;
+            let candidate_id = required_id(arguments, "candidate_id")?;
+            let part_id = required_id(arguments, "part_id")?;
+            let artifact_readback_sha256 = required_sha256(arguments, "artifact_readback_sha256")?;
+            let program_sha256 = required_sha256(arguments, "program_sha256")?;
+            let operator_catalog_sha256 = required_sha256(arguments, "operator_catalog_sha256")?;
+            let readback_config_sha256 = required_sha256(arguments, "readback_config_sha256")?;
+            let snapshot_policy_sha256 = required_sha256(arguments, "snapshot_policy_sha256")?;
+            let max_face_count = arguments
+                .get("max_face_count")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| "max_face_count is required".to_owned())?;
+            runtime
+                .topology_snapshot(
+                    project_id,
+                    artifact_id,
+                    candidate_id,
+                    part_id,
+                    artifact_readback_sha256,
+                    program_sha256,
+                    operator_catalog_sha256,
+                    readback_config_sha256,
+                    snapshot_policy_sha256,
+                    max_face_count,
+                )
+                .map_err(|error| error.to_string())
+        }
+        "authoring_topology_get" => runtime
+            .authoring_topology(arguments)
+            .map_err(|error| error.to_string()),
+        "authoring_mesh_edit_preview" => runtime
+            .authoring_mesh_edit_preview(arguments)
+            .map_err(|error| error.to_string()),
+        "authoring_mesh_edit_prepare" => runtime
+            .authoring_mesh_edit_prepare(arguments)
+            .map_err(|error| error.to_string()),
+        "mechanical_pose_evaluate" => runtime
+            .mechanical_pose_evaluate(arguments)
+            .map_err(|error| error.to_string()),
+        "mechanical_pose_geometry_preview" => runtime
+            .mechanical_pose_geometry_preview(arguments)
+            .map_err(|error| error.to_string()),
         "quality_get" => {
             let candidate_id = required_id(arguments, "candidate_id")?;
             let reference_id = arguments.get("reference_id").and_then(Value::as_str);
@@ -3970,10 +8754,14 @@ fn canonicalize_silhouette_fit_wire(arguments: &Value) -> Result<Value, String> 
     }
     restored["canonical_sha256"] = Value::String(String::new());
     let restored_hash = canonical_json_hash(&restored);
-    if supplied != wire_hash && supplied != restored_hash {
-        return Err("SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent".to_owned());
+    let normalized_hash = canonical_json_hash(&normalize_integral_json_numbers(&restored));
+    if supplied != wire_hash && supplied != restored_hash && supplied != normalized_hash {
+        return Err(format!(
+            "SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent expected={wire_hash} numeric_compatibility={normalized_hash} actual={supplied}"
+        ));
     }
-    restored["canonical_sha256"] = Value::String(restored_hash);
+    restored = normalize_integral_json_numbers(&restored);
+    restored["canonical_sha256"] = Value::String(normalized_hash);
     Ok(restored)
 }
 
@@ -4239,6 +9027,40 @@ fn normalize_optimizer_numbers(value: &Value) -> Value {
     )
 }
 
+fn normalize_integral_json_numbers(value: &Value) -> Value {
+    match value {
+        Value::Number(number) => {
+            if number.as_i64().is_some() || number.as_u64().is_some() {
+                value.clone()
+            } else if let Some(float) = number.as_f64() {
+                if float.is_finite()
+                    && float.fract() == 0.0
+                    && float >= i64::MIN as f64
+                    && float <= i64::MAX as f64
+                {
+                    Value::Number(serde_json::Number::from(float as i64))
+                } else {
+                    serde_json::Number::from_f64(float)
+                        .map(Value::Number)
+                        .unwrap_or_else(|| value.clone())
+                }
+            } else {
+                value.clone()
+            }
+        }
+        Value::Array(values) => {
+            Value::Array(values.iter().map(normalize_integral_json_numbers).collect())
+        }
+        Value::Object(object) => Value::Object(
+            object
+                .iter()
+                .map(|(key, child)| (key.clone(), normalize_integral_json_numbers(child)))
+                .collect(),
+        ),
+        _ => value.clone(),
+    }
+}
+
 fn required_sha256<'a>(arguments: &'a Value, key: &str) -> Result<&'a str, String> {
     let sha256 = arguments
         .get(key)
@@ -4315,6 +9137,50 @@ mod tests {
         // Dedicated coverage below starts from a fresh session to verify the gate.
         session.ponytail_preflight_read = true;
         (backend, session)
+    }
+
+    #[test]
+    fn material_pack_get_exposes_only_the_closed_offline_pack_ids() {
+        let tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "material_pack_get")
+            .expect("material_pack_get tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["pack_id"]["enum"],
+            json!([
+                "forgecad-hard-surface-robot",
+                "forgecad-fictional-energy-weapon",
+                "forgecad-fictional-energy-weapon-2k"
+            ])
+        );
+
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let weapon = dispatch_in_process(
+            &runtime,
+            "material_pack_get",
+            &json!({"pack_id":"forgecad-fictional-energy-weapon"}),
+        )
+        .expect("weapon MaterialPack dispatch");
+        assert_eq!(weapon["pack_id"], "forgecad-fictional-energy-weapon");
+        let weapon_2k = dispatch_in_process(
+            &runtime,
+            "material_pack_get",
+            &json!({"pack_id":"forgecad-fictional-energy-weapon-2k"}),
+        )
+        .expect("weapon 2K pack call");
+        assert_eq!(weapon_2k["pack_id"], "forgecad-fictional-energy-weapon-2k");
+        assert_eq!(
+            weapon["canonical_sha256"],
+            "4a56fa58af1e8a0cd218f880f61112d465725a79eb70ed2aa0076eb5408ac999"
+        );
+        assert!(dispatch_in_process(
+            &runtime,
+            "material_pack_get",
+            &json!({"path":"/tmp/material-pack"}),
+        )
+        .is_err());
     }
 
     #[test]
@@ -4716,6 +9582,18 @@ mod tests {
         );
         assert_eq!(
             map_ipc_error(IpcError::RuntimeRequest(
+                "SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent".to_owned(),
+            )),
+            "SILHOUETTE_FIT_INVALID: Runtime fit intent rejected (canonical_sha256 does not bind intent)"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "SILHOUETTE_FIT_INVALID: /private/user/reference.png".to_owned(),
+            )),
+            "SILHOUETTE_FIT_INVALID: Runtime fit intent rejected (request shape or numeric canonicalization)"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
                 "OPTIMIZATION_INTENT_INVALID".to_owned(),
             )),
             "OPTIMIZATION_INTENT_INVALID: Runtime optimization request rejected"
@@ -4772,11 +9650,11 @@ mod tests {
             summary["schema_version"],
             "ForgeCADMcpToolManifestSummary@1"
         );
-        assert_eq!(summary["read_count"], 41);
-        assert_eq!(summary["write_count"], 33);
-        assert_eq!(summary["total_count"], 74);
-        assert_eq!(summary["read_names"].as_array().unwrap().len(), 41);
-        assert_eq!(summary["write_names"].as_array().unwrap().len(), 33);
+        assert_eq!(summary["read_count"], 90);
+        assert_eq!(summary["write_count"], 69);
+        assert_eq!(summary["total_count"], 159);
+        assert_eq!(summary["read_names"].as_array().unwrap().len(), 90);
+        assert_eq!(summary["write_names"].as_array().unwrap().len(), 69);
         let mut hash_input = summary.clone();
         hash_input
             .as_object_mut()
@@ -4786,6 +9664,320 @@ mod tests {
             summary["canonical_sha256"],
             canonical_json_hash(&hash_input)
         );
+    }
+
+    #[test]
+    fn mechanical_animation_glb_v2_mcp_surface_is_closed_and_opt_in() {
+        let read_tools = tools_with_writes(false);
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "mechanical_animation_glb_v2_get")
+            .expect("appearance-aware animated GLB get tool");
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["annotations"]["writeIntent"], false);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "mechanical_animation_glb_v2_prepare"));
+
+        let enabled = tools_with_writes(true);
+        let prepare = enabled
+            .iter()
+            .find(|tool| tool["name"] == "mechanical_animation_glb_v2_prepare")
+            .expect("appearance-aware animated GLB prepare tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare["_meta"]["forgecad"]["requiresConfirmation"], false);
+        assert_eq!(prepare["inputSchema"]["additionalProperties"], false);
+        let hash = "a".repeat(64);
+        let request = json!({
+            "schema_version":"MechanicalAnimationGlbPrepareRequest@2",
+            "project_id":"project-1",
+            "appearance_candidate_id":"appearance-1",
+            "appearance_candidate_state_sha256":hash,
+            "clip_id":"clip-1",
+            "clip_object_sha256":"b".repeat(64),
+            "clip_sha256":"c".repeat(64),
+            "materialization_policy":"appearance-aware-rigid-node-trs-gltf-linear-scheduled-samples@2",
+            "input_sha256":"d".repeat(64),
+            "idempotency_key":"animation-glb-key-1"
+        });
+        assert!(validate_declared_tool_input(
+            "mechanical_animation_glb_v2_prepare",
+            &request,
+            true
+        )
+        .is_ok());
+        let mut unknown = request.clone();
+        unknown["script"] = json!("bpy.ops");
+        assert!(validate_declared_tool_input(
+            "mechanical_animation_glb_v2_prepare",
+            &unknown,
+            true
+        )
+        .is_err());
+        let get_request = json!({
+            "schema_version":"MechanicalAnimationGlbGetRequest@2",
+            "project_id":"project-1",
+            "appearance_candidate_id":"appearance-1",
+            "clip_id":"clip-1"
+        });
+        assert!(validate_declared_tool_input(
+            "mechanical_animation_glb_v2_get",
+            &get_request,
+            false
+        )
+        .is_ok());
+        assert_eq!(
+            agentic_write_tools::runtime_method("mechanical_animation_glb_v2_prepare"),
+            Some("mechanical_animation_glb_v2_prepare")
+        );
+        assert_eq!(
+            agentic_write_tools::runtime_method("mechanical_animation_glb_v2_get"),
+            Some("mechanical_animation_glb_v2_get")
+        );
+    }
+
+    #[test]
+    fn animated_socket_materialization_v2_mcp_surface_is_closed_hidden_and_dispatches() {
+        let prepare_name = "game_weapon_animated_glb_socket_v2_prepare";
+        let get_name = "game_weapon_animated_glb_socket_v2_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+
+        let enabled_tools = tools_with_writes(true);
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("V2 animated socket materialization prepare tool");
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("V2 animated socket materialization get tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            prepare_tool["_meta"]["forgecad"]["requiresConfirmation"],
+            false
+        );
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(get_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["materialization_policy"]["const"],
+            "appearance-aware-animation-v2-socket-node-materialization-preserve-renderable-content@2"
+        );
+        assert_eq!(
+            get_tool["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "project_id",
+                "appearance_candidate_id",
+                "clip_id",
+                "animated_socket_materialization_key_sha256"
+            ])
+        );
+
+        let get_arguments = json!({
+            "schema_version":"GameWeaponAnimatedGlbSocketMaterializationGetRequest@2",
+            "project_id":"project-1",
+            "appearance_candidate_id":"appearance-1",
+            "clip_id":"clip-1",
+            "animated_socket_materialization_key_sha256":"a".repeat(64)
+        });
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        let prepare_arguments = json!({
+            "schema_version":"GameWeaponAnimatedGlbSocketMaterializationPrepareRequest@2",
+            "project_id":"project-1",
+            "appearance_candidate_id":"appearance-1",
+            "appearance_candidate_state_sha256":"a".repeat(64),
+            "clip_id":"clip-1",
+            "clip_object_sha256":"b".repeat(64),
+            "clip_sha256":"c".repeat(64),
+            "appearance_delivery_manifest_object_sha256":"d".repeat(64),
+            "anchor_set_object_sha256":"e".repeat(64),
+            "anchor_set_canonical_sha256":"f".repeat(64),
+            "materialization_policy":"appearance-aware-animation-v2-socket-node-materialization-preserve-renderable-content@2",
+            "input_sha256":"0".repeat(64),
+            "idempotency_key":"socket-v2-prepare-1"
+        });
+        assert!(validate_declared_tool_input(prepare_name, &prepare_arguments, true).is_ok());
+        for field in [
+            "unknown",
+            "raw_glb_bytes",
+            "base64",
+            "path",
+            "url",
+            "script",
+        ] {
+            let mut invalid = prepare_arguments.clone();
+            invalid[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(prepare_name, &invalid, true).is_err(),
+                "closed V2 animated socket prepare schema accepted {field}"
+            );
+        }
+        for field in [
+            "unknown",
+            "raw_glb_bytes",
+            "base64",
+            "path",
+            "url",
+            "script",
+        ] {
+            let mut invalid = get_arguments.clone();
+            invalid[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid, false).is_err(),
+                "closed V2 animated socket get schema accepted {field}"
+            );
+        }
+        let appearance_binding = agentic_write_tools::Binding {
+            session_id: Some("session-1".to_owned()),
+            project_id: Some("project-1".to_owned()),
+            candidate_id: Some("appearance-1".to_owned()),
+        };
+        assert!(agentic_write_tools::validate_call(
+            prepare_name,
+            &prepare_arguments,
+            &appearance_binding
+        )
+        .is_ok());
+        assert!(agentic_write_tools::validate_call(
+            prepare_name,
+            &prepare_arguments,
+            &agentic_write_tools::Binding::default()
+        )
+        .is_err());
+        let mut cross_candidate = prepare_arguments.clone();
+        cross_candidate["appearance_candidate_id"] = json!("appearance-other");
+        assert!(agentic_write_tools::validate_call(
+            prepare_name,
+            &cross_candidate,
+            &appearance_binding
+        )
+        .is_err());
+        assert_eq!(
+            agentic_write_tools::runtime_method(prepare_name),
+            Some(prepare_name)
+        );
+        assert_eq!(
+            agentic_write_tools::runtime_method(get_name),
+            Some(get_name)
+        );
+
+        let runtime = Runtime::ephemeral().expect("V2 animated socket dispatch runtime");
+        for (name, arguments) in [(get_name, get_arguments), (prepare_name, prepare_arguments)] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("V2 animated socket Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn v2_production_stage_get_schema_rejects_unknown_fields_and_preserves_v1() {
+        let read_tools = tools_with_writes(false);
+        let get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "production_stage_transition_v2_get")
+            .expect("V2 production-stage get tool");
+        let request = json!({
+            "schema_version":"ProductionStageTransitionGetRequest@2",
+            "transition_id":"transition-v2-1",
+            "session_id":"session-1",
+            "project_id":"project-1",
+            "root_candidate_id":"candidate-1",
+            "head_candidate_id":"candidate-material-1"
+        });
+        assert!(validate_declared_tool_input(
+            "production_stage_transition_v2_get",
+            &request,
+            false
+        )
+        .is_ok());
+        let mut unknown = request;
+        unknown["unexpected"] = json!("forbidden");
+        assert!(validate_declared_tool_input(
+            "production_stage_transition_v2_get",
+            &unknown,
+            false
+        )
+        .is_err());
+        assert!(read_tools
+            .iter()
+            .any(|tool| tool["name"] == "production_stage_transition_get"));
+        assert_eq!(
+            agentic_write_tools::runtime_method("production_stage_transition_get"),
+            Some("production_stage_transition_get")
+        );
+        assert_eq!(
+            agentic_write_tools::runtime_method("production_stage_transition_v2_get"),
+            Some("production_stage_transition_v2_get")
+        );
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+    }
+
+    #[test]
+    fn v2_production_stage_prepare_rejects_iso_expiry_and_path_like_ids() {
+        let prepare = tools_with_writes(true)
+            .into_iter()
+            .find(|tool| tool["name"] == "production_stage_transition_v2_prepare")
+            .expect("V2 production-stage prepare tool");
+        let schema = &prepare["inputSchema"];
+        let mut request = Map::new();
+        for required in schema["required"].as_array().expect("required fields") {
+            let field = required.as_str().expect("field name");
+            let property = &schema["properties"][field];
+            let value = if let Some(constant) = property.get("const") {
+                constant.clone()
+            } else if field == "approval_expires_at" {
+                json!("1700000000")
+            } else if field == "approval_summary" {
+                json!("promote passed topology to material surface")
+            } else if field == "approved" {
+                json!(true)
+            } else if field.ends_with("_sha256") || field == "camera_hash" {
+                json!("a".repeat(64))
+            } else {
+                json!("id-1")
+            };
+            request.insert(field.to_owned(), value);
+        }
+        let request = Value::Object(request);
+        assert!(validate_declared_tool_input(
+            "production_stage_transition_v2_prepare",
+            &request,
+            true
+        )
+        .is_ok());
+
+        let mut iso_expiry = request.clone();
+        iso_expiry["approval_expires_at"] = json!("2026-08-21T23:59:59Z");
+        assert!(validate_declared_tool_input(
+            "production_stage_transition_v2_prepare",
+            &iso_expiry,
+            true
+        )
+        .is_err());
+
+        for invalid_id in ["candidate with space", "candidate/child"] {
+            let mut invalid = request.clone();
+            invalid["root_candidate_id"] = json!(invalid_id);
+            assert!(validate_declared_tool_input(
+                "production_stage_transition_v2_prepare",
+                &invalid,
+                true
+            )
+            .is_err());
+        }
     }
 
     #[test]
@@ -4841,10 +10033,902 @@ mod tests {
         assert!(branches.iter().any(|branch| {
             branch["properties"]["schema_version"]["const"] == "ParametricDesignKitRequest@1"
         }));
+        assert!(branches.iter().any(|branch| {
+            branch["oneOf"].as_array().is_some_and(|variants| {
+                variants.iter().all(|variant| {
+                    variant["properties"]["schema_version"]["const"]
+                        == "ParametricDesignKitRequest@2"
+                })
+            })
+        }));
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"] == "GeometryModifierStackRequest@1"
+        }));
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"] == "GeometryModifierEvaluationRequest@2"
+        }));
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"] == "SubdivisionEvaluationRequest@2"
+        }));
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"]
+                == "SubdivisionCreaseEvaluationRequest@1"
+        }));
         assert_eq!(
             tool["inputSchema"]["additionalProperties"], false,
             "the public envelope must remain closed"
         );
+    }
+
+    #[test]
+    fn boolean_operand_lineage_round_trips_as_a_read_only_mcp_tool() {
+        let tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "boolean_operand_lineage_preview")
+            .expect("Boolean lineage tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["max_lineage_runs"]["maximum"],
+            4096
+        );
+
+        let (mut backend, mut session) = initialized();
+        let (project_id, mut program, before) = match &backend {
+            Backend::InProcess(runtime) => {
+                let project = runtime
+                    .create_project("Boolean lineage MCP", json!({"profile":"mvp"}))
+                    .expect("project");
+                let catalog_sha256 = runtime.active_operator_catalog()["canonical_sha256"]
+                    .as_str()
+                    .expect("catalog hash")
+                    .to_owned();
+                let program = json!({
+                    "schema_version":"GeometryProgram@2",
+                    "project_id":project.project_id,
+                    "representation_plan_sha256":"4".repeat(64),
+                    "operator_catalog_sha256":catalog_sha256,
+                    "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                    "budgets":{"max_nodes":8,"max_triangles":10000,"max_glb_bytes":67108864,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                    "nodes":[
+                        {"node_id":"left","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[-0.25,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                        {"node_id":"right","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.25,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                        {"node_id":"boolean","operator_id":"forgecad.geometry.boolean@1","inputs":["left","right"],"parameters":{"shape":"intersection"}}
+                    ],
+                    "part_outputs":[{"part_id":"boolean-part","input_node_ids":["boolean"],"material_zone_id":"zone-mechanical","solid":true}]
+                });
+                let before = json!({
+                    "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+                    "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+                });
+                (project.project_id, program, before)
+            }
+            _ => unreachable!("test backend"),
+        };
+        program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
+        let mut arguments = json!({
+            "schema_version":"BooleanOperandLineageRequest@1",
+            "geometry_program":program,
+            "boolean_node_id":"boolean",
+            "max_lineage_runs":4096,
+            "canonical_sha256":""
+        });
+        arguments["canonical_sha256"] = Value::String(canonical_json_hash(&arguments));
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":302,"method":"tools/call","params":{"name":"boolean_operand_lineage_preview","arguments":arguments.clone()}}),
+        )
+        .expect("Boolean lineage response");
+        assert_eq!(
+            response["result"]["structuredContent"]["schema_version"], "BooleanOperandLineage@1",
+            "unexpected Boolean lineage response: {response}"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["runtime_write_performed"],
+            false
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["operation"],
+            "intersection"
+        );
+        assert_eq!(
+            serde_json::from_str::<Value>(
+                response["result"]["content"][0]["text"]
+                    .as_str()
+                    .expect("Boolean summary text")
+            )
+            .expect("Boolean summary JSON")["schema_version"],
+            "BooleanOperandLineageMcpSummary@1"
+        );
+        assert!(serde_json::to_vec(&response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES);
+
+        let after = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(
+            before, after,
+            "MCP lineage read must not create durable state"
+        );
+
+        for (id, invalid_max) in [(303, 0), (304, 4097)] {
+            let mut invalid = arguments.clone();
+            invalid["max_lineage_runs"] = Value::from(invalid_max);
+            let rejected = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":"boolean_operand_lineage_preview","arguments":invalid}}),
+            )
+            .expect("invalid Boolean run budget response");
+            assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        }
+
+        let mut nested_unknown = arguments.clone();
+        nested_unknown["geometry_program"]["nodes"][0]["unexpected"] = Value::Bool(true);
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":305,"method":"tools/call","params":{"name":"boolean_operand_lineage_preview","arguments":nested_unknown}}),
+        )
+        .expect("nested invalid Boolean program response");
+        assert_eq!(rejected["result"]["isError"], true);
+
+        arguments["unexpected"] = Value::Bool(true);
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":306,"method":"tools/call","params":{"name":"boolean_operand_lineage_preview","arguments":arguments}}),
+        )
+        .expect("invalid Boolean lineage response");
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+    }
+
+    #[test]
+    fn subdivision_topology_lineage_round_trips_as_a_bounded_read_only_mcp_tool() {
+        let tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "subdivision_topology_lineage_preview")
+            .expect("subdivision topology lineage tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["max_lineage_elements"]["maximum"],
+            25_000
+        );
+
+        let (mut backend, mut session) = initialized();
+        let (project_id, mut program, before) = match &backend {
+            Backend::InProcess(runtime) => {
+                let project = runtime
+                    .create_project("Subdivision lineage MCP", json!({"profile":"mvp"}))
+                    .expect("project");
+                let catalog_sha256 = runtime.active_operator_catalog()["canonical_sha256"]
+                    .as_str()
+                    .expect("catalog hash")
+                    .to_owned();
+                let program = json!({
+                    "schema_version":"GeometryProgram@2",
+                    "project_id":project.project_id,
+                    "representation_plan_sha256":"8".repeat(64),
+                    "operator_catalog_sha256":catalog_sha256,
+                    "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                    "budgets":{"max_nodes":4,"max_triangles":128,"max_glb_bytes":67108864,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                    "nodes":[{
+                        "node_id":"cage","operator_id":"forgecad.geometry.subd-cage@2","inputs":[],
+                        "parameters":{
+                            "shape":"subd-cage",
+                            "control_points":[[-1.0,-1.0,0.0],[0.0,-1.0,0.0],[1.0,-1.0,0.0],[-1.0,0.0,0.0],[0.0,0.0,1.0],[1.0,0.0,0.0],[-1.0,1.0,0.0],[0.0,1.0,0.0],[1.0,1.0,0.0]],
+                            "u_points":3,"v_points":3,"subdivision_levels":2,
+                            "crease_method":"uniform-integer-level-decay@1",
+                            "crease_edges":[{"vertex_a":3,"vertex_b":4,"sharpness_levels":2},{"vertex_a":4,"vertex_b":5,"sharpness_levels":2}],
+                            "position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]
+                        }
+                    }],
+                    "part_outputs":[{"part_id":"cage","input_node_ids":["cage"],"material_zone_id":"zone-shell","solid":false}]
+                });
+                let before = json!({
+                    "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+                    "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+                });
+                (project.project_id, program, before)
+            }
+            _ => unreachable!("test backend"),
+        };
+        program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
+        let mut arguments = json!({
+            "schema_version":"SubdivisionTopologyLineageRequest@1",
+            "geometry_program":program,
+            "subdivision_node_id":"cage",
+            "max_lineage_elements":25000,
+            "canonical_sha256":""
+        });
+        arguments["canonical_sha256"] = Value::String(canonical_json_hash(&arguments));
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":407,"method":"tools/call","params":{"name":"subdivision_topology_lineage_preview","arguments":arguments.clone()}}),
+        )
+        .expect("subdivision lineage response");
+        let structured = &response["result"]["structuredContent"];
+        assert_eq!(
+            structured["schema_version"], "SubdivisionTopologyLineage@1",
+            "unexpected subdivision topology lineage response: {response}"
+        );
+        assert_eq!(
+            structured["lineage_kind"],
+            "control-root-to-evaluated-quad-topology@1"
+        );
+        assert_eq!(structured["lineage_element_count"], 442);
+        assert_eq!(structured["cross_version_stable"], false);
+        assert_eq!(
+            structured["artifact_binding_status"],
+            "unavailable-preview-only"
+        );
+        assert_eq!(structured["runtime_write_performed"], false);
+        let summary = serde_json::from_str::<Value>(
+            response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("subdivision lineage summary"),
+        )
+        .expect("subdivision lineage summary JSON");
+        assert_eq!(
+            summary["schema_version"],
+            "SubdivisionTopologyLineageMcpSummary@1"
+        );
+        assert_eq!(summary["structured_content_complete"], true);
+        assert!(serde_json::to_vec(&response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES);
+        let after = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(before, after);
+
+        for (id, invalid_max) in [(408, 0), (409, 25_001)] {
+            let mut invalid = arguments.clone();
+            invalid["max_lineage_elements"] = Value::from(invalid_max);
+            let rejected = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":"subdivision_topology_lineage_preview","arguments":invalid}}),
+            )
+            .expect("invalid subdivision lineage budget response");
+            assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        }
+        let mut wrong_version = arguments.clone();
+        wrong_version["geometry_program"]["nodes"][0]["operator_id"] =
+            json!("forgecad.geometry.subd-cage@1");
+        wrong_version["geometry_program"]["canonical_sha256"] = json!("");
+        let program_hash = canonical_json_hash(&wrong_version["geometry_program"]);
+        wrong_version["geometry_program"]["canonical_sha256"] = Value::String(program_hash);
+        wrong_version["canonical_sha256"] = json!("");
+        wrong_version["canonical_sha256"] = Value::String(canonical_json_hash(&wrong_version));
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":410,"method":"tools/call","params":{"name":"subdivision_topology_lineage_preview","arguments":wrong_version}}),
+        )
+        .expect("wrong-version subdivision lineage response");
+        assert_eq!(rejected["result"]["isError"], true);
+
+        let mut unknown = arguments;
+        unknown["python"] = json!("forbidden");
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":411,"method":"tools/call","params":{"name":"subdivision_topology_lineage_preview","arguments":unknown}}),
+        )
+        .expect("unknown subdivision lineage field response");
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+    }
+
+    #[test]
+    fn subdivision_artifact_lineage_round_trips_with_exact_candidate_binding() {
+        let tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "subdivision_artifact_lineage_get")
+            .expect("subdivision artifact lineage tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+
+        let (mut backend, mut session) = initialized();
+        let (project_id, prepared, before) = match &backend {
+            Backend::InProcess(runtime) => {
+                let project = runtime
+                    .create_project("Subdivision artifact MCP", json!({"profile":"mvp"}))
+                    .expect("project");
+                let mut program = json!({
+                    "schema_version":"GeometryProgram@2",
+                    "project_id":project.project_id,
+                    "representation_plan_sha256":"8".repeat(64),
+                    "operator_catalog_sha256":runtime.active_operator_catalog()["canonical_sha256"],
+                    "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                    "budgets":{"max_nodes":1,"max_triangles":128,"max_glb_bytes":67108864,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                    "nodes":[{
+                        "node_id":"cage","operator_id":"forgecad.geometry.subd-cage@2","inputs":[],
+                        "parameters":{
+                            "shape":"subd-cage",
+                            "control_points":[[-1.0,-1.0,0.0],[0.0,-1.0,0.0],[1.0,-1.0,0.0],[-1.0,0.0,0.0],[0.0,0.0,1.0],[1.0,0.0,0.0],[-1.0,1.0,0.0],[0.0,1.0,0.0],[1.0,1.0,0.0]],
+                            "u_points":3,"v_points":3,"subdivision_levels":2,
+                            "crease_method":"uniform-integer-level-decay@1",
+                            "crease_edges":[{"vertex_a":3,"vertex_b":4,"sharpness_levels":2},{"vertex_a":4,"vertex_b":5,"sharpness_levels":2}],
+                            "position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]
+                        }
+                    }],
+                    "part_outputs":[{"part_id":"cage-part","input_node_ids":["cage"],"material_zone_id":"zone-shell","solid":false}]
+                });
+                program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
+                let prepared = runtime
+                    .prepare_geometry_candidate(
+                        &project.project_id,
+                        None,
+                        json!({"typed":"geometry","geometry_program":program}),
+                    )
+                    .expect("geometry prepare");
+                let before = json!({
+                    "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+                    "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+                });
+                (project.project_id, prepared, before)
+            }
+            _ => unreachable!("test backend"),
+        };
+        let mut arguments = json!({
+            "schema_version":"SubdivisionArtifactLineageRequest@1",
+            "project_id":project_id,
+            "candidate_id":prepared["candidate"]["candidate_id"],
+            "artifact_id":prepared["artifact"]["artifact_id"],
+            "artifact_readback_sha256":prepared["artifact"]["canonical_sha256"],
+            "subdivision_node_id":"cage",
+            "max_lineage_elements":25000,
+            "canonical_sha256":""
+        });
+        arguments["canonical_sha256"] = Value::String(canonical_json_hash(&arguments));
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":412,"method":"tools/call","params":{"name":"subdivision_artifact_lineage_get","arguments":arguments.clone()}}),
+        )
+        .expect("subdivision artifact lineage response");
+        let structured = &response["result"]["structuredContent"];
+        assert_eq!(
+            structured["schema_version"], "SubdivisionArtifactLineageProjection@1",
+            "unexpected subdivision artifact lineage response: {response}"
+        );
+        assert_eq!(structured["artifact_binding"]["source_triangle_count"], 128);
+        assert_eq!(structured["runtime_write_performed"], false);
+        let summary = serde_json::from_str::<Value>(
+            response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("artifact lineage summary"),
+        )
+        .expect("artifact lineage summary JSON");
+        assert_eq!(
+            summary["schema_version"],
+            "SubdivisionArtifactLineageMcpSummary@1"
+        );
+        assert_eq!(summary["max_lineage_elements"], 25000);
+        assert_eq!(summary["lineage_element_count"], 442);
+        assert_eq!(summary["structured_content_complete"], true);
+        assert!(serde_json::to_vec(&response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES);
+        let after = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(before, after);
+
+        let mut stale = arguments.clone();
+        stale["artifact_readback_sha256"] = json!("f".repeat(64));
+        stale["canonical_sha256"] = json!("");
+        stale["canonical_sha256"] = Value::String(canonical_json_hash(&stale));
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":413,"method":"tools/call","params":{"name":"subdivision_artifact_lineage_get","arguments":stale}}),
+        )
+        .expect("stale artifact lineage response");
+        assert_eq!(rejected["result"]["isError"], true);
+
+        let mut sidecar_arguments = arguments;
+        sidecar_arguments["schema_version"] = json!("SubdivisionArtifactLineageSidecarRequest@1");
+        sidecar_arguments["canonical_sha256"] = json!("");
+        sidecar_arguments["canonical_sha256"] =
+            Value::String(canonical_json_hash(&sidecar_arguments));
+        session.write_tools_enabled = true;
+        let prepared_sidecar = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":415,"method":"tools/call","params":{"name":"subdivision_artifact_lineage_prepare","arguments":sidecar_arguments.clone()}}),
+        )
+        .expect("subdivision artifact lineage sidecar prepare response");
+        assert_eq!(
+            prepared_sidecar["result"]["structuredContent"]["schema_version"],
+            "SubdivisionArtifactLineageLink@1"
+        );
+        assert_eq!(
+            prepared_sidecar["result"]["structuredContent"]["materialization_status"],
+            "runtime-owned-immutable-cas-sidecar"
+        );
+        let prepare_summary = serde_json::from_str::<Value>(
+            prepared_sidecar["result"]["content"][0]["text"]
+                .as_str()
+                .expect("sidecar prepare summary"),
+        )
+        .expect("sidecar prepare summary JSON");
+        assert_eq!(
+            prepare_summary["schema_version"],
+            "SubdivisionArtifactLineageMcpSummary@1"
+        );
+        assert_eq!(prepare_summary["runtime_write_performed"], true);
+        assert!(prepare_summary["text"]
+            .as_str()
+            .expect("prepare summary text")
+            .contains("writes"));
+
+        let sidecar_before_get = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        let fetched_sidecar = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":416,"method":"tools/call","params":{"name":"subdivision_artifact_lineage_sidecar_get","arguments":sidecar_arguments}}),
+        )
+        .expect("subdivision artifact lineage sidecar get response");
+        assert_eq!(
+            fetched_sidecar["result"]["structuredContent"],
+            prepared_sidecar["result"]["structuredContent"]
+        );
+        let get_summary = serde_json::from_str::<Value>(
+            fetched_sidecar["result"]["content"][0]["text"]
+                .as_str()
+                .expect("sidecar get summary"),
+        )
+        .expect("sidecar get summary JSON");
+        assert_eq!(get_summary["runtime_write_performed"], false);
+        assert!(get_summary["text"]
+            .as_str()
+            .expect("get summary text")
+            .contains("no write"));
+        let sidecar_after_get = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(sidecar_before_get, sidecar_after_get);
+        assert!(
+            serde_json::to_vec(&fetched_sidecar).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES
+        );
+    }
+
+    #[test]
+    fn subdivision_artifact_lineage_sidecar_tools_are_closed_and_write_opt_in() {
+        let read_tools = tools_with_writes(false);
+        let enabled_tools = tools_with_writes(true);
+        let read_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "subdivision_artifact_lineage_sidecar_get")
+            .expect("subdivision artifact lineage sidecar getter");
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == "subdivision_artifact_lineage_prepare")
+            .expect("subdivision artifact lineage sidecar prepare");
+
+        assert_eq!(read_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(read_tool["annotations"]["destructiveHint"], false);
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["_meta"]["forgecad"]["transaction"], "MCP010F");
+        assert_eq!(
+            prepare_tool["_meta"]["forgecad"]["requiresConfirmation"],
+            true
+        );
+        assert!(read_tool["description"]
+            .as_str()
+            .unwrap()
+            .contains("Link@1"));
+        assert!(prepare_tool["description"]
+            .as_str()
+            .unwrap()
+            .contains("Link@1"));
+        assert_eq!(
+            read_tool["inputSchema"], prepare_tool["inputSchema"],
+            "get and prepare must share one closed request envelope"
+        );
+        assert_eq!(read_tool["inputSchema"]["additionalProperties"], false);
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "subdivision_artifact_lineage_prepare"));
+        assert!(!is_write_tool("subdivision_artifact_lineage_sidecar_get"));
+        assert!(is_write_tool("subdivision_artifact_lineage_prepare"));
+
+        let arguments = json!({
+            "schema_version":"SubdivisionArtifactLineageSidecarRequest@1",
+            "project_id":"project-sidecar",
+            "candidate_id":"candidate-sidecar",
+            "artifact_id":"a".repeat(64),
+            "artifact_readback_sha256":"b".repeat(64),
+            "subdivision_node_id":"cage",
+            "max_lineage_elements":25000,
+            "canonical_sha256":"c".repeat(64)
+        });
+        assert!(validate_declared_tool_input(
+            "subdivision_artifact_lineage_sidecar_get",
+            &arguments,
+            false
+        )
+        .is_ok());
+        assert!(validate_declared_tool_input(
+            "subdivision_artifact_lineage_prepare",
+            &arguments,
+            true
+        )
+        .is_ok());
+        assert!(validate_declared_tool_input(
+            "subdivision_artifact_lineage_prepare",
+            &arguments,
+            false
+        )
+        .is_err());
+        let mut unknown = arguments;
+        unknown["python"] = json!("forbidden");
+        assert!(validate_declared_tool_input(
+            "subdivision_artifact_lineage_sidecar_get",
+            &unknown,
+            false
+        )
+        .is_err());
+
+        let (mut backend, mut session) = initialized();
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":414,
+                "method":"tools/call",
+                "params":{"name":"subdivision_artifact_lineage_prepare","arguments":{}}
+            }),
+        )
+        .expect("sidecar prepare disabled response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "MCP010F_SUBDIVISION_ARTIFACT_LINEAGE_WRITE_TOOLS_DISABLED"
+        );
+    }
+
+    #[test]
+    fn subdivision_evaluation_v2_round_trips_and_remains_closed_and_read_only() {
+        let (mut backend, mut session) = initialized();
+        let project = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .create_project("MCP subdivision evaluation v2", json!({"scope":"test"}))
+                .expect("project"),
+            _ => unreachable!("test backend"),
+        };
+        let points = (0..3)
+            .flat_map(|v| (0..3).map(move |u| json!([u as f64, v as f64, 0.0])))
+            .collect::<Vec<_>>();
+        let mut request = json!({
+            "schema_version":"SubdivisionEvaluationRequest@2",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"6".repeat(64),
+            "part_id":"subd-shell",
+            "material_zone_id":"zone-shell",
+            "solid":false,
+            "control_cage":{"u_points":3,"v_points":3,"control_points":points},
+            "policy":{"scheme":"catmull-clark-uniform-regular-quad-grid","subdivision_levels":1,"boundary_interpolation":"edge-and-corner","crease_mode":"unsupported","face_varying_interpolation":"worker-triangle-chart-postprocess","limit_surface":false,"adaptive":false},
+            "transform":{"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]},
+            "budgets":{"max_nodes":1,"max_triangles":32,"max_glb_bytes":16777216,"max_worker_memory_bytes":134217728,"max_runtime_ms":5000},
+            "input_sha256":""
+        });
+        let mut binding = request.clone();
+        binding.as_object_mut().unwrap().remove("input_sha256");
+        request["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        let before = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":176,"method":"tools/call","params":{"name":"geometry_program_hash","arguments":request.clone()}}),
+        )
+        .expect("subdivision MCP response");
+        assert_eq!(response["result"]["isError"], Value::Null, "{response}");
+        let content = &response["result"]["structuredContent"];
+        assert_eq!(content["schema_version"], "SubdivisionEvaluationResult@2");
+        assert_eq!(
+            content["predicted_topology"]["evaluated_triangle_count"],
+            32
+        );
+        assert_eq!(content["quality_status"], "structural_only");
+        assert_eq!(
+            content["validator_scope"],
+            "typed-policy-and-program-hash-only"
+        );
+        assert_eq!(content["solid"], false);
+        let after = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(before, after);
+
+        let mut unknown = request.clone();
+        unknown["policy"]["python"] = json!("exec");
+        let mut cross_branch = request.clone();
+        cross_branch["base_node"] = json!({});
+        let mut solid = request;
+        solid["solid"] = json!(true);
+        let mut out_of_bounds = solid.clone();
+        out_of_bounds["solid"] = json!(false);
+        out_of_bounds["control_cage"]["control_points"][0][0] = json!(10.1);
+        for (id, arguments) in [
+            (177, unknown),
+            (179, cross_branch),
+            (180, solid),
+            (181, out_of_bounds),
+        ] {
+            let response = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":"geometry_program_hash","arguments":arguments}}),
+            )
+            .expect("invalid subdivision schema response");
+            assert_eq!(response["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        }
+    }
+
+    #[test]
+    fn subdivision_crease_evaluation_round_trips_actual_operator_contract_and_stays_read_only() {
+        let (mut backend, mut session) = initialized();
+        let project = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .create_project("MCP subdivision crease evaluation", json!({"scope":"test"}))
+                .expect("project"),
+            _ => unreachable!("test backend"),
+        };
+        let points = vec![
+            json!([-1.0, -1.0, 0.0]),
+            json!([0.0, -1.0, 0.0]),
+            json!([1.0, -1.0, 0.0]),
+            json!([-1.0, 0.0, 0.0]),
+            json!([0.0, 0.0, 1.0]),
+            json!([1.0, 0.0, 0.0]),
+            json!([-1.0, 1.0, 0.0]),
+            json!([0.0, 1.0, 0.0]),
+            json!([1.0, 1.0, 0.0]),
+        ];
+        let mut request = json!({
+            "schema_version":"SubdivisionCreaseEvaluationRequest@1",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"9".repeat(64),
+            "part_id":"subd-crease-shell",
+            "material_zone_id":"zone-shell",
+            "solid":false,
+            "control_cage":{"u_points":3,"v_points":3,"control_points":points},
+            "crease_edges":[
+                {"vertex_a":4,"vertex_b":5,"sharpness_levels":2},
+                {"vertex_a":3,"vertex_b":4,"sharpness_levels":1}
+            ],
+            "policy":{"scheme":"catmull-clark-uniform-regular-quad-grid","subdivision_levels":2,"boundary_interpolation":"edge-only","crease_method":"uniform-integer-level-decay@1","sharpness_domain":"integer-levels-1-to-2","face_varying_interpolation":"worker-triangle-chart-postprocess","limit_surface":false,"adaptive":false},
+            "transform":{"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]},
+            "budgets":{"max_nodes":1,"max_triangles":128,"max_glb_bytes":16777216,"max_worker_memory_bytes":134217728,"max_runtime_ms":5000},
+            "input_sha256":""
+        });
+        let mut binding = request.clone();
+        binding.as_object_mut().unwrap().remove("input_sha256");
+        binding["crease_edges"]
+            .as_array_mut()
+            .unwrap()
+            .sort_by_key(|edge| {
+                (
+                    edge["vertex_a"].as_u64().unwrap(),
+                    edge["vertex_b"].as_u64().unwrap(),
+                )
+            });
+        request["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        let before = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":307,"method":"tools/call","params":{"name":"geometry_program_hash","arguments":request.clone()}}),
+        )
+        .expect("crease MCP response");
+        assert_eq!(response["result"]["isError"], Value::Null, "{response}");
+        let content = &response["result"]["structuredContent"];
+        assert_eq!(
+            content["schema_version"],
+            "SubdivisionCreaseEvaluationResult@1"
+        );
+        assert_eq!(
+            content["geometry_program"]["nodes"][0]["operator_id"],
+            "forgecad.geometry.subd-cage@2"
+        );
+        assert_eq!(
+            content["predicted_topology"]["evaluated_triangle_count"],
+            128
+        );
+        assert_eq!(
+            content["predicted_topology"]["level_2_crease_application_count"],
+            2
+        );
+        assert_eq!(content["quality_status"], "structural_only");
+        assert!(serde_json::to_vec(&response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES);
+        let after = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project.project_id).expect("candidates"),
+                "versions":runtime.versions(Some(&project.project_id)).expect("versions")
+            }),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(before, after);
+
+        let mut unknown = request.clone();
+        unknown["crease_edges"][0]["script"] = json!("bpy");
+        let mut fractional = request.clone();
+        fractional["crease_edges"][0]["sharpness_levels"] = json!(1.5);
+        let mut cross_branch = request.clone();
+        cross_branch["base_node"] = json!({});
+        for (id, arguments) in [(308, unknown), (309, fractional), (310, cross_branch)] {
+            let rejected = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":"geometry_program_hash","arguments":arguments}}),
+            )
+            .expect("invalid crease schema response");
+            assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        }
+    }
+
+    #[test]
+    fn geometry_program_hash_wire_budget_fails_closed_before_transport() {
+        let oversized = "x".repeat(READ_MODEL_MCP_WIRE_MAX_BYTES);
+        let response = json!({
+            "jsonrpc":"2.0",
+            "id":311,
+            "result":{
+                "content":[{"type":"text","text":oversized}],
+                "structuredContent":{"schema_version":"SubdivisionCreaseEvaluationResult@1"}
+            }
+        });
+        assert!(serde_json::to_vec(&response).unwrap().len() > READ_MODEL_MCP_WIRE_MAX_BYTES);
+        for name in [
+            "geometry_program_hash",
+            "mechanical_pose_geometry_preview",
+            "mechanical_animation_clip_prepare",
+            "mechanical_animation_clip_get",
+            "mechanical_animation_clip_preview_get",
+            "game_asset_lod_derive",
+            "game_weapon_anchor_prepare",
+            "game_weapon_anchor_get",
+            "game_weapon_animated_glb_socket_prepare",
+            "game_weapon_animated_glb_socket_get",
+            "fictional_energy_vfx_animated_socket_particles_sequence_prepare",
+            "fictional_energy_vfx_animated_socket_particles_sequence_get",
+            "fictional_energy_vfx_animated_socket_particles_sequence_v2_prepare",
+            "fictional_energy_vfx_animated_socket_particles_sequence_v2_get",
+            "fictional_energy_vfx_animated_socket_trails_sequence_prepare",
+            "fictional_energy_vfx_animated_socket_trails_sequence_get",
+            "fictional_energy_vfx_animated_socket_trails_sequence_v2_prepare",
+            "fictional_energy_vfx_animated_socket_trails_sequence_v2_get",
+            "fictional_energy_vfx_animated_socket_trails_bloom_sequence_prepare",
+            "fictional_energy_vfx_animated_socket_trails_bloom_sequence_get",
+            "render_evidence_integrity_get",
+            "render_evidence_replay_get",
+        ] {
+            let rejected = apply_read_model_mcp_wire_budget(name, response.clone());
+            assert_eq!(rejected["result"]["isError"], true);
+            assert_eq!(
+                rejected["result"]["structuredContent"]["code"],
+                "MCP_READ_MODEL_RESPONSE_BUDGET_EXCEEDED"
+            );
+            assert!(serde_json::to_vec(&rejected).unwrap().len() < READ_MODEL_MCP_WIRE_MAX_BYTES);
+        }
+    }
+
+    #[test]
+    fn render_evidence_replay_tool_is_closed_read_only_and_dispatches() {
+        let replay_tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "render_evidence_replay_get")
+            .expect("render evidence replay tool");
+        assert_eq!(replay_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(replay_tool["annotations"]["destructiveHint"], false);
+        assert_eq!(replay_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            replay_tool["inputSchema"]["properties"]["integrity_request"]["additionalProperties"],
+            false
+        );
+
+        let mut integrity_request = json!({
+            "schema_version":"RenderEvidenceIntegrityRequest@1",
+            "project_id":"project-replay",
+            "candidate_id":"candidate-replay",
+            "artifact_sha256":"a".repeat(64),
+            "artifact_readback_object_sha256":"b".repeat(64),
+            "program_sha256":"c".repeat(64),
+            "reference_id":"reference-replay",
+            "reference_sha256":"d".repeat(64),
+            "camera_hash":"e".repeat(64),
+            "camera_object_sha256":"f".repeat(64),
+            "render_set_object_sha256":"1".repeat(64),
+            "comparison_report_object_sha256":"2".repeat(64),
+            "quality_report_object_sha256":"3".repeat(64),
+            "canonical_sha256":""
+        });
+        integrity_request["canonical_sha256"] =
+            Value::String(canonical_json_hash(&integrity_request));
+        let mut arguments = json!({
+            "schema_version":"RenderEvidenceReplayRequest@1",
+            "candidate_state_sha256":"4".repeat(64),
+            "integrity_request":integrity_request,
+            "replay_policy":"fixed-worker-nine-aov-byte-replay-read-only@1",
+            "canonical_sha256":""
+        });
+        arguments["canonical_sha256"] = Value::String(canonical_json_hash(&arguments));
+
+        let (mut backend, mut session) = initialized();
+        let preflight = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":311,"method":"tools/call","params":{"name":"skill_get","arguments":{"skill_id":"ponytail-preflight","version":"0.1.0"}}}),
+        )
+        .expect("ponytail preflight response");
+        assert_eq!(
+            preflight["result"]["structuredContent"]["skill"]["skill_id"],
+            "ponytail-preflight"
+        );
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":312,"method":"tools/call","params":{"name":"render_evidence_replay_get","arguments":arguments.clone()}}),
+        )
+        .expect("render replay dispatch response");
+        assert_eq!(response["result"]["isError"], true);
+        assert!(
+            response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("runtime error text")
+                .contains("RENDER_EVIDENCE_INTEGRITY_INVALID"),
+            "{response}"
+        );
+
+        let mut unknown = arguments;
+        unknown["integrity_request"]["python"] = json!("bpy");
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":313,"method":"tools/call","params":{"name":"render_evidence_replay_get","arguments":unknown}}),
+        )
+        .expect("nested unknown field response");
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
     }
 
     #[test]
@@ -4885,7 +10969,7 @@ mod tests {
                 "jsonrpc":"2.0",
                 "id":17,
                 "method":"tools/call",
-                "params":{"name":"geometry_program_hash","arguments":request}
+                "params":{"name":"geometry_program_hash","arguments":request.clone()}
             }),
         )
         .expect("PDK MCP response");
@@ -4915,6 +10999,2563 @@ mod tests {
     }
 
     #[test]
+    fn parametric_group_v2_round_trips_and_rejects_dynamic_extension_fields() {
+        let (mut backend, mut session) = initialized();
+        let project = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .create_project("MCP PDK v2 group transport", json!({"scope":"test"}))
+                .expect("project"),
+            _ => unreachable!("test backend"),
+        };
+        let mut request = json!({
+            "schema_version":"ParametricDesignKitRequest@2",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"c".repeat(64),
+            "template_id":"forgecad.group.rounded-box@1",
+            "instance_id":"rounded-shell-instance",
+            "part_id":"rounded-shell",
+            "material_zone_id":"zone-white-shell",
+            "parameters":{
+                "size_m":[1.0,0.8,0.4],
+                "position_m":[0.0,0.0,0.0],
+                "rotation_rad":[0.0,0.0,0.0],
+                "bevel_width_m":0.04,
+                "bevel_segments":2,
+                "bevel_profile":0.5,
+                "crease_angle_rad":1.0
+            },
+            "input_sha256":""
+        });
+        let mut binding = request.clone();
+        binding.as_object_mut().unwrap().remove("input_sha256");
+        request["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        let before = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project.project_id).unwrap(),
+                "versions":runtime.versions(Some(&project.project_id)).unwrap()
+            }),
+            _ => unreachable!("test backend"),
+        };
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":182,"method":"tools/call","params":{"name":"geometry_program_hash","arguments":request.clone()}}),
+        )
+        .expect("group MCP response");
+        assert_eq!(response["result"]["isError"], Value::Null, "{response}");
+        let content = &response["result"]["structuredContent"];
+        assert_eq!(content["schema_version"], "ParametricDesignKitProgram@2");
+        assert_eq!(content["template_definition"]["nested_group_depth"], 0);
+        assert_eq!(
+            content["geometry_program"]["nodes"]
+                .as_array()
+                .unwrap()
+                .len(),
+            3
+        );
+        assert_eq!(content["runtime_write_performed"], false);
+        let after = match &backend {
+            Backend::InProcess(runtime) => json!({
+                "candidates":runtime.candidates(&project.project_id).unwrap(),
+                "versions":runtime.versions(Some(&project.project_id)).unwrap()
+            }),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(before, after);
+
+        let mut script = request.clone();
+        script["parameters"]["script"] = json!("python.exec");
+        let mut wrong_template_parameters = request.clone();
+        wrong_template_parameters["parameters"] = json!({
+            "size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0],
+            "mirror_axis":"x","mirror_offset_m":0.0,"crease_angle_rad":1.0
+        });
+        let mut path = request;
+        path["path"] = json!("/tmp/plugin.py");
+        for (id, arguments) in [(183, script), (184, wrong_template_parameters), (185, path)] {
+            let response = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":"geometry_program_hash","arguments":arguments}}),
+            )
+            .expect("invalid group MCP response");
+            assert_eq!(response["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        }
+    }
+
+    #[test]
+    fn geometry_modifier_stack_round_trips_through_read_only_mcp() {
+        let (mut backend, mut session) = initialized();
+        let project = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .create_project("MCP modifier stack transport", json!({"scope":"test"}))
+                .expect("project"),
+            _ => unreachable!("test backend"),
+        };
+        let mut request = json!({
+            "schema_version":"GeometryModifierStackRequest@1",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"9".repeat(64),
+            "part_id":"shell",
+            "material_zone_id":"zone-shell",
+            "solid":true,
+            "base_node":{"node_id":"base","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+            "modifiers":[
+                {"modifier_id":"round","enabled":true,"operator_id":"forgecad.geometry.bevel@1","parameters":{"shape":"bevel","width_m":0.05,"segments":2,"profile":0.5,"edge_scope":"all-source-box-edges","clamp_overlap":false}},
+                {"modifier_id":"shade","enabled":true,"operator_id":"forgecad.geometry.normal-policy@1","parameters":{"shape":"normal-policy","weighting":"face-area-x-corner-angle","crease_angle_rad":1.0471975511965976,"keep_sharp":true,"output_domain":"corner"}}
+            ],
+            "input_sha256":""
+        });
+        let mut binding = request.clone();
+        binding
+            .as_object_mut()
+            .expect("modifier request object")
+            .remove("input_sha256");
+        request["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":170,
+                "method":"tools/call",
+                "params":{"name":"geometry_program_hash","arguments":request.clone()}
+            }),
+        )
+        .expect("modifier MCP response");
+        assert_eq!(
+            response["result"]["structuredContent"]["schema_version"],
+            "GeometryModifierStackProgram@1"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["geometry_program"]["nodes"][1]["operator_id"],
+            "forgecad.geometry.bevel@1"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["quality_status"],
+            "structural_only"
+        );
+        let mut v2_request = json!({
+            "schema_version":"GeometryModifierStackRequest@1",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"a".repeat(64),
+            "part_id":"vent-shell",
+            "material_zone_id":"zone-shell",
+            "solid":true,
+            "base_node":{
+                "node_id":"vent-base",
+                "operator_id":"forgecad.geometry.vent-array@2",
+                "inputs":[],
+                "parameters":{
+                    "shape":"vent-array",
+                    "width_m":1.6,
+                    "height_m":0.8,
+                    "depth_m":0.26,
+                    "face_thickness_m":0.08,
+                    "backing_depth_m":0.08,
+                    "backing_gap_m":0.10,
+                    "slot_count":4,
+                    "slot_width_m":0.16,
+                    "slot_spacing_m":0.12,
+                    "slot_margin_m":0.16,
+                    "slot_edge_bevel_m":0.02,
+                    "bevel_segments":2,
+                    "position_m":[0.0,0.0,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            },
+            "modifiers":[
+                {"modifier_id":"trace","enabled":false,"operator_id":"forgecad.geometry.normal-policy@1","parameters":{"shape":"normal-policy","weighting":"face-area-x-corner-angle","crease_angle_rad":1.0,"keep_sharp":true,"output_domain":"corner"}}
+            ],
+            "input_sha256":""
+        });
+        let mut v2_binding = v2_request.clone();
+        v2_binding
+            .as_object_mut()
+            .expect("v2 modifier request object")
+            .remove("input_sha256");
+        v2_request["input_sha256"] = Value::String(canonical_json_hash(&v2_binding));
+        let v2_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":179,
+                "method":"tools/call",
+                "params":{"name":"geometry_program_hash","arguments":v2_request}
+            }),
+        )
+        .expect("vent-array@2 modifier MCP response");
+        assert_eq!(
+            v2_response["result"]["structuredContent"]["geometry_program"]["nodes"][0]
+                ["operator_id"],
+            "forgecad.geometry.vent-array@2"
+        );
+        let mut channel = json!({
+            "schema_version":"GeometryModifierStackRequest@1",
+            "project_id":project.project_id,
+            "representation_plan_sha256":"a".repeat(64),
+            "part_id":"recessed-channel",
+            "material_zone_id":"zone-shell",
+            "solid":true,
+            "base_node":{
+                "node_id":"channel-base",
+                "operator_id":"forgecad.geometry.recessed-channel@1",
+                "inputs":[],
+                "parameters":{
+                    "shape":"recessed-channel",
+                    "stations":[
+                        {"point_m":[-0.8,0.0,0.0],"width_m":0.30,"depth_m":0.12},
+                        {"point_m":[0.0,0.08,0.0],"width_m":0.36,"depth_m":0.16},
+                        {"point_m":[0.82,0.0,0.0],"width_m":0.28,"depth_m":0.10}
+                    ],
+                    "path_frame":"planar-xy-z-up@1",
+                    "floor_width_ratio":0.42,
+                    "edge_bevel_m":0.01,
+                    "start_transition_m":0.08,
+                    "end_transition_m":0.10,
+                    "transition_segments":2,
+                    "position_m":[0.0,0.0,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            },
+            "modifiers":[
+                {"modifier_id":"trace","enabled":false,"operator_id":"forgecad.geometry.normal-policy@1","parameters":{"shape":"normal-policy","weighting":"face-area-x-corner-angle","crease_angle_rad":1.0,"keep_sharp":true,"output_domain":"corner"}}
+            ],
+            "input_sha256":""
+        });
+        let mut channel_binding = channel.clone();
+        channel_binding
+            .as_object_mut()
+            .expect("channel modifier request object")
+            .remove("input_sha256");
+        channel["input_sha256"] = Value::String(canonical_json_hash(&channel_binding));
+        let channel_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":180,
+                "method":"tools/call",
+                "params":{"name":"geometry_program_hash","arguments":channel}
+            }),
+        )
+        .expect("recessed-channel modifier MCP response");
+        assert_eq!(
+            channel_response["result"]["structuredContent"]["geometry_program"]["nodes"][0]
+                ["operator_id"],
+            "forgecad.geometry.recessed-channel@1"
+        );
+        let mut wrong_branch = request.clone();
+        wrong_branch["modifiers"][0]["parameters"] =
+            json!({"shape":"mirror","axis":"x","offset_m":0.0});
+        let mut nested_unknown = request.clone();
+        nested_unknown["modifiers"][0]["parameters"]["script"] = json!("python.exec");
+        let mut base_nested_unknown = request.clone();
+        base_nested_unknown["base_node"]["parameters"]["script"] = json!("python.exec");
+        let mut base_wrong_branch = request.clone();
+        base_wrong_branch["base_node"]["operator_id"] = json!("forgecad.geometry.panel@1");
+        let mut cross_branch_field = request;
+        cross_branch_field["kit_id"] = json!("forgecad.kit.panel@1");
+        for (id, arguments) in [
+            (171, wrong_branch),
+            (172, nested_unknown),
+            (173, cross_branch_field),
+            (174, base_nested_unknown),
+            (178, base_wrong_branch),
+        ] {
+            let response = handle(
+                &mut backend,
+                &mut session,
+                &json!({
+                    "jsonrpc":"2.0",
+                    "id":id,
+                    "method":"tools/call",
+                    "params":{"name":"geometry_program_hash","arguments":arguments}
+                }),
+            )
+            .expect("invalid modifier schema response");
+            assert_eq!(response["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        }
+    }
+
+    #[test]
+    fn geometry_modifier_evaluation_v2_round_trips_and_remains_closed_and_read_only() {
+        let (mut backend, mut session) = initialized();
+        let project = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .create_project("MCP modifier evaluation v2", json!({"scope":"test"}))
+                .expect("project"),
+            _ => unreachable!("test backend"),
+        };
+        let make_request = |previous_evaluation: Value| {
+            let mut request = json!({
+                "schema_version":"GeometryModifierEvaluationRequest@2",
+                "project_id":project.project_id,
+                "representation_plan_sha256":"6".repeat(64),
+                "part_id":"shell",
+                "material_zone_id":"zone-shell",
+                "solid":true,
+                "base_node":{"node_id":"base","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                "modifiers":[
+                    {"modifier_id":"round","enabled":true,"operator_id":"forgecad.geometry.bevel@1","parameters":{"shape":"bevel","width_m":0.05,"segments":2,"profile":0.5,"edge_scope":"all-source-box-edges","clamp_overlap":false}},
+                    {"modifier_id":"preview","enabled":false,"operator_id":"forgecad.geometry.mirror@1","parameters":{"shape":"mirror","axis":"x","offset_m":0.0}},
+                    {"modifier_id":"shade","enabled":true,"operator_id":"forgecad.geometry.normal-policy@1","parameters":{"shape":"normal-policy","weighting":"face-area-x-corner-angle","crease_angle_rad":1.0,"keep_sharp":true,"output_domain":"corner"}}
+                ],
+                "previous_evaluation":previous_evaluation,
+                "input_sha256":""
+            });
+            let mut binding = request.clone();
+            binding.as_object_mut().unwrap().remove("input_sha256");
+            request["input_sha256"] = Value::String(canonical_json_hash(&binding));
+            request
+        };
+        let call = |backend: &mut Backend, session: &mut Session, id: u64, arguments: Value| {
+            handle(
+                backend,
+                session,
+                &json!({
+                    "jsonrpc":"2.0",
+                    "id":id,
+                    "method":"tools/call",
+                    "params":{"name":"geometry_program_hash","arguments":arguments}
+                }),
+            )
+            .expect("modifier evaluation MCP response")
+        };
+        let initial = call(&mut backend, &mut session, 175, make_request(Value::Null));
+        assert_eq!(initial["result"]["isError"], Value::Null);
+        let initial_content = &initial["result"]["structuredContent"];
+        assert_eq!(
+            initial_content["schema_version"],
+            "GeometryModifierEvaluationResult@2"
+        );
+        assert_eq!(initial_content["cache_decision"], "initial-miss");
+        assert_eq!(initial_content["quality_status"], "structural_only");
+        assert_eq!(initial_content["reuse_kind"], "semantic-signature-only");
+        assert_eq!(
+            initial_content["output_kind"],
+            "geometry-program-canonical-sha256"
+        );
+
+        let repeat = call(
+            &mut backend,
+            &mut session,
+            176,
+            make_request(initial_content["evaluation_signature"].clone()),
+        );
+        assert_eq!(
+            repeat["result"]["structuredContent"]["cache_decision"],
+            "reusable"
+        );
+        assert_eq!(
+            repeat["result"]["structuredContent"]["evaluation_dirty"],
+            false
+        );
+
+        let mut nested_unknown = make_request(initial_content["evaluation_signature"].clone());
+        nested_unknown["previous_evaluation"]["stages"][0]["runtime_pointer"] = json!("0xdeadbeef");
+        let rejected = call(&mut backend, &mut session, 177, nested_unknown);
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+
+        let mut base_wrong_branch = make_request(initial_content["evaluation_signature"].clone());
+        base_wrong_branch["base_node"]["operator_id"] = json!("forgecad.geometry.panel@1");
+        let rejected = call(&mut backend, &mut session, 179, base_wrong_branch);
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+
+        let candidates = match &backend {
+            Backend::InProcess(runtime) => {
+                runtime.candidates(&project.project_id).expect("candidates")
+            }
+            _ => unreachable!("test backend"),
+        };
+        assert!(
+            candidates.is_empty(),
+            "modifier evaluation v2 must not create candidates"
+        );
+    }
+
+    #[test]
+    fn topology_snapshot_round_trips_as_a_closed_read_only_mcp_tool() {
+        let tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "topology_snapshot_get")
+            .expect("topology snapshot tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["snapshot_policy_sha256"]["const"],
+            "7d6b64a92c00841d80ec887542ff11b968fd387f7b5bdf5b4b4522a52ff1af28"
+        );
+
+        let (mut backend, mut session) = initialized();
+        let (project, prepared) = match &backend {
+            Backend::InProcess(runtime) => {
+                let project = runtime
+                    .create_project("MCP topology transport", json!({"scope":"test"}))
+                    .expect("project");
+                let catalog_sha256 = runtime.active_operator_catalog()["canonical_sha256"]
+                    .as_str()
+                    .expect("catalog hash")
+                    .to_owned();
+                let mut program = json!({
+                    "schema_version":"GeometryProgram@2",
+                    "project_id":project.project_id,
+                    "representation_plan_sha256":"8".repeat(64),
+                    "operator_catalog_sha256":catalog_sha256,
+                    "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                    "budgets":{"max_nodes":1,"max_triangles":1000,"max_glb_bytes":1048576,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                    "nodes":[{"node_id":"shell","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}}],
+                    "part_outputs":[{"part_id":"shell","input_node_ids":["shell"],"material_zone_id":"zone-shell","solid":true}]
+                });
+                program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
+                let prepared = runtime
+                    .prepare_geometry_candidate(
+                        &project.project_id,
+                        None,
+                        json!({"typed":"geometry","geometry_program":program}),
+                    )
+                    .expect("V2 geometry prepare");
+                (project, prepared)
+            }
+            _ => unreachable!("test backend"),
+        };
+        let artifact = &prepared["artifact"];
+        let arguments = json!({
+            "schema_version":"TopologySnapshotRequest@1",
+            "project_id":project.project_id,
+            "artifact_id":artifact["artifact_id"],
+            "candidate_id":prepared["candidate"]["candidate_id"],
+            "part_id":"shell",
+            "artifact_readback_sha256":artifact["canonical_sha256"],
+            "program_sha256":artifact["program_sha256"],
+            "operator_catalog_sha256":artifact["operator_catalog_sha256"],
+            "readback_config_sha256":artifact["readback_config_sha256"],
+            "snapshot_policy_sha256":"7d6b64a92c00841d80ec887542ff11b968fd387f7b5bdf5b4b4522a52ff1af28",
+            "max_face_count":512
+        });
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":175,
+                "method":"tools/call",
+                "params":{"name":"topology_snapshot_get","arguments":arguments.clone()}
+            }),
+        )
+        .expect("topology MCP response");
+        assert_eq!(
+            response["result"]["structuredContent"]["schema_version"],
+            "TopologySnapshot@1"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["counts"]["face_count"],
+            12
+        );
+        assert!(serde_json::to_vec(&response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES);
+        let content_summary: Value = serde_json::from_str(
+            response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("bounded topology summary text"),
+        )
+        .expect("topology summary JSON");
+        assert_eq!(
+            content_summary["schema_version"],
+            "TopologySnapshotMcpSummary@1"
+        );
+        assert_eq!(content_summary["structured_content_complete"], true);
+        assert!(content_summary.get("vertices").is_none());
+        let mut unknown = arguments;
+        unknown["python"] = json!("bpy.ops");
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":176,
+                "method":"tools/call",
+                "params":{"name":"topology_snapshot_get","arguments":unknown}
+            }),
+        )
+        .expect("invalid topology schema response");
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        let candidate_count = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .candidates(&project.project_id)
+                .expect("candidates")
+                .len(),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(
+            candidate_count, 1,
+            "topology readback must not create a candidate"
+        );
+    }
+
+    #[test]
+    fn authoring_topology_and_edit_preview_round_trip_as_closed_read_only_mcp_tools() {
+        let tools = tools_with_writes(false);
+        for name in ["authoring_topology_get", "authoring_mesh_edit_preview"] {
+            let tool = tools
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .unwrap_or_else(|| panic!("missing {name}"));
+            assert_eq!(tool["annotations"]["readOnlyHint"], true);
+            assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        }
+        let preview_tool = tools
+            .iter()
+            .find(|tool| tool["name"] == "authoring_mesh_edit_preview")
+            .expect("preview tool");
+        assert_eq!(
+            preview_tool["inputSchema"]["properties"]["edit"]["oneOf"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+
+        let (mut backend, mut session) = initialized();
+        let (project, prepared) = match &backend {
+            Backend::InProcess(runtime) => {
+                let project = runtime
+                    .create_project("MCP authoring topology", json!({"scope":"test"}))
+                    .expect("project");
+                let catalog_sha256 = runtime.active_operator_catalog()["canonical_sha256"]
+                    .as_str()
+                    .expect("catalog hash")
+                    .to_owned();
+                let mut program = json!({
+                    "schema_version":"GeometryProgram@2",
+                    "project_id":project.project_id,
+                    "representation_plan_sha256":"b".repeat(64),
+                    "operator_catalog_sha256":catalog_sha256,
+                    "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                    "budgets":{"max_nodes":1,"max_triangles":32,"max_glb_bytes":67108864,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                    "nodes":[{
+                        "node_id":"authored-panel",
+                        "operator_id":"forgecad.geometry.authoring-mesh@1",
+                        "inputs":[],
+                        "parameters":{
+                            "shape":"authoring-mesh",
+                            "topology_policy":"triangle-quad-manifold-with-boundary@1",
+                            "vertices":[
+                                {"element_id":"v0","position_m":[-1.0,-1.0,0.0]},
+                                {"element_id":"v1","position_m":[1.0,-1.0,0.0]},
+                                {"element_id":"v2","position_m":[1.0,1.0,0.0]},
+                                {"element_id":"v3","position_m":[-1.0,1.0,0.0]}
+                            ],
+                            "edges":[
+                                {"element_id":"e01","vertex_ids":["v0","v1"]},
+                                {"element_id":"e03","vertex_ids":["v0","v3"]},
+                                {"element_id":"e12","vertex_ids":["v1","v2"]},
+                                {"element_id":"e23","vertex_ids":["v2","v3"]}
+                            ],
+                            "loops":[
+                                {"element_id":"l0","face_id":"f0","ordinal":0,"vertex_id":"v0","edge_id":"e01","edge_forward":true},
+                                {"element_id":"l1","face_id":"f0","ordinal":1,"vertex_id":"v1","edge_id":"e12","edge_forward":true},
+                                {"element_id":"l2","face_id":"f0","ordinal":2,"vertex_id":"v2","edge_id":"e23","edge_forward":true},
+                                {"element_id":"l3","face_id":"f0","ordinal":3,"vertex_id":"v3","edge_id":"e03","edge_forward":false}
+                            ],
+                            "faces":[{"element_id":"f0","loop_ids":["l0","l1","l2","l3"]}],
+                            "position_m":[0.0,0.0,0.0],
+                            "rotation_rad":[0.0,0.0,0.0]
+                        }
+                    }],
+                    "part_outputs":[{"part_id":"authored-panel","input_node_ids":["authored-panel"],"material_zone_id":"zone-authored-shell","solid":false}]
+                });
+                program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
+                let prepared = runtime
+                    .prepare_geometry_candidate(
+                        &project.project_id,
+                        None,
+                        json!({"typed":"geometry","geometry_program":program}),
+                    )
+                    .expect("authoring geometry prepare");
+                (project, prepared)
+            }
+            _ => unreachable!("test backend"),
+        };
+        let artifact = &prepared["artifact"];
+        let arguments = json!({
+            "schema_version":"AuthoringTopologyRequest@1",
+            "project_id":project.project_id,
+            "candidate_id":prepared["candidate"]["candidate_id"],
+            "artifact_id":artifact["artifact_id"],
+            "artifact_readback_sha256":artifact["canonical_sha256"],
+            "program_sha256":artifact["program_sha256"],
+            "operator_catalog_sha256":artifact["operator_catalog_sha256"],
+            "readback_config_sha256":artifact["readback_config_sha256"],
+            "authoring_node_id":"authored-panel",
+            "part_id":"authored-panel",
+            "authoring_topology_policy_sha256":"a6fb36a530e49537673b66d65ecb6e4fb4f51ffb3e7d01a0980be71f28cb367d",
+            "max_response_bytes":1048576
+        });
+        let topology_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":181,"method":"tools/call","params":{"name":"authoring_topology_get","arguments":arguments.clone()}}),
+        )
+        .expect("authoring topology response");
+        assert_eq!(
+            topology_response["result"]["structuredContent"]["schema_version"],
+            "AuthoringTopology@1"
+        );
+        assert_eq!(
+            topology_response["result"]["structuredContent"]["counts"]["face_count"],
+            1
+        );
+        assert!(
+            serde_json::to_vec(&topology_response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES
+        );
+        let base_topology_sha256 =
+            topology_response["result"]["structuredContent"]["topology_sha256"].clone();
+
+        let mut preview_arguments = json!({
+            "schema_version":"AuthoringMeshEditPreviewRequest@1",
+            "topology_request":arguments,
+            "base_topology_sha256":base_topology_sha256,
+            "edit":{"operation":"single_face_extrude","face_id":"f0","distance_m":0.25},
+            "edit_policy_sha256":"1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae"
+        });
+        let input_sha256 = canonical_json_hash(&preview_arguments);
+        preview_arguments["input_sha256"] = Value::String(input_sha256);
+        let preview_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":182,"method":"tools/call","params":{"name":"authoring_mesh_edit_preview","arguments":preview_arguments.clone()}}),
+        )
+        .expect("authoring preview response");
+        assert_eq!(
+            preview_response["result"]["structuredContent"]["schema_version"],
+            "AuthoringMeshEditPreview@1"
+        );
+        assert_eq!(
+            preview_response["result"]["structuredContent"]["counts"]["after"]["triangle_count"],
+            10
+        );
+        assert_eq!(
+            preview_response["result"]["structuredContent"]["runtime_write_performed"],
+            false
+        );
+        assert!(
+            serde_json::to_vec(&preview_response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES
+        );
+
+        let read_tools = tools_with_writes(false);
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "authoring_mesh_edit_prepare"));
+        let prepare_tool = tools_with_writes(true)
+            .into_iter()
+            .find(|tool| tool["name"] == "authoring_mesh_edit_prepare")
+            .expect("authoring prepare write tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["idempotentHint"], true);
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["preview_request"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            prepare_tool["_meta"]["forgecad"]["requiresConfirmation"],
+            true
+        );
+        assert_eq!(prepare_tool["_meta"]["forgecad"]["transaction"], "MCP010F");
+        assert!(is_write_tool("authoring_mesh_edit_prepare"));
+
+        let mut expected_candidate_count = 1;
+        if build_cohort_sha256().is_some() {
+            let mut prepare_arguments = json!({
+                "schema_version":"AuthoringMeshEditPrepareRequest@1",
+                "project_id":project.project_id,
+                "source_candidate_id":prepared["candidate"]["candidate_id"],
+                "base_version_id":null,
+                "preview_request":preview_arguments.clone(),
+                "expected_preview_canonical_sha256":preview_response["result"]["structuredContent"]["canonical_sha256"],
+                "idempotency_key":"mcp-authoring-edit-prepare-once",
+                "max_response_bytes":1048576
+            });
+            prepare_arguments["input_sha256"] =
+                Value::String(canonical_json_hash(&prepare_arguments));
+            let disabled = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":185,"method":"tools/call","params":{"name":"authoring_mesh_edit_prepare","arguments":prepare_arguments.clone()}}),
+            )
+            .expect("disabled authoring prepare response");
+            assert_eq!(disabled["result"]["isError"], true);
+
+            session.write_tools_enabled = true;
+            let prepared_response = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":186,"method":"tools/call","params":{"name":"authoring_mesh_edit_prepare","arguments":prepare_arguments.clone()}}),
+            )
+            .expect("authoring prepare response");
+            assert_eq!(
+                prepared_response["result"]["structuredContent"]["schema_version"],
+                "AuthoringMeshEditPrepare@1"
+            );
+            assert_eq!(
+                prepared_response["result"]["structuredContent"]["candidate"]["state"],
+                "reviewable"
+            );
+            assert_eq!(
+                prepared_response["result"]["structuredContent"]["confirm_status"],
+                "approval-required"
+            );
+            let summary: Value = serde_json::from_str(
+                prepared_response["result"]["content"][0]["text"]
+                    .as_str()
+                    .expect("prepare summary text"),
+            )
+            .expect("prepare summary JSON");
+            assert_eq!(
+                summary["schema_version"],
+                "AuthoringMeshEditPrepareMcpSummary@1"
+            );
+            assert_eq!(summary["structured_content_complete"], true);
+            assert_eq!(summary["confirm_status"], "approval-required");
+            assert!(
+                serde_json::to_vec(&prepared_response).unwrap().len()
+                    <= READ_MODEL_MCP_WIRE_MAX_BYTES
+            );
+            let replay_response = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":187,"method":"tools/call","params":{"name":"authoring_mesh_edit_prepare","arguments":prepare_arguments.clone()}}),
+            )
+            .expect("authoring prepare replay response");
+            assert_eq!(
+                replay_response["result"]["structuredContent"],
+                prepared_response["result"]["structuredContent"]
+            );
+            let mut unknown_prepare = prepare_arguments;
+            unknown_prepare["preview_request"]["edit"]["python"] =
+                json!("bmesh.ops.extrude_face_region");
+            let rejected_prepare = handle(
+                &mut backend,
+                &mut session,
+                &json!({"jsonrpc":"2.0","id":188,"method":"tools/call","params":{"name":"authoring_mesh_edit_prepare","arguments":unknown_prepare}}),
+            )
+            .expect("invalid authoring prepare schema response");
+            assert_eq!(
+                rejected_prepare["error"]["data"]["code"],
+                "INVALID_TOOL_PARAMS"
+            );
+            expected_candidate_count = 2;
+        }
+
+        let mut stale = preview_arguments.clone();
+        stale["base_topology_sha256"] = json!("f".repeat(64));
+        let mut stale_preimage = stale.clone();
+        stale_preimage
+            .as_object_mut()
+            .unwrap()
+            .remove("input_sha256");
+        stale["input_sha256"] = Value::String(canonical_json_hash(&stale_preimage));
+        let stale_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":183,"method":"tools/call","params":{"name":"authoring_mesh_edit_preview","arguments":stale}}),
+        )
+        .expect("stale preview response");
+        assert_eq!(stale_response["result"]["isError"], true);
+
+        let mut unknown = preview_arguments;
+        unknown["edit"]["python"] = json!("bmesh.ops.extrude_face_region");
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":184,"method":"tools/call","params":{"name":"authoring_mesh_edit_preview","arguments":unknown}}),
+        )
+        .expect("invalid authoring preview schema response");
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        let candidate_count = match &backend {
+            Backend::InProcess(runtime) => runtime.candidates(&project.project_id).unwrap().len(),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(candidate_count, expected_candidate_count);
+    }
+
+    #[test]
+    fn mechanical_pose_round_trips_as_a_closed_candidate_bound_read_only_tool() {
+        let tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "mechanical_pose_evaluate")
+            .expect("mechanical pose tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        let branches = tool["inputSchema"]["oneOf"]
+            .as_array()
+            .expect("single and sequence pose branches");
+        assert_eq!(branches.len(), 2);
+        assert_eq!(branches[0]["additionalProperties"], false);
+        assert_eq!(
+            branches[0]["properties"]["schema_version"]["const"],
+            "MechanicalPoseEvaluationRequest@1"
+        );
+        assert_eq!(
+            branches[1]["properties"]["schema_version"]["const"],
+            "MechanicalPoseSequencePreviewRequest@1"
+        );
+        assert_eq!(
+            branches[1]["properties"]["sample_time_ticks"]["maxItems"],
+            16
+        );
+        assert_eq!(
+            branches[0]["properties"]["rest_frame_draft"]["properties"]["links"]["maxItems"],
+            64
+        );
+
+        let (mut backend, mut session) = initialized();
+        let (project, prepared) = match &backend {
+            Backend::InProcess(runtime) => {
+                let project = runtime
+                    .create_project("MCP mechanical pose transport", json!({"scope":"test"}))
+                    .expect("project");
+                let catalog_sha256 = runtime.active_operator_catalog()["canonical_sha256"]
+                    .as_str()
+                    .expect("catalog hash")
+                    .to_owned();
+                let mut program = json!({
+                    "schema_version":"GeometryProgram@2",
+                    "project_id":project.project_id,
+                    "representation_plan_sha256":"7".repeat(64),
+                    "operator_catalog_sha256":catalog_sha256,
+                    "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                    "budgets":{"max_nodes":1,"max_triangles":1000,"max_glb_bytes":1048576,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                    "nodes":[{"node_id":"root-node","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}}],
+                    "part_outputs":[{"part_id":"root-part","input_node_ids":["root-node"],"material_zone_id":"zone-root","solid":true}]
+                });
+                program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
+                let prepared = runtime
+                    .prepare_geometry_candidate(
+                        &project.project_id,
+                        None,
+                        json!({"typed":"geometry","geometry_program":program}),
+                    )
+                    .expect("geometry prepare");
+                (project, prepared)
+            }
+            _ => unreachable!("test backend"),
+        };
+        let artifact = &prepared["artifact"];
+        let mut arguments = json!({
+            "schema_version":"MechanicalPoseEvaluationRequest@1",
+            "project_id":project.project_id,
+            "artifact_id":artifact["artifact_id"],
+            "candidate_id":prepared["candidate"]["candidate_id"],
+            "artifact_readback_sha256":artifact["canonical_sha256"],
+            "program_sha256":artifact["program_sha256"],
+            "operator_catalog_sha256":artifact["operator_catalog_sha256"],
+            "readback_config_sha256":artifact["readback_config_sha256"],
+            "rest_frame_draft":{
+                "schema_version":"MechanicalRestFrameDraft@1",
+                "rest_frame_id":"mcp-rest",
+                "coordinate_system":"forgecad-rh-y-up-m@1",
+                "transform_convention":"column-vector-trs-quaternion@1",
+                "root_link_id":"root-link",
+                "links":[{"link_id":"root-link","part_id":"root-part","source_node_ids":["root-node"],"joint_type":"fixed","rest_translation_m":[0.0,0.0,0.0],"rest_rotation_quat_xyzw":[0.0,0.0,0.0,1.0],"axis_local":null,"limit_min":null,"limit_max":null,"value_unit":"none"}],
+                "parent_map":[]
+            },
+            "pose_action_draft":null,
+            "sample_time_ticks":0,
+            "input_sha256":""
+        });
+        let mut preimage = arguments.clone();
+        preimage.as_object_mut().unwrap().remove("input_sha256");
+        arguments["input_sha256"] = Value::String(canonical_json_hash(&preimage));
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":177,"method":"tools/call","params":{"name":"mechanical_pose_evaluate","arguments":arguments.clone()}}),
+        )
+        .expect("mechanical pose MCP response");
+        assert_eq!(
+            response["result"]["structuredContent"]["schema_version"],
+            "MechanicalPoseEvaluationResult@1",
+            "{response}"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["geometry_materialization"],
+            "not-materialized"
+        );
+        let preview_tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "mechanical_pose_geometry_preview")
+            .expect("mechanical pose geometry preview tool");
+        assert_eq!(preview_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(preview_tool["inputSchema"]["additionalProperties"], false);
+        let mut preview = json!({
+            "schema_version":"MechanicalPoseGeometryPreviewRequest@1",
+            "pose_evaluation_request":arguments.clone(),
+            "preview_policy":"transient-derived-program-worker-readback@1",
+            "input_sha256":""
+        });
+        let mut preview_preimage = preview.clone();
+        preview_preimage
+            .as_object_mut()
+            .unwrap()
+            .remove("input_sha256");
+        preview["input_sha256"] = Value::String(canonical_json_hash(&preview_preimage));
+        let preview_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":181,"method":"tools/call","params":{"name":"mechanical_pose_geometry_preview","arguments":preview.clone()}}),
+        )
+        .expect("mechanical pose geometry preview MCP response");
+        assert_eq!(
+            preview_response["result"]["structuredContent"]["schema_version"],
+            "MechanicalPoseGeometryPreview@1",
+            "{preview_response}"
+        );
+        assert_eq!(
+            preview_response["result"]["structuredContent"]["runtime_write_performed"],
+            false
+        );
+        assert!(
+            serde_json::to_vec(&preview_response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES
+        );
+        let preview_summary: Value = serde_json::from_str(
+            preview_response["result"]["content"][0]["text"]
+                .as_str()
+                .unwrap(),
+        )
+        .expect("preview summary JSON");
+        assert_eq!(
+            preview_summary["schema_version"],
+            "MechanicalPoseGeometryPreviewMcpSummary@1"
+        );
+        assert!(preview_summary.get("posed_geometry_program").is_none());
+        let mut invalid_preview = preview;
+        invalid_preview["python"] = json!("bpy.ops");
+        let invalid_preview_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":182,"method":"tools/call","params":{"name":"mechanical_pose_geometry_preview","arguments":invalid_preview}}),
+        )
+        .expect("invalid preview schema response");
+        assert_eq!(
+            invalid_preview_response["error"]["data"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+        let mut sequence = arguments.clone();
+        sequence["schema_version"] = json!("MechanicalPoseSequencePreviewRequest@1");
+        sequence["sample_time_ticks"] = json!([0]);
+        let mut preimage = sequence.clone();
+        preimage.as_object_mut().unwrap().remove("input_sha256");
+        sequence["input_sha256"] = Value::String(canonical_json_hash(&preimage));
+        let sequence_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":178,"method":"tools/call","params":{"name":"mechanical_pose_evaluate","arguments":sequence.clone()}}),
+        )
+        .expect("mechanical pose sequence MCP response");
+        assert_eq!(
+            sequence_response["result"]["structuredContent"]["schema_version"],
+            "MechanicalPoseSequencePreview@1",
+            "{sequence_response}"
+        );
+        assert_eq!(
+            sequence_response["result"]["structuredContent"]["samples"][0]["evaluated_pose_sha256"],
+            response["result"]["structuredContent"]["evaluated_pose_sha256"]
+        );
+        assert!(
+            serde_json::to_vec(&sequence_response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES,
+            "mechanical pose sequence MCP response must remain inside the 1 MiB wire budget"
+        );
+        let content_summary: Value = serde_json::from_str(
+            sequence_response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("mechanical pose summary text"),
+        )
+        .expect("mechanical pose summary JSON");
+        assert_eq!(
+            content_summary["schema_version"],
+            "MechanicalPoseMcpSummary@1"
+        );
+        assert_eq!(content_summary["structured_content_complete"], true);
+        assert!(content_summary.get("samples").is_none());
+        let mut duplicate_sequence = sequence.clone();
+        duplicate_sequence["sample_time_ticks"] = json!([0, 0]);
+        let mut preimage = duplicate_sequence.clone();
+        preimage.as_object_mut().unwrap().remove("input_sha256");
+        duplicate_sequence["input_sha256"] = Value::String(canonical_json_hash(&preimage));
+        let duplicate_rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":179,"method":"tools/call","params":{"name":"mechanical_pose_evaluate","arguments":duplicate_sequence}}),
+        )
+        .expect("duplicate sequence response");
+        assert_eq!(duplicate_rejected["result"]["isError"], true);
+        assert!(duplicate_rejected["result"]["structuredContent"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("strictly increasing and unique")));
+        let mut unknown_sequence = sequence;
+        unknown_sequence["rest_frame_draft"]["links"][0]["script"] = json!("bpy.ops");
+        let sequence_rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":180,"method":"tools/call","params":{"name":"mechanical_pose_evaluate","arguments":unknown_sequence}}),
+        )
+        .expect("invalid mechanical pose sequence schema response");
+        assert_eq!(
+            sequence_rejected["error"]["data"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+        let mut unknown = arguments;
+        unknown["rest_frame_draft"]["links"][0]["script"] = json!("bpy.ops");
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":179,"method":"tools/call","params":{"name":"mechanical_pose_evaluate","arguments":unknown}}),
+        )
+        .expect("invalid mechanical pose schema response");
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
+        let candidate_count = match &backend {
+            Backend::InProcess(runtime) => runtime
+                .candidates(&project.project_id)
+                .expect("candidates")
+                .len(),
+            _ => unreachable!("test backend"),
+        };
+        assert_eq!(
+            candidate_count, 1,
+            "pose evaluation must not create a candidate"
+        );
+    }
+
+    #[test]
+    fn mechanical_animation_clip_tools_are_closed_and_write_split() {
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools
+            .iter()
+            .any(|tool| tool["name"] == "mechanical_animation_clip_get"));
+        assert!(read_tools
+            .iter()
+            .any(|tool| tool["name"] == "mechanical_animation_clip_preview_get"));
+        assert!(read_tools
+            .iter()
+            .any(|tool| tool["name"] == "game_asset_delivery_get"));
+        let anchor_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "game_weapon_anchor_get")
+            .expect("weapon anchor get read tool");
+        assert_eq!(anchor_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(anchor_get["inputSchema"]["additionalProperties"], false);
+        let vfx_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_get")
+            .expect("fictional energy VFX get read tool");
+        assert_eq!(vfx_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(vfx_get["inputSchema"]["additionalProperties"], false);
+        let vfx_frame = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_frame_sample")
+            .expect("fictional energy VFX frame sample read tool");
+        assert_eq!(vfx_frame["annotations"]["readOnlyHint"], true);
+        assert_eq!(vfx_frame["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            vfx_frame["inputSchema"]["properties"]["sampling_policy"]["const"],
+            "integer-tick-linear-once-clamp-loop-modulo-duration@1"
+        );
+        let vfx_appearance_frame = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_appearance_frame_sample")
+            .expect("fictional energy VFX appearance frame sample read tool");
+        assert_eq!(vfx_appearance_frame["annotations"]["readOnlyHint"], true);
+        assert_eq!(
+            vfx_appearance_frame["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            vfx_appearance_frame["inputSchema"]["properties"]["appearance_binding_policy"]["const"],
+            "three-lod-appearance-program-glb-material-zone-stable-id@1"
+        );
+        let vfx_rendered_frame_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_rendered_frame_get")
+            .expect("fictional energy VFX rendered frame get read tool");
+        assert_eq!(vfx_rendered_frame_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(
+            vfx_rendered_frame_get["inputSchema"]["additionalProperties"],
+            false
+        );
+        let vfx_rendered_sequence_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_rendered_sequence_get")
+            .expect("fictional energy VFX rendered sequence get read tool");
+        assert_eq!(
+            vfx_rendered_sequence_get["annotations"]["readOnlyHint"],
+            true
+        );
+        assert_eq!(
+            vfx_rendered_sequence_get["inputSchema"]["additionalProperties"],
+            false
+        );
+        let vfx_bloom_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_hdr_bloom_get")
+            .expect("fictional energy VFX HDR bloom get read tool");
+        assert_eq!(vfx_bloom_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(vfx_bloom_get["inputSchema"]["additionalProperties"], false);
+        let appearance_source_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "appearance_source_lineage_get")
+            .expect("Appearance source lineage get read tool");
+        assert_eq!(appearance_source_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(
+            appearance_source_get["inputSchema"]["additionalProperties"],
+            false
+        );
+        let lod_derive = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "game_asset_lod_derive")
+            .expect("automatic LOD derive read tool");
+        assert_eq!(lod_derive["annotations"]["readOnlyHint"], true);
+        assert_eq!(lod_derive["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            lod_derive["inputSchema"]["properties"]["derive_policy"]["const"],
+            "runtime-owned-typed-segment-lowering-lod1-half-lod2-quarter@1"
+        );
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "mechanical_animation_clip_prepare"));
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "mechanical_animation_glb_prepare"));
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "game_asset_delivery_prepare"));
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "game_weapon_anchor_prepare"));
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "fictional_energy_vfx_prepare"));
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "fictional_energy_vfx_rendered_frame_prepare"));
+        assert!(!read_tools
+            .iter()
+            .any(|tool| { tool["name"] == "fictional_energy_vfx_rendered_sequence_prepare" }));
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "fictional_energy_vfx_hdr_bloom_prepare"));
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "appearance_source_lineage_prepare"));
+        assert!(!is_write_tool("mechanical_animation_clip_get"));
+        assert!(!is_write_tool("mechanical_animation_clip_preview_get"));
+        assert!(!is_write_tool("game_asset_delivery_get"));
+        assert!(!is_write_tool("game_asset_lod_derive"));
+        assert!(!is_write_tool("game_weapon_anchor_get"));
+        assert!(!is_write_tool("fictional_energy_vfx_get"));
+        assert!(!is_write_tool("fictional_energy_vfx_frame_sample"));
+        assert!(!is_write_tool(
+            "fictional_energy_vfx_appearance_frame_sample"
+        ));
+        assert!(!is_write_tool("fictional_energy_vfx_rendered_frame_get"));
+        assert!(!is_write_tool("fictional_energy_vfx_rendered_sequence_get"));
+        assert!(!is_write_tool("fictional_energy_vfx_hdr_bloom_get"));
+        assert!(!is_write_tool("appearance_source_lineage_get"));
+        assert!(is_write_tool("mechanical_animation_clip_prepare"));
+        assert!(is_write_tool("mechanical_animation_glb_prepare"));
+        assert!(is_write_tool("game_asset_delivery_prepare"));
+        assert!(is_write_tool("game_weapon_anchor_prepare"));
+        assert!(is_write_tool("fictional_energy_vfx_prepare"));
+        assert!(is_write_tool("fictional_energy_vfx_rendered_frame_prepare"));
+        assert!(is_write_tool(
+            "fictional_energy_vfx_rendered_sequence_prepare"
+        ));
+        assert!(is_write_tool("fictional_energy_vfx_hdr_bloom_prepare"));
+        assert!(is_write_tool("appearance_source_lineage_prepare"));
+
+        let write_tools = tools_with_writes(true);
+        let prepare_tool = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "mechanical_animation_clip_prepare")
+            .expect("clip prepare write tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["clip_policy"]["const"],
+            "runtime-owned-immutable-cas-rigid-mechanical-action@1"
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["pose_sequence_request"]["properties"]
+                ["sample_time_ticks"]["maxItems"],
+            16
+        );
+        assert_eq!(prepare_tool["_meta"]["forgecad"]["transaction"], "MCP010F");
+
+        let glb_tool = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "mechanical_animation_glb_prepare")
+            .expect("animation GLB prepare write tool");
+        assert_eq!(glb_tool["annotations"]["readOnlyHint"], false);
+        let anchor_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "game_weapon_anchor_prepare")
+            .expect("weapon anchor prepare write tool");
+        assert_eq!(anchor_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(anchor_prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            anchor_prepare["inputSchema"]["properties"]["anchor_policy"]["const"],
+            "weapon-rh-x-forward-y-up-model-space-six-role@1"
+        );
+        let vfx_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_prepare")
+            .expect("fictional energy VFX prepare write tool");
+        assert_eq!(vfx_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(vfx_prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            vfx_prepare["inputSchema"]["properties"]["vfx_policy"]["const"],
+            "fictional-energy-two-effect-time-sampled-emissive-intent@1"
+        );
+        let vfx_frame_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_rendered_frame_prepare")
+            .expect("fictional energy VFX rendered frame prepare write tool");
+        assert_eq!(vfx_frame_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(
+            vfx_frame_prepare["inputSchema"]["properties"]["render_policy"]["const"],
+            "lod0-nine-aov-double-worker-byte-exact-reservation-safe@1"
+        );
+        assert_eq!(
+            vfx_frame_prepare["inputSchema"]["properties"]["effect_materialization_policy"]
+                ["const"],
+            "independent-effect-material-zone@1"
+        );
+        let vfx_sequence_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_rendered_sequence_prepare")
+            .expect("fictional energy VFX rendered sequence prepare write tool");
+        assert_eq!(vfx_sequence_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(
+            vfx_sequence_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            vfx_sequence_prepare["inputSchema"]["properties"]["sample_time_ticks"]["minItems"],
+            2
+        );
+        assert_eq!(
+            vfx_sequence_prepare["inputSchema"]["properties"]["sample_time_ticks"]["maxItems"],
+            16
+        );
+        let vfx_bloom_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_hdr_bloom_prepare")
+            .expect("fictional energy VFX HDR bloom prepare write tool");
+        assert_eq!(vfx_bloom_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(
+            vfx_bloom_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            vfx_bloom_prepare["inputSchema"]["properties"]["bloom_profile"]["properties"]
+                ["radius_px"]["const"],
+            8
+        );
+        let appearance_source_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "appearance_source_lineage_prepare")
+            .expect("Appearance source lineage prepare write tool");
+        assert_eq!(
+            appearance_source_prepare["annotations"]["readOnlyHint"],
+            false
+        );
+        assert_eq!(
+            appearance_source_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            appearance_source_prepare["_meta"]["forgecad"]["transaction"],
+            "MCP010F"
+        );
+        assert_eq!(glb_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            glb_tool["inputSchema"]["properties"]["materialization_policy"]["const"],
+            "rigid-node-trs-gltf-linear-scheduled-samples@1"
+        );
+        assert!(glb_tool["inputSchema"]["properties"]
+            .get("candidate_state_sha256")
+            .is_some());
+
+        let delivery_tool = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "game_asset_delivery_prepare")
+            .expect("game asset delivery prepare write tool");
+        assert_eq!(delivery_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(delivery_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            delivery_tool["inputSchema"]["properties"]["lods"]["minItems"],
+            3
+        );
+        assert_eq!(
+            delivery_tool["inputSchema"]["properties"]["collision_policy"]["const"],
+            "per-part-aabb-box-from-lod2-visual-geometry@1"
+        );
+
+        let sha = "a".repeat(64);
+        let mut prepare = json!({
+            "schema_version":"MechanicalAnimationClipPrepareRequest@1",
+            "clip_id":"fixture-clip",
+            "pose_sequence_request":{
+                "schema_version":"MechanicalPoseSequencePreviewRequest@1",
+                "project_id":"project-fixture",
+                "artifact_id":sha,
+                "candidate_id":"candidate-fixture",
+                "artifact_readback_sha256":"b".repeat(64),
+                "program_sha256":"c".repeat(64),
+                "operator_catalog_sha256":"d".repeat(64),
+                "readback_config_sha256":"e".repeat(64),
+                "rest_frame_draft":{
+                    "schema_version":"MechanicalRestFrameDraft@1",
+                    "rest_frame_id":"rest-fixture",
+                    "coordinate_system":"forgecad-rh-y-up-m@1",
+                    "transform_convention":"column-vector-trs-quaternion@1",
+                    "root_link_id":"root-link",
+                    "links":[{"link_id":"root-link","part_id":"root-part","source_node_ids":["root-node"],"joint_type":"fixed","rest_translation_m":[0.0,0.0,0.0],"rest_rotation_quat_xyzw":[0.0,0.0,0.0,1.0],"axis_local":null,"limit_min":null,"limit_max":null,"value_unit":"none"}],
+                    "parent_map":[]
+                },
+                "pose_action_draft":{
+                    "schema_version":"MechanicalPoseActionDraft@1",
+                    "action_id":"action-fixture",
+                    "timebase_hz":1000,
+                    "duration_ticks":1000,
+                    "interpolation":"linear@1",
+                    "extrapolation":"clamp@1",
+                    "unkeyed_policy":"rest@1",
+                    "channels":[{"link_id":"root-link","value_unit":"radian","keys":[{"time_ticks":0,"value":0.0}]}]
+                },
+                "sample_time_ticks":[0],
+                "input_sha256":"f".repeat(64)
+            },
+            "clip_policy":"runtime-owned-immutable-cas-rigid-mechanical-action@1",
+            "input_sha256":"1".repeat(64)
+        });
+        assert!(
+            validate_declared_tool_input("mechanical_animation_clip_prepare", &prepare, true)
+                .is_ok()
+        );
+        prepare["pose_sequence_request"]["pose_action_draft"]["python"] =
+            json!("bpy.ops.object.modifier_add()");
+        assert!(
+            validate_declared_tool_input("mechanical_animation_clip_prepare", &prepare, true)
+                .is_err()
+        );
+
+        let get = json!({
+            "schema_version":"MechanicalAnimationClipGetRequest@1",
+            "project_id":"project-fixture",
+            "candidate_id":"candidate-fixture",
+            "clip_id":"fixture-clip",
+            "canonical_sha256":"2".repeat(64)
+        });
+        assert!(validate_declared_tool_input("mechanical_animation_clip_get", &get, false).is_ok());
+        let mut glb_prepare = json!({
+            "schema_version":"MechanicalAnimationGlbPrepareRequest@1",
+            "project_id":"project-fixture",
+            "candidate_id":"candidate-fixture",
+            "candidate_state_sha256":"4".repeat(64),
+            "clip_id":"fixture-clip",
+            "materialization_policy":"rigid-node-trs-gltf-linear-scheduled-samples@1",
+            "canonical_sha256":"5".repeat(64)
+        });
+        assert!(validate_declared_tool_input(
+            "mechanical_animation_glb_prepare",
+            &glb_prepare,
+            true
+        )
+        .is_ok());
+        glb_prepare["python"] = json!("bpy.ops.export_scene.gltf()");
+        assert!(validate_declared_tool_input(
+            "mechanical_animation_glb_prepare",
+            &glb_prepare,
+            true
+        )
+        .is_err());
+        let mut preview = json!({
+            "schema_version":"MechanicalAnimationClipPreviewRequest@1",
+            "project_id":"project-fixture",
+            "candidate_id":"candidate-fixture",
+            "clip_id":"fixture-clip",
+            "sample_time_ticks":500,
+            "preview_policy":"single-tick-transient-double-worker-replay@1",
+            "canonical_sha256":"3".repeat(64)
+        });
+        assert!(validate_declared_tool_input(
+            "mechanical_animation_clip_preview_get",
+            &preview,
+            false
+        )
+        .is_ok());
+        preview["script"] = json!("python.exec");
+        assert!(validate_declared_tool_input(
+            "mechanical_animation_clip_preview_get",
+            &preview,
+            false
+        )
+        .is_err());
+
+        let (mut backend, mut session) = initialized();
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1801,
+                "method":"tools/call",
+                "params":{"name":"mechanical_animation_clip_prepare","arguments":{}}
+            }),
+        )
+        .expect("clip prepare disabled response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "MCP010F_MECHANICAL_ANIMATION_CLIP_WRITE_TOOLS_DISABLED"
+        );
+
+        session.write_tools_enabled = true;
+        let enabled_dispatch = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1802,
+                "method":"tools/call",
+                "params":{"name":"mechanical_animation_clip_prepare","arguments":{}}
+            }),
+        )
+        .expect("enabled clip prepare validation response");
+        assert_eq!(
+            enabled_dispatch["error"]["data"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+    }
+
+    #[test]
+    fn fictional_energy_vfx_trails_tools_are_closed_write_split_and_summarized() {
+        let read_tools = tools_with_writes(false);
+        let enabled_tools = tools_with_writes(true);
+        let trail_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_trails_get")
+            .expect("typed trails get read tool");
+        assert_eq!(trail_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(trail_get["annotations"]["destructiveHint"], false);
+        assert_eq!(trail_get["annotations"]["idempotentHint"], true);
+        assert_eq!(trail_get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            trail_get["inputSchema"]["required"],
+            json!(["schema_version", "project_id", "trail_key_sha256"])
+        );
+        assert!(!read_tools
+            .iter()
+            .any(|tool| tool["name"] == "fictional_energy_vfx_trails_prepare"));
+        assert!(!is_write_tool("fictional_energy_vfx_trails_get"));
+
+        let trail_prepare = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_trails_prepare")
+            .expect("typed trails prepare write tool");
+        assert_eq!(trail_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(trail_prepare["annotations"]["destructiveHint"], false);
+        assert_eq!(trail_prepare["annotations"]["idempotentHint"], true);
+        assert_eq!(trail_prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            trail_prepare["_meta"]["forgecad"]["requiresConfirmation"],
+            true
+        );
+        assert_eq!(trail_prepare["_meta"]["forgecad"]["transaction"], "MCP010F");
+        assert!(is_write_tool("fictional_energy_vfx_trails_prepare"));
+
+        let hash = |byte: char| byte.to_string().repeat(64);
+        let mut prepare_arguments = json!({
+            "schema_version":"FictionalEnergyVfxTrailsFrameRenderPrepareRequest@1",
+            "project_id":"project-trails-mcp",
+            "delivery_manifest_object_sha256":hash('a'),
+            "vfx_profile_object_sha256":hash('b'),
+            "anchor_set_object_sha256":hash('c'),
+            "base_frame_key_sha256":hash('d'),
+            "bloom_key_sha256":hash('e'),
+            "current_particle_key_sha256":hash('f'),
+            "particle_history_key_sha256s":[hash('1')],
+            "sample_time_ticks":50,
+            "trail_policy":"two-closed-history-bound-polyline-trails@1",
+            "history_policy":"one-to-four-strictly-earlier-particle-frames@1",
+            "render_policy":"lod0-three-typed-trail-aov-depth-tested-base-bloom-particles-byte-exact-no-bloom-input@1",
+            "bloom_input":false,
+            "canonical_sha256":hash('0')
+        });
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_trails_prepare",
+            &prepare_arguments,
+            true
+        )
+        .is_ok());
+        prepare_arguments["script"] = json!("bpy.ops");
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_trails_prepare",
+            &prepare_arguments,
+            true
+        )
+        .is_err());
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxTrailsFrameGetRequest@1",
+            "project_id":"project-trails-mcp",
+            "trail_key_sha256":hash('9')
+        });
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_trails_get",
+            &get_arguments,
+            false
+        )
+        .is_ok());
+        let mut unknown_get = get_arguments.clone();
+        unknown_get["unexpected"] = json!(true);
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_trails_get",
+            &unknown_get,
+            false
+        )
+        .is_err());
+
+        let (mut backend, mut session) = initialized();
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1901,
+                "method":"tools/call",
+                "params":{"name":"fictional_energy_vfx_trails_prepare","arguments":{}}
+            }),
+        )
+        .expect("typed trails disabled response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "MCP010F_WRITE_TOOLS_DISABLED"
+        );
+
+        session.write_tools_enabled = true;
+        let invalid_enabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1902,
+                "method":"tools/call",
+                "params":{"name":"fictional_energy_vfx_trails_prepare","arguments":{}}
+            }),
+        )
+        .expect("typed trails enabled schema response");
+        assert_eq!(
+            invalid_enabled["error"]["data"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+
+        let receipt = json!({
+            "typed_trails_rendered":true,
+            "trail_count":2,
+            "segment_count":2,
+            "current_particle_key_sha256":hash('f'),
+            "particle_history_key_sha256s":[hash('1')],
+            "history_time_ticks":[40],
+            "pass_artifacts":[
+                {"pass":"trail-color","object_sha256":hash('2')},
+                {"pass":"trail-id","object_sha256":hash('3')},
+                {"pass":"trail-depth","object_sha256":hash('4')}
+            ],
+            "base_aov_byte_exact_verified":true,
+            "bloom_pass_byte_exact_reused":true,
+            "particle_passes_byte_exact_reused":true
+        });
+        for (name, expected_write) in [
+            ("fictional_energy_vfx_trails_prepare", true),
+            ("fictional_energy_vfx_trails_get", false),
+        ] {
+            let summary = fictional_energy_vfx_mcp_summary(name, &json!({"receipt":receipt}))
+                .expect("typed trails summary");
+            let summary: Value = serde_json::from_str(&summary).expect("summary JSON");
+            assert_eq!(summary["schema_version"], "FictionalEnergyVfxMcpSummary@1");
+            assert_eq!(summary["operation"], name);
+            assert_eq!(summary["runtime_write_performed"], expected_write);
+            assert_eq!(summary["trails_rendered"], true);
+            assert_eq!(summary["particles_rendered"], false);
+            assert_eq!(summary["trail_count"], 2);
+            assert_eq!(summary["segment_count"], 2);
+            assert_eq!(summary["current_particle_key_sha256"], hash('f'));
+            assert_eq!(summary["particle_history_key_sha256s"], json!([hash('1')]));
+            assert_eq!(summary["history_time_ticks"], json!([40]));
+            assert_eq!(summary["trail_passes"].as_array().unwrap().len(), 3);
+            assert_eq!(summary["base_aov_byte_exact_verified"], true);
+            assert_eq!(summary["bloom_pass_byte_exact_reused"], true);
+            assert_eq!(summary["particle_passes_byte_exact_reused"], true);
+            assert_eq!(summary["structured_content_complete"], true);
+        }
+    }
+
+    #[test]
+    fn game_weapon_glb_socket_tools_are_closed_write_split_and_truthful() {
+        let read_tools = tools_with_writes(false);
+        let socket_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "game_weapon_glb_socket_get")
+            .expect("GLB socket get read tool");
+        assert_eq!(socket_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(socket_get["annotations"]["destructiveHint"], false);
+        assert_eq!(socket_get["annotations"]["idempotentHint"], true);
+        assert_eq!(socket_get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            socket_get["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "project_id",
+                "socket_materialization_key_sha256"
+            ])
+        );
+        assert_eq!(
+            socket_get["inputSchema"]["properties"]["schema_version"]["const"],
+            "GameWeaponGlbSocketMaterializationGetRequest@1"
+        );
+        assert!(!is_write_tool("game_weapon_glb_socket_get"));
+
+        let write_tools = tools_with_writes(true);
+        let socket_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "game_weapon_glb_socket_prepare")
+            .expect("GLB socket prepare write tool");
+        assert_eq!(socket_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(socket_prepare["annotations"]["destructiveHint"], false);
+        assert_eq!(socket_prepare["annotations"]["idempotentHint"], true);
+        assert_eq!(socket_prepare["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            socket_prepare["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "project_id",
+                "delivery_manifest_object_sha256",
+                "anchor_set_object_sha256",
+                "materialization_policy",
+                "lod_scope",
+                "canonical_sha256"
+            ])
+        );
+        assert_eq!(
+            socket_prepare["inputSchema"]["properties"]["materialization_policy"]["const"],
+            "gltf-anchor-node-materialization-preserve-renderable-content@1"
+        );
+        assert_eq!(
+            socket_prepare["inputSchema"]["properties"]["lod_scope"]["const"],
+            "lod0-lod1-lod2@1"
+        );
+        assert_eq!(
+            socket_prepare["_meta"]["forgecad"]["requiresConfirmation"],
+            true
+        );
+        assert_eq!(
+            socket_prepare["_meta"]["forgecad"]["transaction"],
+            "MCP010F"
+        );
+        assert!(is_write_tool("game_weapon_glb_socket_prepare"));
+
+        let hash = |byte: char| byte.to_string().repeat(64);
+        let prepare_arguments = json!({
+            "schema_version":"GameWeaponGlbSocketMaterializationPrepareRequest@1",
+            "project_id":"project-socket-mcp",
+            "delivery_manifest_object_sha256":hash('a'),
+            "anchor_set_object_sha256":hash('b'),
+            "materialization_policy":"gltf-anchor-node-materialization-preserve-renderable-content@1",
+            "lod_scope":"lod0-lod1-lod2@1",
+            "canonical_sha256":hash('c')
+        });
+        assert!(validate_declared_tool_input(
+            "game_weapon_glb_socket_prepare",
+            &prepare_arguments,
+            true
+        )
+        .is_ok());
+        let get_arguments = json!({
+            "schema_version":"GameWeaponGlbSocketMaterializationGetRequest@1",
+            "project_id":"project-socket-mcp",
+            "socket_materialization_key_sha256":hash('d')
+        });
+        assert!(
+            validate_declared_tool_input("game_weapon_glb_socket_get", &get_arguments, false)
+                .is_ok()
+        );
+
+        let (mut backend, mut session) = initialized();
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1961,
+                "method":"tools/call",
+                "params":{"name":"game_weapon_glb_socket_prepare","arguments":{}}
+            }),
+        )
+        .expect("GLB socket disabled response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "MCP010F_WRITE_TOOLS_DISABLED"
+        );
+
+        let lods = (0..3)
+            .map(|lod| {
+                json!({
+                    "lod_level":lod,
+                    "source_artifact_sha256":hash((b'e' + lod as u8) as char),
+                    "source_artifact_readback_sha256":hash('1'),
+                    "derived_artifact_sha256":hash('2'),
+                    "derived_artifact_readback_sha256":hash('3'),
+                    "source_renderable_inventory_sha256":hash('4'),
+                    "derived_renderable_inventory_sha256":hash('5'),
+                    "socket_node_inventory_sha256":hash('6'),
+                    "source_node_count":10,
+                    "derived_node_count":16,
+                    "source_renderable_projection_exact":true,
+                    "source_bin_byte_exact":true,
+                    "socket_nodes_materialized":true,
+                    "socket_node_count":6
+                })
+            })
+            .collect::<Vec<_>>();
+        let summary = game_weapon_glb_socket_mcp_summary(
+            "game_weapon_glb_socket_get",
+            &json!({
+                "socket_materialization_key_sha256":hash('7'),
+                "receipt":{
+                    "socket_materialization_key_sha256":hash('7'),
+                    "levels":lods.clone(),
+                    "runtime_write_performed":true,
+                    "candidate_confirmed":false,
+                    "export_performed":false,
+                    "actual_engine_roundtrip":false,
+                    "quality_status":"structural_only"
+                },
+                "link":{
+                    "receipt_object_sha256":hash('8'),
+                    "delivery_manifest_object_sha256":hash('9'),
+                    "anchor_set_object_sha256":hash('a'),
+                    "anchor_set_canonical_sha256":hash('b'),
+                    "request_sha256":hash('7'),
+                    "socket_materialization_policy":"gltf-anchor-node-materialization-preserve-renderable-content@1",
+                    "lod_scope":"lod0-lod1-lod2@1",
+                    "socket_node_id_encoding_sha256":hash('c')
+                },
+                "levels":lods
+            }),
+        )
+        .expect("GLB socket summary");
+        let summary: Value = serde_json::from_str(&summary).expect("summary JSON");
+        assert_eq!(summary["lod_readback"].as_array().unwrap().len(), 3);
+        assert_eq!(summary["socket_node_count"], 6);
+        assert_eq!(summary["socket_node_counts"], json!([6, 6, 6]));
+        assert_eq!(summary["source_renderable_projection_exact"], true);
+        assert_eq!(summary["source_bin_byte_exact"], true);
+        assert_eq!(summary["socket_nodes_materialized"], true);
+        assert_eq!(summary["restart_hash_verified"], true);
+        assert_eq!(summary["runtime_write_performed"], false);
+        assert_eq!(summary["candidate_confirmed"], false);
+        assert_eq!(summary["export_performed"], false);
+        assert_eq!(summary["actual_engine_roundtrip"], false);
+        assert_eq!(summary["quality_status"], "structural_only");
+        assert_eq!(summary["glb_bytes_in_summary"], false);
+        assert!(summary["lod_readback"][0].get("socket_nodes").is_none());
+        assert!(serde_json::to_string(&summary)
+            .expect("summary serializes")
+            .find("glb_bytes")
+            .is_some());
+    }
+
+    #[test]
+    fn fictional_energy_vfx_animated_socket_attachment_tools_are_closed_write_split_and_truthful() {
+        let read_tools = tools_with_writes(false);
+        let attachment_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_animated_socket_attachment_get")
+            .expect("animated socket attachment get read tool");
+        assert_eq!(attachment_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(attachment_get["annotations"]["writeIntent"], false);
+        assert_eq!(attachment_get["annotations"]["approvalRequired"], false);
+        assert_eq!(attachment_get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            attachment_get["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "attachment_key_sha256",
+                "project_id",
+                "candidate_id"
+            ])
+        );
+        assert_eq!(
+            attachment_get["inputSchema"]["properties"]["schema_version"]["const"],
+            "FictionalEnergyVfxAnimatedSocketAttachmentGetRequest@1"
+        );
+        assert!(!is_write_tool(
+            "fictional_energy_vfx_animated_socket_attachment_get"
+        ));
+
+        let write_tools = tools_with_writes(true);
+        let attachment_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_animated_socket_attachment_prepare")
+            .expect("animated socket attachment prepare write tool");
+        assert_eq!(attachment_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(attachment_prepare["annotations"]["writeIntent"], true);
+        assert_eq!(attachment_prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            attachment_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            attachment_prepare["inputSchema"]["properties"]["attachment_policy"]["const"],
+            "fictional-energy-vfx-animated-socket-attachment-structural-only@1"
+        );
+        assert_eq!(
+            attachment_prepare["inputSchema"]["properties"]["frame_scope"]["const"],
+            "lod0-animation-vfx-frame-range-1-16@1"
+        );
+        assert!(is_write_tool(
+            "fictional_energy_vfx_animated_socket_attachment_prepare"
+        ));
+
+        let hash = |byte: char| byte.to_string().repeat(64);
+        let prepare_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketAttachmentPrepareRequest@1",
+            "attachment_key_sha256":hash('a'),
+            "project_id":"project-attachment-mcp",
+            "delivery_manifest_object_sha256":hash('b'),
+            "candidate_id":"candidate-attachment-mcp",
+            "candidate_state_sha256":hash('c'),
+            "source_artifact_sha256":hash('d'),
+            "animated_socket_materialization_key_sha256":hash('e'),
+            "animated_socket_anchor_set_object_sha256":hash('f'),
+            "animated_socket_anchor_set_canonical_sha256":hash('0'),
+            "animation_clip_id":"clip-attachment-mcp",
+            "animation_clip_object_sha256":hash('1'),
+            "animation_clip_canonical_sha256":hash('2'),
+            "animated_artifact_sha256":hash('3'),
+            "animation_receipt_object_sha256":hash('4'),
+            "animation_receipt_canonical_sha256":hash('5'),
+            "vfx_profile_object_sha256":hash('6'),
+            "vfx_profile_canonical_sha256":hash('7'),
+            "vfx_sequence_key_sha256":hash('8'),
+            "vfx_sequence_canonical_sha256":hash('9'),
+            "attachment_policy":"fictional-energy-vfx-animated-socket-attachment-structural-only@1",
+            "socket_node_id_encoding_sha256":hash('a'),
+            "socket_roles_sha256":hash('b'),
+            "frame_scope":"lod0-animation-vfx-frame-range-1-16@1",
+            "input_sha256":hash('c'),
+            "idempotency_key":"attachment-idempotency-mcp"
+        });
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_animated_socket_attachment_prepare",
+            &prepare_arguments,
+            true
+        )
+        .is_ok());
+        let mut unknown = prepare_arguments.clone();
+        unknown["script"] = json!("bpy.ops");
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_animated_socket_attachment_prepare",
+            &unknown,
+            true
+        )
+        .is_err());
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketAttachmentGetRequest@1",
+            "attachment_key_sha256":hash('d'),
+            "project_id":"project-attachment-mcp",
+            "candidate_id":"candidate-attachment-mcp"
+        });
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_animated_socket_attachment_get",
+            &get_arguments,
+            false
+        )
+        .is_ok());
+
+        let (mut backend, mut session) = initialized();
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1963,
+                "method":"tools/call",
+                "params":{"name":"fictional_energy_vfx_animated_socket_attachment_prepare","arguments":{}}
+            }),
+        )
+        .expect("animated socket attachment disabled response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "AGENTIC_WRITE_TOOLS_DISABLED"
+        );
+
+        let summary = fictional_energy_vfx_animated_socket_attachment_mcp_summary(
+            "fictional_energy_vfx_animated_socket_attachment_get",
+            &json!({
+                "attachment_key_sha256":hash('e'),
+                "runtime_write":false,
+                "restart_hash_verified":true,
+                "quality_status":"structural_only",
+                "visual_quality_status":"NOT_PROVEN",
+                "commercial_fps_quality_status":"NOT_PROVEN",
+                "human_review_status":"NOT_RUN",
+                "commercial_engine_status":"NOT_RUN",
+                "attachment":{
+                    "attachment_key_sha256":hash('e'),
+                    "project_id":"project-attachment-mcp",
+                    "candidate_id":"candidate-attachment-mcp",
+                    "attachment_policy":"fictional-energy-vfx-animated-socket-attachment-structural-only@1",
+                    "frame_scope":"lod0-animation-vfx-frame-range-1-16@1",
+                    "frames":[{
+                        "frame_index":0,
+                        "sample_time_ticks":0,
+                        "animation_pose_readback_sha256":hash('f'),
+                        "socket_transform_inventory_sha256":hash('0'),
+                        "socket_transform_readback_sha256":hash('1'),
+                        "emitter_socket_bindings_sha256":hash('2'),
+                        "trail_socket_bindings_sha256":hash('3'),
+                        "base_frame_key_sha256":hash('4'),
+                        "bloom_key_sha256":hash('5'),
+                        "particle_key_sha256":hash('6'),
+                        "trail_key_sha256":hash('7'),
+                        "trail_bloom_key_sha256":hash('8'),
+                        "canonical_sha256":hash('9')
+                    }]
+                }
+            }),
+        )
+        .expect("animated socket attachment summary");
+        let summary: Value = serde_json::from_str(&summary).expect("summary JSON");
+        assert_eq!(
+            summary["schema_version"],
+            "FictionalEnergyVfxAnimatedSocketAttachmentMcpSummary@1"
+        );
+        assert_eq!(summary["frame_count"], 1);
+        assert_eq!(summary["runtime_write_performed"], false);
+        assert_eq!(summary["quality_status"], "structural_only");
+        assert_eq!(summary["glb_bytes_in_summary"], false);
+        assert_eq!(summary["png_bytes_in_summary"], false);
+        assert_eq!(summary["aov_bytes_in_summary"], false);
+        assert!(summary["frames"][0].get("glb_bytes").is_none());
+    }
+
+    #[test]
+    fn game_weapon_animated_glb_socket_tools_are_closed_write_split_and_truthful() {
+        let read_tools = tools_with_writes(false);
+        let animated_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "game_weapon_animated_glb_socket_get")
+            .expect("animated GLB socket get read tool");
+        assert_eq!(animated_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(animated_get["annotations"]["destructiveHint"], false);
+        assert_eq!(animated_get["annotations"]["idempotentHint"], true);
+        assert_eq!(animated_get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            animated_get["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "project_id",
+                "animated_socket_materialization_key_sha256"
+            ])
+        );
+        assert_eq!(
+            animated_get["inputSchema"]["properties"]["schema_version"]["const"],
+            "GameWeaponAnimatedGlbSocketMaterializationGetRequest@1"
+        );
+        assert!(!is_write_tool("game_weapon_animated_glb_socket_get"));
+
+        let write_tools = tools_with_writes(true);
+        let animated_prepare = write_tools
+            .iter()
+            .find(|tool| tool["name"] == "game_weapon_animated_glb_socket_prepare")
+            .expect("animated GLB socket prepare write tool");
+        assert_eq!(animated_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(animated_prepare["annotations"]["destructiveHint"], false);
+        assert_eq!(animated_prepare["annotations"]["idempotentHint"], true);
+        assert_eq!(
+            animated_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            animated_prepare["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "project_id",
+                "delivery_manifest_object_sha256",
+                "anchor_set_object_sha256",
+                "source_candidate_id",
+                "source_candidate_state_sha256",
+                "source_animated_artifact_sha256",
+                "source_animation_receipt_object_sha256",
+                "materialization_policy",
+                "canonical_sha256"
+            ])
+        );
+        assert_eq!(
+            animated_prepare["inputSchema"]["properties"]["materialization_policy"]["const"],
+            "gltf-animated-anchor-node-materialization-preserve-animations-renderable-content@1"
+        );
+        assert_eq!(
+            animated_prepare["_meta"]["forgecad"]["requiresConfirmation"],
+            true
+        );
+        assert_eq!(
+            animated_prepare["_meta"]["forgecad"]["transaction"],
+            "MCP010F"
+        );
+        assert!(is_write_tool("game_weapon_animated_glb_socket_prepare"));
+
+        let hash = |byte: char| byte.to_string().repeat(64);
+        let prepare_arguments = json!({
+            "schema_version":"GameWeaponAnimatedGlbSocketMaterializationPrepareRequest@1",
+            "project_id":"project-animated-socket-mcp",
+            "delivery_manifest_object_sha256":hash('a'),
+            "anchor_set_object_sha256":hash('b'),
+            "source_candidate_id":"candidate-animated-socket-mcp",
+            "source_candidate_state_sha256":hash('c'),
+            "source_animated_artifact_sha256":hash('d'),
+            "source_animation_receipt_object_sha256":hash('e'),
+            "materialization_policy":"gltf-animated-anchor-node-materialization-preserve-animations-renderable-content@1",
+            "canonical_sha256":hash('f')
+        });
+        assert!(validate_declared_tool_input(
+            "game_weapon_animated_glb_socket_prepare",
+            &prepare_arguments,
+            true
+        )
+        .is_ok());
+        let get_arguments = json!({
+            "schema_version":"GameWeaponAnimatedGlbSocketMaterializationGetRequest@1",
+            "project_id":"project-animated-socket-mcp",
+            "animated_socket_materialization_key_sha256":hash('0')
+        });
+        assert!(validate_declared_tool_input(
+            "game_weapon_animated_glb_socket_get",
+            &get_arguments,
+            false
+        )
+        .is_ok());
+
+        let (mut backend, mut session) = initialized();
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1962,
+                "method":"tools/call",
+                "params":{"name":"game_weapon_animated_glb_socket_prepare","arguments":{}}
+            }),
+        )
+        .expect("animated GLB socket disabled response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "MCP010F_GAME_WEAPON_ANIMATED_GLB_SOCKET_WRITE_TOOLS_DISABLED"
+        );
+
+        let summary = game_weapon_animated_glb_socket_mcp_summary(
+            "game_weapon_animated_glb_socket_get",
+            &json!({
+                "animated_socket_materialization_key_sha256":hash('1'),
+                "runtime_write_performed":false,
+                "restart_hash_verified":true,
+                "receipt":{
+                    "source_artifact_sha256":hash('2'),
+                    "source_artifact_readback_sha256":hash('3'),
+                    "animated_artifact_sha256":hash('4'),
+                    "animated_artifact_readback_sha256":hash('5'),
+                    "derived_animated_socket_artifact_sha256":hash('6'),
+                    "derived_animated_socket_artifact_readback_sha256":hash('7'),
+                    "animation_receipt_object_sha256":hash('8'),
+                    "animation_receipt_canonical_sha256":hash('9'),
+                    "source_animation_projection_sha256":hash('a'),
+                    "derived_animation_projection_sha256":hash('b'),
+                    "source_animation_validation_sha256":hash('c'),
+                    "derived_animation_validation_sha256":hash('d'),
+                    "source_renderable_inventory_sha256":hash('e'),
+                    "derived_renderable_inventory_sha256":hash('f'),
+                    "source_bin_sha256":hash('0'),
+                    "derived_bin_sha256":hash('1'),
+                    "socket_node_inventory_sha256":hash('2'),
+                    "sampler_count":2,
+                    "channel_count":2,
+                    "node_count":8,
+                    "source_node_count":8,
+                    "derived_node_count":14,
+                    "socket_node_count":6,
+                    "animations_preserved":true,
+                    "channels_preserved":true,
+                    "samplers_preserved":true,
+                    "renderable_projection_exact":true,
+                    "bin_byte_exact":true,
+                    "source_static_projection_exact":true,
+                    "no_skinning":true,
+                    "no_morph_targets":true,
+                    "socket_nodes_materialized":true
+                },
+                "durable_link":{
+                    "receipt_object_sha256":hash('3'),
+                    "project_id":"project-animated-socket-mcp",
+                    "candidate_id":"candidate-animated-socket-mcp",
+                    "candidate_state_sha256":hash('4'),
+                    "delivery_manifest_object_sha256":hash('5'),
+                    "lod0_artifact_sha256":hash('6'),
+                    "anchor_set_object_sha256":hash('7')
+                }
+            }),
+        )
+        .expect("animated GLB socket summary");
+        let summary: Value = serde_json::from_str(&summary).expect("summary JSON");
+        assert_eq!(
+            summary["animated_socket_materialization_key_sha256"],
+            hash('1')
+        );
+        assert_eq!(summary["source_artifact_sha256"], hash('2'));
+        assert_eq!(
+            summary["derived_animated_socket_artifact_sha256"],
+            hash('6')
+        );
+        assert_eq!(summary["receipt_object_sha256"], hash('3'));
+        assert_eq!(summary["socket_node_count"], 6);
+        assert_eq!(summary["animations_preserved"], true);
+        assert_eq!(summary["channels_preserved"], true);
+        assert_eq!(summary["samplers_preserved"], true);
+        assert_eq!(summary["renderable_projection_exact"], true);
+        assert_eq!(summary["bin_byte_exact"], true);
+        assert_eq!(summary["quality_status"], "structural_only");
+        assert_eq!(summary["structural_only"], true);
+        assert_eq!(summary["actual_engine_roundtrip"], false);
+        assert_eq!(summary["commercial_engine_roundtrip"], false);
+        assert_eq!(summary["glb_bytes_in_summary"], false);
+        assert!(summary.get("glb_bytes").is_none());
+        assert!(!serde_json::to_string(&summary)
+            .expect("summary serializes")
+            .contains("\"glb_bytes\":"));
+    }
+
+    #[test]
+    fn fictional_energy_vfx_trails_bloom_tools_are_closed_independent_and_truthful() {
+        let read_tools = tools_with_writes(false);
+        let enabled_tools = tools_with_writes(true);
+        let trail_bloom_get = read_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_trails_bloom_get")
+            .expect("typed trail Bloom get read tool");
+        assert_eq!(trail_bloom_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(trail_bloom_get["annotations"]["destructiveHint"], false);
+        assert_eq!(trail_bloom_get["annotations"]["idempotentHint"], true);
+        assert_eq!(
+            trail_bloom_get["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            trail_bloom_get["inputSchema"]["required"],
+            json!(["schema_version", "project_id", "trail_bloom_key_sha256"])
+        );
+        assert!(!is_write_tool("fictional_energy_vfx_trails_bloom_get"));
+
+        let trail_bloom_prepare = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == "fictional_energy_vfx_trails_bloom_prepare")
+            .expect("typed trail Bloom prepare write tool");
+        assert_eq!(trail_bloom_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(trail_bloom_prepare["annotations"]["destructiveHint"], false);
+        assert_eq!(trail_bloom_prepare["annotations"]["idempotentHint"], true);
+        assert_eq!(
+            trail_bloom_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            trail_bloom_prepare["inputSchema"]["required"],
+            json!([
+                "schema_version",
+                "project_id",
+                "delivery_manifest_object_sha256",
+                "vfx_profile_object_sha256",
+                "anchor_set_object_sha256",
+                "base_frame_key_sha256",
+                "bloom_key_sha256",
+                "source_trail_key_sha256",
+                "trail_bloom_profile",
+                "trail_bloom_policy",
+                "input_policy",
+                "occlusion_policy",
+                "render_policy",
+                "canonical_sha256"
+            ])
+        );
+        assert_eq!(
+            trail_bloom_prepare["inputSchema"]["properties"]["trail_bloom_profile"]
+                ["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            trail_bloom_prepare["_meta"]["forgecad"]["requiresConfirmation"],
+            true
+        );
+        assert_eq!(
+            trail_bloom_prepare["_meta"]["forgecad"]["transaction"],
+            "MCP010F"
+        );
+        assert!(is_write_tool("fictional_energy_vfx_trails_bloom_prepare"));
+
+        let hash = |byte: char| byte.to_string().repeat(64);
+        let prepare_arguments = json!({
+            "schema_version":"FictionalEnergyVfxTrailsBloomFrameRenderPrepareRequest@1",
+            "project_id":"project-trails-bloom-mcp",
+            "delivery_manifest_object_sha256":hash('a'),
+            "vfx_profile_object_sha256":hash('b'),
+            "anchor_set_object_sha256":hash('c'),
+            "base_frame_key_sha256":hash('d'),
+            "bloom_key_sha256":hash('e'),
+            "source_trail_key_sha256":hash('f'),
+            "trail_bloom_profile":{
+                "threshold":1.0,
+                "source_gain":8.0,
+                "radius_px":8,
+                "intensity":4.0,
+                "hdr_clamp":16.0,
+                "blur_passes":2,
+                "kernel":"separable-box-two-pass-fixed-radius@1"
+            },
+            "trail_bloom_policy":"lod0-typed-trails-hdr-source-two-pass-fixed-kernel@1",
+            "input_policy":"existing-trail-color-depth-plus-current-base-opaque-depth-byte-exact@1",
+            "occlusion_policy":"current-base-opaque-depth-before-trail-depth-reversed-normalized-u8-epsilon-1e-4@1",
+            "render_policy":"lod0-trail-bloom-two-new-passes-base-bloom-particles-trails-byte-exact-reused@1",
+            "canonical_sha256":hash('0')
+        });
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_trails_bloom_prepare",
+            &prepare_arguments,
+            true
+        )
+        .is_ok());
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxTrailsBloomFrameGetRequest@1",
+            "project_id":"project-trails-bloom-mcp",
+            "trail_bloom_key_sha256":hash('9')
+        });
+        assert!(validate_declared_tool_input(
+            "fictional_energy_vfx_trails_bloom_get",
+            &get_arguments,
+            false
+        )
+        .is_ok());
+
+        let (mut backend, mut session) = initialized();
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1951,
+                "method":"tools/call",
+                "params":{"name":"fictional_energy_vfx_trails_bloom_prepare","arguments":{}}
+            }),
+        )
+        .expect("typed trail Bloom disabled response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "MCP010F_WRITE_TOOLS_DISABLED"
+        );
+
+        let receipt = json!({
+            "trail_bloom_key_sha256":hash('e'),
+            "source_trail_key_sha256":hash('f'),
+            "trail_bloom_rendered":true,
+            "trail_bloom_source_rendered":true,
+            "trail_bloom_contribution_rendered":true,
+            "input_policy":"existing-trail-color-depth-plus-current-base-opaque-depth-byte-exact@1",
+            "source_trail_color_object_sha256":hash('1'),
+            "source_trail_id_object_sha256":hash('2'),
+            "source_trail_depth_object_sha256":hash('3'),
+            "base_opaque_depth_object_sha256":hash('4'),
+            "source_pass":{"pass":"trail-emissive-source","object_sha256":hash('5')},
+            "contribution_pass":{"pass":"trail-bloom-contribution","object_sha256":hash('6')},
+            "base_aov_byte_exact_verified":true,
+            "base_opaque_depth_byte_exact_reused":true,
+            "bloom_pass_byte_exact_reused":true,
+            "particle_passes_byte_exact_reused":true,
+            "source_trail_passes_byte_exact_reused":true,
+            "base_bloom_mutated":false,
+            "particle_passes_mutated":false,
+            "trail_passes_mutated":false
+        });
+        let summary = fictional_energy_vfx_mcp_summary(
+            "fictional_energy_vfx_trails_bloom_get",
+            &json!({"receipt":receipt}),
+        )
+        .expect("typed trail Bloom summary");
+        let summary: Value = serde_json::from_str(&summary).expect("summary JSON");
+        assert_eq!(summary["bloom_rendered"], false);
+        assert_eq!(summary["particles_rendered"], false);
+        assert_eq!(summary["trails_rendered"], false);
+        assert_eq!(summary["trail_bloom_rendered"], true);
+        assert_eq!(summary["trail_bloom_source_rendered"], true);
+        assert_eq!(summary["trail_bloom_contribution_rendered"], true);
+        assert_eq!(summary["trail_bloom_key_sha256"], hash('e'));
+        assert_eq!(summary["source_trail_key_sha256"], hash('f'));
+        assert_eq!(
+            summary["input"]["source_trail_color_object_sha256"],
+            hash('1')
+        );
+        assert_eq!(
+            summary["input"]["base_opaque_depth_object_sha256"],
+            hash('4')
+        );
+        assert_eq!(
+            summary["trail_bloom_pass_artifacts"]["source"]["pass"],
+            "trail-emissive-source"
+        );
+        assert_eq!(summary["base_aov_byte_exact_verified"], true);
+        assert_eq!(summary["base_opaque_depth_byte_exact_reused"], true);
+        assert_eq!(summary["bloom_pass_byte_exact_reused"], true);
+        assert_eq!(summary["particle_passes_byte_exact_reused"], true);
+        assert_eq!(summary["source_trail_passes_byte_exact_reused"], true);
+        assert_eq!(summary["base_bloom_mutated"], false);
+        assert_eq!(summary["particle_passes_mutated"], false);
+        assert_eq!(summary["trail_passes_mutated"], false);
+        assert_eq!(summary["runtime_write_performed"], false);
+        assert_eq!(summary["structured_content_complete"], true);
+    }
+
+    #[test]
+    fn mechanical_animation_clip_mcp_dispatches_and_summarizes_nested_preview() {
+        let (mut backend, mut session) = initialized();
+        let (project_id, prepared) = match &backend {
+            Backend::InProcess(runtime) => {
+                let project = runtime
+                    .create_project("MCP mechanical clip transport", json!({"scope":"test"}))
+                    .expect("project");
+                let catalog_sha256 = runtime.active_operator_catalog()["canonical_sha256"]
+                    .as_str()
+                    .expect("catalog hash")
+                    .to_owned();
+                let mut program = json!({
+                    "schema_version":"GeometryProgram@2",
+                    "project_id":project.project_id,
+                    "representation_plan_sha256":"7".repeat(64),
+                    "operator_catalog_sha256":catalog_sha256,
+                    "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                    "budgets":{"max_nodes":2,"max_triangles":1000,"max_glb_bytes":1048576,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                    "nodes":[
+                        {"node_id":"root-node","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                        {"node_id":"arm-node","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[0.5,0.25,0.25],"position_m":[1.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}}
+                    ],
+                    "part_outputs":[
+                        {"part_id":"root-part","input_node_ids":["root-node"],"material_zone_id":"zone-root","solid":true},
+                        {"part_id":"arm-part","input_node_ids":["arm-node"],"material_zone_id":"zone-arm","solid":true}
+                    ]
+                });
+                program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
+                let prepared = runtime
+                    .prepare_geometry_candidate(
+                        &project.project_id,
+                        None,
+                        json!({"typed":"geometry","geometry_program":program}),
+                    )
+                    .expect("geometry prepare");
+                (project.project_id, prepared)
+            }
+            _ => unreachable!("test backend"),
+        };
+        let artifact = &prepared["artifact"];
+        let candidate_id = prepared["candidate"]["candidate_id"]
+            .as_str()
+            .expect("candidate id")
+            .to_owned();
+        let mut sequence = json!({
+            "schema_version":"MechanicalPoseSequencePreviewRequest@1",
+            "project_id":project_id,
+            "artifact_id":artifact["artifact_id"],
+            "candidate_id":candidate_id,
+            "artifact_readback_sha256":artifact["canonical_sha256"],
+            "program_sha256":artifact["program_sha256"],
+            "operator_catalog_sha256":artifact["operator_catalog_sha256"],
+            "readback_config_sha256":artifact["readback_config_sha256"],
+            "rest_frame_draft":{
+                "schema_version":"MechanicalRestFrameDraft@1",
+                "rest_frame_id":"mcp-clip-rest",
+                "coordinate_system":"forgecad-rh-y-up-m@1",
+                "transform_convention":"column-vector-trs-quaternion@1",
+                "root_link_id":"root-link",
+                "links":[
+                    {"link_id":"root-link","part_id":"root-part","source_node_ids":["root-node"],"joint_type":"fixed","rest_translation_m":[0.0,0.0,0.0],"rest_rotation_quat_xyzw":[0.0,0.0,0.0,1.0],"axis_local":null,"limit_min":null,"limit_max":null,"value_unit":"none"},
+                    {"link_id":"arm-link","part_id":"arm-part","source_node_ids":["arm-node"],"joint_type":"revolute","rest_translation_m":[1.0,0.0,0.0],"rest_rotation_quat_xyzw":[0.0,0.0,0.0,1.0],"axis_local":[0.0,0.0,1.0],"limit_min":-1.0,"limit_max":1.0,"value_unit":"radian"}
+                ],
+                "parent_map":[{"child_link_id":"arm-link","parent_link_id":"root-link"}]
+            },
+            "pose_action_draft":{
+                "schema_version":"MechanicalPoseActionDraft@1",
+                "action_id":"mcp-clip-action",
+                "timebase_hz":1000,
+                "duration_ticks":1000,
+                "interpolation":"linear@1",
+                "extrapolation":"clamp@1",
+                "unkeyed_policy":"rest@1",
+                "channels":[{"link_id":"arm-link","value_unit":"radian","keys":[{"time_ticks":0,"value":0.0},{"time_ticks":1000,"value":0.5}]}]
+            },
+            "sample_time_ticks":[0,500,1000],
+            "input_sha256":""
+        });
+        let mut sequence_preimage = sequence.clone();
+        sequence_preimage
+            .as_object_mut()
+            .unwrap()
+            .remove("input_sha256");
+        sequence["input_sha256"] = Value::String(canonical_json_hash(&sequence_preimage));
+        let mut prepare = json!({
+            "schema_version":"MechanicalAnimationClipPrepareRequest@1",
+            "clip_id":"mcp-clip",
+            "pose_sequence_request":sequence,
+            "clip_policy":"runtime-owned-immutable-cas-rigid-mechanical-action@1",
+            "input_sha256":""
+        });
+        let mut prepare_preimage = prepare.clone();
+        prepare_preimage
+            .as_object_mut()
+            .unwrap()
+            .remove("input_sha256");
+        prepare["input_sha256"] = Value::String(canonical_json_hash(&prepare_preimage));
+
+        session.write_tools_enabled = true;
+        let prepared_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1803,"method":"tools/call","params":{"name":"mechanical_animation_clip_prepare","arguments":prepare}}),
+        )
+        .expect("clip prepare response");
+        assert_eq!(
+            prepared_response["result"]["structuredContent"]["schema_version"],
+            "MechanicalAnimationClipLink@1",
+            "{prepared_response}"
+        );
+
+        let mut preview = json!({
+            "schema_version":"MechanicalAnimationClipPreviewRequest@1",
+            "project_id":project_id,
+            "candidate_id":candidate_id,
+            "clip_id":"mcp-clip",
+            "sample_time_ticks":500,
+            "preview_policy":"single-tick-transient-double-worker-replay@1",
+            "canonical_sha256":""
+        });
+        let mut preview_preimage = preview.clone();
+        preview_preimage
+            .as_object_mut()
+            .unwrap()
+            .remove("canonical_sha256");
+        preview["canonical_sha256"] = Value::String(canonical_json_hash(&preview_preimage));
+        let preview_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1804,"method":"tools/call","params":{"name":"mechanical_animation_clip_preview_get","arguments":preview}}),
+        )
+        .expect("clip preview response");
+        assert!(
+            serde_json::to_vec(&preview_response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES,
+            "mechanical animation clip preview MCP response must remain inside the 1 MiB wire budget"
+        );
+        let structured = &preview_response["result"]["structuredContent"];
+        assert_eq!(
+            structured["schema_version"],
+            "MechanicalAnimationClipPreview@1"
+        );
+        assert_eq!(
+            structured["pose_geometry_preview"]["worker_replay"]["byte_exact"],
+            true
+        );
+        let summary: Value = serde_json::from_str(
+            preview_response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("clip preview summary"),
+        )
+        .expect("clip preview summary JSON");
+        assert_eq!(
+            summary["transient_artifact"],
+            structured["pose_geometry_preview"]["transient_artifact"]
+        );
+        assert_eq!(
+            summary["worker_replay"],
+            structured["pose_geometry_preview"]["worker_replay"]
+        );
+        assert_eq!(summary["runtime_write_performed"], false);
+        assert_eq!(summary["structured_content_complete"], true);
+
+        let mut glb_prepare = json!({
+            "schema_version":"MechanicalAnimationGlbPrepareRequest@1",
+            "project_id":project_id,
+            "candidate_id":candidate_id,
+            "candidate_state_sha256":prepared["candidate"]["canonical_sha256"],
+            "clip_id":"mcp-clip",
+            "materialization_policy":"rigid-node-trs-gltf-linear-scheduled-samples@1",
+            "canonical_sha256":""
+        });
+        let mut glb_preimage = glb_prepare.clone();
+        glb_preimage
+            .as_object_mut()
+            .unwrap()
+            .remove("canonical_sha256");
+        glb_prepare["canonical_sha256"] = Value::String(canonical_json_hash(&glb_preimage));
+        let glb_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1805,"method":"tools/call","params":{"name":"mechanical_animation_glb_prepare","arguments":glb_prepare}}),
+        )
+        .expect("animation GLB prepare response");
+        assert!(
+            serde_json::to_vec(&glb_response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES,
+            "mechanical animation GLB MCP response must remain inside the 1 MiB wire budget"
+        );
+        let glb_structured = &glb_response["result"]["structuredContent"];
+        assert_eq!(
+            glb_structured["schema_version"], "MechanicalAnimationGlbPrepareResult@1",
+            "{glb_response}"
+        );
+        assert_eq!(glb_structured["receipt"]["hard_gate_passed"], true);
+        assert_eq!(
+            glb_structured["receipt"]["source_static_projection_exact"],
+            true
+        );
+        assert_eq!(glb_structured["candidate_confirmed"], false);
+        assert_eq!(glb_structured["export_performed"], false);
+        let glb_summary: Value = serde_json::from_str(
+            glb_response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("animation GLB summary"),
+        )
+        .expect("animation GLB summary JSON");
+        assert_eq!(
+            glb_summary["schema_version"],
+            "MechanicalAnimationGlbMcpSummary@1"
+        );
+        assert_eq!(
+            glb_summary["animated_artifact_sha256"],
+            glb_structured["animated_artifact_sha256"]
+        );
+        assert_eq!(glb_summary["candidate_confirmed"], false);
+        assert_eq!(glb_summary["export_performed"], false);
+        assert_eq!(glb_summary["structured_content_complete"], true);
+    }
+
+    #[test]
     fn silhouette_rig_hash_is_a_default_read_only_tool() {
         let tools = tools_with_writes(false);
         let tool = tools
@@ -4929,6 +13570,26 @@ mod tests {
         assert_eq!(tool["inputSchema"]["additionalProperties"], false);
         assert_eq!(
             tool["inputSchema"]["properties"]["rig_draft"]["additionalProperties"],
+            false
+        );
+    }
+
+    #[test]
+    fn silhouette_fit_intent_hash_is_a_default_read_only_tool() {
+        let tools = tools_with_writes(false);
+        let tool = tools
+            .iter()
+            .find(|tool| tool["name"] == "silhouette_fit_intent_hash")
+            .expect("silhouette_fit_intent_hash tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["annotations"]["idempotentHint"], true);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["schema_version"]["const"],
+            "SilhouetteFitIntentHashRequest@1"
+        );
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["optimizer"]["additionalProperties"],
             false
         );
     }
@@ -4949,6 +13610,7 @@ mod tests {
     #[test]
     fn silhouette_fit_wire_numbers_are_restored_before_hash_binding() {
         let mut request = json!({
+            "schema_version":"SilhouetteFitIntent@1",
             "project_id":"project-fit-wire",
             "candidate_id":"candidate-fit-wire",
             "target_sha256":"a".repeat(64),
@@ -4981,7 +13643,7 @@ mod tests {
         request = wire.clone();
         request["canonical_sha256"] = Value::String(canonical_json_hash(&wire));
         let restored = canonicalize_silhouette_fit_wire(&request).expect("wire hash accepted");
-        assert_eq!(restored["base_camera"]["fov_y_degrees"], json!(33.0));
+        assert_eq!(restored["base_camera"]["fov_y_degrees"], json!(33));
         assert_eq!(restored["base_camera"]["resolution"]["width"], json!(512));
         assert_ne!(restored["canonical_sha256"], Value::String(String::new()));
         request["canonical_sha256"] = Value::String("b".repeat(64));
@@ -5310,6 +13972,189 @@ mod tests {
     }
 
     #[test]
+    fn geometry_prepare_exact_schema_distinguishes_missing_and_null_head() {
+        let exact = json!({
+            "project_id":"project-exact-schema",
+            "base_version_id":null,
+            "idempotency_key":"geometry-exact-schema-once",
+            "request":{
+                "typed":"geometry",
+                "geometry_program":{"schema_version":"GeometryProgram@2"}
+            }
+        });
+        assert!(validate_declared_tool_input("geometry_prepare", &exact, true).is_ok());
+
+        let mut missing_head = exact.clone();
+        missing_head
+            .as_object_mut()
+            .expect("exact envelope")
+            .remove("base_version_id");
+        assert!(validate_declared_tool_input("geometry_prepare", &missing_head, true).is_err());
+
+        let mut null_key = exact.clone();
+        null_key["idempotency_key"] = Value::Null;
+        assert!(validate_declared_tool_input("geometry_prepare", &null_key, true).is_err());
+
+        let mut v1_exact = exact;
+        v1_exact["request"]["geometry_program"]["schema_version"] =
+            Value::String("GeometryProgram@1".to_owned());
+        assert!(validate_declared_tool_input("geometry_prepare", &v1_exact, true).is_err());
+
+        let legacy = json!({
+            "project_id":"project-legacy-schema",
+            "request":{
+                "typed":"geometry",
+                "geometry_program":{"schema_version":"GeometryProgram@1"}
+            }
+        });
+        assert!(validate_declared_tool_input("geometry_prepare", &legacy, true).is_ok());
+
+        let modifier_exact = json!({
+            "project_id":"project-exact-schema",
+            "base_version_id":null,
+            "idempotency_key":"modifier-apply-exact-schema-once",
+            "request":{
+                "typed":"geometry",
+                "modifier_evaluation_sha256":"a".repeat(64),
+                "modifier_evaluation_request":{
+                    "schema_version":"GeometryModifierEvaluationRequest@2",
+                    "project_id":"project-exact-schema",
+                    "representation_plan_sha256":"b".repeat(64),
+                    "part_id":"shell",
+                    "material_zone_id":"zone-shell",
+                    "solid":true,
+                    "base_node":{"node_id":"base","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}},
+                    "modifiers":[{"modifier_id":"round","enabled":true,"operator_id":"forgecad.geometry.bevel@1","parameters":{"shape":"bevel","width_m":0.04,"segments":2,"profile":0.5,"edge_scope":"all-source-box-edges","clamp_overlap":false}}],
+                    "previous_evaluation":null,
+                    "input_sha256":"c".repeat(64)
+                }
+            }
+        });
+        assert!(validate_declared_tool_input("geometry_prepare", &modifier_exact, true).is_ok());
+
+        let modifier_apply_v2 = json!({
+            "project_id":"project-exact-schema",
+            "base_version_id":null,
+            "idempotency_key":"modifier-apply-v2-exact-schema-once",
+            "request":{
+                "typed":"geometry",
+                "modifier_apply_sha256":"d".repeat(64),
+                "modifier_apply_request":{
+                    "schema_version":"GeometryModifierApplyRequest@2",
+                    "project_id":"project-exact-schema",
+                    "source_candidate_id":"candidate-source",
+                    "source_candidate_canonical_sha256":"a".repeat(64),
+                    "source_artifact_sha256":"b".repeat(64),
+                    "source_artifact_readback_sha256":"c".repeat(64),
+                    "source_geometry_program_sha256":"d".repeat(64),
+                    "source_operator_catalog_sha256":"e".repeat(64),
+                    "source_readback_config_sha256":"f".repeat(64),
+                    "source_part_id":"shell",
+                    "source_terminal_node_id":"shell-source",
+                    "source_authoring_topology_sha256":"1".repeat(64),
+                    "source_edge_id":"edge-shell-01",
+                    "bevel_m":0.04,
+                    "segments":2,
+                    "profile":0.5,
+                    "clamp_overlap":false,
+                    "base_version_id":null,
+                    "idempotency_key":"modifier-apply-v2-exact-schema-once",
+                    "max_response_bytes":1048576,
+                    "input_sha256":"2".repeat(64)
+                }
+            }
+        });
+        assert!(validate_declared_tool_input("geometry_prepare", &modifier_apply_v2, true).is_ok());
+        let v2_schema = modifier_apply_request_v2_schema();
+        assert_eq!(
+            v2_schema["required"].as_array().map(Vec::len),
+            Some(21),
+            "GeometryModifierApplyRequest@2 must keep the exact 21-field contract"
+        );
+        assert_eq!(
+            v2_schema["properties"]
+                .as_object()
+                .map(serde_json::Map::len),
+            Some(21),
+            "GeometryModifierApplyRequest@2 must not grow an unreviewed field"
+        );
+        assert_eq!(v2_schema["additionalProperties"], false);
+        let mut modifier_apply_v2_unknown = modifier_apply_v2.clone();
+        modifier_apply_v2_unknown["request"]["modifier_apply_request"]["python"] =
+            json!("forbidden");
+        assert!(
+            validate_declared_tool_input("geometry_prepare", &modifier_apply_v2_unknown, true)
+                .is_err()
+        );
+        let mut modifier_apply_v2_missing_edge = modifier_apply_v2.clone();
+        modifier_apply_v2_missing_edge["request"]["modifier_apply_request"]
+            .as_object_mut()
+            .expect("v2 request object")
+            .remove("source_edge_id");
+        assert!(validate_declared_tool_input(
+            "geometry_prepare",
+            &modifier_apply_v2_missing_edge,
+            true
+        )
+        .is_err());
+        let mut missing_evaluation_hash = modifier_exact.clone();
+        missing_evaluation_hash["request"]
+            .as_object_mut()
+            .expect("modifier exact request")
+            .remove("modifier_evaluation_sha256");
+        assert!(
+            validate_declared_tool_input("geometry_prepare", &missing_evaluation_hash, true)
+                .is_err()
+        );
+        let mut mixed_direct_and_modifier = modifier_exact;
+        mixed_direct_and_modifier["request"]["geometry_program"] =
+            json!({"schema_version":"GeometryProgram@2"});
+        assert!(
+            validate_declared_tool_input("geometry_prepare", &mixed_direct_and_modifier, true)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn geometry_prepare_modifier_apply_v2_is_hidden_until_write_opt_in() {
+        let read_tool = tools_with_writes(false)
+            .into_iter()
+            .find(|tool| tool["name"] == "geometry_prepare");
+        assert!(
+            read_tool.is_none(),
+            "geometry_prepare must remain hidden in the default read-only manifest"
+        );
+
+        let write_tool = tools_with_writes(true)
+            .into_iter()
+            .find(|tool| tool["name"] == "geometry_prepare")
+            .expect("write-enabled geometry_prepare");
+        assert_eq!(write_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(
+            write_tool["_meta"]["forgecad"]["requiresConfirmation"],
+            true
+        );
+        let description = write_tool["description"]
+            .as_str()
+            .expect("geometry_prepare description");
+        for phrase in [
+            "GeometryModifierApplyRequest@2",
+            "one stable source edge",
+            "direct authoring-mesh@1",
+            "authenticated explicit write opt-in",
+            "does not confirm",
+            "create a version",
+            "export",
+            "never raw GLB bytes",
+        ] {
+            assert!(
+                description.contains(phrase),
+                "missing description phrase: {phrase}"
+            );
+        }
+    }
+
+    #[test]
     fn tool_input_envelopes_fail_closed_before_geometry_runtime_dispatch() {
         let (mut backend, mut session) = initialized();
         let project = match &backend {
@@ -5606,15 +14451,978 @@ mod tests {
     }
 
     #[test]
+    fn animated_socket_transform_projection_mcp_surface_is_hidden_and_preflight_gated() {
+        let prepare_name = "game_weapon_animated_glb_socket_transform_projection_prepare";
+        let get_name = "game_weapon_animated_glb_socket_transform_projection_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        assert!(enabled_tools
+            .iter()
+            .any(|tool| tool["name"] == prepare_name));
+        assert!(enabled_tools.iter().any(|tool| tool["name"] == get_name));
+
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("runtime"));
+        let mut session = Session::new();
+        handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1,
+                "method":"initialize",
+                "params":{"protocolVersion":MCP_PROTOCOL_VERSION,"capabilities":{},"clientInfo":{"name":"projection-mcp-test","version":"1"}}
+            }),
+        )
+        .expect("initialize response");
+
+        let get_request = json!({
+            "jsonrpc":"2.0",
+            "id":2,
+            "method":"tools/call",
+            "params":{"name":get_name,"arguments":{
+                "schema_version":"GameWeaponAnimatedGlbSocketTransformProjectionGetRequest@1",
+                "projection_key_sha256":"a".repeat(64),
+                "project_id":"project-1",
+                "candidate_id":"candidate-1"
+            }}
+        });
+        let blocked = handle(&mut backend, &mut session, &get_request).expect("preflight response");
+        assert_eq!(
+            blocked["result"]["structuredContent"]["code"],
+            "PONYTAIL_PREFLIGHT_REQUIRED"
+        );
+
+        session.ponytail_preflight_read = true;
+        session.write_tools_enabled = false;
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":3,
+                "method":"tools/call",
+                "params":{"name":prepare_name,"arguments":{}}
+            }),
+        )
+        .expect("disabled response");
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "AGENTIC_WRITE_TOOLS_DISABLED"
+        );
+
+        let runtime = Runtime::ephemeral().expect("projection dispatch runtime");
+        for (name, arguments) in [
+            (
+                get_name,
+                json!({
+                    "schema_version":"GameWeaponAnimatedGlbSocketTransformProjectionGetRequest@1",
+                    "projection_key_sha256":"a".repeat(64),
+                    "project_id":"project-1",
+                    "candidate_id":"candidate-1"
+                }),
+            ),
+            (prepare_name, json!({})),
+        ] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("projection Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+
+        session.write_tools_enabled = true;
+        let dispatched =
+            handle(&mut backend, &mut session, &get_request).expect("dispatch response");
+        assert_eq!(dispatched["result"]["isError"], true);
+        assert_ne!(
+            dispatched["result"]["structuredContent"]["code"],
+            "CAPABILITY_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn animated_socket_particles_sequence_mcp_surface_is_hidden_and_preflight_gated() {
+        let prepare_name = "fictional_energy_vfx_animated_socket_particles_sequence_prepare";
+        let get_name = "fictional_energy_vfx_animated_socket_particles_sequence_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        assert!(enabled_tools
+            .iter()
+            .any(|tool| tool["name"] == prepare_name));
+        assert!(enabled_tools.iter().any(|tool| tool["name"] == get_name));
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("animated socket particles prepare tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            prepare_tool["_meta"]["forgecad"]["requiresConfirmation"],
+            false
+        );
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("animated socket particles get tool");
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+
+        let mut backend = Backend::InProcess(Runtime::ephemeral().expect("runtime"));
+        let mut session = Session::new();
+        handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":1,
+                "method":"initialize",
+                "params":{"protocolVersion":MCP_PROTOCOL_VERSION,"capabilities":{},"clientInfo":{"name":"particles-mcp-test","version":"1"}}
+            }),
+        )
+        .expect("initialize response");
+        let get_request = json!({
+            "jsonrpc":"2.0",
+            "id":2,
+            "method":"tools/call",
+            "params":{"name":get_name,"arguments":{
+                "schema_version":"FictionalEnergyVfxAnimatedSocketParticlesSequenceGetRequest@1",
+                "sequence_key_sha256":"a".repeat(64),
+                "project_id":"project-1",
+                "candidate_id":"candidate-1"
+            }}
+        });
+        let get_arguments = get_request["params"]["arguments"].clone();
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        for field in ["unknown", "raw_glb_bytes", "png_base64", "path", "url"] {
+            let mut invalid_arguments = get_arguments.clone();
+            invalid_arguments[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid_arguments, false).is_err(),
+                "closed particle get schema accepted {field}"
+            );
+        }
+        let blocked = handle(&mut backend, &mut session, &get_request).expect("preflight response");
+        assert_eq!(
+            blocked["result"]["structuredContent"]["code"],
+            "PONYTAIL_PREFLIGHT_REQUIRED"
+        );
+
+        session.ponytail_preflight_read = true;
+        session.write_tools_enabled = false;
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({
+                "jsonrpc":"2.0",
+                "id":3,
+                "method":"tools/call",
+                "params":{"name":prepare_name,"arguments":{}}
+            }),
+        )
+        .expect("disabled response");
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "AGENTIC_WRITE_TOOLS_DISABLED"
+        );
+
+        let runtime = Runtime::ephemeral().expect("particles dispatch runtime");
+        for (name, arguments) in [
+            (
+                get_name,
+                json!({
+                    "schema_version":"FictionalEnergyVfxAnimatedSocketParticlesSequenceGetRequest@1",
+                    "sequence_key_sha256":"a".repeat(64),
+                    "project_id":"project-1",
+                    "candidate_id":"candidate-1"
+                }),
+            ),
+            (prepare_name, json!({})),
+        ] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("particle Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+
+        session.write_tools_enabled = true;
+        let dispatched =
+            handle(&mut backend, &mut session, &get_request).expect("dispatch response");
+        assert_eq!(dispatched["result"]["isError"], true);
+        assert_ne!(
+            dispatched["result"]["structuredContent"]["code"],
+            "CAPABILITY_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn animated_socket_particles_sequence_v2_mcp_surface_is_closed_hidden_and_dispatches() {
+        let prepare_name = "fictional_energy_vfx_animated_socket_particles_sequence_v2_prepare";
+        let get_name = "fictional_energy_vfx_animated_socket_particles_sequence_v2_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("V2 animated socket particles prepare tool");
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("V2 animated socket particles get tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            prepare_tool["_meta"]["forgecad"]["requiresConfirmation"],
+            false
+        );
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["sample_count"]["maximum"],
+            16
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["frames"]["maxItems"],
+            16
+        );
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketParticlesSequenceGetRequest@2",
+            "sequence_key_sha256":"a".repeat(64),
+            "project_id":"project-1",
+            "geometry_candidate_id":"candidate-geometry-1",
+            "appearance_candidate_id":"candidate-appearance-1",
+            "geometry_delivery_manifest_object_sha256":"b".repeat(64),
+            "appearance_delivery_manifest_object_sha256":"c".repeat(64)
+        });
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        for field in [
+            "unknown",
+            "raw_glb_bytes",
+            "png_base64",
+            "path",
+            "url",
+            "uri",
+        ] {
+            let mut invalid_arguments = get_arguments.clone();
+            invalid_arguments[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid_arguments, false).is_err(),
+                "closed V2 particle get schema accepted {field}"
+            );
+        }
+
+        let runtime = Runtime::ephemeral().expect("V2 particles dispatch runtime");
+        for (name, arguments) in [(get_name, get_arguments), (prepare_name, json!({}))] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("V2 particle Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn animated_socket_attachment_v2_mcp_surface_is_closed_hidden_and_dispatches() {
+        let prepare_name = "fictional_energy_vfx_animated_socket_attachment_v2_prepare";
+        let get_name = "fictional_energy_vfx_animated_socket_attachment_v2_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("V2 animated socket attachment prepare tool");
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("V2 animated socket attachment get tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            prepare_tool["_meta"]["forgecad"]["requiresConfirmation"],
+            false
+        );
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["attachment_policy"]["const"],
+            "fictional-energy-vfx-animated-socket-attachment-projection-bound@2"
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["frame_scope"]["const"],
+            "lod0-animation-vfx-trail-frame-range-1-15@2"
+        );
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketAttachmentGetRequest@2",
+            "attachment_key_sha256":"a".repeat(64),
+            "project_id":"project-1",
+            "candidate_id":"candidate-1"
+        });
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        for field in [
+            "unknown",
+            "raw_glb_bytes",
+            "png_base64",
+            "path",
+            "url",
+            "uri",
+        ] {
+            let mut invalid_arguments = get_arguments.clone();
+            invalid_arguments[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid_arguments, false).is_err(),
+                "closed V2 attachment get schema accepted {field}"
+            );
+        }
+
+        let runtime = Runtime::ephemeral().expect("V2 attachment dispatch runtime");
+        for (name, arguments) in [(get_name, get_arguments), (prepare_name, json!({}))] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("V2 attachment Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn animated_socket_attachment_v3_mcp_surface_is_closed_hidden_and_dispatches() {
+        let prepare_name = "fictional_energy_vfx_animated_socket_attachment_v3_prepare";
+        let get_name = "fictional_energy_vfx_animated_socket_attachment_v3_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("Attachment@3 prepare tool");
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("Attachment@3 get tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(get_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["sample_count"]["const"],
+            15
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["attachment_policy"]["const"],
+            "projection-v2-particles-v2-trails-v2-trails-bloom-v2-animated-socket-attachment-bridge@3"
+        );
+
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketAttachmentGetRequest@3",
+            "attachment_key_sha256":"a".repeat(64),
+            "project_id":"project-attachment-v3",
+            "geometry_candidate_id":"geometry-v3",
+            "appearance_candidate_id":"appearance-v3",
+            "geometry_delivery_manifest_object_sha256":"b".repeat(64),
+            "appearance_delivery_manifest_object_sha256":"c".repeat(64)
+        });
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        for field in [
+            "unknown",
+            "raw_glb_bytes",
+            "png_base64",
+            "path",
+            "url",
+            "script",
+            "secret",
+        ] {
+            let mut invalid_arguments = get_arguments.clone();
+            invalid_arguments[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid_arguments, false).is_err(),
+                "closed Attachment@3 get schema accepted {field}"
+            );
+        }
+        let mut same_candidate = get_arguments.clone();
+        same_candidate["appearance_candidate_id"] = json!("geometry-v3");
+        assert!(agentic_write_tools::validate_call(
+            get_name,
+            &same_candidate,
+            &agentic_write_tools::Binding::default()
+        )
+        .is_err());
+
+        let runtime = Runtime::ephemeral().expect("Attachment@3 dispatch runtime");
+        for (name, arguments) in [(get_name, get_arguments), (prepare_name, json!({}))] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("Attachment@3 Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn animated_socket_trails_sequence_mcp_surface_is_closed_hidden_and_dispatches() {
+        let prepare_name = "fictional_energy_vfx_animated_socket_trails_sequence_prepare";
+        let get_name = "fictional_energy_vfx_animated_socket_trails_sequence_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("animated socket trails prepare tool");
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("animated socket trails get tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["sample_count"]["maximum"],
+            15
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["frames"]["maxItems"],
+            15
+        );
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketTrailsSequenceGetRequest@1",
+            "sequence_key_sha256":"a".repeat(64),
+            "project_id":"project-1",
+            "candidate_id":"candidate-1"
+        });
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        for field in ["unknown", "raw_glb_bytes", "png_base64", "path", "url"] {
+            let mut invalid_arguments = get_arguments.clone();
+            invalid_arguments[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid_arguments, false).is_err(),
+                "closed animated trails get schema accepted {field}"
+            );
+        }
+
+        let runtime = Runtime::ephemeral().expect("animated trails dispatch runtime");
+        for (name, arguments) in [(get_name, get_arguments), (prepare_name, json!({}))] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("animated trails Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn animated_socket_trails_sequence_v2_mcp_surface_is_closed_hidden_and_dispatches() {
+        let prepare_name = "fictional_energy_vfx_animated_socket_trails_sequence_v2_prepare";
+        let get_name = "fictional_energy_vfx_animated_socket_trails_sequence_v2_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("Trails@2 prepare tool");
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("Trails@2 get tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["frame_scope"]["const"],
+            "lod0-animation-trails-v2-source-frames-1-15-with-particles-v2-frame-zero-preroll@2"
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["history_policy"]["const"],
+            "particles-v2-history-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@2"
+        );
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketTrailsSequenceGetRequest@2",
+            "sequence_key_sha256":"a".repeat(64),
+            "project_id":"project-1",
+            "geometry_candidate_id":"candidate-1",
+            "appearance_candidate_id":"candidate-2",
+            "geometry_delivery_manifest_object_sha256":"b".repeat(64),
+            "appearance_delivery_manifest_object_sha256":"c".repeat(64)
+        });
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        for field in [
+            "unknown",
+            "raw_glb_bytes",
+            "png_base64",
+            "path",
+            "url",
+            "script",
+        ] {
+            let mut invalid_arguments = get_arguments.clone();
+            invalid_arguments[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid_arguments, false).is_err(),
+                "closed Trails@2 get schema accepted {field}"
+            );
+        }
+        let mut same_candidate = get_arguments.clone();
+        same_candidate["appearance_candidate_id"] = json!("candidate-1");
+        assert!(agentic_write_tools::validate_call(
+            get_name,
+            &same_candidate,
+            &agentic_write_tools::Binding {
+                session_id: Some("session-1".to_owned()),
+                project_id: Some("project-1".to_owned()),
+                candidate_id: Some("candidate-1".to_owned()),
+            }
+        )
+        .is_err());
+
+        let runtime = Runtime::ephemeral().expect("Trails@2 dispatch runtime");
+        for (name, arguments) in [(get_name, get_arguments), (prepare_name, json!({}))] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("Trails@2 Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn animated_socket_trails_bloom_sequence_mcp_surface_is_closed_hidden_and_dispatches() {
+        let prepare_name = "fictional_energy_vfx_animated_socket_trails_bloom_sequence_prepare";
+        let get_name = "fictional_energy_vfx_animated_socket_trails_bloom_sequence_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("animated socket trails Bloom prepare tool");
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("animated socket trails Bloom get tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["sample_count"]["maximum"],
+            15
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["frames"]["maxItems"],
+            15
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["trail_bloom_profile"]
+                ["additionalProperties"],
+            false
+        );
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketTrailsBloomSequenceGetRequest@1",
+            "sequence_key_sha256":"a".repeat(64),
+            "project_id":"project-1",
+            "candidate_id":"candidate-1"
+        });
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        for field in [
+            "unknown",
+            "raw_glb_bytes",
+            "png_base64",
+            "path",
+            "url",
+            "uri",
+        ] {
+            let mut invalid_arguments = get_arguments.clone();
+            invalid_arguments[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid_arguments, false).is_err(),
+                "closed animated trails Bloom get schema accepted {field}"
+            );
+        }
+
+        let runtime = Runtime::ephemeral().expect("animated trails Bloom dispatch runtime");
+        for (name, arguments) in [(get_name, get_arguments), (prepare_name, json!({}))] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("animated trails Bloom Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn animated_socket_trails_bloom_sequence_v2_mcp_surface_is_closed_hidden_and_dispatches() {
+        let prepare_name = "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_prepare";
+        let get_name = "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_get";
+        let read_tools = tools_with_writes(false);
+        assert!(read_tools.iter().any(|tool| tool["name"] == get_name));
+        assert!(!read_tools.iter().any(|tool| tool["name"] == prepare_name));
+        let enabled_tools = tools_with_writes(true);
+        let prepare_tool = enabled_tools
+            .iter()
+            .find(|tool| tool["name"] == prepare_name)
+            .expect("TrailsBloom@2 prepare tool");
+        let get_tool = read_tools
+            .iter()
+            .find(|tool| tool["name"] == get_name)
+            .expect("TrailsBloom@2 get tool");
+        assert_eq!(prepare_tool["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare_tool["annotations"]["writeIntent"], true);
+        assert_eq!(prepare_tool["annotations"]["approvalRequired"], false);
+        assert_eq!(prepare_tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["frame_scope"]["const"],
+            "lod0-animation-trails-bloom-v2-source-frames-1-15-with-trails-v2-frame-zero-preroll@2"
+        );
+        assert_eq!(
+            prepare_tool["inputSchema"]["properties"]["trails_bloom_sequence_policy"]["const"],
+            "projection-v2-driven-animated-socket-trails-bloom-dual-candidate@2"
+        );
+        assert_eq!(get_tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(get_tool["annotations"]["writeIntent"], false);
+        assert_eq!(get_tool["annotations"]["approvalRequired"], false);
+
+        let get_arguments = json!({
+            "schema_version":"FictionalEnergyVfxAnimatedSocketTrailsBloomSequenceGetRequest@2",
+            "sequence_key_sha256":"a".repeat(64),
+            "project_id":"project-1",
+            "geometry_candidate_id":"candidate-1",
+            "appearance_candidate_id":"candidate-2",
+            "geometry_delivery_manifest_object_sha256":"b".repeat(64),
+            "appearance_delivery_manifest_object_sha256":"c".repeat(64)
+        });
+        assert!(validate_declared_tool_input(get_name, &get_arguments, false).is_ok());
+        for field in [
+            "unknown",
+            "raw_glb_bytes",
+            "png_base64",
+            "path",
+            "url",
+            "script",
+        ] {
+            let mut invalid_arguments = get_arguments.clone();
+            invalid_arguments[field] = json!("not-allowed");
+            assert!(
+                validate_declared_tool_input(get_name, &invalid_arguments, false).is_err(),
+                "closed TrailsBloom@2 get schema accepted {field}"
+            );
+        }
+        let mut same_candidate = get_arguments.clone();
+        same_candidate["appearance_candidate_id"] = json!("candidate-1");
+        assert!(agentic_write_tools::validate_call(
+            get_name,
+            &same_candidate,
+            &agentic_write_tools::Binding {
+                session_id: Some("session-1".to_owned()),
+                project_id: Some("project-1".to_owned()),
+                candidate_id: Some("candidate-1".to_owned()),
+            }
+        )
+        .is_err());
+
+        let runtime = Runtime::ephemeral().expect("TrailsBloom@2 dispatch runtime");
+        for (name, arguments) in [(get_name, get_arguments), (prepare_name, json!({}))] {
+            let error = dispatch_in_process(&runtime, name, &arguments)
+                .expect_err("TrailsBloom@2 Runtime dispatch must reach the named method");
+            assert!(
+                !error.starts_with("CAPABILITY_UNAVAILABLE:"),
+                "{name} fell through the MCP Runtime dispatch table: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn candidate_topology_quality_tools_are_closed_and_opt_in() {
+        let read_only = tools_with_writes(false);
+        let topology_get = read_only
+            .iter()
+            .find(|tool| tool["name"] == "candidate_topology_quality_get")
+            .expect("candidate topology read tool");
+        assert_eq!(topology_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(topology_get["annotations"]["approvalRequired"], false);
+        assert!(topology_get["description"]
+            .as_str()
+            .is_some_and(|description| description.contains("never raw GLB bytes")));
+        assert!(!read_only
+            .iter()
+            .any(|tool| tool["name"] == "candidate_topology_quality_prepare"));
+
+        let enabled = tools_with_writes(true);
+        let topology_prepare = enabled
+            .iter()
+            .find(|tool| tool["name"] == "candidate_topology_quality_prepare")
+            .expect("candidate topology prepare tool");
+        assert_eq!(topology_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(topology_prepare["annotations"]["writeIntent"], true);
+        assert_eq!(topology_prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            topology_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert!(topology_prepare["inputSchema"]["required"]
+            .as_array()
+            .expect("topology required fields")
+            .iter()
+            .all(|field| field != "approved" && field != "approval_receipt_id"));
+
+        let get_request = json!({
+            "schema_version":"CandidateTopologyQualityGetRequest@1",
+            "topology_quality_id":"topology-quality-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-1"
+        });
+        assert!(validate_declared_tool_input(
+            "candidate_topology_quality_get",
+            &get_request,
+            false
+        )
+        .is_ok());
+        let mut unknown = get_request;
+        unknown["python"] = json!("bpy.ops");
+        assert!(
+            validate_declared_tool_input("candidate_topology_quality_get", &unknown, false)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn candidate_material_surface_quality_tools_are_closed_dual_bound_and_opt_in() {
+        let read_only = tools_with_writes(false);
+        let material_get = read_only
+            .iter()
+            .find(|tool| tool["name"] == "candidate_material_surface_quality_get")
+            .expect("candidate material-surface read tool");
+        assert_eq!(material_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(material_get["annotations"]["approvalRequired"], false);
+        assert!(material_get["description"]
+            .as_str()
+            .is_some_and(|description| description.contains("never raw GLB or PNG bytes")));
+        assert!(!read_only
+            .iter()
+            .any(|tool| tool["name"] == "candidate_material_surface_quality_prepare"));
+
+        let enabled = tools_with_writes(true);
+        let material_prepare = enabled
+            .iter()
+            .find(|tool| tool["name"] == "candidate_material_surface_quality_prepare")
+            .expect("candidate material-surface prepare tool");
+        assert_eq!(material_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(material_prepare["annotations"]["writeIntent"], true);
+        assert_eq!(material_prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            material_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert!(material_prepare["inputSchema"]["required"]
+            .as_array()
+            .expect("material-surface required fields")
+            .iter()
+            .all(|field| field != "approved" && field != "approval_receipt_id"));
+
+        let get_request = json!({
+            "schema_version":"CandidateMaterialSurfaceQualityGetRequest@1",
+            "material_surface_quality_id":"material-surface-quality-1",
+            "project_id":"project-1",
+            "source_candidate_id":"candidate-1",
+            "output_candidate_id":"candidate-appearance-1"
+        });
+        assert!(validate_declared_tool_input(
+            "candidate_material_surface_quality_get",
+            &get_request,
+            false
+        )
+        .is_ok());
+        let mut unknown = get_request;
+        unknown["python"] = json!("bpy.ops");
+        assert!(validate_declared_tool_input(
+            "candidate_material_surface_quality_get",
+            &unknown,
+            false
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn candidate_animation_vfx_quality_tools_are_closed_head_bound_and_opt_in() {
+        let read_only = tools_with_writes(false);
+        let quality_get = read_only
+            .iter()
+            .find(|tool| tool["name"] == "candidate_animation_vfx_quality_get")
+            .expect("candidate animation-vfx read tool");
+        assert_eq!(quality_get["annotations"]["readOnlyHint"], true);
+        assert_eq!(quality_get["annotations"]["approvalRequired"], false);
+        assert!(quality_get["description"]
+            .as_str()
+            .is_some_and(|description| description.contains("never raw GLB or PNG bytes")));
+        assert!(!read_only
+            .iter()
+            .any(|tool| tool["name"] == "candidate_animation_vfx_quality_prepare"));
+
+        let enabled = tools_with_writes(true);
+        let quality_prepare = enabled
+            .iter()
+            .find(|tool| tool["name"] == "candidate_animation_vfx_quality_prepare")
+            .expect("candidate animation-vfx prepare tool");
+        assert_eq!(quality_prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(quality_prepare["annotations"]["writeIntent"], true);
+        assert_eq!(quality_prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            quality_prepare["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert!(quality_prepare["inputSchema"]["required"]
+            .as_array()
+            .expect("animation-vfx required fields")
+            .iter()
+            .all(|field| field != "approved" && field != "approval_receipt_id"));
+
+        let get_request = json!({
+            "schema_version":"CandidateAnimationVfxQualityGetRequest@1",
+            "animation_vfx_quality_id":"animation-vfx-quality-1",
+            "project_id":"project-1",
+            "candidate_id":"candidate-appearance-1"
+        });
+        assert!(validate_declared_tool_input(
+            "candidate_animation_vfx_quality_get",
+            &get_request,
+            false
+        )
+        .is_ok());
+        let mut unknown = get_request;
+        unknown["python"] = json!("bpy.ops");
+        assert!(validate_declared_tool_input(
+            "candidate_animation_vfx_quality_get",
+            &unknown,
+            false
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn candidate_animation_vfx_quality_v2_tools_are_exposed_and_dispatch_is_wired() {
+        let read_only = tools_with_writes(false);
+        let get = read_only
+            .iter()
+            .find(|tool| tool["name"] == "candidate_animation_vfx_quality_v2_get")
+            .expect("CandidateAnimationVfxQuality@2 get tool");
+        assert_eq!(get["annotations"]["readOnlyHint"], true);
+        assert_eq!(get["annotations"]["writeIntent"], false);
+        assert_eq!(get["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            get["inputSchema"]["required"]
+                .as_array()
+                .expect("V2 get request fields")
+                .len(),
+            4
+        );
+        assert!(!read_only
+            .iter()
+            .any(|tool| tool["name"] == "candidate_animation_vfx_quality_v2_prepare"));
+
+        let enabled = tools_with_writes(true);
+        let prepare = enabled
+            .iter()
+            .find(|tool| tool["name"] == "candidate_animation_vfx_quality_v2_prepare")
+            .expect("CandidateAnimationVfxQuality@2 prepare tool");
+        assert_eq!(prepare["annotations"]["readOnlyHint"], false);
+        assert_eq!(prepare["annotations"]["writeIntent"], true);
+        assert_eq!(prepare["annotations"]["approvalRequired"], false);
+        assert_eq!(
+            prepare["inputSchema"]["required"]
+                .as_array()
+                .expect("V2 prepare request fields")
+                .len(),
+            69
+        );
+        let get_request = json!({
+            "schema_version":"CandidateAnimationVfxQualityGetRequest@2",
+            "animation_vfx_quality_id":"quality-1",
+            "project_id":"project-1",
+            "candidate_id":"appearance-1"
+        });
+        assert!(validate_declared_tool_input(
+            "candidate_animation_vfx_quality_v2_get",
+            &get_request,
+            false
+        )
+        .is_ok());
+        let mut unknown = get_request;
+        unknown["legacy_sidecar_bool"] = json!(true);
+        assert!(validate_declared_tool_input(
+            "candidate_animation_vfx_quality_v2_get",
+            &unknown,
+            false
+        )
+        .is_err());
+
+        let runtime = Runtime::ephemeral().expect("V2 dispatch runtime");
+        for name in [
+            "candidate_animation_vfx_quality_v2_prepare",
+            "candidate_animation_vfx_quality_v2_get",
+        ] {
+            let error = dispatch_in_process(&runtime, name, &json!({}))
+                .expect_err("malformed V2 request must reach its Runtime parser");
+            assert!(!error.contains("unknown tool"), "{name}: {error}");
+        }
+    }
+
+    #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 41);
+        assert_eq!(disabled.len(), 90);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 74);
+        assert_eq!(enabled.len(), 159);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -5725,7 +15533,7 @@ mod tests {
         .expect("tools/list response");
         assert_eq!(
             enabled["result"]["tools"].as_array().map(Vec::len),
-            Some(74)
+            Some(159)
         );
 
         session.write_tools_enabled = false;
@@ -5737,8 +15545,285 @@ mod tests {
         .expect("read-only tools/list response");
         assert_eq!(
             disabled["result"]["tools"].as_array().map(Vec::len),
-            Some(41)
+            Some(90)
         );
+    }
+
+    #[test]
+    fn game_asset_delivery_mcp_dispatch_is_closed_bounded_and_prepare_only() {
+        if build_cohort_sha256().is_none() {
+            return;
+        }
+        fn program(project_id: &str, catalog_sha256: &str, segments: u64) -> Value {
+            let mut value = json!({
+                "schema_version":"GeometryProgram@2",
+                "project_id":project_id,
+                "representation_plan_sha256":"6".repeat(64),
+                "operator_catalog_sha256":catalog_sha256,
+                "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+                "budgets":{"max_nodes":1,"max_triangles":1000,"max_glb_bytes":1048576,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+                "nodes":[{
+                    "node_id":"delivery-node",
+                    "operator_id":"forgecad.geometry.primitive@2",
+                    "inputs":[],
+                    "parameters":{"shape":"cylinder","radius_m":0.25,"height_m":1.0,"radial_segments":segments,"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}
+                }],
+                "part_outputs":[{"part_id":"delivery-part","input_node_ids":["delivery-node"],"material_zone_id":"zone-delivery","solid":true}]
+            });
+            value["canonical_sha256"] = Value::String(canonical_json_hash(&value));
+            value
+        }
+
+        let (mut backend, mut session) = initialized();
+        let (project_id, prepared) = match &backend {
+            Backend::InProcess(runtime) => {
+                let project = runtime
+                    .create_project("MCP game delivery", json!({"profile":"mvp"}))
+                    .expect("project");
+                let catalog_sha256 = runtime.active_operator_catalog()["canonical_sha256"]
+                    .as_str()
+                    .expect("catalog hash")
+                    .to_owned();
+                let prepared = [64, 32, 16]
+                    .into_iter()
+                    .map(|segments| {
+                        runtime
+                            .prepare_geometry_candidate(
+                                &project.project_id,
+                                None,
+                                json!({
+                                    "typed":"geometry",
+                                    "geometry_program":program(&project.project_id, &catalog_sha256, segments)
+                                }),
+                            )
+                            .expect("LOD candidate")
+                    })
+                    .collect::<Vec<_>>();
+                (project.project_id, prepared)
+            }
+            _ => unreachable!("test backend"),
+        };
+        let lods = prepared
+            .iter()
+            .enumerate()
+            .map(|(level, value)| {
+                json!({
+                    "level":level,
+                    "candidate_id":value["candidate"]["candidate_id"],
+                    "candidate_state_sha256":value["candidate"]["canonical_sha256"],
+                    "artifact_sha256":value["artifact"]["artifact_id"],
+                    "artifact_readback_sha256":value["artifact"]["canonical_sha256"]
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut arguments = json!({
+            "schema_version":"GameAssetDeliveryPrepareRequest@1",
+            "project_id":project_id,
+            "lods":lods,
+            "animation":null,
+            "lod_policy":"authored-three-level-part-stable-progressive-triangles@1",
+            "collision_policy":"per-part-aabb-box-from-lod2-visual-geometry@1",
+            "readiness_policy":"engine-neutral-gltf2-embedded-assets-stable-names@1",
+            "canonical_sha256":""
+        });
+        let mut preimage = arguments.clone();
+        preimage.as_object_mut().unwrap().remove("canonical_sha256");
+        arguments["canonical_sha256"] = Value::String(canonical_json_hash(&preimage));
+
+        let source = &prepared[0];
+        let mut derive_arguments = json!({
+            "schema_version":"GameAssetLodDeriveRequest@1",
+            "project_id":project_id,
+            "source_candidate_id":source["candidate"]["candidate_id"],
+            "source_candidate_state_sha256":source["candidate"]["canonical_sha256"],
+            "source_artifact_sha256":source["artifact"]["artifact_id"],
+            "source_artifact_readback_sha256":source["artifact"]["canonical_sha256"],
+            "source_geometry_program_sha256":source["artifact"]["program_sha256"],
+            "source_operator_catalog_sha256":source["artifact"]["operator_catalog_sha256"],
+            "source_readback_config_sha256":source["artifact"]["readback_config_sha256"],
+            "derive_policy":"runtime-owned-typed-segment-lowering-lod1-half-lod2-quarter@1",
+            "canonical_sha256":""
+        });
+        let mut derive_preimage = derive_arguments.clone();
+        derive_preimage
+            .as_object_mut()
+            .unwrap()
+            .remove("canonical_sha256");
+        derive_arguments["canonical_sha256"] = Value::String(canonical_json_hash(&derive_preimage));
+        let (derive_candidates_before, derive_versions_before) = match &backend {
+            Backend::InProcess(runtime) => (
+                runtime.candidates(&project_id).expect("derive candidates"),
+                runtime
+                    .versions(Some(&project_id))
+                    .expect("derive versions"),
+            ),
+            _ => unreachable!("test backend"),
+        };
+        let derive_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1898,"method":"tools/call","params":{"name":"game_asset_lod_derive","arguments":derive_arguments.clone()}}),
+        )
+        .expect("default-read automatic LOD derivation response");
+        assert_eq!(
+            derive_response["result"]["structuredContent"]["schema_version"],
+            "GameAssetLodDeriveResult@1"
+        );
+        assert_eq!(
+            derive_response["result"]["structuredContent"]["levels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|level| level["triangle_count"].as_u64().unwrap())
+                .collect::<Vec<_>>(),
+            vec![256, 128, 64]
+        );
+        assert_eq!(
+            derive_response["result"]["structuredContent"]["runtime_write_performed"],
+            false
+        );
+        assert_eq!(
+            derive_response["result"]["structuredContent"]["worker_replay_verified"],
+            true
+        );
+        assert!(
+            serde_json::to_vec(&derive_response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES
+        );
+        let derive_summary: Value = serde_json::from_str(
+            derive_response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("automatic LOD summary"),
+        )
+        .expect("automatic LOD summary JSON");
+        assert_eq!(
+            derive_summary["schema_version"],
+            "GameAssetDeliveryMcpSummary@1"
+        );
+        assert_eq!(
+            derive_summary["derive_levels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|level| level["triangle_count"].as_u64().unwrap())
+                .collect::<Vec<_>>(),
+            vec![256, 128, 64]
+        );
+        match &backend {
+            Backend::InProcess(runtime) => {
+                assert_eq!(
+                    serde_json::to_value(runtime.candidates(&project_id).unwrap()).unwrap(),
+                    serde_json::to_value(derive_candidates_before).unwrap()
+                );
+                assert_eq!(
+                    serde_json::to_value(runtime.versions(Some(&project_id)).unwrap()).unwrap(),
+                    serde_json::to_value(derive_versions_before).unwrap()
+                );
+            }
+            _ => unreachable!("test backend"),
+        }
+        let mut forbidden_derive = derive_arguments;
+        forbidden_derive["python"] = json!("bpy.ops.object.modifier_add(type='DECIMATE')");
+        let rejected_derive = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1899,"method":"tools/call","params":{"name":"game_asset_lod_derive","arguments":forbidden_derive}}),
+        )
+        .expect("closed automatic LOD schema rejection");
+        assert_eq!(
+            rejected_derive["error"]["data"]["code"],
+            "INVALID_TOOL_PARAMS"
+        );
+
+        let disabled = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1900,"method":"tools/call","params":{"name":"game_asset_delivery_prepare","arguments":arguments.clone()}}),
+        )
+        .expect("disabled delivery response");
+        assert_eq!(disabled["result"]["isError"], true);
+        assert_eq!(
+            disabled["result"]["structuredContent"]["code"],
+            "MCP010F_GAME_ASSET_DELIVERY_WRITE_TOOLS_DISABLED",
+            "{disabled}"
+        );
+
+        session.write_tools_enabled = true;
+        let response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1901,"method":"tools/call","params":{"name":"game_asset_delivery_prepare","arguments":arguments}}),
+        )
+        .expect("game delivery response");
+        assert_eq!(
+            response["result"]["structuredContent"]["schema_version"],
+            "GameAssetDeliveryPrepareResult@1",
+            "{response}"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["candidate_confirmed"],
+            false
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["export_performed"],
+            false
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["actual_engine_roundtrip"],
+            false
+        );
+        assert!(serde_json::to_vec(&response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES);
+        let summary: Value = serde_json::from_str(
+            response["result"]["content"][0]["text"]
+                .as_str()
+                .expect("delivery summary"),
+        )
+        .expect("delivery summary JSON");
+        assert_eq!(summary["schema_version"], "GameAssetDeliveryMcpSummary@1");
+        assert_eq!(summary["triangle_counts"], json!([256, 128, 64]));
+        assert_eq!(summary["collision_proxy_count"], 1);
+        assert_eq!(summary["threejs_status"], "NOT_RUN");
+
+        let manifest_sha256 =
+            response["result"]["structuredContent"]["delivery_manifest_object_sha256"].clone();
+        let get_response = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1902,"method":"tools/call","params":{"name":"game_asset_delivery_get","arguments":{
+                "schema_version":"GameAssetDeliveryGetRequest@1",
+                "project_id":project_id,
+                "delivery_manifest_object_sha256":manifest_sha256
+            }}}),
+        )
+        .expect("durable game delivery get response");
+        assert_eq!(
+            get_response["result"]["structuredContent"]["schema_version"],
+            "GameAssetDeliveryGetResult@1"
+        );
+        assert_eq!(
+            get_response["result"]["structuredContent"]["restart_hash_verified"],
+            true
+        );
+        assert!(serde_json::to_vec(&get_response).unwrap().len() <= READ_MODEL_MCP_WIRE_MAX_BYTES);
+
+        let mut forbidden = json!({
+            "schema_version":"GameAssetDeliveryPrepareRequest@1",
+            "project_id":project_id,
+            "lods":[],
+            "animation":null,
+            "lod_policy":"authored-three-level-part-stable-progressive-triangles@1",
+            "collision_policy":"per-part-aabb-box-from-lod2-visual-geometry@1",
+            "readiness_policy":"engine-neutral-gltf2-embedded-assets-stable-names@1",
+            "canonical_sha256":"a".repeat(64),
+            "python":"bpy.ops"
+        });
+        forbidden["canonical_sha256"] = json!("a".repeat(64));
+        let rejected = handle(
+            &mut backend,
+            &mut session,
+            &json!({"jsonrpc":"2.0","id":1903,"method":"tools/call","params":{"name":"game_asset_delivery_prepare","arguments":forbidden}}),
+        )
+        .expect("closed schema rejection");
+        assert_eq!(rejected["error"]["data"]["code"], "INVALID_TOOL_PARAMS");
     }
 
     #[cfg(unix)]
@@ -5910,7 +15995,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 74);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 159);
 
         let imported = handle(
             &mut backend,
@@ -6023,6 +16108,18 @@ mod tests {
             geometry["result"]["structuredContent"]["candidate"]["state"],
             "reviewable"
         );
+        let geometry_wire = serde_json::to_string(&geometry).expect("geometry response serializes");
+        for forbidden in [
+            "\"glb_base64\"",
+            "\"glb_bytes\"",
+            "\"raw_glb\"",
+            "\"artifact_bytes\"",
+        ] {
+            assert!(
+                !geometry_wire.contains(forbidden),
+                "geometry_prepare MCP response must not expose raw GLB field {forbidden}"
+            );
+        }
         let artifact_id = geometry["result"]["structuredContent"]["artifact"]["artifact_id"]
             .as_str()
             .expect("geometry artifact")
@@ -6060,8 +16157,7 @@ mod tests {
             "geometry_program_sha256":geometry_program["canonical_sha256"].clone(),
             "material_zones":[
                 {"zone_id":"zone-white-shell","part_ids":["torso"],"base_color":[0.78,0.82,0.86,1.0],"metallic":0.72,"roughness":0.28,"emissive":[0.0,0.0,0.0]},
-                {"zone_id":"zone-black-mechanical","part_ids":["core"],"base_color":[0.03,0.04,0.05,1.0],"metallic":0.75,"roughness":0.3,"emissive":[0.0,0.0,0.0]},
-                {"zone_id":"zone-amber-emissive","part_ids":["core"],"base_color":[0.16,0.06,0.01,1.0],"metallic":0.2,"roughness":0.25,"emissive":[1.0,0.12,0.01]}
+                {"zone_id":"zone-black-mechanical","part_ids":["core"],"base_color":[0.16,0.06,0.01,1.0],"metallic":0.2,"roughness":0.25,"emissive":[1.0,0.12,0.01]}
             ]
         });
         appearance_program["canonical_sha256"] =
@@ -6079,7 +16175,8 @@ mod tests {
         .expect("appearance prepare");
         assert_eq!(
             appearance["result"]["structuredContent"]["schema_version"],
-            "AppearancePrepareResult@1"
+            "AppearancePrepareResult@1",
+            "appearance_prepare response: {appearance:#}"
         );
         assert_eq!(
             appearance["result"]["structuredContent"]["artifact"]["uv_status"],

@@ -1,0 +1,18 @@
+{
+  "spdxVersion":"SPDX-2.3",
+  "dataLicense":"CC0-1.0",
+  "SPDXID":"SPDXRef-DOCUMENT",
+  "name":"forgecad-fictional-energy-weapon-2k-1.0.0",
+  "documentNamespace":"https://forgecad.local/spdx/forgecad-fictional-energy-weapon-2k/1.0.0",
+  "creationInfo":{"created":"2026-08-20T00:00:00Z","creators":["Organization: ForgeCAD"]},
+  "packages":[
+    {"name":"forgecad-fictional-energy-weapon-2k","SPDXID":"SPDXRef-Package-ForgeCADWeapon2K","versionInfo":"1.0.0","downloadLocation":"NOASSERTION","filesAnalyzed":false,"licenseConcluded":"CC0-1.0","licenseDeclared":"CC0-1.0","copyrightText":"NOASSERTION"},
+    {"name":"ambientCG-Metal010","SPDXID":"SPDXRef-Package-Metal010","versionInfo":"2K-PNG-source-admitted-as-512-input","downloadLocation":"https://ambientcg.com/view?id=Metal010","filesAnalyzed":false,"licenseConcluded":"CC0-1.0","licenseDeclared":"CC0-1.0","copyrightText":"NOASSERTION"},
+    {"name":"ambientCG-Plastic006","SPDXID":"SPDXRef-Package-Plastic006","versionInfo":"2K-PNG-source-admitted-as-512-input","downloadLocation":"https://ambientcg.com/view?id=Plastic006","filesAnalyzed":false,"licenseConcluded":"CC0-1.0","licenseDeclared":"CC0-1.0","copyrightText":"NOASSERTION"}
+  ],
+  "relationships":[
+    {"spdxElementId":"SPDXRef-DOCUMENT","relationshipType":"DESCRIBES","relatedSpdxElement":"SPDXRef-Package-ForgeCADWeapon2K"},
+    {"spdxElementId":"SPDXRef-Package-ForgeCADWeapon2K","relationshipType":"GENERATED_FROM","relatedSpdxElement":"SPDXRef-Package-Metal010"},
+    {"spdxElementId":"SPDXRef-Package-ForgeCADWeapon2K","relationshipType":"GENERATED_FROM","relatedSpdxElement":"SPDXRef-Package-Plastic006"}
+  ]
+}

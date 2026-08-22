@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-glb-v2-get-request.schema.json",
+  "title": "MechanicalAnimationGlbGetRequest@2",
+  "description": "Closed read-only lookup for one appearance-aware animated GLB bound to an immutable Clip@2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "appearance_candidate_id", "clip_id"],
+  "properties": {
+    "schema_version": {"const": "MechanicalAnimationGlbGetRequest@2"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "appearance_candidate_id": {"$ref": "#/$defs/id"},
+    "clip_id": {"$ref": "#/$defs/id"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}
+  }
+}

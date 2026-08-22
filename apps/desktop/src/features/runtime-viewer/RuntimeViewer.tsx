@@ -33,6 +33,27 @@ import {
   type AgenticSessionBinding,
   type AgenticSessionProjection,
 } from './agentic-session'
+import {
+  mechanicalAnimationHierarchyRows,
+  isCurrentMechanicalAnimationFrameResponse,
+  normalizeMechanicalAnimationClipLink,
+  normalizeMechanicalAnimationFramePreview,
+  normalizeViewerMechanicalAnimationInventory,
+  unavailableMechanicalAnimationInventory,
+  validateMechanicalAnimationPartOwners,
+  type MechanicalAnimationBinding,
+  type MechanicalAnimationClipLink,
+  type MechanicalAnimationClipSummary,
+  type MechanicalAnimationFramePreview,
+  type ViewerMechanicalAnimationInventory,
+} from './mechanical-animation'
+import {
+  isCurrentProvenanceGraphResponse,
+  normalizeViewerProvenanceGraph,
+  unavailableProvenanceGraph,
+  type ProvenanceGraphBinding,
+  type ViewerProvenanceGraph,
+} from './provenance-graph'
 
 const VIEWER_SELECTION_CACHE = '__forgecad_selection_state_v1'
 const VIEWER_HOVER_CACHE = '__forgecad_hover_state_v1'
@@ -829,6 +850,13 @@ type ViewerObjectState = {
   isSelected: boolean
 }
 
+type ViewerPartGroupState = {
+  group: THREE.Object3D
+  basePosition: THREE.Vector3
+  baseQuaternion: THREE.Quaternion
+  baseScale: THREE.Vector3
+}
+
 type ViewerSceneState = {
   root: THREE.Object3D
   renderer: THREE.WebGLRenderer
@@ -837,6 +865,7 @@ type ViewerSceneState = {
   controls: OrbitControls
   raycaster: THREE.Raycaster
   objects: Map<THREE.Object3D, ViewerObjectState>
+  partGroups: Map<string, ViewerPartGroupState>
   lights: {
     hemi?: THREE.HemisphereLight
     key?: THREE.DirectionalLight
@@ -1574,6 +1603,19 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const [compareMode, setCompareMode] = useState<CompareMode>('split')
   const [evidence, setEvidence] = useState<ViewerVisualEvidence | null>(null)
   const [evidenceError, setEvidenceError] = useState<string | null>(null)
+  const [mechanicalAnimationInventory, setMechanicalAnimationInventory] = useState<ViewerMechanicalAnimationInventory>(() => unavailableMechanicalAnimationInventory())
+  const [mechanicalAnimationClip, setMechanicalAnimationClip] = useState<MechanicalAnimationClipLink | null>(null)
+  const [selectedMechanicalAnimationClipId, setSelectedMechanicalAnimationClipId] = useState<string | null>(null)
+  const [mechanicalAnimationTick, setMechanicalAnimationTick] = useState<number | null>(null)
+  const [mechanicalAnimationFrame, setMechanicalAnimationFrame] = useState<MechanicalAnimationFramePreview | null>(null)
+  const [mechanicalAnimationFrameLoading, setMechanicalAnimationFrameLoading] = useState(false)
+  const [mechanicalAnimationFrameError, setMechanicalAnimationFrameError] = useState<string | null>(null)
+  const [mechanicalAnimationLoading, setMechanicalAnimationLoading] = useState(false)
+  const [mechanicalAnimationError, setMechanicalAnimationError] = useState<string | null>(null)
+  const [provenanceGraph, setProvenanceGraph] = useState<ViewerProvenanceGraph>(() => unavailableProvenanceGraph())
+  const [selectedProvenanceNodeId, setSelectedProvenanceNodeId] = useState<string | null>(null)
+  const [provenanceGraphLoading, setProvenanceGraphLoading] = useState(false)
+  const [provenanceGraphError, setProvenanceGraphError] = useState<string | null>(null)
   const [agenticProjection, setAgenticProjection] = useState<AgenticDesignProjection>(() => unavailableAgenticDesignProjection())
   const [agenticSession, setAgenticSession] = useState<AgenticSessionProjection>(() => unavailableAgenticSessionProjection())
   const [referenceImage, setReferenceImage] = useState<ArtifactBytes | null>(null)
@@ -1644,6 +1686,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const sceneTreeNodeRefs = useRef<Record<string, HTMLElement | null>>({})
   const lastSummarySignatureRef = useRef<string | null>(null)
   const activeCandidateIdRef = useRef<string | null>(null)
+  const mechanicalAnimationInventoryRequestRef = useRef(0)
+  const mechanicalAnimationClipRequestRef = useRef(0)
+  const mechanicalAnimationFrameRequestRef = useRef(0)
+  const provenanceGraphRequestRef = useRef(0)
   const threeRuntimeRef = useRef<Pick<typeof import('./three-runtime-core'), 'Box3' | 'Vector3'> | null>(null)
   const contourCanvasActive = selectedPass === 'silhouette' && compareMode === 'overlay' && !diffHeatmap
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -2330,6 +2376,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
     const nextCandidateId = activeCandidateId ?? null
     if (activeCandidateIdRef.current !== nextCandidateId) {
       activeCandidateIdRef.current = nextCandidateId
+      mechanicalAnimationInventoryRequestRef.current += 1
+      mechanicalAnimationClipRequestRef.current += 1
+      mechanicalAnimationFrameRequestRef.current += 1
+      provenanceGraphRequestRef.current += 1
       setSelectedObjectId(null)
       setSelectedObjectIds([])
       setHoveredObjectId(null)
@@ -2341,8 +2391,22 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
       setSceneTreeFilter('all')
       setSceneTreeSearch('')
       setViewportMarqueeRect(null)
+      setMechanicalAnimationInventory(unavailableMechanicalAnimationInventory({
+        projectId: projectId ?? '',
+        candidateId: nextCandidateId ?? '',
+        artifactId: '',
+      }, nextCandidateId ? 'MECHANICAL_ANIMATION_CANDIDATE_SWITCHING' : 'MECHANICAL_ANIMATION_BINDING_MISSING'))
+      setMechanicalAnimationClip(null)
+      setSelectedMechanicalAnimationClipId(null)
+      setMechanicalAnimationTick(null)
+      setMechanicalAnimationError(null)
+      setMechanicalAnimationLoading(false)
+      setProvenanceGraph(unavailableProvenanceGraph(undefined, nextCandidateId ? 'PROVENANCE_GRAPH_CANDIDATE_SWITCHING' : 'PROVENANCE_GRAPH_BINDING_MISSING'))
+      setSelectedProvenanceNodeId(null)
+      setProvenanceGraphLoading(false)
+      setProvenanceGraphError(null)
     }
-  }, [activeCandidateId])
+  }, [activeCandidateId, projectId])
   const generationTimings = useMemo<CandidateGenerationTiming[]>(() => {
     const timings: CandidateGenerationTiming[] = []
     for (const entry of candidateEntries) {
@@ -2593,6 +2657,174 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
 
   useEffect(() => {
     let active = true
+    const requestId = ++mechanicalAnimationInventoryRequestRef.current
+    const binding: MechanicalAnimationBinding | null = projectId && candidateId && artifact?.artifact_id
+      ? { projectId, candidateId, artifactId: artifact.artifact_id }
+      : null
+    setMechanicalAnimationInventory(unavailableMechanicalAnimationInventory(binding ?? undefined, binding ? 'MECHANICAL_ANIMATION_INVENTORY_LOADING' : 'MECHANICAL_ANIMATION_BINDING_MISSING'))
+    setMechanicalAnimationClip(null)
+    setSelectedMechanicalAnimationClipId(null)
+    setMechanicalAnimationTick(null)
+    setMechanicalAnimationFrame(null)
+    setMechanicalAnimationFrameError(null)
+    setMechanicalAnimationFrameLoading(false)
+    setMechanicalAnimationError(null)
+    setMechanicalAnimationLoading(false)
+    if (!binding) return () => { active = false }
+    setMechanicalAnimationLoading(true)
+    void runtimeInvoke<unknown>('viewer_mechanical_animation_inventory', {
+      projectId: binding.projectId,
+      candidateId: binding.candidateId,
+      artifactId: binding.artifactId,
+    }).then((payload) => {
+      if (!active || mechanicalAnimationInventoryRequestRef.current !== requestId) return
+      const next = normalizeViewerMechanicalAnimationInventory(payload, binding)
+      setMechanicalAnimationInventory(next)
+      if (next.status === 'Ready') {
+        setSelectedMechanicalAnimationClipId((current) => current && next.clips.some((clip) => clip.clipId === current)
+          ? current
+          : next.clips[0]?.clipId ?? null)
+        setMechanicalAnimationError(null)
+      } else {
+        setSelectedMechanicalAnimationClipId(null)
+        setMechanicalAnimationError(next.code)
+      }
+    }).catch((error) => {
+      if (!active || mechanicalAnimationInventoryRequestRef.current !== requestId) return
+      const code = readErrorCode(error, 'MECHANICAL_ANIMATION_INVENTORY_REQUEST_FAILED')
+      setMechanicalAnimationInventory(unavailableMechanicalAnimationInventory(binding, code))
+      setSelectedMechanicalAnimationClipId(null)
+      setMechanicalAnimationError(code)
+    }).finally(() => {
+      if (active && mechanicalAnimationInventoryRequestRef.current === requestId) setMechanicalAnimationLoading(false)
+    })
+    return () => { active = false }
+  }, [artifact?.artifact_id, candidateId, modelRefreshNonce, projectId])
+
+  useEffect(() => {
+    let active = true
+    const requestId = ++provenanceGraphRequestRef.current
+    const binding: ProvenanceGraphBinding | null = projectId && candidateId && candidateRecord?.canonical_sha256 && artifact?.artifact_id
+      ? { projectId, candidateId, candidateStateSha256: candidateRecord.canonical_sha256, artifactId: artifact.artifact_id }
+      : null
+    setProvenanceGraph(unavailableProvenanceGraph(binding ?? undefined, binding ? 'PROVENANCE_GRAPH_LOADING' : 'PROVENANCE_GRAPH_BINDING_MISSING'))
+    setSelectedProvenanceNodeId(null)
+    setProvenanceGraphError(null)
+    setProvenanceGraphLoading(Boolean(binding))
+    if (!binding) return () => { active = false }
+    void runtimeInvoke<unknown>('viewer_provenance_graph', {
+      projectId: binding.projectId,
+      candidateId: binding.candidateId,
+      candidateStateSha256: binding.candidateStateSha256,
+      artifactId: binding.artifactId,
+    }).then((payload) => {
+      if (!isCurrentProvenanceGraphResponse(active, provenanceGraphRequestRef.current, requestId)) return
+      const next = normalizeViewerProvenanceGraph(payload, binding)
+      setProvenanceGraph(next)
+      setSelectedProvenanceNodeId(next.status === 'Ready' ? next.nodes[0]?.nodeId ?? null : null)
+      setProvenanceGraphError(next.status === 'Unavailable' ? next.code : null)
+    }).catch((error) => {
+      if (!isCurrentProvenanceGraphResponse(active, provenanceGraphRequestRef.current, requestId)) return
+      const code = readErrorCode(error, 'PROVENANCE_GRAPH_REQUEST_FAILED')
+      setProvenanceGraph(unavailableProvenanceGraph(binding, code))
+      setSelectedProvenanceNodeId(null)
+      setProvenanceGraphError(code)
+    }).finally(() => {
+      if (isCurrentProvenanceGraphResponse(active, provenanceGraphRequestRef.current, requestId)) setProvenanceGraphLoading(false)
+    })
+    return () => { active = false }
+  }, [artifact?.artifact_id, candidateId, candidateRecord?.canonical_sha256, modelRefreshNonce, projectId])
+
+  const selectedProvenanceNode = provenanceGraph.status === 'Ready'
+    ? provenanceGraph.nodes.find((node) => node.nodeId === selectedProvenanceNodeId) ?? provenanceGraph.nodes[0]
+    : undefined
+
+  const selectedMechanicalAnimationClipSummary: MechanicalAnimationClipSummary | undefined = mechanicalAnimationInventory.status === 'Ready'
+    ? mechanicalAnimationInventory.clips.find((clip) => clip.clipId === selectedMechanicalAnimationClipId)
+    : undefined
+
+  useEffect(() => {
+    let active = true
+    const requestId = ++mechanicalAnimationClipRequestRef.current
+    const binding: MechanicalAnimationBinding | null = projectId && candidateId && artifact?.artifact_id
+      ? { projectId, candidateId, artifactId: artifact.artifact_id }
+      : null
+    const inventoryReady = mechanicalAnimationInventory.status === 'Ready'
+    if (!binding || !inventoryReady || !selectedMechanicalAnimationClipId || !selectedMechanicalAnimationClipSummary) {
+      setMechanicalAnimationClip(null)
+      setMechanicalAnimationTick(null)
+      setMechanicalAnimationFrame(null)
+      setMechanicalAnimationFrameError(null)
+      if (!inventoryReady) setMechanicalAnimationLoading(false)
+      return () => { active = false }
+    }
+    setMechanicalAnimationLoading(true)
+    setMechanicalAnimationError(null)
+    void runtimeInvoke<unknown>('viewer_mechanical_animation_clip', {
+      projectId: binding.projectId,
+      candidateId: binding.candidateId,
+      artifactId: binding.artifactId,
+      clipId: selectedMechanicalAnimationClipId,
+    }).then((payload) => {
+      if (!active || mechanicalAnimationClipRequestRef.current !== requestId) return
+      const readback = normalizeMechanicalAnimationClipLink(payload, binding, selectedMechanicalAnimationClipSummary)
+      if (readback.status === 'Ready' && readback.link) {
+        setMechanicalAnimationClip(readback.link)
+        setMechanicalAnimationTick(readback.link.clip.samplingPolicy.sampleTimeTicks[0] ?? null)
+        setMechanicalAnimationFrame(null)
+        setMechanicalAnimationFrameError(null)
+        setMechanicalAnimationError(null)
+      } else {
+        setMechanicalAnimationClip(null)
+        setMechanicalAnimationTick(null)
+        setMechanicalAnimationFrame(null)
+        setMechanicalAnimationError(readback.code)
+      }
+    }).catch((error) => {
+      if (!active || mechanicalAnimationClipRequestRef.current !== requestId) return
+      setMechanicalAnimationClip(null)
+      setMechanicalAnimationTick(null)
+      setMechanicalAnimationFrame(null)
+      setMechanicalAnimationError(readErrorCode(error, 'MECHANICAL_ANIMATION_CLIP_REQUEST_FAILED'))
+    }).finally(() => {
+      if (active && mechanicalAnimationClipRequestRef.current === requestId) setMechanicalAnimationLoading(false)
+    })
+    return () => { active = false }
+  }, [artifact?.artifact_id, candidateId, mechanicalAnimationInventory.status, modelRefreshNonce, projectId, selectedMechanicalAnimationClipId, selectedMechanicalAnimationClipSummary])
+
+  useEffect(() => {
+    let active = true
+    const requestId = ++mechanicalAnimationFrameRequestRef.current
+    const binding: MechanicalAnimationBinding | null = projectId && candidateId && artifact?.artifact_id
+      ? { projectId, candidateId, artifactId: artifact.artifact_id }
+      : null
+    setMechanicalAnimationFrame(null)
+    setMechanicalAnimationFrameError(null)
+    setMechanicalAnimationFrameLoading(Boolean(binding && mechanicalAnimationClip && mechanicalAnimationTick !== null))
+    if (!binding || !mechanicalAnimationClip || mechanicalAnimationTick === null) return () => { active = false }
+    void runtimeInvoke<unknown>('viewer_mechanical_animation_frame_preview', {
+      projectId: binding.projectId,
+      candidateId: binding.candidateId,
+      artifactId: binding.artifactId,
+      clipId: mechanicalAnimationClip.clipId,
+      sampleTimeTicks: mechanicalAnimationTick,
+    }).then((payload) => {
+      if (!isCurrentMechanicalAnimationFrameResponse(active, mechanicalAnimationFrameRequestRef.current, requestId)) return
+      const readback = normalizeMechanicalAnimationFramePreview(payload, binding, mechanicalAnimationClip, mechanicalAnimationTick)
+      setMechanicalAnimationFrame(readback.status === 'Ready' ? readback.frame : null)
+      setMechanicalAnimationFrameError(readback.status === 'Unavailable' ? readback.code : null)
+    }).catch((error) => {
+      if (!isCurrentMechanicalAnimationFrameResponse(active, mechanicalAnimationFrameRequestRef.current, requestId)) return
+      setMechanicalAnimationFrame(null)
+      setMechanicalAnimationFrameError(readErrorCode(error, 'MECHANICAL_ANIMATION_FRAME_REQUEST_FAILED'))
+    }).finally(() => {
+      if (isCurrentMechanicalAnimationFrameResponse(active, mechanicalAnimationFrameRequestRef.current, requestId)) setMechanicalAnimationFrameLoading(false)
+    })
+    return () => { active = false }
+  }, [artifact?.artifact_id, candidateId, mechanicalAnimationClip, mechanicalAnimationTick, projectId])
+
+  useEffect(() => {
+    let active = true
     setAgenticProjection(unavailableAgenticDesignProjection(projectId, candidateId))
     if (!projectId || !candidateId) return () => { active = false }
     void runtimeInvoke<unknown>('viewer_agentic_projection', { projectId, candidateId }).then((payload) => {
@@ -2795,15 +3027,60 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
           nextControls.saveState()
           nextControls.update()
           const objects = new Map<THREE.Object3D, ViewerObjectState>()
+          const partGroups = new Map<string, ViewerPartGroupState>()
+          const expectedPartIds = artifact?.part_ids ?? []
+          const expectedPartIdSet = new Set(expectedPartIds)
+          const ownerNodes = new Map<string, THREE.Object3D>()
+          const ownerDescriptors: Parameters<typeof validateMechanicalAnimationPartOwners>[0][number][] = []
+          const gltfAssociations = (gltf.parser as unknown as { associations?: Map<THREE.Object3D, { nodes?: number }> }).associations
+          let meshPartBindingError: string | null = null
           root.traverse((object: THREE.Object3D) => {
+            const ownerMetadata = (object.userData ?? {}) as Record<string, unknown>
+            const association = gltfAssociations?.get(object)
+            const isGltfNode = Number.isInteger(association?.nodes)
+            const ownerPartId = isGltfNode && typeof ownerMetadata.part_id === 'string' ? ownerMetadata.part_id : null
+            if (isGltfNode && !ownerPartId) meshPartBindingError = 'GLB_NODE_PART_OWNER_MISSING'
+            let ancestorPartId: string | null = null
+            let ownerAncestor = object.parent
+            while (ownerAncestor && ownerAncestor !== root) {
+              const value = (ownerAncestor.userData as Record<string, unknown> | undefined)?.part_id
+              if (typeof value === 'string') {
+                ancestorPartId = value
+                break
+              }
+              ownerAncestor = ownerAncestor.parent
+            }
+            const identityTransform = object.position.lengthSq() <= 1e-12
+              && Math.abs(object.quaternion.x) <= 1e-12
+              && Math.abs(object.quaternion.y) <= 1e-12
+              && Math.abs(object.quaternion.z) <= 1e-12
+              && Math.abs(object.quaternion.w - 1) <= 1e-12
+              && Math.abs(object.scale.x - 1) <= 1e-12
+              && Math.abs(object.scale.y - 1) <= 1e-12
+              && Math.abs(object.scale.z - 1) <= 1e-12
+            ownerNodes.set(object.uuid, object)
+            ownerDescriptors.push({ nodeId: object.uuid, partId: ownerPartId, ancestorPartId, directRootChild: object.parent === root, identityTransform, isBone: Boolean((object as THREE.Bone).isBone), isSkinnedMesh: Boolean((object as THREE.SkinnedMesh).isSkinnedMesh) })
             if (!(object as THREE.Mesh).isMesh) return
             const mesh = object as THREE.Mesh
             isolateViewerMeshMaterials(mesh)
             const metadata = (mesh.userData ?? {}) as Record<string, unknown>
             const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material
-            const partId = typeof metadata.part_id === 'string'
-              ? metadata.part_id
-              : (mesh.name || mesh.parent?.name || 'unknown-part')
+            const metadataPartId = typeof metadata.part_id === 'string' ? metadata.part_id : null
+            let partId: string | null = null
+            let meshOwnerAncestor: THREE.Object3D | null = mesh
+            while (meshOwnerAncestor && meshOwnerAncestor !== root) {
+              const ancestorAssociation = gltfAssociations?.get(meshOwnerAncestor)
+              const ancestorMetadata = (meshOwnerAncestor.userData ?? {}) as Record<string, unknown>
+              if (Number.isInteger(ancestorAssociation?.nodes) && typeof ancestorMetadata.part_id === 'string') {
+                partId = ancestorMetadata.part_id
+                break
+              }
+              meshOwnerAncestor = meshOwnerAncestor.parent
+            }
+            if (!partId || !expectedPartIdSet.has(partId) || (metadataPartId !== null && metadataPartId !== partId)) {
+              meshPartBindingError = 'GLB_MESH_PART_BINDING_MISSING'
+              return
+            }
             const materialZoneId = typeof metadata.material_zone_id === 'string'
               ? metadata.material_zone_id
               : (material && 'name' in material && material.name ? material.name : 'unknown-material-zone')
@@ -2813,6 +3090,22 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             else direction.normalize()
             objects.set(mesh, { basePosition: mesh.position.clone(), direction, partId, materialZoneId, isSelected: false })
           })
+          const ownerValidation = validateMechanicalAnimationPartOwners(ownerDescriptors, expectedPartIds, gltf.animations.length)
+          if (meshPartBindingError || ownerValidation.status === 'Unavailable') {
+            setArtifactLoadState('error')
+            setArtifactError(meshPartBindingError ?? ownerValidation.code ?? 'GLB_PART_OWNER_MAPPING_INCOMPLETE')
+            return
+          }
+          for (const [partId, nodeId] of ownerValidation.ownerNodeIdsByPartId) {
+            const owner = ownerNodes.get(nodeId)
+            if (!owner) {
+              setArtifactLoadState('error')
+              setArtifactError('GLB_PART_OWNER_MAPPING_INCOMPLETE')
+              return
+            }
+            partGroups.set(partId, { group: owner, basePosition: owner.position.clone(), baseQuaternion: owner.quaternion.clone(), baseScale: owner.scale.clone() })
+          }
+          root.updateMatrixWorld(true)
           state = {
             root,
             renderer,
@@ -2821,6 +3114,7 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
             controls: nextControls,
             raycaster: nextRaycaster,
             objects,
+            partGroups,
             lights: {
               hemi: hemisphereLight,
               key: keyLight,
@@ -2866,18 +3160,53 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
 
   useEffect(() => {
     const state = viewerSceneRef.current
-    if (!state) return
+    if (!state || artifactLoadState !== 'ready') return
+    state.objects.forEach((objectState, object) => object.position.copy(objectState.basePosition))
+    for (const partGroup of state.partGroups.values()) {
+      partGroup.group.position.copy(partGroup.basePosition)
+      partGroup.group.quaternion.copy(partGroup.baseQuaternion)
+      partGroup.group.scale.copy(partGroup.baseScale)
+      partGroup.group.updateMatrix()
+    }
+    state.root.updateMatrixWorld(true)
+    const rootWorld = state.root.matrixWorld.clone()
+    const rootWorldInverse = rootWorld.clone().invert()
+    const deltasByPartId = new Map((mechanicalAnimationFrame?.partDeltas ?? []).map((delta) => [delta.partId, delta]))
+    for (const [partId, partGroup] of state.partGroups) {
+      const { group } = partGroup
+      const delta = deltasByPartId.get(partId)
+      if (!delta) continue
+      const baseLocalMatrix = group.matrix.clone()
+      const deltaPosition = group.position.clone().set(delta.translationM[0], delta.translationM[1], delta.translationM[2])
+      const deltaQuaternion = group.quaternion.clone().set(delta.rotationQuatXyzw[0], delta.rotationQuatXyzw[1], delta.rotationQuatXyzw[2], delta.rotationQuatXyzw[3])
+      const deltaScale = group.scale.clone().set(1, 1, 1)
+      const deltaWorld = group.matrix.clone().compose(deltaPosition, deltaQuaternion, deltaScale)
+      const localMatrix = rootWorldInverse.clone().multiply(deltaWorld).multiply(rootWorld).multiply(baseLocalMatrix)
+      localMatrix.decompose(group.position, group.quaternion, group.scale)
+      group.updateMatrix()
+    }
+    state.root.updateMatrixWorld(true)
     state.objects.forEach((objectState, object) => {
       const partMatches = selectedPartId === 'all' || objectState.partId === selectedPartId
       const materialMatches = selectedMaterialZone === 'all' || objectState.materialZoneId === selectedMaterialZone
       const partVisible = partVisibility[objectState.partId] ?? true
       const materialVisible = materialVisibility[objectState.materialZoneId] ?? true
       object.visible = partMatches && materialMatches && partVisible && materialVisible
-      object.position.copy(objectState.basePosition)
-      if (exploded && object.visible) object.position.addScaledVector(objectState.direction, 0.18)
+      if (exploded && object.visible) {
+        const worldOffset = objectState.direction.clone().multiplyScalar(0.18)
+        if (object.parent) {
+          const parentWorldInverse = object.parent.matrixWorld.clone().invert()
+          const localOrigin = objectState.direction.clone().set(0, 0, 0).applyMatrix4(parentWorldInverse)
+          const localEnd = worldOffset.clone().applyMatrix4(parentWorldInverse)
+          object.position.add(localEnd.sub(localOrigin))
+        } else {
+          object.position.add(worldOffset)
+        }
+      }
     })
+    state.root.updateMatrixWorld(true)
     state.renderer.render(state.scene, state.camera)
-  }, [artifactLoadState, selectedPartId, selectedMaterialZone, exploded, diffHeatmap, partVisibility, materialVisibility])
+  }, [artifactLoadState, selectedPartId, selectedMaterialZone, exploded, diffHeatmap, partVisibility, materialVisibility, mechanicalAnimationFrame])
 
   useEffect(() => {
     const state = viewerSceneRef.current
@@ -3017,6 +3346,10 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
   const visualHardGatePassed = visualQualityReport?.hard_gate_passed === true
   const visualGateStatusClass = visualQualityReport ? (visualHardGatePassed ? 'passed' : 'failed') : 'not-run'
   const visualGateLabel = visualQualityReport ? (visualHardGatePassed ? '通过' : '未通过') : '未运行'
+  const mechanicalAnimationHierarchy = useMemo(() => mechanicalAnimationHierarchyRows(mechanicalAnimationClip?.clip ?? null), [mechanicalAnimationClip])
+  const mechanicalAnimationChannelsByLinkId = useMemo(() => new Map((mechanicalAnimationClip?.clip.poseAction.channels ?? []).map((channel) => [channel.linkId, channel])), [mechanicalAnimationClip])
+  const mechanicalAnimationTicks = mechanicalAnimationClip?.clip.samplingPolicy.sampleTimeTicks ?? []
+  const mechanicalAnimationTickIndex = Math.max(0, Math.max(0, mechanicalAnimationTicks.indexOf(mechanicalAnimationTick ?? mechanicalAnimationTicks[0] ?? 0)))
   const exportAvailable = ready && Boolean(candidateId) && visualHardGatePassed
   const exportAvailabilityLabel = !ready
     ? '等待 Runtime 连接后才能导出'
@@ -4426,6 +4759,153 @@ export function RuntimeViewer({ onNavigate }: RuntimeViewerProps = {}) {
           </div>
         <section className="panel-section runtime-panel-route"><p className="section-kicker">控制路径</p><h2>Codex 是唯一外部 Agent</h2><p className="panel-copy">普通用户在 Codex 中对话并上传授权参考图。Codex 通过 MCP 工具提交类型化请求，ForgeCAD 不内置模型、聊天页或 API Key。</p></section>
         <section className="panel-section"><p className="section-kicker">实时约束</p><div className="capability-list">{capabilities.map(([label, value]) => <div className="capability-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div></section>
+        <section className="panel-section provenance-graph-evidence" aria-labelledby="provenance-graph-title">
+          <p className="section-kicker">Provenance Graph · Runtime 完整或失败投影</p>
+          <h2 id="provenance-graph-title">来源链</h2>
+          <p className="panel-copy">只显示当前 project / candidate / candidate-state / artifact 精确绑定的结构来源；可选分支缺失会明确标注，不从其他候选拼接证据。</p>
+          <div className="provenance-graph-readonly-badge" role="status" data-projection-policy="complete-or-fail">只读 · structural_only · 64 nodes / 128 edges · 不是 Blender dependency graph 或视觉质量结论</div>
+          {provenanceGraph.status === 'Unavailable' ? (
+            <div className="provenance-graph-unavailable" role="status" aria-live="polite"><strong>{provenanceGraphLoading ? '正在读取完整来源链…' : '来源链不可用'}</strong><span>{provenanceGraphError ?? provenanceGraph.code ?? '当前候选没有可完整验证的来源投影。'}</span></div>
+          ) : (
+            <>
+              <div className="provenance-graph-summary" aria-label="来源链摘要">
+                <div><span>几何</span><strong>{provenanceGraph.branchStatus?.geometry === 'verified' ? '已验证' : '不可用'}</strong></div>
+                <div><span>视觉</span><strong>{provenanceGraph.branchStatus?.visual === 'verified' ? '已绑定（质量原样保留）' : '未回读'}</strong></div>
+                <div><span>动画</span><strong>{provenanceGraph.branchStatus?.animation === 'verified' ? '结构证据' : '未回读'}</strong></div>
+                <div><span>图预算</span><strong>{provenanceGraph.nodes.length}/64 · {provenanceGraph.edges.length}/128</strong></div>
+              </div>
+              <div className="provenance-graph-tree" role="tree" aria-label="当前候选来源链">
+                {provenanceGraph.nodes.map((node, index) => {
+                  const hasChildren = provenanceGraph.edges.some((edge) => edge.fromNodeId === node.nodeId)
+                  const depth = node.kind === 'operator-node' || node.kind === 'render-pass' || node.kind === 'mechanical-animation-clip' ? 2 : 1
+                  return <button
+                    id={`provenance-node-${node.nodeId}`}
+                    key={node.nodeId}
+                    type="button"
+                    role="treeitem"
+                    aria-level={depth}
+                    aria-posinset={index + 1}
+                    aria-setsize={provenanceGraph.nodes.length}
+                    aria-selected={selectedProvenanceNode?.nodeId === node.nodeId}
+                    aria-expanded={hasChildren ? true : undefined}
+                    tabIndex={selectedProvenanceNode?.nodeId === node.nodeId ? 0 : -1}
+                    className={selectedProvenanceNode?.nodeId === node.nodeId ? 'provenance-graph-node provenance-graph-node-selected' : 'provenance-graph-node'}
+                    style={{ paddingLeft: `${8 + (depth - 1) * 13}px` }}
+                    onClick={() => setSelectedProvenanceNodeId(node.nodeId)}
+                    onKeyDown={(event) => {
+                      let next = index
+                      if (event.key === 'ArrowDown') next = Math.min(provenanceGraph.nodes.length - 1, index + 1)
+                      else if (event.key === 'ArrowUp') next = Math.max(0, index - 1)
+                      else if (event.key === 'Home') next = 0
+                      else if (event.key === 'End') next = provenanceGraph.nodes.length - 1
+                      else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft' || event.key === 'Enter' || event.key === ' ') next = index
+                      else return
+                      event.preventDefault()
+                      const selected = provenanceGraph.nodes[next]
+                      if (!selected) return
+                      setSelectedProvenanceNodeId(selected.nodeId)
+                      window.requestAnimationFrame(() => document.getElementById(`provenance-node-${selected.nodeId}`)?.focus())
+                    }}
+                  >
+                    <span className="provenance-graph-marker" aria-hidden="true">{depth === 1 ? '◆' : '└'}</span>
+                    <span className="provenance-graph-node-main"><strong>{node.label}</strong><small>{node.kind} · {node.contractSchema ?? '有限摘要'}</small></span>
+                    <span className={`provenance-graph-status provenance-graph-status-${node.status}`}>{node.status}</span>
+                  </button>
+                })}
+              </div>
+              {selectedProvenanceNode && <div className="provenance-graph-detail" aria-live="polite">
+                <div><span>节点</span><strong>{selectedProvenanceNode.nodeId}</strong></div>
+                <div><span>状态</span><strong>{selectedProvenanceNode.status}</strong></div>
+                <div><span>object hash</span><code title={selectedProvenanceNode.objectSha256 ?? undefined} aria-label={selectedProvenanceNode.objectSha256 ? `object hash ${selectedProvenanceNode.objectSha256}` : 'object hash 未提供'}>{selectedProvenanceNode.objectSha256 ?? '未提供'}</code></div>
+                <div><span>canonical</span><code title={selectedProvenanceNode.canonicalSha256 ?? undefined} aria-label={selectedProvenanceNode.canonicalSha256 ? `canonical hash ${selectedProvenanceNode.canonicalSha256}` : 'canonical hash 未提供'}>{selectedProvenanceNode.canonicalSha256 ?? '未提供'}</code></div>
+                <div><span>上下游</span><strong>{provenanceGraph.edges.filter((edge) => edge.fromNodeId === selectedProvenanceNode.nodeId || edge.toNodeId === selectedProvenanceNode.nodeId).length} 条绑定边</strong></div>
+              </div>}
+              <p className="provenance-graph-limitations">未嵌入 GLB / PNG / 完整合同字节。未投影：{provenanceGraph.omittedKinds.join(' · ') || '无'}。{provenanceGraph.omittedKinds.includes('modifier-apply-history') && 'Modifier Apply sidecar/history 尚未由 Runtime 返回，Viewer 不自行推断。'}未知：{provenanceGraph.unknowns.join(' · ') || '无'}。</p>
+            </>
+          )}
+        </section>
+        <section className="panel-section mechanical-animation-evidence" aria-labelledby="mechanical-animation-evidence-title">
+          <p className="section-kicker">Mechanical Animation · Runtime 只读回读</p>
+          <h2 id="mechanical-animation-evidence-title">机械动画证据</h2>
+          <p className="panel-copy">只读取当前候选的 Runtime-owned immutable clip；每个离散 tick 都由 Runtime 双 Worker 重新求值，Viewer 仅把验证后的刚体 Part 增量临时应用到当前 GLB。</p>
+          <div className="mechanical-animation-readonly-badge" role="status">只读 · structural_only · 无 Armature / skin / IK / NLA / F-Curve</div>
+          {!candidateId ? <p className="panel-copy">等待 candidate-bound 模型和 GLB 回读。</p> : mechanicalAnimationInventory.status === 'Unavailable' ? (
+            <div className="mechanical-animation-unavailable" role="status" aria-live="polite">
+              <strong>机械动画证据暂不可用</strong>
+              <span>{mechanicalAnimationError ?? mechanicalAnimationInventory.code ?? 'Runtime 未返回可验证 inventory'}</span>
+            </div>
+          ) : (
+            <>
+              <label className="mechanical-animation-field">
+                <span>不可变 Clip</span>
+                <select
+                  value={selectedMechanicalAnimationClipId ?? ''}
+                  onChange={(event) => {
+                    setSelectedMechanicalAnimationClipId(event.target.value || null)
+                    setMechanicalAnimationClip(null)
+                    setMechanicalAnimationTick(null)
+                    setMechanicalAnimationFrame(null)
+                    setMechanicalAnimationFrameError(null)
+                  }}
+                  disabled={mechanicalAnimationInventory.clips.length === 0 || mechanicalAnimationLoading}
+                >
+                  <option value="">选择 clip</option>
+                  {mechanicalAnimationInventory.clips.map((clip) => <option key={clip.clipId} value={clip.clipId}>{clip.clipId}</option>)}
+                </select>
+              </label>
+              {mechanicalAnimationInventory.clips.length === 0 ? <p className="panel-copy">当前候选没有已回读的 immutable mechanical clip。</p> : mechanicalAnimationClip ? (
+                <>
+                  <div className="mechanical-animation-playhead" aria-label="临时机械动画 playhead">
+                    <div className="mechanical-animation-playhead-header"><span>临时 playhead · {mechanicalAnimationTicks.length}/16 tick</span><strong>t={mechanicalAnimationTick ?? '—'} / {mechanicalAnimationClip.clip.poseAction.durationTicks}</strong></div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={Math.max(0, mechanicalAnimationTicks.length - 1)}
+                      step={1}
+                      value={mechanicalAnimationTickIndex}
+                      onChange={(event) => setMechanicalAnimationTick(mechanicalAnimationTicks[Number(event.target.value)] ?? null)}
+                      disabled={mechanicalAnimationTicks.length === 0}
+                      aria-label="选择 immutable schedule tick"
+                    />
+                    <div className="mechanical-animation-tick-chips" aria-label="immutable schedule ticks">
+                      {mechanicalAnimationTicks.map((tick) => <button key={tick} type="button" className={tick === mechanicalAnimationTick ? 'mechanical-animation-tick-active' : ''} onClick={() => setMechanicalAnimationTick(tick)}>{tick}</button>)}
+                    </div>
+                  </div>
+                  <div className="mechanical-animation-proof-grid">
+                    <div><span>通道</span><strong>{mechanicalAnimationClip.clip.poseAction.channels.length}/64</strong></div>
+                    <div><span>刚性 link</span><strong>{mechanicalAnimationClip.clip.restFrame.links.length}/64</strong></div>
+                    <div><span>时间基</span><strong>{mechanicalAnimationClip.clip.poseAction.timebaseHz} Hz</strong></div>
+                    <div><span>根 link</span><strong>{mechanicalAnimationClip.clip.restFrame.rootLinkId}</strong></div>
+                    <div><span>坐标</span><strong>{mechanicalAnimationClip.clip.restFrame.coordinateSystem}</strong></div>
+                    <div><span>状态</span><strong>structural_only</strong></div>
+                    <div><span>单帧求值</span><strong>{mechanicalAnimationFrameLoading ? 'Runtime 双 Worker 处理中' : mechanicalAnimationFrame ? `已验证 · ${mechanicalAnimationFrame.partDeltas.length} Part` : '未运行'}</strong></div>
+                  </div>
+                  {mechanicalAnimationFrameError && <div className="mechanical-animation-unavailable" role="status" aria-live="polite"><strong>单帧预览不可用</strong><span>{mechanicalAnimationFrameError}</span></div>}
+                  <div className="mechanical-animation-hierarchy" aria-label="刚性 link 层级与通道">
+                    <div className="mechanical-animation-subtitle">刚性 link 层级 / 通道</div>
+                    {mechanicalAnimationHierarchy.map((link) => {
+                      const channel = mechanicalAnimationChannelsByLinkId.get(link.linkId)
+                      return <div className="mechanical-animation-link-row" key={link.linkId} style={{ paddingLeft: `${8 + link.depth * 14}px` }}>
+                        <span className="mechanical-animation-link-marker" aria-hidden="true">{link.depth === 0 ? '◆' : '└'}</span>
+                        <span className="mechanical-animation-link-main"><strong>{link.linkId}</strong><small>{link.partId} · {link.jointType} · {link.valueUnit}</small></span>
+                        <span className="mechanical-animation-link-channel">{channel ? `${channel.keys.length} keys · ${channel.valueUnit}` : '未设 channel · rest'}</span>
+                      </div>
+                    })}
+                  </div>
+                  <div className="mechanical-animation-hash-list" aria-label="机械动画 provenance 哈希">
+                    <div><span>clip</span><code>{mechanicalAnimationClip.clipSha256}</code></div>
+                    <div><span>clip object</span><code>{mechanicalAnimationClip.clipObjectSha256}</code></div>
+                    <div><span>RestFrame</span><code>{mechanicalAnimationClip.restFrameSha256}</code></div>
+                    <div><span>PoseAction</span><code>{mechanicalAnimationClip.poseActionSha256}</code></div>
+                    <div><span>source Worker cohort</span><code>{mechanicalAnimationClip.sourceReplayWorkerCohortSha256}</code></div>
+                    {mechanicalAnimationFrame && <><div><span>frame</span><code>{mechanicalAnimationFrame.frameSha256}</code></div><div><span>posed program</span><code>{mechanicalAnimationFrame.posedProgramSha256}</code></div><div><span>transient artifact</span><code>{mechanicalAnimationFrame.transientArtifactSha256}</code></div></>}
+                  </div>
+                  <p className="mechanical-animation-limitation">{mechanicalAnimationClip.clip.limitations.join(' · ')} · Viewer 只做当前会话的刚体 Part 预览，不持久化帧、不生成 GLB animation channel；视觉质量仍未运行。</p>
+                </>
+              ) : <div className="mechanical-animation-unavailable" role="status" aria-live="polite"><strong>{mechanicalAnimationLoading ? '正在读取 immutable clip…' : 'Clip 详情不可用'}</strong><span>{mechanicalAnimationError ?? '只显示经过候选绑定验证的 Runtime 回读。'}</span></div>}
+            </>
+          )}
+        </section>
         <section className="panel-section" aria-labelledby="candidate-snapshot-title">
           <p className="section-kicker">候选快照</p>
           <h2 id="candidate-snapshot-title">当前候选与历史快照比对</h2>

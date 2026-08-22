@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-rest-frame.schema.json",
+  "title": "MechanicalRestFrame",
+  "description": "A Runtime-canonical, candidate-bound rigid-link rest frame. It is not an armature, skin or inferred skeleton.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rest_frame_id", "project_id", "artifact_id", "candidate_id", "program_sha256", "coordinate_system", "transform_convention", "root_link_id", "links", "parent_map", "evaluation_order", "parent_map_sha256", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "MechanicalRestFrame@1"},
+    "rest_frame_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "coordinate_system": {"const": "forgecad-rh-y-up-m@1"},
+    "transform_convention": {"const": "column-vector-trs-quaternion@1"},
+    "root_link_id": {"$ref": "#/$defs/identifier"},
+    "links": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/link"}},
+    "parent_map": {"type": "array", "minItems": 0, "maxItems": 63, "items": {"$ref": "#/$defs/parent"}},
+    "evaluation_order": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/identifier"}},
+    "parent_map_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "translation": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -10, "maximum": 10}},
+    "axis": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -1, "maximum": 1}},
+    "quaternion": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number", "minimum": -1, "maximum": 1}},
+    "link": {
+      "type": "object", "additionalProperties": false,
+      "required": ["link_id", "part_id", "source_node_ids", "joint_type", "rest_translation_m", "rest_rotation_quat_xyzw", "axis_local", "limit_min", "limit_max", "value_unit"],
+      "properties": {
+        "link_id": {"$ref": "#/$defs/identifier"},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "source_node_ids": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/identifier"}},
+        "joint_type": {"enum": ["fixed", "revolute", "prismatic"]},
+        "rest_translation_m": {"$ref": "#/$defs/translation"},
+        "rest_rotation_quat_xyzw": {"$ref": "#/$defs/quaternion"},
+        "axis_local": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/axis"}]},
+        "limit_min": {"type": ["number", "null"], "minimum": -3.141592653589793, "maximum": 3.141592653589793},
+        "limit_max": {"type": ["number", "null"], "minimum": -3.141592653589793, "maximum": 3.141592653589793},
+        "value_unit": {"enum": ["none", "radian", "meter"]}
+      }
+    },
+    "parent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["child_link_id", "parent_link_id"],
+      "properties": {"child_link_id": {"$ref": "#/$defs/identifier"}, "parent_link_id": {"$ref": "#/$defs/identifier"}}
+    }
+  }
+}

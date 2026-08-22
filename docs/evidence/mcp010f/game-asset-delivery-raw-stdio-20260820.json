@@ -1,0 +1,45 @@
+{
+  "actual_engine_roundtrip": false,
+  "automatic_lod_generation": "NOT_IMPLEMENTED_AUTHORED_LEVELS_ONLY",
+  "build_cohort_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+  "candidate_confirmed": false,
+  "candidate_state_unchanged": true,
+  "collision_proxy_count": 1,
+  "collision_proxy_object_sha256": "3080fdbc66db60a8aafea0c9fcdf3af2d222a56ba35682aef3fc6d601d662177",
+  "default_write_tool_visibility": "HIDDEN",
+  "delivery_manifest_object_sha256": "01fae8da33a248ad7840029091757f0e76a7fec3ea74b1e43d50b6bab35d733c",
+  "explicit_write_opt_in": "PASS",
+  "export_performed": false,
+  "forbidden_python": "REJECTED_INVALID_TOOL_PARAMS",
+  "gate": "PASS_AUTHORED_LOD_SET_COLLISION_DELIVERY_RAW_STDIO",
+  "godot": "NOT_RUN",
+  "lod_receipt_object_sha256": "d56417d3f74c31e5cfcd81323c8d09fc212a84029f2e368609d5fd68a39e068a",
+  "lod_triangle_counts": [
+    256,
+    128,
+    64
+  ],
+  "material_zone_ids": [
+    "zone-delivery"
+  ],
+  "part_ids": [
+    "delivery-part"
+  ],
+  "ponytail_preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "protocol_version": "2025-06-18",
+  "quality_status": "structural_only",
+  "readiness_object_sha256": "6b52891a706a431da357510f63a3837b60c153eae1e9d2171cbf55ba20fe76cf",
+  "replay": "PASS_CONTENT_IDENTICAL",
+  "schema_version": "ForgeCADGameAssetDeliveryRawStdioProbe@1",
+  "threejs": "NOT_RUN_IN_THIS_RAW_PROBE",
+  "unity": "NOT_RUN",
+  "unreal": "NOT_RUN",
+  "version_state_unchanged": true,
+  "wire_bytes": 5972
+}

@@ -1,0 +1,102 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-particles-sequence-v2-frame.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FictionalEnergyVfxAnimatedSocketParticlesSequenceFrame@2",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "timestamp": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketParticlesSequenceFrame@2"
+    },
+    "frame_index": {
+      "maximum": 15,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "sample_time_ticks": {
+      "maximum": 1000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "projection_frame_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_socket_transform_inventory_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_socket_transform_readback_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "base_frame_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "bloom_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "emitter_socket_bindings_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "particle_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "particle_seed_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_set_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "receipt_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "particle_color_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "particle_id_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "particle_depth_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "created_at": {
+      "$ref": "#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "frame_index",
+    "sample_time_ticks",
+    "projection_frame_canonical_sha256",
+    "projection_socket_transform_inventory_sha256",
+    "projection_socket_transform_readback_sha256",
+    "base_frame_key_sha256",
+    "bloom_key_sha256",
+    "emitter_socket_bindings_sha256",
+    "input_sha256",
+    "particle_key_sha256",
+    "particle_seed_sha256",
+    "render_set_object_sha256",
+    "receipt_object_sha256",
+    "particle_color_object_sha256",
+    "particle_id_object_sha256",
+    "particle_depth_object_sha256",
+    "canonical_sha256",
+    "created_at"
+  ]
+}

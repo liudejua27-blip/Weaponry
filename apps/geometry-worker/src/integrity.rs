@@ -6,6 +6,8 @@
 //! topology.
 
 use crate::GeometryError;
+use forgecad_core::canonical_json_hash;
+use forgecad_worker_protocol::material_pack_manifest_by_id;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -22,6 +24,14 @@ pub const READBACK_CONFIG: &str =
     "forgecad-strict-glb-readback@2:glb-bin-accessor-topology-uv-tangent-handedness-scene-graph-closed-static-profile";
 
 type BindingKey = (String, String, String, bool);
+
+#[derive(Debug, Clone, Copy)]
+struct ContinuousUvAtlas {
+    chart_count: usize,
+    columns: usize,
+    rows: usize,
+    padding_uv: f32,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PartBinding {
@@ -43,6 +53,7 @@ pub struct GlbIntegrity {
     pub material_zone_ids: Vec<String>,
     pub part_bindings: Vec<PartBinding>,
     pub triangle_count: u64,
+    pub connected_component_count: u64,
     pub invalid_index_count: u64,
     pub non_finite_count: u64,
     pub degenerate_triangle_count: u64,
@@ -82,6 +93,7 @@ impl GlbIntegrity {
             "tangent_handedness_error_count":self.tangent_handedness_error_count,
             "external_uri_count":self.external_uri_count,
             "metadata_mismatch_count":self.metadata_mismatch_count,
+            "connected_component_count":self.connected_component_count,
             "part_coverage":self.part_coverage,
             "source_coverage":self.source_coverage,
             "material_zone_coverage":self.material_zone_coverage,
@@ -163,6 +175,324 @@ impl PartTopology {
             self.edges.entry(key).or_default().push(forward);
         }
     }
+
+    fn connected_component_count(&self) -> usize {
+        if self.vertices.is_empty() {
+            return 0;
+        }
+        let mut parents = (0..self.vertices.len()).collect::<Vec<_>>();
+        for &(first, second) in self.edges.keys() {
+            let mut first_root = first;
+            while parents[first_root] != first_root {
+                let parent = parents[first_root];
+                parents[first_root] = parents[parent];
+                first_root = parents[first_root];
+            }
+            let mut second_root = second;
+            while parents[second_root] != second_root {
+                let parent = parents[second_root];
+                parents[second_root] = parents[parent];
+                second_root = parents[second_root];
+            }
+            if first_root != second_root {
+                parents[first_root] = second_root;
+            }
+        }
+        let mut roots = BTreeSet::new();
+        for index in 0..parents.len() {
+            let mut root = index;
+            while parents[root] != root {
+                let parent = parents[root];
+                parents[root] = parents[parent];
+                root = parents[root];
+            }
+            roots.insert(root);
+        }
+        roots.len()
+    }
+}
+
+fn continuous_uv_atlas(
+    forgecad: &Map<String, Value>,
+) -> Result<Option<ContinuousUvAtlas>, GeometryError> {
+    let Some(atlas) = forgecad.get("uv_atlas").and_then(Value::as_object) else {
+        return Ok(None);
+    };
+    if atlas.get("packing").and_then(Value::as_str) != Some("connected-dominant-axis-islands@1") {
+        return Ok(None);
+    }
+    if atlas.get("schema_version").and_then(Value::as_str) != Some("UvAtlas@1")
+        || atlas.get("resolution").and_then(Value::as_u64) != Some(2048)
+        || atlas.get("padding_texels").and_then(Value::as_u64) != Some(8)
+        || atlas.get("atlas_count").and_then(Value::as_u64) != Some(1)
+        || atlas.get("seam_policy").and_then(Value::as_str)
+            != Some("edge-shared-or-explicit-seam@1")
+        || atlas.get("overlap_policy").and_then(Value::as_str) != Some("disjoint-grid-cells@1")
+    {
+        return Err(GeometryError::Invalid(
+            "continuous UV atlas policy metadata is invalid".to_owned(),
+        ));
+    }
+    let chart_count = atlas
+        .get("charts")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .ok_or_else(|| {
+            GeometryError::Invalid("continuous UV atlas chart count is invalid".to_owned())
+        })?;
+    let columns = (chart_count as f32).sqrt().ceil().max(1.0) as usize;
+    let rows = chart_count.div_ceil(columns).max(1);
+    let padding_uv = 8.0 / 2048.0;
+    if 1.0 / columns as f32 <= 2.0 * padding_uv || 1.0 / rows as f32 <= 2.0 * padding_uv {
+        return Err(GeometryError::Invalid(
+            "continuous UV atlas exceeds its fixed padding budget".to_owned(),
+        ));
+    }
+    Ok(Some(ContinuousUvAtlas {
+        chart_count,
+        columns,
+        rows,
+        padding_uv,
+    }))
+}
+
+fn validate_continuous_uv_primitive(
+    extras: Option<&Map<String, Value>>,
+    positions: &[[f32; 3]],
+    uvs: &[[f32; 2]],
+    indices: &[u32],
+    atlas: ContinuousUvAtlas,
+    seen_chart_ids: &mut BTreeSet<usize>,
+) -> Result<(), GeometryError> {
+    const MAX_OVERLAP_COMPARISONS: usize = 1_000_000;
+    let extras = extras.ok_or_else(|| {
+        GeometryError::Invalid("continuous UV primitive metadata is missing".to_owned())
+    })?;
+    let chart_values = extras
+        .get("uv_chart_ids")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            GeometryError::Invalid("continuous UV primitive chart ids are missing".to_owned())
+        })?;
+    if chart_values.len() != indices.len() / 3 {
+        return Err(GeometryError::Invalid(
+            "continuous UV primitive chart count does not match its triangles".to_owned(),
+        ));
+    }
+    let encoded = serde_json::to_vec(chart_values).map_err(|error| {
+        GeometryError::Invalid(format!("continuous UV chart encoding failed: {error}"))
+    })?;
+    let actual_hash = hex_sha256(&encoded);
+    if extras
+        .get("uv_chart_assignment_sha256")
+        .and_then(Value::as_str)
+        != Some(actual_hash.as_str())
+    {
+        return Err(GeometryError::Invalid(
+            "continuous UV primitive chart assignment hash drifted".to_owned(),
+        ));
+    }
+    let chart_ids = chart_values
+        .iter()
+        .map(|value| {
+            value
+                .as_u64()
+                .and_then(|value| usize::try_from(value).ok())
+                .filter(|value| *value < atlas.chart_count)
+                .ok_or_else(|| {
+                    GeometryError::Invalid(
+                        "continuous UV primitive chart id is out of range".to_owned(),
+                    )
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    seen_chart_ids.extend(chart_ids.iter().copied());
+
+    type PositionKey = [i64; 3];
+    type EdgeRecord = (usize, [f32; 2], [f32; 2]);
+    let mut edges = BTreeMap::<(PositionKey, PositionKey), Vec<EdgeRecord>>::new();
+    let mut chart_triangles = BTreeMap::<usize, Vec<[[f32; 2]; 3]>>::new();
+    let cell_u = 1.0 / atlas.columns as f32;
+    let cell_v = 1.0 / atlas.rows as f32;
+    for (triangle_index, triangle) in indices.chunks_exact(3).enumerate() {
+        let source = [
+            triangle[0] as usize,
+            triangle[1] as usize,
+            triangle[2] as usize,
+        ];
+        if source
+            .iter()
+            .any(|index| *index >= positions.len() || *index >= uvs.len())
+        {
+            return Err(GeometryError::Invalid(
+                "continuous UV primitive index is out of range".to_owned(),
+            ));
+        }
+        let chart = chart_ids[triangle_index];
+        let column = chart % atlas.columns;
+        let row = chart / atlas.columns;
+        let min_uv = [
+            column as f32 * cell_u + atlas.padding_uv,
+            row as f32 * cell_v + atlas.padding_uv,
+        ];
+        let max_uv = [
+            (column + 1) as f32 * cell_u - atlas.padding_uv,
+            (row + 1) as f32 * cell_v - atlas.padding_uv,
+        ];
+        let triangle_uvs = source.map(|index| uvs[index]);
+        if triangle_uvs
+            .iter()
+            .flatten()
+            .any(|value| !value.is_finite())
+            || triangle_uvs.iter().any(|uv| {
+                uv[0] < min_uv[0] - 1.0e-6
+                    || uv[0] > max_uv[0] + 1.0e-6
+                    || uv[1] < min_uv[1] - 1.0e-6
+                    || uv[1] > max_uv[1] + 1.0e-6
+            })
+        {
+            return Err(GeometryError::Invalid(
+                "continuous UV primitive violates its atlas cell or padding".to_owned(),
+            ));
+        }
+        chart_triangles.entry(chart).or_default().push(triangle_uvs);
+        let position_keys = source.map(|index| {
+            positions[index]
+                .map(|component| (component as f64 * POSITION_WELD_SCALE).round() as i64)
+        });
+        for (left, right) in [(0, 1), (1, 2), (2, 0)] {
+            let (key, uv_left, uv_right) = if position_keys[left] < position_keys[right] {
+                (
+                    (position_keys[left], position_keys[right]),
+                    triangle_uvs[left],
+                    triangle_uvs[right],
+                )
+            } else {
+                (
+                    (position_keys[right], position_keys[left]),
+                    triangle_uvs[right],
+                    triangle_uvs[left],
+                )
+            };
+            edges
+                .entry(key)
+                .or_default()
+                .push((chart, uv_left, uv_right));
+        }
+    }
+    for records in edges.values() {
+        if records.len() == 2 && records[0].0 == records[1].0 {
+            for axis in 0..2 {
+                if (records[0].1[axis] - records[1].1[axis]).abs() > 1.0e-6
+                    || (records[0].2[axis] - records[1].2[axis]).abs() > 1.0e-6
+                {
+                    return Err(GeometryError::Invalid(
+                        "continuous UV shared edge carries discontinuous coordinates".to_owned(),
+                    ));
+                }
+            }
+        }
+    }
+    let mut comparisons = 0usize;
+    for (chart, triangles) in &chart_triangles {
+        for left in 0..triangles.len() {
+            for right in (left + 1)..triangles.len() {
+                comparisons += 1;
+                if comparisons > MAX_OVERLAP_COMPARISONS {
+                    return Err(GeometryError::Invalid(
+                        "continuous UV overlap validation exceeds its bounded comparison budget"
+                            .to_owned(),
+                    ));
+                }
+                if triangle_intersection_area(triangles[left], triangles[right]) > 1.0e-10 {
+                    return Err(GeometryError::Invalid(format!(
+                        "continuous UV chart {chart} contains positive-area overlap between triangles {left} and {right}"
+                    )));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn triangle_intersection_area(subject: [[f32; 2]; 3], clip: [[f32; 2]; 3]) -> f64 {
+    let clip_area = signed_polygon_area(&clip);
+    if clip_area.abs() <= 1.0e-12 {
+        return 0.0;
+    }
+    let orientation = if clip_area > 0.0 { 1.0 } else { -1.0 };
+    let mut polygon = subject.to_vec();
+    for edge in 0..3 {
+        let start = clip[edge];
+        let end = clip[(edge + 1) % 3];
+        let input = std::mem::take(&mut polygon);
+        if input.is_empty() {
+            break;
+        }
+        let mut previous = *input.last().unwrap_or(&input[0]);
+        let mut previous_inside = oriented_side(start, end, previous) * orientation >= -1.0e-9;
+        for current in input {
+            let current_inside = oriented_side(start, end, current) * orientation >= -1.0e-9;
+            if current_inside != previous_inside {
+                if let Some(point) = segment_line_intersection(previous, current, start, end) {
+                    polygon.push(point);
+                }
+            }
+            if current_inside {
+                polygon.push(current);
+            }
+            previous = current;
+            previous_inside = current_inside;
+        }
+    }
+    signed_polygon_area(&polygon).abs()
+}
+
+fn signed_polygon_area(points: &[[f32; 2]]) -> f64 {
+    if points.len() < 3 {
+        return 0.0;
+    }
+    let mut area = 0.0f64;
+    for index in 0..points.len() {
+        let next = (index + 1) % points.len();
+        area += points[index][0] as f64 * points[next][1] as f64
+            - points[index][1] as f64 * points[next][0] as f64;
+    }
+    area * 0.5
+}
+
+fn oriented_side(start: [f32; 2], end: [f32; 2], point: [f32; 2]) -> f64 {
+    (end[0] - start[0]) as f64 * (point[1] - start[1]) as f64
+        - (end[1] - start[1]) as f64 * (point[0] - start[0]) as f64
+}
+
+fn segment_line_intersection(
+    segment_start: [f32; 2],
+    segment_end: [f32; 2],
+    line_start: [f32; 2],
+    line_end: [f32; 2],
+) -> Option<[f32; 2]> {
+    let segment_delta = [
+        segment_end[0] - segment_start[0],
+        segment_end[1] - segment_start[1],
+    ];
+    let start_side = oriented_side(line_start, line_end, segment_start);
+    let end_side = oriented_side(line_start, line_end, segment_end);
+    let denominator = start_side - end_side;
+    if denominator.abs() <= 1.0e-15 {
+        return None;
+    }
+    let t = (start_side / denominator) as f32;
+    Some([
+        segment_start[0] + segment_delta[0] * t,
+        segment_start[1] + segment_delta[1] * t,
+    ])
+}
+
+fn hex_sha256(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 /// Read the actual GLB chunks, accessors and triangle payload. Any malformed
@@ -181,6 +511,7 @@ pub fn inspect_glb(glb: &[u8]) -> Result<GlbIntegrity, GeometryError> {
         .get("operator_catalog_sha256")
         .and_then(Value::as_str)
         .map(str::to_owned);
+    let continuous_uv_atlas = continuous_uv_atlas(forgecad)?;
     let meshes = required_array(&root, "meshes")?;
     let nodes = required_array(&root, "nodes")?;
     let accessors = required_array(&root, "accessors")?;
@@ -195,6 +526,7 @@ pub fn inspect_glb(glb: &[u8]) -> Result<GlbIntegrity, GeometryError> {
     metrics.external_uri_count = external_uri_count(&root);
     let is_v2 = artifact_schema_version == "ArtifactReadback@2";
     let mut v2_accessor_uses = BTreeMap::<usize, V2AccessorRole>::new();
+    let mut continuous_uv_chart_ids = BTreeSet::<usize>::new();
     if is_v2 {
         enforce_canonical_v2_asset_profile(&root, meshes, &mut metrics);
         enforce_canonical_v2_scene_graph(&root, meshes, nodes, &mut metrics);
@@ -347,6 +679,16 @@ pub fn inspect_glb(glb: &[u8]) -> Result<GlbIntegrity, GeometryError> {
                 return Err(GeometryError::Invalid(
                     "GLB vertex attribute counts do not match".to_owned(),
                 ));
+            }
+            if let Some(atlas) = continuous_uv_atlas {
+                validate_continuous_uv_primitive(
+                    primitive_lineage,
+                    &positions,
+                    &uvs,
+                    &indices,
+                    atlas,
+                    &mut continuous_uv_chart_ids,
+                )?;
             }
             for position in &positions {
                 if !finite3(*position) {
@@ -518,6 +860,20 @@ pub fn inspect_glb(glb: &[u8]) -> Result<GlbIntegrity, GeometryError> {
             &v2_accessor_uses,
             &mut metrics,
         );
+        validate_embedded_texture_build(&root, &binary, views, forgecad)?;
+    }
+    if let Some(atlas) = continuous_uv_atlas {
+        if continuous_uv_chart_ids.len() != atlas.chart_count
+            || continuous_uv_chart_ids
+                .iter()
+                .copied()
+                .ne(0..atlas.chart_count)
+        {
+            return Err(GeometryError::Invalid(
+                "continuous UV atlas chart coverage does not match physical primitive metadata"
+                    .to_owned(),
+            ));
+        }
     }
 
     for part in topology.values() {
@@ -541,6 +897,10 @@ pub fn inspect_glb(glb: &[u8]) -> Result<GlbIntegrity, GeometryError> {
             }
         }
     }
+    let connected_component_count = topology
+        .values()
+        .map(PartTopology::connected_component_count)
+        .sum::<usize>() as u64;
 
     let mut part_bindings = Vec::with_capacity(binding_order.len());
     for (part_id, source_node_id, material_zone_id, solid) in &binding_order {
@@ -608,6 +968,7 @@ pub fn inspect_glb(glb: &[u8]) -> Result<GlbIntegrity, GeometryError> {
         material_zone_ids,
         part_bindings,
         triangle_count,
+        connected_component_count,
         invalid_index_count: metrics.invalid_index_count,
         non_finite_count: metrics.non_finite_count,
         degenerate_triangle_count: metrics.degenerate_triangle_count,
@@ -659,9 +1020,11 @@ struct CompleteLineage {
     solid: bool,
 }
 
-/// The V2 writer emits one glTF mesh/node pair per semantic Part.  A Part may
-/// have several primitive `source_node_id`s, so the node intentionally carries
-/// the mesh-level lineage only; source lineage remains on each primitive.
+/// The V2 writer emits one glTF mesh/node pair per semantic Part. A Part may
+/// have several primitive `source_node_id`s, while multiple Parts may reuse
+/// one identical AppearanceProgram@2/@3 MaterialZone/material index. The node
+/// intentionally carries mesh-level lineage; source lineage remains on each
+/// primitive.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PartLineage {
     part_id: String,
@@ -693,10 +1056,16 @@ fn enforce_canonical_v2_asset_profile(root: &Value, meshes: &[Value], metrics: &
             "accessors",
             "images",
             "textures",
+            "extensionsUsed",
             "extras",
         ],
     ) {
         metrics.metadata_mismatch_count += 1;
+    }
+    if let Some(extensions_used) = root.get("extensionsUsed") {
+        if extensions_used != &json!(["KHR_materials_clearcoat"]) {
+            metrics.metadata_mismatch_count += 1;
+        }
     }
 
     let Some(asset) = root.get("asset").and_then(Value::as_object) else {
@@ -731,7 +1100,7 @@ fn enforce_canonical_v2_asset_profile(root: &Value, meshes: &[Value], metrics: &
         metrics.metadata_mismatch_count += 1;
         return;
     };
-    if materials.len() != meshes.len() {
+    if materials.is_empty() || materials.len() > meshes.len() {
         metrics.metadata_mismatch_count += 1;
     }
     for material in materials {
@@ -825,6 +1194,51 @@ fn enforce_canonical_v2_asset_profile(root: &Value, meshes: &[Value], metrics: &
             }) {
                 metrics.metadata_mismatch_count += 1;
             }
+            if let Some(clearcoat) = extensions
+                .get("KHR_materials_clearcoat")
+                .and_then(Value::as_object)
+            {
+                if !has_only_keys(
+                    clearcoat,
+                    &[
+                        "clearcoatFactor",
+                        "clearcoatTexture",
+                        "clearcoatRoughnessFactor",
+                        "clearcoatRoughnessTexture",
+                    ],
+                ) || clearcoat
+                    .get("clearcoatFactor")
+                    .and_then(Value::as_f64)
+                    .is_none_or(|value| !(0.0..=1.0).contains(&value))
+                {
+                    metrics.metadata_mismatch_count += 1;
+                }
+                for field in ["clearcoatTexture", "clearcoatRoughnessTexture"] {
+                    let Some(texture) = clearcoat.get(field) else {
+                        continue;
+                    };
+                    if !has_exact_keys(texture.as_object().unwrap_or(&Map::new()), &["index"])
+                        || texture
+                            .get("index")
+                            .and_then(Value::as_u64)
+                            .is_none_or(|index| {
+                                root.get("textures")
+                                    .and_then(Value::as_array)
+                                    .is_none_or(|textures| index as usize >= textures.len())
+                            })
+                    {
+                        metrics.metadata_mismatch_count += 1;
+                    }
+                }
+                if clearcoat.get("clearcoatRoughnessTexture").is_some()
+                    && clearcoat
+                        .get("clearcoatRoughnessFactor")
+                        .and_then(Value::as_f64)
+                        .is_none_or(|value| !(0.0..=1.0).contains(&value))
+                {
+                    metrics.metadata_mismatch_count += 1;
+                }
+            }
         }
     }
 }
@@ -855,6 +1269,474 @@ fn enforce_canonical_v2_primitive_profile(primitive: &Map<String, Value>, metric
     if !has_exact_keys(attributes, &["POSITION", "NORMAL", "TEXCOORD_0", "TANGENT"]) {
         metrics.metadata_mismatch_count += 1;
     }
+}
+
+fn png_payload_without_glb_padding(bytes: &[u8]) -> Result<&[u8], GeometryError> {
+    const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
+    if bytes.len() < PNG_SIGNATURE.len() || &bytes[..8] != PNG_SIGNATURE {
+        return Err(GeometryError::Invalid(
+            "embedded texture is not a PNG payload".to_owned(),
+        ));
+    }
+    let mut offset = 8usize;
+    loop {
+        if offset.checked_add(12).is_none_or(|end| end > bytes.len()) {
+            return Err(GeometryError::Invalid(
+                "embedded PNG chunk is truncated".to_owned(),
+            ));
+        }
+        let length = u32::from_be_bytes(
+            bytes[offset..offset + 4]
+                .try_into()
+                .map_err(|_| GeometryError::Invalid("embedded PNG length is invalid".to_owned()))?,
+        ) as usize;
+        let chunk_end = offset
+            .checked_add(12)
+            .and_then(|value| value.checked_add(length))
+            .filter(|end| *end <= bytes.len())
+            .ok_or_else(|| GeometryError::Invalid("embedded PNG chunk overflowed".to_owned()))?;
+        let kind = &bytes[offset + 4..offset + 8];
+        if kind == b"IEND" {
+            if length != 0 {
+                return Err(GeometryError::Invalid(
+                    "embedded PNG IEND length is invalid".to_owned(),
+                ));
+            }
+            let trailing = &bytes[chunk_end..];
+            if trailing.len() > 3 || trailing.iter().any(|byte| *byte != 0) {
+                return Err(GeometryError::Invalid(
+                    "embedded PNG has non-canonical trailing bytes".to_owned(),
+                ));
+            }
+            return Ok(&bytes[..chunk_end]);
+        }
+        offset = chunk_end;
+    }
+}
+
+fn embedded_image_bytes<'a>(
+    image: &Value,
+    views: &[Value],
+    binary: &'a [u8],
+) -> Result<&'a [u8], GeometryError> {
+    let view_index = image
+        .get("bufferView")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| GeometryError::Invalid("embedded PNG bufferView is missing".to_owned()))?;
+    let view = views
+        .get(view_index)
+        .and_then(Value::as_object)
+        .ok_or_else(|| GeometryError::Invalid("embedded PNG bufferView is invalid".to_owned()))?;
+    let offset = view
+        .get("byteOffset")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| GeometryError::Invalid("embedded PNG byteOffset is invalid".to_owned()))?;
+    let length = view
+        .get("byteLength")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .ok_or_else(|| GeometryError::Invalid("embedded PNG byteLength is invalid".to_owned()))?;
+    let end = offset
+        .checked_add(length)
+        .filter(|end| *end <= binary.len())
+        .ok_or_else(|| GeometryError::Invalid("embedded PNG range overflowed".to_owned()))?;
+    png_payload_without_glb_padding(&binary[offset..end])
+}
+
+fn validate_embedded_texture_build(
+    root: &Value,
+    binary: &[u8],
+    views: &[Value],
+    forgecad: &Map<String, Value>,
+) -> Result<(), GeometryError> {
+    let pack_id = forgecad.get("material_pack_id").and_then(Value::as_str);
+    if pack_id != Some("forgecad-fictional-energy-weapon-2k") {
+        if forgecad.get("texture_build").is_some() {
+            return Err(GeometryError::Invalid(
+                "embedded 2K texture build metadata is attached to the wrong pack".to_owned(),
+            ));
+        }
+        return Ok(());
+    }
+    let texture_build = forgecad
+        .get("texture_build")
+        .and_then(Value::as_object)
+        .ok_or_else(|| GeometryError::Invalid("2K texture build metadata is missing".to_owned()))?;
+    if !has_exact_keys(
+        texture_build,
+        &[
+            "schema_version",
+            "recipe_id",
+            "algorithm",
+            "worker_algorithm_sha256",
+            "resolution",
+            "build_budget_ms",
+            "embedded_only",
+            "external_uri",
+            "network_at_runtime",
+            "outputs",
+            "canonical_sha256",
+        ],
+    ) || texture_build.get("schema_version").and_then(Value::as_str)
+        != Some("EmbeddedTextureBuild@1")
+        || texture_build.get("recipe_id").and_then(Value::as_str)
+            != Some("forgecad-first-party-catmullrom-semantic-microdetail-2k@1")
+        || texture_build.get("algorithm").and_then(Value::as_str)
+            != Some("catmullrom-plus-fixed-semantic-microdetail@1")
+        || texture_build.get("resolution").and_then(Value::as_u64) != Some(2048)
+        || texture_build.get("build_budget_ms").and_then(Value::as_u64) != Some(120_000)
+        || texture_build.get("embedded_only").and_then(Value::as_bool) != Some(true)
+        || texture_build.get("external_uri").and_then(Value::as_bool) != Some(false)
+        || texture_build
+            .get("network_at_runtime")
+            .and_then(Value::as_bool)
+            != Some(false)
+    {
+        return Err(GeometryError::Invalid(
+            "2K texture build policy drifted".to_owned(),
+        ));
+    }
+    let algorithm_hash = hex_sha256(
+        b"catmullrom-plus-fixed-semantic-microdetail@1|2048|fixed-64px-integer-tile|sRGB-baseColor|linear-data|OpenGL+Y|no-rng-no-time-no-network",
+    );
+    if texture_build
+        .get("worker_algorithm_sha256")
+        .and_then(Value::as_str)
+        != Some(algorithm_hash.as_str())
+    {
+        return Err(GeometryError::Invalid(
+            "2K texture Worker algorithm identity drifted".to_owned(),
+        ));
+    }
+    let expected_canonical = texture_build
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| GeometryError::Invalid("2K texture build hash is missing".to_owned()))?;
+    let mut preimage = texture_build.clone();
+    preimage.remove("canonical_sha256");
+    if canonical_json_hash(&Value::Object(preimage)) != expected_canonical {
+        return Err(GeometryError::Invalid(
+            "2K texture build hash drifted".to_owned(),
+        ));
+    }
+
+    let manifest = material_pack_manifest_by_id("forgecad-fictional-energy-weapon-2k")
+        .ok_or_else(|| GeometryError::Invalid("2K material pack is unavailable".to_owned()))?;
+    if forgecad
+        .get("material_pack_manifest_sha256")
+        .and_then(Value::as_str)
+        != manifest.get("canonical_sha256").and_then(Value::as_str)
+    {
+        return Err(GeometryError::Invalid(
+            "2K material pack manifest binding drifted".to_owned(),
+        ));
+    }
+    let mut manifest_outputs = BTreeMap::<String, &Value>::new();
+    for output in manifest
+        .get("textures")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .chain(
+            manifest
+                .get("derived_outputs")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten(),
+        )
+    {
+        let id = output
+            .get("texture_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| GeometryError::Invalid("2K manifest output ID is missing".to_owned()))?;
+        if manifest_outputs.insert(id.to_owned(), output).is_some() {
+            return Err(GeometryError::Invalid(
+                "2K manifest output IDs are not unique".to_owned(),
+            ));
+        }
+    }
+    let images = root
+        .get("images")
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid("2K GLB image inventory is missing".to_owned()))?;
+    let outputs = texture_build
+        .get("outputs")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            GeometryError::Invalid("2K texture output inventory is missing".to_owned())
+        })?;
+    if forgecad.get("texture_count").and_then(Value::as_u64) != Some(images.len() as u64) {
+        return Err(GeometryError::Invalid(
+            "2K embedded image count does not match the build receipt".to_owned(),
+        ));
+    }
+    let mut image_by_name = BTreeMap::<String, &Value>::new();
+    for image in images {
+        let name = image.get("name").and_then(Value::as_str).ok_or_else(|| {
+            GeometryError::Invalid("2K embedded image name is missing".to_owned())
+        })?;
+        if image_by_name.insert(name.to_owned(), image).is_some() {
+            return Err(GeometryError::Invalid(
+                "2K embedded image names are duplicated".to_owned(),
+            ));
+        }
+    }
+    let mut seen = BTreeSet::new();
+    for output in outputs {
+        let output = output
+            .as_object()
+            .ok_or_else(|| GeometryError::Invalid("2K output entry is invalid".to_owned()))?;
+        let name = output
+            .get("texture_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| GeometryError::Invalid("2K output ID is missing".to_owned()))?;
+        if !seen.insert(name.to_owned()) {
+            return Err(GeometryError::Invalid(
+                "2K texture outputs are duplicated".to_owned(),
+            ));
+        }
+        let image = image_by_name.get(name).ok_or_else(|| {
+            GeometryError::Invalid(format!("2K texture output lacks an embedded image: {name}"))
+        })?;
+        let png = embedded_image_bytes(image, views, binary)?;
+        let decoded = image::load_from_memory(png).map_err(|error| {
+            GeometryError::Invalid(format!("2K embedded PNG decode failed: {name}: {error}"))
+        })?;
+        let manifest_output = manifest_outputs.get(name).ok_or_else(|| {
+            GeometryError::Invalid(format!(
+                "2K embedded output is absent from manifest: {name}"
+            ))
+        })?;
+        let actual_hash = hex_sha256(png);
+        for key in ["semantic", "color_space", "normal_convention"] {
+            if output.get(key) != manifest_output.get(key) {
+                return Err(GeometryError::Invalid(format!(
+                    "2K embedded output {key} drifted: {name}"
+                )));
+            }
+        }
+        if output.get("sha256").and_then(Value::as_str) != Some(actual_hash.as_str())
+            || manifest_output.get("sha256").and_then(Value::as_str) != Some(actual_hash.as_str())
+            || output.get("size_bytes").and_then(Value::as_u64) != Some(png.len() as u64)
+            || output.get("width").and_then(Value::as_u64) != Some(2048)
+            || output.get("height").and_then(Value::as_u64) != Some(2048)
+            || output.get("mime").and_then(Value::as_str) != Some("image/png")
+            || manifest_output.get("width").and_then(Value::as_u64) != Some(2048)
+            || manifest_output.get("height").and_then(Value::as_u64) != Some(2048)
+            || decoded.width() != 2048
+            || decoded.height() != 2048
+        {
+            return Err(GeometryError::Invalid(format!(
+                "2K embedded PNG physical bytes drifted: {name}"
+            )));
+        }
+    }
+    if let Some(surface_bake) = forgecad.get("surface_bake") {
+        validate_candidate_surface_bake(surface_bake, &image_by_name, binary, views, &mut seen)?;
+    }
+    if seen.len() != images.len() || seen.len() != image_by_name.len() {
+        return Err(GeometryError::Invalid(
+            "2K embedded image inventory is not fully receipt-bound".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_candidate_surface_bake(
+    surface_bake: &Value,
+    images: &BTreeMap<String, &Value>,
+    binary: &[u8],
+    views: &[Value],
+    seen: &mut BTreeSet<String>,
+) -> Result<(), GeometryError> {
+    let surface_bake = surface_bake
+        .as_object()
+        .ok_or_else(|| GeometryError::Invalid("candidate surface bake is invalid".to_owned()))?;
+    if !has_exact_keys(
+        surface_bake,
+        &[
+            "schema_version",
+            "material_layer_stack_sha256",
+            "algorithm",
+            "worker_algorithm_sha256",
+            "normal_bake_policy",
+            "ao_bake_policy",
+            "layer_lowering",
+            "resolution",
+            "padding_texels",
+            "embedded_only",
+            "external_uri",
+            "network_at_runtime",
+            "outputs",
+            "total_output_bytes",
+            "canonical_sha256",
+        ],
+    ) || surface_bake.get("schema_version").and_then(Value::as_str)
+        != Some("CandidateSurfaceBake@1")
+        || surface_bake.get("algorithm").and_then(Value::as_str)
+            != Some("candidate-uv-tbn-normal-plus-fixed-self-occlusion-layer-lowering@1")
+        || surface_bake
+            .get("normal_bake_policy")
+            .and_then(Value::as_str)
+            != Some("evaluated-candidate-surface-tangent-field-not-high-low-cage@1")
+        || surface_bake.get("ao_bake_policy").and_then(Value::as_str)
+            != Some("fixed-8-ray-candidate-self-occlusion-not-screen-space@1")
+        || surface_bake.get("resolution").and_then(Value::as_u64) != Some(2048)
+        || surface_bake.get("padding_texels").and_then(Value::as_u64) != Some(8)
+        || surface_bake.get("embedded_only").and_then(Value::as_bool) != Some(true)
+        || surface_bake.get("external_uri").and_then(Value::as_bool) != Some(false)
+        || surface_bake
+            .get("network_at_runtime")
+            .and_then(Value::as_bool)
+            != Some(false)
+    {
+        return Err(GeometryError::Invalid(
+            "candidate surface bake policy drifted".to_owned(),
+        ));
+    }
+    let expected_algorithm_hash = hex_sha256(b"candidate-uv-tbn-normal@1|fixed-8-ray-self-occlusion@1|fictional-safety-decal@1|geometry-normal-ao-wear@1|zone-clearcoat@1|2048|8px|no-rng-no-time-no-network");
+    if surface_bake
+        .get("worker_algorithm_sha256")
+        .and_then(Value::as_str)
+        != Some(expected_algorithm_hash.as_str())
+        || surface_bake
+            .get("material_layer_stack_sha256")
+            .and_then(Value::as_str)
+            .is_none_or(|value| value.len() != 64)
+        || surface_bake.get("layer_lowering")
+            != Some(&json!([
+                "decal-to-baseColor",
+                "wear-to-baseColor-metallicRoughness",
+                "clearcoat-to-KHR_materials_clearcoat"
+            ]))
+    {
+        return Err(GeometryError::Invalid(
+            "candidate surface bake algorithm or layer lowering drifted".to_owned(),
+        ));
+    }
+    let canonical = surface_bake
+        .get("canonical_sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            GeometryError::Invalid("candidate surface bake hash is missing".to_owned())
+        })?;
+    let mut preimage = surface_bake.clone();
+    preimage.remove("canonical_sha256");
+    if canonical_json_hash(&Value::Object(preimage)) != canonical {
+        return Err(GeometryError::Invalid(
+            "candidate surface bake hash drifted".to_owned(),
+        ));
+    }
+    let outputs = surface_bake
+        .get("outputs")
+        .and_then(Value::as_array)
+        .filter(|outputs| outputs.len() == 6)
+        .ok_or_else(|| {
+            GeometryError::Invalid("candidate surface bake output count drifted".to_owned())
+        })?;
+    let expected = BTreeMap::from([
+        (
+            "forgecad_candidate_layered_base_color",
+            ("layered-baseColor", "sRGB", None),
+        ),
+        (
+            "forgecad_candidate_surface_normal",
+            ("candidate-surface-normal", "linear", Some("OpenGL+Y")),
+        ),
+        (
+            "forgecad_candidate_layered_metallic_roughness",
+            ("layered-metallicRoughness", "linear", None),
+        ),
+        (
+            "forgecad_candidate_surface_ao",
+            ("candidate-self-occlusion", "linear", None),
+        ),
+        (
+            "forgecad_candidate_zone_clearcoat",
+            ("zone-clearcoat-factor", "linear", None),
+        ),
+        (
+            "forgecad_candidate_zone_clearcoat_roughness",
+            ("zone-clearcoat-roughness", "linear", None),
+        ),
+    ]);
+    let mut total = 0u64;
+    for output in outputs {
+        let output = output.as_object().ok_or_else(|| {
+            GeometryError::Invalid("candidate surface bake output is invalid".to_owned())
+        })?;
+        if !has_exact_keys(
+            output,
+            &[
+                "texture_id",
+                "sha256",
+                "size_bytes",
+                "width",
+                "height",
+                "mime",
+                "semantic",
+                "color_space",
+                "normal_convention",
+            ],
+        ) {
+            return Err(GeometryError::Invalid(
+                "candidate surface bake output fields drifted".to_owned(),
+            ));
+        }
+        let id = output
+            .get("texture_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                GeometryError::Invalid("candidate surface output ID is missing".to_owned())
+            })?;
+        let (semantic, color_space, normal_convention) = expected.get(id).ok_or_else(|| {
+            GeometryError::Invalid(format!("unknown candidate surface output: {id}"))
+        })?;
+        if !seen.insert(id.to_owned()) {
+            return Err(GeometryError::Invalid(
+                "candidate surface output duplicates an embedded image".to_owned(),
+            ));
+        }
+        let image = images.get(id).ok_or_else(|| {
+            GeometryError::Invalid(format!("candidate surface output lacks an image: {id}"))
+        })?;
+        let png = embedded_image_bytes(image, views, binary)?;
+        let decoded = image::load_from_memory(png).map_err(|error| {
+            GeometryError::Invalid(format!(
+                "candidate surface PNG decode failed: {id}: {error}"
+            ))
+        })?;
+        let size = png.len() as u64;
+        total += size;
+        if output.get("semantic").and_then(Value::as_str) != Some(*semantic)
+            || output.get("color_space").and_then(Value::as_str) != Some(*color_space)
+            || output.get("normal_convention").and_then(Value::as_str) != *normal_convention
+            || output.get("sha256").and_then(Value::as_str) != Some(hex_sha256(png).as_str())
+            || output.get("size_bytes").and_then(Value::as_u64) != Some(size)
+            || output.get("width").and_then(Value::as_u64) != Some(2048)
+            || output.get("height").and_then(Value::as_u64) != Some(2048)
+            || output.get("mime").and_then(Value::as_str) != Some("image/png")
+            || decoded.width() != 2048
+            || decoded.height() != 2048
+        {
+            return Err(GeometryError::Invalid(format!(
+                "candidate surface output physical bytes drifted: {id}"
+            )));
+        }
+    }
+    if surface_bake
+        .get("total_output_bytes")
+        .and_then(Value::as_u64)
+        != Some(total)
+        || total > 67_108_864
+    {
+        return Err(GeometryError::Invalid(
+            "candidate surface output byte budget drifted".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 /// Every V2 accessor and buffer view has exactly one static use.  Together
@@ -1478,6 +2360,203 @@ pub struct SurfaceMesh {
     pub vertex_count: usize,
 }
 
+/// One decoded corner from the product-owned static GLB profile.  A corner
+/// intentionally retains its shading attributes even when its position welds
+/// to another corner, so UV seams and split normals are not erased by the
+/// topological projection.
+#[derive(Debug, Clone)]
+pub struct TopologyCornerSource {
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub texcoord_0: [f32; 2],
+    pub tangent: [f32; 4],
+}
+
+#[derive(Debug, Clone)]
+pub struct TopologyTriangleSource {
+    pub corners: [TopologyCornerSource; 3],
+    pub source_node_id: String,
+    pub material_zone_id: String,
+    pub solid: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct TopologyPartMesh {
+    pub triangles: Vec<TopologyTriangleSource>,
+}
+
+/// Decode one bounded Part for the Runtime-owned `TopologySnapshot@1`
+/// projection.  This is not an authoring-mesh importer: it exposes the
+/// triangulated artifact after strict `ArtifactReadback@2` admission and
+/// preserves loop/corner attributes separately from position welding.
+pub fn extract_topology_part_mesh(
+    glb: &[u8],
+    requested_part_id: &str,
+    max_face_count: usize,
+) -> Result<TopologyPartMesh, GeometryError> {
+    const MAX_TOPOLOGY_FACES: usize = 512;
+    if requested_part_id.is_empty() || max_face_count == 0 || max_face_count > MAX_TOPOLOGY_FACES {
+        return Err(GeometryError::Invalid(
+            "topology snapshot request exceeds the bounded face budget".to_owned(),
+        ));
+    }
+
+    let (root, binary) = parse_glb(glb)?;
+    let meshes = required_array(&root, "meshes")?;
+    let nodes = required_array(&root, "nodes")?;
+    let accessors = required_array(&root, "accessors")?;
+    let views = required_array(&root, "bufferViews")?;
+    let mut triangles = Vec::new();
+    let mut lineage_metrics = Metrics::default();
+
+    for (mesh_index, mesh) in meshes.iter().enumerate() {
+        let mesh_object = mesh.as_object().ok_or_else(|| {
+            GeometryError::Invalid("topology GLB mesh is not an object".to_owned())
+        })?;
+        let mesh_lineage = mesh_object.get("extras").and_then(Value::as_object);
+        let node_lineages = matching_node_lineages(nodes, mesh_index);
+        let node_lineage = node_lineages.first();
+        let primitives = mesh_object
+            .get("primitives")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                GeometryError::Invalid("topology GLB primitive list is missing".to_owned())
+            })?;
+        for primitive in primitives {
+            let primitive_object = primitive.as_object().ok_or_else(|| {
+                GeometryError::Invalid("topology GLB primitive is not an object".to_owned())
+            })?;
+            let primitive_lineage = primitive_object.get("extras").and_then(Value::as_object);
+            let lineage = merge_lineage(
+                mesh_lineage,
+                node_lineage,
+                primitive_lineage,
+                &mut lineage_metrics,
+            );
+            let Some(lineage) = lineage.complete() else {
+                return Err(GeometryError::Invalid(
+                    "topology GLB lineage is incomplete".to_owned(),
+                ));
+            };
+            if lineage.part_id != requested_part_id {
+                continue;
+            }
+            let attributes = primitive_object
+                .get("attributes")
+                .and_then(Value::as_object)
+                .ok_or_else(|| {
+                    GeometryError::Invalid("topology GLB attributes are missing".to_owned())
+                })?;
+            let positions = read_vec3(
+                &accessors,
+                &views,
+                binary,
+                required_index(attributes, "POSITION")?,
+            )?;
+            let normals = read_vec3(
+                &accessors,
+                &views,
+                binary,
+                required_index(attributes, "NORMAL")?,
+            )?;
+            let texcoords = read_vec2(
+                &accessors,
+                &views,
+                binary,
+                required_index(attributes, "TEXCOORD_0")?,
+            )?;
+            let tangents = read_vec4(
+                &accessors,
+                &views,
+                binary,
+                required_index(attributes, "TANGENT")?,
+            )?;
+            if positions.is_empty()
+                || normals.len() != positions.len()
+                || texcoords.len() != positions.len()
+                || tangents.len() != positions.len()
+            {
+                return Err(GeometryError::Invalid(
+                    "topology GLB corner attribute counts differ".to_owned(),
+                ));
+            }
+            let index_accessor = primitive_object
+                .get("indices")
+                .and_then(Value::as_u64)
+                .and_then(|value| usize::try_from(value).ok())
+                .ok_or_else(|| {
+                    GeometryError::Invalid("topology GLB index accessor is missing".to_owned())
+                })?;
+            let indices = read_indices(&accessors, &views, binary, index_accessor)?;
+            if indices.is_empty() || indices.len() % 3 != 0 {
+                return Err(GeometryError::Invalid(
+                    "topology GLB has an invalid triangle payload".to_owned(),
+                ));
+            }
+            for triangle in indices.chunks_exact(3) {
+                if triangles.len() >= max_face_count {
+                    return Err(GeometryError::Invalid(
+                        "TOPOLOGY_SNAPSHOT_BUDGET_EXCEEDED: Part face count exceeds max_face_count"
+                            .to_owned(),
+                    ));
+                }
+                let indices = [
+                    triangle[0] as usize,
+                    triangle[1] as usize,
+                    triangle[2] as usize,
+                ];
+                if indices.iter().any(|index| *index >= positions.len()) {
+                    return Err(GeometryError::Invalid(
+                        "topology GLB triangle index is out of bounds".to_owned(),
+                    ));
+                }
+                let corners = indices.map(|index| TopologyCornerSource {
+                    position: positions[index],
+                    normal: normals[index],
+                    texcoord_0: texcoords[index],
+                    tangent: tangents[index],
+                });
+                if corners.iter().any(|corner| {
+                    !finite3(corner.position)
+                        || !finite3(corner.normal)
+                        || !finite2(corner.texcoord_0)
+                        || !finite4(corner.tangent)
+                }) {
+                    return Err(GeometryError::Invalid(
+                        "topology GLB contains non-finite corner data".to_owned(),
+                    ));
+                }
+                let face = cross3(
+                    sub3(corners[1].position, corners[0].position),
+                    sub3(corners[2].position, corners[0].position),
+                );
+                if !length3(face).is_finite() || length3(face) <= DEGENERATE_AREA_EPSILON {
+                    return Err(GeometryError::Invalid(
+                        "topology GLB contains a degenerate triangle".to_owned(),
+                    ));
+                }
+                triangles.push(TopologyTriangleSource {
+                    corners,
+                    source_node_id: lineage.source_node_id.clone(),
+                    material_zone_id: lineage.material_zone_id.clone(),
+                    solid: lineage.solid,
+                });
+            }
+        }
+    }
+    if triangles.is_empty() {
+        return Err(GeometryError::Invalid(
+            "TOPOLOGY_PART_NOT_FOUND: requested Part has no triangles".to_owned(),
+        ));
+    }
+    if lineage_metrics.metadata_mismatch_count != 0 {
+        return Err(GeometryError::Invalid(
+            "topology GLB lineage metadata conflicts".to_owned(),
+        ));
+    }
+    Ok(TopologyPartMesh { triangles })
+}
+
 /// Decode the product-owned static mesh needed for bounded surface signals.
 ///
 /// This is deliberately not a general glTF importer: the Runtime calls it only
@@ -1889,6 +2968,10 @@ fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, GeometryError> {
 }
 
 fn finite3(value: [f32; 3]) -> bool {
+    value.into_iter().all(f32::is_finite)
+}
+
+fn finite2(value: [f32; 2]) -> bool {
     value.into_iter().all(f32::is_finite)
 }
 

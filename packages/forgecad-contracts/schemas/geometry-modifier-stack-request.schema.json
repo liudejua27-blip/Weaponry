@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-modifier-stack-request.schema.json",
+  "title": "GeometryModifierStackRequest",
+  "description": "A bounded, read-only authoring request that lowers an ordered non-destructive modifier stack into GeometryProgram@2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "representation_plan_sha256",
+    "part_id",
+    "material_zone_id",
+    "solid",
+    "base_node",
+    "modifiers",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryModifierStackRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "solid": {"type": "boolean"},
+    "base_node": {
+      "oneOf": [
+        {"$ref": "#/$defs/primitive_base_node"},
+        {"$ref": "#/$defs/profile_extrude_base_node"},
+        {"$ref": "#/$defs/profile_loft_base_node"},
+        {"$ref": "#/$defs/longitudinal_section_loft_base_node"},
+        {"$ref": "#/$defs/subd_cage_base_node"},
+        {"$ref": "#/$defs/surface_patch_base_node"},
+        {"$ref": "#/$defs/revolve_base_node"},
+        {"$ref": "#/$defs/tube_sweep_base_node"},
+        {"$ref": "#/$defs/panel_base_node"},
+        {"$ref": "#/$defs/vent_array_base_node"},
+        {"$ref": "#/$defs/vent_array_v2_base_node"},
+        {"$ref": "#/$defs/recessed_channel_base_node"},
+        {"$ref": "#/$defs/energy_core_base_node"},
+        {"$ref": "#/$defs/joint_stack_base_node"}
+      ]
+    },
+    "modifiers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/transform_modifier"},
+          {"$ref": "#/$defs/mirror_modifier"},
+          {"$ref": "#/$defs/array_modifier"},
+          {"$ref": "#/$defs/bevel_modifier"},
+          {"$ref": "#/$defs/normal_policy_modifier"}
+        ]
+      }
+    },
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "primitive_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.primitive@2"},
+        "parameters": {"$ref": "#/$defs/primitive_base_parameters"}
+      }
+    },
+    "primitive_base_parameters": {
+      "oneOf": [
+        {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/box_parameters"},
+        {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/cylinder_parameters"},
+        {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/ellipsoid_parameters"},
+        {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/sphere_parameters"}
+      ]
+    },
+    "profile_extrude_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.profile-extrude@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/profile_extrude_parameters"}
+      }
+    },
+    "profile_loft_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.profile-loft@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/profile_loft_parameters"}
+      }
+    },
+    "longitudinal_section_loft_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.longitudinal-section-loft@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/longitudinal_section_loft_parameters"}
+      }
+    },
+    "subd_cage_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.subd-cage@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/subd_cage_parameters"}
+      }
+    },
+    "surface_patch_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.surface-patch@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/surface_patch_parameters"}
+      }
+    },
+    "revolve_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.revolve@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/revolve_parameters"}
+      }
+    },
+    "tube_sweep_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.tube-sweep@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/tube_sweep_parameters"}
+      }
+    },
+    "panel_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.panel@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/panel_parameters"}
+      }
+    },
+    "vent_array_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.vent-array@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/vent_array_parameters"}
+      }
+    },
+    "vent_array_v2_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.vent-array@2"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/vent_array_v2_parameters"}
+      }
+    },
+    "recessed_channel_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.recessed-channel@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/recessed_channel_parameters"}
+      }
+    },
+    "joint_stack_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.joint-stack@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/joint_stack_parameters"}
+      }
+    },
+    "energy_core_base_node": {
+      "$ref": "#/$defs/base_node_common",
+      "properties": {
+        "operator_id": {"const": "forgecad.geometry.energy-core@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/energy_core_parameters"}
+      }
+    },
+    "base_node_common": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "operator_id", "inputs", "parameters"],
+      "properties": {
+        "node_id": {"$ref": "#/$defs/identifier"},
+        "operator_id": {"type": "string"},
+        "inputs": {"type": "array", "maxItems": 0},
+        "parameters": {"type": "object"}
+      }
+    },
+    "transform_modifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modifier_id", "enabled", "operator_id", "parameters"],
+      "properties": {
+        "modifier_id": {"$ref": "#/$defs/identifier"},
+        "enabled": {"type": "boolean"},
+        "operator_id": {"const": "forgecad.geometry.transform@2"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/transform_parameters"}
+      }
+    },
+    "mirror_modifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modifier_id", "enabled", "operator_id", "parameters"],
+      "properties": {
+        "modifier_id": {"$ref": "#/$defs/identifier"},
+        "enabled": {"type": "boolean"},
+        "operator_id": {"const": "forgecad.geometry.mirror@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/mirror_parameters"}
+      }
+    },
+    "array_modifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modifier_id", "enabled", "operator_id", "parameters"],
+      "properties": {
+        "modifier_id": {"$ref": "#/$defs/identifier"},
+        "enabled": {"type": "boolean"},
+        "operator_id": {"const": "forgecad.geometry.array@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/array_parameters"}
+      }
+    },
+    "bevel_modifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modifier_id", "enabled", "operator_id", "parameters"],
+      "properties": {
+        "modifier_id": {"$ref": "#/$defs/identifier"},
+        "enabled": {"type": "boolean"},
+        "operator_id": {"const": "forgecad.geometry.bevel@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/bevel_parameters"}
+      }
+    },
+    "normal_policy_modifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modifier_id", "enabled", "operator_id", "parameters"],
+      "properties": {
+        "modifier_id": {"$ref": "#/$defs/identifier"},
+        "enabled": {"type": "boolean"},
+        "operator_id": {"const": "forgecad.geometry.normal-policy@1"},
+        "parameters": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json#/$defs/normal_policy_parameters"}
+      }
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-modifier-evaluation-result.schema.json",
+  "title": "GeometryModifierEvaluationResult",
+  "description": "Runtime-owned deterministic evaluation and semantic-signature reuse evidence for a bounded modifier stack. It is not a persistent mesh cache hit, candidate, compiled artifact or visual-quality result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "representation_plan_sha256",
+    "part_id",
+    "material_zone_id",
+    "solid",
+    "input_sha256",
+    "previous_evaluation_sha256",
+    "source_input_sha256",
+    "stack_definition_sha256",
+    "evaluation_sha256",
+    "output_sha256",
+    "evaluation_policy_sha256",
+    "operator_catalog_sha256",
+    "catalog_cohort_sha256",
+    "cache_key_sha256",
+    "reuse_kind",
+    "output_kind",
+    "cache_decision",
+    "evaluation_dirty",
+    "dirty_reasons",
+    "evaluation_signature",
+    "geometry_program",
+    "evaluation_stages",
+    "validator_status",
+    "quality_status",
+    "limitations",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryModifierEvaluationResult@2"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "solid": {"type": "boolean"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "previous_evaluation_sha256": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+    },
+    "source_input_sha256": {"$ref": "#/$defs/sha256"},
+    "stack_definition_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation_sha256": {"$ref": "#/$defs/sha256"},
+    "output_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "catalog_cohort_sha256": {"$ref": "#/$defs/sha256"},
+    "cache_key_sha256": {"$ref": "#/$defs/sha256"},
+    "reuse_kind": {"const": "semantic-signature-only"},
+    "output_kind": {"const": "geometry-program-canonical-sha256"},
+    "cache_decision": {"enum": ["initial-miss", "reusable", "invalidated"]},
+    "evaluation_dirty": {"type": "boolean"},
+    "dirty_reasons": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/dirty_reason"}
+    },
+    "evaluation_signature": {"$ref": "https://forgecad.local/contracts/geometry-modifier-evaluation-signature.schema.json"},
+    "geometry_program": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json"},
+    "evaluation_stages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/evaluation_stage"}
+    },
+    "validator_status": {"const": "passed"},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 256}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "operator_id": {
+      "enum": [
+        "forgecad.geometry.transform@2",
+        "forgecad.geometry.mirror@1",
+        "forgecad.geometry.array@1",
+        "forgecad.geometry.bevel@1",
+        "forgecad.geometry.normal-policy@1"
+      ]
+    },
+    "dirty_reason": {
+      "enum": [
+        "initial-evaluation",
+        "catalog-cohort-changed",
+        "source-input-changed",
+        "modifier-set-changed",
+        "modifier-order-changed",
+        "modifier-enabled-state-changed",
+        "modifier-operator-changed",
+        "modifier-parameters-changed",
+        "disabled-modifier-definition-changed",
+        "clean"
+      ]
+    },
+    "evaluation_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order_index",
+        "modifier_id",
+        "enabled",
+        "operator_id",
+        "effective_node_id",
+        "parameters_sha256",
+        "definition_sha256",
+        "input_evaluation_sha256",
+        "output_evaluation_sha256",
+        "stage_cache_key_sha256"
+      ],
+      "properties": {
+        "order_index": {"type": "integer", "minimum": 0, "maximum": 7},
+        "modifier_id": {"$ref": "#/$defs/identifier"},
+        "enabled": {"type": "boolean"},
+        "operator_id": {"$ref": "#/$defs/operator_id"},
+        "effective_node_id": {"$ref": "#/$defs/identifier"},
+        "parameters_sha256": {"$ref": "#/$defs/sha256"},
+        "definition_sha256": {"$ref": "#/$defs/sha256"},
+        "input_evaluation_sha256": {"$ref": "#/$defs/sha256"},
+        "output_evaluation_sha256": {"$ref": "#/$defs/sha256"},
+        "stage_cache_key_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

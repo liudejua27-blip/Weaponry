@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-asset-delivery-manifest.schema.json",
+  "title": "GameAssetDeliveryManifest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "request_sha256", "lod_receipt_object_sha256", "collision_proxy_object_sha256", "readiness_object_sha256", "lod_artifact_sha256s", "animation", "candidate_confirmed", "export_performed", "actual_engine_roundtrip", "quality_status", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "GameAssetDeliveryManifest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "lod_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "collision_proxy_object_sha256": {"$ref": "#/$defs/sha256"},
+    "readiness_object_sha256": {"$ref": "#/$defs/sha256"},
+    "lod_artifact_sha256s": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/sha256"}},
+    "animation": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/animation"}]},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "animation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clip_id", "animated_artifact_sha256", "receipt_object_sha256"],
+      "properties": {
+        "clip_id": {"$ref": "#/$defs/id"},
+        "animated_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt_object_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

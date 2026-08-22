@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/topology-snapshot.schema.json",
+  "title": "TopologySnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "scope", "complete", "project_id", "artifact_id", "candidate_id", "part_id",
+    "artifact_readback_sha256", "program_sha256", "operator_catalog_sha256",
+    "readback_config_sha256", "snapshot_policy_sha256", "lineage_sha256", "topology_space", "method",
+    "id_scope", "cross_version_stable", "source_lineage_status", "max_face_count", "max_response_bytes", "solid",
+    "source_node_ids", "material_zone_ids", "counts", "topology", "vertices",
+    "edges", "faces", "corners", "limitations", "quality_status", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "TopologySnapshot@1"},
+    "scope": {"const": "part"},
+    "complete": {"const": true},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "snapshot_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "lineage_sha256": {"$ref": "#/$defs/sha256"},
+    "topology_space": {"const": "evaluated-glb-triangle-mesh@1"},
+    "method": {"const": "triangulated-glb-position-weld-v1"},
+    "id_scope": {"const": "artifact-bound"},
+    "cross_version_stable": {"const": false},
+    "source_lineage_status": {"const": "partial-operator-node-only"},
+    "max_face_count": {"type": "integer", "minimum": 1, "maximum": 512},
+    "max_response_bytes": {"const": 1048576},
+    "solid": {"type": "boolean"},
+    "source_node_ids": {"type": "array", "maxItems": 512, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+    "material_zone_ids": {"type": "array", "maxItems": 512, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+    "counts": {"$ref": "#/$defs/counts"},
+    "topology": {"$ref": "#/$defs/topology"},
+    "vertices": {"type": "array", "minItems": 3, "maxItems": 1536, "items": {"$ref": "#/$defs/vertex"}},
+    "edges": {"type": "array", "minItems": 3, "maxItems": 1536, "items": {"$ref": "#/$defs/edge"}},
+    "faces": {"type": "array", "minItems": 1, "maxItems": 512, "items": {"$ref": "#/$defs/face"}},
+    "corners": {"type": "array", "minItems": 3, "maxItems": 1536, "items": {"$ref": "#/$defs/corner"}},
+    "limitations": {
+      "const": [
+        "TRIANGULATED_ARTIFACT_TOPOLOGY_ONLY",
+        "NO_AUTHORING_CAGE_RECOVERY",
+        "NO_CROSS_VERSION_ELEMENT_ID_STABILITY"
+      ]
+    },
+    "quality_status": {"const": "structural_only"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec2": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+    "vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}},
+    "vec4": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+    "id_list": {"type": "array", "maxItems": 1536, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vertex_count", "edge_count", "face_count", "corner_count"],
+      "properties": {
+        "vertex_count": {"type": "integer", "minimum": 3, "maximum": 1536},
+        "edge_count": {"type": "integer", "minimum": 3, "maximum": 1536},
+        "face_count": {"type": "integer", "minimum": 1, "maximum": 512},
+        "corner_count": {"type": "integer", "minimum": 3, "maximum": 1536}
+      }
+    },
+    "topology": {
+      "type": "object", "additionalProperties": false,
+      "required": ["boundary_edge_count", "non_manifold_edge_count", "orientation_conflict_count", "status"],
+      "properties": {
+        "boundary_edge_count": {"type": "integer", "minimum": 0, "maximum": 1536},
+        "non_manifold_edge_count": {"type": "integer", "minimum": 0, "maximum": 1536},
+        "orientation_conflict_count": {"type": "integer", "minimum": 0, "maximum": 1536},
+        "status": {"enum": ["closed_manifold", "open_surface", "non_manifold"]}
+      }
+    },
+    "vertex": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vertex_id", "position_m", "incident_edge_ids", "incident_face_ids"],
+      "properties": {
+        "vertex_id": {"$ref": "#/$defs/identifier"},
+        "position_m": {"$ref": "#/$defs/vec3"},
+        "incident_edge_ids": {"$ref": "#/$defs/id_list"},
+        "incident_face_ids": {"$ref": "#/$defs/id_list"}
+      }
+    },
+    "edge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["edge_id", "vertex_ids", "incident_face_ids", "boundary", "non_manifold", "orientation_conflict"],
+      "properties": {
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "vertex_ids": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "incident_face_ids": {"$ref": "#/$defs/id_list"},
+        "boundary": {"type": "boolean"},
+        "non_manifold": {"type": "boolean"},
+        "orientation_conflict": {"type": "boolean"}
+      }
+    },
+    "face": {
+      "type": "object", "additionalProperties": false,
+      "required": ["face_id", "vertex_ids", "edge_ids", "corner_ids", "source_node_id", "material_zone_id", "normal", "area_m2"],
+      "properties": {
+        "face_id": {"$ref": "#/$defs/identifier"},
+        "vertex_ids": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/identifier"}},
+        "edge_ids": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/identifier"}},
+        "corner_ids": {"type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "source_node_id": {"$ref": "#/$defs/identifier"},
+        "material_zone_id": {"$ref": "#/$defs/identifier"},
+        "normal": {"$ref": "#/$defs/vec3"},
+        "area_m2": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "corner": {
+      "type": "object", "additionalProperties": false,
+      "required": ["corner_id", "face_id", "ordinal", "vertex_id", "edge_id", "edge_forward", "position_m", "normal", "texcoord_0", "tangent"],
+      "properties": {
+        "corner_id": {"$ref": "#/$defs/identifier"},
+        "face_id": {"$ref": "#/$defs/identifier"},
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 2},
+        "vertex_id": {"$ref": "#/$defs/identifier"},
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "edge_forward": {"type": "boolean"},
+        "position_m": {"$ref": "#/$defs/vec3"},
+        "normal": {"$ref": "#/$defs/vec3"},
+        "texcoord_0": {"$ref": "#/$defs/vec2"},
+        "tangent": {"$ref": "#/$defs/vec4"}
+      }
+    }
+  }
+}

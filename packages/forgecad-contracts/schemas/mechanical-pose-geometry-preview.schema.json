@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-pose-geometry-preview.schema.json",
+  "title": "MechanicalPoseGeometryPreview",
+  "description": "A bounded transient Geometry Worker result derived from candidate-bound authored rigid-link pose deltas. It is not persisted and does not prove an original asset rig or visual quality.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "source_artifact_id", "source_artifact_readback_sha256", "source_program_sha256", "operator_catalog_sha256", "readback_config_sha256", "input_sha256", "rest_frame_sha256", "pose_action_sha256", "sample_time_ticks", "evaluated_pose_sha256", "application_policy", "application_policy_sha256", "part_deltas", "part_deltas_sha256", "posed_geometry_program", "posed_program_sha256", "transient_artifact", "worker_replay", "geometry_materialization", "runtime_write_performed", "persistent_user_data_touched", "validator_status", "quality_status", "limitations", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "MechanicalPoseGeometryPreview@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "source_artifact_id": {"$ref": "#/$defs/sha256"},
+    "source_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "source_program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "rest_frame_sha256": {"$ref": "#/$defs/sha256"},
+    "pose_action_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "sample_time_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "evaluated_pose_sha256": {"$ref": "#/$defs/sha256"},
+    "application_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["coordinate_system", "baseline_domain", "delta_formula", "rotation_lowering", "worker_transform_order", "rest_frame_provenance"],
+      "properties": {
+        "coordinate_system": {"const": "forgecad-rh-y-up-m@1"},
+        "baseline_domain": {"const": "persisted-geometry-program-part-output-world-mesh@1"},
+        "delta_formula": {"const": "posed-world-times-inverse-rest-world@1"},
+        "rotation_lowering": {"const": "quaternion-to-euler-xyz-rz-ry-rx-fail-near-gimbal@1"},
+        "worker_transform_order": {"const": "scale-then-x-y-z-rotation-then-translation@1"},
+        "rest_frame_provenance": {"const": "caller-authored-hash-bound-not-artifact-rig-provenance@1"}
+      }
+    },
+    "application_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "part_deltas": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/part_delta"}},
+    "part_deltas_sha256": {"$ref": "#/$defs/sha256"},
+    "posed_geometry_program": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json"},
+    "posed_program_sha256": {"$ref": "#/$defs/sha256"},
+    "transient_artifact": {"$ref": "#/$defs/transient_artifact"},
+    "worker_replay": {"$ref": "#/$defs/worker_replay"},
+    "geometry_materialization": {"const": "transient-worker-glb-not-persisted"},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "validator_status": {"const": "passed"},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {"type": "array", "minItems": 8, "maxItems": 16, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128}},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "world_vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -640, "maximum": 640}},
+    "worker_vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -10, "maximum": 10}},
+    "quat": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number", "minimum": -1, "maximum": 1}},
+    "pose": {"type": "object", "additionalProperties": false, "required": ["translation_m", "rotation_quat_xyzw", "scale"], "properties": {"translation_m": {"$ref": "#/$defs/world_vec3"}, "rotation_quat_xyzw": {"$ref": "#/$defs/quat"}, "scale": {"const": [1.0, 1.0, 1.0]}}},
+    "delta_pose": {"type": "object", "additionalProperties": false, "required": ["translation_m", "rotation_quat_xyzw", "scale"], "properties": {"translation_m": {"$ref": "#/$defs/worker_vec3"}, "rotation_quat_xyzw": {"$ref": "#/$defs/quat"}, "scale": {"const": [1.0, 1.0, 1.0]}}},
+    "part_delta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["part_id", "source_node_ids", "rest_world_pose", "posed_world_pose", "delta_pose", "delta_rotation_euler_xyz_rad", "transformed_output_node_ids"],
+      "properties": {
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "source_node_ids": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "rest_world_pose": {"$ref": "#/$defs/pose"},
+        "posed_world_pose": {"$ref": "#/$defs/pose"},
+        "delta_pose": {"$ref": "#/$defs/delta_pose"},
+        "delta_rotation_euler_xyz_rad": {"$ref": "#/$defs/worker_vec3"},
+        "transformed_output_node_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "worker_replay": {
+      "type": "object", "additionalProperties": false,
+      "required": ["first_build_cohort_sha256", "repeat_build_cohort_sha256", "first_artifact_sha256", "repeat_artifact_sha256", "byte_exact", "metadata_exact"],
+      "properties": {
+        "first_build_cohort_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "repeat_build_cohort_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "first_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "repeat_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "byte_exact": {"const": true},
+        "metadata_exact": {"const": true}
+      }
+    },
+    "transient_artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_sha256", "size_bytes", "program_sha256", "part_ids", "triangle_count", "material_zone_ids", "uv_status", "tangent_status", "strict_readback", "delivery"],
+      "properties": {
+        "artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "program_sha256": {"$ref": "#/$defs/sha256"},
+        "part_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "triangle_count": {"type": "integer", "minimum": 1, "maximum": 250000},
+        "material_zone_ids": {"type": "array", "minItems": 1, "maxItems": 512, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "uv_status": {"type": "string", "minLength": 1, "maxLength": 64},
+        "tangent_status": {"type": "string", "minLength": 1, "maxLength": 64},
+        "strict_readback": {"type": "object", "additionalProperties": false, "required": ["validator_status", "hard_gate_passed", "invalid_index_count", "non_finite_count", "degenerate_triangle_count", "metadata_mismatch_count", "part_coverage", "source_coverage", "material_zone_coverage"], "properties": {"validator_status": {"const": "passed"}, "hard_gate_passed": {"const": true}, "invalid_index_count": {"const": 0}, "non_finite_count": {"const": 0}, "degenerate_triangle_count": {"const": 0}, "metadata_mismatch_count": {"const": 0}, "part_coverage": {"const": 1.0}, "source_coverage": {"const": 1.0}, "material_zone_coverage": {"const": 1.0}}},
+        "delivery": {"const": "hash-and-readback-only-no-cas-object"}
+      }
+    }
+  }
+}

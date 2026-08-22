@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/subdivision-artifact-lineage-link.schema.json",
+  "title": "SubdivisionArtifactLineageLink",
+  "description": "A deterministic candidate/node link to one immutable SubdivisionArtifactLineageSidecar CAS object. The embedded sidecar is the complete payload; the link itself has no timestamp so the same request can be reconstructed idempotently.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "candidate_id", "artifact_id",
+    "artifact_readback_sha256", "geometry_candidate_evidence_sha256",
+    "subdivision_node_id", "request_sha256", "sidecar_object_sha256",
+    "lineage_sha256", "artifact_binding_sha256", "materialization_status",
+    "sidecar", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SubdivisionArtifactLineageLink@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_candidate_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "subdivision_node_id": {"$ref": "#/$defs/identifier"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "sidecar_object_sha256": {"$ref": "#/$defs/sha256"},
+    "lineage_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_binding_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_status": {"const": "runtime-owned-immutable-cas-sidecar"},
+    "sidecar": {"$ref": "https://forgecad.local/contracts/subdivision-artifact-lineage-sidecar.schema.json"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

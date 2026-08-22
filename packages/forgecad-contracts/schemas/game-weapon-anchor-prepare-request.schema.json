@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-anchor-prepare-request.schema.json",
+  "title": "GameWeaponAnchorPrepareRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "delivery_manifest_object_sha256", "anchor_policy", "anchors", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponAnchorPrepareRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_policy": {"const": "weapon-rh-x-forward-y-up-model-space-six-role@1"},
+    "anchors": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/anchor"}},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -10.0, "maximum": 10.0}},
+    "quat": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number", "minimum": -1.0, "maximum": 1.0}},
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_id", "role", "parent_kind", "owner_part_id", "local_translation_m", "local_rotation_quat_xyzw", "local_scale_xyz"],
+      "properties": {
+        "anchor_id": {"$ref": "#/$defs/id"},
+        "role": {"enum": ["weapon-root", "grip-primary", "muzzle-vfx", "magazine-well", "sight-primary", "energy-core-vfx"]},
+        "parent_kind": {"enum": ["synthetic-scene-root", "part-node"]},
+        "owner_part_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "local_translation_m": {"$ref": "#/$defs/vec3"},
+        "local_rotation_quat_xyzw": {"$ref": "#/$defs/quat"},
+        "local_scale_xyz": {"const": [1.0, 1.0, 1.0]}
+      }
+    }
+  }
+}

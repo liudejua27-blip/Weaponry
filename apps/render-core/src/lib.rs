@@ -17,10 +17,237 @@ pub struct RenderPass {
     pub height: u32,
 }
 
+/// A transient, bounded override for one already-authored GLB material.
+/// `material_zone_id` is matched against the glTF material name while
+/// `material_id` is matched against `extras.forgecad.material_id`; callers
+/// cannot select an arbitrary material index.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EmissiveMaterialOverride {
+    pub material_zone_id: String,
+    pub material_id: String,
+    pub color_linear_rgb: [f32; 3],
+    pub emissive_strength: f32,
+}
+
+/// Bounded, product-owned HDR bloom controls. The fixed renderer keeps the
+/// HDR buffer transient and encodes the two review passes as a normalized
+/// linear PNG; no shader, kernel or caller-provided executable is accepted.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HdrBloomProfile {
+    pub threshold: f32,
+    pub radius_px: u32,
+    pub intensity: f32,
+    pub hdr_clamp: f32,
+}
+
+/// A bounded, typed particle input for the fictional-energy visual pass.
+/// Particles are deliberately data-only: Runtime derives their deterministic
+/// values from durable hashes, while the isolated Render Worker only projects
+/// and rasterizes them. No shader, script, path, URL or caller RNG is part of
+/// this contract.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypedParticle {
+    pub emitter_id: String,
+    pub id: u32,
+    pub position: [f32; 3],
+    pub radius_px: f32,
+    pub color_linear_rgb: [f32; 3],
+    pub alpha: f32,
+    pub lifetime_ticks: u64,
+    pub depth: f32,
+}
+
+/// A bounded, product-owned typed trail for the fictional-energy visual pass.
+/// Trails are data-only polyline ribbons: Runtime derives their points from
+/// durable hashes and exact LOD0 anchor/Part transforms, while the isolated
+/// Render Worker only projects and rasterizes them.  There is no shader,
+/// script, socket, path, URL or caller RNG in this contract.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypedTrail {
+    pub emitter_id: String,
+    pub id: u32,
+    pub points: Vec<[f32; 3]>,
+    pub radius_px: f32,
+    pub color_linear_rgb: [f32; 3],
+    pub alpha: f32,
+    pub lifetime_ticks: u64,
+}
+
+/// The closed, product-owned HDR profile for typed trail Bloom.  This is
+/// intentionally a distinct profile from material Bloom: trail color is
+/// bounded to linear 0..1, so a fixed source gain is required to produce a
+/// reviewable HDR source.  The operation never accepts a shader, kernel or
+/// caller-selected gain.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TypedTrailBloomProfile {
+    pub threshold: f32,
+    pub radius_px: u32,
+    pub intensity: f32,
+    pub hdr_clamp: f32,
+    pub source_gain: f32,
+}
+
+impl TypedTrailBloomProfile {
+    pub const FIXED: Self = Self {
+        threshold: 1.0,
+        radius_px: 8,
+        intensity: 4.0,
+        hdr_clamp: 16.0,
+        source_gain: 8.0,
+    };
+    pub const BLUR_PASSES: u32 = 2;
+
+    pub fn validate_fixed(self) -> Result<Self, RenderError> {
+        if self != Self::FIXED {
+            return Err(RenderError::Invalid(
+                "typed trail Bloom profile must use the fixed Runtime profile".to_owned(),
+            ));
+        }
+        Ok(self)
+    }
+}
+
+impl HdrBloomProfile {
+    pub const MAX_RADIUS_PX: u32 = 8;
+    pub const MAX_INTENSITY: f32 = 4.0;
+    pub const MAX_HDR_CLAMP: f32 = 16.0;
+    pub const BLUR_PASSES: u32 = 2;
+
+    pub fn validate(self) -> Result<Self, RenderError> {
+        if !self.threshold.is_finite()
+            || !(0.0..=Self::MAX_HDR_CLAMP).contains(&self.threshold)
+            || self.radius_px == 0
+            || self.radius_px > Self::MAX_RADIUS_PX
+            || !self.intensity.is_finite()
+            || !(0.0..=Self::MAX_INTENSITY).contains(&self.intensity)
+            || !self.hdr_clamp.is_finite()
+            || !(1.0..=Self::MAX_HDR_CLAMP).contains(&self.hdr_clamp)
+        {
+            return Err(RenderError::Invalid(
+                "HDR bloom profile is outside the bounded domain".to_owned(),
+            ));
+        }
+        Ok(self)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppliedEmissiveMaterialOverride {
+    pub material_zone_id: String,
+    pub material_id: String,
+    pub glb_material_index: usize,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
     #[error("render input is invalid: {0}")]
     Invalid(String),
+}
+
+const ID_PALETTE_CAPACITY: usize = 256;
+
+fn validate_id_palette_domain(root: &Value) -> Result<(), RenderError> {
+    let meshes = root
+        .get("meshes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RenderError::Invalid("GLB meshes are missing".to_owned()))?;
+    if meshes.is_empty() || meshes.len() > ID_PALETTE_CAPACITY {
+        return Err(RenderError::Invalid(
+            "GLB mesh count exceeds the fixed Part-ID palette".to_owned(),
+        ));
+    }
+    if root
+        .get("materials")
+        .and_then(Value::as_array)
+        .is_some_and(|materials| materials.len() > ID_PALETTE_CAPACITY)
+    {
+        return Err(RenderError::Invalid(
+            "GLB material count exceeds the fixed Material-ID palette".to_owned(),
+        ));
+    }
+    for mesh in meshes {
+        let primitives = mesh
+            .get("primitives")
+            .and_then(Value::as_array)
+            .ok_or_else(|| RenderError::Invalid("GLB primitive list is missing".to_owned()))?;
+        if primitives.iter().any(|primitive| {
+            primitive
+                .get("material")
+                .and_then(Value::as_u64)
+                .is_some_and(|index| index >= ID_PALETTE_CAPACITY as u64)
+        }) {
+            return Err(RenderError::Invalid(
+                "GLB material index exceeds the fixed Material-ID palette".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn resolve_emissive_material_overrides(
+    root: &Value,
+    overrides: &[EmissiveMaterialOverride],
+) -> Result<Vec<AppliedEmissiveMaterialOverride>, RenderError> {
+    if overrides.len() > 8 {
+        return Err(RenderError::Invalid(
+            "emissive override count exceeds the fixed limit".to_owned(),
+        ));
+    }
+    let materials = root
+        .get("materials")
+        .and_then(Value::as_array)
+        .ok_or_else(|| RenderError::Invalid("GLB materials are missing".to_owned()))?;
+    let mut seen_zones = HashSet::new();
+    let mut seen_indices = HashSet::new();
+    let mut applied = Vec::with_capacity(overrides.len());
+    for override_value in overrides {
+        if override_value.material_zone_id.is_empty()
+            || override_value.material_zone_id.len() > 128
+            || override_value.material_id.is_empty()
+            || override_value.material_id.len() > 128
+            || override_value
+                .color_linear_rgb
+                .iter()
+                .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+            || !override_value.emissive_strength.is_finite()
+            || !(0.0..=16.0).contains(&override_value.emissive_strength)
+        {
+            return Err(RenderError::Invalid(
+                "emissive override is outside the bounded domain".to_owned(),
+            ));
+        }
+        if !seen_zones.insert(override_value.material_zone_id.as_str()) {
+            return Err(RenderError::Invalid(
+                "emissive override material zone is duplicated".to_owned(),
+            ));
+        }
+        let matches = materials
+            .iter()
+            .enumerate()
+            .filter(|(_, material)| {
+                material.get("name").and_then(Value::as_str)
+                    == Some(override_value.material_zone_id.as_str())
+                    && material
+                        .get("extras")
+                        .and_then(|value| value.get("forgecad"))
+                        .and_then(|value| value.get("material_id"))
+                        .and_then(Value::as_str)
+                        == Some(override_value.material_id.as_str())
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if matches.len() != 1 || !seen_indices.insert(matches[0]) {
+            return Err(RenderError::Invalid(
+                "emissive override does not resolve to exactly one GLB material".to_owned(),
+            ));
+        }
+        applied.push(AppliedEmissiveMaterialOverride {
+            material_zone_id: override_value.material_zone_id.clone(),
+            material_id: override_value.material_id.clone(),
+            glb_material_index: matches[0],
+        });
+    }
+    Ok(applied)
 }
 
 fn normalize(value: [f32; 3]) -> [f32; 3] {
@@ -62,6 +289,7 @@ fn length3(value: [f32; 3]) -> f32 {
 
 pub fn render_fixed_glb(glb: &[u8]) -> Result<Vec<RenderPass>, RenderError> {
     let (root, binary) = parse_glb(glb)?;
+    validate_id_palette_domain(&root)?;
     let meshes = root
         .get("meshes")
         .and_then(Value::as_array)
@@ -245,7 +473,69 @@ pub fn render_perspective_glb_at_resolution(
             "wireframe",
             "uv-stretch",
         ],
+        &[],
+        None,
     )
+}
+
+/// Render a formal 512x512 nine-AOV frame while replacing emissive values for
+/// a small set of exactly identified GLB materials. This is transient render
+/// input only: it does not mutate the GLB or any candidate/CAS state.
+pub fn render_perspective_glb_with_emissive_overrides(
+    glb: &[u8],
+    camera: &Value,
+    overrides: &[EmissiveMaterialOverride],
+) -> Result<(Vec<RenderPass>, Vec<AppliedEmissiveMaterialOverride>), RenderError> {
+    let (root, _) = parse_glb(glb)?;
+    let applied = resolve_emissive_material_overrides(&root, overrides)?;
+    let passes = render_perspective_glb_at_resolution_with_passes(
+        glb,
+        camera,
+        512,
+        &[
+            "beauty",
+            "silhouette",
+            "depth",
+            "normal",
+            "ao",
+            "part-id",
+            "material-id",
+            "wireframe",
+            "uv-stretch",
+        ],
+        overrides,
+        None,
+    )?;
+    Ok((passes, applied))
+}
+
+/// Render the fixed nine AOVs plus independent HDR emissive-source and
+/// two-pass separable bloom contribution passes. The base AOV bytes are
+/// produced by the same raster path and remain free of post-process bloom.
+pub fn render_perspective_glb_with_hdr_bloom(
+    glb: &[u8],
+    camera: &Value,
+    overrides: &[EmissiveMaterialOverride],
+    profile: HdrBloomProfile,
+) -> Result<(Vec<RenderPass>, Vec<AppliedEmissiveMaterialOverride>), RenderError> {
+    let profile = profile.validate()?;
+    let (root, _) = parse_glb(glb)?;
+    let applied = resolve_emissive_material_overrides(&root, overrides)?;
+    let bloom_passes = ["emissive-source", "bloom-contribution"];
+    let passes = render_perspective_glb_at_resolution_with_passes(
+        glb,
+        camera,
+        512,
+        &bloom_passes,
+        overrides,
+        Some(&profile),
+    )?;
+    if passes.len() != 2 {
+        return Err(RenderError::Invalid(
+            "HDR bloom pass inventory is not fixed".to_owned(),
+        ));
+    }
+    Ok((passes, applied))
 }
 
 /// Render only the two passes needed by the transient camera/Rig solver. This
@@ -261,7 +551,669 @@ pub fn render_perspective_glb_fit_at_resolution(
         camera,
         resolution,
         &["silhouette", "part-id"],
+        &[],
+        None,
     )
+}
+
+/// Render the independent typed-particle AOV set at the fixed 512x512 output
+/// resolution. This pass never reads or changes a GLB and therefore cannot
+/// contaminate the candidate-bound base nine AOVs or the HDR bloom passes.
+pub fn render_typed_particles(
+    camera: &Value,
+    particles: &[TypedParticle],
+) -> Result<Vec<RenderPass>, RenderError> {
+    render_typed_particles_internal(camera, particles, None)
+}
+
+/// Render typed particles against the opaque depth of the exact candidate
+/// GLB. The GLB is read only for the depth buffer; no base or bloom pass is
+/// returned or modified by this operation.
+pub fn render_typed_particles_with_glb(
+    glb: &[u8],
+    camera: &Value,
+    particles: &[TypedParticle],
+) -> Result<Vec<RenderPass>, RenderError> {
+    let depth_passes =
+        render_perspective_glb_at_resolution_with_passes(glb, camera, 512, &["depth"], &[], None)?;
+    let depth_pass = depth_passes
+        .first()
+        .ok_or_else(|| RenderError::Invalid("opaque depth pass is unavailable".to_owned()))?;
+    let depth_image = image::load_from_memory(&depth_pass.png)
+        .map_err(|error| RenderError::Invalid(format!("opaque depth pass decode failed: {error}")))?
+        .to_rgba8();
+    render_typed_particles_internal(camera, particles, Some(&depth_image))
+}
+
+fn render_typed_particles_internal(
+    camera: &Value,
+    particles: &[TypedParticle],
+    geometry_depth: Option<&RgbaImage>,
+) -> Result<Vec<RenderPass>, RenderError> {
+    const WIDTH: u32 = 512;
+    const HEIGHT: u32 = 512;
+    if particles.is_empty() || particles.len() > 128 {
+        return Err(RenderError::Invalid(
+            "typed particle count is outside the bounded domain".to_owned(),
+        ));
+    }
+    let (camera_position, forward, right, up, projection, near, far) = parse_camera(camera)?;
+    let aspect = WIDTH as f32 / HEIGHT as f32;
+    let mut projected = Vec::with_capacity(particles.len());
+    for particle in particles {
+        if particle.emitter_id != "muzzle-burst" && particle.emitter_id != "energy-core-sparks" {
+            return Err(RenderError::Invalid(
+                "typed particle emitter is not in the closed set".to_owned(),
+            ));
+        }
+        if particle.id == 0
+            || particle.id > 65_535
+            || particle
+                .position
+                .iter()
+                .any(|value| !value.is_finite() || value.abs() > 10.0)
+            || !particle.radius_px.is_finite()
+            || !(1.0..=8.0).contains(&particle.radius_px)
+            || particle
+                .color_linear_rgb
+                .iter()
+                .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+            || !particle.alpha.is_finite()
+            || !(0.0..=1.0).contains(&particle.alpha)
+            || particle.lifetime_ticks == 0
+            || particle.lifetime_ticks > 1_000_000
+            || !particle.depth.is_finite()
+            || !(0.0..=1.0).contains(&particle.depth)
+        {
+            return Err(RenderError::Invalid(
+                "typed particle attribute is outside the bounded domain".to_owned(),
+            ));
+        }
+        let relative = subtract3(particle.position, camera_position);
+        let z = dot3(relative, forward);
+        if !z.is_finite() || z <= near || z >= far {
+            continue;
+        }
+        let projected_depth = ((z - near) / (far - near)).clamp(0.0, 1.0);
+        if (particle.depth - projected_depth).abs() > 1.0e-5 {
+            return Err(RenderError::Invalid(
+                "typed particle depth differs from its camera-space position".to_owned(),
+            ));
+        }
+        let x = dot3(relative, right);
+        let y = dot3(relative, up);
+        let (ndc_x, ndc_y) = match projection {
+            CameraProjection::Perspective { focal } => ((x * focal / aspect) / z, (y * focal) / z),
+            CameraProjection::Orthographic { scale } => {
+                ((x / (scale * aspect * 0.5)), (y / (scale * 0.5)))
+            }
+        };
+        let screen_x = (ndc_x * 0.5 + 0.5) * WIDTH as f32;
+        let screen_y = (1.0 - (ndc_y * 0.5 + 0.5)) * HEIGHT as f32;
+        if screen_x.is_finite()
+            && screen_y.is_finite()
+            && screen_x >= -8.0
+            && screen_x <= WIDTH as f32 + 8.0
+            && screen_y >= -8.0
+            && screen_y <= HEIGHT as f32 + 8.0
+        {
+            projected.push((particle, screen_x, screen_y, projected_depth));
+        }
+    }
+    if projected.is_empty() {
+        return Err(RenderError::Invalid(
+            "camera produced no visible typed particles".to_owned(),
+        ));
+    }
+
+    let mut color = RgbaImage::from_pixel(WIDTH, HEIGHT, Rgba([0, 0, 0, 0]));
+    let mut id = RgbaImage::from_pixel(WIDTH, HEIGHT, Rgba([0, 0, 0, 0]));
+    let mut depth = RgbaImage::from_pixel(WIDTH, HEIGHT, Rgba([0, 0, 0, 0]));
+    let mut nearest_depth = vec![1.0_f32; (WIDTH * HEIGHT) as usize];
+    let mut nearest_id = vec![u32::MAX; (WIDTH * HEIGHT) as usize];
+    // Stable input order is part of the typed Runtime receipt. Color uses
+    // deterministic source-over compositing; ID/depth use nearest depth.
+    for (particle, screen_x, screen_y, projected_depth) in projected {
+        let radius = particle.radius_px.ceil() as i32;
+        let min_x = (screen_x.floor() as i32 - radius).max(0) as u32;
+        let max_x = (screen_x.ceil() as i32 + radius)
+            .min(WIDTH as i32 - 1)
+            .max(0) as u32;
+        let min_y = (screen_y.floor() as i32 - radius).max(0) as u32;
+        let max_y = (screen_y.ceil() as i32 + radius)
+            .min(HEIGHT as i32 - 1)
+            .max(0) as u32;
+        let radius_sq = particle.radius_px * particle.radius_px;
+        let source = [
+            linear_to_srgb(particle.color_linear_rgb[0]),
+            linear_to_srgb(particle.color_linear_rgb[1]),
+            linear_to_srgb(particle.color_linear_rgb[2]),
+        ];
+        for y in min_y..=max_y {
+            for x in min_x..=max_x {
+                let dx = x as f32 + 0.5 - screen_x;
+                let dy = y as f32 + 0.5 - screen_y;
+                if dx * dx + dy * dy > radius_sq {
+                    continue;
+                }
+                let index = (y * WIDTH + x) as usize;
+                if let Some(geometry_depth) = geometry_depth {
+                    let opaque = geometry_depth.get_pixel(x, y);
+                    // The fixed depth AOV uses the opaque background palette
+                    // [8,12,18]. Any foreground value is reversed normalized
+                    // camera depth, matching the base renderer's contract.
+                    let background = opaque[0] == 8 && opaque[1] == 12 && opaque[2] == 18;
+                    if !background {
+                        let opaque_depth = 1.0 - opaque[0] as f32 / 255.0;
+                        if opaque_depth <= projected_depth + 1.0e-4 {
+                            continue;
+                        }
+                    }
+                }
+                let destination = *color.get_pixel(x, y);
+                let src_alpha = particle.alpha.clamp(0.0, 1.0);
+                let dst_alpha = destination[3] as f32 / 255.0;
+                let out_alpha = src_alpha + dst_alpha * (1.0 - src_alpha);
+                if out_alpha > 0.0 {
+                    let mut output = [0_u8; 4];
+                    for channel in 0..3 {
+                        let value = (source[channel] as f32 * src_alpha
+                            + destination[channel] as f32 * dst_alpha * (1.0 - src_alpha))
+                            / out_alpha;
+                        output[channel] = value.round().clamp(0.0, 255.0) as u8;
+                    }
+                    output[3] = (out_alpha * 255.0).round().clamp(0.0, 255.0) as u8;
+                    color.put_pixel(x, y, Rgba(output));
+                }
+                if projected_depth < nearest_depth[index]
+                    || ((projected_depth - nearest_depth[index]).abs() <= f32::EPSILON
+                        && particle.id < nearest_id[index])
+                {
+                    nearest_depth[index] = projected_depth;
+                    nearest_id[index] = particle.id;
+                    id.put_pixel(x, y, Rgba(particle_id_color(particle.id)));
+                    let value = ((1.0 - projected_depth) * 255.0).round() as u8;
+                    depth.put_pixel(x, y, Rgba([value, value, value, 255]));
+                }
+            }
+        }
+    }
+    fn encode(image: RgbaImage, pass: &str) -> Result<RenderPass, RenderError> {
+        let mut bytes = Vec::new();
+        image::DynamicImage::ImageRgba8(image)
+            .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+            .map_err(|error| {
+                RenderError::Invalid(format!("typed particle encode failed: {error}"))
+            })?;
+        Ok(RenderPass {
+            pass: pass.to_owned(),
+            png: bytes,
+            width: WIDTH,
+            height: HEIGHT,
+        })
+    }
+    Ok(vec![
+        encode(color, "particle-color")?,
+        encode(id, "particle-id")?,
+        encode(depth, "particle-depth")?,
+    ])
+}
+
+/// Render one bounded typed-trail AOV set against the opaque depth of the
+/// exact candidate GLB.  The GLB is read only for the depth buffer; no base or
+/// bloom pass is returned or modified by this operation.
+pub fn render_typed_trails_with_glb(
+    glb: &[u8],
+    camera: &Value,
+    trails: &[TypedTrail],
+) -> Result<Vec<RenderPass>, RenderError> {
+    let depth_passes =
+        render_perspective_glb_at_resolution_with_passes(glb, camera, 512, &["depth"], &[], None)?;
+    let depth_pass = depth_passes
+        .first()
+        .ok_or_else(|| RenderError::Invalid("opaque depth pass is unavailable".to_owned()))?;
+    let depth_image = image::load_from_memory(&depth_pass.png)
+        .map_err(|error| RenderError::Invalid(format!("opaque depth pass decode failed: {error}")))?
+        .to_rgba8();
+    render_typed_trails_internal(camera, trails, Some(&depth_image))
+}
+
+/// Render the typed trail AOVs and their independent Bloom passes against the
+/// opaque depth of the exact candidate GLB.  The first three passes are
+/// produced by the same raster result as `render_typed_trails_with_glb`; the
+/// Bloom passes are appended and never replace or mutate the original trail or
+/// material Bloom outputs.
+pub fn render_typed_trails_bloom_with_glb(
+    glb: &[u8],
+    camera: &Value,
+    trails: &[TypedTrail],
+    profile: TypedTrailBloomProfile,
+) -> Result<Vec<RenderPass>, RenderError> {
+    let profile = profile.validate_fixed()?;
+    let depth_passes =
+        render_perspective_glb_at_resolution_with_passes(glb, camera, 512, &["depth"], &[], None)?;
+    let depth_pass = depth_passes
+        .first()
+        .ok_or_else(|| RenderError::Invalid("opaque depth pass is unavailable".to_owned()))?;
+    let depth_image = image::load_from_memory(&depth_pass.png)
+        .map_err(|error| RenderError::Invalid(format!("opaque depth pass decode failed: {error}")))?
+        .to_rgba8();
+    render_typed_trails_bloom_internal(camera, trails, Some(&depth_image), profile)
+}
+
+/// Render typed trails without geometry occlusion.  This is used only by
+/// focused Render Core tests; the product Worker always calls the GLB-bound
+/// function above.
+pub fn render_typed_trails(
+    camera: &Value,
+    trails: &[TypedTrail],
+) -> Result<Vec<RenderPass>, RenderError> {
+    render_typed_trails_internal(camera, trails, None)
+}
+
+#[derive(Debug)]
+struct TypedTrailRaster {
+    color: RgbaImage,
+    id: RgbaImage,
+    depth: RgbaImage,
+    /// Linear, straight-alpha color retained before display encoding.  The
+    /// three persisted trail AOVs are still generated from `color`, so this
+    /// buffer cannot change their byte representation.
+    linear_color: Vec<[f32; 3]>,
+    linear_alpha: Vec<f32>,
+    nearest_depth: Vec<f32>,
+    nearest_id: Vec<u32>,
+}
+
+fn render_typed_trails_internal(
+    camera: &Value,
+    trails: &[TypedTrail],
+    geometry_depth: Option<&RgbaImage>,
+) -> Result<Vec<RenderPass>, RenderError> {
+    let raster = rasterize_typed_trails_internal(camera, trails, geometry_depth)?;
+    Ok(vec![
+        encode_typed_trail_image(raster.color, "trail-color")?,
+        encode_typed_trail_image(raster.id, "trail-id")?,
+        encode_typed_trail_image(raster.depth, "trail-depth")?,
+    ])
+}
+
+fn render_typed_trails_bloom_internal(
+    camera: &Value,
+    trails: &[TypedTrail],
+    geometry_depth: Option<&RgbaImage>,
+    profile: TypedTrailBloomProfile,
+) -> Result<Vec<RenderPass>, RenderError> {
+    let profile = profile.validate_fixed()?;
+    let raster = rasterize_typed_trails_internal(camera, trails, geometry_depth)?;
+    let mut passes = vec![
+        encode_typed_trail_image(raster.color, "trail-color")?,
+        encode_typed_trail_image(raster.id, "trail-id")?,
+        encode_typed_trail_image(raster.depth, "trail-depth")?,
+    ];
+    let pixel_count = (TYPED_TRAIL_WIDTH * TYPED_TRAIL_HEIGHT) as usize;
+    let mut source = vec![[0.0_f32; 4]; pixel_count];
+    for index in 0..pixel_count {
+        if raster.nearest_id[index] == u32::MAX || raster.linear_alpha[index] <= 0.0 {
+            continue;
+        }
+        let alpha = raster.linear_alpha[index].clamp(0.0, 1.0);
+        for channel in 0..3 {
+            source[index][channel] =
+                (raster.linear_color[index][channel] * alpha * profile.source_gain)
+                    .clamp(0.0, profile.hdr_clamp);
+        }
+        source[index][3] = 1.0;
+    }
+    let thresholded = source
+        .iter()
+        .map(|pixel| {
+            let mut value = [0.0_f32; 4];
+            for channel in 0..3 {
+                value[channel] = ((pixel[channel] - profile.threshold).max(0.0)
+                    * profile.intensity)
+                    .min(profile.hdr_clamp);
+            }
+            value[3] = 1.0;
+            value
+        })
+        .collect::<Vec<_>>();
+    let mut contribution = separable_blur_two_passes(
+        &thresholded,
+        TYPED_TRAIL_WIDTH,
+        TYPED_TRAIL_HEIGHT,
+        profile.radius_px,
+        profile.hdr_clamp,
+    );
+    // The source raster already applies the opaque depth test.  Keep the
+    // screen-space blur from leaking through a nearer opaque surface by
+    // propagating the nearest visible trail depth through the same bounded
+    // separable support and masking the final contribution at the target.
+    let source_depth = raster
+        .nearest_depth
+        .iter()
+        .zip(&raster.nearest_id)
+        .map(|(depth, id)| {
+            if *id == u32::MAX {
+                f32::INFINITY
+            } else {
+                *depth
+            }
+        })
+        .collect::<Vec<_>>();
+    let propagated_depth = separable_min_depth(
+        &source_depth,
+        TYPED_TRAIL_WIDTH,
+        TYPED_TRAIL_HEIGHT,
+        profile.radius_px,
+    );
+    for y in 0..TYPED_TRAIL_HEIGHT {
+        for x in 0..TYPED_TRAIL_WIDTH {
+            let index = (y * TYPED_TRAIL_WIDTH + x) as usize;
+            let blocked = geometry_depth.is_some_and(|opaque_image| {
+                let opaque = opaque_image.get_pixel(x, y);
+                let background = opaque[0] == 8 && opaque[1] == 12 && opaque[2] == 18;
+                if background {
+                    false
+                } else {
+                    let opaque_depth = 1.0 - opaque[0] as f32 / 255.0;
+                    !propagated_depth[index].is_finite()
+                        || opaque_depth <= propagated_depth[index] + 1.0e-4
+                }
+            });
+            if blocked {
+                contribution[index] = [0.0; 4];
+            }
+        }
+    }
+    let mut source_image =
+        RgbaImage::from_pixel(TYPED_TRAIL_WIDTH, TYPED_TRAIL_HEIGHT, Rgba([0, 0, 0, 255]));
+    let mut contribution_image = source_image.clone();
+    for y in 0..TYPED_TRAIL_HEIGHT {
+        for x in 0..TYPED_TRAIL_WIDTH {
+            let index = (y * TYPED_TRAIL_WIDTH + x) as usize;
+            source_image.put_pixel(
+                x,
+                y,
+                Rgba(hdr_pixel_to_rgba8(source[index], profile.hdr_clamp)),
+            );
+            contribution_image.put_pixel(
+                x,
+                y,
+                Rgba(hdr_pixel_to_rgba8(contribution[index], profile.hdr_clamp)),
+            );
+        }
+    }
+    passes.push(encode_typed_trail_image(
+        source_image,
+        "trail-emissive-source",
+    )?);
+    passes.push(encode_typed_trail_image(
+        contribution_image,
+        "trail-bloom-contribution",
+    )?);
+    Ok(passes)
+}
+
+const TYPED_TRAIL_WIDTH: u32 = 512;
+const TYPED_TRAIL_HEIGHT: u32 = 512;
+const TYPED_TRAIL_MAX_TRAILS: usize = 16;
+const TYPED_TRAIL_MAX_POINTS_PER_TRAIL: usize = 32;
+const TYPED_TRAIL_MAX_SEGMENTS: usize = 128;
+
+fn encode_typed_trail_image(image: RgbaImage, pass: &str) -> Result<RenderPass, RenderError> {
+    let mut bytes = Vec::new();
+    image::DynamicImage::ImageRgba8(image)
+        .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+        .map_err(|error| RenderError::Invalid(format!("typed trail encode failed: {error}")))?;
+    Ok(RenderPass {
+        pass: pass.to_owned(),
+        png: bytes,
+        width: TYPED_TRAIL_WIDTH,
+        height: TYPED_TRAIL_HEIGHT,
+    })
+}
+
+fn rasterize_typed_trails_internal(
+    camera: &Value,
+    trails: &[TypedTrail],
+    geometry_depth: Option<&RgbaImage>,
+) -> Result<TypedTrailRaster, RenderError> {
+    if trails.is_empty() || trails.len() > TYPED_TRAIL_MAX_TRAILS {
+        return Err(RenderError::Invalid(
+            "typed trail count is outside the bounded domain".to_owned(),
+        ));
+    }
+    let (camera_position, forward, right, up, projection, near, far) = parse_camera(camera)?;
+    let aspect = TYPED_TRAIL_WIDTH as f32 / TYPED_TRAIL_HEIGHT as f32;
+    let mut projected = Vec::<(usize, Vec<([f32; 2], f32)>)>::with_capacity(trails.len());
+    let mut segment_count = 0usize;
+    for (trail_index, trail) in trails.iter().enumerate() {
+        if trail.emitter_id != "muzzle-trail" && trail.emitter_id != "energy-core-trail" {
+            return Err(RenderError::Invalid(
+                "typed trail emitter is not in the closed set".to_owned(),
+            ));
+        }
+        if !(1..=65_535).contains(&trail.id)
+            || trail.points.len() < 2
+            || trail.points.len() > TYPED_TRAIL_MAX_POINTS_PER_TRAIL
+            || !trail.radius_px.is_finite()
+            || !(1.0..=8.0).contains(&trail.radius_px)
+            || trail
+                .color_linear_rgb
+                .iter()
+                .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+            || !trail.alpha.is_finite()
+            || !(0.0..=1.0).contains(&trail.alpha)
+            || trail.lifetime_ticks == 0
+            || trail.lifetime_ticks > 1_000_000
+            || trail.points.iter().any(|point| {
+                point
+                    .iter()
+                    .any(|value| !value.is_finite() || value.abs() > 10.0)
+            })
+        {
+            return Err(RenderError::Invalid(
+                "typed trail attribute is outside the bounded domain".to_owned(),
+            ));
+        }
+        let mut points = Vec::with_capacity(trail.points.len());
+        for point in &trail.points {
+            let relative = subtract3(*point, camera_position);
+            let z = dot3(relative, forward);
+            if !z.is_finite() || z <= near || z >= far {
+                return Err(RenderError::Invalid(
+                    "typed trail point falls outside the fixed camera clip range".to_owned(),
+                ));
+            }
+            let depth = ((z - near) / (far - near)).clamp(0.0, 1.0);
+            let x = dot3(relative, right);
+            let y = dot3(relative, up);
+            let (ndc_x, ndc_y) = match projection {
+                CameraProjection::Perspective { focal } => {
+                    ((x * focal / aspect) / z, (y * focal) / z)
+                }
+                CameraProjection::Orthographic { scale } => {
+                    ((x / (scale * aspect * 0.5)), (y / (scale * 0.5)))
+                }
+            };
+            let screen_x = (ndc_x * 0.5 + 0.5) * TYPED_TRAIL_WIDTH as f32;
+            let screen_y = (1.0 - (ndc_y * 0.5 + 0.5)) * TYPED_TRAIL_HEIGHT as f32;
+            if !screen_x.is_finite()
+                || !screen_y.is_finite()
+                || screen_x < -8.0
+                || screen_x > TYPED_TRAIL_WIDTH as f32 + 8.0
+                || screen_y < -8.0
+                || screen_y > TYPED_TRAIL_HEIGHT as f32 + 8.0
+            {
+                return Err(RenderError::Invalid(
+                    "typed trail point is outside the bounded screen domain".to_owned(),
+                ));
+            }
+            points.push(([screen_x, screen_y], depth));
+        }
+        segment_count = segment_count.saturating_add(points.len().saturating_sub(1));
+        if segment_count > TYPED_TRAIL_MAX_SEGMENTS {
+            return Err(RenderError::Invalid(
+                "typed trail segment count exceeds the fixed limit".to_owned(),
+            ));
+        }
+        projected.push((trail_index, points));
+    }
+
+    let mut color =
+        RgbaImage::from_pixel(TYPED_TRAIL_WIDTH, TYPED_TRAIL_HEIGHT, Rgba([0, 0, 0, 0]));
+    let mut id = RgbaImage::from_pixel(TYPED_TRAIL_WIDTH, TYPED_TRAIL_HEIGHT, Rgba([0, 0, 0, 0]));
+    let mut depth =
+        RgbaImage::from_pixel(TYPED_TRAIL_WIDTH, TYPED_TRAIL_HEIGHT, Rgba([0, 0, 0, 0]));
+    let mut linear_color = vec![[0.0_f32; 3]; (TYPED_TRAIL_WIDTH * TYPED_TRAIL_HEIGHT) as usize];
+    let mut linear_alpha = vec![0.0_f32; (TYPED_TRAIL_WIDTH * TYPED_TRAIL_HEIGHT) as usize];
+    let mut nearest_depth = vec![1.0_f32; (TYPED_TRAIL_WIDTH * TYPED_TRAIL_HEIGHT) as usize];
+    let mut nearest_id = vec![u32::MAX; (TYPED_TRAIL_WIDTH * TYPED_TRAIL_HEIGHT) as usize];
+    let mut rendered_segments = 0usize;
+    for (trail_index, points) in projected {
+        let trail = &trails[trail_index];
+        let source = [
+            linear_to_srgb(trail.color_linear_rgb[0]),
+            linear_to_srgb(trail.color_linear_rgb[1]),
+            linear_to_srgb(trail.color_linear_rgb[2]),
+        ];
+        for segment in points.windows(2) {
+            let ([x0, y0], depth0) = segment[0];
+            let ([x1, y1], depth1) = segment[1];
+            let dx = x1 - x0;
+            let dy = y1 - y0;
+            let length_sq = dx * dx + dy * dy;
+            if !length_sq.is_finite() || length_sq <= f32::EPSILON {
+                continue;
+            }
+            rendered_segments += 1;
+            let radius = trail.radius_px;
+            let min_x = (x0.min(x1).floor() as i32 - radius.ceil() as i32)
+                .max(0)
+                .min(TYPED_TRAIL_WIDTH as i32 - 1) as u32;
+            let max_x = (x0.max(x1).ceil() as i32 + radius.ceil() as i32)
+                .min(TYPED_TRAIL_WIDTH as i32 - 1)
+                .max(0) as u32;
+            let min_y = (y0.min(y1).floor() as i32 - radius.ceil() as i32)
+                .max(0)
+                .min(TYPED_TRAIL_HEIGHT as i32 - 1) as u32;
+            let max_y = (y0.max(y1).ceil() as i32 + radius.ceil() as i32)
+                .min(TYPED_TRAIL_HEIGHT as i32 - 1)
+                .max(0) as u32;
+            let radius_sq = radius * radius;
+            for y in min_y..=max_y {
+                for x in min_x..=max_x {
+                    let px = x as f32 + 0.5;
+                    let py = y as f32 + 0.5;
+                    let t = (((px - x0) * dx + (py - y0) * dy) / length_sq).clamp(0.0, 1.0);
+                    let nearest_x = x0 + t * dx;
+                    let nearest_y = y0 + t * dy;
+                    let distance_x = px - nearest_x;
+                    let distance_y = py - nearest_y;
+                    if distance_x * distance_x + distance_y * distance_y > radius_sq {
+                        continue;
+                    }
+                    let projected_depth = depth0 + (depth1 - depth0) * t;
+                    let index = (y * TYPED_TRAIL_WIDTH + x) as usize;
+                    if let Some(geometry_depth) = geometry_depth {
+                        let opaque = geometry_depth.get_pixel(x, y);
+                        let background = opaque[0] == 8 && opaque[1] == 12 && opaque[2] == 18;
+                        if !background {
+                            let opaque_depth = 1.0 - opaque[0] as f32 / 255.0;
+                            if opaque_depth <= projected_depth + 1.0e-4 {
+                                continue;
+                            }
+                        }
+                    }
+                    let destination = *color.get_pixel(x, y);
+                    let src_alpha = trail.alpha.clamp(0.0, 1.0);
+                    let dst_alpha = destination[3] as f32 / 255.0;
+                    let out_alpha = src_alpha + dst_alpha * (1.0 - src_alpha);
+                    if out_alpha > 0.0 {
+                        let mut output = [0_u8; 4];
+                        for channel in 0..3 {
+                            let value = (source[channel] as f32 * src_alpha
+                                + destination[channel] as f32 * dst_alpha * (1.0 - src_alpha))
+                                / out_alpha;
+                            output[channel] = value.round().clamp(0.0, 255.0) as u8;
+                        }
+                        output[3] = (out_alpha * 255.0).round().clamp(0.0, 255.0) as u8;
+                        color.put_pixel(x, y, Rgba(output));
+
+                        // Keep a separate linear-space trail raster for the
+                        // Bloom operation.  The persisted color pass above
+                        // remains the original sRGB-u8 path byte-for-byte.
+                        let linear_destination = linear_color[index];
+                        let linear_destination_alpha = linear_alpha[index];
+                        let mut linear_output = [0.0_f32; 3];
+                        for channel in 0..3 {
+                            linear_output[channel] = (trail.color_linear_rgb[channel] * src_alpha
+                                + linear_destination[channel]
+                                    * linear_destination_alpha
+                                    * (1.0 - src_alpha))
+                                / out_alpha;
+                        }
+                        linear_color[index] = linear_output;
+                        linear_alpha[index] = output[3] as f32 / 255.0;
+                    }
+                    if projected_depth < nearest_depth[index]
+                        || ((projected_depth - nearest_depth[index]).abs() <= f32::EPSILON
+                            && trail.id < nearest_id[index])
+                    {
+                        nearest_depth[index] = projected_depth;
+                        nearest_id[index] = trail.id;
+                        id.put_pixel(x, y, Rgba(particle_id_color(trail.id)));
+                        let value = ((1.0 - projected_depth) * 255.0).round() as u8;
+                        depth.put_pixel(x, y, Rgba([value, value, value, 255]));
+                    }
+                }
+            }
+        }
+    }
+    if rendered_segments == 0 {
+        return Err(RenderError::Invalid(
+            "typed trail set contains no visible segments".to_owned(),
+        ));
+    }
+    Ok(TypedTrailRaster {
+        color,
+        id,
+        depth,
+        linear_color,
+        linear_alpha,
+        nearest_depth,
+        nearest_id,
+    })
+}
+
+fn separable_min_depth(input: &[f32], width: u32, height: u32, radius: u32) -> Vec<f32> {
+    let radius = radius as i32;
+    let width_i32 = width as i32;
+    let height_i32 = height as i32;
+    let mut horizontal = vec![f32::INFINITY; input.len()];
+    for y in 0..height_i32 {
+        for x in 0..width_i32 {
+            let mut minimum = f32::INFINITY;
+            for offset in -radius..=radius {
+                let sample_x = (x + offset).clamp(0, width_i32 - 1) as u32;
+                minimum = minimum.min(input[(y as u32 * width + sample_x) as usize]);
+            }
+            horizontal[(y as u32 * width + x as u32) as usize] = minimum;
+        }
+    }
+    let mut vertical = vec![f32::INFINITY; input.len()];
+    for x in 0..width_i32 {
+        for y in 0..height_i32 {
+            let mut minimum = f32::INFINITY;
+            for offset in -radius..=radius {
+                let sample_y = (y + offset).clamp(0, height_i32 - 1) as u32;
+                minimum = minimum.min(horizontal[(sample_y * width + x as u32) as usize]);
+            }
+            vertical[(y as u32 * width + x as u32) as usize] = minimum;
+        }
+    }
+    vertical
 }
 
 fn render_perspective_glb_at_resolution_with_passes(
@@ -269,6 +1221,8 @@ fn render_perspective_glb_at_resolution_with_passes(
     camera: &Value,
     resolution: u32,
     requested_passes: &[&str],
+    emissive_overrides: &[EmissiveMaterialOverride],
+    hdr_bloom_profile: Option<&HdrBloomProfile>,
 ) -> Result<Vec<RenderPass>, RenderError> {
     if !(64..=512).contains(&resolution) {
         return Err(RenderError::Invalid(
@@ -288,6 +1242,8 @@ fn render_perspective_glb_at_resolution_with_passes(
                     | "material-id"
                     | "wireframe"
                     | "uv-stretch"
+                    | "emissive-source"
+                    | "bloom-contribution"
             )
         })
     {
@@ -295,7 +1251,25 @@ fn render_perspective_glb_at_resolution_with_passes(
             "requested render passes are outside the fixed allowlist".to_owned(),
         ));
     }
+    if requested_passes
+        .iter()
+        .any(|pass| matches!(*pass, "emissive-source" | "bloom-contribution"))
+        && hdr_bloom_profile.is_none()
+    {
+        return Err(RenderError::Invalid(
+            "HDR bloom passes require a bounded profile".to_owned(),
+        ));
+    }
+    let hdr_bloom_profile = hdr_bloom_profile
+        .map(|profile| profile.validate())
+        .transpose()?;
     let (root, binary) = parse_glb(glb)?;
+    validate_id_palette_domain(&root)?;
+    let resolved_overrides = resolve_emissive_material_overrides(&root, emissive_overrides)?;
+    let mut override_by_material = vec![None; ID_PALETTE_CAPACITY];
+    for (override_value, resolved) in emissive_overrides.iter().zip(&resolved_overrides) {
+        override_by_material[resolved.glb_material_index] = Some(override_value);
+    }
     let meshes = root
         .get("meshes")
         .and_then(Value::as_array)
@@ -320,7 +1294,10 @@ fn render_perspective_glb_at_resolution_with_passes(
         ));
     }
     let (camera_position, forward, right, up, projection, near, far) = parse_camera(camera)?;
-    let textures = if requested_passes.contains(&"beauty") {
+    let textures = if requested_passes.contains(&"beauty")
+        || requested_passes.contains(&"emissive-source")
+        || requested_passes.contains(&"bloom-contribution")
+    {
         embedded_render_textures(&root, &views, &binary)?
     } else {
         Vec::new()
@@ -499,13 +1476,57 @@ fn render_perspective_glb_at_resolution_with_passes(
             "camera produced no visible triangles".to_owned(),
         ));
     }
+    let (emissive_source, bloom_contribution) = if let Some(profile) = hdr_bloom_profile {
+        let source = build_hdr_emissive_source(
+            &root,
+            &textures,
+            &hits,
+            sample_width,
+            sample_height,
+            width,
+            height,
+            &override_by_material,
+            &profile,
+        );
+        let thresholded = source
+            .iter()
+            .map(|pixel| {
+                let mut value = [0.0_f32; 4];
+                for channel in 0..3 {
+                    value[channel] = ((pixel[channel] - profile.threshold).max(0.0)
+                        * profile.intensity)
+                        .min(profile.hdr_clamp);
+                }
+                value[3] = 1.0;
+                value
+            })
+            .collect::<Vec<_>>();
+        let blurred = separable_blur_two_passes(
+            &thresholded,
+            width,
+            height,
+            profile.radius_px,
+            profile.hdr_clamp,
+        );
+        (source, blurred)
+    } else {
+        (Vec::new(), Vec::new())
+    };
     let mut passes = Vec::with_capacity(requested_passes.len());
     for pass in requested_passes.iter().copied() {
-        let mut image = RgbaImage::from_pixel(sample_width, sample_height, Rgba([8, 12, 18, 255]));
+        let background = if matches!(pass, "emissive-source" | "bloom-contribution") {
+            [0, 0, 0, 255]
+        } else {
+            [8, 12, 18, 255]
+        };
+        let mut image = RgbaImage::from_pixel(sample_width, sample_height, Rgba(background));
         for y in 0..sample_height {
             for x in 0..sample_width {
                 let index = (y * sample_width + x) as usize;
                 let Some(hit) = hits[index] else { continue };
+                let output_x = (x * width / sample_width).min(width - 1);
+                let output_y = (y * height / sample_height).min(height - 1);
+                let output_index = (output_y * width + output_x) as usize;
                 let color = match pass {
                     "silhouette" => [236, 240, 244, 255],
                     "depth" => {
@@ -524,6 +1545,24 @@ fn render_perspective_glb_at_resolution_with_passes(
                         }
                     }
                     "uv-stretch" => uv_stretch_color(hit.uv_stretch),
+                    "emissive-source" => hdr_pixel_to_rgba8(
+                        emissive_source
+                            .get(output_index)
+                            .copied()
+                            .unwrap_or([0.0; 4]),
+                        hdr_bloom_profile
+                            .expect("HDR bloom profile validated")
+                            .hdr_clamp,
+                    ),
+                    "bloom-contribution" => hdr_pixel_to_rgba8(
+                        bloom_contribution
+                            .get(output_index)
+                            .copied()
+                            .unwrap_or([0.0; 4]),
+                        hdr_bloom_profile
+                            .expect("HDR bloom profile validated")
+                            .hdr_clamp,
+                    ),
                     _ => shade_material(
                         &root,
                         &textures,
@@ -533,6 +1572,7 @@ fn render_perspective_glb_at_resolution_with_passes(
                         hit.world,
                         camera_position,
                         hit.uv,
+                        override_by_material[hit.material_index],
                     ),
                 };
                 image.put_pixel(x, y, Rgba(color));
@@ -670,6 +1710,169 @@ fn parse_camera(
         }
     };
     Ok((position, forward, right, up, projection, near, far))
+}
+
+fn emissive_hdr_material(
+    root: &Value,
+    textures: &[Option<RgbaImage>],
+    material_index: usize,
+    uv: [f32; 2],
+    emissive_override: Option<&EmissiveMaterialOverride>,
+) -> [f32; 3] {
+    let (_, _, _, mut emissive) = material_parameters(root, material_index);
+    let mut strength = material_extension_factor(
+        root,
+        material_index,
+        "KHR_materials_emissive_strength",
+        "emissiveStrength",
+    )
+    .unwrap_or(1.0);
+    if let Some(override_value) = emissive_override {
+        emissive = override_value.color_linear_rgb;
+        strength = override_value.emissive_strength;
+    }
+    if let Some(texture_index) = material_texture_index(root, material_index, "emissiveTexture") {
+        if let Some(Some(texture)) = textures.get(texture_index) {
+            let sampled = sample_texture(texture, uv);
+            for channel in 0..3 {
+                emissive[channel] *= srgb_to_linear(sampled[channel]);
+            }
+        }
+    }
+    [
+        (emissive[0] * strength).max(0.0),
+        (emissive[1] * strength).max(0.0),
+        (emissive[2] * strength).max(0.0),
+    ]
+}
+
+fn build_hdr_emissive_source(
+    root: &Value,
+    textures: &[Option<RgbaImage>],
+    hits: &[Option<RasterHit>],
+    sample_width: u32,
+    sample_height: u32,
+    width: u32,
+    height: u32,
+    override_by_material: &[Option<&EmissiveMaterialOverride>],
+    profile: &HdrBloomProfile,
+) -> Vec<[f32; 4]> {
+    let mut output = vec![[0.0; 4]; (width * height) as usize];
+    for y in 0..height {
+        let y0 = y * sample_height / height;
+        let y1 = ((y + 1) * sample_height / height)
+            .max(y0 + 1)
+            .min(sample_height);
+        for x in 0..width {
+            let x0 = x * sample_width / width;
+            let x1 = ((x + 1) * sample_width / width)
+                .max(x0 + 1)
+                .min(sample_width);
+            let mut sum = [0.0_f32; 3];
+            let mut count = 0.0_f32;
+            for sample_y in y0..y1 {
+                for sample_x in x0..x1 {
+                    let Some(hit) = hits[(sample_y * sample_width + sample_x) as usize] else {
+                        continue;
+                    };
+                    let emissive = emissive_hdr_material(
+                        root,
+                        textures,
+                        hit.material_index,
+                        hit.uv,
+                        override_by_material
+                            .get(hit.material_index)
+                            .copied()
+                            .flatten(),
+                    );
+                    for channel in 0..3 {
+                        sum[channel] += emissive[channel];
+                    }
+                    count += 1.0;
+                }
+            }
+            if count > 0.0 {
+                for channel in 0..3 {
+                    output[(y * width + x) as usize][channel] =
+                        (sum[channel] / count).min(profile.hdr_clamp);
+                }
+                output[(y * width + x) as usize][3] = 1.0;
+            }
+        }
+    }
+    output
+}
+
+fn separable_blur_two_passes(
+    input: &[[f32; 4]],
+    width: u32,
+    height: u32,
+    radius: u32,
+    hdr_clamp: f32,
+) -> Vec<[f32; 4]> {
+    let radius = radius as i32;
+    let width_i32 = width as i32;
+    let height_i32 = height as i32;
+    let weight = 1.0_f32 / (radius * 2 + 1) as f32;
+    let sample = |buffer: &[[f32; 4]], x: i32, y: i32| -> [f32; 4] {
+        let x = x.clamp(0, width_i32 - 1) as u32;
+        let y = y.clamp(0, height_i32 - 1) as u32;
+        buffer[(y * width + x) as usize]
+    };
+    let mut horizontal = vec![[0.0; 4]; input.len()];
+    for y in 0..height_i32 {
+        let mut sum = [0.0_f32; 4];
+        for offset in -radius..=radius {
+            let pixel = sample(input, offset, y);
+            for channel in 0..4 {
+                sum[channel] += pixel[channel];
+            }
+        }
+        for x in 0..width_i32 {
+            let mut value = [0.0_f32; 4];
+            for channel in 0..4 {
+                value[channel] = (sum[channel] * weight).clamp(0.0, hdr_clamp);
+            }
+            horizontal[(y as u32 * width + x as u32) as usize] = value;
+            let leaving = sample(input, x - radius, y);
+            let entering = sample(input, x + radius + 1, y);
+            for channel in 0..4 {
+                sum[channel] += entering[channel] - leaving[channel];
+            }
+        }
+    }
+    let mut vertical = vec![[0.0; 4]; input.len()];
+    for x in 0..width_i32 {
+        let mut sum = [0.0_f32; 4];
+        for offset in -radius..=radius {
+            let pixel = sample(&horizontal, x, offset);
+            for channel in 0..4 {
+                sum[channel] += pixel[channel];
+            }
+        }
+        for y in 0..height_i32 {
+            let mut value = [0.0_f32; 4];
+            for channel in 0..4 {
+                value[channel] = (sum[channel] * weight).clamp(0.0, hdr_clamp);
+            }
+            vertical[(y as u32 * width + x as u32) as usize] = value;
+            let leaving = sample(&horizontal, x, y - radius);
+            let entering = sample(&horizontal, x, y + radius + 1);
+            for channel in 0..4 {
+                sum[channel] += entering[channel] - leaving[channel];
+            }
+        }
+    }
+    vertical
+}
+
+fn hdr_pixel_to_rgba8(value: [f32; 4], hdr_clamp: f32) -> [u8; 4] {
+    [
+        (value[0].clamp(0.0, hdr_clamp) / hdr_clamp * 255.0).round() as u8,
+        (value[1].clamp(0.0, hdr_clamp) / hdr_clamp * 255.0).round() as u8,
+        (value[2].clamp(0.0, hdr_clamp) / hdr_clamp * 255.0).round() as u8,
+        255,
+    ]
 }
 
 fn required_vec3(value: Option<&Value>, label: &str) -> Result<[f32; 3], RenderError> {
@@ -1023,6 +2226,18 @@ fn material_color_id(index: usize) -> [u8; 4] {
         255,
     ]
 }
+
+fn particle_id_color(id: u32) -> [u8; 4] {
+    // Lossless 24-bit data encoding; zero remains reserved for transparent
+    // background, and this pass is separate from Part/Material ID palettes.
+    let encoded = id + 1;
+    [
+        (encoded & 0xff) as u8,
+        ((encoded >> 8) & 0xff) as u8,
+        ((encoded >> 16) & 0xff) as u8,
+        255,
+    ]
+}
 fn uv_stretch_color(value: f32) -> [u8; 4] {
     let t = (value.max(0.0).ln_1p() / 4.0).clamp(0.0, 1.0);
     [
@@ -1041,9 +2256,21 @@ fn shade_material(
     world: [f32; 3],
     camera: [f32; 3],
     uv: [f32; 2],
+    emissive_override: Option<&EmissiveMaterialOverride>,
 ) -> [u8; 4] {
     let (mut base, mut metallic, mut roughness, mut emissive) =
         material_parameters(root, material_index);
+    let mut emissive_strength = material_extension_factor(
+        root,
+        material_index,
+        "KHR_materials_emissive_strength",
+        "emissiveStrength",
+    )
+    .unwrap_or(1.0);
+    if let Some(override_value) = emissive_override {
+        emissive = override_value.color_linear_rgb;
+        emissive_strength = override_value.emissive_strength;
+    }
     if let Some(texture_index) = material_base_color_texture_index(root, material_index) {
         if let Some(Some(texture)) = textures.get(texture_index) {
             let sampled = sample_texture(texture, uv);
@@ -1077,14 +2304,7 @@ fn shade_material(
             }
         }
     }
-    let emissive_strength = material_extension_factor(
-        root,
-        material_index,
-        "KHR_materials_emissive_strength",
-        "emissiveStrength",
-    )
-    .unwrap_or(1.0);
-    let clearcoat = material_extension_factor(
+    let mut clearcoat = material_extension_factor(
         root,
         material_index,
         "KHR_materials_clearcoat",
@@ -1092,6 +2312,34 @@ fn shade_material(
     )
     .unwrap_or(0.0)
     .clamp(0.0, 1.0);
+    if let Some(texture_index) = material_extension_texture_index(
+        root,
+        material_index,
+        "KHR_materials_clearcoat",
+        "clearcoatTexture",
+    ) {
+        if let Some(Some(texture)) = textures.get(texture_index) {
+            clearcoat *= sample_texture_unit(texture, uv)[0];
+        }
+    }
+    let mut clearcoat_roughness = material_extension_factor(
+        root,
+        material_index,
+        "KHR_materials_clearcoat",
+        "clearcoatRoughnessFactor",
+    )
+    .unwrap_or(0.0)
+    .clamp(0.0, 1.0);
+    if let Some(texture_index) = material_extension_texture_index(
+        root,
+        material_index,
+        "KHR_materials_clearcoat",
+        "clearcoatRoughnessTexture",
+    ) {
+        if let Some(Some(texture)) = textures.get(texture_index) {
+            clearcoat_roughness *= sample_texture_unit(texture, uv)[1];
+        }
+    }
     let mut n = normalize(normal);
     if let Some(texture_index) = material_texture_index(root, material_index, "normalTexture") {
         if let Some(Some(texture)) = textures.get(texture_index) {
@@ -1143,7 +2391,7 @@ fn shade_material(
                 (base[i] * (1.0 - metallic) * ndotl * 0.78 + spec) * intensity * light_color[i];
         }
         if clearcoat > 0.0 {
-            let coat_roughness = 0.10;
+            let coat_roughness = clearcoat_roughness.clamp(0.04, 1.0);
             let coat_alpha = coat_roughness * coat_roughness;
             let coat_d = (coat_alpha * coat_alpha)
                 / (std::f32::consts::PI
@@ -1266,6 +2514,23 @@ fn material_extension_factor(
         .and_then(|value| value.get(field))
         .and_then(Value::as_f64)
         .map(|value| value as f32)
+}
+
+fn material_extension_texture_index(
+    root: &Value,
+    material_index: usize,
+    extension: &str,
+    field: &str,
+) -> Option<usize> {
+    root.get("materials")
+        .and_then(Value::as_array)
+        .and_then(|materials| materials.get(material_index))
+        .and_then(|material| material.get("extensions"))
+        .and_then(|extensions| extensions.get(extension))
+        .and_then(|value| value.get(field))
+        .and_then(|texture| texture.get("index"))
+        .and_then(Value::as_u64)
+        .map(|index| index as usize)
 }
 
 fn sample_texture(texture: &RgbaImage, uv: [f32; 2]) -> [u8; 3] {
@@ -1692,6 +2957,27 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn fixed_id_palettes_fail_closed_outside_u8_domain() {
+        let mesh = json!({"primitives":[{}]});
+        let mut root = json!({
+            "meshes": vec![mesh.clone(); ID_PALETTE_CAPACITY],
+            "materials": vec![json!({}); ID_PALETTE_CAPACITY]
+        });
+        validate_id_palette_domain(&root).expect("256 entries fit the fixed palettes");
+
+        root["meshes"] = Value::Array(vec![mesh.clone(); ID_PALETTE_CAPACITY + 1]);
+        assert!(validate_id_palette_domain(&root).is_err());
+
+        root["meshes"] = Value::Array(vec![mesh]);
+        root["materials"] = Value::Array(vec![json!({}); ID_PALETTE_CAPACITY + 1]);
+        assert!(validate_id_palette_domain(&root).is_err());
+
+        root["materials"] = Value::Array(Vec::new());
+        root["meshes"] = json!([{"primitives":[{"material":256}]}]);
+        assert!(validate_id_palette_domain(&root).is_err());
+    }
+
+    #[test]
     fn pbr_renderer_resolves_embedded_texture_slots_and_extensions() {
         let root = json!({
             "materials":[{
@@ -1703,7 +2989,7 @@ mod tests {
                 "occlusionTexture":{"index":3},
                 "emissiveTexture":{"index":4},
                 "extensions":{
-                    "KHR_materials_clearcoat":{"clearcoatFactor":0.7},
+                    "KHR_materials_clearcoat":{"clearcoatFactor":0.7,"clearcoatTexture":{"index":5},"clearcoatRoughnessFactor":0.4,"clearcoatRoughnessTexture":{"index":6}},
                     "KHR_materials_emissive_strength":{"emissiveStrength":3.0}
                 }
             }]
@@ -1724,6 +3010,24 @@ mod tests {
             Some(0.7)
         );
         assert_eq!(
+            material_extension_texture_index(
+                &root,
+                0,
+                "KHR_materials_clearcoat",
+                "clearcoatTexture"
+            ),
+            Some(5)
+        );
+        assert_eq!(
+            material_extension_texture_index(
+                &root,
+                0,
+                "KHR_materials_clearcoat",
+                "clearcoatRoughnessTexture"
+            ),
+            Some(6)
+        );
+        assert_eq!(
             material_extension_factor(
                 &root,
                 0,
@@ -1737,6 +3041,87 @@ mod tests {
             sample_texture_unit(&texture, [0.25, 0.75]),
             [128.0 / 255.0, 64.0 / 255.0, 1.0, 1.0]
         );
+    }
+
+    #[test]
+    fn texture_backed_clearcoat_physically_modulates_fixed_shading() {
+        let root = json!({
+            "materials":[{
+                "pbrMetallicRoughness":{"baseColorFactor":[0.3,0.32,0.35,1.0],"metallicFactor":0.1,"roughnessFactor":0.35},
+                "emissiveFactor":[0.0,0.0,0.0],
+                "extensions":{"KHR_materials_clearcoat":{"clearcoatFactor":1.0,"clearcoatTexture":{"index":0},"clearcoatRoughnessFactor":1.0,"clearcoatRoughnessTexture":{"index":1}}}
+            }]
+        });
+        let roughness = RgbaImage::from_pixel(1, 1, Rgba([31, 31, 31, 255]));
+        let no_coat = vec![
+            Some(RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 255]))),
+            Some(roughness.clone()),
+        ];
+        let full_coat = vec![
+            Some(RgbaImage::from_pixel(1, 1, Rgba([255, 255, 255, 255]))),
+            Some(roughness),
+        ];
+        let parameters = (
+            0usize,
+            [0.0, 1.0, 0.0],
+            [1.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 3.0, 3.0],
+            [0.5, 0.5],
+        );
+        let without = shade_material(
+            &root,
+            &no_coat,
+            parameters.0,
+            parameters.1,
+            parameters.2,
+            parameters.3,
+            parameters.4,
+            parameters.5,
+            None,
+        );
+        let with = shade_material(
+            &root,
+            &full_coat,
+            parameters.0,
+            parameters.1,
+            parameters.2,
+            parameters.3,
+            parameters.4,
+            parameters.5,
+            None,
+        );
+        assert_ne!(
+            without, with,
+            "clearcoat texture must affect beauty shading"
+        );
+    }
+
+    #[test]
+    fn emissive_overrides_require_exact_zone_and_material_identity() {
+        let root = json!({
+            "materials":[
+                {"name":"zone-core-emissive","extras":{"forgecad":{"material_id":"energy-cyan-emissive"}}},
+                {"name":"zone-body","extras":{"forgecad":{"material_id":"anodized-dark-alloy"}}}
+            ]
+        });
+        let valid = EmissiveMaterialOverride {
+            material_zone_id: "zone-core-emissive".to_owned(),
+            material_id: "energy-cyan-emissive".to_owned(),
+            color_linear_rgb: [0.0, 0.82, 1.0],
+            emissive_strength: 8.0,
+        };
+        let applied = resolve_emissive_material_overrides(&root, &[valid.clone()])
+            .expect("exact identity resolves");
+        assert_eq!(applied[0].glb_material_index, 0);
+
+        let mut wrong_material = valid.clone();
+        wrong_material.material_id = "anodized-dark-alloy".to_owned();
+        assert!(resolve_emissive_material_overrides(&root, &[wrong_material]).is_err());
+
+        let mut excessive = valid;
+        excessive.emissive_strength = 16.01;
+        assert!(resolve_emissive_material_overrides(&root, &[excessive]).is_err());
     }
 
     #[test]
@@ -1789,5 +3174,239 @@ mod tests {
             "canonical_sha256":"b".repeat(64)
         });
         assert!(parse_camera(&camera).is_err());
+    }
+
+    #[test]
+    fn typed_particles_recompute_depth_and_use_stable_id_tie_break() {
+        let camera = json!({
+            "schema_version":"CameraCalibration@1",
+            "camera_hash":"a".repeat(64),
+            "projection":"perspective",
+            "transform":{
+                "position_m":[0.0,0.0,5.0],
+                "target_m":[0.0,0.0,0.0],
+                "up":[0.0,1.0,0.0]
+            },
+            "fov_y_degrees":45.0,
+            "near_m":0.1,
+            "far_m":10.0,
+            "resolution":{"width":512,"height":512},
+            "coordinate_system":"right-handed-y-up-meter",
+            "renderer_revision":"forgecad-renderer-2",
+            "canonical_sha256":"b".repeat(64)
+        });
+        let expected_depth = (5.0_f32 - 0.1) / (10.0 - 0.1);
+        let particle = |id| TypedParticle {
+            emitter_id: "muzzle-burst".to_owned(),
+            id,
+            position: [0.0, 0.0, 0.0],
+            radius_px: 4.0,
+            color_linear_rgb: [0.0, 0.8, 1.0],
+            alpha: 0.8,
+            lifetime_ticks: 120,
+            depth: expected_depth,
+        };
+        let particles = vec![particle(2), particle(1)];
+        let first = render_typed_particles(&camera, &particles).expect("typed particles render");
+        let second = render_typed_particles(&camera, &particles).expect("deterministic replay");
+        assert!(first
+            .iter()
+            .zip(&second)
+            .all(|(left, right)| left.pass == right.pass && left.png == right.png));
+        let id_pass = first
+            .iter()
+            .find(|pass| pass.pass == "particle-id")
+            .expect("particle ID pass");
+        let id_image = image::load_from_memory(&id_pass.png)
+            .expect("particle ID PNG")
+            .to_rgba8();
+        assert_eq!(id_image.get_pixel(256, 256).0, [2, 0, 0, 255]);
+
+        let mut invalid = particle(3);
+        invalid.depth = 0.25;
+        assert!(render_typed_particles(&camera, &[invalid]).is_err());
+
+        assert!(render_typed_particles(&camera, &[particle(0)]).is_err());
+    }
+
+    #[test]
+    fn typed_trails_are_deterministic_independent_and_reject_reserved_id() {
+        let camera = json!({
+            "schema_version":"CameraCalibration@1",
+            "camera_hash":"a".repeat(64),
+            "projection":"perspective",
+            "transform":{
+                "position_m":[0.0,0.0,5.0],
+                "target_m":[0.0,0.0,0.0],
+                "up":[0.0,1.0,0.0]
+            },
+            "fov_y_degrees":45.0,
+            "near_m":0.1,
+            "far_m":10.0,
+            "resolution":{"width":512,"height":512},
+            "coordinate_system":"right-handed-y-up-meter",
+            "renderer_revision":"forgecad-renderer-2",
+            "canonical_sha256":"b".repeat(64)
+        });
+        let trail = TypedTrail {
+            emitter_id: "muzzle-trail".to_owned(),
+            id: 30000,
+            points: vec![[0.0, 0.0, 0.0], [0.1, 0.0, 0.0], [0.2, 0.01, 0.0]],
+            radius_px: 3.0,
+            color_linear_rgb: [0.0, 0.8, 1.0],
+            alpha: 0.75,
+            lifetime_ticks: 180,
+        };
+        let first = render_typed_trails(&camera, std::slice::from_ref(&trail))
+            .expect("typed trails render");
+        let second = render_typed_trails(&camera, std::slice::from_ref(&trail))
+            .expect("deterministic trail replay");
+        assert_eq!(
+            first
+                .iter()
+                .map(|pass| pass.pass.as_str())
+                .collect::<Vec<_>>(),
+            vec!["trail-color", "trail-id", "trail-depth"]
+        );
+        assert!(first
+            .iter()
+            .zip(&second)
+            .all(|(left, right)| left.png == right.png));
+        assert!(first.iter().all(|pass| {
+            image::load_from_memory(&pass.png)
+                .expect("typed trail PNG")
+                .to_rgba8()
+                .pixels()
+                .any(|pixel| pixel.0[3] != 0)
+        }));
+        let mut invalid = trail;
+        invalid.id = 0;
+        assert!(render_typed_trails(&camera, std::slice::from_ref(&invalid)).is_err());
+
+        let mut upper_bound = invalid.clone();
+        upper_bound.id = 65_535;
+        assert!(render_typed_trails(&camera, &[upper_bound.clone()]).is_ok());
+        upper_bound.id = 65_536;
+        assert!(render_typed_trails(&camera, &[upper_bound]).is_err());
+
+        let mut one_point = invalid.clone();
+        one_point.id = 1;
+        one_point.points = vec![[0.0, 0.0, 0.0]];
+        assert!(render_typed_trails(&camera, &[one_point]).is_err());
+        let mut too_many_points = invalid.clone();
+        too_many_points.id = 1;
+        too_many_points.points = (0..33)
+            .map(|index| [index as f32 / 100.0, 0.0, 0.0])
+            .collect();
+        assert!(render_typed_trails(&camera, &[too_many_points]).is_err());
+
+        let too_many_trails = (0..17)
+            .map(|index| TypedTrail {
+                emitter_id: if index % 2 == 0 {
+                    "muzzle-trail".to_owned()
+                } else {
+                    "energy-core-trail".to_owned()
+                },
+                id: index + 1,
+                points: vec![[0.0, 0.0, 0.0], [0.1, 0.0, 0.0]],
+                radius_px: 1.0,
+                color_linear_rgb: [0.0, 0.8, 1.0],
+                alpha: 0.5,
+                lifetime_ticks: 1,
+            })
+            .collect::<Vec<_>>();
+        assert!(render_typed_trails(&camera, &too_many_trails).is_err());
+
+        let too_many_segments = (0..5)
+            .map(|index| TypedTrail {
+                emitter_id: if index % 2 == 0 {
+                    "muzzle-trail".to_owned()
+                } else {
+                    "energy-core-trail".to_owned()
+                },
+                id: index + 1,
+                points: (0..32)
+                    .map(|point| [point as f32 / 100.0, index as f32 / 100.0, 0.0])
+                    .collect(),
+                radius_px: 1.0,
+                color_linear_rgb: [0.0, 0.8, 1.0],
+                alpha: 0.5,
+                lifetime_ticks: 1,
+            })
+            .collect::<Vec<_>>();
+        assert!(render_typed_trails(&camera, &too_many_segments).is_err());
+    }
+
+    #[test]
+    fn typed_trail_bloom_appends_fixed_passes_without_changing_trail_aovs() {
+        let camera = json!({
+            "schema_version":"CameraCalibration@1",
+            "camera_hash":"a".repeat(64),
+            "projection":"perspective",
+            "transform":{
+                "position_m":[0.0,0.0,5.0],
+                "target_m":[0.0,0.0,0.0],
+                "up":[0.0,1.0,0.0]
+            },
+            "fov_y_degrees":45.0,
+            "near_m":0.1,
+            "far_m":10.0,
+            "resolution":{"width":512,"height":512},
+            "coordinate_system":"right-handed-y-up-meter",
+            "renderer_revision":"forgecad-renderer-2",
+            "canonical_sha256":"b".repeat(64)
+        });
+        let trail = TypedTrail {
+            emitter_id: "muzzle-trail".to_owned(),
+            id: 30_000,
+            points: vec![[0.0, 0.0, 0.0], [0.15, 0.0, 0.0]],
+            radius_px: 3.0,
+            color_linear_rgb: [0.0, 0.82, 1.0],
+            alpha: 0.75,
+            lifetime_ticks: 180,
+        };
+        let base =
+            render_typed_trails(&camera, std::slice::from_ref(&trail)).expect("typed trail base");
+        let bloom = render_typed_trails_bloom_internal(
+            &camera,
+            std::slice::from_ref(&trail),
+            None,
+            TypedTrailBloomProfile::FIXED,
+        )
+        .expect("typed trail Bloom");
+        assert_eq!(bloom.len(), 5);
+        assert_eq!(
+            bloom
+                .iter()
+                .map(|pass| pass.pass.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "trail-color",
+                "trail-id",
+                "trail-depth",
+                "trail-emissive-source",
+                "trail-bloom-contribution"
+            ]
+        );
+        assert_eq!(
+            base.iter().map(|pass| &pass.png).collect::<Vec<_>>(),
+            bloom[..3].iter().map(|pass| &pass.png).collect::<Vec<_>>()
+        );
+        for pass in bloom.iter().skip(3) {
+            assert!(image::load_from_memory(&pass.png)
+                .expect("trail Bloom PNG")
+                .to_rgba8()
+                .pixels()
+                .any(|pixel| pixel.0[0] != 0 || pixel.0[1] != 0 || pixel.0[2] != 0));
+        }
+        let mut invalid = TypedTrailBloomProfile::FIXED;
+        invalid.source_gain = 7.0;
+        assert!(render_typed_trails_bloom_internal(
+            &camera,
+            std::slice::from_ref(&trail),
+            None,
+            invalid
+        )
+        .is_err());
     }
 }

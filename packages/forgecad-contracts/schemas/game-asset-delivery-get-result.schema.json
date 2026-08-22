@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-asset-delivery-get-result.schema.json",
+  "title": "GameAssetDeliveryGetResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "link", "manifest", "lod_receipt", "collision_proxy_set", "readiness", "restart_hash_verified", "quality_status"],
+  "properties": {
+    "schema_version": { "const": "GameAssetDeliveryGetResult@1" },
+    "link": { "$ref": "https://forgecad.local/contracts/game-asset-delivery-link.schema.json" },
+    "manifest": { "$ref": "https://forgecad.local/contracts/game-asset-delivery-manifest.schema.json" },
+    "lod_receipt": { "$ref": "https://forgecad.local/contracts/game-lod-set-receipt.schema.json" },
+    "collision_proxy_set": { "$ref": "https://forgecad.local/contracts/collision-proxy-set.schema.json" },
+    "readiness": { "$ref": "https://forgecad.local/contracts/game-engine-import-readiness.schema.json" },
+    "restart_hash_verified": { "const": true },
+    "quality_status": { "const": "structural_only" }
+  }
+}

@@ -1,0 +1,279 @@
+{
+  "actual_engine_roundtrip": false,
+  "automatic_lod_default_read_invocation": "PASS_WITHOUT_WRITE_OPT_IN",
+  "automatic_lod_forbidden_python": "REJECTED_INVALID_TOOL_PARAMS",
+  "automatic_lod_generation": "PASS_RUNTIME_TYPED_PROGRAM_DERIVATION_PREVIEW",
+  "automatic_lod_materialization_required": true,
+  "automatic_lod_runtime_write_performed": false,
+  "automatic_lod_triangle_counts": [
+    304,
+    176,
+    112
+  ],
+  "automatic_lod_wire_bytes": 16500,
+  "automatic_lod_worker_replay": true,
+  "build_cohort_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+  "candidate_confirmed": false,
+  "candidate_state_unchanged": true,
+  "collision_proxy_count": 5,
+  "collision_proxy_object_sha256": "7adc8810b8ab7d866e00b820e481855001562c7062c5d4d1b1bfd080c2cb4d56",
+  "default_write_tool_visibility": "HIDDEN",
+  "delivery_manifest_object_sha256": "43773d9c9d8bb4eeca27ccafe9781d7b4f00a2512b5bc00422bcd77aee77278b",
+  "durable_get": "PASS_CURRENT_RUNTIME_CAS_REVERIFY",
+  "durable_link_materialization_status": "runtime-owned-durable-game-delivery-link",
+  "explicit_write_opt_in": "PASS",
+  "export_performed": false,
+  "forbidden_python": "REJECTED_INVALID_TOOL_PARAMS",
+  "gate": "PASS_AUTHORED_LOD_SET_COLLISION_DELIVERY_RAW_STDIO",
+  "godot": "NOT_RUN",
+  "lod_receipt_object_sha256": "f49716d55328420696f4bfc96ec4df1719a17454415b01b806b037cdf06cf4c5",
+  "lod_triangle_counts": [
+    304,
+    176,
+    112
+  ],
+  "material_zone_ids": [
+    "zone-weapon"
+  ],
+  "part_ids": [
+    "barrel-assembly",
+    "energy-core",
+    "grip-module",
+    "magazine-module",
+    "optic-rail"
+  ],
+  "ponytail_preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "protocol_version": "2025-06-18",
+  "quality_status": "structural_only",
+  "readiness_object_sha256": "27b2cc77d193efb389ecb5d9b9a39e82a103d4425e79e2a0bba7a11f3f639184",
+  "replay": "PASS_CONTENT_IDENTICAL",
+  "runtime_restart_get": "PASS_FOCUSED_RUNTIME_TEST",
+  "schema_version": "ForgeCADGameAssetDeliveryRawStdioProbe@1",
+  "threejs": "NOT_RUN_IN_THIS_RAW_PROBE",
+  "unity": "NOT_RUN",
+  "unreal": "NOT_RUN",
+  "version_state_unchanged": true,
+  "weapon_anchor_actual_engine_roundtrip": false,
+  "weapon_anchor_bad_muzzle": "REJECTED_FAIL_CLOSED",
+  "weapon_anchor_durable_get": "PASS_CURRENT_RUNTIME_CAS_REVERIFY",
+  "weapon_anchor_node_materialization": "sidecar-only-not-glb-nodes",
+  "weapon_anchor_pivot_status": "not-proven-runtime-pivot",
+  "weapon_anchor_replay": "PASS_CONTENT_IDENTICAL",
+  "weapon_anchor_roles": [
+    "weapon-root",
+    "grip-primary",
+    "muzzle-vfx",
+    "magazine-well",
+    "sight-primary",
+    "energy-core-vfx"
+  ],
+  "weapon_anchor_set": {
+    "actual_engine_roundtrip": false,
+    "anchor_policy": "weapon-rh-x-forward-y-up-model-space-six-role@1",
+    "anchors": [
+      {
+        "anchor_id": "weapon-root",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "owner_part_id": null,
+        "parent_kind": "synthetic-scene-root",
+        "role": "weapon-root"
+      },
+      {
+        "anchor_id": "grip-primary",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          -0.25,
+          -0.3,
+          0.0
+        ],
+        "owner_part_id": "grip-module",
+        "parent_kind": "part-node",
+        "role": "grip-primary"
+      },
+      {
+        "anchor_id": "socket-muzzle-vfx",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.8,
+          0.0,
+          0.0
+        ],
+        "owner_part_id": "barrel-assembly",
+        "parent_kind": "part-node",
+        "role": "muzzle-vfx"
+      },
+      {
+        "anchor_id": "socket-magazine-well",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.0,
+          -0.24,
+          0.0
+        ],
+        "owner_part_id": "magazine-module",
+        "parent_kind": "part-node",
+        "role": "magazine-well"
+      },
+      {
+        "anchor_id": "socket-sight-primary",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.12,
+          0.25,
+          0.0
+        ],
+        "owner_part_id": "optic-rail",
+        "parent_kind": "part-node",
+        "role": "sight-primary"
+      },
+      {
+        "anchor_id": "socket-energy-core-vfx",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.16,
+          0.0,
+          0.0
+        ],
+        "owner_part_id": "energy-core",
+        "parent_kind": "part-node",
+        "role": "energy-core-vfx"
+      }
+    ],
+    "animation_follow_status": "static-only-no-animation",
+    "candidate_confirmed": false,
+    "canonical_sha256": "f469e5042a5c5181dc87be82c393295d723d58d3b1fe3037c6c5ee963473d318",
+    "coordinate_frame": {
+      "forward_axis": "+X",
+      "frame_id": "weapon-right-handed-x-muzzle-y-up-z-right",
+      "handedness": "right-handed",
+      "side_axis": "+Z",
+      "units": "meter",
+      "up_axis": "+Y"
+    },
+    "delivery_manifest_object_sha256": "43773d9c9d8bb4eeca27ccafe9781d7b4f00a2512b5bc00422bcd77aee77278b",
+    "export_performed": false,
+    "functional_semantics": false,
+    "limitations": [
+      "no-ballistics",
+      "no-damage-or-hitbox",
+      "no-physics-binding",
+      "no-manufacturing-or-operation",
+      "no-commercial-engine-roundtrip"
+    ],
+    "lod_bindings": [
+      {
+        "artifact_readback_sha256": "a2e108b78be1707d0d813781a74108245c52881a0b6787601cf45b14771d6e02",
+        "artifact_sha256": "5a5b8d2bec7783fe418dbab6b6222a0fdf03b350967fb4e45be869fb24582e49",
+        "candidate_id": "candidate-e15cc96895a6459694ecd10f13926c09",
+        "candidate_state_sha256": "98470ab981b2888aaa0c479147f8119456d2ec3392ab002854a7bcef00c1367b",
+        "level": 0
+      },
+      {
+        "artifact_readback_sha256": "c9ec89e8c43d0831ec2cdade34ef8569487bbf9ac517339ff7c204d0ffb4b150",
+        "artifact_sha256": "2ba477b6da548fbde565ab4c5160a670110315061a1b00a5fe9e4459a3d9c974",
+        "candidate_id": "candidate-e59097c452ce44d6bd98f4ccc3c1ed03",
+        "candidate_state_sha256": "d137151098d3517e0238afb11a20da6ccf36b54d9041c692df6cc14434661746",
+        "level": 1
+      },
+      {
+        "artifact_readback_sha256": "81a6da015123a9f968817181b7ebcea3202b02c617c8f3cbd6b8cc9b9b530627",
+        "artifact_sha256": "622760a387f1111e6e3bf46cdcef39ec531929ed2b8bc59186c80ec22bcd7c37",
+        "candidate_id": "candidate-1ed0f0d9a8bf4d1cae61ceb2d1729cd2",
+        "candidate_state_sha256": "bf1ae88485ded622d8361e5ab97f88d4e5e8bdb70710472fe5b9b20ca1088340",
+        "level": 2
+      }
+    ],
+    "node_materialization": "sidecar-only-not-glb-nodes",
+    "part_bounds_status": "source-part-model-space-anchor-containment-pass",
+    "part_ids": [
+      "barrel-assembly",
+      "energy-core",
+      "grip-module",
+      "magazine-module",
+      "optic-rail"
+    ],
+    "pivot_status": "not-proven-runtime-pivot",
+    "project_id": "project-0d6a51dcc955493398a50ec93b485ea6",
+    "quality_status": "structural_only",
+    "runtime_write_performed": true,
+    "schema_version": "GameWeaponAnchorSet@1",
+    "semantic_scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+    "topology_status": "synthetic-root-five-part-bound-metadata-helpers-pass",
+    "transform_convention": "column-vector-parent-world-times-trs-quaternion-xyzw@1",
+    "trs_status": "finite-unit-quaternion-identity-scale-pass"
+  },
+  "weapon_anchor_set_object_sha256": "7d2cf4e4fc28d004a0ba689a7a955ee668a255b4a81f9c349f325aaa855bc30e",
+  "weapon_anchor_wire_bytes": 5630,
+  "wire_bytes": 11062
+}

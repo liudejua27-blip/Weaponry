@@ -1,0 +1,17 @@
+{
+  "schema_version": "MaterialPackProvenance@1",
+  "pack_id": "forgecad-fictional-energy-weapon",
+  "pack_version": "1.0.0",
+  "recorded_on": "2026-08-20",
+  "source_pack_id": "forgecad-hard-surface-robot",
+  "source_pack_version": "1.0.0",
+  "adoption_policy": "byte-identical reuse of already-admitted CC0 texture sources; no download and no runtime network",
+  "first_party_derivation": "fictional energy weapon semantic palette and bounded material factors only",
+  "texture_resolution": 512,
+  "continuous_uv": "NOT_IMPLEMENTED_TRIANGLE_CHART_GRID_ONLY",
+  "normal_bake": "NOT_RUN",
+  "ao_bake": "NOT_RUN",
+  "decal_wear": "NOT_RUN",
+  "clearcoat_textures": "NOT_RUN",
+  "visual_quality": "NOT_RUN"
+}

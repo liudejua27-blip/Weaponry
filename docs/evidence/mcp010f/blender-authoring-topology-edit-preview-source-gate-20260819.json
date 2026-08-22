@@ -1,0 +1,153 @@
+{
+  "schema_version": "ForgeCADBlenderAuthoringTopologyEditPreviewSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_at": "2026-08-19T12:55:30+08:00",
+  "status": "PASS_SOURCE_STRUCTURAL_RAW_STDIO",
+  "research_basis": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "references": [
+      "https://docs.blender.org/api/current/bmesh.html",
+      "https://docs.blender.org/api/current/bmesh.ops.html",
+      "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/bmesh/operators/bmo_extrude.cc"
+    ],
+    "license_boundary": "Blender GPL source remained reference-only; no Blender source, runtime, Python, add-on or plugin was copied, linked or executed."
+  },
+  "implemented_scope": {
+    "contracts": [
+      "AuthoringTopologyRequest@1",
+      "AuthoringTopology@1",
+      "AuthoringMeshEditPreviewRequest@1",
+      "AuthoringMeshEditPreview@1"
+    ],
+    "mcp_tools": [
+      "authoring_topology_get",
+      "authoring_mesh_edit_preview"
+    ],
+    "topology_scope": "one candidate-bound direct authoring-mesh@1 node and one exact Part output",
+    "source_elements": [
+      "vertex",
+      "edge",
+      "loop",
+      "triangle-or-quad face"
+    ],
+    "preview_operations": [
+      "translate_vertices",
+      "single_face_extrude"
+    ],
+    "single_face_extrude_limits": "positive distance; boundary face; triangle or planar convex quad; 10m coordinate envelope",
+    "geometry_materialization": "transient fixed-Worker GLB, double replay, strict readback, not persisted",
+    "response_budget_bytes": 1048576,
+    "runtime_is_only_state_writer": true,
+    "authoring_read_slice_runtime_write_performed": false,
+    "probe_setup_runtime_writes": [
+      "project_create",
+      "geometry_prepare"
+    ]
+  },
+  "source_inventory": {
+    "contract_schema_count": 187,
+    "active_operator_count": 21,
+    "read_tool_count": 54,
+    "write_tool_count": 35,
+    "total_tool_count": 89,
+    "contract_manifest_sha256": "642f96605036e2e9e681a6fd16088676c66e1c3c848e3d57653faed8dee368bf",
+    "source_tool_manifest_summary_sha256": "3e91ad894f9614f4f06806d9cb525c54e0270ba525c86c8f2148d370a26766c2"
+  },
+  "source_sha256": {
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/authoring_topology.rs": "08dc6ca5fe987554cc0d191e2d1d5efed495aa374f7ff94f183ecc9235409a23",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs": "cb927c2a760618eefcaeda228f6104ae647c6df2121442cf24872ef7f3dcd524",
+    "scripts/probe_mcp010d_raw_stdio.py": "1083f499fcb26bfc25457753cd01da10872f05a0518eaf1ec5b20b70eaee516f",
+    "packages/forgecad-contracts/schemas/authoring-topology-request.schema.json": "fd9af9c5aa891b2623a3f20d890764fb28edcb3f3501afe6e2004d973fd667f4",
+    "packages/forgecad-contracts/schemas/authoring-topology.schema.json": "2fd55b3cf07a08d560f1f59e1fb9a0d1e946350e37533c643c93bd72b94185e0",
+    "packages/forgecad-contracts/schemas/authoring-mesh-edit-preview-request.schema.json": "9e0cc21ab1aa341d026d0ec8d2ba55f59a03cb2c883f13b72702d4019bed6a7e",
+    "packages/forgecad-contracts/schemas/authoring-mesh-edit-preview.schema.json": "d84fc1daa885d713d3fb6ac1295ebe83727d65b00da940913cc77c8503058cc0"
+  },
+  "verification": {
+    "contract_checker": "PASS: ForgeCAD contracts OK: 187 schemas",
+    "runtime_focused_test": "PASS: 1/1",
+    "mcp_focused_test": "PASS: 1/1",
+    "mcp_tool_manifest_summary_test": "PASS: 1/1",
+    "runtime_mcp_offline_build": "PASS",
+    "bounded_store_reads": "PASS: 2/2",
+    "raw_stdio": {
+      "protocol_version": "2025-06-18",
+      "status": "PASS",
+      "operator_catalog_sha256": "a59771fd90226545f30d9b2ae366e7e7a9ab851f47305498a6f692fda8eb5770",
+      "prepared_scene": {
+        "semantic_parts": 11,
+        "triangle_count": 622
+      },
+      "topology": {
+        "request_sha256": "edc8574563213759bb0f628cf3e83aecf0e8af9acfb8c03349fc6df34d98a02a",
+        "result_canonical_sha256": "e2de8fe4a810cc34beb81a29a17a01cae98a47018800abbef1bae3c61a4e4135",
+        "topology_sha256": "61e3348a8de9e16afd0e8f2c29092142c1fa9baa0f483f5ba04c8933c2dbe475",
+        "counts": {
+          "vertex_count": 4,
+          "edge_count": 4,
+          "loop_count": 4,
+          "face_count": 1
+        },
+        "response_bytes": 2906,
+        "canonical_hash": "PASS"
+      },
+      "translate_vertices": {
+        "input_sha256": "835880d722f5b73be65fb4401889380e4c3cfa7aceec419825e4d0e9ca09e694",
+        "result_canonical_sha256": "d57c34316a384f030193c8d6a6672c140e5c84fbd97a853b767978784c98cba0",
+        "derived_program_sha256": "38debd3800da112027d3a2a3410c27b24f52d0ebc552280e65e6b3f8d743e8d4",
+        "derived_artifact_sha256": "1bccc56e0e62b05592b1c540854c7a40d4e6c9b3dbeb1dc6b388a85b6b73bbd6",
+        "response_bytes": 3403,
+        "double_replay": "PASS"
+      },
+      "single_face_extrude": {
+        "input_sha256": "78cf872f606ca6c45aa79ab68f8bcb7b59f94fe9e3d49360811f5bab88cde398",
+        "result_canonical_sha256": "ef46fae7ad4085d51cba99ead0c0e17826f760caa92cd86cb392ecdc4d32f31d",
+        "derived_program_sha256": "c10eaa4162506fa7f893340839728da4fd28ab08ddde90941f7727bb81cb53e6",
+        "derived_artifact_sha256": "0a0c6b20afc8c44037cc43b1d704bd9550169f538d15bd24d9ef02b20c35d2c2",
+        "after_counts": {
+          "vertex_count": 8,
+          "edge_count": 12,
+          "loop_count": 20,
+          "face_count": 5
+        },
+        "triangle_delta": 8,
+        "response_bytes": 4722,
+        "double_replay": "PASS"
+      },
+      "runtime_cleanup": "PASS"
+    },
+    "negative_gates": {
+      "stale_base_topology": "REJECTED",
+      "oversized_response_budget": "INVALID_TOOL_PARAMS",
+      "durable_evidence_canonical_tamper": "REJECTED",
+      "interior_face_extrude": "REJECTED",
+      "non_planar_quad_extrude": "REJECTED",
+      "concave_quad_extrude": "REJECTED",
+      "unsorted_translate_vertex_ids": "REJECTED",
+      "unknown_vertex_or_face": "REJECTED",
+      "zero_translate_delta": "REJECTED",
+      "forbidden_fields": {
+        "fields": [
+          "python",
+          "path",
+          "url",
+          "env",
+          "plugin",
+          "network"
+        ],
+        "result": "INVALID_TOOL_PARAMS"
+      },
+      "project_candidate_version_cas_state_unchanged": true
+    }
+  },
+  "quality_truth": {
+    "capability_status": "SOURCE_STRUCTURAL_ONLY",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "benchmark_evidence_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "packaged_live_human_pbr_export_restart": "NOT_RUN",
+    "blender_bmesh_python_plugin_parity": "NOT_IMPLEMENTED"
+  },
+  "canonical_sha256": "b9dbff7e2e9d01d178ddd77bdabe70324242c41b80b75d874382e04ddbc967b9"
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-animated-glb-socket-materialization-link.schema.json",
+  "title": "GameWeaponAnimatedGlbSocketMaterializationLink@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "animated_socket_materialization_key_sha256", "project_id", "candidate_id", "candidate_state_sha256", "delivery_manifest_object_sha256", "lod0_artifact_sha256", "source_artifact_sha256", "source_artifact_readback_sha256", "animated_artifact_sha256", "animated_artifact_readback_sha256", "animation_receipt_object_sha256", "animation_receipt_canonical_sha256", "anchor_set_object_sha256", "anchor_set_canonical_sha256", "request_sha256", "socket_materialization_policy", "lod_scope", "socket_node_id_encoding_sha256", "derived_animated_socket_artifact_sha256", "derived_animated_socket_artifact_readback_sha256", "receipt_object_sha256", "materialization_status", "canonical_sha256", "created_at"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponAnimatedGlbSocketMaterializationLink@1"},
+    "animated_socket_materialization_key_sha256": {"$ref": "#/$defs/sha256"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "lod0_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "animated_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "animated_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "animation_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "animation_receipt_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_set_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "socket_materialization_policy": {"const": "gltf-animated-anchor-node-materialization-preserve-animations-renderable-content@1"},
+    "lod_scope": {"const": "lod0-animated-source-only@1"},
+    "socket_node_id_encoding_sha256": {"$ref": "#/$defs/sha256"},
+    "derived_animated_socket_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "derived_animated_socket_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_status": {"const": "runtime-owned-durable-game-weapon-animated-glb-socket-materialization"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 64}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

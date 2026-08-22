@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/parametric-design-kit-request-v2.schema.json",
+  "title": "ParametricDesignKitRequestV2",
+  "description": "A closed invocation of one immutable first-party multi-node geometry-group template. It carries no code, path, URL, environment, network, asset, or nested-group input.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "representation_plan_sha256", "template_id", "instance_id", "part_id", "material_zone_id", "parameters", "input_sha256"],
+  "properties": {
+    "schema_version": {"const": "ParametricDesignKitRequest@2"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "template_id": {"enum": ["forgecad.group.rounded-box@1", "forgecad.group.mirrored-box@1", "forgecad.group.arrayed-cylinder@1"]},
+    "instance_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "parameters": {"oneOf": [{"$ref": "#/$defs/rounded_box_parameters"}, {"$ref": "#/$defs/mirrored_box_parameters"}, {"$ref": "#/$defs/arrayed_cylinder_parameters"}]},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"template_id": {"const": "forgecad.group.rounded-box@1"}}}, "then": {"properties": {"parameters": {"$ref": "#/$defs/rounded_box_parameters"}}}},
+    {"if": {"properties": {"template_id": {"const": "forgecad.group.mirrored-box@1"}}}, "then": {"properties": {"parameters": {"$ref": "#/$defs/mirrored_box_parameters"}}}},
+    {"if": {"properties": {"template_id": {"const": "forgecad.group.arrayed-cylinder@1"}}}, "then": {"properties": {"parameters": {"$ref": "#/$defs/arrayed_cylinder_parameters"}}}}
+  ],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "positive_vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "exclusiveMinimum": 0, "maximum": 10}},
+    "coordinate_vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -10, "maximum": 10}},
+    "rotation_vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -6.283185307179586, "maximum": 6.283185307179586}},
+    "rounded_box_parameters": {
+      "type": "object", "additionalProperties": false,
+      "required": ["size_m", "position_m", "rotation_rad", "bevel_width_m", "bevel_segments", "bevel_profile", "crease_angle_rad"],
+      "properties": {
+        "size_m": {"$ref": "#/$defs/positive_vec3"}, "position_m": {"$ref": "#/$defs/coordinate_vec3"}, "rotation_rad": {"$ref": "#/$defs/rotation_vec3"},
+        "bevel_width_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 5}, "bevel_segments": {"type": "integer", "minimum": 1, "maximum": 4},
+        "bevel_profile": {"type": "number", "minimum": 0.25, "maximum": 0.75}, "crease_angle_rad": {"type": "number", "minimum": 0, "maximum": 3.141592653589793}
+      }
+    },
+    "mirrored_box_parameters": {
+      "type": "object", "additionalProperties": false,
+      "required": ["size_m", "position_m", "rotation_rad", "mirror_axis", "mirror_offset_m", "crease_angle_rad"],
+      "properties": {
+        "size_m": {"$ref": "#/$defs/positive_vec3"}, "position_m": {"$ref": "#/$defs/coordinate_vec3"}, "rotation_rad": {"$ref": "#/$defs/rotation_vec3"},
+        "mirror_axis": {"enum": ["x", "y", "z"]}, "mirror_offset_m": {"type": "number", "minimum": -10, "maximum": 10},
+        "crease_angle_rad": {"type": "number", "minimum": 0, "maximum": 3.141592653589793}
+      }
+    },
+    "arrayed_cylinder_parameters": {
+      "type": "object", "additionalProperties": false,
+      "required": ["radius_m", "height_m", "radial_segments", "position_m", "rotation_rad", "array_count", "array_offset_m", "crease_angle_rad"],
+      "properties": {
+        "radius_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 5}, "height_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 10},
+        "radial_segments": {"type": "integer", "minimum": 8, "maximum": 64}, "position_m": {"$ref": "#/$defs/coordinate_vec3"}, "rotation_rad": {"$ref": "#/$defs/rotation_vec3"},
+        "array_count": {"type": "integer", "minimum": 1, "maximum": 32}, "array_offset_m": {"$ref": "#/$defs/coordinate_vec3"},
+        "crease_angle_rad": {"type": "number", "minimum": 0, "maximum": 3.141592653589793}
+      }
+    }
+  }
+}

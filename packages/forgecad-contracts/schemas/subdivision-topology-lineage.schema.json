@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/subdivision-topology-lineage.schema.json",
+  "title": "SubdivisionTopologyLineage",
+  "description": "A complete-within-scope root-ancestry projection for ForgeCAD's bounded regular quad-grid subd-cage@2 evaluator. It excludes per-level child paths, corner lineage, influence weights, artifact binding and GLB element identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "program_sha256", "operator_catalog_sha256", "subdivision_node_id",
+    "lineage_kind", "lineage_space", "id_scope", "complete", "completeness_scope",
+    "cross_version_stable", "artifact_binding_status", "max_lineage_elements",
+    "lineage_element_count", "lineage", "lineage_sha256", "materialization_status",
+    "runtime_write_performed", "quality_status", "limitations", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SubdivisionTopologyLineage@1"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "subdivision_node_id": {"$ref": "#/$defs/identifier"},
+    "lineage_kind": {"const": "control-root-to-evaluated-quad-topology@1"},
+    "lineage_space": {"const": "evaluated-quad-topology@1"},
+    "id_scope": {"const": "program-and-evaluation-bound"},
+    "complete": {"const": true},
+    "completeness_scope": {"const": "all-root-mappings-within-declared-preview-lineage"},
+    "cross_version_stable": {"const": false},
+    "artifact_binding_status": {"const": "unavailable-preview-only"},
+    "max_lineage_elements": {"type": "integer", "minimum": 1, "maximum": 25000},
+    "lineage_element_count": {"type": "integer", "minimum": 1, "maximum": 25000},
+    "lineage": {"$ref": "#/$defs/lineage"},
+    "lineage_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_status": {"const": "preview-only-not-persisted-in-glb"},
+    "runtime_write_performed": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {
+      "const": [
+        "REGULAR_RECTANGULAR_OPEN_QUAD_GRID_ONLY",
+        "INTEGER_EDGE_SHARPNESS_LEVELS_1_TO_2_ONLY",
+        "ELEMENT_IDS_CHANGE_WHEN_PROGRAM_OR_EVALUATION_CHANGES",
+        "EVALUATED_QUAD_IDS_ARE_NOT_GLTF_TRIANGLE_OR_DEDUPLICATED_VERTEX_IDS",
+        "ROOT_ANCESTRY_ONLY_NO_INFLUENCE_WEIGHTS_OR_CORNER_DOMAIN",
+        "PREVIEW_NOT_ARTIFACT_OR_READBACK_BOUND",
+        "LINEAGE_NOT_PERSISTED_IN_CURRENT_GLB",
+        "STRUCTURAL_LINEAGE_DOES_NOT_PROVE_VISUAL_QUALITY"
+      ]
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "count": {"type": "integer", "minimum": 0, "maximum": 25000},
+    "element_id": {"type": "integer", "minimum": 0, "maximum": 24999},
+    "origin": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "prefixItems": [
+        {"enum": ["control_vertex", "control_edge", "control_quad"]},
+        {"$ref": "#/$defs/element_id"}
+      ],
+      "items": false
+    },
+    "counts3": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vertex_count", "edge_count", "quad_count"],
+      "properties": {
+        "vertex_count": {"$ref": "#/$defs/count"},
+        "edge_count": {"$ref": "#/$defs/count"},
+        "quad_count": {"$ref": "#/$defs/count"}
+      }
+    },
+    "evaluated_counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vertex_count", "edge_count", "quad_count", "triangle_count"],
+      "properties": {
+        "vertex_count": {"$ref": "#/$defs/count"},
+        "edge_count": {"$ref": "#/$defs/count"},
+        "quad_count": {"$ref": "#/$defs/count"},
+        "triangle_count": {"$ref": "#/$defs/count"}
+      }
+    },
+    "quad_range": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evaluated_quad_start", "evaluated_quad_count", "evaluated_triangle_start", "evaluated_triangle_count"],
+      "properties": {
+        "evaluated_quad_start": {"$ref": "#/$defs/element_id"},
+        "evaluated_quad_count": {"$ref": "#/$defs/count"},
+        "evaluated_triangle_start": {"$ref": "#/$defs/element_id"},
+        "evaluated_triangle_count": {"$ref": "#/$defs/count"}
+      }
+    },
+    "crease_chain": {
+      "type": "object", "additionalProperties": false,
+      "required": ["control_edge_id", "sharpness_levels", "evaluated_edge_ids"],
+      "properties": {
+        "control_edge_id": {"$ref": "#/$defs/element_id"},
+        "sharpness_levels": {"type": "integer", "minimum": 1, "maximum": 2},
+        "evaluated_edge_ids": {"type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true, "items": {"$ref": "#/$defs/element_id"}}
+      }
+    },
+    "lineage": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "control_dimensions", "subdivision_levels", "control_counts", "evaluated_counts",
+        "control_vertex_to_evaluated_vertex_ids", "control_edge_to_evaluated_edge_ids",
+        "control_quad_descendant_ranges", "control_crease_edge_chains",
+        "evaluated_vertex_root_origins", "evaluated_edge_root_origins",
+        "evaluated_quad_control_quad_ids", "quad_triangulation"
+      ],
+      "properties": {
+        "control_dimensions": {
+          "type": "object", "additionalProperties": false,
+          "required": ["u_points", "v_points"],
+          "properties": {
+            "u_points": {"type": "integer", "minimum": 3, "maximum": 16},
+            "v_points": {"type": "integer", "minimum": 3, "maximum": 16}
+          }
+        },
+        "subdivision_levels": {"type": "integer", "minimum": 1, "maximum": 2},
+        "control_counts": {"$ref": "#/$defs/counts3"},
+        "evaluated_counts": {"$ref": "#/$defs/evaluated_counts"},
+        "control_vertex_to_evaluated_vertex_ids": {"type": "array", "minItems": 9, "maxItems": 256, "uniqueItems": true, "items": {"$ref": "#/$defs/element_id"}},
+        "control_edge_to_evaluated_edge_ids": {
+          "type": "array", "minItems": 12, "maxItems": 480,
+          "items": {"type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true, "items": {"$ref": "#/$defs/element_id"}}
+        },
+        "control_quad_descendant_ranges": {"type": "array", "minItems": 4, "maxItems": 225, "items": {"$ref": "#/$defs/quad_range"}},
+        "control_crease_edge_chains": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/crease_chain"}},
+        "evaluated_vertex_root_origins": {"type": "array", "minItems": 25, "maxItems": 3721, "items": {"$ref": "#/$defs/origin"}},
+        "evaluated_edge_root_origins": {"type": "array", "minItems": 40, "maxItems": 7320, "items": {"$ref": "#/$defs/origin"}},
+        "evaluated_quad_control_quad_ids": {"type": "array", "minItems": 16, "maxItems": 3600, "items": {"$ref": "#/$defs/element_id"}},
+        "quad_triangulation": {"const": "0-1-2_0-2-3"}
+      }
+    }
+  }
+}

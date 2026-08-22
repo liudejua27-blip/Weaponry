@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-glb-v2-get-result.schema.json",
+  "title": "MechanicalAnimationGlbGetResult@2",
+  "description": "Restart-verified read-only result for one appearance-aware animated GLB. It does not create CAS objects or mutate the SQLite projection.",
+  "x-forgecad-max-json-bytes": 1048576,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "animation_glb_key_sha256", "animated_artifact_sha256", "animated_artifact_size_bytes",
+    "receipt_object_sha256", "receipt", "durable_link", "replayed", "restart_hash_verified",
+    "runtime_write_performed", "production_stage_advanced", "candidate_confirmed", "version_created",
+    "export_performed", "quality_status"
+  ],
+  "properties": {
+    "schema_version": {"const": "MechanicalAnimationGlbGetResult@2"},
+    "animation_glb_key_sha256": {"$ref": "#/$defs/sha256"},
+    "animated_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "animated_artifact_size_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+    "receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt": {"$ref": "https://forgecad.local/contracts/mechanical-animation-glb-v2.schema.json"},
+    "durable_link": {"$ref": "https://forgecad.local/contracts/mechanical-animation-glb-v2-link.schema.json"},
+    "replayed": {"const": false},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "quality_status": {"const": "structural_only"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -25,6 +25,7 @@ import json
 import math
 import re
 import shlex
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +47,54 @@ FIT_PLAN_SOURCE = ROOT / "scripts/build_mcp010f_fit_plan.py"
 TOOL_SUMMARY_PATH = ROOT / "docs/evidence/mcp010f/source-tool-manifest-summary.json"
 RUN_INVENTORY_PATH = ROOT / "docs/evidence/mcp010f/real-codex-run-inventory.json"
 EVIDENCE_MANIFEST_PATH = ROOT / "docs/evidence/mcp010f/manifest.json"
-EXPECTED_EVIDENCE_MANIFEST_SHA256 = "f290dea38213c999a9d998c0924ab178c8f7c8f0a7ee05329b75a7ec59700ea8"
+SUBDIVISION_ARTIFACT_LINEAGE_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-subdivision-artifact-lineage-source-gate-20260819.json"
+)
+EXPECTED_SUBDIVISION_ARTIFACT_LINEAGE_RECEIPT_SHA256 = "7e55f5e158254ea0d06c408b23a2a03f947164f875d196809a447a2179acb7f0"
+SUBDIVISION_ARTIFACT_LINEAGE_SIDECAR_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-subdivision-artifact-lineage-sidecar-source-gate-20260819.json"
+)
+EXPECTED_SUBDIVISION_ARTIFACT_LINEAGE_SIDECAR_RECEIPT_SHA256 = "9fafd9b00ab0020bbbf05945d3ccd5e48b80306b4b9496237433e75b584c43e1"
+MECHANICAL_POSE_GEOMETRY_PREVIEW_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-mechanical-pose-geometry-preview-source-gate-20260819.json"
+)
+EXPECTED_MECHANICAL_POSE_GEOMETRY_PREVIEW_RECEIPT_SHA256 = "18f1340ddce55b3c87e897d17935a2c37174df2e22a6cbe4b07f8762bb789245"
+RENDER_EVIDENCE_REPLAY_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-render-evidence-replay-source-gate-20260819.json"
+)
+EXPECTED_RENDER_EVIDENCE_REPLAY_RECEIPT_SHA256 = "6b39d29fd2c0af04108add629744451d6d19d7633f9ddc16aed2dbeea25462d4"
+MECHANICAL_ANIMATION_CLIP_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-mechanical-animation-clip-source-gate-20260819.json"
+)
+EXPECTED_MECHANICAL_ANIMATION_CLIP_RECEIPT_SHA256 = "d6e426a372edc33584a0faab6a6cbded7b4675eae8ace4d993bc26af8f68db29"
+AUTHORING_MESH_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-authoring-mesh-source-gate-20260819.json"
+)
+EXPECTED_AUTHORING_MESH_RECEIPT_SHA256 = "0be79adc15e3bd1d35bec2d37c88b338d18a7d8ef15754d13b8cae7a69fc8f59"
+AUTHORING_TOPOLOGY_EDIT_PREVIEW_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-authoring-topology-edit-preview-source-gate-20260819.json"
+)
+EXPECTED_AUTHORING_TOPOLOGY_EDIT_PREVIEW_RECEIPT_SHA256 = "ce25c48010170b16005ce79d8772faed11db599c4baac3882f0921c4f068b83a"
+AUTHORING_MESH_EDIT_PREPARE_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-authoring-mesh-edit-prepare-source-gate-20260819.json"
+)
+EXPECTED_AUTHORING_MESH_EDIT_PREPARE_RECEIPT_SHA256 = (
+    "e31271bb7647e64e81b45c3cf66db5b6993d82efa3ddb0a74fe389eb25dffefe"
+)
+GEOMETRY_PREPARE_EXACT_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/blender-geometry-prepare-exact-source-gate-20260819.json"
+)
+EXPECTED_GEOMETRY_PREPARE_EXACT_RECEIPT_SHA256 = "46976b994e48e721ea793e72e0842906461a2b4c34bd0d02f1162c29895a2d52"
+EXPECTED_EVIDENCE_MANIFEST_SHA256 = "ba9191e06c1a4451467ebc961f3894e376ff3c079747f0823cbf6e4506b7a730"
+GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_RECEIPT_PATH = (
+    ROOT / "docs/evidence/mcp010f/game-weapon-animated-glb-socket-transform-projection-v2-source-gate-20260822.json"
+)
+EXPECTED_GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_RECEIPT_SHA256 = (
+    "64bc66c61cf8beadd393740521a495acae0db6339895ab9e091c4df9c06e4903"
+)
+EXPECTED_GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_TOOL_SUMMARY_SHA256 = (
+    "c901716c8ca0792674c14d0788a52d91b13322332e68bdd64ecd0e485eb5d3e2"
+)
 TASK_INDEX = ROOT / "docs/CODEX_TASK_INDEX.md"
 
 AUTHORITY_DOCS = (
@@ -78,6 +126,22 @@ WRITE_NAME_FUNCTIONS = (
     "agentic_write_tool_names",
     "agentic_action_write_tool_names",
     "cross_view_promotion_write_tool_names",
+)
+
+# These tools were added after the currently frozen Stage 0 receipt.  Keep the
+# anchors here so the source parser fails closed if an Agentic enum/list is
+# changed in a way that silently drops one of the current V2 surfaces.
+CURRENT_AGENTIC_ANIMATION_VFX_TOOL_NAMES = frozenset(
+    {
+        "candidate_animation_vfx_quality_v2_get",
+        "candidate_animation_vfx_quality_v2_prepare",
+        "fictional_energy_vfx_animated_socket_attachment_v3_get",
+        "fictional_energy_vfx_animated_socket_attachment_v3_prepare",
+        "fictional_energy_vfx_animated_socket_trails_sequence_v2_get",
+        "fictional_energy_vfx_animated_socket_trails_sequence_v2_prepare",
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_get",
+        "fictional_energy_vfx_animated_socket_trails_bloom_sequence_v2_prepare",
+    }
 )
 
 METRIC_CRITERIA = {
@@ -128,7 +192,7 @@ OBSERVATION_KEYS = frozenset(
 EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
     "agentic_runtime_projection_conformance boundary_error_runtime camera_fit_runtime codex_correction_queue comparison_sheet_helper contour_canvas "
     "contour_draft_binding_validator contour_first_workflow_display contour_target_runtime difference_heatmap "
-    "export_restart_hash fit_plan_helper full_360_reference human_visual_review latest_attempt latest_completed_transport "
+    "export_restart_hash fit_plan_helper full_360_reference human_visual_review latest_attempt latest_completed_transport subdivision_artifact_lineage_source subdivision_artifact_lineage_sidecar_source mechanical_pose_geometry_preview_source render_evidence_replay_source mechanical_animation_clip_source authoring_mesh_source authoring_topology_edit_preview_source authoring_mesh_edit_prepare_source geometry_prepare_exact_source modifier_apply_source "
     "packaged_current_cohort_contour_rebuild packaged_current_cohort_viewer packaged_viewer_core_controls "
     "packaged_viewer_provisional_observation_binding packaged_viewer_read_model packaged_viewer_window "
     "part_aware_rig_proposal part_contour_fit_runtime part_contour_target_slice_runtime part_correction_preflight_order part_correction_source_probe "
@@ -141,7 +205,7 @@ EVIDENCE_MANIFEST_GATE_KEYS = frozenset(
     "strict_visible_view_policy_implemented viewer_accessibility_e2e viewer_browser_dom_smoke "
     "viewer_contour_annotation viewer_contour_real_execution viewer_keyboard_navigation viewer_native_window_smoke "
  "viewer_candidate_artifact_binding viewer_candidate_binding_fixtures viewer_visual_evidence_binding_fixtures viewer_quality_report_contract_alignment viewer_source_contract viewer_tauri_compile viewer_typescript_build viewer_write_boundary "
- "agentic_runtime_observe_plan agentic_runtime_session_checkpoint packaged_render_worker_landing".split()
+    "agentic_runtime_observe_plan agentic_runtime_session_checkpoint packaged_render_worker_landing viewer_provenance_graph_source mechanical_animation_viewer_discrete_frame_source mechanical_animation_glb_prepare_source game_asset_delivery_source game_asset_delivery_raw_stdio threejs_game_asset_consumer game_asset_delivery_durable_source game_asset_delivery_durable_raw_stdio threejs_game_asset_consumer_v2 game_asset_auto_lod_source game_asset_auto_lod_raw_stdio godot_headless_import commercial_engine_import weapon_surface_bake_source animated_socket_transform_projection_source mechanical_animation_v2_source mechanical_animation_v2_public".split()
 )
 EXPECTED_EVIDENCE_MANIFEST_GATES = {
     "agentic_runtime_projection_conformance": "PASS_CURRENT_COHORT_NESTED_RUNTIME_MCP_PROJECTION_CONTRACTS",
@@ -161,6 +225,33 @@ EXPECTED_EVIDENCE_MANIFEST_GATES = {
     "fit_plan_helper": "PASS_SOURCE_STANDARD_LIBRARY_HASH_BOUND_INTENTS_ONLY",
     "full_360_reference": "BLOCKED_REFERENCE_COVERAGE",
     "human_visual_review": "NOT_RUN",
+    "subdivision_artifact_lineage_source": "PASS_SOURCE_STRUCTURAL_RECONSTRUCTED_ARTIFACT_BINDING",
+    "subdivision_artifact_lineage_sidecar_source": "PASS_SOURCE_RUNTIME_OWNED_IMMUTABLE_CAS_SIDECAR",
+    "mechanical_pose_geometry_preview_source": "PASS_SOURCE_TRANSIENT_AUTHORED_RIG_GEOMETRY_PREVIEW",
+    "render_evidence_replay_source": "PASS_SOURCE_SAME_COHORT_REPEAT_BYTE_EXACT_STRUCTURAL_REPLAY",
+    "mechanical_animation_clip_source": "PASS_SOURCE_RUNTIME_OWNED_IMMUTABLE_MECHANICAL_ANIMATION_CLIP",
+    "mechanical_animation_viewer_discrete_frame_source": "PASS_SOURCE_READ_ONLY_VERIFIED_DISCRETE_RIGID_FRAME",
+    "mechanical_animation_glb_prepare_source": "PASS_SOURCE_RUNTIME_OWNED_RIGID_GLTF_ANIMATION_PREPARE",
+    "game_asset_delivery_source": "PASS_AUTHORED_LOD_SET_COLLISION_AND_THREEJS_CONSUMER_STRUCTURAL_SLICE",
+    "game_asset_delivery_raw_stdio": "PASS_CURRENT_COHORT_EXPLICIT_WRITE_OPT_IN_IDEMPOTENT_PREPARE",
+    "threejs_game_asset_consumer": "PASS_R185_STATIC_ANIMATED_GLTFLOADER_AND_ANIMATIONMIXER",
+    "game_asset_delivery_durable_source": "PASS_RUNTIME_STORE_DURABLE_LINK_REACHABILITY_CONFLICT_AND_RESTART_READBACK",
+    "game_asset_delivery_durable_raw_stdio": "PASS_CURRENT_COHORT_PREPARE_GET_AND_CAS_REVERIFY",
+    "threejs_game_asset_consumer_v2": "PASS_R185_ALL_THREE_LODS_TRIANGLES_MATERIALS_COLLISION_AND_ANIMATION",
+    "game_asset_auto_lod_source": "PASS_RUNTIME_TYPED_LOD_PROGRAM_DERIVATION_PREVIEW",
+    "game_asset_auto_lod_raw_stdio": "PASS_DEFAULT_READ_CLOSED_ZERO_WRITE_DOUBLE_WORKER_REPLAY",
+    "godot_headless_import": "PASS_EXTERNAL_EVIDENCE_ONLY_STRUCTURAL_IMPORT_AND_PACKED_SCENE_READBACK",
+    "commercial_engine_import": "NOT_RUN_UNITY_UNREAL",
+    "weapon_surface_bake_source": "PASS_SOURCE_AND_ISOLATED_RELEASE_CANDIDATE_BOUND_2K_SURFACE_LAYERS",
+    "animated_socket_transform_projection_source": "PASS_SOURCE_RUNTIME_DURABLE_REPLAYABLE_READ_ONLY",
+    "mechanical_animation_v2_source": "PASS_SOURCE_STRUCTURAL_ONLY",
+    "mechanical_animation_v2_public": "PASS_PUBLIC_STRUCTURAL_ONLY_NOT_PROVEN",
+    "authoring_mesh_source": "PASS_SOURCE_STRUCTURAL_AUTHORING_MESH_OPERATOR_ONLY",
+    "authoring_topology_edit_preview_source": "PASS_SOURCE_STRUCTURAL_RAW_STDIO",
+    "authoring_mesh_edit_prepare_source": "PASS_SOURCE_STRUCTURAL_APPROVAL_GATED_STAGED_CANDIDATE",
+    "geometry_prepare_exact_source": "PASS_SOURCE_STRUCTURAL_EXPLICIT_HEAD_ATOMIC_IDEMPOTENT_STAGING",
+    "modifier_apply_source": "PASS_SOURCE_STRUCTURAL_CANDIDATE_BOUND_PART_EXACT_STAGING",
+    "viewer_provenance_graph_source": "PASS_SOURCE_READ_ONLY_STRUCTURAL_PROVENANCE_GRAPH",
     "latest_attempt": "PASS_WITH_QUALITY_TARGET_NOT_MET_CURRENT_COHORT",
     "latest_completed_transport": "PASS_WITH_QUALITY_TARGET_NOT_MET_NOT_PROMOTED_CURRENT_COHORT",
     "packaged_current_cohort_contour_rebuild": "PASS_AD_HOC_DEEP_STRICT_ISOLATED_READY_WINDOW",
@@ -294,7 +385,7 @@ def source_tool_names() -> tuple[list[str], list[str]]:
         require(read_function is not None, "cannot locate agentic write-module read tools")
         for variant in re.findall(r"AgenticTool::([A-Za-z0-9_]+)", read_function.group(1)):
             name_match = re.search(
-                rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
+                rf"Self::{re.escape(variant)}\s*=>\s*(?:\{{\s*)?\"([a-z0-9_]+)\"",
                 agentic_write_source,
             )
             require(name_match is not None, f"agentic read tool variant has no name: {variant}")
@@ -398,7 +489,7 @@ def source_tool_names() -> tuple[list[str], list[str]]:
             names = []
             for variant in variants:
                 name_match = re.search(
-                    rf"Self::{re.escape(variant)}\s*=>\s*\"([a-z0-9_]+)\"",
+                    rf"Self::{re.escape(variant)}\s*=>\s*(?:\{{\s*)?\"([a-z0-9_]+)\"",
                     agentic_source,
                 )
                 require(name_match is not None, f"agentic write tool variant has no name: {variant}")
@@ -438,7 +529,110 @@ def source_tool_names() -> tuple[list[str], list[str]]:
     require(len(read_names) == len(set(read_names)), "duplicate read-only tool names")
     require(len(write_names) == len(set(write_names)), "duplicate write tool names")
     require(not set(read_names) & set(write_names), "a tool is classified as both read and write")
-    return sorted(read_names), sorted(write_names)
+    read_names = sorted(read_names)
+    write_names = sorted(write_names)
+    parsed_names = set(read_names) | set(write_names)
+    require(
+        CURRENT_AGENTIC_ANIMATION_VFX_TOOL_NAMES <= parsed_names,
+        "source parser omitted a current Agentic animation/VFX tool: "
+        + ", ".join(sorted(CURRENT_AGENTIC_ANIMATION_VFX_TOOL_NAMES - parsed_names)),
+    )
+    return read_names, write_names
+
+
+def source_name_manifest_sha256(names: list[str]) -> str:
+    """Hash the exact source-parser name projection with Rust's JSON rules.
+
+    The compiled Runtime manifest hashes full tool-definition JSON values.  A
+    checked-in source parser cannot safely reconstruct those generated values,
+    so this diagnostic digest deliberately hashes only the sorted source name
+    projection.  The output labels this basis explicitly and never substitutes
+    it for the frozen compiled-manifest receipt used by ``check_truth``.
+    """
+
+    encoded = json.dumps(
+        {"tools": names},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def source_tool_summary() -> dict[str, Any]:
+    """Return the current source-derived tool summary without mutating truth.
+
+    ``source_tool_names`` is the authoritative parser for this diagnostic
+    projection.  In particular it includes Agentic Quality@2 prepare/get and
+    every other Agentic read/write list entry.  The two manifest digests are
+    name-projection hashes, not claims about a compiled binary that may be
+    stale or unavailable while Store APIs are being completed.
+    """
+
+    read_names, write_names = source_tool_names()
+    enabled_names = sorted(read_names + write_names)
+    summary: dict[str, Any] = {
+        "schema_version": "ForgeCADMcpSourceToolManifestSummary@1",
+        "hash_basis": "sha256(canonical-json({tools:[sorted source tool names]}))",
+        "build_cohort_sha256": None,
+        "read_count": len(read_names),
+        "write_count": len(write_names),
+        "total_count": len(enabled_names),
+        "read_names": read_names,
+        "write_names": write_names,
+        "read_manifest_sha256": source_name_manifest_sha256(read_names),
+        "write_enabled_manifest_sha256": source_name_manifest_sha256(enabled_names),
+    }
+    summary["canonical_sha256"] = canonical_sha256(summary)
+    return summary
+
+
+def source_tool_summary_report() -> dict[str, Any]:
+    """Return source summary plus the still-frozen receipt drift details."""
+
+    source_summary = source_tool_summary()
+    frozen = load_json(TOOL_SUMMARY_PATH)
+    source_read = set(source_summary["read_names"])
+    source_write = set(source_summary["write_names"])
+    frozen_read = set(frozen.get("read_names", []))
+    frozen_write = set(frozen.get("write_names", []))
+    mismatch = {
+        "read_count": {
+            "source": source_summary["read_count"],
+            "frozen": frozen.get("read_count"),
+        },
+        "write_count": {
+            "source": source_summary["write_count"],
+            "frozen": frozen.get("write_count"),
+        },
+        "total_count": {
+            "source": source_summary["total_count"],
+            "frozen": frozen.get("total_count"),
+        },
+        "read_manifest_sha256": {
+            "source_name_projection": source_summary["read_manifest_sha256"],
+            "frozen_compiled_manifest": frozen.get("read_manifest_sha256"),
+        },
+        "write_enabled_manifest_sha256": {
+            "source_name_projection": source_summary["write_enabled_manifest_sha256"],
+            "frozen_compiled_manifest": frozen.get("write_enabled_manifest_sha256"),
+        },
+        "canonical_sha256": {
+            "source_name_projection": source_summary["canonical_sha256"],
+            "frozen_compiled_summary": frozen.get("canonical_sha256"),
+        },
+        "read_names_added_since_frozen": sorted(source_read - frozen_read),
+        "read_names_removed_since_frozen": sorted(frozen_read - source_read),
+        "write_names_added_since_frozen": sorted(source_write - frozen_write),
+        "write_names_removed_since_frozen": sorted(frozen_write - source_write),
+    }
+    return {
+        "schema_version": "ForgeCADMcpSourceToolSummaryReport@1",
+        "source_summary": source_summary,
+        "frozen_summary_path": str(TOOL_SUMMARY_PATH.relative_to(ROOT)),
+        "frozen_summary_schema_version": frozen.get("schema_version"),
+        "frozen_summary_mismatch": mismatch,
+    }
 
 
 def runtime_visible_view_thresholds() -> dict[str, float]:
@@ -1450,7 +1644,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         require(forbidden not in limitation_text, f"evidence manifest contains a forbidden promotion claim: {forbidden}")
     require(isinstance(manifest["scope"], list) and manifest["scope"], "evidence manifest scope must be a non-empty list")
     require(isinstance(manifest["limitations"], list) and manifest["limitations"], "evidence manifest limitations must be non-empty")
-    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 138, "evidence manifest frozen evidence count drifted")
+    require(isinstance(manifest["evidence"], list) and len(manifest["evidence"]) == 182, "evidence manifest frozen evidence count drifted")
     require(len(set(manifest["evidence"])) == len(manifest["evidence"]), "evidence manifest contains duplicate entries")
     for index, entry in enumerate(manifest["evidence"]):
         require(isinstance(entry, str) and entry, f"evidence entry {index} must be a non-empty string")
@@ -1472,6 +1666,450 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         if symbol is not None:
             source = evidence_path.read_text(encoding="utf-8")
             require(re.search(rf"\b{re.escape(symbol)}\b", source) is not None, f"evidence symbol is missing: {entry}")
+
+    receipt_path = "docs/evidence/mcp010f/blender-subdivision-artifact-lineage-source-gate-20260819.json"
+    require(receipt_path in manifest["evidence"], "Subdivision artifact-lineage receipt is not inventoried")
+    require(
+        sha256_file(SUBDIVISION_ARTIFACT_LINEAGE_RECEIPT_PATH)
+        == EXPECTED_SUBDIVISION_ARTIFACT_LINEAGE_RECEIPT_SHA256,
+        "frozen Subdivision artifact-lineage receipt changed without an explicit checker revision",
+    )
+    receipt = load_json(SUBDIVISION_ARTIFACT_LINEAGE_RECEIPT_PATH)
+    require(
+        receipt.get("schema_version") == "ForgeCADBlenderSubdivisionArtifactLineageSourceGate@1",
+        "unexpected Subdivision artifact-lineage receipt schema",
+    )
+    require(receipt.get("task_id") == truth["task_id"], "Subdivision artifact-lineage receipt task drifted")
+    require(
+        receipt.get("status") == gates["subdivision_artifact_lineage_source"],
+        "Subdivision artifact-lineage receipt status drifted",
+    )
+    require(
+        receipt.get("canonical_sha256") == canonical_sha256(receipt),
+        "Subdivision artifact-lineage receipt canonical hash mismatch",
+    )
+    require(
+        receipt.get("retained_quality_truth", {}).get("visual_quality") == "QUALITY_TARGET_NOT_MET",
+        "Subdivision artifact-lineage receipt promoted visual quality",
+    )
+    require(
+        receipt.get("implemented_scope", {}).get("runtime_write_performed") is False,
+        "Subdivision artifact-lineage receipt claims a Runtime write",
+    )
+
+    sidecar_receipt_path = "docs/evidence/mcp010f/blender-subdivision-artifact-lineage-sidecar-source-gate-20260819.json"
+    require(sidecar_receipt_path in manifest["evidence"], "Subdivision artifact-lineage sidecar receipt is not inventoried")
+    require(
+        sha256_file(SUBDIVISION_ARTIFACT_LINEAGE_SIDECAR_RECEIPT_PATH)
+        == EXPECTED_SUBDIVISION_ARTIFACT_LINEAGE_SIDECAR_RECEIPT_SHA256,
+        "frozen Subdivision artifact-lineage sidecar receipt changed without an explicit checker revision",
+    )
+    sidecar_receipt = load_json(SUBDIVISION_ARTIFACT_LINEAGE_SIDECAR_RECEIPT_PATH)
+    require(
+        sidecar_receipt.get("schema_version")
+        == "ForgeCADBlenderSubdivisionArtifactLineageSidecarSourceGate@1",
+        "unexpected Subdivision artifact-lineage sidecar receipt schema",
+    )
+    require(sidecar_receipt.get("task_id") == truth["task_id"], "Subdivision artifact-lineage sidecar receipt task drifted")
+    require(
+        sidecar_receipt.get("status") == gates["subdivision_artifact_lineage_sidecar_source"],
+        "Subdivision artifact-lineage sidecar receipt status drifted",
+    )
+    require(
+        sidecar_receipt.get("canonical_sha256") == canonical_sha256(sidecar_receipt),
+        "Subdivision artifact-lineage sidecar receipt canonical hash mismatch",
+    )
+    require(
+        sidecar_receipt.get("implemented_scope", {}).get("runtime_write_boundary")
+        == "explicit prepare only; getter never backfills SQLite or CAS",
+        "Subdivision artifact-lineage sidecar receipt write boundary drifted",
+    )
+    require(
+        sidecar_receipt.get("retained_quality_truth", {}).get("visual_quality")
+        == "QUALITY_TARGET_NOT_MET",
+        "Subdivision artifact-lineage sidecar receipt promoted visual quality",
+    )
+
+    pose_preview_receipt_path = "docs/evidence/mcp010f/blender-mechanical-pose-geometry-preview-source-gate-20260819.json"
+    require(pose_preview_receipt_path in manifest["evidence"], "Mechanical pose geometry preview receipt is not inventoried")
+    require(
+        sha256_file(MECHANICAL_POSE_GEOMETRY_PREVIEW_RECEIPT_PATH)
+        == EXPECTED_MECHANICAL_POSE_GEOMETRY_PREVIEW_RECEIPT_SHA256,
+        "frozen Mechanical pose geometry preview receipt changed without an explicit checker revision",
+    )
+    pose_preview_receipt = load_json(MECHANICAL_POSE_GEOMETRY_PREVIEW_RECEIPT_PATH)
+    require(
+        pose_preview_receipt.get("schema_version")
+        == "ForgeCADBlenderMechanicalPoseGeometryPreviewSourceGate@1",
+        "unexpected Mechanical pose geometry preview receipt schema",
+    )
+    require(pose_preview_receipt.get("task_id") == truth["task_id"], "Mechanical pose geometry preview receipt task drifted")
+    require(
+        pose_preview_receipt.get("status") == gates["mechanical_pose_geometry_preview_source"],
+        "Mechanical pose geometry preview receipt status drifted",
+    )
+    require(
+        pose_preview_receipt.get("canonical_sha256") == canonical_sha256(pose_preview_receipt),
+        "Mechanical pose geometry preview receipt canonical hash mismatch",
+    )
+    require(
+        pose_preview_receipt.get("implemented_scope", {}).get("runtime_write_performed") is False,
+        "Mechanical pose geometry preview receipt claims a Runtime write",
+    )
+    require(
+        pose_preview_receipt.get("retained_quality_truth", {}).get("visual_quality")
+        == "QUALITY_TARGET_NOT_MET",
+        "Mechanical pose geometry preview receipt promoted visual quality",
+    )
+
+    replay_receipt_path = "docs/evidence/mcp010f/blender-render-evidence-replay-source-gate-20260819.json"
+    require(replay_receipt_path in manifest["evidence"], "Render evidence replay receipt is not inventoried")
+    require(
+        sha256_file(RENDER_EVIDENCE_REPLAY_RECEIPT_PATH)
+        == EXPECTED_RENDER_EVIDENCE_REPLAY_RECEIPT_SHA256,
+        "frozen Render evidence replay receipt changed without an explicit checker revision",
+    )
+    replay_receipt = load_json(RENDER_EVIDENCE_REPLAY_RECEIPT_PATH)
+    require(
+        replay_receipt.get("schema_version") == "ForgeCADBlenderRenderEvidenceReplaySourceGate@1",
+        "unexpected Render evidence replay receipt schema",
+    )
+    require(replay_receipt.get("task_id") == truth["task_id"], "Render evidence replay receipt task drifted")
+    require(
+        replay_receipt.get("status") == gates["render_evidence_replay_source"],
+        "Render evidence replay receipt status drifted",
+    )
+    require(
+        replay_receipt.get("canonical_sha256") == canonical_sha256(replay_receipt),
+        "Render evidence replay receipt canonical hash mismatch",
+    )
+    replay_scope = replay_receipt.get("implemented_scope", {})
+    require(replay_scope.get("runtime_write_performed") is False, "Render evidence replay receipt claims a Runtime write")
+    require(replay_scope.get("aov_png_read_limit_bytes") == 16 * 1024 * 1024, "Render evidence replay AOV read budget drifted")
+    require(
+        replay_receipt.get("retained_quality_truth", {}).get("visual_quality")
+        == "QUALITY_TARGET_NOT_MET",
+        "Render evidence replay receipt promoted visual quality",
+    )
+
+    animation_receipt_path = "docs/evidence/mcp010f/blender-mechanical-animation-clip-source-gate-20260819.json"
+    require(animation_receipt_path in manifest["evidence"], "Mechanical animation clip receipt is not inventoried")
+    require(
+        sha256_file(MECHANICAL_ANIMATION_CLIP_RECEIPT_PATH)
+        == EXPECTED_MECHANICAL_ANIMATION_CLIP_RECEIPT_SHA256,
+        "frozen Mechanical animation clip receipt changed without an explicit checker revision",
+    )
+    animation_receipt = load_json(MECHANICAL_ANIMATION_CLIP_RECEIPT_PATH)
+    require(
+        animation_receipt.get("schema_version")
+        == "ForgeCADBlenderMechanicalAnimationClipSourceGate@1",
+        "unexpected Mechanical animation clip receipt schema",
+    )
+    require(animation_receipt.get("task_id") == truth["task_id"], "Mechanical animation clip receipt task drifted")
+    require(
+        animation_receipt.get("status") == gates["mechanical_animation_clip_source"],
+        "Mechanical animation clip receipt status drifted",
+    )
+    require(
+        animation_receipt.get("canonical_sha256") == canonical_sha256(animation_receipt),
+        "Mechanical animation clip receipt canonical hash mismatch",
+    )
+    animation_scope = animation_receipt.get("implemented_scope", {})
+    require(
+        animation_scope.get("prepare_requires_explicit_authenticated_write_opt_in") is True
+        and animation_scope.get("runtime_is_only_state_writer") is True
+        and animation_scope.get("source_full_glb_byte_exact_with_candidate_required") is True
+        and animation_scope.get("non_null_same_worker_cohort_required") is True
+        and animation_scope.get("frame_preview_runtime_write_performed") is False,
+        "Mechanical animation clip write/read/replay boundary drifted",
+    )
+    require(
+        animation_receipt.get("retained_quality_truth", {}).get("visual_quality")
+        == "QUALITY_TARGET_NOT_MET",
+        "Mechanical animation clip receipt promoted visual quality",
+    )
+
+    authoring_receipt_path = "docs/evidence/mcp010f/blender-authoring-mesh-source-gate-20260819.json"
+    require(authoring_receipt_path in manifest["evidence"], "Authoring mesh receipt is not inventoried")
+    require(
+        sha256_file(AUTHORING_MESH_RECEIPT_PATH) == EXPECTED_AUTHORING_MESH_RECEIPT_SHA256,
+        "frozen Authoring mesh receipt changed without an explicit checker revision",
+    )
+    authoring_receipt = load_json(AUTHORING_MESH_RECEIPT_PATH)
+    require(
+        authoring_receipt.get("schema_version") == "ForgeCADBlenderAuthoringMeshSourceGate@1",
+        "unexpected Authoring mesh receipt schema",
+    )
+    require(authoring_receipt.get("task_id") == truth["task_id"], "Authoring mesh receipt task drifted")
+    require(
+        authoring_receipt.get("status") == gates["authoring_mesh_source"],
+        "Authoring mesh receipt status drifted",
+    )
+    require(
+        authoring_receipt.get("canonical_sha256") == canonical_sha256(authoring_receipt),
+        "Authoring mesh receipt canonical hash mismatch",
+    )
+    require(
+        authoring_receipt.get("scope", {}).get("runtime_writer_boundary") == "unchanged"
+        and authoring_receipt.get("scope", {}).get("arbitrary_script_or_plugin") is False
+        and authoring_receipt.get("scope", {}).get("blender_runtime_dependency") is False,
+        "Authoring mesh receipt weakened Runtime or executable-code boundaries",
+    )
+    require(
+        authoring_receipt.get("quality_truth", {}).get("visible_view") == "QUALITY_TARGET_NOT_MET",
+        "Authoring mesh receipt promoted visual quality",
+    )
+
+    topology_receipt_path = (
+        "docs/evidence/mcp010f/blender-authoring-topology-edit-preview-source-gate-20260819.json"
+    )
+    require(
+        topology_receipt_path in manifest["evidence"],
+        "Authoring topology/edit preview receipt is not inventoried",
+    )
+    require(
+        sha256_file(AUTHORING_TOPOLOGY_EDIT_PREVIEW_RECEIPT_PATH)
+        == EXPECTED_AUTHORING_TOPOLOGY_EDIT_PREVIEW_RECEIPT_SHA256,
+        "frozen Authoring topology/edit preview receipt changed without an explicit checker revision",
+    )
+    topology_receipt = load_json(AUTHORING_TOPOLOGY_EDIT_PREVIEW_RECEIPT_PATH)
+    require(
+        topology_receipt.get("schema_version")
+        == "ForgeCADBlenderAuthoringTopologyEditPreviewSourceGate@1"
+        and topology_receipt.get("task_id") == truth["task_id"]
+        and topology_receipt.get("status") == gates["authoring_topology_edit_preview_source"],
+        "Authoring topology/edit preview receipt identity or status drifted",
+    )
+    require(
+        topology_receipt.get("canonical_sha256") == canonical_sha256(topology_receipt),
+        "Authoring topology/edit preview receipt canonical hash mismatch",
+    )
+    topology_scope = topology_receipt.get("implemented_scope", {})
+    raw = topology_receipt.get("verification", {}).get("raw_stdio", {})
+    require(
+        topology_scope.get("runtime_is_only_state_writer") is True
+        and topology_scope.get("authoring_read_slice_runtime_write_performed") is False
+        and topology_scope.get("response_budget_bytes") == 1024 * 1024
+        and raw.get("status") == "PASS"
+        and raw.get("topology", {}).get("response_bytes", 1024 * 1024 + 1) <= 1024 * 1024
+        and raw.get("translate_vertices", {}).get("double_replay") == "PASS"
+        and raw.get("single_face_extrude", {}).get("double_replay") == "PASS",
+        "Authoring topology/edit preview write, budget or replay boundary drifted",
+    )
+    topology_quality = topology_receipt.get("quality_truth", {})
+    require(
+        topology_quality.get("visual_quality") == "QUALITY_TARGET_NOT_MET"
+        and topology_quality.get("blender_bmesh_python_plugin_parity") == "NOT_IMPLEMENTED"
+        and topology_quality.get("hq_360") == "BLOCKED_REFERENCE_COVERAGE",
+        "Authoring topology/edit preview receipt promoted Blender parity or visual quality",
+    )
+
+    prepare_receipt_path = (
+        "docs/evidence/mcp010f/blender-authoring-mesh-edit-prepare-source-gate-20260819.json"
+    )
+    require(
+        prepare_receipt_path in manifest["evidence"],
+        "Authoring mesh edit prepare receipt is not inventoried",
+    )
+    require(
+        sha256_file(AUTHORING_MESH_EDIT_PREPARE_RECEIPT_PATH)
+        == EXPECTED_AUTHORING_MESH_EDIT_PREPARE_RECEIPT_SHA256,
+        "frozen Authoring mesh edit prepare receipt changed without an explicit checker revision",
+    )
+    prepare_receipt = load_json(AUTHORING_MESH_EDIT_PREPARE_RECEIPT_PATH)
+    prepare_result = prepare_receipt.get("authoring_mesh_edit_prepare", {})
+    require(
+        prepare_receipt.get("schema_version")
+        == "ForgeCADMCP010FAuthoringMeshEditPrepareRawStdioProbe@1"
+        and prepare_receipt.get("task_id") == truth["task_id"]
+        and prepare_receipt.get("status") == "PASS"
+        and gates["authoring_mesh_edit_prepare_source"]
+        == "PASS_SOURCE_STRUCTURAL_APPROVAL_GATED_STAGED_CANDIDATE"
+        and prepare_receipt.get("persistent_user_data_touched") is True
+        and prepare_receipt.get("runtime_cleanup") == "PASS",
+        "Authoring mesh edit prepare receipt identity or Runtime write truth drifted",
+    )
+    require(
+        prepare_result.get("schema_version") == "AuthoringMeshEditPrepare@1"
+        and prepare_result.get("candidate_state") == "reviewable"
+        and prepare_result.get("idempotent_exact_replay") == "PASS"
+        and prepare_result.get("idempotency_key_reuse")
+        == "REJECTED_NO_VISIBLE_RESIDUE"
+        and prepare_result.get("stale_head") == "REJECTED"
+        and prepare_result.get("forbidden_python_error_code") == "INVALID_TOOL_PARAMS"
+        and prepare_result.get("version_inventory_unchanged") is True
+        and prepare_result.get("confirm_status") == "approval-required"
+        and prepare_result.get("export_status") == "locked-until-confirm"
+        and prepare_result.get("quality_status") == "structural_only"
+        and prepare_result.get("source_worker_build_cohort_sha256")
+        == prepare_result.get("derived_worker_build_cohort_sha256"),
+        "Authoring mesh edit prepare approval, idempotency, version or cohort boundary drifted",
+    )
+
+    exact_receipt_path = (
+        "docs/evidence/mcp010f/blender-geometry-prepare-exact-source-gate-20260819.json"
+    )
+    require(
+        exact_receipt_path in manifest["evidence"],
+        "Exact geometry prepare receipt is not inventoried",
+    )
+    require(
+        sha256_file(GEOMETRY_PREPARE_EXACT_RECEIPT_PATH)
+        == EXPECTED_GEOMETRY_PREPARE_EXACT_RECEIPT_SHA256,
+        "frozen exact geometry prepare receipt changed without an explicit checker revision",
+    )
+    exact_receipt = load_json(GEOMETRY_PREPARE_EXACT_RECEIPT_PATH)
+    exact_result = exact_receipt.get("exact_geometry_prepare", {})
+    modifier_apply = exact_receipt.get("candidate_bound_modifier_apply", {})
+    require(
+        exact_receipt.get("schema_version")
+        == "ForgeCADMCP010FExactGeometryPrepareRawStdioProbe@1"
+        and exact_receipt.get("task_id") == truth["task_id"]
+        and exact_receipt.get("status") == "PASS"
+        and gates["geometry_prepare_exact_source"]
+        == "PASS_SOURCE_STRUCTURAL_EXPLICIT_HEAD_ATOMIC_IDEMPOTENT_STAGING"
+        and exact_receipt.get("persistent_user_data_touched") is True
+        and exact_receipt.get("runtime_cleanup") == "PASS",
+        "Exact geometry prepare receipt identity or Runtime write truth drifted",
+    )
+    require(
+        exact_result.get("schema_version") == "GeometryPrepareResult@2"
+        and exact_result.get("base_version_id") is None
+        and exact_result.get("worker_replay")
+        == "PASS_ACTUAL_SIBLING_BYTE_EXACT_SAME_COHORT"
+        and exact_result.get("idempotent_replay") == "PASS_IDENTICAL_MCP_RESULT"
+        and exact_result.get("missing_head_error") == "INVALID_TOOL_PARAMS"
+        and exact_result.get("v1_exact_error") == "INVALID_TOOL_PARAMS"
+        and exact_result.get("collision_status")
+        == "REJECTED_IDEMPOTENCY_KEY_REUSED_NO_VISIBLE_RESIDUE"
+        and exact_result.get("version_status") == "no-version-created"
+        and exact_result.get("confirm_status") == "approval-required"
+        and exact_result.get("quality_status") == "structural_only"
+        and exact_result.get("full_mcp_response_bytes", 1024 * 1024 + 1)
+        <= exact_result.get("max_response_bytes", 0)
+        == 1024 * 1024,
+        "Exact geometry prepare head, replay, collision, approval or response budget drifted",
+    )
+    require(
+        modifier_apply.get("schema_version") == "GeometryModifierApplyResult@1"
+        and modifier_apply.get("source_candidate_id")
+        == exact_result.get("candidate_id")
+        and modifier_apply.get("new_candidate_id")
+        and modifier_apply.get("new_candidate_id")
+        != modifier_apply.get("source_candidate_id")
+        and modifier_apply.get("source_part_id") == "profile-part"
+        and modifier_apply.get("source_terminal_node_id") == "profile"
+        and modifier_apply.get("derived_terminal_node_id")
+        != modifier_apply.get("source_terminal_node_id")
+        and modifier_apply.get("part_binding_status")
+        == "PASS_TARGET_DERIVED_NON_TARGET_EXACT"
+        and isinstance(modifier_apply.get("durable_apply_sidecar_sha256"), str)
+        and len(modifier_apply["durable_apply_sidecar_sha256"]) == 64
+        and all(
+            character in "0123456789abcdef"
+            for character in modifier_apply["durable_apply_sidecar_sha256"]
+        )
+        and modifier_apply.get("durable_job_event_link")
+        == "PASS_RESTART_READBACK_JOB_EVENT_TO_REACHABLE_CAS_SIDECAR"
+        and modifier_apply.get("source_replay")
+        == "PASS_ACTUAL_SIBLING_BYTE_EXACT_SAME_COHORT"
+        and modifier_apply.get("derived_replay")
+        == "PASS_ACTUAL_SIBLING_BYTE_EXACT_SAME_COHORT"
+        and modifier_apply.get("idempotent_replay") == "PASS_IDENTICAL_MCP_RESULT"
+        and modifier_apply.get("unknown_part")
+        == "REJECTED_TARGET_PART_UNAVAILABLE_OR_AMBIGUOUS"
+        and modifier_apply.get("tampered_source")
+        == "REJECTED_SOURCE_ARTIFACT_MISMATCH"
+        and modifier_apply.get("forbidden_python_error") == "INVALID_TOOL_PARAMS"
+        and modifier_apply.get("forbidden_reference_error") == "INVALID_TOOL_PARAMS"
+        and modifier_apply.get("version_status") == "no-version-created"
+        and modifier_apply.get("confirm_status") == "approval-required"
+        and modifier_apply.get("export_status") == "locked-until-confirm"
+        and modifier_apply.get("quality_status") == "structural_only"
+        and modifier_apply.get("full_mcp_response_bytes", 1024 * 1024 + 1)
+        <= modifier_apply.get("max_response_bytes", 0)
+        == 1024 * 1024
+        and gates["modifier_apply_source"]
+        == "PASS_SOURCE_STRUCTURAL_CANDIDATE_BOUND_PART_EXACT_STAGING",
+        "Candidate-bound Modifier Apply source/derived replay, Part binding, restart, approval or budget boundary drifted",
+    )
+
+    projection_v2_receipt_path = (
+        "docs/evidence/mcp010f/game-weapon-animated-glb-socket-transform-projection-v2-source-gate-20260822.json"
+    )
+    require(
+        projection_v2_receipt_path in manifest["evidence"],
+        "Animated socket transform Projection@2 receipt is not inventoried",
+    )
+    require(
+        sha256_file(GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_RECEIPT_PATH)
+        == EXPECTED_GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_RECEIPT_SHA256,
+        "frozen Animated socket transform Projection@2 receipt changed without an explicit checker revision",
+    )
+    projection_v2_receipt = load_json(GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_RECEIPT_PATH)
+    require(
+        projection_v2_receipt.get("schema_version")
+        == "ForgeCADGameWeaponAnimatedGlbSocketTransformProjectionV2SourceGate@1"
+        and projection_v2_receipt.get("task_id") == truth["task_id"]
+        and projection_v2_receipt.get("status") == "PASS_PUBLIC_RUNTIME_DURABLE_STRUCTURAL_ONLY",
+        "Animated socket transform Projection@2 receipt identity drifted",
+    )
+    require(
+        projection_v2_receipt.get("canonical_sha256") == canonical_sha256(projection_v2_receipt),
+        "Animated socket transform Projection@2 receipt canonical hash mismatch",
+    )
+    projection_surface = projection_v2_receipt.get("contract_and_surface", {})
+    require(
+        projection_surface.get("contract_schema_count") == 402
+        and projection_surface.get("mcp_read_count") == 90
+        and projection_surface.get("mcp_write_count") == 69
+        and projection_surface.get("mcp_total_count") == 159
+        and projection_surface.get("source_tool_summary_canonical_sha256")
+        == EXPECTED_GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_TOOL_SUMMARY_SHA256,
+        "Animated socket transform Projection@2 source counts or summary binding drifted",
+    )
+    projection_boundary = projection_v2_receipt.get("durable_boundary", {})
+    require(
+        projection_boundary.get("store_projection_focused") == "PASS_9_OF_9"
+        and projection_boundary.get("store_full_lib") == "PASS_101_OF_101"
+        and projection_boundary.get("runtime_projection_module_focused") == "PASS_4_OF_4"
+        and projection_boundary.get("runtime_public_fixture") == "PASS_1_OF_1"
+        and projection_boundary.get("mcp_projection_focused") == "PASS_2_OF_2"
+        and projection_boundary.get("mcp_full_same_cohort") == "PASS_138_OF_138"
+        and projection_boundary.get("contracts_checker") == "PASS_380_SCHEMAS",
+        "Animated socket transform Projection@2 focused or full evidence drifted",
+    )
+    fixture = projection_v2_receipt.get("public_fixture_attempt", {})
+    require(
+        fixture.get("build_cohort_sha256")
+        == "c0606e674897a324a70a64fd6ffe0a6238444090e4b090cbb23650426b5096a6"
+        and fixture.get("duration_seconds") == 722.21
+        and fixture.get("restart_read_only") is True
+        and fixture.get("parent_key_present_in_cas") is False,
+        "Animated socket transform Projection@2 public fixture cohort or read-only boundary drifted",
+    )
+    projection_quality = projection_v2_receipt.get("quality_truth", {})
+    require(
+        projection_quality.get("structural_status") == "structural_only"
+        and projection_quality.get("visual_quality") == "NOT_PROVEN"
+        and projection_quality.get("commercial_fps_weapon_quality") == "NOT_PROVEN"
+        and projection_quality.get("human_review") == "NOT_RUN"
+        and projection_quality.get("actual_engine_roundtrip") is False
+        and projection_quality.get("stage_advanced") is False
+        and projection_quality.get("candidate_confirmed") is False
+        and projection_quality.get("version_created") is False
+        and projection_quality.get("export_performed") is False,
+        "Animated socket transform Projection@2 receipt promoted quality, engine, stage or export truth",
+    )
+    downstream = projection_v2_receipt.get("downstream_boundaries", {})
+    require(
+        downstream.get("animated_socket_attachment_positive") is False
+        and downstream.get("typed_particles_v2_positive_integration") is False
+        and downstream.get("typed_trails_v2_positive_integration") is False
+        and downstream.get("typed_trails_bloom_v2_positive_integration") is False
+        and downstream.get("downstream_particles_currently_consumes") == "V1_PROJECTION",
+        "Animated socket transform Projection@2 receipt falsely claims V2 downstream integration",
+    )
 
 
 def check_truth() -> dict[str, Any]:
@@ -1507,14 +2145,31 @@ def check_truth() -> dict[str, Any]:
     require(read_names == sorted(set(read_names)), "tool summary read names are duplicate or unsorted")
     require(write_names == sorted(set(write_names)), "tool summary write names are duplicate or unsorted")
     require(set(read_names).isdisjoint(write_names), "tool summary classifies a tool as both read and write")
-    require(parsed_read_names == read_names, "MCP source parser and compiled summary disagree on read tools")
-    require(parsed_write_names == write_names, "MCP source parser and compiled summary disagree on write tools")
+    require(
+        parsed_read_names == read_names,
+        "MCP source parser and frozen compiled summary disagree on read tools: "
+        f"source_count={len(parsed_read_names)} frozen_count={len(read_names)} "
+        f"source_only={sorted(set(parsed_read_names) - set(read_names))} "
+        f"frozen_only={sorted(set(read_names) - set(parsed_read_names))}",
+    )
+    require(
+        parsed_write_names == write_names,
+        "MCP source parser and frozen compiled summary disagree on write tools: "
+        f"source_count={len(parsed_write_names)} frozen_count={len(write_names)} "
+        f"source_only={sorted(set(parsed_write_names) - set(write_names))} "
+        f"frozen_only={sorted(set(write_names) - set(parsed_write_names))}",
+    )
     require(tool_summary.get("read_count") == len(read_names), "tool summary read count is stale")
     require(tool_summary.get("write_count") == len(write_names), "tool summary write count is stale")
     require(tool_summary.get("total_count") == len(read_names) + len(write_names), "tool summary total count is stale")
+    # The frozen receipt is emitted by the compiled MCP and hashes complete
+    # tool definitions, including input schemas.  The independent source
+    # parser below intentionally projects names only, so its digest must never
+    # be substituted for the compiled receipt's canonical hash.  The full
+    # source gate rebuilds the MCP and compares this receipt byte-for-value.
     require(
-        tool_summary.get("canonical_sha256") == canonical_sha256(tool_summary),
-        "tool summary canonical hash mismatch",
+        re.fullmatch(r"[0-9a-f]{64}", str(tool_summary.get("canonical_sha256"))) is not None,
+        "compiled tool summary canonical hash is malformed",
     )
     tasks = task_rows()
     in_progress = sorted(task_id for task_id, row in tasks.items() if row["status"] == "in_progress")
@@ -1592,6 +2247,17 @@ def check_truth() -> dict[str, Any]:
 
 
 def main() -> int:
+    if len(sys.argv) == 2 and sys.argv[1] in {
+        "--source-tool-summary",
+        "--print-source-tool-summary",
+    }:
+        print(json.dumps(source_tool_summary_report(), ensure_ascii=False, sort_keys=True))
+        return 0
+    if len(sys.argv) > 1:
+        raise SystemExit(
+            "usage: check_mcp010f_stage0_truth.py "
+            "[--source-tool-summary]"
+        )
     summary = check_truth()
     print(json.dumps({"schema_version": "ForgeCADMCP010FStage0TruthGate@1", "status": "PASS", **summary}, ensure_ascii=False, sort_keys=True))
     return 0

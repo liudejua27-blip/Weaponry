@@ -1,0 +1,52 @@
+{
+  "schema_version": "ForgeCADGameWeaponAnchorSourceGate@1",
+  "task_id": "FGC-MCP010F-GAME-ANCHOR-01",
+  "status": "PASS_ENGINE_NEUTRAL_STRUCTURAL_ONLY",
+  "contracts": {
+    "schema_count": 221,
+    "anchor_schema_count": 6,
+    "closed_contract_checker": "PASS"
+  },
+  "runtime": {
+    "durable_cas_sidecar": "PASS",
+    "sqlite_link_and_reachability": "PASS",
+    "idempotent_replay": "PASS",
+    "prewrite_conflict_rejection": "PASS",
+    "restart_get_all_lod_revalidation": "PASS",
+    "six_role_revalidation": "PASS",
+    "candidate_confirmed": false,
+    "export_performed": false
+  },
+  "mcp": {
+    "read_tool": "game_weapon_anchor_get",
+    "write_tool": "game_weapon_anchor_prepare",
+    "default_write_visibility": "HIDDEN",
+    "write_opt_in_required": true,
+    "wire_budget_bytes": 1048576
+  },
+  "raw_stdio_receipt": "docs/evidence/mcp010f/game-weapon-anchor-raw-stdio-20260821.json",
+  "threejs_receipt": "docs/evidence/mcp010f/threejs-game-weapon-anchor-consumer-20260821.json",
+  "semantic_scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+  "functional_semantics": false,
+  "pivot_status": "NOT_PROVEN_RUNTIME_PIVOT",
+  "glb_anchor_nodes_materialized": false,
+  "actual_commercial_engine_roundtrip": false,
+  "engine_results": {
+    "threejs_object3d_math": "PASS_STRUCTURAL_ONLY",
+    "godot": "NOT_RUN",
+    "unity": "NOT_RUN",
+    "unreal": "NOT_RUN"
+  },
+  "quality_status": "structural_only",
+  "overall_visual_status": "QUALITY_TARGET_NOT_MET",
+  "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+  "camera_status": "MISMATCH",
+  "hq360_status": "BLOCKED_REFERENCE_COVERAGE",
+  "limitations": [
+    "sidecar helpers are not GLB nodes or commercial-engine sockets",
+    "pivot execution is not proven",
+    "Part role binding remains owner-Part metadata rather than full source/material provenance",
+    "no ballistics, damage, hitbox, physics, manufacturing or operation semantics",
+    "structural gates do not establish likeness or production game readiness"
+  ]
+}

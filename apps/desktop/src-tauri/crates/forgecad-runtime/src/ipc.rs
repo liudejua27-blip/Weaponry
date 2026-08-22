@@ -602,6 +602,25 @@ fn runtime_error_code(error: &RuntimeError) -> String {
             if detail.starts_with("PRIMARY_FORM_REPAIR_INVALID:") {
                 return primary_form_invalid_code(detail).to_owned();
             }
+            if detail.starts_with("SILHOUETTE_FIT_INVALID:") {
+                let reason = detail.trim_start_matches("SILHOUETTE_FIT_INVALID:").trim();
+                let code = if reason == "canonical_sha256 does not bind intent" {
+                    "SILHOUETTE_FIT_INVALID_CANONICAL"
+                } else if reason.starts_with("view_spec:") {
+                    "SILHOUETTE_FIT_INVALID_VIEW_SPEC"
+                } else if reason == "rig is required" {
+                    "SILHOUETTE_FIT_INVALID_RIG_REQUIRED"
+                } else if reason == "base_camera is required" {
+                    "SILHOUETTE_FIT_INVALID_CAMERA_REQUIRED"
+                } else if reason.starts_with("optimizer") || reason == "unsupported optimizer" {
+                    "SILHOUETTE_FIT_INVALID_OPTIMIZER"
+                } else if reason == "request must be an object" {
+                    "SILHOUETTE_FIT_INVALID_REQUEST"
+                } else {
+                    "SILHOUETTE_FIT_INVALID"
+                };
+                return code.to_owned();
+            }
             if detail.starts_with("SILHOUETTE_FIT_REJECTED:") {
                 let reason = detail.trim_start_matches("SILHOUETTE_FIT_REJECTED:").trim();
                 let code = if reason.starts_with("STRICT_GLB_READBACK_FAILED")
@@ -675,6 +694,9 @@ fn runtime_error_code(error: &RuntimeError) -> String {
         }
         RuntimeError::Store(StoreError::Cas(CasError::UnsafeRoot)) => {
             "STORE_CAS_UNSAFE_ROOT".to_owned()
+        }
+        RuntimeError::Store(StoreError::Cas(CasError::PutLockPoisoned)) => {
+            "STORE_CAS_PUT_LOCK_POISONED".to_owned()
         }
         RuntimeError::Store(StoreError::Cas(CasError::Io(_))) => "STORE_CAS_IO".to_owned(),
         RuntimeError::Store(StoreError::Io(_)) => "STORE_IO".to_owned(),
@@ -802,6 +824,18 @@ mod tests {
                 "OPTIMIZATION_INTENT_CANONICAL_HASH_MISMATCH: canonical_sha256 does not bind intent".to_owned(),
             )),
             "OPTIMIZATION_INTENT_CANONICAL_HASH_MISMATCH"
+        );
+        assert_eq!(
+            runtime_error_code(&RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent".to_owned(),
+            )),
+            "SILHOUETTE_FIT_INVALID_CANONICAL"
+        );
+        assert_eq!(
+            runtime_error_code(&RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INVALID: optimizer.step_fraction is outside (0,0.5]".to_owned(),
+            )),
+            "SILHOUETTE_FIT_INVALID_OPTIMIZER"
         );
     }
 

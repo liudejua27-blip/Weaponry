@@ -1,0 +1,93 @@
+{
+  "schema_version": "ForgeCADMCP010FContinuousUvSourceGate@1",
+  "task_id": "FGC-MCP010F-MAT-02",
+  "recorded_on": "2026-08-20",
+  "source_revision": "993c0ec38409ed7a9b8b9c39b67c585d1ccfb36a",
+  "source_worktree_state": "dirty-preserved-user-and-prior-goal-changes",
+  "status": "PASS_SOURCE_STRUCTURAL_CONTINUOUS_UV_ATLAS_V1",
+  "scope": "product-owned deterministic continuous UV islands for the closed fictional energy weapon MaterialPack path",
+  "policy": {
+    "packing": "connected-dominant-axis-islands@1",
+    "resolution": 2048,
+    "padding_texels": 8,
+    "atlas_count": 1,
+    "seam_policy": "edge-shared-or-explicit-seam@1",
+    "overlap_policy": "disjoint-grid-cells@1 with intra-chart positive-area rejection and deterministic seam fallback",
+    "legacy_robot_policy": "512px triangle-chart-grid remains unchanged"
+  },
+  "producer_truth": {
+    "artifact_wide_allocator": true,
+    "shared_edge_uv_continuity": true,
+    "disconnected_source_and_projection_boundaries_are_explicit_seams": true,
+    "overlapping_complex_projection_is_split_to_explicit_seams": true,
+    "fixed_mikktspace_admission_then_per_triangle_physical_tangent_finalization": true,
+    "caller_path_url_script_network_or_random_source": false
+  },
+  "strict_readback": {
+    "reads_actual_texcoord_accessor_and_bin": true,
+    "validates_chart_assignment_hash": true,
+    "validates_chart_id_coverage": true,
+    "validates_uv_bounds_and_eight_texel_padding": true,
+    "validates_same_chart_shared_edge_continuity": true,
+    "validates_positive_area_overlap": true,
+    "overlap_comparison_budget": 1000000,
+    "tampered_texcoord_bin_rejected": true
+  },
+  "same_cohort_raw_probe": {
+    "build_cohort_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+    "appearance_pack_id": "forgecad-fictional-energy-weapon",
+    "appearance_pack_manifest_sha256": "4a56fa58af1e8a0cd218f880f61112d465725a79eb70ed2aa0076eb5408ac999",
+    "geometry_program_sha256": "4df4a9a7fb18bcc5e0fed922f8d3f55c531fb1447e3270a4fc0869b05d7bf423",
+    "geometry_artifact_sha256": "a756a1669b21c8e31b3a4909dfd66986f5446f8b3e604e4dd2f429b1e180b821",
+    "appearance_artifact_sha256": "13ad32263a488a26832d5b62b688725e87b0491f3e9c1fb85d6a38977cf5201e",
+    "part_count": 3,
+    "triangle_count": 524,
+    "chart_count": 319,
+    "aov_count": 9,
+    "external_uri_count": 0,
+    "physical_glb_uv_metadata_read_from_cas": true,
+    "artifact_readback": "ArtifactReadback@2 hard_gate_passed",
+    "persistent_user_data_touched": false
+  },
+  "source_sha256": {
+    "geometry_worker": "270b1e27c390025bf54999847a6b49bdf914d3fedf5c95ab7e4f97e2204dc422",
+    "strict_integrity": "bbe475abacdb049fc9d143c1339c621093b3c0d49d01d4d6a630c86a4a5a26fa",
+    "raw_stdio_probe": "f83c2fa46758b2f85eebfbee3e0405c789598cfdf0fe14557e519210a7f2c1d7",
+    "raw_stdio_gate": "0fe17644efec1b97be52ad87bb4c5f81ab62bc422617889bf17edb199a09fc4e",
+    "material_pack_manifest_file": "e67ed4488481245fd4467fb4ef56da241aba380d6cf189304c01a91d0d4d3a9a"
+  },
+  "verification": {
+    "geometry_worker_full": "PASS_64_OF_64",
+    "runtime_full_test_worker_fallback": "PASS_235_FAILED_0_IGNORED_12_PLUS_BINARY_1_OF_1",
+    "legacy_robot_512_regression": "PASS",
+    "weapon_continuous_uv_positive_and_bin_tamper": "PASS",
+    "same_cohort_raw_weapon_probe": "PASS",
+    "contracts": "PASS_195_SCHEMAS",
+    "independent_luna_uv_review": "ACCEPTED_PASS_SOURCE_STRUCTURAL_CONTINUOUS_UV_ATLAS_V1_P0_0_P1_POLICY_PROJECTION_PENDING",
+    "independent_luna_evidence_review": "ACCEPTED_P0_0_UV_POLICY_DISTINCT_FROM_2K_TEXTURE_AND_BAKE"
+  },
+  "current_user_candidate_mutated": false,
+  "downloads_or_external_assets": false,
+  "quality_boundaries": {
+    "uv_atlas_coordinate_policy_2048": "PASS_SOURCE_STRUCTURAL",
+    "actual_texture_resolution_2048x2048": "NOT_IMPLEMENTED",
+    "candidate_bound_normal_bake": "NOT_RUN",
+    "candidate_bound_ao_bake": "NOT_RUN",
+    "decal_layer": "NOT_IMPLEMENTED",
+    "wear_layer": "NOT_IMPLEMENTED",
+    "clearcoat_texture_layer": "NOT_IMPLEMENTED",
+    "same_candidate_pbr_visual": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "package_live": "NOT_RUN",
+    "engine_import": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "overall_quality_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "known_limitations": [
+    "The 2048 value in this atom is the UV atlas coordinate and padding policy; embedded texture bytes remain the admitted 512px pack and are not represented as 2K.",
+    "Dominant-axis projection preserves connected hard-surface regions where overlap-free; complex curved regions are conservatively split into explicit seams instead of claiming a continuous parameterization.",
+    "The material surface design skill keeps appearance writes to the current user candidate locked while silhouette and evidence binding gates fail.",
+    "This is source and isolated transport evidence, not visual likeness, Blender parity, engine parity, or commercial asset quality."
+  ]
+}

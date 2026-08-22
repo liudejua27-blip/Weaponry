@@ -1,0 +1,30 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "forgecad-fictional-energy-weapon-1.0.0",
+  "documentNamespace": "https://forgecad.local/spdx/forgecad-fictional-energy-weapon/1.0.0",
+  "creationInfo": {
+    "created": "2026-08-20T00:00:00Z",
+    "creators": ["Organization: forgecad-first-party"]
+  },
+  "packages": [
+    {
+      "name": "forgecad-fictional-energy-weapon",
+      "SPDXID": "SPDXRef-Package-WeaponMaterialPack",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "CC0-1.0",
+      "licenseDeclared": "CC0-1.0",
+      "copyrightText": "NOASSERTION"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-WeaponMaterialPack"
+    }
+  ]
+}

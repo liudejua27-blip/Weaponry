@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/subdivision-evaluation-result.schema.json",
+  "title": "SubdivisionEvaluationResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "representation_plan_sha256", "part_id",
+    "material_zone_id", "solid", "input_sha256", "control_cage_sha256",
+    "evaluation_policy_sha256", "predicted_topology_sha256", "program_sha256",
+    "operator_catalog_sha256", "predicted_topology", "attribute_policy",
+    "geometry_program", "validator_status", "validator_scope", "quality_status", "limitations",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SubdivisionEvaluationResult@2"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "solid": {"const": false},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "control_cage_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "predicted_topology_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "predicted_topology": {"$ref": "#/$defs/predicted_topology"},
+    "attribute_policy": {"$ref": "#/$defs/attribute_policy"},
+    "geometry_program": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json"},
+    "validator_status": {"const": "passed"},
+    "validator_scope": {"const": "typed-policy-and-program-hash-only"},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {
+      "const": [
+        "regular_rectangular_open_quad_grid_only",
+        "creases_unsupported",
+        "adaptive_subdivision_unsupported",
+        "limit_surface_not_evaluated",
+        "face_varying_uv_not_interpolated",
+        "per_element_lineage_not_available",
+        "non_triangle_budgets_worker_validated_not_measured",
+        "compiled_geometry_not_created",
+        "candidate_not_created",
+        "visual_quality_not_evaluated"
+      ]
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "count": {"type": "integer", "minimum": 1, "maximum": 250000},
+    "predicted_topology": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "control_vertex_count", "control_edge_count", "control_quad_count",
+        "evaluated_u_points", "evaluated_v_points", "evaluated_vertex_count",
+        "evaluated_quad_count", "evaluated_triangle_count", "boundary_edge_count"
+      ],
+      "properties": {
+        "control_vertex_count": {"$ref": "#/$defs/count"},
+        "control_edge_count": {"$ref": "#/$defs/count"},
+        "control_quad_count": {"$ref": "#/$defs/count"},
+        "evaluated_u_points": {"type": "integer", "minimum": 2, "maximum": 61},
+        "evaluated_v_points": {"type": "integer", "minimum": 2, "maximum": 61},
+        "evaluated_vertex_count": {"$ref": "#/$defs/count"},
+        "evaluated_quad_count": {"$ref": "#/$defs/count"},
+        "evaluated_triangle_count": {"$ref": "#/$defs/count"},
+        "boundary_edge_count": {"$ref": "#/$defs/count"}
+      }
+    },
+    "attribute_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["normals", "uv", "tangents", "material_zone"],
+      "properties": {
+        "normals": {"const": "worker-regenerated-smooth"},
+        "uv": {"const": "worker-triangle-chart-postprocess"},
+        "tangents": {"const": "worker-mikktspace-0.3.0-postprocess"},
+        "material_zone": {"const": "part-output-only"}
+      }
+    }
+  }
+}

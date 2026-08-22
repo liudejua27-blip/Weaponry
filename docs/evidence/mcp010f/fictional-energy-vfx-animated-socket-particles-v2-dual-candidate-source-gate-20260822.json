@@ -1,0 +1,155 @@
+{
+  "schema_version": "ForgeCADFictionalEnergyVfxAnimatedSocketParticlesV2DualCandidateSourceGate@1",
+  "task_id": "FGC-MCP010F-ANIMATED-SOCKET-PARTICLES-V2-22",
+  "recorded_on": "2026-08-22",
+  "status": "PASS_PUBLIC_RUNTIME_DURABLE_STRUCTURAL_ONLY",
+  "scope": {
+    "v1_v2_isolation": true,
+    "dual_candidate_geometry_appearance": true,
+    "source_candidate_output_candidate_must_differ": true,
+    "frame_scope": "1..16",
+    "runtime_store_single_writer": true,
+    "new_cas_kinds": false,
+    "parent_key_is_cas": false,
+    "full_public_runtime_durable_positive_fixture": true
+  },
+  "contract_and_surface": {
+    "contract_schema_count": 350,
+    "contract_manifest_sha256": "f3f452fdf7fd338258eb0a87aa5dfacfb15429e2d23a41fcc8cf07809ff0522c",
+    "schema_content_set_sha256": "5954973dbe040fe2c226840af9ea90164719cfac03f03a014c0765334dd05156",
+    "mcp_read_count": 80,
+    "mcp_write_count": 60,
+    "mcp_total_count": 140,
+    "mcp_read_manifest_sha256": "3e8ad15d34fc11459c867c4fd61093b9690415e1c0bc8f14b4c524b9d8781966",
+    "mcp_write_manifest_sha256": "890680e33cafccee9791b3f09f2fc9a0f4a8e290dc752961939df622eeeef5b0",
+    "source_tool_summary_canonical_sha256": "ab269fa22edc828ba9dc17f8b48884a6438d19050c44e3751c7ce0dda0477edc",
+    "source_tool_summary_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json"
+  },
+  "durable_boundary": {
+    "store_v2_focused": "PASS_2_OF_2",
+    "store_full_lib": "PASS_74_OF_74",
+    "runtime_v2_low_level_focused": "PASS_6_OF_6",
+    "runtime_cargo_check": "PASS",
+    "mcp_v2_focused": "PASS_3_OF_3",
+    "material_surface_quality_public_fixture": "PASS_1_OF_1",
+    "material_surface_quality_runtime_focused": "PASS_5_OF_5",
+    "public_runtime_durable_prepare_store_restart_get": "PASS_PREPARE_STORE_RESTART_GET_STRUCTURAL_ONLY",
+    "durable_end_to_end": "PASS_STRUCTURAL_ONLY",
+    "fixture_status": "PASS_DURABLE_STRUCTURAL_ONLY",
+    "reason": "The same-cohort public dual-candidate V2 fixture completed prepare, Store commit, replay, read-only get and restart readback; all six owned CAS objects were verified by kind, MIME, SHA and reachability."
+  },
+  "store_surface": {
+    "parent_table": "fictional_energy_vfx_animated_socket_particles_v2_sequence_links",
+    "child_table": "fictional_energy_vfx_animated_socket_particles_v2_frames",
+    "frame_rows": "exactly 1..16",
+    "bindings": "geometry and appearance candidate/state/delivery/artifact, material-surface quality bridge, dual AnchorSet, animation/socket/projection and per-frame base/Bloom FK bindings",
+    "transaction": "single SQLite transaction with closed FK/kind/hash validation",
+    "reachability": "dual source chains and owned receipt/frame outputs marked reachable; linked GC query covers both chains",
+    "replay": "same-key replay normalizes only created_at/canonical; retarget/conflict fails closed",
+    "rollback": "reservation cleanup is limited to newly-created unlinked objects",
+    "v1_mutation": false,
+    "new_cas_kinds": false
+  },
+  "cas_assertions": {
+    "first_write_owned_object_count": 6,
+    "first_write_owned_object_kinds": [
+      "fictional-energy-vfx-animated-socket-particles-sequence-receipt:application/json:1",
+      "fictional-energy-vfx-animated-socket-particles-render-set:application/json:1",
+      "fictional-energy-vfx-animated-socket-particles-frame-receipt:application/json:1",
+      "fictional-energy-vfx-animated-socket-particles-color:image/png:1",
+      "fictional-energy-vfx-animated-socket-particles-id:image/png:1",
+      "fictional-energy-vfx-animated-socket-particles-depth:image/png:1"
+    ],
+    "first_write_all_owned_reachable": true,
+    "parent_key_present_in_cas": false,
+    "replay_new_cas_objects": 0,
+    "get_new_cas_objects": 0,
+    "restart_get_new_cas_objects": 0,
+    "source_objects_unchanged": true,
+    "rollback_created_new_unlinked_only": true
+  },
+  "runtime_surface": {
+    "validation_order": "closed schema/canonical, dual candidate/delivery bridge, material-quality projection, dual AnchorSet/projection/animation/VFX/frame dependency revalidation, and per-frame binding checks precede reservation",
+    "reservation": "created only after zero-write validation; commit releases reservation, failures clean only this attempt's new unlinked CAS",
+    "get": "read-only restart revalidation; no raw GLB/PNG bytes in MCP response",
+    "v1_v2_isolation": true,
+    "public_fixture_attempted": true,
+    "public_positive_fixture": true
+  },
+  "public_fixture_attempt": {
+    "status": "PASS_DURABLE_STRUCTURAL_ONLY",
+    "focused_result": "PASS_1_OF_1",
+    "duration_seconds": 206.19,
+    "reached_phase": "V2_PARTICLE_RENDER_WORKER_STORE_COMMIT_REPLAY_GET_RESTART",
+    "first_error": null,
+    "prepare_store_restart_get_completed": true,
+    "durable_positive_proven": true
+  },
+  "integration_gaps_corrected_before_attempt": {
+    "camera_cas_kind": "camera-calibration",
+    "vfx_aov_kinds": "appearance-v2-render-*",
+    "clip_lookup_canonical": "empty-canonical-fields-normalized",
+    "clip_get": "returns-link-record",
+    "projection_sample_schedule": "exact-bound",
+    "runtime_emitter_schema": "RenderWorkerAnimatedSocketEmitterBindings@1",
+    "interpretation": "These source corrections were independently revalidated by the successful same-cohort V2 structural prepare, Store, replay, get and restart chain."
+  },
+  "regression_evidence": {
+    "build_cohort_sha256": "724278fe8f6777c8b3d07bc5058208aee90aa5c700db5f9284d6297126fa79f6",
+    "runtime_full": {
+      "passed": 315,
+      "failed": 0,
+      "ignored": 20,
+      "duration_seconds": 278.75
+    },
+    "mcp_full": {
+      "passed": 128,
+      "failed": 0,
+      "ignored": 0,
+      "duration_seconds": 1.93
+    },
+    "interpretation": "All listed results are same-cohort structural evidence. Runtime full regression, Store, Render Worker and MCP conformance remain separate from the public V2 fixture, which independently completed its durable prepare, replay, get and restart readback."
+  },
+  "current_attempt_verification": {
+    "contracts_checker": "PASS_350_SCHEMAS",
+    "store_full_lib": "PASS_74_OF_74",
+    "runtime_public_v2_fixture_focused": "PASS_1_OF_1_206_19_SECONDS",
+    "runtime_full": "PASS_315_OF_315_20_IGNORED_278_75_SECONDS",
+    "cargo_fmt_check": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "quality_truth": {
+    "structural_status": "structural_only",
+    "visual_quality": "NOT_PROVEN",
+    "artistic_quality": "NOT_PROVEN",
+    "commercial_fps_quality": "NOT_PROVEN",
+    "human_review": "NOT_RUN",
+    "commercial_engine": "NOT_RUN",
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "overall_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "source_hashes": {
+    "contracts_manifest_sha256": "f3f452fdf7fd338258eb0a87aa5dfacfb15429e2d23a41fcc8cf07809ff0522c",
+    "store_lib_sha256": "829761411fe598aa5f5c1dc99277944795a820bf363fd171131569fd21905087",
+    "runtime_v2_sha256": "a9bd272fbdd4593fdf0a870756d507fb8989c27bc4f06fdce78d2aaaaa3f066a",
+    "runtime_lib_sha256": "06f509169383da5b0b34826ae788f70dea3b0ee8cd663f9407aaa00fd7dbc6bd",
+    "runtime_game_asset_delivery_sha256": "71c10acff2d133eb94f75481c8e65ccf6fd271dc960ca361a266d1a9c591fd33",
+    "runtime_render_worker_sha256": "d746853b887f024d3b626c03b9077d285f940863b07d140665e3979810cf88d7",
+    "mcp_main_sha256": "5a5a99c82c6523da4fd24552876b8cfd3b49cad2f61ee9b22a642a1c0fb45ffb",
+    "mcp_agentic_write_sha256": "b90863dafeedb698f0a80de9aeeb86a3aa31e87128cadf70bf4c9bca1917ef72",
+    "source_tool_summary_sha256": "de08a857d1d746b4cf16e85792f9d756267e5e40f59ee4086707f94774adf67e"
+  },
+  "limitations": [
+    "The upstream CandidateMaterialSurfaceQuality public prepare/replay/get/restart fixture is PASS_1_OF_1, and the corrected camera/AOV/clip/projection/emitter bindings were independently revalidated by the V2 fixture.",
+    "The same-cohort dual-candidate V2 fixture passed 1/1 in 206.19 seconds through particle rendering, one atomic Store commit, exact-key replay, read-only get and restart readback. First write produced exactly six owned CAS objects (one sequence receipt, one render set, one frame receipt and three PNG passes); replay/get/restart produced zero new CAS objects and the parent key was not a CAS object.",
+    "This is fictional non-functional game-art infrastructure only; it does not describe a manufacturable weapon or operational behavior.",
+    "No visual likeness, PBR/artistic/commercial FPS quality, human review, or commercial-engine round-trip is proven."
+  ],
+  "canonical_sha256": "3866bed6f07c8d6ec0bd687bf113e4487277a94dd236052f453a1071b8994752"
+}

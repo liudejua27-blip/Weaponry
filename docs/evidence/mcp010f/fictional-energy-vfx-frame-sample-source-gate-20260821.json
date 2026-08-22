@@ -1,0 +1,110 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F/VFX-FRAME-02/typed-frame-sampling",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_STRUCTURAL_READ_ONLY_FRAME_SAMPLING",
+  "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+  "contracts": {
+    "schema_count": 229,
+    "request_schema": "FictionalEnergyVfxFrameSampleRequest@1",
+    "result_schema": "FictionalEnergyVfxFrameSample@1",
+    "closed_contract_checker": "PASS",
+    "request_schema_sha256": "f852dc7b154a51a94dd5ec696e4ec2c4e35fb78c78face6a0a675531df0cb283",
+    "result_schema_sha256": "36afda1500772ef0d46bab28ba3630f7b362e359eaa6e2e50b5eb0fda314f594",
+    "manifest_sha256": "d0c7cca8cddf04b1da50cd9440e373c8c80d40a8fbf46626999a104a18b6bf97"
+  },
+  "source_files": [
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/game_asset_delivery.rs",
+      "sha256": "b45bc6dac4461d25a3722f3b45d59edbf4e0060868432dc1728433e328b165f9"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+      "sha256": "1bfc337e6c598ff0a160fd5b919a9ab70505f471b883a0c50bc3be2a65b572a0"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
+      "sha256": "32f4183b3f01e5d782d138dda0e03606cd6f5449ebc7560b894138039e805f5e"
+    },
+    {
+      "path": "scripts/check_forgecad_contracts.py",
+      "sha256": "ea01ad643bf9b23e639c704044ad5f19fdf622961dd9c2a5429414303ba17771"
+    },
+    {
+      "path": "scripts/probe_game_asset_delivery_raw_stdio.py",
+      "sha256": "b995100a495e067f76fc60b8868ec01b05221ba02d5bfd72fe6f3238b21a6047"
+    }
+  ],
+  "runtime": {
+    "sampling_policy": "integer-tick-linear-once-clamp-loop-modulo-duration@1",
+    "timebase_hz": 1000,
+    "interpolation": "LINEAR",
+    "once_exact_duration_resolves_to_end": true,
+    "loop_exact_duration_resolves_to_zero": true,
+    "profile_and_delivery_hash_binding": "PASS",
+    "restart_replay": "PASS_IDENTICAL_RESULT",
+    "cas_object_count_unchanged": true,
+    "runtime_write_performed": false,
+    "persistent_user_data_touched": false
+  },
+  "mcp": {
+    "read_tool": "fictional_energy_vfx_frame_sample",
+    "default_read_visibility": "VISIBLE",
+    "read_count": 59,
+    "write_count": 40,
+    "total_count": 99,
+    "wire_budget_bytes": 1048576,
+    "negative_tick": "REJECTED_INVALID_TOOL_PARAMS"
+  },
+  "focused_tests": [
+    {
+      "name": "Runtime durable profile frame sampling and restart replay",
+      "result": "PASS_1_OF_1"
+    },
+    {
+      "name": "MCP closed schema, tool split and manifest tests",
+      "result": "PASS_4_OF_4"
+    },
+    {
+      "name": "raw stdio frame samples",
+      "result": "PASS",
+      "assertions": [
+        "tick 50 resolves muzzle pulse to strength 4.0",
+        "tick 50 resolves energy-core breathe to strength 3.3",
+        "tick 1000 clamps the once effect to tick 200 and strength 0.0",
+        "tick 1000 wraps the loop effect to tick 0 and strength 3.0",
+        "negative tick is rejected",
+        "sampling performs no Runtime write"
+      ]
+    }
+  ],
+  "raw_stdio_receipt": {
+    "path": "docs/evidence/mcp010f/fictional-energy-vfx-frame-sample-raw-stdio-20260821.json",
+    "sha256": "f8d011d3a7ebcfaca50704f56ff18dbcf9cc1aec1bb24810a5edfb0adbafab04"
+  },
+  "truth_boundaries": {
+    "glb_material_zone_binding_verified": false,
+    "appearance_program_v2_or_v3_provenance_verified": false,
+    "all_lod_appearance_binding_verified": false,
+    "emissive_animation_rendered": false,
+    "runtime_cas_frame_receipt_complete": false,
+    "anchor_is_glb_node_or_socket": false,
+    "bloom_rendered": false,
+    "particles_rendered": false,
+    "trails_rendered": false,
+    "actual_engine_roundtrip": false,
+    "candidate_confirmed": false,
+    "export_performed": false,
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_status": "MISMATCH",
+    "hq360_status": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "the current three LOD fixture artifacts are geometry candidates and do not prove AppearanceProgram provenance",
+    "the sampled values are structural emissive intent, not rendered material animation",
+    "the existing transient Render Worker override subgate is not yet connected to this Runtime sample",
+    "durable CAS frame receipts require reservation-safe multi-object commit semantics",
+    "structural sampling does not establish commercial visual or engine-delivery parity"
+  ]
+}

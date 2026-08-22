@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-glb-socket-materialization-link.schema.json",
+  "title": "GameWeaponGlbSocketMaterializationLink@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "socket_materialization_key_sha256", "project_id", "delivery_manifest_object_sha256", "anchor_set_object_sha256", "anchor_set_canonical_sha256", "request_sha256", "socket_materialization_policy", "lod_scope", "socket_node_id_encoding_sha256", "receipt_object_sha256", "materialization_status", "canonical_sha256", "created_at"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponGlbSocketMaterializationLink@1"},
+    "socket_materialization_key_sha256": {"$ref": "#/$defs/sha256"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_set_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "socket_materialization_policy": {"const": "gltf-anchor-node-materialization-preserve-renderable-content@1"},
+    "lod_scope": {"const": "lod0-lod1-lod2@1"},
+    "socket_node_id_encoding_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_status": {"const": "runtime-owned-durable-game-weapon-glb-socket-materialization"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 64}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

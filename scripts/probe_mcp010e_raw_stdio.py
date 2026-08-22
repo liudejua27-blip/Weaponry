@@ -58,6 +58,262 @@ def png_dimensions(data: bytes) -> tuple[int, int]:
     return width, height
 
 
+def cas_glb_uv_atlas(data_root: Path, object_sha256: str) -> dict[str, Any]:
+    require(len(object_sha256) == 64, "appearance artifact SHA-256 is invalid")
+    object_path = data_root / "cas" / "objects" / object_sha256[:2] / object_sha256
+    require(object_path.is_file(), "appearance artifact CAS bytes are unavailable")
+    data = object_path.read_bytes()
+    require(len(data) >= 28 and data[:4] == b"glTF", "appearance artifact is not a GLB")
+    json_length = int.from_bytes(data[12:16], "little")
+    require(
+        json_length > 0
+        and 20 + json_length + 8 <= len(data)
+        and data[16:20] == b"JSON",
+        "appearance GLB JSON chunk is invalid",
+    )
+    root = json.loads(data[20 : 20 + json_length])
+    atlas = root.get("extras", {}).get("forgecad", {}).get("uv_atlas")
+    require(isinstance(atlas, dict), "appearance GLB omitted physical UV atlas metadata")
+    return atlas
+
+
+def cas_glb_2k_texture_build(data_root: Path, object_sha256: str) -> dict[str, Any]:
+    object_path = data_root / "cas" / "objects" / object_sha256[:2] / object_sha256
+    data = object_path.read_bytes()
+    json_length = int.from_bytes(data[12:16], "little")
+    json_end = 20 + json_length
+    require(data[json_end + 4 : json_end + 8] == b"BIN\0", "appearance GLB BIN chunk is invalid")
+    binary = data[json_end + 8 : json_end + 8 + int.from_bytes(data[json_end : json_end + 4], "little")]
+    root = json.loads(data[20:json_end])
+    forgecad = root.get("extras", {}).get("forgecad", {})
+    build = forgecad.get("texture_build")
+    images = root.get("images")
+    views = root.get("bufferViews")
+    require(isinstance(build, dict) and isinstance(images, list) and isinstance(views, list), "2K GLB texture build metadata is incomplete")
+    outputs = build.get("outputs")
+    require(isinstance(outputs, list) and len(outputs) >= 2 and len(outputs) <= len(images), "2K GLB output inventory is incomplete")
+    image_by_name = {image.get("name"): image for image in images if isinstance(image, dict)}
+    require(len(image_by_name) == len(images), "2K GLB image names are duplicated or missing")
+    physical: list[dict[str, Any]] = []
+    for output in outputs:
+        require(isinstance(output, dict), "2K GLB output entry is invalid")
+        image = image_by_name.get(output.get("texture_id"))
+        require(isinstance(image, dict), "2K GLB output lacks its embedded image")
+        view = views[image["bufferView"]]
+        stored = binary[view["byteOffset"] : view["byteOffset"] + view["byteLength"]]
+        marker = stored.find(b"IEND")
+        require(marker >= 4 and marker + 8 <= len(stored), "2K embedded PNG lacks IEND")
+        png = stored[: marker + 8]
+        require(all(byte == 0 for byte in stored[marker + 8 :]), "2K embedded PNG has non-zero GLB padding")
+        width, height = png_dimensions(png)
+        actual = {
+            "texture_id": image.get("name"),
+            "sha256": hashlib.sha256(png).hexdigest(),
+            "size_bytes": len(png),
+            "width": width,
+            "height": height,
+        }
+        require(
+            actual["texture_id"] == output.get("texture_id")
+            and actual["sha256"] == output.get("sha256")
+            and actual["size_bytes"] == output.get("size_bytes")
+            and width == output.get("width") == 2048
+            and height == output.get("height") == 2048,
+            "2K embedded PNG physical bytes do not match the bound output inventory",
+        )
+        physical.append(actual)
+    return {"metadata": build, "physical_outputs": physical}
+
+
+def cas_glb_surface_bake(data_root: Path, object_sha256: str) -> dict[str, Any]:
+    object_path = data_root / "cas" / "objects" / object_sha256[:2] / object_sha256
+    data = object_path.read_bytes()
+    json_length = int.from_bytes(data[12:16], "little")
+    json_end = 20 + json_length
+    require(data[json_end + 4 : json_end + 8] == b"BIN\0", "surface bake GLB BIN chunk is invalid")
+    binary = data[json_end + 8 : json_end + 8 + int.from_bytes(data[json_end : json_end + 4], "little")]
+    root = json.loads(data[20:json_end])
+    forgecad = root.get("extras", {}).get("forgecad", {})
+    bake = forgecad.get("surface_bake")
+    images = root.get("images")
+    views = root.get("bufferViews")
+    require(
+        isinstance(bake, dict)
+        and bake.get("schema_version") == "CandidateSurfaceBake@1"
+        and bake.get("resolution") == 2048
+        and bake.get("padding_texels") == 8
+        and bake.get("embedded_only") is True
+        and bake.get("external_uri") is False
+        and bake.get("network_at_runtime") is False
+        and isinstance(images, list)
+        and isinstance(views, list),
+        "candidate surface bake metadata or policy is incomplete",
+    )
+    outputs = bake.get("outputs")
+    require(isinstance(outputs, list) and len(outputs) == 6, "candidate surface bake must contain six outputs")
+    image_by_name = {image.get("name"): (index, image) for index, image in enumerate(images) if isinstance(image, dict)}
+    require(len(image_by_name) == len(images), "candidate surface GLB image names are duplicated")
+    physical: list[dict[str, Any]] = []
+    for output in outputs:
+        require(isinstance(output, dict), "candidate surface output is invalid")
+        image_entry = image_by_name.get(output.get("texture_id"))
+        require(isinstance(image_entry, tuple), "candidate surface output lacks its embedded image")
+        image_index, image = image_entry
+        view = views[image["bufferView"]]
+        stored = binary[view["byteOffset"] : view["byteOffset"] + view["byteLength"]]
+        marker = stored.find(b"IEND")
+        require(marker >= 4 and marker + 8 <= len(stored), "candidate surface PNG lacks IEND")
+        png = stored[: marker + 8]
+        width, height = png_dimensions(png)
+        actual = {
+            "texture_id": image.get("name"),
+            "glb_image_index": image_index,
+            "semantic": output.get("semantic"),
+            "sha256": hashlib.sha256(png).hexdigest(),
+            "size_bytes": len(png),
+            "width": width,
+            "height": height,
+        }
+        require(
+            actual["sha256"] == output.get("sha256")
+            and actual["size_bytes"] == output.get("size_bytes")
+            and width == output.get("width") == 2048
+            and height == output.get("height") == 2048,
+            "candidate surface physical PNG bytes drifted from metadata",
+        )
+        physical.append(actual)
+    metadata_for_hash = copy.deepcopy(bake)
+    stored_hash = metadata_for_hash.pop("canonical_sha256", None)
+    require(
+        isinstance(stored_hash, str) and canonical_hash(metadata_for_hash) == stored_hash,
+        "candidate surface bake canonical hash is invalid",
+    )
+    return {"metadata": bake, "physical_outputs": physical}
+
+
+def cas_candidate_surface_bake_receipt(
+    data_root: Path,
+    object_sha256: str,
+    candidate_id: str,
+    artifact_sha256: str,
+    expected_surface: dict[str, Any],
+    expected_cohort: str | None,
+) -> dict[str, Any]:
+    object_path = data_root / "cas" / "objects" / object_sha256[:2] / object_sha256
+    require(object_path.is_file(), "CandidateSurfaceBakeReceipt@1 CAS object is unavailable")
+    raw = object_path.read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == object_sha256, "CandidateSurfaceBakeReceipt@1 CAS object hash drifted")
+    receipt = json.loads(raw)
+    require(
+        isinstance(receipt, dict)
+        and receipt.get("schema_version") == "CandidateSurfaceBakeReceipt@1"
+        and receipt.get("candidate_id") == candidate_id
+        and receipt.get("artifact_sha256") == artifact_sha256
+        and receipt.get("material_pack_id") == "forgecad-fictional-energy-weapon-2k"
+        and receipt.get("validator_status") == "strict-glb-physical-output-readback-pass"
+        and receipt.get("hard_gate_passed") is True
+        and receipt.get("materialization_status") == "runtime-owned-cas-receipt"
+        and receipt.get("runtime_write_performed") is True
+        and receipt.get("external_uri") is False
+        and receipt.get("network_at_runtime") is False
+        and receipt.get("quality_status") == "structural-only-quality-not-evaluated",
+        "CandidateSurfaceBakeReceipt@1 identity or closed policy is invalid",
+    )
+    if expected_cohort:
+        require(receipt.get("worker_build_cohort_sha256") == expected_cohort, "surface bake Worker cohort drifted")
+    outputs = receipt.get("outputs")
+    physical = expected_surface.get("physical_outputs")
+    require(isinstance(outputs, list) and isinstance(physical, list) and len(outputs) == len(physical) == 6, "surface receipt output inventory drifted")
+    by_id = {item["texture_id"]: item for item in physical}
+    for output in outputs:
+        actual = by_id.get(output.get("texture_id"))
+        require(
+            isinstance(actual, dict)
+            and output.get("sha256") == actual.get("sha256")
+            and output.get("size_bytes") == actual.get("size_bytes")
+            and output.get("glb_image_index") == actual.get("glb_image_index"),
+            "surface receipt does not bind the physical embedded PNG inventory",
+        )
+    receipt_for_hash = copy.deepcopy(receipt)
+    stored_canonical = receipt_for_hash.get("canonical_sha256")
+    receipt_for_hash["canonical_sha256"] = ""
+    require(
+        isinstance(stored_canonical, str) and canonical_hash(receipt_for_hash) == stored_canonical,
+        "CandidateSurfaceBakeReceipt@1 canonical hash is invalid",
+    )
+    return {
+        "object_sha256": object_sha256,
+        "canonical_sha256": stored_canonical,
+        "candidate_id": candidate_id,
+        "artifact_sha256": artifact_sha256,
+        "output_count": len(outputs),
+        "cas_readback": "PASS",
+        "quality_status": receipt.get("quality_status"),
+    }
+
+
+def cas_texture_build_receipt_v2(
+    data_root: Path,
+    object_sha256: str,
+    expected_manifest_sha256: str,
+    expected_build: dict[str, Any],
+) -> dict[str, Any]:
+    """Read back and independently verify the durable 2K receipt from CAS."""
+    require(len(object_sha256) == 64, "TextureBuildReceipt@2 CAS hash is invalid")
+    object_path = data_root / "cas" / "objects" / object_sha256[:2] / object_sha256
+    require(object_path.is_file(), "TextureBuildReceipt@2 CAS object is unavailable")
+    raw = object_path.read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == object_sha256, "TextureBuildReceipt@2 CAS bytes do not match their object hash")
+    receipt = json.loads(raw)
+    require(
+        isinstance(receipt, dict)
+        and receipt.get("schema_version") == "TextureBuildReceipt@2"
+        and receipt.get("pack_id") == "forgecad-fictional-energy-weapon-2k"
+        and receipt.get("pack_version") == "1.0.0"
+        and receipt.get("material_pack_manifest_sha256") == expected_manifest_sha256
+        and receipt.get("recipe_id") == "forgecad-first-party-catmullrom-semantic-microdetail-2k@1"
+        and receipt.get("algorithm") == "catmullrom-plus-fixed-semantic-microdetail@1"
+        and receipt.get("worker_algorithm_sha256")
+        == "1945f41c0ccda3a32250e31d3d93d530eed51cca83d02adc20f3358334400655"
+        and receipt.get("build_budget_ms") == 120000
+        and receipt.get("bake_status") == "not-a-geometry-bake"
+        and receipt.get("embedded_only") is True
+        and receipt.get("external_uri") is False
+        and receipt.get("network_at_runtime") is False,
+        "TextureBuildReceipt@2 policy or MaterialPack binding is invalid",
+    )
+    source_inputs = receipt.get("source_inputs")
+    outputs = receipt.get("outputs")
+    require(
+        isinstance(source_inputs, list)
+        and len(source_inputs) == 7
+        and all(item.get("width") == 512 and item.get("height") == 512 for item in source_inputs)
+        and isinstance(outputs, list)
+        and len(outputs) == 5
+        and all(item.get("width") == 2048 and item.get("height") == 2048 for item in outputs),
+        "TextureBuildReceipt@2 input/output dimensions or inventory are invalid",
+    )
+    require(outputs == expected_build.get("outputs"), "TextureBuildReceipt@2 outputs do not match the actual GLB texture build")
+    stored_canonical = receipt.get("canonical_sha256")
+    receipt_for_hash = copy.deepcopy(receipt)
+    receipt_for_hash["canonical_sha256"] = ""
+    require(
+        isinstance(stored_canonical, str)
+        and canonical_hash(receipt_for_hash) == stored_canonical,
+        "TextureBuildReceipt@2 canonical hash is invalid",
+    )
+    return {
+        "object_sha256": object_sha256,
+        "canonical_sha256": stored_canonical,
+        "source_input_count": len(source_inputs),
+        "output_count": len(outputs),
+        "source_dimensions": [[512, 512]],
+        "output_dimensions": [[2048, 2048]],
+        "bake_status": receipt["bake_status"],
+        "cas_readback": "PASS",
+    }
+
+
 def robot_reference_annotations() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Return observed annotations for the supplied three-quarter robot image.
 
@@ -104,6 +360,7 @@ def parse_args() -> Any:
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--expected-build-cohort")
+    parser.add_argument("--expected-build-profile", choices=("debug", "release"))
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--timeout", type=float, default=30.0)
     parser.add_argument(
@@ -122,6 +379,17 @@ def parse_args() -> Any:
         choices=("default-zones", "surface-zones", "armor-shell-zones"),
         default="armor-shell-zones",
         help="Choose the typed material zoning recipe; armor-shell-zones keeps visible outer arm shells white while retaining dark mechanical gaps.",
+    )
+    parser.add_argument(
+        "--appearance-pack",
+        choices=("robot", "fictional-energy-weapon", "fictional-energy-weapon-2k"),
+        default="robot",
+        help="Select one compile-time allowlisted offline MaterialPack for appearance_prepare.",
+    )
+    parser.add_argument(
+        "--surface-layers",
+        action="store_true",
+        help="Use the closed AppearanceProgram@3 candidate surface bake/layer stack; requires the fictional-energy-weapon-2k pack.",
     )
     parser.add_argument(
         "--reference",
@@ -165,7 +433,7 @@ def parse_args() -> Any:
     )
     parser.add_argument(
         "--receipt-task-id",
-        choices=("FGC-MCP010E", "FGC-MCP010F"),
+        choices=("FGC-MCP010E", "FGC-MCP010F", "FGC-MCP010F-MAT-03", "FGC-MCP010F-MAT-04"),
         default="FGC-MCP010E",
         help="Receipt task identifier. Use F when this probe is exercising only the packaged Viewer projection.",
     )
@@ -194,9 +462,11 @@ def explicit_camera(position: list[float], target: list[float]) -> dict[str, Any
 def appearance_program(
     project_id: str,
     geometry_sha256: str,
+    pack_id: str,
     pack_sha256: str,
     part_ids: list[str] | None = None,
     material_variant: str = "armor-shell-zones",
+    surface_layers: bool = False,
 ) -> dict[str, Any]:
     if part_ids is None:
         material_zones = [
@@ -261,15 +531,62 @@ def appearance_program(
             for zone_id, material_id, texture_set_id in material_zone_specs
             if any(zone_for_part[part_id] == zone_id for part_id in part_ids)
         ]
+    if pack_id in ("forgecad-fictional-energy-weapon", "forgecad-fictional-energy-weapon-2k"):
+        weapon_materials = {
+            "zone-white-shell": ("energy-white-clearcoat", "weapon-plastic-surface"),
+            "zone-dark-painted": ("energy-dark-painted-metal", "weapon-metal-surface"),
+            "zone-black-mechanical": ("energy-dark-painted-metal", "weapon-metal-surface"),
+            "zone-black-anodized": ("energy-black-anodized", "weapon-metal-surface"),
+            "zone-brushed-steel": ("energy-brushed-gold", "weapon-metal-surface"),
+            "zone-engineering-plastic": ("energy-grip-rubber", "weapon-plastic-surface"),
+            "zone-joint-rubber": ("energy-grip-rubber", "weapon-plastic-surface"),
+            "zone-micro-scratch": ("energy-worn-edge-metal", "weapon-metal-surface"),
+            "zone-emissive-amber": ("energy-cyan-emissive", None),
+        }
+        for zone in material_zones:
+            material_id, texture_set_id = weapon_materials[zone["zone_id"]]
+            zone["material_id"] = material_id
+            zone["texture_set_id"] = texture_set_id
     value: dict[str, Any] = {
-        "schema_version": "AppearanceProgram@2",
+        "schema_version": "AppearanceProgram@3" if surface_layers else "AppearanceProgram@2",
         "project_id": project_id,
         "geometry_program_sha256": geometry_sha256,
-        "material_pack_id": "forgecad-hard-surface-robot",
+        "material_pack_id": pack_id,
         "material_pack_manifest_sha256": pack_sha256,
         "material_zones": material_zones,
         "canonical_sha256": "",
     }
+    if surface_layers:
+        require(
+            pack_id == "forgecad-fictional-energy-weapon-2k",
+            "AppearanceProgram@3 surface layers require the exact 2K fictional weapon pack",
+        )
+        all_parts = [part_id for zone in material_zones for part_id in zone["part_ids"]]
+        all_zones = [zone["zone_id"] for zone in material_zones]
+        white_zone = next(
+            (zone for zone in material_zones if zone["zone_id"] == "zone-white-shell"),
+            None,
+        )
+        require(isinstance(white_zone, dict), "surface layer fixture requires zone-white-shell")
+        stack: dict[str, Any] = {
+            "schema_version": "MaterialLayerStack@1",
+            "stack_id": "fictional-energy-weapon-surface-v1",
+            "material_pack_id": pack_id,
+            "material_pack_manifest_sha256": pack_sha256,
+            "uv_source": "TEXCOORD_0",
+            "layers": [
+                {"layer_id":"fictional-safety-markings","order":0,"kind":"decal","recipe_id":"forgecad-first-party-fictional-safety-markings@1","blend_policy":"precompose-baseColor-no-custom-shader","targets":{"part_ids":white_zone["part_ids"],"material_zone_ids":["zone-white-shell"]},"opacity":0.65},
+                {"layer_id":"bounded-edge-wear","order":1,"kind":"wear","recipe_id":"forgecad-first-party-geometry-edge-ao-wear@1","blend_policy":"precompose-baseColor-metallicRoughness-no-custom-shader","targets":{"part_ids":all_parts,"material_zone_ids":all_zones},"edge_width_texels":8,"strength":0.35},
+                {"layer_id":"texture-backed-clearcoat","order":2,"kind":"clearcoat","recipe_id":"forgecad-first-party-zone-clearcoat-mask@1","blend_policy":"KHR_materials_clearcoat","targets":{"part_ids":white_zone["part_ids"],"material_zone_ids":["zone-white-shell"]},"factor":0.82,"roughness":0.12},
+            ],
+            "budget":{"resolution":2048,"padding_texels":8,"max_output_textures":8,"max_output_bytes":67108864,"max_runtime_ms":120000},
+            "canonical_sha256":"",
+        }
+        stack["canonical_sha256"] = canonical_hash(
+            {key: item for key, item in stack.items() if key != "canonical_sha256"}
+        )
+        value["material_layer_stack_sha256"] = stack["canonical_sha256"]
+        value["material_layer_stack"] = stack
     value["canonical_sha256"] = canonical_hash(
         {key: item for key, item in value.items() if key != "canonical_sha256"}
     )
@@ -1088,19 +1405,29 @@ def robot_detail_program_draft(
 
 def main() -> int:
     args = parse_args()
+    require(
+        not args.surface_layers or args.appearance_pack == "fictional-energy-weapon-2k",
+        "--surface-layers requires --appearance-pack fictional-energy-weapon-2k",
+    )
     require(args.mcp.is_file() and args.runtime.is_file(), "MCP010E source binaries were unavailable")
     if args.viewer_executable:
         require(args.viewer_executable.is_file(), "packaged Viewer executable was unavailable")
     require(args.timeout > 0, "MCP010E timeout must be positive")
     require(not args.compare or args.reference, "--compare requires --reference")
+    mcp_identity = build_identity(args.mcp)
+    runtime_identity = build_identity(args.runtime)
     if args.expected_build_cohort:
         require(len(args.expected_build_cohort) == 64, "invalid expected build cohort")
-        mcp_identity = build_identity(args.mcp)
-        runtime_identity = build_identity(args.runtime)
         require(
             mcp_identity.get("build_cohort_sha256") == args.expected_build_cohort
             and runtime_identity.get("build_cohort_sha256") == args.expected_build_cohort,
             "MCP/Runtime build cohorts did not match",
+        )
+    if args.expected_build_profile:
+        require(
+            args.mcp.parent.name == args.expected_build_profile
+            and args.runtime.parent.name == args.expected_build_profile,
+            "MCP/Runtime binary paths do not match the expected build profile",
         )
 
     data_root = args.data_root.absolute()
@@ -1208,6 +1535,47 @@ def main() -> int:
             all(item.get("file", "").startswith("textures/") and item.get("file", "").endswith(".png") for item in textures),
             "offline pack contained a non-embedded texture path",
         )
+        weapon_pack = client.tool(
+            "material_pack_get",
+            {"pack_id": "forgecad-fictional-energy-weapon"},
+        )
+        require(
+            isinstance(weapon_pack, dict)
+            and weapon_pack.get("schema_version") == "MaterialPackManifest@1"
+            and weapon_pack.get("pack_id") == "forgecad-fictional-energy-weapon"
+            and weapon_pack.get("canonical_sha256")
+            == "4a56fa58af1e8a0cd218f880f61112d465725a79eb70ed2aa0076eb5408ac999"
+            and isinstance(weapon_pack.get("material_definitions"), list)
+            and len(weapon_pack["material_definitions"]) == 7,
+            "material_pack_get did not return the hash-bound fictional energy weapon pack",
+        )
+        weapon_2k_pack = client.tool(
+            "material_pack_get",
+            {"pack_id": "forgecad-fictional-energy-weapon-2k"},
+        )
+        require(
+            isinstance(weapon_2k_pack, dict)
+            and weapon_2k_pack.get("schema_version") == "MaterialPackManifest@2"
+            and weapon_2k_pack.get("pack_id") == "forgecad-fictional-energy-weapon-2k"
+            and weapon_2k_pack.get("canonical_sha256")
+            == "88504cca9aa20393a1577fc9ae2bbb65d3ccb0a3ca21d61a4c72efa501214fb6"
+            and weapon_2k_pack.get("texture_recipe", {}).get("resolution") == 2048
+            and weapon_2k_pack.get("texture_recipe", {}).get("bake_status") == "not-a-geometry-bake",
+            "material_pack_get did not return the hash-bound fictional energy weapon 2K pack",
+        )
+        unsafe_pack = client.request(
+            "tools/call",
+            {
+                "name": "material_pack_get",
+                "arguments": {"url": "https://example.invalid/material-pack"},
+            },
+        )
+        unsafe_error = unsafe_pack.get("error") if isinstance(unsafe_pack, dict) else None
+        unsafe_data = unsafe_error.get("data") if isinstance(unsafe_error, dict) else None
+        require(
+            isinstance(unsafe_data, dict) and unsafe_data.get("code") == "INVALID_TOOL_PARAMS",
+            "material_pack_get did not reject caller URLs at the MCP schema",
+        )
 
         project = client.tool("project_create", {"name": "MCP010E offline PBR pack", "policy": {"profile": "mvp"}})
         project_id = project.get("project_id") if isinstance(project, dict) else None
@@ -1267,12 +1635,20 @@ def main() -> int:
                 f"surface-linework fixture expected 26 parts/4704 triangles, got {linework_parts}/{linework_triangles}",
             )
 
+        selected_pack = {
+            "robot": pack,
+            "fictional-energy-weapon": weapon_pack,
+            "fictional-energy-weapon-2k": weapon_2k_pack,
+        }[args.appearance_pack]
+        selected_pack_hash = selected_pack["canonical_sha256"]
         appearance = appearance_program(
             project_id,
             geometry_hash,
-            pack_hash,
+            selected_pack["pack_id"],
+            selected_pack_hash,
             geometry_artifact.get("part_ids") if args.detail else None,
             args.material_variant,
+            args.surface_layers,
         )
         appearance_response = client.request(
             "tools/call",
@@ -1298,8 +1674,10 @@ def main() -> int:
         prepared = appearance_response.get("result", {}).get("structuredContent")
         artifact = prepared.get("artifact") if isinstance(prepared, dict) else None
         render_set = prepared.get("render_set") if isinstance(prepared, dict) else None
+        expected_prepare_schema = "AppearancePrepareResult@3" if args.surface_layers else "AppearancePrepareResult@2"
         require(
-            prepared.get("schema_version") == "AppearancePrepareResult@2"
+            prepared.get("schema_version") == expected_prepare_schema
+            and prepared.get("material_pack_manifest_sha256") == selected_pack_hash
             and isinstance(artifact, dict)
             and artifact.get("hard_gate_passed") is True,
             "appearance_prepare did not return a strict V2 artifact",
@@ -1313,6 +1691,63 @@ def main() -> int:
             and integrity.get("tangent_non_finite_count") == 0,
             "appearance artifact readback did not pass UV/tangent/embedded URI checks",
         )
+        artifact_sha256 = artifact.get("object_sha256")
+        require(isinstance(artifact_sha256, str), "appearance artifact object SHA-256 is missing")
+        uv_atlas = cas_glb_uv_atlas(data_root, artifact_sha256)
+        if args.appearance_pack in ("fictional-energy-weapon", "fictional-energy-weapon-2k"):
+            require(
+                uv_atlas.get("packing") == "connected-dominant-axis-islands@1"
+                and uv_atlas.get("resolution") == 2048
+                and uv_atlas.get("padding_texels") == 8
+                and uv_atlas.get("atlas_count") == 1
+                and uv_atlas.get("seam_policy") == "edge-shared-or-explicit-seam@1"
+                and isinstance(uv_atlas.get("charts"), int)
+                and uv_atlas["charts"] > 0,
+                "weapon appearance GLB did not contain the physical continuous UV policy",
+            )
+        else:
+            require(
+                uv_atlas.get("packing") == "triangle-chart-grid"
+                and uv_atlas.get("resolution") == 512
+                and uv_atlas.get("padding_texels") == 4,
+                "legacy appearance GLB UV atlas policy drifted",
+            )
+        texture_build_2k = (
+            cas_glb_2k_texture_build(data_root, artifact_sha256)
+            if args.appearance_pack == "fictional-energy-weapon-2k"
+            else None
+        )
+        texture_build_receipt = None
+        if args.appearance_pack == "fictional-energy-weapon-2k":
+            receipt_sha256 = prepared.get("texture_build_receipt_sha256")
+            require(isinstance(receipt_sha256, str), "AppearancePrepareResult@2 omitted TextureBuildReceipt@2 CAS hash")
+            texture_build_receipt = cas_texture_build_receipt_v2(
+                data_root,
+                receipt_sha256,
+                selected_pack_hash,
+                texture_build_2k["metadata"],
+            )
+        surface_bake = None
+        surface_bake_receipt = None
+        if args.surface_layers:
+            surface_bake = cas_glb_surface_bake(data_root, artifact_sha256)
+            surface_receipt_sha256 = prepared.get("candidate_surface_bake_receipt_sha256")
+            candidate = prepared.get("candidate")
+            require(
+                isinstance(surface_receipt_sha256, str)
+                and isinstance(candidate, dict)
+                and isinstance(candidate.get("candidate_id"), str)
+                and candidate.get("state") == "reviewable",
+                "AppearancePrepareResult@3 omitted its reviewable candidate or surface receipt",
+            )
+            surface_bake_receipt = cas_candidate_surface_bake_receipt(
+                data_root,
+                surface_receipt_sha256,
+                candidate["candidate_id"],
+                artifact_sha256,
+                surface_bake,
+                args.expected_build_cohort,
+            )
         if args.detail and args.material_variant in ("surface-zones", "armor-shell-zones"):
             material_zone_ids = artifact.get("material_zone_ids")
             expected_zone_count = 8 if args.material_variant == "surface-zones" else (7 if args.geometry_variant in ("surface-linework", "chest-shell-curved", "chest-top-cap", "chest-top-cap-mild", "chest-wedge", "chest-wedge-visor", "tapered-shells", "asymmetric-linework", "head-turn-mild", "shoulder-contour-mild", "shoulder-contour-tiny") else 6)
@@ -1545,12 +1980,20 @@ def main() -> int:
             "geometry_artifact_sha256": geometry_artifact.get("object_sha256"),
             "geometry_part_count": len(geometry_artifact.get("part_ids") or []),
             "geometry_triangle_count": geometry_artifact.get("triangle_count"),
-            "tool_count": "21 read + 16 write",
+            "probe_tool_surface": "21 read + 16 write exercised by this MCP010E-derived probe; not the global source capability count",
             "ponytail_preflight": "PASS",
             "pack_id": pack["pack_id"],
             "pack_manifest_sha256": pack_hash,
+            "appearance_pack_id": selected_pack["pack_id"],
+            "appearance_pack_manifest_sha256": selected_pack_hash,
+            "fictional_energy_weapon_pack_id": weapon_pack["pack_id"],
+            "fictional_energy_weapon_pack_manifest_sha256": weapon_pack["canonical_sha256"],
+            "fictional_energy_weapon_material_definition_count": len(weapon_pack["material_definitions"]),
+            "fictional_energy_weapon_2k_pack_id": weapon_2k_pack["pack_id"],
+            "fictional_energy_weapon_2k_pack_manifest_sha256": weapon_2k_pack["canonical_sha256"],
+            "fictional_energy_weapon_pack_unsafe_input_gate": "PASS_INVALID_TOOL_PARAMS",
             "texture_manifest_count": len(textures),
-            "appearance_program": "AppearanceProgram@2",
+            "appearance_program": "AppearanceProgram@3" if args.surface_layers else "AppearanceProgram@2",
             "artifact_readback": "ArtifactReadback@2 hard_gate_passed",
             "appearance_artifact_sha256": artifact.get("object_sha256"),
             "appearance_part_count": len(artifact.get("part_ids") or []),
@@ -1558,7 +2001,22 @@ def main() -> int:
             "material_zone_count": len(artifact.get("material_zone_ids") or []),
             "material_zone_ids": artifact.get("material_zone_ids"),
             "embedded_texture_uri_count": integrity["external_uri_count"],
-            "uv_atlas": "512px deterministic triangle-chart grid",
+            "uv_atlas": uv_atlas,
+            "uv_atlas_summary": (
+                "2048px connected dominant-axis islands; 8px padding; edge-shared-or-explicit-seam"
+                if args.appearance_pack in ("fictional-energy-weapon", "fictional-energy-weapon-2k")
+                else "512px deterministic triangle-chart grid"
+            ),
+            "texture_build_2k": texture_build_2k,
+            "texture_build_receipt_v2": texture_build_receipt,
+            "candidate_surface_bake": surface_bake,
+            "candidate_surface_bake_receipt_v1": surface_bake_receipt,
+            "build_evidence": {
+                "profile": args.expected_build_profile or "unspecified",
+                "expected_build_cohort_sha256": args.expected_build_cohort,
+                "mcp_identity": mcp_identity,
+                "runtime_identity": runtime_identity,
+            },
             "aov_passes": passes,
             "mcp_image_block": "PASS",
             "reference_compare": comparison_summary,
@@ -1566,6 +2024,7 @@ def main() -> int:
             "human_review": "NOT_RUN",
             "packaged_viewer": packaged_viewer,
             "persistent_user_data_touched": False,
+            "candidate_confirmation": "NOT_PERFORMED" if args.surface_layers else "NOT_APPLICABLE",
         }
     finally:
         cleanup_error: BaseException | None = None
@@ -1587,7 +2046,15 @@ def main() -> int:
             raise cleanup_error
 
     receipt = {
-        "schema_version": "ForgeCADMCP010FViewerReadModelProbe@1" if args.receipt_task_id == "FGC-MCP010F" else "ForgeCADMCP010ERawStdioProbe@1",
+        "schema_version": (
+            "ForgeCADMCP010FViewerReadModelProbe@1"
+            if args.receipt_task_id == "FGC-MCP010F"
+            else "ForgeCADMCP010FMaterial2KRawStdioProbe@1"
+            if args.receipt_task_id == "FGC-MCP010F-MAT-03"
+            else "ForgeCADMCP010FMaterialSurfaceBakeRawStdioProbe@1"
+            if args.receipt_task_id == "FGC-MCP010F-MAT-04"
+            else "ForgeCADMCP010ERawStdioProbe@1"
+        ),
         "task_id": args.receipt_task_id,
         "protocol_version": MCP_PROTOCOL_VERSION,
         "persistent_user_data_touched": False,

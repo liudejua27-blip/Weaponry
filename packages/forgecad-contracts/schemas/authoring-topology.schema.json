@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-topology.schema.json",
+  "title": "AuthoringTopology",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "scope", "complete", "project_id", "candidate_id", "artifact_id",
+    "artifact_readback_sha256", "geometry_candidate_evidence_sha256", "geometry_program_object_sha256",
+    "program_sha256", "operator_catalog_sha256", "readback_config_sha256", "authoring_node_id",
+    "part_id", "material_zone_id", "solid", "topology_policy", "authoring_topology_policy_sha256",
+    "topology_space", "id_scope", "cross_version_stable", "node_transform", "counts", "vertices",
+    "edges", "loops", "faces", "authoring_mesh_sha256", "topology_sha256", "max_response_bytes",
+    "runtime_write_performed", "persistent_user_data_touched", "quality_status", "limitations",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "AuthoringTopology@1"},
+    "scope": {"const": "single-direct-authoring-mesh-part"},
+    "complete": {"const": true},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_candidate_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_object_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "authoring_node_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "solid": {"type": "boolean"},
+    "topology_policy": {"const": "triangle-quad-manifold-with-boundary@1"},
+    "authoring_topology_policy_sha256": {"const": "a6fb36a530e49537673b66d65ecb6e4fb4f51ffb3e7d01a0980be71f28cb367d"},
+    "topology_space": {"const": "source-authoring-node-local@1"},
+    "id_scope": {"const": "geometry-program-node-bound"},
+    "cross_version_stable": {"const": false},
+    "node_transform": {"$ref": "#/$defs/transform"},
+    "counts": {"$ref": "#/$defs/counts"},
+    "vertices": {"type": "array", "minItems": 3, "maxItems": 1536, "items": {"$ref": "#/$defs/vertex"}},
+    "edges": {"type": "array", "minItems": 3, "maxItems": 1536, "items": {"$ref": "#/$defs/edge"}},
+    "loops": {"type": "array", "minItems": 3, "maxItems": 1536, "items": {"$ref": "#/$defs/loop"}},
+    "faces": {"type": "array", "minItems": 1, "maxItems": 512, "items": {"$ref": "#/$defs/face"}},
+    "authoring_mesh_sha256": {"$ref": "#/$defs/sha256"},
+    "topology_sha256": {"$ref": "#/$defs/sha256"},
+    "max_response_bytes": {"const": 1048576},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {"const": [
+      "SOURCE_AUTHORING_MESH_ONLY",
+      "SINGLE_DIRECT_PART_OUTPUT_ONLY",
+      "NO_SELECTION_HISTORY_OR_CROSS_VERSION_ID_PROMISE",
+      "NO_BLENDER_BMESH_PYTHON_OR_PLUGIN_RUNTIME",
+      "STRUCTURAL_TOPOLOGY_DOES_NOT_PROVE_VISUAL_QUALITY"
+    ]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -10, "maximum": 10}},
+    "rotation": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -6.283185307179586, "maximum": 6.283185307179586}},
+    "transform": {
+      "type": "object", "additionalProperties": false,
+      "required": ["position_m", "rotation_rad"],
+      "properties": {"position_m": {"$ref": "#/$defs/vec3"}, "rotation_rad": {"$ref": "#/$defs/rotation"}}
+    },
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vertex_count", "edge_count", "loop_count", "face_count"],
+      "properties": {
+        "vertex_count": {"type": "integer", "minimum": 3, "maximum": 1536},
+        "edge_count": {"type": "integer", "minimum": 3, "maximum": 1536},
+        "loop_count": {"type": "integer", "minimum": 3, "maximum": 1536},
+        "face_count": {"type": "integer", "minimum": 1, "maximum": 512}
+      }
+    },
+    "vertex": {
+      "type": "object", "additionalProperties": false,
+      "required": ["element_id", "position_m"],
+      "properties": {"element_id": {"$ref": "#/$defs/identifier"}, "position_m": {"$ref": "#/$defs/vec3"}}
+    },
+    "edge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["element_id", "vertex_ids"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/identifier"},
+        "vertex_ids": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "loop": {
+      "type": "object", "additionalProperties": false,
+      "required": ["element_id", "face_id", "ordinal", "vertex_id", "edge_id", "edge_forward"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/identifier"}, "face_id": {"$ref": "#/$defs/identifier"},
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 3},
+        "vertex_id": {"$ref": "#/$defs/identifier"}, "edge_id": {"$ref": "#/$defs/identifier"},
+        "edge_forward": {"type": "boolean"}
+      }
+    },
+    "face": {
+      "type": "object", "additionalProperties": false,
+      "required": ["element_id", "loop_ids"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/identifier"},
+        "loop_ids": {"type": "array", "minItems": 3, "maxItems": 4, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    }
+  }
+}

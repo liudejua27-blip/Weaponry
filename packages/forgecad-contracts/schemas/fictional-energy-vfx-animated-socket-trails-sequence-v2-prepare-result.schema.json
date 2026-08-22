@@ -1,0 +1,81 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-trails-sequence-v2-prepare-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FictionalEnergyVfxAnimatedSocketTrailsSequencePrepareResult@2",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketTrailsSequencePrepareResult@2"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sequence": {
+      "$ref": "fictional-energy-vfx-animated-socket-trails-sequence-v2.schema.json"
+    },
+    "replayed": {
+      "type": "boolean"
+    },
+    "restart_hash_verified": {
+      "const": true
+    },
+    "runtime_write": {
+      "const": true
+    },
+    "quality_status": {
+      "const": "structural_only"
+    },
+    "visual_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "commercial_fps_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "human_review_status": {
+      "const": "NOT_RUN"
+    },
+    "commercial_engine_status": {
+      "const": "NOT_RUN"
+    },
+    "actual_engine_roundtrip": {
+      "const": false
+    },
+    "production_stage_advanced": {
+      "const": false
+    },
+    "candidate_confirmed": {
+      "const": false
+    },
+    "version_created": {
+      "const": false
+    },
+    "export_performed": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "sequence",
+    "replayed",
+    "restart_hash_verified",
+    "runtime_write",
+    "quality_status",
+    "visual_quality_status",
+    "commercial_fps_quality_status",
+    "human_review_status",
+    "commercial_engine_status",
+    "actual_engine_roundtrip",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed"
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

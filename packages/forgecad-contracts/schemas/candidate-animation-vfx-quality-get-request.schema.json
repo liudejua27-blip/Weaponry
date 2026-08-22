@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/candidate-animation-vfx-quality-get-request.schema.json",
+  "title": "CandidateAnimationVfxQualityGetRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "animation_vfx_quality_id", "project_id", "candidate_id"],
+  "properties": {
+    "schema_version": {"const": "CandidateAnimationVfxQualityGetRequest@1"},
+    "animation_vfx_quality_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"}
+  },
+  "$defs": {"id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}}
+}

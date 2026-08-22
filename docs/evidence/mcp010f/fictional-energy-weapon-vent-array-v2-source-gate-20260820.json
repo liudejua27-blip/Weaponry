@@ -1,0 +1,100 @@
+{
+  "schema_version": "ForgeCADVentArrayV2SourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-20",
+  "status": "PASS_SOURCE_STRUCTURAL_VENT_ARRAY_V2",
+  "safe_scope": "legal nonfunctional fictional game and film visual assets only",
+  "current_source_counts": {
+    "schemas": 195,
+    "operator_catalog_entries": 23,
+    "active_operators": 23,
+    "mcp_read_tools": 54,
+    "mcp_write_tools": 36,
+    "mcp_total_tools": 90
+  },
+  "operator": {
+    "operator_id": "forgecad.geometry.vent-array@2",
+    "parameter_schema": "VentArrayParameters@2",
+    "input_arity": {
+      "min": 0,
+      "max": 0
+    },
+    "output_kind": "triangle-mesh",
+    "part_output_required": true,
+    "implemented_geometry": [
+      "one connected watertight slotted face shell",
+      "real front-to-back openings through the face shell",
+      "symmetric front and back bevel depth rings",
+      "one closed backing geometric sub-solid behind an explicit gap",
+      "two geometric components in one semantic PartOutput",
+      "312-triangle deterministic fixture"
+    ],
+    "fail_closed": [
+      "unknown and executable fields",
+      "non-finite and out-of-range values",
+      "nonzero input arity",
+      "slot overlap margin spacing bevel and backing relationship drift",
+      "triangle budget drift",
+      "operator-to-parameter schema drift",
+      "operator catalog hash drift",
+      "GeometryProgram canonical hash drift",
+      "boundary non-manifold winding and strict GLB readback failures"
+    ]
+  },
+  "source_sha256": {
+    "geometry_program_v2_schema": "34aa1c30c84bb0745d0a9ce2f5eaa0ebcda04712a56329588b1725f7a09afa75",
+    "worker_protocol_catalog": "16364a1c81cf23aaac3440583ae36c7649a28e6e12049563ccc5cdccdc234ad7",
+    "geometry_operator": "dcfa875029f0efbc72fafc58692ed330bd4a6d9007ed011711e478ef18a8be47",
+    "geometry_worker": "8e87f4cc4e85c25e484c93d1e9e4611599c4388b91755456cb3dc2d344b23a1a",
+    "runtime_skill_allowlist": "d21880b2ae4abca5a27ac9deba0487369d3cc2b8827a5a7205782135ed908f98",
+    "runtime_agentic_allowlist": "edc6c3074c456d1b9e3dfaa52c104c4df4544565fc8cf4f2e8fb441ca891cbdd",
+    "mcp_agentic_allowlist": "9eb831b1a31e56d0d2184a30a5ee78c9643192dab86975e204321b2982e84f7d",
+    "skill_registry": "a51fd65e1c4d740e0d6640f31905da94758b945c3813cd009cc9859286956b94",
+    "skill_trust_manifest": "82911c89456057eb294a6692159a782ef6cacda626152e620c01ff95bdcae52b",
+    "hard_surface_detail_manifest": "2df41e715eea7b683a35d8e59f5485304061af72faea938bf814e9f5b4b98a64",
+    "hard_surface_detail_operator_lock": "b7c5d66c5bbb099a975047fbba309c760738593cc1e1fddbcc721660e1263543",
+    "hard_surface_detail_recipe": "dcfaf3cc8d1f20dcb284cc0e7b3bc66ae674014e2fc705481cc86a5efe2634f3",
+    "modifier_stack_schema": "dd24b20b387ae6bab1d3a4fa317554b28b36f8795c8c476e0c74597524d1f59e",
+    "fictional_energy_rifle_profile_schema": "abae6babcc6ee6b526d3daf534a1d0095d32265dc0989a2ff92c7775f24fa6db",
+    "mcp_main": "5ceb8fa850a11c0e8496b56309dcf1729e80061e397638fcea63f3984adb1863",
+    "contract_checker": "283ec56886d175f84f37fd9974e7c11926226ef385abd83f9993aea840bb4d29"
+  },
+  "verification": {
+    "geometry_worker_vent_array_v2_focused": "PASS_5_OF_5",
+    "geometry_worker_full": "PASS_52_OF_52",
+    "worker_protocol": "PASS_3_OF_3",
+    "contracts": "PASS_195_SCHEMAS",
+    "vent_schema_revision_binding": "PASS_STATIC_CONTRACT_GATE_VENT_ARRAY_V1_V2_EXACT_REFS",
+    "agentic_modifier_profile_revision_binding": "PASS_V1_AND_V2_CLOSED_TYPED_ENTRIES",
+    "default_skill_recipe": "PASS_USES_VENT_ARRAY_V2",
+    "backing_gap_positive_differential": "PASS_TWO_LEGAL_GAPS_CHANGE_GLBS_WITHOUT_TOPOLOGY_DRIFT",
+    "runtime_skill_registry": "PASS_4_OF_4",
+    "first_party_skill_registry": "PASS_12_DECLARATIVE_SKILLS",
+    "mcp_modifier_v2_dispatch": "PASS_1_OF_1",
+    "independent_luna_gate_review": "PASS_P0_0_P1_0_AFTER_SECOND_REVIEW",
+    "repository_integrity": "PASS_AFTER_REMOVING_REBUILDABLE_RUST_TARGET_OUTPUTS",
+    "release_docs_walkthrough": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "persistent_user_data_touched": false,
+  "downloads_or_external_assets": false,
+  "quality_boundaries": {
+    "current_weapon_candidate_recompiled_with_vent_array_v2": "NOT_RUN",
+    "same_candidate_multiview": "NOT_RUN",
+    "pbr_visual": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "package_live": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "overall_quality_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "known_limitations": [
+    "vent-array@2 is a bounded standalone semantic Part grammar, not an arbitrary host-mesh cut operation",
+    "the backing is a geometric sub-solid in the same mesh and PartOutput, not an independently selectable semantic Part",
+    "recessed-channel@1 and energy-core@1 are not implemented by this slice",
+    "this receipt is structural source evidence and is not a commercial visual-quality claim"
+  ]
+}
