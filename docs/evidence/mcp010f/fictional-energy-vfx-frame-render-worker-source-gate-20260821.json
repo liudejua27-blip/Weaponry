@@ -1,0 +1,78 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F/VFX-FRAME-02/render-worker-emissive-override",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_STRUCTURAL_RENDER_EXECUTION_SUBGATE",
+  "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+  "source_files": [
+    {
+      "path": "apps/render-core/src/lib.rs",
+      "sha256": "e7fe0ca02dd51d13d7cc373b92d8f521c14b6e4826ce9b408bd03fb48db3c9de"
+    },
+    {
+      "path": "apps/render-worker/src/main.rs",
+      "sha256": "c3eeae61ebe63c0460f22775ba3da2747116ed764796cc918bb6f84051309501"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs",
+      "sha256": "a5642992161bb2941f6fa8b26ea2888a522ed143d2e1365a78115eba0ac2888d"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/render_worker.rs",
+      "sha256": "cd68d098ccf0de745ee07e85f45bbffb89f3d63e70d78b4275ecdfcc1843d3fd"
+    }
+  ],
+  "capability": {
+    "worker_operation": "render_glb_vfx_frame",
+    "resolution": [512, 512],
+    "aov_count": 9,
+    "override_limit": 8,
+    "color_linear_rgb_range": [0.0, 1.0],
+    "emissive_strength_range": [0.0, 16.0],
+    "binding": "glTF material name equals MaterialZone ID and extras.forgecad.material_id equals stable material ID",
+    "transient_only": true,
+    "glb_mutated": false,
+    "candidate_or_cas_mutated": false,
+    "shader_script_url_path_accepted": false
+  },
+  "tests": [
+    {
+      "name": "render-core focused unit tests",
+      "result": "PASS_6_OF_6"
+    },
+    {
+      "name": "render-worker closed-payload unit tests",
+      "result": "PASS_2_OF_2"
+    },
+    {
+      "name": "worker-protocol focused unit tests",
+      "result": "PASS_4_OF_4"
+    },
+    {
+      "name": "same-cohort isolated VFX frame override",
+      "result": "PASS_1_OF_1",
+      "assertions": [
+        "strength 0 and strength 8 produce different beauty PNG bytes",
+        "the remaining eight AOV PNG byte streams are identical",
+        "repeated strength 8 render is byte-identical across all nine AOVs",
+        "the applied override resolves to the exact zone-core-emissive GLB material"
+      ]
+    }
+  ],
+  "truth_boundaries": {
+    "typed_time_sampling_contract_complete": false,
+    "runtime_cas_frame_receipt_complete": false,
+    "appearance_lod_delivery_binding_complete": false,
+    "anchor_is_glb_node_or_socket": false,
+    "bloom_rendered": false,
+    "particles_rendered": false,
+    "trails_rendered": false,
+    "actual_engine_roundtrip": false,
+    "candidate_confirmed": false,
+    "export_performed": false,
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_status": "MISMATCH",
+    "hq360_status": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

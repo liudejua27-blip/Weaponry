@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-stage-transition-prepare-request.schema.json",
+  "title": "ProductionStageTransitionPrepareRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transition_id",
+    "session_id",
+    "project_id",
+    "candidate_id",
+    "from_stage",
+    "to_stage",
+    "candidate_state_sha256",
+    "artifact_sha256",
+    "output_kind",
+    "output_object_sha256",
+    "quality_report_object_sha256",
+    "comparison_report_object_sha256",
+    "reference_id",
+    "reference_sha256",
+    "camera_hash",
+    "evidence_sha256",
+    "parent_checkpoint_id",
+    "parent_checkpoint_sha256",
+    "input_sha256",
+    "approved",
+    "approval_receipt_id",
+    "approval_summary",
+    "approval_expires_at",
+    "approval_session_id",
+    "idempotency_key"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionStageTransitionPrepareRequest@1"},
+    "transition_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "from_stage": {"$ref": "#/$defs/stage"},
+    "to_stage": {"$ref": "#/$defs/stage"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "output_kind": {"$ref": "#/$defs/output_kind"},
+    "output_object_sha256": {"$ref": "#/$defs/sha256"},
+    "quality_report_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "comparison_report_object_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "reference_id": {"$ref": "#/$defs/id"},
+    "reference_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "parent_checkpoint_id": {"$ref": "#/$defs/nullable_id"},
+    "parent_checkpoint_sha256": {"$ref": "#/$defs/nullable_sha256"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "approved": {"const": true},
+    "approval_receipt_id": {"$ref": "#/$defs/id"},
+    "approval_summary": {"type": "string", "minLength": 1, "maxLength": 512},
+    "approval_expires_at": {"type": "string", "minLength": 1, "maxLength": 64},
+    "approval_session_id": {"$ref": "#/$defs/id"},
+    "idempotency_key": {"$ref": "#/$defs/id"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"parent_checkpoint_id": {"const": null}}, "required": ["parent_checkpoint_id"]},
+      "then": {"properties": {"parent_checkpoint_sha256": {"const": null}}}
+    },
+    {
+      "if": {"properties": {"parent_checkpoint_id": {"type": "string"}}, "required": ["parent_checkpoint_id"]},
+      "then": {"properties": {"parent_checkpoint_sha256": {"$ref": "#/$defs/sha256"}}}
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "nullable_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "stage": {
+      "enum": ["draft", "gray-model", "topology", "material-surface", "animation-vfx", "game-delivery"]
+    },
+    "output_kind": {
+      "enum": [
+        "gray-model-artifact",
+        "topology-quality",
+        "appearance-lineage",
+        "animation-vfx-bundle",
+        "game-asset-delivery"
+      ]
+    }
+  }
+}

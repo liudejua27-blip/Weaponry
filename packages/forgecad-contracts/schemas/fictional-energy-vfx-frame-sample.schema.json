@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-frame-sample.schema.json",
+  "title": "FictionalEnergyVfxFrameSample@1",
+  "description": "A read-only deterministic integer-tick sample of the two durable fictional energy emissive intent curves. It does not prove a GLB material binding or execute a render.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "delivery_manifest_object_sha256", "vfx_profile_object_sha256", "timebase_hz", "requested_time_ticks", "sampling_policy", "interpolation", "effects", "glb_material_zone_binding_verified", "emissive_animation_rendered", "runtime_write_performed", "persistent_user_data_touched", "quality_status", "limitations", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxFrameSample@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "vfx_profile_object_sha256": {"$ref": "#/$defs/sha256"},
+    "timebase_hz": {"const": 1000},
+    "requested_time_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "sampling_policy": {"const": "integer-tick-linear-once-clamp-loop-modulo-duration@1"},
+    "interpolation": {"const": "LINEAR"},
+    "effects": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/effect_sample"}},
+    "glb_material_zone_binding_verified": {"const": false},
+    "emissive_animation_rendered": {"const": false},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {"const": ["sampled-emissive-intent-only", "no-appearance-or-glb-material-zone-binding", "no-render-or-cas-frame-receipt", "anchor-remains-sidecar-not-glb-socket", "no-bloom-particles-trails-or-engine-roundtrip", "structural-sampling-does-not-prove-visual-quality"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "effect_sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effect_id", "anchor_id", "effect_kind", "material_id", "color_linear_rgb", "loop_mode", "duration_ticks", "requested_time_ticks", "resolved_time_ticks", "emissive_strength", "lod_visibility"],
+      "allOf": [
+        {"if": {"properties": {"effect_id": {"const": "muzzle-pulse"}}, "required": ["effect_id"]}, "then": {"properties": {"material_id": {"const": "energy-cyan-muzzle-emissive"}}}},
+        {"if": {"properties": {"effect_id": {"const": "energy-core-breathe"}}, "required": ["effect_id"]}, "then": {"properties": {"material_id": {"const": "energy-cyan-emissive"}}}}
+      ],
+      "properties": {
+        "effect_id": {"$ref": "#/$defs/identifier"},
+        "anchor_id": {"enum": ["socket-muzzle-vfx", "socket-energy-core-vfx"]},
+        "effect_kind": {"enum": ["muzzle-emissive-pulse", "energy-core-emissive-breathe"]},
+        "material_id": {"enum": ["energy-cyan-muzzle-emissive", "energy-cyan-emissive"]},
+        "color_linear_rgb": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": 0, "maximum": 1}},
+        "loop_mode": {"enum": ["once", "loop"]},
+        "duration_ticks": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "requested_time_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "resolved_time_ticks": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "emissive_strength": {"type": "number", "minimum": 0, "maximum": 16},
+        "lod_visibility": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "boolean"}}
+      }
+    }
+  }
+}

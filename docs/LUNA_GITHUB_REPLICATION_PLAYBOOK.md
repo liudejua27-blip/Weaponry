@@ -1,7 +1,7 @@
 # Luna GitHub 受控复刻操作手册
 
 版本：2026-08-17
-状态：用户已授权指定上游项目的受控研究和选择性源文件复刻；本轮已对 OpenSubdiv、xatlas、glTF-Validator、MaterialX、OpenColorIO 固定 revision 取得许可证/候选文件审计 receipt。这不是依赖采用、Skill 安装或 Runtime 集成授权；所有新增 receipt 仍为 `research-authorized`。
+状态：用户已授权指定上游项目的受控研究和选择性源文件复刻；本轮已对 Blender 官方源码、OpenSubdiv、xatlas、glTF-Validator、MaterialX、OpenColorIO 固定 revision 取得许可证/候选文件审计 receipt。Blender 官方源码固定为 GPL reference-only，未进入缓存、依赖或构建。这不是依赖采用、Skill 安装或 Runtime 集成授权；所有新增 receipt 仍为 `research-authorized`。
 
 ## 1. 目的与边界
 
@@ -19,6 +19,7 @@ Luna 可以从下表的冻结 revision 读取、下载并在隔离研究缓存�
 
 | 项目 | 冻结 revision | 许可证 | ForgeCAD 学习/复刻目标 | 允许进入的下一站 |
 |---|---|---|---|---|
+| [Blender official](https://github.com/blender/blender) | `72ccdd6e96ca119a1ffa3372559cc5654343b477` | GPL-2.0-or-later | Modifier/Depsgraph/Action 的数据与求值分层 | **仅官方文档与 frozen source reference；clean-room 重写，不缓存/复制/链接/执行** |
 | [build123d](https://github.com/gumyr/build123d) | `ef48b98af7780028e015d9f079d8ccc01d894696` | Apache-2.0 | BuildPart/BuildSketch、操作与 topology 的职责划分 | 静态研究缓存；再以 Rust typed JSON 重写为 Parametric Design Kit |
 | [BlenderMCP](https://github.com/ahujasid/blender-mcp) | `3ab892510cc0e5435ba5e611c01fb1021fbde8de` | MIT | scene inspect、截图回看、tool receipt 的可观察性 | 静态研究缓存；再定义 ForgeCAD 自有 read-only observe/visual-evidence 合同 |
 | [CadQuery](https://github.com/CadQuery/cadquery) | `d6729f51bf1ed183f110aacdbc6238e4a5110c96` | Apache-2.0 | Workplane/Sketch/selector/assembly 的参数化表达方式 | 静态研究缓存；再定义 bounded macro/schema 和 Rust Worker 实现 |

@@ -1,0 +1,170 @@
+{
+  "schema_version": "ForgeCADBlenderMechanicalPoseSequencePreviewSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-19",
+  "status": "PASS_SOURCE_STRUCTURAL_ONLY_WITH_UNRUN_PACKAGE_LIVE_VISUAL_HUMAN_GATES",
+  "canonical_sha256": "9908b623d97a5cbd6a988711755c778e20607a504b327c4a739033b393db8701",
+  "scope": {
+    "request_contract": "MechanicalPoseSequencePreviewRequest@1",
+    "result_contract": "MechanicalPoseSequencePreview@1",
+    "mcp_tool": "mechanical_pose_evaluate",
+    "tool_mode": "existing-default-read-only-oneOf-branch",
+    "max_samples": 16,
+    "sample_order": "strictly-increasing-unique-integer-ticks",
+    "evaluation": "reuse-single-tick-runtime-semantic-recomputation",
+    "canonical_response_budget_bytes": 1048576,
+    "mcp_tools_call_wire_budget_bytes": 1048576,
+    "mcp_text_content": "bounded-summary-structuredContent-is-complete",
+    "sequence_identity_binding": "project-artifact-candidate-readback-program-catalog-config-input-rest-action-policy-ticks-samples",
+    "geometry_materialization": "not-materialized",
+    "worker_evaluation": "not-run-runtime-read-only-projection",
+    "runtime_write_performed": false,
+    "candidate_created": false,
+    "animation_asset_created": false
+  },
+  "current_source": {
+    "schema_count": 160,
+    "schema_content_set_sha256": "4271b54fc6ed0eb32b1baa7a161870a65a81c7ae45b742fcb38432e3e3f26f96",
+    "contract_manifest_sha256": "c9b4221453fd1fafba2b795294a9b3c61676e764c2bce3a825518de5fc38eefe",
+    "operator_count": 19,
+    "active_operator_count": 19,
+    "read_tool_count": 43,
+    "write_tool_count": 33,
+    "total_tool_count": 76,
+    "read_manifest_sha256": "7cdbe0024ded21a3bb3523858c497c51675ad3e9082a33fa95b12a90ce4ce518",
+    "write_enabled_manifest_sha256": "2cec91d6752d01a192554d745d114e304129f0e9c620bc000dd58c7c07d49a65",
+    "tool_manifest_summary_sha256": "0a7a16df2058ff5d6b2f93e8f3e4bf67e13c34dc225cb2890a575abcacd70ca5",
+    "stage0_truth_canonical_sha256": "7fe5fbe7564e389646971dd21a83b4807b92d1cdcada71b8a9107d597c0970bf",
+    "stage0_truth_file_sha256": "8cd3daa03ca39adb80d80d3e0db3ade5bc193c491e70d903af3ea8c8eb280ca6"
+  },
+  "source_files": {
+    "runtime_lib_sha256": "33c1b4676924474ba70f1fe2284fe2adc34f018161e6b9e0ffe5cef1c0a43601",
+    "mechanical_pose_runtime_sha256": "0af4282d45c3a9f4edae347a7ec69891a4ed2afc14ae96f39c5ea490f3290901",
+    "mcp_main_sha256": "4ee8339d7e4bf6ca8ef3d8115ada6c5a3495b492ebe4216ba164d7b692c9de61",
+    "contract_checker_sha256": "36810bd302d6df85753193827ef07b1165910ad58eaba10c321609678036138c",
+    "request_schema_sha256": "74d304c3acd4c793027e05f5b640423e1d3012f9bdfcff0ea2532804b94e488e",
+    "result_schema_sha256": "a46ea096bec25202653eade50e3cb43ee5aa693b7d320afb6f9ce187f3d7660a"
+  },
+  "verification": {
+    "contracts": {
+      "command": "python3 scripts/check_forgecad_contracts.py",
+      "status": "PASS",
+      "schema_count": 160
+    },
+    "runtime_focused": {
+      "command": "cargo test -p forgecad-runtime mechanical_pose_ --features test-render-worker-fallback -- --nocapture",
+      "status": "PASS",
+      "passed": 2,
+      "failed": 0
+    },
+    "mcp_focused": {
+      "command": "cargo test -p forgecad-mcp mechanical_pose_ -- --nocapture",
+      "status": "PASS",
+      "passed": 1,
+      "failed": 0
+    },
+    "runtime_full": {
+      "command": "cargo test -p forgecad-runtime --features test-render-worker-fallback -- --nocapture",
+      "status": "PASS",
+      "library_passed": 197,
+      "library_failed": 0,
+      "library_ignored": 12,
+      "binary_passed": 1
+    },
+    "mcp_full": {
+      "command": "cargo test -p forgecad-mcp -- --nocapture",
+      "status": "PASS",
+      "passed": 75,
+      "failed": 0
+    },
+    "mcp010f_source_gate": {
+      "command": "bash script/test_mcp010f.sh",
+      "status": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+      "exit_code": 0
+    },
+    "stage0_truth": {
+      "command": "python3 scripts/check_mcp010f_stage0_truth.py",
+      "status": "PASS",
+      "schema_count": 160,
+      "read_tool_count": 43,
+      "write_tool_count": 33,
+      "total_tool_count": 76
+    }
+  },
+  "positive_coverage": [
+    "ticks-0-500-1000-produce-three-ordered-samples",
+    "middle-sample-evaluated-pose-hash-equals-existing-single-tick-result",
+    "repeat-request-produces-identical-sequence-and-canonical-hashes",
+    "each-sample-recomputes-rest-action-policy-and-hierarchy-semantics",
+    "sequence-hash-binds-complete-request-and-artifact-lineage",
+    "standalone-result-validation-binds-original-closed-request",
+    "authenticated-single-pose-ipc-and-mcp-sequence-oneOf-round-trip-remain-read-only",
+    "mcp-text-is-bounded-summary-and-complete-structuredContent-stays-within-one-mib-wire-budget",
+    "candidate-and-version-count-remain-unchanged"
+  ],
+  "negative_coverage": [
+    "unsorted-ticks-rejected",
+    "duplicate-ticks-rejected",
+    "tick-after-action-duration-rejected",
+    "null-action-with-nonzero-sequence-rejected",
+    "seventeen-samples-rejected",
+    "unknown-timeline-field-rejected",
+    "semantic-sample-tamper-rejected-even-after-top-level-rehash",
+    "lineage-tamper-rejected-even-after-sequence-and-canonical-rehash",
+    "normalized-rest-frame-tamper-rejected-after-rest-sample-sequence-and-canonical-coherent-rehash",
+    "mcp-duplicate-sequence-rejected",
+    "mcp-nested-sequence-unknown-field-rejected",
+    "unknown-script-bpy-path-url-network-fields-remain-rejected"
+  ],
+  "security_boundary": {
+    "runtime_is_only_product_state_writer": true,
+    "mcp_has_database": false,
+    "worker_invoked": false,
+    "arbitrary_python_or_bpy": false,
+    "arbitrary_script_or_plugin": false,
+    "network_access": false,
+    "filesystem_path_input": false,
+    "new_dependency": false,
+    "new_skill": false,
+    "new_operator": false,
+    "new_tool": false
+  },
+  "blender_reference_only": {
+    "commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "sources": [
+      "https://github.com/blender/blender/tree/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/animrig",
+      "https://github.com/blender/blender/tree/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/makesrna",
+      "https://docs.blender.org/manual/en/latest/animation/keyframes/index.html",
+      "https://docs.blender.org/manual/en/latest/editors/graph_editor/fcurves/introduction.html",
+      "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/COPYING"
+    ],
+    "adoption": "clean-room-semantics-only",
+    "blender_code_copied_or_linked": false,
+    "blender_executed": false
+  },
+  "quality_truth": {
+    "structural_source_gate": "PASS",
+    "package_gate": "NOT_RUN",
+    "live_gate": "NOT_RUN",
+    "viewer_sequence_ui": "NOT_IMPLEMENTED",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "benchmark_evidence": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "human_review": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "rigid-mechanical-links-only",
+    "maximum-16-ordered-samples",
+    "single-scalar-dof-per-link",
+    "linear-integer-tick-clamp-only",
+    "no-armature-or-skinning",
+    "no-ik-constraints-nla-fcurves-or-drivers",
+    "no-animation-asset-timeline-or-playback",
+    "no-worker-geometry-materialization",
+    "duplicate-tick-mcp-schema-annotation-is-enforced-by-runtime-not-the-generic-inline-validator",
+    "sequence-specific-authenticated-ipc-fixture-not-run",
+    "wire-overflow-branch-present-but-no-active-oversize-sequence-fixture",
+    "no-package-live-viewer-visual-or-human-proof"
+  ]
+}

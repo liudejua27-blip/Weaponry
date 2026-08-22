@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-lod-set-receipt.schema.json",
+  "title": "GameLodSetReceipt@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "levels", "part_ids", "material_zone_ids", "triangle_policy", "envelope_policy", "validator_status", "hard_gate_passed", "quality_status", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "GameLodSetReceipt@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "levels": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/level"}},
+    "part_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "material_zone_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "triangle_policy": {"const": "lod1-at-most-75pct-lod0-and-lod2-at-most-50pct-lod0@1"},
+    "envelope_policy": {"const": "per-part-aabb-center-and-extent-within-10pct-of-lod0@1"},
+    "validator_status": {"const": "strict-three-level-lod-readback-pass"},
+    "hard_gate_passed": {"const": true},
+    "quality_status": {"const": "structural_only"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec3": {"type": "array", "minItems": 3, "maxItems": 3, "prefixItems": [{"type": "number", "minimum": -10, "maximum": 10}, {"type": "number", "minimum": -10, "maximum": 10}, {"type": "number", "minimum": -10, "maximum": 10}], "items": false},
+    "bound": {"type": "object", "additionalProperties": false, "required": ["part_id", "min_m", "max_m"], "properties": {"part_id": {"$ref": "#/$defs/id"}, "min_m": {"$ref": "#/$defs/vec3"}, "max_m": {"$ref": "#/$defs/vec3"}}},
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "candidate_id", "candidate_state_sha256", "artifact_sha256", "artifact_readback_sha256", "triangle_count", "triangle_ratio_to_lod0", "part_bounds", "part_bounds_sha256"],
+      "properties": {
+        "level": {"type": "integer", "minimum": 0, "maximum": 2},
+        "candidate_id": {"$ref": "#/$defs/id"},
+        "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "triangle_count": {"type": "integer", "minimum": 1, "maximum": 250000},
+        "triangle_ratio_to_lod0": {"type": "number", "minimum": 0, "maximum": 1},
+        "part_bounds": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/bound"}},
+        "part_bounds_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

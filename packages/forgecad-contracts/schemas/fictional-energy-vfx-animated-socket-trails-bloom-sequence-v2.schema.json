@@ -1,0 +1,393 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-trails-bloom-sequence-v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FictionalEnergyVfxAnimatedSocketTrailsBloomSequence@2",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketTrailsBloomSequence@2"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "geometry_candidate_id": {
+      "$ref": "#/$defs/id",
+      "x-forgecad-distinct-from": "appearance_candidate_id"
+    },
+    "geometry_candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "geometry_delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "geometry_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_candidate_id": {
+      "$ref": "#/$defs/id",
+      "x-forgecad-distinct-from": "geometry_candidate_id"
+    },
+    "appearance_candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "material_surface_quality_id": {
+      "$ref": "#/$defs/id"
+    },
+    "material_surface_quality_report_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "material_surface_quality_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "geometry_preservation_projection_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "geometry_preservation_status": {
+      "const": "source-output-renderable-geometry-byte-exact"
+    },
+    "projection_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "particle_sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "particle_sequence_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_materialization_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_anchor_set_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_anchor_set_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "anchor_binding_policy": {
+      "const": "geometry-appearance-anchor-role-owner-trs-equivalent@1"
+    },
+    "anchor_binding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_id": {
+      "$ref": "#/$defs/id"
+    },
+    "animation_clip_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_node_id_encoding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_roles_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_identity_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_worker_build_cohort_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_schedule_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 15
+    },
+    "sample_time_ticks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 15,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1000000
+      }
+    },
+    "frame_scope": {
+      "const": "lod0-animation-trails-bloom-v2-source-frames-1-15-with-trails-v2-frame-zero-preroll@2"
+    },
+    "trails_bloom_sequence_policy": {
+      "const": "projection-v2-driven-animated-socket-trails-bloom-dual-candidate@2"
+    },
+    "history_policy": {
+      "const": "particles-v2-history-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@2"
+    },
+    "history_pre_roll_policy": {
+      "const": "same-parent-particles-v2-frame-zero-is-preroll-output-frames-one-to-fifteen@2"
+    },
+    "trail_sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "trail_sequence_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "trail_key_scope": {
+      "const": "animated-socket-trails-sequence-v2-frame-binding@2"
+    },
+    "trail_count": {
+      "const": 2,
+      "type": "integer"
+    },
+    "trail_emitter_roles": {
+      "const": [
+        "muzzle-vfx",
+        "energy-core-vfx"
+      ],
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "trail_bloom_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "trail_bloom_profile": {
+      "$ref": "#/$defs/trail_bloom_profile"
+    },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 15,
+      "items": {
+        "$ref": "#/$defs/frame"
+      }
+    },
+    "sequence_status": {
+      "const": "runtime-owned-durable-fictional-energy-vfx-animated-socket-trails-bloom-sequence-v2"
+    },
+    "quality_status": {
+      "const": "structural_only"
+    },
+    "visual_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "commercial_fps_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "human_review_status": {
+      "const": "NOT_RUN"
+    },
+    "commercial_engine_status": {
+      "const": "NOT_RUN"
+    },
+    "runtime_write_performed": {
+      "const": true
+    },
+    "restart_hash_verified": {
+      "const": true
+    },
+    "candidate_confirmed": {
+      "const": false
+    },
+    "version_created": {
+      "const": false
+    },
+    "export_performed": {
+      "const": false
+    },
+    "actual_engine_roundtrip": {
+      "const": false
+    },
+    "production_stage_advanced": {
+      "const": false
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "created_at": {
+      "$ref": "#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "project_id",
+    "geometry_candidate_id",
+    "geometry_candidate_state_sha256",
+    "geometry_delivery_manifest_object_sha256",
+    "geometry_artifact_sha256",
+    "appearance_candidate_id",
+    "appearance_candidate_state_sha256",
+    "appearance_delivery_manifest_object_sha256",
+    "appearance_artifact_sha256",
+    "material_surface_quality_id",
+    "material_surface_quality_report_object_sha256",
+    "material_surface_quality_canonical_sha256",
+    "geometry_preservation_projection_sha256",
+    "geometry_preservation_status",
+    "projection_key_sha256",
+    "projection_object_sha256",
+    "projection_canonical_sha256",
+    "particle_sequence_key_sha256",
+    "particle_sequence_canonical_sha256",
+    "animated_socket_materialization_key_sha256",
+    "animated_artifact_sha256",
+    "animated_socket_anchor_set_object_sha256",
+    "animated_socket_anchor_set_canonical_sha256",
+    "appearance_anchor_set_object_sha256",
+    "appearance_anchor_set_canonical_sha256",
+    "anchor_binding_policy",
+    "anchor_binding_sha256",
+    "animation_clip_id",
+    "animation_clip_object_sha256",
+    "animation_clip_canonical_sha256",
+    "animation_receipt_object_sha256",
+    "animation_receipt_canonical_sha256",
+    "vfx_profile_object_sha256",
+    "vfx_profile_canonical_sha256",
+    "socket_node_id_encoding_sha256",
+    "socket_roles_sha256",
+    "camera_object_sha256",
+    "camera_identity_sha256",
+    "render_profile_sha256",
+    "render_worker_build_cohort_sha256",
+    "sample_schedule_sha256",
+    "sample_count",
+    "sample_time_ticks",
+    "frame_scope",
+    "trails_bloom_sequence_policy",
+    "history_policy",
+    "history_pre_roll_policy",
+    "trail_sequence_key_sha256",
+    "trail_sequence_canonical_sha256",
+    "trail_key_scope",
+    "trail_count",
+    "trail_emitter_roles",
+    "trail_bloom_profile_sha256",
+    "trail_bloom_profile",
+    "frames",
+    "sequence_status",
+    "quality_status",
+    "visual_quality_status",
+    "commercial_fps_quality_status",
+    "human_review_status",
+    "commercial_engine_status",
+    "runtime_write_performed",
+    "restart_hash_verified",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "actual_engine_roundtrip",
+    "production_stage_advanced",
+    "input_sha256",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "trail_bloom_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": {
+          "const": 1,
+          "type": "number"
+        },
+        "source_gain": {
+          "const": 8,
+          "type": "number"
+        },
+        "radius_px": {
+          "const": 8,
+          "type": "integer"
+        },
+        "intensity": {
+          "const": 4,
+          "type": "number"
+        },
+        "hdr_clamp": {
+          "const": 16,
+          "type": "number"
+        },
+        "blur_passes": {
+          "const": 2,
+          "type": "integer"
+        },
+        "kernel": {
+          "const": "separable-box-two-pass-fixed-radius@1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "threshold",
+        "source_gain",
+        "radius_px",
+        "intensity",
+        "hdr_clamp",
+        "blur_passes",
+        "kernel"
+      ]
+    },
+    "frame": {
+      "$ref": "fictional-energy-vfx-animated-socket-trails-bloom-sequence-v2-frame.schema.json"
+    }
+  }
+}

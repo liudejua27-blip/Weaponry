@@ -1,0 +1,60 @@
+{
+  "schema_version": "ForgeCADGameAssetDeliverySourceGate@1",
+  "task_id": "FGC-MCP010F-GAME-DELIVERY-01",
+  "recorded_at": "2026-08-20",
+  "status": "PASS_AUTHORED_LOD_SET_COLLISION_AND_THREEJS_CONSUMER_STRUCTURAL_SLICE",
+  "scope": "three independently authored candidate-bound GLB levels, strict semantic/envelope validation, LOD2 POSITION-derived gameplay-only AABB sidecars, optional LOD0 rigid animation binding and isolated Three.js consumer validation",
+  "contracts": {
+    "request": "GameAssetDeliveryPrepareRequest@1",
+    "lod_receipt": "GameLodSetReceipt@1",
+    "collision": "CollisionProxySet@1",
+    "readiness": "GameEngineImportReadiness@1",
+    "manifest": "GameAssetDeliveryManifest@1",
+    "result": "GameAssetDeliveryPrepareResult@1"
+  },
+  "implemented": {
+    "mcp_tool": "game_asset_delivery_prepare",
+    "requires_explicit_authenticated_write_opt_in": true,
+    "lod_count": 3,
+    "lod_source": "independently-authored-and-compiled-candidates",
+    "automatic_lod_generation": false,
+    "triangle_policy": "lod1-at-most-75pct-lod0-and-lod2-at-most-50pct-lod0@1",
+    "stable_part_source_material_sets": true,
+    "part_to_material_binding_exact": true,
+    "part_envelope_tolerance": "10-percent-per-axis-center-and-half-extent",
+    "collision_policy": "per-part-aabb-box-from-lod2-visual-geometry@1",
+    "collision_source": "strictly-decoded-LOD2-POSITION-accessors",
+    "gameplay_only": true,
+    "physical_properties_included": false,
+    "animation_scope": "LOD0-only-optional-rigid-glTF",
+    "candidate_confirmed": false,
+    "external_export_performed": false
+  },
+  "focused_gates": {
+    "contracts": "PASS_210_SCHEMAS",
+    "runtime_compile": "PASS",
+    "runtime_deterministic_prepare": "PASS",
+    "runtime_candidate_version_unchanged": "PASS",
+    "runtime_wrong_state_and_python_negative": "PASS_FAIL_CLOSED",
+    "mcp_closed_schema_write_split": "PASS",
+    "mcp_positive_prepare_and_structured_summary": "PASS",
+    "mcp_wire_budget": "PASS_LE_1_MIB",
+    "release_raw_stdio": "PASS_AUTHORED_LOD_SET_COLLISION_DELIVERY",
+    "runtime_restart_cas_hash": "PASS",
+    "threejs_r185_static_loader": "PASS",
+    "threejs_r185_animated_loader": "PASS",
+    "threejs_animation_mixer_sample": "PASS",
+    "unity": "NOT_RUN",
+    "unreal": "NOT_RUN",
+    "godot": "NOT_RUN"
+  },
+  "limitations": [
+    "This is an authored three-level LOD set structural verifier, not a Runtime or Worker automatic mesh simplifier.",
+    "The three levels are separate candidate-bound GLBs. The slice verifies stable Part, source-node and MaterialZone sets, exact Part-to-MaterialZone mapping, strict ArtifactReadback@2, progressive triangle counts and bounded envelopes; it does not prove all three were algorithmically derived from one source mesh.",
+    "The optional rigid animation is bound to LOD0 only. LOD1 and LOD2 animation artifacts are not materialized or claimed.",
+    "The collision proxies are conservative local-space AABB boxes for gameplay asset assembly only. They are not hitboxes, rigid-body physics, damage, ballistics or real-world collision truth.",
+    "Three.js GLTFLoader and AnimationMixer consumer validation passed, but Unity, Unreal and Godot editor/importer round-trips remain NOT_RUN.",
+    "No candidate was confirmed and no user-facing external file export was performed.",
+    "Structural delivery and consumer compatibility do not prove visual likeness, commercial-game art quality, performance budgets or HQ360."
+  ]
+}

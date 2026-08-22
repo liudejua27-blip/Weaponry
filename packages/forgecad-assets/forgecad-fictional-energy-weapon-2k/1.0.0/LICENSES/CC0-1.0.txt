@@ -1,0 +1,4 @@
+CC0 1.0 Universal
+
+The source texture assets are dedicated to the public domain under CC0 1.0.
+See https://creativecommons.org/publicdomain/zero/1.0/legalcode for the legal code.

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-anchor-get-result.schema.json",
+  "title": "GameWeaponAnchorGetResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "link", "anchor_set", "restart_hash_verified", "runtime_write_performed", "quality_status"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponAnchorGetResult@1"},
+    "link": {"$ref": "game-weapon-anchor-link.schema.json"},
+    "anchor_set": {"$ref": "game-weapon-anchor-set.schema.json"},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "quality_status": {"const": "structural_only"}
+  }
+}

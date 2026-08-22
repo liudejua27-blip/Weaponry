@@ -1,0 +1,67 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F/VFX-RENDERED-SEQUENCE-06",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_STRUCTURAL_DURABLE_BOUNDED_EMISSIVE_SEQUENCE_GATE",
+  "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+  "current_source": {
+    "schema_count": 250,
+    "schema_content_set_sha256": "8ad313442f571c56028522f6f27d59b0002a9df2f0d2ed3a58de90b95ed14b1d",
+    "read_tool_count": 63,
+    "write_tool_count": 43,
+    "total_tool_count": 106,
+    "read_tool": "fictional_energy_vfx_rendered_sequence_get",
+    "write_tool": "fictional_energy_vfx_rendered_sequence_prepare"
+  },
+  "source_files": [
+    {"path": "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs", "sha256": "313daec1e6895bc74fb1f5c9f8305360384802bc13aca7942f9cc09734266b1f"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs", "sha256": "4f171123ff884ed7f26501c5992e9e1a5c69ded5cd98e525826a87d7d94e7722"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/game_asset_delivery.rs", "sha256": "4b0f1fd7b833809b6243438624305a1fe047021284865db737194a4c552d6995"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs", "sha256": "17ea64cd686c667ae9010caf11b64152ba99a29e9bcab1adc54cc657e8d00080"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs", "sha256": "6eb5e00dbb1401b182c55dd5c296b2946ceae5d829483230d50ea72c674ea849"},
+    {"path": "packages/forgecad-contracts/manifest.json", "sha256": "a526e23d6908ec8bd27db260e70ebac62802ab93dd3e27507f35ab88427aee1f"},
+    {"path": "docs/evidence/mcp010f/source-tool-manifest-summary.json", "sha256": "472a0884da723f4a9018301940b5745d71d5f0750e9aaa4d299558f1d7c0bccd"}
+  ],
+  "sequence": {
+    "minimum_frame_count": 2,
+    "maximum_frame_count": 16,
+    "tested_frame_count": 3,
+    "integer_ticks_strictly_increasing": true,
+    "lod_level": 0,
+    "fixed_camera_across_frames": true,
+    "fixed_render_profile_across_frames": true,
+    "fixed_worker_cohort_across_frames": true,
+    "nine_base_aovs_per_frame": true,
+    "double_worker_byte_exact_per_frame": true,
+    "independent_muzzle_and_core_material_zones": true,
+    "sequence_receipt_cas_bound": true,
+    "frame_key_inventory_sqlite_bound": true,
+    "idempotent_prepare": true,
+    "runtime_restart_readback_verified": true,
+    "invalid_tick_request_zero_write_verified": true,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "tests": [
+    {"name": "contracts checker", "result": "PASS_250_SCHEMAS"},
+    {"name": "forced-cohort three-frame VFX sequence durability and bounds", "result": "PASS_1_OF_1", "duration_seconds": 120.82, "filtered_out": 255, "skipped_by_missing_cohort": false},
+    {"name": "foreign sibling Worker cohort negative gate", "result": "PASS_REJECTED_GEOMETRY_WORKER_PROTOCOL"},
+    {"name": "MCP compiled manifest derivation", "result": "PASS_63_READ_43_WRITE_106_TOTAL"},
+    {"name": "MCP closed read/write split", "result": "PASS"},
+    {"name": "MCP010F Stage 0 truth gate", "result": "PASS_WITH_RETAINED_QUALITY_BLOCKERS"}
+  ],
+  "truth_boundaries": {
+    "emissive_animation_sequence_rendered": true,
+    "hdr_bloom_rendered": false,
+    "particles_rendered": false,
+    "trails_rendered": false,
+    "glb_socket_transform_executed": false,
+    "actual_engine_roundtrip": false,
+    "human_review": "NOT_RUN",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_status": "MISMATCH",
+    "hq360_status": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

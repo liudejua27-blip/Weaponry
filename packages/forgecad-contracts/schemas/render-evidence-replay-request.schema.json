@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/render-evidence-replay-request.schema.json",
+  "title": "RenderEvidenceReplayRequest",
+  "description": "A closed request to re-run the fixed ForgeCAD Render Worker against one exact RenderEvidenceIntegrity-bound artifact and camera without persisting the replay.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_state_sha256", "integrity_request", "replay_policy", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "RenderEvidenceReplayRequest@1"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "integrity_request": {"$ref": "https://forgecad.local/contracts/render-evidence-integrity-request.schema.json"},
+    "replay_policy": {"const": "fixed-worker-nine-aov-byte-replay-read-only@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

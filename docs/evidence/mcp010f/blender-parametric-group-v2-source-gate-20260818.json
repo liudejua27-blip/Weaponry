@@ -1,0 +1,146 @@
+{
+  "schema_version": "ForgeCADBlenderParametricGroupV2SourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-18",
+  "status": "PASS_SOURCE_FOCUSED_STRUCTURAL_ONLY",
+  "scope": {
+    "request_schema": "ParametricDesignKitRequest@2",
+    "result_schema": "ParametricDesignKitProgram@2",
+    "entry_tool": "geometry_program_hash",
+    "runtime_write_performed": false,
+    "candidate_created": false,
+    "new_mcp_tools": 0,
+    "new_operators": 0,
+    "new_skills": 0,
+    "new_dependencies": 0
+  },
+  "source_truth": {
+    "schema_count": 158,
+    "operator_catalog": "19/19 active",
+    "read_tools": 43,
+    "write_tools": 33,
+    "total_tools": 76,
+    "runtime_module": "apps/desktop/src-tauri/crates/forgecad-runtime/src/parametric_group.rs",
+    "runtime_module_sha256": "3ae511709e058ef9a539a53866dcb9205cb7044e427479069761d8ac67ef2bc1",
+    "request_schema_path": "packages/forgecad-contracts/schemas/parametric-design-kit-request-v2.schema.json",
+    "request_schema_sha256": "3678ab860d5500013e3c1c8419375f8f5bc9db12e1f8d33adb21fb60abe48d7b",
+    "result_schema_path": "packages/forgecad-contracts/schemas/parametric-design-kit-program-v2.schema.json",
+    "result_schema_sha256": "ca2c8f3a8f9c6e07b75523bf1d42b70d63182b15adf8eb1cc07cf5408a7a7acd"
+  },
+  "template_catalog": {
+    "schema_version": "ForgeCADGeometryGroupTemplateCatalog@1",
+    "canonical_sha256": "9af9d811a391765cb7cb3ee8ba3e68f99ffe55796e011e079966f81c16cfac9f",
+    "nested_group_depth": 0,
+    "field_mode": "single-value-only",
+    "max_nodes_per_template": 3,
+    "templates": [
+      {
+        "template_id": "forgecad.group.rounded-box@1",
+        "canonical_sha256": "c4af898e9d4b0acd11c7436faf8e688913e2ef707a08621abc95918a5478c178",
+        "lowering_sha256": "c6cc539889ed080cb624532c44eaf6f6825c4227c1bfa20c2d5ef97307bbce03",
+        "stages": [
+          "forgecad.geometry.primitive@2",
+          "forgecad.geometry.bevel@1",
+          "forgecad.geometry.normal-policy@1"
+        ]
+      },
+      {
+        "template_id": "forgecad.group.mirrored-box@1",
+        "canonical_sha256": "ad5b9ca7d67081811e856b152838ad93823a1ce77b33892d268942033ff451ef",
+        "lowering_sha256": "f21112b6ebdb59353046dae4ad8528feff8c9e39141032aa56a942972af24fd0",
+        "stages": [
+          "forgecad.geometry.primitive@2",
+          "forgecad.geometry.mirror@1",
+          "forgecad.geometry.normal-policy@1"
+        ]
+      },
+      {
+        "template_id": "forgecad.group.arrayed-cylinder@1",
+        "canonical_sha256": "b423b38dc14100465054115a6222c3cc9794b13c762f8c2555c08176a6a12289",
+        "lowering_sha256": "cbdc085aba055dbfe234b8f980ca9e938e6845bc9be61c5277959bd8d77dd1f8",
+        "stages": [
+          "forgecad.geometry.primitive@2",
+          "forgecad.geometry.array@1",
+          "forgecad.geometry.normal-policy@1"
+        ]
+      }
+    ]
+  },
+  "security_boundary": {
+    "blender_code_copied_or_linked": false,
+    "blender_installed_or_executed": false,
+    "python_or_script_execution": false,
+    "path_url_environment_or_network_input": false,
+    "dynamic_plugin_loading": false,
+    "worker_input": "validated GeometryProgram@2 only",
+    "runtime_is_sole_state_writer": true,
+    "unknown_fields_fail_closed": true
+  },
+  "verification": {
+    "contracts": "PASS_158_SCHEMAS",
+    "runtime_focused": "PASS_2_OF_2",
+    "mcp_focused": "PASS_1_OF_1",
+    "deterministic_repeat": "PASS",
+    "shared_template_distinct_instances": "PASS_SAME_TEMPLATE_HASH_DIFFERENT_PARAMETER_INSTANCE_AND_PROGRAM_HASHES",
+    "instance_catalog_cohort_binding": "PASS_TEMPLATE_AND_OPERATOR_CATALOG_HASH_BOUND",
+    "lowering_identity_binding": "PASS_PARAMETER_TO_NODE_BINDINGS_SHARE_ONE_HASHED_LOWERING_DEFINITION",
+    "stale_operator_catalog": "PASS_REJECTED",
+    "semantic_result_tamper": "PASS_REJECTED",
+    "dynamic_script_field": "PASS_REJECTED",
+    "url_like_unknown_template": "PASS_REJECTED",
+    "path_field": "PASS_REJECTED",
+    "wrong_template_parameter_set": "PASS_REJECTED",
+    "candidate_version_cas_inventory_unchanged": "PASS",
+    "full_runtime_without_test_fallback": "FAIL_187_PASSED_10_GEOMETRY_WORKER_UNAVAILABLE_12_IGNORED",
+    "full_runtime_suite": "PASS_197_PASSED_0_FAILED_12_IGNORED_WITH_TEST_RENDER_WORKER_FALLBACK_PLUS_1_BIN_TEST",
+    "full_mcp_suite": "PASS_75_PASSED_0_FAILED",
+    "mcp010f_full_source_gate": "PASS_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+    "release_gates": "PASS_ALL_SIX"
+  },
+  "official_research": {
+    "frozen_blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "repository_commit_url": "https://github.com/blender/blender/commit/72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "license_url": "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/COPYING",
+    "geometry_nodes_modifier_url": "https://docs.blender.org/manual/en/dev/modeling/modifiers/generate/geometry_nodes.html",
+    "node_groups_url": "https://docs.blender.org/manual/fi/5.0/interface/controls/nodes/groups.html",
+    "geometry_node_editor_url": "https://docs.blender.org/manual/nb/5.0/editors/geometry_node.html",
+    "adaptation": "clean-room immutable typed first-party group templates"
+  },
+  "quality_truth": {
+    "source_structural": "PASS",
+    "package": "NOT_RUN",
+    "live_codex": "NOT_RUN",
+    "visual_likeness": "QUALITY_TARGET_NOT_MET",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "human_review": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "not a Blender Geometry Nodes runtime",
+    "no nested groups, fields, attributes, simulation, custom nodes or arbitrary topology",
+    "no plugin marketplace or executable add-on ecosystem",
+    "no candidate compilation, persistence, visual comparison or user approval in this read-only call",
+    "distribution signing and third-party lifecycle remain MCP012 and MCP013 work"
+  ],
+  "worktree": {
+    "branch": "codex/blender-forgecad",
+    "dirty": true,
+    "commit_created": false
+  },
+  "replay": [
+    "python3 scripts/check_forgecad_contracts.py",
+    "CARGO_TARGET_DIR=/tmp/forgecad-parametric-group-target script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime parametric_group --offline",
+    "CARGO_TARGET_DIR=/tmp/forgecad-parametric-group-target script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp parametric_group_v2 --offline",
+    "CARGO_TARGET_DIR=/tmp/forgecad-parametric-group-target script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-runtime --offline",
+    "CARGO_TARGET_DIR=/tmp/forgecad-parametric-group-target script/with_rust_toolchain.sh cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -p forgecad-mcp --offline",
+    "bash script/test_mcp010f.sh",
+    "npm run release:docs-walkthrough",
+    "npm run repository:integrity",
+    "npm run release:safety-scope",
+    "npm run release:secrets-files",
+    "npm run release:license-sbom",
+    "git diff --check"
+  ],
+  "canonical_sha256": "aa9f780ef3748fb9129a538502c4d39bd4468042ab3ba36fc916dd30eb180e9e"
+}

@@ -1,0 +1,81 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-particles-sequence-prepare-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "actual_engine_roundtrip": {
+      "const": false
+    },
+    "candidate_confirmed": {
+      "const": false
+    },
+    "commercial_engine_status": {
+      "const": "NOT_RUN"
+    },
+    "commercial_fps_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "export_performed": {
+      "const": false
+    },
+    "human_review_status": {
+      "const": "NOT_RUN"
+    },
+    "production_stage_advanced": {
+      "const": false
+    },
+    "quality_status": {
+      "const": "structural_only"
+    },
+    "replayed": {
+      "type": "boolean"
+    },
+    "restart_hash_verified": {
+      "const": true
+    },
+    "runtime_write": {
+      "const": true
+    },
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketParticlesSequencePrepareResult@1"
+    },
+    "sequence": {
+      "$ref": "fictional-energy-vfx-animated-socket-particles-sequence.schema.json"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "version_created": {
+      "const": false
+    },
+    "visual_quality_status": {
+      "const": "NOT_PROVEN"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "sequence",
+    "replayed",
+    "restart_hash_verified",
+    "runtime_write",
+    "quality_status",
+    "visual_quality_status",
+    "commercial_fps_quality_status",
+    "human_review_status",
+    "commercial_engine_status",
+    "actual_engine_roundtrip",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed"
+  ],
+  "title": "FictionalEnergyVfxAnimatedSocketParticlesSequencePrepareResult@1",
+  "type": "object"
+}

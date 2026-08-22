@@ -579,6 +579,112 @@ fn validate_kit_intent(kit_id: &str, intent: &Map<String, Value>) -> Result<(), 
             vector3(intent, "position_m", kit_id)?;
             vector3(intent, "rotation_rad", kit_id)?;
         }
+        "forgecad.kit.channel@1" => {
+            exact_keys(
+                intent,
+                &[
+                    "stations",
+                    "path_frame",
+                    "floor_width_ratio",
+                    "edge_bevel_m",
+                    "start_transition_m",
+                    "end_transition_m",
+                    "transition_segments",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                kit_id,
+            )?;
+            if string(intent, "path_frame")? != "planar-xy-z-up@1" {
+                return Err(format!(
+                    "FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id}.path_frame is unsupported"
+                ));
+            }
+            let stations = intent
+                .get("stations")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    format!("FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id}.stations must be an array")
+                })?;
+            if !(2..=32).contains(&stations.len()) {
+                return Err(format!(
+                    "FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id}.stations count is out of bounds"
+                ));
+            }
+            for station in stations {
+                let station = station.as_object().ok_or_else(|| {
+                    format!("FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id}.station must be an object")
+                })?;
+                exact_keys(station, &["point_m", "width_m", "depth_m"], kit_id)?;
+                let point = vector3(station, "point_m", kit_id)?;
+                if point[2].abs() > 1.0e-5 {
+                    return Err(format!(
+                        "FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id}.point_m.z must be zero"
+                    ));
+                }
+                let width = positive_number(station, "width_m", 10.0, kit_id)?;
+                let depth = positive_number(station, "depth_m", 10.0, kit_id)?;
+                if depth >= 0.75 * width {
+                    return Err(format!(
+                        "FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id}.depth_m is too deep"
+                    ));
+                }
+            }
+            let floor_ratio = positive_number(intent, "floor_width_ratio", 0.8, kit_id)?;
+            if !(0.1..=0.8).contains(&floor_ratio) {
+                return Err(format!(
+                    "FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id}.floor_width_ratio is out of bounds"
+                ));
+            }
+            nonnegative_number(intent, "edge_bevel_m", 5.0, kit_id)?;
+            nonnegative_number(intent, "start_transition_m", 5.0, kit_id)?;
+            nonnegative_number(intent, "end_transition_m", 5.0, kit_id)?;
+            integer(intent, "transition_segments", 1, 4, kit_id)?;
+            vector3(intent, "position_m", kit_id)?;
+            vector3(intent, "rotation_rad", kit_id)?;
+        }
+        "forgecad.kit.energy-core@1" => {
+            exact_keys(
+                intent,
+                &[
+                    "component",
+                    "outer_radius_m",
+                    "inner_radius_m",
+                    "depth_m",
+                    "radial_segments",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                kit_id,
+            )?;
+            let component = intent
+                .get("component")
+                .and_then(Value::as_str)
+                .filter(|value| {
+                    matches!(
+                        *value,
+                        "guard-ring" | "mechanical-ring" | "emitter-core" | "mechanical-backplate"
+                    )
+                })
+                .ok_or_else(|| {
+                    format!("FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id}.component is unsupported")
+                })?;
+            let outer_radius = positive_number(intent, "outer_radius_m", 5.0, kit_id)?;
+            let inner_radius = nonnegative_number(intent, "inner_radius_m", 5.0, kit_id)?;
+            if inner_radius >= outer_radius - 1.0e-5
+                || (matches!(component, "guard-ring" | "mechanical-ring") && inner_radius <= 1.0e-5)
+                || (matches!(component, "emitter-core" | "mechanical-backplate")
+                    && inner_radius != 0.0)
+            {
+                return Err(format!(
+                    "FICTIONAL_WEAPON_PROFILE_INVALID: {kit_id} inner/outer radii do not match the component"
+                ));
+            }
+            positive_number(intent, "depth_m", 10.0, kit_id)?;
+            integer(intent, "radial_segments", 12, 64, kit_id)?;
+            vector3(intent, "position_m", kit_id)?;
+            vector3(intent, "rotation_rad", kit_id)?;
+        }
         "forgecad.kit.joint@1" => {
             exact_keys(
                 intent,
@@ -639,6 +745,8 @@ fn operator_for_kit(kit_id: &str) -> Result<&'static str, String> {
             Ok("forgecad.geometry.panel@1")
         }
         "forgecad.kit.vent@1" => Ok("forgecad.geometry.vent-array@1"),
+        "forgecad.kit.channel@1" => Ok("forgecad.geometry.recessed-channel@1"),
+        "forgecad.kit.energy-core@1" => Ok("forgecad.geometry.energy-core@1"),
         "forgecad.kit.joint@1" => Ok("forgecad.geometry.joint-stack@1"),
         "forgecad.kit.sensor@1" => Ok("forgecad.geometry.primitive@2"),
         _ => Err(format!(
@@ -927,6 +1035,104 @@ mod tests {
             plan["macro_requests"][0]["input_sha256"].as_str().unwrap()
         ));
         assert_eq!(plan, expand_profile(&profile).expect("repeat expansion"));
+    }
+
+    #[test]
+    fn fictional_profile_accepts_recessed_channel_secondary_detail_kit() {
+        let mut profile = profile_fixture();
+        profile["macro_intents"]
+            .as_array_mut()
+            .expect("macro intents")
+            .push(json!({
+                "part_id":"energy-guide-channel",
+                "kit_id":"forgecad.kit.channel@1",
+                "operator_id":"forgecad.geometry.recessed-channel@1",
+                "material_zone_id":"dark-painted-metal",
+                "stage":"tertiary-detail",
+                "visibility":"inferred",
+                "symmetry":"independent",
+                "intent":{
+                    "stations":[
+                        {"point_m":[-0.42,0.0,0.0],"width_m":0.16,"depth_m":0.05},
+                        {"point_m":[0.0,0.02,0.0],"width_m":0.20,"depth_m":0.06},
+                        {"point_m":[0.42,0.0,0.0],"width_m":0.14,"depth_m":0.04}
+                    ],
+                    "path_frame":"planar-xy-z-up@1",
+                    "floor_width_ratio":0.4,
+                    "edge_bevel_m":0.005,
+                    "start_transition_m":0.03,
+                    "end_transition_m":0.03,
+                    "transition_segments":1,
+                    "position_m":[0.0,0.0,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            }));
+        profile["canonical_sha256"] = Value::String(String::new());
+        profile["canonical_sha256"] = Value::String(canonical_json_hash(&profile));
+        validate_profile(&profile).expect("channel kit should pass profile validation");
+        let plan = expand_profile(&profile).expect("channel kit should expand");
+        assert_eq!(
+            plan["macro_requests"]
+                .as_array()
+                .expect("macro requests")
+                .len(),
+            5
+        );
+        assert_eq!(
+            plan["macro_requests"][4]["kit_id"],
+            "forgecad.kit.channel@1"
+        );
+    }
+
+    #[test]
+    fn fictional_profile_accepts_typed_energy_core_component_kit() {
+        let mut profile = profile_fixture();
+        profile["macro_intents"]
+            .as_array_mut()
+            .expect("macro intents")
+            .push(json!({
+                "part_id":"energy-core-guard",
+                "kit_id":"forgecad.kit.energy-core@1",
+                "operator_id":"forgecad.geometry.energy-core@1",
+                "material_zone_id":"black-anodized-metal",
+                "stage":"secondary-structure",
+                "visibility":"inferred",
+                "symmetry":"independent",
+                "intent":{
+                    "component":"guard-ring",
+                    "outer_radius_m":0.36,
+                    "inner_radius_m":0.28,
+                    "depth_m":0.08,
+                    "radial_segments":24,
+                    "position_m":[0.15,0.25,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            }));
+        profile["canonical_sha256"] = Value::String(String::new());
+        profile["canonical_sha256"] = Value::String(canonical_json_hash(&profile));
+        validate_profile(&profile).expect("energy-core kit should pass profile validation");
+        let plan = expand_profile(&profile).expect("energy-core kit should expand");
+        assert_eq!(
+            plan["macro_requests"]
+                .as_array()
+                .expect("macro requests")
+                .len(),
+            5
+        );
+        assert_eq!(
+            plan["macro_requests"][4]["kit_id"],
+            "forgecad.kit.energy-core@1"
+        );
+
+        let mut solid_with_tiny_hole = profile;
+        solid_with_tiny_hole["macro_intents"][4]["intent"]["component"] = json!("emitter-core");
+        solid_with_tiny_hole["macro_intents"][4]["intent"]["inner_radius_m"] = json!(0.000001);
+        solid_with_tiny_hole["canonical_sha256"] = Value::String(String::new());
+        solid_with_tiny_hole["canonical_sha256"] =
+            Value::String(canonical_json_hash(&solid_with_tiny_hole));
+        let error = validate_profile(&solid_with_tiny_hole)
+            .expect_err("solid energy-core must require exact-zero inner radius");
+        assert!(error.contains("inner/outer radii"), "{error}");
     }
 
     #[test]

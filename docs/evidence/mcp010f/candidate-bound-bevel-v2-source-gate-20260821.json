@@ -1,0 +1,117 @@
+{
+  "schema_version": "ForgeCADCandidateBoundBevelV2SourceGate@1",
+  "task_id": "FGC-MCP010F-BEVEL-CANDIDATE-14",
+  "parent_task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-21",
+  "status": "PASS_SOURCE_STRUCTURAL_CANDIDATE_BOUND_BEVEL_V2_WITH_FIXED_CAMERA_AOV_NON_REGRESSION",
+  "safe_scope": "legal nonfunctional fictional game and film visual assets only",
+  "source_worktree_state": "DIRTY_USER_OWNED_UNCOMMITTED_CHANGES_PRESERVED",
+  "fixed_build_cohort_sha256": "6b07f46f2b7fc4c2523bb5d9d203850e470b88a11cb1104cb4e78b2a84e46f3e",
+  "current_source_counts": {
+    "schemas": 293,
+    "mcp_read_tools": 69,
+    "mcp_write_tools": 49,
+    "mcp_total_tools": 118
+  },
+  "contracts": {
+    "request": "GeometryModifierApplyRequest@2",
+    "result": "GeometryModifierApplyResult@2",
+    "request_exact_field_count": 21,
+    "additional_properties": false,
+    "selection_scope": "exactly one stable edge on one direct authoring-mesh@1 Part terminal",
+    "segments": "1..4",
+    "profile": "0.25..0.75",
+    "bevel_m": "greater than 0 and at most 0.25",
+    "max_response_bytes": 1048576
+  },
+  "runtime_durable_binding": {
+    "source_candidate_and_current_head_revalidated": true,
+    "source_artifact_program_readback_topology_catalog_and_config_bound": true,
+    "selected_part_terminal_and_edge_bound": true,
+    "non_target_part_bindings_preserved": true,
+    "derived_candidate_state": "reviewable",
+    "idempotent_replay": "PASS",
+    "restart_readback": "PASS",
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "quality_status": "structural_only"
+  },
+  "store_transaction": {
+    "sidecar_kind": "geometry-modifier-apply-result-v2",
+    "sidecar_kind_allowlist": "PASS_CLOSED_V1_V2_UNKNOWN_REJECTED",
+    "source_head_and_derived_binding": "PASS_TRANSACTION_REVALIDATED",
+    "full_store_tests": "PASS_37_OF_37"
+  },
+  "fixed_camera_nine_aov_non_regression": {
+    "camera": "same Runtime default_camera_calibration for source and derived",
+    "width": 512,
+    "height": 512,
+    "passes": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "ao",
+      "part-id",
+      "material-id",
+      "wireframe",
+      "uv-stretch"
+    ],
+    "source_repeat_byte_exact": "PASS",
+    "derived_repeat_byte_exact": "PASS",
+    "worker_same_cohort": "PASS",
+    "silhouette_iou_minimum": 0.8,
+    "silhouette_iou_gate": "PASS",
+    "bbox_width_height_ratio_range": [0.8, 1.2],
+    "bbox_non_regression_gate": "PASS",
+    "centroid_shift_maximum": 0.05,
+    "centroid_non_regression_gate": "PASS",
+    "normal_or_wireframe_changed": "PASS"
+  },
+  "verification": {
+    "contracts": "PASS_293_SCHEMAS",
+    "runtime_candidate_bound_bevel_v2_same_cohort": "PASS_1_OF_1_WITH_FOUR_NINE_AOV_RENDERS",
+    "runtime_modifier_apply_v1_regression_same_cohort": "PASS_1_OF_1",
+    "mcp_geometry_prepare_contract_and_hidden_write": "PASS_2_OF_2",
+    "mcp_bounded_schema_subset": "PASS",
+    "mcp_tool_counts": "PASS_69_READ_49_WRITE_118_TOTAL",
+    "mcp_authenticated_ipc_same_cohort": "PASS_1_OF_1",
+    "stage0_truth": "PASS_WITH_EXISTING_QUALITY_AND_BINDING_BLOCKERS",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "cargo_fmt_check": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "source_sha256": {
+    "request_schema": "264cbf308520f0beb9e2f871cbaac50d539c2e364eabe140b0a42734dcbb016e",
+    "result_schema": "3ef9cdae3208c8f9cca9f27ca714a3a21ea650b6cd799108a53da1a36bffb344",
+    "contract_manifest": "fbfb770d439d40d73187d3b62490263b11d434bb4610841d797ebdb76fb5611f",
+    "contract_checker": "fd5c195eb17fbba64e54e554b1c14d461b7e9af081c3b3ebe3d6a5982a0cd5bd",
+    "runtime": "e90b3b56137b1c1b4563e564194ba67fed39bc6ed349e951a74a31aa69bbd586",
+    "store": "eafc2956018a65d5b0be2a7c0655a5d10eef6f56f86d8a19e3453d44826ca1a3",
+    "mcp": "afc6616ef0f9fa099140a89f018214992892b4913dd1f72a6fc5cf5286ca24f7"
+  },
+  "quality_boundaries": {
+    "detail_target_reference": "UNAVAILABLE",
+    "reference_likeness": "QUALITY_TARGET_NOT_MET",
+    "truth_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "same_candidate_multiview": "NOT_RUN",
+    "pbr_visual": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "confirm_version_export": "NOT_RUN",
+    "unity_unreal": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "commercial_game_weapon_parity": false
+  },
+  "known_limitations": [
+    "bevel@2 remains limited to one stable edge on a direct supported authoring mesh and is not an arbitrary edge-chain bevel",
+    "the nine-AOV gate proves deterministic visible-detail handoff and bounded non-regression, not likeness, PBR quality, gameplay behavior or commercial-engine parity",
+    "no ballistics, manufacturing dimensions, weapon performance or functional weapon semantics are provided",
+    "the current user weapon reference was not used as an exact detail ROI target in this focused test"
+  ]
+}

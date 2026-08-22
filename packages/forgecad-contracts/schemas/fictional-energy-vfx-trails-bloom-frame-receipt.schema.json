@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-trails-bloom-frame-receipt.schema.json",
+  "title": "FictionalEnergyVfxTrailsBloomFrameReceipt@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "trail_bloom_key_sha256",
+    "project_id",
+    "delivery_manifest_object_sha256",
+    "vfx_profile_object_sha256",
+    "anchor_set_object_sha256",
+    "source_candidate_id",
+    "source_artifact_sha256",
+    "sample_request_sha256",
+    "base_frame_key_sha256",
+    "bloom_key_sha256",
+    "source_trail_key_sha256",
+    "camera_object_sha256",
+    "camera_identity_sha256",
+    "render_profile_sha256",
+    "render_worker_build_cohort_sha256",
+    "render_worker_binding_status",
+    "trail_bloom_profile",
+    "trail_bloom_profile_sha256",
+    "base_opaque_depth_object_sha256",
+    "base_opaque_depth_pass",
+    "trail_seed_sha256",
+    "node_inventory_sha256",
+    "node_inventory",
+    "owner_world_transform_sha256",
+    "owner_world_transforms",
+    "trail_inventory_sha256",
+    "trail_inventory",
+    "trail_id_encoding_sha256",
+    "trail_id_encoding",
+    "source_trail_color_object_sha256",
+    "source_trail_id_object_sha256",
+    "source_trail_depth_object_sha256",
+    "base_aov_passes",
+    "bloom_passes",
+    "particle_pass_sha256s",
+    "source_trail_passes",
+    "source_object_sha256",
+    "contribution_object_sha256",
+    "source_pass",
+    "contribution_pass",
+    "trail_bloom_policy",
+    "input_policy",
+    "occlusion_policy",
+    "render_policy",
+    "base_aov_byte_exact_verified",
+    "base_opaque_depth_byte_exact_reused",
+    "bloom_pass_byte_exact_reused",
+    "particle_passes_byte_exact_reused",
+    "source_trail_passes_byte_exact_reused",
+    "base_bloom_mutated",
+    "particle_passes_mutated",
+    "trail_passes_mutated",
+    "opaque_geometry_depth_tested",
+    "trail_bloom_source_rendered",
+    "trail_bloom_contribution_rendered",
+    "trail_bloom_rendered",
+    "trail_bloom_input",
+    "runtime_write_performed",
+    "candidate_confirmed",
+    "export_performed",
+    "actual_engine_roundtrip",
+    "quality_status",
+    "limitations",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxTrailsBloomFrameReceipt@1"
+    },
+    "trail_bloom_key_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "project_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "delivery_manifest_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "vfx_profile_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "anchor_set_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "source_candidate_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "source_artifact_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "sample_request_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "base_frame_key_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "bloom_key_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "source_trail_key_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "camera_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "camera_identity_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "render_profile_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "render_worker_build_cohort_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "render_worker_binding_status": {
+      "const": "same_cohort_verified"
+    },
+    "trail_bloom_profile": {
+      "$ref": "#/$defs/trail_bloom_profile"
+    },
+    "trail_bloom_profile_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "base_opaque_depth_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "base_opaque_depth_pass": {
+      "const": "depth"
+    },
+    "trail_seed_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "node_inventory_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "node_inventory": {
+      "$ref": "fictional-energy-vfx-particles-frame-receipt.schema.json#/properties/node_inventory"
+    },
+    "owner_world_transform_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "owner_world_transforms": {
+      "$ref": "fictional-energy-vfx-particles-frame-receipt.schema.json#/properties/owner_world_transforms"
+    },
+    "trail_inventory_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "trail_inventory": {
+      "$ref": "fictional-energy-vfx-trails-frame-receipt.schema.json#/properties/trails"
+    },
+    "trail_id_encoding_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "trail_id_encoding": {
+      "$ref": "#/$defs/trail_id_encoding"
+    },
+    "source_trail_color_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "source_trail_id_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "source_trail_depth_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "base_aov_passes": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "bloom_passes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "particle_pass_sha256s": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 5,
+      "items": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "uniqueItems": true,
+        "items": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "source_trail_passes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "common.schema.json#/$defs/sha256"
+      }
+    },
+    "source_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "contribution_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "source_pass": {
+      "$ref": "fictional-energy-vfx-trails-bloom-render-set.schema.json#/$defs/pass"
+    },
+    "contribution_pass": {
+      "$ref": "fictional-energy-vfx-trails-bloom-render-set.schema.json#/$defs/pass"
+    },
+    "trail_bloom_policy": {
+      "const": "lod0-typed-trails-hdr-source-two-pass-fixed-kernel@1"
+    },
+    "input_policy": {
+      "const": "existing-trail-color-depth-plus-current-base-opaque-depth-byte-exact@1"
+    },
+    "occlusion_policy": {
+      "const": "current-base-opaque-depth-before-trail-depth-reversed-normalized-u8-epsilon-1e-4@1"
+    },
+    "render_policy": {
+      "const": "lod0-trail-bloom-two-new-passes-base-bloom-particles-trails-byte-exact-reused@1"
+    },
+    "base_aov_byte_exact_verified": {
+      "const": true
+    },
+    "base_opaque_depth_byte_exact_reused": {
+      "const": true
+    },
+    "bloom_pass_byte_exact_reused": {
+      "const": true
+    },
+    "particle_passes_byte_exact_reused": {
+      "const": true
+    },
+    "source_trail_passes_byte_exact_reused": {
+      "const": true
+    },
+    "base_bloom_mutated": {
+      "const": false
+    },
+    "particle_passes_mutated": {
+      "const": false
+    },
+    "trail_passes_mutated": {
+      "const": false
+    },
+    "opaque_geometry_depth_tested": {
+      "const": true
+    },
+    "trail_bloom_source_rendered": {
+      "const": true
+    },
+    "trail_bloom_contribution_rendered": {
+      "const": true
+    },
+    "trail_bloom_rendered": {
+      "const": true
+    },
+    "trail_bloom_input": {
+      "const": true
+    },
+    "runtime_write_performed": {
+      "const": true
+    },
+    "candidate_confirmed": {
+      "const": false
+    },
+    "export_performed": {
+      "const": false
+    },
+    "actual_engine_roundtrip": {
+      "const": false
+    },
+    "quality_status": {
+      "const": "structural_only"
+    },
+    "limitations": {
+      "const": [
+        "base-bloom-particles-trails-byte-exact-reused",
+        "trail-bloom-passes-independent-from-base-bloom",
+        "no-commercial-engine-roundtrip",
+        "no-visual-quality-or-likeness-pass"
+      ]
+    },
+    "canonical_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "trail_bloom_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "threshold",
+        "source_gain",
+        "radius_px",
+        "intensity",
+        "hdr_clamp",
+        "blur_passes",
+        "kernel"
+      ],
+      "properties": {
+        "threshold": {
+          "const": 1.0
+        },
+        "source_gain": {
+          "const": 8.0
+        },
+        "radius_px": {
+          "const": 8
+        },
+        "intensity": {
+          "const": 4.0
+        },
+        "hdr_clamp": {
+          "const": 16.0
+        },
+        "blur_passes": {
+          "const": 2
+        },
+        "kernel": {
+          "const": "separable-box-two-pass-fixed-radius@1"
+        }
+      }
+    },
+    "trail_id_encoding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "encoding",
+        "background_rgba8",
+        "id_range",
+        "segment_identity"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "FictionalEnergyVfxTrailIdEncoding@1"
+        },
+        "encoding": {
+          "const": "lossless-little-endian-rgb24-parent-trail-id-plus-one-alpha-visible@1"
+        },
+        "background_rgba8": {
+          "const": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "id_range": {
+          "const": [
+            1,
+            65535
+          ]
+        },
+        "segment_identity": {
+          "const": "segments-share-stable-parent-trail-id@1"
+        }
+      }
+    }
+  }
+}

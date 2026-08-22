@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-sequence-render-prepare-request.schema.json",
+  "title": "FictionalEnergyVfxSequenceRenderPrepareRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "delivery_manifest_object_sha256", "vfx_profile_object_sha256", "sample_time_ticks", "sampling_policy", "appearance_binding_policy", "effect_materialization_policy", "lod_level", "camera_policy", "render_policy", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxSequenceRenderPrepareRequest@1"},
+    "project_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "delivery_manifest_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "vfx_profile_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "sample_time_ticks": {"type": "array", "minItems": 2, "maxItems": 16, "items": {"type": "integer", "minimum": 0, "maximum": 1000000}},
+    "sampling_policy": {"const": "integer-tick-linear-once-clamp-loop-modulo-duration@1"},
+    "appearance_binding_policy": {"const": "three-lod-appearance-program-glb-material-zone-stable-id@1"},
+    "effect_materialization_policy": {"const": "independent-effect-material-zone@1"},
+    "lod_level": {"const": 0},
+    "camera_policy": {"const": "runtime-fixed-default-camera-calibration@1"},
+    "render_policy": {"const": "lod0-nine-aov-sequence-same-cohort-byte-exact-reservation-safe@1"},
+    "canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F/VFX-DURABLE-FRAME-04",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_STRUCTURAL_DURABLE_SINGLE_FRAME_GATE",
+  "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+  "current_source": {
+    "schema_count": 238,
+    "schema_content_set_sha256": "16169309c8bdcbb58a4d132efc02a3fb0ec1f20f3573508ca2de518fa8d73621",
+    "read_tool_count": 61,
+    "write_tool_count": 41,
+    "total_tool_count": 102,
+    "read_tool": "fictional_energy_vfx_rendered_frame_get",
+    "write_tool": "fictional_energy_vfx_rendered_frame_prepare"
+  },
+  "source_files": [
+    {"path": "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs", "sha256": "9d1c8fa14134bcd3215d98095b9aa61bc1600956a4621ff0c749c41387e533af"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs", "sha256": "fc93d4b7823134de1ea9e7ac06f17a06dcedf9e7998797f06c977dc866d9f8f5"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/game_asset_delivery.rs", "sha256": "92cf2359212b334088dae2e8b985b2e2a126566152109ac499b85b4f16d00c81"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs", "sha256": "0d37ad848975732af7d9379f092082bac7c720731d3ad0b44dadf123a9d96689"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs", "sha256": "43d182a5649e79acc4c54ded24d3444332087e02207b0ea15c929092001a8d91"},
+    {"path": "packages/forgecad-contracts/manifest.json", "sha256": "607afa8e939c982819606fe48623f3041449fdf0945ab507b22c0d28a31182e8"},
+    {"path": "packages/forgecad-assets/forgecad-fictional-energy-weapon-2k/1.0.0/manifest.json", "sha256": "6c481a01b1a850538cb3d7d363b0499e09908f3b691eb251b0c06c9f67e37a3a"},
+    {"path": "packages/forgecad-assets/forgecad-fictional-energy-weapon-2k/1.0.0/provenance.json", "sha256": "53f339c81fbd289f1fca9c20e2fdae615fd0cecaeff3d395b87bafd34e6aae6b"},
+    {"path": "docs/evidence/mcp010f/source-tool-manifest-summary.json", "sha256": "c48ac40e833505efefdf2f57f70a085c118e6a489c80969ee67c74d51d20cf14"}
+  ],
+  "durable_frame": {
+    "source_lod": 0,
+    "resolution": [512, 512],
+    "aov_order": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"],
+    "render_policy": "lod0-nine-aov-double-worker-byte-exact-reservation-safe@1",
+    "effect_materialization_policy": "independent-effect-material-zone@1",
+    "effect_material_zones": ["zone-muzzle-emissive", "zone-core-emissive"],
+    "effect_material_ids": ["energy-cyan-muzzle-emissive", "energy-cyan-emissive"],
+    "double_worker_byte_exact": true,
+    "camera_cas_bound": true,
+    "render_set_cas_bound": true,
+    "receipt_cas_bound": true,
+    "all_nine_png_objects_cas_bound": true,
+    "sqlite_link_atomic": true,
+    "reservation_rollback_enabled": true,
+    "idempotent_prepare": true,
+    "runtime_restart_readback_verified": true,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "tests": [
+    {
+      "name": "contracts checker",
+      "result": "PASS_238_SCHEMAS"
+    },
+    {
+      "name": "forced-cohort Runtime three-LOD Appearance to durable nine-AOV frame and restart readback",
+      "result": "PASS_1_OF_1",
+      "duration_seconds": 102.07,
+      "filtered_out": 253,
+      "skipped_by_missing_cohort": false
+    },
+    {
+      "name": "MCP compiled manifest derivation",
+      "result": "PASS_61_READ_41_WRITE_102_TOTAL"
+    },
+    {
+      "name": "MCP closed read/write split",
+      "result": "PASS"
+    },
+    {
+      "name": "MCP010F Stage 0 truth gate",
+      "result": "PASS_WITH_RETAINED_QUALITY_BLOCKERS"
+    }
+  ],
+  "truth_boundaries": {
+    "single_sampled_frame_rendered": true,
+    "appearance_and_glb_material_zone_binding_verified": true,
+    "appearance_source_program_independent_durable_sidecar": false,
+    "independent_effect_material_zone_rendering": true,
+    "independent_glb_anchor_socket_rendering": false,
+    "emissive_animation_sequence_rendered": false,
+    "glb_socket_transform_executed": false,
+    "bloom_rendered": false,
+    "particles_rendered": false,
+    "trails_rendered": false,
+    "actual_engine_roundtrip": false,
+    "human_review": "NOT_RUN",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_status": "MISMATCH",
+    "hq360_status": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

@@ -3,6 +3,7 @@ use forgecad_core::sha256_hex;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 const HASH_LENGTH: usize = 64;
@@ -21,18 +22,26 @@ pub enum CasError {
     CapacityExceeded,
     #[error("CAS root must not be a symlink")]
     UnsafeRoot,
+    #[error("CAS put lock is poisoned")]
+    PutLockPoisoned,
 }
 
 #[derive(Debug, Clone)]
 pub struct CasObject {
     pub record: CasObjectRecord,
     pub path: PathBuf,
+    /// True only when this `put` call installed the content-addressed file.
+    /// This is not exclusive ownership: higher-level concurrent operations
+    /// must use their Store reservation token before deciding whether a
+    /// temporary object may be cleaned up.
+    pub created_new: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct CasStore {
     root: PathBuf,
     max_object_bytes: Option<u64>,
+    put_lock: Arc<Mutex<()>>,
 }
 
 impl CasStore {
@@ -51,6 +60,7 @@ impl CasStore {
         Ok(Self {
             root,
             max_object_bytes,
+            put_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -71,6 +81,14 @@ impl CasStore {
         kind: &str,
         created_at: &str,
     ) -> Result<CasObject, CasError> {
+        // Runtime is the product's sole writer. This additional in-process
+        // guard also makes concurrent calls through cloned Store handles agree
+        // on which put actually installed a hash, so rollback can never delete
+        // a peer call's pre-existing object.
+        let _put_guard = self
+            .put_lock
+            .lock()
+            .map_err(|_| CasError::PutLockPoisoned)?;
         let size = u64::try_from(bytes.len()).map_err(|_| CasError::CapacityExceeded)?;
         if self.max_object_bytes.is_some_and(|maximum| size > maximum) {
             return Err(CasError::CapacityExceeded);
@@ -90,7 +108,7 @@ impl CasStore {
         let object_path = self.object_path(&actual)?;
         if object_path.exists() {
             self.verify_existing(&object_path, &actual, size)?;
-            return Ok(self.record(actual, size, mime, kind, created_at, object_path));
+            return Ok(self.record(actual, size, mime, kind, created_at, object_path, false));
         }
 
         let temporary_path = self
@@ -108,20 +126,29 @@ impl CasStore {
         if let Some(parent) = object_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        match fs::rename(&temporary_path, &object_path) {
-            Ok(()) => {}
+        let created_new = match fs::rename(&temporary_path, &object_path) {
+            Ok(()) => true,
             Err(_error) if object_path.exists() => {
                 let _ = fs::remove_file(&temporary_path);
                 self.verify_existing(&object_path, &actual, size)?;
+                false
             }
             Err(error) => {
                 let _ = fs::remove_file(&temporary_path);
                 return Err(error.into());
             }
-        }
+        };
 
         self.verify_existing(&object_path, &actual, size)?;
-        Ok(self.record(actual, size, mime, kind, created_at, object_path))
+        Ok(self.record(
+            actual,
+            size,
+            mime,
+            kind,
+            created_at,
+            object_path,
+            created_new,
+        ))
     }
 
     pub fn read_verified(&self, sha256: &str) -> Result<Vec<u8>, CasError> {
@@ -133,6 +160,50 @@ impl CasStore {
         }
         let mut bytes = Vec::new();
         File::open(&path)?.read_to_end(&mut bytes)?;
+        let actual = sha256_hex(&bytes);
+        if actual != sha256 {
+            return Err(CasError::HashMismatch {
+                expected: sha256.to_owned(),
+                actual,
+            });
+        }
+        Ok(bytes)
+    }
+
+    /// Read and verify a CAS object without allowing its on-disk size to
+    /// trigger an unbounded allocation. The metadata check happens before the
+    /// file is opened, while the `take(max + 1)` guard also fails closed if the
+    /// file grows between the metadata lookup and the read.
+    pub fn read_verified_bounded(&self, sha256: &str, max_bytes: u64) -> Result<Vec<u8>, CasError> {
+        validate_hash(sha256)?;
+        let path = self.object_path(sha256)?;
+        let metadata = fs::symlink_metadata(&path)?;
+        if !metadata.file_type().is_file() {
+            return Err(CasError::Corrupt);
+        }
+        if metadata.len() > max_bytes {
+            return Err(CasError::CapacityExceeded);
+        }
+        Self::read_verified_bounded_after_metadata(&path, sha256, metadata.len(), max_bytes)
+    }
+
+    fn read_verified_bounded_after_metadata(
+        path: &Path,
+        sha256: &str,
+        observed_len: u64,
+        max_bytes: u64,
+    ) -> Result<Vec<u8>, CasError> {
+        let capacity = usize::try_from(observed_len).map_err(|_| CasError::CapacityExceeded)?;
+        let mut bytes = Vec::with_capacity(capacity);
+        File::open(&path)?
+            .take(max_bytes.saturating_add(1))
+            .read_to_end(&mut bytes)?;
+        if bytes.len() as u64 > max_bytes {
+            return Err(CasError::CapacityExceeded);
+        }
+        if bytes.len() as u64 != observed_len {
+            return Err(CasError::Corrupt);
+        }
         let actual = sha256_hex(&bytes);
         if actual != sha256 {
             return Err(CasError::HashMismatch {
@@ -194,6 +265,7 @@ impl CasStore {
         kind: &str,
         created_at: &str,
         path: PathBuf,
+        created_new: bool,
     ) -> CasObject {
         CasObject {
             record: CasObjectRecord {
@@ -206,6 +278,7 @@ impl CasStore {
                 created_at: created_at.to_owned(),
             },
             path,
+            created_new,
         }
     }
 
@@ -282,6 +355,83 @@ mod tests {
             cas.read_verified(&object.record.sha256).expect("read"),
             b"hello"
         );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn bounded_read_rejects_oversized_object_before_loading_it() {
+        let root = test_root("bounded-read");
+        let cas = CasStore::new(&root).expect("cas");
+        let object = cas
+            .put(b"hello", None, "text/plain", "fixture", "1")
+            .expect("put");
+        assert!(matches!(
+            cas.read_verified_bounded(&object.record.sha256, 4),
+            Err(CasError::CapacityExceeded)
+        ));
+        assert_eq!(
+            cas.read_verified_bounded(&object.record.sha256, 5)
+                .expect("bounded read"),
+            b"hello"
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn bounded_read_rejects_growth_after_metadata_observation() {
+        let root = test_root("bounded-read-growth");
+        let cas = CasStore::new(&root).expect("cas");
+        let object = cas
+            .put(b"hello", None, "text/plain", "fixture", "1")
+            .expect("put");
+        let observed_len = fs::symlink_metadata(&object.path).expect("metadata").len();
+        OpenOptions::new()
+            .append(true)
+            .open(&object.path)
+            .expect("open for simulated concurrent growth")
+            .write_all(b"!")
+            .expect("grow object after metadata observation");
+        assert!(matches!(
+            CasStore::read_verified_bounded_after_metadata(
+                &object.path,
+                &object.record.sha256,
+                observed_len,
+                observed_len,
+            ),
+            Err(CasError::CapacityExceeded)
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn concurrent_same_hash_put_has_exactly_one_creator() {
+        let root = test_root("concurrent-same-hash");
+        let cas = CasStore::new(&root).expect("cas");
+        let barrier = Arc::new(std::sync::Barrier::new(8));
+        let mut handles = Vec::new();
+        for _ in 0..8 {
+            let cas = cas.clone();
+            let barrier = barrier.clone();
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                cas.put(
+                    b"same-content",
+                    None,
+                    "application/octet-stream",
+                    "fixture",
+                    "1",
+                )
+                .expect("concurrent put")
+                .created_new
+            }));
+        }
+        let created_count = handles
+            .into_iter()
+            .map(|handle| handle.join().expect("put thread"))
+            .filter(|created_new| *created_new)
+            .count();
+        assert_eq!(created_count, 1);
+        assert_eq!(cas.list_objects().expect("objects").len(), 1);
         let _ = fs::remove_dir_all(root);
     }
 

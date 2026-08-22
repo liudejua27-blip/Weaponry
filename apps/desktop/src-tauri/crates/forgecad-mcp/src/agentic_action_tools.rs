@@ -50,11 +50,14 @@ const REQUIRED_ACTION_FIELDS: [&str; 7] = [
     "bounded",
 ];
 
-const OPERATOR_IDS: [&str; 16] = [
+const OPERATOR_IDS: [&str; 25] = [
     "forgecad.geometry.primitive@2",
     "forgecad.geometry.profile-extrude@1",
     "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.longitudinal-section-loft@1",
     "forgecad.geometry.subd-cage@1",
+    "forgecad.geometry.subd-cage@2",
+    "forgecad.geometry.authoring-mesh@1",
     "forgecad.geometry.surface-patch@1",
     "forgecad.geometry.surface-shell@1",
     "forgecad.geometry.revolve@1",
@@ -62,8 +65,14 @@ const OPERATOR_IDS: [&str; 16] = [
     "forgecad.geometry.transform@2",
     "forgecad.geometry.mirror@1",
     "forgecad.geometry.array@1",
+    "forgecad.geometry.bevel@1",
+    "forgecad.geometry.normal-policy@1",
     "forgecad.geometry.panel@1",
+    "forgecad.geometry.panel@2",
     "forgecad.geometry.vent-array@1",
+    "forgecad.geometry.vent-array@2",
+    "forgecad.geometry.recessed-channel@1",
+    "forgecad.geometry.energy-core@1",
     "forgecad.geometry.joint-stack@1",
     "forgecad.geometry.boolean@1",
     "forgecad.geometry.part-output@1",

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/boolean-operand-lineage-request.schema.json",
+  "title": "BooleanOperandLineageRequest",
+  "description": "A closed read-only request to evaluate bounded operand and evaluated-face lineage for one Boolean node in an exact GeometryProgram@2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "geometry_program", "boolean_node_id", "max_lineage_runs", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "BooleanOperandLineageRequest@1"},
+    "geometry_program": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json"},
+    "boolean_node_id": {"$ref": "#/$defs/identifier"},
+    "max_lineage_runs": {"type": "integer", "minimum": 1, "maximum": 4096},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

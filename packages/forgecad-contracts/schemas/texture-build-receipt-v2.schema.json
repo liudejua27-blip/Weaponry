@@ -1,0 +1,32 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/texture-build-receipt-v2.schema.json",
+  "title":"TextureBuildReceiptV2",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","pack_id","pack_version","material_pack_manifest_sha256","recipe_id","algorithm","worker_algorithm_sha256","build_budget_ms","source_inputs","outputs","color_management","normal_convention","derivation_label","bake_status","embedded_only","external_uri","network_at_runtime","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"TextureBuildReceipt@2"},
+    "pack_id":{"const":"forgecad-fictional-energy-weapon-2k"},
+    "pack_version":{"const":"1.0.0"},
+    "material_pack_manifest_sha256":{"$ref":"#/$defs/sha256"},
+    "recipe_id":{"const":"forgecad-first-party-catmullrom-semantic-microdetail-2k@1"},
+    "algorithm":{"const":"catmullrom-plus-fixed-semantic-microdetail@1"},
+    "worker_algorithm_sha256":{"$ref":"#/$defs/sha256"},
+    "build_budget_ms":{"const":120000},
+    "source_inputs":{"type":"array","minItems":7,"maxItems":7,"items":{"$ref":"#/$defs/source_texture"}},
+    "outputs":{"type":"array","minItems":1,"maxItems":9,"items":{"$ref":"#/$defs/output_texture"}},
+    "color_management":{"const":"baseColor-sRGB-data-maps-linear"},
+    "normal_convention":{"const":"OpenGL+Y"},
+    "derivation_label":{"const":"first-party-deterministic-synthetic-microdetail"},
+    "bake_status":{"const":"not-a-geometry-bake"},
+    "embedded_only":{"const":true},
+    "external_uri":{"const":false},
+    "network_at_runtime":{"const":false},
+    "canonical_sha256":{"$ref":"#/$defs/sha256"}
+  },
+  "$defs":{
+    "sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "source_texture":{"type":"object","additionalProperties":false,"required":["texture_id","sha256","width","height","mime","semantic","color_space","normal_convention"],"properties":{"texture_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"sha256":{"$ref":"#/$defs/sha256"},"width":{"const":512},"height":{"const":512},"mime":{"const":"image/png"},"semantic":{"enum":["baseColor","normal","roughness","metallic","ao","emissive"]},"color_space":{"enum":["sRGB","linear"]},"normal_convention":{"type":["string","null"],"enum":["OpenGL+Y",null]}}},
+    "output_texture":{"type":"object","additionalProperties":false,"required":["texture_id","sha256","width","height","mime","semantic","color_space","normal_convention"],"properties":{"texture_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"sha256":{"$ref":"#/$defs/sha256"},"width":{"const":2048},"height":{"const":2048},"mime":{"const":"image/png"},"semantic":{"enum":["baseColor","normal","roughness","metallic","metallicRoughness","ao","emissive"]},"color_space":{"enum":["sRGB","linear"]},"normal_convention":{"type":["string","null"],"enum":["OpenGL+Y",null]}}}
+  }
+}

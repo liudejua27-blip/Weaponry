@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/render-profile.schema.json",
+  "title": "RenderProfileV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "engine_id", "backend_id", "renderer_revision", "resolution", "sampling", "color_pipeline", "alpha", "aovs", "aov_definition_sha256", "color_pipeline_sha256", "id_palette_definition_sha256", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "RenderProfile@1"},
+    "profile_id": {"const": "forgecad-fixed-software-render-profile"},
+    "engine_id": {"const": "forgecad-fixed-software@2"},
+    "backend_id": {"const": "cpu-raster@1"},
+    "renderer_revision": {"const": "forgecad-renderer-2"},
+    "resolution": {"type": "object", "additionalProperties": false, "required": ["width", "height"], "properties": {"width": {"const": 512}, "height": {"const": 512}}},
+    "sampling": {"type": "object", "additionalProperties": false, "required": ["mode", "supersample_axis", "seed_policy", "adaptive", "temporal", "motion_blur"], "properties": {"mode": {"const": "deterministic-raster"}, "supersample_axis": {"const": 2}, "seed_policy": {"const": "not-applicable-no-rng"}, "adaptive": {"const": false}, "temporal": {"const": false}, "motion_blur": {"const": false}}},
+    "color_pipeline": {"type": "object", "additionalProperties": false, "required": ["scene_color_space", "display_device", "view_transform", "look", "exposure_stops", "gamma", "ocio_config_sha256"], "properties": {"scene_color_space": {"const": "linear-rec709-d65"}, "display_device": {"const": "srgb"}, "view_transform": {"const": "fixed-linear-to-srgb@1"}, "look": {"const": "none"}, "exposure_stops": {"const": 0}, "gamma": {"const": 1}, "ocio_config_sha256": {"type": "null"}}},
+    "alpha": {"type": "object", "additionalProperties": false, "required": ["background", "alpha_mode", "transparent_film"], "properties": {"background": {"const": "opaque-fixed"}, "alpha_mode": {"const": "opaque-1"}, "transparent_film": {"const": false}}},
+    "aovs": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "beauty"}, "semantic_kind": {"const": "color"}, "encoding": {"const": "srgb-u8"}, "color_transform": {"const": "fixed-linear-to-srgb@1"}, "filter": {"const": "triangle"}, "metric_safe": {"const": false}}}]},
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "silhouette"}, "semantic_kind": {"const": "mask"}, "encoding": {"const": "binary-mask-palette-u8"}, "color_transform": {"const": "none"}, "filter": {"const": "nearest"}, "metric_safe": {"const": true}}}]},
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "depth"}, "semantic_kind": {"const": "depth"}, "encoding": {"const": "reversed-normalized-depth-u8"}, "color_transform": {"const": "none"}, "filter": {"const": "nearest"}, "metric_safe": {"const": false}}}]},
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "normal"}, "semantic_kind": {"const": "normal-vector"}, "encoding": {"const": "signed-unit-vector-to-unorm8"}, "color_transform": {"const": "none"}, "filter": {"const": "triangle"}, "metric_safe": {"const": false}}}]},
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "ao"}, "semantic_kind": {"const": "scalar"}, "encoding": {"const": "normalized-scalar-u8"}, "color_transform": {"const": "none"}, "filter": {"const": "triangle"}, "metric_safe": {"const": false}}}]},
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "part-id"}, "semantic_kind": {"const": "id"}, "encoding": {"const": "index-palette-u8"}, "source_value_range": {"const": "categorical-mesh-index-0-255"}, "color_transform": {"const": "none"}, "filter": {"const": "nearest"}, "metric_safe": {"const": true}}}]},
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "material-id"}, "semantic_kind": {"const": "id"}, "encoding": {"const": "index-palette-u8"}, "source_value_range": {"const": "categorical-material-index-0-255"}, "color_transform": {"const": "none"}, "filter": {"const": "nearest"}, "metric_safe": {"const": true}}}]},
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "wireframe"}, "semantic_kind": {"const": "diagnostic"}, "encoding": {"const": "edge-diagnostic-palette-u8"}, "color_transform": {"const": "none"}, "filter": {"const": "triangle"}, "metric_safe": {"const": false}}}]},
+        {"allOf": [{"$ref": "#/$defs/aov"}, {"properties": {"pass_id": {"const": "uv-stretch"}, "semantic_kind": {"const": "diagnostic"}, "encoding": {"const": "uv-stretch-heatmap-u8"}, "color_transform": {"const": "none"}, "filter": {"const": "triangle"}, "metric_safe": {"const": false}}}]}
+      ],
+      "items": false
+    },
+    "aov_definition_sha256": {"$ref": "#/$defs/sha256"},
+    "color_pipeline_sha256": {"$ref": "#/$defs/sha256"},
+    "id_palette_definition_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "aov": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass_id", "semantic_kind", "storage", "encoding", "source_value_range", "color_transform", "filter", "alpha_semantics", "background_encoding", "units", "palette_definition_sha256", "metric_safe", "source_definition"],
+      "properties": {
+        "pass_id": {"enum": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]},
+        "semantic_kind": {"enum": ["color", "mask", "depth", "normal-vector", "scalar", "id", "diagnostic"]},
+        "storage": {"const": "image/png;rgba8"},
+        "encoding": {"enum": ["srgb-u8", "binary-mask-palette-u8", "reversed-normalized-depth-u8", "signed-unit-vector-to-unorm8", "normalized-scalar-u8", "index-palette-u8", "edge-diagnostic-palette-u8", "uv-stretch-heatmap-u8"]},
+        "source_value_range": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+        "color_transform": {"enum": ["fixed-linear-to-srgb@1", "none"]},
+        "filter": {"enum": ["nearest", "triangle"]},
+        "alpha_semantics": {"const": "opaque-1"},
+        "background_encoding": {"const": "rgba8:8,12,18,255"},
+        "units": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+        "palette_definition_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "metric_safe": {"type": "boolean"},
+        "source_definition": {"type": "string", "pattern": "^[A-Za-z0-9_.@-]{1,128}$"}
+      }
+    }
+  }
+}

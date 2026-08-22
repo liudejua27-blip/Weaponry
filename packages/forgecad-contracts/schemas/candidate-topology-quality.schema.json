@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/candidate-topology-quality.schema.json",
+  "title": "CandidateTopologyQuality@1",
+  "description": "A candidate-bound, objective topology quality receipt for the gray-model to topology transition. It does not prove edge flow, artistic quality, visual likeness or engine readiness.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "topology_quality_id", "project_id", "candidate_id",
+    "candidate_state_sha256", "artifact_id", "artifact_sha256",
+    "artifact_readback_sha256", "artifact_readback_object_sha256",
+    "geometry_candidate_evidence_sha256", "geometry_program_sha256",
+    "geometry_program_object_sha256", "operator_catalog_sha256",
+    "readback_config_sha256", "part_inventory_sha256", "part_ids",
+    "part_topology_snapshot_sha256s", "authoring_topology_status",
+    "part_authoring_topology_sha256s",
+    "topology_quality_policy", "topology_quality_policy_sha256", "from_stage",
+    "to_stage", "topology_status", "thresholds", "metrics", "hard_gate",
+    "validator_status", "hard_gate_passed", "edge_flow_status",
+    "artistic_quality_status", "visual_quality_status", "materialization_status",
+    "quality_status", "runtime_write_performed", "candidate_confirmed",
+    "version_created", "export_performed", "request_sha256", "input_sha256",
+    "canonical_sha256", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "CandidateTopologyQuality@1"},
+    "topology_quality_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/id"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_candidate_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_object_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "part_inventory_sha256": {"$ref": "#/$defs/sha256"},
+    "part_ids": {"$ref": "#/$defs/id_list"},
+    "part_topology_snapshot_sha256s": {"$ref": "#/$defs/sha256_list"},
+    "authoring_topology_status": {"enum": ["complete", "partial", "not-available"]},
+    "part_authoring_topology_sha256s": {"$ref": "#/$defs/nullable_sha256_list"},
+    "topology_quality_policy": {"const": "candidate-topology-hard-gate@1"},
+    "topology_quality_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "from_stage": {"const": "gray-model"},
+    "to_stage": {"const": "topology"},
+    "topology_status": {"enum": ["closed_manifold", "open_surface", "non_manifold"]},
+    "thresholds": {"$ref": "#/$defs/thresholds"},
+    "metrics": {"$ref": "#/$defs/metrics"},
+    "hard_gate": {"$ref": "#/$defs/hard_gate"},
+    "validator_status": {"enum": ["passed", "failed"]},
+    "hard_gate_passed": {"type": "boolean"},
+    "edge_flow_status": {"const": "NOT_PROVEN"},
+    "artistic_quality_status": {"const": "NOT_PROVEN"},
+    "visual_quality_status": {"const": "NOT_PROVEN"},
+    "materialization_status": {"const": "runtime-owned-durable-candidate-topology-quality"},
+    "quality_status": {"const": "structural_only"},
+    "runtime_write_performed": {"const": true},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "input_sha256": {"$ref": "#/$defs/sha256"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 128}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"authoring_topology_status": {"const": "complete"}}, "required": ["authoring_topology_status"]},
+      "then": {"properties": {"part_authoring_topology_sha256s": {"$ref": "#/$defs/complete_sha256_list"}}}
+    },
+    {
+      "if": {"properties": {"authoring_topology_status": {"const": "not-available"}}, "required": ["authoring_topology_status"]},
+      "then": {"properties": {"part_authoring_topology_sha256s": {"$ref": "#/$defs/null_sha256_list"}}}
+    },
+    {
+      "if": {"properties": {"hard_gate_passed": {"const": true}}, "required": ["hard_gate_passed"]},
+      "then": {
+        "properties": {
+          "validator_status": {"const": "passed"},
+          "hard_gate": {"$ref": "#/$defs/passing_hard_gate"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"validator_status": {"const": "passed"}}, "required": ["validator_status"]},
+      "then": {
+        "properties": {
+          "hard_gate_passed": {"const": true},
+          "hard_gate": {"$ref": "#/$defs/passing_hard_gate"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "id_list": {
+      "type": "array", "minItems": 1, "maxItems": 512, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/id"}
+    },
+    "sha256_list": {
+      "type": "array", "minItems": 1, "maxItems": 512, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/sha256"}
+    },
+    "nullable_sha256_list": {
+      "type": "array", "minItems": 1, "maxItems": 512,
+      "items": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+    },
+    "complete_sha256_list": {
+      "type": "array", "minItems": 1, "maxItems": 512,
+      "items": {"$ref": "#/$defs/sha256"}
+    },
+    "null_sha256_list": {
+      "type": "array", "minItems": 1, "maxItems": 512,
+      "items": {"type": "null"}
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_triangle_aspect_ratio", "max_vertex_valence", "min_triangle_area_m2",
+        "min_semantic_part_coverage", "min_semantic_material_zone_coverage",
+        "min_semantic_source_node_coverage"
+      ],
+      "properties": {
+        "max_triangle_aspect_ratio": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000000},
+        "max_vertex_valence": {"type": "integer", "minimum": 1, "maximum": 250000},
+        "min_triangle_area_m2": {"type": "number", "minimum": 0, "maximum": 1000000},
+        "min_semantic_part_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "min_semantic_material_zone_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "min_semantic_source_node_coverage": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invalid_index_count", "non_finite_count", "degenerate_triangle_count",
+        "boundary_edge_count", "non_manifold_edge_count", "orientation_conflict_count",
+        "winding_error_count", "part_count", "solid_part_count", "non_solid_part_count",
+        "solid_boundary_violation_count", "triangle_count", "vertex_count", "edge_count",
+        "min_triangle_area_m2", "max_triangle_aspect_ratio", "max_vertex_valence",
+        "normal_non_finite_count", "normal_non_unit_count", "normal_alignment_error_count",
+        "uv_non_finite_count", "uv_degenerate_triangle_count", "tangent_non_finite_count",
+        "tangent_orthogonality_error_count", "tangent_handedness_error_count",
+        "semantic_part_coverage", "semantic_material_zone_coverage",
+        "semantic_source_node_coverage"
+      ],
+      "properties": {
+        "invalid_index_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "non_finite_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "degenerate_triangle_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "boundary_edge_count": {"type": "integer", "minimum": 0, "maximum": 1000000, "description": "Aggregate boundary edges; open boundaries are permitted only for non-solid Parts."},
+        "non_manifold_edge_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "orientation_conflict_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "winding_error_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "part_count": {"type": "integer", "minimum": 1, "maximum": 512},
+        "solid_part_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "non_solid_part_count": {"type": "integer", "minimum": 0, "maximum": 512},
+        "solid_boundary_violation_count": {"type": "integer", "minimum": 0, "maximum": 1000000, "description": "Solid Parts with any boundary edge; must be zero for boundary_policy=true."},
+        "triangle_count": {"type": "integer", "minimum": 1, "maximum": 250000},
+        "vertex_count": {"type": "integer", "minimum": 1, "maximum": 250000},
+        "edge_count": {"type": "integer", "minimum": 1, "maximum": 500000},
+        "min_triangle_area_m2": {"type": "number", "minimum": 0, "maximum": 1000000},
+        "max_triangle_aspect_ratio": {"type": "number", "minimum": 0, "maximum": 1000000},
+        "max_vertex_valence": {"type": "integer", "minimum": 0, "maximum": 250000},
+        "normal_non_finite_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "normal_non_unit_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "normal_alignment_error_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "uv_non_finite_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "uv_degenerate_triangle_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "tangent_non_finite_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "tangent_orthogonality_error_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "tangent_handedness_error_count": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "semantic_part_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "semantic_material_zone_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "semantic_source_node_coverage": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "hard_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finite_geometry", "valid_indices", "non_degenerate_triangles", "boundary_policy",
+        "manifold", "orientation", "counts_within_budget", "triangle_aspect_ratio",
+        "vertex_valence", "normal_integrity", "uv_integrity", "tangent_integrity",
+        "semantic_coverage"
+      ],
+      "properties": {
+        "finite_geometry": {"type": "boolean"},
+        "valid_indices": {"type": "boolean"},
+        "non_degenerate_triangles": {"type": "boolean"},
+        "boundary_policy": {"type": "boolean", "description": "All solid Parts are closed; boundary edges on non-solid Parts are allowed and reported."},
+        "manifold": {"type": "boolean"},
+        "orientation": {"type": "boolean"},
+        "counts_within_budget": {"type": "boolean"},
+        "triangle_aspect_ratio": {"type": "boolean"},
+        "vertex_valence": {"type": "boolean"},
+        "normal_integrity": {"type": "boolean"},
+        "uv_integrity": {"type": "boolean"},
+        "tangent_integrity": {"type": "boolean"},
+        "semantic_coverage": {"type": "boolean"}
+      }
+    },
+    "passing_hard_gate": {
+      "allOf": [
+        {"$ref": "#/$defs/hard_gate"},
+        {
+          "properties": {
+            "finite_geometry": {"const": true},
+            "valid_indices": {"const": true},
+            "non_degenerate_triangles": {"const": true},
+            "boundary_policy": {"const": true},
+            "manifold": {"const": true},
+            "orientation": {"const": true},
+            "counts_within_budget": {"const": true},
+            "triangle_aspect_ratio": {"const": true},
+            "vertex_valence": {"const": true},
+            "normal_integrity": {"const": true},
+            "uv_integrity": {"const": true},
+            "tangent_integrity": {"const": true},
+            "semantic_coverage": {"const": true}
+          }
+        }
+      ]
+    }
+  }
+}

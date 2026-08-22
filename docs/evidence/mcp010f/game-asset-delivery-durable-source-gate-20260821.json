@@ -1,0 +1,37 @@
+{
+  "schema_version": "ForgeCADGameAssetDeliveryDurableSourceGate@1",
+  "task_id": "FGC-MCP010F-GAME-DELIVERY-02",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_DURABLE_AUTHORED_LOD_DELIVERY_AND_THREEJS_ALL_LEVELS_STRUCTURAL_SLICE",
+  "implemented": {
+    "durable_contract": "GameAssetDeliveryLink@1",
+    "durable_sqlite_index": "game_asset_delivery_links",
+    "runtime_write_tool": "game_asset_delivery_prepare",
+    "runtime_read_tool": "game_asset_delivery_get",
+    "sidecar_reachability_transaction": "PASS",
+    "lod_artifact_reachability_transaction": "PASS",
+    "optional_animation_reachability_transaction": "PASS",
+    "idempotent_same_manifest_replay": "PASS",
+    "conflicting_manifest_retarget": "FAIL_CLOSED",
+    "cross_project_read": "FAIL_CLOSED",
+    "restart_cas_canonical_reverify": "PASS",
+    "threejs_all_three_lod_glb_parse": "PASS",
+    "threejs_triangle_readback": "PASS",
+    "threejs_material_name_stability": "PASS",
+    "threejs_collision_aabb_match": "PASS",
+    "threejs_rigid_animation_sample": "PASS"
+  },
+  "capability_counts": {
+    "schemas": 213,
+    "read_tools": 55,
+    "write_tools": 38,
+    "total_tools": 93
+  },
+  "limitations": [
+    "LOD1 and LOD2 remain independently authored candidates; automatic LOD generation is not implemented.",
+    "The durable link is a restart-safe SQLite index and CAS reachability root, not a completed MCP011 garbage collector.",
+    "Three.js r185 is the verified consumer. Unity, Unreal and Godot are not installed locally and remain NOT_RUN.",
+    "Static node identity transforms do not prove gameplay grip, socket or joint pivot suitability.",
+    "The result is structural delivery evidence only and does not prove commercial visual quality or reference likeness."
+  ]
+}

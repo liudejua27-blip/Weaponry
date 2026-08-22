@@ -1,0 +1,56 @@
+{
+  "schema_version": "MaterialPackManifest@1",
+  "pack_id": "forgecad-fictional-energy-weapon",
+  "version": "1.0.0",
+  "publisher": "forgecad-first-party",
+  "status": "development-only",
+  "license_spdx": "CC0-1.0",
+  "source_assets": [
+    {
+      "asset_id": "ambientcg-metal010-2k-png",
+      "source_url": "https://ambientcg.com/view?id=Metal010",
+      "download_url": "https://ambientcg.com/get?file=Metal010_2K-PNG.zip",
+      "source_id": "Metal010",
+      "license_spdx": "CC0-1.0",
+      "license_url": "https://docs.ambientcg.com/license/",
+      "raw_archive_sha256": "54ce013cbc2ae7a38766ee0325542be34bc61fad0ed82b75a84636f507314444",
+      "retrieved_at": "2026-08-11",
+      "derivation": "reuse the admitted 512px Color NormalGL Roughness and Metalness PNG bytes without color transform"
+    },
+    {
+      "asset_id": "ambientcg-plastic006-2k-png",
+      "source_url": "https://ambientcg.com/view?id=Plastic006",
+      "download_url": "https://ambientcg.com/get?file=Plastic006_2K-PNG.zip",
+      "source_id": "Plastic006",
+      "license_spdx": "CC0-1.0",
+      "license_url": "https://docs.ambientcg.com/license/",
+      "raw_archive_sha256": "0a429a6781da813fa3a4b25663e7274db10ebabe79197093075379df00793812",
+      "retrieved_at": "2026-08-11",
+      "derivation": "reuse the admitted 512px Color NormalGL and Roughness PNG bytes without color transform"
+    }
+  ],
+  "textures": [
+    {"texture_id":"metal010_color","file":"textures/metal010_color.png","sha256":"21f0e6f9fe903ca50df53b1721ca9f5babe62f387906e600a819995ba5aaaa13","semantic":"baseColor","color_space":"sRGB","normal_convention":null,"width":512,"height":512},
+    {"texture_id":"metal010_normal_gl","file":"textures/metal010_normal_gl.png","sha256":"4f0385733f5456a2e317ab4298e547c11771504566852eeb46d87d6291c77590","semantic":"normal","color_space":"linear","normal_convention":"OpenGL+Y","width":512,"height":512},
+    {"texture_id":"metal010_roughness","file":"textures/metal010_roughness.png","sha256":"8c16a8a28db62745773d32fae15c385b60ece83e85f6f80b7ec0cc284c1c0bc9","semantic":"roughness","color_space":"linear","normal_convention":null,"width":512,"height":512},
+    {"texture_id":"metal010_metalness","file":"textures/metal010_metalness.png","sha256":"dfbba0874eb90d1015c167a579cffcf54512f05f02b95e3979978ab7fb79bfc9","semantic":"metallic","color_space":"linear","normal_convention":null,"width":512,"height":512},
+    {"texture_id":"plastic006_color","file":"textures/plastic006_color.png","sha256":"41183aa6ddc6b60adf9781ddfe446dd40493ef394e17db91784153dca2e8ada8","semantic":"baseColor","color_space":"sRGB","normal_convention":null,"width":512,"height":512},
+    {"texture_id":"plastic006_normal_gl","file":"textures/plastic006_normal_gl.png","sha256":"71a749a2e1d35e8356b8c70b910aca51924ab66d7fc8562b62a6d544168c21cd","semantic":"normal","color_space":"linear","normal_convention":"OpenGL+Y","width":512,"height":512},
+    {"texture_id":"plastic006_roughness","file":"textures/plastic006_roughness.png","sha256":"e78819318fe6f17e92e4c24dc0b0f30f9602e515286695226613e0207f46407c","semantic":"roughness","color_space":"linear","normal_convention":null,"width":512,"height":512}
+  ],
+  "material_definitions": [
+    {"material_id":"energy-white-clearcoat","name":"Energy weapon white clearcoat","base_color_factor":[0.88,0.92,0.96,1.0],"metallic_factor":0.08,"roughness_factor":0.2,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-plastic-surface","clearcoat_factor":0.82,"emissive_strength":1.0},
+    {"material_id":"energy-dark-painted-metal","name":"Energy weapon dark painted metal","base_color_factor":[0.028,0.04,0.055,1.0],"metallic_factor":0.76,"roughness_factor":0.27,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-metal-surface","clearcoat_factor":0.2,"emissive_strength":1.0},
+    {"material_id":"energy-black-anodized","name":"Energy weapon black anodized metal","base_color_factor":[0.012,0.02,0.032,1.0],"metallic_factor":0.92,"roughness_factor":0.19,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-metal-surface","clearcoat_factor":0.12,"emissive_strength":1.0},
+    {"material_id":"energy-brushed-gold","name":"Energy weapon brushed gold accent","base_color_factor":[0.58,0.32,0.065,1.0],"metallic_factor":0.96,"roughness_factor":0.23,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-metal-surface","clearcoat_factor":0.15,"emissive_strength":1.0},
+    {"material_id":"energy-cyan-emissive","name":"Energy weapon cyan emitter","base_color_factor":[0.008,0.08,0.12,1.0],"metallic_factor":0.1,"roughness_factor":0.18,"emissive_factor":[0.0,0.82,1.0],"texture_set_id":null,"clearcoat_factor":0.3,"emissive_strength":6.0},
+    {"material_id":"energy-grip-rubber","name":"Energy weapon grip rubber","base_color_factor":[0.01,0.014,0.02,1.0],"metallic_factor":0.0,"roughness_factor":0.76,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-plastic-surface","clearcoat_factor":0.0,"emissive_strength":1.0},
+    {"material_id":"energy-worn-edge-metal","name":"Energy weapon exposed edge metal","base_color_factor":[0.46,0.5,0.56,1.0],"metallic_factor":0.94,"roughness_factor":0.34,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-metal-surface","clearcoat_factor":0.06,"emissive_strength":1.0}
+  ],
+  "texture_sets": [
+    {"texture_set_id":"weapon-metal-surface","base_color_texture_id":"metal010_color","normal_texture_id":"metal010_normal_gl","roughness_texture_id":"metal010_roughness","metallic_texture_id":"metal010_metalness","ao_texture_id":null},
+    {"texture_set_id":"weapon-plastic-surface","base_color_texture_id":"plastic006_color","normal_texture_id":"plastic006_normal_gl","roughness_texture_id":"plastic006_roughness","metallic_texture_id":null,"ao_texture_id":null}
+  ],
+  "limits":{"max_texture_bytes":67108864,"max_export_bytes":134217728,"embedded_only":true,"external_uri":false},
+  "canonical_sha256":"4a56fa58af1e8a0cd218f880f61112d465725a79eb70ed2aa0076eb5408ac999"
+}

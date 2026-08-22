@@ -1,0 +1,51 @@
+{
+  "schema_version":"MaterialPackManifest@2",
+  "pack_id":"forgecad-fictional-energy-weapon-2k",
+  "version":"1.0.0",
+  "publisher":"forgecad-first-party",
+  "status":"development-only",
+  "license_spdx":"CC0-1.0",
+  "source_assets":[
+    {"asset_id":"ambientcg-metal010-2k-png","source_url":"https://ambientcg.com/view?id=Metal010","download_url":"https://ambientcg.com/get?file=Metal010_2K-PNG.zip","source_id":"Metal010","license_spdx":"CC0-1.0","license_url":"https://docs.ambientcg.com/license/","raw_archive_sha256":"54ce013cbc2ae7a38766ee0325542be34bc61fad0ed82b75a84636f507314444","retrieved_at":"2026-08-11","derivation":"reuse the admitted 512px source bytes from forgecad-fictional-energy-weapon as deterministic local inputs"},
+    {"asset_id":"ambientcg-plastic006-2k-png","source_url":"https://ambientcg.com/view?id=Plastic006","download_url":"https://ambientcg.com/get?file=Plastic006_2K-PNG.zip","source_id":"Plastic006","license_spdx":"CC0-1.0","license_url":"https://docs.ambientcg.com/license/","raw_archive_sha256":"0a429a6781da813fa3a4b25663e7274db10ebabe79197093075379df00793812","retrieved_at":"2026-08-11","derivation":"reuse the admitted 512px source bytes from forgecad-fictional-energy-weapon as deterministic local inputs"}
+  ],
+  "source_textures":[
+    {"source_pack_id":"forgecad-fictional-energy-weapon","texture_id":"metal010_color","sha256":"21f0e6f9fe903ca50df53b1721ca9f5babe62f387906e600a819995ba5aaaa13","semantic":"baseColor","color_space":"sRGB","normal_convention":null,"width":512,"height":512},
+    {"source_pack_id":"forgecad-fictional-energy-weapon","texture_id":"metal010_normal_gl","sha256":"4f0385733f5456a2e317ab4298e547c11771504566852eeb46d87d6291c77590","semantic":"normal","color_space":"linear","normal_convention":"OpenGL+Y","width":512,"height":512},
+    {"source_pack_id":"forgecad-fictional-energy-weapon","texture_id":"metal010_roughness","sha256":"8c16a8a28db62745773d32fae15c385b60ece83e85f6f80b7ec0cc284c1c0bc9","semantic":"roughness","color_space":"linear","normal_convention":null,"width":512,"height":512},
+    {"source_pack_id":"forgecad-fictional-energy-weapon","texture_id":"metal010_metalness","sha256":"dfbba0874eb90d1015c167a579cffcf54512f05f02b95e3979978ab7fb79bfc9","semantic":"metallic","color_space":"linear","normal_convention":null,"width":512,"height":512},
+    {"source_pack_id":"forgecad-fictional-energy-weapon","texture_id":"plastic006_color","sha256":"41183aa6ddc6b60adf9781ddfe446dd40493ef394e17db91784153dca2e8ada8","semantic":"baseColor","color_space":"sRGB","normal_convention":null,"width":512,"height":512},
+    {"source_pack_id":"forgecad-fictional-energy-weapon","texture_id":"plastic006_normal_gl","sha256":"71a749a2e1d35e8356b8c70b910aca51924ab66d7fc8562b62a6d544168c21cd","semantic":"normal","color_space":"linear","normal_convention":"OpenGL+Y","width":512,"height":512},
+    {"source_pack_id":"forgecad-fictional-energy-weapon","texture_id":"plastic006_roughness","sha256":"e78819318fe6f17e92e4c24dc0b0f30f9602e515286695226613e0207f46407c","semantic":"roughness","color_space":"linear","normal_convention":null,"width":512,"height":512}
+  ],
+  "textures":[
+    {"texture_id":"metal010_color","sha256":"5d7e50aebc074e969a9d14001c0b43ce15aced7f8c5d1e068510985d24c8a683","semantic":"baseColor","color_space":"sRGB","normal_convention":null,"width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"},
+    {"texture_id":"metal010_normal_gl","sha256":"518067e40a758745f2a3533100ef62c9ca5e4c162c8a02c49de8ec9301b19aa7","semantic":"normal","color_space":"linear","normal_convention":"OpenGL+Y","width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"},
+    {"texture_id":"metal010_roughness","sha256":"a85c19ced0e13a7a097a278f9d1adaae4bf383dca758ae901b821f0f0755d24f","semantic":"roughness","color_space":"linear","normal_convention":null,"width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"},
+    {"texture_id":"metal010_metalness","sha256":"34a7907d9a909c9802b681f19865a23651cb5b2003a923f384e47b82d542d6af","semantic":"metallic","color_space":"linear","normal_convention":null,"width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"},
+    {"texture_id":"plastic006_color","sha256":"4d38f3bf6df115801d7e881c0e8cc197011406ae6ec4a8d686b0ab109304ac0b","semantic":"baseColor","color_space":"sRGB","normal_convention":null,"width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"},
+    {"texture_id":"plastic006_normal_gl","sha256":"d2679a7772e64059fecf1f5708ca86b01c0b20c0ceb6bee4a5c7bf71455826d4","semantic":"normal","color_space":"linear","normal_convention":"OpenGL+Y","width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"},
+    {"texture_id":"plastic006_roughness","sha256":"020c10b2f9da87c204111c85b4ad8ec9fc03b1ae0536a1427dca715ccc1b0ff7","semantic":"roughness","color_space":"linear","normal_convention":null,"width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"}
+  ],
+  "derived_outputs":[
+    {"texture_id":"metal010_metallic_roughness","sha256":"f05467673f09dc525f8ec475d91f043a856592061b67780b8889a0bff812d28c","semantic":"metallicRoughness","color_space":"linear","normal_convention":null,"width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"},
+    {"texture_id":"plastic006_metallic_roughness","sha256":"2906b3fb87272974ff24d8695338e8d9e2aad2d6a4c698a7020e04fd6422706f","semantic":"metallicRoughness","color_space":"linear","normal_convention":null,"width":2048,"height":2048,"mime":"image/png","storage":"runtime-derived-embedded"}
+  ],
+  "texture_recipe":{"recipe_id":"forgecad-first-party-catmullrom-semantic-microdetail-2k@1","algorithm":"catmullrom-plus-fixed-semantic-microdetail@1","resolution":2048,"build_budget_ms":120000,"microdetail_policy":"fixed-64px-integer-tile-semantic-perturbation@1","determinism":"fixed-integer-seeds-no-rng-no-time","color_management":"baseColor-sRGB-data-maps-linear","normal_convention":"OpenGL+Y","bake_status":"not-a-geometry-bake","external_uri":false,"network_at_runtime":false},
+  "material_definitions":[
+    {"material_id":"energy-white-clearcoat","name":"Energy weapon white clearcoat","base_color_factor":[0.88,0.92,0.96,1.0],"metallic_factor":0.08,"roughness_factor":0.2,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-plastic-surface","clearcoat_factor":0.82,"emissive_strength":1.0},
+    {"material_id":"energy-dark-painted-metal","name":"Energy weapon dark painted metal","base_color_factor":[0.028,0.04,0.055,1.0],"metallic_factor":0.76,"roughness_factor":0.27,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-metal-surface","clearcoat_factor":0.2,"emissive_strength":1.0},
+    {"material_id":"energy-black-anodized","name":"Energy weapon black anodized metal","base_color_factor":[0.012,0.02,0.032,1.0],"metallic_factor":0.92,"roughness_factor":0.19,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-metal-surface","clearcoat_factor":0.12,"emissive_strength":1.0},
+    {"material_id":"energy-brushed-gold","name":"Energy weapon brushed gold accent","base_color_factor":[0.58,0.32,0.065,1.0],"metallic_factor":0.96,"roughness_factor":0.23,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-metal-surface","clearcoat_factor":0.15,"emissive_strength":1.0},
+    {"material_id":"energy-cyan-muzzle-emissive","name":"Energy weapon cyan muzzle emitter","base_color_factor":[0.008,0.08,0.12,1.0],"metallic_factor":0.1,"roughness_factor":0.18,"emissive_factor":[0.0,0.82,1.0],"texture_set_id":null,"clearcoat_factor":0.3,"emissive_strength":6.0},
+    {"material_id":"energy-cyan-emissive","name":"Energy weapon cyan emitter","base_color_factor":[0.008,0.08,0.12,1.0],"metallic_factor":0.1,"roughness_factor":0.18,"emissive_factor":[0.0,0.82,1.0],"texture_set_id":null,"clearcoat_factor":0.3,"emissive_strength":6.0},
+    {"material_id":"energy-grip-rubber","name":"Energy weapon grip rubber","base_color_factor":[0.01,0.014,0.02,1.0],"metallic_factor":0.0,"roughness_factor":0.76,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-plastic-surface","clearcoat_factor":0.0,"emissive_strength":1.0},
+    {"material_id":"energy-worn-edge-metal","name":"Energy weapon exposed edge metal","base_color_factor":[0.46,0.5,0.56,1.0],"metallic_factor":0.94,"roughness_factor":0.34,"emissive_factor":[0.0,0.0,0.0],"texture_set_id":"weapon-metal-surface","clearcoat_factor":0.06,"emissive_strength":1.0}
+  ],
+  "texture_sets":[
+    {"texture_set_id":"weapon-metal-surface","base_color_texture_id":"metal010_color","normal_texture_id":"metal010_normal_gl","roughness_texture_id":"metal010_roughness","metallic_texture_id":"metal010_metalness","ao_texture_id":null},
+    {"texture_set_id":"weapon-plastic-surface","base_color_texture_id":"plastic006_color","normal_texture_id":"plastic006_normal_gl","roughness_texture_id":"plastic006_roughness","metallic_texture_id":null,"ao_texture_id":null}
+  ],
+  "limits":{"max_texture_bytes":67108864,"max_export_bytes":134217728,"embedded_only":true,"external_uri":false,"output_resolution":2048},
+  "canonical_sha256":"88504cca9aa20393a1577fc9ae2bbb65d3ccb0a3ca21d61a4c72efa501214fb6"
+}

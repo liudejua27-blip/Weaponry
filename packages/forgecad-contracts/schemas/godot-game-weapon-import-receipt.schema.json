@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/godot-game-weapon-import-receipt.schema.json",
+  "title": "GodotGameWeaponImportReceipt@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "godot_game_weapon_import_key_sha256",
+    "static_project_id",
+    "static_delivery_manifest_object_sha256",
+    "static_socket_materialization_key_sha256",
+    "static_lod0_derived_artifact_sha256",
+    "static_lod1_derived_artifact_sha256",
+    "static_lod2_derived_artifact_sha256",
+    "animated_socket_materialization_key_sha256",
+    "animated_project_id",
+    "animated_delivery_manifest_object_sha256",
+    "animated_derived_artifact_sha256",
+    "collision_proxy_set_canonical_sha256",
+    "godot_binary_sha256",
+    "godot_version",
+    "godot_build_sha256",
+    "probe_harness_sha256",
+    "harness_policy",
+    "canonicalization_policy",
+    "godot_process_exit_code",
+    "godot_report_sha256",
+    "scene_count",
+    "scene_projections",
+    "lod_triangle_counts",
+    "lod_triangles_strictly_decreasing",
+    "lod_material_signatures_exact",
+    "source_gltf_channel_count",
+    "godot_optimized_track_count",
+    "cross_loader_semantic_sampling_exact",
+    "half_duration_follow_names",
+    "collision_proxy_count",
+    "godot_collision_shape_count",
+    "collision_shape_kind",
+    "collision_aabb_sidecar_readback_exact",
+    "collision_physics_simulation",
+    "hitbox_semantics",
+    "actual_godot_headless_import",
+    "actual_engine_roundtrip",
+    "commercial_engine_roundtrip",
+    "unity_status",
+    "unreal_status",
+    "candidate_confirmed",
+    "export_performed",
+    "human_review",
+    "visual_quality_status",
+    "quality_status",
+    "semantic_scope",
+    "functional_semantics",
+    "limitations",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "GodotGameWeaponImportReceipt@1"},
+    "godot_game_weapon_import_key_sha256": {"$ref": "#/$defs/sha256"},
+    "static_project_id": {"$ref": "#/$defs/id", "description": "Runtime project that produced the three static socket LOD artifacts."},
+    "static_delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "static_socket_materialization_key_sha256": {"$ref": "#/$defs/sha256"},
+    "static_lod0_derived_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "static_lod1_derived_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "static_lod2_derived_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "animated_socket_materialization_key_sha256": {"$ref": "#/$defs/sha256"},
+    "animated_project_id": {"$ref": "#/$defs/id", "description": "Runtime project that produced the isolated animated socket artifact cohort."},
+    "animated_delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "animated_derived_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "collision_proxy_set_canonical_sha256": {"$ref": "#/$defs/sha256", "description": "Canonical SHA-256 of the embedded CollisionProxySet sidecar; not a Runtime CAS object foreign key."},
+    "godot_binary_sha256": {"const": "c7cccbf8fb143e34e02fd6521e09be2c2b974f0d5db080b19071c9c570718ccf"},
+    "godot_version": {"const": "4.7.2.stable.official.ed1daf0bf"},
+    "godot_build_sha256": {"const": "c7cccbf8fb143e34e02fd6521e09be2c2b974f0d5db080b19071c9c570718ccf", "description": "Pinned official Godot executable build digest for this external evidence cohort."},
+    "probe_harness_sha256": {"$ref": "#/$defs/sha256"},
+    "harness_policy": {"const": "first-party-fixed-godot-headless-import-probe@1"},
+    "canonicalization_policy": {"const": "canonical-json-sha256-excluding-canonical-sha256-and-created-at@1"},
+    "godot_process_exit_code": {"const": 0},
+    "godot_report_sha256": {"$ref": "#/$defs/sha256"},
+    "scene_count": {"const": 4},
+    "scene_projections": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/scene_projection"}, {"properties": {"scene_role": {"const": "lod0"}}}]},
+        {"allOf": [{"$ref": "#/$defs/scene_projection"}, {"properties": {"scene_role": {"const": "lod1"}}}]},
+        {"allOf": [{"$ref": "#/$defs/scene_projection"}, {"properties": {"scene_role": {"const": "lod2"}}}]},
+        {"allOf": [{"$ref": "#/$defs/scene_projection"}, {"properties": {"scene_role": {"const": "animated"}}}]}
+      ],
+      "items": false
+    },
+    "lod_triangle_counts": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {"type": "integer", "minimum": 1, "maximum": 10000000},
+        {"type": "integer", "minimum": 1, "maximum": 10000000},
+        {"type": "integer", "minimum": 1, "maximum": 10000000}
+      ],
+      "items": false
+    },
+    "lod_triangles_strictly_decreasing": {"const": true},
+    "lod_material_signatures_exact": {"const": true},
+    "source_gltf_channel_count": {"const": 10},
+    "godot_optimized_track_count": {"const": 2},
+    "cross_loader_semantic_sampling_exact": {"const": true},
+    "half_duration_follow_names": {
+      "const": [
+        "forgecad-anchor-socket-energy-core-vfx",
+        "forgecad-anchor-socket-magazine-well"
+      ]
+    },
+    "collision_proxy_count": {"const": 5},
+    "godot_collision_shape_count": {"const": 5},
+    "collision_shape_kind": {"const": "BoxShape3D"},
+    "collision_aabb_sidecar_readback_exact": {"const": true},
+    "collision_physics_simulation": {"const": "NOT_RUN"},
+    "hitbox_semantics": {"const": false},
+    "actual_godot_headless_import": {"const": true},
+    "actual_engine_roundtrip": {"const": true},
+    "commercial_engine_roundtrip": {"const": false},
+    "unity_status": {"const": "NOT_RUN"},
+    "unreal_status": {"const": "NOT_RUN"},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "human_review": {"const": "NOT_RUN"},
+    "visual_quality_status": {"const": "NOT_RUN"},
+    "quality_status": {"const": "structural_only"},
+    "semantic_scope": {"const": "fictional-nonfunctional-game-visual-authoring-only@1"},
+    "functional_semantics": {"const": false},
+    "limitations": {
+      "const": [
+        "no-ballistics",
+        "no-damage-or-hitbox",
+        "no-physics-simulation",
+        "no-manufacturing-or-operation",
+        "no-commercial-engine-roundtrip",
+        "no-visual-quality-pass",
+        "static-and-animated-assets-come-from-independent-runtime-source-cohorts",
+        "godot-headless-import-is-structural-only"
+      ]
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 64}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "finite_number": {
+      "type": "number",
+      "minimum": -1000000,
+      "maximum": 1000000
+    },
+    "vec3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"}
+      ],
+      "items": false
+    },
+    "quat": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"},
+        {"$ref": "#/$defs/finite_number"}
+      ],
+      "items": false
+    },
+    "socket_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_name",
+        "parent_node_name",
+        "node_kind",
+        "local_translation_m",
+        "local_rotation_quat_xyzw",
+        "local_scale_xyz",
+        "non_rendering",
+        "parent_local_trs_exact"
+      ],
+      "properties": {
+        "node_name": {
+          "enum": [
+            "forgecad-anchor-grip-primary",
+            "forgecad-anchor-socket-energy-core-vfx",
+            "forgecad-anchor-socket-magazine-well",
+            "forgecad-anchor-socket-muzzle-vfx",
+            "forgecad-anchor-socket-sight-primary",
+            "forgecad-anchor-weapon-root"
+          ]
+        },
+        "parent_node_name": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/id"}
+          ]
+        },
+        "node_kind": {"const": "Node3D"},
+        "local_translation_m": {"$ref": "#/$defs/vec3"},
+        "local_rotation_quat_xyzw": {"$ref": "#/$defs/quat"},
+        "local_scale_xyz": {"const": [1.0, 1.0, 1.0]},
+        "non_rendering": {"const": true},
+        "parent_local_trs_exact": {"const": true}
+      }
+    },
+    "animation_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "animation_status",
+        "source_gltf_channel_count",
+        "godot_optimized_track_count",
+        "cross_loader_semantic_sampling_exact",
+        "half_duration_follow_names",
+        "animation_projection_sha256"
+      ],
+      "properties": {
+        "animation_status": {"enum": ["absent", "rigid-gltf-animation"]},
+        "source_gltf_channel_count": {"enum": [0, 10]},
+        "godot_optimized_track_count": {"enum": [0, 2]},
+        "cross_loader_semantic_sampling_exact": {"const": true},
+        "half_duration_follow_names": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "animation_projection_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        }
+      }
+    },
+    "scene_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scene_role",
+        "scene_artifact_sha256",
+        "scene_projection_sha256",
+        "mesh_count",
+        "triangle_count",
+        "material_count",
+        "material_names",
+        "material_signature_sha256",
+        "mesh_projection_sha256",
+        "material_projection_sha256",
+        "socket_node_count",
+        "socket_node_inventory_sha256",
+        "socket_nodes",
+        "scale_trs_projection_sha256",
+        "animation"
+      ],
+      "properties": {
+        "scene_role": {"enum": ["lod0", "lod1", "lod2", "animated"]},
+        "scene_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "scene_projection_sha256": {"$ref": "#/$defs/sha256"},
+        "mesh_count": {"const": 5},
+        "triangle_count": {"type": "integer", "minimum": 1, "maximum": 10000000},
+        "material_count": {"type": "integer", "minimum": 1, "maximum": 64},
+        "material_names": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 128}
+        },
+        "material_signature_sha256": {"$ref": "#/$defs/sha256"},
+        "mesh_projection_sha256": {"$ref": "#/$defs/sha256"},
+        "material_projection_sha256": {"$ref": "#/$defs/sha256"},
+        "socket_node_count": {"const": 6},
+        "socket_node_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "socket_nodes": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/socket_node"}
+        },
+        "scale_trs_projection_sha256": {"$ref": "#/$defs/sha256"},
+        "animation": {"$ref": "#/$defs/animation_projection"}
+      }
+    }
+  }
+}

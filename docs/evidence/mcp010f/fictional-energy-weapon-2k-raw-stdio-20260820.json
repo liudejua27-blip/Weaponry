@@ -1,0 +1,213 @@
+{
+  "aov_passes": [
+    "beauty",
+    "silhouette",
+    "depth",
+    "normal",
+    "ao",
+    "part-id",
+    "material-id",
+    "wireframe",
+    "uv-stretch"
+  ],
+  "appearance_artifact_sha256": "7fb85d98d7c7f1935528d5259416bacc918b02272b3a501c0c0ceeb11e57e34d",
+  "appearance_pack_id": "forgecad-fictional-energy-weapon-2k",
+  "appearance_pack_manifest_sha256": "a1866a469621e39e36b669e8c99202ff853967cfcf65fb047e7f26d216bcc5d6",
+  "appearance_part_count": 3,
+  "appearance_program": "AppearanceProgram@2",
+  "appearance_triangle_count": 524,
+  "artifact_readback": "ArtifactReadback@2 hard_gate_passed",
+  "build_evidence": {
+    "expected_build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+    "mcp_identity": {
+      "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "component": "forgecad-mcp",
+      "schema_version": "ForgeCADDevBuildIdentity@1"
+    },
+    "profile": "release",
+    "runtime_identity": {
+      "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "component": "forgecad-runtime",
+      "schema_version": "ForgeCADDevBuildIdentity@1"
+    }
+  },
+  "embedded_texture_uri_count": 0,
+  "fictional_energy_weapon_2k_pack_id": "forgecad-fictional-energy-weapon-2k",
+  "fictional_energy_weapon_2k_pack_manifest_sha256": "a1866a469621e39e36b669e8c99202ff853967cfcf65fb047e7f26d216bcc5d6",
+  "fictional_energy_weapon_material_definition_count": 7,
+  "fictional_energy_weapon_pack_id": "forgecad-fictional-energy-weapon",
+  "fictional_energy_weapon_pack_manifest_sha256": "4a56fa58af1e8a0cd218f880f61112d465725a79eb70ed2aa0076eb5408ac999",
+  "fictional_energy_weapon_pack_unsafe_input_gate": "PASS_INVALID_TOOL_PARAMS",
+  "geometry_artifact_sha256": "6e1e5e56998abebb4f73c04d6154904f1e2b88157f0de40f183c5285b17dbe47",
+  "geometry_fixture": "primitive-v2",
+  "geometry_part_count": 3,
+  "geometry_program_sha256": "05edc26dd87483132cbd7308dee51ad87030c35c752796c6d899ddd5c8354749",
+  "geometry_triangle_count": 524,
+  "geometry_variant": "surface-linework",
+  "human_review": "NOT_RUN",
+  "material_zone_count": 3,
+  "material_zone_ids": [
+    "zone-white-shell",
+    "zone-black-mechanical",
+    "zone-emissive-amber"
+  ],
+  "mcp_image_block": "PASS",
+  "pack_id": "forgecad-hard-surface-robot",
+  "pack_manifest_sha256": "32284a0133b8f0a7eb19522f8a711f1d2bb2bc3d816b6e238948be4d3c5a4225",
+  "packaged_viewer": null,
+  "persistent_user_data_touched": false,
+  "ponytail_preflight": "PASS",
+  "probe_tool_surface": "21 read + 16 write exercised by this MCP010E-derived probe; not the global source capability count",
+  "protocol_version": "2025-06-18",
+  "reference_compare": {
+    "status": "NOT_RUN"
+  },
+  "reference_mode": "synthetic-isolated",
+  "reference_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+  "reference_size_bytes": 68,
+  "runtime_cleanup": "PASS",
+  "schema_version": "ForgeCADMCP010FMaterial2KRawStdioProbe@1",
+  "status": "PASS",
+  "task_id": "FGC-MCP010F-MAT-03",
+  "texture_build_2k": {
+    "metadata": {
+      "algorithm": "catmullrom-plus-fixed-semantic-microdetail@1",
+      "build_budget_ms": 120000,
+      "canonical_sha256": "951b5427ef8b0aa16bc4e528c11d5140114bc8e7bca1096f4f53a29a21c47700",
+      "embedded_only": true,
+      "external_uri": false,
+      "network_at_runtime": false,
+      "outputs": [
+        {
+          "color_space": "linear",
+          "height": 2048,
+          "mime": "image/png",
+          "normal_convention": null,
+          "semantic": "metallicRoughness",
+          "sha256": "2906b3fb87272974ff24d8695338e8d9e2aad2d6a4c698a7020e04fd6422706f",
+          "size_bytes": 2506136,
+          "texture_id": "plastic006_metallic_roughness",
+          "width": 2048
+        },
+        {
+          "color_space": "linear",
+          "height": 2048,
+          "mime": "image/png",
+          "normal_convention": "OpenGL+Y",
+          "semantic": "normal",
+          "sha256": "d2679a7772e64059fecf1f5708ca86b01c0b20c0ceb6bee4a5c7bf71455826d4",
+          "size_bytes": 2153403,
+          "texture_id": "plastic006_normal_gl",
+          "width": 2048
+        },
+        {
+          "color_space": "sRGB",
+          "height": 2048,
+          "mime": "image/png",
+          "normal_convention": null,
+          "semantic": "baseColor",
+          "sha256": "5d7e50aebc074e969a9d14001c0b43ce15aced7f8c5d1e068510985d24c8a683",
+          "size_bytes": 3908196,
+          "texture_id": "metal010_color",
+          "width": 2048
+        },
+        {
+          "color_space": "linear",
+          "height": 2048,
+          "mime": "image/png",
+          "normal_convention": null,
+          "semantic": "metallicRoughness",
+          "sha256": "f05467673f09dc525f8ec475d91f043a856592061b67780b8889a0bff812d28c",
+          "size_bytes": 3272443,
+          "texture_id": "metal010_metallic_roughness",
+          "width": 2048
+        },
+        {
+          "color_space": "linear",
+          "height": 2048,
+          "mime": "image/png",
+          "normal_convention": "OpenGL+Y",
+          "semantic": "normal",
+          "sha256": "518067e40a758745f2a3533100ef62c9ca5e4c162c8a02c49de8ec9301b19aa7",
+          "size_bytes": 2250943,
+          "texture_id": "metal010_normal_gl",
+          "width": 2048
+        }
+      ],
+      "recipe_id": "forgecad-first-party-catmullrom-semantic-microdetail-2k@1",
+      "resolution": 2048,
+      "schema_version": "EmbeddedTextureBuild@1",
+      "worker_algorithm_sha256": "1945f41c0ccda3a32250e31d3d93d530eed51cca83d02adc20f3358334400655"
+    },
+    "physical_outputs": [
+      {
+        "height": 2048,
+        "sha256": "2906b3fb87272974ff24d8695338e8d9e2aad2d6a4c698a7020e04fd6422706f",
+        "size_bytes": 2506136,
+        "texture_id": "plastic006_metallic_roughness",
+        "width": 2048
+      },
+      {
+        "height": 2048,
+        "sha256": "d2679a7772e64059fecf1f5708ca86b01c0b20c0ceb6bee4a5c7bf71455826d4",
+        "size_bytes": 2153403,
+        "texture_id": "plastic006_normal_gl",
+        "width": 2048
+      },
+      {
+        "height": 2048,
+        "sha256": "5d7e50aebc074e969a9d14001c0b43ce15aced7f8c5d1e068510985d24c8a683",
+        "size_bytes": 3908196,
+        "texture_id": "metal010_color",
+        "width": 2048
+      },
+      {
+        "height": 2048,
+        "sha256": "f05467673f09dc525f8ec475d91f043a856592061b67780b8889a0bff812d28c",
+        "size_bytes": 3272443,
+        "texture_id": "metal010_metallic_roughness",
+        "width": 2048
+      },
+      {
+        "height": 2048,
+        "sha256": "518067e40a758745f2a3533100ef62c9ca5e4c162c8a02c49de8ec9301b19aa7",
+        "size_bytes": 2250943,
+        "texture_id": "metal010_normal_gl",
+        "width": 2048
+      }
+    ]
+  },
+  "texture_build_receipt_v2": {
+    "bake_status": "not-a-geometry-bake",
+    "canonical_sha256": "6a2555ea239230bfbaf85aea9098831aa09c7fecff52f767038d54abe3b4b1d9",
+    "cas_readback": "PASS",
+    "object_sha256": "d0b72781a43b2fe65c42746bb38a36a7f19ca369d3be897f1e7a9ce1e0e42c10",
+    "output_count": 5,
+    "output_dimensions": [
+      [
+        2048,
+        2048
+      ]
+    ],
+    "source_dimensions": [
+      [
+        512,
+        512
+      ]
+    ],
+    "source_input_count": 7
+  },
+  "texture_manifest_count": 7,
+  "uv_atlas": {
+    "atlas_count": 1,
+    "charts": 358,
+    "overlap_policy": "disjoint-grid-cells@1",
+    "packing": "connected-dominant-axis-islands@1",
+    "padding_texels": 8,
+    "resolution": 2048,
+    "schema_version": "UvAtlas@1",
+    "seam_policy": "edge-shared-or-explicit-seam@1"
+  },
+  "uv_atlas_summary": "2048px connected dominant-axis islands; 8px padding; edge-shared-or-explicit-seam",
+  "visual_likeness": "NOT_RUN"
+}

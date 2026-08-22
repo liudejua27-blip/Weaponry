@@ -6042,7 +6042,7 @@ fn evaluate_joint_candidate(
         .cloned()
         .unwrap_or_else(|| Value::Object(weighted_metrics.clone()));
     let render_sha256 = canonical_json_hash(&json!({
-        "schema_version":"RenderSet@2",
+        "schema_version":"OptimizationRenderDigest@1",
         "fidelity":fidelity,
         "resolution":resolution,
         "views":view_evaluations.iter().map(|view| json!({"view_id":view["view_id"],"camera_hash":view["camera_hash"],"pass_hashes":view["pass_hashes"]})).collect::<Vec<_>>()

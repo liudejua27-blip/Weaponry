@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-glb-socket-materialization-prepare-result.schema.json",
+  "title": "GameWeaponGlbSocketMaterializationPrepareResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "socket_materialization_key_sha256", "receipt_object_sha256", "receipt", "durable_link", "candidate_confirmed", "export_performed", "actual_engine_roundtrip", "quality_status"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponGlbSocketMaterializationPrepareResult@1"},
+    "socket_materialization_key_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt": {"$ref": "game-weapon-glb-socket-materialization-receipt.schema.json"},
+    "durable_link": {"$ref": "game-weapon-glb-socket-materialization-link.schema.json"},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "quality_status": {"const": "structural_only"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

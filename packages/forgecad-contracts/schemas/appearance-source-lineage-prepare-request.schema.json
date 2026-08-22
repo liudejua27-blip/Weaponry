@@ -1,0 +1,28 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/appearance-source-lineage-prepare-request.schema.json",
+  "title":"AppearanceSourceLineagePrepareRequest@1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","project_id","candidate_id","candidate_state_sha256","source_replay_worker_cohort_sha256","appearance_program","geometry_program_object_sha256","material_pack_manifest_sha256","texture_build_receipt_sha256","candidate_surface_bake_receipt_sha256","uv_binding_sha256","lods","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"AppearanceSourceLineagePrepareRequest@1"},
+    "project_id":{"$ref":"#/$defs/id"},
+    "candidate_id":{"$ref":"#/$defs/id"},
+    "candidate_state_sha256":{"$ref":"#/$defs/sha256"},
+    "source_replay_worker_cohort_sha256":{"$ref":"#/$defs/sha256"},
+    "appearance_program":{"type":"object"},
+    "geometry_program_object_sha256":{"$ref":"#/$defs/sha256"},
+    "material_pack_manifest_sha256":{"$ref":"#/$defs/sha256"},
+    "texture_build_receipt_sha256":{"$ref":"#/$defs/sha256"},
+    "candidate_surface_bake_receipt_sha256":{"type":["string","null"],"pattern":"^[0-9a-f]{64}$"},
+    "uv_binding_sha256":{"$ref":"#/$defs/sha256"},
+    "lods":{"type":"array","minItems":3,"maxItems":3,"items":{"$ref":"#/$defs/lod"}},
+    "canonical_sha256":{"$ref":"#/$defs/sha256"}
+  },
+  "$defs":{
+    "id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "lod":{"type":"object","additionalProperties":false,"required":["level","candidate_id","candidate_state_sha256","artifact_sha256","artifact_readback_sha256"],"properties":{"level":{"type":"integer","minimum":0,"maximum":2},"candidate_id":{"$ref":"#/$defs/id"},"candidate_state_sha256":{"$ref":"#/$defs/sha256"},"artifact_sha256":{"$ref":"#/$defs/sha256"},"artifact_readback_sha256":{"$ref":"#/$defs/sha256"}}}
+  }
+}

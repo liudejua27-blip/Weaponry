@@ -5,7 +5,14 @@ use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
 const ARCHIVE_MAGIC: &[u8; 8] = b"FCBNDL01";
-const MAX_ARCHIVE_FILES: usize = 512;
+// Capacity guard for the fixed active Bundle set plus checked-in contract
+// schemas. Keep bounded headroom for typed contract growth; this is not a
+// count assertion for the current cohort (the manifest checker owns that).
+// Keep this in lockstep with `skill_registry.rs`. The archive currently
+// contains the closed first-party Bundle files plus every versioned contract
+// schema. 768 leaves bounded headroom for additive V2 production contracts
+// without weakening the byte-size or path-validation gates below.
+const MAX_ARCHIVE_FILES: usize = 768;
 const MAX_ARCHIVE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_ARTIFACT_BYTES: usize = 256 * 1024;
 

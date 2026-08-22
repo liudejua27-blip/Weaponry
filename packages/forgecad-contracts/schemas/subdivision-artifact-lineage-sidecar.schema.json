@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/subdivision-artifact-lineage-sidecar.schema.json",
+  "title": "SubdivisionArtifactLineageSidecar",
+  "description": "An immutable Runtime-owned CAS sidecar for the already bounded direct subd-cage@2 artifact projection. It preserves artifact-bound local triangle ranges but does not create cross-version glTF or authoring element identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "candidate_id", "artifact_id",
+    "artifact_readback_sha256", "artifact_readback_object_sha256",
+    "geometry_candidate_evidence_sha256", "program_sha256",
+    "geometry_program_object_sha256", "operator_catalog_sha256",
+    "readback_config_sha256", "subdivision_node_id", "part_id",
+    "material_zone_id", "solid", "lineage_kind", "lineage_space",
+    "max_lineage_elements", "lineage_element_count", "root_lineage",
+    "lineage_sha256", "artifact_binding", "artifact_binding_sha256",
+    "complete", "completeness_scope", "cross_version_stable",
+    "materialization_status", "quality_status", "limitations", "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SubdivisionArtifactLineageSidecar@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_object_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_candidate_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program_object_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "subdivision_node_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "solid": {"const": false},
+    "lineage_kind": {"const": "control-root-to-evaluated-quad-topology@1"},
+    "lineage_space": {"const": "evaluated-quad-topology-to-source-primitive-triangles@1"},
+    "max_lineage_elements": {"type": "integer", "minimum": 1, "maximum": 25000},
+    "lineage_element_count": {"type": "integer", "minimum": 1, "maximum": 25000},
+    "root_lineage": {"$ref": "https://forgecad.local/contracts/subdivision-topology-lineage.schema.json#/$defs/lineage"},
+    "lineage_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_binding": {"$ref": "#/$defs/artifact_binding"},
+    "artifact_binding_sha256": {"$ref": "#/$defs/sha256"},
+    "complete": {"const": true},
+    "completeness_scope": {"const": "all-root-mappings-and-source-primitive-local-triangle-ranges"},
+    "cross_version_stable": {"const": false},
+    "materialization_status": {"const": "runtime-owned-immutable-cas-sidecar"},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {
+      "const": [
+        "REGULAR_RECTANGULAR_OPEN_QUAD_GRID_ONLY",
+        "INTEGER_EDGE_SHARPNESS_LEVELS_1_TO_2_ONLY",
+        "SOURCE_PRIMITIVE_LOCAL_TRIANGLE_IDS_ONLY",
+        "NO_GLTF_VERTEX_EDGE_OR_CORNER_IDENTITY",
+        "NO_CROSS_VERSION_ELEMENT_ID_STABILITY",
+        "IMMUTABLE_CAS_SIDECAR_NO_CROSS_VERSION_STABILITY",
+        "DETERMINISTIC_FULL_GLB_BYTE_REPLAY_REQUIRED",
+        "STRUCTURAL_LINEAGE_DOES_NOT_PROVE_VISUAL_QUALITY"
+      ]
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "triangle_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_quad_id", "artifact_triangle_start", "artifact_triangle_count"],
+      "properties": {
+        "control_quad_id": {"type": "integer", "minimum": 0, "maximum": 224},
+        "artifact_triangle_start": {"type": "integer", "minimum": 0, "maximum": 7199},
+        "artifact_triangle_count": {"type": "integer", "minimum": 8, "maximum": 32}
+      }
+    },
+    "artifact_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_method", "artifact_id", "recompiled_artifact_sha256",
+        "source_primitive_ordinal", "source_triangle_count", "artifact_triangle_domain",
+        "quad_triangulation", "evaluated_quad_to_artifact_triangles_policy",
+        "control_quad_artifact_triangle_ranges", "mapping_complete", "canonical_sha256"
+      ],
+      "properties": {
+        "binding_method": {"const": "deterministic-full-glb-byte-replay-and-source-primitive-triangle-order@1"},
+        "artifact_id": {"$ref": "#/$defs/sha256"},
+        "recompiled_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "source_primitive_ordinal": {
+          "description": "Zero-based ordinal of the matching entry in ArtifactReadback@2.part_bindings; it is not a glTF mesh or primitive index.",
+          "type": "integer", "minimum": 0, "maximum": 511
+        },
+        "source_triangle_count": {"type": "integer", "minimum": 32, "maximum": 7200},
+        "artifact_triangle_domain": {"const": "source-primitive-local-triangle-index@1"},
+        "quad_triangulation": {"const": "0-1-2_0-2-3"},
+        "evaluated_quad_to_artifact_triangles_policy": {"const": "quad-q-maps-to-local-triangles-2q-and-2q-plus-1@1"},
+        "control_quad_artifact_triangle_ranges": {
+          "type": "array", "minItems": 4, "maxItems": 225, "items": {"$ref": "#/$defs/triangle_range"}
+        },
+        "mapping_complete": {"const": true},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

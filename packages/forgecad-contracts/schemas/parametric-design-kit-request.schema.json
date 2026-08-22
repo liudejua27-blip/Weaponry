@@ -23,6 +23,8 @@
         "forgecad.kit.housing@1",
         "forgecad.kit.panel@1",
         "forgecad.kit.vent@1",
+        "forgecad.kit.channel@1",
+        "forgecad.kit.energy-core@1",
         "forgecad.kit.joint@1",
         "forgecad.kit.sensor@1",
         "forgecad.kit.frame@1"

@@ -1,0 +1,9 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/fictional-energy-vfx-hdr-bloom-frame-prepare-result.schema.json",
+  "title":"FictionalEnergyVfxHdrBloomFramePrepareResult@1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","bloom_key_sha256","receipt_object_sha256","receipt","durable_link","candidate_confirmed","export_performed","actual_engine_roundtrip","quality_status"],
+  "properties":{"schema_version":{"const":"FictionalEnergyVfxHdrBloomFramePrepareResult@1"},"bloom_key_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"receipt_object_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"receipt":{"$ref":"fictional-energy-vfx-hdr-bloom-frame-receipt.schema.json"},"durable_link":{"$ref":"fictional-energy-vfx-bloom-frame-link.schema.json"},"candidate_confirmed":{"const":false},"export_performed":{"const":false},"actual_engine_roundtrip":{"const":false},"quality_status":{"const":"structural_only"}}
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-appearance-frame-sample-request.schema.json",
+  "title": "FictionalEnergyVfxAppearanceFrameSampleRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "delivery_manifest_object_sha256", "vfx_profile_object_sha256", "sample_time_ticks", "sampling_policy", "appearance_binding_policy", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxAppearanceFrameSampleRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "vfx_profile_object_sha256": {"$ref": "#/$defs/sha256"},
+    "sample_time_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "sampling_policy": {"const": "integer-tick-linear-once-clamp-loop-modulo-duration@1"},
+    "appearance_binding_policy": {"const": "three-lod-appearance-program-glb-material-zone-stable-id@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

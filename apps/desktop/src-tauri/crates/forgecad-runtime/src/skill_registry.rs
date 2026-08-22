@@ -13,7 +13,10 @@ const BUNDLE_ARCHIVE: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/forgecad_skill_bundles.bin"));
 
 const ARCHIVE_MAGIC: &[u8; 8] = b"FCBNDL01";
-const MAX_ARCHIVE_FILES: usize = 512;
+// Keep the runtime trust parser aligned with build.rs. The archive contains
+// both active first-party Bundle files and the closed contract schema set.
+// Must match the build-time archive ceiling in `build.rs`.
+const MAX_ARCHIVE_FILES: usize = 768;
 const MAX_ARCHIVE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_ARTIFACT_BYTES: usize = 256 * 1024;
 const FORBIDDEN_BUNDLE_SUFFIXES: &[&str] = &[
@@ -63,6 +66,8 @@ const EXECUTABLE_OPERATOR_IDS: &[&str] = &[
     "forgecad.geometry.profile-loft@1",
     "forgecad.geometry.longitudinal-section-loft@1",
     "forgecad.geometry.subd-cage@1",
+    "forgecad.geometry.subd-cage@2",
+    "forgecad.geometry.authoring-mesh@1",
     "forgecad.geometry.surface-patch@1",
     "forgecad.geometry.surface-shell@1",
     "forgecad.geometry.revolve@1",
@@ -70,8 +75,15 @@ const EXECUTABLE_OPERATOR_IDS: &[&str] = &[
     "forgecad.geometry.transform@2",
     "forgecad.geometry.mirror@1",
     "forgecad.geometry.array@1",
+    "forgecad.geometry.bevel@1",
+    "forgecad.geometry.bevel@2",
+    "forgecad.geometry.normal-policy@1",
     "forgecad.geometry.panel@1",
+    "forgecad.geometry.panel@2",
     "forgecad.geometry.vent-array@1",
+    "forgecad.geometry.vent-array@2",
+    "forgecad.geometry.recessed-channel@1",
+    "forgecad.geometry.energy-core@1",
     "forgecad.geometry.joint-stack@1",
     "forgecad.geometry.boolean@1",
     "forgecad.geometry.part-output@1",

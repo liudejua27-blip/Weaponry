@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-clip-preview.schema.json",
+  "title": "MechanicalAnimationClipPreview",
+  "description": "A single scheduled tick replayed from an immutable mechanical animation clip through two exact fixed Geometry Worker executions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "artifact_id", "clip_id", "clip_object_sha256", "clip_sha256", "rest_frame_sha256", "pose_action_sha256", "sample_time_ticks", "frame_sha256", "source_replay_worker_cohort_sha256", "pose_geometry_preview", "geometry_materialization", "runtime_write_performed", "persistent_user_data_touched", "quality_status", "limitations", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "MechanicalAnimationClipPreview@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "clip_id": {"$ref": "#/$defs/identifier"},
+    "clip_object_sha256": {"$ref": "#/$defs/sha256"},
+    "clip_sha256": {"$ref": "#/$defs/sha256"},
+    "rest_frame_sha256": {"$ref": "#/$defs/sha256"},
+    "pose_action_sha256": {"$ref": "#/$defs/sha256"},
+    "sample_time_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "frame_sha256": {"$ref": "#/$defs/sha256"},
+    "source_replay_worker_cohort_sha256": {"$ref": "#/$defs/sha256"},
+    "pose_geometry_preview": {"$ref": "https://forgecad.local/contracts/mechanical-pose-geometry-preview.schema.json"},
+    "geometry_materialization": {"const": "transient-double-worker-glb-not-persisted"},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {"const": ["rigid-parts-only-no-skinning-or-deformation", "single-scheduled-tick-per-preview-call", "transient-frame-glb-not-persisted", "no-ik-constraints-nla-fcurves-drivers-or-timeline", "not-blender-armature-animation-or-python-parity", "structural-replay-does-not-prove-visual-quality"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

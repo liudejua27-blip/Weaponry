@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-anchor-link.schema.json",
+  "title": "GameWeaponAnchorLink@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "delivery_manifest_object_sha256", "lod0_artifact_sha256", "request_sha256", "anchor_set_object_sha256", "materialization_status", "canonical_sha256", "created_at"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponAnchorLink@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "lod0_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_status": {"const": "runtime-owned-durable-weapon-anchor-sidecar"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 64}
+  },
+  "$defs": {"id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

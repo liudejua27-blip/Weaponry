@@ -1,0 +1,15 @@
+{
+  "schema_version":"TextureBuildProvenance@2",
+  "pack_id":"forgecad-fictional-energy-weapon-2k",
+  "pack_version":"1.0.0",
+  "material_pack_manifest_sha256":"88504cca9aa20393a1577fc9ae2bbb65d3ccb0a3ca21d61a4c72efa501214fb6",
+  "source_pack_id":"forgecad-fictional-energy-weapon",
+  "source_pack_manifest_sha256":"4a56fa58af1e8a0cd218f880f61112d465725a79eb70ed2aa0076eb5408ac999",
+  "recipe_id":"forgecad-first-party-catmullrom-semantic-microdetail-2k@1",
+  "worker_algorithm_sha256":"1945f41c0ccda3a32250e31d3d93d530eed51cca83d02adc20f3358334400655",
+  "derivation_label":"first-party-deterministic-synthetic-microdetail",
+  "bake_status":"not-a-geometry-bake",
+  "runtime_network":false,
+  "caller_paths":false,
+  "output_policy":"actual 2048x2048 PNG bytes are derived inside the fixed Geometry Worker, embedded in GLB, decoded and hash-checked by strict readback"
+}

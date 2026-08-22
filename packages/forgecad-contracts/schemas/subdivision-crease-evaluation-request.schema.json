@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/subdivision-crease-evaluation-request.schema.json",
+  "title": "SubdivisionCreaseEvaluationRequest",
+  "description": "A bounded read-only request for ForgeCAD's product-owned regular quad-grid Catmull-Clark evaluator with integer-level edge creases. It is not an OpenSubdiv, Blender, arbitrary-topology or limit-surface contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "representation_plan_sha256", "part_id",
+    "material_zone_id", "solid", "control_cage", "crease_edges", "policy",
+    "transform", "budgets", "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SubdivisionCreaseEvaluationRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "solid": {"const": false},
+    "control_cage": {"$ref": "#/$defs/control_cage"},
+    "crease_edges": {
+      "description": "Runtime normalizes this set lexicographically by (vertex_a, vertex_b) before hashing and lowering; duplicates remain invalid.",
+      "type": "array", "minItems": 1, "maxItems": 128,
+      "items": {"$ref": "#/$defs/crease_edge"}
+    },
+    "policy": {"$ref": "#/$defs/policy"},
+    "transform": {"$ref": "#/$defs/transform"},
+    "budgets": {"$ref": "#/$defs/budgets"},
+    "input_sha256": {
+      "description": "Canonical SHA-256 of this closed request without input_sha256 after crease_edges lexicographic normalization.",
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "coordinate_scalar": {"type": "number", "minimum": -10, "maximum": 10},
+    "radian_scalar": {"type": "number", "minimum": -6.283185307179586, "maximum": 6.283185307179586},
+    "coordinate_vec3": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {"$ref": "#/$defs/coordinate_scalar"}
+    },
+    "radian_vec3": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {"$ref": "#/$defs/radian_scalar"}
+    },
+    "control_cage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["u_points", "v_points", "control_points"],
+      "properties": {
+        "u_points": {"type": "integer", "minimum": 3, "maximum": 16},
+        "v_points": {"type": "integer", "minimum": 3, "maximum": 16},
+        "control_points": {
+          "type": "array", "minItems": 9, "maxItems": 256,
+          "items": {"$ref": "#/$defs/coordinate_vec3"}
+        }
+      }
+    },
+    "crease_edge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vertex_a", "vertex_b", "sharpness_levels"],
+      "properties": {
+        "vertex_a": {"type": "integer", "minimum": 0, "maximum": 254},
+        "vertex_b": {"type": "integer", "minimum": 1, "maximum": 255},
+        "sharpness_levels": {"type": "integer", "minimum": 1, "maximum": 2}
+      }
+    },
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "scheme", "subdivision_levels", "boundary_interpolation", "crease_method",
+        "sharpness_domain", "face_varying_interpolation", "limit_surface", "adaptive"
+      ],
+      "properties": {
+        "scheme": {"const": "catmull-clark-uniform-regular-quad-grid"},
+        "subdivision_levels": {"type": "integer", "minimum": 1, "maximum": 2},
+        "boundary_interpolation": {"const": "edge-only"},
+        "crease_method": {"const": "uniform-integer-level-decay@1"},
+        "sharpness_domain": {"const": "integer-levels-1-to-2"},
+        "face_varying_interpolation": {"const": "worker-triangle-chart-postprocess"},
+        "limit_surface": {"const": false},
+        "adaptive": {"const": false}
+      }
+    },
+    "transform": {
+      "type": "object", "additionalProperties": false,
+      "required": ["position_m", "rotation_rad"],
+      "properties": {
+        "position_m": {"$ref": "#/$defs/coordinate_vec3"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vec3"}
+      }
+    },
+    "budgets": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_nodes", "max_triangles", "max_glb_bytes", "max_worker_memory_bytes", "max_runtime_ms"],
+      "properties": {
+        "max_nodes": {"type": "integer", "minimum": 1, "maximum": 512},
+        "max_triangles": {"type": "integer", "minimum": 1, "maximum": 250000},
+        "max_glb_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "max_worker_memory_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912},
+        "max_runtime_ms": {"type": "integer", "minimum": 1, "maximum": 10000}
+      }
+    }
+  }
+}

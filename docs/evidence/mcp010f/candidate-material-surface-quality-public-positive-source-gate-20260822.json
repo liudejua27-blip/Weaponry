@@ -1,0 +1,149 @@
+{
+  "schema_version": "ForgeCADCandidateMaterialSurfaceQualityPublicPositiveSourceGate@1",
+  "task_id": "FGC-MCP010F-MATERIAL-SURFACE-QUALITY-17",
+  "recorded_on": "2026-08-22",
+  "status": "PASS_PUBLIC_RUNTIME_PREPARE_REPLAY_GET_RESTART_STRUCTURAL_ONLY",
+  "scope": {
+    "v1_v2_isolation": true,
+    "public_runtime_fixture": true,
+    "source_output_candidate_must_differ": true,
+    "chain": [
+      "Geometry",
+      "CandidateTopologyQuality@1",
+      "AppearanceProgram@3",
+      "TextureBuild@2",
+      "SurfaceBake@1",
+      "AppearanceSourceLineage@1",
+      "CandidateMaterialSurfaceQuality@1"
+    ],
+    "lod_scope": "lod0-only@1",
+    "runtime_store_single_writer": true,
+    "parent_key_is_cas": false
+  },
+  "fixture": {
+    "public_runtime_prepare_replay_get_restart": "PASS_1_OF_1",
+    "runtime_flow": [
+      "prepare",
+      "same-key replay",
+      "get",
+      "drop and reopen Runtime",
+      "restart get"
+    ],
+    "build_cohort_sha256": "724278fe8f6777c8b3d07bc5058208aee90aa5c700db5f9284d6297126fa79f6",
+    "fixture_duration_seconds": 111.72,
+    "focused_runtime_duration_seconds": 112.63,
+    "focused_runtime_tests": "PASS_5_OF_5",
+    "cas_inventory_unchanged_after_restart": true,
+    "same_key_replay_exact": true,
+    "restart_read_is_read_only": true
+  },
+  "binding": {
+    "geometry_to_topology_quality_source": "exact",
+    "source_and_output_candidates_are_distinct": true,
+    "source_candidate_state_and_artifact_id": "exact",
+    "output_candidate_state_and_artifact_id": "exact",
+    "stable_artifact_id_and_glb_object_sha256_are_distinct": true,
+    "appearance_program_texture_build_surface_bake_lineage": "exact",
+    "material_pack_cas_kind": "closed-and-exact",
+    "geometry_preservation_projection": "exact-with-legal-uv-tangent-rebuild-excluded-from-geometry-drift",
+    "uv_tangent_material_zone_provenance": "exact",
+    "restart_cas_inventory": "unchanged",
+    "parent_key_is_cas": false
+  },
+  "transaction": {
+    "owned_cas": [
+      "candidate-material-surface-quality-report"
+    ],
+    "source_and_output_objects_marked_reachable": true,
+    "same_id_same_content_replay_exact": true,
+    "retarget_or_provenance_drift_conflict_fail_closed": true,
+    "reservation_rollback_cleans_only_created_new_unlinked_report": true,
+    "restart_get_revalidates_store_report_cas_and_dual_candidate_bindings": true,
+    "report_prepare_advances_stage": false
+  },
+  "source_surface": {
+    "schemas": 350,
+    "schema_content_set_sha256": "5954973dbe040fe2c226840af9ea90164719cfac03f03a014c0765334dd05156",
+    "contract_manifest_sha256": "f3f452fdf7fd338258eb0a87aa5dfacfb15429e2d23a41fcc8cf07809ff0522c",
+    "mcp_read_tools": 80,
+    "mcp_write_tools": 60,
+    "mcp_total_tools": 140,
+    "mcp_read_manifest_sha256": "3e8ad15d34fc11459c867c4fd61093b9690415e1c0bc8f14b4c524b9d8781966",
+    "mcp_write_manifest_sha256": "890680e33cafccee9791b3f09f2fc9a0f4a8e290dc752961939df622eeeef5b0",
+    "source_tool_summary_canonical_sha256": "ab269fa22edc828ba9dc17f8b48884a6438d19050c44e3751c7ce0dda0477edc"
+  },
+  "source_sha256": {
+    "contracts_rust": "8e0e9d78efcbe0d6386e95ba3b89351b6824815ed85c1abfe5e6dba00a99d8f6",
+    "store": "5b4236472f446b69ed6f2efb1e620b70a8bc790a31d863bd679fe443620bd9ec",
+    "runtime_material_surface_quality": "e82d5ec9d63d7c2f9d82517dad43ca399437ba8db0f74dc33c554168ed42146b",
+    "runtime_appearance_source_lineage": "560229adc14decc9860d9ec44e45fd386fdfe8cbdf16a4f1c5f8ba64e00b6f1c",
+    "runtime_lib": "a751557fba1ceb20146077628e8d3ef9cd39d28c5823b6a5a671002764efd242",
+    "mcp_agentic_write_tools": "b90863dafeedb698f0a80de9aeeb86a3aa31e87128cadf70bf4c9bca1917ef72",
+    "mcp_main": "5a5a99c82c6523da4fd24552876b8cfd3b49cad2f61ee9b22a642a1c0fb45ffb"
+  },
+  "verification": [
+    {
+      "gate": "contracts checker",
+      "result": "PASS_350_SCHEMAS"
+    },
+    {
+      "gate": "forgecad-store full lib",
+      "result": "PASS_74_OF_74"
+    },
+    {
+      "gate": "forgecad-runtime candidate_material_surface_quality focused",
+      "result": "PASS_5_OF_5_112_63_SECONDS"
+    },
+    {
+      "gate": "public material fixture prepare/replay/get/restart",
+      "result": "PASS_1_OF_1_111_72_SECONDS"
+    },
+    {
+      "gate": "forgecad-runtime full same-cohort",
+      "result": "PASS_310_OF_310_EXECUTED_20_IGNORED_330_TOTAL_201_91_SECONDS"
+    },
+    {
+      "gate": "cargo check contracts/runtime/store/mcp",
+      "result": "PASS"
+    },
+    {
+      "gate": "MCP tool manifest summary",
+      "result": "PASS_80_READ_60_WRITE_140_TOTAL"
+    }
+  ],
+  "quality_truth": {
+    "structural_material_surface_provenance": "AVAILABLE_WITHIN_BOUNDED_PROFILE",
+    "visual_quality": "NOT_PROVEN",
+    "artistic_quality": "NOT_PROVEN",
+    "commercial_fps_weapon_quality": "NOT_PROVEN",
+    "human_review": "NOT_RUN",
+    "commercial_engine_roundtrip": "NOT_RUN",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "overall_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "regression_evidence": {
+    "build_cohort_sha256": "724278fe8f6777c8b3d07bc5058208aee90aa5c700db5f9284d6297126fa79f6",
+    "runtime_full": {
+      "passed": 310,
+      "failed": 0,
+      "ignored": 20,
+      "total": 330,
+      "duration_seconds": 201.91
+    },
+    "interpretation": "The public material fixture ran inside this forced same-cohort full Runtime execution; these regression counts do not promote structural evidence to visual or commercial quality."
+  },
+  "limitations": [
+    "This receipt proves one public Runtime prepare/replay/get/restart structural material-surface fixture and its bounded provenance bindings; it does not prove reference-bound visual likeness.",
+    "The public fixture removes the prior material-positive fixture-chain blocker, but independent human visual review, commercial-FPS acceptance and Unity/Unreal/Godot round-trip remain NOT_RUN or NOT_PROVEN.",
+    "CandidateMaterialSurfaceQuality prepare never advances a production stage; an independent approval-gated ProductionStageTransition@2 is still required and is not performed here.",
+    "The source and output candidates remain deliberately distinct; stable artifact IDs, GLB object hashes and MaterialPack CAS kinds are separately bound, and legal UV/tangent rebuilds are excluded from the geometry-preservation drift check.",
+    "Only fictional, nonfunctional game-art assets are in scope; no manufacturing dimensions, ballistics, performance or operating guidance is represented."
+  ],
+  "canonical_sha256": "04fd131f0167efba265054b0c59b3e651a908719aba3d001c755033d521ed726"
+}

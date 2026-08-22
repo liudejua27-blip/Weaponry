@@ -1,0 +1,99 @@
+{
+  "schema_version": "ForgeCADProductionStageTransitionSourceGate@1",
+  "task_id": "FGC-MCP010F-PRODUCTION-STAGE-15",
+  "date": "2026-08-21",
+  "status": "PASS_SOURCE_RUNTIME_STORE_MCP_FOCUSED",
+  "production_stage_order": [
+    "draft",
+    "gray-model",
+    "topology",
+    "material-surface",
+    "animation-vfx",
+    "game-delivery"
+  ],
+  "implemented_transition": {
+    "from_stage": "draft",
+    "to_stage": "gray-model",
+    "output_kind": "gray-model-artifact",
+    "durable_head": true,
+    "restart_readback": true,
+    "blocked_attempt_advances_head": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "binding": {
+    "session_project_candidate": "exact",
+    "candidate_state": "exact",
+    "artifact_and_v2_readback": "exact",
+    "reference_camera_evidence": "exact",
+    "optional_quality_comparison": "exact_when_present",
+    "adjacent_stage_only": true,
+    "runtime_derived_structural_gate": true,
+    "parent_key_is_cas": false
+  },
+  "transaction": {
+    "store_transition_and_head_atomic": true,
+    "blocked_transition_does_not_move_head": true,
+    "same_input_replay_exact": true,
+    "conflict_fail_closed": true,
+    "receipt_cas_reservation": true,
+    "rollback_cleans_only_created_new_unlinked_receipt": true,
+    "observation_hash_is_not_treated_as_cas": true
+  },
+  "source_surface": {
+    "schemas": 298,
+    "schema_content_set_sha256": "4c633410321069ea9486e39c514bd28a3b089be06be6747e8553c4eae8aa9279",
+    "contract_manifest_sha256": "598123941b7ee482d8371a362442fb311ab2b921915557934a88c2048b66da10",
+    "mcp_read_tools": 70,
+    "mcp_write_tools": 50,
+    "mcp_total_tools": 120,
+    "active_operators": "26/26"
+  },
+  "source_sha256": {
+    "contracts_rust": "3e7d6c89e0c91fc4576c305f03f859978cc37e32d63198f6e32660caddd61575",
+    "store": "10aad84655fa426382142970168b90e9ca4c5b290bb908df73d1c964528ce959",
+    "runtime_agentic_session": "dd89f715da3d61ae9bf84522b16adf87d6c42cda7e3ec9958cc8f62856755f89",
+    "mcp_agentic_tools": "e2058f351faebf4d4bc3e63a978aa1635843014a1819341d28c61e01b7474a8d",
+    "mcp_main": "69de9bd90ce61371b121fce4c08133a9559a9a31e95d12f77b68cb0170d0c41b"
+  },
+  "verification": [
+    {"gate": "contracts", "result": "PASS_298_SCHEMAS"},
+    {"gate": "forgecad-store production_stage_transition", "result": "PASS_3_OF_3"},
+    {"gate": "forgecad-store full lib", "result": "PASS_40_OF_40"},
+    {"gate": "forgecad-runtime production_stage_transition", "result": "PASS_6_OF_6"},
+    {"gate": "forgecad-mcp agentic_write_tools", "result": "PASS_8_OF_8"},
+    {"gate": "forgecad-mcp tool manifest summary", "result": "PASS_70_READ_50_WRITE_120_TOTAL"},
+    {"gate": "cargo check forgecad-mcp", "result": "PASS"},
+    {"gate": "rustfmt selected source", "result": "PASS"},
+    {"gate": "git diff --check", "result": "PASS"}
+  ],
+  "broader_suite_observation": {
+    "forgecad_mcp_full": "90_OF_95_PASS",
+    "unrelated_failures": 5,
+    "failure_class": "EXISTING_WORKER_COHORT_UNAVAILABLE_OR_PROTOCOL_FIXTURES",
+    "affected_existing_tests": [
+      "boolean_operand_lineage_round_trips_as_a_read_only_mcp_tool",
+      "mechanical_animation_clip_mcp_dispatches_and_summarizes_nested_preview",
+      "subdivision_artifact_lineage_round_trips_with_exact_candidate_binding",
+      "authenticated_ipc_opt_in_exposes_mcp004_prepare_without_enabling_in_process_runtime",
+      "subdivision_topology_lineage_round_trips_as_a_bounded_read_only_mcp_tool"
+    ],
+    "production_stage_focused_regression": false
+  },
+  "quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "human_review": "NOT_RUN",
+    "confirm_version_export": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "commercial_fps_weapon_quality": "NOT_YET_PROVEN"
+  },
+  "limitations": [
+    "ONLY_DRAFT_TO_GRAY_MODEL_IS_IMPLEMENTED",
+    "GRAY_MODEL_TO_TOPOLOGY_REQUIRES_CANDIDATE_TOPOLOGY_QUALITY",
+    "PRODUCTION_STAGE_PASS_IS_NOT_VISUAL_OR_HUMAN_QUALITY_PASS",
+    "NO_REAL_WEAPON_MANUFACTURING_OR_BALLISTICS"
+  ]
+}

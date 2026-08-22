@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-attachment-v3-get-request.schema.json",
+  "title": "FictionalEnergyVfxAnimatedSocketAttachmentGetRequest@3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "attachment_key_sha256", "project_id", "geometry_candidate_id",
+    "appearance_candidate_id", "geometry_delivery_manifest_object_sha256",
+    "appearance_delivery_manifest_object_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxAnimatedSocketAttachmentGetRequest@3"},
+    "attachment_key_sha256": {"$ref": "#/$defs/sha256"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "geometry_candidate_id": {"$ref": "#/$defs/id", "x-forgecad-distinct-from": "appearance_candidate_id"},
+    "appearance_candidate_id": {"$ref": "#/$defs/id", "x-forgecad-distinct-from": "geometry_candidate_id"},
+    "geometry_delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "appearance_delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

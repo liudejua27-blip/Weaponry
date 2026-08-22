@@ -12,14 +12,64 @@ use super::{
     require_exact_keys, rotate_xyz, scale3, subtract3, v2_scalar, v2_vec3, GeometryError,
     PrimitiveNodeMesh, ValidatedV2Primitive, MAX_COORDINATE, MAX_DIMENSION,
 };
-use serde_json::{Map, Value};
-use std::collections::BTreeMap;
+use serde_json::{json, Map, Value};
+use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_PROFILE_POINTS: usize = 64;
 const MAX_LOFT_PROFILES: usize = 16;
 const MAX_SWEEP_POINTS: usize = 128;
 const SURFACE_PATCH_CONTROL_POINTS: usize = 16;
 const MAX_SUBD_CONTROL_POINTS: usize = 256;
+const MAX_SUBD_CREASE_EDGES: usize = 128;
+const MAX_AUTHORING_ELEMENTS: usize = 1536;
+const MAX_AUTHORING_FACES: usize = 512;
+const VENT_ARRAY_FRAME_SEAM_GAP_M: f32 = 1.0e-4;
+const RECESSED_CHANNEL_MAX_STATIONS: usize = 32;
+const RECESSED_CHANNEL_MIN_SEGMENT_M: f32 = 1.0e-5;
+const RECESSED_CHANNEL_REVERSE_DOT: f32 = -0.95;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EnergyCoreComponent {
+    GuardRing,
+    MechanicalRing,
+    EmitterCore,
+    MechanicalBackplate,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AuthoringVertex {
+    element_id: String,
+    position_m: [f32; 3],
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AuthoringEdge {
+    element_id: String,
+    vertex_ids: [String; 2],
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AuthoringLoop {
+    element_id: String,
+    face_id: String,
+    ordinal: usize,
+    vertex_id: String,
+    edge_id: String,
+    edge_forward: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AuthoringFace {
+    element_id: String,
+    loop_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SubdCreaseEdge {
+    vertex_a: usize,
+    vertex_b: usize,
+    sharpness_levels: u8,
+}
 
 #[derive(Debug, Clone)]
 pub enum ValidatedOperator {
@@ -60,6 +110,15 @@ pub enum ValidatedOperator {
         u_points: usize,
         v_points: usize,
         subdivision_levels: usize,
+        crease_edges: Vec<SubdCreaseEdge>,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    AuthoringMesh {
+        vertices: Vec<AuthoringVertex>,
+        edges: Vec<AuthoringEdge>,
+        loops: Vec<AuthoringLoop>,
+        faces: Vec<AuthoringFace>,
         position_m: [f32; 3],
         rotation_rad: [f32; 3],
     },
@@ -93,10 +152,42 @@ pub enum ValidatedOperator {
         count: usize,
         offset_m: [f32; 3],
     },
+    Bevel {
+        input: String,
+        width_m: f32,
+        segments: usize,
+        profile: f32,
+        clamp_overlap: bool,
+    },
+    BevelV2 {
+        input: String,
+        source_edge_id: String,
+        width_m: f32,
+        segments: usize,
+        profile: f32,
+        clamp_overlap: bool,
+    },
+    NormalPolicy {
+        input: String,
+        crease_angle_rad: f32,
+    },
     Panel {
         size_m: [f32; 3],
         thickness_m: f32,
         bevel_m: f32,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    PanelV2 {
+        size_m: [f32; 3],
+        thickness_m: f32,
+        inset_m: f32,
+        recess_depth_m: f32,
+        border_width_m: f32,
+        bevel_m: f32,
+        bevel_segments: usize,
+        support_loop_count: usize,
+        support_loop_width_m: f32,
         position_m: [f32; 3],
         rotation_rad: [f32; 3],
     },
@@ -107,6 +198,41 @@ pub enum ValidatedOperator {
         slot_count: usize,
         slot_width_m: f32,
         slot_spacing_m: f32,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    VentArrayV2 {
+        width_m: f32,
+        height_m: f32,
+        depth_m: f32,
+        face_thickness_m: f32,
+        backing_depth_m: f32,
+        backing_gap_m: f32,
+        slot_count: usize,
+        slot_width_m: f32,
+        slot_spacing_m: f32,
+        slot_margin_m: f32,
+        slot_edge_bevel_m: f32,
+        bevel_segments: usize,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    RecessedChannel {
+        stations: Vec<RecessedChannelStation>,
+        floor_width_ratio: f32,
+        edge_bevel_m: f32,
+        start_transition_m: f32,
+        end_transition_m: f32,
+        transition_segments: usize,
+        position_m: [f32; 3],
+        rotation_rad: [f32; 3],
+    },
+    EnergyCore {
+        component: EnergyCoreComponent,
+        outer_radius_m: f32,
+        inner_radius_m: f32,
+        depth_m: f32,
+        radial_segments: usize,
         position_m: [f32; 3],
         rotation_rad: [f32; 3],
     },
@@ -127,6 +253,13 @@ pub enum ValidatedOperator {
     PartOutput {
         inputs: Vec<String>,
     },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RecessedChannelStation {
+    point_m: [f32; 3],
+    width_m: f32,
+    depth_m: f32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -190,6 +323,12 @@ impl ValidatedOperator {
                         GeometryError::Invalid("subd-cage triangle count overflow".to_owned())
                     })?
             }
+            Self::AuthoringMesh { faces, .. } => faces.iter().try_fold(0u64, |sum, face| {
+                sum.checked_add(face.loop_ids.len().saturating_sub(2) as u64)
+                    .ok_or_else(|| {
+                        GeometryError::Invalid("authoring-mesh triangle count overflow".to_owned())
+                    })
+            })?,
             Self::Revolve {
                 profile,
                 radial_segments,
@@ -225,6 +364,42 @@ impl ValidatedOperator {
                 .ok_or_else(|| {
                     GeometryError::Invalid("array triangle count overflow".to_owned())
                 })?,
+            Self::Bevel {
+                input, segments, ..
+            } => {
+                if input_counts.get(input).copied() != Some(12) {
+                    return Err(GeometryError::Invalid(
+                        "bevel@1 requires one direct primitive box input".to_owned(),
+                    ));
+                }
+                let side_quads = (2 * *segments + 1) as u64;
+                12u64
+                    .checked_mul(side_quads)
+                    .and_then(|count| count.checked_mul(side_quads))
+                    .ok_or_else(|| {
+                        GeometryError::Invalid("bevel triangle count overflow".to_owned())
+                    })?
+            }
+            Self::BevelV2 {
+                input, segments, ..
+            } => input_counts
+                .get(input)
+                .ok_or_else(|| GeometryError::Invalid("operator input is unknown".to_owned()))?
+                .checked_add(4 * *segments as u64)
+                .ok_or_else(|| {
+                    GeometryError::Invalid("bevel@2 triangle count overflow".to_owned())
+                })?,
+            Self::NormalPolicy { input, .. } => {
+                let count = *input_counts.get(input).ok_or_else(|| {
+                    GeometryError::Invalid("operator input is unknown".to_owned())
+                })?;
+                if count > 50_000 {
+                    return Err(GeometryError::Invalid(
+                        "normal-policy input exceeds the 50000 triangle local bound".to_owned(),
+                    ));
+                }
+                count
+            }
             Self::Panel { bevel_m, .. } => {
                 // A beveled panel uses a fixed four-segment quarter arc at
                 // each corner.  The zero-bevel branch remains a plain box.
@@ -234,7 +409,80 @@ impl ValidatedOperator {
                     12
                 }
             }
+            Self::PanelV2 {
+                bevel_segments,
+                support_loop_count,
+                ..
+            } => 16 * *bevel_segments as u64 + 16 * *support_loop_count as u64 + 28,
             Self::VentArray { slot_count, .. } => 12 * (*slot_count as u64 + 2),
+            Self::VentArrayV2 {
+                slot_count,
+                bevel_segments,
+                ..
+            } => {
+                // One connected slotted shell is made from two planar layers,
+                // four outer walls, and a front chamfer plus through-wall ring
+                // for every slot. The backing remains one closed geometric
+                // sub-solid in this same PartOutput.
+                let per_slot = 16u64
+                    .checked_mul(*bevel_segments as u64)
+                    .and_then(|count| count.checked_add(36))
+                    .ok_or_else(|| {
+                        GeometryError::Invalid("vent-array@2 triangle count overflow".to_owned())
+                    })?;
+                per_slot
+                    .checked_mul(*slot_count as u64)
+                    .and_then(|count| count.checked_add(40))
+                    .ok_or_else(|| {
+                        GeometryError::Invalid("vent-array@2 triangle count overflow".to_owned())
+                    })?
+            }
+            Self::RecessedChannel {
+                stations,
+                edge_bevel_m,
+                start_transition_m,
+                end_transition_m,
+                transition_segments,
+                ..
+            } => {
+                let loop_vertices = recessed_channel_loop_vertex_count(*edge_bevel_m);
+                let extra_rings = usize::from(*start_transition_m > RECESSED_CHANNEL_MIN_SEGMENT_M)
+                    .saturating_mul(1 + *transition_segments)
+                    .saturating_sub(usize::from(
+                        *start_transition_m > RECESSED_CHANNEL_MIN_SEGMENT_M,
+                    ))
+                    + usize::from(*end_transition_m > RECESSED_CHANNEL_MIN_SEGMENT_M)
+                        .saturating_mul(*transition_segments);
+                let ring_count = stations.len().checked_add(extra_rings).ok_or_else(|| {
+                    GeometryError::Invalid("recessed-channel ring count overflow".to_owned())
+                })?;
+                let side = (ring_count.saturating_sub(1) as u64)
+                    .checked_mul(loop_vertices as u64)
+                    .and_then(|value| value.checked_mul(2))
+                    .ok_or_else(|| {
+                        GeometryError::Invalid(
+                            "recessed-channel triangle count overflow".to_owned(),
+                        )
+                    })?;
+                side.checked_add(2 * loop_vertices.saturating_sub(2) as u64)
+                    .ok_or_else(|| {
+                        GeometryError::Invalid(
+                            "recessed-channel cap triangle count overflow".to_owned(),
+                        )
+                    })?
+            }
+            Self::EnergyCore {
+                component,
+                radial_segments,
+                ..
+            } => match component {
+                EnergyCoreComponent::GuardRing | EnergyCoreComponent::MechanicalRing => {
+                    8 * *radial_segments as u64
+                }
+                EnergyCoreComponent::EmitterCore | EnergyCoreComponent::MechanicalBackplate => {
+                    4 * *radial_segments as u64
+                }
+            },
             Self::JointStack {
                 ring_count,
                 radial_segments,
@@ -529,8 +777,80 @@ pub fn validate_operator(
                 u_points,
                 v_points,
                 subdivision_levels,
+                crease_edges: Vec::new(),
                 position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
                 rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.subd-cage@2" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "subd-cage@2 accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "control_points",
+                    "u_points",
+                    "v_points",
+                    "subdivision_levels",
+                    "crease_method",
+                    "crease_edges",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "subd-cage@2",
+            )?;
+            require_shape(parameters, "subd-cage")?;
+            if parameters.get("crease_method").and_then(Value::as_str)
+                != Some("uniform-integer-level-decay@1")
+            {
+                return Err(GeometryError::Invalid(
+                    "subd-cage@2 crease_method is unsupported".to_owned(),
+                ));
+            }
+            let u_points = bounded_count(parameters, "u_points", 3, 16)?;
+            let v_points = bounded_count(parameters, "v_points", 3, 16)?;
+            let subdivision_levels = bounded_count(parameters, "subdivision_levels", 1, 2)?;
+            let control_points =
+                parse_vec3_array(parameters, "control_points", 9, MAX_SUBD_CONTROL_POINTS)?;
+            let expected_points = u_points.checked_mul(v_points).ok_or_else(|| {
+                GeometryError::Invalid("subd-cage@2 control point count overflow".to_owned())
+            })?;
+            if control_points.len() != expected_points {
+                return Err(GeometryError::Invalid(format!(
+                    "subd-cage@2 requires exactly {expected_points} control points"
+                )));
+            }
+            let crease_edges =
+                parse_subd_crease_edges(parameters, u_points, v_points, subdivision_levels)?;
+            ValidatedOperator::SubdCage {
+                control_points,
+                u_points,
+                v_points,
+                subdivision_levels,
+                crease_edges,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.authoring-mesh@1" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "authoring-mesh accepts no inputs".to_owned(),
+                ));
+            }
+            let (vertices, edges, loops, faces, position_m, rotation_rad) =
+                parse_authoring_mesh(parameters)?;
+            ValidatedOperator::AuthoringMesh {
+                vertices,
+                edges,
+                loops,
+                faces,
+                position_m,
+                rotation_rad,
             }
         }
         "forgecad.geometry.revolve@1" => {
@@ -620,6 +940,117 @@ pub fn validate_operator(
                 offset_m: v2_vec3(parameters, "offset_m", MAX_COORDINATE, false)?,
             }
         }
+        "forgecad.geometry.bevel@1" => {
+            require_one_input(inputs, "bevel")?;
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "width_m",
+                    "segments",
+                    "profile",
+                    "edge_scope",
+                    "clamp_overlap",
+                ],
+                "bevel",
+            )?;
+            require_shape(parameters, "bevel")?;
+            if parameters.get("edge_scope").and_then(Value::as_str) != Some("all-source-box-edges")
+            {
+                return Err(GeometryError::Invalid(
+                    "bevel edge_scope must be all-source-box-edges".to_owned(),
+                ));
+            }
+            let profile = number_field(parameters, "profile", 0.75)?;
+            if !(0.25..=0.75).contains(&profile) {
+                return Err(GeometryError::Invalid(
+                    "bevel profile is outside bounds".to_owned(),
+                ));
+            }
+            ValidatedOperator::Bevel {
+                input: inputs[0].clone(),
+                width_m: v2_scalar(parameters, "width_m", 5.0, true)?,
+                segments: bounded_count(parameters, "segments", 1, 4)?,
+                profile,
+                clamp_overlap: bool_field(parameters, "clamp_overlap")?,
+            }
+        }
+        "forgecad.geometry.bevel@2" => {
+            require_one_input(inputs, "bevel@2")?;
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "source_edge_ids",
+                    "width_m",
+                    "segments",
+                    "profile",
+                    "clamp_overlap",
+                ],
+                "bevel@2",
+            )?;
+            require_shape(parameters, "bevel")?;
+            let source_edge_ids = parameters
+                .get("source_edge_ids")
+                .and_then(Value::as_array)
+                .filter(|values| values.len() == 1)
+                .ok_or_else(|| {
+                    GeometryError::Invalid(
+                        "bevel@2 requires exactly one selected source edge".to_owned(),
+                    )
+                })?;
+            let source_edge_id =
+                authoring_identifier(source_edge_ids.first(), "bevel@2 source edge")?;
+            let profile = number_field(parameters, "profile", 0.75)?;
+            if !(0.25..=0.75).contains(&profile) {
+                return Err(GeometryError::Invalid(
+                    "bevel@2 profile is outside bounds".to_owned(),
+                ));
+            }
+            ValidatedOperator::BevelV2 {
+                input: inputs[0].clone(),
+                source_edge_id,
+                width_m: v2_scalar(parameters, "width_m", 5.0, true)?,
+                segments: bounded_count(parameters, "segments", 1, 4)?,
+                profile,
+                clamp_overlap: bool_field(parameters, "clamp_overlap")?,
+            }
+        }
+        "forgecad.geometry.normal-policy@1" => {
+            require_one_input(inputs, "normal-policy")?;
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "weighting",
+                    "crease_angle_rad",
+                    "keep_sharp",
+                    "output_domain",
+                ],
+                "normal-policy",
+            )?;
+            require_shape(parameters, "normal-policy")?;
+            if parameters.get("weighting").and_then(Value::as_str)
+                != Some("face-area-x-corner-angle")
+                || parameters.get("output_domain").and_then(Value::as_str) != Some("corner")
+                || parameters.get("keep_sharp").and_then(Value::as_bool) != Some(true)
+            {
+                return Err(GeometryError::Invalid(
+                    "normal-policy constants are invalid".to_owned(),
+                ));
+            }
+            let crease_angle_rad =
+                number_field(parameters, "crease_angle_rad", std::f32::consts::PI)?;
+            if !(0.0..=std::f32::consts::PI).contains(&crease_angle_rad) {
+                return Err(GeometryError::Invalid(
+                    "normal-policy crease angle is outside bounds".to_owned(),
+                ));
+            }
+            ValidatedOperator::NormalPolicy {
+                input: inputs[0].clone(),
+                crease_angle_rad,
+            }
+        }
         "forgecad.geometry.panel@1" => {
             if !inputs.is_empty() {
                 return Err(GeometryError::Invalid("panel accepts no inputs".to_owned()));
@@ -649,6 +1080,75 @@ pub fn validate_operator(
                 size_m,
                 thickness_m,
                 bevel_m,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.panel@2" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "panel@2 accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "size_m",
+                    "thickness_m",
+                    "inset_m",
+                    "recess_depth_m",
+                    "border_width_m",
+                    "bevel_m",
+                    "bevel_segments",
+                    "support_loop_count",
+                    "support_loop_width_m",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "panel@2",
+            )?;
+            require_shape(parameters, "panel")?;
+            let size_m = v2_vec3(parameters, "size_m", MAX_DIMENSION, true)?;
+            let thickness_m = v2_scalar(parameters, "thickness_m", MAX_DIMENSION, true)?;
+            let inset_m = v2_scalar(parameters, "inset_m", size_m[0].min(size_m[1]), true)?;
+            let recess_depth_m = v2_scalar(parameters, "recess_depth_m", thickness_m, true)?;
+            let border_width_m =
+                v2_scalar(parameters, "border_width_m", size_m[0].min(size_m[1]), true)?;
+            let bevel_m = v2_scalar(parameters, "bevel_m", MAX_DIMENSION / 2.0, true)?;
+            let bevel_segments = bounded_count(parameters, "bevel_segments", 1, 4)?;
+            let support_loop_count = bounded_count(parameters, "support_loop_count", 1, 3)?;
+            let support_loop_width_m = v2_scalar(
+                parameters,
+                "support_loop_width_m",
+                size_m[0].min(size_m[1]),
+                true,
+            )?;
+            let half_min = size_m[0].min(size_m[1]) / 2.0;
+            let support_span = support_loop_count as f32 * support_loop_width_m;
+            if thickness_m > size_m[2]
+                || recess_depth_m >= thickness_m
+                || bevel_m * 2.0 >= size_m[2]
+                || bevel_m >= half_min
+                || inset_m <= bevel_m + support_span
+                || border_width_m <= support_span + bevel_m
+                || inset_m + border_width_m + bevel_m >= half_min
+            {
+                return Err(GeometryError::Invalid(
+                    "panel@2 inset/recess/border/bevel/support-loop relationship is invalid"
+                        .to_owned(),
+                ));
+            }
+            ValidatedOperator::PanelV2 {
+                size_m,
+                thickness_m,
+                inset_m,
+                recess_depth_m,
+                border_width_m,
+                bevel_m,
+                bevel_segments,
+                support_loop_count,
+                support_loop_width_m,
                 position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
                 rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
             }
@@ -699,6 +1199,216 @@ pub fn validate_operator(
                 rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
             }
         }
+        "forgecad.geometry.vent-array@2" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "vent-array@2 accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "width_m",
+                    "height_m",
+                    "depth_m",
+                    "face_thickness_m",
+                    "backing_depth_m",
+                    "backing_gap_m",
+                    "slot_count",
+                    "slot_width_m",
+                    "slot_spacing_m",
+                    "slot_margin_m",
+                    "slot_edge_bevel_m",
+                    "bevel_segments",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "vent-array@2",
+            )?;
+            require_shape(parameters, "vent-array")?;
+            let width_m = v2_scalar(parameters, "width_m", MAX_DIMENSION, true)?;
+            let height_m = v2_scalar(parameters, "height_m", MAX_DIMENSION, true)?;
+            let depth_m = v2_scalar(parameters, "depth_m", MAX_DIMENSION, true)?;
+            let face_thickness_m = v2_scalar(parameters, "face_thickness_m", depth_m, true)?;
+            let backing_depth_m = v2_scalar(parameters, "backing_depth_m", depth_m, true)?;
+            let backing_gap_m = v2_scalar(parameters, "backing_gap_m", depth_m, true)?;
+            let slot_count = bounded_count(parameters, "slot_count", 1, 32)?;
+            let slot_width_m = v2_scalar(parameters, "slot_width_m", width_m, true)?;
+            let slot_spacing_m = v2_scalar(parameters, "slot_spacing_m", width_m, true)?;
+            let slot_margin_m = v2_scalar(parameters, "slot_margin_m", height_m / 2.0, true)?;
+            let slot_edge_bevel_m =
+                v2_scalar(parameters, "slot_edge_bevel_m", MAX_DIMENSION / 2.0, true)?;
+            let bevel_segments = bounded_count(parameters, "bevel_segments", 1, 4)?;
+            let occupied_width = slot_count as f32 * slot_width_m
+                + slot_count.saturating_sub(1) as f32 * slot_spacing_m;
+            let side_margin = (width_m - occupied_width) / 2.0;
+            let slot_height = height_m - 2.0 * slot_margin_m;
+            let seam_gap = VENT_ARRAY_FRAME_SEAM_GAP_M;
+            let minimum_bar_width = if slot_count > 1 {
+                (side_margin - seam_gap).min(slot_spacing_m - seam_gap)
+            } else {
+                side_margin - seam_gap
+            };
+            if occupied_width > width_m
+                || side_margin <= seam_gap
+                || slot_height <= seam_gap
+                || minimum_bar_width <= 2.0 * slot_edge_bevel_m
+                || slot_height <= 2.0 * slot_edge_bevel_m
+                || face_thickness_m <= 2.0 * slot_edge_bevel_m
+                || slot_width_m <= seam_gap + 2.0 * slot_edge_bevel_m
+                || (depth_m - face_thickness_m - backing_depth_m - backing_gap_m).abs() > 1.0e-5
+                || backing_gap_m <= seam_gap
+                || slot_spacing_m <= seam_gap
+                || slot_margin_m <= seam_gap
+                || slot_margin_m <= slot_edge_bevel_m + seam_gap
+            {
+                return Err(GeometryError::Invalid(
+                    "vent-array@2 slot spacing/size/bevel/backing relationship is invalid"
+                        .to_owned(),
+                ));
+            }
+            ValidatedOperator::VentArrayV2 {
+                width_m,
+                height_m,
+                depth_m,
+                face_thickness_m,
+                backing_depth_m,
+                backing_gap_m,
+                slot_count,
+                slot_width_m,
+                slot_spacing_m,
+                slot_margin_m,
+                slot_edge_bevel_m,
+                bevel_segments,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.recessed-channel@1" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "recessed-channel@1 accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "stations",
+                    "path_frame",
+                    "floor_width_ratio",
+                    "edge_bevel_m",
+                    "start_transition_m",
+                    "end_transition_m",
+                    "transition_segments",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "recessed-channel@1",
+            )?;
+            require_shape(parameters, "recessed-channel")?;
+            if parameters.get("path_frame").and_then(Value::as_str) != Some("planar-xy-z-up@1") {
+                return Err(GeometryError::Invalid(
+                    "recessed-channel@1 path_frame is unsupported".to_owned(),
+                ));
+            }
+            let station_values = parameters
+                .get("stations")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    GeometryError::Invalid("recessed-channel stations must be an array".to_owned())
+                })?;
+            if !(2..=RECESSED_CHANNEL_MAX_STATIONS).contains(&station_values.len()) {
+                return Err(GeometryError::Invalid(
+                    "recessed-channel station count is outside bounds".to_owned(),
+                ));
+            }
+            let mut stations = Vec::with_capacity(station_values.len());
+            for (index, value) in station_values.iter().enumerate() {
+                let station = value.as_object().ok_or_else(|| {
+                    GeometryError::Invalid(format!(
+                        "recessed-channel station {index} must be an object"
+                    ))
+                })?;
+                require_exact_keys(
+                    station,
+                    &["point_m", "width_m", "depth_m"],
+                    "recessed-channel station",
+                )?;
+                let point = v2_vec3(station, "point_m", MAX_COORDINATE, false)?;
+                if point[2].abs() > RECESSED_CHANNEL_MIN_SEGMENT_M {
+                    return Err(GeometryError::Invalid(
+                        "recessed-channel station point_m.z must be zero".to_owned(),
+                    ));
+                }
+                let width_m = v2_scalar(station, "width_m", MAX_DIMENSION, true)?;
+                let depth_m = v2_scalar(station, "depth_m", MAX_DIMENSION, true)?;
+                if depth_m >= 0.75 * width_m {
+                    return Err(GeometryError::Invalid(
+                        "recessed-channel depth must be below 0.75 * width".to_owned(),
+                    ));
+                }
+                stations.push(RecessedChannelStation {
+                    point_m: [point[0], point[1], 0.0],
+                    width_m,
+                    depth_m,
+                });
+            }
+            validate_recessed_channel_path(&stations)?;
+            let floor_width_ratio = v2_scalar(parameters, "floor_width_ratio", 0.9, true)?;
+            if !(0.1..=0.8).contains(&floor_width_ratio) {
+                return Err(GeometryError::Invalid(
+                    "recessed-channel floor_width_ratio is outside bounds".to_owned(),
+                ));
+            }
+            let edge_bevel_m = v2_scalar(parameters, "edge_bevel_m", MAX_DIMENSION / 2.0, false)?;
+            let start_transition_m =
+                v2_scalar(parameters, "start_transition_m", MAX_DIMENSION / 2.0, false)?;
+            let end_transition_m =
+                v2_scalar(parameters, "end_transition_m", MAX_DIMENSION / 2.0, false)?;
+            let transition_segments = bounded_count(parameters, "transition_segments", 1, 4)?;
+            let minimum_side_wall = stations
+                .iter()
+                .map(|station| station.width_m * (1.0 - floor_width_ratio) / 2.0)
+                .fold(f32::INFINITY, f32::min);
+            let minimum_floor_width = stations
+                .iter()
+                .map(|station| station.width_m * floor_width_ratio)
+                .fold(f32::INFINITY, f32::min);
+            let minimum_depth = stations
+                .iter()
+                .map(|station| station.depth_m)
+                .fold(f32::INFINITY, f32::min);
+            let base_thickness = minimum_depth * 0.25;
+            if edge_bevel_m * 2.0 >= minimum_side_wall
+                || edge_bevel_m * 2.0 >= minimum_floor_width
+                || edge_bevel_m * 2.0 >= minimum_depth
+                || edge_bevel_m * 2.0 >= base_thickness
+            {
+                return Err(GeometryError::Invalid(
+                    "recessed-channel edge bevel exceeds the thinnest wall/floor/base".to_owned(),
+                ));
+            }
+            let first_segment = segment_length(stations[0].point_m, stations[1].point_m);
+            let last = stations.len() - 1;
+            let last_segment = segment_length(stations[last - 1].point_m, stations[last].point_m);
+            if start_transition_m > first_segment * 0.45 || end_transition_m > last_segment * 0.45 {
+                return Err(GeometryError::Invalid(
+                    "recessed-channel end transition exceeds the adjacent path segment".to_owned(),
+                ));
+            }
+            ValidatedOperator::RecessedChannel {
+                stations,
+                floor_width_ratio,
+                edge_bevel_m,
+                start_transition_m,
+                end_transition_m,
+                transition_segments,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
         "forgecad.geometry.joint-stack@1" => {
             if !inputs.is_empty() {
                 return Err(GeometryError::Invalid(
@@ -726,6 +1436,77 @@ pub fn validate_operator(
                 ring_count: bounded_count(parameters, "ring_count", 1, 16)?,
                 ring_spacing_m: v2_scalar(parameters, "ring_spacing_m", MAX_DIMENSION, true)?,
                 radial_segments: bounded_count(parameters, "radial_segments", 8, 64)?,
+                position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+                rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+            }
+        }
+        "forgecad.geometry.energy-core@1" => {
+            if !inputs.is_empty() {
+                return Err(GeometryError::Invalid(
+                    "energy-core accepts no inputs".to_owned(),
+                ));
+            }
+            require_exact_keys(
+                parameters,
+                &[
+                    "shape",
+                    "component",
+                    "outer_radius_m",
+                    "inner_radius_m",
+                    "depth_m",
+                    "radial_segments",
+                    "position_m",
+                    "rotation_rad",
+                ],
+                "energy-core",
+            )?;
+            require_shape(parameters, "energy-core")?;
+            let component = match parameters.get("component").and_then(Value::as_str) {
+                Some("guard-ring") => EnergyCoreComponent::GuardRing,
+                Some("mechanical-ring") => EnergyCoreComponent::MechanicalRing,
+                Some("emitter-core") => EnergyCoreComponent::EmitterCore,
+                Some("mechanical-backplate") => EnergyCoreComponent::MechanicalBackplate,
+                _ => {
+                    return Err(GeometryError::Invalid(
+                        "energy-core component is invalid".to_owned(),
+                    ))
+                }
+            };
+            let outer_radius_m = v2_scalar(parameters, "outer_radius_m", 5.0, true)?;
+            let inner_radius_m = v2_scalar(parameters, "inner_radius_m", 5.0, false)?;
+            if inner_radius_m < 0.0 {
+                return Err(GeometryError::Invalid(
+                    "energy-core inner radius must be non-negative".to_owned(),
+                ));
+            }
+            if inner_radius_m >= outer_radius_m - 1.0e-5 {
+                return Err(GeometryError::Invalid(
+                    "energy-core inner radius must remain inside the outer radius".to_owned(),
+                ));
+            }
+            match component {
+                EnergyCoreComponent::GuardRing | EnergyCoreComponent::MechanicalRing
+                    if inner_radius_m <= 1.0e-5 =>
+                {
+                    return Err(GeometryError::Invalid(
+                        "energy-core ring components require a positive inner radius".to_owned(),
+                    ));
+                }
+                EnergyCoreComponent::EmitterCore | EnergyCoreComponent::MechanicalBackplate
+                    if inner_radius_m != 0.0 =>
+                {
+                    return Err(GeometryError::Invalid(
+                        "energy-core solid components require inner_radius_m = 0".to_owned(),
+                    ));
+                }
+                _ => {}
+            }
+            ValidatedOperator::EnergyCore {
+                component,
+                outer_radius_m,
+                inner_radius_m,
+                depth_m: v2_scalar(parameters, "depth_m", MAX_DIMENSION, true)?,
+                radial_segments: bounded_count(parameters, "radial_segments", 12, 64)?,
                 position_m: v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
                 rotation_rad: v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
             }
@@ -775,11 +1556,58 @@ pub fn validate_operator(
     Ok((operation, count))
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct BooleanLineageRaw {
+    pub(crate) left_node_id: String,
+    pub(crate) right_node_id: String,
+    pub(crate) operation: String,
+    pub(crate) source_ids: Vec<u32>,
+    pub(crate) evaluated_face_ids: Vec<u64>,
+}
+
 pub fn compile_operator(
     operation: &ValidatedOperator,
     meshes: &BTreeMap<String, PrimitiveNodeMesh>,
+    source_operators: &BTreeMap<String, ValidatedOperator>,
     max_triangles: u64,
     max_runtime_ms: u64,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    compile_operator_internal(
+        operation,
+        meshes,
+        source_operators,
+        max_triangles,
+        max_runtime_ms,
+        None,
+    )
+}
+
+pub(crate) fn compile_operator_with_boolean_lineage(
+    operation: &ValidatedOperator,
+    meshes: &BTreeMap<String, PrimitiveNodeMesh>,
+    source_operators: &BTreeMap<String, ValidatedOperator>,
+    max_triangles: u64,
+    max_runtime_ms: u64,
+) -> Result<(PrimitiveNodeMesh, Option<BooleanLineageRaw>), GeometryError> {
+    let mut lineage = None;
+    let mesh = compile_operator_internal(
+        operation,
+        meshes,
+        source_operators,
+        max_triangles,
+        max_runtime_ms,
+        Some(&mut lineage),
+    )?;
+    Ok((mesh, lineage))
+}
+
+fn compile_operator_internal(
+    operation: &ValidatedOperator,
+    meshes: &BTreeMap<String, PrimitiveNodeMesh>,
+    source_operators: &BTreeMap<String, ValidatedOperator>,
+    max_triangles: u64,
+    max_runtime_ms: u64,
+    mut boolean_lineage: Option<&mut Option<BooleanLineageRaw>>,
 ) -> Result<PrimitiveNodeMesh, GeometryError> {
     let mut mesh = match operation {
         ValidatedOperator::Primitive(primitive) => {
@@ -853,10 +1681,30 @@ pub fn compile_operator(
             u_points,
             v_points,
             subdivision_levels,
+            crease_edges,
             position_m,
             rotation_rad,
         } => transform_mesh(
-            subd_cage_mesh(control_points, *u_points, *v_points, *subdivision_levels)?,
+            subd_cage_mesh(
+                control_points,
+                *u_points,
+                *v_points,
+                *subdivision_levels,
+                crease_edges,
+            )?,
+            *position_m,
+            *rotation_rad,
+            [1.0; 3],
+        ),
+        ValidatedOperator::AuthoringMesh {
+            vertices,
+            edges,
+            loops,
+            faces,
+            position_m,
+            rotation_rad,
+        } => transform_mesh(
+            authoring_mesh(vertices, edges, loops, faces)?,
             *position_m,
             *rotation_rad,
             [1.0; 3],
@@ -906,6 +1754,87 @@ pub fn compile_operator(
             count,
             offset_m,
         } => array_mesh(input_mesh(meshes, input)?, *count, *offset_m),
+        ValidatedOperator::Bevel {
+            input,
+            width_m,
+            segments,
+            profile,
+            clamp_overlap,
+        } => {
+            let input_mesh = input_mesh(meshes, input)?;
+            let source = source_operators.get(input).ok_or_else(|| {
+                GeometryError::Invalid("bevel source operator is unavailable".to_owned())
+            })?;
+            let ValidatedOperator::Primitive(ValidatedV2Primitive::Box {
+                size_m,
+                position_m,
+                rotation_rad,
+            }) = source
+            else {
+                return Err(GeometryError::Invalid(
+                    "bevel@1 only supports a direct primitive@2 box source".to_owned(),
+                ));
+            };
+            let mut mesh = rounded_box_mesh(
+                *size_m,
+                *position_m,
+                *rotation_rad,
+                *width_m,
+                *segments,
+                *profile,
+                *clamp_overlap,
+            )?;
+            mesh.lineage_source_node_ids = input_mesh.lineage_source_node_ids.clone();
+            mesh
+        }
+        ValidatedOperator::BevelV2 {
+            input,
+            source_edge_id,
+            width_m,
+            segments,
+            profile,
+            clamp_overlap,
+        } => {
+            let input_mesh = input_mesh(meshes, input)?;
+            let source = source_operators.get(input).ok_or_else(|| {
+                GeometryError::Invalid("bevel@2 source operator is unavailable".to_owned())
+            })?;
+            let ValidatedOperator::AuthoringMesh {
+                vertices,
+                edges,
+                loops,
+                faces,
+                position_m,
+                rotation_rad,
+            } = source
+            else {
+                return Err(GeometryError::Invalid(
+                    "bevel@2 only supports one direct authoring-mesh@1 source".to_owned(),
+                ));
+            };
+            let mut mesh = transform_mesh(
+                bevel_authoring_edge(
+                    vertices,
+                    edges,
+                    loops,
+                    faces,
+                    source_edge_id,
+                    *width_m,
+                    *segments,
+                    *profile,
+                    *clamp_overlap,
+                )?,
+                *position_m,
+                *rotation_rad,
+                [1.0; 3],
+            );
+            mesh.lineage_source_node_ids = input_mesh.lineage_source_node_ids.clone();
+            mesh
+        }
+        ValidatedOperator::NormalPolicy {
+            input,
+            crease_angle_rad,
+        } => area_angle_corner_normals(input_mesh(meshes, input)?, *crease_angle_rad)?,
         ValidatedOperator::Panel {
             size_m,
             thickness_m,
@@ -932,6 +1861,34 @@ pub fn compile_operator(
                 [1.0; 3],
             )
         }
+        ValidatedOperator::PanelV2 {
+            size_m,
+            thickness_m,
+            inset_m,
+            recess_depth_m,
+            border_width_m,
+            bevel_m,
+            bevel_segments,
+            support_loop_count,
+            support_loop_width_m,
+            position_m,
+            rotation_rad,
+        } => transform_mesh(
+            recessed_panel_v2_mesh(
+                *size_m,
+                *thickness_m,
+                *inset_m,
+                *recess_depth_m,
+                *border_width_m,
+                *bevel_m,
+                *bevel_segments,
+                *support_loop_count,
+                *support_loop_width_m,
+            )?,
+            *position_m,
+            *rotation_rad,
+            [1.0; 3],
+        ),
         ValidatedOperator::VentArray {
             width_m,
             height_m,
@@ -970,6 +1927,115 @@ pub fn compile_operator(
                 );
             }
             transform_mesh(mesh, *position_m, *rotation_rad, [1.0; 3])
+        }
+        ValidatedOperator::VentArrayV2 {
+            width_m,
+            height_m,
+            depth_m,
+            face_thickness_m,
+            backing_depth_m,
+            backing_gap_m,
+            slot_count,
+            slot_width_m,
+            slot_spacing_m,
+            slot_margin_m,
+            slot_edge_bevel_m,
+            bevel_segments,
+            position_m,
+            rotation_rad,
+        } => {
+            let mesh = slotted_face_shell_mesh(
+                *width_m,
+                *height_m,
+                *face_thickness_m,
+                *slot_count,
+                *slot_width_m,
+                *slot_spacing_m,
+                *slot_margin_m,
+                *slot_edge_bevel_m,
+                *bevel_segments,
+            )?;
+            let mut mesh = transform_mesh(
+                mesh,
+                [0.0, 0.0, *depth_m / 2.0 - *face_thickness_m / 2.0],
+                [0.0; 3],
+                [1.0; 3],
+            );
+            // The backing is a separate closed sub-solid behind the cut-style
+            // openings. It is deliberately kept behind the slotted face so
+            // the slot voids remain observable in the decoded geometry.
+            append_mesh(
+                &mut mesh,
+                &box_as_mesh(
+                    [*width_m, *height_m, *backing_depth_m],
+                    [
+                        0.0,
+                        0.0,
+                        *depth_m / 2.0
+                            - *face_thickness_m
+                            - *backing_gap_m
+                            - *backing_depth_m / 2.0,
+                    ],
+                ),
+            );
+            transform_mesh(mesh, *position_m, *rotation_rad, [1.0; 3])
+        }
+        ValidatedOperator::RecessedChannel {
+            stations,
+            floor_width_ratio,
+            edge_bevel_m,
+            start_transition_m,
+            end_transition_m,
+            transition_segments,
+            position_m,
+            rotation_rad,
+            ..
+        } => transform_mesh(
+            recessed_channel_mesh(
+                stations,
+                *floor_width_ratio,
+                *edge_bevel_m,
+                *start_transition_m,
+                *end_transition_m,
+                *transition_segments,
+            )?,
+            *position_m,
+            *rotation_rad,
+            [1.0; 3],
+        ),
+        ValidatedOperator::EnergyCore {
+            component,
+            outer_radius_m,
+            inner_radius_m,
+            depth_m,
+            radial_segments,
+            position_m,
+            rotation_rad,
+        } => {
+            let source = match component {
+                EnergyCoreComponent::GuardRing | EnergyCoreComponent::MechanicalRing => {
+                    annular_cylinder_mesh(
+                        *outer_radius_m,
+                        *inner_radius_m,
+                        *depth_m,
+                        *radial_segments,
+                    )?
+                }
+                EnergyCoreComponent::EmitterCore | EnergyCoreComponent::MechanicalBackplate => {
+                    let (positions, normals, indices) = super::cylinder_mesh(
+                        [*outer_radius_m * 2.0, *depth_m, *outer_radius_m * 2.0],
+                        *radial_segments,
+                    );
+                    PrimitiveNodeMesh {
+                        operator_id: String::new(),
+                        lineage_source_node_ids: Vec::new(),
+                        positions,
+                        normals,
+                        indices,
+                    }
+                }
+            };
+            transform_mesh(source, *position_m, *rotation_rad, [1.0; 3])
         }
         ValidatedOperator::JointStack {
             radius_m,
@@ -1023,6 +2089,15 @@ pub fn compile_operator(
                 max_triangles,
                 max_runtime_ms,
             )?;
+            if let Some(lineage) = boolean_lineage.as_deref_mut() {
+                *lineage = Some(BooleanLineageRaw {
+                    left_node_id: left.clone(),
+                    right_node_id: right.clone(),
+                    operation: operation_name.to_owned(),
+                    source_ids: result.source_ids.clone(),
+                    evaluated_face_ids: result.face_ids.clone(),
+                });
+            }
             // The C bridge has already strict-read the output topology,
             // source-run IDs, and face IDs.  The existing GLB path consumes
             // the typed mesh and regenerates UV/tangent data at the semantic
@@ -1068,6 +2143,7 @@ pub fn compile_operator(
             | ValidatedOperator::SubdCage { .. }
             | ValidatedOperator::Revolve { .. }
             | ValidatedOperator::TubeSweep { .. }
+            | ValidatedOperator::EnergyCore { .. }
             | ValidatedOperator::JointStack { .. }
     ) {
         smooth_curved_normals(&mut mesh);
@@ -1150,6 +2226,1014 @@ fn smooth_curved_normals(mesh: &mut PrimitiveNodeMesh) {
             }
         }
     }
+}
+
+/// Emit one planar rectangle with outward winding for the requested z side.
+/// Rectangles are used as a fixed direct-topology tessellation of the slotted
+/// face; adjacent patches weld by position in strict readback.
+fn emit_slotted_rect(
+    mesh: &mut PrimitiveNodeMesh,
+    x0: f32,
+    x1: f32,
+    y0: f32,
+    y1: f32,
+    z: f32,
+    front: bool,
+) -> Result<(), GeometryError> {
+    if !(x1 > x0 && y1 > y0) {
+        return Err(GeometryError::Invalid(
+            "vent-array@2 emitted a non-positive face patch".to_owned(),
+        ));
+    }
+    let a = [x0, y0, z];
+    let b = [x1, y0, z];
+    let c = [x1, y1, z];
+    let d = [x0, y1, z];
+    if front {
+        push_triangle(mesh, a, b, c)?;
+        push_triangle(mesh, a, c, d)?;
+    } else {
+        push_triangle(mesh, a, d, c)?;
+        push_triangle(mesh, a, c, b)?;
+    }
+    Ok(())
+}
+
+/// Emit an oriented wall for a boundary loop. `loop_points` is CCW for an
+/// outer boundary and clockwise for a slot boundary. The same reverse
+/// winding therefore points away from the solid in both cases.
+fn emit_slotted_boundary_wall(
+    mesh: &mut PrimitiveNodeMesh,
+    loop_points: &[[f32; 2]],
+    z_front: f32,
+    z_back: f32,
+    subdivisions: usize,
+) -> Result<(), GeometryError> {
+    for edge in 0..loop_points.len() {
+        let p = loop_points[edge];
+        let q = loop_points[(edge + 1) % loop_points.len()];
+        for segment in 0..subdivisions {
+            let t0 = segment as f32 / subdivisions as f32;
+            let t1 = (segment + 1) as f32 / subdivisions as f32;
+            let p0 = [p[0] + (q[0] - p[0]) * t0, p[1] + (q[1] - p[1]) * t0];
+            let p1 = [p[0] + (q[0] - p[0]) * t1, p[1] + (q[1] - p[1]) * t1];
+            let front_p0 = [p0[0], p0[1], z_front];
+            let front_p1 = [p1[0], p1[1], z_front];
+            let back_p0 = [p0[0], p0[1], z_back];
+            let back_p1 = [p1[0], p1[1], z_back];
+            push_triangle(mesh, front_p0, back_p1, front_p1)?;
+            push_triangle(mesh, front_p0, back_p0, back_p1)?;
+        }
+    }
+    Ok(())
+}
+
+/// Emit one four-corner cut-edge chamfer transition. The loops are deliberately
+/// not subdivided along their straight edges: each additional bevel segment is
+/// a complete depth ring, so every ring continues to match the four-corner
+/// planar opening boundary without a T-junction.
+fn emit_slotted_chamfer_transition(
+    mesh: &mut PrimitiveNodeMesh,
+    outer_loop: &[[f32; 2]],
+    inner_loop: &[[f32; 2]],
+    z_outer: f32,
+    z_inner: f32,
+) -> Result<(), GeometryError> {
+    if outer_loop.len() != inner_loop.len() || outer_loop.len() < 3 {
+        return Err(GeometryError::Invalid(
+            "vent-array@2 slot chamfer loop mismatch".to_owned(),
+        ));
+    }
+    for edge in 0..outer_loop.len() {
+        let outer_p = outer_loop[edge];
+        let outer_q = outer_loop[(edge + 1) % outer_loop.len()];
+        let inner_p = inner_loop[edge];
+        let inner_q = inner_loop[(edge + 1) % inner_loop.len()];
+        let outer_p = [outer_p[0], outer_p[1], z_outer];
+        let outer_q = [outer_q[0], outer_q[1], z_outer];
+        let inner_p = [inner_p[0], inner_p[1], z_inner];
+        let inner_q = [inner_q[0], inner_q[1], z_inner];
+        push_triangle(mesh, outer_p, inner_q, outer_q)?;
+        push_triangle(mesh, outer_p, inner_p, inner_q)?;
+    }
+    Ok(())
+}
+
+/// Add `bevel_segments` symmetric rectangular chamfer depth rings so the
+/// parameter changes the actual entrance profile while every ring remains
+/// four-cornered and matches the planar cut boundary. This is not a rounded
+/// profile; the final nominal slot wall is one straight strip.
+fn emit_slotted_chamfer(
+    mesh: &mut PrimitiveNodeMesh,
+    outer_loop: &[[f32; 2]],
+    inner_loop: &[[f32; 2]],
+    z_outer: f32,
+    z_inner: f32,
+    subdivisions: usize,
+) -> Result<(), GeometryError> {
+    if outer_loop.len() != inner_loop.len() || outer_loop.len() < 3 || subdivisions == 0 {
+        return Err(GeometryError::Invalid(
+            "vent-array@2 slot chamfer ring parameters are invalid".to_owned(),
+        ));
+    }
+    let mut previous = outer_loop.to_vec();
+    for ring in 1..=subdivisions {
+        let t = ring as f32 / subdivisions as f32;
+        let current = inner_loop
+            .iter()
+            .zip(outer_loop)
+            .map(|(inner, outer)| {
+                [
+                    outer[0] + (inner[0] - outer[0]) * t,
+                    outer[1] + (inner[1] - outer[1]) * t,
+                ]
+            })
+            .collect::<Vec<_>>();
+        let current_z = z_outer + (z_inner - z_outer) * t;
+        emit_slotted_chamfer_transition(
+            mesh,
+            &previous,
+            &current,
+            z_outer + (z_inner - z_outer) * ((ring - 1) as f32 / subdivisions as f32),
+            current_z,
+        )?;
+        previous = current;
+    }
+    Ok(())
+}
+
+/// Emit the front or back layer of a rectangular panel whose middle row has
+/// a deterministic array of rectangular holes. This grid-like decomposition
+/// keeps one connected shell without introducing internal Boolean faces.
+fn emit_slotted_layer(
+    mesh: &mut PrimitiveNodeMesh,
+    width_m: f32,
+    height_m: f32,
+    z: f32,
+    slot_count: usize,
+    slot_width_m: f32,
+    slot_spacing_m: f32,
+    hole_half_height: f32,
+    front: bool,
+) -> Result<(), GeometryError> {
+    let occupied_width =
+        slot_count as f32 * slot_width_m + slot_count.saturating_sub(1) as f32 * slot_spacing_m;
+    let first_center = -occupied_width / 2.0 + slot_width_m / 2.0;
+    let hole_y0 = -hole_half_height;
+    let hole_y1 = hole_half_height;
+    let mut x_boundaries = Vec::with_capacity(slot_count * 2 + 2);
+    x_boundaries.push(-width_m / 2.0);
+    for index in 0..slot_count {
+        let center = first_center + index as f32 * (slot_width_m + slot_spacing_m);
+        x_boundaries.push(center - slot_width_m / 2.0);
+        x_boundaries.push(center + slot_width_m / 2.0);
+    }
+    x_boundaries.push(width_m / 2.0);
+    for pair in x_boundaries.windows(2) {
+        emit_slotted_rect(mesh, pair[0], pair[1], hole_y1, height_m / 2.0, z, front)?;
+        emit_slotted_rect(mesh, pair[0], pair[1], -height_m / 2.0, hole_y0, z, front)?;
+    }
+    let first_left = first_center - slot_width_m / 2.0;
+    emit_slotted_rect(mesh, -width_m / 2.0, first_left, hole_y0, hole_y1, z, front)?;
+    for index in 0..slot_count.saturating_sub(1) {
+        let left_center = first_center + index as f32 * (slot_width_m + slot_spacing_m);
+        let right_center = left_center + slot_width_m + slot_spacing_m;
+        emit_slotted_rect(
+            mesh,
+            left_center + slot_width_m / 2.0,
+            right_center - slot_width_m / 2.0,
+            hole_y0,
+            hole_y1,
+            z,
+            front,
+        )?;
+    }
+    let last_center =
+        first_center + slot_count.saturating_sub(1) as f32 * (slot_width_m + slot_spacing_m);
+    emit_slotted_rect(
+        mesh,
+        last_center + slot_width_m / 2.0,
+        width_m / 2.0,
+        hole_y0,
+        hole_y1,
+        z,
+        front,
+    )?;
+    Ok(())
+}
+
+/// Return the detailed outer perimeter that the slotted planar layers use.
+/// Every boundary split is carried into the wall strip so the strict welded
+/// topology has no long-edge/T-junction mismatch.
+fn slotted_outer_perimeter(
+    width_m: f32,
+    height_m: f32,
+    slot_count: usize,
+    slot_width_m: f32,
+    slot_spacing_m: f32,
+    hole_half_height: f32,
+) -> Vec<[f32; 2]> {
+    let occupied_width =
+        slot_count as f32 * slot_width_m + slot_count.saturating_sub(1) as f32 * slot_spacing_m;
+    let first_center = -occupied_width / 2.0 + slot_width_m / 2.0;
+    let mut x_boundaries = Vec::with_capacity(slot_count * 2 + 2);
+    x_boundaries.push(-width_m / 2.0);
+    for index in 0..slot_count {
+        let center = first_center + index as f32 * (slot_width_m + slot_spacing_m);
+        x_boundaries.push(center - slot_width_m / 2.0);
+        x_boundaries.push(center + slot_width_m / 2.0);
+    }
+    x_boundaries.push(width_m / 2.0);
+
+    let mut perimeter = Vec::with_capacity(x_boundaries.len() * 2 + 6);
+    perimeter.push([-width_m / 2.0, -height_m / 2.0]);
+    for x in x_boundaries.iter().skip(1) {
+        perimeter.push([*x, -height_m / 2.0]);
+    }
+    for y in [-hole_half_height, hole_half_height, height_m / 2.0] {
+        perimeter.push([width_m / 2.0, y]);
+    }
+    for x in x_boundaries.iter().rev().skip(1) {
+        perimeter.push([*x, height_m / 2.0]);
+    }
+    for y in [hole_half_height, -hole_half_height] {
+        perimeter.push([-width_m / 2.0, y]);
+    }
+    perimeter
+}
+
+/// Build a single connected, watertight face shell with real through-slots.
+/// Both face entrances use the enlarged bevel profile and transition to a
+/// nominal slot before the straight core wall; the backing is appended by the
+/// caller as one closed geometric sub-solid in the same mesh.
+fn slotted_face_shell_mesh(
+    width_m: f32,
+    height_m: f32,
+    face_thickness_m: f32,
+    slot_count: usize,
+    slot_width_m: f32,
+    slot_spacing_m: f32,
+    slot_margin_m: f32,
+    slot_edge_bevel_m: f32,
+    bevel_segments: usize,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let mut mesh = empty_mesh();
+    let z_front = face_thickness_m / 2.0;
+    let z_back = -face_thickness_m / 2.0;
+    let inner_half_height = height_m / 2.0 - slot_margin_m;
+    let outer_half_height = inner_half_height + slot_edge_bevel_m;
+    let inner_slot_width = slot_width_m;
+    let outer_slot_width = slot_width_m + 2.0 * slot_edge_bevel_m;
+    let outer_slot_spacing = slot_spacing_m - 2.0 * slot_edge_bevel_m;
+    emit_slotted_layer(
+        &mut mesh,
+        width_m,
+        height_m,
+        z_front,
+        slot_count,
+        outer_slot_width,
+        outer_slot_spacing,
+        outer_half_height,
+        true,
+    )?;
+    emit_slotted_layer(
+        &mut mesh,
+        width_m,
+        height_m,
+        z_back,
+        slot_count,
+        outer_slot_width,
+        outer_slot_spacing,
+        outer_half_height,
+        false,
+    )?;
+
+    let outer_perimeter = slotted_outer_perimeter(
+        width_m,
+        height_m,
+        slot_count,
+        outer_slot_width,
+        outer_slot_spacing,
+        outer_half_height,
+    );
+    emit_slotted_boundary_wall(&mut mesh, &outer_perimeter, z_front, z_back, 1)?;
+
+    let occupied_width =
+        slot_count as f32 * slot_width_m + slot_count.saturating_sub(1) as f32 * slot_spacing_m;
+    let first_center = -occupied_width / 2.0 + slot_width_m / 2.0;
+    for index in 0..slot_count {
+        let center = first_center + index as f32 * (slot_width_m + slot_spacing_m);
+        let inner_loop = [
+            [center + inner_slot_width / 2.0, -inner_half_height],
+            [center - inner_slot_width / 2.0, -inner_half_height],
+            [center - inner_slot_width / 2.0, inner_half_height],
+            [center + inner_slot_width / 2.0, inner_half_height],
+        ];
+        let outer_loop = [
+            [center + outer_slot_width / 2.0, -outer_half_height],
+            [center - outer_slot_width / 2.0, -outer_half_height],
+            [center - outer_slot_width / 2.0, outer_half_height],
+            [center + outer_slot_width / 2.0, outer_half_height],
+        ];
+        let back_inner_loop = [inner_loop[3], inner_loop[2], inner_loop[1], inner_loop[0]];
+        let back_outer_loop = [outer_loop[3], outer_loop[2], outer_loop[1], outer_loop[0]];
+        emit_slotted_chamfer(
+            &mut mesh,
+            &outer_loop,
+            &inner_loop,
+            z_front,
+            z_front - slot_edge_bevel_m,
+            bevel_segments,
+        )?;
+        emit_slotted_boundary_wall(
+            &mut mesh,
+            &inner_loop,
+            z_front - slot_edge_bevel_m,
+            z_back + slot_edge_bevel_m,
+            1,
+        )?;
+        emit_slotted_chamfer(
+            &mut mesh,
+            &back_outer_loop,
+            &back_inner_loop,
+            z_back,
+            z_back + slot_edge_bevel_m,
+            bevel_segments,
+        )?;
+    }
+    Ok(mesh)
+}
+
+fn segment_length(a: [f32; 3], b: [f32; 3]) -> f32 {
+    let dx = b[0] - a[0];
+    let dy = b[1] - a[1];
+    (dx * dx + dy * dy).sqrt()
+}
+
+fn recessed_channel_loop_vertex_count(edge_bevel_m: f32) -> usize {
+    if edge_bevel_m > RECESSED_CHANNEL_MIN_SEGMENT_M {
+        16
+    } else {
+        8
+    }
+}
+
+fn recessed_channel_cross2(a: [f32; 2], b: [f32; 2], c: [f32; 2]) -> f32 {
+    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+}
+
+fn recessed_channel_on_segment(a: [f32; 2], b: [f32; 2], p: [f32; 2]) -> bool {
+    p[0] >= a[0].min(b[0]) - RECESSED_CHANNEL_MIN_SEGMENT_M
+        && p[0] <= a[0].max(b[0]) + RECESSED_CHANNEL_MIN_SEGMENT_M
+        && p[1] >= a[1].min(b[1]) - RECESSED_CHANNEL_MIN_SEGMENT_M
+        && p[1] <= a[1].max(b[1]) + RECESSED_CHANNEL_MIN_SEGMENT_M
+}
+
+fn recessed_channel_segments_intersect(a: [f32; 2], b: [f32; 2], c: [f32; 2], d: [f32; 2]) -> bool {
+    let ab_c = recessed_channel_cross2(a, b, c);
+    let ab_d = recessed_channel_cross2(a, b, d);
+    let cd_a = recessed_channel_cross2(c, d, a);
+    let cd_b = recessed_channel_cross2(c, d, b);
+    let eps = RECESSED_CHANNEL_MIN_SEGMENT_M;
+    if ab_c.abs() <= eps && recessed_channel_on_segment(a, b, c)
+        || ab_d.abs() <= eps && recessed_channel_on_segment(a, b, d)
+        || cd_a.abs() <= eps && recessed_channel_on_segment(c, d, a)
+        || cd_b.abs() <= eps && recessed_channel_on_segment(c, d, b)
+    {
+        return true;
+    }
+    ((ab_c > eps && ab_d < -eps) || (ab_c < -eps && ab_d > eps))
+        && ((cd_a > eps && cd_b < -eps) || (cd_a < -eps && cd_b > eps))
+}
+
+fn recessed_channel_point_segment_distance_squared(
+    point: [f32; 2],
+    start: [f32; 2],
+    end: [f32; 2],
+) -> f32 {
+    let direction = [end[0] - start[0], end[1] - start[1]];
+    let length_squared = direction[0] * direction[0] + direction[1] * direction[1];
+    if length_squared <= RECESSED_CHANNEL_MIN_SEGMENT_M * RECESSED_CHANNEL_MIN_SEGMENT_M {
+        let delta = [point[0] - start[0], point[1] - start[1]];
+        return delta[0] * delta[0] + delta[1] * delta[1];
+    }
+    let offset = [point[0] - start[0], point[1] - start[1]];
+    let t =
+        ((offset[0] * direction[0] + offset[1] * direction[1]) / length_squared).clamp(0.0, 1.0);
+    let closest = [start[0] + direction[0] * t, start[1] + direction[1] * t];
+    let delta = [point[0] - closest[0], point[1] - closest[1]];
+    delta[0] * delta[0] + delta[1] * delta[1]
+}
+
+fn recessed_channel_segment_distance(
+    first_start: [f32; 2],
+    first_end: [f32; 2],
+    second_start: [f32; 2],
+    second_end: [f32; 2],
+) -> f32 {
+    if recessed_channel_segments_intersect(first_start, first_end, second_start, second_end) {
+        return 0.0;
+    }
+    recessed_channel_point_segment_distance_squared(first_start, second_start, second_end)
+        .min(recessed_channel_point_segment_distance_squared(
+            first_end,
+            second_start,
+            second_end,
+        ))
+        .min(recessed_channel_point_segment_distance_squared(
+            second_start,
+            first_start,
+            first_end,
+        ))
+        .min(recessed_channel_point_segment_distance_squared(
+            second_end,
+            first_start,
+            first_end,
+        ))
+        .sqrt()
+}
+
+fn validate_recessed_channel_swept_envelope(
+    stations: &[RecessedChannelStation],
+) -> Result<(), GeometryError> {
+    let segment_count = stations.len() - 1;
+    for first in 0..segment_count {
+        let first_start = stations[first].point_m;
+        let first_end = stations[first + 1].point_m;
+        let first_half_width = stations[first].width_m.max(stations[first + 1].width_m) * 0.5;
+        for second in (first + 2)..segment_count {
+            let second_start = stations[second].point_m;
+            let second_end = stations[second + 1].point_m;
+            let second_half_width =
+                stations[second].width_m.max(stations[second + 1].width_m) * 0.5;
+            let minimum_distance = recessed_channel_segment_distance(
+                [first_start[0], first_start[1]],
+                [first_end[0], first_end[1]],
+                [second_start[0], second_start[1]],
+                [second_end[0], second_end[1]],
+            );
+            if minimum_distance
+                <= first_half_width + second_half_width + RECESSED_CHANNEL_MIN_SEGMENT_M
+            {
+                return Err(GeometryError::Invalid(
+                    "recessed-channel swept envelope overlaps between non-adjacent segments"
+                        .to_owned(),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_recessed_channel_path(
+    stations: &[RecessedChannelStation],
+) -> Result<(), GeometryError> {
+    for pair in stations.windows(2) {
+        if segment_length(pair[0].point_m, pair[1].point_m) <= RECESSED_CHANNEL_MIN_SEGMENT_M {
+            return Err(GeometryError::Invalid(
+                "recessed-channel path contains a zero-length segment".to_owned(),
+            ));
+        }
+    }
+    for window in stations.windows(3) {
+        let incoming = [
+            window[1].point_m[0] - window[0].point_m[0],
+            window[1].point_m[1] - window[0].point_m[1],
+        ];
+        let outgoing = [
+            window[2].point_m[0] - window[1].point_m[0],
+            window[2].point_m[1] - window[1].point_m[1],
+        ];
+        let incoming_len = (incoming[0] * incoming[0] + incoming[1] * incoming[1]).sqrt();
+        let outgoing_len = (outgoing[0] * outgoing[0] + outgoing[1] * outgoing[1]).sqrt();
+        let dot =
+            (incoming[0] * outgoing[0] + incoming[1] * outgoing[1]) / (incoming_len * outgoing_len);
+        if dot <= RECESSED_CHANNEL_REVERSE_DOT {
+            return Err(GeometryError::Invalid(
+                "recessed-channel path contains a near-reverse turn".to_owned(),
+            ));
+        }
+    }
+    for first in 0..stations.len() - 1 {
+        for second in first + 1..stations.len() - 1 {
+            if second <= first + 1 {
+                continue;
+            }
+            let a = stations[first].point_m;
+            let b = stations[first + 1].point_m;
+            let c = stations[second].point_m;
+            let d = stations[second + 1].point_m;
+            if recessed_channel_segments_intersect(
+                [a[0], a[1]],
+                [b[0], b[1]],
+                [c[0], c[1]],
+                [d[0], d[1]],
+            ) {
+                return Err(GeometryError::Invalid(
+                    "recessed-channel path self-intersects".to_owned(),
+                ));
+            }
+        }
+    }
+    validate_recessed_channel_swept_envelope(stations)?;
+    Ok(())
+}
+
+fn recessed_channel_signed_area(points: &[[f32; 2]]) -> f32 {
+    points
+        .iter()
+        .zip(points.iter().cycle().skip(1))
+        .take(points.len())
+        .map(|(a, b)| a[0] * b[1] - b[0] * a[1])
+        .sum::<f32>()
+        * 0.5
+}
+
+fn recessed_channel_cross_section(
+    width_m: f32,
+    depth_m: f32,
+    floor_width_ratio: f32,
+    edge_bevel_m: f32,
+) -> Vec<[f32; 2]> {
+    let half_width = width_m / 2.0;
+    let inner_half_width = width_m * floor_width_ratio / 2.0;
+    let base_thickness = depth_m * 0.25;
+    let bottom_z = -depth_m - base_thickness;
+    let points = if edge_bevel_m > RECESSED_CHANNEL_MIN_SEGMENT_M {
+        let b = edge_bevel_m;
+        vec![
+            [-half_width + b, bottom_z],
+            [half_width - b, bottom_z],
+            [half_width, bottom_z + b],
+            [half_width, -b],
+            [half_width - b, 0.0],
+            [inner_half_width + b, 0.0],
+            [inner_half_width, -b],
+            [inner_half_width, -depth_m + b],
+            [inner_half_width - b, -depth_m],
+            [-inner_half_width + b, -depth_m],
+            [-inner_half_width, -depth_m + b],
+            [-inner_half_width, -b],
+            [-inner_half_width - b, 0.0],
+            [-half_width + b, 0.0],
+            [-half_width, -b],
+            [-half_width, bottom_z + b],
+        ]
+    } else {
+        vec![
+            [-half_width, bottom_z],
+            [half_width, bottom_z],
+            [half_width, 0.0],
+            [inner_half_width, 0.0],
+            [inner_half_width, -depth_m],
+            [-inner_half_width, -depth_m],
+            [-inner_half_width, 0.0],
+            [-half_width, 0.0],
+        ]
+    };
+    if recessed_channel_signed_area(&points) >= 0.0 {
+        points
+    } else {
+        points.into_iter().rev().collect()
+    }
+}
+
+fn recessed_channel_point_in_triangle(p: [f32; 2], a: [f32; 2], b: [f32; 2], c: [f32; 2]) -> bool {
+    let ab = recessed_channel_cross2(a, b, p);
+    let bc = recessed_channel_cross2(b, c, p);
+    let ca = recessed_channel_cross2(c, a, p);
+    let eps = RECESSED_CHANNEL_MIN_SEGMENT_M;
+    ab >= -eps && bc >= -eps && ca >= -eps
+}
+
+fn recessed_channel_cap_triangles(points: &[[f32; 2]]) -> Result<Vec<[usize; 3]>, GeometryError> {
+    if points.len() < 3 || recessed_channel_signed_area(points) <= RECESSED_CHANNEL_MIN_SEGMENT_M {
+        return Err(GeometryError::Invalid(
+            "recessed-channel cross-section is not a valid CCW polygon".to_owned(),
+        ));
+    }
+    let mut remaining: Vec<usize> = (0..points.len()).collect();
+    let mut triangles = Vec::with_capacity(points.len() - 2);
+    let mut guard = 0usize;
+    while remaining.len() > 3 {
+        let mut ear_found = false;
+        for cursor in 0..remaining.len() {
+            let previous = remaining[(cursor + remaining.len() - 1) % remaining.len()];
+            let current = remaining[cursor];
+            let next = remaining[(cursor + 1) % remaining.len()];
+            if recessed_channel_cross2(points[previous], points[current], points[next])
+                <= RECESSED_CHANNEL_MIN_SEGMENT_M
+            {
+                continue;
+            }
+            if remaining.iter().any(|candidate| {
+                *candidate != previous
+                    && *candidate != current
+                    && *candidate != next
+                    && recessed_channel_point_in_triangle(
+                        points[*candidate],
+                        points[previous],
+                        points[current],
+                        points[next],
+                    )
+            }) {
+                continue;
+            }
+            triangles.push([previous, current, next]);
+            remaining.remove(cursor);
+            ear_found = true;
+            break;
+        }
+        guard += 1;
+        if !ear_found || guard > points.len() * points.len() {
+            return Err(GeometryError::Invalid(
+                "recessed-channel cross-section triangulation failed".to_owned(),
+            ));
+        }
+    }
+    triangles.push([remaining[0], remaining[1], remaining[2]]);
+    Ok(triangles)
+}
+
+fn recessed_channel_tangent(stations: &[RecessedChannelStation], index: usize) -> [f32; 2] {
+    let raw = if index == 0 {
+        [
+            stations[1].point_m[0] - stations[0].point_m[0],
+            stations[1].point_m[1] - stations[0].point_m[1],
+        ]
+    } else if index + 1 == stations.len() {
+        [
+            stations[index].point_m[0] - stations[index - 1].point_m[0],
+            stations[index].point_m[1] - stations[index - 1].point_m[1],
+        ]
+    } else {
+        let previous = [
+            stations[index].point_m[0] - stations[index - 1].point_m[0],
+            stations[index].point_m[1] - stations[index - 1].point_m[1],
+        ];
+        let next = [
+            stations[index + 1].point_m[0] - stations[index].point_m[0],
+            stations[index + 1].point_m[1] - stations[index].point_m[1],
+        ];
+        let previous_len = (previous[0] * previous[0] + previous[1] * previous[1]).sqrt();
+        let next_len = (next[0] * next[0] + next[1] * next[1]).sqrt();
+        [
+            previous[0] / previous_len + next[0] / next_len,
+            previous[1] / previous_len + next[1] / next_len,
+        ]
+    };
+    let length = (raw[0] * raw[0] + raw[1] * raw[1]).sqrt();
+    [raw[0] / length, raw[1] / length]
+}
+
+fn recessed_channel_ring(
+    center: [f32; 3],
+    tangent: [f32; 2],
+    width_m: f32,
+    depth_m: f32,
+    floor_width_ratio: f32,
+    edge_bevel_m: f32,
+    scale: f32,
+) -> Vec<[f32; 3]> {
+    let normal = [-tangent[1], tangent[0]];
+    recessed_channel_cross_section(
+        width_m * scale,
+        depth_m * scale,
+        floor_width_ratio,
+        edge_bevel_m * scale,
+    )
+    .into_iter()
+    .map(|point| {
+        [
+            center[0] + normal[0] * point[0],
+            center[1] + normal[1] * point[0],
+            point[1],
+        ]
+    })
+    .collect()
+}
+
+fn recessed_channel_mesh(
+    stations: &[RecessedChannelStation],
+    floor_width_ratio: f32,
+    edge_bevel_m: f32,
+    start_transition_m: f32,
+    end_transition_m: f32,
+    transition_segments: usize,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let mut rings = Vec::<Vec<[f32; 3]>>::new();
+    let start_tangent = recessed_channel_tangent(stations, 0);
+    if start_transition_m > RECESSED_CHANNEL_MIN_SEGMENT_M {
+        let endpoint = [
+            stations[0].point_m[0] - start_tangent[0] * start_transition_m,
+            stations[0].point_m[1] - start_tangent[1] * start_transition_m,
+            0.0,
+        ];
+        rings.push(recessed_channel_ring(
+            endpoint,
+            start_tangent,
+            stations[0].width_m,
+            stations[0].depth_m,
+            floor_width_ratio,
+            edge_bevel_m,
+            0.6,
+        ));
+        for step in 1..=transition_segments {
+            let t = step as f32 / transition_segments as f32;
+            let center = [
+                stations[0].point_m[0] - start_tangent[0] * start_transition_m * (1.0 - t),
+                stations[0].point_m[1] - start_tangent[1] * start_transition_m * (1.0 - t),
+                0.0,
+            ];
+            rings.push(recessed_channel_ring(
+                center,
+                start_tangent,
+                stations[0].width_m,
+                stations[0].depth_m,
+                floor_width_ratio,
+                edge_bevel_m,
+                0.6 + 0.4 * t,
+            ));
+        }
+        for index in 1..stations.len() {
+            rings.push(recessed_channel_ring(
+                stations[index].point_m,
+                recessed_channel_tangent(stations, index),
+                stations[index].width_m,
+                stations[index].depth_m,
+                floor_width_ratio,
+                edge_bevel_m,
+                1.0,
+            ));
+        }
+    } else {
+        for index in 0..stations.len() {
+            rings.push(recessed_channel_ring(
+                stations[index].point_m,
+                recessed_channel_tangent(stations, index),
+                stations[index].width_m,
+                stations[index].depth_m,
+                floor_width_ratio,
+                edge_bevel_m,
+                1.0,
+            ));
+        }
+    }
+    if end_transition_m > RECESSED_CHANNEL_MIN_SEGMENT_M {
+        let last = stations.len() - 1;
+        let tangent = recessed_channel_tangent(stations, last);
+        for step in 1..=transition_segments {
+            let t = step as f32 / transition_segments as f32;
+            let center = [
+                stations[last].point_m[0] + tangent[0] * end_transition_m * t,
+                stations[last].point_m[1] + tangent[1] * end_transition_m * t,
+                0.0,
+            ];
+            rings.push(recessed_channel_ring(
+                center,
+                tangent,
+                stations[last].width_m,
+                stations[last].depth_m,
+                floor_width_ratio,
+                edge_bevel_m,
+                1.0 - 0.4 * t,
+            ));
+        }
+    }
+
+    let cross_section = recessed_channel_cross_section(
+        stations[0].width_m,
+        stations[0].depth_m,
+        floor_width_ratio,
+        edge_bevel_m,
+    );
+    let cap_triangles = recessed_channel_cap_triangles(&cross_section)?;
+    let loop_vertices = cross_section.len();
+    if rings.iter().any(|ring| ring.len() != loop_vertices) {
+        return Err(GeometryError::Invalid(
+            "recessed-channel rings have inconsistent topology".to_owned(),
+        ));
+    }
+    let mut mesh = empty_mesh();
+    for pair in rings.windows(2) {
+        for index in 0..loop_vertices {
+            let next = (index + 1) % loop_vertices;
+            push_triangle(&mut mesh, pair[0][index], pair[0][next], pair[1][next])?;
+            push_triangle(&mut mesh, pair[0][index], pair[1][next], pair[1][index])?;
+        }
+    }
+    for triangle in &cap_triangles {
+        push_triangle(
+            &mut mesh,
+            rings[0][triangle[0]],
+            rings[0][triangle[2]],
+            rings[0][triangle[1]],
+        )?;
+        let last_ring = rings.last().expect("recessed-channel rings");
+        push_triangle(
+            &mut mesh,
+            last_ring[triangle[0]],
+            last_ring[triangle[1]],
+            last_ring[triangle[2]],
+        )?;
+    }
+    Ok(mesh)
+}
+
+/// Generate a deterministic rounded box from source-level primitive data.
+/// The scope is intentionally narrower than Blender's arbitrary BMesh bevel:
+/// all twelve edges of one direct primitive box are rounded together.
+fn rounded_box_mesh(
+    size: [f32; 3],
+    position: [f32; 3],
+    rotation: [f32; 3],
+    requested_width: f32,
+    segments: usize,
+    profile: f32,
+    clamp_overlap: bool,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let half = [size[0] / 2.0, size[1] / 2.0, size[2] / 2.0];
+    let maximum = half[0].min(half[1]).min(half[2]) * 0.999;
+    let width = if requested_width > maximum {
+        if !clamp_overlap {
+            return Err(GeometryError::Invalid(
+                "bevel width would overlap; enable clamp_overlap or reduce width".to_owned(),
+            ));
+        }
+        maximum
+    } else {
+        requested_width
+    };
+    if width < 1.0e-5 || maximum < 1.0e-5 {
+        return Err(GeometryError::Invalid(
+            "bevel width or source box is below the stable tolerance".to_owned(),
+        ));
+    }
+    let inner = [half[0] - width, half[1] - width, half[2] - width];
+    let exponent = 1.0 + 2.0 * profile;
+    let coordinates = |extent: f32, inset: f32| {
+        let mut values = Vec::with_capacity(2 * segments + 2);
+        for step in 0..segments {
+            values.push(-extent + width * step as f32 / segments as f32);
+        }
+        values.push(-inset);
+        values.push(inset);
+        for step in 1..segments {
+            values.push(inset + width * step as f32 / segments as f32);
+        }
+        values.push(extent);
+        values
+    };
+    let xs = coordinates(half[0], inner[0]);
+    let ys = coordinates(half[1], inner[1]);
+    let zs = coordinates(half[2], inner[2]);
+    let round = |point: [f32; 3]| {
+        let clamped = [
+            point[0].clamp(-inner[0], inner[0]),
+            point[1].clamp(-inner[1], inner[1]),
+            point[2].clamp(-inner[2], inner[2]),
+        ];
+        let delta = subtract3(point, clamped);
+        let norm = (delta[0].abs().powf(exponent)
+            + delta[1].abs().powf(exponent)
+            + delta[2].abs().powf(exponent))
+        .powf(1.0 / exponent);
+        add3(clamped, scale3(delta, width / norm))
+    };
+    let mut mesh = empty_mesh();
+    let mut emit_face = |u: &[f32],
+                         v: &[f32],
+                         point: &dyn Fn(f32, f32) -> [f32; 3],
+                         reverse: bool|
+     -> Result<(), GeometryError> {
+        for ui in 0..u.len() - 1 {
+            for vi in 0..v.len() - 1 {
+                let a = round(point(u[ui], v[vi]));
+                let b = round(point(u[ui + 1], v[vi]));
+                let c = round(point(u[ui + 1], v[vi + 1]));
+                let d = round(point(u[ui], v[vi + 1]));
+                if reverse {
+                    push_triangle(&mut mesh, a, c, b)?;
+                    push_triangle(&mut mesh, a, d, c)?;
+                } else {
+                    push_triangle(&mut mesh, a, b, c)?;
+                    push_triangle(&mut mesh, a, c, d)?;
+                }
+            }
+        }
+        Ok(())
+    };
+    emit_face(&ys, &zs, &|u, v| [half[0], u, v], false)?;
+    emit_face(&ys, &zs, &|u, v| [-half[0], u, v], true)?;
+    emit_face(&zs, &xs, &|u, v| [v, half[1], u], false)?;
+    emit_face(&zs, &xs, &|u, v| [v, -half[1], u], true)?;
+    emit_face(&xs, &ys, &|u, v| [u, v, half[2]], false)?;
+    emit_face(&xs, &ys, &|u, v| [u, v, -half[2]], true)?;
+    Ok(transform_mesh(mesh, position, rotation, [1.0; 3]))
+}
+
+/// Rebuild normals in the corner domain. Each triangle corner receives an
+/// face-area x clean-room face-angle weighted normal from coincident
+/// corners whose face normal remains within the explicit crease threshold.
+fn area_angle_corner_normals(
+    input: &PrimitiveNodeMesh,
+    crease_angle: f32,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    #[derive(Clone, Copy)]
+    struct Corner {
+        position: [f32; 3],
+        face_normal: [f32; 3],
+        weight: f32,
+    }
+    let mut corners = Vec::with_capacity(input.indices.len());
+    for triangle in input.indices.chunks_exact(3) {
+        let ids = [
+            triangle[0] as usize,
+            triangle[1] as usize,
+            triangle[2] as usize,
+        ];
+        if ids.iter().any(|index| *index >= input.positions.len()) {
+            return Err(GeometryError::Invalid(
+                "normal-policy input index is outside the mesh".to_owned(),
+            ));
+        }
+        let points = [
+            input.positions[ids[0]],
+            input.positions[ids[1]],
+            input.positions[ids[2]],
+        ];
+        let cross = cross3(
+            subtract3(points[1], points[0]),
+            subtract3(points[2], points[0]),
+        );
+        let twice_area = length3(cross);
+        if !twice_area.is_finite() || twice_area <= 1.0e-8 {
+            return Err(GeometryError::Invalid(
+                "normal-policy rejects degenerate triangles".to_owned(),
+            ));
+        }
+        let face_normal = normalize(cross);
+        for corner_index in 0..3 {
+            let a = normalize(subtract3(
+                points[(corner_index + 1) % 3],
+                points[corner_index],
+            ));
+            let b = normalize(subtract3(
+                points[(corner_index + 2) % 3],
+                points[corner_index],
+            ));
+            let interior_angle = dot3(a, b).clamp(-1.0, 1.0).acos();
+            let face_angle = std::f32::consts::PI - interior_angle;
+            corners.push(Corner {
+                position: points[corner_index],
+                face_normal,
+                weight: twice_area * face_angle,
+            });
+        }
+    }
+    let key = |point: [f32; 3]| {
+        (
+            (point[0] * 1_000_000.0).round() as i32,
+            (point[1] * 1_000_000.0).round() as i32,
+            (point[2] * 1_000_000.0).round() as i32,
+        )
+    };
+    let mut groups: BTreeMap<(i32, i32, i32), Vec<usize>> = BTreeMap::new();
+    for (index, corner) in corners.iter().enumerate() {
+        groups.entry(key(corner.position)).or_default().push(index);
+    }
+    let cosine = crease_angle.cos();
+    let mut normals = Vec::with_capacity(corners.len());
+    for (index, corner) in corners.iter().enumerate() {
+        let mut sum = [0.0; 3];
+        for other_index in groups.get(&key(corner.position)).expect("corner group") {
+            let other = corners[*other_index];
+            if dot3(corner.face_normal, other.face_normal) >= cosine {
+                sum = add3(sum, scale3(other.face_normal, other.weight));
+            }
+        }
+        let normal = if length3(sum) <= 1.0e-8 {
+            // Opposing coincident faces can cancel exactly at a permissive
+            // crease angle. Preserve the reference corner instead of using
+            // normalize()'s generic fallback axis.
+            corner.face_normal
+        } else {
+            normalize(sum)
+        };
+        if !finite3(normal) || length3(normal) <= f32::EPSILON {
+            return Err(GeometryError::Invalid(format!(
+                "normal-policy emitted an invalid corner normal at {index}"
+            )));
+        }
+        normals.push(normal);
+    }
+    Ok(PrimitiveNodeMesh {
+        operator_id: "forgecad.geometry.normal-policy@1".to_owned(),
+        lineage_source_node_ids: input.lineage_source_node_ids.clone(),
+        positions: corners.iter().map(|corner| corner.position).collect(),
+        normals,
+        indices: (0..corners.len() as u32).collect(),
+    })
 }
 
 /// Build a deterministic rounded rectangle in counter-clockwise order.
@@ -1445,6 +3529,129 @@ fn profile_extrude_mesh(
     Ok(mesh)
 }
 
+/// Build a closed, rectangular panel with explicit source-level inset,
+/// recessed floor, border bands, sloped bevels, and concentric support loops.
+///
+/// This is intentionally a bounded panel grammar rather than a general BMesh
+/// operation: every ring is a four-corner rectangle, all surfaces are emitted
+/// deterministically, and the resulting solid is still consumed by the same
+/// strict GLB/readback path as every other GeometryProgram@2 operator.
+fn recessed_panel_v2_mesh(
+    size_m: [f32; 3],
+    thickness_m: f32,
+    inset_m: f32,
+    recess_depth_m: f32,
+    border_width_m: f32,
+    bevel_m: f32,
+    bevel_segments: usize,
+    support_loop_count: usize,
+    support_loop_width_m: f32,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let half_x = size_m[0] / 2.0;
+    let half_y = size_m[1] / 2.0;
+    let top_z = thickness_m / 2.0;
+    let bottom_z = -thickness_m / 2.0;
+    let floor_z = top_z - recess_depth_m;
+    let outer_side = rect_ring(half_x, half_y, top_z - bevel_m);
+    let outer_top = rect_ring(half_x - bevel_m, half_y - bevel_m, top_z);
+    let border_outer = rect_ring(half_x - inset_m, half_y - inset_m, top_z);
+    let recess_start = rect_ring(
+        half_x - inset_m - border_width_m,
+        half_y - inset_m - border_width_m,
+        top_z,
+    );
+    let floor = rect_ring(
+        half_x - inset_m - border_width_m - bevel_m,
+        half_y - inset_m - border_width_m - bevel_m,
+        floor_z,
+    );
+    let back = rect_ring(half_x, half_y, bottom_z);
+
+    let mut mesh = empty_mesh();
+    // The outer wall connects the full back footprint to the upper bevel.
+    push_ring_strip(&mut mesh, back, outer_side)?;
+
+    // Outer bevel: the source edge transitions through exactly the requested
+    // segment count, so increasing bevel_segments produces real support
+    // geometry rather than a metadata-only quality hint.
+    let mut previous = outer_side;
+    for segment in 1..=bevel_segments {
+        let t = segment as f32 / bevel_segments as f32;
+        let ring = rect_ring(
+            half_x - bevel_m * t,
+            half_y - bevel_m * t,
+            top_z - bevel_m + bevel_m * t,
+        );
+        push_ring_strip(&mut mesh, previous, ring)?;
+        previous = ring;
+    }
+
+    // Flat outer shoulder with explicit concentric support loops.
+    let mut previous = outer_top;
+    for loop_index in 1..=support_loop_count {
+        let inset = support_loop_width_m * loop_index as f32;
+        let ring = rect_ring(half_x - bevel_m - inset, half_y - bevel_m - inset, top_z);
+        push_ring_strip(&mut mesh, previous, ring)?;
+        previous = ring;
+    }
+    push_ring_strip(&mut mesh, previous, border_outer)?;
+
+    // Border band with a second set of support loops immediately outside the
+    // recessed edge. The two loop families keep both the outer silhouette and
+    // the inset transition locally controllable in a bounded topology.
+    let mut previous = border_outer;
+    for loop_index in 1..=support_loop_count {
+        let inset = inset_m + support_loop_width_m * loop_index as f32;
+        let ring = rect_ring(half_x - inset, half_y - inset, top_z);
+        push_ring_strip(&mut mesh, previous, ring)?;
+        previous = ring;
+    }
+    push_ring_strip(&mut mesh, previous, recess_start)?;
+
+    // Inner bevel descends into the recessed floor.
+    let mut previous = recess_start;
+    for segment in 1..=bevel_segments {
+        let t = segment as f32 / bevel_segments as f32;
+        let ring = rect_ring(
+            half_x - inset_m - border_width_m - bevel_m * t,
+            half_y - inset_m - border_width_m - bevel_m * t,
+            top_z - recess_depth_m * t,
+        );
+        push_ring_strip(&mut mesh, previous, ring)?;
+        previous = ring;
+    }
+
+    // Close the recessed floor and the back. Winding is explicit so the
+    // strict readback can verify outward-facing, manifold topology.
+    push_triangle(&mut mesh, floor[0], floor[1], floor[2])?;
+    push_triangle(&mut mesh, floor[0], floor[2], floor[3])?;
+    push_triangle(&mut mesh, back[0], back[2], back[1])?;
+    push_triangle(&mut mesh, back[0], back[3], back[2])?;
+    Ok(mesh)
+}
+
+fn rect_ring(half_x: f32, half_y: f32, z: f32) -> [[f32; 3]; 4] {
+    [
+        [-half_x, -half_y, z],
+        [half_x, -half_y, z],
+        [half_x, half_y, z],
+        [-half_x, half_y, z],
+    ]
+}
+
+fn push_ring_strip(
+    mesh: &mut PrimitiveNodeMesh,
+    outer: [[f32; 3]; 4],
+    inner: [[f32; 3]; 4],
+) -> Result<(), GeometryError> {
+    for index in 0..4 {
+        let next = (index + 1) % 4;
+        push_triangle(&mut *mesh, outer[index], outer[next], inner[next])?;
+        push_triangle(&mut *mesh, outer[index], inner[next], inner[index])?;
+    }
+    Ok(())
+}
+
 fn profile_loft_mesh(
     profiles: &[(f32, Vec<[f32; 2]>)],
 ) -> Result<PrimitiveNodeMesh, GeometryError> {
@@ -1715,6 +3922,940 @@ struct SubdEdge {
     faces: Vec<usize>,
 }
 
+fn authoring_identifier(value: Option<&Value>, label: &str) -> Result<String, GeometryError> {
+    let value = value
+        .and_then(Value::as_str)
+        .filter(|value| {
+            !value.is_empty()
+                && value.len() <= 128
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b'-'))
+        })
+        .ok_or_else(|| GeometryError::Invalid(format!("{label} must be an opaque identifier")))?;
+    Ok(value.to_owned())
+}
+
+fn authoring_array<'a>(
+    parameters: &'a Map<String, Value>,
+    key: &str,
+    min: usize,
+    max: usize,
+) -> Result<&'a [Value], GeometryError> {
+    let values = parameters
+        .get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| GeometryError::Invalid(format!("authoring-mesh {key} must be an array")))?;
+    if !(min..=max).contains(&values.len()) {
+        return Err(GeometryError::Invalid(format!(
+            "authoring-mesh {key} count is outside {min}..={max}"
+        )));
+    }
+    Ok(values)
+}
+
+fn require_strict_element_order(ids: &[String], label: &str) -> Result<(), GeometryError> {
+    if ids.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(GeometryError::Invalid(format!(
+            "authoring-mesh {label} IDs must be unique and lexicographically sorted"
+        )));
+    }
+    Ok(())
+}
+
+fn parse_authoring_mesh(
+    parameters: &Map<String, Value>,
+) -> Result<
+    (
+        Vec<AuthoringVertex>,
+        Vec<AuthoringEdge>,
+        Vec<AuthoringLoop>,
+        Vec<AuthoringFace>,
+        [f32; 3],
+        [f32; 3],
+    ),
+    GeometryError,
+> {
+    require_exact_keys(
+        parameters,
+        &[
+            "shape",
+            "topology_policy",
+            "vertices",
+            "edges",
+            "loops",
+            "faces",
+            "position_m",
+            "rotation_rad",
+        ],
+        "authoring-mesh",
+    )?;
+    require_shape(parameters, "authoring-mesh")?;
+    if parameters.get("topology_policy").and_then(Value::as_str)
+        != Some("triangle-quad-manifold-with-boundary@1")
+    {
+        return Err(GeometryError::Invalid(
+            "authoring-mesh topology_policy is unsupported".to_owned(),
+        ));
+    }
+
+    let mut vertices = Vec::new();
+    for value in authoring_array(parameters, "vertices", 3, MAX_AUTHORING_ELEMENTS)? {
+        let object = value.as_object().ok_or_else(|| {
+            GeometryError::Invalid("authoring-mesh vertex must be an object".to_owned())
+        })?;
+        require_exact_keys(
+            object,
+            &["element_id", "position_m"],
+            "authoring-mesh vertex",
+        )?;
+        vertices.push(AuthoringVertex {
+            element_id: authoring_identifier(object.get("element_id"), "vertex element_id")?,
+            position_m: v2_vec3(object, "position_m", MAX_COORDINATE, false)?,
+        });
+    }
+    require_strict_element_order(
+        &vertices
+            .iter()
+            .map(|item| item.element_id.clone())
+            .collect::<Vec<_>>(),
+        "vertex",
+    )?;
+    let vertex_ids = vertices
+        .iter()
+        .map(|item| item.element_id.clone())
+        .collect::<BTreeSet<_>>();
+
+    let mut edges = Vec::new();
+    for value in authoring_array(parameters, "edges", 3, MAX_AUTHORING_ELEMENTS)? {
+        let object = value.as_object().ok_or_else(|| {
+            GeometryError::Invalid("authoring-mesh edge must be an object".to_owned())
+        })?;
+        require_exact_keys(object, &["element_id", "vertex_ids"], "authoring-mesh edge")?;
+        let element_id = authoring_identifier(object.get("element_id"), "edge element_id")?;
+        let endpoints = object
+            .get("vertex_ids")
+            .and_then(Value::as_array)
+            .filter(|items| items.len() == 2)
+            .ok_or_else(|| {
+                GeometryError::Invalid("authoring-mesh edge needs two vertex_ids".to_owned())
+            })?;
+        let left = authoring_identifier(endpoints.first(), "edge vertex_id")?;
+        let right = authoring_identifier(endpoints.get(1), "edge vertex_id")?;
+        if left >= right || !vertex_ids.contains(&left) || !vertex_ids.contains(&right) {
+            return Err(GeometryError::Invalid(
+                "authoring-mesh edge endpoints must be distinct known IDs in lexical order"
+                    .to_owned(),
+            ));
+        }
+        edges.push(AuthoringEdge {
+            element_id,
+            vertex_ids: [left, right],
+        });
+    }
+    require_strict_element_order(
+        &edges
+            .iter()
+            .map(|item| item.element_id.clone())
+            .collect::<Vec<_>>(),
+        "edge",
+    )?;
+    let edge_by_id = edges
+        .iter()
+        .map(|item| (item.element_id.clone(), item))
+        .collect::<BTreeMap<_, _>>();
+
+    let mut loops = Vec::new();
+    for value in authoring_array(parameters, "loops", 3, MAX_AUTHORING_ELEMENTS)? {
+        let object = value.as_object().ok_or_else(|| {
+            GeometryError::Invalid("authoring-mesh loop must be an object".to_owned())
+        })?;
+        require_exact_keys(
+            object,
+            &[
+                "element_id",
+                "face_id",
+                "ordinal",
+                "vertex_id",
+                "edge_id",
+                "edge_forward",
+            ],
+            "authoring-mesh loop",
+        )?;
+        let ordinal = object
+            .get("ordinal")
+            .and_then(Value::as_u64)
+            .filter(|value| *value <= 3)
+            .ok_or_else(|| {
+                GeometryError::Invalid("authoring-mesh loop ordinal is invalid".to_owned())
+            })? as usize;
+        let vertex_id = authoring_identifier(object.get("vertex_id"), "loop vertex_id")?;
+        let edge_id = authoring_identifier(object.get("edge_id"), "loop edge_id")?;
+        if !vertex_ids.contains(&vertex_id) || !edge_by_id.contains_key(&edge_id) {
+            return Err(GeometryError::Invalid(
+                "authoring-mesh loop references an unknown vertex or edge".to_owned(),
+            ));
+        }
+        loops.push(AuthoringLoop {
+            element_id: authoring_identifier(object.get("element_id"), "loop element_id")?,
+            face_id: authoring_identifier(object.get("face_id"), "loop face_id")?,
+            ordinal,
+            vertex_id,
+            edge_id,
+            edge_forward: object
+                .get("edge_forward")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| {
+                    GeometryError::Invalid("loop edge_forward must be boolean".to_owned())
+                })?,
+        });
+    }
+    require_strict_element_order(
+        &loops
+            .iter()
+            .map(|item| item.element_id.clone())
+            .collect::<Vec<_>>(),
+        "loop",
+    )?;
+    let loop_by_id = loops
+        .iter()
+        .map(|item| (item.element_id.clone(), item))
+        .collect::<BTreeMap<_, _>>();
+
+    let mut faces = Vec::new();
+    let mut edge_incidence: BTreeMap<String, Vec<(String, bool)>> = BTreeMap::new();
+    let mut canonical_face_sets = BTreeSet::new();
+    let mut used_vertex_ids = BTreeSet::new();
+    for value in authoring_array(parameters, "faces", 1, MAX_AUTHORING_FACES)? {
+        let object = value.as_object().ok_or_else(|| {
+            GeometryError::Invalid("authoring-mesh face must be an object".to_owned())
+        })?;
+        require_exact_keys(object, &["element_id", "loop_ids"], "authoring-mesh face")?;
+        let element_id = authoring_identifier(object.get("element_id"), "face element_id")?;
+        let values = object
+            .get("loop_ids")
+            .and_then(Value::as_array)
+            .filter(|items| (3..=4).contains(&items.len()))
+            .ok_or_else(|| {
+                GeometryError::Invalid("authoring-mesh face must have 3 or 4 loops".to_owned())
+            })?;
+        let loop_ids = values
+            .iter()
+            .map(|item| authoring_identifier(Some(item), "face loop_id"))
+            .collect::<Result<Vec<_>, _>>()?;
+        if loop_ids.iter().collect::<BTreeSet<_>>().len() != loop_ids.len()
+            || loop_ids.first() != loop_ids.iter().min()
+        {
+            return Err(GeometryError::Invalid(
+                "authoring-mesh face loops must be unique and rotation-canonical".to_owned(),
+            ));
+        }
+        let mut face_vertices = Vec::new();
+        let mut face_edge_ids = BTreeSet::new();
+        for (ordinal, loop_id) in loop_ids.iter().enumerate() {
+            let current = loop_by_id.get(loop_id).ok_or_else(|| {
+                GeometryError::Invalid("authoring-mesh face references an unknown loop".to_owned())
+            })?;
+            let next = loop_by_id
+                .get(&loop_ids[(ordinal + 1) % loop_ids.len()])
+                .expect("all loops checked");
+            if current.face_id != element_id || current.ordinal != ordinal {
+                return Err(GeometryError::Invalid(
+                    "authoring-mesh loop face_id or ordinal differs from face winding".to_owned(),
+                ));
+            }
+            let edge = edge_by_id.get(&current.edge_id).expect("loop edge checked");
+            let expected = if current.edge_forward {
+                [&edge.vertex_ids[0], &edge.vertex_ids[1]]
+            } else {
+                [&edge.vertex_ids[1], &edge.vertex_ids[0]]
+            };
+            if current.vertex_id != *expected[0] || next.vertex_id != *expected[1] {
+                return Err(GeometryError::Invalid(
+                    "authoring-mesh loop edge direction differs from face winding".to_owned(),
+                ));
+            }
+            if !face_edge_ids.insert(current.edge_id.clone()) {
+                return Err(GeometryError::Invalid(
+                    "authoring-mesh face cannot reuse an edge".to_owned(),
+                ));
+            }
+            edge_incidence
+                .entry(current.edge_id.clone())
+                .or_default()
+                .push((element_id.clone(), current.edge_forward));
+            face_vertices.push(current.vertex_id.clone());
+        }
+        if face_vertices.iter().collect::<BTreeSet<_>>().len() != face_vertices.len() {
+            return Err(GeometryError::Invalid(
+                "authoring-mesh face cannot reuse a vertex".to_owned(),
+            ));
+        }
+        used_vertex_ids.extend(face_vertices.iter().cloned());
+        let mut set_key = face_vertices.clone();
+        set_key.sort();
+        if !canonical_face_sets.insert(set_key) {
+            return Err(GeometryError::Invalid(
+                "authoring-mesh contains a duplicate face".to_owned(),
+            ));
+        }
+        let positions = face_vertices
+            .iter()
+            .map(|vertex_id| {
+                vertices
+                    .iter()
+                    .find(|item| &item.element_id == vertex_id)
+                    .map(|item| item.position_m)
+                    .expect("vertex IDs checked")
+            })
+            .collect::<Vec<_>>();
+        if length3(cross3(
+            subtract3(positions[1], positions[0]),
+            subtract3(positions[2], positions[0]),
+        )) <= 1.0e-8
+        {
+            return Err(GeometryError::Invalid(
+                "authoring-mesh face area is below tolerance".to_owned(),
+            ));
+        }
+        faces.push(AuthoringFace {
+            element_id,
+            loop_ids,
+        });
+    }
+    require_strict_element_order(
+        &faces
+            .iter()
+            .map(|item| item.element_id.clone())
+            .collect::<Vec<_>>(),
+        "face",
+    )?;
+    let face_ids = faces
+        .iter()
+        .map(|item| item.element_id.as_str())
+        .collect::<BTreeSet<_>>();
+    if loops
+        .iter()
+        .any(|item| !face_ids.contains(item.face_id.as_str()))
+    {
+        return Err(GeometryError::Invalid(
+            "authoring-mesh contains an unowned loop".to_owned(),
+        ));
+    }
+    if loops.len() != faces.iter().map(|face| face.loop_ids.len()).sum::<usize>() {
+        return Err(GeometryError::Invalid(
+            "authoring-mesh loops must be referenced exactly once".to_owned(),
+        ));
+    }
+    if used_vertex_ids != vertex_ids {
+        return Err(GeometryError::Invalid(
+            "authoring-mesh vertices must be referenced by a face".to_owned(),
+        ));
+    }
+    for edge in &edges {
+        let incidence = edge_incidence.get(&edge.element_id).ok_or_else(|| {
+            GeometryError::Invalid("authoring-mesh contains an unused edge".to_owned())
+        })?;
+        if incidence.len() > 2
+            || (incidence.len() == 2
+                && (incidence[0].0 == incidence[1].0 || incidence[0].1 == incidence[1].1))
+        {
+            return Err(GeometryError::Invalid(
+                "authoring-mesh edge is non-manifold or has inconsistent winding".to_owned(),
+            ));
+        }
+        let left = vertices
+            .iter()
+            .find(|item| item.element_id == edge.vertex_ids[0])
+            .unwrap();
+        let right = vertices
+            .iter()
+            .find(|item| item.element_id == edge.vertex_ids[1])
+            .unwrap();
+        if length3(subtract3(left.position_m, right.position_m)) <= 1.0e-6 {
+            return Err(GeometryError::Invalid(
+                "authoring-mesh edge length is below tolerance".to_owned(),
+            ));
+        }
+    }
+
+    Ok((
+        vertices,
+        edges,
+        loops,
+        faces,
+        v2_vec3(parameters, "position_m", MAX_COORDINATE, false)?,
+        v2_vec3(parameters, "rotation_rad", std::f32::consts::TAU, false)?,
+    ))
+}
+
+fn authoring_mesh(
+    vertices: &[AuthoringVertex],
+    _edges: &[AuthoringEdge],
+    loops: &[AuthoringLoop],
+    faces: &[AuthoringFace],
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let vertex_by_id = vertices
+        .iter()
+        .map(|item| (item.element_id.as_str(), item.position_m))
+        .collect::<BTreeMap<_, _>>();
+    let loop_by_id = loops
+        .iter()
+        .map(|item| (item.element_id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
+    let mut mesh = empty_mesh();
+    for face in faces {
+        let points = face
+            .loop_ids
+            .iter()
+            .map(|loop_id| {
+                let loop_item = loop_by_id.get(loop_id.as_str()).expect("validated loop");
+                *vertex_by_id
+                    .get(loop_item.vertex_id.as_str())
+                    .expect("validated vertex")
+            })
+            .collect::<Vec<_>>();
+        for index in 1..points.len() - 1 {
+            push_triangle(&mut mesh, points[0], points[index], points[index + 1])?;
+        }
+    }
+    Ok(mesh)
+}
+
+fn triangulate_convex_polygon(
+    mesh: &mut PrimitiveNodeMesh,
+    points: &[[f32; 3]],
+) -> Result<(), GeometryError> {
+    for anchor in 0..points.len() {
+        let rotated = (0..points.len())
+            .map(|offset| points[(anchor + offset) % points.len()])
+            .collect::<Vec<_>>();
+        if (1..rotated.len() - 1).all(|index| {
+            length3(cross3(
+                subtract3(rotated[index], rotated[0]),
+                subtract3(rotated[index + 1], rotated[0]),
+            )) > 1.0e-8
+        }) {
+            for index in 1..rotated.len() - 1 {
+                push_triangle(mesh, rotated[0], rotated[index], rotated[index + 1])?;
+            }
+            return Ok(());
+        }
+    }
+    Err(GeometryError::Invalid(
+        "bevel@2 could not triangulate a split convex face".to_owned(),
+    ))
+}
+
+fn validate_closed_triangle_mesh(mesh: &PrimitiveNodeMesh) -> Result<(), GeometryError> {
+    let mut vertices = BTreeMap::<[i64; 3], usize>::new();
+    let mut edges = BTreeMap::<(usize, usize), Vec<bool>>::new();
+    for triangle in mesh.indices.chunks_exact(3) {
+        let mut welded = [0usize; 3];
+        for (corner, index) in triangle.iter().enumerate() {
+            let position = mesh.positions[*index as usize];
+            let key = position.map(|component| (component as f64 * 1_000_000.0).round() as i64);
+            let next = vertices.len();
+            welded[corner] = *vertices.entry(key).or_insert(next);
+        }
+        for (from, to) in [
+            (welded[0], welded[1]),
+            (welded[1], welded[2]),
+            (welded[2], welded[0]),
+        ] {
+            let key = if from < to { (from, to) } else { (to, from) };
+            edges.entry(key).or_default().push(from < to);
+        }
+    }
+    let boundary = edges
+        .values()
+        .filter(|directions| directions.len() == 1)
+        .count();
+    let non_manifold = edges
+        .values()
+        .filter(|directions| directions.len() > 2)
+        .count();
+    let winding = edges
+        .values()
+        .filter(|directions| directions.len() == 2 && directions[0] == directions[1])
+        .count();
+    if boundary != 0 || non_manifold != 0 || winding != 0 {
+        let vertex_keys = vertices
+            .iter()
+            .map(|(key, index)| (*index, *key))
+            .collect::<BTreeMap<_, _>>();
+        let first_issue = edges
+            .iter()
+            .find(|(_, directions)| directions.len() != 2 || directions[0] == directions[1])
+            .map(|((left, right), directions)| {
+                format!(
+                    " edge={:?}->{:?} directions={directions:?}",
+                    vertex_keys.get(left),
+                    vertex_keys.get(right)
+                )
+            })
+            .unwrap_or_default();
+        return Err(GeometryError::Invalid(format!(
+            "bevel@2 topology failed: boundary={boundary} non_manifold={non_manifold} winding={winding}{first_issue}"
+        )));
+    }
+    Ok(())
+}
+
+fn bevel_authoring_edge(
+    vertices: &[AuthoringVertex],
+    edges: &[AuthoringEdge],
+    loops: &[AuthoringLoop],
+    faces: &[AuthoringFace],
+    source_edge_id: &str,
+    requested_width_m: f32,
+    segments: usize,
+    profile: f32,
+    clamp_overlap: bool,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    let vertex_by_id = vertices
+        .iter()
+        .map(|item| (item.element_id.as_str(), item.position_m))
+        .collect::<BTreeMap<_, _>>();
+    let loop_by_id = loops
+        .iter()
+        .map(|item| (item.element_id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
+    let selected_edge = edges
+        .iter()
+        .find(|edge| edge.element_id == source_edge_id)
+        .ok_or_else(|| GeometryError::Invalid("bevel@2 selected edge is unknown".to_owned()))?;
+
+    let mut face_vertex_ids = Vec::with_capacity(faces.len());
+    let mut face_edge_ids = Vec::with_capacity(faces.len());
+    let mut edge_incidence: BTreeMap<&str, Vec<(usize, usize)>> = BTreeMap::new();
+    for (face_index, face) in faces.iter().enumerate() {
+        let mut vertex_ids = Vec::with_capacity(face.loop_ids.len());
+        let mut edge_ids = Vec::with_capacity(face.loop_ids.len());
+        for (loop_index, loop_id) in face.loop_ids.iter().enumerate() {
+            let loop_item = loop_by_id
+                .get(loop_id.as_str())
+                .expect("authoring mesh loops were validated");
+            vertex_ids.push(loop_item.vertex_id.as_str());
+            edge_ids.push(loop_item.edge_id.as_str());
+            edge_incidence
+                .entry(loop_item.edge_id.as_str())
+                .or_default()
+                .push((face_index, loop_index));
+        }
+        face_vertex_ids.push(vertex_ids);
+        face_edge_ids.push(edge_ids);
+    }
+    if edges
+        .iter()
+        .any(|edge| edge_incidence.get(edge.element_id.as_str()).map(Vec::len) != Some(2))
+    {
+        return Err(GeometryError::Invalid(
+            "bevel@2 requires a closed two-face-per-edge authoring mesh".to_owned(),
+        ));
+    }
+
+    let mut visited = BTreeSet::new();
+    let mut pending = vec![0usize];
+    while let Some(face_index) = pending.pop() {
+        if !visited.insert(face_index) {
+            continue;
+        }
+        for edge_id in &face_edge_ids[face_index] {
+            for (neighbor, _) in edge_incidence
+                .get(edge_id)
+                .expect("closed edge incidence checked")
+            {
+                if !visited.contains(neighbor) {
+                    pending.push(*neighbor);
+                }
+            }
+        }
+    }
+    if visited.len() != faces.len() {
+        return Err(GeometryError::Invalid(
+            "bevel@2 requires one connected closed authoring solid".to_owned(),
+        ));
+    }
+
+    let solid_centroid = scale3(
+        vertices
+            .iter()
+            .fold([0.0; 3], |sum, vertex| add3(sum, vertex.position_m)),
+        1.0 / vertices.len() as f32,
+    );
+    let mut face_normals = Vec::with_capacity(faces.len());
+    for vertex_ids in &face_vertex_ids {
+        let points = vertex_ids
+            .iter()
+            .map(|id| *vertex_by_id.get(id).expect("validated authoring vertex"))
+            .collect::<Vec<_>>();
+        let normal = normalize(cross3(
+            subtract3(points[1], points[0]),
+            subtract3(points[2], points[0]),
+        ));
+        if points
+            .iter()
+            .any(|point| dot3(subtract3(*point, points[0]), normal).abs() > 1.0e-5)
+        {
+            return Err(GeometryError::Invalid(
+                "bevel@2 requires planar source faces".to_owned(),
+            ));
+        }
+        for index in 0..points.len() {
+            let previous = points[(index + points.len() - 1) % points.len()];
+            let current = points[index];
+            let next = points[(index + 1) % points.len()];
+            if dot3(
+                cross3(subtract3(current, previous), subtract3(next, current)),
+                normal,
+            ) <= 1.0e-8
+            {
+                return Err(GeometryError::Invalid(
+                    "bevel@2 requires strictly convex source faces".to_owned(),
+                ));
+            }
+        }
+        if dot3(subtract3(solid_centroid, points[0]), normal) >= -1.0e-6 {
+            return Err(GeometryError::Invalid(
+                "bevel@2 requires outward source face winding".to_owned(),
+            ));
+        }
+        if vertices
+            .iter()
+            .any(|vertex| dot3(subtract3(vertex.position_m, points[0]), normal) > 1.0e-5)
+        {
+            return Err(GeometryError::Invalid(
+                "bevel@2 P0 requires a globally convex source solid".to_owned(),
+            ));
+        }
+        face_normals.push(normal);
+    }
+
+    let selected_incidence = edge_incidence
+        .get(source_edge_id)
+        .filter(|items| items.len() == 2)
+        .ok_or_else(|| {
+            GeometryError::Invalid("bevel@2 selected edge must have exactly two faces".to_owned())
+        })?;
+    let [edge_a_id, edge_b_id] = &selected_edge.vertex_ids;
+    let edge_a = *vertex_by_id
+        .get(edge_a_id.as_str())
+        .expect("selected edge vertex checked");
+    let edge_b = *vertex_by_id
+        .get(edge_b_id.as_str())
+        .expect("selected edge vertex checked");
+    let edge_length = length3(subtract3(edge_b, edge_a));
+
+    struct IncidentFace {
+        face_index: usize,
+        edge_loop_index: usize,
+        inward: [f32; 3],
+        offset_by_vertex: BTreeMap<String, [f32; 3]>,
+    }
+
+    let mut clearance = edge_length * 0.25;
+    let mut incident_faces = Vec::with_capacity(2);
+    for (face_index, edge_loop_index) in selected_incidence {
+        let ids = &face_vertex_ids[*face_index];
+        let count = ids.len();
+        let start_id = ids[*edge_loop_index];
+        let end_id = ids[(*edge_loop_index + 1) % count];
+        let start = *vertex_by_id.get(start_id).expect("incident start checked");
+        let end = *vertex_by_id.get(end_id).expect("incident end checked");
+        let previous = *vertex_by_id
+            .get(ids[(*edge_loop_index + count - 1) % count])
+            .expect("incident previous checked");
+        let next = *vertex_by_id
+            .get(ids[(*edge_loop_index + 2) % count])
+            .expect("incident next checked");
+        clearance = clearance
+            .min(length3(subtract3(start, previous)) * 0.25)
+            .min(length3(subtract3(end, next)) * 0.25);
+        let inward = normalize(cross3(
+            face_normals[*face_index],
+            normalize(subtract3(end, start)),
+        ));
+        incident_faces.push(IncidentFace {
+            face_index: *face_index,
+            edge_loop_index: *edge_loop_index,
+            inward,
+            offset_by_vertex: BTreeMap::new(),
+        });
+    }
+    if face_vertex_ids[incident_faces[0].face_index][incident_faces[0].edge_loop_index] != edge_a_id
+    {
+        incident_faces.swap(0, 1);
+    }
+    if clearance <= 1.0e-5 {
+        return Err(GeometryError::Invalid(
+            "bevel@2 source edge clearance is below tolerance".to_owned(),
+        ));
+    }
+    let width_m = if requested_width_m > clearance {
+        if clamp_overlap {
+            clearance
+        } else {
+            return Err(GeometryError::Invalid(
+                "bevel@2 width exceeds bounded source-edge clearance".to_owned(),
+            ));
+        }
+    } else {
+        requested_width_m
+    };
+    if width_m <= 1.0e-5 {
+        return Err(GeometryError::Invalid(
+            "bevel@2 effective width is below tolerance".to_owned(),
+        ));
+    }
+    let inward_a = incident_faces[0].inward;
+    let inward_b = incident_faces[1].inward;
+    if dot3(inward_a, face_normals[incident_faces[1].face_index]) >= -1.0e-5
+        || dot3(inward_b, face_normals[incident_faces[0].face_index]) >= -1.0e-5
+    {
+        return Err(GeometryError::Invalid(
+            "bevel@2 selected edge is coplanar or concave".to_owned(),
+        ));
+    }
+    for incident in &mut incident_faces {
+        incident.offset_by_vertex.insert(
+            edge_a_id.clone(),
+            add3(edge_a, scale3(incident.inward, width_m)),
+        );
+        incident.offset_by_vertex.insert(
+            edge_b_id.clone(),
+            add3(edge_b, scale3(incident.inward, width_m)),
+        );
+    }
+
+    let bisector_sum = add3(inward_a, inward_b);
+    if length3(bisector_sum) <= 1.0e-5 {
+        return Err(GeometryError::Invalid(
+            "bevel@2 selected edge has an unsupported flat dihedral".to_owned(),
+        ));
+    }
+    let bisector = normalize(bisector_sum);
+    let profile_bulge = 0.15 + 0.3 * profile;
+    let mut profile_a = Vec::with_capacity(segments + 1);
+    let mut profile_b = Vec::with_capacity(segments + 1);
+    for step in 0..=segments {
+        let offset = if step == 0 {
+            scale3(inward_a, width_m)
+        } else if step == segments {
+            scale3(inward_b, width_m)
+        } else {
+            let t = step as f32 / segments as f32;
+            let blend = add3(scale3(inward_a, 1.0 - t), scale3(inward_b, t));
+            let bulge = profile_bulge * (std::f32::consts::PI * t).sin();
+            scale3(subtract3(blend, scale3(bisector, bulge)), width_m)
+        };
+        profile_a.push(add3(edge_a, offset));
+        profile_b.push(add3(edge_b, offset));
+    }
+
+    let mut endpoint_replacements = BTreeMap::<(usize, String), Vec<[f32; 3]>>::new();
+    for (endpoint_id, endpoint_profile) in [
+        (edge_a_id.as_str(), &profile_a),
+        (edge_b_id.as_str(), &profile_b),
+    ] {
+        let mut adjacent = Vec::with_capacity(2);
+        for incident in &incident_faces {
+            let ids = &face_vertex_ids[incident.face_index];
+            let count = ids.len();
+            let selected_start = ids[incident.edge_loop_index];
+            let selected_end = ids[(incident.edge_loop_index + 1) % count];
+            let adjacent_loop_index = if endpoint_id == selected_start {
+                (incident.edge_loop_index + count - 1) % count
+            } else if endpoint_id == selected_end {
+                (incident.edge_loop_index + 1) % count
+            } else {
+                return Err(GeometryError::Invalid(
+                    "bevel@2 endpoint binding differs from selected edge".to_owned(),
+                ));
+            };
+            let adjacent_edge_id = face_edge_ids[incident.face_index][adjacent_loop_index];
+            let (neighbor_face, _) = edge_incidence
+                .get(adjacent_edge_id)
+                .expect("endpoint adjacent edge checked")
+                .iter()
+                .find(|(face_index, _)| *face_index != incident.face_index)
+                .copied()
+                .expect("endpoint adjacent face checked");
+            adjacent.push((neighbor_face, adjacent_edge_id));
+        }
+        if adjacent[0].0 != adjacent[1].0 {
+            return Err(GeometryError::Invalid(
+                "bevel@2 P0 requires exactly three faces at each selected-edge endpoint".to_owned(),
+            ));
+        }
+        let endpoint_face = adjacent[0].0;
+        let endpoint_ids = &face_vertex_ids[endpoint_face];
+        let endpoint_index = endpoint_ids
+            .iter()
+            .position(|id| *id == endpoint_id)
+            .ok_or_else(|| {
+                GeometryError::Invalid("bevel@2 endpoint face lost its source vertex".to_owned())
+            })?;
+        let previous_edge = face_edge_ids[endpoint_face]
+            [(endpoint_index + endpoint_ids.len() - 1) % endpoint_ids.len()];
+        let next_edge = face_edge_ids[endpoint_face][endpoint_index];
+        let ordered_profile = if adjacent[0].1 == previous_edge && adjacent[1].1 == next_edge {
+            endpoint_profile.clone()
+        } else if adjacent[1].1 == previous_edge && adjacent[0].1 == next_edge {
+            endpoint_profile.iter().rev().copied().collect()
+        } else {
+            return Err(GeometryError::Invalid(
+                "bevel@2 endpoint face adjacency is unsupported".to_owned(),
+            ));
+        };
+        endpoint_replacements.insert((endpoint_face, endpoint_id.to_owned()), ordered_profile);
+    }
+
+    let mut mesh = empty_mesh();
+    for (face_index, ids) in face_vertex_ids.iter().enumerate() {
+        let incident = incident_faces
+            .iter()
+            .find(|item| item.face_index == face_index);
+        let mut points = Vec::with_capacity(ids.len() + segments);
+        for id in ids {
+            if let Some(replacement) = endpoint_replacements.get(&(face_index, (*id).to_owned())) {
+                points.extend(replacement.iter().copied());
+            } else {
+                points.push(
+                    incident
+                        .and_then(|item| item.offset_by_vertex.get(*id).copied())
+                        .unwrap_or_else(|| *vertex_by_id.get(*id).expect("face vertex checked")),
+                );
+            }
+        }
+        triangulate_convex_polygon(&mut mesh, &points)?;
+    }
+
+    for step in 0..segments {
+        push_triangle(
+            &mut mesh,
+            profile_a[step],
+            profile_a[step + 1],
+            profile_b[step + 1],
+        )?;
+        push_triangle(
+            &mut mesh,
+            profile_a[step],
+            profile_b[step + 1],
+            profile_b[step],
+        )?;
+    }
+    validate_closed_triangle_mesh(&mesh)?;
+    Ok(mesh)
+}
+
+#[derive(Debug, Clone)]
+struct SubdStepResult {
+    positions: Vec<[f32; 3]>,
+    faces: Vec<[usize; 4]>,
+    sharpness: SubdSharpnessMap,
+    input_edges: Vec<SubdEdge>,
+    face_edges: Vec<[usize; 4]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SubdRootElement {
+    ControlVertex(usize),
+    ControlEdge(usize),
+    ControlQuad(usize),
+}
+
+impl SubdRootElement {
+    fn wire(self) -> Value {
+        match self {
+            Self::ControlVertex(index) => json!(["control_vertex", index]),
+            Self::ControlEdge(index) => json!(["control_edge", index]),
+            Self::ControlQuad(index) => json!(["control_quad", index]),
+        }
+    }
+}
+
+type SubdSharpnessMap = BTreeMap<(usize, usize), u8>;
+
+fn parse_subd_crease_edges(
+    parameters: &Map<String, Value>,
+    u_points: usize,
+    v_points: usize,
+    subdivision_levels: usize,
+) -> Result<Vec<SubdCreaseEdge>, GeometryError> {
+    let values = parameters
+        .get("crease_edges")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            GeometryError::Invalid("subd-cage@2 crease_edges must be an array".to_owned())
+        })?;
+    if values.is_empty() || values.len() > MAX_SUBD_CREASE_EDGES {
+        return Err(GeometryError::Invalid(format!(
+            "subd-cage@2 crease_edges must contain 1..={MAX_SUBD_CREASE_EDGES} entries"
+        )));
+    }
+    let vertex_count = u_points.checked_mul(v_points).ok_or_else(|| {
+        GeometryError::Invalid("subd-cage@2 control vertex count overflow".to_owned())
+    })?;
+    let mut result = Vec::with_capacity(values.len());
+    let mut previous: Option<(usize, usize)> = None;
+    for value in values {
+        let object = value.as_object().ok_or_else(|| {
+            GeometryError::Invalid("subd-cage@2 crease edge must be an object".to_owned())
+        })?;
+        require_exact_keys(
+            object,
+            &["vertex_a", "vertex_b", "sharpness_levels"],
+            "subd-cage@2 crease edge",
+        )?;
+        let vertex_a = bounded_count(object, "vertex_a", 0, vertex_count - 1)?;
+        let vertex_b = bounded_count(object, "vertex_b", 0, vertex_count - 1)?;
+        let sharpness_levels = bounded_count(object, "sharpness_levels", 1, 2)? as u8;
+        if vertex_a >= vertex_b {
+            return Err(GeometryError::Invalid(
+                "subd-cage@2 crease endpoints must be strictly ascending".to_owned(),
+            ));
+        }
+        let a_row = vertex_a / u_points;
+        let a_column = vertex_a % u_points;
+        let b_row = vertex_b / u_points;
+        let b_column = vertex_b % u_points;
+        let adjacent = (a_row == b_row && b_column == a_column + 1)
+            || (a_column == b_column && b_row == a_row + 1);
+        if !adjacent {
+            return Err(GeometryError::Invalid(
+                "subd-cage@2 crease endpoints must identify one control-grid edge".to_owned(),
+            ));
+        }
+        let boundary = (a_row == b_row && (a_row == 0 || a_row + 1 == v_points))
+            || (a_column == b_column && (a_column == 0 || a_column + 1 == u_points));
+        if boundary {
+            return Err(GeometryError::Invalid(
+                "subd-cage@2 explicit boundary creases are redundant with the fixed sharp boundary-edge rule"
+                    .to_owned(),
+            ));
+        }
+        let key = (vertex_a, vertex_b);
+        if previous.is_some_and(|prior| key <= prior) {
+            return Err(GeometryError::Invalid(
+                "subd-cage@2 crease edges must be unique and lexicographically sorted".to_owned(),
+            ));
+        }
+        previous = Some(key);
+        result.push(SubdCreaseEdge {
+            vertex_a,
+            vertex_b,
+            sharpness_levels,
+        });
+    }
+    if subdivision_levels == 0 {
+        return Err(GeometryError::Invalid(
+            "subd-cage@2 crease evaluation requires at least one subdivision level".to_owned(),
+        ));
+    }
+    Ok(result)
+}
+
 /// Build a bounded regular quad Catmull-Clark surface from an editable cage.
 ///
 /// This is deliberately not an arbitrary-topology SubD kernel: the input is a
@@ -1728,6 +4869,7 @@ fn subd_cage_mesh(
     u_points: usize,
     v_points: usize,
     subdivision_levels: usize,
+    crease_edges: &[SubdCreaseEdge],
 ) -> Result<PrimitiveNodeMesh, GeometryError> {
     let expected_points = u_points.checked_mul(v_points).ok_or_else(|| {
         GeometryError::Invalid("subd-cage control point count overflow".to_owned())
@@ -1749,18 +4891,290 @@ fn subd_cage_mesh(
         }
     }
 
+    let mut sharpness: SubdSharpnessMap = crease_edges
+        .iter()
+        .map(|edge| ((edge.vertex_a, edge.vertex_b), edge.sharpness_levels))
+        .collect();
     for _ in 0..subdivision_levels {
-        let (next_positions, next_faces) = subd_catmull_clark_step(&positions, &faces)?;
-        positions = next_positions;
-        faces = next_faces;
+        let step = subd_catmull_clark_step(&positions, &faces, &sharpness)?;
+        positions = step.positions;
+        faces = step.faces;
+        sharpness = step.sharpness;
     }
     subd_mesh_from_quads(positions, &faces)
+}
+
+/// Return a compact, deterministic control-cage -> evaluated-quad-topology
+/// lineage projection produced by the same fixed evaluator used to compile
+/// `subd-cage@2`. Array position is the evaluated element ID; this avoids a
+/// verbose object per element and keeps the 16x16/level-2 envelope below the
+/// one-MiB Worker/MCP response ceiling.
+pub(crate) fn subdivision_topology_lineage(
+    operator: &ValidatedOperator,
+) -> Result<Value, GeometryError> {
+    let ValidatedOperator::SubdCage {
+        control_points,
+        u_points,
+        v_points,
+        subdivision_levels,
+        crease_edges,
+        ..
+    } = operator
+    else {
+        return Err(GeometryError::Invalid(
+            "subdivision lineage requires a subd-cage@2 operator".to_owned(),
+        ));
+    };
+    if *subdivision_levels == 0 || crease_edges.is_empty() {
+        return Err(GeometryError::Invalid(
+            "subdivision lineage requires the crease-aware subd-cage@2 envelope".to_owned(),
+        ));
+    }
+
+    let expected_points = u_points.checked_mul(*v_points).ok_or_else(|| {
+        GeometryError::Invalid("subdivision lineage control count overflow".to_owned())
+    })?;
+    if control_points.len() != expected_points {
+        return Err(GeometryError::Invalid(
+            "subdivision lineage control cage is inconsistent".to_owned(),
+        ));
+    }
+
+    let mut positions = control_points.clone();
+    let mut faces = Vec::with_capacity((u_points - 1) * (v_points - 1));
+    for v_index in 0..v_points - 1 {
+        for u_index in 0..u_points - 1 {
+            let a = v_index * u_points + u_index;
+            let b = a + 1;
+            let d = a + u_points;
+            let c = d + 1;
+            faces.push([a, b, c, d]);
+        }
+    }
+    let control_quad_count = faces.len();
+    let horizontal_edge_count = v_points * (u_points - 1);
+    let control_edge_count = horizontal_edge_count + (v_points - 1) * u_points;
+    let mut edge_roots = BTreeMap::<(usize, usize), SubdRootElement>::new();
+    for v_index in 0..*v_points {
+        for u_index in 0..u_points - 1 {
+            let a = v_index * u_points + u_index;
+            edge_roots.insert(
+                (a, a + 1),
+                SubdRootElement::ControlEdge(v_index * (u_points - 1) + u_index),
+            );
+        }
+    }
+    for v_index in 0..v_points - 1 {
+        for u_index in 0..*u_points {
+            let a = v_index * u_points + u_index;
+            let b = a + u_points;
+            edge_roots.insert(
+                (a, b),
+                SubdRootElement::ControlEdge(horizontal_edge_count + v_index * u_points + u_index),
+            );
+        }
+    }
+    if edge_roots.len() != control_edge_count {
+        return Err(GeometryError::Invalid(
+            "subdivision lineage control edge inventory differs".to_owned(),
+        ));
+    }
+    let mut vertex_roots = (0..positions.len())
+        .map(SubdRootElement::ControlVertex)
+        .collect::<Vec<_>>();
+    let mut face_roots = (0..faces.len()).collect::<Vec<_>>();
+    let mut sharpness: SubdSharpnessMap = crease_edges
+        .iter()
+        .map(|edge| ((edge.vertex_a, edge.vertex_b), edge.sharpness_levels))
+        .collect();
+
+    for _ in 0..*subdivision_levels {
+        let step = subd_catmull_clark_step(&positions, &faces, &sharpness)?;
+        let vertex_count = positions.len();
+        let edge_offset = vertex_count;
+        let face_offset = edge_offset + step.input_edges.len();
+        let mut next_vertex_roots = vertex_roots.clone();
+        for edge in &step.input_edges {
+            let key = (edge.a.min(edge.b), edge.a.max(edge.b));
+            next_vertex_roots.push(*edge_roots.get(&key).ok_or_else(|| {
+                GeometryError::Invalid("subdivision lineage input edge root is missing".to_owned())
+            })?);
+        }
+        for root in &face_roots {
+            next_vertex_roots.push(SubdRootElement::ControlQuad(*root));
+        }
+        if next_vertex_roots.len() != step.positions.len() {
+            return Err(GeometryError::Invalid(
+                "subdivision lineage evaluated vertex inventory differs".to_owned(),
+            ));
+        }
+
+        let mut next_edge_roots = BTreeMap::<(usize, usize), SubdRootElement>::new();
+        for (edge_index, edge) in step.input_edges.iter().enumerate() {
+            let key = (edge.a.min(edge.b), edge.a.max(edge.b));
+            let root = *edge_roots.get(&key).ok_or_else(|| {
+                GeometryError::Invalid("subdivision lineage input edge root is missing".to_owned())
+            })?;
+            let edge_point = edge_offset + edge_index;
+            for endpoint in [edge.a, edge.b] {
+                let child = (endpoint.min(edge_point), endpoint.max(edge_point));
+                if next_edge_roots.insert(child, root).is_some() {
+                    return Err(GeometryError::Invalid(
+                        "subdivision lineage child edge is duplicated".to_owned(),
+                    ));
+                }
+            }
+        }
+        for (face_index, edge_ids) in step.face_edges.iter().enumerate() {
+            let face_point = face_offset + face_index;
+            let root = SubdRootElement::ControlQuad(face_roots[face_index]);
+            for edge_index in edge_ids {
+                let edge_point = edge_offset + *edge_index;
+                let child = (edge_point.min(face_point), edge_point.max(face_point));
+                match next_edge_roots.insert(child, root) {
+                    None => {}
+                    Some(existing) if existing == root => {}
+                    Some(_) => {
+                        return Err(GeometryError::Invalid(
+                            "subdivision lineage internal edge root conflicts".to_owned(),
+                        ));
+                    }
+                }
+            }
+        }
+        let mut next_face_roots = Vec::with_capacity(face_roots.len() * 4);
+        for root in &face_roots {
+            next_face_roots.extend([*root; 4]);
+        }
+        if next_face_roots.len() != step.faces.len() {
+            return Err(GeometryError::Invalid(
+                "subdivision lineage evaluated quad inventory differs".to_owned(),
+            ));
+        }
+        positions = step.positions;
+        faces = step.faces;
+        sharpness = step.sharpness;
+        vertex_roots = next_vertex_roots;
+        edge_roots = next_edge_roots;
+        face_roots = next_face_roots;
+    }
+
+    // Run the exact mesh conversion as a fail-closed proof that the lineage
+    // topology is the same non-degenerate topology accepted by compilation.
+    let mesh = subd_mesh_from_quads(positions, &faces)?;
+    let mut evaluated_edge_keys = BTreeSet::<(usize, usize)>::new();
+    for face in &faces {
+        for (a, b) in [
+            (face[0], face[1]),
+            (face[1], face[2]),
+            (face[2], face[3]),
+            (face[3], face[0]),
+        ] {
+            evaluated_edge_keys.insert((a.min(b), a.max(b)));
+        }
+    }
+    if evaluated_edge_keys.len() != edge_roots.len() {
+        return Err(GeometryError::Invalid(
+            "subdivision lineage evaluated edge inventory differs".to_owned(),
+        ));
+    }
+    let mut control_edge_descendants = vec![Vec::<usize>::new(); control_edge_count];
+    let mut evaluated_edge_origins = Vec::with_capacity(evaluated_edge_keys.len());
+    for (evaluated_edge_id, key) in evaluated_edge_keys.iter().enumerate() {
+        let root = *edge_roots.get(key).ok_or_else(|| {
+            GeometryError::Invalid("subdivision lineage final edge root is missing".to_owned())
+        })?;
+        if let SubdRootElement::ControlEdge(control_edge_id) = root {
+            control_edge_descendants[control_edge_id].push(evaluated_edge_id);
+        }
+        evaluated_edge_origins.push(root.wire());
+    }
+    let expected_chain_length = 1usize << subdivision_levels;
+    if control_edge_descendants
+        .iter()
+        .any(|chain| chain.len() != expected_chain_length)
+    {
+        return Err(GeometryError::Invalid(
+            "subdivision lineage control-edge chain length differs".to_owned(),
+        ));
+    }
+
+    let descendants_per_quad = 4usize.pow(*subdivision_levels as u32);
+    let mut control_quad_ranges = Vec::with_capacity(control_quad_count);
+    for control_quad_id in 0..control_quad_count {
+        let start = control_quad_id * descendants_per_quad;
+        if face_roots
+            .get(start..start + descendants_per_quad)
+            .is_none_or(|roots| roots.iter().any(|root| *root != control_quad_id))
+        {
+            return Err(GeometryError::Invalid(
+                "subdivision lineage control-quad range is not contiguous".to_owned(),
+            ));
+        }
+        control_quad_ranges.push(json!({
+            "evaluated_quad_start":start,
+            "evaluated_quad_count":descendants_per_quad,
+            "evaluated_triangle_start":start * 2,
+            "evaluated_triangle_count":descendants_per_quad * 2
+        }));
+    }
+    let control_crease_edge_ids = crease_edges
+        .iter()
+        .map(|crease| {
+            let key = (crease.vertex_a, crease.vertex_b);
+            match edge_roots_for_control_key(*u_points, *v_points, key) {
+                Some(id) => Ok(json!({
+                    "control_edge_id":id,
+                    "sharpness_levels":crease.sharpness_levels,
+                    "evaluated_edge_ids":control_edge_descendants[id]
+                })),
+                None => Err(GeometryError::Invalid(
+                    "subdivision lineage crease is not a control-grid edge".to_owned(),
+                )),
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(json!({
+        "control_dimensions":{"u_points":u_points,"v_points":v_points},
+        "subdivision_levels":subdivision_levels,
+        "control_counts":{"vertex_count":control_points.len(),"edge_count":control_edge_count,"quad_count":control_quad_count},
+        "evaluated_counts":{"vertex_count":vertex_roots.len(),"edge_count":evaluated_edge_keys.len(),"quad_count":faces.len(),"triangle_count":mesh.indices.len() / 3},
+        "control_vertex_to_evaluated_vertex_ids":(0..control_points.len()).collect::<Vec<_>>(),
+        "control_edge_to_evaluated_edge_ids":control_edge_descendants,
+        "control_quad_descendant_ranges":control_quad_ranges,
+        "control_crease_edge_chains":control_crease_edge_ids,
+        "evaluated_vertex_root_origins":vertex_roots.into_iter().map(SubdRootElement::wire).collect::<Vec<_>>(),
+        "evaluated_edge_root_origins":evaluated_edge_origins,
+        "evaluated_quad_control_quad_ids":face_roots,
+        "quad_triangulation":"0-1-2_0-2-3"
+    }))
+}
+
+fn edge_roots_for_control_key(
+    u_points: usize,
+    v_points: usize,
+    key: (usize, usize),
+) -> Option<usize> {
+    let (a, b) = key;
+    let a_row = a / u_points;
+    let a_column = a % u_points;
+    let b_row = b / u_points;
+    let b_column = b % u_points;
+    if a_row == b_row && b_column == a_column + 1 && a_row < v_points {
+        return Some(a_row * (u_points - 1) + a_column);
+    }
+    if a_column == b_column && b_row == a_row + 1 && b_row < v_points {
+        return Some(v_points * (u_points - 1) + a_row * u_points + a_column);
+    }
+    None
 }
 
 fn subd_catmull_clark_step(
     positions: &[[f32; 3]],
     faces: &[[usize; 4]],
-) -> Result<(Vec<[f32; 3]>, Vec<[usize; 4]>), GeometryError> {
+    sharpness: &SubdSharpnessMap,
+) -> Result<SubdStepResult, GeometryError> {
     if positions.is_empty() || faces.is_empty() {
         return Err(GeometryError::Invalid(
             "subd-cage cannot subdivide an empty mesh".to_owned(),
@@ -1843,7 +5257,8 @@ fn subd_catmull_clark_step(
         .iter()
         .map(|edge| {
             let midpoint = scale3(add3(positions[edge.a], positions[edge.b]), 0.5);
-            if edge.faces.len() == 1 {
+            let key = (edge.a.min(edge.b), edge.a.max(edge.b));
+            if edge.faces.len() == 1 || sharpness.get(&key).copied().unwrap_or(0) > 0 {
                 midpoint
             } else {
                 scale3(
@@ -1864,23 +5279,35 @@ fn subd_catmull_clark_step(
             .copied()
             .filter(|edge_index| edges[*edge_index].faces.len() == 1)
             .collect();
-        let next = if !boundary_edges.is_empty() {
-            if boundary_edges.len() != 2 {
-                return Err(GeometryError::Invalid(
-                    "subd-cage boundary valence is not supported".to_owned(),
-                ));
-            }
-            let mut boundary_sum = scale3(position, 6.0);
-            for edge_index in boundary_edges {
-                let edge = &edges[edge_index];
-                let neighbor = if edge.a == vertex_index {
-                    edge.b
-                } else {
-                    edge.a
-                };
-                boundary_sum = add3(boundary_sum, positions[neighbor]);
-            }
-            scale3(boundary_sum, 0.125)
+        if !boundary_edges.is_empty() && boundary_edges.len() != 2 {
+            return Err(GeometryError::Invalid(
+                "subd-cage boundary valence is not supported".to_owned(),
+            ));
+        }
+        let sharp_neighbors: Vec<usize> = vertex_edges[vertex_index]
+            .iter()
+            .filter_map(|edge_index| {
+                let edge = &edges[*edge_index];
+                let key = (edge.a.min(edge.b), edge.a.max(edge.b));
+                (edge.faces.len() == 1 || sharpness.get(&key).copied().unwrap_or(0) > 0).then_some(
+                    if edge.a == vertex_index {
+                        edge.b
+                    } else {
+                        edge.a
+                    },
+                )
+            })
+            .collect();
+        let next = if sharp_neighbors.len() >= 3 {
+            position
+        } else if sharp_neighbors.len() == 2 {
+            scale3(
+                add3(
+                    scale3(position, 6.0),
+                    add3(positions[sharp_neighbors[0]], positions[sharp_neighbors[1]]),
+                ),
+                0.125,
+            )
         } else {
             let valence = vertex_edges[vertex_index].len();
             if valence == 0 || vertex_faces[vertex_index].len() != valence {
@@ -1939,7 +5366,30 @@ fn subd_catmull_clark_step(
             [d, edge_offset + edge_da, face_point, edge_offset + edge_cd],
         ]);
     }
-    Ok((next_positions, next_faces))
+    let mut next_sharpness = SubdSharpnessMap::new();
+    for (edge_index, edge) in edges.iter().enumerate() {
+        let key = (edge.a.min(edge.b), edge.a.max(edge.b));
+        let child_sharpness = sharpness.get(&key).copied().unwrap_or(0).saturating_sub(1);
+        if child_sharpness == 0 {
+            continue;
+        }
+        let edge_point = edge_offset + edge_index;
+        for endpoint in [edge.a, edge.b] {
+            let child_key = (endpoint.min(edge_point), endpoint.max(edge_point));
+            if next_sharpness.insert(child_key, child_sharpness).is_some() {
+                return Err(GeometryError::Invalid(
+                    "subd-cage@2 crease propagation produced a duplicate child edge".to_owned(),
+                ));
+            }
+        }
+    }
+    Ok(SubdStepResult {
+        positions: next_positions,
+        faces: next_faces,
+        sharpness: next_sharpness,
+        input_edges: edges,
+        face_edges,
+    })
 }
 
 fn subd_mesh_from_quads(
@@ -2051,6 +5501,58 @@ fn bezier_patch_point_v_derivative(
         }
     }
     result
+}
+
+/// Emit one closed annular cylinder around the local Y axis. The explicit
+/// inner wall keeps every ring a real watertight solid.
+fn annular_cylinder_mesh(
+    outer_radius_m: f32,
+    inner_radius_m: f32,
+    depth_m: f32,
+    radial_segments: usize,
+) -> Result<PrimitiveNodeMesh, GeometryError> {
+    if !(outer_radius_m > inner_radius_m
+        && inner_radius_m > 1.0e-5
+        && depth_m > 1.0e-5
+        && (12..=64).contains(&radial_segments))
+    {
+        return Err(GeometryError::Invalid(
+            "energy-core annular cylinder dimensions are invalid".to_owned(),
+        ));
+    }
+    let half_depth = depth_m / 2.0;
+    let point = |radius: f32, y: f32, segment: usize| {
+        let angle = std::f32::consts::TAU * segment as f32 / radial_segments as f32;
+        [radius * angle.cos(), y, radius * angle.sin()]
+    };
+    let mut mesh = empty_mesh();
+    for segment in 0..radial_segments {
+        let next = (segment + 1) % radial_segments;
+        let outer_bottom = point(outer_radius_m, -half_depth, segment);
+        let outer_top = point(outer_radius_m, half_depth, segment);
+        let outer_bottom_next = point(outer_radius_m, -half_depth, next);
+        let outer_top_next = point(outer_radius_m, half_depth, next);
+        let inner_bottom = point(inner_radius_m, -half_depth, segment);
+        let inner_top = point(inner_radius_m, half_depth, segment);
+        let inner_bottom_next = point(inner_radius_m, -half_depth, next);
+        let inner_top_next = point(inner_radius_m, half_depth, next);
+
+        push_triangle(&mut mesh, outer_bottom, outer_top, outer_bottom_next)?;
+        push_triangle(&mut mesh, outer_bottom_next, outer_top, outer_top_next)?;
+        push_triangle(&mut mesh, inner_bottom, inner_bottom_next, inner_top)?;
+        push_triangle(&mut mesh, inner_bottom_next, inner_top_next, inner_top)?;
+
+        push_triangle(&mut mesh, outer_top, inner_top, inner_top_next)?;
+        push_triangle(&mut mesh, outer_top, inner_top_next, outer_top_next)?;
+        push_triangle(
+            &mut mesh,
+            outer_bottom,
+            outer_bottom_next,
+            inner_bottom_next,
+        )?;
+        push_triangle(&mut mesh, outer_bottom, inner_bottom_next, inner_bottom)?;
+    }
+    Ok(mesh)
 }
 
 fn revolve_mesh(profile: &[[f32; 2]], segments: usize) -> Result<PrimitiveNodeMesh, GeometryError> {
@@ -2283,6 +5785,211 @@ fn array_mesh(input: &PrimitiveNodeMesh, count: usize, offset: [f32; 3]) -> Prim
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    fn crease_fixture_points() -> Vec<[f32; 3]> {
+        vec![
+            [-1.0, -1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [1.0, -1.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [-1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [1.0, 1.0, 0.0],
+        ]
+    }
+
+    #[test]
+    fn subd_integer_edge_creases_apply_dart_crease_corner_and_level_decay_masks() {
+        let points = crease_fixture_points();
+        let smooth = subd_cage_mesh(&points, 3, 3, 1, &[]).expect("smooth level one");
+        assert!((smooth.positions[4][2] - 0.5625).abs() < 1.0e-6);
+
+        let dart = subd_cage_mesh(
+            &points,
+            3,
+            3,
+            1,
+            &[SubdCreaseEdge {
+                vertex_a: 3,
+                vertex_b: 4,
+                sharpness_levels: 1,
+            }],
+        )
+        .expect("dart level one");
+        assert!((dart.positions[4][2] - 0.5625).abs() < 1.0e-6);
+
+        let crease_edges = [
+            SubdCreaseEdge {
+                vertex_a: 3,
+                vertex_b: 4,
+                sharpness_levels: 1,
+            },
+            SubdCreaseEdge {
+                vertex_a: 4,
+                vertex_b: 5,
+                sharpness_levels: 1,
+            },
+        ];
+        let crease = subd_cage_mesh(&points, 3, 3, 1, &crease_edges).expect("crease level one");
+        assert!((crease.positions[4][2] - 0.75).abs() < 1.0e-6);
+
+        let corner = subd_cage_mesh(
+            &points,
+            3,
+            3,
+            1,
+            &[
+                SubdCreaseEdge {
+                    vertex_a: 1,
+                    vertex_b: 4,
+                    sharpness_levels: 1,
+                },
+                SubdCreaseEdge {
+                    vertex_a: 3,
+                    vertex_b: 4,
+                    sharpness_levels: 1,
+                },
+                SubdCreaseEdge {
+                    vertex_a: 4,
+                    vertex_b: 5,
+                    sharpness_levels: 1,
+                },
+            ],
+        )
+        .expect("three-edge corner level one");
+        assert!((corner.positions[4][2] - 1.0).abs() < 1.0e-6);
+
+        let mut boundary_junction_points = crease_fixture_points();
+        boundary_junction_points[1][2] = 1.0;
+        boundary_junction_points[4][2] = 0.0;
+        let boundary_junction = subd_cage_mesh(
+            &boundary_junction_points,
+            3,
+            3,
+            1,
+            &[SubdCreaseEdge {
+                vertex_a: 1,
+                vertex_b: 4,
+                sharpness_levels: 1,
+            }],
+        )
+        .expect("boundary plus interior crease junction");
+        assert!((boundary_junction.positions[1][2] - 1.0).abs() < 1.0e-6);
+
+        let one_level = subd_cage_mesh(&points, 3, 3, 2, &crease_edges)
+            .expect("one-level sharpness after two subdivisions");
+        let two_level_edges = crease_edges.map(|mut edge| {
+            edge.sharpness_levels = 2;
+            edge
+        });
+        let two_level = subd_cage_mesh(&points, 3, 3, 2, &two_level_edges)
+            .expect("two-level sharpness after two subdivisions");
+        assert!((one_level.positions[4][2] - 0.601_562_5).abs() < 1.0e-6);
+        assert!((two_level.positions[4][2] - 0.6875).abs() < 1.0e-6);
+        assert_ne!(one_level.positions, two_level.positions);
+    }
+
+    #[test]
+    fn subd_crease_operator_rejects_ambiguous_or_redundant_edges() {
+        let base = json!({
+            "shape":"subd-cage",
+            "control_points":crease_fixture_points(),
+            "u_points":3,
+            "v_points":3,
+            "subdivision_levels":2,
+            "crease_method":"uniform-integer-level-decay@1",
+            "crease_edges":[
+                {"vertex_a":1,"vertex_b":4,"sharpness_levels":2},
+                {"vertex_a":3,"vertex_b":4,"sharpness_levels":1}
+            ],
+            "position_m":[0.0,0.0,0.0],
+            "rotation_rad":[0.0,0.0,0.0]
+        });
+        let (validated, triangle_count) = validate_operator(
+            "forgecad.geometry.subd-cage@2",
+            &[],
+            base.as_object().expect("parameters"),
+            &BTreeMap::new(),
+        )
+        .expect("valid crease operator");
+        assert_eq!(triangle_count, 128);
+        let mesh = compile_operator(
+            &validated,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("actual crease mesh");
+        assert_eq!(mesh.indices.len() / 3, 128);
+
+        for invalid_edges in [
+            json!([{"vertex_a":0,"vertex_b":1,"sharpness_levels":1}]),
+            json!([{"vertex_a":1,"vertex_b":7,"sharpness_levels":1}]),
+            json!([
+                {"vertex_a":3,"vertex_b":4,"sharpness_levels":1},
+                {"vertex_a":3,"vertex_b":4,"sharpness_levels":2}
+            ]),
+            json!([
+                {"vertex_a":3,"vertex_b":4,"sharpness_levels":1},
+                {"vertex_a":1,"vertex_b":4,"sharpness_levels":2}
+            ]),
+            json!([{"vertex_a":3,"vertex_b":4,"sharpness_levels":0}]),
+            json!([{"vertex_a":3,"vertex_b":4,"sharpness_levels":3}]),
+            json!([{"vertex_a":4,"vertex_b":3,"sharpness_levels":1}]),
+        ] {
+            let mut invalid = base.clone();
+            invalid["crease_edges"] = invalid_edges;
+            assert!(validate_operator(
+                "forgecad.geometry.subd-cage@2",
+                &[],
+                invalid.as_object().expect("parameters"),
+                &BTreeMap::new(),
+            )
+            .is_err());
+        }
+        let mut too_small = base.clone();
+        too_small["control_points"] = json!([
+            [-1.0, -1.0, 0.0],
+            [1.0, -1.0, 0.0],
+            [-1.0, 1.0, 0.0],
+            [1.0, 1.0, 0.0]
+        ]);
+        too_small["u_points"] = json!(2);
+        too_small["v_points"] = json!(2);
+        assert!(validate_operator(
+            "forgecad.geometry.subd-cage@2",
+            &[],
+            too_small.as_object().expect("parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+        let mut too_many = base.clone();
+        too_many["crease_edges"] = Value::Array(
+            (0..129)
+                .map(|_| json!({"vertex_a":3,"vertex_b":4,"sharpness_levels":1}))
+                .collect(),
+        );
+        assert!(validate_operator(
+            "forgecad.geometry.subd-cage@2",
+            &[],
+            too_many.as_object().expect("parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+        let mut unknown = base;
+        unknown["script"] = json!("bpy.ops.mesh.subdivide() ");
+        assert!(validate_operator(
+            "forgecad.geometry.subd-cage@2",
+            &[],
+            unknown.as_object().expect("parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+    }
 
     #[test]
     fn mirror_emits_original_and_reflected_mesh() {
@@ -2292,6 +5999,31 @@ mod tests {
         assert_eq!(mirrored.positions.len(), source.positions.len() * 2);
         assert!(mirrored.positions.iter().any(|position| position[0] < -0.5));
         assert!(mirrored.positions.iter().any(|position| position[0] > 0.5));
+    }
+
+    #[test]
+    fn normal_policy_uses_face_area_times_blender_face_angle_weight() {
+        let source = PrimitiveNodeMesh {
+            operator_id: "fixture".to_owned(),
+            lineage_source_node_ids: vec!["source".to_owned()],
+            positions: vec![
+                [0.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.866_025_4, 0.0, 0.5],
+            ],
+            normals: vec![[0.0, 0.0, 1.0]; 6],
+            indices: vec![0, 1, 2, 3, 4, 5],
+        };
+        let result = area_angle_corner_normals(&source, std::f32::consts::FRAC_PI_2)
+            .expect("weighted corner normals");
+        let shared_corner = result.normals[0];
+        // First face: twice-area 2 * face-angle PI/2. Second face:
+        // twice-area 0.5 * face-angle 5PI/6. Their expected -Y/Z ratio is 5/12.
+        assert!((shared_corner[1] / shared_corner[2] + 5.0 / 12.0).abs() < 1.0e-4);
+        assert_eq!(result.lineage_source_node_ids, vec!["source"]);
     }
 
     #[test]
@@ -2312,8 +6044,14 @@ mod tests {
         )
         .expect("rounded panel should validate");
         assert_eq!(rounded_count, 76);
-        let rounded_mesh =
-            compile_operator(&rounded, &BTreeMap::new(), 250_000, 10_000).expect("rounded mesh");
+        let rounded_mesh = compile_operator(
+            &rounded,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("rounded mesh");
         assert_eq!(rounded_mesh.indices.len() / 3, 76);
         assert!(rounded_mesh.positions.len() > 8);
 
@@ -2334,8 +6072,457 @@ mod tests {
         .expect("plain panel should validate");
         assert_eq!(plain_count, 12);
         let plain_mesh =
-            compile_operator(&plain, &BTreeMap::new(), 250_000, 10_000).expect("plain mesh");
+            compile_operator(&plain, &BTreeMap::new(), &BTreeMap::new(), 250_000, 10_000)
+                .expect("plain mesh");
         assert_eq!(plain_mesh.indices.len() / 3, 12);
+    }
+
+    #[test]
+    fn panel_v2_emits_real_recess_border_bevel_and_support_loops() {
+        let parameters = json!({
+            "shape": "panel",
+            "size_m": [2.4, 1.6, 0.4],
+            "thickness_m": 0.4,
+            "inset_m": 0.25,
+            "recess_depth_m": 0.12,
+            "border_width_m": 0.18,
+            "bevel_m": 0.08,
+            "bevel_segments": 2,
+            "support_loop_count": 2,
+            "support_loop_width_m": 0.03,
+            "position_m": [0.0, 0.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0]
+        });
+        let (operation, triangle_count) = validate_operator(
+            "forgecad.geometry.panel@2",
+            &[],
+            parameters.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect("panel@2 should validate");
+        assert_eq!(triangle_count, 92);
+        let mesh = compile_operator(
+            &operation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("panel@2 mesh");
+        assert_eq!(mesh.indices.len() / 3, triangle_count as usize);
+        assert!(mesh
+            .positions
+            .iter()
+            .any(|point| (point[2] - 0.08).abs() < 1.0e-6));
+        assert!(mesh
+            .positions
+            .iter()
+            .any(|point| (point[2] - 0.20).abs() < 1.0e-6));
+        assert!(mesh
+            .positions
+            .iter()
+            .any(|point| (point[2] + 0.20).abs() < 1.0e-6));
+        let distinct_x = mesh
+            .positions
+            .iter()
+            .map(|point| point[0].abs().to_bits())
+            .collect::<BTreeSet<_>>();
+        assert!(distinct_x.len() >= 8, "nested panel rings were not emitted");
+        assert!(mesh.normals.iter().all(|normal| finite3(*normal)));
+    }
+
+    #[test]
+    fn panel_v2_rejects_unknown_fields_and_invalid_feature_relationships() {
+        let base = json!({
+            "shape": "panel",
+            "size_m": [2.4, 1.6, 0.4],
+            "thickness_m": 0.4,
+            "inset_m": 0.25,
+            "recess_depth_m": 0.12,
+            "border_width_m": 0.18,
+            "bevel_m": 0.08,
+            "bevel_segments": 2,
+            "support_loop_count": 2,
+            "support_loop_width_m": 0.03,
+            "position_m": [0.0, 0.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0]
+        });
+        let mut unknown = base.clone();
+        unknown["script"] = json!("bpy.ops.mesh.inset()");
+        assert!(validate_operator(
+            "forgecad.geometry.panel@2",
+            &[],
+            unknown.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut invalid_recess = base.clone();
+        invalid_recess["recess_depth_m"] = json!(0.4);
+        assert!(validate_operator(
+            "forgecad.geometry.panel@2",
+            &[],
+            invalid_recess.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut invalid_support = base.clone();
+        invalid_support["support_loop_width_m"] = json!(0.2);
+        assert!(validate_operator(
+            "forgecad.geometry.panel@2",
+            &[],
+            invalid_support.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut invalid_segments = base;
+        invalid_segments["bevel_segments"] = json!(5);
+        assert!(validate_operator(
+            "forgecad.geometry.panel@2",
+            &[],
+            invalid_segments.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn vent_array_v1_remains_compatible_with_legacy_box_array_semantics() {
+        let parameters = json!({
+            "shape": "vent-array",
+            "width_m": 1.2,
+            "height_m": 0.6,
+            "depth_m": 0.18,
+            "slot_count": 4,
+            "slot_width_m": 0.12,
+            "slot_spacing_m": 0.12,
+            "position_m": [0.0, 0.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0]
+        });
+        let (operation, triangle_count) = validate_operator(
+            "forgecad.geometry.vent-array@1",
+            &[],
+            parameters.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect("legacy vent-array@1 should validate");
+        assert_eq!(triangle_count, 72);
+        let mesh = compile_operator(
+            &operation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("legacy vent-array@1 mesh");
+        assert_eq!(mesh.indices.len() / 3, 72);
+    }
+
+    #[test]
+    fn vent_array_v2_emits_cut_style_openings_and_backing_layer() {
+        let parameters = json!({
+            "shape": "vent-array",
+            "width_m": 1.6,
+            "height_m": 0.8,
+            "depth_m": 0.26,
+            "face_thickness_m": 0.08,
+            "backing_depth_m": 0.08,
+            "backing_gap_m": 0.10,
+            "slot_count": 4,
+            "slot_width_m": 0.16,
+            "slot_spacing_m": 0.12,
+            "slot_margin_m": 0.16,
+            "slot_edge_bevel_m": 0.02,
+            "bevel_segments": 2,
+            "position_m": [0.0, 0.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0]
+        });
+        let (operation, triangle_count) = validate_operator(
+            "forgecad.geometry.vent-array@2",
+            &[],
+            parameters.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect("vent-array@2 should validate");
+        assert_eq!(triangle_count, 312);
+        let mesh = compile_operator(
+            &operation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("vent-array@2 mesh");
+        assert_eq!(mesh.indices.len() / 3, triangle_count as usize);
+        type WeldKey = (i64, i64, i64);
+        let weld = |point: [f32; 3]| -> WeldKey {
+            (
+                (point[0] as f64 * 1_000_000.0).round() as i64,
+                (point[1] as f64 * 1_000_000.0).round() as i64,
+                (point[2] as f64 * 1_000_000.0).round() as i64,
+            )
+        };
+        let mut shell_adjacency = BTreeMap::<WeldKey, BTreeSet<WeldKey>>::new();
+        for triangle in mesh.indices.chunks_exact(3) {
+            let points = [
+                mesh.positions[triangle[0] as usize],
+                mesh.positions[triangle[1] as usize],
+                mesh.positions[triangle[2] as usize],
+            ];
+            if points.iter().all(|point| point[2] > -0.045) {
+                let keys = points.map(weld);
+                for (left, right) in [(keys[0], keys[1]), (keys[1], keys[2]), (keys[2], keys[0])] {
+                    shell_adjacency.entry(left).or_default().insert(right);
+                    shell_adjacency.entry(right).or_default().insert(left);
+                }
+            }
+        }
+        let mut visited = BTreeSet::new();
+        let mut component_count = 0;
+        for start in shell_adjacency.keys().copied() {
+            if !visited.insert(start) {
+                continue;
+            }
+            component_count += 1;
+            let mut stack = vec![start];
+            while let Some(current) = stack.pop() {
+                for neighbor in shell_adjacency
+                    .get(&current)
+                    .into_iter()
+                    .flat_map(|neighbors| neighbors.iter())
+                    .copied()
+                {
+                    if visited.insert(neighbor) {
+                        stack.push(neighbor);
+                    }
+                }
+            }
+        }
+        assert_eq!(
+            component_count, 1,
+            "slotted face must be one connected shell"
+        );
+        let mut all_adjacency = BTreeMap::<WeldKey, BTreeSet<WeldKey>>::new();
+        for triangle in mesh.indices.chunks_exact(3) {
+            let keys = [
+                weld(mesh.positions[triangle[0] as usize]),
+                weld(mesh.positions[triangle[1] as usize]),
+                weld(mesh.positions[triangle[2] as usize]),
+            ];
+            for (left, right) in [(keys[0], keys[1]), (keys[1], keys[2]), (keys[2], keys[0])] {
+                all_adjacency.entry(left).or_default().insert(right);
+                all_adjacency.entry(right).or_default().insert(left);
+            }
+        }
+        let mut all_visited = BTreeSet::new();
+        let mut all_component_count = 0;
+        for start in all_adjacency.keys().copied() {
+            if !all_visited.insert(start) {
+                continue;
+            }
+            all_component_count += 1;
+            let mut stack = vec![start];
+            while let Some(current) = stack.pop() {
+                for neighbor in all_adjacency
+                    .get(&current)
+                    .into_iter()
+                    .flat_map(|neighbors| neighbors.iter())
+                    .copied()
+                {
+                    if all_visited.insert(neighbor) {
+                        stack.push(neighbor);
+                    }
+                }
+            }
+        }
+        assert_eq!(
+            all_component_count, 2,
+            "one connected face shell plus one closed backing sub-solid is expected"
+        );
+        let depth_m = 0.26_f32;
+        let face_thickness_m = 0.08_f32;
+        let backing_gap_m = 0.10_f32;
+        let backing_front_z = depth_m / 2.0 - face_thickness_m - backing_gap_m;
+        let face_front_z = depth_m / 2.0;
+        assert!(mesh
+            .positions
+            .iter()
+            .any(|point| point[2] > face_front_z - 0.005));
+        assert!(mesh
+            .positions
+            .iter()
+            .any(|point| point[2] < -depth_m / 2.0 + 0.005));
+
+        let slot_count = 4_usize;
+        let slot_width_m = 0.16_f32;
+        let slot_spacing_m = 0.12_f32;
+        let slot_margin_m = 0.16_f32;
+        let occupied_width =
+            slot_count as f32 * slot_width_m + (slot_count - 1) as f32 * slot_spacing_m;
+        let first_center = -occupied_width / 2.0 + slot_width_m / 2.0;
+        let slot_centers = (0..slot_count)
+            .map(|index| first_center + index as f32 * (slot_width_m + slot_spacing_m))
+            .collect::<Vec<_>>();
+        let opening_half_height = 0.8_f32 / 2.0 - slot_margin_m;
+        let bbox_overlaps = |triangle: &[u32], x_min: f32, x_max: f32| {
+            let mut min_point = [f32::INFINITY; 3];
+            let mut max_point = [f32::NEG_INFINITY; 3];
+            for index in triangle {
+                let point = mesh.positions[*index as usize];
+                for axis in 0..3 {
+                    min_point[axis] = min_point[axis].min(point[axis]);
+                    max_point[axis] = max_point[axis].max(point[axis]);
+                }
+            }
+            min_point[0] < x_max
+                && max_point[0] > x_min
+                && min_point[1] < opening_half_height - 0.005
+                && max_point[1] > -opening_half_height + 0.005
+        };
+        let ray_z_intersections = |x: f32| {
+            let mut hits = Vec::new();
+            for triangle in mesh.indices.chunks_exact(3) {
+                let points = [
+                    mesh.positions[triangle[0] as usize],
+                    mesh.positions[triangle[1] as usize],
+                    mesh.positions[triangle[2] as usize],
+                ];
+                let denominator = (points[1][1] - points[2][1]) * (points[0][0] - points[2][0])
+                    + (points[2][0] - points[1][0]) * (points[0][1] - points[2][1]);
+                if denominator.abs() <= 1.0e-8 {
+                    continue;
+                }
+                let u = ((points[1][1] - points[2][1]) * (x - points[2][0])
+                    + (points[2][0] - points[1][0]) * (0.0 - points[2][1]))
+                    / denominator;
+                let v = ((points[2][1] - points[0][1]) * (x - points[2][0])
+                    + (points[0][0] - points[2][0]) * (0.0 - points[2][1]))
+                    / denominator;
+                let w = 1.0 - u - v;
+                if u >= -1.0e-5 && v >= -1.0e-5 && w >= -1.0e-5 {
+                    hits.push(u * points[0][2] + v * points[1][2] + w * points[2][2]);
+                }
+            }
+            hits.sort_by(|left, right| left.partial_cmp(right).expect("finite z hit"));
+            hits
+        };
+        let face_back_z = depth_m / 2.0 - face_thickness_m;
+        for center in slot_centers {
+            let x_min = center - slot_width_m / 2.0 + 0.005;
+            let x_max = center + slot_width_m / 2.0 - 0.005;
+            let has_front_triangle_in_slot = mesh.indices.chunks_exact(3).any(|triangle| {
+                bbox_overlaps(triangle, x_min, x_max)
+                    && triangle
+                        .iter()
+                        .all(|index| mesh.positions[*index as usize][2] > face_front_z - 0.005)
+            });
+            assert!(
+                !has_front_triangle_in_slot,
+                "front frame must leave a real cut-style opening at slot center {center}"
+            );
+            let has_backing_triangle_in_slot = mesh.indices.chunks_exact(3).any(|triangle| {
+                bbox_overlaps(triangle, x_min, x_max)
+                    && triangle
+                        .iter()
+                        .all(|index| mesh.positions[*index as usize][2] < backing_front_z + 0.005)
+            });
+            assert!(
+                has_backing_triangle_in_slot,
+                "backing layer is missing at slot center {center}"
+            );
+            let ray_hits = ray_z_intersections(center);
+            assert!(
+                ray_hits.iter().any(|z| *z <= backing_front_z + 0.005),
+                "front-to-back slot ray must hit the backing at slot center {center}"
+            );
+            assert!(
+                ray_hits.iter().all(|z| {
+                    *z <= backing_front_z + 0.005 || *z >= face_back_z - 0.005
+                }),
+                "front-to-back slot ray must remain clear between backing and face at slot center {center}"
+            );
+        }
+    }
+
+    #[test]
+    fn vent_array_v2_rejects_unknown_fields_spacing_and_backing_drift() {
+        let base = json!({
+            "shape": "vent-array",
+            "width_m": 1.6,
+            "height_m": 0.8,
+            "depth_m": 0.26,
+            "face_thickness_m": 0.08,
+            "backing_depth_m": 0.08,
+            "backing_gap_m": 0.10,
+            "slot_count": 4,
+            "slot_width_m": 0.16,
+            "slot_spacing_m": 0.12,
+            "slot_margin_m": 0.16,
+            "slot_edge_bevel_m": 0.02,
+            "bevel_segments": 2,
+            "position_m": [0.0, 0.0, 0.0],
+            "rotation_rad": [0.0, 0.0, 0.0]
+        });
+        let mut unknown = base.clone();
+        unknown["script"] = json!("bpy.ops.mesh.boolean()");
+        assert!(validate_operator(
+            "forgecad.geometry.vent-array@2",
+            &[],
+            unknown.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut overfull = base.clone();
+        overfull["slot_spacing_m"] = json!(0.30);
+        assert!(validate_operator(
+            "forgecad.geometry.vent-array@2",
+            &[],
+            overfull.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut backing_drift = base.clone();
+        backing_drift["backing_gap_m"] = json!(0.30);
+        assert!(validate_operator(
+            "forgecad.geometry.vent-array@2",
+            &[],
+            backing_drift.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut bevel_drift = base.clone();
+        bevel_drift["slot_edge_bevel_m"] = json!(0.05);
+        assert!(validate_operator(
+            "forgecad.geometry.vent-array@2",
+            &[],
+            bevel_drift.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut narrow_slot = base.clone();
+        narrow_slot["slot_width_m"] = json!(0.02);
+        assert!(validate_operator(
+            "forgecad.geometry.vent-array@2",
+            &[],
+            narrow_slot.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut wrong_input = base;
+        assert!(validate_operator(
+            "forgecad.geometry.vent-array@2",
+            &["source".to_owned()],
+            wrong_input.as_object_mut().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
     }
 
     #[test]
@@ -2358,8 +6545,14 @@ mod tests {
         )
         .expect("longitudinal loft should validate");
         assert_eq!(triangle_count, 20);
-        let mesh = compile_operator(&operation, &BTreeMap::new(), 250_000, 10_000)
-            .expect("longitudinal loft mesh");
+        let mesh = compile_operator(
+            &operation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("longitudinal loft mesh");
         assert_eq!(mesh.indices.len() / 3, 20);
         let min_x = mesh
             .positions
@@ -2430,8 +6623,14 @@ mod tests {
         )
         .expect("revolve should validate");
         assert_eq!(triangle_count, 64);
-        let mesh =
-            compile_operator(&operation, &BTreeMap::new(), 250_000, 10_000).expect("revolve mesh");
+        let mesh = compile_operator(
+            &operation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("revolve mesh");
         let mut groups: BTreeMap<(u32, u32, u32), Vec<[f32; 3]>> = BTreeMap::new();
         for (position, normal) in mesh.positions.iter().zip(mesh.normals.iter()) {
             groups
@@ -2471,5 +6670,170 @@ mod tests {
             cap_edge,
             "cap and side normals should not be blended together"
         );
+    }
+
+    fn recessed_channel_fixture() -> Value {
+        json!({
+            "shape":"recessed-channel",
+            "stations":[
+                {"point_m":[-0.8,0.0,0.0],"width_m":0.30,"depth_m":0.12},
+                {"point_m":[0.0,0.08,0.0],"width_m":0.36,"depth_m":0.16},
+                {"point_m":[0.82,0.0,0.0],"width_m":0.28,"depth_m":0.10}
+            ],
+            "path_frame":"planar-xy-z-up@1",
+            "floor_width_ratio":0.42,
+            "edge_bevel_m":0.01,
+            "start_transition_m":0.08,
+            "end_transition_m":0.10,
+            "transition_segments":2,
+            "position_m":[0.0,0.0,0.0],
+            "rotation_rad":[0.0,0.0,0.0]
+        })
+    }
+
+    #[test]
+    fn recessed_channel_is_closed_variable_and_bevel_transition_aware() {
+        let parameters = recessed_channel_fixture();
+        let (operation, triangle_count) = validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            parameters.as_object().expect("recessed-channel parameters"),
+            &BTreeMap::new(),
+        )
+        .expect("recessed-channel should validate");
+        assert_eq!(triangle_count, 220);
+        let mesh = compile_operator(
+            &operation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            250_000,
+            10_000,
+        )
+        .expect("recessed-channel mesh");
+        assert_eq!(mesh.indices.len() / 3, 220);
+        assert!(mesh.positions.iter().all(|point| finite3(*point)));
+        let min_z = mesh
+            .positions
+            .iter()
+            .map(|point| point[2])
+            .fold(f32::INFINITY, f32::min);
+        assert!(
+            min_z < -0.15,
+            "depth and floor must be represented in geometry"
+        );
+        assert!(
+            mesh.positions.iter().any(|point| point[0].abs() > 0.17),
+            "station width variation must affect the generated mesh"
+        );
+    }
+
+    #[test]
+    fn recessed_channel_rejects_bad_path_depth_bevel_and_unknown_fields() {
+        let base = recessed_channel_fixture();
+        let mut invalid = base.clone();
+        invalid["stations"][1]["point_m"] = json!([-0.8, 0.0, 0.0]);
+        assert!(validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            invalid.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut self_intersection = base.clone();
+        self_intersection["stations"] = json!([
+            {"point_m":[-0.8,-0.4,0.0],"width_m":0.3,"depth_m":0.1},
+            {"point_m":[0.8,0.4,0.0],"width_m":0.3,"depth_m":0.1},
+            {"point_m":[-0.8,0.4,0.0],"width_m":0.3,"depth_m":0.1},
+            {"point_m":[0.8,-0.4,0.0],"width_m":0.3,"depth_m":0.1}
+        ]);
+        assert!(validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            self_intersection.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut bad_depth = base.clone();
+        bad_depth["stations"][0]["depth_m"] = json!(0.23);
+        assert!(validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            bad_depth.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut bad_bevel = base.clone();
+        bad_bevel["edge_bevel_m"] = json!(0.08);
+        assert!(validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            bad_bevel.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
+
+        let mut near_reverse = base.clone();
+        near_reverse["stations"] = json!([
+            {"point_m":[-1.0,0.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[0.0,0.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[-0.99,0.01,0.0],"width_m":0.30,"depth_m":0.10}
+        ]);
+        let error = validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            near_reverse.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect_err("near-reverse path must fail closed");
+        assert!(error.to_string().contains("near-reverse"), "{error}");
+
+        let mut collinear_overlap = base.clone();
+        collinear_overlap["stations"] = json!([
+            {"point_m":[-2.0,0.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[-1.0,0.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[-1.0,1.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[-1.5,1.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[-1.5,0.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[-0.5,0.0,0.0],"width_m":0.30,"depth_m":0.10}
+        ]);
+        let error = validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            collinear_overlap.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect_err("collinear non-adjacent overlap must fail closed");
+        assert!(error.to_string().contains("self-intersects"), "{error}");
+
+        let mut swept_overlap = base.clone();
+        swept_overlap["stations"] = json!([
+            {"point_m":[0.0,0.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[1.0,0.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[1.0,1.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[-1.0,1.0,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[-1.0,0.2,0.0],"width_m":0.30,"depth_m":0.10},
+            {"point_m":[0.0,0.2,0.0],"width_m":0.30,"depth_m":0.10}
+        ]);
+        let error = validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            swept_overlap.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .expect_err("swept-envelope overlap must fail closed");
+        assert!(error.to_string().contains("swept envelope"), "{error}");
+
+        let mut unknown = base;
+        unknown["script"] = json!("bpy.ops.mesh.inset()");
+        assert!(validate_operator(
+            "forgecad.geometry.recessed-channel@1",
+            &[],
+            unknown.as_object().expect("object parameters"),
+            &BTreeMap::new(),
+        )
+        .is_err());
     }
 }

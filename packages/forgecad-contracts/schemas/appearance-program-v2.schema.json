@@ -8,7 +8,7 @@
     "schema_version":{"const":"AppearanceProgram@2"},
     "project_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},
     "geometry_program_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
-    "material_pack_id":{"const":"forgecad-hard-surface-robot"},
+    "material_pack_id":{"enum":["forgecad-hard-surface-robot","forgecad-fictional-energy-weapon","forgecad-fictional-energy-weapon-2k"]},
     "material_pack_manifest_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
     "material_zones":{"type":"array","minItems":1,"maxItems":64,"items":{"type":"object","additionalProperties":false,"required":["zone_id","part_ids","material_id","texture_set_id"],"properties":{"zone_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"part_ids":{"type":"array","minItems":1,"maxItems":512,"uniqueItems":true,"items":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"}},"material_id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"texture_set_id":{"type":["string","null"],"pattern":"^[A-Za-z0-9_.-]{1,128}$"}}}},
     "canonical_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}

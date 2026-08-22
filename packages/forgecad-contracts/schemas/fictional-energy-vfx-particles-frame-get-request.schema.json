@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://forgecad.local/contracts/fictional-energy-vfx-particles-frame-get-request.schema.json","title":"FictionalEnergyVfxParticlesFrameGetRequest@1",
+  "type":"object","additionalProperties":false,"required":["schema_version","project_id","particle_key_sha256"],
+  "properties":{"schema_version":{"const":"FictionalEnergyVfxParticlesFrameGetRequest@1"},"project_id":{"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9._:-]+$"},"particle_key_sha256":{"$ref":"common.schema.json#/$defs/sha256"}}
+}

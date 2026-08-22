@@ -1,0 +1,124 @@
+{
+  "schema_version": "ForgeCADCandidateTopologyQualitySourceGate@1",
+  "task_id": "FGC-MCP010F-TOPOLOGY-QUALITY-16",
+  "date": "2026-08-21",
+  "status": "PASS_SOURCE_RUNTIME_STORE_MCP_FOCUSED",
+  "production_transition": {
+    "from_stage": "gray-model",
+    "to_stage": "topology",
+    "output_kind": "topology-quality",
+    "candidate_wide": true,
+    "blocked_attempt_is_durable": true,
+    "blocked_attempt_advances_head": false,
+    "passing_report_required_to_advance": true,
+    "production_stage_advanced_by_report_prepare": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "binding": {
+    "project_candidate_state_artifact": "exact",
+    "geometry_candidate_evidence": "exact",
+    "artifact_readback_v2": "exact",
+    "geometry_program_operator_catalog_readback_config": "exact",
+    "ordered_complete_part_inventory": "exact",
+    "per_part_topology_snapshot_hashes": "runtime_recomputed",
+    "authoring_topology": "optional_and_runtime_recomputed_when_available",
+    "parent_key_is_cas": false
+  },
+  "objective_gate": {
+    "finite_geometry": true,
+    "valid_indices": true,
+    "non_degenerate_triangles": true,
+    "solid_part_boundary_policy": true,
+    "non_manifold_and_orientation": true,
+    "triangle_aspect_ratio_and_vertex_valence": true,
+    "normal_uv_tangent_integrity": true,
+    "semantic_part_source_material_coverage": true,
+    "edge_flow_status": "NOT_PROVEN",
+    "artistic_quality_status": "NOT_PROVEN",
+    "visual_quality_status": "NOT_PROVEN"
+  },
+  "transaction": {
+    "owned_cas": [
+      "candidate-topology-quality-report"
+    ],
+    "topology_snapshot_is_projection_hash_not_cas": true,
+    "source_objects_marked_reachable": true,
+    "same_id_same_content_replay_exact": true,
+    "retarget_or_metric_drift_conflict_fail_closed": true,
+    "reservation_rollback_cleans_only_created_new_unlinked_report": true,
+    "restart_get_revalidates_store_cas_and_source_bindings": true
+  },
+  "bounded_profile": {
+    "max_parts": 512,
+    "max_faces_per_part_snapshot": 512,
+    "max_candidate_triangles": 250000,
+    "max_report_bytes": 1048576,
+    "solid_parts_require_closed_boundary": true,
+    "non_solid_parts_may_have_boundary": true
+  },
+  "source_surface": {
+    "schemas": 303,
+    "schema_content_set_sha256": "548abae6d56ca0411b07222cfbed4a25cd7f09055e1a9fa63856390e5992dcd2",
+    "contract_manifest_sha256": "23bda71e036e74962e4797996fd656dbe2e8ace9d05f432b4da322a6b778fddb",
+    "mcp_read_tools": 71,
+    "mcp_write_tools": 51,
+    "mcp_total_tools": 122,
+    "mcp_read_manifest_sha256": "262a37357f98212440e78cdd620176b49214a6fcf026bc97f188c5ab2f3a6f51",
+    "mcp_write_manifest_sha256": "33c274bfe0d9c9ce69b1d1c2484cc995b264ffaedba66999e6a445d3d84d2a25"
+  },
+  "source_sha256": {
+    "contracts_rust": "d141afd5708723747f96bb9e7669f4ac4fe01ba81875ec5848d45599f1e8ce01",
+    "store": "c4b80d1f3e7301697ca2b9c70893dda1d256d3c938348de37d5670ea75d96c44",
+    "runtime_topology_quality": "336790d60a820074ea5bf815d3e1696f5222c3f9735c5753d78b2e6f523c6cf1",
+    "runtime_agentic_session": "41494753f5b32ba79646189416a4ba943c6d4edb151e5070d140bd613772b7b8",
+    "runtime_lib": "f82d765c159b12fb5da9a339992d19771437b716a9125121419805d5492d4d85",
+    "mcp_agentic_tools": "a96673aeb69a27e444bec739ac29ee09b735ae60a656bcb111d61bf12ad2e5a9",
+    "mcp_main": "0169df489909bf396e3c95488d553cb9e74f6c8d51cb84a8dde12ea29124c579"
+  },
+  "verification": [
+    {"gate": "contracts", "result": "PASS_303_SCHEMAS"},
+    {"gate": "forgecad-store candidate_topology_quality focused", "result": "PASS_4_OF_4"},
+    {"gate": "forgecad-store full lib", "result": "PASS_45_OF_45"},
+    {"gate": "forgecad-runtime candidate_topology_quality", "result": "PASS_2_OF_2"},
+    {"gate": "forgecad-runtime agentic_session focused", "result": "PASS_11_OF_11"},
+    {"gate": "forgecad-mcp candidate_topology_quality", "result": "PASS_3_OF_3"},
+    {"gate": "forgecad-mcp tool manifest summary", "result": "PASS_71_READ_51_WRITE_122_TOTAL"},
+    {"gate": "cargo check forgecad-mcp", "result": "PASS"},
+    {"gate": "git diff --check", "result": "PASS"}
+  ],
+  "broader_suite_observation": {
+    "forgecad_runtime_full_after_same_target_worker_build": "268_OF_268_EXECUTED_PASS_20_IGNORED",
+    "unrelated_failures": 0,
+    "resolved_existing_tests": [
+      "appearance_v3_persists_candidate_surface_bake_receipt_without_confirmation",
+      "appearance_source_lineage_is_cohort_bound_idempotent_restartable_and_fail_closed"
+    ],
+    "resolution": [
+      "APPEARANCE_PROGRAM_V3_USES_CLOSED_2K_120_SECOND_WALL_AND_CPU_PROFILE",
+      "APPEARANCE_SOURCE_LINEAGE_FIXTURE_USES_CONTRACT_EMPTY_CANONICAL_FIELD_PREIMAGE"
+    ],
+    "candidate_topology_quality_focused_regression": false
+  },
+  "quality_truth": {
+    "evaluated_glb_structural_topology": "AVAILABLE_WITHIN_BOUNDED_PROFILE",
+    "authoring_cage_coverage": "PARTIAL_OR_NOT_AVAILABLE",
+    "edge_flow_artistic_quality": "NOT_PROVEN",
+    "reference_visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "human_review": "NOT_RUN",
+    "confirm_version_export": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "commercial_fps_weapon_quality": "NOT_YET_PROVEN"
+  },
+  "limitations": [
+    "EVALUATED_TRIANGULATED_GLB_TOPOLOGY_NOT_A_BLENDER_BMESH_AUTHORING_CAGE",
+    "PARTS_OVER_512_FACES_ARE_EXPLICITLY_BLOCKED_BY_THIS_FIRST_BOUNDED_GATE",
+    "AUTOMATED_STRUCTURAL_METRICS_DO_NOT_PROVE PROFESSIONAL_EDGE_FLOW_OR_ART_DIRECTION",
+    "NO_COMMERCIAL_ENGINE_ROUNDTRIP_OR_HUMAN_VISUAL_ACCEPTANCE_IN_THIS_GATE",
+    "NO_REAL_WEAPON_MANUFACTURING_DIMENSIONS_BALLISTICS_OR_FUNCTIONAL_GUIDANCE"
+  ],
+  "persistent_user_data_touched": false
+}

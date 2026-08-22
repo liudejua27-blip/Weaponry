@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-anchor-set.schema.json",
+  "title": "GameWeaponAnchorSet@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "delivery_manifest_object_sha256", "lod_bindings", "anchor_policy", "semantic_scope", "functional_semantics", "limitations", "coordinate_frame", "transform_convention", "anchors", "part_ids", "topology_status", "trs_status", "part_bounds_status", "animation_follow_status", "pivot_status", "node_materialization", "runtime_write_performed", "candidate_confirmed", "export_performed", "actual_engine_roundtrip", "quality_status", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponAnchorSet@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "lod_bindings": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/lod"}},
+    "anchor_policy": {"const": "weapon-rh-x-forward-y-up-model-space-six-role@1"},
+    "semantic_scope": {"const": "fictional-nonfunctional-game-visual-authoring-only@1"},
+    "functional_semantics": {"const": false},
+    "limitations": {"const": ["no-ballistics", "no-damage-or-hitbox", "no-physics-binding", "no-manufacturing-or-operation", "no-commercial-engine-roundtrip"]},
+    "coordinate_frame": {
+      "type": "object", "additionalProperties": false,
+      "required": ["frame_id", "handedness", "units", "forward_axis", "up_axis", "side_axis"],
+      "properties": {"frame_id": {"const": "weapon-right-handed-x-muzzle-y-up-z-right"}, "handedness": {"const": "right-handed"}, "units": {"const": "meter"}, "forward_axis": {"const": "+X"}, "up_axis": {"const": "+Y"}, "side_axis": {"const": "+Z"}}
+    },
+    "transform_convention": {"const": "column-vector-parent-world-times-trs-quaternion-xyzw@1"},
+    "anchors": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "game-weapon-anchor-prepare-request.schema.json#/$defs/anchor"}},
+    "part_ids": {"type": "array", "minItems": 5, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "topology_status": {"const": "synthetic-root-five-part-bound-metadata-helpers-pass"},
+    "trs_status": {"const": "finite-unit-quaternion-identity-scale-pass"},
+    "part_bounds_status": {"const": "source-part-model-space-anchor-containment-pass"},
+    "animation_follow_status": {"enum": ["static-only-no-animation", "lod0-rigid-part-trs-follow-structural"]},
+    "pivot_status": {"const": "not-proven-runtime-pivot"},
+    "node_materialization": {"const": "sidecar-only-not-glb-nodes"},
+    "runtime_write_performed": {"const": true},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "lod": {
+      "type": "object", "additionalProperties": false,
+      "required": ["level", "candidate_id", "candidate_state_sha256", "artifact_sha256", "artifact_readback_sha256"],
+      "properties": {"level": {"type": "integer", "minimum": 0, "maximum": 2}, "candidate_id": {"$ref": "#/$defs/id"}, "candidate_state_sha256": {"$ref": "#/$defs/sha256"}, "artifact_sha256": {"$ref": "#/$defs/sha256"}, "artifact_readback_sha256": {"$ref": "#/$defs/sha256"}}
+    }
+  }
+}

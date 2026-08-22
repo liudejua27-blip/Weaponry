@@ -1,0 +1,32 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/fictional-energy-vfx-profile.schema.json",
+  "title":"FictionalEnergyVfxProfile@1",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","project_id","delivery_manifest_object_sha256","anchor_set_object_sha256","material_pack_id","material_pack_manifest_sha256","vfx_policy","semantic_scope","functional_semantics","timebase_hz","effects","static_emissive_material_definition_verified","execution_mode","emissive_animation_rendered","bloom_rendered","particles_rendered","trails_rendered","candidate_confirmed","export_performed","actual_engine_roundtrip","quality_status","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"FictionalEnergyVfxProfile@1"},
+    "project_id":{"$ref":"#/$defs/id"},
+    "delivery_manifest_object_sha256":{"$ref":"#/$defs/sha256"},
+    "anchor_set_object_sha256":{"$ref":"#/$defs/sha256"},
+    "material_pack_id":{"const":"forgecad-fictional-energy-weapon-2k"},
+    "material_pack_manifest_sha256":{"$ref":"#/$defs/sha256"},
+    "vfx_policy":{"const":"fictional-energy-two-effect-time-sampled-emissive-intent@1"},
+    "semantic_scope":{"const":"fictional-nonfunctional-game-visual-authoring-only@1"},
+    "functional_semantics":{"const":false},
+    "timebase_hz":{"const":1000},
+    "effects":{"type":"array","minItems":2,"maxItems":2,"items":{"$ref":"fictional-energy-vfx-prepare-request.schema.json#/$defs/effect"}},
+    "static_emissive_material_definition_verified":{"const":true},
+    "execution_mode":{"const":"typed-time-sampled-emissive-intent-no-material-animation-render@1"},
+    "emissive_animation_rendered":{"const":false},
+    "bloom_rendered":{"const":false},
+    "particles_rendered":{"const":false},
+    "trails_rendered":{"const":false},
+    "candidate_confirmed":{"const":false},
+    "export_performed":{"const":false},
+    "actual_engine_roundtrip":{"const":false},
+    "quality_status":{"const":"structural_only"},
+    "canonical_sha256":{"$ref":"#/$defs/sha256"}
+  },
+  "$defs":{"id":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

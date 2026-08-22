@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-asset-delivery-link.schema.json",
+  "title": "GameAssetDeliveryLink",
+  "description": "A compact Runtime-owned durable index that binds one immutable game delivery manifest and its sidecars to exactly three candidate artifacts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "lod_candidate_ids",
+    "lod_artifact_sha256s",
+    "request_sha256",
+    "lod_receipt_object_sha256",
+    "collision_proxy_object_sha256",
+    "readiness_object_sha256",
+    "delivery_manifest_object_sha256",
+    "animation_artifact_sha256",
+    "materialization_status",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "GameAssetDeliveryLink@1" },
+    "project_id": { "$ref": "#/$defs/identifier" },
+    "lod_candidate_ids": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/identifier" }
+    },
+    "lod_artifact_sha256s": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/sha256" }
+    },
+    "request_sha256": { "$ref": "#/$defs/sha256" },
+    "lod_receipt_object_sha256": { "$ref": "#/$defs/sha256" },
+    "collision_proxy_object_sha256": { "$ref": "#/$defs/sha256" },
+    "readiness_object_sha256": { "$ref": "#/$defs/sha256" },
+    "delivery_manifest_object_sha256": { "$ref": "#/$defs/sha256" },
+    "animation_artifact_sha256": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256" },
+        { "type": "null" }
+      ]
+    },
+    "materialization_status": { "const": "runtime-owned-durable-game-delivery-link" },
+    "canonical_sha256": { "$ref": "#/$defs/sha256" },
+    "created_at": { "type": "string", "minLength": 1, "maxLength": 128 }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

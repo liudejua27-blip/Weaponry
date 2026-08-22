@@ -1,6 +1,6 @@
 # ForgeCAD 文档地图
 
-版本：2026-08-13 · 状态：MCP005–MCP009 MVP functional core 已收口；FGC-MCP010A done；FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F source + current-cohort packaged CLI read-model in_progress（Tauri packaged UI/人评/360 子门 NOT_RUN/BLOCKED）。ADR-0026 / Agentic Design Runtime 已完成 observe/plan projection、durable session/checkpoint/RepairIntent prepare/readback 与 CAS-bound `repair_intent_run_prepare` staged transport；新增 Fictional Energy Rifle Profile/Plan source-only authoring aid和全局轮廓优先的 Reference Visual Structure 注释合同，架构模块边界和废弃隔离计划继续作为治理文档。当前源码为 139 Schema、41 read + 33 opt-in write = 74 tools；完整 orchestrator/Repair/视觉闭环和 `QUALITY_TARGET_NOT_MET` 事实仍需分层记录。旧 102/59 仅保留为历史 cohort。
+版本：2026-08-19 · 状态：MCP005–MCP009 MVP functional core 已收口；FGC-MCP010A done；FGC-MCP010B blocked/deferred（Darwin OS memory hard cap NOT_RUN）；FGC-MCP010C source-focused PASS_WITH_UNRUN_VISUAL_GATES；FGC-MCP010D/E source-focused PASS；FGC-MCP010F in_progress。Blender reference-only clean-room 研究已固定官方 commit，本轮已实现只读 Modifier Stack lowering、bounded `TopologySnapshot@1`、direct-box Bevel/Normal、Modifier evaluation v2、规则开放 quad cage Subdivision evaluation v2、crease-aware `subd-cage@2`、control-root lineage preview、durable-evidence/full-GLB-replay-bound `SubdivisionArtifactLineageProjection@1`、Runtime-owned immutable `SubdivisionArtifactLineageSidecar@1`/独立 Link、ForgeCAD 自有固定软件渲染 `RenderProfile@1`/AOV color-data lineage、candidate-bound Mechanical pose、三个 immutable first-party Parametric Group v2 template、Render Evidence Integrity、same-cohort 九 AOV Render Evidence Replay、Boolean Operand Lineage、Runtime-owned immutable Mechanical Animation Clip、product-owned `authoring-mesh@1` source topology/preview，以及 approval-gated `authoring_mesh_edit_prepare` staged candidate。通用 BMesh、任意拓扑/OpenSubdiv 级 Subdivision、任意网格 Bevel/Normal、EEVEE/Cycles、Armature/skin/完整角色 animation 和 Python/plugin 生态仍未完成。当前源码为 191 Schema、21/21 active operators、54 read + 36 opt-in write = 90 tools；结构能力不改变 `QUALITY_TARGET_NOT_MET` 等视觉事实。
 
 ## 阅读顺序
 
@@ -24,11 +24,12 @@
 18. `MVP_DELIVERY_PLAN.md`：MVP 范围、MCP005–009 退出门、工具采用决策和当前证据边界
 19. `LUNA_GOAL_EXECUTION_GUIDE.md`：Goal 执行协议、当前可调用工具和真实 host 验收动作
 20. `LUNA_GITHUB_REPLICATION_PLAYBOOK.md`：Luna 研究 build123d、BlenderMCP、CadQuery、Manifold、MaterialX 的冻结 revision、选择性源文件复刻、quarantine、审查和接受流程
-21. `EXTERNAL_PROJECT_ADOPTION.md`：第三方采用状态、research receipt 和 accepted 入口
-22. `CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`：Codex 经 MCP 进入 3D 设计前必须读取的 first-party preflight Skill、会话顺序、边界和维护规则
-23. 任务相关合同：`MCP_RUNTIME_CONTRACT.md`、`CODEX_INTEGRATION.md`、`COMPILER_PIPELINE.md`、`WORKBENCH_VIEWER.md`、`SKILL_PACKAGE_STANDARD.md`、`SCHEMAS.md`、`DATABASE.md`
-24. `MVP_ARCHITECTURE.md`：单用户启动、文件锁和最小运行边界
-25. `MVP_TOOL_CATALOG.md`：当前源码的 41 个只读/33 个写工具（74 个，写工具仍需显式 opt-in），12 个 Skill（含必须先读取的 `ponytail-preflight@0.1.0`，以及 active `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0`）；新增轮廓 target/camera/Rig/Rig-hash/SDF/Part/candidate compare、Agentic observe/plan/critic/evidence projection 和 durable session/checkpoint readback 工具的调用顺序见相关合同。C/D/E/F 的结构 Gate、真实 likeness、人评/PBR/纹理和 360 仍必须另标 planned/unavailable
+21. `BLENDER_CAPABILITY_ADAPTATION_PLAN.md`：Blender 官方 frozen revision/许可证研究、ForgeCAD clean-room Mesh/Modifier/Subdivision/Render/rigid animation 能力映射与分期路线；官方 reference-only receipt 位于 `evidence/adoption/blender/`
+22. `EXTERNAL_PROJECT_ADOPTION.md`：第三方采用状态、research receipt 和 accepted 入口
+23. `CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`：Codex 经 MCP 进入 3D 设计前必须读取的 first-party preflight Skill、会话顺序、边界和维护规则
+24. 任务相关合同：`MCP_RUNTIME_CONTRACT.md`、`CODEX_INTEGRATION.md`、`COMPILER_PIPELINE.md`、`WORKBENCH_VIEWER.md`、`SKILL_PACKAGE_STANDARD.md`、`SCHEMAS.md`、`DATABASE.md`
+25. `MVP_ARCHITECTURE.md`：单用户启动、文件锁和最小运行边界
+26. `MVP_TOOL_CATALOG.md`：当前源码的 54 个只读/35 个写工具（89 个，写工具仍需显式 opt-in），12 个 Skill（含必须先读取的 `ponytail-preflight@0.1.0`，以及 active `primitive-blockout@0.2.0`、`hard-surface-detail@0.2.0` 与 `uv-pbr@0.2.0`）；新增 `topology_snapshot_get`、`boolean_operand_lineage_preview`、`subdivision_topology_lineage_preview`、`subdivision_artifact_lineage_get`、`render_evidence_integrity_get`、`render_evidence_replay_get`、轮廓 target/camera/Rig/Rig-hash/SDF/Part/candidate compare、Agentic observe/plan/critic/evidence projection 和 durable session/checkpoint readback 工具的调用顺序见相关合同。C/D/E/F 的结构 Gate、真实 likeness、人评/PBR/纹理和 360 仍必须另标 planned/unavailable
 ## 生命周期
 
 - `已实现`：当前代码和对应 Gate 通过；
@@ -46,7 +47,7 @@
 
 架构/合同：`DESIGN.md`、`MVP_ARCHITECTURE.md`、`ARCHITECTURE_MODULE_BOUNDARY.md`、`AUTHORITATIVE_STATE.md`、`MCP_RUNTIME_CONTRACT.md`、`CODEX_INTEGRATION.md`、`COMPILER_PIPELINE.md`、`WORKBENCH_VIEWER.md`、`SKILL_PACKAGE_STANDARD.md`、`SCHEMAS.md`、`DATABASE.md`；MCP003 快照和宿主矩阵位于 `evidence/mcp003/`。
 
-执行/质量：`RESET_MIGRATION_PLAN.md`、`MVP_DELIVERY_PLAN.md`、`MVP_TOOL_CATALOG.md`、`CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`、`FORGECAD_AGENTIC_DESIGN_RUNTIME_PLAN.md`、`MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`、`CODEX_GEOMETRY_V2_WORKFLOW.md`、`CODEX_REFERENCE_DETAIL_INVENTORY.md`、`CODEX_SINGLE_REFERENCE_OPERATING_GUIDE.md`、`CODEX_EXECUTION_PLAN.md`、`CODEX_TASK_INDEX.md`、`LUNA_GOAL_EXECUTION_GUIDE.md`、`LUNA_GITHUB_REPLICATION_PLAYBOOK.md`、`CODEX_DEFINITION_OF_DONE.md`、`TEST_STRATEGY.md`、`evidence/CAPABILITY_GATE_MATRIX.md`。
+执行/质量：`RESET_MIGRATION_PLAN.md`、`MVP_DELIVERY_PLAN.md`、`MVP_TOOL_CATALOG.md`、`CODEX_PONYTAIL_PREFLIGHT_WORKFLOW.md`、`FORGECAD_AGENTIC_DESIGN_RUNTIME_PLAN.md`、`MCP010_HIGH_QUALITY_HARD_SURFACE_PLAN.md`、`BLENDER_CAPABILITY_ADAPTATION_PLAN.md`、`CODEX_GEOMETRY_V2_WORKFLOW.md`、`CODEX_REFERENCE_DETAIL_INVENTORY.md`、`CODEX_SINGLE_REFERENCE_OPERATING_GUIDE.md`、`CODEX_EXECUTION_PLAN.md`、`CODEX_TASK_INDEX.md`、`LUNA_GOAL_EXECUTION_GUIDE.md`、`LUNA_GITHUB_REPLICATION_PLAYBOOK.md`、`CODEX_DEFINITION_OF_DONE.md`、`TEST_STRATEGY.md`、`evidence/CAPABILITY_GATE_MATRIX.md`。
 
 运维/供应链：`DEVELOPMENT.md`、`OPERATIONS.md`、`PACKAGING.md`、`PRODUCTION_RELEASE_CHECKLIST.md`、`RELEASE_MAINTENANCE.md`、`DISASTER_RECOVERY.md`、`THIRD_PARTY_LICENSES.md`、`EXTERNAL_PROJECT_ADOPTION.md`、`LUNA_GITHUB_REPLICATION_PLAYBOOK.md`、`DEPRECATED_ISOLATION_PLAN.md`。
 

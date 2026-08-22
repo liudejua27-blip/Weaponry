@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 const MEMORY_LIMIT_BYTES: libc::rlim_t = 512 * 1024 * 1024;
 const CPU_LIMIT_SECONDS: libc::rlim_t = 10;
+const SURFACE_BAKE_CPU_LIMIT_SECONDS: libc::rlim_t = 120;
 
 /// Darwin does not expose an enforceable RLIMIT_AS on the supported host
 /// profile. This allocator ceiling is a product-owned additional guard over
@@ -121,7 +122,10 @@ fn main() {
         return;
     }
     if args == ["--isolated-once"] {
-        std::process::exit(run_isolated_once());
+        std::process::exit(run_isolated_once(CPU_LIMIT_SECONDS));
+    }
+    if args == ["--isolated-once-2k"] {
+        std::process::exit(run_isolated_once(SURFACE_BAKE_CPU_LIMIT_SECONDS));
     }
 
     #[cfg(debug_assertions)]
@@ -150,13 +154,13 @@ fn main() {
     std::process::exit(64);
 }
 
-fn run_isolated_once() -> i32 {
+fn run_isolated_once(cpu_limit_seconds: libc::rlim_t) -> i32 {
     // Limits are installed before reading attacker-controlled request bytes.
     // CPU/core failures are fatal. Darwin does not expose a portable total
     // address-space limit, so its optional memory rlimits are reported by the
     // focused evidence gate instead of being misrepresented as an enforced
     // total-RSS budget.
-    if let Err(message) = apply_worker_limits() {
+    if let Err(message) = apply_worker_limits(cpu_limit_seconds) {
         emit_response(error_response("invalid-request", "WORKER_LIMITS", message));
         return 1;
     }
@@ -279,7 +283,7 @@ struct WorkerLimitState {
     data_rlimit_applied: bool,
 }
 
-fn apply_worker_limits() -> Result<WorkerLimitState, String> {
+fn apply_worker_limits(cpu_limit_seconds: libc::rlim_t) -> Result<WorkerLimitState, String> {
     #[cfg(target_os = "macos")]
     unsafe {
         // Darwin reports `EINVAL` for RLIMIT_AS on this supported local
@@ -289,7 +293,7 @@ fn apply_worker_limits() -> Result<WorkerLimitState, String> {
         // NOT_RUN until a Darwin-wide equivalent is independently proven.
         let address_space_rlimit_applied = optional_memory_limit(libc::RLIMIT_AS)?;
         let data_rlimit_applied = optional_memory_limit(libc::RLIMIT_DATA)?;
-        set_limit(libc::RLIMIT_CPU, CPU_LIMIT_SECONDS).map_err(|error| error.to_string())?;
+        set_limit(libc::RLIMIT_CPU, cpu_limit_seconds).map_err(|error| error.to_string())?;
         set_limit(libc::RLIMIT_CORE, 0).map_err(|error| error.to_string())?;
         Ok(WorkerLimitState {
             address_space_rlimit_applied,
@@ -358,7 +362,7 @@ unsafe fn set_limit(resource: libc::c_int, value: libc::rlim_t) -> Result<(), Li
 
 #[cfg(debug_assertions)]
 fn test_limits() -> i32 {
-    let limits = match apply_worker_limits() {
+    let limits = match apply_worker_limits(CPU_LIMIT_SECONDS) {
         Ok(limits) => limits,
         Err(error) => {
             println!("{}", serde_json::json!({"error":error}));
@@ -429,7 +433,7 @@ unsafe fn read_optional_limit(resource: libc::c_int) -> Option<libc::rlim_t> {
 
 #[cfg(debug_assertions)]
 fn test_sleep() -> i32 {
-    if apply_worker_limits().is_err() {
+    if apply_worker_limits(CPU_LIMIT_SECONDS).is_err() {
         return 1;
     }
     std::thread::sleep(std::time::Duration::from_secs(11));
@@ -443,7 +447,9 @@ fn test_inherited_soft_cpu_limit() -> i32 {
         // Model a parent that already imposed a stricter soft CPU ceiling.
         // `apply_worker_limits` must preserve it rather than widening the
         // child budget back to the normal ten seconds.
-        if set_limit(libc::RLIMIT_CPU, 1).is_err() || apply_worker_limits().is_err() {
+        if set_limit(libc::RLIMIT_CPU, 1).is_err()
+            || apply_worker_limits(CPU_LIMIT_SECONDS).is_err()
+        {
             return 1;
         }
         let Ok(cpu) = read_required_limit(libc::RLIMIT_CPU) else {
@@ -465,7 +471,7 @@ fn test_inherited_soft_cpu_limit() -> i32 {
 
 #[cfg(debug_assertions)]
 fn test_allocator_limit() -> i32 {
-    if apply_worker_limits().is_err() {
+    if apply_worker_limits(CPU_LIMIT_SECONDS).is_err() {
         return 1;
     }
     // Touch a modest real allocation first, then ask the product allocator
@@ -507,7 +513,7 @@ fn test_allocator_limit() -> i32 {
 
 #[cfg(debug_assertions)]
 fn test_fd_probe(value: &str) -> i32 {
-    if apply_worker_limits().is_err() {
+    if apply_worker_limits(CPU_LIMIT_SECONDS).is_err() {
         return 1;
     }
     let Ok(fd) = value.parse::<libc::c_int>() else {

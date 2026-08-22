@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-clip-link.schema.json",
+  "title": "MechanicalAnimationClipLink",
+  "description": "A compact Runtime-owned durable binding for one immutable mechanical animation clip CAS object.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "artifact_id", "artifact_readback_sha256", "geometry_candidate_evidence_sha256", "program_sha256", "operator_catalog_sha256", "readback_config_sha256", "clip_id", "request_sha256", "clip_object_sha256", "clip_sha256", "rest_frame_sha256", "pose_action_sha256", "source_replay_worker_cohort_sha256", "materialization_status", "clip", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "MechanicalAnimationClipLink@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_candidate_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "clip_id": {"$ref": "#/$defs/identifier"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "clip_object_sha256": {"$ref": "#/$defs/sha256"},
+    "clip_sha256": {"$ref": "#/$defs/sha256"},
+    "rest_frame_sha256": {"$ref": "#/$defs/sha256"},
+    "pose_action_sha256": {"$ref": "#/$defs/sha256"},
+    "source_replay_worker_cohort_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_status": {"const": "runtime-owned-immutable-cas-clip"},
+    "clip": {"$ref": "https://forgecad.local/contracts/mechanical-animation-clip.schema.json"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

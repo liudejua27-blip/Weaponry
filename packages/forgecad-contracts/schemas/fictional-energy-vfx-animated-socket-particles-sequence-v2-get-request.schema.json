@@ -1,0 +1,53 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-particles-sequence-v2-get-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FictionalEnergyVfxAnimatedSocketParticlesSequenceGetRequest@2",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketParticlesSequenceGetRequest@2"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "geometry_candidate_id": {
+      "$ref": "#/$defs/id",
+      "x-forgecad-distinct-from": "appearance_candidate_id"
+    },
+    "appearance_candidate_id": {
+      "$ref": "#/$defs/id",
+      "x-forgecad-distinct-from": "geometry_candidate_id"
+    },
+    "geometry_delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "project_id",
+    "geometry_candidate_id",
+    "appearance_candidate_id",
+    "geometry_delivery_manifest_object_sha256",
+    "appearance_delivery_manifest_object_sha256"
+  ]
+}

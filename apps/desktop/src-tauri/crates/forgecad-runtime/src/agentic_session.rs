@@ -5,9 +5,17 @@
 //! SQLite/CAS mutation to the Store.  It never confirms a candidate, creates a
 //! version, or treats a failed visual gate as a pass.
 
-use super::{canonical_json_hash, normalize_json_numbers, sha256_hex, Runtime, RuntimeError};
-use forgecad_contracts::{is_opaque_id, is_sha256, CandidateRecord, ReferenceEvidenceRecord};
-use forgecad_store::{AgenticCheckpointRecord, AgenticSessionRecord};
+use super::{
+    canonical_json_hash, normalize_json_numbers, sha256_hex, Runtime, RuntimeError,
+    MAX_DERIVED_JSON_BYTES, MAX_GEOMETRY_ARTIFACT_BYTES,
+};
+use forgecad_contracts::{
+    is_opaque_id, is_sha256, CandidateRecord, CandidateTopologyQualityRecord,
+    ProductionStageHeadV2Record, ProductionStageTransitionRecord,
+    ProductionStageTransitionV2Record, ReferenceEvidenceRecord,
+};
+use forgecad_store::{AgenticCheckpointRecord, AgenticSessionRecord, CasObject};
+use serde::de::DeserializeOwned;
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -21,6 +29,27 @@ const STAGES: [&str; 6] = [
     "uv-pbr",
     "final-review",
 ];
+
+const PRODUCTION_STAGES: [&str; 6] = [
+    "draft",
+    "gray-model",
+    "topology",
+    "material-surface",
+    "animation-vfx",
+    "game-delivery",
+];
+
+const PRODUCTION_OUTPUT_KINDS: [&str; 5] = [
+    "gray-model-artifact",
+    "topology-quality",
+    "appearance-lineage",
+    "animation-vfx-bundle",
+    "game-asset-delivery",
+];
+
+const PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_KIND: &str = "agentic-production-stage-transition-v2";
+const PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_MIME: &str = "application/json";
+const MAX_PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_BYTES: usize = 1024 * 1024;
 
 /// A complete high-quality reference set must contain the five identity
 /// views. Perspective, top, material and detail views are useful supplements,
@@ -576,6 +605,993 @@ impl Runtime {
         Ok(checkpoint_result(&checkpoint, &session, "read"))
     }
 
+    /// Prepare exactly one production-pipeline transition.  Production stage
+    /// is deliberately separate from the visual DesignSession stage: the
+    /// first Runtime-owned slice only accepts `draft -> gray-model`, records
+    /// the exact candidate/artifact/evidence lineage, and never confirms,
+    /// versions or exports a candidate.
+    pub fn production_stage_transition_prepare(
+        &self,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "production_stage_transition_prepare")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "transition_id",
+                "session_id",
+                "project_id",
+                "candidate_id",
+                "from_stage",
+                "to_stage",
+                "candidate_state_sha256",
+                "artifact_sha256",
+                "output_kind",
+                "output_object_sha256",
+                "quality_report_object_sha256",
+                "comparison_report_object_sha256",
+                "reference_id",
+                "reference_sha256",
+                "camera_hash",
+                "evidence_sha256",
+                "parent_checkpoint_id",
+                "parent_checkpoint_sha256",
+                "input_sha256",
+                "approved",
+                "approval_receipt_id",
+                "approval_summary",
+                "approval_expires_at",
+                "approval_session_id",
+                "idempotency_key",
+            ],
+        )?;
+        require_approval(object)?;
+        let approval_expires_at = object
+            .get("approval_expires_at")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_APPROVAL_REQUIRED: approval_expires_at is required".to_owned(),
+                )
+            })?;
+        if approval_expires_at.len() > 64 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_APPROVAL_REQUIRED: approval_expires_at is too long".to_owned(),
+            ));
+        }
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionStageTransitionPrepareRequest@1",
+        )?;
+
+        let transition_id = required_id(object, "transition_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let project_id = required_id(object, "project_id")?;
+        let candidate_id = required_id(object, "candidate_id")?;
+        let from_stage = required_production_stage(object, "from_stage")?;
+        let to_stage = required_production_stage(object, "to_stage")?;
+        let output_kind = object
+            .get("output_kind")
+            .and_then(Value::as_str)
+            .ok_or_else(|| RuntimeError::InvalidInput("output_kind is required".to_owned()))?;
+        if !PRODUCTION_OUTPUT_KINDS.contains(&output_kind) {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_GATE_NOT_IMPLEMENTED".to_owned(),
+            ));
+        }
+
+        // The Runtime currently consumes exactly two adjacent transitions:
+        // the existing draft -> gray-model artifact gate and the bounded
+        // gray-model -> topology quality gate. Future stages remain an
+        // explicit capability boundary.
+        let topology_transition = from_stage == "gray-model" && to_stage == "topology";
+        let gray_model_transition = from_stage == "draft" && to_stage == "gray-model";
+        if !gray_model_transition && !topology_transition {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_GATE_NOT_IMPLEMENTED".to_owned(),
+            ));
+        }
+        if (gray_model_transition && output_kind != "gray-model-artifact")
+            || (topology_transition && output_kind != "topology-quality")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_GATE_NOT_IMPLEMENTED".to_owned(),
+            ));
+        }
+
+        let candidate_state_sha256 = required_sha(object, "candidate_state_sha256")?;
+        let artifact_sha256 = required_sha(object, "artifact_sha256")?;
+        let output_object_sha256 = required_sha(object, "output_object_sha256")?;
+        let requested_quality_report_object_sha256 =
+            optional_sha(object, "quality_report_object_sha256")?;
+        let quality_report_object_sha256 = if topology_transition {
+            if requested_quality_report_object_sha256.as_deref() != Some(output_object_sha256) {
+                return Err(RuntimeError::InvalidInput(
+                    "PRODUCTION_TOPOLOGY_OUTPUT_BINDING_MISMATCH: output must equal the topology quality report"
+                        .to_owned(),
+                ));
+            }
+            Some(output_object_sha256)
+        } else {
+            if output_object_sha256 != artifact_sha256 {
+                return Err(RuntimeError::InvalidInput(
+                    "PRODUCTION_OUTPUT_BINDING_MISMATCH: output_object_sha256 must equal artifact_sha256"
+                        .to_owned(),
+                ));
+            }
+            requested_quality_report_object_sha256.as_deref()
+        };
+        let comparison_report_object_sha256 =
+            optional_sha(object, "comparison_report_object_sha256")?;
+        if topology_transition && comparison_report_object_sha256.is_some() {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_TOPOLOGY_COMPARISON_UNSUPPORTED: topology transition has no visual comparison report"
+                    .to_owned(),
+            ));
+        }
+        let reference_id = required_id(object, "reference_id")?;
+        let reference_sha256 = required_sha(object, "reference_sha256")?;
+        let camera_hash = required_sha(object, "camera_hash")?;
+        let evidence_sha256 = required_sha(object, "evidence_sha256")?;
+        let parent_checkpoint_id = optional_id(object, "parent_checkpoint_id")?;
+        let parent_checkpoint_sha256 = optional_sha(object, "parent_checkpoint_sha256")?;
+        if parent_checkpoint_id.is_none() != parent_checkpoint_sha256.is_none() {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_PARENT_BINDING_MISMATCH: parent checkpoint id/hash must be both null or present"
+                    .to_owned(),
+            ));
+        }
+        let input_sha256 = required_sha(object, "input_sha256")?;
+        let approval_session_id = required_id(object, "approval_session_id")?;
+        if approval_session_id != session_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_APPROVAL_SESSION_MISMATCH".to_owned(),
+            ));
+        }
+        let _idempotency_key = required_id(object, "idempotency_key")?;
+
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        validate_session_binding(
+            &session,
+            session_id,
+            project_id,
+            candidate_id,
+            reference_id,
+            camera_hash,
+            evidence_sha256,
+            &session.observation_sha256,
+        )?;
+        let candidate = bound_candidate(self, project_id, candidate_id)?;
+        if candidate_state_sha256 != candidate.canonical_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_CANDIDATE_STATE_MISMATCH: candidate state hash differs".to_owned(),
+            ));
+        }
+        validate_current_candidate_head(self, &candidate, project_id)?;
+
+        let reference = bound_reference(self, project_id, reference_id)?;
+        if reference_sha256 != reference.object_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_REFERENCE_BINDING_MISMATCH: reference hash differs".to_owned(),
+            ));
+        }
+        validate_production_artifact_binding(self, &candidate, candidate_id, artifact_sha256)?;
+
+        let observation = self.agentic_scene_observe(project_id, Some(candidate_id))?;
+        let observation_sha256 = observation_hash(&observation)?;
+        if observation_sha256 != session.observation_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_SESSION_STALE: current observation differs from the session".to_owned(),
+            ));
+        }
+        validate_observation_claims(
+            &observation,
+            &candidate,
+            &reference,
+            camera_hash,
+            evidence_sha256,
+        )?;
+        let topology_gate_passed = if topology_transition {
+            // Topology is a structural report, not a visual-quality report.
+            // Keep the camera/reference/session observation binding, but do
+            // not route the topology receipt through the visual evidence
+            // foreign keys.
+            validate_production_visual_bindings(
+                self,
+                &observation,
+                &candidate,
+                &reference,
+                camera_hash,
+                None,
+                None,
+            )?;
+            validate_topology_quality_transition(
+                self,
+                project_id,
+                candidate_id,
+                candidate_state_sha256,
+                artifact_sha256,
+                output_object_sha256,
+            )?
+        } else {
+            validate_production_visual_bindings(
+                self,
+                &observation,
+                &candidate,
+                &reference,
+                camera_hash,
+                quality_report_object_sha256,
+                comparison_report_object_sha256,
+            )?;
+            candidate.quality_hard_gate_passed
+        };
+
+        if let Some(parent_id) = parent_checkpoint_id {
+            let parent = self
+                .store
+                .get_agentic_checkpoint(parent_id)?
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput("AGENTIC_PARENT_CHECKPOINT_NOT_FOUND".to_owned())
+                })?;
+            if parent.session_id != session_id
+                || parent.project_id != project_id
+                || parent.candidate_id != candidate_id
+                || parent.canonical_sha256 != parent_checkpoint_sha256.clone().unwrap_or_default()
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "AGENTIC_PARENT_BINDING_MISMATCH: checkpoint is outside the session binding"
+                        .to_owned(),
+                ));
+            }
+        }
+
+        let input_binding = production_stage_transition_input_binding(
+            transition_id,
+            session_id,
+            project_id,
+            candidate_id,
+            from_stage,
+            to_stage,
+            candidate_state_sha256,
+            artifact_sha256,
+            output_kind,
+            output_object_sha256,
+            quality_report_object_sha256.as_deref(),
+            comparison_report_object_sha256.as_deref(),
+            reference_id,
+            reference_sha256,
+            camera_hash,
+            evidence_sha256,
+            parent_checkpoint_id,
+            parent_checkpoint_sha256.as_deref(),
+        );
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        if input_sha256 != expected_input_sha256 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_STAGE_INPUT_HASH_MISMATCH: expected={expected_input_sha256} actual={input_sha256}"
+            )));
+        }
+
+        let gate_passed = topology_gate_passed;
+        let mut transition = ProductionStageTransitionRecord {
+            schema_version: "ProductionStageTransition@1".to_owned(),
+            transition_id: transition_id.to_owned(),
+            session_id: session_id.to_owned(),
+            project_id: project_id.to_owned(),
+            candidate_id: candidate_id.to_owned(),
+            from_stage: from_stage.to_owned(),
+            to_stage: to_stage.to_owned(),
+            candidate_state_sha256: candidate_state_sha256.to_owned(),
+            artifact_sha256: artifact_sha256.to_owned(),
+            output_kind: output_kind.to_owned(),
+            output_object_sha256: output_object_sha256.to_owned(),
+            quality_report_object_sha256: quality_report_object_sha256.map(str::to_owned),
+            comparison_report_object_sha256: comparison_report_object_sha256.map(str::to_owned),
+            reference_id: reference_id.to_owned(),
+            reference_sha256: reference_sha256.to_owned(),
+            camera_hash: camera_hash.to_owned(),
+            evidence_sha256: evidence_sha256.to_owned(),
+            parent_checkpoint_id: parent_checkpoint_id.map(str::to_owned),
+            parent_checkpoint_sha256: parent_checkpoint_sha256.map(str::to_owned),
+            gate_status: if gate_passed {
+                "pass".to_owned()
+            } else {
+                "fail".to_owned()
+            },
+            status: if gate_passed {
+                "passed".to_owned()
+            } else {
+                "blocked".to_owned()
+            },
+            input_sha256: input_sha256.to_owned(),
+            canonical_sha256: String::new(),
+            // The session timestamp is durable and stable across a retry.
+            // Using wall-clock time here would make the same transition
+            // request produce different receipt bytes and defeat Store CAS
+            // replay exactness.
+            created_at: session.updated_at.clone(),
+        };
+        let mut transition_value = serde_json::to_value(&transition).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_STAGE_TRANSITION_SERIALIZE_FAILED: {error}"
+            ))
+        })?;
+        transition_value["canonical_sha256"] = Value::String(String::new());
+        transition.canonical_sha256 = canonical_json_hash(&transition_value);
+        transition_value["canonical_sha256"] = Value::String(transition.canonical_sha256.clone());
+        let transition_bytes = canonical_json_bytes(&transition_value)?;
+        let reservation = self.store.begin_cas_reservation();
+        let receipt_object = self.store.put_object_reserved(
+            &reservation,
+            &transition_bytes,
+            None,
+            "application/json",
+            "agentic-production-stage-transition",
+            &transition.created_at,
+        )?;
+        match self
+            .store
+            .record_production_stage_transition_with_replay(&transition, &receipt_object.record)
+        {
+            Ok((stored, replayed)) => {
+                let production_stage =
+                    self.store
+                        .get_production_stage_head(session_id, project_id, candidate_id);
+                // A committed/replayed Store row owns the receipt. Release
+                // only this operation's temporary reservation; never clean
+                // up a receipt after the durable row has linked it.
+                let _ =
+                    self.store
+                        .release_cas_reservation_object(&reservation, &receipt_object, false);
+                let production_stage = production_stage?;
+                Ok(production_stage_transition_result(
+                    &stored,
+                    &production_stage,
+                    replayed,
+                    "ProductionStageTransitionPrepareResult@1",
+                    true,
+                ))
+            }
+            Err(error) => {
+                // Only a receipt newly installed by this operation may be
+                // removed. A replay/conflict can observe an existing CAS
+                // object, which must remain untouched.
+                let _ = self.store.release_cas_reservation_object(
+                    &reservation,
+                    &receipt_object,
+                    receipt_object.created_new,
+                );
+                Err(RuntimeError::Store(error))
+            }
+        }
+    }
+
+    /// Read one immutable production transition after checking the exact
+    /// session/project/candidate scope.  Store readback revalidates its CAS
+    /// receipt and the production-stage head; this method never mutates state.
+    pub fn production_stage_transition_get(&self, request: Value) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "production_stage_transition_get")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "transition_id",
+                "session_id",
+                "project_id",
+                "candidate_id",
+            ],
+        )?;
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionStageTransitionGetRequest@1",
+        )?;
+        let transition_id = required_id(object, "transition_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let project_id = required_id(object, "project_id")?;
+        let candidate_id = required_id(object, "candidate_id")?;
+        let transition = self
+            .store
+            .get_production_stage_transition(transition_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: production stage transition not found".to_owned(),
+                )
+            })?;
+        if transition.session_id != session_id
+            || transition.project_id != project_id
+            || transition.candidate_id != candidate_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_TRANSITION_BINDING_MISMATCH: transition scope differs".to_owned(),
+            ));
+        }
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        validate_session_binding(
+            &session,
+            session_id,
+            project_id,
+            candidate_id,
+            &session.reference_id,
+            &session.camera_hash,
+            &session.evidence_sha256,
+            &session.observation_sha256,
+        )?;
+        let candidate = bound_candidate(self, project_id, candidate_id)?;
+        if transition.candidate_state_sha256 != candidate.canonical_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_TRANSITION_BINDING_MISMATCH: candidate state differs".to_owned(),
+            ));
+        }
+        let reference = bound_reference(self, project_id, &transition.reference_id)?;
+        if transition.reference_sha256 != reference.object_sha256
+            || transition.reference_id != session.reference_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_TRANSITION_BINDING_MISMATCH: reference differs".to_owned(),
+            ));
+        }
+        let production_stage =
+            self.store
+                .get_production_stage_head(session_id, project_id, candidate_id)?;
+        Ok(production_stage_transition_result(
+            &transition,
+            &production_stage,
+            true,
+            "ProductionStageTransitionGetResult@1",
+            false,
+        ))
+    }
+
+    /// Prepare the first dual-candidate production-head transition.  The
+    /// topology candidate remains the session/root candidate while the
+    /// material-surface candidate becomes the separate V2 head.  Every
+    /// source, quality, session and approval binding is read back before the
+    /// single receipt reservation; this method never confirms, versions or
+    /// exports either candidate.
+    pub fn production_stage_transition_v2_prepare(
+        &self,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "production_stage_transition_v2_prepare")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "transition_id",
+                "session_id",
+                "project_id",
+                "root_candidate_id",
+                "root_candidate_role",
+                "root_candidate_state_sha256",
+                "source_artifact_id",
+                "root_artifact_sha256",
+                "previous_head_candidate_id",
+                "previous_head_candidate_role",
+                "previous_head_candidate_state_sha256",
+                "previous_head_artifact_id",
+                "previous_head_artifact_sha256",
+                "previous_head_stage",
+                "head_candidate_id",
+                "head_candidate_role",
+                "head_candidate_state_sha256",
+                "output_artifact_id",
+                "head_artifact_sha256",
+                "from_stage",
+                "to_stage",
+                "topology_quality_id",
+                "topology_quality_status",
+                "topology_quality_report_object_sha256",
+                "topology_quality_canonical_sha256",
+                "material_surface_quality_id",
+                "material_surface_quality_status",
+                "material_surface_quality_report_object_sha256",
+                "material_surface_quality_canonical_sha256",
+                "candidate_binding_status",
+                "reference_id",
+                "reference_sha256",
+                "camera_hash",
+                "evidence_sha256",
+                "approval_receipt_id",
+                "approval_session_id",
+                "approval_expires_at",
+                "parent_topology_transition_id",
+                "parent_topology_transition_sha256",
+                "parent_topology_transition_schema_version",
+                "input_sha256",
+                "approved",
+                "approval_summary",
+                "idempotency_key",
+            ],
+        )?;
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionStageTransitionPrepareRequest@2",
+        )?;
+        require_approval(object)?;
+
+        let transition_id = required_id(object, "transition_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let project_id = required_id(object, "project_id")?;
+        let root_candidate_id = required_id(object, "root_candidate_id")?;
+        let root_candidate_role =
+            required_literal(object, "root_candidate_role", "topology-source")?;
+        let root_candidate_state_sha256 = required_sha(object, "root_candidate_state_sha256")?;
+        let source_artifact_id = required_id(object, "source_artifact_id")?;
+        let root_artifact_sha256 = required_sha(object, "root_artifact_sha256")?;
+        let previous_head_candidate_id = required_id(object, "previous_head_candidate_id")?;
+        let previous_head_candidate_role =
+            required_literal(object, "previous_head_candidate_role", "topology-source")?;
+        let previous_head_candidate_state_sha256 =
+            required_sha(object, "previous_head_candidate_state_sha256")?;
+        let previous_head_artifact_id = required_id(object, "previous_head_artifact_id")?;
+        let previous_head_artifact_sha256 = required_sha(object, "previous_head_artifact_sha256")?;
+        let previous_head_stage = required_literal(object, "previous_head_stage", "topology")?;
+        let head_candidate_id = required_id(object, "head_candidate_id")?;
+        let head_candidate_role =
+            required_literal(object, "head_candidate_role", "material-surface-output")?;
+        let head_candidate_state_sha256 = required_sha(object, "head_candidate_state_sha256")?;
+        let output_artifact_id = required_id(object, "output_artifact_id")?;
+        let head_artifact_sha256 = required_sha(object, "head_artifact_sha256")?;
+        let from_stage = required_literal(object, "from_stage", "topology")?;
+        let to_stage = required_literal(object, "to_stage", "material-surface")?;
+        let topology_quality_id = required_id(object, "topology_quality_id")?;
+        let topology_quality_status =
+            required_literal(object, "topology_quality_status", "passed")?;
+        let topology_quality_report_object_sha256 =
+            required_sha(object, "topology_quality_report_object_sha256")?;
+        let topology_quality_canonical_sha256 =
+            required_sha(object, "topology_quality_canonical_sha256")?;
+        let material_surface_quality_id = required_id(object, "material_surface_quality_id")?;
+        let material_surface_quality_status =
+            required_literal(object, "material_surface_quality_status", "passed")?;
+        let material_surface_quality_report_object_sha256 =
+            required_sha(object, "material_surface_quality_report_object_sha256")?;
+        let material_surface_quality_canonical_sha256 =
+            required_sha(object, "material_surface_quality_canonical_sha256")?;
+        let candidate_binding_status = required_literal(
+            object,
+            "candidate_binding_status",
+            "distinct-root-topology-to-material-surface-head",
+        )?;
+        let reference_id = required_id(object, "reference_id")?;
+        let reference_sha256 = required_sha(object, "reference_sha256")?;
+        let camera_hash = required_sha(object, "camera_hash")?;
+        let evidence_sha256 = required_sha(object, "evidence_sha256")?;
+        let approval_receipt_id = required_id(object, "approval_receipt_id")?;
+        let approval_session_id = required_id(object, "approval_session_id")?;
+        if approval_session_id != session_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_APPROVAL_SESSION_MISMATCH".to_owned(),
+            ));
+        }
+        let approval_expires_at = object
+            .get("approval_expires_at")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_APPROVAL_REQUIRED: approval_expires_at is required".to_owned(),
+                )
+            })?;
+        validate_v2_approval_expiry(approval_expires_at, true)?;
+        let parent_topology_transition_id = required_id(object, "parent_topology_transition_id")?;
+        let parent_topology_transition_sha256 =
+            required_sha(object, "parent_topology_transition_sha256")?;
+        let parent_topology_transition_schema_version = required_literal(
+            object,
+            "parent_topology_transition_schema_version",
+            "ProductionStageTransition@1",
+        )?;
+        let input_sha256 = required_sha(object, "input_sha256")?;
+        let approval_summary = object
+            .get("approval_summary")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_APPROVAL_REQUIRED: approval_summary is required".to_owned(),
+                )
+            })?;
+        let idempotency_key = required_id(object, "idempotency_key")?;
+        let approval_summary_sha256 = sha256_hex(approval_summary.as_bytes());
+
+        let session = self
+            .store
+            .get_agentic_session(session_id)?
+            .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+        if session.candidate_id != root_candidate_id {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_SESSION_ROOT_CANDIDATE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_session_binding(
+            &session,
+            session_id,
+            project_id,
+            root_candidate_id,
+            reference_id,
+            camera_hash,
+            evidence_sha256,
+            &session.observation_sha256,
+        )?;
+        let reference = bound_reference(self, project_id, reference_id)?;
+        if reference.object_sha256 != reference_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_REFERENCE_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+
+        let root_candidate = bound_candidate(self, project_id, root_candidate_id)?;
+        if root_candidate_state_sha256 != root_candidate.canonical_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_ROOT_CANDIDATE_STATE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_v2_candidate_artifact_identity(
+            self,
+            &root_candidate,
+            source_artifact_id,
+            root_artifact_sha256,
+            "root",
+        )?;
+        validate_current_candidate_head(self, &root_candidate, project_id)?;
+
+        let parent = validate_v2_topology_parent(
+            self,
+            &session,
+            &root_candidate,
+            parent_topology_transition_id,
+            parent_topology_transition_sha256,
+            parent_topology_transition_schema_version,
+            source_artifact_id,
+            root_artifact_sha256,
+            reference_id,
+            reference_sha256,
+            camera_hash,
+            evidence_sha256,
+            true,
+        )?;
+        if parent.output_object_sha256 != topology_quality_report_object_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_PARENT_TOPOLOGY_REPORT_MISMATCH".to_owned(),
+            ));
+        }
+        if previous_head_candidate_id != root_candidate_id
+            || previous_head_candidate_state_sha256 != root_candidate_state_sha256
+            || previous_head_artifact_id != source_artifact_id
+            || previous_head_artifact_sha256 != root_artifact_sha256
+            || parent.candidate_id != previous_head_candidate_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_PREVIOUS_HEAD_BINDING_MISMATCH".to_owned(),
+            ));
+        }
+
+        if head_candidate_id == root_candidate_id {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_CANDIDATES_NOT_DISTINCT".to_owned(),
+            ));
+        }
+        let head_candidate = bound_candidate(self, project_id, head_candidate_id)?;
+        if head_candidate_state_sha256 != head_candidate.canonical_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_HEAD_CANDIDATE_STATE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_v2_candidate_artifact_identity(
+            self,
+            &head_candidate,
+            output_artifact_id,
+            head_artifact_sha256,
+            "head",
+        )?;
+
+        let topology_quality = self
+            .store
+            .get_candidate_topology_quality(topology_quality_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V2_TOPOLOGY_QUALITY_NOT_FOUND".to_owned(),
+                )
+            })?;
+        validate_v2_topology_quality(
+            self,
+            &topology_quality,
+            project_id,
+            root_candidate_id,
+            root_candidate_state_sha256,
+            source_artifact_id,
+            root_artifact_sha256,
+            topology_quality_id,
+            topology_quality_report_object_sha256,
+            topology_quality_canonical_sha256,
+        )?;
+
+        let material_surface_quality = self
+            .store
+            .get_candidate_material_surface_quality(material_surface_quality_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V2_MATERIAL_SURFACE_QUALITY_NOT_FOUND".to_owned(),
+                )
+            })?;
+        validate_v2_material_surface_quality(
+            self,
+            &material_surface_quality,
+            project_id,
+            root_candidate_id,
+            root_candidate_state_sha256,
+            source_artifact_id,
+            root_artifact_sha256,
+            head_candidate_id,
+            head_candidate_state_sha256,
+            output_artifact_id,
+            head_artifact_sha256,
+            topology_quality_id,
+            topology_quality_report_object_sha256,
+            topology_quality_canonical_sha256,
+            material_surface_quality_id,
+            material_surface_quality_report_object_sha256,
+            material_surface_quality_canonical_sha256,
+        )?;
+
+        let input_binding = production_stage_transition_v2_input_binding(
+            transition_id,
+            session_id,
+            project_id,
+            root_candidate_id,
+            root_candidate_role,
+            root_candidate_state_sha256,
+            source_artifact_id,
+            root_artifact_sha256,
+            previous_head_candidate_id,
+            previous_head_candidate_role,
+            previous_head_candidate_state_sha256,
+            previous_head_artifact_id,
+            previous_head_artifact_sha256,
+            previous_head_stage,
+            head_candidate_id,
+            head_candidate_role,
+            head_candidate_state_sha256,
+            output_artifact_id,
+            head_artifact_sha256,
+            from_stage,
+            to_stage,
+            topology_quality_id,
+            topology_quality_status,
+            topology_quality_report_object_sha256,
+            topology_quality_canonical_sha256,
+            material_surface_quality_id,
+            material_surface_quality_status,
+            material_surface_quality_report_object_sha256,
+            material_surface_quality_canonical_sha256,
+            candidate_binding_status,
+            reference_id,
+            reference_sha256,
+            camera_hash,
+            evidence_sha256,
+            approval_receipt_id,
+            approval_session_id,
+            approval_expires_at,
+            approval_summary_sha256.as_str(),
+            parent_topology_transition_id,
+            parent_topology_transition_sha256,
+            parent_topology_transition_schema_version,
+            idempotency_key,
+        );
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        if input_sha256 != expected_input_sha256 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "PRODUCTION_STAGE_V2_INPUT_HASH_MISMATCH: expected={expected_input_sha256} actual={input_sha256}"
+            )));
+        }
+
+        let mut transition = ProductionStageTransitionV2Record {
+            schema_version: "ProductionStageTransition@2".to_owned(),
+            transition_id: transition_id.to_owned(),
+            session_id: session_id.to_owned(),
+            project_id: project_id.to_owned(),
+            root_candidate_id: root_candidate_id.to_owned(),
+            root_candidate_role: root_candidate_role.to_owned(),
+            root_candidate_state_sha256: root_candidate_state_sha256.to_owned(),
+            source_artifact_id: source_artifact_id.to_owned(),
+            root_artifact_sha256: root_artifact_sha256.to_owned(),
+            previous_head_candidate_id: previous_head_candidate_id.to_owned(),
+            previous_head_candidate_role: previous_head_candidate_role.to_owned(),
+            previous_head_candidate_state_sha256: previous_head_candidate_state_sha256.to_owned(),
+            previous_head_artifact_id: previous_head_artifact_id.to_owned(),
+            previous_head_artifact_sha256: previous_head_artifact_sha256.to_owned(),
+            previous_head_stage: previous_head_stage.to_owned(),
+            head_candidate_id: head_candidate_id.to_owned(),
+            head_candidate_role: head_candidate_role.to_owned(),
+            head_candidate_state_sha256: head_candidate_state_sha256.to_owned(),
+            output_artifact_id: output_artifact_id.to_owned(),
+            head_artifact_sha256: head_artifact_sha256.to_owned(),
+            from_stage: from_stage.to_owned(),
+            to_stage: to_stage.to_owned(),
+            topology_quality_id: topology_quality_id.to_owned(),
+            topology_quality_status: topology_quality_status.to_owned(),
+            topology_quality_report_object_sha256: topology_quality_report_object_sha256.to_owned(),
+            topology_quality_canonical_sha256: topology_quality_canonical_sha256.to_owned(),
+            material_surface_quality_id: material_surface_quality_id.to_owned(),
+            material_surface_quality_status: material_surface_quality_status.to_owned(),
+            material_surface_quality_report_object_sha256:
+                material_surface_quality_report_object_sha256.to_owned(),
+            material_surface_quality_canonical_sha256: material_surface_quality_canonical_sha256
+                .to_owned(),
+            candidate_binding_status: candidate_binding_status.to_owned(),
+            reference_id: reference_id.to_owned(),
+            reference_sha256: reference_sha256.to_owned(),
+            camera_hash: camera_hash.to_owned(),
+            evidence_sha256: evidence_sha256.to_owned(),
+            approval_receipt_id: approval_receipt_id.to_owned(),
+            approval_session_id: approval_session_id.to_owned(),
+            approval_expires_at: approval_expires_at.to_owned(),
+            approval_summary_sha256,
+            parent_topology_transition_id: parent_topology_transition_id.to_owned(),
+            parent_topology_transition_sha256: parent_topology_transition_sha256.to_owned(),
+            parent_topology_transition_schema_version: parent_topology_transition_schema_version
+                .to_owned(),
+            gate_status: "pass".to_owned(),
+            status: "passed".to_owned(),
+            input_sha256: input_sha256.to_owned(),
+            canonical_sha256: String::new(),
+            // The material quality record is immutable and gives retries a
+            // stable timestamp; wall-clock time would alter the CAS receipt
+            // for an otherwise identical transition.
+            created_at: material_surface_quality.created_at.clone(),
+        };
+        transition.canonical_sha256 = canonical_record_hash(&transition)?;
+        let transition_value = serde_json::to_value(&transition).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_STAGE_V2_RECEIPT_SERIALIZE_FAILED: {error}"
+            ))
+        })?;
+        let receipt_bytes = canonical_json_bytes(&transition_value)?;
+        if receipt_bytes.len() > MAX_PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_BYTES {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_RECEIPT_TOO_LARGE".to_owned(),
+            ));
+        }
+
+        // Complete the Runtime-owned validation before reserving or handing
+        // the receipt to Store.  In particular, validate the exact head that
+        // Store will derive from this immutable transition.  Once Store has
+        // committed, the Runtime must not run another fallible validation and
+        // then report failure for a durable result that is already persisted.
+        let expected_head = production_stage_head_v2_from_transition(&transition)?;
+        validate_v2_transition_and_head(
+            self,
+            &transition,
+            &expected_head,
+            session_id,
+            project_id,
+            root_candidate_id,
+            head_candidate_id,
+            true,
+        )?;
+
+        let reservation = self.store.begin_cas_reservation();
+        let receipt_object = self.store.put_object_reserved(
+            &reservation,
+            &receipt_bytes,
+            None,
+            PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_MIME,
+            PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_KIND,
+            &transition.created_at,
+        )?;
+        match self
+            .store
+            .record_production_stage_transition_v2_with_replay(&transition, &receipt_object.record)
+        {
+            Ok((stored, head, replayed)) => {
+                release_v2_transition_receipt(self, &reservation, &receipt_object, false);
+                // Store has already atomically validated and committed the
+                // immutable transition/head pair.  Do not perform a
+                // fallible post-commit readback here: a validation error
+                // cannot undo that commit and would make the API falsely
+                // report a failed prepare.  The returned records are only
+                // serialized into the result below.
+                Ok(production_stage_transition_v2_result(
+                    &stored,
+                    &head,
+                    replayed,
+                    "ProductionStageTransitionPrepareResult@2",
+                    true,
+                ))
+            }
+            Err(error) => {
+                release_v2_transition_receipt(self, &reservation, &receipt_object, true);
+                Err(RuntimeError::Store(error))
+            }
+        }
+    }
+
+    /// Read a V2 transition and its dual-candidate head.  Store readback and
+    /// Runtime revalidation are both read-only; no reachability repair or
+    /// production-head mutation occurs here.
+    pub fn production_stage_transition_v2_get(
+        &self,
+        request: Value,
+    ) -> Result<Value, RuntimeError> {
+        let object = request_object(&request, "production_stage_transition_v2_get")?;
+        reject_unknown_keys(
+            object,
+            &[
+                "schema_version",
+                "transition_id",
+                "session_id",
+                "project_id",
+                "root_candidate_id",
+                "head_candidate_id",
+            ],
+        )?;
+        require_schema_version(
+            object,
+            "schema_version",
+            "ProductionStageTransitionGetRequest@2",
+        )?;
+        let transition_id = required_id(object, "transition_id")?;
+        let session_id = required_id(object, "session_id")?;
+        let project_id = required_id(object, "project_id")?;
+        let root_candidate_id = required_id(object, "root_candidate_id")?;
+        let head_candidate_id = required_id(object, "head_candidate_id")?;
+        let transition = self
+            .store
+            .get_production_stage_transition_v2(transition_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: production stage transition v2 not found".to_owned(),
+                )
+            })?;
+        let head = self
+            .store
+            .get_production_stage_head_v2(session_id, project_id, root_candidate_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "NOT_FOUND: production stage head v2 not found".to_owned(),
+                )
+            })?;
+        if transition.transition_id != transition_id
+            || transition.session_id != session_id
+            || transition.project_id != project_id
+            || transition.root_candidate_id != root_candidate_id
+            || transition.head_candidate_id != head_candidate_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_TRANSITION_SCOPE_MISMATCH".to_owned(),
+            ));
+        }
+        validate_v2_transition_and_head(
+            self,
+            &transition,
+            &head,
+            session_id,
+            project_id,
+            root_candidate_id,
+            head_candidate_id,
+            false,
+        )?;
+        Ok(production_stage_transition_v2_result(
+            &transition,
+            &head,
+            true,
+            "ProductionStageTransitionGetResult@2",
+            false,
+        ))
+    }
+
     /// Create a CAS-persisted, approval-gated RepairIntent.  It never mutates
     /// a candidate, version, snapshot, or checkpoint history.
     pub fn checkpoint_restore_prepare(&self, request: Value) -> Result<Value, RuntimeError> {
@@ -1126,6 +2142,78 @@ fn required_sha<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str
     Ok(value)
 }
 
+fn optional_id<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<Option<&'a str>, RuntimeError> {
+    match object.get(key) {
+        Some(Value::Null) => Ok(None),
+        Some(value) => {
+            let value = value
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(format!("{key} must be null or an id"))
+                })?;
+            if !is_opaque_id(value) {
+                return Err(RuntimeError::InvalidInput(format!("{key} is malformed")));
+            }
+            Ok(Some(value))
+        }
+        None => Err(RuntimeError::InvalidInput(format!("{key} is required"))),
+    }
+}
+
+fn optional_sha<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<Option<&'a str>, RuntimeError> {
+    match object.get(key) {
+        Some(Value::Null) => Ok(None),
+        Some(value) => {
+            let value = value
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(format!("{key} must be null or a SHA-256"))
+                })?;
+            if !is_sha256(value) {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "{key} is not a SHA-256"
+                )));
+            }
+            Ok(Some(value))
+        }
+        None => Err(RuntimeError::InvalidInput(format!("{key} is required"))),
+    }
+}
+
+fn require_schema_version(
+    object: &Map<String, Value>,
+    key: &str,
+    expected: &str,
+) -> Result<(), RuntimeError> {
+    if object.get(key).and_then(Value::as_str) != Some(expected) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "AGENTIC_SCHEMA_VERSION_MISMATCH: {key} must be {expected}"
+        )));
+    }
+    Ok(())
+}
+
+fn required_production_stage<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<&'a str, RuntimeError> {
+    let value = required_id(object, key)?;
+    if !PRODUCTION_STAGES.contains(&value) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "{key} is not a valid ProductionStage"
+        )));
+    }
+    Ok(value)
+}
+
 fn required_stage<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str, RuntimeError> {
     let value = required_id(object, key)?;
     if !STAGES.contains(&value) {
@@ -1167,6 +2255,1167 @@ fn require_approval(object: &Map<String, Value>) -> Result<(), RuntimeError> {
         ));
     }
     Ok(())
+}
+
+fn validate_current_candidate_head(
+    runtime: &Runtime,
+    candidate: &CandidateRecord,
+    project_id: &str,
+) -> Result<(), RuntimeError> {
+    runtime.project(project_id)?.ok_or_else(|| {
+        RuntimeError::InvalidInput("PROJECT_SCOPE_DENIED: project not found".to_owned())
+    })?;
+    let current_head = runtime.store.latest_version_for_project(project_id)?;
+    let base_matches = candidate.base_version_id.as_deref()
+        == current_head
+            .as_ref()
+            .map(|version| version.version_id.as_str());
+    let candidate_is_confirmed_head = current_head
+        .as_ref()
+        .is_some_and(|version| version.candidate_id == candidate.candidate_id);
+    if !base_matches && !candidate_is_confirmed_head {
+        return Err(RuntimeError::InvalidInput(
+            "STALE_HEAD: candidate is not bound to the current project head".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+/// Bind a gray-model -> topology transition to the exact durable topology
+/// quality report.  Store verifies the immutable link and its source lineage;
+/// Runtime additionally verifies that the requested output hash is the
+/// report bytes and derives the transition gate from that report, not from
+/// the earlier gray-model candidate flag.  A valid failed report is a
+/// durable blocked attempt; malformed or retargeted evidence is rejected.
+fn validate_topology_quality_transition(
+    runtime: &Runtime,
+    project_id: &str,
+    candidate_id: &str,
+    candidate_state_sha256: &str,
+    artifact_sha256: &str,
+    output_object_sha256: &str,
+) -> Result<bool, RuntimeError> {
+    const MAX_REPORT_BYTES: u64 = 1024 * 1024;
+    let report_object = runtime
+        .store
+        .get_object(output_object_sha256)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_TOPOLOGY_QUALITY_UNAVAILABLE: report CAS object is missing".to_owned(),
+            )
+        })?;
+    if report_object.mime != "application/json"
+        || report_object.kind != "candidate-topology-quality-report"
+        || report_object.size_bytes == 0
+        || report_object.size_bytes > MAX_REPORT_BYTES
+        || !matches!(
+            report_object.reachability.as_str(),
+            "temporary" | "reachable"
+        )
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_TOPOLOGY_QUALITY_OBJECT_INVALID: report CAS metadata is outside the closed profile"
+                .to_owned(),
+        ));
+    }
+    let report_bytes = runtime.cas_read_bounded(output_object_sha256, MAX_REPORT_BYTES)?;
+    let report: CandidateTopologyQualityRecord =
+        serde_json::from_slice(&report_bytes).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "PRODUCTION_TOPOLOGY_QUALITY_INVALID: report JSON is invalid: {error}"
+            ))
+        })?;
+    let stored = runtime
+        .store
+        .get_candidate_topology_quality(&report.topology_quality_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_TOPOLOGY_QUALITY_NOT_FOUND: report is not durably linked".to_owned(),
+            )
+        })?;
+    if stored != report
+        || report.project_id != project_id
+        || report.candidate_id != candidate_id
+        || report.candidate_state_sha256 != candidate_state_sha256
+        || report.artifact_sha256 != artifact_sha256
+        || report.from_stage != "gray-model"
+        || report.to_stage != "topology"
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_TOPOLOGY_QUALITY_BINDING_MISMATCH: report does not bind the exact transition"
+                .to_owned(),
+        ));
+    }
+    let mut canonical_value = serde_json::to_value(&report).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_TOPOLOGY_QUALITY_INVALID: report serialization failed: {error}"
+        ))
+    })?;
+    canonical_value["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&canonical_value) != report.canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_TOPOLOGY_QUALITY_CANONICAL_MISMATCH: report hash differs".to_owned(),
+        ));
+    }
+    topology_quality_gate_status(report.hard_gate_passed, &report.validator_status)
+}
+
+fn topology_quality_gate_status(
+    hard_gate_passed: bool,
+    validator_status: &str,
+) -> Result<bool, RuntimeError> {
+    match (hard_gate_passed, validator_status) {
+        (true, "passed") => Ok(true),
+        (false, "failed") => Ok(false),
+        _ => Err(RuntimeError::InvalidInput(
+            "PRODUCTION_TOPOLOGY_QUALITY_STATUS_MISMATCH: gate and validator status disagree"
+                .to_owned(),
+        )),
+    }
+}
+
+fn validate_production_artifact_binding(
+    runtime: &Runtime,
+    candidate: &CandidateRecord,
+    candidate_id: &str,
+    artifact_sha256: &str,
+) -> Result<(), RuntimeError> {
+    let candidate_artifact = candidate.prepared_object_sha256.as_deref();
+    let both_candidate_artifacts_match = candidate
+        .prepared_object_sha256
+        .as_deref()
+        .zip(candidate.manifest_hash.as_deref())
+        .is_none_or(|(prepared, manifest)| prepared == manifest);
+    if candidate_artifact != Some(artifact_sha256) || !both_candidate_artifacts_match {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_ARTIFACT_BINDING_MISMATCH: artifact is not the candidate artifact"
+                .to_owned(),
+        ));
+    }
+    let artifact_object = runtime.store.get_object(artifact_sha256)?.ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "PRODUCTION_ARTIFACT_UNAVAILABLE: candidate artifact CAS object is missing".to_owned(),
+        )
+    })?;
+    runtime.cas_read(artifact_sha256)?;
+    if artifact_object.sha256 != artifact_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_ARTIFACT_BINDING_MISMATCH: artifact CAS hash differs".to_owned(),
+        ));
+    }
+
+    let geometry_evidence = runtime
+        .store
+        .get_geometry_candidate_evidence(candidate_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_ARTIFACT_READBACK_UNAVAILABLE: geometry evidence is missing".to_owned(),
+            )
+        })?;
+    if geometry_evidence.project_id != candidate.project_id
+        || geometry_evidence.candidate_id != candidate.candidate_id
+        || geometry_evidence.artifact_object_sha256 != artifact_sha256
+        || !is_sha256(&geometry_evidence.artifact_readback_object_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_ARTIFACT_READBACK_BINDING_MISMATCH: readback is not candidate-bound"
+                .to_owned(),
+        ));
+    }
+    let readback_hash = geometry_evidence.artifact_readback_object_sha256.as_str();
+    runtime.store.get_object(readback_hash)?.ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "PRODUCTION_ARTIFACT_READBACK_UNAVAILABLE: readback CAS object is missing".to_owned(),
+        )
+    })?;
+    runtime.cas_read(readback_hash)?;
+    Ok(())
+}
+
+fn validate_production_visual_bindings(
+    runtime: &Runtime,
+    observation: &Value,
+    candidate: &CandidateRecord,
+    reference: &ReferenceEvidenceRecord,
+    camera_hash: &str,
+    quality_report_object_sha256: Option<&str>,
+    comparison_report_object_sha256: Option<&str>,
+) -> Result<(), RuntimeError> {
+    let observed_camera = observation
+        .pointer("/lineage/camera_hash")
+        .and_then(Value::as_str)
+        .or_else(|| {
+            observation
+                .pointer("/visual_evidence_bundle/camera/camera_hash")
+                .and_then(Value::as_str)
+        });
+    if observed_camera != Some(camera_hash) {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_CAMERA_BINDING_MISMATCH: current visual camera differs".to_owned(),
+        ));
+    }
+
+    let visual = runtime.store.get_visual_evidence(&candidate.candidate_id)?;
+    if let Some(visual) = visual.as_ref() {
+        if visual.candidate_id != candidate.candidate_id
+            || visual.project_id != candidate.project_id
+            || visual.reference_id != reference.reference_id
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_VISUAL_EVIDENCE_BINDING_MISMATCH: visual evidence scope differs"
+                    .to_owned(),
+            ));
+        }
+        if quality_report_object_sha256
+            .is_some_and(|hash| visual.quality_report_object_sha256 != hash)
+            || comparison_report_object_sha256
+                .is_some_and(|hash| visual.comparison_report_object_sha256.as_deref() != Some(hash))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_VISUAL_EVIDENCE_BINDING_MISMATCH: quality/comparison record differs"
+                    .to_owned(),
+            ));
+        }
+    } else if quality_report_object_sha256.is_some() || comparison_report_object_sha256.is_some() {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_VISUAL_EVIDENCE_UNAVAILABLE: optional quality/comparison record is missing"
+                .to_owned(),
+        ));
+    }
+
+    let hashes = observation
+        .pointer("/visual_evidence_bundle/hashes")
+        .or_else(|| observation.pointer("/lineage"));
+    if quality_report_object_sha256.is_some_and(|hash| {
+        hashes
+            .and_then(|value| {
+                value
+                    .get("quality_report_hash")
+                    .or_else(|| value.get("quality_report_object_sha256"))
+            })
+            .and_then(Value::as_str)
+            != Some(hash)
+    }) || comparison_report_object_sha256.is_some_and(|hash| {
+        hashes
+            .and_then(|value| {
+                value
+                    .get("comparison_report_hash")
+                    .or_else(|| value.get("comparison_report_object_sha256"))
+            })
+            .and_then(Value::as_str)
+            != Some(hash)
+    }) {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_VISUAL_EVIDENCE_BINDING_MISMATCH: observation lineage differs".to_owned(),
+        ));
+    }
+
+    let views = runtime
+        .store
+        .list_visual_evidence_views(&candidate.candidate_id)?;
+    if !views.is_empty()
+        && !views.iter().any(|view| {
+            view.candidate_id == candidate.candidate_id
+                && view.project_id == candidate.project_id
+                && view.reference_id == reference.reference_id
+                && view.reference_sha256 == reference.object_sha256
+                && view.camera_hash == camera_hash
+                && quality_report_object_sha256
+                    .is_none_or(|hash| view.quality_report_object_sha256 == hash)
+                && comparison_report_object_sha256.is_none_or(|hash| {
+                    view.comparison_report_object_sha256.as_deref() == Some(hash)
+                })
+        })
+    {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_VISUAL_EVIDENCE_BINDING_MISMATCH: no current camera/reference view matches"
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn production_stage_transition_input_binding(
+    transition_id: &str,
+    session_id: &str,
+    project_id: &str,
+    candidate_id: &str,
+    from_stage: &str,
+    to_stage: &str,
+    candidate_state_sha256: &str,
+    artifact_sha256: &str,
+    output_kind: &str,
+    output_object_sha256: &str,
+    quality_report_object_sha256: Option<&str>,
+    comparison_report_object_sha256: Option<&str>,
+    reference_id: &str,
+    reference_sha256: &str,
+    camera_hash: &str,
+    evidence_sha256: &str,
+    parent_checkpoint_id: Option<&str>,
+    parent_checkpoint_sha256: Option<&str>,
+) -> Value {
+    json!({
+        "transition_id":transition_id,
+        "session_id":session_id,
+        "project_id":project_id,
+        "candidate_id":candidate_id,
+        "from_stage":from_stage,
+        "to_stage":to_stage,
+        "candidate_state_sha256":candidate_state_sha256,
+        "artifact_sha256":artifact_sha256,
+        "output_kind":output_kind,
+        "output_object_sha256":output_object_sha256,
+        "quality_report_object_sha256":quality_report_object_sha256,
+        "comparison_report_object_sha256":comparison_report_object_sha256,
+        "reference_id":reference_id,
+        "reference_sha256":reference_sha256,
+        "camera_hash":camera_hash,
+        "evidence_sha256":evidence_sha256,
+        "parent_checkpoint_id":parent_checkpoint_id,
+        "parent_checkpoint_sha256":parent_checkpoint_sha256
+    })
+}
+
+fn production_stage_transition_result(
+    transition: &ProductionStageTransitionRecord,
+    production_stage: &str,
+    replayed: bool,
+    schema_version: &str,
+    runtime_write: bool,
+) -> Value {
+    json!({
+        "schema_version":schema_version,
+        "transition":serde_json::to_value(transition).expect("production transition serializes"),
+        "production_stage":production_stage,
+        "replayed":replayed,
+        "runtime_write":runtime_write,
+        "candidate_confirmed":false,
+        "version_created":false,
+        "export_performed":false
+    })
+}
+
+fn required_literal<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+    expected: &str,
+) -> Result<&'a str, RuntimeError> {
+    let value = object
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| RuntimeError::InvalidInput(format!("{key} is required")))?;
+    if value != expected {
+        return Err(RuntimeError::InvalidInput(format!(
+            "{key} must be {expected}"
+        )));
+    }
+    Ok(value)
+}
+
+fn validate_v2_approval_expiry(value: &str, require_future: bool) -> Result<(), RuntimeError> {
+    if value.is_empty() || value.len() > 64 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_APPROVAL_REQUIRED: approval_expires_at is malformed".to_owned(),
+        ));
+    }
+    let expires_at = value.parse::<u64>().map_err(|_| {
+        RuntimeError::InvalidInput(
+            "AGENTIC_APPROVAL_REQUIRED: approval_expires_at must be epoch seconds".to_owned(),
+        )
+    })?;
+    if require_future {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| {
+                RuntimeError::InvalidInput(
+                    "AGENTIC_APPROVAL_REQUIRED: system clock is before epoch".to_owned(),
+                )
+            })?
+            .as_secs();
+        if expires_at <= now {
+            return Err(RuntimeError::InvalidInput(
+                "AGENTIC_APPROVAL_EXPIRED".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn canonical_record_hash<T>(record: &T) -> Result<String, RuntimeError>
+where
+    T: serde::Serialize,
+{
+    let mut value = serde_json::to_value(record).map_err(|error| {
+        RuntimeError::InvalidInput(format!("record cannot be serialized: {error}"))
+    })?;
+    value["canonical_sha256"] = Value::String(String::new());
+    Ok(canonical_json_hash(&value))
+}
+
+fn validate_v2_candidate_artifact_identity(
+    runtime: &Runtime,
+    candidate: &CandidateRecord,
+    artifact_id: &str,
+    artifact_sha256: &str,
+    role: &str,
+) -> Result<(), RuntimeError> {
+    if candidate.prepared_object_id.as_deref() != Some(artifact_id)
+        || candidate.prepared_object_sha256.as_deref() != Some(artifact_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PRODUCTION_STAGE_V2_{role_upper}_ARTIFACT_BINDING_MISMATCH: candidate artifact differs",
+            role_upper = role.to_ascii_uppercase()
+        )));
+    }
+    let object = runtime.store.get_object(artifact_sha256)?.ok_or_else(|| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_STAGE_V2_{role_upper}_ARTIFACT_UNAVAILABLE",
+            role_upper = role.to_ascii_uppercase()
+        ))
+    })?;
+    if object.sha256 != artifact_sha256
+        || object.mime != "model/gltf-binary"
+        || object.size_bytes == 0
+        || object.size_bytes > MAX_GEOMETRY_ARTIFACT_BYTES
+        || !matches!(object.reachability.as_str(), "temporary" | "reachable")
+    {
+        return Err(RuntimeError::InvalidInput(format!(
+            "PRODUCTION_STAGE_V2_{role_upper}_ARTIFACT_OBJECT_INVALID",
+            role_upper = role.to_ascii_uppercase()
+        )));
+    }
+    runtime.cas_read_bounded(artifact_sha256, MAX_GEOMETRY_ARTIFACT_BYTES)?;
+    Ok(())
+}
+
+fn validate_v2_report_cas<T>(
+    runtime: &Runtime,
+    report: &T,
+    report_sha256: &str,
+    expected_kind: &str,
+) -> Result<(), RuntimeError>
+where
+    T: serde::Serialize + DeserializeOwned + PartialEq,
+{
+    let object = runtime.store.get_object(report_sha256)?.ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_QUALITY_REPORT_OBJECT_UNAVAILABLE".to_owned(),
+        )
+    })?;
+    if object.sha256 != report_sha256
+        || object.mime != PRODUCTION_STAGE_TRANSITION_V2_RECEIPT_MIME
+        || object.kind != expected_kind
+        || object.size_bytes == 0
+        || object.size_bytes > MAX_DERIVED_JSON_BYTES
+        || !matches!(object.reachability.as_str(), "temporary" | "reachable")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_QUALITY_REPORT_OBJECT_INVALID".to_owned(),
+        ));
+    }
+    let bytes = runtime.cas_read_bounded(report_sha256, MAX_DERIVED_JSON_BYTES)?;
+    let readback: T = serde_json::from_slice(&bytes).map_err(|error| {
+        RuntimeError::InvalidInput(format!(
+            "PRODUCTION_STAGE_V2_QUALITY_REPORT_INVALID: {error}"
+        ))
+    })?;
+    if &readback != report {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_QUALITY_REPORT_READBACK_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_v2_topology_quality(
+    runtime: &Runtime,
+    quality: &CandidateTopologyQualityRecord,
+    project_id: &str,
+    root_candidate_id: &str,
+    root_candidate_state_sha256: &str,
+    source_artifact_id: &str,
+    root_artifact_sha256: &str,
+    topology_quality_id: &str,
+    report_object_sha256: &str,
+    canonical_sha256: &str,
+) -> Result<(), RuntimeError> {
+    if quality.schema_version != "CandidateTopologyQuality@1"
+        || quality.topology_quality_id != topology_quality_id
+        || quality.project_id != project_id
+        || quality.candidate_id != root_candidate_id
+        || quality.candidate_state_sha256 != root_candidate_state_sha256
+        || quality.artifact_id != source_artifact_id
+        || quality.artifact_sha256 != root_artifact_sha256
+        || quality.canonical_sha256 != canonical_sha256
+        || quality.from_stage != "gray-model"
+        || quality.to_stage != "topology"
+        || quality.validator_status != "passed"
+        || !quality.hard_gate_passed
+        || quality.quality_status != "structural_only"
+        || !quality.runtime_write_performed
+        || quality.candidate_confirmed
+        || quality.version_created
+        || quality.export_performed
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_TOPOLOGY_QUALITY_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    validate_v2_report_cas(
+        runtime,
+        quality,
+        report_object_sha256,
+        "candidate-topology-quality-report",
+    )?;
+    if canonical_record_hash(quality)? != quality.canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_TOPOLOGY_QUALITY_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_v2_material_surface_quality(
+    runtime: &Runtime,
+    quality: &forgecad_contracts::CandidateMaterialSurfaceQualityRecord,
+    project_id: &str,
+    root_candidate_id: &str,
+    root_candidate_state_sha256: &str,
+    source_artifact_id: &str,
+    root_artifact_sha256: &str,
+    head_candidate_id: &str,
+    head_candidate_state_sha256: &str,
+    output_artifact_id: &str,
+    head_artifact_sha256: &str,
+    topology_quality_id: &str,
+    topology_quality_report_object_sha256: &str,
+    topology_quality_canonical_sha256: &str,
+    material_surface_quality_id: &str,
+    report_object_sha256: &str,
+    canonical_sha256: &str,
+) -> Result<(), RuntimeError> {
+    let gate = &quality.hard_gate;
+    if quality.schema_version != "CandidateMaterialSurfaceQuality@1"
+        || quality.material_surface_quality_id != material_surface_quality_id
+        || quality.project_id != project_id
+        || quality.source_candidate_id != root_candidate_id
+        || quality.source_candidate_state_sha256 != root_candidate_state_sha256
+        || quality.source_artifact_id != source_artifact_id
+        || quality.source_artifact_sha256 != root_artifact_sha256
+        || quality.source_topology_quality_id != topology_quality_id
+        || quality.source_topology_quality_report_object_sha256
+            != topology_quality_report_object_sha256
+        || quality.source_topology_quality_canonical_sha256 != topology_quality_canonical_sha256
+        || quality.output_candidate_id != head_candidate_id
+        || quality.output_candidate_state_sha256 != head_candidate_state_sha256
+        || quality.output_artifact_id != output_artifact_id
+        || quality.output_artifact_sha256 != head_artifact_sha256
+        || quality.canonical_sha256 != canonical_sha256
+        || quality.source_output_candidate_binding_status != "distinct-candidates-verified"
+        || quality.geometry_preservation_status != "source-output-renderable-geometry-byte-exact"
+        || quality.from_stage != "topology"
+        || quality.to_stage != "material-surface"
+        || quality.validator_status != "passed"
+        || !quality.hard_gate_passed
+        || !gate.distinct_candidates
+        || !gate.source_topology_quality
+        || !gate.source_artifact_readback
+        || !gate.output_artifact_readback
+        || !gate.geometry_preserved
+        || !gate.appearance_source_lineage
+        || !gate.material_pack_2k
+        || !gate.texture_build_v2
+        || !gate.surface_bake_v1
+        || !gate.uv_integrity
+        || !gate.tangent_integrity
+        || !gate.material_provenance
+        || quality.quality_status != "structural_only"
+        || quality.visual_quality_status != "NOT_PROVEN"
+        || quality.commercial_fps_quality_status != "NOT_PROVEN"
+        || !quality.runtime_write_performed
+        || quality.production_stage_advanced
+        || quality.candidate_confirmed
+        || quality.version_created
+        || quality.export_performed
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_MATERIAL_SURFACE_QUALITY_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    validate_v2_report_cas(
+        runtime,
+        quality,
+        report_object_sha256,
+        "candidate-material-surface-quality-report",
+    )?;
+    if canonical_record_hash(quality)? != quality.canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_MATERIAL_SURFACE_QUALITY_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_v2_topology_parent(
+    runtime: &Runtime,
+    session: &AgenticSessionRecord,
+    root_candidate: &CandidateRecord,
+    parent_transition_id: &str,
+    parent_transition_sha256: &str,
+    parent_schema_version: &str,
+    source_artifact_id: &str,
+    root_artifact_sha256: &str,
+    reference_id: &str,
+    reference_sha256: &str,
+    camera_hash: &str,
+    evidence_sha256: &str,
+    require_current_root_head: bool,
+) -> Result<ProductionStageTransitionRecord, RuntimeError> {
+    // Prepare is a promotion from the current V1 topology head and therefore
+    // must reject a stale root.  Get, however, is an immutable historical
+    // read: later stage transitions may have replaced the current V1 head, so
+    // resolve the parent by its immutable id instead of consulting the
+    // mutable head projection.
+    let parent = if require_current_root_head {
+        let stage = runtime.store.get_production_stage_head(
+            &session.session_id,
+            &session.project_id,
+            &root_candidate.candidate_id,
+        )?;
+        if stage != "topology" {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_ROOT_HEAD_NOT_TOPOLOGY".to_owned(),
+            ));
+        }
+        runtime
+            .store
+            .get_production_stage_head_transition(
+                &session.session_id,
+                &session.project_id,
+                &root_candidate.candidate_id,
+            )?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V2_PARENT_TOPOLOGY_TRANSITION_NOT_FOUND".to_owned(),
+                )
+            })?
+    } else {
+        runtime
+            .store
+            .get_production_stage_transition(parent_transition_id)?
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "PRODUCTION_STAGE_V2_PARENT_TOPOLOGY_TRANSITION_NOT_FOUND".to_owned(),
+                )
+            })?
+    };
+    if parent.schema_version != parent_schema_version
+        || parent.transition_id != parent_transition_id
+        || parent.canonical_sha256 != parent_transition_sha256
+        || parent.session_id != session.session_id
+        || parent.project_id != session.project_id
+        || parent.candidate_id != root_candidate.candidate_id
+        || parent.from_stage != "gray-model"
+        || parent.to_stage != "topology"
+        || parent.gate_status != "pass"
+        || parent.status != "passed"
+        || parent.output_kind != "topology-quality"
+        || parent.artifact_sha256 != root_artifact_sha256
+        || parent.reference_id != reference_id
+        || parent.reference_sha256 != reference_sha256
+        || parent.camera_hash != camera_hash
+        || parent.evidence_sha256 != evidence_sha256
+        || parent.candidate_state_sha256 != root_candidate.canonical_sha256
+        || parent.output_object_sha256.is_empty()
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_PARENT_TOPOLOGY_TRANSITION_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    if root_candidate.prepared_object_id.as_deref() != Some(source_artifact_id)
+        || root_candidate.prepared_object_sha256.as_deref() != Some(root_artifact_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_PARENT_ARTIFACT_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    if let Some(quality_report) = parent.quality_report_object_sha256.as_deref() {
+        if quality_report != parent.output_object_sha256 {
+            return Err(RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_PARENT_TOPOLOGY_REPORT_MISMATCH".to_owned(),
+            ));
+        }
+    }
+    Ok(parent)
+}
+
+fn production_stage_transition_v2_input_binding(
+    transition_id: &str,
+    session_id: &str,
+    project_id: &str,
+    root_candidate_id: &str,
+    root_candidate_role: &str,
+    root_candidate_state_sha256: &str,
+    source_artifact_id: &str,
+    root_artifact_sha256: &str,
+    previous_head_candidate_id: &str,
+    previous_head_candidate_role: &str,
+    previous_head_candidate_state_sha256: &str,
+    previous_head_artifact_id: &str,
+    previous_head_artifact_sha256: &str,
+    previous_head_stage: &str,
+    head_candidate_id: &str,
+    head_candidate_role: &str,
+    head_candidate_state_sha256: &str,
+    output_artifact_id: &str,
+    head_artifact_sha256: &str,
+    from_stage: &str,
+    to_stage: &str,
+    topology_quality_id: &str,
+    topology_quality_status: &str,
+    topology_quality_report_object_sha256: &str,
+    topology_quality_canonical_sha256: &str,
+    material_surface_quality_id: &str,
+    material_surface_quality_status: &str,
+    material_surface_quality_report_object_sha256: &str,
+    material_surface_quality_canonical_sha256: &str,
+    candidate_binding_status: &str,
+    reference_id: &str,
+    reference_sha256: &str,
+    camera_hash: &str,
+    evidence_sha256: &str,
+    approval_receipt_id: &str,
+    approval_session_id: &str,
+    approval_expires_at: &str,
+    approval_summary_sha256: &str,
+    parent_topology_transition_id: &str,
+    parent_topology_transition_sha256: &str,
+    parent_topology_transition_schema_version: &str,
+    idempotency_key: &str,
+) -> Value {
+    let mut value = Map::new();
+    macro_rules! insert_string {
+        ($key:literal, $field:expr) => {
+            value.insert($key.to_owned(), Value::String($field.to_owned()));
+        };
+    }
+    insert_string!("transition_id", transition_id);
+    insert_string!("session_id", session_id);
+    insert_string!("project_id", project_id);
+    insert_string!("root_candidate_id", root_candidate_id);
+    insert_string!("root_candidate_role", root_candidate_role);
+    insert_string!("root_candidate_state_sha256", root_candidate_state_sha256);
+    insert_string!("source_artifact_id", source_artifact_id);
+    insert_string!("root_artifact_sha256", root_artifact_sha256);
+    insert_string!("previous_head_candidate_id", previous_head_candidate_id);
+    insert_string!("previous_head_candidate_role", previous_head_candidate_role);
+    insert_string!(
+        "previous_head_candidate_state_sha256",
+        previous_head_candidate_state_sha256
+    );
+    insert_string!("previous_head_artifact_id", previous_head_artifact_id);
+    insert_string!(
+        "previous_head_artifact_sha256",
+        previous_head_artifact_sha256
+    );
+    insert_string!("previous_head_stage", previous_head_stage);
+    insert_string!("head_candidate_id", head_candidate_id);
+    insert_string!("head_candidate_role", head_candidate_role);
+    insert_string!("head_candidate_state_sha256", head_candidate_state_sha256);
+    insert_string!("output_artifact_id", output_artifact_id);
+    insert_string!("head_artifact_sha256", head_artifact_sha256);
+    insert_string!("from_stage", from_stage);
+    insert_string!("to_stage", to_stage);
+    insert_string!("topology_quality_id", topology_quality_id);
+    insert_string!("topology_quality_status", topology_quality_status);
+    insert_string!(
+        "topology_quality_report_object_sha256",
+        topology_quality_report_object_sha256
+    );
+    insert_string!(
+        "topology_quality_canonical_sha256",
+        topology_quality_canonical_sha256
+    );
+    insert_string!("material_surface_quality_id", material_surface_quality_id);
+    insert_string!(
+        "material_surface_quality_status",
+        material_surface_quality_status
+    );
+    insert_string!(
+        "material_surface_quality_report_object_sha256",
+        material_surface_quality_report_object_sha256
+    );
+    insert_string!(
+        "material_surface_quality_canonical_sha256",
+        material_surface_quality_canonical_sha256
+    );
+    insert_string!("candidate_binding_status", candidate_binding_status);
+    insert_string!("reference_id", reference_id);
+    insert_string!("reference_sha256", reference_sha256);
+    insert_string!("camera_hash", camera_hash);
+    insert_string!("evidence_sha256", evidence_sha256);
+    insert_string!("approval_receipt_id", approval_receipt_id);
+    insert_string!("approval_session_id", approval_session_id);
+    insert_string!("approval_expires_at", approval_expires_at);
+    insert_string!("approval_summary_sha256", approval_summary_sha256);
+    insert_string!(
+        "parent_topology_transition_id",
+        parent_topology_transition_id
+    );
+    insert_string!(
+        "parent_topology_transition_sha256",
+        parent_topology_transition_sha256
+    );
+    insert_string!(
+        "parent_topology_transition_schema_version",
+        parent_topology_transition_schema_version
+    );
+    insert_string!("idempotency_key", idempotency_key);
+    Value::Object(value)
+}
+
+/// Derive the exact V2 head that Store will materialize for a transition.
+/// Keeping this small pure constructor in Runtime lets prepare validate the
+/// complete post-write shape before CAS reservation/SQLite commit without
+/// making Store's private implementation part of the Runtime API.
+fn production_stage_head_v2_from_transition(
+    transition: &ProductionStageTransitionV2Record,
+) -> Result<ProductionStageHeadV2Record, RuntimeError> {
+    let mut head = ProductionStageHeadV2Record {
+        schema_version: "ProductionStageHead@2".to_owned(),
+        session_id: transition.session_id.clone(),
+        project_id: transition.project_id.clone(),
+        root_candidate_id: transition.root_candidate_id.clone(),
+        root_candidate_role: transition.root_candidate_role.clone(),
+        root_candidate_state_sha256: transition.root_candidate_state_sha256.clone(),
+        source_artifact_id: transition.source_artifact_id.clone(),
+        root_artifact_sha256: transition.root_artifact_sha256.clone(),
+        root_stage: transition.from_stage.clone(),
+        previous_head_candidate_id: transition.previous_head_candidate_id.clone(),
+        previous_head_candidate_role: transition.previous_head_candidate_role.clone(),
+        previous_head_candidate_state_sha256: transition
+            .previous_head_candidate_state_sha256
+            .clone(),
+        previous_head_artifact_id: transition.previous_head_artifact_id.clone(),
+        previous_head_artifact_sha256: transition.previous_head_artifact_sha256.clone(),
+        previous_head_stage: transition.previous_head_stage.clone(),
+        head_candidate_id: transition.head_candidate_id.clone(),
+        head_candidate_role: transition.head_candidate_role.clone(),
+        head_candidate_state_sha256: transition.head_candidate_state_sha256.clone(),
+        output_artifact_id: transition.output_artifact_id.clone(),
+        head_artifact_sha256: transition.head_artifact_sha256.clone(),
+        head_stage: transition.to_stage.clone(),
+        topology_quality_id: transition.topology_quality_id.clone(),
+        topology_quality_status: transition.topology_quality_status.clone(),
+        topology_quality_report_object_sha256: transition
+            .topology_quality_report_object_sha256
+            .clone(),
+        topology_quality_canonical_sha256: transition.topology_quality_canonical_sha256.clone(),
+        material_surface_quality_id: transition.material_surface_quality_id.clone(),
+        material_surface_quality_status: transition.material_surface_quality_status.clone(),
+        material_surface_quality_report_object_sha256: transition
+            .material_surface_quality_report_object_sha256
+            .clone(),
+        material_surface_quality_canonical_sha256: transition
+            .material_surface_quality_canonical_sha256
+            .clone(),
+        reference_id: transition.reference_id.clone(),
+        reference_sha256: transition.reference_sha256.clone(),
+        camera_hash: transition.camera_hash.clone(),
+        evidence_sha256: transition.evidence_sha256.clone(),
+        approval_receipt_id: transition.approval_receipt_id.clone(),
+        approval_session_id: transition.approval_session_id.clone(),
+        approval_expires_at: transition.approval_expires_at.clone(),
+        approval_summary_sha256: transition.approval_summary_sha256.clone(),
+        candidate_binding_status: transition.candidate_binding_status.clone(),
+        quality_status: "structural_only".to_owned(),
+        visual_quality_status: "NOT_PROVEN".to_owned(),
+        commercial_fps_quality_status: "NOT_PROVEN".to_owned(),
+        candidate_confirmed: false,
+        version_created: false,
+        export_performed: false,
+        head_transition_id: transition.transition_id.clone(),
+        head_transition_sha256: transition.canonical_sha256.clone(),
+        parent_topology_transition_id: transition.parent_topology_transition_id.clone(),
+        parent_topology_transition_sha256: transition.parent_topology_transition_sha256.clone(),
+        parent_topology_transition_schema_version: transition
+            .parent_topology_transition_schema_version
+            .clone(),
+        materialization_status: "runtime-owned-durable-production-stage-head-v2".to_owned(),
+        canonical_sha256: String::new(),
+        updated_at: transition.created_at.clone(),
+    };
+    head.canonical_sha256 = canonical_record_hash(&head)?;
+    Ok(head)
+}
+
+fn validate_v2_transition_and_head(
+    runtime: &Runtime,
+    transition: &ProductionStageTransitionV2Record,
+    head: &ProductionStageHeadV2Record,
+    session_id: &str,
+    project_id: &str,
+    root_candidate_id: &str,
+    head_candidate_id: &str,
+    require_current_root_head: bool,
+) -> Result<(), RuntimeError> {
+    if transition.schema_version != "ProductionStageTransition@2"
+        || transition.transition_id.is_empty()
+        || transition.session_id != session_id
+        || transition.project_id != project_id
+        || transition.root_candidate_id != root_candidate_id
+        || transition.head_candidate_id != head_candidate_id
+        || transition.root_candidate_role != "topology-source"
+        || transition.previous_head_candidate_role != "topology-source"
+        || transition.previous_head_stage != "topology"
+        || transition.head_candidate_role != "material-surface-output"
+        || transition.from_stage != "topology"
+        || transition.to_stage != "material-surface"
+        || transition.topology_quality_status != "passed"
+        || transition.material_surface_quality_status != "passed"
+        || transition.candidate_binding_status != "distinct-root-topology-to-material-surface-head"
+        || transition.parent_topology_transition_schema_version != "ProductionStageTransition@1"
+        || transition.gate_status != "pass"
+        || transition.status != "passed"
+        || !is_sha256(&transition.approval_summary_sha256)
+        || transition.created_at.is_empty()
+        || !is_sha256(&transition.input_sha256)
+        || !is_sha256(&transition.canonical_sha256)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_TRANSITION_RECORD_INVALID".to_owned(),
+        ));
+    }
+    validate_v2_approval_expiry(&transition.approval_expires_at, false)?;
+    if canonical_record_hash(transition)? != transition.canonical_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_TRANSITION_CANONICAL_MISMATCH".to_owned(),
+        ));
+    }
+    let session = runtime
+        .store
+        .get_agentic_session(session_id)?
+        .ok_or_else(|| RuntimeError::InvalidInput("AGENTIC_SESSION_NOT_FOUND".to_owned()))?;
+    if session.candidate_id != root_candidate_id {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_SESSION_ROOT_CANDIDATE_MISMATCH".to_owned(),
+        ));
+    }
+    validate_session_binding(
+        &session,
+        session_id,
+        project_id,
+        root_candidate_id,
+        &transition.reference_id,
+        &transition.camera_hash,
+        &transition.evidence_sha256,
+        &session.observation_sha256,
+    )?;
+    let reference = bound_reference(runtime, project_id, &transition.reference_id)?;
+    if reference.object_sha256 != transition.reference_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "AGENTIC_REFERENCE_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let root_candidate = bound_candidate(runtime, project_id, root_candidate_id)?;
+    if root_candidate.canonical_sha256 != transition.root_candidate_state_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_ROOT_CANDIDATE_STATE_MISMATCH".to_owned(),
+        ));
+    }
+    validate_v2_candidate_artifact_identity(
+        runtime,
+        &root_candidate,
+        &transition.source_artifact_id,
+        &transition.root_artifact_sha256,
+        "root",
+    )?;
+    if require_current_root_head {
+        validate_current_candidate_head(runtime, &root_candidate, project_id)?;
+    }
+    let parent = validate_v2_topology_parent(
+        runtime,
+        &session,
+        &root_candidate,
+        &transition.parent_topology_transition_id,
+        &transition.parent_topology_transition_sha256,
+        &transition.parent_topology_transition_schema_version,
+        &transition.source_artifact_id,
+        &transition.root_artifact_sha256,
+        &transition.reference_id,
+        &transition.reference_sha256,
+        &transition.camera_hash,
+        &transition.evidence_sha256,
+        require_current_root_head,
+    )?;
+    if transition.previous_head_candidate_id != root_candidate_id
+        || transition.previous_head_candidate_state_sha256 != transition.root_candidate_state_sha256
+        || transition.previous_head_artifact_id != transition.source_artifact_id
+        || transition.previous_head_artifact_sha256 != transition.root_artifact_sha256
+        || parent.output_object_sha256 != transition.topology_quality_report_object_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_PREVIOUS_HEAD_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    let head_candidate = bound_candidate(runtime, project_id, head_candidate_id)?;
+    if head_candidate.canonical_sha256 != transition.head_candidate_state_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_HEAD_CANDIDATE_STATE_MISMATCH".to_owned(),
+        ));
+    }
+    validate_v2_candidate_artifact_identity(
+        runtime,
+        &head_candidate,
+        &transition.output_artifact_id,
+        &transition.head_artifact_sha256,
+        "head",
+    )?;
+    let topology_quality = runtime
+        .store
+        .get_candidate_topology_quality(&transition.topology_quality_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput("PRODUCTION_STAGE_V2_TOPOLOGY_QUALITY_NOT_FOUND".to_owned())
+        })?;
+    validate_v2_topology_quality(
+        runtime,
+        &topology_quality,
+        project_id,
+        root_candidate_id,
+        &transition.root_candidate_state_sha256,
+        &transition.source_artifact_id,
+        &transition.root_artifact_sha256,
+        &transition.topology_quality_id,
+        &transition.topology_quality_report_object_sha256,
+        &transition.topology_quality_canonical_sha256,
+    )?;
+    let material_quality = runtime
+        .store
+        .get_candidate_material_surface_quality(&transition.material_surface_quality_id)?
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "PRODUCTION_STAGE_V2_MATERIAL_SURFACE_QUALITY_NOT_FOUND".to_owned(),
+            )
+        })?;
+    validate_v2_material_surface_quality(
+        runtime,
+        &material_quality,
+        project_id,
+        root_candidate_id,
+        &transition.root_candidate_state_sha256,
+        &transition.source_artifact_id,
+        &transition.root_artifact_sha256,
+        head_candidate_id,
+        &transition.head_candidate_state_sha256,
+        &transition.output_artifact_id,
+        &transition.head_artifact_sha256,
+        &transition.topology_quality_id,
+        &transition.topology_quality_report_object_sha256,
+        &transition.topology_quality_canonical_sha256,
+        &transition.material_surface_quality_id,
+        &transition.material_surface_quality_report_object_sha256,
+        &transition.material_surface_quality_canonical_sha256,
+    )?;
+
+    if head.schema_version != "ProductionStageHead@2"
+        || head.session_id != transition.session_id
+        || head.project_id != transition.project_id
+        || head.root_candidate_id != transition.root_candidate_id
+        || head.root_candidate_role != transition.root_candidate_role
+        || head.root_candidate_state_sha256 != transition.root_candidate_state_sha256
+        || head.source_artifact_id != transition.source_artifact_id
+        || head.root_artifact_sha256 != transition.root_artifact_sha256
+        || head.root_stage != "topology"
+        || head.previous_head_candidate_id != transition.previous_head_candidate_id
+        || head.previous_head_candidate_role != transition.previous_head_candidate_role
+        || head.previous_head_candidate_state_sha256
+            != transition.previous_head_candidate_state_sha256
+        || head.previous_head_artifact_id != transition.previous_head_artifact_id
+        || head.previous_head_artifact_sha256 != transition.previous_head_artifact_sha256
+        || head.previous_head_stage != transition.previous_head_stage
+        || head.head_candidate_id != transition.head_candidate_id
+        || head.head_candidate_role != transition.head_candidate_role
+        || head.head_candidate_state_sha256 != transition.head_candidate_state_sha256
+        || head.output_artifact_id != transition.output_artifact_id
+        || head.head_artifact_sha256 != transition.head_artifact_sha256
+        || head.head_stage != "material-surface"
+        || head.topology_quality_id != transition.topology_quality_id
+        || head.topology_quality_status != transition.topology_quality_status
+        || head.topology_quality_report_object_sha256
+            != transition.topology_quality_report_object_sha256
+        || head.topology_quality_canonical_sha256 != transition.topology_quality_canonical_sha256
+        || head.material_surface_quality_id != transition.material_surface_quality_id
+        || head.material_surface_quality_status != transition.material_surface_quality_status
+        || head.material_surface_quality_report_object_sha256
+            != transition.material_surface_quality_report_object_sha256
+        || head.material_surface_quality_canonical_sha256
+            != transition.material_surface_quality_canonical_sha256
+        || head.reference_id != transition.reference_id
+        || head.reference_sha256 != transition.reference_sha256
+        || head.camera_hash != transition.camera_hash
+        || head.evidence_sha256 != transition.evidence_sha256
+        || head.approval_receipt_id != transition.approval_receipt_id
+        || head.approval_session_id != transition.approval_session_id
+        || head.approval_expires_at != transition.approval_expires_at
+        || head.approval_summary_sha256 != transition.approval_summary_sha256
+        || head.candidate_binding_status != transition.candidate_binding_status
+        || head.quality_status != "structural_only"
+        || head.visual_quality_status != "NOT_PROVEN"
+        || head.commercial_fps_quality_status != "NOT_PROVEN"
+        || head.candidate_confirmed
+        || head.version_created
+        || head.export_performed
+        || head.head_transition_id != transition.transition_id
+        || head.head_transition_sha256 != transition.canonical_sha256
+        || head.parent_topology_transition_id != transition.parent_topology_transition_id
+        || head.parent_topology_transition_sha256 != transition.parent_topology_transition_sha256
+        || head.parent_topology_transition_schema_version
+            != transition.parent_topology_transition_schema_version
+        || head.materialization_status != "runtime-owned-durable-production-stage-head-v2"
+        || head.updated_at != transition.created_at
+        || !is_sha256(&head.canonical_sha256)
+        || canonical_record_hash(head)? != head.canonical_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "PRODUCTION_STAGE_V2_HEAD_BINDING_MISMATCH".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn release_v2_transition_receipt(
+    runtime: &Runtime,
+    reservation: &forgecad_store::CasReservation,
+    object: &CasObject,
+    cleanup: bool,
+) {
+    let _ = runtime.store.release_cas_reservation_object(
+        reservation,
+        object,
+        cleanup && object.created_new,
+    );
+}
+
+fn production_stage_transition_v2_result(
+    transition: &ProductionStageTransitionV2Record,
+    head: &ProductionStageHeadV2Record,
+    replayed: bool,
+    schema_version: &str,
+    runtime_write: bool,
+) -> Value {
+    json!({
+        "schema_version":schema_version,
+        "transition":serde_json::to_value(transition).expect("V2 production transition serializes"),
+        "production_stage_head":serde_json::to_value(head).expect("V2 production head serializes"),
+        "replayed":replayed,
+        "runtime_write":runtime_write,
+        "production_stage_advanced":true,
+        "candidate_confirmed":false,
+        "version_created":false,
+        "export_performed":false
+    })
 }
 
 fn bound_candidate<'a>(
@@ -1463,6 +3712,222 @@ mod tests {
     use super::*;
 
     #[test]
+    fn production_stage_transition_input_binding_is_closed_and_deterministic() {
+        let hash = |byte: char| byte.to_string().repeat(64);
+        let binding = production_stage_transition_input_binding(
+            "transition-1",
+            "session-1",
+            "project-1",
+            "candidate-1",
+            "draft",
+            "gray-model",
+            &hash('a'),
+            &hash('b'),
+            "gray-model-artifact",
+            &hash('b'),
+            None,
+            None,
+            "reference-1",
+            &hash('c'),
+            &hash('d'),
+            &hash('e'),
+            None,
+            None,
+        );
+        assert_eq!(binding["quality_report_object_sha256"], Value::Null);
+        assert_eq!(binding["comparison_report_object_sha256"], Value::Null);
+        let replay_binding = binding.clone();
+        assert_eq!(
+            canonical_json_hash(&binding),
+            canonical_json_hash(&replay_binding)
+        );
+        assert_eq!(binding.get("approved"), None);
+        assert_eq!(binding.get("idempotency_key"), None);
+    }
+
+    #[test]
+    fn production_stage_transition_result_freezes_side_effects_and_schema() {
+        let hash = "a".repeat(64);
+        let transition = ProductionStageTransitionRecord {
+            schema_version: "ProductionStageTransition@1".to_owned(),
+            transition_id: "transition-1".to_owned(),
+            session_id: "session-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            candidate_id: "candidate-1".to_owned(),
+            from_stage: "draft".to_owned(),
+            to_stage: "gray-model".to_owned(),
+            candidate_state_sha256: hash.clone(),
+            artifact_sha256: hash.clone(),
+            output_kind: "gray-model-artifact".to_owned(),
+            output_object_sha256: hash.clone(),
+            quality_report_object_sha256: None,
+            comparison_report_object_sha256: None,
+            reference_id: "reference-1".to_owned(),
+            reference_sha256: hash.clone(),
+            camera_hash: hash.clone(),
+            evidence_sha256: hash.clone(),
+            parent_checkpoint_id: None,
+            parent_checkpoint_sha256: None,
+            gate_status: "fail".to_owned(),
+            status: "blocked".to_owned(),
+            input_sha256: hash.clone(),
+            canonical_sha256: hash,
+            created_at: "2026-08-21T00:00:00Z".to_owned(),
+        };
+        let result = production_stage_transition_result(
+            &transition,
+            "draft",
+            false,
+            "ProductionStageTransitionPrepareResult@1",
+            true,
+        );
+        assert_eq!(
+            result["schema_version"],
+            "ProductionStageTransitionPrepareResult@1"
+        );
+        assert_eq!(result["production_stage"], "draft");
+        assert_eq!(result["runtime_write"], true);
+        assert_eq!(result["candidate_confirmed"], false);
+        assert_eq!(result["version_created"], false);
+        assert_eq!(result["export_performed"], false);
+        assert_eq!(result["replayed"], false);
+    }
+
+    #[test]
+    fn production_stage_transition_get_result_is_read_only() {
+        let hash = "a".repeat(64);
+        let transition = ProductionStageTransitionRecord {
+            schema_version: "ProductionStageTransition@1".to_owned(),
+            transition_id: "transition-get".to_owned(),
+            session_id: "session-get".to_owned(),
+            project_id: "project-get".to_owned(),
+            candidate_id: "candidate-get".to_owned(),
+            from_stage: "draft".to_owned(),
+            to_stage: "gray-model".to_owned(),
+            candidate_state_sha256: hash.clone(),
+            artifact_sha256: hash.clone(),
+            output_kind: "gray-model-artifact".to_owned(),
+            output_object_sha256: hash.clone(),
+            quality_report_object_sha256: None,
+            comparison_report_object_sha256: None,
+            reference_id: "reference-get".to_owned(),
+            reference_sha256: hash.clone(),
+            camera_hash: hash.clone(),
+            evidence_sha256: hash.clone(),
+            parent_checkpoint_id: None,
+            parent_checkpoint_sha256: None,
+            gate_status: "pass".to_owned(),
+            status: "passed".to_owned(),
+            input_sha256: hash.clone(),
+            canonical_sha256: hash.clone(),
+            created_at: "2026-08-21T00:00:00Z".to_owned(),
+        };
+        let result = production_stage_transition_result(
+            &transition,
+            "gray-model",
+            true,
+            "ProductionStageTransitionGetResult@1",
+            false,
+        );
+        assert_eq!(result["runtime_write"], false);
+        assert_eq!(result["candidate_confirmed"], false);
+        assert_eq!(result["version_created"], false);
+        assert_eq!(result["export_performed"], false);
+    }
+
+    #[test]
+    fn production_stage_transition_stage_allowlist_is_explicit() {
+        let mut request = Map::new();
+        request.insert("from_stage".to_owned(), json!("draft"));
+        request.insert("to_stage".to_owned(), json!("gray-model"));
+        assert_eq!(
+            required_production_stage(&request, "from_stage").unwrap(),
+            "draft"
+        );
+        assert_eq!(
+            required_production_stage(&request, "to_stage").unwrap(),
+            "gray-model"
+        );
+        request.insert("to_stage".to_owned(), json!("topology"));
+        assert_eq!(
+            required_production_stage(&request, "to_stage").unwrap(),
+            "topology"
+        );
+        request.insert("to_stage".to_owned(), json!("not-a-stage"));
+        assert!(required_production_stage(&request, "to_stage").is_err());
+    }
+
+    #[test]
+    fn production_stage_transition_prepare_unsupported_stage_fails_before_store() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let error = runtime
+            .production_stage_transition_prepare(json!({
+                "schema_version":"ProductionStageTransitionPrepareRequest@1",
+                "transition_id":"transition-unsupported",
+                "session_id":"session-unsupported",
+                "project_id":"project-unsupported",
+                "candidate_id":"candidate-unsupported",
+                "from_stage":"draft",
+                "to_stage":"topology",
+                "output_kind":"gray-model-artifact",
+                "approved":true,
+                "approval_receipt_id":"approval-unsupported",
+                "approval_summary":"unsupported stage probe",
+                "approval_expires_at":"9999999999",
+                "approval_session_id":"session-unsupported",
+                "idempotency_key":"transition-unsupported-key"
+            }))
+            .expect_err("later production stages must fail closed");
+        assert_eq!(
+            error.to_string(),
+            "invalid runtime input: PRODUCTION_STAGE_GATE_NOT_IMPLEMENTED"
+        );
+    }
+
+    #[test]
+    fn topology_quality_gate_maps_pass_and_blocked_reports_fail_closed() {
+        assert!(topology_quality_gate_status(true, "passed").unwrap());
+        assert!(!topology_quality_gate_status(false, "failed").unwrap());
+        assert!(topology_quality_gate_status(true, "failed").is_err());
+        assert!(topology_quality_gate_status(false, "passed").is_err());
+    }
+
+    #[test]
+    fn production_stage_transition_prepare_requires_bounded_approval_expiry() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let mut request = json!({
+            "schema_version":"ProductionStageTransitionPrepareRequest@1",
+            "transition_id":"transition-expiry",
+            "session_id":"session-expiry",
+            "project_id":"project-expiry",
+            "candidate_id":"candidate-expiry",
+            "from_stage":"draft",
+            "to_stage":"topology",
+            "output_kind":"gray-model-artifact",
+            "approved":true,
+            "approval_receipt_id":"approval-expiry",
+            "approval_summary":"expiry probe",
+            "approval_session_id":"session-expiry",
+            "idempotency_key":"transition-expiry-key"
+        });
+        let missing = runtime
+            .production_stage_transition_prepare(request.clone())
+            .expect_err("expiry is required at the Runtime boundary");
+        assert_eq!(
+            missing.to_string(),
+            "invalid runtime input: AGENTIC_APPROVAL_REQUIRED: approval_expires_at is required"
+        );
+        request["approval_expires_at"] = Value::String("x".repeat(65));
+        let oversized = runtime
+            .production_stage_transition_prepare(request)
+            .expect_err("expiry is bounded at the Runtime boundary");
+        assert_eq!(
+            oversized.to_string(),
+            "invalid runtime input: AGENTIC_APPROVAL_REQUIRED: approval_expires_at is too long"
+        );
+    }
+
+    #[test]
     fn request_reference_next_action_binds_the_session_reference() {
         let actions = next_actions(
             "reference-canvas",
@@ -1557,6 +4022,344 @@ mod tests {
             extra.to_string(),
             "invalid runtime input: AGENTIC_AUTHORING_COVERAGE_VIEW_KIND_NOT_SUPPLIED"
         );
+    }
+
+    #[test]
+    fn production_stage_transition_v2_approval_expiry_is_future_only_on_prepare() {
+        assert!(validate_v2_approval_expiry("9999999999", true).is_ok());
+        assert!(validate_v2_approval_expiry("1", true).is_err());
+        assert!(validate_v2_approval_expiry("1", false).is_ok());
+        assert!(validate_v2_approval_expiry("not-a-timestamp", false).is_err());
+    }
+
+    #[test]
+    fn production_stage_transition_v2_input_binding_includes_approval_digest_and_idempotency() {
+        let hash = "a".repeat(64);
+        let binding = || {
+            production_stage_transition_v2_input_binding(
+                "transition-1",
+                "session-1",
+                "project-1",
+                "root-1",
+                "topology-source",
+                &hash,
+                "artifact-1",
+                &hash,
+                "root-1",
+                "topology-source",
+                &hash,
+                "artifact-1",
+                &hash,
+                "topology",
+                "head-1",
+                "material-surface-output",
+                &hash,
+                "artifact-2",
+                &hash,
+                "topology",
+                "material-surface",
+                "topology-quality-1",
+                "passed",
+                &hash,
+                &hash,
+                "material-quality-1",
+                "passed",
+                &hash,
+                &hash,
+                "distinct-root-topology-to-material-surface-head",
+                "reference-1",
+                &hash,
+                &hash,
+                &hash,
+                "approval-1",
+                "session-1",
+                "9999999999",
+                &hash,
+                "parent-1",
+                &hash,
+                "ProductionStageTransition@1",
+                "idem-1",
+            )
+        };
+        let first = canonical_json_hash(&binding());
+        let mut changed = binding();
+        changed["idempotency_key"] = Value::String("idem-2".to_owned());
+        assert_ne!(first, canonical_json_hash(&changed));
+        let mut changed_digest = binding();
+        changed_digest["approval_summary_sha256"] = Value::String("b".repeat(64));
+        assert_ne!(first, canonical_json_hash(&changed_digest));
+    }
+
+    #[test]
+    fn production_stage_transition_v2_result_flags_never_confirm_version_or_export() {
+        let hash = "a".repeat(64);
+        let transition = ProductionStageTransitionV2Record {
+            schema_version: "ProductionStageTransition@2".to_owned(),
+            transition_id: "transition-1".to_owned(),
+            session_id: "session-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            root_candidate_id: "root-1".to_owned(),
+            root_candidate_role: "topology-source".to_owned(),
+            root_candidate_state_sha256: hash.clone(),
+            source_artifact_id: "artifact-1".to_owned(),
+            root_artifact_sha256: hash.clone(),
+            previous_head_candidate_id: "root-1".to_owned(),
+            previous_head_candidate_role: "topology-source".to_owned(),
+            previous_head_candidate_state_sha256: hash.clone(),
+            previous_head_artifact_id: "artifact-1".to_owned(),
+            previous_head_artifact_sha256: hash.clone(),
+            previous_head_stage: "topology".to_owned(),
+            head_candidate_id: "head-1".to_owned(),
+            head_candidate_role: "material-surface-output".to_owned(),
+            head_candidate_state_sha256: hash.clone(),
+            output_artifact_id: "artifact-2".to_owned(),
+            head_artifact_sha256: hash.clone(),
+            from_stage: "topology".to_owned(),
+            to_stage: "material-surface".to_owned(),
+            topology_quality_id: "topology-quality-1".to_owned(),
+            topology_quality_status: "passed".to_owned(),
+            topology_quality_report_object_sha256: hash.clone(),
+            topology_quality_canonical_sha256: hash.clone(),
+            material_surface_quality_id: "material-quality-1".to_owned(),
+            material_surface_quality_status: "passed".to_owned(),
+            material_surface_quality_report_object_sha256: hash.clone(),
+            material_surface_quality_canonical_sha256: hash.clone(),
+            candidate_binding_status: "distinct-root-topology-to-material-surface-head".to_owned(),
+            reference_id: "reference-1".to_owned(),
+            reference_sha256: hash.clone(),
+            camera_hash: hash.clone(),
+            evidence_sha256: hash.clone(),
+            approval_receipt_id: "approval-1".to_owned(),
+            approval_session_id: "session-1".to_owned(),
+            approval_expires_at: "9999999999".to_owned(),
+            approval_summary_sha256: hash.clone(),
+            parent_topology_transition_id: "parent-1".to_owned(),
+            parent_topology_transition_sha256: hash.clone(),
+            parent_topology_transition_schema_version: "ProductionStageTransition@1".to_owned(),
+            gate_status: "pass".to_owned(),
+            status: "passed".to_owned(),
+            input_sha256: hash.clone(),
+            canonical_sha256: hash.clone(),
+            created_at: "2026-08-21T00:00:00Z".to_owned(),
+        };
+        let head = ProductionStageHeadV2Record {
+            schema_version: "ProductionStageHead@2".to_owned(),
+            session_id: "session-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            root_candidate_id: "root-1".to_owned(),
+            root_candidate_role: "topology-source".to_owned(),
+            root_candidate_state_sha256: hash.clone(),
+            source_artifact_id: "artifact-1".to_owned(),
+            root_artifact_sha256: hash.clone(),
+            root_stage: "topology".to_owned(),
+            previous_head_candidate_id: "root-1".to_owned(),
+            previous_head_candidate_role: "topology-source".to_owned(),
+            previous_head_candidate_state_sha256: hash.clone(),
+            previous_head_artifact_id: "artifact-1".to_owned(),
+            previous_head_artifact_sha256: hash.clone(),
+            previous_head_stage: "topology".to_owned(),
+            head_candidate_id: "head-1".to_owned(),
+            head_candidate_role: "material-surface-output".to_owned(),
+            head_candidate_state_sha256: hash.clone(),
+            output_artifact_id: "artifact-2".to_owned(),
+            head_artifact_sha256: hash.clone(),
+            head_stage: "material-surface".to_owned(),
+            topology_quality_id: "topology-quality-1".to_owned(),
+            topology_quality_status: "passed".to_owned(),
+            topology_quality_report_object_sha256: hash.clone(),
+            topology_quality_canonical_sha256: hash.clone(),
+            material_surface_quality_id: "material-quality-1".to_owned(),
+            material_surface_quality_status: "passed".to_owned(),
+            material_surface_quality_report_object_sha256: hash.clone(),
+            material_surface_quality_canonical_sha256: hash.clone(),
+            reference_id: "reference-1".to_owned(),
+            reference_sha256: hash.clone(),
+            camera_hash: hash.clone(),
+            evidence_sha256: hash.clone(),
+            approval_receipt_id: "approval-1".to_owned(),
+            approval_session_id: "session-1".to_owned(),
+            approval_expires_at: "9999999999".to_owned(),
+            approval_summary_sha256: hash,
+            candidate_binding_status: "distinct-root-topology-to-material-surface-head".to_owned(),
+            quality_status: "structural_only".to_owned(),
+            visual_quality_status: "NOT_PROVEN".to_owned(),
+            commercial_fps_quality_status: "NOT_PROVEN".to_owned(),
+            candidate_confirmed: false,
+            version_created: false,
+            export_performed: false,
+            head_transition_id: "transition-1".to_owned(),
+            head_transition_sha256: "a".repeat(64),
+            parent_topology_transition_id: "parent-1".to_owned(),
+            parent_topology_transition_sha256: "a".repeat(64),
+            parent_topology_transition_schema_version: "ProductionStageTransition@1".to_owned(),
+            materialization_status: "runtime-owned-durable-production-stage-head-v2".to_owned(),
+            canonical_sha256: "a".repeat(64),
+            updated_at: "2026-08-21T00:00:00Z".to_owned(),
+        };
+        let result = production_stage_transition_v2_result(
+            &transition,
+            &head,
+            false,
+            "ProductionStageTransitionPrepareResult@2",
+            true,
+        );
+        assert_eq!(result["runtime_write"], true);
+        assert_eq!(result["production_stage_advanced"], true);
+        assert_eq!(result["candidate_confirmed"], false);
+        assert_eq!(result["version_created"], false);
+        assert_eq!(result["export_performed"], false);
+    }
+
+    #[test]
+    fn production_stage_transition_v2_get_rejects_extra_and_malformed_scope_fields() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let extra = runtime
+            .production_stage_transition_v2_get(json!({
+                "schema_version":"ProductionStageTransitionGetRequest@2",
+                "transition_id":"transition-1",
+                "session_id":"session-1",
+                "project_id":"project-1",
+                "root_candidate_id":"root-1",
+                "head_candidate_id":"head-1",
+                "unexpected":true
+            }))
+            .expect_err("V2 GET is a closed request");
+        assert!(extra.to_string().contains("unsupported field unexpected"));
+
+        let malformed = runtime
+            .production_stage_transition_v2_get(json!({
+                "schema_version":"ProductionStageTransitionGetRequest@2",
+                "transition_id":"transition-1",
+                "session_id":"session-1",
+                "project_id":"project-1",
+                "root_candidate_id":"root/retargeted",
+                "head_candidate_id":"head-1"
+            }))
+            .expect_err("cross-scope root ids must fail before Store lookup");
+        assert!(malformed
+            .to_string()
+            .contains("root_candidate_id is malformed"));
+    }
+
+    #[test]
+    fn production_stage_transition_v2_accepts_material_quality_runtime_write_true() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let hash = "a".repeat(64);
+        let mut quality = forgecad_contracts::CandidateMaterialSurfaceQualityRecord {
+            schema_version: "CandidateMaterialSurfaceQuality@1".to_owned(),
+            material_surface_quality_id: "material-quality-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            source_candidate_id: "root-1".to_owned(),
+            source_candidate_state_sha256: hash.clone(),
+            source_artifact_id: "artifact-1".to_owned(),
+            source_artifact_sha256: hash.clone(),
+            source_artifact_readback_sha256: hash.clone(),
+            source_artifact_readback_object_sha256: hash.clone(),
+            source_geometry_candidate_evidence_sha256: hash.clone(),
+            source_geometry_program_sha256: hash.clone(),
+            source_topology_quality_id: "topology-quality-1".to_owned(),
+            source_topology_quality_report_object_sha256: hash.clone(),
+            source_topology_quality_canonical_sha256: hash.clone(),
+            output_candidate_id: "head-1".to_owned(),
+            output_candidate_state_sha256: hash.clone(),
+            output_artifact_id: "artifact-2".to_owned(),
+            output_artifact_sha256: hash.clone(),
+            output_artifact_readback_sha256: hash.clone(),
+            output_artifact_readback_object_sha256: hash.clone(),
+            output_geometry_program_sha256: hash.clone(),
+            appearance_source_lineage_sidecar_object_sha256: hash.clone(),
+            appearance_source_lineage_canonical_sha256: hash.clone(),
+            appearance_program_object_sha256: hash.clone(),
+            appearance_program_sha256: hash.clone(),
+            material_layer_stack_sha256: hash.clone(),
+            material_pack_id: "forgecad-fictional-energy-weapon-2k".to_owned(),
+            material_pack_version: "1.0.0".to_owned(),
+            material_pack_license_spdx: "CC0-1.0".to_owned(),
+            material_pack_manifest_object_sha256: hash.clone(),
+            material_pack_manifest_sha256: hash.clone(),
+            material_pack_provenance_sha256: hash.clone(),
+            texture_build_receipt_object_sha256: hash.clone(),
+            texture_build_receipt_canonical_sha256: hash.clone(),
+            candidate_surface_bake_receipt_object_sha256: hash.clone(),
+            candidate_surface_bake_receipt_canonical_sha256: hash.clone(),
+            uv_binding_sha256: hash.clone(),
+            tangent_binding_sha256: hash.clone(),
+            material_zone_inventory_sha256: hash.clone(),
+            material_provenance_sha256: hash.clone(),
+            lod_scope: "lod0-only@1".to_owned(),
+            source_output_candidate_binding_status: "distinct-candidates-verified".to_owned(),
+            geometry_preservation_projection_sha256: hash.clone(),
+            geometry_preservation_status: "source-output-renderable-geometry-byte-exact".to_owned(),
+            material_surface_quality_policy: "candidate-material-surface-structural-hard-gate@1"
+                .to_owned(),
+            material_surface_quality_policy_sha256: hash.clone(),
+            from_stage: "topology".to_owned(),
+            to_stage: "material-surface".to_owned(),
+            hard_gate: forgecad_contracts::CandidateMaterialSurfaceQualityHardGate {
+                distinct_candidates: true,
+                source_topology_quality: true,
+                source_artifact_readback: true,
+                output_artifact_readback: true,
+                geometry_preserved: true,
+                appearance_source_lineage: true,
+                material_pack_2k: true,
+                texture_build_v2: true,
+                surface_bake_v1: true,
+                uv_integrity: true,
+                tangent_integrity: true,
+                material_provenance: true,
+            },
+            validator_status: "passed".to_owned(),
+            hard_gate_passed: true,
+            visual_quality_status: "NOT_PROVEN".to_owned(),
+            artistic_quality_status: "NOT_PROVEN".to_owned(),
+            human_review_status: "NOT_RUN".to_owned(),
+            commercial_fps_quality_status: "NOT_PROVEN".to_owned(),
+            commercial_engine_status: "NOT_RUN".to_owned(),
+            materialization_status: "runtime-owned-durable-candidate-material-surface-quality"
+                .to_owned(),
+            quality_status: "structural_only".to_owned(),
+            runtime_write_performed: true,
+            production_stage_advanced: false,
+            candidate_confirmed: false,
+            version_created: false,
+            export_performed: false,
+            request_sha256: hash.clone(),
+            input_sha256: hash.clone(),
+            canonical_sha256: String::new(),
+            created_at: "2026-08-21T00:00:00Z".to_owned(),
+        };
+        quality.canonical_sha256 = canonical_record_hash(&quality).expect("quality canonical");
+        let bytes = canonical_json_bytes(&serde_json::to_value(&quality).expect("quality JSON"))
+            .expect("quality bytes");
+        let report = runtime
+            .put_object(
+                &bytes,
+                None,
+                "application/json",
+                "candidate-material-surface-quality-report",
+            )
+            .expect("quality report CAS");
+        validate_v2_material_surface_quality(
+            &runtime,
+            &quality,
+            "project-1",
+            "root-1",
+            &hash,
+            "artifact-1",
+            &hash,
+            "head-1",
+            &hash,
+            "artifact-2",
+            &hash,
+            "topology-quality-1",
+            &hash,
+            &hash,
+            "material-quality-1",
+            &report.record.sha256,
+            &quality.canonical_sha256,
+        )
+        .expect("runtime_write=true is a valid material quality binding");
     }
 }
 

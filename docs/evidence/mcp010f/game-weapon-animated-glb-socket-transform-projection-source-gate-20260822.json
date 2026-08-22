@@ -1,0 +1,118 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F/GAME-ANIMATED-GLB-SOCKET-TRANSFORM-PROJECTION-13",
+  "recorded_at": "2026-08-22",
+  "status": "PASS_SOURCE_RUNTIME_DURABLE_ANIMATED_SOCKET_TRANSFORM_PROJECTION_REPLAYABLE_READ_ONLY",
+  "scope": "candidate-bound animated GLB socket transform projection with deterministic CAS/readback and restart-safe read-only lookup",
+  "build_cohort_sha256": "9cc7c11b8309ee7cc76df3d67794c4692c81ff0e8ef064248955ad511b8ca388",
+  "current_source": {
+    "schema_count": 344,
+    "schema_content_set_sha256": "7f3b8355dbfdc3c95d0416d58e26aaab1549ba595672ee8157a5adfaf112d36a",
+    "contract_manifest_sha256": "207dace8f259b0dc5dab00bf22b271c13a5c8781ef7e2c8415f8e7cc32200da3",
+    "mcp_read_tool_count": 79,
+    "mcp_write_tool_count": 59,
+    "mcp_total_tool_count": 138,
+    "mcp_read_manifest_sha256": "242b2076ee5f4f25ad5601f7579d088589fe2c4111cdbf488f8b0ad7556e59",
+    "mcp_write_manifest_sha256": "585eafdba204c49cbbbf945f46a0d635a173448180a3f3a0052f4ce048494198",
+    "mcp_tool_manifest_canonical_sha256": "ad56a7fe71ff7775c0a67f2e77f1512ff3bcd753dde3463815befdd7ac6a01cd",
+    "mcp_tool_manifest_summary_sha256": "1c87f758ac3a90c7c832f86178266ff3791674bc1e126a5983a3b5d1856feedb"
+  },
+  "source_files": [
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/rigid_animation_glb.rs",
+      "sha256": "f28d4ad8b2cc35d3cd132af53c28daa39083cec3355c01e5f632967343e58b8d"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+      "sha256": "3fc54345dbcfaef0d3b40f7675a52cbf5565c4a3c1c9b140e64b9c25ae56100e"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs",
+      "sha256": "c719c3d5f6a68ebf5a23f8af8e691bb8e85d8eb903f901d6d40f560f46ca69ce"
+    },
+    {
+      "path": "packages/forgecad-contracts/manifest.json",
+      "sha256": "207dace8f259b0dc5dab00bf22b271c13a5c8781ef7e2c8415f8e7cc32200da3"
+    },
+    {
+      "path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
+      "sha256": "1c87f758ac3a90c7c832f86178266ff3791674bc1e126a5983a3b5d1856feedb"
+    }
+  ],
+  "binding": {
+    "project_candidate_state_delivery_anchor_set_exact": true,
+    "animated_socket_source_and_derived_glb_exact": true,
+    "mechanical_animation_clip_and_receipt_exact": true,
+    "anchor_set_sorted_part_inventory_and_glb_node_order_set_verified": true,
+    "resolved_transform_projection_uses_actual_glb_node_order": true,
+    "projection_frame_readback_hash_excludes_created_at": true,
+    "stable_f32_shortest_decimal_canonicalization": true,
+    "projection_prepare_is_runtime_owned_durable": true,
+    "projection_get_is_read_only": true,
+    "parent_key_is_not_cas": true,
+    "same_key_replay_is_byte_exact": true,
+    "conflicting_binding_fails_closed": true
+  },
+  "production_fixes": {
+    "mechanical_animation_clip_get_returns_direct_link": true,
+    "anchor_set_part_inventory_sorted_before_node_order_validation": true,
+    "f32_shortest_decimal_stable_cas": true,
+    "frame_readback_hash_excludes_created_at": true
+  },
+  "tests": [
+    {
+      "name": "game_weapon_animated_socket_transform_projection_is_durable_replayable_and_read_only",
+      "result": "PASS_5_OF_5_CONSECUTIVE_REPLAYS",
+      "build_cohort_sha256": "9cc7c11b8309ee7cc76df3d67794c4692c81ff0e8ef064248955ad511b8ca388"
+    },
+    {
+      "name": "forgecad-runtime full lib suite",
+      "result": "PASS_307_OF_307_EXECUTED_20_IGNORED"
+    },
+    {
+      "name": "forgecad-runtime binary suite",
+      "result": "PASS_1_OF_1"
+    },
+    {
+      "name": "runtime total",
+      "result": "PASS_308_TOTAL"
+    },
+    {
+      "name": "cargo fmt --check",
+      "result": "PASS"
+    },
+    {
+      "name": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "truth_boundaries": {
+    "transform_projection": "PASS_STRUCTURAL_ONLY",
+    "animated_socket_attachment_to_vfx": false,
+    "typed_particles_positive_integration": false,
+    "typed_trails_positive_integration": false,
+    "typed_trails_bloom_positive_integration": false,
+    "actual_engine_roundtrip": false,
+    "unity_roundtrip": "NOT_RUN",
+    "unreal_roundtrip": "NOT_RUN",
+    "godot_roundtrip": "NOT_RUN",
+    "visual_quality": "NOT_PROVEN",
+    "commercial_fps_weapon_quality": "NOT_PROVEN",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_status": "MISMATCH",
+    "human_review": "NOT_RUN",
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "limitations": [
+    "This receipt proves the Runtime-owned animated socket transform projection, deterministic replay and restart-safe read-only lookup only.",
+    "It does not prove a positive animated-socket VFX attachment or a durable Particles, Trails or TrailsBloom integration; those remain separate source gaps.",
+    "The projection is structural evidence and does not establish visual likeness, artistic acceptance or commercial FPS weapon quality.",
+    "No stage transition, candidate confirmation, version creation, export, human review or commercial-engine round trip is included.",
+    "Only fictional, nonfunctional game-art assets are in scope; no manufacturing, ballistics, performance or operating guidance is represented."
+  ],
+  "persistent_user_data_touched": false
+}

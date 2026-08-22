@@ -1,0 +1,25 @@
+{
+  "schema_version": "ThreeJsGameWeaponGlbSocketConsumerReceipt@1",
+  "recorded_at": "2026-08-21",
+  "three_revision": "185",
+  "loader": "three/examples/jsm/loaders/GLTFLoader.js",
+  "lod_glb_parse": ["PASS", "PASS", "PASS"],
+  "exact_six_named_empty_nodes": "PASS",
+  "owner_part_parenting": "PASS",
+  "scene_root_parenting": "PASS",
+  "local_trs_readback": "PASS",
+  "non_rendering_socket_nodes": "PASS",
+  "runtime_restart_hash": "PASS",
+  "per_lod": [
+    {"lod_level": 0, "socket_names": ["forgecad-anchor-grip-primary", "forgecad-anchor-socket-energy-core-vfx", "forgecad-anchor-socket-magazine-well", "forgecad-anchor-socket-muzzle-vfx", "forgecad-anchor-socket-sight-primary", "forgecad-anchor-weapon-root"], "mesh_count": 5},
+    {"lod_level": 1, "socket_names": ["forgecad-anchor-grip-primary", "forgecad-anchor-socket-energy-core-vfx", "forgecad-anchor-socket-magazine-well", "forgecad-anchor-socket-muzzle-vfx", "forgecad-anchor-socket-sight-primary", "forgecad-anchor-weapon-root"], "mesh_count": 5},
+    {"lod_level": 2, "socket_names": ["forgecad-anchor-grip-primary", "forgecad-anchor-socket-energy-core-vfx", "forgecad-anchor-socket-magazine-well", "forgecad-anchor-socket-muzzle-vfx", "forgecad-anchor-socket-sight-primary", "forgecad-anchor-weapon-root"], "mesh_count": 5}
+  ],
+  "actual_commercial_engine_roundtrip": false,
+  "unity": "NOT_RUN",
+  "unreal": "NOT_RUN",
+  "godot": "NOT_RUN",
+  "candidate_confirmed": false,
+  "export_performed": false,
+  "quality_status": "structural_only"
+}

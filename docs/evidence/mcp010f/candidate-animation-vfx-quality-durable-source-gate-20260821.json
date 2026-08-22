@@ -1,0 +1,91 @@
+{
+  "schema_version": "ForgeCADCandidateAnimationVfxQualitySourceGate@1",
+  "task_id": "FGC-MCP010F-ANIMATION-VFX-QUALITY-19",
+  "date": "2026-08-21",
+  "status": "PASS_SOURCE_RUNTIME_STORE_MCP_STRUCTURAL_BLOCKED_REPORT",
+  "production_transition": {
+    "from_stage": "material-surface",
+    "to_stage": "animation-vfx",
+    "candidate_binding_status": "same-material-surface-head-candidate-no-geometry-mutation",
+    "production_stage_advanced_by_report_prepare": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "binding": {
+    "material_surface_v2_head_and_quality": "exact_restart_revalidated",
+    "delivery_lod0_and_anchor_set": "exact_restart_revalidated",
+    "animation_clip_existing_glb_receipt_and_animated_socket": "exact_restart_revalidated",
+    "vfx_stack": "profile_sequence_frame_bloom_particles_trails_trail_bloom_exact",
+    "camera_profile_worker_cohort_and_sample": "exact",
+    "mechanical_animation_glb_prepare_called": false,
+    "parent_key_is_cas": false
+  },
+  "hard_gate": {
+    "field_count": 20,
+    "vfx_glb_socket_attachment": false,
+    "validator_status": "failed",
+    "hard_gate_passed": false,
+    "reason": "Current VFX receipts are sidecar-only and do not prove per-frame GLB socket transform attachment."
+  },
+  "transaction": {
+    "owned_cas": ["candidate-animation-vfx-quality-report"],
+    "max_report_bytes": 1048576,
+    "all_dependency_validation_precedes_reservation": true,
+    "same_id_same_content_replay_exact": true,
+    "retarget_or_dependency_drift_conflict_fail_closed": true,
+    "reservation_rollback_cleans_only_created_new_unlinked_report": true,
+    "restart_get_is_read_only_and_revalidates_dependencies": true
+  },
+  "source_surface": {
+    "schemas": 319,
+    "schema_content_set_sha256": "88f972b90d0b0888a0296f77cae34e68f5ba650084e9d84c4915e9507259674d",
+    "contract_manifest_sha256": "4d7379f59a9486a06df2966df91e900623631a2402ac3bb1d8f59ff1eb0155c3",
+    "mcp_read_tools": 74,
+    "mcp_write_tools": 54,
+    "mcp_total_tools": 128,
+    "mcp_read_manifest_sha256": "a49477c15e9e428ea552f9f0456b41577f7a6d480706811410e8c45c3da657c0",
+    "mcp_write_manifest_sha256": "fdbf3bfc661336328ed772ff3a39e0f5ad3f8e5c955c1368fff62c80a000c1db"
+  },
+  "source_sha256": {
+    "contracts_rust": "97d617097d3f8b1e6f6bad3c483d2632958b28ec0f0a1a61fb3db51de844eadf",
+    "store": "fed496fff27277ad940123be784b173426ecbdde8616d4825fb03645f6b40646",
+    "runtime_candidate_animation_vfx_quality": "044bb714af3150d8862ed1aefaecd99864a275a8bcc1775f864526599972d72c",
+    "runtime_lib": "0850d055e54631317b16e80518f01be88104ba712ce667ad404b17fafece7f66",
+    "mcp_agentic_write_tools": "7c234aa9af28dbaf63fcfe9d24835f10ba17d5efd546963f59935a1bad6ccdc0",
+    "mcp_main": "6e28c68cfc4ba30af5fc6c74e4148ada8d04845eb762c35f75a2d8dd9bc96a93"
+  },
+  "verification": [
+    {"gate": "contracts", "result": "PASS_319_SCHEMAS"},
+    {"gate": "forgecad-store candidate_animation_vfx_quality focused", "result": "PASS_4_OF_4"},
+    {"gate": "forgecad-store full lib", "result": "PASS_55_OF_55"},
+    {"gate": "forgecad-runtime candidate_animation_vfx_quality focused", "result": "PASS_7_OF_7"},
+    {"gate": "forgecad-runtime full lib", "result": "PASS_284_OF_284_EXECUTED_20_IGNORED"},
+    {"gate": "forgecad-mcp candidate_animation_vfx_quality focused", "result": "PASS_3_OF_3"},
+    {"gate": "forgecad-mcp full same-cohort", "result": "PASS_110_OF_110"},
+    {"gate": "forgecad-mcp tool manifest summary", "result": "PASS_74_READ_54_WRITE_128_TOTAL"},
+    {"gate": "MCP010F Stage0 truth", "result": "PASS_WITH_HISTORICAL_VISUAL_BLOCKERS_RETAINED"},
+    {"gate": "cargo check contracts/runtime/store/mcp", "result": "PASS"},
+    {"gate": "cargo fmt and git diff check", "result": "PASS"}
+  ],
+  "quality_truth": {
+    "animation_status": "structural_only",
+    "vfx_status": "structural_only",
+    "visual_quality": "NOT_PROVEN",
+    "artistic_quality": "NOT_PROVEN",
+    "commercial_fps_weapon_quality": "NOT_PROVEN",
+    "human_review": "NOT_RUN",
+    "commercial_engine_roundtrip": "NOT_RUN",
+    "overall_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "This gate proves a durable fail-closed dependency report, not successful VFX-to-animated-GLB socket attachment.",
+    "Current sidecar-only VFX evidence cannot advance the production stage; a separate per-frame animated-socket attachment slice is required.",
+    "No independent human visual approval, commercial-FPS acceptance, Unity/Unreal/Godot round-trip, confirmation, version or export is included.",
+    "Only fictional, nonfunctional game-art assets are in scope; no manufacturing, ballistics, performance or operating guidance is represented."
+  ],
+  "persistent_user_data_touched": false
+}

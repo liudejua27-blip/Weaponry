@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-clip-v2-get-result.schema.json",
+  "title": "MechanicalAnimationClipGetResult@2",
+  "description": "Restart-verified, read-only result for an appearance-aware immutable mechanical animation clip.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "clip", "durable_link", "replayed", "restart_hash_verified", "runtime_write_performed", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed", "quality_status"],
+  "properties": {
+    "schema_version": {"const": "MechanicalAnimationClipGetResult@2"},
+    "clip": {"$ref": "https://forgecad.local/contracts/mechanical-animation-clip-v2.schema.json"},
+    "durable_link": {"$ref": "https://forgecad.local/contracts/mechanical-animation-clip-v2-link.schema.json"},
+    "replayed": {"const": false},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false},
+    "quality_status": {"const": "structural_only"}
+  }
+}

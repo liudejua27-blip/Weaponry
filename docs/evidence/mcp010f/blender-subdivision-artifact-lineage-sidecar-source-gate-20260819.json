@@ -1,0 +1,77 @@
+{
+  "schema_version": "ForgeCADBlenderSubdivisionArtifactLineageSidecarSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_RUNTIME_OWNED_IMMUTABLE_CAS_SIDECAR",
+  "recorded_on": "2026-08-19",
+  "implemented_scope": {
+    "contracts": [
+      "SubdivisionArtifactLineageSidecarRequest@1",
+      "SubdivisionArtifactLineageSidecar@1",
+      "SubdivisionArtifactLineageLink@1"
+    ],
+    "schema_count": 173,
+    "operator_catalog": "20/20 active",
+    "mcp_tools": "48 read + 34 explicit-write = 82",
+    "prepare_tool": "subdivision_artifact_lineage_prepare",
+    "read_tool": "subdivision_artifact_lineage_sidecar_get",
+    "runtime_write_boundary": "explicit prepare only; getter never backfills SQLite or CAS",
+    "persistence": "immutable canonical JSON sidecar in Runtime CAS plus compact SQLite candidate/node link",
+    "persistence_commit": "SQLite Link insertion or idempotent reuse and CAS reachability promotion occur in one transaction; CAS bytes are staged first because filesystem CAS and SQLite are not a cross-medium transaction",
+    "failed_commit_rollback": "on Link commit failure, Runtime may remove only the current put call's created_new temporary sidecar after proving it is unlinked; cloned Store handles serialize CAS put attribution, and pre-existing, peer-created, linked or reachable CAS objects are never deleted",
+    "idempotency": "candidate_id + subdivision_node_id unique; identical request_sha256 returns the same link; any drift fails closed",
+    "geometry_candidate_evidence_contract_modified": false,
+    "artifact_readback_contract_modified": false,
+    "arbitrary_script_or_blender_runtime_added": false
+  },
+  "binding_and_integrity": {
+    "prepare_prerequisite": "existing read-only projection must pass durable evidence validation, strict GLB inspection and fixed-Worker full-GLB byte replay",
+    "link_bindings": [
+      "project_id",
+      "candidate_id",
+      "artifact_id",
+      "artifact_readback_sha256",
+      "geometry_candidate_evidence_sha256",
+      "subdivision_node_id",
+      "request_sha256",
+      "sidecar_object_sha256",
+      "lineage_sha256",
+      "artifact_binding_sha256"
+    ],
+    "readback": "restart-safe CAS read with canonical-byte, schema, candidate, artifact, evidence and ArtifactReadback revalidation",
+    "maximum_complete_artifact_case": "14x14 level2, 5408 source-local triangles, 17162 lineage elements",
+    "mcp_wire_budget": "complete Link@1 response at or below 1 MiB; no truncation"
+  },
+  "focused_gate": {
+    "contracts": "PASS_173_SCHEMAS",
+    "store": "PASS_10_OF_10_WITH_EXACT_IDEMPOTENT_LINK_TRANSACTIONAL_REACHABILITY_BOUNDED_ROLLBACK_AND_CONCURRENT_SAME_HASH_SINGLE_CREATOR",
+    "runtime": "PASS_5_OF_5_PROJECTION_SIDECAR_RESTART_TAMPER_CROSS_CANDIDATE_AND_1MIB_TESTS",
+    "mcp": "PASS_CLOSED_READ_PLUS_EXPLICIT_WRITE_OPT_IN_AND_ROUND_TRIP",
+    "tool_manifest": "PASS_48_READ_34_WRITE_82_TOTAL",
+    "mcp010f_full_gate": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+    "release_baseline": "PASS_DOCS_REPOSITORY_SAFETY_SECRETS_LICENSE_SBOM",
+    "cargo_fmt_check": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "research_boundary": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "opensubdiv_commit": "4951f30c00f395aa831a9fc42577cc28ce46fa81",
+    "adoption_mode": "clean-room typed Rust adaptation; upstream source remains reference-only",
+    "license_result": "no Blender GPL or OpenSubdiv source copied into Runtime"
+  },
+  "retained_quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "truth_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "packaged_live_visual_human": "NOT_RUN"
+  },
+  "limitations": [
+    "Filesystem CAS staging and SQLite are not claimed as one cross-medium atomic transaction; the durable reviewable boundary is the SQLite Link plus reachability transaction, with bounded rollback for a newly created unlinked temporary sidecar and general GC deferred to MCP011.",
+    "The sidecar persists current candidate-local lineage; it does not create cross-version element identity.",
+    "It exposes source-primitive-local triangle ranges, not glTF vertex, edge or corner identity.",
+    "It remains limited to regular rectangular open subd-cage@2 grids and integer crease levels 1 to 2.",
+    "Persistence and exact replay are structural evidence and do not prove likeness, Cycles or EEVEE parity, PBR quality, human acceptance or 360-degree quality."
+  ],
+  "canonical_sha256": "bf6160140791340879e30e890d6a740f8d61b35c2a18fe0b5e3e10d4a446fd3b"
+}

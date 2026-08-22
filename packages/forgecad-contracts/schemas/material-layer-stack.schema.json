@@ -1,0 +1,24 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/material-layer-stack.schema.json",
+  "title":"MaterialLayerStack@1",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","stack_id","material_pack_id","material_pack_manifest_sha256","uv_source","layers","budget","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"MaterialLayerStack@1"},
+    "stack_id":{"$ref":"#/$defs/id"},
+    "material_pack_id":{"const":"forgecad-fictional-energy-weapon-2k"},
+    "material_pack_manifest_sha256":{"$ref":"#/$defs/sha256"},
+    "uv_source":{"const":"TEXCOORD_0"},
+    "layers":{"type":"array","minItems":3,"maxItems":3,"prefixItems":[{"$ref":"#/$defs/decal"},{"$ref":"#/$defs/wear"},{"$ref":"#/$defs/clearcoat"}],"items":false},
+    "budget":{"type":"object","additionalProperties":false,"required":["resolution","padding_texels","max_output_textures","max_output_bytes","max_runtime_ms"],"properties":{"resolution":{"const":2048},"padding_texels":{"const":8},"max_output_textures":{"const":8},"max_output_bytes":{"const":67108864},"max_runtime_ms":{"const":120000}}},
+    "canonical_sha256":{"$ref":"#/$defs/sha256"}
+  },
+  "$defs":{
+    "id":{"type":"string","pattern":"^[A-Za-z0-9_.-]{1,128}$"},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "targets":{"type":"object","additionalProperties":false,"required":["part_ids","material_zone_ids"],"properties":{"part_ids":{"type":"array","maxItems":512,"uniqueItems":true,"items":{"$ref":"#/$defs/id"}},"material_zone_ids":{"type":"array","minItems":1,"maxItems":64,"uniqueItems":true,"items":{"$ref":"#/$defs/id"}}}},
+    "decal":{"type":"object","additionalProperties":false,"required":["layer_id","order","kind","recipe_id","blend_policy","targets","opacity"],"properties":{"layer_id":{"const":"fictional-safety-markings"},"order":{"const":0},"kind":{"const":"decal"},"recipe_id":{"const":"forgecad-first-party-fictional-safety-markings@1"},"blend_policy":{"const":"precompose-baseColor-no-custom-shader"},"targets":{"$ref":"#/$defs/targets"},"opacity":{"type":"number","minimum":0,"maximum":1}}},
+    "wear":{"type":"object","additionalProperties":false,"required":["layer_id","order","kind","recipe_id","blend_policy","targets","edge_width_texels","strength"],"properties":{"layer_id":{"const":"bounded-edge-wear"},"order":{"const":1},"kind":{"const":"wear"},"recipe_id":{"const":"forgecad-first-party-geometry-edge-ao-wear@1"},"blend_policy":{"const":"precompose-baseColor-metallicRoughness-no-custom-shader"},"targets":{"$ref":"#/$defs/targets"},"edge_width_texels":{"type":"integer","minimum":1,"maximum":32},"strength":{"type":"number","minimum":0,"maximum":1}}},
+    "clearcoat":{"type":"object","additionalProperties":false,"required":["layer_id","order","kind","recipe_id","blend_policy","targets","factor","roughness"],"properties":{"layer_id":{"const":"texture-backed-clearcoat"},"order":{"const":2},"kind":{"const":"clearcoat"},"recipe_id":{"const":"forgecad-first-party-zone-clearcoat-mask@1"},"blend_policy":{"const":"KHR_materials_clearcoat"},"targets":{"$ref":"#/$defs/targets"},"factor":{"type":"number","minimum":0,"maximum":1},"roughness":{"type":"number","minimum":0.04,"maximum":1}}}
+  }
+}

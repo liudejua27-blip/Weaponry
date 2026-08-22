@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-animated-glb-socket-materialization-get-result.schema.json",
+  "title": "GameWeaponAnimatedGlbSocketMaterializationGetResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "animated_socket_materialization_key_sha256", "derived_animated_socket_artifact_sha256", "receipt_object_sha256", "receipt", "link", "restart_hash_verified", "runtime_write_performed", "candidate_confirmed", "export_performed", "actual_engine_roundtrip", "quality_status"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponAnimatedGlbSocketMaterializationGetResult@1"},
+    "animated_socket_materialization_key_sha256": {"$ref": "#/$defs/sha256"},
+    "derived_animated_socket_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "receipt": {"$ref": "game-weapon-animated-glb-socket-materialization-receipt.schema.json"},
+    "link": {"$ref": "game-weapon-animated-glb-socket-materialization-link.schema.json"},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "quality_status": {"const": "structural_only"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

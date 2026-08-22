@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/fictional-energy-vfx-get-result.schema.json",
+  "title":"FictionalEnergyVfxGetResult@1",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","link","vfx_profile","restart_hash_verified","runtime_write_performed","quality_status"],
+  "properties":{"schema_version":{"const":"FictionalEnergyVfxGetResult@1"},"link":{"$ref":"fictional-energy-vfx-link.schema.json"},"vfx_profile":{"$ref":"fictional-energy-vfx-profile.schema.json"},"restart_hash_verified":{"const":true},"runtime_write_performed":{"const":false},"quality_status":{"const":"structural_only"}}
+}
