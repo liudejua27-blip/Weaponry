@@ -622,6 +622,8 @@ def main() -> int:
             "forgecad.geometry.primitive@2",
             "forgecad.geometry.profile-extrude@1",
             "forgecad.geometry.profile-loft@1",
+            "forgecad.geometry.profile-loft@2",
+            "forgecad.geometry.multi-loop-profile-loft@1",
             "forgecad.geometry.longitudinal-section-loft@1",
             "forgecad.geometry.subd-cage@1",
             "forgecad.geometry.subd-cage@2",
@@ -650,7 +652,7 @@ def main() -> int:
             set(operators) == expected_operator_ids
             and len(catalog.get("operators", [])) == len(expected_operator_ids)
             and all(value.get("status") == "active" for value in operators.values()),
-            "OperatorCatalog current truth drifted: expected exactly 25 active operators",
+            "OperatorCatalog current truth drifted: expected exactly 28 active operators",
         )
         require(
             operators.get("forgecad.geometry.boolean@1", {}).get("status") == "active"
@@ -1855,7 +1857,7 @@ def main() -> int:
             )
         d_result = {
             "status": "PASS",
-            "operator_catalog": "26 entries / 26 active / bevel@2, panel@2, vent-array@2, recessed-channel@1, energy-core@1, authoring mesh, longitudinal section loft and boolean union+difference/intersection active",
+            "operator_catalog": "28 entries / 28 active / profile-loft@2, multi-loop-profile-loft@1, bevel@2, panel@2, vent-array@2, recessed-channel@1, energy-core@1, authoring mesh, longitudinal section loft and boolean union+difference/intersection active",
             "operator_catalog_sha256": catalog_hash,
             "operators": sorted(expected_operator_ids),
             "geometry_program": "GeometryProgram@2 DAG",

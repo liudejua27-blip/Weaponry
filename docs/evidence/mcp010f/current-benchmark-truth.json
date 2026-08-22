@@ -55,7 +55,7 @@
       "relation_to_primary": "UNBOUND_SEPARATE_RUN"
     }
   },
-  "canonical_sha256": "b7e5a6f1187f19a27934bcbf1d8fb6c5903bad414f73117f0084864d6a2376e7",
+  "canonical_sha256": "a8e51c1b0c6c041581aeff57df8b94b27bac3151546d2c5f879ba9fd47f24a13",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
@@ -161,7 +161,7 @@
         "visual_surface_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "2c8aa0cdc98686a4541152ec486f2af8e0c2653367938ebd37240244736364e5",
+      "source_sha256": "0bc5ffc37ec6b07ec809b837ad003241818066b45588c23998f5871f45ba7662",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
       "summary_receipt_sha256": "ce53b553d24639d548b77aeb496ff8902a7c26f108d1d22b18f2417715145017",
       "total_count": 160,

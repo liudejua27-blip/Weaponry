@@ -9686,10 +9686,10 @@ mod tests {
             summary["schema_version"],
             "ForgeCADMcpToolManifestSummary@1"
         );
-        assert_eq!(summary["read_count"], 90);
+        assert_eq!(summary["read_count"], 91);
         assert_eq!(summary["write_count"], 69);
-        assert_eq!(summary["total_count"], 159);
-        assert_eq!(summary["read_names"].as_array().unwrap().len(), 90);
+        assert_eq!(summary["total_count"], 160);
+        assert_eq!(summary["read_names"].as_array().unwrap().len(), 91);
         assert_eq!(summary["write_names"].as_array().unwrap().len(), 69);
         let mut hash_input = summary.clone();
         hash_input
@@ -15482,13 +15482,13 @@ mod tests {
     #[test]
     fn mcp004_write_tools_are_explicit_and_confirmation_bound() {
         let disabled = tools_with_writes(false);
-        assert_eq!(disabled.len(), 90);
+        assert_eq!(disabled.len(), 91);
         assert!(!disabled
             .iter()
             .any(|tool| { tool["name"].as_str().is_some_and(is_mcp004_write_tool) }));
 
         let enabled = tools_with_writes(true);
-        assert_eq!(enabled.len(), 159);
+        assert_eq!(enabled.len(), 160);
         for name in mcp004_write_tool_names() {
             let tool = enabled
                 .iter()
@@ -15599,7 +15599,7 @@ mod tests {
         .expect("tools/list response");
         assert_eq!(
             enabled["result"]["tools"].as_array().map(Vec::len),
-            Some(159)
+            Some(160)
         );
 
         session.write_tools_enabled = false;
@@ -15611,7 +15611,7 @@ mod tests {
         .expect("read-only tools/list response");
         assert_eq!(
             disabled["result"]["tools"].as_array().map(Vec::len),
-            Some(90)
+            Some(91)
         );
     }
 
@@ -16061,7 +16061,7 @@ mod tests {
             &json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
         )
         .expect("tools list");
-        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 159);
+        assert_eq!(listed["result"]["tools"].as_array().unwrap().len(), 160);
 
         let imported = handle(
             &mut backend,
