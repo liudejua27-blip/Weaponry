@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-animated-glb-socket-materialization-prepare-request.schema.json",
+  "title": "GameWeaponAnimatedGlbSocketMaterializationPrepareRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "delivery_manifest_object_sha256", "anchor_set_object_sha256", "source_candidate_id", "source_candidate_state_sha256", "source_animated_artifact_sha256", "source_animation_receipt_object_sha256", "materialization_policy", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponAnimatedGlbSocketMaterializationPrepareRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "source_candidate_id": {"$ref": "#/$defs/id"},
+    "source_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "source_animated_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "source_animation_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "materialization_policy": {"const": "gltf-animated-anchor-node-materialization-preserve-animations-renderable-content@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

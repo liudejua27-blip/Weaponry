@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-frame-link.schema.json",
+  "title": "FictionalEnergyVfxFrameLink@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "frame_key_sha256", "project_id", "delivery_manifest_object_sha256", "vfx_profile_object_sha256", "source_candidate_id", "source_artifact_sha256", "sample_request_sha256", "camera_object_sha256", "camera_identity_sha256", "render_profile_sha256", "render_worker_build_cohort_sha256", "render_set_object_sha256", "receipt_object_sha256", "pass_object_sha256s", "materialization_status", "canonical_sha256", "created_at"],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxFrameLink@1"},
+    "frame_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "project_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "delivery_manifest_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "vfx_profile_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "source_candidate_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "source_artifact_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "sample_request_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "camera_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "camera_identity_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "render_profile_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "render_worker_build_cohort_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "render_set_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "receipt_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "pass_object_sha256s": {"type": "array", "minItems": 9, "maxItems": 9, "items": {"$ref": "common.schema.json#/$defs/sha256"}},
+    "materialization_status": {"const": "runtime-owned-durable-fictional-energy-vfx-nine-aov-frame"},
+    "canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 64}
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-clip.schema.json",
+  "title": "MechanicalAnimationClip",
+  "description": "A Runtime-owned immutable CAS clip containing normalized bounded rigid-link RestFrame, PoseAction and an explicit replay schedule.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "clip_id", "project_id", "candidate_id", "artifact_id", "artifact_readback_sha256", "geometry_candidate_evidence_sha256", "program_sha256", "operator_catalog_sha256", "readback_config_sha256", "request_sha256", "rest_frame", "rest_frame_sha256", "pose_action", "pose_action_sha256", "sampling_policy", "sampling_policy_sha256", "source_replay", "materialization_status", "quality_status", "limitations", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "MechanicalAnimationClip@1"},
+    "clip_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_candidate_evidence_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "rest_frame": {"$ref": "https://forgecad.local/contracts/mechanical-rest-frame.schema.json"},
+    "rest_frame_sha256": {"$ref": "#/$defs/sha256"},
+    "pose_action": {"$ref": "https://forgecad.local/contracts/mechanical-pose-action.schema.json"},
+    "pose_action_sha256": {"$ref": "#/$defs/sha256"},
+    "sampling_policy": {"$ref": "#/$defs/sampling_policy"},
+    "sampling_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "source_replay": {"$ref": "#/$defs/source_replay"},
+    "materialization_status": {"const": "runtime-owned-immutable-cas-clip"},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {"const": ["caller-authored-rest-frame-not-artifact-rig-provenance", "rigid-parts-only-no-skinning-or-deformation", "single-scalar-dof-per-link", "linear-clamped-integer-tick-actions-only", "maximum-16-explicit-preview-samples", "no-ik-constraints-nla-fcurves-drivers-or-timeline", "no-glb-animation-channels-or-durable-frame-meshes", "not-blender-armature-animation-or-python-parity", "structural-replay-does-not-prove-visual-quality"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sampling_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "timebase_hz", "interpolation", "unkeyed", "sample_time_ticks", "max_samples", "frame_preview_batch_size"],
+      "properties": {
+        "schema_version": {"const": "MechanicalAnimationSamplingPolicy@1"},
+        "timebase_hz": {"const": 1000},
+        "interpolation": {"const": "scalar-linear-integer-ticks-clamped"},
+        "unkeyed": {"const": "rest"},
+        "sample_time_ticks": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 1000000}},
+        "max_samples": {"const": 16},
+        "frame_preview_batch_size": {"const": 1}
+      }
+    },
+    "source_replay": {
+      "type": "object", "additionalProperties": false,
+      "required": ["worker_build_cohort_sha256", "first_artifact_sha256", "repeat_artifact_sha256", "byte_exact_with_candidate_artifact", "strict_readback_passed"],
+      "properties": {
+        "worker_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+        "first_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "repeat_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "byte_exact_with_candidate_artifact": {"const": true},
+        "strict_readback_passed": {"const": true}
+      }
+    }
+  }
+}

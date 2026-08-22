@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-asset-delivery-get-request.schema.json",
+  "title": "GameAssetDeliveryGetRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "delivery_manifest_object_sha256"],
+  "properties": {
+    "schema_version": { "const": "GameAssetDeliveryGetRequest@1" },
+    "project_id": { "$ref": "#/$defs/identifier" },
+    "delivery_manifest_object_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

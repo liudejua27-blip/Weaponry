@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-pose-action.schema.json",
+  "title": "MechanicalPoseAction",
+  "description": "A Runtime-canonical bounded scalar action for rigid mechanical links.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "action_id", "project_id", "candidate_id", "rest_frame_sha256", "program_sha256", "timebase_hz", "duration_ticks", "interpolation", "extrapolation", "unkeyed_policy", "channels", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "MechanicalPoseAction@1"},
+    "action_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "rest_frame_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "timebase_hz": {"const": 1000},
+    "duration_ticks": {"type": "integer", "minimum": 1, "maximum": 1000000},
+    "interpolation": {"const": "linear@1"},
+    "extrapolation": {"const": "clamp@1"},
+    "unkeyed_policy": {"const": "rest@1"},
+    "channels": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/channel"}},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "channel": {
+      "type": "object", "additionalProperties": false,
+      "required": ["link_id", "value_unit", "keys"],
+      "properties": {
+        "link_id": {"$ref": "#/$defs/identifier"},
+        "value_unit": {"enum": ["radian", "meter"]},
+        "keys": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/key"}}
+      }
+    },
+    "key": {
+      "type": "object", "additionalProperties": false,
+      "required": ["time_ticks", "value"],
+      "properties": {
+        "time_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "value": {"type": "number", "minimum": -3.141592653589793, "maximum": 3.141592653589793}
+      }
+    }
+  }
+}

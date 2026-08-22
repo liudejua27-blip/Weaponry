@@ -1,0 +1,30 @@
+{
+  "schema_version": "ThreeJsGameAssetConsumerReceipt@1",
+  "three_revision": "185",
+  "loader": "three/examples/jsm/loaders/GLTFLoader.js",
+  "static_glb_parse": "PASS",
+  "animated_glb_parse": "PASS",
+  "animation_mixer_sample": "PASS",
+  "animation_track_count": 4,
+  "stable_part_nodes": [
+    "arm-part",
+    "root-part"
+  ],
+  "no_bones": true,
+  "no_skinned_meshes": true,
+  "lod_triangle_counts": [
+    268,
+    140,
+    76
+  ],
+  "collision_proxy_count": 2,
+  "runtime_restart_hash": "PASS",
+  "candidate_confirmed": false,
+  "export_performed": false,
+  "threejs_consumer_roundtrip": true,
+  "actual_commercial_engine_roundtrip": false,
+  "unity": "NOT_RUN",
+  "unreal": "NOT_RUN",
+  "godot": "NOT_RUN",
+  "quality_status": "structural_only"
+}

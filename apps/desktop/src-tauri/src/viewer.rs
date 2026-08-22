@@ -1,4 +1,4 @@
-use forgecad_runtime::{LocalIpcClient, LocalIpcEndpoint};
+use forgecad_runtime::{canonical_json_hash, LocalIpcClient, LocalIpcEndpoint};
 use serde_json::{json, Value};
 use std::env;
 use std::fs;
@@ -9,6 +9,9 @@ const READ_MODEL_SCHEMA: &str = "ForgeCADViewerReadModel@1";
 const READ_MODEL_SUMMARY_SCHEMA: &str = "ForgeCADViewerReadModelSummary@1";
 const AGENTIC_PROJECTION_SCHEMA: &str = "ForgeCADAgenticDesignProjection@1";
 const AGENTIC_SESSION_READBACK_SCHEMA: &str = "ForgeCADAgenticDesignSessionReadback@1";
+const MECHANICAL_ANIMATION_INVENTORY_SCHEMA: &str = "ViewerMechanicalAnimationInventory@1";
+const MECHANICAL_ANIMATION_FRAME_SCHEMA: &str = "MechanicalAnimationClipPreview@1";
+const PROVENANCE_GRAPH_SCHEMA: &str = "ViewerProvenanceGraph@1";
 
 /// Read the optional Viewer projection without starting Runtime or opening
 /// SQLite/CAS. The Viewer is deliberately a read-only IPC client.
@@ -102,6 +105,105 @@ pub fn read_agentic_session(project_id: &str, candidate_id: &str) -> Value {
     {
         Ok(value) => value,
         Err(code) => unavailable_agentic_session(project_id, candidate_id, &code),
+    }
+}
+
+/// Discover immutable mechanical animation clips for the exact candidate and
+/// artifact. The bridge creates the closed Runtime request; React never signs
+/// or fabricates contract hashes.
+pub fn read_mechanical_animation_inventory(
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+) -> Value {
+    match runtime_data_root().and_then(|root| {
+        read_mechanical_animation_inventory_from_root(&root, project_id, candidate_id, artifact_id)
+    }) {
+        Ok(value) => value,
+        Err(code) => unavailable_mechanical_animation(project_id, candidate_id, artifact_id, &code),
+    }
+}
+
+/// Read one complete immutable clip through Runtime's existing verified get
+/// path. This remains metadata-only in the Viewer and cannot preview or write.
+pub fn read_mechanical_animation_clip(
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    clip_id: &str,
+) -> Value {
+    match runtime_data_root().and_then(|root| {
+        read_mechanical_animation_clip_from_root(
+            &root,
+            project_id,
+            candidate_id,
+            artifact_id,
+            clip_id,
+        )
+    }) {
+        Ok(value) => value,
+        Err(code) => unavailable_mechanical_animation(project_id, candidate_id, artifact_id, &code),
+    }
+}
+
+/// Evaluate one immutable scheduled tick through Runtime's existing
+/// double-Worker preview. The returned Part deltas are transient Viewer input;
+/// no frame GLB, candidate, version, CAS object, or SQLite row is created.
+pub fn read_mechanical_animation_frame_preview(
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    clip_id: &str,
+    sample_time_ticks: u64,
+) -> Value {
+    match runtime_data_root().and_then(|root| {
+        read_mechanical_animation_frame_preview_from_root(
+            &root,
+            project_id,
+            candidate_id,
+            artifact_id,
+            clip_id,
+            sample_time_ticks,
+        )
+    }) {
+        Ok(value) => value,
+        Err(code) => unavailable_mechanical_animation_frame(
+            project_id,
+            candidate_id,
+            artifact_id,
+            clip_id,
+            sample_time_ticks,
+            &code,
+        ),
+    }
+}
+
+/// Read one complete-or-fail provenance graph for the exact Viewer candidate
+/// state. The bridge owns the closed request hash and accepts only the
+/// Runtime-owned read-only projection.
+pub fn read_provenance_graph(
+    project_id: &str,
+    candidate_id: &str,
+    candidate_state_sha256: &str,
+    artifact_id: &str,
+) -> Value {
+    match runtime_data_root().and_then(|root| {
+        read_provenance_graph_from_root(
+            &root,
+            project_id,
+            candidate_id,
+            candidate_state_sha256,
+            artifact_id,
+        )
+    }) {
+        Ok(value) => value,
+        Err(code) => unavailable_provenance_graph(
+            project_id,
+            candidate_id,
+            candidate_state_sha256,
+            artifact_id,
+            &code,
+        ),
     }
 }
 
@@ -253,6 +355,254 @@ fn read_agentic_session_from_root(
         "durable_session": durable_session,
         "projection": projection,
     }))
+}
+
+fn read_mechanical_animation_inventory_from_root(
+    root: &Path,
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+) -> Result<Value, String> {
+    if project_id.is_empty() || candidate_id.is_empty() || artifact_id.len() != 64 {
+        return Err("MECHANICAL_ANIMATION_BINDING_MISSING".to_owned());
+    }
+    let mut request = json!({
+        "schema_version":"MechanicalAnimationClipInventoryRequest@1",
+        "project_id":project_id,
+        "candidate_id":candidate_id,
+        "artifact_id":artifact_id,
+        "max_clips":16
+    });
+    request["canonical_sha256"] = Value::String(canonical_json_hash(&request));
+    let mut client = connect_runtime(root)?;
+    let value = client
+        .call("mechanical_animation_clip_inventory", request)
+        .map_err(|_| "MECHANICAL_ANIMATION_INVENTORY_UNAVAILABLE".to_owned())?;
+    if value.get("schema_version").and_then(Value::as_str)
+        != Some(MECHANICAL_ANIMATION_INVENTORY_SCHEMA)
+        || value.get("status").and_then(Value::as_str) != Some("Ready")
+        || value.get("read_only").and_then(Value::as_bool) != Some(true)
+        || value
+            .get("runtime_write_performed")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || value
+            .get("persistent_user_data_touched")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || value.get("quality_status").and_then(Value::as_str) != Some("structural_only")
+        || value.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || value.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+        || value.get("artifact_id").and_then(Value::as_str) != Some(artifact_id)
+        || serde_json::to_vec(&value)
+            .map_err(|_| "MECHANICAL_ANIMATION_INVENTORY_INVALID")?
+            .len()
+            > 128 * 1024
+    {
+        return Err("MECHANICAL_ANIMATION_INVENTORY_BINDING_MISMATCH".to_owned());
+    }
+    Ok(value)
+}
+
+fn read_mechanical_animation_clip_from_root(
+    root: &Path,
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    clip_id: &str,
+) -> Result<Value, String> {
+    if project_id.is_empty()
+        || candidate_id.is_empty()
+        || artifact_id.len() != 64
+        || clip_id.is_empty()
+    {
+        return Err("MECHANICAL_ANIMATION_BINDING_MISSING".to_owned());
+    }
+    let mut request = json!({
+        "schema_version":"MechanicalAnimationClipGetRequest@1",
+        "project_id":project_id,
+        "candidate_id":candidate_id,
+        "clip_id":clip_id
+    });
+    request["canonical_sha256"] = Value::String(canonical_json_hash(&request));
+    let mut client = connect_runtime(root)?;
+    let value = client
+        .call("mechanical_animation_clip_get", request)
+        .map_err(|_| "MECHANICAL_ANIMATION_CLIP_UNAVAILABLE".to_owned())?;
+    if value.get("schema_version").and_then(Value::as_str) != Some("MechanicalAnimationClipLink@1")
+        || value.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || value.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+        || value.get("artifact_id").and_then(Value::as_str) != Some(artifact_id)
+        || value.get("clip_id").and_then(Value::as_str) != Some(clip_id)
+        || value.get("artifact_readback_sha256") != value["clip"].get("artifact_readback_sha256")
+        || value.get("geometry_candidate_evidence_sha256")
+            != value["clip"].get("geometry_candidate_evidence_sha256")
+        || value.get("program_sha256") != value["clip"].get("program_sha256")
+        || value.get("operator_catalog_sha256") != value["clip"].get("operator_catalog_sha256")
+        || value.get("readback_config_sha256") != value["clip"].get("readback_config_sha256")
+        || serde_json::to_vec(&value)
+            .map_err(|_| "MECHANICAL_ANIMATION_CLIP_INVALID")?
+            .len()
+            > 1024 * 1024
+    {
+        return Err("MECHANICAL_ANIMATION_CLIP_BINDING_MISMATCH".to_owned());
+    }
+    Ok(value)
+}
+
+fn read_mechanical_animation_frame_preview_from_root(
+    root: &Path,
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    clip_id: &str,
+    sample_time_ticks: u64,
+) -> Result<Value, String> {
+    if project_id.is_empty()
+        || candidate_id.is_empty()
+        || artifact_id.len() != 64
+        || clip_id.is_empty()
+        || sample_time_ticks > 1_000_000
+    {
+        return Err("MECHANICAL_ANIMATION_FRAME_BINDING_MISSING".to_owned());
+    }
+    let mut request = json!({
+        "schema_version":"MechanicalAnimationClipPreviewRequest@1",
+        "project_id":project_id,
+        "candidate_id":candidate_id,
+        "clip_id":clip_id,
+        "sample_time_ticks":sample_time_ticks,
+        "preview_policy":"single-tick-transient-double-worker-replay@1"
+    });
+    request["canonical_sha256"] = Value::String(canonical_json_hash(&request));
+    let mut client = connect_runtime(root)?;
+    let value = client
+        .call("mechanical_animation_clip_preview_get", request)
+        .map_err(|_| "MECHANICAL_ANIMATION_FRAME_UNAVAILABLE".to_owned())?;
+    let geometry = value
+        .get("pose_geometry_preview")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "MECHANICAL_ANIMATION_FRAME_INVALID".to_owned())?;
+    let deltas = geometry
+        .get("part_deltas")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "MECHANICAL_ANIMATION_FRAME_INVALID".to_owned())?;
+    let mut part_ids = std::collections::BTreeSet::new();
+    if deltas.is_empty()
+        || deltas.len() > 64
+        || deltas.iter().any(|delta| {
+            delta
+                .get("part_id")
+                .and_then(Value::as_str)
+                .map(|part_id| !part_ids.insert(part_id.to_owned()))
+                .unwrap_or(true)
+        })
+        || value.get("schema_version").and_then(Value::as_str)
+            != Some(MECHANICAL_ANIMATION_FRAME_SCHEMA)
+        || value.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || value.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+        || value.get("artifact_id").and_then(Value::as_str) != Some(artifact_id)
+        || value.get("clip_id").and_then(Value::as_str) != Some(clip_id)
+        || value.get("sample_time_ticks").and_then(Value::as_u64) != Some(sample_time_ticks)
+        || value
+            .get("runtime_write_performed")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || value
+            .get("persistent_user_data_touched")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || value.get("quality_status").and_then(Value::as_str) != Some("structural_only")
+        || geometry.get("source_artifact_id").and_then(Value::as_str) != Some(artifact_id)
+        || geometry
+            .get("runtime_write_performed")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || geometry
+            .get("persistent_user_data_touched")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || geometry.get("validator_status").and_then(Value::as_str) != Some("passed")
+        || serde_json::to_vec(&value)
+            .map_err(|_| "MECHANICAL_ANIMATION_FRAME_INVALID")?
+            .len()
+            > 1024 * 1024
+    {
+        return Err("MECHANICAL_ANIMATION_FRAME_BINDING_MISMATCH".to_owned());
+    }
+    Ok(value)
+}
+
+fn read_provenance_graph_from_root(
+    root: &Path,
+    project_id: &str,
+    candidate_id: &str,
+    candidate_state_sha256: &str,
+    artifact_id: &str,
+) -> Result<Value, String> {
+    if project_id.is_empty()
+        || candidate_id.is_empty()
+        || candidate_state_sha256.len() != 64
+        || artifact_id.len() != 64
+    {
+        return Err("PROVENANCE_GRAPH_BINDING_MISSING".to_owned());
+    }
+    let mut request = json!({
+        "schema_version":"ViewerProvenanceGraphRequest@1",
+        "project_id":project_id,
+        "candidate_id":candidate_id,
+        "candidate_state_sha256":candidate_state_sha256,
+        "artifact_id":artifact_id,
+        "max_nodes":64,
+        "max_edges":128,
+    });
+    request["canonical_sha256"] = Value::String(canonical_json_hash(&request));
+    let mut client = connect_runtime(root)?;
+    let value = client
+        .call("viewer_provenance_graph_get", request)
+        .map_err(|_| "PROVENANCE_GRAPH_UNAVAILABLE".to_owned())?;
+    let nodes = value.get("nodes").and_then(Value::as_array);
+    let edges = value.get("edges").and_then(Value::as_array);
+    let canonical = value.get("canonical_sha256").and_then(Value::as_str);
+    let mut canonical_preimage = value.clone();
+    canonical_preimage
+        .as_object_mut()
+        .ok_or_else(|| "PROVENANCE_GRAPH_INVALID".to_owned())?
+        .remove("canonical_sha256");
+    if value.get("schema_version").and_then(Value::as_str) != Some(PROVENANCE_GRAPH_SCHEMA)
+        || value.get("status").and_then(Value::as_str) != Some("Ready")
+        || value.get("read_only").and_then(Value::as_bool) != Some(true)
+        || value
+            .get("runtime_write_performed")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || value
+            .get("persistent_user_data_touched")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || value.get("complete").and_then(Value::as_bool) != Some(true)
+        || value.get("truncated").and_then(Value::as_bool) != Some(false)
+        || value.get("project_id").and_then(Value::as_str) != Some(project_id)
+        || value.get("candidate_id").and_then(Value::as_str) != Some(candidate_id)
+        || value.get("candidate_state_sha256").and_then(Value::as_str)
+            != Some(candidate_state_sha256)
+        || value.get("artifact_id").and_then(Value::as_str) != Some(artifact_id)
+        || value.get("max_nodes").and_then(Value::as_u64) != Some(64)
+        || value.get("max_edges").and_then(Value::as_u64) != Some(128)
+        || value.get("quality_status").and_then(Value::as_str) != Some("structural_only")
+        || nodes.is_none_or(|items| items.len() > 64)
+        || edges.is_none_or(|items| items.len() > 128)
+        || value.get("node_count").and_then(Value::as_u64) != nodes.map(|items| items.len() as u64)
+        || value.get("edge_count").and_then(Value::as_u64) != edges.map(|items| items.len() as u64)
+        || canonical.is_none_or(|hash| canonical_json_hash(&canonical_preimage) != hash)
+        || serde_json::to_vec(&value)
+            .map_err(|_| "PROVENANCE_GRAPH_INVALID".to_owned())?
+            .len()
+            > 1024 * 1024
+    {
+        return Err("PROVENANCE_GRAPH_BINDING_MISMATCH".to_owned());
+    }
+    Ok(value)
 }
 
 fn connect_runtime(root: &Path) -> Result<LocalIpcClient, String> {
@@ -464,6 +814,80 @@ fn unavailable_agentic_session(project_id: &str, candidate_id: &str, code: &str)
     })
 }
 
+fn unavailable_mechanical_animation(
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    code: &str,
+) -> Value {
+    json!({
+        "schema_version": MECHANICAL_ANIMATION_INVENTORY_SCHEMA,
+        "status": "Unavailable",
+        "retryable": true,
+        "source": "Runtime authenticated read-only mechanical animation projection",
+        "read_only": true,
+        "runtime_write_performed": false,
+        "persistent_user_data_touched": false,
+        "code": code,
+        "project_id": if project_id.is_empty() { Value::Null } else { Value::String(project_id.to_owned()) },
+        "candidate_id": if candidate_id.is_empty() { Value::Null } else { Value::String(candidate_id.to_owned()) },
+        "artifact_id": if artifact_id.is_empty() { Value::Null } else { Value::String(artifact_id.to_owned()) },
+        "clips": [],
+        "quality_status": "structural_only",
+    })
+}
+
+fn unavailable_mechanical_animation_frame(
+    project_id: &str,
+    candidate_id: &str,
+    artifact_id: &str,
+    clip_id: &str,
+    sample_time_ticks: u64,
+    code: &str,
+) -> Value {
+    json!({
+        "schema_version": MECHANICAL_ANIMATION_FRAME_SCHEMA,
+        "status": "Unavailable",
+        "retryable": true,
+        "source": "Runtime authenticated read-only mechanical animation frame preview",
+        "read_only": true,
+        "runtime_write_performed": false,
+        "persistent_user_data_touched": false,
+        "code": code,
+        "project_id": if project_id.is_empty() { Value::Null } else { Value::String(project_id.to_owned()) },
+        "candidate_id": if candidate_id.is_empty() { Value::Null } else { Value::String(candidate_id.to_owned()) },
+        "artifact_id": if artifact_id.is_empty() { Value::Null } else { Value::String(artifact_id.to_owned()) },
+        "clip_id": if clip_id.is_empty() { Value::Null } else { Value::String(clip_id.to_owned()) },
+        "sample_time_ticks": sample_time_ticks,
+        "quality_status": "structural_only",
+    })
+}
+
+fn unavailable_provenance_graph(
+    project_id: &str,
+    candidate_id: &str,
+    candidate_state_sha256: &str,
+    artifact_id: &str,
+    code: &str,
+) -> Value {
+    json!({
+        "schema_version":PROVENANCE_GRAPH_SCHEMA,
+        "status":"Unavailable",
+        "retryable":true,
+        "read_only":true,
+        "runtime_write_performed":false,
+        "persistent_user_data_touched":false,
+        "project_id":project_id,
+        "candidate_id":candidate_id,
+        "candidate_state_sha256":candidate_state_sha256,
+        "artifact_id":artifact_id,
+        "nodes":[],
+        "edges":[],
+        "quality_status":"unavailable",
+        "code":code,
+    })
+}
+
 fn runtime_data_root() -> Result<PathBuf, String> {
     if let Some(path) = env::var_os(DATA_DIR_ENV) {
         if path.is_empty() {
@@ -551,11 +975,14 @@ mod tests {
             .expect("reference")
             .reference;
         let mut program = json!({
-            "schema_version":"GeometryProgram@1",
+            "schema_version":"GeometryProgram@2",
             "project_id":project.project_id.clone(),
             "representation_plan_sha256":"f".repeat(64),
-            "nodes":[{"node_id":"viewer-torso","operator_id":"forgecad.geometry.primitive@1","part_id":"viewer-torso","parameters":{"shape":"box","size":[1.0,1.0,1.0],"position":[0,0,0],"material_zone_id":"zone-white-shell"}}],
-            "budgets":{"max_nodes":4,"max_triangles":1000,"max_runtime_ms":1000}
+            "operator_catalog_sha256":runtime.active_operator_catalog()["canonical_sha256"],
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{"max_nodes":4,"max_triangles":1000,"max_glb_bytes":1048576,"max_worker_memory_bytes":536870912,"max_runtime_ms":10000},
+            "nodes":[{"node_id":"viewer-torso","operator_id":"forgecad.geometry.primitive@2","inputs":[],"parameters":{"shape":"box","size_m":[1.0,1.0,1.0],"position_m":[0.0,0.0,0.0],"rotation_rad":[0.0,0.0,0.0]}}],
+            "part_outputs":[{"part_id":"viewer-torso","input_node_ids":["viewer-torso"],"material_zone_id":"zone-white-shell","solid":true}]
         });
         program["canonical_sha256"] = Value::String(canonical_json_hash(&program));
         let geometry = runtime
@@ -573,6 +1000,85 @@ mod tests {
             .as_str()
             .expect("candidate")
             .to_owned();
+        let mut pose_sequence_request = json!({
+            "schema_version":"MechanicalPoseSequencePreviewRequest@1",
+            "project_id":project.project_id.clone(),
+            "artifact_id":geometry["artifact"]["artifact_id"],
+            "candidate_id":geometry["candidate"]["candidate_id"],
+            "artifact_readback_sha256":geometry["artifact"]["canonical_sha256"],
+            "program_sha256":geometry["artifact"]["program_sha256"],
+            "operator_catalog_sha256":geometry["artifact"]["operator_catalog_sha256"],
+            "readback_config_sha256":geometry["artifact"]["readback_config_sha256"],
+            "rest_frame_draft":{
+                "schema_version":"MechanicalRestFrameDraft@1",
+                "rest_frame_id":"viewer-rest",
+                "coordinate_system":"forgecad-rh-y-up-m@1",
+                "transform_convention":"column-vector-trs-quaternion@1",
+                "root_link_id":"viewer-link",
+                "links":[{
+                    "link_id":"viewer-link",
+                    "part_id":"viewer-torso",
+                    "source_node_ids":["viewer-torso"],
+                    "joint_type":"revolute",
+                    "rest_translation_m":[0.0,0.0,0.0],
+                    "rest_rotation_quat_xyzw":[0.0,0.0,0.0,1.0],
+                    "axis_local":[0.0,1.0,0.0],
+                    "limit_min":-1.0,
+                    "limit_max":1.0,
+                    "value_unit":"radian"
+                }],
+                "parent_map":[]
+            },
+            "pose_action_draft":{
+                "schema_version":"MechanicalPoseActionDraft@1",
+                "action_id":"viewer-action",
+                "timebase_hz":1000,
+                "duration_ticks":1000,
+                "interpolation":"linear@1",
+                "extrapolation":"clamp@1",
+                "unkeyed_policy":"rest@1",
+                "channels":[{
+                    "link_id":"viewer-link",
+                    "value_unit":"radian",
+                    "keys":[{"time_ticks":0,"value":0.0},{"time_ticks":1000,"value":0.5}]
+                }]
+            },
+            "sample_time_ticks":[0,500,1000],
+            "input_sha256":""
+        });
+        let mut pose_preimage = pose_sequence_request.clone();
+        pose_preimage
+            .as_object_mut()
+            .expect("pose request")
+            .remove("input_sha256");
+        pose_sequence_request["input_sha256"] = Value::String(canonical_json_hash(&pose_preimage));
+        let mut clip_request = json!({
+            "schema_version":"MechanicalAnimationClipPrepareRequest@1",
+            "clip_id":"viewer-clip",
+            "pose_sequence_request":pose_sequence_request,
+            "clip_policy":"runtime-owned-immutable-cas-rigid-mechanical-action@1",
+            "input_sha256":""
+        });
+        let mut clip_preimage = clip_request.clone();
+        clip_preimage
+            .as_object_mut()
+            .expect("clip request")
+            .remove("input_sha256");
+        clip_request["input_sha256"] = Value::String(canonical_json_hash(&clip_preimage));
+        let clip_ready = match runtime.mechanical_animation_clip_prepare(&clip_request) {
+            Ok(clip_link) => {
+                assert_eq!(clip_link["clip_id"], "viewer-clip");
+                true
+            }
+            Err(error)
+                if error
+                    .to_string()
+                    .contains("source Geometry Worker cohort is unavailable") =>
+            {
+                false
+            }
+            Err(error) => panic!("viewer durable clip: {error}"),
+        };
         let endpoint = LocalIpcEndpoint::new(&socket_root).expect("endpoint");
         let server = runtime.ipc_server(&endpoint).expect("server");
         let ready_path = root.join("ipc").join("ready.json");
@@ -621,6 +1127,46 @@ mod tests {
         assert!(reference_payload["bytes_base64"]
             .as_str()
             .is_some_and(|value| !value.is_empty()));
+
+        if clip_ready {
+            let frame = read_mechanical_animation_frame_preview_from_root(
+                &root,
+                &project.project_id,
+                &candidate_id,
+                &artifact_id,
+                "viewer-clip",
+                500,
+            )
+            .expect("scheduled immutable clip frame");
+            assert_eq!(frame["schema_version"], MECHANICAL_ANIMATION_FRAME_SCHEMA);
+            assert_eq!(frame["clip_id"], "viewer-clip");
+            assert_eq!(frame["sample_time_ticks"], 500);
+            assert_eq!(frame["runtime_write_performed"], false);
+            assert_eq!(
+                frame["pose_geometry_preview"]["part_deltas"][0]["part_id"],
+                "viewer-torso"
+            );
+        }
+
+        let frame_error = read_mechanical_animation_frame_preview_from_root(
+            &root,
+            &project.project_id,
+            &candidate_id,
+            &artifact_id,
+            "missing-clip",
+            0,
+        )
+        .expect_err("missing immutable clip must fail closed");
+        assert_eq!(frame_error, "MECHANICAL_ANIMATION_FRAME_UNAVAILABLE");
+        let after_frame_probe = read_model_from_root(&root).expect("read model after frame probe");
+        assert_eq!(after_frame_probe["projects"][0]["versions"], json!([]));
+        assert_eq!(
+            after_frame_probe["projects"][0]["candidates"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
 
         let mut client = LocalIpcClient::connect(&shutdown_endpoint).expect("shutdown client");
         assert_eq!(
@@ -754,6 +1300,10 @@ mod tests {
     fn agentic_session_frontend_source_guard_is_read_only() {
         let session_source = include_str!("../../src/features/runtime-viewer/agentic-session.ts");
         let viewer_source = include_str!("../../src/features/runtime-viewer/RuntimeViewer.tsx");
+        let mechanical_animation_source =
+            include_str!("../../src/features/runtime-viewer/mechanical-animation.ts");
+        let provenance_graph_source =
+            include_str!("../../src/features/runtime-viewer/provenance-graph.ts");
         for token in [
             "normalizeAgenticSessionProjection",
             "evidenceBindings",
@@ -767,7 +1317,7 @@ mod tests {
         }
         for token in [
             "viewer_agentic_session",
-            "DESIGN SESSION / CHECKPOINT",
+            "设计阶段回读",
             "restore prepare / approval",
             "允许显示",
         ] {
@@ -790,6 +1340,73 @@ mod tests {
             assert!(
                 !viewer_source.contains(token),
                 "forbidden Viewer readback invocation: {token}"
+            );
+        }
+        for token in [
+            "normalizeViewerMechanicalAnimationInventory",
+            "normalizeMechanicalAnimationClipLink",
+            "normalizeMechanicalAnimationFramePreview",
+            "isCurrentMechanicalAnimationFrameResponse",
+            "candidate-mismatch-fail-closed",
+            "mechanicalAnimationHierarchyRows",
+        ] {
+            assert!(
+                mechanical_animation_source.contains(token),
+                "missing mechanical animation source token: {token}"
+            );
+        }
+        for token in [
+            "viewer_mechanical_animation_inventory",
+            "viewer_mechanical_animation_clip",
+            "viewer_mechanical_animation_frame_preview",
+            "Runtime 双 Worker",
+            "structural_only",
+        ] {
+            assert!(
+                viewer_source.contains(token),
+                "missing mechanical animation Viewer token: {token}"
+            );
+        }
+        for token in ["window.localStorage", "globalThis.localStorage", "fetch("] {
+            assert!(
+                !mechanical_animation_source.contains(token),
+                "forbidden mechanical animation normalizer operation: {token}"
+            );
+        }
+        for token in [
+            "normalizeViewerProvenanceGraph",
+            "cross-candidate-fail-closed",
+            "stale-state-fail-closed",
+            "dangling-edge-fail-closed",
+            "cycle-fail-closed",
+        ] {
+            assert!(
+                provenance_graph_source.contains(token),
+                "missing provenance graph source token: {token}"
+            );
+        }
+        for token in [
+            "viewer_provenance_graph",
+            "candidateStateSha256",
+            "provenanceGraphRequestRef",
+            "complete-or-fail",
+            "来源链",
+        ] {
+            assert!(
+                viewer_source.contains(token),
+                "missing provenance graph Viewer token: {token}"
+            );
+        }
+        for token in ["window.localStorage", "globalThis.localStorage", "fetch("] {
+            assert!(
+                !provenance_graph_source.contains(token),
+                "forbidden provenance graph normalizer operation: {token}"
+            );
+        }
+        for token in ["mechanical_animation_clip_prepare", "fetch("] {
+            assert!(
+                !viewer_source.contains(token),
+                "forbidden mechanical animation Viewer operation: {token}"
             );
         }
     }

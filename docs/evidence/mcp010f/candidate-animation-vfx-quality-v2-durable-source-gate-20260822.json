@@ -1,0 +1,154 @@
+{
+  "schema_version": "ForgeCADCandidateAnimationVfxQualityV2DurableSourceGate@1",
+  "task_id": "FGC-MCP010F-ANIMATION-VFX-QUALITY-V2-23",
+  "recorded_on": "2026-08-22",
+  "status": "PASS_SOURCE_STRUCTURAL_ONLY_NO_DURABLE_POSITIVE_FIXTURE",
+  "scope": {
+    "v1_v2_isolation": true,
+    "candidate_animation_vfx_quality_v2": true,
+    "attachment_scope": "Attachment@3 exact fifteen-frame dependency surface",
+    "full_real_attachment_quality_fixture": false,
+    "runtime_store_single_writer": true,
+    "parent_key_is_cas": false,
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "contract_and_surface": {
+    "contract_schema_count": 402,
+    "contract_manifest_sha256": "8f2acfdcda59a2f146ca42449069a6d6bca89b025627acb645ba196c30fa56eb",
+    "schema_content_set_sha256": "2f31c744134257e4d455cfc801a9be9e5c38ae81b1bc7fabd80d2002f968c4c7",
+    "mcp_read_count": 90,
+    "mcp_write_count": 69,
+    "mcp_total_count": 159,
+    "mcp_read_manifest_sha256": "6742f41af8ab6d62a4c44b46e63ec2ffff0e0a674149db8b4688d087a3211992",
+    "mcp_write_manifest_sha256": "dca015d6791ed7d0e2a8d1fa15d90672729cc78cad80615f494f5c880b95362f",
+    "source_tool_summary_canonical_sha256": "c901716c8ca0792674c14d0788a52d91b13322332e68bdd64ecd0e485eb5d3e2",
+    "source_tool_summary_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json"
+  },
+  "durable_boundary": {
+    "store_quality_v2_focused": "PASS_3_OF_3",
+    "store_full_lib": "PASS_112_OF_112",
+    "runtime_quality_v2_focused": "PASS_6_OF_6",
+    "mcp_quality_v2_focused": "PASS_4_OF_4",
+    "joint_cargo_check": "PASS_CONTRACTS_RUNTIME_STORE_MCP",
+    "runtime_full_same_cohort": "PASS_354_OF_354_EXECUTED_22_IGNORED_376_TOTAL_115_40_SECONDS",
+    "mcp_full_same_cohort": "PASS_152_OF_152_0_FAILED_0_IGNORED_2_49_SECONDS",
+    "full_attachment_v3_quality_v2_positive_fixture": "NOT_RUN",
+    "durable_end_to_end": "NOT_RUN_BLOCKED_FIXTURE_CHAIN",
+    "reason": "The source and focused structural contracts are wired and fail-closed, but no full real Attachment@3 plus Quality@2 prepare, Store commit, restart-get positive fixture was completed."
+  },
+  "store_surface": {
+    "parent_table": "candidate_animation_vfx_quality_v2_links",
+    "owned_cas": [
+      "candidate-animation-vfx-quality-v2-report"
+    ],
+    "report_mime": "application/json",
+    "report_max_bytes": 1048576,
+    "binding": "material-surface head, dual candidate lineage, Attachment@3 parent and exact ordered fifteen-frame digest",
+    "transaction": "single SQLite transaction with closed report metadata, dependency binding and reachability checks",
+    "replay": "same-key replay normalizes only created_at/canonical; retarget or dependency drift conflicts fail closed",
+    "rollback": "reservation cleanup is limited to newly-created unlinked report objects",
+    "reachability": "owned report and linked dependency roots are marked reachable on commit",
+    "v1_mutation": false
+  },
+  "runtime_surface": {
+    "validation_order": "closed schema/canonical, material-surface head and quality, Attachment@3 parent, exact fifteen-frame schedule/digest and dependency checks precede reservation",
+    "prepare": "structural-only source implementation; no full real durable positive fixture",
+    "get": "read-only restart revalidation path; no raw GLB/PNG bytes in MCP response",
+    "v1_v2_isolation": true,
+    "runtime_write_on_fixture": "NOT_PROVEN"
+  },
+  "mcp_surface": {
+    "prepare": "hidden write opt-in with closed V2 fields and no raw media/path/script/secret input",
+    "get": "read-only and hash-only response",
+    "focused": "PASS_4_OF_4",
+    "full_regression": {
+      "passed": 152,
+      "failed": 0,
+      "failure_class": "NONE",
+      "new_quality_v2_failure": false
+    }
+  },
+  "source_sha256": {
+    "contracts_rust": "3e2a07d3953b5a7d1b2d468a8708a6bb7c927706013871ce8e60f866f83a1802",
+    "contracts_manifest": "8f2acfdcda59a2f146ca42449069a6d6bca89b025627acb645ba196c30fa56eb",
+    "store": "f15de25ecaf6a8fa7093958a17d171059a7c273b316ec3b5844882e408e1c76e",
+    "runtime_candidate_animation_vfx_quality_v2": "f2909160fa3f070ad4194bce7b888811942a6205ca036ed99abd62632ffffa49",
+    "runtime_lib": "6e9653bd0790b8813cbd923c4e9ff6561c6fac166d2a412aa6c0b77f9413a77f",
+    "mcp_agentic_write_tools": "3797474abafbed3e7230c4224b2a95405ca5419cff9259fdb587de925434f899",
+    "mcp_main": "9baeacc0977c2c9ab323926dc296af379bf738eebd158fb76114829e456c4ab9",
+    "source_tool_summary": "99a9b0a0a9a35d2658424a29a30141aca7fc98238d440b503b299225f13380af"
+  },
+  "verification": [
+    {
+      "gate": "contracts checker",
+      "result": "PASS_402_SCHEMAS"
+    },
+    {
+      "gate": "forgecad-store CandidateAnimationVfxQuality@2 focused",
+      "result": "PASS_3_OF_3"
+    },
+    {
+      "gate": "forgecad-store full lib",
+      "result": "PASS_112_OF_112"
+    },
+    {
+      "gate": "forgecad-runtime CandidateAnimationVfxQuality@2 focused",
+      "result": "PASS_6_OF_6"
+    },
+    {
+      "gate": "forgecad-mcp CandidateAnimationVfxQuality@2 focused",
+      "result": "PASS_4_OF_4"
+    },
+    {
+      "gate": "forgecad-mcp full same-cohort",
+      "result": "PASS_152_OF_152_0_FAILED_0_IGNORED_2_49_SECONDS"
+    },
+    {
+      "gate": "forgecad-runtime full same-cohort",
+      "result": "PASS_354_OF_354_EXECUTED_22_IGNORED_376_TOTAL_115_40_SECONDS"
+    },
+    {
+      "gate": "cargo check contracts/runtime/store/mcp",
+      "result": "PASS"
+    },
+    {
+      "gate": "MCP010F Stage0 source truth refresh",
+      "result": "PASS_AFTER_FROZEN_COUNT_HASH_REFRESH"
+    },
+    {
+      "gate": "full real Attachment@3 plus Quality@2 durable fixture",
+      "result": "NOT_RUN_BLOCKED_FIXTURE_CHAIN"
+    }
+  ],
+  "quality_truth": {
+    "structural_status": "structural_only",
+    "animation_status": "structural_only",
+    "vfx_status": "structural_only",
+    "vfx_glb_socket_attachment": "NOT_PROVEN_DURABLE_FIXTURE",
+    "visual_quality": "NOT_PROVEN",
+    "artistic_quality": "NOT_PROVEN",
+    "commercial_fps_quality": "NOT_PROVEN",
+    "human_review": "NOT_RUN",
+    "commercial_engine_roundtrip": "NOT_RUN",
+    "overall_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "production_stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "limitations": [
+    "This receipt records source, Store and MCP structural evidence for CandidateAnimationVfxQuality@2; it does not prove a full real Attachment@3 plus Quality@2 durable prepare, Store commit, replay, get and restart fixture.",
+    "After rebuilding the sibling Geometry/Render Workers from the same source cohort, the full MCP regression is 152 passed, 0 failed, 0 ignored; the earlier GEOMETRY_WORKER_PROTOCOL reports were stale-binary contamination and are not current failures.",
+    "Visual likeness, artistic quality, PBR quality, commercial FPS weapon quality, independent human review and commercial-engine round-trip remain NOT_PROVEN or NOT_RUN.",
+    "No production stage advance, candidate confirmation, version creation or export is represented.",
+    "Only fictional, nonfunctional game-art assets are in scope; no manufacturing dimensions, ballistics, performance or operating guidance is represented."
+  ],
+  "persistent_user_data_touched": false,
+  "canonical_sha256": "50a2134342a4b2467732d530c35c0653748862853e445ed25f94469cad88ba6e"
+}

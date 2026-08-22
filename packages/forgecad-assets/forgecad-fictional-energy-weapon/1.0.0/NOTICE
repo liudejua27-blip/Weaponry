@@ -1,0 +1,12 @@
+ForgeCAD Fictional Energy Weapon MaterialPack 1.0.0
+
+This development-only first-party pack is limited to legal, nonfunctional
+fictional game, film and visualization assets. It does not contain weapon
+manufacturing data or functional performance guidance.
+
+The seven embedded texture source files are byte-identical copies of the
+already-admitted CC0 ambientCG Metal010 and Plastic006 source selections used
+by forgecad-hard-surface-robot@1.0.0. Their original source URLs, archive
+hashes, license and derivation are retained in manifest.json and
+provenance.json. ForgeCAD-specific material factors and semantic material
+names are first-party metadata.

@@ -1,0 +1,145 @@
+{
+  "schema_version": "ForgeCADBlenderSubdivisionArtifactLineageSourceGate@1",
+  "recorded_on": "2026-08-19",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_STRUCTURAL_RECONSTRUCTED_ARTIFACT_BINDING",
+  "research": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "opensubdiv_commit": "4951f30c00f395aa831a9fc42577cc28ce46fa81",
+    "blender_license_boundary": "GPL_REFERENCE_ONLY_NO_SOURCE_COPIED_OR_LINKED",
+    "opensubdiv_license_boundary": "TOST_1_0_REFERENCE_ONLY_NO_SOURCE_COPIED_OR_LINKED",
+    "blender_or_opensubdiv_cloned_installed_executed_or_linked": false,
+    "new_third_party_dependency_added": false,
+    "clean_room_product_owned_worker": true
+  },
+  "source_truth": {
+    "schema_count": 170,
+    "schema_content_set_sha256": "49c88762cf734dc8c78c4013b860e623ae5541d5ea3527ea263daff22be330e0",
+    "operator_catalog_entries": 20,
+    "operator_catalog_active": 20,
+    "read_tools": 47,
+    "write_tools": 33,
+    "total_tools": 80,
+    "contract_manifest_sha256": "b7f55673fee33afd5c06262f44685ca9d20a4aa42958af08d55c871190d9ddc5",
+    "request_schema_sha256": "9eaaa0a3ab5d458ecf6cfa8af1a7f6be7146546732586a1eabf2b9ceef2b6dbb",
+    "projection_schema_sha256": "2b90481241adab1a63e799100fae3d92f4480a3b2472a702b569e805cefc2980",
+    "contract_checker_sha256": "bc95c10251470ac35240216fcf53a5fed69d084d81fb2a90833be3e6db6caf6a",
+    "tool_manifest_summary_sha256": "d40ff5bbe119135e1e76e6e86e8d4a3a9d8393da61bd7a62a1c8d0d476995da8",
+    "tool_manifest_canonical_sha256": "72839f43609b62325d72b6cdd6239dd13b6da39f853733bde68fcaf6f1c67417",
+    "read_manifest_sha256": "f1c9158c5861587221d10add35eba0f6128f6ac6d9ac4328d585c5e0f77648df",
+    "write_manifest_sha256": "94b6b12ab840dac50d6bff558b90eaea1e7dd68174b28d302e4ad03b0444751e",
+    "runtime_artifact_lineage_source_sha256": "423e8fdcb7f1547a23d9f3d4f43654037ec3950db8f26fd1c5625f0be9f0adb9",
+    "runtime_topology_lineage_source_sha256": "12ca6be69dd7efc53572db9195b4126b4faab0bac10d3da00fcf1f99d558c557",
+    "runtime_geometry_worker_source_sha256": "c49243c5ec923fcec56b073fe30c515923a79d8181a0e60b8584c4fd532beaa7",
+    "runtime_source_sha256": "70f3920d0cb01f3e61088e70e484d16c747d86fd136b2bbddbce4c4bdd1245a5",
+    "geometry_operator_source_sha256": "5e5bd7d469783f74e2b26d4216a9bb2c81c35e03e684e3c97572234a8cf33650",
+    "geometry_worker_source_sha256": "d1b13bbde4d38b20fe985d984422211b72a3de1a486ce436e1ab5e38e40d8538",
+    "mcp_source_sha256": "ef98aae829d9c9be926d202f11f48bbb553d7192fb8e7a8eda01706487b15aaf",
+    "adaptation_plan_sha256": "b38a488bb2a77d8cfdb2eabb86a9a5976c2e5526fb9f89b0f4efbb01b8a3b0f9"
+  },
+  "implemented_scope": {
+    "request_schema": "SubdivisionArtifactLineageRequest@1",
+    "projection_schema": "SubdivisionArtifactLineageProjection@1",
+    "mcp_tool": "subdivision_artifact_lineage_get",
+    "default_read_only": true,
+    "runtime_write_performed": false,
+    "persistent_user_data_touched": false,
+    "candidate_binding": "exact-project-candidate-artifact-evidence-program-readback-catalog-config",
+    "artifact_binding": "full-fixed-worker-replay-sha-and-byte-equality-to-cas-glb",
+    "artifact_readback": "strict-ArtifactReadback-v2-revalidation",
+    "source_primitive_ordinal_scope": "zero-based-ordinal-in-ArtifactReadback-v2-part_bindings-not-gltf-index",
+    "target_constraint": "exactly-one-direct-source-primitive-open-subd-cage-v2",
+    "triangulation": "0-1-2_0-2-3",
+    "control_quad_mapping": "contiguous-source-primitive-local-artifact-triangle-ranges",
+    "max_lineage_elements": 25000,
+    "max_runtime_result_bytes": 1048576,
+    "max_mcp_wire_response_bytes": 1048576,
+    "mcp_wire_headroom_bytes": 4096,
+    "truncation_allowed": false,
+    "projection_persistence": "read-only-reconstructed-not-persisted-sidecar",
+    "candidate_version_cas_or_project_write_added": false,
+    "new_skill_operator_plugin_or_dependency_added": false
+  },
+  "bounded_fixtures": {
+    "three_by_three_level_two_actual_artifact": {
+      "evaluated_triangles": 128,
+      "lineage_element_count": 442,
+      "fixed_geometry_worker": true,
+      "full_glb_byte_replay": true
+    },
+    "fourteen_by_fourteen_level_two_actual_artifact": {
+      "control_quad_ranges": 169,
+      "evaluated_triangles": 5408,
+      "lineage_element_count": 17162,
+      "fixed_geometry_worker": true,
+      "full_glb_byte_replay": true,
+      "complete_mcp_response_under_one_mib_with_headroom": true
+    },
+    "sixteen_by_sixteen_level_two_topology_preview_only": {
+      "lineage_element_count": 22802,
+      "within_topology_preview_budget": true,
+      "artifact_bound_maximum_claimed": false,
+      "reason": "current-uv-projection-precision-rejects-some-actual-artifact-inputs"
+    }
+  },
+  "runtime_independent_revalidation": [
+    "candidate-and-durable-GeometryCandidateEvidence-binding",
+    "cas-artifact-program-and-readback-bytes",
+    "strict-ArtifactReadback-v2",
+    "fixed-worker-full-program-recompile",
+    "artifact-sha-and-full-glb-byte-equality",
+    "single-direct-source-primitive-binding",
+    "source-primitive-local-triangle-count-and-order",
+    "contiguous-triangle-partition-per-control-quad",
+    "control-and-evaluated-lineage-budget-and-count",
+    "lineage-and-projection-canonical-hashes",
+    "runtime-and-mcp-one-mib-wire-budgets"
+  ],
+  "focused_tests": {
+    "contracts": "PASS_170_SCHEMAS",
+    "runtime_subdivision_artifact_lineage": "PASS_3_OF_3_ACTUAL_SIBLING_WORKER",
+    "mcp_subdivision_artifact_lineage": "PASS_1_OF_1",
+    "full_mcp010f_source_gate": "PASS_EXIT_0",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "luna_review": {
+    "geometry_agent": "COMPLETE_P0_0_P1_0",
+    "render_runtime_agent": "COMPLETE_P0_0_P1_0",
+    "final_status": "PASS_WITH_LIMITATIONS",
+    "p0_findings": 0,
+    "p1_findings": 0
+  },
+  "limitations": [
+    "regular-rectangular-open-quad-grid-only",
+    "integer-edge-sharpness-levels-one-to-two-only",
+    "artifact-lineage-is-reconstructed-not-a-persisted-cas-sidecar",
+    "no-gltf-vertex-edge-corner-identity",
+    "source-primitive-ordinal-is-not-a-gltf-primitive-index",
+    "no-cross-version-stable-element-ids",
+    "single-direct-source-primitive-only",
+    "sixteen-by-sixteen-is-topology-preview-evidence-not-an-artifact-bound-guarantee",
+    "structural-artifact-binding-does-not-prove-visual-quality"
+  ],
+  "not_run_or_blocked": {
+    "blender_or_opensubdiv_runtime_parity": "NOT_RUN",
+    "persisted_lineage_sidecar": "NOT_IMPLEMENTED",
+    "package_and_live_desktop": "NOT_RUN",
+    "visual_and_human_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "retained_quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence": "INCOMPLETE_TRUTH_BINDING",
+    "camera": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "historical_attempt35_repaired": false
+  },
+  "canonical_sha256": "c873b4fcdacad4e03ec0646488af3e468a4914278b1b83850729382befed735b"
+}

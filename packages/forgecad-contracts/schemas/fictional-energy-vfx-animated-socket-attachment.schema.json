@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-attachment.schema.json",
+  "title": "FictionalEnergyVfxAnimatedSocketAttachment@1",
+  "description": "Runtime-owned structural-only binding of a bounded animated weapon socket to the existing fictional-energy VFX stack. It records immutable per-frame transform and emitter/trail readback hashes; it does not claim visual, commercial-engine or functional weapon semantics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "attachment_key_sha256", "project_id",
+    "delivery_manifest_object_sha256", "candidate_id", "candidate_state_sha256",
+    "source_artifact_sha256", "animated_socket_materialization_key_sha256",
+    "animated_socket_anchor_set_object_sha256", "animated_socket_anchor_set_canonical_sha256",
+    "animation_clip_id", "animation_clip_object_sha256", "animation_clip_canonical_sha256",
+    "animated_artifact_sha256", "animation_receipt_object_sha256", "animation_receipt_canonical_sha256",
+    "vfx_profile_object_sha256", "vfx_profile_canonical_sha256", "vfx_sequence_key_sha256",
+    "vfx_sequence_canonical_sha256", "attachment_policy", "socket_node_id_encoding_sha256",
+    "socket_roles_sha256", "frame_scope", "frames", "attachment_status", "canonical_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxAnimatedSocketAttachment@1"},
+    "attachment_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "delivery_manifest_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "source_artifact_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "animated_socket_materialization_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "animated_socket_anchor_set_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "animated_socket_anchor_set_canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "animation_clip_id": {"$ref": "#/$defs/id"},
+    "animation_clip_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "animation_clip_canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "animated_artifact_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "animation_receipt_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "animation_receipt_canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "vfx_profile_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "vfx_profile_canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "vfx_sequence_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "vfx_sequence_canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "attachment_policy": {"const": "fictional-energy-vfx-animated-socket-attachment-structural-only@1"},
+    "socket_node_id_encoding_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "socket_roles_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "frame_scope": {"const": "lod0-animation-vfx-frame-range-1-16@1"},
+    "frames": {
+      "type": "array", "minItems": 1, "maxItems": 16,
+      "items": {"$ref": "#/$defs/frame"}
+    },
+    "attachment_status": {"const": "runtime-owned-durable-fictional-energy-vfx-animated-socket-attachment"},
+    "canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "created_at": {"$ref": "#/$defs/timestamp"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "minLength": 1, "maxLength": 64},
+    "frame": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "schema_version", "attachment_key_sha256", "frame_index", "sample_time_ticks",
+        "animation_pose_readback_sha256", "socket_transform_inventory_sha256",
+        "socket_transform_readback_sha256", "emitter_socket_bindings_sha256",
+        "trail_socket_bindings_sha256", "base_frame_key_sha256", "bloom_key_sha256",
+        "particle_key_sha256", "trail_key_sha256", "trail_bloom_key_sha256",
+        "canonical_sha256", "created_at"
+      ],
+      "properties": {
+        "schema_version": {"const": "FictionalEnergyVfxAnimatedSocketAttachmentFrame@1"},
+        "attachment_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "frame_index": {"type": "integer", "minimum": 0, "maximum": 15},
+        "sample_time_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "animation_pose_readback_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "socket_transform_inventory_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "socket_transform_readback_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "emitter_socket_bindings_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "trail_socket_bindings_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "base_frame_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "bloom_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "particle_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "trail_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "trail_bloom_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "created_at": {"$ref": "#/$defs/timestamp"}
+      }
+    }
+  }
+}

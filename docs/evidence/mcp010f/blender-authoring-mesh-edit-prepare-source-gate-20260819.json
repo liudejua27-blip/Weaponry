@@ -1,0 +1,149 @@
+{
+  "artifact_readback": "ArtifactReadback@2 hard_gate_passed",
+  "authoring_mesh_edit_prepare": {
+    "candidate_state": "reviewable",
+    "canonical_sha256": "e889c0d3e2d2a044a4f50ede2bf5d7bbf301a02920a2b5ad77bfa2ef128d9adf",
+    "confirm_status": "approval-required",
+    "derived_artifact_readback_sha256": "f1b2d3c97cd826b0e435a219e56a8b12f4689ffae1a766a5a121acc963ac6f0e",
+    "derived_artifact_sha256": "7ce21381557c0e556e1113f77dcc5c7827855eeeb06c69216a6f4ea162d0a94f",
+    "derived_geometry_candidate_evidence_sha256": "98a0af1e2649ca7cbbab9df6ebbe49aac13c08f9bdf6a8710e9199cb5daa29e2",
+    "derived_program_sha256": "5bb6db78c517e90270d55c5631c66594430c6d7790f91cd621ff7f07bf78f18b",
+    "derived_worker_build_cohort_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "export_status": "locked-until-confirm",
+    "forbidden_python_error_code": "INVALID_TOOL_PARAMS",
+    "idempotency_key_reuse": "REJECTED_NO_VISIBLE_RESIDUE",
+    "idempotent_exact_replay": "PASS",
+    "new_candidate_id": "candidate-492b9462ee1c43d683b364c843888f3b",
+    "quality_status": "structural_only",
+    "schema_version": "AuthoringMeshEditPrepare@1",
+    "source_candidate_id": "candidate-f4535e44b27c4f28a1c92c6e33f01c9b",
+    "source_worker_build_cohort_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "stale_head": "REJECTED",
+    "version_inventory_unchanged": true
+  },
+  "authoring_mesh_edit_previews": {
+    "canonical_hash": "PASS",
+    "extrude_derived_artifact_sha256": "7ce21381557c0e556e1113f77dcc5c7827855eeeb06c69216a6f4ea162d0a94f",
+    "extrude_derived_program_sha256": "5bb6db78c517e90270d55c5631c66594430c6d7790f91cd621ff7f07bf78f18b",
+    "extrude_input_sha256": "a9ed12c000807b929da7a069f46a5f26b1689c31d1144eb269c6f1e131e196ee",
+    "extrude_replay": "PASS",
+    "extrude_response_bytes": 4846,
+    "extrude_result_canonical_sha256": "6bbf13758a5765d30cb04f21096db8a1c19d8ff60470f2bdf0806000762db677",
+    "forbidden_field_error_codes": [
+      "INVALID_TOOL_PARAMS",
+      "INVALID_TOOL_PARAMS",
+      "INVALID_TOOL_PARAMS",
+      "INVALID_TOOL_PARAMS",
+      "INVALID_TOOL_PARAMS",
+      "INVALID_TOOL_PARAMS"
+    ],
+    "forbidden_fields": [
+      "python",
+      "path",
+      "url",
+      "env",
+      "plugin",
+      "network"
+    ],
+    "operations": [
+      "translate_vertices",
+      "single_face_extrude"
+    ],
+    "project_state_unchanged": true,
+    "quality_status": "structural_only",
+    "stale_base_topology": "REJECTED",
+    "translate_derived_artifact_sha256": "2cc2b541c7bae9fe15bf2ac791474752f8c4009d71cf7d3c8c031d08a98a1da1",
+    "translate_derived_program_sha256": "ec16ef2c04fa1b3674bf2bb8d761bd01747896c1358a0a1b7f1c0031e24e59c7",
+    "translate_input_sha256": "25f61d61a5063848d8e72d47ad17607a03402d65de82d80a60c15c049cad6ce3",
+    "translate_replay": "PASS",
+    "translate_response_bytes": 3527,
+    "translate_result_canonical_sha256": "f2334b96b4830d2149412a81c9ab15679a492236d4f6d017cc5b9d5435321dfa"
+  },
+  "authoring_read_slice_runtime_writes": false,
+  "authoring_topology_readback": {
+    "canonical_hash": "PASS",
+    "counts": {
+      "edge_count": 4,
+      "face_count": 1,
+      "loop_count": 4,
+      "vertex_count": 4
+    },
+    "oversized_budget_error_code": "INVALID_TOOL_PARAMS",
+    "request_sha256": "485bb339312e7f03a752c35eb3944b82167090ea721b59213cd6aa8a7724a2f5",
+    "response_budget_bytes": 1048576,
+    "response_bytes": 2906,
+    "result_canonical_sha256": "d2e2e9075701104ab824b1a902049d505b5a2f7982f18fbd8728457759b4dd33",
+    "runtime_write_performed": false,
+    "schema_version": "AuthoringTopology@1",
+    "topology_sha256": "61e3348a8de9e16afd0e8f2c29092142c1fa9baa0f483f5ba04c8933c2dbe475"
+  },
+  "boolean_union_difference_intersection": "PASS",
+  "geometry_program": "GeometryProgram@2 DAG",
+  "lineage": "PASS",
+  "negative_authoring_mesh_executable_field": "PASS",
+  "negative_authoring_mesh_geometry_prepare_fields": {
+    "error_codes": [
+      "GEOMETRY_REJECTED",
+      "GEOMETRY_REJECTED",
+      "GEOMETRY_REJECTED",
+      "GEOMETRY_REJECTED",
+      "GEOMETRY_REJECTED",
+      "GEOMETRY_REJECTED"
+    ],
+    "fields": [
+      "python",
+      "path",
+      "url",
+      "env",
+      "plugin",
+      "network"
+    ],
+    "project_state_unchanged": true
+  },
+  "negative_boolean_unsupported_shape": "PASS",
+  "negative_future_input": "PASS",
+  "operator_catalog": "21 entries / 21 active / authoring mesh, longitudinal section loft and boolean union+difference/intersection active",
+  "operator_catalog_sha256": "a59771fd90226545f30d9b2ae366e7e7a9ab851f47305498a6f692fda8eb5770",
+  "operators": [
+    "forgecad.geometry.array@1",
+    "forgecad.geometry.authoring-mesh@1",
+    "forgecad.geometry.bevel@1",
+    "forgecad.geometry.boolean@1",
+    "forgecad.geometry.joint-stack@1",
+    "forgecad.geometry.longitudinal-section-loft@1",
+    "forgecad.geometry.mirror@1",
+    "forgecad.geometry.normal-policy@1",
+    "forgecad.geometry.panel@1",
+    "forgecad.geometry.part-output@1",
+    "forgecad.geometry.primitive@2",
+    "forgecad.geometry.profile-extrude@1",
+    "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.revolve@1",
+    "forgecad.geometry.subd-cage@1",
+    "forgecad.geometry.subd-cage@2",
+    "forgecad.geometry.surface-patch@1",
+    "forgecad.geometry.surface-shell@1",
+    "forgecad.geometry.transform@2",
+    "forgecad.geometry.tube-sweep@1",
+    "forgecad.geometry.vent-array@1"
+  ],
+  "persistent_user_data_touched": true,
+  "ponytail_preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "probe_setup_runtime_writes": [
+    "project_create",
+    "geometry_prepare"
+  ],
+  "protocol_version": "2025-06-18",
+  "runtime_cleanup": "PASS",
+  "schema_version": "ForgeCADMCP010FAuthoringMeshEditPrepareRawStdioProbe@1",
+  "semantic_parts": 11,
+  "status": "PASS",
+  "task_id": "FGC-MCP010F",
+  "triangle_count": 622
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-weapon-glb-socket-materialization-receipt.schema.json",
+  "title": "GameWeaponGlbSocketMaterializationReceipt@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "socket_materialization_key_sha256", "project_id", "delivery_manifest_object_sha256", "anchor_set_object_sha256", "anchor_set_canonical_sha256", "request_sha256", "socket_materialization_policy", "lod_scope", "socket_node_id_encoding_sha256", "levels", "semantic_scope", "functional_semantics", "materialization_status", "runtime_write_performed", "candidate_confirmed", "export_performed", "actual_engine_roundtrip", "quality_status", "limitations", "canonical_sha256", "created_at"],
+  "properties": {
+    "schema_version": {"const": "GameWeaponGlbSocketMaterializationReceipt@1"},
+    "socket_materialization_key_sha256": {"$ref": "#/$defs/sha256"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "delivery_manifest_object_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "anchor_set_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "socket_materialization_policy": {"const": "gltf-anchor-node-materialization-preserve-renderable-content@1"},
+    "lod_scope": {"const": "lod0-lod1-lod2@1"},
+    "socket_node_id_encoding_sha256": {"$ref": "#/$defs/sha256"},
+    "levels": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/lod"}, {"properties": {"lod_level": {"const": 0}}}]},
+        {"allOf": [{"$ref": "#/$defs/lod"}, {"properties": {"lod_level": {"const": 1}}}]},
+        {"allOf": [{"$ref": "#/$defs/lod"}, {"properties": {"lod_level": {"const": 2}}}]}
+      ],
+      "items": false
+    },
+    "semantic_scope": {"const": "fictional-nonfunctional-game-visual-authoring-only@1"},
+    "functional_semantics": {"const": false},
+    "materialization_status": {"const": "runtime-owned-durable-game-weapon-glb-socket-materialization"},
+    "runtime_write_performed": {"const": true},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {"const": ["no-ballistics", "no-damage-or-hitbox", "no-physics-binding", "no-manufacturing-or-operation", "no-commercial-engine-roundtrip", "no-runtime-pivot-proof", "no-visual-quality-pass"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "created_at": {"type": "string", "minLength": 1, "maxLength": 64}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "vec3": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -10.0, "maximum": 10.0}},
+    "quat": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number", "minimum": -1.0, "maximum": 1.0}},
+    "socket_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["socket_node_id", "anchor_id", "role", "node_name", "node_kind", "parent_kind", "parent_node_name", "owner_part_id", "local_translation_m", "local_rotation_quat_xyzw", "local_scale_xyz"],
+      "properties": {
+        "socket_node_id": {"$ref": "#/$defs/id"},
+        "anchor_id": {"$ref": "#/$defs/id"},
+        "role": {"enum": ["weapon-root", "grip-primary", "muzzle-vfx", "magazine-well", "sight-primary", "energy-core-vfx"]},
+        "node_name": {"$ref": "#/$defs/id"},
+        "node_kind": {"const": "empty"},
+        "parent_kind": {"enum": ["synthetic-scene-root", "part-node"]},
+        "parent_node_name": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "owner_part_id": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+        "local_translation_m": {"$ref": "#/$defs/vec3"},
+        "local_rotation_quat_xyzw": {"$ref": "#/$defs/quat"},
+        "local_scale_xyz": {"const": [1.0, 1.0, 1.0]}
+      }
+    },
+    "lod": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "socket_materialization_key_sha256", "lod_level", "source_candidate_id", "source_candidate_state_sha256", "source_artifact_sha256", "source_artifact_readback_sha256", "derived_artifact_sha256", "derived_artifact_readback_sha256", "source_renderable_inventory_sha256", "derived_renderable_inventory_sha256", "socket_node_inventory_sha256", "source_bin_sha256", "derived_bin_sha256", "source_renderable_projection_exact", "source_bin_byte_exact", "socket_nodes_materialized", "source_node_count", "derived_node_count", "socket_node_count", "socket_nodes", "canonical_sha256"],
+      "properties": {
+        "schema_version": {"const": "GameWeaponGlbSocketMaterializationLodReadback@1"},
+        "socket_materialization_key_sha256": {"$ref": "#/$defs/sha256"},
+        "lod_level": {"type": "integer", "minimum": 0, "maximum": 2},
+        "source_candidate_id": {"$ref": "#/$defs/id"},
+        "source_candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+        "source_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "source_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+        "source_renderable_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_renderable_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "socket_node_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "source_bin_sha256": {"$ref": "#/$defs/sha256"},
+        "derived_bin_sha256": {"$ref": "#/$defs/sha256"},
+        "source_renderable_projection_exact": {"const": true},
+        "source_bin_byte_exact": {"const": true},
+        "socket_nodes_materialized": {"const": true},
+        "source_node_count": {"type": "integer", "minimum": 1, "maximum": 64},
+        "derived_node_count": {"type": "integer", "minimum": 7, "maximum": 70},
+        "socket_node_count": {"const": 6},
+        "socket_nodes": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/socket_node"}},
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

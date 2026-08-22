@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-engine-import-readiness.schema.json",
+  "title": "GameEngineImportReadiness@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "lod_receipt_object_sha256", "collision_proxy_object_sha256", "target_profile", "gltf_version", "container", "coordinate_system", "unit", "lod_count", "collision_proxy_count", "stable_part_names", "stable_material_zone_names", "embedded_resources_only", "external_uri_count", "animation_status", "animation_artifact_sha256", "product_loader_validation", "actual_engine_roundtrip", "engine_results", "validator_status", "hard_gate_passed", "quality_status", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "GameEngineImportReadiness@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "lod_receipt_object_sha256": {"$ref": "#/$defs/sha256"},
+    "collision_proxy_object_sha256": {"$ref": "#/$defs/sha256"},
+    "target_profile": {"const": "engine-neutral-gltf2-embedded-assets-stable-names@1"},
+    "gltf_version": {"const": "2.0"},
+    "container": {"const": "GLB"},
+    "coordinate_system": {"const": "right-handed-y-up"},
+    "unit": {"const": "meter"},
+    "lod_count": {"const": 3},
+    "collision_proxy_count": {"type": "integer", "minimum": 1, "maximum": 64},
+    "stable_part_names": {"const": true},
+    "stable_material_zone_names": {"const": true},
+    "embedded_resources_only": {"const": true},
+    "external_uri_count": {"const": 0},
+    "animation_status": {"enum": ["absent", "lod0-only-strict-rigid-gltf-animation-readback-pass"]},
+    "animation_artifact_sha256": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]},
+    "product_loader_validation": {"const": "product-owned-strict-gltf-readiness-pass"},
+    "actual_engine_roundtrip": {"const": false},
+    "engine_results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["threejs", "godot", "unity", "unreal"],
+      "properties": {
+        "threejs": {"enum": ["NOT_RUN", "PASS"]},
+        "godot": {"const": "NOT_RUN"},
+        "unity": {"const": "NOT_RUN"},
+        "unreal": {"const": "NOT_RUN"}
+      }
+    },
+    "validator_status": {"const": "engine-neutral-readiness-pass-real-engine-roundtrip-not-run"},
+    "hard_gate_passed": {"const": true},
+    "quality_status": {"const": "structural_only"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

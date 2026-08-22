@@ -33,7 +33,27 @@
     "candidate-bound directional boundary error segments with optional semantic Part attribution",
     "candidate-bound multi-Part contour error table with local envelopes, ratios and recommended repair Parts",
     "bounded comparison of two to eight candidate silhouettes",
-    "candidate/project/artifact/reference/RenderSet/evidence binding with fail-closed cross-candidate rejection"
+    "candidate/project/artifact/reference/RenderSet/evidence binding with fail-closed cross-candidate rejection",
+    "read-only reconstructed Subdivision control-quad to source-primitive-local artifact-triangle lineage with full fixed-Worker GLB replay",
+    "explicit Runtime-owned immutable CAS sidecar materialization and restart-safe read-only lineage lookup",
+    "candidate-bound transient mechanical pose geometry preview through derived GeometryProgram, fixed Worker compilation and strict GLB readback",
+    "read-only same-cohort Render Worker replay of the exact integrity-bound artifact, camera, RenderProfile and nine persisted AOVs with raw PNG and decoded RGBA8 equality",
+    "Runtime-owned immutable rigid MechanicalAnimationClip CAS object with SQLite link, source full-GLB same-cohort replay, restart readback and scheduled transient double-Worker frame preview",
+    "candidate-state-bound rigid MechanicalAnimationClip materialization into standard glTF 2.0 LINEAR translation/quaternion channels with exact static projection and strict BIN/accessor readback",
+    "three independently authored candidate-bound GLB LOD levels with strict ArtifactReadback@2, stable Part/source-node/MaterialZone coverage, progressive triangle budgets, bounded Part envelopes, LOD2 POSITION-derived gameplay-only AABB sidecars and isolated Three.js static/rigid-animation consumer validation",
+    "candidate-bound deterministic 2K tangent-space normal, object-space self-occlusion AO, decal, wear and texture-backed clearcoat surface lowering",
+    "product-owned bounded authoring-mesh source operator with explicit vertex/edge/loop/triangle-quad face topology and fixed-Worker strict GLB compilation",
+    "candidate-bound read-only AuthoringTopology projection plus transient translate-vertices and boundary triangle-or-planar-convex-quad single-face-extrude previews with double Worker replay",
+    "approval-gated Runtime-owned authoring mesh edit materialization into an atomic reviewable candidate, Job, strict evidence and exact idempotency record without confirm, version or export",
+    "explicit-head exact GeometryProgram@2 staging through double same-cohort Geometry Worker replay and one final Store transaction, with pre-head idempotency replay and no confirm, version or export",
+    "candidate-bound bounded Modifier Apply from a Runtime-loaded durable source candidate, exact source artifact/readback/program cohort and one stable Part through same-cohort source/derived double-Worker replay, producing only a reviewable candidate and a restart-readable immutable apply sidecar",
+    "candidate-bound read-only Viewer Provenance Graph over exact candidate state, Geometry/Operator/Artifact/readback/quality and optional verified visual/AOV/MechanicalAnimation branches",
+    "dual-candidate Runtime-owned CandidateMaterialSurfaceQuality@1 structural gate binding topology source to distinct Appearance output with 2K pack, UV/tangent, texture-build and surface-bake provenance",
+    "public CandidateMaterialSurfaceQuality@1 prepare/replay/get/restart structural fixture with stable artifact-ID versus GLB-hash separation and unchanged CAS inventory",
+    "approval-gated ProductionStageTransition@2 from the immutable topology root to a distinct material-surface head with exact quality-report, artifact, reference and restart-readback binding",
+    "durable CandidateAnimationVfxQuality@1 structural dependency report over the material-surface head, delivery, animation socket and complete VFX stack, fail-closed while VFX remains sidecar-only",
+    "Runtime-owned animated GLB socket transform projection with deterministic CAS/readback, replay and restart-safe read-only lookup",
+    "appearance-aware MechanicalAnimationClip@2, MechanicalAnimationGlb@2 and GameWeaponAnimatedGlbSocketMaterialization@2 source/runtime/MCP structural gate"
   ],
   "gates": {
     "agentic_runtime_projection_conformance": "PASS_CURRENT_COHORT_NESTED_RUNTIME_MCP_PROJECTION_CONTRACTS",
@@ -97,6 +117,33 @@
     "viewer_native_window_smoke": "PASS_STRUCTURAL_NATIVE_WINDOW_VISUAL_SMOKE",
     "viewer_accessibility_e2e": "NOT_RUN",
     "human_visual_review": "NOT_RUN",
+    "subdivision_artifact_lineage_source": "PASS_SOURCE_STRUCTURAL_RECONSTRUCTED_ARTIFACT_BINDING",
+    "subdivision_artifact_lineage_sidecar_source": "PASS_SOURCE_RUNTIME_OWNED_IMMUTABLE_CAS_SIDECAR",
+    "mechanical_pose_geometry_preview_source": "PASS_SOURCE_TRANSIENT_AUTHORED_RIG_GEOMETRY_PREVIEW",
+    "render_evidence_replay_source": "PASS_SOURCE_SAME_COHORT_REPEAT_BYTE_EXACT_STRUCTURAL_REPLAY",
+    "mechanical_animation_clip_source": "PASS_SOURCE_RUNTIME_OWNED_IMMUTABLE_MECHANICAL_ANIMATION_CLIP",
+    "mechanical_animation_viewer_discrete_frame_source": "PASS_SOURCE_READ_ONLY_VERIFIED_DISCRETE_RIGID_FRAME",
+    "mechanical_animation_glb_prepare_source": "PASS_SOURCE_RUNTIME_OWNED_RIGID_GLTF_ANIMATION_PREPARE",
+    "game_asset_delivery_source": "PASS_AUTHORED_LOD_SET_COLLISION_AND_THREEJS_CONSUMER_STRUCTURAL_SLICE",
+    "game_asset_delivery_raw_stdio": "PASS_CURRENT_COHORT_EXPLICIT_WRITE_OPT_IN_IDEMPOTENT_PREPARE",
+    "threejs_game_asset_consumer": "PASS_R185_STATIC_ANIMATED_GLTFLOADER_AND_ANIMATIONMIXER",
+    "game_asset_delivery_durable_source": "PASS_RUNTIME_STORE_DURABLE_LINK_REACHABILITY_CONFLICT_AND_RESTART_READBACK",
+    "game_asset_delivery_durable_raw_stdio": "PASS_CURRENT_COHORT_PREPARE_GET_AND_CAS_REVERIFY",
+    "threejs_game_asset_consumer_v2": "PASS_R185_ALL_THREE_LODS_TRIANGLES_MATERIALS_COLLISION_AND_ANIMATION",
+    "game_asset_auto_lod_source": "PASS_RUNTIME_TYPED_LOD_PROGRAM_DERIVATION_PREVIEW",
+    "game_asset_auto_lod_raw_stdio": "PASS_DEFAULT_READ_CLOSED_ZERO_WRITE_DOUBLE_WORKER_REPLAY",
+    "godot_headless_import": "PASS_EXTERNAL_EVIDENCE_ONLY_STRUCTURAL_IMPORT_AND_PACKED_SCENE_READBACK",
+    "commercial_engine_import": "NOT_RUN_UNITY_UNREAL",
+    "weapon_surface_bake_source": "PASS_SOURCE_AND_ISOLATED_RELEASE_CANDIDATE_BOUND_2K_SURFACE_LAYERS",
+    "authoring_mesh_source": "PASS_SOURCE_STRUCTURAL_AUTHORING_MESH_OPERATOR_ONLY",
+    "authoring_topology_edit_preview_source": "PASS_SOURCE_STRUCTURAL_RAW_STDIO",
+    "authoring_mesh_edit_prepare_source": "PASS_SOURCE_STRUCTURAL_APPROVAL_GATED_STAGED_CANDIDATE",
+    "geometry_prepare_exact_source": "PASS_SOURCE_STRUCTURAL_EXPLICIT_HEAD_ATOMIC_IDEMPOTENT_STAGING",
+    "modifier_apply_source": "PASS_SOURCE_STRUCTURAL_CANDIDATE_BOUND_PART_EXACT_STAGING",
+    "viewer_provenance_graph_source": "PASS_SOURCE_READ_ONLY_STRUCTURAL_PROVENANCE_GRAPH",
+    "animated_socket_transform_projection_source": "PASS_SOURCE_RUNTIME_DURABLE_REPLAYABLE_READ_ONLY",
+    "mechanical_animation_v2_source": "PASS_SOURCE_STRUCTURAL_ONLY",
+    "mechanical_animation_v2_public": "PASS_PUBLIC_STRUCTURAL_ONLY_NOT_PROVEN",
     "export_restart_hash": "NOT_RUN",
     "full_360_reference": "BLOCKED_REFERENCE_COVERAGE"
   },
@@ -238,9 +285,68 @@
     "docs/evidence/mcp010f/real-codex-cli-current-20260814-primary-form-max64.json",
     "docs/evidence/mcp010f/dev-app-install-render-worker-20260815.json",
     "docs/evidence/mcp010f/dev-app-package-verify-render-worker-20260815.json",
-    "docs/evidence/mcp010f/packaged-render-worker-raw-20260815.json"
+    "docs/evidence/mcp010f/packaged-render-worker-raw-20260815.json",
+    "docs/evidence/mcp010f/blender-subdivision-artifact-lineage-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-subdivision-artifact-lineage-sidecar-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-mechanical-pose-geometry-preview-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-render-evidence-replay-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-mechanical-animation-clip-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-mechanical-animation-viewer-source-gate-20260820.json",
+    "docs/evidence/mcp010f/blender-rigid-animation-glb-source-gate-20260820.json",
+    "docs/evidence/adoption/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477.yaml",
+    "docs/evidence/mcp010f/blender-authoring-mesh-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-authoring-topology-edit-preview-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-authoring-mesh-edit-prepare-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-geometry-prepare-exact-source-gate-20260819.json",
+    "docs/evidence/mcp010f/blender-provenance-graph-viewer-source-gate-20260820.json",
+    "docs/evidence/mcp010f/fictional-energy-weapon-bevel-v2-source-gate-20260820.json",
+    "docs/evidence/mcp010f/fictional-energy-weapon-material-pack-source-gate-20260820.json",
+    "docs/evidence/mcp010f/fictional-energy-weapon-continuous-uv-source-gate-20260820.json",
+    "docs/evidence/mcp010f/fictional-energy-weapon-2k-raw-stdio-20260820.json",
+    "docs/evidence/mcp010f/fictional-energy-weapon-2k-source-gate-20260820.json"
+    ,"docs/evidence/mcp010f/fictional-energy-weapon-surface-bake-raw-stdio-20260820.json"
+    ,"docs/evidence/mcp010f/fictional-energy-weapon-surface-bake-source-gate-20260820.json"
+    ,"docs/evidence/mcp010f/game-asset-delivery-raw-stdio-20260820.json"
+    ,"docs/evidence/mcp010f/threejs-game-asset-consumer-receipt-20260820.json"
+    ,"docs/evidence/mcp010f/game-asset-delivery-source-gate-20260820.json"
+    ,"docs/evidence/mcp010f/game-asset-delivery-durable-source-gate-20260821.json"
+    ,"docs/evidence/mcp010f/game-asset-delivery-durable-raw-stdio-20260821.json"
+    ,"docs/evidence/mcp010f/threejs-game-asset-consumer-v2-receipt-20260821.json"
+    ,"docs/evidence/mcp010f/game-asset-auto-lod-source-gate-20260821.json"
+    ,"docs/evidence/mcp010f/game-asset-auto-lod-raw-stdio-20260821.json"
+    ,"docs/evidence/mcp010f/game-weapon-anchor-source-gate-20260821.json"
+    ,"docs/evidence/mcp010f/game-weapon-anchor-raw-stdio-20260821.json"
+    ,"docs/evidence/mcp010f/threejs-game-weapon-anchor-consumer-20260821.json"
+    ,"docs/evidence/mcp010f/godot-game-weapon-import-source-gate-20260821.json"
+    ,"docs/evidence/mcp010f/godot-game-weapon-import-consumer-20260821.json"
+    ,"docs/evidence/mcp010f/candidate-topology-quality-durable-source-gate-20260821.json"
+    ,"docs/evidence/mcp010f/candidate-material-surface-quality-durable-source-gate-20260821.json",
+    "docs/evidence/mcp010f/candidate-material-surface-quality-public-positive-source-gate-20260822.json",
+    "docs/evidence/mcp010f/production-stage-transition-v2-durable-source-gate-20260821.json",
+    "docs/evidence/mcp010f/candidate-animation-vfx-quality-durable-source-gate-20260821.json",
+    "docs/evidence/mcp010f/game-weapon-animated-glb-socket-transform-projection-source-gate-20260822.json",
+    "docs/evidence/mcp010f/game-weapon-animated-glb-socket-transform-projection-v2-source-gate-20260822.json",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs::game_weapon_animated_socket_transform_projection_is_durable_replayable_and_read_only",
+    "docs/evidence/mcp010f/fictional-energy-vfx-animated-socket-particles-v2-dual-candidate-source-gate-20260822.json",
+    "docs/evidence/mcp010f/mechanical-animation-v2-animated-socket-source-gate-20260822.json",
+    "docs/evidence/mcp010f/candidate-animation-vfx-quality-v2-durable-source-gate-20260822.json"
   ],
   "limitations": [
+    "CandidateAnimationVfxQuality@2 has source/Store/Runtime/MCP structural evidence with Store focused 3/3 and full 112/112, Runtime focused 5/5 and MCP focused 4/4, but no full real Attachment@3 plus Quality@2 prepare/Store/restart-get positive fixture; visual, artistic and commercial FPS quality remain NOT_PROVEN, human and engine review remain NOT_RUN, and no stage advance occurs.",
+    "CandidateAnimationVfxQuality@1 is a durable structural dependency report, not an animation-vfx promotion. Current VFX receipts are sidecar-only, so vfx_glb_socket_attachment=false, validator_status=failed and hard_gate_passed=false; visual and commercial quality remain NOT_PROVEN, human and engine review remain NOT_RUN, and no confirmation, version or export occurs.",
+    "The animated socket transform projection source gate proves Runtime-owned durable projection, deterministic replay and restart-safe read-only lookup at cohort 9cc7c11b8309ee7cc76df3d67794c4692c81ff0e8ef064248955ad511b8ca388. It does not claim positive animated-socket Particles, Trails or TrailsBloom integration; those remain separate structural gaps.",
+    "ProductionStageTransition@2 durably promotes a passed topology root to a distinct material-surface head after explicit approval and exact topology/material quality bindings. It remains structural_only: visual likeness, artistic acceptance, human review, commercial-FPS parity, engine round-trip, confirmation, version creation and export are not implied.",
+    "CandidateMaterialSurfaceQuality@1 now has one public Runtime prepare/replay/get/restart structural fixture (PASS_1_OF_1; Runtime focused 5/5) over a topology source and distinct Appearance output, 2K material-pack admission, UV/tangent and surface-bake receipts, and geometry-preservation projection. Its own prepare never advances a stage. ProductionStageTransition@2 may separately promote only a passed exact binding after approval; reference-bound PBR likeness, human visual review, commercial-FPS acceptance and engine round-trip remain NOT_PROVEN or NOT_RUN.",
+    "The V2 animated-socket-particles material dependency blocker is removed and the same-cohort public fixture passed 1/1 in 206.19 seconds after the camera kind, VFX AOV kind, clip lookup/get, projection schedule and emitter-schema bindings were corrected. It completed particle rendering, one atomic Store commit, exact-key replay, read-only get and restart readback. First write produced exactly six owned CAS objects; replay/get/restart produced zero new CAS objects and the parent key was not a CAS object. This remains structural evidence only and does not prove visual or commercial FPS quality.",
+    "The Godot 4.7.2 gate is external evidence only: a pinned, signed headless importer loaded four hash-bound GLBs through Godot PackedScene resources, verified 304/176/112 LOD triangles, five meshes, stable materials, six non-rendering sockets, semantic animation sampling after Godot optimized ten glTF channels into two tracks, and five BoxShape3D sidecar readbacks. Static and animated inputs came from independent Runtime source cohorts. No Runtime Godot link/table/CAS kind was added; physics, hitboxes, visual quality, Unity, Unreal, confirm and export remain NOT_RUN.",
+    "The Viewer Provenance Graph is an exact-state, complete-or-fail, read-only structural projection capped at 64 nodes, 128 edges and 1 MiB. It does not contain a dedicated durable list for Modifier Apply history, Boolean previews, Subdivision sidecars or DesignSession history, so those kinds remain explicit omissions. One active visual comparison cannot prove cross-view HQ360; QUALITY_TARGET_NOT_MET and BLOCKED_REFERENCE_COVERAGE remain visible and cannot be promoted by the Viewer.",
+    "The direct GeometryProgram@2 geometry_prepare branch remains an explicit-head write-opt-in staging surface. Candidate-bound Modifier Apply is a separate closed GeometryModifierApplyRequest@1 path: Runtime loads the durable source candidate, artifact/readback/program/catalog/config and current head, replays the exact source cohort twice, applies allowlisted unary modifiers to exactly one stable Part, replays the derived cohort twice, preserves every non-target Part/source/material/solid/triangle binding exactly, and commits one reviewable candidate atomically with exact idempotency. The immutable apply sidecar is linked from the durable Job event and was read through fresh Runtime/MCP processes. Single Runtime-process same-key single-flight, a bounded 30-second waiter and shared-CAS reservation lifetime have focused tests; cross-process single-flight is not claimed. It does not implement arbitrary modifiers, confirmation, versioning, export, Blender modifier parity or visual acceptance. Legacy direct geometry_prepare calls without an idempotency key retain their prior request shape and behavior.",
+    "The authoring-mesh source slice is a product-owned bounded GeometryProgram operator with explicit stable opaque root IDs and strict topology validation. The follow-up surfaces add candidate-bound AuthoringTopology readback, transient translate-vertices/single-face-extrude preview, and approval-gated reviewable-candidate staging only; they still do not provide an interactive persistent mesh editor, selection/history, arbitrary BMesh operations, Blender/Python/plugin runtime or visual acceptance.",
+    "MechanicalAnimationClip@1 persists caller-authored rigid Part rest/action semantics and a bounded sample schedule. MechanicalAnimationGlbPrepare@1 can now materialize those verified samples as standard glTF LINEAR translation/quaternion channels in CAS while preserving the exact static source projection. This is still not Armature, bone, skinning, IK, NLA, F-Curve, driver, editable timeline, Blender add-on or Python-runtime parity; no external export or engine round-trip has passed, and structural replay does not upgrade visual quality.",
+    "game_asset_lod_derive now provides a geometry-program-bound transient preview that only lowers allowlisted typed tessellation parameters, double-replays every level through the fixed Worker, preserves Part and MaterialZone bindings, enforces progressive triangle budgets, performs no Runtime/CAS/candidate/version write, and requires explicit materialization. It is not generic mesh simplification, arbitrary GLB decimation, QEM, retopology, appearance preservation or a commercial-engine LODGroup result.",
+    "GameAssetDeliveryPrepare@1 validates three independently authored or explicitly materialized candidate-bound GLBs; it does not itself generate LODs. Its Runtime-owned durable GameAssetDeliveryLink makes the exact three artifacts, four JSON sidecars and optional animation reachable, conflict-safe and restart-readable; game_asset_delivery_get re-verifies CAS bytes and all cross-sidecar bindings. Three.js r185 parses all three LODs, recomputes triangle counts, checks stable materials and LOD2 Part AABBs, and samples the rigid animation. Unity, Unreal and Godot imports, true engine LODGroup/collision components, authored pivots/sockets, user-facing external export, physical collision, visual likeness, performance and commercial-game asset quality remain NOT_RUN or unproven.",
+    "GameWeaponAnchorSet@1 is a Runtime-owned durable metadata sidecar for one synthetic root plus five exact Part-bound fictional visual helpers. Raw stdio and restart readback revalidate all three LOD bindings, six roles, finite normalized TRS, Part containment and CAS/link hashes; Three.js r185 verifies Object3D parent-world times local TRS and rigid parent-follow math only. The helpers are not GLB nodes, runtime pivots, physics/hitboxes, functional weapon semantics or Unity/Unreal/Godot sockets; commercial engines and visual likeness remain NOT_RUN or unproven.",
+    "The Mechanical Animation Viewer reads a candidate/artifact-bound inventory, verified immutable clip detail and one explicitly selected scheduled Runtime frame. It applies only Runtime double-Worker-verified rigid Part deltas to an exact-one identity GLB Part-owner map; embedded animation, Bone/SkinnedMesh, owner ambiguity and stale responses fail closed. Selection remains ephemeral, there is no continuous playback or Viewer-local pose evaluation, and structural evidence is not upgraded to visual quality.",
     "Stage 0 machine truth is docs/evidence/mcp010f/current-benchmark-truth.json. Its PASS means the evidence ledger is internally honest and drift-checked; it does not mean the provisional observation passed visual quality or became benchmark-eligible.",
     "Attempt35 is only a provisional retained observation, not a proven global-best or eligible benchmark. Its eligibility is BLOCKED_INCOMPLETE_BINDING: its fit camera hash differs from the reference-comparison camera hash, and its compact receipt omits per-AOV hashes, structured threshold/metric revisions, readback counters, explicit confirm/export/restart fields and several canonical-vs-object hash distinctions.",
     "surface-linework and armor-shell-zones are separate auxiliary runs with different program/artifact/render/comparison hashes. Their appearance or PBR evidence must never be merged into attempt35; the surface curated/raw pair is itself hash-unbound while the armor curated/raw pair is self-consistent but lacks predecessor geometry binding.",

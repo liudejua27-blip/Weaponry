@@ -1,0 +1,80 @@
+{
+  "schema_version": "ForgeCADBlenderMechanicalPoseGeometryPreviewSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_TRANSIENT_AUTHORED_RIG_GEOMETRY_PREVIEW",
+  "recorded_on": "2026-08-19",
+  "implemented_scope": {
+    "request_contract": "MechanicalPoseGeometryPreviewRequest@1",
+    "result_contract": "MechanicalPoseGeometryPreview@1",
+    "mcp_tool": "mechanical_pose_geometry_preview",
+    "tool_mode": "default-read-only",
+    "schema_count": 175,
+    "operator_catalog": "20/20 active",
+    "mcp_tools": "49 read + 34 explicit-write = 83",
+    "pose_delta_formula": "posed-world-times-inverse-rest-world@1",
+    "rotation_lowering": "quaternion-to-euler-xyz-rz-ry-rx-fail-near-gimbal@1",
+    "geometry_evaluation": "transient-derived-GeometryProgram-through-fixed-Geometry-Worker",
+    "artifact_delivery": "hash-and-strict-readback-only-no-CAS-object",
+    "runtime_write_performed": false,
+    "candidate_created": false,
+    "version_created": false,
+    "cas_object_created": false,
+    "arbitrary_script_or_blender_runtime_added": false
+  },
+  "binding_and_integrity": {
+    "source_bindings": "exact project/candidate/artifact/ArtifactReadback/GeometryProgram/operator-catalog/readback-config/rest-frame/action/policy hashes",
+    "baseline_program": "persisted GeometryProgram draft read from Runtime CAS and rehashed by the fixed Worker",
+    "part_ownership": "every final Part output must trace to exactly one Part's unique source-node set",
+    "derived_program": "one bounded transform@2 sink per final Part output input; baseline program remains immutable",
+    "transient_artifact": "new program hash, fixed Worker compile, strict GLB readback and metadata verification",
+    "response_budget_bytes": 1048576,
+    "rest_frame_provenance": "caller-authored-hash-bound-not-artifact-rig-provenance@1"
+  },
+  "focused_gate": {
+    "contracts": "PASS_175_SCHEMAS",
+    "runtime": "PASS_BASELINE_FIXED_WORKER_REHASH_DELTA_COMPILE_STRICT_READBACK_DETERMINISM_NO_WRITE_DUPLICATE_SOURCE_AND_POLICY_NEGATIVES",
+    "quaternion_lowering": "PASS_NUMERIC_WORKER_XYZ_EQUIVALENCE_AND_NEAR_GIMBAL_REJECTION",
+    "mcp": "PASS_CLOSED_DEFAULT_READ_ONLY_ROUND_TRIP_BOUNDED_SUMMARY_UNKNOWN_FIELD_AND_OVERSIZE_WIRE_REJECTION",
+    "tool_manifest": "PASS_49_READ_34_WRITE_83_TOTAL",
+    "mcp010f_full_gate": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+    "release_baseline": "PASS_DOCS_REPOSITORY_SAFETY_SECRETS_LICENSE_SBOM",
+    "cargo_fmt_check": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "source_files": {
+    "runtime_lib_sha256": "61f54845b11e17306865f67d84041a1d479530f4b22cfc9e2d6ee745d1478bd6",
+    "mechanical_pose_runtime_sha256": "1805c6451f9a94ecb14c7c18a7f295e03513ee4acbf7145b28ea4ba3be99ec46",
+    "mcp_main_sha256": "0b1500aa4497b94850b03c52ba52858751c2b81bc47ba72b722b2944d8c723ae",
+    "contract_checker_sha256": "c153d63aa84c5f71697127c5094f49f501bb1f53e2f9654d475c768a0431cc8c",
+    "contract_manifest_sha256": "64d41b350a5fa225e98ae2344b216622efc153e87b73e54663a1348de821e84d",
+    "schema_content_set_sha256": "876f827c546b72694f50777db36ef86cfcb3814b1a700a2190bd05944e47b799",
+    "request_schema_sha256": "027540eb5a96aa4db248b4d0c2ed7e19cdfa437d3f9f20cef6ceb2f9261dd817",
+    "result_schema_sha256": "d47bbcaed2c762b7c2dfc7b3a2dfc92e0a4cd2309804495a57fc32e58eb14df7",
+    "tool_manifest_summary_sha256": "33c2c4022cbb7b4ff2976b14a639aa8492bf9974b618259e88aabbfbc0d39473"
+  },
+  "research_boundary": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "adoption_mode": "clean-room rigid-part pose semantics only",
+    "blender_code_copied_or_linked": false,
+    "blender_executed": false,
+    "new_dependency": false,
+    "new_skill": false,
+    "new_operator": false
+  },
+  "retained_quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "truth_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "package_live_viewer_visual_human": "NOT_RUN"
+  },
+  "limitations": [
+    "The MechanicalRestFrame is caller-authored and hash-bound; it is not proven original-asset rig, pivot or rest-domain provenance.",
+    "The preview supports rigid Parts and one scalar degree of freedom per link; it does not implement skinning, deformation, IK, constraints, NLA, F-Curves or drivers.",
+    "Quaternion pose deltas are lowered to the existing f32 Worker Euler XYZ transform and fail closed near gimbal singularities; no quaternion bit-exact claim is made.",
+    "The derived GLB is transient and returned only as hash and strict readback metadata; no CAS, SQLite, candidate or version state is written.",
+    "Structural compilation and readback do not prove Blender Armature, animation, Cycles, EEVEE, Python ecosystem or visual-quality parity."
+  ],
+  "canonical_sha256": "5c53cf5b96bbf8eb1997bdd9499d303195fa701f723de0322f4b78abcaa8ae7f"
+}

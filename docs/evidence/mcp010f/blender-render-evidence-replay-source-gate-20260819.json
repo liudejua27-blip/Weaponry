@@ -1,0 +1,110 @@
+{
+  "schema_version": "ForgeCADBlenderRenderEvidenceReplaySourceGate@1",
+  "recorded_on": "2026-08-19",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_SAME_COHORT_REPEAT_BYTE_EXACT_STRUCTURAL_REPLAY",
+  "research": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "blender_license": "GPL-reference-only",
+    "adapted_semantics": [
+      "deterministic-render-evidence-replay",
+      "ordered-nine-pass-inventory",
+      "display-color-versus-data-pass-semantics",
+      "same-worker-cohort-and-render-profile-binding",
+      "raw-png-and-decoded-rgba8-equality"
+    ],
+    "blender_cycles_eevee_ocio_or_python_cloned_installed_executed_or_linked": false,
+    "clean_room_product_owned_runtime": true
+  },
+  "luna_review": {
+    "agents": 3,
+    "p0_findings": 0,
+    "p1_findings_before_fix": 2,
+    "p1_findings_after_fix": 0,
+    "accepted_corrections": [
+      "require-current-strict-glb-readback-before-replay",
+      "require-actual-same-cohort-geometry-and-render-workers-in-the-positive-gate",
+      "reject-aov-declared-size-over-16-mib-before-cas-read",
+      "use-size-first-bounded-cas-read-with-toc-tou-growth-guard",
+      "bound-integrity-reference-and-artifact-before-any-cas-read",
+      "retain-attempt35-incomplete-aov-and-camera-truth-without-repair"
+    ]
+  },
+  "source_truth": {
+    "schema_count": 177,
+    "schema_content_set_sha256": "6d1bfb1d38033f22a81319a83be97f10f27ac30ea94f8c659718c0ec8839d66d",
+    "operator_catalog_entries": 20,
+    "operator_catalog_active": 20,
+    "read_tools": 50,
+    "write_tools": 34,
+    "total_tools": 84,
+    "contract_manifest_sha256": "ab8350474d146d045603e50491f3422cf970cf36717263d7b6bd51015166f94c",
+    "request_schema_sha256": "a0cb3d6510a7c4c32a1a55e3751eb4e3ea25908a3e96eb5551176be5fe06fed6",
+    "result_schema_sha256": "f6a117fad176f3e21e354baffbd189be198ec4f501a2cd9c13d32b95c2ad37a7",
+    "cas_source_sha256": "cd96f63070de0d2cb4ea3efb390bed1c247aa43df4d9edd45a47c99b0bab11d7",
+    "runtime_source_sha256": "94439c54b9514e2037cfb79a779750744805b25caa435f3b15cb3734e2aa41ef",
+    "runtime_replay_module_sha256": "829971f9adb2c6927204fcd66a0de946e0c9d5c6603d25e3ca636e068060fa0c",
+    "runtime_render_worker_source_sha256": "5a5137ffa73f04e04f4ae8dd86209031e40a456b801436f9788813a87ff900e5",
+    "mcp_source_sha256": "3e7f7b0c9aec1ecf12ff6f51165abcaab3e8ddfb386293b9b34715df7a6fdd7d",
+    "contract_checker_sha256": "3a1a2acefba21cdfed0d8aa747f5ff8f8120783c7fe91bcbff8b97dccf93edb2",
+    "tool_manifest_summary_sha256": "d6f0ab6442595fb771b92d2a561d29e610c357734da8eae520e44bf142d21fb5",
+    "full_gate_script_sha256": "8b8df55f767dd681b6192449b5ec16264b8b4251cf50dbd700af6fbefb251ad7",
+    "same_cohort_replay_sha256": "bd0d0cd46baf4c5ed318da8ee787e990f38ddbe2dcd58ceb7f59d77749ce53ea"
+  },
+  "implemented_scope": {
+    "request_schema": "RenderEvidenceReplayRequest@1",
+    "result_schema": "RenderEvidenceReplay@1",
+    "mcp_tool": "render_evidence_replay_get",
+    "default_read_only": true,
+    "candidate_state_bound": true,
+    "nested_integrity_projection_required": true,
+    "strict_glb_readback_recomputed": true,
+    "render_worker_executions": 2,
+    "same_render_worker_cohort_required": true,
+    "exact_render_profile_required": true,
+    "ordered_aov_count": 9,
+    "source_first_repeat_raw_png_equality_required": true,
+    "source_first_repeat_decoded_rgba8_equality_required": true,
+    "reference_read_limit_bytes": 8388608,
+    "aov_png_read_limit_bytes": 16777216,
+    "artifact_read_limit_bytes": 67108864,
+    "max_response_bytes": 1048576,
+    "runtime_write_performed": false,
+    "persistent_user_data_touched": false,
+    "appearance_binding": "artifact-embedded-materials-only"
+  },
+  "focused_tests": {
+    "contracts": "PASS_177_SCHEMAS",
+    "cas_size_first_bounded_read_negative": "PASS",
+    "runtime_aov_declared_budget_negative": "PASS_BEFORE_CAS_READ",
+    "integrity_reference_and_artifact_pre_read_budget_negative": "PASS",
+    "mcp_closed_read_only_dispatch": "PASS",
+    "mcp_unknown_python_property_negative": "PASS_FAIL_CLOSED",
+    "actual_geometry_and_render_worker_same_cohort_replay": "PASS",
+    "nine_aov_source_first_repeat_raw_png_equality": "PASS",
+    "nine_aov_source_first_repeat_decoded_rgba8_equality": "PASS",
+    "runtime_restart_and_no_write_inventory": "PASS"
+  },
+  "not_run_or_not_implemented": {
+    "blender_workbench_backend": "NOT_IMPLEMENTED",
+    "eevee_backend": "NOT_IMPLEMENTED",
+    "cycles_backend": "NOT_IMPLEMENTED",
+    "ocio_agx_or_filmic_parity": "NOT_IMPLEMENTED",
+    "cross_platform_determinism": "NOT_PROVEN",
+    "authored_appearance_program_durable_binding": "NOT_IMPLEMENTED",
+    "package_and_live_desktop": "NOT_RUN",
+    "visual_and_human_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "retained_quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence": "INCOMPLETE_TRUTH_BINDING",
+    "camera": "MISMATCH",
+    "aov_hash_completeness": "MISSING",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "historical_receipt_repaired": false
+  },
+  "canonical_sha256": "63b8c7151490ba1a23acd8db47f34e59fa88871875d458840d46abf3a6fa21be"
+}

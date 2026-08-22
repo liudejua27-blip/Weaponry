@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-modifier-apply-request-v2.schema.json",
+  "title": "GeometryModifierApplyRequestV2",
+  "description": "A closed candidate-bound request for applying one bounded selectable-edge bevel to one durable Part. The source authoring topology and exact edge are explicit bindings; arbitrary mesh, script and plugin payloads are not accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "source_candidate_id",
+    "source_candidate_canonical_sha256",
+    "source_artifact_sha256",
+    "source_artifact_readback_sha256",
+    "source_geometry_program_sha256",
+    "source_operator_catalog_sha256",
+    "source_readback_config_sha256",
+    "source_part_id",
+    "source_terminal_node_id",
+    "source_authoring_topology_sha256",
+    "source_edge_id",
+    "bevel_m",
+    "segments",
+    "profile",
+    "clamp_overlap",
+    "base_version_id",
+    "idempotency_key",
+    "max_response_bytes",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryModifierApplyRequest@2"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_id": {"$ref": "#/$defs/identifier"},
+    "source_candidate_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "source_artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "source_geometry_program_sha256": {"$ref": "#/$defs/sha256"},
+    "source_operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "source_readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "source_part_id": {"$ref": "#/$defs/identifier"},
+    "source_terminal_node_id": {"$ref": "#/$defs/identifier"},
+    "source_authoring_topology_sha256": {"$ref": "#/$defs/sha256"},
+    "source_edge_id": {"$ref": "#/$defs/identifier"},
+    "bevel_m": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 0.25},
+    "segments": {"type": "integer", "minimum": 1, "maximum": 4},
+    "profile": {"type": "number", "minimum": 0.25, "maximum": 0.75},
+    "clamp_overlap": {"type": "boolean"},
+    "base_version_id": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/identifier"}
+      ]
+    },
+    "idempotency_key": {"$ref": "#/$defs/identifier"},
+    "max_response_bytes": {"const": 1048576},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

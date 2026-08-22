@@ -1,0 +1,110 @@
+{
+  "schema_version": "ForgeCADBlenderSubdivisionEvaluationV2SourceGate@1",
+  "recorded_on": "2026-08-18",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_STRUCTURAL_ONLY",
+  "research": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "blender_license": "GPL-reference-only",
+    "opensubdiv_license_observed": "TOST-1.0",
+    "blender_or_opensubdiv_cloned_installed_executed_or_linked": false,
+    "clean_room_product_owned_worker": true
+  },
+  "source_truth": {
+    "schema_count": 151,
+    "schema_content_set_sha256": "caf6d60b5af444795dac88cfecfbc1407f440f93923e161b496956f83ccd2a41",
+    "operator_catalog_entries": 19,
+    "operator_catalog_active": 19,
+    "read_tools": 42,
+    "write_tools": 33,
+    "total_tools": 75,
+    "request_schema_sha256": "65e8a1db892152f4eb01190ddbe1cfefff1d41e46509dea34e1b62f62817fc69",
+    "result_schema_sha256": "b01ad3a60e87de96f7b676c70e3285a444c71b7e8f4fe766be1f72a4fa60b90f",
+    "contract_manifest_sha256": "a52d9fb6958ad999b229ed5a846b73100c563be835a37b1b3cf9fa026512464b",
+    "runtime_source_sha256": "9e373f1694ebf146cf7c468f02ccfaaa7c569b0bf876cbda45cbb1ca051b58a8",
+    "mcp_source_sha256": "e6f9139d49d125d9fb9ca20877fb983e4a07f08bdd078e422e00c95649e85623",
+    "contract_checker_sha256": "8ebc20efa74b7580cc358571d677de8202cdfcf94b49ab7ea19ce7bb8cde3e31",
+    "adaptation_plan_sha256": "be41cfbc5f13c00827bbf507876b0bc993d88caba1b6b63ed21d646322309a02",
+    "stage0_truth_sha256": "24d967a49683d281cc147c36a3c7bfebce349159f08e88f63547acb725886fbc",
+    "tool_manifest_summary_sha256": "d22f6381b65bf20696bd5ccdd513c895a93394bb5aaa1c743a925d74b8b248f2"
+  },
+  "implemented_scope": {
+    "runtime_path": "read-only geometry_program_hash fifth closed branch",
+    "worker_operator": "forgecad.geometry.subd-cage@1",
+    "topology": "regular-rectangular-open-quad-grid-only",
+    "u_points": "2..16",
+    "v_points": "2..16",
+    "levels": "0..2",
+    "boundary": "edge-and-corner",
+    "solid": false,
+    "crease": "unsupported",
+    "adaptive": false,
+    "limit_surface": false,
+    "coordinate_range_m": "-10..10",
+    "rotation_range_rad": "-6.283185307179586..6.283185307179586",
+    "validator_scope": "typed-policy-and-program-hash-only",
+    "candidate_or_version_or_cas_write": false
+  },
+  "attribute_truth": {
+    "normals": "worker-regenerated-smooth",
+    "uv": "worker-triangle-chart-postprocess",
+    "tangents": "worker-mikktspace-0.3.0-postprocess",
+    "material_zone": "part-output-only",
+    "face_varying_uv_interpolation": "NOT_IMPLEMENTED",
+    "per_element_cage_to_face_lineage": "NOT_IMPLEMENTED"
+  },
+  "focused_tests": {
+    "contracts": "PASS_151_SCHEMAS",
+    "runtime": "PASS_2_OF_2",
+    "mcp": "PASS_1_OF_1",
+    "level_0": {"vertices": 9, "quads": 4, "triangles": 8, "boundary_edges": 8},
+    "level_1": {"vertices": 25, "quads": 16, "triangles": 32, "boundary_edges": 16},
+    "level_2": {"vertices": 81, "quads": 64, "triangles": 128, "boundary_edges": 32},
+    "worker_compile_fixture": "PASS_TRIANGLE_COUNTS",
+    "repeat_determinism": "PASS_EQUAL_RESULT",
+    "control_point_edit_hash": "PASS_CHANGED_CAGE_AND_PROGRAM_HASH",
+    "negative_cases": [
+      "control-point-count",
+      "coordinate-bound",
+      "solid-true",
+      "adaptive",
+      "crease-mode",
+      "triangle-budget",
+      "unknown-nested-field",
+      "cross-branch-field",
+      "input-hash-drift"
+    ],
+    "operator_catalog_cohort_guard": "PASS_SOURCE_FAIL_CLOSED_CHECK",
+    "no_persistence": "PASS_CANDIDATE_VERSION_CAS_UNCHANGED"
+  },
+  "full_gates": {
+    "mcp010f": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "not_run_or_not_implemented": {
+    "persistent_mesh_cache": "NOT_IMPLEMENTED",
+    "arbitrary_topology": "NOT_IMPLEMENTED",
+    "extraordinary_vertices": "NOT_IMPLEMENTED",
+    "creases": "NOT_IMPLEMENTED",
+    "adaptive_or_limit_surface": "NOT_IMPLEMENTED",
+    "non_triangle_budget_measurement_in_hash_projection": "NOT_RUN",
+    "production_geometry_prepare_and_artifact_readback_for_v2_request": "NOT_RUN",
+    "render_set_and_nine_aov_for_v2_request": "NOT_RUN",
+    "package_and_live_desktop": "NOT_RUN",
+    "visual_and_human_review": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "retained_quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence": "INCOMPLETE_TRUTH_BINDING",
+    "camera": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING"
+  },
+  "canonical_sha256": "e6d6bf978bdfe044ea5dca27c9cceddcdbea25a221970a78eec27b61ee3624eb"
+}

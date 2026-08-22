@@ -116,10 +116,10 @@ Runtime 源码现已改为等比缩放到固定画布，并以边缘像素延展
 
 ### P1：二级硬表面
 
-1. `panel@2`：真实 inset、recess、border、bevel、support loop。
-2. `vent-array@2`：切除式槽阵列、底层 Part、边缘倒角和间距预算。
-3. `recessed-channel@1`：能量通道的连续路径、宽度/深度渐变和端部过渡。
-4. `energy-core@1`：同心环、护圈、发光核心和非发光机械层的固定语义输出。
+1. `panel@2`：已完成 source/Skill structural Gate；以 bounded standalone semantic Part grammar 真实生成 recess、border、分段 bevel 和 support loops，并通过 strict GLB readback/lineage/负向预算。它尚不是通用宿主 mesh BMesh inset，当前武器 candidate 也未重编译或视觉验收。
+2. `vent-array@2`：已完成 source/Skill structural Gate；生成 connected/watertight 的真实贯穿开槽面壳、前后 bevel 深度环与同一 Part 内的 closed backing sub-solid，并通过逐槽/component/312-triangle 精确预算、strict GLB readback/lineage/determinism 和 v1 回归。backing 尚不是独立 semantic Part，当前武器 candidate 也未重编译或视觉验收。
+3. `recessed-channel@1`：已完成 source/Skill structural Gate；以 bounded planar stations 生成 standalone connected/watertight channel Part，真实体现连续路径、宽度/深度渐变、floor/侧壁、bevel 与端部过渡，并通过 strict GLB/readback/lineage、swept-envelope 和参数差分门。它不是任意宿主 mesh cut，当前武器 candidate 也未重编译或视觉验收。
+4. `energy-core@1`：已完成 source/Skill structural Gate；guard ring、mechanical ring、emitter core 和 mechanical backplate 以四个 closed operator nodes 输出四个 semantic Parts，并通过 768-triangle exact fixture、strict GLB/readback/lineage/determinism、Part/source/material 映射、radius 关系负门、MCP/Runtime Agentic typed patch 和 25/25 raw operator Gate。当前武器 candidate 尚未重编译或视觉验收。
 5. 局部修复目标必须绑定 Part、参考视图和非退化全局门，禁止“一处变好、其他视图变差”。
 
 ### P1：UV、PBR 与材质包

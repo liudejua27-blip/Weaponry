@@ -1,0 +1,120 @@
+{
+  "schema_version": "ForgeCADMCP010FMaterialSourceGate@1",
+  "task_id": "FGC-MCP010F-MAT-03",
+  "recorded_at": "2026-08-20",
+  "status": "PASS_SOURCE_STRUCTURAL_EMBEDDED_2K_PBR_V1",
+  "scope": "source-built typed embedded 2K PBR path for a fictional non-functional game or film weapon asset",
+  "source_worktree": {
+    "branch": "codex/blender-forgecad",
+    "state": "dirty-preserved",
+    "commit_created": false,
+    "user_changes_deleted": false
+  },
+  "architecture": {
+    "runtime_single_writer": true,
+    "closed_material_pack_id": "forgecad-fictional-energy-weapon-2k",
+    "arbitrary_python_javascript_shell": false,
+    "caller_url_path_or_network": false,
+    "current_user_candidate_mutated": false,
+    "fresh_isolated_runtime_data": true
+  },
+  "material_pack": {
+    "schema_version": "MaterialPackManifest@2",
+    "pack_id": "forgecad-fictional-energy-weapon-2k",
+    "version": "1.0.0",
+    "canonical_sha256": "a1866a469621e39e36b669e8c99202ff853967cfcf65fb047e7f26d216bcc5d6",
+    "manifest_file_sha256": "530947589a2ae909abbeb7b95c47d80ef0fda7d71ad83aa5207640280776cc93",
+    "provenance_file_sha256": "f05ccf7f92c1ddd7e4d6a60e2ee7df28c1781aaa687d081a0d9846d22cc6877a",
+    "sbom_file_sha256": "b2f237de42579ae838ca35d432667c63263aca12e180bb7159c91103bd836e1f",
+    "source_texture_count": 7,
+    "direct_output_count": 7,
+    "derived_output_count": 2,
+    "checked_in_2k_png_count": 0,
+    "checked_in_png_policy": "the fixed Worker derives actual 2048x2048 PNG bytes from the admitted 512px source bytes; generated PNGs are embedded in GLB and are not duplicated in the source tree",
+    "license_spdx": "CC0-1.0",
+    "development_only": true
+  },
+  "texture_build": {
+    "recipe_id": "forgecad-first-party-catmullrom-semantic-microdetail-2k@1",
+    "algorithm": "catmullrom-plus-fixed-semantic-microdetail@1",
+    "worker_algorithm_sha256": "1945f41c0ccda3a32250e31d3d93d530eed51cca83d02adc20f3358334400655",
+    "input_dimensions": [[512, 512]],
+    "output_dimensions": [[2048, 2048]],
+    "build_budget_ms": 120000,
+    "ordinary_geometry_budget_ms": 10000,
+    "color_management": "baseColor-sRGB-data-maps-linear",
+    "normal_convention": "OpenGL+Y",
+    "derivation_label": "first-party-deterministic-synthetic-microdetail",
+    "bake_status": "not-a-geometry-bake",
+    "deterministic": true,
+    "network_at_runtime": false
+  },
+  "actual_release_raw_stdio": {
+    "receipt": "docs/evidence/mcp010f/fictional-energy-weapon-2k-raw-stdio-20260820.json",
+    "receipt_sha256": "d4568e16be0cb206842f35d68a7cc78c6f1269e41b11bfd790f5dc32609e4a6d",
+    "status": "PASS",
+    "build_profile": "release",
+    "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+    "mcp_runtime_same_cohort": true,
+    "part_count": 3,
+    "triangle_count": 524,
+    "embedded_2048_png_count": 5,
+    "embedded_external_uri_count": 0,
+    "embedded_png_total_bytes": 14091121,
+    "aov_count": 9,
+    "uv_atlas": {
+      "resolution": 2048,
+      "padding_texels": 8,
+      "chart_count": 358,
+      "seam_policy": "edge-shared-or-explicit-seam@1"
+    },
+    "texture_build_receipt_v2": {
+      "object_sha256": "d0b72781a43b2fe65c42746bb38a36a7f19ca369d3be897f1e7a9ce1e0e42c10",
+      "canonical_sha256": "6a2555ea239230bfbaf85aea9098831aa09c7fecff52f767038d54abe3b4b1d9",
+      "cas_readback": "PASS",
+      "source_input_count": 7,
+      "actual_output_count": 5,
+      "actual_glb_output_match": true
+    },
+    "reference_mode": "synthetic-isolated",
+    "visual_likeness": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "packaged_viewer": "NOT_RUN"
+  },
+  "source_files": {
+    "apps/geometry-worker/src/lib.rs": "dd7957f5ecd45f4a7f21441edea273bae72df3596fe5b3554fbd7080fff078aa",
+    "apps/geometry-worker/src/integrity.rs": "f6bf0ed72dc97a0394ba5c8d6eb1844a4958f10d46616e907486186a17766a7c",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs": "1198ec362b521ef45fd715c5857a9a337e9837ff12508193c141e6e64edad261",
+    "apps/desktop/src-tauri/crates/forgecad-runtime/src/geometry_worker.rs": "7e49cc55cd3794dbc82fa56f20b1533dcff577f6ff91d924ef90a68f78a502fc",
+    "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs": "52f5f8803c62027c21ded356cac9da4f7b8d4cf3309591ff29eec3fd80350452",
+    "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs": "8465706dd15fcb120cc50dfa4e05a20285bdbb41b27a2c07ec10126df865ca07",
+    "scripts/probe_mcp010e_raw_stdio.py": "4a2fd4d33fc50614e9255e1eceab2c4e9799a005200ec42e114b75388c68a4ab",
+    "packages/forgecad-contracts/schemas/material-pack-manifest-v2.schema.json": "3a5b3e6433861cf85cd25ac3cb2b146215f4423851fa1332a5172a85a7b3fa1f",
+    "packages/forgecad-contracts/schemas/texture-build-receipt-v2.schema.json": "7ddfafa650982ae8290373b0821cc6f170635b2e222ffa00936b2b4a7cde6353"
+  },
+  "tests": [
+    {"gate": "ForgeCAD contracts", "result": "PASS", "detail": "197 schemas"},
+    {"gate": "MCP006 Skill integrity", "result": "PASS", "detail": "12 active first-party Skills"},
+    {"gate": "Geometry Worker full suite", "result": "PASS", "detail": "66 passed; strict PNG/BIN/hash/dimension/tamper gates included"},
+    {"gate": "Runtime full suite", "result": "PASS", "detail": "237 passed; 12 ignored"},
+    {"gate": "MCP material_pack_get focused test", "result": "PASS"},
+    {"gate": "Worker protocol material catalog focused test", "result": "PASS"},
+    {"gate": "release raw stdio and CAS TextureBuildReceipt@2 readback", "result": "PASS"},
+    {"gate": "git diff --check", "result": "PASS"}
+  ],
+  "failed_attempts_preserved": [
+    {"attempt": "debug raw 1", "result": "FAIL_CLOSED", "reason": "uv-pbr bundled AppearanceProgram schema drift", "resolution": "regenerated the first-party bundle through the repository materializer and reran Skill integrity"},
+    {"attempt": "debug raw 2", "result": "FAIL_CLOSED", "reason": "MCP material_pack_get still exposed the previous two-item enum", "resolution": "added only the exact closed 2K pack id to MCP schema and test"},
+    {"attempt": "debug raw 3", "result": "FAIL_CLOSED", "reason": "debug execution exceeded the global Worker CPU hard gate", "resolution": "kept the global 10s CPU gate unchanged and validated the optimized release same-cohort binaries"},
+    {"attempt": "release raw evidence path", "result": "FAIL_CLOSED", "reason": "probe rejected an evidence path outside docs/evidence", "resolution": "reran with the repository evidence path"}
+  ],
+  "limitations": [
+    "This is a source and isolated release structural pass, not a candidate-bound geometry normal or AO bake.",
+    "The 2048 outputs are deterministic Catmull-Rom derivatives with fixed synthetic microdetail from admitted 512 inputs; they are not native newly sampled 2K detail.",
+    "Only the five textures actually referenced by the three material zones are embedded in this GLB; the manifest lists nine deterministic direct or derived outputs.",
+    "No decal, wear-mask, AO-bake, or texture-backed clearcoat layer is implemented in this slice.",
+    "The current user candidate was not changed; the material Skill lock remains respected.",
+    "Reference comparison, visual PBR likeness, independent human review, packaged Viewer, engine import, export/restart hash, and HQ 360 remain NOT_RUN or BLOCKED.",
+    "The existing QUALITY_TARGET_NOT_MET truth is not changed by this structural gate."
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-modifier-evaluation-request.schema.json",
+  "title": "GeometryModifierEvaluationRequest",
+  "description": "A closed read-only request for deterministic modifier evaluation, invalidation and semantic-signature reuse evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "representation_plan_sha256",
+    "part_id",
+    "material_zone_id",
+    "solid",
+    "base_node",
+    "modifiers",
+    "previous_evaluation",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryModifierEvaluationRequest@2"},
+    "project_id": {"$ref": "https://forgecad.local/contracts/geometry-modifier-stack-request.schema.json#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "https://forgecad.local/contracts/geometry-modifier-stack-request.schema.json#/$defs/sha256"},
+    "part_id": {"$ref": "https://forgecad.local/contracts/geometry-modifier-stack-request.schema.json#/$defs/identifier"},
+    "material_zone_id": {"$ref": "https://forgecad.local/contracts/geometry-modifier-stack-request.schema.json#/$defs/identifier"},
+    "solid": {"type": "boolean"},
+    "base_node": {"$ref": "https://forgecad.local/contracts/geometry-modifier-stack-request.schema.json#/properties/base_node"},
+    "modifiers": {"$ref": "https://forgecad.local/contracts/geometry-modifier-stack-request.schema.json#/properties/modifiers"},
+    "previous_evaluation": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "https://forgecad.local/contracts/geometry-modifier-evaluation-signature.schema.json"}
+      ]
+    },
+    "input_sha256": {
+      "description": "Canonical hash of the complete evaluation request envelope excluding only this field; previous_evaluation is intentionally included. This is not a baseline-independent authoring-input hash.",
+      "$ref": "https://forgecad.local/contracts/geometry-modifier-stack-request.schema.json#/$defs/sha256"
+    }
+  }
+}

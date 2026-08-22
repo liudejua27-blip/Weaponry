@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-pose-geometry-preview-request.schema.json",
+  "title": "MechanicalPoseGeometryPreviewRequest",
+  "description": "Closed read-only request for one transient fixed-Worker geometry preview of an authored mechanical rest frame and pose.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pose_evaluation_request", "preview_policy", "input_sha256"],
+  "properties": {
+    "schema_version": {"const": "MechanicalPoseGeometryPreviewRequest@1"},
+    "pose_evaluation_request": {"$ref": "https://forgecad.local/contracts/mechanical-pose-evaluation-request.schema.json"},
+    "preview_policy": {"const": "transient-derived-program-worker-readback@1"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

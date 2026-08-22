@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/geometry-modifier-stack-program.schema.json",
+  "title": "GeometryModifierStackProgram",
+  "description": "Runtime-owned structural lowering evidence for an ordered modifier stack. It is not compiled geometry or visual approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "representation_plan_sha256",
+    "part_id",
+    "material_zone_id",
+    "solid",
+    "stack_sha256",
+    "program_sha256",
+    "geometry_program",
+    "evaluation_stages",
+    "validator_status",
+    "quality_status",
+    "limitations",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "GeometryModifierStackProgram@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "solid": {"type": "boolean"},
+    "stack_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "geometry_program": {"$ref": "https://forgecad.local/contracts/geometry-program-v2.schema.json"},
+    "evaluation_stages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "order_index",
+          "modifier_id",
+          "enabled",
+          "operator_id",
+          "effective_node_id",
+          "input_evaluation_sha256",
+          "output_evaluation_sha256"
+        ],
+        "properties": {
+          "order_index": {"type": "integer", "minimum": 0, "maximum": 7},
+          "modifier_id": {"$ref": "#/$defs/identifier"},
+          "enabled": {"type": "boolean"},
+          "operator_id": {
+            "enum": [
+              "forgecad.geometry.transform@2",
+              "forgecad.geometry.mirror@1",
+              "forgecad.geometry.array@1",
+              "forgecad.geometry.bevel@1",
+              "forgecad.geometry.normal-policy@1"
+            ]
+          },
+          "effective_node_id": {"$ref": "#/$defs/identifier"},
+          "input_evaluation_sha256": {"$ref": "#/$defs/sha256"},
+          "output_evaluation_sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "validator_status": {"const": "passed"},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 256}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

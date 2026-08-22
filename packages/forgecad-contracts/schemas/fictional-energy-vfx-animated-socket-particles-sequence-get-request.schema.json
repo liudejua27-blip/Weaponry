@@ -1,0 +1,39 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-particles-sequence-get-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "candidate_id": {
+      "$ref": "#/$defs/id"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketParticlesSequenceGetRequest@1"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "project_id",
+    "candidate_id"
+  ],
+  "title": "FictionalEnergyVfxAnimatedSocketParticlesSequenceGetRequest@1",
+  "type": "object"
+}

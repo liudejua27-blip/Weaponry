@@ -42,6 +42,57 @@ fn viewer_agentic_session(project_id: String, candidate_id: String) -> serde_jso
     viewer::read_agentic_session(&project_id, &candidate_id)
 }
 
+#[tauri::command]
+fn viewer_mechanical_animation_inventory(
+    project_id: String,
+    candidate_id: String,
+    artifact_id: String,
+) -> serde_json::Value {
+    viewer::read_mechanical_animation_inventory(&project_id, &candidate_id, &artifact_id)
+}
+
+#[tauri::command]
+fn viewer_mechanical_animation_clip(
+    project_id: String,
+    candidate_id: String,
+    artifact_id: String,
+    clip_id: String,
+) -> serde_json::Value {
+    viewer::read_mechanical_animation_clip(&project_id, &candidate_id, &artifact_id, &clip_id)
+}
+
+#[tauri::command]
+fn viewer_mechanical_animation_frame_preview(
+    project_id: String,
+    candidate_id: String,
+    artifact_id: String,
+    clip_id: String,
+    sample_time_ticks: u64,
+) -> serde_json::Value {
+    viewer::read_mechanical_animation_frame_preview(
+        &project_id,
+        &candidate_id,
+        &artifact_id,
+        &clip_id,
+        sample_time_ticks,
+    )
+}
+
+#[tauri::command]
+fn viewer_provenance_graph(
+    project_id: String,
+    candidate_id: String,
+    candidate_state_sha256: String,
+    artifact_id: String,
+) -> serde_json::Value {
+    viewer::read_provenance_graph(
+        &project_id,
+        &candidate_id,
+        &candidate_state_sha256,
+        &artifact_id,
+    )
+}
+
 fn main() {
     if std::env::args().any(|argument| argument == "--build-identity") {
         println!(
@@ -71,7 +122,11 @@ fn main() {
             viewer_render_pass,
             viewer_visual_evidence,
             viewer_agentic_projection,
-            viewer_agentic_session
+            viewer_agentic_session,
+            viewer_mechanical_animation_inventory,
+            viewer_mechanical_animation_clip,
+            viewer_mechanical_animation_frame_preview,
+            viewer_provenance_graph
         ])
         .run(tauri::generate_context!())
         .expect("failed to run ForgeCAD Runtime Viewer");

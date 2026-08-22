@@ -2,7 +2,7 @@
   "budgets": {
     "max_nodes": 192
   },
-  "canonical_sha256": "5af915a71d42672f297bffd377b03580ab8c3985ed65c3bc2a2dcd81772efa37",
+  "canonical_sha256": "4e1d1e9e4bbd779ace4468269de44c2a0bf9f25f70c8efd4624775324ea0089f",
   "coordinate_system": "right-handed-y-up",
   "deterministic_order": [
     "profile-body",
@@ -10,6 +10,10 @@
     "revolve-joint",
     "panel-shell",
     "vent-grid",
+    "recessed-channel-guide",
+    "fictional-energy-core",
+    "authoring-edge-source",
+    "selected-edge-bevel",
     "joint-stack",
     "cable-sweep",
     "mirror-limb",
@@ -59,6 +63,18 @@
       "to": "part-sink"
     },
     {
+      "from": "recessed-channel-guide",
+      "to": "part-sink"
+    },
+    {
+      "from": "authoring-edge-source",
+      "to": "selected-edge-bevel"
+    },
+    {
+      "from": "selected-edge-bevel",
+      "to": "part-sink"
+    },
+    {
       "from": "transform-fit",
       "to": "part-sink"
     }
@@ -92,7 +108,31 @@
     {
       "input_schema": "GeometryProgram@2",
       "node_id": "vent-grid",
-      "operator_id": "forgecad.geometry.vent-array@1",
+      "operator_id": "forgecad.geometry.vent-array@2",
+      "output_schema": "GeometryProgram@2"
+    },
+    {
+      "input_schema": "GeometryProgram@2",
+      "node_id": "recessed-channel-guide",
+      "operator_id": "forgecad.geometry.recessed-channel@1",
+      "output_schema": "GeometryProgram@2"
+    },
+    {
+      "input_schema": "GeometryProgram@2",
+      "node_id": "fictional-energy-core",
+      "operator_id": "forgecad.geometry.energy-core@1",
+      "output_schema": "GeometryProgram@2"
+    },
+    {
+      "input_schema": "GeometryProgram@2",
+      "node_id": "authoring-edge-source",
+      "operator_id": "forgecad.geometry.authoring-mesh@1",
+      "output_schema": "GeometryProgram@2"
+    },
+    {
+      "input_schema": "GeometryProgram@2",
+      "node_id": "selected-edge-bevel",
+      "operator_id": "forgecad.geometry.bevel@2",
       "output_schema": "GeometryProgram@2"
     },
     {

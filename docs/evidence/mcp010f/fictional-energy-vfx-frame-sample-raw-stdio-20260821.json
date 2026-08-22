@@ -1,0 +1,509 @@
+{
+  "actual_engine_roundtrip": false,
+  "automatic_lod_default_read_invocation": "PASS_WITHOUT_WRITE_OPT_IN",
+  "automatic_lod_forbidden_python": "REJECTED_INVALID_TOOL_PARAMS",
+  "automatic_lod_generation": "PASS_RUNTIME_TYPED_PROGRAM_DERIVATION_PREVIEW",
+  "automatic_lod_materialization_required": true,
+  "automatic_lod_runtime_write_performed": false,
+  "automatic_lod_triangle_counts": [
+    304,
+    176,
+    112
+  ],
+  "automatic_lod_wire_bytes": 16500,
+  "automatic_lod_worker_replay": true,
+  "build_cohort_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+  "candidate_confirmed": false,
+  "candidate_state_unchanged": true,
+  "collision_proxy_count": 5,
+  "collision_proxy_object_sha256": "94de9b8ec98bb86b5fad3f5a9c2da7d8eaaef2531e65e36a6c8d002730e2f077",
+  "default_write_tool_visibility": "HIDDEN",
+  "delivery_manifest_object_sha256": "e22cbadb8f132d8f993abdb1c30e7f2cf8155073afb042759102d71392426251",
+  "durable_get": "PASS_CURRENT_RUNTIME_CAS_REVERIFY",
+  "durable_link_materialization_status": "runtime-owned-durable-game-delivery-link",
+  "explicit_write_opt_in": "PASS",
+  "export_performed": false,
+  "fictional_energy_vfx_bloom_rendered": false,
+  "fictional_energy_vfx_durable_get": "PASS_CURRENT_RUNTIME_CAS_REVERIFY",
+  "fictional_energy_vfx_frame_1000": {
+    "canonical_sha256": "9cff079ada9a79e1ef7e16b8aa9a8c4a73804aca6e21c1abbc14f06498f4dcd5",
+    "delivery_manifest_object_sha256": "e22cbadb8f132d8f993abdb1c30e7f2cf8155073afb042759102d71392426251",
+    "effects": [
+      {
+        "anchor_id": "socket-muzzle-vfx",
+        "color_linear_rgb": [
+          0.0,
+          0.82,
+          1.0
+        ],
+        "duration_ticks": 200,
+        "effect_id": "muzzle-pulse",
+        "effect_kind": "muzzle-emissive-pulse",
+        "emissive_strength": 0.0,
+        "lod_visibility": [
+          true,
+          true,
+          false
+        ],
+        "loop_mode": "once",
+        "material_id": "energy-cyan-emissive",
+        "requested_time_ticks": 1000,
+        "resolved_time_ticks": 200
+      },
+      {
+        "anchor_id": "socket-energy-core-vfx",
+        "color_linear_rgb": [
+          0.0,
+          0.82,
+          1.0
+        ],
+        "duration_ticks": 1000,
+        "effect_id": "energy-core-breathe",
+        "effect_kind": "energy-core-emissive-breathe",
+        "emissive_strength": 3.0,
+        "lod_visibility": [
+          true,
+          true,
+          true
+        ],
+        "loop_mode": "loop",
+        "material_id": "energy-cyan-emissive",
+        "requested_time_ticks": 1000,
+        "resolved_time_ticks": 0
+      }
+    ],
+    "emissive_animation_rendered": false,
+    "glb_material_zone_binding_verified": false,
+    "interpolation": "LINEAR",
+    "limitations": [
+      "sampled-emissive-intent-only",
+      "no-appearance-or-glb-material-zone-binding",
+      "no-render-or-cas-frame-receipt",
+      "anchor-remains-sidecar-not-glb-socket",
+      "no-bloom-particles-trails-or-engine-roundtrip",
+      "structural-sampling-does-not-prove-visual-quality"
+    ],
+    "persistent_user_data_touched": false,
+    "project_id": "project-9206044160054d00af86ad30040460eb",
+    "quality_status": "structural_only",
+    "requested_time_ticks": 1000,
+    "runtime_write_performed": false,
+    "sampling_policy": "integer-tick-linear-once-clamp-loop-modulo-duration@1",
+    "schema_version": "FictionalEnergyVfxFrameSample@1",
+    "timebase_hz": 1000,
+    "vfx_profile_object_sha256": "0cdbefcd447f626039eef761fdbc610d91efaa0f2a77e5bcc766883b1191488c"
+  },
+  "fictional_energy_vfx_frame_50": {
+    "canonical_sha256": "1dfc9f552274bfefd602efced48dc76450627b40845d07037e897ddd781fdc15",
+    "delivery_manifest_object_sha256": "e22cbadb8f132d8f993abdb1c30e7f2cf8155073afb042759102d71392426251",
+    "effects": [
+      {
+        "anchor_id": "socket-muzzle-vfx",
+        "color_linear_rgb": [
+          0.0,
+          0.82,
+          1.0
+        ],
+        "duration_ticks": 200,
+        "effect_id": "muzzle-pulse",
+        "effect_kind": "muzzle-emissive-pulse",
+        "emissive_strength": 4.0,
+        "lod_visibility": [
+          true,
+          true,
+          false
+        ],
+        "loop_mode": "once",
+        "material_id": "energy-cyan-emissive",
+        "requested_time_ticks": 50,
+        "resolved_time_ticks": 50
+      },
+      {
+        "anchor_id": "socket-energy-core-vfx",
+        "color_linear_rgb": [
+          0.0,
+          0.82,
+          1.0
+        ],
+        "duration_ticks": 1000,
+        "effect_id": "energy-core-breathe",
+        "effect_kind": "energy-core-emissive-breathe",
+        "emissive_strength": 3.3,
+        "lod_visibility": [
+          true,
+          true,
+          true
+        ],
+        "loop_mode": "loop",
+        "material_id": "energy-cyan-emissive",
+        "requested_time_ticks": 50,
+        "resolved_time_ticks": 50
+      }
+    ],
+    "emissive_animation_rendered": false,
+    "glb_material_zone_binding_verified": false,
+    "interpolation": "LINEAR",
+    "limitations": [
+      "sampled-emissive-intent-only",
+      "no-appearance-or-glb-material-zone-binding",
+      "no-render-or-cas-frame-receipt",
+      "anchor-remains-sidecar-not-glb-socket",
+      "no-bloom-particles-trails-or-engine-roundtrip",
+      "structural-sampling-does-not-prove-visual-quality"
+    ],
+    "persistent_user_data_touched": false,
+    "project_id": "project-9206044160054d00af86ad30040460eb",
+    "quality_status": "structural_only",
+    "requested_time_ticks": 50,
+    "runtime_write_performed": false,
+    "sampling_policy": "integer-tick-linear-once-clamp-loop-modulo-duration@1",
+    "schema_version": "FictionalEnergyVfxFrameSample@1",
+    "timebase_hz": 1000,
+    "vfx_profile_object_sha256": "0cdbefcd447f626039eef761fdbc610d91efaa0f2a77e5bcc766883b1191488c"
+  },
+  "fictional_energy_vfx_frame_glb_material_zone_binding_verified": false,
+  "fictional_energy_vfx_frame_negative_tick": "REJECTED_INVALID_TOOL_PARAMS",
+  "fictional_energy_vfx_frame_runtime_write_performed": false,
+  "fictional_energy_vfx_frame_sampling": "PASS_LINEAR_ONCE_CLAMP_LOOP_MODULO",
+  "fictional_energy_vfx_material_animation_rendered": false,
+  "fictional_energy_vfx_negative_sample": "REJECTED_INVALID_TOOL_PARAMS",
+  "fictional_energy_vfx_particles_rendered": false,
+  "fictional_energy_vfx_profile": {
+    "actual_engine_roundtrip": false,
+    "anchor_set_object_sha256": "84de6b6d8da742be2d1e2d207f7e21db110c9ea32d1e539779423e507f1825f1",
+    "bloom_rendered": false,
+    "candidate_confirmed": false,
+    "canonical_sha256": "7142725d7b2ec207ca9a3e371223799e70bacc28f65212f2ae353f9319699fc3",
+    "delivery_manifest_object_sha256": "e22cbadb8f132d8f993abdb1c30e7f2cf8155073afb042759102d71392426251",
+    "effects": [
+      {
+        "anchor_id": "socket-muzzle-vfx",
+        "color_linear_rgb": [
+          0.0,
+          0.82,
+          1.0
+        ],
+        "duration_ticks": 200,
+        "effect_id": "muzzle-pulse",
+        "effect_kind": "muzzle-emissive-pulse",
+        "emissive_strength_samples": [
+          0.0,
+          8.0,
+          0.0
+        ],
+        "lod_visibility": [
+          true,
+          true,
+          false
+        ],
+        "loop_mode": "once",
+        "material_id": "energy-cyan-emissive",
+        "sample_time_ticks": [
+          0,
+          100,
+          200
+        ]
+      },
+      {
+        "anchor_id": "socket-energy-core-vfx",
+        "color_linear_rgb": [
+          0.0,
+          0.82,
+          1.0
+        ],
+        "duration_ticks": 1000,
+        "effect_id": "energy-core-breathe",
+        "effect_kind": "energy-core-emissive-breathe",
+        "emissive_strength_samples": [
+          3.0,
+          6.0,
+          3.0
+        ],
+        "lod_visibility": [
+          true,
+          true,
+          true
+        ],
+        "loop_mode": "loop",
+        "material_id": "energy-cyan-emissive",
+        "sample_time_ticks": [
+          0,
+          500,
+          1000
+        ]
+      }
+    ],
+    "emissive_animation_rendered": false,
+    "execution_mode": "typed-time-sampled-emissive-intent-no-material-animation-render@1",
+    "export_performed": false,
+    "functional_semantics": false,
+    "material_pack_id": "forgecad-fictional-energy-weapon-2k",
+    "material_pack_manifest_sha256": "a1866a469621e39e36b669e8c99202ff853967cfcf65fb047e7f26d216bcc5d6",
+    "particles_rendered": false,
+    "project_id": "project-9206044160054d00af86ad30040460eb",
+    "quality_status": "structural_only",
+    "schema_version": "FictionalEnergyVfxProfile@1",
+    "semantic_scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+    "static_emissive_material_definition_verified": true,
+    "timebase_hz": 1000,
+    "trails_rendered": false,
+    "vfx_policy": "fictional-energy-two-effect-time-sampled-emissive-intent@1"
+  },
+  "fictional_energy_vfx_profile_object_sha256": "0cdbefcd447f626039eef761fdbc610d91efaa0f2a77e5bcc766883b1191488c",
+  "fictional_energy_vfx_replay": "PASS_CONTENT_IDENTICAL",
+  "fictional_energy_vfx_trails_rendered": false,
+  "fictional_energy_vfx_wire_bytes": 3702,
+  "forbidden_python": "REJECTED_INVALID_TOOL_PARAMS",
+  "gate": "PASS_AUTHORED_LOD_SET_COLLISION_DELIVERY_RAW_STDIO",
+  "godot": "NOT_RUN",
+  "lod_receipt_object_sha256": "09ec87af3f75eefc1d61844820485923a02a766beb743038eff4cc3ee49dc56c",
+  "lod_triangle_counts": [
+    304,
+    176,
+    112
+  ],
+  "material_zone_ids": [
+    "zone-weapon"
+  ],
+  "part_ids": [
+    "barrel-assembly",
+    "energy-core",
+    "grip-module",
+    "magazine-module",
+    "optic-rail"
+  ],
+  "ponytail_preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "protocol_version": "2025-06-18",
+  "quality_status": "structural_only",
+  "readiness_object_sha256": "35000aeba72f2a07fdab85e70382c36fcd84aeff6c45888455ad7d9c24ba6732",
+  "replay": "PASS_CONTENT_IDENTICAL",
+  "runtime_restart_get": "PASS_FOCUSED_RUNTIME_TEST",
+  "schema_version": "ForgeCADGameAssetDeliveryRawStdioProbe@1",
+  "threejs": "NOT_RUN_IN_THIS_RAW_PROBE",
+  "unity": "NOT_RUN",
+  "unreal": "NOT_RUN",
+  "version_state_unchanged": true,
+  "weapon_anchor_actual_engine_roundtrip": false,
+  "weapon_anchor_bad_muzzle": "REJECTED_FAIL_CLOSED",
+  "weapon_anchor_durable_get": "PASS_CURRENT_RUNTIME_CAS_REVERIFY",
+  "weapon_anchor_node_materialization": "sidecar-only-not-glb-nodes",
+  "weapon_anchor_pivot_status": "not-proven-runtime-pivot",
+  "weapon_anchor_replay": "PASS_CONTENT_IDENTICAL",
+  "weapon_anchor_roles": [
+    "weapon-root",
+    "grip-primary",
+    "muzzle-vfx",
+    "magazine-well",
+    "sight-primary",
+    "energy-core-vfx"
+  ],
+  "weapon_anchor_set": {
+    "actual_engine_roundtrip": false,
+    "anchor_policy": "weapon-rh-x-forward-y-up-model-space-six-role@1",
+    "anchors": [
+      {
+        "anchor_id": "weapon-root",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "owner_part_id": null,
+        "parent_kind": "synthetic-scene-root",
+        "role": "weapon-root"
+      },
+      {
+        "anchor_id": "grip-primary",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          -0.25,
+          -0.3,
+          0.0
+        ],
+        "owner_part_id": "grip-module",
+        "parent_kind": "part-node",
+        "role": "grip-primary"
+      },
+      {
+        "anchor_id": "socket-muzzle-vfx",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.8,
+          0.0,
+          0.0
+        ],
+        "owner_part_id": "barrel-assembly",
+        "parent_kind": "part-node",
+        "role": "muzzle-vfx"
+      },
+      {
+        "anchor_id": "socket-magazine-well",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.0,
+          -0.24,
+          0.0
+        ],
+        "owner_part_id": "magazine-module",
+        "parent_kind": "part-node",
+        "role": "magazine-well"
+      },
+      {
+        "anchor_id": "socket-sight-primary",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.12,
+          0.25,
+          0.0
+        ],
+        "owner_part_id": "optic-rail",
+        "parent_kind": "part-node",
+        "role": "sight-primary"
+      },
+      {
+        "anchor_id": "socket-energy-core-vfx",
+        "local_rotation_quat_xyzw": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "local_scale_xyz": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "local_translation_m": [
+          0.16,
+          0.0,
+          0.0
+        ],
+        "owner_part_id": "energy-core",
+        "parent_kind": "part-node",
+        "role": "energy-core-vfx"
+      }
+    ],
+    "animation_follow_status": "static-only-no-animation",
+    "candidate_confirmed": false,
+    "canonical_sha256": "fc2d7595ddf000f0066f95a2309ad0e0ee7119c0436a3505cfc1ddea820077d3",
+    "coordinate_frame": {
+      "forward_axis": "+X",
+      "frame_id": "weapon-right-handed-x-muzzle-y-up-z-right",
+      "handedness": "right-handed",
+      "side_axis": "+Z",
+      "units": "meter",
+      "up_axis": "+Y"
+    },
+    "delivery_manifest_object_sha256": "e22cbadb8f132d8f993abdb1c30e7f2cf8155073afb042759102d71392426251",
+    "export_performed": false,
+    "functional_semantics": false,
+    "limitations": [
+      "no-ballistics",
+      "no-damage-or-hitbox",
+      "no-physics-binding",
+      "no-manufacturing-or-operation",
+      "no-commercial-engine-roundtrip"
+    ],
+    "lod_bindings": [
+      {
+        "artifact_readback_sha256": "e25c938ee4aa3a826513f8c66c2bcdf63f044334bace8348e0bf7af068728152",
+        "artifact_sha256": "a14d8d7aff780ebf9f02c8c08303d6e56a219e82ddbe1fc3eb7bca40a0ac7393",
+        "candidate_id": "candidate-00e1cff3c40f4d878dba4e2e6edb167d",
+        "candidate_state_sha256": "ada1d0634e35600fd1c0dc5956cfaa4b98f9b4395c8a9b024cf8d896fb9885ee",
+        "level": 0
+      },
+      {
+        "artifact_readback_sha256": "4afe328594031cebfbe339cc8b7006ddc557227785090e549032b6e1bd04693a",
+        "artifact_sha256": "072baf435ac35c067e080d88ce9dbfc26dd3e45e7c904e3a90f83bcfbf5d1905",
+        "candidate_id": "candidate-5321760ec5e246a48cc193d1f45bded2",
+        "candidate_state_sha256": "9704cc09eb6edb82a5a50db46cca8c1546250a9e1621431862e846e1424994d8",
+        "level": 1
+      },
+      {
+        "artifact_readback_sha256": "e160abad376a1210d55780a6e82d732dcef988f07ebe31b5aa703b6921f8831f",
+        "artifact_sha256": "f19422b3c00202e66a3c8b362d9be2bf8dc57cf2f90018d5c0b69f3f9952931c",
+        "candidate_id": "candidate-f88d3398f642461dbcb8e1a72e2b2fb2",
+        "candidate_state_sha256": "52130653e40aa5bf94a0141540b802e37687f2a6b67920b15eb79b403ad0d63e",
+        "level": 2
+      }
+    ],
+    "node_materialization": "sidecar-only-not-glb-nodes",
+    "part_bounds_status": "source-part-model-space-anchor-containment-pass",
+    "part_ids": [
+      "barrel-assembly",
+      "energy-core",
+      "grip-module",
+      "magazine-module",
+      "optic-rail"
+    ],
+    "pivot_status": "not-proven-runtime-pivot",
+    "project_id": "project-9206044160054d00af86ad30040460eb",
+    "quality_status": "structural_only",
+    "runtime_write_performed": true,
+    "schema_version": "GameWeaponAnchorSet@1",
+    "semantic_scope": "fictional-nonfunctional-game-visual-authoring-only@1",
+    "topology_status": "synthetic-root-five-part-bound-metadata-helpers-pass",
+    "transform_convention": "column-vector-parent-world-times-trs-quaternion-xyzw@1",
+    "trs_status": "finite-unit-quaternion-identity-scale-pass"
+  },
+  "weapon_anchor_set_object_sha256": "84de6b6d8da742be2d1e2d207f7e21db110c9ea32d1e539779423e507f1825f1",
+  "weapon_anchor_wire_bytes": 5630,
+  "wire_bytes": 11062
+}

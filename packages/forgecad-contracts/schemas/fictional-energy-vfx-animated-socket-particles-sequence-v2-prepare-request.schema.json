@@ -1,0 +1,268 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-particles-sequence-v2-prepare-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FictionalEnergyVfxAnimatedSocketParticlesSequencePrepareRequest@2",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "frame_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "frame_index": {
+          "maximum": 15,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sample_time_ticks": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "projection_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "projection_socket_transform_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "projection_socket_transform_readback_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_frame_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bloom_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "required": [
+        "frame_index",
+        "sample_time_ticks",
+        "projection_frame_canonical_sha256",
+        "projection_socket_transform_inventory_sha256",
+        "projection_socket_transform_readback_sha256",
+        "base_frame_key_sha256",
+        "bloom_key_sha256"
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketParticlesSequencePrepareRequest@2"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "geometry_candidate_id": {
+      "$ref": "#/$defs/id",
+      "x-forgecad-distinct-from": "appearance_candidate_id"
+    },
+    "geometry_candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "geometry_delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "geometry_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_candidate_id": {
+      "$ref": "#/$defs/id",
+      "x-forgecad-distinct-from": "geometry_candidate_id"
+    },
+    "appearance_candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "material_surface_quality_id": {
+      "$ref": "#/$defs/id"
+    },
+    "material_surface_quality_report_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "material_surface_quality_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_materialization_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_anchor_set_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "appearance_anchor_set_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "anchor_binding_policy": {
+      "const": "geometry-appearance-anchor-role-owner-trs-equivalent@1"
+    },
+    "animation_clip_id": {
+      "$ref": "#/$defs/id"
+    },
+    "animation_clip_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_node_id_encoding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_roles_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_identity_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_worker_build_cohort_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_schedule_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_count": {
+      "maximum": 16,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "sample_time_ticks": {
+      "items": {
+        "maximum": 1000000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "frame_scope": {
+      "const": "lod0-animation-particles-frame-range-1-16@2"
+    },
+    "particles_sequence_policy": {
+      "const": "projection-v2-driven-animated-socket-particles-dual-candidate@2"
+    },
+    "emitter_binding_policy": {
+      "const": "projection-role-muzzle-vfx-energy-core-vfx-to-particle-emitter@1"
+    },
+    "transform_projection_policy": {
+      "const": "glb-animation-linear-nlerp-flat-part-hierarchy-composed-world-trs-matrix@2"
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/frame_input"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "type": "array"
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/id"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "project_id",
+    "geometry_candidate_id",
+    "geometry_candidate_state_sha256",
+    "geometry_delivery_manifest_object_sha256",
+    "geometry_artifact_sha256",
+    "appearance_candidate_id",
+    "appearance_candidate_state_sha256",
+    "appearance_delivery_manifest_object_sha256",
+    "appearance_artifact_sha256",
+    "material_surface_quality_id",
+    "material_surface_quality_report_object_sha256",
+    "material_surface_quality_canonical_sha256",
+    "projection_key_sha256",
+    "projection_object_sha256",
+    "projection_canonical_sha256",
+    "animated_socket_materialization_key_sha256",
+    "animated_artifact_sha256",
+    "animated_socket_anchor_set_object_sha256",
+    "animated_socket_anchor_set_canonical_sha256",
+    "appearance_anchor_set_object_sha256",
+    "appearance_anchor_set_canonical_sha256",
+    "anchor_binding_policy",
+    "animation_clip_id",
+    "animation_clip_object_sha256",
+    "animation_clip_canonical_sha256",
+    "animation_receipt_object_sha256",
+    "animation_receipt_canonical_sha256",
+    "vfx_profile_object_sha256",
+    "vfx_profile_canonical_sha256",
+    "socket_node_id_encoding_sha256",
+    "socket_roles_sha256",
+    "camera_object_sha256",
+    "camera_identity_sha256",
+    "render_profile_sha256",
+    "render_worker_build_cohort_sha256",
+    "sample_schedule_sha256",
+    "sample_count",
+    "sample_time_ticks",
+    "frame_scope",
+    "particles_sequence_policy",
+    "emitter_binding_policy",
+    "transform_projection_policy",
+    "frames",
+    "input_sha256",
+    "idempotency_key"
+  ]
+}

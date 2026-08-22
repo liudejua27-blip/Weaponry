@@ -1,0 +1,171 @@
+{
+  "schema_version": "ForgeCADBlenderBooleanOperandLineageSourceGate@1",
+  "recorded_on": "2026-08-19",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_STRUCTURAL_ONLY",
+  "research": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "blender_license_boundary": "GPL_REFERENCE_ONLY_NO_SOURCE_COPIED_OR_LINKED",
+    "manifold_revision": "969b1417afdee87dbc6147cf676bc04799418ec2",
+    "manifold_license": "Apache-2.0",
+    "manifold_adoption_receipt": "docs/evidence/mcp010d/manifold-boolean-adoption-gate-20260814.json",
+    "official_source_refs": [
+      "https://github.com/blender/blender/commit/72ccdd6e96ca119a1ffa3372559cc5654343b477",
+      "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/COPYING",
+      "https://github.com/elalish/manifold/tree/969b1417afdee87dbc6147cf676bc04799418ec2",
+      "https://github.com/elalish/manifold/blob/969b1417afdee87dbc6147cf676bc04799418ec2/include/manifold/manifold.h",
+      "https://github.com/elalish/manifold/blob/969b1417afdee87dbc6147cf676bc04799418ec2/include/manifold/mesh.h"
+    ],
+    "adapted_semantics": [
+      "evaluated-boolean-operand-provenance",
+      "evaluated-planar-face-identities",
+      "contiguous-output-triangle-lineage-runs",
+      "preview-only-read-model"
+    ],
+    "blender_cycles_eevee_python_or_blender_runtime_cloned_installed_executed_or_linked": false,
+    "new_third_party_dependency_added": false
+  },
+  "source_truth": {
+    "schema_count": 164,
+    "schema_content_set_sha256": "a238c5adfe2105081313fcf683feb80ccc6c97ef85d5618d2d2375beed5e8fb3",
+    "operator_catalog_entries": 19,
+    "operator_catalog_active": 19,
+    "operator_catalog_source_path": "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs",
+    "operator_catalog_source_sha256": "50deeae395c9c041bc1fdf7357bff2183e714c1a3aefc4e3bb224a3aa1b193e7",
+    "operator_catalog_canonical_sha256": "75068090009fc3d9db4428767c50fb7df60a56e469c7d44f6711c2bc47a4a476",
+    "read_tools": 45,
+    "write_tools": 33,
+    "total_tools": 78,
+    "contract_manifest_sha256": "ca9856da4b8e024af038ca0e0bc4339df29c9bb1e59609fa0ba16604a55cb35d",
+    "request_schema_sha256": "604685718cb4f1719cc0a7e9068d30011f343a386bb4df269d3d9c4afc6deca0",
+    "result_schema_sha256": "7441d8568290e055b1f4760817adbb35f52010c2b805dab18d35955571058bb8",
+    "contract_checker_sha256": "fe14dd2b50b70e9e2f738dc42cc7464d142da66925698e22e3a8f5121dc67721",
+    "tool_manifest_summary_sha256": "68af3e8f54c250c73fa0b32211d43466ae04430a9a40536c8e6c3367433d5a49",
+    "tool_manifest_canonical_sha256": "574d22436247cbe22635b3db4bb91be680fba97188351cb91bc17ec67d00a8c2",
+    "read_manifest_sha256": "1301352928c294f35413fc97f61a0c6415473c76ca482290806961b0c3a8d2b3",
+    "write_manifest_sha256": "7e26aa1d387d7a8443ee5acc128259861add7ad4c3978eeeb217ffcd26b1b30a",
+    "current_benchmark_truth_file_sha256": "39def0b4e78cafe4057a092f2818877651803429d3ba854bbd0f23427e98108d",
+    "current_benchmark_truth_canonical_sha256": "fc7079e9688291554330608a3a76cb854555fcaa2f2b4b9b761a803e9d2d5440",
+    "geometry_worker_source_sha256": "ff26e69aefafb60a689919859caaa8e972a93c99c75da85baebe4b201e99a2a6",
+    "geometry_operator_source_sha256": "c27f100062825015df4b4a06b742d92d8cb901c7220dac72ff559b02e2b3f2f7",
+    "manifold_bridge_source_sha256": "bbe5039a3c122179541369fcf80c985208249697cd2f30f62d8bc1ad02c66fe0",
+    "runtime_source_sha256": "6b9b9f14d9abd7762464225866f1604ca0664a7ba50855cf64efb6d9e75d7f3c",
+    "runtime_geometry_worker_source_sha256": "651a9f846a2b53567d1e17ebf8300c693bac46166b2a55a2f09b34ab52f4fbf2",
+    "runtime_boolean_lineage_source_sha256": "1d28a7be938a81004b6b687e60b766a244a59b45311532f6e8e802fea4a181f5",
+    "worker_protocol_source_sha256": "50deeae395c9c041bc1fdf7357bff2183e714c1a3aefc4e3bb224a3aa1b193e7",
+    "mcp_source_sha256": "e432c81e3df3a2680c0ef202212eb1ae6a38e2b82c39e90bf26d92949cd80a81"
+  },
+  "implemented_scope": {
+    "request_schema": "BooleanOperandLineageRequest@1",
+    "result_schema": "BooleanOperandLineage@1",
+    "mcp_tool": "boolean_operand_lineage_preview",
+    "default_read_only": true,
+    "runtime_write_performed": false,
+    "worker_operation": "boolean_operand_lineage",
+    "supported_operations": [
+      "union",
+      "difference",
+      "intersection"
+    ],
+    "lineage_kind": "evaluated-face-with-operand-run",
+    "max_lineage_runs": 4096,
+    "max_output_triangles": 250000,
+    "max_runtime_result_bytes": 1048576,
+    "max_mcp_wire_response_bytes": 1048576,
+    "mcp_text_content": "BOUNDED_SUMMARY_WITH_COMPLETE_STRUCTURED_CONTENT",
+    "truncation_allowed": false,
+    "runtime_semantic_recomputation": [
+      "geometry-program-canonical-hash",
+      "target-boolean-operator",
+      "operation",
+      "left-and-right-input-node-ids",
+      "ordered-recursive-source-node-lineages"
+    ],
+    "manifold_bridge_checks": [
+      "source-run-count",
+      "first-run-index-zero",
+      "monotonic-run-indices",
+      "triangle-aligned-run-indices",
+      "final-run-index-covers-output",
+      "source-id-is-left-or-right",
+      "evaluated-face-id-count"
+    ],
+    "candidate_version_cas_or_project_write_added": false,
+    "new_skill_or_operator_added": false
+  },
+  "luna_review": {
+    "agents": 3,
+    "p0_findings": 0,
+    "p1_findings_before_fix": 5,
+    "p1_findings_after_fix": 0,
+    "accepted_corrections": [
+      "add-independent-source-receipt",
+      "refresh-stale-current-counts-and-tool-totals",
+      "name-the-product-owned-geometry-worker-boundary",
+      "enforce-full-mcp-wire-one-mib-bound",
+      "enforce-runtime-numeric-output-bounds",
+      "recompute-boolean-operation-operands-and-source-lineage-from-the-request-program",
+      "reject-hash-consistent-worker-semantic-forgery",
+      "require-zero-based-triangle-aligned-manifold-run-indices"
+    ]
+  },
+  "focused_tests": {
+    "contracts": "PASS_164_SCHEMAS",
+    "stage0_truth": "PASS_WITH_RETAINED_NEGATIVE_VISUAL_TRUTH",
+    "geometry_worker_full": "PASS_36_OF_36",
+    "runtime_boolean_lineage": "PASS_4_OF_4",
+    "runtime_full_with_fixed_render_worker_fallback": "PASS_202_FAILED_0_IGNORED_12",
+    "mcp_test_suite_not_tool_count": "PASS_76_TESTS_OF_76",
+    "worker_semantic_forgery_negatives": "PASS_OPERATION_OPERAND_SOURCE_LINEAGE",
+    "mcp_envelope_and_wire_negatives": "PASS"
+  },
+  "diagnostic_runtime_without_fixed_render_worker_fallback": {
+    "result": "PASS_192_FAIL_10_IGNORED_12",
+    "failure_code": "GEOMETRY_WORKER_UNAVAILABLE",
+    "classification": "EXPECTED_MISSING_FIXED_RENDER_WORKER_TEST_CONFIGURATION_NOT_BOOLEAN_REGRESSION",
+    "replacement_gate": "runtime full with test-render-worker-fallback"
+  },
+  "full_source_gate": {
+    "command": "script/test_mcp010f.sh",
+    "result": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+    "exit_code": 0,
+    "contracts": "PASS_164_SCHEMAS",
+    "viewer_source": "PASS",
+    "source_tool_manifest_summary": "PASS_EXACT_FIELD_EQUALITY"
+  },
+  "full_gates": {
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "limitations": [
+    "evaluated-face-id-is-not-an-original-authoring-face-id",
+    "face-ids-are-not-stable-across-geometry-program-change",
+    "lineage-is-not-persisted-in-the-current-glb",
+    "structural-lineage-does-not-prove-visual-quality"
+  ],
+  "not_run_or_not_implemented": {
+    "blender_bmesh_modifier_runtime": "NOT_IMPLEMENTED",
+    "eevee_backend": "NOT_IMPLEMENTED",
+    "cycles_backend": "NOT_IMPLEMENTED",
+    "animation_armature_skinning": "NOT_IMPLEMENTED",
+    "python_ecosystem": "NOT_IMPLEMENTED_BY_ARCHITECTURE",
+    "package_and_live_desktop": "NOT_RUN",
+    "visual_and_human_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "retained_quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence": "INCOMPLETE_TRUTH_BINDING",
+    "camera": "MISMATCH",
+    "aov_hash_completeness": "MISSING",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "historical_attempt35_repaired": false
+  },
+  "canonical_sha256": "d79a7646de1cdbaf896cecbf9d00e2763f4ea017fad0bafb62719c44bd221db4"
+}

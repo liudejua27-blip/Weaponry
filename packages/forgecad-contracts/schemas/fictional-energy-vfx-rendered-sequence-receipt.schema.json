@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-rendered-sequence-receipt.schema.json",
+  "title": "FictionalEnergyVfxRenderedSequenceReceipt@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sequence_key_sha256", "project_id", "delivery_manifest_object_sha256", "vfx_profile_object_sha256", "source_candidate_id", "source_artifact_sha256", "request_sha256", "sample_time_ticks", "sampling_policy", "appearance_binding_policy", "effect_materialization_policy", "lod_level", "camera_policy", "camera_object_sha256", "camera_identity_sha256", "render_policy", "render_profile_sha256", "render_worker_build_cohort_sha256", "frame_count", "frame_key_sha256s", "frames", "muzzle_material_zone_id", "core_material_zone_id", "fixed_camera_verified", "lod0_verified", "nine_aov_per_frame_verified", "same_worker_cohort_verified", "independent_effect_material_zones_verified", "sampled_emissive_sequence_rendered", "emissive_animation_sequence_rendered", "runtime_write_performed", "candidate_confirmed", "export_performed", "actual_engine_roundtrip", "quality_status", "limitations", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxRenderedSequenceReceipt@1"},
+    "sequence_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "project_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "delivery_manifest_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "vfx_profile_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "source_candidate_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$"},
+    "source_artifact_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "request_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "sample_time_ticks": {"type": "array", "minItems": 2, "maxItems": 16, "items": {"type": "integer", "minimum": 0, "maximum": 1000000}},
+    "sampling_policy": {"const": "integer-tick-linear-once-clamp-loop-modulo-duration@1"},
+    "appearance_binding_policy": {"const": "three-lod-appearance-program-glb-material-zone-stable-id@1"},
+    "effect_materialization_policy": {"const": "independent-effect-material-zone@1"},
+    "lod_level": {"const": 0},
+    "camera_policy": {"const": "runtime-fixed-default-camera-calibration@1"},
+    "camera_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "camera_identity_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "render_policy": {"const": "lod0-nine-aov-sequence-same-cohort-byte-exact-reservation-safe@1"},
+    "render_profile_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "render_worker_build_cohort_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "frame_count": {"type": "integer", "minimum": 2, "maximum": 16},
+    "frame_key_sha256s": {"type": "array", "minItems": 2, "maxItems": 16, "items": {"$ref": "common.schema.json#/$defs/sha256"}},
+    "frames": {"type": "array", "minItems": 2, "maxItems": 16, "items": {"$ref": "#/$defs/frame"}},
+    "muzzle_material_zone_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "core_material_zone_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "fixed_camera_verified": {"const": true},
+    "lod0_verified": {"const": true},
+    "nine_aov_per_frame_verified": {"const": true},
+    "same_worker_cohort_verified": {"const": true},
+    "independent_effect_material_zones_verified": {"const": true},
+    "sampled_emissive_sequence_rendered": {"const": true},
+    "emissive_animation_sequence_rendered": {"const": false},
+    "runtime_write_performed": {"const": true},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {"type": "array", "minItems": 5, "maxItems": 8, "uniqueItems": true, "items": {"enum": ["sampled-emissive-sequence-not-engine-material-animation", "no-glb-socket-transform-execution", "no-bloom-particles-or-trails", "no-commercial-engine-roundtrip", "no-visual-quality-or-likeness-pass", "frame-receipts-remain-independent-durable-links", "appearance-source-program-not-yet-independent-durable-sidecar"]}},
+    "canonical_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+  },
+  "$defs": {
+    "pass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "ordinal", "sha256", "mime", "size_bytes", "width", "height", "channels", "color_space"],
+      "properties": {
+        "pass": {"enum": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]},
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 8},
+        "sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "mime": {"const": "image/png"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 4194304},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "channels": {"const": "rgba8"},
+        "color_space": {"enum": ["srgb", "data"]}
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "sample_time_ticks", "frame_key_sha256", "receipt_object_sha256", "render_set_object_sha256", "pass_artifacts"],
+      "properties": {
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 15},
+        "sample_time_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "frame_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "receipt_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "render_set_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "pass_artifacts": {"type": "array", "minItems": 9, "maxItems": 9, "items": {"$ref": "#/$defs/pass"}}
+      }
+    }
+  }
+}

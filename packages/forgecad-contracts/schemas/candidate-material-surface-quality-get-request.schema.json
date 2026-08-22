@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/candidate-material-surface-quality-get-request.schema.json",
+  "title": "CandidateMaterialSurfaceQualityGetRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "material_surface_quality_id", "project_id", "source_candidate_id", "output_candidate_id"],
+  "properties": {
+    "schema_version": {"const": "CandidateMaterialSurfaceQualityGetRequest@1"},
+    "material_surface_quality_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "source_candidate_id": {"$ref": "#/$defs/id"},
+    "output_candidate_id": {"$ref": "#/$defs/id"}
+  },
+  "$defs": {"id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}}
+}

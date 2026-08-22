@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/appearance-prepare-result-v3.schema.json",
+  "title":"AppearancePrepareResult@3",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","candidate","job","artifact","render_set","render_set_object_sha256","quality_report_object_sha256","material_pack_manifest_sha256","texture_build_receipt_sha256","candidate_surface_bake_receipt_sha256"],
+  "properties":{
+    "schema_version":{"const":"AppearancePrepareResult@3"},
+    "candidate":{"type":"object"},
+    "job":{"type":"object"},
+    "artifact":{"$ref":"https://forgecad.local/contracts/artifact-readback-v2.schema.json"},
+    "render_set":{"$ref":"https://forgecad.local/contracts/render-set-v2.schema.json"},
+    "render_set_object_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "quality_report_object_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "material_pack_manifest_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "texture_build_receipt_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "candidate_surface_bake_receipt_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+  }
+}

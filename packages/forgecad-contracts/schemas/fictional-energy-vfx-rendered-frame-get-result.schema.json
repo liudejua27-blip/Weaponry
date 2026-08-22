@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-rendered-frame-get-result.schema.json",
+  "title": "FictionalEnergyVfxRenderedFrameGetResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "frame_key_sha256", "receipt_object_sha256", "receipt", "link", "restart_hash_verified", "runtime_write_performed", "candidate_confirmed", "export_performed", "actual_engine_roundtrip", "quality_status"],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxRenderedFrameGetResult@1"},
+    "frame_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "receipt_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "receipt": {"$ref": "fictional-energy-vfx-rendered-frame-receipt.schema.json"},
+    "link": {"$ref": "fictional-energy-vfx-frame-link.schema.json"},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "quality_status": {"const": "structural_only"}
+  }
+}

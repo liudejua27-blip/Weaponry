@@ -1,0 +1,154 @@
+{
+  "schema_version": "ForgeCADMechanicalAnimationV2AnimatedSocketSourceGate@1",
+  "task_id": "FGC-MCP010F-ANIMATION-GLB-SOCKET-V2-22",
+  "recorded_on": "2026-08-22",
+  "status": "PASS_SOURCE_STRUCTURAL_ONLY",
+  "scope": {
+    "contracts": [
+      "MechanicalAnimationClip@2",
+      "MechanicalAnimationGlb@2",
+      "GameWeaponAnimatedGlbSocketMaterialization@2"
+    ],
+    "mcp_tools": {
+      "write": [
+        "mechanical_animation_clip_v2_prepare",
+        "mechanical_animation_glb_v2_prepare",
+        "game_weapon_animated_glb_socket_v2_prepare"
+      ],
+      "read": [
+        "mechanical_animation_clip_v2_get",
+        "mechanical_animation_clip_v2_preview",
+        "mechanical_animation_glb_v2_get",
+        "game_weapon_animated_glb_socket_v2_get"
+      ]
+    },
+    "runtime_boundary": "Runtime is the only durable state writer; all V2 prepare calls are explicit authenticated structural writes and get/preview calls are read-only.",
+    "v1_v2_isolation": true
+  },
+  "source_truth": {
+    "contract_manifest_path": "packages/forgecad-contracts/manifest.json",
+    "contract_count": 375,
+    "contract_manifest_sha256": "dfda33f7409d799fc794ea6ccacf2409da9b60932aaebc87cd96ad5f3c0d1e20",
+    "schema_content_set_sha256": "773a73726775aa74a5b4c9a1ce35bd22561c40cccd322b62e7650f8d113f8d80",
+    "mcp_source_parser": {
+      "read_count": 85,
+      "write_count": 64,
+      "total_count": 149,
+      "method": "scripts/check_mcp010f_stage0_truth.py::source_tool_names (read-only invocation)"
+    },
+    "source_files": [
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs",
+        "sha256": "7dc1ef90bf78543c0cdb9c7f4e40382b505de002087a04abd82d5f2ab36e6898"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
+        "sha256": "0ae04507026051e1dd04244802e8314503b0ff4c7299cc5134b6cfce3257baff"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_write_tools.rs",
+        "sha256": "d4fdd2abfca690fc0d7d442346030a6cf9e38e4c19530b46ea443bee33dfb35c"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/agentic_action_tools.rs",
+        "sha256": "aca34a845ba6de72168b8ae01e1d83868a550c4c3e58e8293294a2c2eca1f8d2"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+        "sha256": "f30c282810bc2b2a1c9ac5479effad21017c4f9b11fec2ff5bbd9fb6c6e41c17"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/mechanical_animation_clip_v2.rs",
+        "sha256": "3b79b15482d146ee7159745db48ecb9e34eb6c5fdacb83ba179f7e9f05ca03ba"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/mechanical_animation_glb_v2.rs",
+        "sha256": "8a397717560c645cc171b79114e3945f1a081918d470a56df121163d516c6cac"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/game_weapon_animated_glb_socket_v2.rs",
+        "sha256": "43037bd1f1a9cd7f91c4811a37f3d1d169165e24051b98a8a23e417b07a5687b"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs",
+        "sha256": "abfd03943d5ea9e5ed48382b5c211c5aeef2ad1231b3597e6879bf6451d1fcb7"
+      },
+      {
+        "path": "apps/desktop/src-tauri/crates/forgecad-worker-protocol/src/lib.rs",
+        "sha256": "67e4131de7abd4c200b129d21279f7b346d220c9ace85b5e287c65885d280d52"
+      }
+    ]
+  },
+  "same_cohort_evidence": {
+    "store_full": {
+      "passed": 92,
+      "failed": 0,
+      "ignored": 0,
+      "result": "PASS_92_OF_92"
+    },
+    "mcp_final_rerun": {
+      "passed": 136,
+      "failed": 0,
+      "ignored": 0,
+      "result": "PASS_136_OF_136_SAME_COHORT"
+    },
+    "runtime_release_full": {
+      "passed": 328,
+      "failed": 0,
+      "ignored": 21,
+      "duration_seconds": 437.63,
+      "result": "PASS_328_EXECUTED_21_IGNORED"
+    },
+    "public_full": {
+      "animated_socket": {
+        "test": "game_weapon_animated_glb_socket_v2_public_fixture_is_durable_replayable_and_read_only",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "duration_seconds": 417.86,
+        "result": "PASS_1_OF_1_STRUCTURAL_ONLY"
+      },
+      "clip": {
+        "test": "mechanical_animation_clip_v2_public_fixture_is_durable_replayable_and_preview_read_only",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "duration_seconds": 104.51,
+        "result": "PASS_1_OF_1_STRUCTURAL_ONLY"
+      }
+    }
+  },
+  "implemented_surface": {
+    "clip_v2": "appearance-aware candidate-bound immutable Runtime-owned CAS clip with Store link, restart get and transient scheduled preview",
+    "glb_v2": "appearance-aware candidate-bound Runtime-owned animated GLB plus receipt with exact Clip@2 and material-surface lineage",
+    "animated_socket_v2": "appearance-aware MechanicalAnimationGlb@2 consumer with typed socket materialization link/receipt and readback",
+    "write_side_effects": "prepare only materializes reviewable structural evidence; it does not confirm a candidate, create a version or export"
+  },
+  "truth_boundaries": {
+    "structural_status": "structural_only",
+    "visual_quality": "NOT_PROVEN",
+    "commercial_quality": "NOT_PROVEN",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "commercial_engine_roundtrip": "NOT_RUN",
+    "unity_roundtrip": "NOT_RUN",
+    "unreal_roundtrip": "NOT_RUN",
+    "godot_roundtrip": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "stage_advanced": false,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false,
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "This receipt records source, Store, MCP and Runtime structural evidence for the three V2 contracts and the two requested public fixtures only.",
+    "The counts do not prove commercial game-asset quality, visual likeness, PBR fidelity or a human visual acceptance.",
+    "No Unity, Unreal or Godot engine round-trip was run for this source gate; engine round-trip remains NOT_RUN.",
+    "No candidate confirmation, version creation, export or export/restart hash was performed.",
+    "Only fictional non-functional game-art infrastructure is in scope; no manufacturing, ballistics, performance or operating guidance is represented."
+  ],
+  "persistent_user_data_touched": false,
+  "canonical_sha256": "b1f6c79699e39ffb84004cea69e9050ad5ef8ff0dde33565c0f0f4ff2ca17ba5"
+}

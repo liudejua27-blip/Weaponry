@@ -1,0 +1,734 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-trails-sequence.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "timestamp": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "FictionalEnergyVfxAnimatedSocketTrailsSequenceFrame@1"
+        },
+        "frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 14
+        },
+        "sample_time_ticks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "history_origin": {
+          "const": "same-parent-sequence-source-frame-zero-preroll@1"
+        },
+        "current_projection_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "current_particle_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "current_particle_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_particle_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_projection_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_projection_socket_transform_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_projection_socket_transform_readback_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_projection_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "previous_particle_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "previous_particle_sequence_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_projection_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_projection_socket_transform_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_projection_socket_transform_readback_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "projection_sample_set_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "particle_sequence_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_frame_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bloom_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "camera_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "camera_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_profile_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_worker_build_cohort_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "history_samples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/history_sample"
+          },
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true
+        },
+        "trail_count": {
+          "const": 2,
+          "type": "integer"
+        },
+        "trail_emitter_roles": {
+          "const": [
+            "muzzle-vfx",
+            "energy-core-vfx"
+          ],
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "trails": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/trail"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "trail_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_seed_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_id_encoding_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "emitter_binding_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_color_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_id_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "trail_depth_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_set_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "receipt_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "schema_version",
+        "frame_index",
+        "sample_time_ticks",
+        "history_origin",
+        "current_projection_frame_index",
+        "current_particle_frame_index",
+        "current_particle_key_sha256",
+        "current_particle_frame_canonical_sha256",
+        "current_projection_frame_canonical_sha256",
+        "current_projection_socket_transform_inventory_sha256",
+        "current_projection_socket_transform_readback_sha256",
+        "previous_projection_frame_index",
+        "previous_particle_frame_index",
+        "previous_particle_sequence_frame_canonical_sha256",
+        "previous_projection_frame_canonical_sha256",
+        "previous_projection_socket_transform_inventory_sha256",
+        "previous_projection_socket_transform_readback_sha256",
+        "projection_sample_set_sha256",
+        "particle_sequence_key_sha256",
+        "base_frame_key_sha256",
+        "bloom_key_sha256",
+        "camera_object_sha256",
+        "camera_identity_sha256",
+        "render_profile_sha256",
+        "render_worker_build_cohort_sha256",
+        "history_samples",
+        "trail_count",
+        "trail_emitter_roles",
+        "trails",
+        "trail_key_sha256",
+        "trail_seed_sha256",
+        "trail_inventory_sha256",
+        "trail_id_encoding_sha256",
+        "emitter_binding_sha256",
+        "trail_color_object_sha256",
+        "trail_id_object_sha256",
+        "trail_depth_object_sha256",
+        "render_set_object_sha256",
+        "receipt_object_sha256",
+        "canonical_sha256",
+        "created_at"
+      ]
+    },
+    "frame_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 14
+        },
+        "sample_time_ticks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "history_origin": {
+          "const": "same-parent-sequence-source-frame-zero-preroll@1"
+        },
+        "current_projection_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "current_particle_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "current_particle_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_particle_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_projection_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_projection_socket_transform_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_projection_socket_transform_readback_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_projection_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "previous_particle_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "previous_particle_sequence_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_projection_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_projection_socket_transform_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_projection_socket_transform_readback_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "particle_sequence_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "base_frame_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bloom_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "camera_object_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "camera_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_profile_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "render_worker_build_cohort_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "required": [
+        "frame_index",
+        "sample_time_ticks",
+        "history_origin",
+        "current_projection_frame_index",
+        "current_particle_frame_index",
+        "current_particle_key_sha256",
+        "current_particle_frame_canonical_sha256",
+        "current_projection_frame_canonical_sha256",
+        "current_projection_socket_transform_inventory_sha256",
+        "current_projection_socket_transform_readback_sha256",
+        "previous_projection_frame_index",
+        "previous_particle_frame_index",
+        "previous_particle_sequence_frame_canonical_sha256",
+        "previous_projection_frame_canonical_sha256",
+        "previous_projection_socket_transform_inventory_sha256",
+        "previous_projection_socket_transform_readback_sha256",
+        "particle_sequence_key_sha256",
+        "base_frame_key_sha256",
+        "bloom_key_sha256",
+        "camera_object_sha256",
+        "camera_identity_sha256",
+        "render_profile_sha256",
+        "render_worker_build_cohort_sha256"
+      ]
+    },
+    "history_sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "history_ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "projection_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "projection_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "projection_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "projection_socket_transform_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "projection_socket_transform_readback_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "particle_sequence_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "particle_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "particle_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "particle_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sample_time_ticks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      },
+      "required": [
+        "history_ordinal",
+        "projection_key_sha256",
+        "projection_frame_index",
+        "projection_frame_canonical_sha256",
+        "projection_socket_transform_inventory_sha256",
+        "projection_socket_transform_readback_sha256",
+        "particle_sequence_key_sha256",
+        "particle_frame_index",
+        "particle_key_sha256",
+        "particle_frame_canonical_sha256",
+        "sample_time_ticks"
+      ]
+    },
+    "trail_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "sample_time_ticks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "source_particle_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_particle_frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "source_particle_id": {
+          "enum": [
+            10000,
+            20000
+          ],
+          "type": "integer"
+        },
+        "local_offset_micrometers": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "world_position_micrometers": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "depth_micrometers": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "source_frame_index",
+        "sample_time_ticks",
+        "source_particle_key_sha256",
+        "source_particle_frame_index",
+        "source_particle_id",
+        "local_offset_micrometers",
+        "world_position_micrometers",
+        "depth_micrometers"
+      ]
+    },
+    "trail": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "emitter_role": {
+          "enum": [
+            "muzzle-vfx",
+            "energy-core-vfx"
+          ],
+          "type": "string"
+        },
+        "trail_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/trail_point"
+          },
+          "minItems": 2,
+          "maxItems": 9
+        }
+      },
+      "required": [
+        "emitter_role",
+        "trail_id",
+        "points"
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketTrailsSequence@1"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "candidate_id": {
+      "$ref": "#/$defs/id"
+    },
+    "candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_materialization_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_id": {
+      "$ref": "#/$defs/id"
+    },
+    "animation_clip_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_node_id_encoding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_roles_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_identity_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_worker_build_cohort_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_schedule_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 15
+    },
+    "sample_time_ticks": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1000000
+      },
+      "minItems": 1,
+      "maxItems": 15,
+      "uniqueItems": true
+    },
+    "frame_scope": {
+      "const": "lod0-animation-trails-source-frames-1-15@1"
+    },
+    "trails_sequence_policy": {
+      "const": "projection-driven-animated-socket-trails@1"
+    },
+    "history_policy": {
+      "const": "one-to-eight-oldest-to-newest-ordinal-zero-last-immediate-previous-earlier-particle-frames-plus-current@1"
+    },
+    "history_pre_roll_policy": {
+      "const": "same-parent-source-frame-zero-is-preroll-output-frames-one-to-fifteen@1"
+    },
+    "trail_count": {
+      "const": 2,
+      "type": "integer"
+    },
+    "trail_emitter_roles": {
+      "const": [
+        "muzzle-vfx",
+        "energy-core-vfx"
+      ],
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "frames": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/frame"
+      },
+      "minItems": 1,
+      "maxItems": 15
+    },
+    "sequence_status": {
+      "const": "runtime-owned-durable-fictional-energy-vfx-animated-socket-trails-sequence"
+    },
+    "quality_status": {
+      "const": "structural_only"
+    },
+    "visual_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "commercial_fps_quality_status": {
+      "const": "NOT_PROVEN"
+    },
+    "human_review_status": {
+      "const": "NOT_RUN"
+    },
+    "commercial_engine_status": {
+      "const": "NOT_RUN"
+    },
+    "runtime_write_performed": {
+      "const": true
+    },
+    "restart_hash_verified": {
+      "const": true
+    },
+    "candidate_confirmed": {
+      "const": false
+    },
+    "version_created": {
+      "const": false
+    },
+    "export_performed": {
+      "const": false
+    },
+    "actual_engine_roundtrip": {
+      "const": false
+    },
+    "production_stage_advanced": {
+      "const": false
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "created_at": {
+      "$ref": "#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "delivery_manifest_object_sha256",
+    "source_artifact_sha256",
+    "projection_key_sha256",
+    "projection_object_sha256",
+    "projection_canonical_sha256",
+    "animated_socket_materialization_key_sha256",
+    "animated_artifact_sha256",
+    "animated_socket_anchor_set_object_sha256",
+    "animated_socket_anchor_set_canonical_sha256",
+    "animation_clip_id",
+    "animation_clip_object_sha256",
+    "animation_clip_canonical_sha256",
+    "animation_receipt_object_sha256",
+    "animation_receipt_canonical_sha256",
+    "vfx_profile_object_sha256",
+    "vfx_profile_canonical_sha256",
+    "socket_node_id_encoding_sha256",
+    "socket_roles_sha256",
+    "camera_object_sha256",
+    "camera_identity_sha256",
+    "render_profile_sha256",
+    "render_worker_build_cohort_sha256",
+    "sample_schedule_sha256",
+    "sample_count",
+    "sample_time_ticks",
+    "frame_scope",
+    "trails_sequence_policy",
+    "history_policy",
+    "history_pre_roll_policy",
+    "trail_count",
+    "trail_emitter_roles",
+    "frames",
+    "sequence_status",
+    "quality_status",
+    "visual_quality_status",
+    "commercial_fps_quality_status",
+    "human_review_status",
+    "commercial_engine_status",
+    "runtime_write_performed",
+    "restart_hash_verified",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed",
+    "actual_engine_roundtrip",
+    "production_stage_advanced",
+    "input_sha256",
+    "canonical_sha256",
+    "created_at"
+  ],
+  "title": "FictionalEnergyVfxAnimatedSocketTrailsSequence@1",
+  "type": "object"
+}

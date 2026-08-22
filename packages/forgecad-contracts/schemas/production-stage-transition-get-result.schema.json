@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-stage-transition-get-result.schema.json",
+  "title": "ProductionStageTransitionGetResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transition",
+    "production_stage",
+    "replayed",
+    "runtime_write",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionStageTransitionGetResult@1"},
+    "transition": {"$ref": "https://forgecad.local/contracts/production-stage-transition.schema.json"},
+    "production_stage": {"$ref": "#/$defs/stage"},
+    "replayed": {"type": "boolean"},
+    "runtime_write": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false}
+  },
+  "$defs": {
+    "stage": {
+      "enum": ["draft", "gray-model", "topology", "material-surface", "animation-vfx", "game-delivery"]
+    }
+  }
+}

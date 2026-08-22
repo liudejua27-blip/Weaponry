@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-stage-transition-v2-get-request.schema.json",
+  "title": "ProductionStageTransitionGetRequest@2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transition_id",
+    "session_id",
+    "project_id",
+    "root_candidate_id",
+    "head_candidate_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionStageTransitionGetRequest@2"},
+    "transition_id": {"$ref": "#/$defs/id"},
+    "session_id": {"$ref": "#/$defs/id"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "root_candidate_id": {"$ref": "#/$defs/id"},
+    "head_candidate_id": {"$ref": "#/$defs/id"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+  }
+}

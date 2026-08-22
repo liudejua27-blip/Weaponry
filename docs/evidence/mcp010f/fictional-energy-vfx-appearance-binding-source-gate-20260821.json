@@ -1,0 +1,101 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F/VFX-APPEARANCE-BINDING-03/read-time-three-lod-glb-proof",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_STRUCTURAL_READ_TIME_APPEARANCE_BINDING",
+  "build_cohort_sha256": null,
+  "contracts": {
+    "schema_count": 231,
+    "request_schema": "FictionalEnergyVfxAppearanceFrameSampleRequest@1",
+    "result_schema": "FictionalEnergyVfxAppearanceFrameSample@1",
+    "request_schema_sha256": "c5a3d34b191ad5cc0c9e3516f7d80de4b998a390628695de422265251632c782",
+    "result_schema_sha256": "69e4a3de634912e0a4420cc8460c1e3aa305ee8eff24838d0f757940172e5372",
+    "manifest_sha256": "827460431117892e8a5f9c3087bee9d1fffe6f8f3a1cea3b1572d95d2d2ecb16",
+    "closed_contract_checker": "PASS_231_SCHEMAS"
+  },
+  "source_files": [
+    {
+      "path": "apps/geometry-worker/src/lib.rs",
+      "sha256": "e8e5a3b9055793a1f28e2078980b09f25771116de79cf02aecb8483eccf8385e"
+    },
+    {
+      "path": "apps/geometry-worker/src/integrity.rs",
+      "sha256": "744988247e45cda6b6391576d922433bd9a792f3e04182e203f4e2183cbb2171"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/game_asset_delivery.rs",
+      "sha256": "0b6101ba0a3be421ca14f2735e4caa6912d34b14043fa0f81455facb2c09b2fa"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
+      "sha256": "0b1a3acac8058bfbe27bd760dfe489c1b455dc4ab243f2c9d991cb63848ac7b6"
+    },
+    {
+      "path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
+      "sha256": "9b34ad31c3c1ec5eb8192dde64956978aca2ff0e96c5dcac8e8ac53fb1b3526f"
+    }
+  ],
+  "runtime": {
+    "binding_policy": "three-lod-appearance-program-glb-material-zone-stable-id@1",
+    "lod_count": 3,
+    "physical_glb_bytes_re_read": true,
+    "appearance_program_schema_and_hash_verified": true,
+    "material_pack_id_and_hash_verified": true,
+    "material_zone_name_and_stable_material_id_verified": true,
+    "anchor_owner_part_to_material_verified": true,
+    "mixed_geometry_and_appearance_rejected": true,
+    "geometry_only_delivery_rejected": "APPEARANCE_PROVENANCE_UNAVAILABLE",
+    "runtime_write_performed": false,
+    "cas_object_count_unchanged": true
+  },
+  "mcp": {
+    "read_tool": "fictional_energy_vfx_appearance_frame_sample",
+    "default_read_visibility": "VISIBLE",
+    "read_count": 60,
+    "write_count": 40,
+    "total_count": 100,
+    "tool_manifest_summary_sha256": "a9cadaa8292d15ad1047e7cb73e7492fd8293c2c440aa4f6a9323ecdb03fea3c",
+    "wire_budget_bytes": 1048576
+  },
+  "focused_tests": [
+    {
+      "name": "three real AppearanceProgram LOD GLBs bind exact MaterialZone and stable material IDs",
+      "result": "PASS_1_OF_1"
+    },
+    {
+      "name": "geometry-only historical frame semantics remain false and versioned appearance tool fails closed",
+      "result": "PASS_1_OF_1"
+    },
+    {
+      "name": "MCP closed schema, default-read split and derived manifest counts",
+      "result": "PASS_2_OF_2"
+    },
+    {
+      "name": "Stage 0 truth and release baseline",
+      "result": "PASS"
+    }
+  ],
+  "truth_boundaries": {
+    "read_time_glb_material_zone_binding_verified": true,
+    "durable_appearance_program_source_sidecar_complete": false,
+    "durable_rendered_frame_receipt_complete": false,
+    "emissive_animation_rendered": false,
+    "anchor_is_glb_node_or_socket": false,
+    "bloom_rendered": false,
+    "particles_rendered": false,
+    "trails_rendered": false,
+    "actual_engine_roundtrip": false,
+    "candidate_confirmed": false,
+    "export_performed": false,
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_status": "MISMATCH",
+    "hq360_status": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "the proof is recomputed from durable delivery links and physical GLB bytes but is not itself a persisted Appearance source sidecar",
+    "the original AppearanceProgram object is not yet retained as independently replayable CAS truth",
+    "the sampled emissive values have not yet been connected to a Runtime-owned durable nine-AOV frame receipt",
+    "structural binding does not establish visual likeness, commercial-engine import or game-quality parity"
+  ]
+}

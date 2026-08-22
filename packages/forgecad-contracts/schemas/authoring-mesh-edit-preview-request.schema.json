@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/authoring-mesh-edit-preview-request.schema.json",
+  "title": "AuthoringMeshEditPreviewRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "topology_request", "base_topology_sha256", "edit", "edit_policy_sha256", "input_sha256"],
+  "properties": {
+    "schema_version": {"const": "AuthoringMeshEditPreviewRequest@1"},
+    "topology_request": {"$ref": "https://forgecad.local/contracts/authoring-topology-request.schema.json"},
+    "base_topology_sha256": {"$ref": "#/$defs/sha256"},
+    "edit": {"oneOf": [
+      {"$ref": "#/$defs/translate_vertices"},
+      {"$ref": "#/$defs/single_face_extrude"}
+    ]},
+    "edit_policy_sha256": {"const": "1d050226b13848902f44bddb1b88c240cdfa86759703f804443b03964f8ddaae"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "translate_vertices": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operation", "vertex_ids", "delta_m"],
+      "properties": {
+        "operation": {"const": "translate_vertices"},
+        "vertex_ids": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "delta_m": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -1, "maximum": 1}}
+      }
+    },
+    "single_face_extrude": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operation", "face_id", "distance_m"],
+      "properties": {
+        "operation": {"const": "single_face_extrude"},
+        "face_id": {"$ref": "#/$defs/identifier"},
+        "distance_m": {"type": "number", "minimum": 0.000001, "maximum": 1}
+      }
+    }
+  }
+}

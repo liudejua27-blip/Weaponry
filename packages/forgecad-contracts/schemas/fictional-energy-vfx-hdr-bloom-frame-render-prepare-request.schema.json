@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/fictional-energy-vfx-hdr-bloom-frame-render-prepare-request.schema.json",
+  "title":"FictionalEnergyVfxHdrBloomFrameRenderPrepareRequest@1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","base_frame_key_sha256","bloom_profile","bloom_policy","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"FictionalEnergyVfxHdrBloomFrameRenderPrepareRequest@1"},
+    "project_id":{"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9._:-]+$"},
+    "delivery_manifest_object_sha256":{"$ref":"common.schema.json#/$defs/sha256"},
+    "vfx_profile_object_sha256":{"$ref":"common.schema.json#/$defs/sha256"},
+    "base_frame_key_sha256":{"$ref":"common.schema.json#/$defs/sha256"},
+    "bloom_profile":{"type":"object","additionalProperties":false,"required":["threshold","radius_px","intensity","hdr_clamp"],"properties":{"threshold":{"const":1.0},"radius_px":{"const":8},"intensity":{"const":4.0},"hdr_clamp":{"const":16.0}}},
+    "bloom_policy":{"const":"lod0-hdr-emissive-source-two-pass-fixed-kernel-base-aov-byte-exact@1"},
+    "canonical_sha256":{"$ref":"common.schema.json#/$defs/sha256"}
+  }
+}

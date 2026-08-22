@@ -1,0 +1,121 @@
+{
+  "schema_version": "ForgeCADBlenderRenderProfileAOVLineageSourceGate@1",
+  "recorded_on": "2026-08-18",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_STRUCTURAL_ONLY",
+  "research": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "blender_license": "GPL-reference-only",
+    "official_source_refs": [
+      "https://github.com/blender/blender/commit/72ccdd6e96ca119a1ffa3372559cc5654343b477",
+      "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/COPYING",
+      "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/intern/cycles/scene/pass.cpp",
+      "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/render/RE_engine.h",
+      "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/source/blender/draw/engines/eevee/eevee_film.cc",
+      "https://docs.blender.org/manual/en/latest/render/color_management.html"
+    ],
+    "blender_cycles_eevee_or_ocio_cloned_installed_executed_or_linked": false,
+    "clean_room_product_owned_renderer": true
+  },
+  "source_truth": {
+    "schema_count": 152,
+    "schema_content_set_sha256": "e2c0fb05f4486e81f6a83f03289e8de97408544252e146b5abc1a270addc4fe1",
+    "operator_catalog_entries": 19,
+    "operator_catalog_active": 19,
+    "read_tools": 42,
+    "write_tools": 33,
+    "total_tools": 75,
+    "contract_manifest_sha256": "d9bb1aeeb667001fe66b4f857748699d91911c69489ed7114ada4e0f6a09af27",
+    "render_profile_schema_sha256": "6bdf3ad1ec850b093181f459960b98f00b4452b32139c12c031e563ce1545b15",
+    "render_set_v2_schema_sha256": "01058f9618ae310c03e108043aee0e270a7060538b44d62b0120bc18ad2b98b3",
+    "runtime_source_sha256": "b431620d7cb11ad3fa3e446e3f055742696cd1f8aa1254c28ca8b1b45dd9aeea",
+    "runtime_render_worker_source_sha256": "bd6ffc311426afc76a908fd303f242dbb2964ac8cff5470a156164b89b8d7192",
+    "runtime_optimization_source_sha256": "f18720357c22f4613f759cf305520a9290c1c26e9c57287ce66d18bb95e519d0",
+    "worker_protocol_source_sha256": "31b24b9eed1dbbf68cd49e1f9142de145909ebe08c9831d2e9d3d23678858030",
+    "render_core_source_sha256": "de80ef4fe00645301c555d5521648d8d463200541d03a3ff6b5cceb0e3199272",
+    "render_worker_source_sha256": "6307cbbddc36a762fbcfc6064afb49595167c4e94c69edf1d3eb7d0cbf6206ac",
+    "contract_checker_sha256": "8eb6505574ecc8260481e7a9dfe02445ae086a1045e02afa1bb33238178a153f",
+    "stage0_truth_sha256": "72c838a206bc2e7795116c46d5bb2b664dfc1aab4958bd146ca39a49e3bf77aa"
+  },
+  "render_profile_truth": {
+    "schema_version": "RenderProfile@1",
+    "profile_id": "forgecad-fixed-software-render-profile",
+    "engine_id": "forgecad-fixed-software@2",
+    "backend_id": "cpu-raster@1",
+    "renderer_revision": "forgecad-renderer-2",
+    "resolution": "512x512",
+    "render_profile_sha256": "f5286c128cd221ddd9247d94578e45b73f233f712601e665a6927f3a72129a7a",
+    "aov_definition_sha256": "36ee1f96a5252cee43e5651823fbb9ba2cb5d9f79f546a9ae9b62bed4df4318d",
+    "color_pipeline_sha256": "be37d63898294de5c97029ddc5b8513791c004a4fe87672c05b40d1d49af9151",
+    "id_palette_definition_sha256": "d2d08af0fc7bfa8148fc8fadb733c34843663fb16174f391557832777ebc0ae4",
+    "aov_order": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "ao",
+      "part-id",
+      "material-id",
+      "wireframe",
+      "uv-stretch"
+    ],
+    "display_color_passes": ["beauty"],
+    "non_color_data_passes": ["silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"],
+    "depth_units": "normalized-camera-depth-not-meters",
+    "transparent_film": false,
+    "rng_or_adaptive_or_temporal_or_motion_blur": false
+  },
+  "implemented_scope": {
+    "render_glb_worker_response_returns_full_profile": true,
+    "runtime_exact_profile_validation": true,
+    "runtime_render_set_producers_bound": 2,
+    "render_set_embeds_profile_and_repeats_hashes": true,
+    "render_set_schema_exact_key_order_and_color_semantics_match_runtime": true,
+    "worker_png_decode_requires_exact_valid_rgba8_dimensions": true,
+    "id_palette_input_domain": "mesh-and-material-indices-0-255-otherwise-rejected",
+    "beauty_fixed_linear_to_srgb": true,
+    "data_pass_display_transform": "none",
+    "tampered_profile_rejected": true,
+    "candidate_or_version_or_cas_write_added": false,
+    "mcp_tool_added": false
+  },
+  "focused_tests": {
+    "contracts": "PASS_152_SCHEMAS",
+    "worker_protocol_profile_hash_and_semantics": "PASS_1_OF_1",
+    "runtime_render_set_worker_cohort_and_profile_binding": "PASS_1_OF_1",
+    "runtime_png_decode_negative_cases": "PASS_1_OF_1",
+    "render_core_id_palette_domain_negative_cases": "PASS_1_OF_1",
+    "rust_compile": "PASS_WORKER_PROTOCOL_RENDER_WORKER_RUNTIME",
+    "stage0_truth": "PASS_WITH_RETAINED_FAILED_VISUAL_AND_INCOMPLETE_BINDING"
+  },
+  "full_gates": {
+    "mcp010f": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "not_run_or_not_implemented": {
+    "blender_workbench_backend": "NOT_IMPLEMENTED",
+    "eevee_backend": "NOT_IMPLEMENTED",
+    "cycles_backend": "NOT_IMPLEMENTED",
+    "gpu_metal_cuda_or_optix": "NOT_IMPLEMENTED",
+    "ocio_agx_or_filmic_parity": "NOT_IMPLEMENTED",
+    "float_or_exr_output": "NOT_IMPLEMENTED",
+    "custom_aov_cryptomatte_or_compositor": "NOT_IMPLEMENTED",
+    "transparent_or_premultiplied_film": "NOT_IMPLEMENTED",
+    "package_and_live_desktop": "NOT_RUN",
+    "visual_and_human_review": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "retained_quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence": "INCOMPLETE_TRUTH_BINDING",
+    "camera": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING"
+  },
+  "canonical_sha256": "7520b4e7504c5de58bd6794b69315ada495fe1cf7576f96f11c96a665cd01933"
+}

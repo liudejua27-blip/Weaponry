@@ -1,0 +1,84 @@
+{
+  "schema_version": "ForgeCADPanelV2SourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-20",
+  "status": "PASS_SOURCE_STRUCTURAL_PANEL_V2",
+  "safe_scope": "legal nonfunctional fictional game and film visual assets only",
+  "current_source_counts": {
+    "schemas": 195,
+    "operator_catalog_entries": 22,
+    "active_operators": 22,
+    "mcp_read_tools": 54,
+    "mcp_write_tools": 36,
+    "mcp_total_tools": 90
+  },
+  "operator": {
+    "operator_id": "forgecad.geometry.panel@2",
+    "parameter_schema": "PanelParameters@2",
+    "input_arity": {
+      "min": 0,
+      "max": 0
+    },
+    "output_kind": "triangle-mesh",
+    "part_output_required": true,
+    "implemented_geometry": [
+      "closed rectangular solid",
+      "recessed floor",
+      "border band",
+      "segmented outer bevel",
+      "segmented recessed-edge bevel",
+      "bounded outer and inner support-loop families"
+    ],
+    "fail_closed": [
+      "unknown fields",
+      "non-finite and out-of-range values",
+      "nonzero input arity",
+      "invalid inset recess border bevel and support-loop relationships",
+      "triangle budget drift",
+      "operator catalog hash drift",
+      "GeometryProgram canonical hash drift"
+    ]
+  },
+  "source_sha256": {
+    "geometry_program_v2_schema": "572da31cc6e41316cec0c8a16bcd598d8398cc17e0de96aa2650bac82bbed0fd",
+    "worker_protocol_catalog": "3298fd3c04f0f04c0131494d09fa1a4a14f20fa82bce34839229bbb49d85ed70",
+    "geometry_operator": "4afa4a6deeb09762a59ff898e72e7ff5b859ab97776b28462c493f8fd1bd3c81",
+    "geometry_worker": "aa353d7fba5b603d08ef3d33e7cbbbcb0fc873adcd7b2d7e8cd4a3a8b52b9a1c",
+    "runtime_allowlist": "a8aa96da7b54e267b1c42721de9e10e038a9e846c043565c156f08a9eb1bd89f",
+    "mcp_allowlist": "dbaf6f18189eb929f135094028f4615597db302cd5d748fb6fa3ddd2190e0e81",
+    "skill_registry": "097a9dffe9a161e90210541233967c869019c940dcea787b75409fd544dfd519",
+    "hard_surface_detail_manifest": "75fad6e824e3e847fb242650f4a70bf5d0580db6b1a1ebb60a07e794a8242d65",
+    "hard_surface_detail_operator_lock": "3cd5c522dbe600d74649084536f98e29fbfaf4b610a1a963a8b86ac09cbb9654",
+    "contract_checker": "cff5b9e7502852ab2607601a76698bfd4b561678243fd96eeac07c4e551310b0"
+  },
+  "verification": {
+    "geometry_worker_panel_v2_focused": "PASS_4_OF_4",
+    "geometry_worker_full": "PASS_46_OF_46",
+    "independent_luna_gate_review": "PASS_NO_P0_OR_P1",
+    "worker_protocol": "PASS_3_OF_3",
+    "contracts": "PASS_195_SCHEMAS",
+    "panel_schema_revision_binding": "PASS_STATIC_CONTRACT_GATE_PANEL_V1_V2_EXACT_REFS",
+    "runtime_skill_registry": "PASS_4_OF_4",
+    "first_party_skill_registry": "PASS_12_DECLARATIVE_SKILLS",
+    "repository_integrity": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "persistent_user_data_touched": false,
+  "downloads_or_external_assets": false,
+  "quality_boundaries": {
+    "current_weapon_candidate_recompiled_with_panel_v2": "NOT_RUN",
+    "same_candidate_multiview": "NOT_RUN",
+    "pbr_visual": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "package_live": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE",
+    "overall_quality_status": "QUALITY_TARGET_NOT_MET"
+  },
+  "known_limitations": [
+    "panel@2 is a bounded standalone semantic Part grammar, not arbitrary host-mesh BMesh inset",
+    "vent-array@2, recessed-channel@1 and energy-core@1 are not implemented by this slice",
+    "this receipt is structural source evidence and is not a commercial visual-quality claim"
+  ]
+}

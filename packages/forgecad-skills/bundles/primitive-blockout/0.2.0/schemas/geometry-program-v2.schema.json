@@ -128,6 +128,8 @@
             "forgecad.geometry.profile-loft@1",
             "forgecad.geometry.longitudinal-section-loft@1",
             "forgecad.geometry.subd-cage@1",
+            "forgecad.geometry.subd-cage@2",
+            "forgecad.geometry.authoring-mesh@1",
             "forgecad.geometry.surface-patch@1",
             "forgecad.geometry.surface-shell@1",
             "forgecad.geometry.revolve@1",
@@ -135,8 +137,15 @@
             "forgecad.geometry.transform@2",
             "forgecad.geometry.mirror@1",
             "forgecad.geometry.array@1",
+            "forgecad.geometry.bevel@1",
+            "forgecad.geometry.bevel@2",
+            "forgecad.geometry.normal-policy@1",
             "forgecad.geometry.panel@1",
+            "forgecad.geometry.panel@2",
             "forgecad.geometry.vent-array@1",
+            "forgecad.geometry.vent-array@2",
+            "forgecad.geometry.recessed-channel@1",
+            "forgecad.geometry.energy-core@1",
             "forgecad.geometry.joint-stack@1",
             "forgecad.geometry.boolean@1",
             "forgecad.geometry.part-output@1"
@@ -158,6 +167,8 @@
             {"$ref": "#/$defs/profile_loft_parameters"},
             {"$ref": "#/$defs/longitudinal_section_loft_parameters"},
             {"$ref": "#/$defs/subd_cage_parameters"},
+            {"$ref": "#/$defs/subd_cage_crease_parameters"},
+            {"$ref": "#/$defs/authoring_mesh_parameters"},
             {"$ref": "#/$defs/surface_patch_parameters"},
             {"$ref": "#/$defs/surface_shell_parameters"},
             {"$ref": "#/$defs/revolve_parameters"},
@@ -165,14 +176,22 @@
             {"$ref": "#/$defs/transform_parameters"},
             {"$ref": "#/$defs/mirror_parameters"},
             {"$ref": "#/$defs/array_parameters"},
+            {"$ref": "#/$defs/bevel_parameters"},
+            {"$ref": "#/$defs/bevel_v2_parameters"},
+            {"$ref": "#/$defs/normal_policy_parameters"},
             {"$ref": "#/$defs/panel_parameters"},
+            {"$ref": "#/$defs/panel_v2_parameters"},
             {"$ref": "#/$defs/vent_array_parameters"},
+            {"$ref": "#/$defs/vent_array_v2_parameters"},
+            {"$ref": "#/$defs/recessed_channel_parameters"},
+            {"$ref": "#/$defs/energy_core_parameters"},
             {"$ref": "#/$defs/joint_stack_parameters"},
             {"$ref": "#/$defs/boolean_parameters"},
             {"$ref": "#/$defs/part_output_parameters"}
           ]
-        },
-        "allOf": [
+        }
+      },
+      "allOf": [
           {
             "if": {
               "properties": {
@@ -184,9 +203,130 @@
                 "inputs": {"minItems": 2, "maxItems": 2}
               }
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "operator_id": {
+                  "enum": [
+                    "forgecad.geometry.transform@2",
+                    "forgecad.geometry.mirror@1",
+                    "forgecad.geometry.array@1",
+                    "forgecad.geometry.bevel@1",
+                    "forgecad.geometry.bevel@2",
+                    "forgecad.geometry.normal-policy@1"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "inputs": {"minItems": 1, "maxItems": 1}
+              }
+            }
+          },
+          {
+            "if": {
+              "required": ["operator_id"],
+              "properties": {
+                "operator_id": {"const": "forgecad.geometry.bevel@2"}
+              }
+            },
+            "then": {
+              "required": ["parameters"],
+              "properties": {
+                "inputs": {"minItems": 1, "maxItems": 1},
+                "parameters": {"$ref": "#/$defs/bevel_v2_parameters"}
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operator_id": {"const": "forgecad.geometry.panel@1"}
+              }
+            },
+            "then": {
+              "properties": {
+                "inputs": {"maxItems": 0},
+                "parameters": {"$ref": "#/$defs/panel_parameters"}
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "operator_id": {"const": "forgecad.geometry.panel@2"}
+              }
+            },
+            "then": {
+              "properties": {
+                "inputs": {"maxItems": 0},
+                "parameters": {"$ref": "#/$defs/panel_v2_parameters"}
+              }
+            }
+          },
+          {
+            "if": {
+              "required": ["operator_id"],
+              "properties": {
+                "operator_id": {"const": "forgecad.geometry.vent-array@1"}
+              }
+            },
+            "then": {
+              "required": ["parameters"],
+              "properties": {
+                "inputs": {"maxItems": 0},
+                "parameters": {"$ref": "#/$defs/vent_array_parameters"}
+              }
+            }
+          },
+          {
+            "if": {
+              "required": ["operator_id"],
+              "properties": {
+                "operator_id": {"const": "forgecad.geometry.vent-array@2"}
+              }
+            },
+            "then": {
+              "required": ["parameters"],
+              "properties": {
+                "inputs": {"maxItems": 0},
+                "parameters": {"$ref": "#/$defs/vent_array_v2_parameters"}
+              }
+            }
+          },
+          {
+            "if": {
+              "required": ["operator_id"],
+              "properties": {
+                "operator_id": {"const": "forgecad.geometry.recessed-channel@1"}
+              }
+            },
+            "then": {
+              "required": ["parameters"],
+              "properties": {
+                "inputs": {"maxItems": 0},
+                "parameters": {"$ref": "#/$defs/recessed_channel_parameters"}
+              }
+            }
+          },
+          {
+            "if": {
+              "required": ["operator_id"],
+              "properties": {
+                "operator_id": {"const": "forgecad.geometry.energy-core@1"}
+              }
+            },
+            "then": {
+              "required": ["parameters"],
+              "properties": {
+                "inputs": {"maxItems": 0},
+                "parameters": {"$ref": "#/$defs/energy_core_parameters"}
+              }
+            }
           }
-        ]
-      }
+      ]
     },
     "base_primitive_parameters": {
       "type": "object",
@@ -380,6 +520,137 @@
         "rotation_rad": {"$ref": "#/$defs/radian_vector"}
       }
     },
+    "subd_cage_crease_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vertex_a", "vertex_b", "sharpness_levels"],
+      "properties": {
+        "vertex_a": {"type": "integer", "minimum": 0, "maximum": 255},
+        "vertex_b": {"type": "integer", "minimum": 1, "maximum": 255},
+        "sharpness_levels": {"type": "integer", "minimum": 1, "maximum": 2}
+      }
+    },
+    "subd_cage_crease_control_points": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 256,
+      "items": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": {"$ref": "#/$defs/coordinate_scalar"}
+      }
+    },
+    "subd_cage_crease_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "control_points", "u_points", "v_points", "subdivision_levels", "crease_method", "crease_edges", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "subd-cage"},
+        "control_points": {"$ref": "#/$defs/subd_cage_crease_control_points"},
+        "u_points": {"type": "integer", "minimum": 3, "maximum": 16},
+        "v_points": {"type": "integer", "minimum": 3, "maximum": 16},
+        "subdivision_levels": {"type": "integer", "minimum": 1, "maximum": 2},
+        "crease_method": {"const": "uniform-integer-level-decay@1"},
+        "crease_edges": {
+          "description": "Must be lexicographically sorted by (vertex_a, vertex_b), unique, interior and adjacent; Worker rejects non-canonical order.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": {"$ref": "#/$defs/subd_cage_crease_edge"}
+        },
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "authoring_mesh_vertex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element_id", "position_m"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/identifier"},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"}
+      }
+    },
+    "authoring_mesh_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element_id", "vertex_ids"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/identifier"},
+        "vertex_ids": {
+          "description": "Two distinct vertex IDs in lexical order. Edge orientation is carried by each loop, not by this unordered pair.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"$ref": "#/$defs/identifier"}
+        }
+      }
+    },
+    "authoring_mesh_loop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element_id", "face_id", "ordinal", "vertex_id", "edge_id", "edge_forward"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/identifier"},
+        "face_id": {"$ref": "#/$defs/identifier"},
+        "ordinal": {"type": "integer", "minimum": 0, "maximum": 3},
+        "vertex_id": {"$ref": "#/$defs/identifier"},
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "edge_forward": {"type": "boolean"}
+      }
+    },
+    "authoring_mesh_face": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element_id", "loop_ids"],
+      "properties": {
+        "element_id": {"$ref": "#/$defs/identifier"},
+        "loop_ids": {
+          "description": "Three or four authored loop IDs in winding order; the first loop ID must be the lexical minimum for rotation-canonical input.",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 4,
+          "items": {"$ref": "#/$defs/identifier"}
+        }
+      }
+    },
+    "authoring_mesh_parameters": {
+      "description": "Product-owned bounded authoring topology. This is not Blender/BMesh data and cannot contain scripts, paths, URLs, callbacks or runtime plugins.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "topology_policy", "vertices", "edges", "loops", "faces", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "authoring-mesh"},
+        "topology_policy": {"const": "triangle-quad-manifold-with-boundary@1"},
+        "vertices": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 1536,
+          "items": {"$ref": "#/$defs/authoring_mesh_vertex"}
+        },
+        "edges": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 1536,
+          "items": {"$ref": "#/$defs/authoring_mesh_edge"}
+        },
+        "loops": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 1536,
+          "items": {"$ref": "#/$defs/authoring_mesh_loop"}
+        },
+        "faces": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "items": {"$ref": "#/$defs/authoring_mesh_face"}
+        },
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
     "surface_patch_parameters": {
       "type": "object",
       "additionalProperties": false,
@@ -469,6 +740,51 @@
         "offset_m": {"$ref": "#/$defs/coordinate_vector"}
       }
     },
+    "bevel_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "width_m", "segments", "profile", "edge_scope", "clamp_overlap"],
+      "properties": {
+        "shape": {"const": "bevel"},
+        "width_m": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 5.0},
+        "segments": {"type": "integer", "minimum": 1, "maximum": 4},
+        "profile": {"type": "number", "minimum": 0.25, "maximum": 0.75},
+        "edge_scope": {"const": "all-source-box-edges"},
+        "clamp_overlap": {"type": "boolean"}
+      }
+    },
+    "bevel_v2_parameters": {
+      "description": "A bounded selectable-edge bevel for one direct closed convex authoring-mesh@1 solid. P0 accepts exactly one stable source edge ID and never evaluates arbitrary mesh, script or plugin payloads.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "source_edge_ids", "width_m", "segments", "profile", "clamp_overlap"],
+      "properties": {
+        "shape": {"const": "bevel"},
+        "source_edge_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "width_m": {"type": "number", "exclusiveMinimum": 0.00001, "maximum": 5.0},
+        "segments": {"type": "integer", "minimum": 1, "maximum": 4},
+        "profile": {"type": "number", "minimum": 0.25, "maximum": 0.75},
+        "clamp_overlap": {"type": "boolean"}
+      }
+    },
+    "normal_policy_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "weighting", "crease_angle_rad", "keep_sharp", "output_domain"],
+      "properties": {
+        "shape": {"const": "normal-policy"},
+        "weighting": {"const": "face-area-x-corner-angle"},
+        "crease_angle_rad": {"type": "number", "minimum": 0.0, "maximum": 3.141592653589793},
+        "keep_sharp": {"const": true},
+        "output_domain": {"const": "corner"}
+      }
+    },
     "panel_parameters": {
       "type": "object",
       "additionalProperties": false,
@@ -477,7 +793,26 @@
         "shape": {"const": "panel"},
         "size_m": {"$ref": "#/$defs/dimension_vector"},
         "thickness_m": {"$ref": "#/$defs/dimension_scalar"},
+        "bevel_m": {"type": "number", "minimum": 0.0, "maximum": 5.0},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "panel_v2_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "size_m", "thickness_m", "inset_m", "recess_depth_m", "border_width_m", "bevel_m", "bevel_segments", "support_loop_count", "support_loop_width_m", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "panel"},
+        "size_m": {"$ref": "#/$defs/dimension_vector"},
+        "thickness_m": {"$ref": "#/$defs/dimension_scalar"},
+        "inset_m": {"$ref": "#/$defs/dimension_scalar"},
+        "recess_depth_m": {"$ref": "#/$defs/dimension_scalar"},
+        "border_width_m": {"$ref": "#/$defs/dimension_scalar"},
         "bevel_m": {"$ref": "#/$defs/dimension_scalar"},
+        "bevel_segments": {"type": "integer", "minimum": 1, "maximum": 4},
+        "support_loop_count": {"type": "integer", "minimum": 1, "maximum": 3},
+        "support_loop_width_m": {"$ref": "#/$defs/dimension_scalar"},
         "position_m": {"$ref": "#/$defs/coordinate_vector"},
         "rotation_rad": {"$ref": "#/$defs/radian_vector"}
       }
@@ -498,6 +833,66 @@
         "rotation_rad": {"$ref": "#/$defs/radian_vector"}
       }
     },
+    "vent_array_v2_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "width_m", "height_m", "depth_m", "face_thickness_m", "backing_depth_m", "backing_gap_m", "slot_count", "slot_width_m", "slot_spacing_m", "slot_margin_m", "slot_edge_bevel_m", "bevel_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "vent-array"},
+        "width_m": {"$ref": "#/$defs/dimension_scalar"},
+        "height_m": {"$ref": "#/$defs/dimension_scalar"},
+        "depth_m": {"$ref": "#/$defs/dimension_scalar"},
+        "face_thickness_m": {"$ref": "#/$defs/dimension_scalar"},
+        "backing_depth_m": {"$ref": "#/$defs/dimension_scalar"},
+        "backing_gap_m": {"$ref": "#/$defs/dimension_scalar"},
+        "slot_count": {"type": "integer", "minimum": 1, "maximum": 32},
+        "slot_width_m": {"$ref": "#/$defs/dimension_scalar"},
+        "slot_spacing_m": {"$ref": "#/$defs/dimension_scalar"},
+        "slot_margin_m": {"$ref": "#/$defs/dimension_scalar"},
+        "slot_edge_bevel_m": {"$ref": "#/$defs/dimension_scalar"},
+        "bevel_segments": {"type": "integer", "minimum": 1, "maximum": 4},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
+    "recessed_channel_station": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["point_m", "width_m", "depth_m"],
+      "properties": {
+        "point_m": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"$ref": "#/$defs/coordinate_scalar"}
+        },
+        "width_m": {"$ref": "#/$defs/dimension_scalar"},
+        "depth_m": {"$ref": "#/$defs/dimension_scalar"}
+      }
+    },
+    "recessed_channel_parameters": {
+      "description": "Standalone product-owned planar XY recessed channel. The station path is a closed single Part grammar; it is not a host-mesh cut or arbitrary script.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "stations", "path_frame", "floor_width_ratio", "edge_bevel_m", "start_transition_m", "end_transition_m", "transition_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "recessed-channel"},
+        "stations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "items": {"$ref": "#/$defs/recessed_channel_station"}
+        },
+        "path_frame": {"const": "planar-xy-z-up@1"},
+        "floor_width_ratio": {"type": "number", "exclusiveMinimum": 0.1, "maximum": 0.8},
+        "edge_bevel_m": {"type": "number", "minimum": 0.0, "maximum": 5.0},
+        "start_transition_m": {"type": "number", "minimum": 0.0, "maximum": 5.0},
+        "end_transition_m": {"type": "number", "minimum": 0.0, "maximum": 5.0},
+        "transition_segments": {"type": "integer", "minimum": 1, "maximum": 4},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      }
+    },
     "joint_stack_parameters": {
       "type": "object",
       "additionalProperties": false,
@@ -512,6 +907,31 @@
         "position_m": {"$ref": "#/$defs/coordinate_vector"},
         "rotation_rad": {"$ref": "#/$defs/radian_vector"}
       }
+    },
+    "energy_core_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "component", "outer_radius_m", "inner_radius_m", "depth_m", "radial_segments", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "energy-core"},
+        "component": {"enum": ["guard-ring", "mechanical-ring", "emitter-core", "mechanical-backplate"]},
+        "outer_radius_m": {"$ref": "#/$defs/radius_scalar"},
+        "inner_radius_m": {"type": "number", "minimum": 0.0, "maximum": 5.0},
+        "depth_m": {"$ref": "#/$defs/dimension_scalar"},
+        "radial_segments": {"type": "integer", "minimum": 12, "maximum": 64},
+        "position_m": {"$ref": "#/$defs/coordinate_vector"},
+        "rotation_rad": {"$ref": "#/$defs/radian_vector"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"component": {"enum": ["guard-ring", "mechanical-ring"]}}, "required": ["component"]},
+          "then": {"properties": {"inner_radius_m": {"type": "number", "exclusiveMinimum": 0.00001, "maximum": 5.0}}}
+        },
+        {
+          "if": {"properties": {"component": {"enum": ["emitter-core", "mechanical-backplate"]}}, "required": ["component"]},
+          "then": {"properties": {"inner_radius_m": {"const": 0.0}}}
+        }
+      ]
     },
     "boolean_parameters": {
       "type": "object",

@@ -1,0 +1,52 @@
+{
+  "schema_version": "ForgeCADMCP010FSurfaceBakeSourceGate@1",
+  "task_id": "FGC-MCP010F-MAT-04",
+  "recorded_at": "2026-08-20",
+  "status": "PASS_SOURCE_AND_ISOLATED_RELEASE_CANDIDATE_BOUND_2K_SURFACE_LAYERS",
+  "scope": "typed deterministic surface layers for a fictional non-functional game or film weapon asset",
+  "contracts": {
+    "appearance_program": "AppearanceProgram@3",
+    "material_layer_stack": "MaterialLayerStack@1",
+    "surface_bake_receipt": "CandidateSurfaceBakeReceipt@1",
+    "appearance_prepare_result": "AppearancePrepareResult@3"
+  },
+  "implemented": {
+    "candidate_tangent_space_normal": "candidate-evaluated-surface-plus-source-microdetail-not-high-to-low-cage-bake",
+    "candidate_self_occlusion_ao": "fixed-8-ray-object-space-not-screen-space",
+    "decal_lowering": "precomposed-into-baseColor",
+    "wear_lowering": "precomposed-into-baseColor-and-metallicRoughness",
+    "clearcoat_lowering": "KHR_materials_clearcoat-factor-and-roughness-textures",
+    "resolution": 2048,
+    "chart_padding_texels": 8,
+    "network_rng_time_or_custom_shader": false,
+    "candidate_confirmation": false,
+    "external_export": false
+  },
+  "isolated_release_raw_stdio": {
+    "receipt": "docs/evidence/mcp010f/fictional-energy-weapon-surface-bake-raw-stdio-20260820.json",
+    "status": "PASS",
+    "part_count": 3,
+    "triangle_count": 524,
+    "embedded_image_count": 11,
+    "candidate_surface_output_count": 6,
+    "candidate_surface_output_bytes": 2428803,
+    "animated_or_skin_data": "not-in-scope",
+    "aov_count": 9,
+    "candidate_confirmation": "NOT_PERFORMED"
+  },
+  "focused_gates": {
+    "contracts": "PASS_201_SCHEMAS_AT_GATE_TIME",
+    "geometry_worker": "PASS_67_OF_67",
+    "runtime_candidate_receipt": "PASS_REVIEWABLE_NO_VERSION",
+    "render_texture_backed_clearcoat": "PASS",
+    "surface_png_tamper": "PASS_FAIL_CLOSED",
+    "unknown_part_and_arbitrary_shader": "PASS_FAIL_CLOSED",
+    "git_diff_check": "PASS"
+  },
+  "limitations": [
+    "This is a deterministic candidate-bound texture bake, not a high-to-low cage bake or Blender bake parity.",
+    "The current user candidate was not mutated or confirmed.",
+    "Visual PBR likeness, independent human review, package/live Viewer, engine import, export restart and HQ360 remain NOT_RUN or BLOCKED.",
+    "QUALITY_TARGET_NOT_MET, incomplete truth binding and camera mismatch remain unchanged."
+  ]
+}

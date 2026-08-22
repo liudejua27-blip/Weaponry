@@ -676,6 +676,9 @@ fn runtime_error_code(error: &RuntimeError) -> String {
         RuntimeError::Store(StoreError::Cas(CasError::UnsafeRoot)) => {
             "STORE_CAS_UNSAFE_ROOT".to_owned()
         }
+        RuntimeError::Store(StoreError::Cas(CasError::PutLockPoisoned)) => {
+            "STORE_CAS_PUT_LOCK_POISONED".to_owned()
+        }
         RuntimeError::Store(StoreError::Cas(CasError::Io(_))) => "STORE_CAS_IO".to_owned(),
         RuntimeError::Store(StoreError::Io(_)) => "STORE_IO".to_owned(),
         RuntimeError::Store(StoreError::BackupUnavailable) => "STORE_BACKUP_UNAVAILABLE".to_owned(),

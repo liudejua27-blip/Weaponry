@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/candidate-animation-vfx-quality-prepare-result.schema.json",
+  "title": "CandidateAnimationVfxQualityPrepareResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "animation_vfx_quality", "replayed", "runtime_write", "production_stage_advanced", "candidate_confirmed", "version_created", "export_performed"],
+  "properties": {
+    "schema_version": {"const": "CandidateAnimationVfxQualityPrepareResult@1"},
+    "animation_vfx_quality": {"$ref": "https://forgecad.local/contracts/candidate-animation-vfx-quality.schema.json"},
+    "replayed": {"type": "boolean"},
+    "runtime_write": {"const": true},
+    "production_stage_advanced": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false}
+  }
+}

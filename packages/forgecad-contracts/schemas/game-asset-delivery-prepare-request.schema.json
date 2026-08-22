@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/game-asset-delivery-prepare-request.schema.json",
+  "title": "GameAssetDeliveryPrepareRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "lods", "animation", "lod_policy", "collision_policy", "readiness_policy", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "GameAssetDeliveryPrepareRequest@1"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "lods": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {"$ref": "#/$defs/lod0"},
+        {"$ref": "#/$defs/lod1"},
+        {"$ref": "#/$defs/lod2"}
+      ],
+      "items": false
+    },
+    "animation": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/animation"}
+      ]
+    },
+    "lod_policy": {"const": "authored-three-level-part-stable-progressive-triangles@1"},
+    "collision_policy": {"const": "per-part-aabb-box-from-lod2-visual-geometry@1"},
+    "readiness_policy": {"const": "engine-neutral-gltf2-embedded-assets-stable-names@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "lod_common": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "candidate_id", "candidate_state_sha256", "artifact_sha256", "artifact_readback_sha256"],
+      "properties": {
+        "level": {"type": "integer", "minimum": 0, "maximum": 2},
+        "candidate_id": {"$ref": "#/$defs/id"},
+        "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_readback_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "lod0": {"allOf": [{"$ref": "#/$defs/lod_common"}, {"properties": {"level": {"const": 0}}}]},
+    "lod1": {"allOf": [{"$ref": "#/$defs/lod_common"}, {"properties": {"level": {"const": 1}}}]},
+    "lod2": {"allOf": [{"$ref": "#/$defs/lod_common"}, {"properties": {"level": {"const": 2}}}]},
+    "animation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clip_id", "animated_artifact_sha256", "receipt_object_sha256"],
+      "properties": {
+        "clip_id": {"$ref": "#/$defs/id"},
+        "animated_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt_object_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/production-stage-transition-v2-prepare-result.schema.json",
+  "title": "ProductionStageTransitionPrepareResult@2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transition",
+    "production_stage_head",
+    "replayed",
+    "runtime_write",
+    "production_stage_advanced",
+    "candidate_confirmed",
+    "version_created",
+    "export_performed"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProductionStageTransitionPrepareResult@2"},
+    "transition": {"$ref": "https://forgecad.local/contracts/production-stage-transition-v2.schema.json"},
+    "production_stage_head": {"$ref": "https://forgecad.local/contracts/production-stage-head-v2.schema.json"},
+    "replayed": {"type": "boolean"},
+    "runtime_write": {"const": true},
+    "production_stage_advanced": {"const": true},
+    "candidate_confirmed": {"const": false},
+    "version_created": {"const": false},
+    "export_performed": {"const": false}
+  }
+}

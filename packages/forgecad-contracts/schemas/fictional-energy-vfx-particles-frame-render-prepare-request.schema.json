@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/fictional-energy-vfx-particles-frame-render-prepare-request.schema.json",
+  "title":"FictionalEnergyVfxParticlesFrameRenderPrepareRequest@1",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","project_id","delivery_manifest_object_sha256","vfx_profile_object_sha256","anchor_set_object_sha256","base_frame_key_sha256","bloom_key_sha256","sample_time_ticks","particle_policy","emitter_policy","render_policy","canonical_sha256"],
+  "properties":{
+    "schema_version":{"const":"FictionalEnergyVfxParticlesFrameRenderPrepareRequest@1"},
+    "project_id":{"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9._:-]+$"},
+    "delivery_manifest_object_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"vfx_profile_object_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"anchor_set_object_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"base_frame_key_sha256":{"$ref":"common.schema.json#/$defs/sha256"},"bloom_key_sha256":{"$ref":"common.schema.json#/$defs/sha256"},
+    "sample_time_ticks":{"type":"integer","minimum":0,"maximum":1000000},
+    "particle_policy":{"const":"two-closed-emitters-hash-seeded-typed-attributes@1"},"emitter_policy":{"const":"muzzle-burst-24-energy-core-sparks-32@1"},"render_policy":{"const":"lod0-three-typed-particle-aov-depth-tested-base-bloom-byte-exact@1"},"canonical_sha256":{"$ref":"common.schema.json#/$defs/sha256"}
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/subdivision-artifact-lineage-request.schema.json",
+  "title": "SubdivisionArtifactLineageRequest",
+  "description": "Read-only request to bind one durable V2 geometry candidate and exact ArtifactReadback to the root lineage of one subd-cage@2 source primitive.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "candidate_id", "artifact_id",
+    "artifact_readback_sha256", "subdivision_node_id", "max_lineage_elements",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SubdivisionArtifactLineageRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "subdivision_node_id": {"$ref": "#/$defs/identifier"},
+    "max_lineage_elements": {"type": "integer", "minimum": 1, "maximum": 25000},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

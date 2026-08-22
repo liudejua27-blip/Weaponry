@@ -4,8 +4,10 @@
 //! script from MCP input. On macOS it resolves a same-directory (or Cargo test
 //! `deps/..`) sibling and starts it with `posix_spawn` using
 //! `POSIX_SPAWN_CLOEXEC_DEFAULT`; only the explicit stdin/stdout/stderr pipes
-//! survive into the child. The Worker receives exactly one bounded request and
-//! is killed/reaped when the monotonic 10 second wall-clock budget expires.
+//! survive into the child. The Worker receives exactly one bounded request.
+//! Geometry stays inside the declared maximum of 10 seconds; the closed
+//! first-party 2K texture derivation has a separate fixed 120 second product
+//! ceiling because its lossless PNG work is not caller-authored geometry.
 
 use forgecad_contracts::{build_cohort_sha256, is_sha256};
 use forgecad_worker_protocol::{
@@ -25,6 +27,7 @@ use std::time::{Duration, Instant};
 
 const GEOMETRY_WORKER_BINARY: &str = "forgecad-geometry-worker";
 const WORKER_WALL_TIMEOUT: Duration = Duration::from_secs(10);
+const FICTIONAL_ENERGY_WEAPON_2K_WALL_TIMEOUT: Duration = Duration::from_secs(120);
 // Darwin's `wait4(2)` reports `ru_maxrss` in bytes. This is deliberately a
 // post-hoc acceptance gate: it prevents an over-budget Worker result from
 // being parsed or persisted, but it does not claim to stop a running process
@@ -61,8 +64,18 @@ pub(crate) enum GeometryWorkerError {
     Timeout,
     #[error("GEOMETRY_WORKER_CRASHED")]
     Crashed,
+    #[cfg_attr(
+        not(any(test, feature = "test-geometry-worker-fallback")),
+        allow(dead_code)
+    )]
     #[error("GEOMETRY_WORKER_REJECTED")]
     Rejected,
+    /// A closed Worker error envelope survived the resource, protocol and
+    /// cohort gates. Keep the machine code and bounded safe message for the
+    /// Runtime caller; raw Worker stderr and arbitrary payload bytes never
+    /// cross this boundary.
+    #[error("GEOMETRY_WORKER_REJECTED: {code}: {message}")]
+    RejectedWithDetails { code: String, message: String },
     #[error("GEOMETRY_WORKER_RUSAGE_UNAVAILABLE")]
     RusageUnavailable,
     #[error("GEOMETRY_WORKER_PEAK_RSS_BUDGET_EXCEEDED")]
@@ -82,6 +95,7 @@ pub(crate) struct SiblingWorkerResult {
 #[derive(Debug, Clone)]
 pub(crate) struct GeometryArtifact {
     pub glb: Vec<u8>,
+    pub build_cohort_sha256: Option<String>,
     pub part_ids: Vec<String>,
     pub triangle_count: u64,
     pub program_sha256: String,
@@ -94,7 +108,7 @@ pub(crate) fn compile_geometry(
     geometry_program: &Value,
     appearance_program: Option<&Value>,
 ) -> Result<GeometryArtifact, GeometryWorkerError> {
-    let execution_budget = execution_budget_for_geometry_program(geometry_program);
+    let execution_budget = execution_budget_for_compile(geometry_program, appearance_program);
     // The Worker protocol is closed even when no appearance program is used;
     // send an explicit null so legacy GeometryProgram@1 calls and V2 geometry
     // calls take the same typed path instead of failing at the protocol gate.
@@ -103,8 +117,13 @@ pub(crate) fn compile_geometry(
         "appearance_program":appearance_program.cloned().unwrap_or(Value::Null),
     });
     let expected_program_sha256 = required_sha256(geometry_program.get("canonical_sha256"))?;
-    let result = execute("compile_geometry", payload, execution_budget)?;
-    let object = strict_object(&result)?;
+    let worker = execute_sibling_worker_with_metadata_and_budget(
+        GEOMETRY_WORKER_BINARY,
+        "compile_geometry",
+        payload,
+        execution_budget,
+    )?;
+    let object = strict_object(&worker.result)?;
     require_exact_keys(
         object,
         &[
@@ -152,6 +171,7 @@ pub(crate) fn compile_geometry(
     let tangent_status = status(object.get("tangent_status"))?;
     Ok(GeometryArtifact {
         glb,
+        build_cohort_sha256: worker.build_cohort_sha256,
         part_ids,
         triangle_count,
         program_sha256,
@@ -196,6 +216,114 @@ pub(crate) fn geometry_program_hash(draft: &Value) -> Result<Value, GeometryWork
         "operator_catalog_sha256":operator_catalog_sha256,
         "validation_status":"passed"
     }))
+}
+
+pub(crate) fn boolean_operand_lineage(
+    geometry_program: &Value,
+    boolean_node_id: &str,
+    max_lineage_runs: u64,
+) -> Result<Value, GeometryWorkerError> {
+    let result = execute(
+        "boolean_operand_lineage",
+        json!({
+            "geometry_program":geometry_program,
+            "boolean_node_id":boolean_node_id,
+            "max_lineage_runs":max_lineage_runs
+        }),
+        execution_budget_for_geometry_program(geometry_program),
+    )?;
+    let object = strict_object(&result)?;
+    require_exact_keys(
+        object,
+        &[
+            "schema_version",
+            "program_sha256",
+            "operator_catalog_sha256",
+            "boolean_node_id",
+            "operation",
+            "operands",
+            "output_triangle_count",
+            "lineage_run_count",
+            "lineage_runs",
+            "lineage_sha256",
+            "lineage_kind",
+            "materialization_status",
+            "runtime_write_performed",
+            "limitations",
+            "canonical_sha256",
+        ],
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("BooleanOperandLineage@1")
+        || object.get("boolean_node_id").and_then(Value::as_str) != Some(boolean_node_id)
+        || object.get("runtime_write_performed") != Some(&Value::Bool(false))
+        || object.get("lineage_kind").and_then(Value::as_str)
+            != Some("evaluated-face-with-operand-run")
+    {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    required_sha256(object.get("program_sha256"))?;
+    required_sha256(object.get("operator_catalog_sha256"))?;
+    required_sha256(object.get("lineage_sha256"))?;
+    required_sha256(object.get("canonical_sha256"))?;
+    Ok(result)
+}
+
+pub(crate) fn subdivision_topology_lineage(
+    geometry_program: &Value,
+    subdivision_node_id: &str,
+    max_lineage_elements: u64,
+) -> Result<Value, GeometryWorkerError> {
+    let result = execute(
+        "subdivision_topology_lineage",
+        json!({
+            "geometry_program":geometry_program,
+            "subdivision_node_id":subdivision_node_id,
+            "max_lineage_elements":max_lineage_elements
+        }),
+        execution_budget_for_geometry_program(geometry_program),
+    )?;
+    let object = strict_object(&result)?;
+    require_exact_keys(
+        object,
+        &[
+            "schema_version",
+            "program_sha256",
+            "operator_catalog_sha256",
+            "subdivision_node_id",
+            "lineage_kind",
+            "lineage_space",
+            "id_scope",
+            "complete",
+            "completeness_scope",
+            "cross_version_stable",
+            "artifact_binding_status",
+            "max_lineage_elements",
+            "lineage_element_count",
+            "lineage",
+            "lineage_sha256",
+            "materialization_status",
+            "runtime_write_performed",
+            "quality_status",
+            "limitations",
+            "canonical_sha256",
+        ],
+    )?;
+    if object.get("schema_version").and_then(Value::as_str) != Some("SubdivisionTopologyLineage@1")
+        || object.get("subdivision_node_id").and_then(Value::as_str) != Some(subdivision_node_id)
+        || object.get("complete") != Some(&Value::Bool(true))
+        || object.get("runtime_write_performed") != Some(&Value::Bool(false))
+        || object.get("lineage_space").and_then(Value::as_str) != Some("evaluated-quad-topology@1")
+        || object.get("lineage_kind").and_then(Value::as_str)
+            != Some("control-root-to-evaluated-quad-topology@1")
+        || object.get("cross_version_stable") != Some(&Value::Bool(false))
+    {
+        return Err(GeometryWorkerError::Protocol);
+    }
+    required_sha256(object.get("program_sha256"))?;
+    required_sha256(object.get("operator_catalog_sha256"))?;
+    required_sha256(object.get("lineage_sha256"))?;
+    required_sha256(object.get("canonical_sha256"))?;
+    Ok(result)
 }
 
 fn execute(
@@ -268,26 +396,35 @@ fn execute_sibling_worker_with_metadata_and_budget(
     if input.is_empty() || input.len() > MAX_WORKER_REQUEST_BYTES {
         return Err(GeometryWorkerError::Protocol);
     }
+    // The only extended profile is the closed first-party 2K surface bake.
+    // Select a fixed sibling entry point so the Worker can install the
+    // matching CPU rlimit before it reads request bytes. Generic geometry
+    // remains on the ten-second entry point.
+    let worker_args = if execution_budget.wall_timeout == FICTIONAL_ENERGY_WEAPON_2K_WALL_TIMEOUT {
+        ["--isolated-once-2k"]
+    } else {
+        ["--isolated-once"]
+    };
     let child = spawn_fixed_worker(
         worker_binary,
-        &["--isolated-once"],
+        &worker_args,
         input,
         execution_budget.wall_timeout,
     )?;
-    accept_completed_worker(&child, execution_budget.accepted_peak_rss_budget_bytes)?;
+    // The peak-RSS gate is deliberately evaluated before the response is
+    // decoded. A failed Worker response must not bypass the same resource
+    // boundary as a successful result.
+    accept_worker_resources(&child, execution_budget.accepted_peak_rss_budget_bytes)?;
     // The post-hoc peak-RSS gate above intentionally runs before parsing the
     // child output. A result that exceeded the budget therefore cannot become
     // an artifact, reach CAS, or create a candidate.
-    let response = serde_json::from_slice::<WorkerResponse>(&child.stdout)
-        .map_err(|_| GeometryWorkerError::Protocol)?;
+    let response = parse_worker_response(&child.stdout)?;
     validate_response(&response, &request.request_id).map_err(|_| GeometryWorkerError::Protocol)?;
     if response.build_cohort_sha256 != build_cohort_sha256() {
         return Err(GeometryWorkerError::Protocol);
     }
     let build_cohort_sha256 = response.build_cohort_sha256.clone();
-    if !response.ok {
-        return Err(GeometryWorkerError::Rejected);
-    }
+    classify_completed_worker_response(&child, &response)?;
     Ok(SiblingWorkerResult {
         result: response.result.ok_or(GeometryWorkerError::Protocol)?,
         build_cohort_sha256,
@@ -324,6 +461,26 @@ fn execution_budget_for_geometry_program(geometry_program: &Value) -> ExecutionB
         accepted_peak_rss_budget_bytes: max_worker_memory_bytes
             .unwrap_or(DEFAULT_EXECUTION_BUDGET.accepted_peak_rss_budget_bytes),
     }
+}
+
+fn execution_budget_for_compile(
+    geometry_program: &Value,
+    appearance_program: Option<&Value>,
+) -> ExecutionBudget {
+    let mut budget = execution_budget_for_geometry_program(geometry_program);
+    if matches!(
+        appearance_program
+            .and_then(|value| value.get("schema_version"))
+            .and_then(Value::as_str),
+        Some("AppearanceProgram@2" | "AppearanceProgram@3")
+    ) && appearance_program
+        .and_then(|value| value.get("material_pack_id"))
+        .and_then(Value::as_str)
+        == Some("forgecad-fictional-energy-weapon-2k")
+    {
+        budget.wall_timeout = FICTIONAL_ENERGY_WEAPON_2K_WALL_TIMEOUT;
+    }
+    budget
 }
 
 fn strict_object(value: &Value) -> Result<&serde_json::Map<String, Value>, GeometryWorkerError> {
@@ -386,6 +543,11 @@ fn status(value: Option<&Value>) -> Result<String, GeometryWorkerError> {
 
 struct CollectedChild {
     exit_code: i32,
+    /// `false` means wait4 observed a signal termination. An encoded
+    /// `128 + signal` exit value is not sufficient here: a signalled child
+    /// that happened to flush a partial/valid-looking error envelope must
+    /// remain a crash, never a typed Worker rejection.
+    exited_normally: bool,
     peak_rss_bytes: u64,
     stdout: Vec<u8>,
     #[allow(dead_code)]
@@ -447,6 +609,7 @@ fn spawn_fixed_worker(
         .map_err(|_| GeometryWorkerError::Timeout)??;
     Ok(CollectedChild {
         exit_code: exit_code(exit.status),
+        exited_normally: exited_normally(exit.status),
         peak_rss_bytes: exit.peak_rss_bytes,
         stdout,
         stderr,
@@ -729,15 +892,81 @@ fn darwin_peak_rss_bytes(ru_maxrss: libc::c_long) -> Result<u64, GeometryWorkerE
     u64::try_from(ru_maxrss).map_err(|_| GeometryWorkerError::RusageUnavailable)
 }
 
+#[cfg(test)]
 fn accept_completed_worker(
     child: &CollectedChild,
     accepted_peak_rss_budget_bytes: u64,
 ) -> Result<(), GeometryWorkerError> {
-    if child.exit_code != 0 {
+    accept_worker_resources(child, accepted_peak_rss_budget_bytes)?;
+    if !child.exited_normally || child.exit_code != 0 {
         return Err(GeometryWorkerError::Crashed);
     }
+    Ok(())
+}
+
+fn accept_worker_resources(
+    child: &CollectedChild,
+    accepted_peak_rss_budget_bytes: u64,
+) -> Result<(), GeometryWorkerError> {
     if child.peak_rss_bytes > accepted_peak_rss_budget_bytes {
         return Err(GeometryWorkerError::PeakRssBudgetExceeded);
+    }
+    Ok(())
+}
+
+fn parse_worker_response(stdout: &[u8]) -> Result<WorkerResponse, GeometryWorkerError> {
+    if stdout.is_empty() {
+        // A one-shot Worker that exits without an envelope is indistinguish-
+        // able from a crash at this boundary. Do not turn it into a generic
+        // protocol rejection that would hide the process failure.
+        return Err(GeometryWorkerError::Crashed);
+    }
+    serde_json::from_slice::<WorkerResponse>(stdout).map_err(|_| GeometryWorkerError::Protocol)
+}
+
+fn bounded_worker_error_message(message: &str) -> String {
+    // Worker errors are intended to be short semantic diagnostics. Do not
+    // forward path-like/control-bearing text across the Runtime error
+    // boundary, even though the envelope itself is already size-bounded.
+    if message.contains('/')
+        || message.contains('\\')
+        || message.chars().any(char::is_control)
+        || !message.is_ascii()
+    {
+        return "worker rejected request".to_owned();
+    }
+    message.chars().take(512).collect()
+}
+
+fn classify_completed_worker_response(
+    child: &CollectedChild,
+    response: &WorkerResponse,
+) -> Result<(), GeometryWorkerError> {
+    if !child.exited_normally {
+        return Err(GeometryWorkerError::Crashed);
+    }
+    if !response.ok {
+        // The fixed Worker intentionally exits non-zero for a typed,
+        // validated rejection. Only that closed error envelope is allowed
+        // to turn the process status into `Rejected`.
+        let error = response
+            .error
+            .as_ref()
+            .ok_or(GeometryWorkerError::Protocol)?;
+        return if child.exit_code != 0 {
+            Err(GeometryWorkerError::RejectedWithDetails {
+                code: error.code.clone(),
+                message: bounded_worker_error_message(&error.message),
+            })
+        } else {
+            // A failed envelope with a successful process status violates the
+            // one-shot Worker contract. Keep it fail-closed as protocol drift
+            // instead of treating it as a genuine Worker rejection.
+            Err(GeometryWorkerError::Protocol)
+        };
+    }
+    if child.exit_code != 0 {
+        return Err(GeometryWorkerError::Crashed);
     }
     Ok(())
 }
@@ -769,6 +998,11 @@ fn exit_code(status: libc::c_int) -> i32 {
     } else {
         128 + libc::WTERMSIG(status)
     }
+}
+
+#[cfg(target_os = "macos")]
+fn exited_normally(status: libc::c_int) -> bool {
+    libc::WIFEXITED(status)
 }
 
 #[cfg(test)]
@@ -820,9 +1054,24 @@ pub(crate) fn compile_geometry_test_fallback(
         geometry_program,
         appearance_program,
     )
-    .map_err(|_| GeometryWorkerError::Rejected)?;
+    .map_err(|error| GeometryWorkerError::RejectedWithDetails {
+        code: "GEOMETRY_COMPILE_REJECTED".to_owned(),
+        message: error.to_string(),
+    })?;
     Ok(GeometryArtifact {
         glb: artifact.glb,
+        // MCP transport tests explicitly opt into this in-process compiler
+        // and therefore do not have a sibling Worker identity to persist.
+        // Keep the same fixed test-only cohort already used by Runtime's
+        // appearance fixtures so durable V1 clip validation can still prove
+        // that both fallback replays came from one deterministic cohort. A
+        // real compile-time cohort always wins, and production builds cannot
+        // compile this fallback at all.
+        build_cohort_sha256: Some(
+            build_cohort_sha256().unwrap_or_else(|| {
+                crate::sha256_hex(b"forgecad-source-test-fallback-worker-cohort")
+            }),
+        ),
         part_ids: artifact.part_ids,
         triangle_count: artifact.triangle_count,
         program_sha256: artifact.program_sha256,
@@ -830,6 +1079,38 @@ pub(crate) fn compile_geometry_test_fallback(
         tangent_status: artifact.tangent_status,
         material_zone_ids: artifact.material_zone_ids,
     })
+}
+
+#[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+pub(crate) fn boolean_operand_lineage_test_fallback(
+    geometry_program: &Value,
+    boolean_node_id: &str,
+    max_lineage_runs: u64,
+) -> Result<Value, GeometryWorkerError> {
+    let max_lineage_runs =
+        usize::try_from(max_lineage_runs).map_err(|_| GeometryWorkerError::Rejected)?;
+    forgecad_geometry_worker::boolean_operand_lineage_preview(
+        geometry_program,
+        boolean_node_id,
+        max_lineage_runs,
+    )
+    .map_err(|_| GeometryWorkerError::Rejected)
+}
+
+#[cfg(any(test, feature = "test-geometry-worker-fallback"))]
+pub(crate) fn subdivision_topology_lineage_test_fallback(
+    geometry_program: &Value,
+    subdivision_node_id: &str,
+    max_lineage_elements: u64,
+) -> Result<Value, GeometryWorkerError> {
+    let max_lineage_elements =
+        usize::try_from(max_lineage_elements).map_err(|_| GeometryWorkerError::Rejected)?;
+    forgecad_geometry_worker::subdivision_topology_lineage_preview(
+        geometry_program,
+        subdivision_node_id,
+        max_lineage_elements,
+    )
+    .map_err(|_| GeometryWorkerError::Rejected)
 }
 
 // These gates deliberately require a source-built sibling executable. Normal
@@ -1129,6 +1410,7 @@ mod wait_error_tests {
     fn accepted_worker_peak_rss_is_fail_closed_before_response_parse() {
         let at_budget = CollectedChild {
             exit_code: 0,
+            exited_normally: true,
             peak_rss_bytes: ACCEPTED_WORKER_PEAK_RSS_BUDGET_BYTES,
             stdout: b"this is deliberately not JSON".to_vec(),
             stderr: Vec::new(),
@@ -1156,6 +1438,7 @@ mod wait_error_tests {
 
         let crashed = CollectedChild {
             exit_code: 73,
+            exited_normally: true,
             peak_rss_bytes: 0,
             stdout: Vec::new(),
             stderr: Vec::new(),
@@ -1163,6 +1446,74 @@ mod wait_error_tests {
         assert!(matches!(
             accept_completed_worker(&crashed, ACCEPTED_WORKER_PEAK_RSS_BUDGET_BYTES),
             Err(GeometryWorkerError::Crashed)
+        ));
+    }
+
+    #[test]
+    fn typed_worker_failure_with_nonzero_normal_exit_is_rejected_with_bounded_details() {
+        let child = CollectedChild {
+            exit_code: 1,
+            exited_normally: true,
+            peak_rss_bytes: 0,
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        };
+        let response = WorkerResponse {
+            protocol: WORKER_PROTOCOL.to_owned(),
+            request_id: "request-1".to_owned(),
+            build_cohort_sha256: None,
+            ok: false,
+            result: None,
+            error: Some(forgecad_worker_protocol::WorkerError {
+                code: "RENDER_REJECTED".to_owned(),
+                message: "render input rejected".to_owned(),
+            }),
+        };
+        let error = classify_completed_worker_response(&child, &response)
+            .expect_err("closed nonzero failure response must reject");
+        assert_eq!(
+            error.to_string(),
+            "GEOMETRY_WORKER_REJECTED: RENDER_REJECTED: render input rejected"
+        );
+
+        let unsafe_message = "read /Users/example/private.glb";
+        assert_eq!(
+            bounded_worker_error_message(unsafe_message),
+            "worker rejected request"
+        );
+    }
+
+    #[test]
+    fn signaled_worker_and_empty_stdout_remain_crashed() {
+        let signaled = CollectedChild {
+            exit_code: 137,
+            exited_normally: false,
+            peak_rss_bytes: 0,
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        };
+        let response = WorkerResponse {
+            protocol: WORKER_PROTOCOL.to_owned(),
+            request_id: "request-1".to_owned(),
+            build_cohort_sha256: None,
+            ok: false,
+            result: None,
+            error: Some(forgecad_worker_protocol::WorkerError {
+                code: "RENDER_REJECTED".to_owned(),
+                message: "render input rejected".to_owned(),
+            }),
+        };
+        assert!(matches!(
+            classify_completed_worker_response(&signaled, &response),
+            Err(GeometryWorkerError::Crashed)
+        ));
+        assert!(matches!(
+            parse_worker_response(&[],),
+            Err(GeometryWorkerError::Crashed)
+        ));
+        assert!(matches!(
+            parse_worker_response(b"not-json"),
+            Err(GeometryWorkerError::Protocol)
         ));
     }
 
@@ -1201,6 +1552,37 @@ mod wait_error_tests {
         assert_eq!(
             execution_budget_for_geometry_program(&invalid_v2),
             DEFAULT_EXECUTION_BUDGET
+        );
+    }
+
+    #[test]
+    fn only_the_closed_2k_pack_gets_the_separate_texture_build_budget() {
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "budgets":{"max_runtime_ms":10_000,"max_worker_memory_bytes":123_456}
+        });
+        let appearance = json!({
+            "schema_version":"AppearanceProgram@2",
+            "material_pack_id":"forgecad-fictional-energy-weapon-2k"
+        });
+        assert_eq!(
+            execution_budget_for_compile(&program, Some(&appearance)),
+            ExecutionBudget {
+                wall_timeout: Duration::from_secs(120),
+                accepted_peak_rss_budget_bytes: 123_456,
+            }
+        );
+        let mut surface_bake_appearance = appearance.clone();
+        surface_bake_appearance["schema_version"] = Value::String("AppearanceProgram@3".to_owned());
+        assert_eq!(
+            execution_budget_for_compile(&program, Some(&surface_bake_appearance)).wall_timeout,
+            Duration::from_secs(120)
+        );
+        let mut arbitrary = appearance;
+        arbitrary["material_pack_id"] = Value::String("caller-pack".to_owned());
+        assert_eq!(
+            execution_budget_for_compile(&program, Some(&arbitrary)).wall_timeout,
+            Duration::from_secs(10)
         );
     }
 }

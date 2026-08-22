@@ -1,0 +1,9 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://forgecad.local/contracts/appearance-source-lineage-prepare-result.schema.json",
+  "title":"AppearanceSourceLineagePrepareResult@1",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","sidecar_object_sha256","sidecar","durable_link","runtime_write_performed","candidate_confirmed","export_performed","quality_status"],
+  "properties":{"schema_version":{"const":"AppearanceSourceLineagePrepareResult@1"},"sidecar_object_sha256":{"$ref":"#/$defs/sha256"},"sidecar":{"$ref":"appearance-source-lineage-sidecar.schema.json"},"durable_link":{"$ref":"appearance-source-lineage-link.schema.json"},"runtime_write_performed":{"const":true},"candidate_confirmed":{"const":false},"export_performed":{"const":false},"quality_status":{"const":"structural_only"}},
+  "$defs":{"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/mechanical-animation-clip-get-request.schema.json",
+  "title": "MechanicalAnimationClipGetRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "candidate_id", "clip_id", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "MechanicalAnimationClipGetRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "clip_id": {"$ref": "#/$defs/identifier"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

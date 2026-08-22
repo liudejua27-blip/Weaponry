@@ -1,0 +1,47 @@
+{
+  "schema_version": "ForgeCADBlenderRigidAnimationGlbSourceGate@1",
+  "task_id": "FGC-MCP010F-ANIM-GLB-01",
+  "recorded_at": "2026-08-20",
+  "status": "PASS_SOURCE_RUNTIME_OWNED_RIGID_GLTF_ANIMATION_PREPARE",
+  "scope": "candidate-bound scheduled rigid Part animation materialized as a standard glTF 2.0 animation CAS artifact",
+  "contracts": {
+    "request": "MechanicalAnimationGlbPrepareRequest@1",
+    "receipt": "MechanicalAnimationGlbReceipt@1",
+    "result": "MechanicalAnimationGlbPrepareResult@1"
+  },
+  "implemented": {
+    "mcp_tool": "mechanical_animation_glb_prepare",
+    "requires_explicit_authenticated_write_opt_in": true,
+    "candidate_state_sha256_bound": true,
+    "geometry_evidence_hashes_bound": true,
+    "scheduled_sample_count": "2..16",
+    "timebase_hz": 1000,
+    "interpolation": "LINEAR",
+    "per_part_channels": ["translation", "rotation"],
+    "translation_accessor": "VEC3-float32",
+    "rotation_accessor": "VEC4-float32-quaternion-xyzw",
+    "source_static_projection_exact": true,
+    "binary_prefix_exact": true,
+    "hidden_binary_tail_rejected": true,
+    "skinning": false,
+    "morph_targets": false,
+    "candidate_confirmed": false,
+    "external_export_performed": false
+  },
+  "focused_gates": {
+    "contracts": "PASS_204_SCHEMAS",
+    "runtime_compile": "PASS",
+    "runtime_deterministic_prepare": "PASS",
+    "runtime_candidate_state_and_python_negative": "PASS_FAIL_CLOSED",
+    "mcp_closed_schema_write_split": "PASS",
+    "mcp_positive_prepare_and_structured_summary": "PASS",
+    "mcp_wire_budget": "PASS_LE_1_MIB",
+    "release_raw_stdio": "NOT_RUN"
+  },
+  "limitations": [
+    "The durable clip remains caller-authored rigid Part rest/action data; it is not an armature, bone rig, skin, IK, NLA, F-Curve, driver or editable timeline.",
+    "The animated GLB is materialized in Runtime CAS only. It is not yet a confirmed external export or an engine round-trip.",
+    "Viewer continuous playback, package/live validation, visual animation review and export restart hash are NOT_RUN.",
+    "The structural animation PASS does not upgrade visual likeness or HQ360 status."
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": "ForgeCADEvidenceReceipt@1",
+  "task_id": "FGC-MCP010F/APPEARANCE-SOURCE-LINEAGE-05",
+  "recorded_at": "2026-08-21",
+  "status": "PASS_STRUCTURAL_DURABLE_APPEARANCE_SOURCE_LINEAGE_GATE",
+  "build_cohort_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+  "current_source": {
+    "schema_count": 244,
+    "schema_content_set_sha256": "6893edf9da37ee90a7d68feca093c7e0eeb1856ca492ee28d4daeba0aa5b15d0",
+    "read_tool_count": 62,
+    "write_tool_count": 42,
+    "total_tool_count": 104,
+    "read_tool": "appearance_source_lineage_get",
+    "write_tool": "appearance_source_lineage_prepare"
+  },
+  "source_files": [
+    {"path": "apps/desktop/src-tauri/crates/forgecad-contracts/src/lib.rs", "sha256": "c42c6041e3f2886d51cb4c340cda6b7548fcdaa40bdcc13b1e89a958b0a57c0e"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-store/src/lib.rs", "sha256": "d9b74d980ff7a53e218aab7f6d1ca373c446cc5505e40a1ec1df19b465e3c90a"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/appearance_source_lineage.rs", "sha256": "154b5f665149ffc7e30eff9e407b4b566aefcf0057ec860244dd285ccf6b6ded"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs", "sha256": "33d411a8a65c605e73259668741786d87ee14005f0f34d748e4fff873e8a493b"},
+    {"path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs", "sha256": "e7227bb616ec1dc4591efbf592701f198bd2c11a9fb83d5f9112e8b5495996bf"},
+    {"path": "packages/forgecad-contracts/manifest.json", "sha256": "3d789362ca5e9d8ec40271fefeed39acd3fb96b459f118b1464d41cdeb0ae039"},
+    {"path": "docs/evidence/mcp010f/source-tool-manifest-summary.json", "sha256": "ce0458881138ec855738c33d723281b08c4fc4a9d9a2a53cb4e0592de7e1e311"}
+  ],
+  "durable_source_lineage": {
+    "appearance_program_cas_bound": true,
+    "geometry_program_cas_bound": true,
+    "material_pack_license_and_provenance_bound": true,
+    "texture_build_receipt_cas_bound": true,
+    "uv_binding_bound": true,
+    "optional_surface_bake_receipt_bound": true,
+    "three_lod_artifact_and_readback_bound": true,
+    "part_source_node_material_zone_inventory_bound": true,
+    "sqlite_link_and_reachability_single_transaction": true,
+    "temporary_cas_reservation_rollback_enabled": true,
+    "idempotent_prepare": true,
+    "zero_write_get": true,
+    "runtime_restart_readback_verified": true,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "tests": [
+    {"name": "contracts checker", "result": "PASS_244_SCHEMAS"},
+    {"name": "forced-cohort Appearance source lineage idempotency, restart and fail-closed", "result": "PASS_1_OF_1", "duration_seconds": 99.49, "filtered_out": 254, "skipped_by_missing_cohort": false},
+    {"name": "MCP compiled manifest derivation", "result": "PASS_62_READ_42_WRITE_104_TOTAL"},
+    {"name": "MCP closed read/write split", "result": "PASS"},
+    {"name": "MCP010F Stage 0 truth gate", "result": "PASS_WITH_RETAINED_QUALITY_BLOCKERS"}
+  ],
+  "truth_boundaries": {
+    "durable_appearance_source_lineage_complete_for_tested_v2_path": true,
+    "appearance_v3_surface_bake_path_executed": false,
+    "emissive_animation_sequence_rendered": false,
+    "glb_socket_transform_executed": false,
+    "bloom_rendered": false,
+    "particles_rendered": false,
+    "trails_rendered": false,
+    "actual_engine_roundtrip": false,
+    "human_review": "NOT_RUN",
+    "quality_status": "QUALITY_TARGET_NOT_MET",
+    "truth_binding_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_status": "MISMATCH",
+    "hq360_status": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

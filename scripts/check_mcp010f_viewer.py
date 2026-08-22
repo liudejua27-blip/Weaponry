@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -21,6 +22,8 @@ STYLES = ROOT / "apps/desktop/src/styles.css"
 TAURI_VIEWER = ROOT / "apps/desktop/src-tauri/src/viewer.rs"
 COMPARE_WORKER = ROOT / "apps/desktop/src/features/runtime-viewer/compare-worker.ts"
 AGENTIC_DESIGN = ROOT / "apps/desktop/src/features/runtime-viewer/agentic-design.ts"
+MECHANICAL_ANIMATION = ROOT / "apps/desktop/src/features/runtime-viewer/mechanical-animation.ts"
+PROVENANCE_GRAPH = ROOT / "apps/desktop/src/features/runtime-viewer/provenance-graph.ts"
 
 
 def main() -> int:
@@ -30,6 +33,178 @@ def main() -> int:
     styles = STYLES.read_text(encoding="utf-8")
     tauri_source = TAURI_VIEWER.read_text(encoding="utf-8")
     agentic_source = AGENTIC_DESIGN.read_text(encoding="utf-8")
+    mechanical_animation_source = MECHANICAL_ANIMATION.read_text(encoding="utf-8")
+    provenance_graph_source = PROVENANCE_GRAPH.read_text(encoding="utf-8")
+    normalizer_check = subprocess.run(
+        [
+            "node",
+            "--no-warnings",
+            "--experimental-strip-types",
+            "-e",
+            (
+                f"import({json.dumps(MECHANICAL_ANIMATION.as_uri())}).then(m => {{"
+                "const r=m.mechanicalAnimationNormalizerSelfCheck();"
+                "console.log(JSON.stringify(r));"
+                "if(!r.passed) process.exit(1)"
+                "})"
+            ),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    normalizer_result = json.loads(normalizer_check.stdout)
+    required_normalizer_checks = {
+        "inventory-ready",
+        "link-hierarchy-ready",
+        "candidate-mismatch-fail-closed",
+        "provenance-hash-mismatch-fail-closed",
+        "frame-preview-ready",
+        "frame-tick-mismatch-fail-closed",
+        "partial-part-delta-fail-closed",
+        "part-owner-map-ready",
+        "duplicate-part-owner-fail-closed",
+        "nested-part-owner-fail-closed",
+        "unknown-part-owner-fail-closed",
+        "nonidentity-part-owner-fail-closed",
+        "bone-part-owner-fail-closed",
+        "skinned-part-owner-fail-closed",
+        "embedded-animation-fail-closed",
+    }
+    if set(normalizer_result.get("checks", [])) != required_normalizer_checks:
+        raise SystemExit(f"Mechanical animation normalizer fixtures drifted: {normalizer_result}")
+    mechanical_animation_race_check = subprocess.run(
+        [
+            "node",
+            "--no-warnings",
+            "--experimental-strip-types",
+            "-e",
+            (
+                f"import({json.dumps(MECHANICAL_ANIMATION.as_uri())}).then(async m => {{"
+                "const r=await m.mechanicalAnimationFrameDeferredResponseSelfCheck();"
+                "console.log(JSON.stringify(r));"
+                "if(!r.passed) process.exit(1)"
+                "})"
+            ),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    mechanical_animation_race_result = json.loads(mechanical_animation_race_check.stdout)
+    required_mechanical_animation_race_checks = {
+        "stale-success-rejected",
+        "stale-finally-rejected",
+        "latest-success-wins",
+        "stale-error-rejected",
+        "next-latest-wins",
+    }
+    if set(mechanical_animation_race_result.get("checks", [])) != required_mechanical_animation_race_checks:
+        raise SystemExit(f"Mechanical animation deferred response fixtures drifted: {mechanical_animation_race_result}")
+    provenance_normalizer_check = subprocess.run(
+        [
+            "node",
+            "--no-warnings",
+            "--experimental-strip-types",
+            "-e",
+            (
+                f"import({json.dumps(PROVENANCE_GRAPH.as_uri())}).then(m => {{"
+                "const r=m.provenanceGraphNormalizerSelfCheck();"
+                "console.log(JSON.stringify(r));"
+                "if(!r.passed) process.exit(1)"
+                "})"
+            ),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    provenance_normalizer_result = json.loads(provenance_normalizer_check.stdout)
+    required_provenance_checks = {
+        "positive-ready",
+        "cross-candidate-fail-closed",
+        "stale-state-fail-closed",
+        "artifact-mismatch-fail-closed",
+        "dangling-edge-fail-closed",
+        "duplicate-edge-fail-closed",
+        "cycle-fail-closed",
+        "modifier-history-omission-explicit",
+        "modifier-history-unsupported-fail-closed",
+    }
+    if set(provenance_normalizer_result.get("checks", [])) != required_provenance_checks:
+        raise SystemExit(f"Provenance graph normalizer fixtures drifted: {provenance_normalizer_result}")
+    provenance_race_check = subprocess.run(
+        [
+            "node",
+            "--no-warnings",
+            "--experimental-strip-types",
+            "-e",
+            (
+                f"import({json.dumps(PROVENANCE_GRAPH.as_uri())}).then(async m => {{"
+                "const r=await m.provenanceGraphDeferredResponseSelfCheck();"
+                "console.log(JSON.stringify(r));"
+                "if(!r.passed) process.exit(1)"
+                "})"
+            ),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    provenance_race_result = json.loads(provenance_race_check.stdout)
+    required_provenance_race_checks = {
+        "stale-success-rejected",
+        "stale-finally-rejected",
+        "latest-success-wins",
+        "stale-error-rejected",
+        "next-latest-wins",
+    }
+    if set(provenance_race_result.get("checks", [])) != required_provenance_race_checks:
+        raise SystemExit(f"Provenance graph deferred response fixtures drifted: {provenance_race_result}")
+    for token in (
+        "MAX_NODES = 64",
+        "MAX_EDGES = 128",
+        "persistentUserDataTouched: false",
+        "isAcyclic",
+        "PROVENANCE_GRAPH_TOPOLOGY_INVALID",
+        "PROVENANCE_GRAPH_MODIFIER_APPLY_HISTORY_UNSUPPORTED",
+        "UNSUPPORTED_MODIFIER_APPLY_PROJECTION_KEYS",
+        "TODO(MCP010F): consume Modifier Apply history",
+    ):
+        if token not in provenance_graph_source:
+            raise SystemExit(f"Provenance graph fail-closed normalizer is missing: {token}")
+    for token in ("window.localStorage", "globalThis.localStorage", "fetch("):
+        if token in provenance_graph_source:
+            raise SystemExit(f"Provenance graph normalizer must remain ephemeral and offline: {token}")
+    for token in (
+        "artifactReadbackSha256 !== normalizedClip.artifactReadbackSha256",
+        "geometryCandidateEvidenceSha256 !== normalizedClip.geometryCandidateEvidenceSha256",
+        "programSha256 !== normalizedClip.programSha256",
+        "operatorCatalogSha256 !== normalizedClip.operatorCatalogSha256",
+        "readbackConfigSha256 !== normalizedClip.readbackConfigSha256",
+    ):
+        if token not in mechanical_animation_source:
+            raise SystemExit(f"Mechanical animation nested provenance binding is missing: {token}")
+    for token in (
+        "validateMechanicalAnimationPartOwners",
+        "GLB_PART_OWNER_MAPPING_INVALID",
+        "GLB_EMBEDDED_ANIMATION_UNSUPPORTED",
+        "GLB_SKIN_OR_BONE_UNSUPPORTED",
+    ):
+        if token not in mechanical_animation_source:
+            raise SystemExit(f"Mechanical animation Part-owner gate is missing: {token}")
+    for token in (
+        "GLB_NODE_PART_OWNER_MISSING",
+        "metadataPartId !== partId",
+        "parentWorldInverse",
+        "localEnd.sub(localOrigin)",
+    ):
+        if token not in source:
+            raise SystemExit(f"Mechanical animation GLB ownership/transform composition is missing: {token}")
     required_tokens = [
         "viewer_read_model",
         "viewer_read_model_summary",
@@ -37,6 +212,10 @@ def main() -> int:
         "viewer_reference_bytes",
         "viewer_render_pass",
         "viewer_visual_evidence",
+        "viewer_mechanical_animation_inventory",
+        "viewer_mechanical_animation_clip",
+        "viewer_mechanical_animation_frame_preview",
+        "viewer_provenance_graph",
         "selectedPartId",
         "selectedMaterialZone",
         "exploded",
@@ -156,6 +335,12 @@ def main() -> int:
         "comparison?.reference_sha256",
         "payload.quality_report_hash",
         "project_id",
+        "normalizeViewerProvenanceGraph",
+        "candidateStateSha256",
+        "provenanceGraphRequestRef",
+        "Provenance Graph",
+        "role=\"tree\"",
+        "complete-or-fail",
     ]
     missing = [token for token in required_tokens if token not in source]
     required_token_variants = [
@@ -182,6 +367,10 @@ def main() -> int:
         "viewer_visual_evidence",
         "viewer_agentic_projection",
         "viewer_agentic_session",
+        "viewer_mechanical_animation_inventory",
+        "viewer_mechanical_animation_clip",
+        "viewer_mechanical_animation_frame_preview",
+        "viewer_provenance_graph",
     })
     actual_runtime_commands = sorted(set(re.findall(
         r"runtimeInvoke(?:<[^>]+>)?\(\s*['\"]([^'\"]+)", source
@@ -265,6 +454,8 @@ def main() -> int:
         )
     if "read-only IPC client" not in tauri_source or "read_model" not in tauri_source:
         raise SystemExit("Viewer Tauri bridge is missing its read-only projection boundary")
+    if '"preview_policy":"single-tick-transient-double-worker-replay@1"' not in tauri_source:
+        raise SystemExit("Viewer mechanical animation frame bridge drifted from the closed Runtime preview policy")
     worker_source = COMPARE_WORKER.read_text(encoding="utf-8")
     worker_tokens = ["createDifferenceImage", "createContourImage", "decodeBlobToBuffer", "createImageBitmap", "OffscreenCanvas", "onmessage", "postMessage"]
     missing_worker_tokens = [token for token in worker_tokens if token not in worker_source]
@@ -426,6 +617,12 @@ def main() -> int:
         "unrun_visual_queue": "PASS_RUNTIME_ACTION_PROJECTION_ONLY",
         "workflow_truth_boundary": "Runtime Agentic projection + ReferenceComparisonReport@1 + QualityReport; Viewer stage is display-only",
         "write_boundary": "PASS: no Runtime write tool is invoked by Viewer source",
+        "mechanical_animation_normalizer_fixtures": "PASS_EXECUTED_PROVENANCE_FRAME_AND_PART_OWNER_NEGATIVES",
+        "mechanical_animation_deferred_response_fixtures": "PASS_EXECUTED_STALE_SUCCESS_ERROR_FINALLY_REJECTED_LATEST_WINS",
+        "provenance_graph_normalizer_fixtures": "PASS_EXECUTED_EXACT_STATE_DANGLING_DUPLICATE_CYCLE_NEGATIVES",
+        "provenance_graph_deferred_response_fixtures": "PASS_EXECUTED_STALE_SUCCESS_ERROR_FINALLY_REJECTED_LATEST_WINS",
+        "provenance_graph_policy": "PASS_COMPLETE_OR_FAIL_64_NODES_128_EDGES_READ_ONLY",
+        "modifier_apply_history_projection": "FAIL_CLOSED_UNTIL_RUNTIME_BOUND_INTERFACE",
         "packaged_ui_e2e": "NOT_RUN",
         "human_visual_review": "NOT_RUN",
         "full_360_reference": "BLOCKED_REFERENCE_COVERAGE",

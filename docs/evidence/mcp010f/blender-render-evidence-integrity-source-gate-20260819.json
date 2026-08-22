@@ -1,0 +1,153 @@
+{
+  "schema_version": "ForgeCADBlenderRenderEvidenceIntegritySourceGate@1",
+  "recorded_on": "2026-08-19",
+  "task_id": "FGC-MCP010F",
+  "status": "PASS_SOURCE_STRUCTURAL_ONLY",
+  "research": {
+    "blender_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "blender_license": "GPL-reference-only",
+    "official_source_refs": [
+      "https://github.com/blender/blender/commit/72ccdd6e96ca119a1ffa3372559cc5654343b477",
+      "https://github.com/blender/blender/blob/72ccdd6e96ca119a1ffa3372559cc5654343b477/COPYING",
+      "https://docs.blender.org/manual/en/4.1/render/layers/index.html",
+      "https://docs.blender.org/manual/en/latest/render/layers/passes.html",
+      "https://docs.blender.org/manual/en/latest/render/color_management.html"
+    ],
+    "adapted_semantics": [
+      "ordered-render-pass-inventory",
+      "display-color-versus-data-pass-semantics",
+      "separate-object-canonical-and-byte-hashes",
+      "readback-before-acceptance"
+    ],
+    "blender_cycles_eevee_ocio_or_python_cloned_installed_executed_or_linked": false,
+    "clean_room_product_owned_runtime": true
+  },
+  "luna_review": {
+    "agents": 3,
+    "p0_findings": 0,
+    "p1_findings_before_fix": 3,
+    "p1_findings_after_fix": 0,
+    "accepted_corrections": [
+      "do-not-repair-attempt35-history",
+      "separate-cas-object-sha256-from-recomputed-bytes-sha256",
+      "claim-same-camera-only-without-fit-provenance",
+      "include-comparison-mask-artifact-readback-and-threshold-lineage",
+      "reread-reference-and-artifact-source-bytes",
+      "rederive-quality-metrics-status-hard-gate-and-eligibility-from-comparison",
+      "close-threshold-row-and-source-byte-output-contracts",
+      "mark-160-schema-76-tool-text-as-historical-prior-slice"
+    ],
+    "deferred_geometry_finding": "Boolean bridge supports bounded left-right operand tags but not source-face lineage; a separate Worker operation is required before product exposure"
+  },
+  "source_truth": {
+    "schema_count": 162,
+    "schema_content_set_sha256": "c382dfd0b2e26d04c2d418281f7194bc56c56f74cc5fc344c213af1d638e88a1",
+    "operator_catalog_entries": 19,
+    "operator_catalog_active": 19,
+    "read_tools": 44,
+    "write_tools": 33,
+    "total_tools": 77,
+    "contract_manifest_sha256": "cac1433a229aef7e2add1b7f5298ee38cca0d406ef2535eaf20f4541d5337e6d",
+    "request_schema_sha256": "5d531631c44a38317bfaa16393115e692d8daaf7b13bb8143190c126aa5a9f50",
+    "result_schema_sha256": "69a768f6b39dbdc1445c31408b8d00c2d98c15e17d1beed2c4f40ae2b7804075",
+    "runtime_source_sha256": "2b1e1fd9aa46633734379e1370fde7bf4bdfd20cfe8a2d6073fbafba82ad1265",
+    "runtime_integrity_module_sha256": "84862b4199e3fb0509fde9405b301bb1f3b414b6cbe55b68bc0a8895d0fbc91e",
+    "runtime_render_worker_source_sha256": "1defd18582903673a6c143f8b82eda13d555ee5b019ad0806dc09c802a73be67",
+    "mcp_source_sha256": "88f7700a30e6de3fafad5b5a49e2040c1df749196f9e9d5425a2824064804a86",
+    "contract_checker_sha256": "ecfc21f6093ee6cf3542bc8c9c04d8fafec9343a972451721a9fc513896b9e7d",
+    "tool_manifest_summary_sha256": "7201a1281efbb07a80bea9a0987f8262c97b78e88cae407c451486c297bd0e0e",
+    "current_benchmark_truth_file_sha256": "44a9437afebfffb4a4e87e1b1cae69e5ca67079718ebfef474adac6e05a7cb2d",
+    "current_benchmark_truth_canonical_sha256": "af8b0799f5d15eedf8df6e603a04d329dd0d0723799db201b53de3b46e7dc84c"
+  },
+  "implemented_scope": {
+    "request_schema": "RenderEvidenceIntegrityRequest@1",
+    "result_schema": "RenderEvidenceIntegrity@1",
+    "mcp_tool": "render_evidence_integrity_get",
+    "default_read_only": true,
+    "runtime_write_performed": false,
+    "max_response_bytes": 1048576,
+    "exact_candidate_scope_fields": [
+      "project",
+      "candidate",
+      "artifact",
+      "artifact-readback-object",
+      "program",
+      "reference",
+      "reference-bytes",
+      "camera-identity",
+      "camera-object",
+      "render-set-object",
+      "comparison-object",
+      "quality-object"
+    ],
+    "json_cas_objects_rehashed_and_validated": [
+      "ArtifactReadback@2",
+      "CameraCalibration@1",
+      "RenderSet@2",
+      "ReferenceComparisonReport@1",
+      "QualityReport@2"
+    ],
+    "source_bytes_rehashed_and_validated": [
+      "candidate-artifact-glb",
+      "authorized-reference-image"
+    ],
+    "aov_passes": [
+      "beauty",
+      "silhouette",
+      "depth",
+      "normal",
+      "ao",
+      "part-id",
+      "material-id",
+      "wireframe",
+      "uv-stretch"
+    ],
+    "aov_validation": "CAS object hash equals recomputed bytes hash; declared size; exact 512x512 RGBA8 PNG; beauty sRGB and eight data passes",
+    "comparison_mask_validation": "CAS object hash equals recomputed bytes hash and exact 512x512 RGBA8 PNG",
+    "camera_claim": "same_camera_verified",
+    "camera_fit_provenance_claimed": false,
+    "quality_binding": "threshold revision, policy hash, source and exact eight metric gate rows retained",
+    "quality_derivation": "exact eight comparison metrics rederive observed/direction/threshold/status plus visual status, hard gate and benchmark eligibility",
+    "json_object_read_limit_bytes": 1048576,
+    "candidate_or_version_or_cas_write_added": false,
+    "worker_operator_skill_or_dependency_added": false
+  },
+  "focused_tests": {
+    "contracts": "PASS_162_SCHEMAS",
+    "runtime_restart_deep_readback": "PASS",
+    "runtime_deterministic_repeat": "PASS",
+    "runtime_stale_camera_negative": "PASS_FAIL_CLOSED",
+    "runtime_full": "PASS_198_FAILED_0_IGNORED_12",
+    "mcp_full": "PASS_75_OF_75",
+    "mcp010f": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING"
+  },
+  "full_gates": {
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "not_run_or_not_implemented": {
+    "blender_workbench_backend": "NOT_IMPLEMENTED",
+    "eevee_backend": "NOT_IMPLEMENTED",
+    "cycles_backend": "NOT_IMPLEMENTED",
+    "ocio_agx_or_filmic_parity": "NOT_IMPLEMENTED",
+    "camera_fit_provenance_in_integrity_projection": "NOT_ASSERTED",
+    "package_and_live_desktop": "NOT_RUN",
+    "visual_and_human_review": "NOT_RUN",
+    "pbr_likeness": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "retained_quality_truth": {
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence": "INCOMPLETE_TRUTH_BINDING",
+    "camera": "MISMATCH",
+    "aov_hash_completeness": "MISSING",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "historical_receipt_repaired": false
+  },
+  "canonical_sha256": "d6c96be8e6132689b7b06ef9b8a7d65555feb7bdfa8bacb37ee7926b67837384"
+}

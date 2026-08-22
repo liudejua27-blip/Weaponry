@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-rendered-sequence-get-result.schema.json",
+  "title": "FictionalEnergyVfxRenderedSequenceGetResult@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sequence_key_sha256", "receipt_object_sha256", "receipt", "link", "frames", "frame_count", "restart_hash_verified", "runtime_write_performed", "candidate_confirmed", "export_performed", "actual_engine_roundtrip", "quality_status"],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyVfxRenderedSequenceGetResult@1"},
+    "sequence_key_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "receipt_object_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+    "receipt": {"$ref": "fictional-energy-vfx-rendered-sequence-receipt.schema.json"},
+    "link": {"$ref": "fictional-energy-vfx-sequence-link.schema.json"},
+    "frames": {"type": "array", "minItems": 2, "maxItems": 16, "items": {"$ref": "fictional-energy-vfx-rendered-frame-get-result.schema.json"}},
+    "frame_count": {"type": "integer", "minimum": 2, "maximum": 16},
+    "restart_hash_verified": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "candidate_confirmed": {"const": false},
+    "export_performed": {"const": false},
+    "actual_engine_roundtrip": {"const": false},
+    "quality_status": {"const": "structural_only"}
+  }
+}

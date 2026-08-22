@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/render-evidence-replay.schema.json",
+  "title": "RenderEvidenceReplay",
+  "description": "A bounded read-only comparison between persisted RenderSet AOV bytes and a transient replay by the fixed ForgeCAD Render Worker. Byte equality is structural evidence, not visual-quality or Blender renderer parity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "projection_status", "read_only", "project_id", "candidate_id", "candidate_state_sha256", "artifact_sha256", "camera_hash", "source_render_set_object_sha256", "request_sha256", "integrity_request_sha256", "integrity_result_sha256", "replay_policy", "appearance_binding_status", "temporary_materialization", "render_profile_binding", "worker_cohort_binding", "aov_replay_rows", "mismatched_passes", "replay_status", "determinism_claim", "binding_status", "runtime_write_performed", "persistent_user_data_touched", "max_response_bytes", "limitations", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "RenderEvidenceReplay@1"},
+    "projection_status": {"const": "transient-replay/read-only"},
+    "read_only": {"const": true},
+    "project_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_state_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_sha256": {"$ref": "#/$defs/sha256"},
+    "camera_hash": {"$ref": "#/$defs/sha256"},
+    "source_render_set_object_sha256": {"$ref": "#/$defs/sha256"},
+    "request_sha256": {"$ref": "#/$defs/sha256"},
+    "integrity_request_sha256": {"$ref": "#/$defs/sha256"},
+    "integrity_result_sha256": {"$ref": "#/$defs/sha256"},
+    "replay_policy": {"const": "fixed-worker-nine-aov-byte-replay-read-only@1"},
+    "appearance_binding_status": {"const": "artifact-embedded-materials-only"},
+    "temporary_materialization": {"const": "in-memory-only"},
+    "render_profile_binding": {"$ref": "#/$defs/render_profile_binding"},
+    "worker_cohort_binding": {"$ref": "#/$defs/worker_cohort_binding"},
+    "aov_replay_rows": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "prefixItems": [
+        {"$ref": "#/$defs/beauty_row"},
+        {"$ref": "#/$defs/silhouette_row"},
+        {"$ref": "#/$defs/depth_row"},
+        {"$ref": "#/$defs/normal_row"},
+        {"$ref": "#/$defs/ao_row"},
+        {"$ref": "#/$defs/part_id_row"},
+        {"$ref": "#/$defs/material_id_row"},
+        {"$ref": "#/$defs/wireframe_row"},
+        {"$ref": "#/$defs/uv_stretch_row"}
+      ],
+      "items": false
+    },
+    "mismatched_passes": {"type": "array", "minItems": 0, "maxItems": 9, "uniqueItems": true, "items": {"$ref": "#/$defs/pass_name"}},
+    "replay_status": {"const": "repeat_byte_exact_match"},
+    "determinism_claim": {"const": "repeat_byte_exact_same_cohort"},
+    "binding_status": {"const": "passed"},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "max_response_bytes": {"const": 1048576},
+    "limitations": {
+      "const": [
+        "CURRENT_SOURCE_RENDER_WORKER_ONLY",
+        "SAME_RENDER_WORKER_COHORT_REQUIRED",
+        "AUTHORED_APPEARANCE_PROGRAM_NOT_DURABLY_BOUND",
+        "BYTE_EXACT_REPLAY_DOES_NOT_PROVE_CROSS_PLATFORM_DETERMINISM",
+        "STRUCTURAL_REPLAY_DOES_NOT_PROVE_VISUAL_QUALITY",
+        "NO_HUMAN_REVIEW_INFERENCE",
+        "NO_CYCLES_EEVEE_OR_OCIO_PARITY",
+        "NO_CAS_SQLITE_CANDIDATE_OR_VERSION_WRITE",
+        "DOWNSTREAM_PACKAGE_LIVE_PBR_EXPORT_RESTART_HQ360_NOT_EVALUATED"
+      ]
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "pass_name": {"enum": ["beauty", "silhouette", "depth", "normal", "ao", "part-id", "material-id", "wireframe", "uv-stretch"]},
+    "render_profile_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_render_profile_sha256", "replayed_render_profile_sha256", "aov_definition_sha256", "color_pipeline_sha256", "id_palette_definition_sha256", "profile_match"],
+      "properties": {
+        "source_render_profile_sha256": {"$ref": "#/$defs/sha256"},
+        "replayed_render_profile_sha256": {"$ref": "#/$defs/sha256"},
+        "aov_definition_sha256": {"$ref": "#/$defs/sha256"},
+        "color_pipeline_sha256": {"$ref": "#/$defs/sha256"},
+        "id_palette_definition_sha256": {"$ref": "#/$defs/sha256"},
+        "profile_match": {"const": true}
+      }
+    },
+    "worker_cohort_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_render_worker_build_cohort_sha256", "first_replay_render_worker_build_cohort_sha256", "repeat_replay_render_worker_build_cohort_sha256", "status"],
+      "properties": {
+        "source_render_worker_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+        "first_replay_render_worker_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+        "repeat_replay_render_worker_build_cohort_sha256": {"$ref": "#/$defs/sha256"},
+        "status": {"const": "same_cohort_verified"}
+      }
+    },
+    "aov_replay_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "source_cas_object_sha256", "source_bytes_sha256", "source_pixel_sha256", "first_replay_bytes_sha256", "first_replay_pixel_sha256", "repeat_replay_bytes_sha256", "repeat_replay_pixel_sha256", "source_size_bytes", "first_replay_size_bytes", "repeat_replay_size_bytes", "width", "height", "mime", "channels", "color_space", "source_cas_verified", "first_replay_png_decode_verified", "repeat_replay_png_decode_verified", "byte_exact", "pixel_exact", "repeat_byte_exact"],
+      "properties": {
+        "pass": {"$ref": "#/$defs/pass_name"},
+        "source_cas_object_sha256": {"$ref": "#/$defs/sha256"},
+        "source_bytes_sha256": {"$ref": "#/$defs/sha256"},
+        "source_pixel_sha256": {"$ref": "#/$defs/sha256"},
+        "first_replay_bytes_sha256": {"$ref": "#/$defs/sha256"},
+        "first_replay_pixel_sha256": {"$ref": "#/$defs/sha256"},
+        "repeat_replay_bytes_sha256": {"$ref": "#/$defs/sha256"},
+        "repeat_replay_pixel_sha256": {"$ref": "#/$defs/sha256"},
+        "source_size_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "first_replay_size_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "repeat_replay_size_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "width": {"const": 512},
+        "height": {"const": 512},
+        "mime": {"const": "image/png"},
+        "channels": {"const": "rgba8"},
+        "color_space": {"enum": ["srgb", "data"]},
+        "source_cas_verified": {"const": true},
+        "first_replay_png_decode_verified": {"const": true},
+        "repeat_replay_png_decode_verified": {"const": true},
+        "byte_exact": {"const": true},
+        "pixel_exact": {"const": true},
+        "repeat_byte_exact": {"const": true}
+      }
+    },
+    "beauty_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "beauty"}, "color_space": {"const": "srgb"}}}]},
+    "silhouette_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "silhouette"}, "color_space": {"const": "data"}}}]},
+    "depth_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "depth"}, "color_space": {"const": "data"}}}]},
+    "normal_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "normal"}, "color_space": {"const": "data"}}}]},
+    "ao_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "ao"}, "color_space": {"const": "data"}}}]},
+    "part_id_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "part-id"}, "color_space": {"const": "data"}}}]},
+    "material_id_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "material-id"}, "color_space": {"const": "data"}}}]},
+    "wireframe_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "wireframe"}, "color_space": {"const": "data"}}}]},
+    "uv_stretch_row": {"allOf": [{"$ref": "#/$defs/aov_replay_row"}, {"properties": {"pass": {"const": "uv-stretch"}, "color_space": {"const": "data"}}}]}
+  }
+}

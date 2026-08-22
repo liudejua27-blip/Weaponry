@@ -18,7 +18,7 @@ ADR-0026 的“Codex 必须看得见”原则在本手册中的当前做法是�
 3. `operator_catalog_get`，并交叉读取 `forgecad://operators/catalog`
 4. `skill_list`
 
-只有 `status: active` 且同时出现在当前 catalog 的 Operator 才能进入 GeometryProgram。当前 catalog 有 16 项：`primitive@2`、`profile-extrude@1`、`profile-loft@1`、`subd-cage@1`、`surface-patch@1`、`surface-shell@1`、`revolve@1`、`tube-sweep@1`、`transform@2`、`mirror@1`、`array@1`、`panel@1`、`vent-array@1`、`joint-stack@1`、`part-output@1` 和 `boolean@1`；`boolean@1` 允许同一 Part scope 的 bounded union/difference/intersection，通用 mesh Boolean 不开放。`hard-surface-detail@0.2.0` 只有在 Runtime 验证其 manifest、recipe、operator lock、benchmark、provenance 和 trust 后才返回 active。`uv-pbr@0.2.0` 与 `forgecad-hard-surface-robot@1.0.0` AssetPack 已有 source-focused 离线验证；Codex 仍必须从当前 `skill_list`/AssetPack manifest 读取实际 hash，不能仅凭计划或 GitHub 项目名称调用。
+只有 `status: active` 且同时出现在当前 catalog 的 Operator 才能进入 GeometryProgram。当前 catalog 有 19 项：`primitive@2`、`profile-extrude@1`、`profile-loft@1`、`longitudinal-section-loft@1`、`subd-cage@1`、`surface-patch@1`、`surface-shell@1`、`revolve@1`、`tube-sweep@1`、`transform@2`、`mirror@1`、`array@1`、`bevel@1`、`normal-policy@1`、`panel@1`、`vent-array@1`、`joint-stack@1`、`part-output@1` 和 `boolean@1`。`bevel@1` 只允许 direct source box，`normal-policy@1` 只允许固定 corner area×angle policy；`boolean@1` 只允许同一 Part scope 的 bounded union/difference/intersection，通用 mesh 操作不开放。`hard-surface-detail@0.2.0` 只有在 Runtime 验证其 manifest、recipe、operator lock、benchmark、provenance 和 trust 后才返回 active。`uv-pbr@0.2.0` 与 `forgecad-hard-surface-robot@1.0.0` AssetPack 已有 source-focused 离线验证；Codex 仍必须从当前 `skill_list`/AssetPack manifest 读取实际 hash，不能仅凭计划或 GitHub 项目名称调用。
 
 如果 Runtime 不是 `Ready`、catalog/resource hash 不一致、或 MCP/Runtime cohort 不一致，立即停止写入，返回实际的 typed error；不要从旧 receipt、文档或 Skill manifest 猜 hash。
 

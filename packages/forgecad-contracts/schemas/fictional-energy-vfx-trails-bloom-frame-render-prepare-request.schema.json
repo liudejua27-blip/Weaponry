@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-trails-bloom-frame-render-prepare-request.schema.json",
+  "title": "FictionalEnergyVfxTrailsBloomFrameRenderPrepareRequest@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "delivery_manifest_object_sha256",
+    "vfx_profile_object_sha256",
+    "anchor_set_object_sha256",
+    "base_frame_key_sha256",
+    "bloom_key_sha256",
+    "source_trail_key_sha256",
+    "trail_bloom_profile",
+    "trail_bloom_policy",
+    "input_policy",
+    "occlusion_policy",
+    "render_policy",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "FictionalEnergyVfxTrailsBloomFrameRenderPrepareRequest@1"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "delivery_manifest_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "vfx_profile_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "anchor_set_object_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "base_frame_key_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "bloom_key_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "source_trail_key_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "trail_bloom_profile": {
+      "$ref": "#/$defs/trail_bloom_profile"
+    },
+    "trail_bloom_policy": {
+      "const": "lod0-typed-trails-hdr-source-two-pass-fixed-kernel@1"
+    },
+    "input_policy": {
+      "const": "existing-trail-color-depth-plus-current-base-opaque-depth-byte-exact@1"
+    },
+    "occlusion_policy": {
+      "const": "current-base-opaque-depth-before-trail-depth-reversed-normalized-u8-epsilon-1e-4@1"
+    },
+    "render_policy": {
+      "const": "lod0-trail-bloom-two-new-passes-base-bloom-particles-trails-byte-exact-reused@1"
+    },
+    "canonical_sha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "trail_bloom_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "threshold",
+        "source_gain",
+        "radius_px",
+        "intensity",
+        "hdr_clamp",
+        "blur_passes",
+        "kernel"
+      ],
+      "properties": {
+        "threshold": {
+          "const": 1.0
+        },
+        "source_gain": {
+          "const": 8.0
+        },
+        "radius_px": {
+          "const": 8
+        },
+        "intensity": {
+          "const": 4.0
+        },
+        "hdr_clamp": {
+          "const": 16.0
+        },
+        "blur_passes": {
+          "const": 2
+        },
+        "kernel": {
+          "const": "separable-box-two-pass-fixed-radius@1"
+        }
+      }
+    }
+  }
+}

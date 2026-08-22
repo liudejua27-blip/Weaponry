@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/topology-snapshot-request.schema.json",
+  "title": "TopologySnapshotRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "artifact_id",
+    "candidate_id",
+    "part_id",
+    "artifact_readback_sha256",
+    "program_sha256",
+    "operator_catalog_sha256",
+    "readback_config_sha256",
+    "snapshot_policy_sha256",
+    "max_face_count"
+  ],
+  "properties": {
+    "schema_version": {"const": "TopologySnapshotRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "readback_config_sha256": {"$ref": "#/$defs/sha256"},
+    "snapshot_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "max_face_count": {"type": "integer", "minimum": 1, "maximum": 512}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -253,8 +253,12 @@ int execute_boolean(
                   MANIFOLD_VERTEX_INDEX_OUT_OF_BOUNDS);
     }
   }
+  if (run_indices.front() != 0) {
+    return fail(output, FORGECAD_BOOLEAN_MANIFOLD_ERROR, MANIFOLD_RUN_INDEX_WRONG_LENGTH);
+  }
   for (size_t index = 0; index + 1 < run_indices.size(); ++index) {
-    if (run_indices[index] > run_indices[index + 1] ||
+    if (run_indices[index] % 3 != 0 || run_indices[index + 1] % 3 != 0 ||
+        run_indices[index] > run_indices[index + 1] ||
         run_indices[index + 1] > triangles * 3) {
       return fail(output, FORGECAD_BOOLEAN_MANIFOLD_ERROR, MANIFOLD_RUN_INDEX_WRONG_LENGTH);
     }

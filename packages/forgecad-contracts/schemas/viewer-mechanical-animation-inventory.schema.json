@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/viewer-mechanical-animation-inventory.schema.json",
+  "title": "ViewerMechanicalAnimationInventory",
+  "description": "Compact authenticated read-only projection of immutable mechanical animation clips for one candidate artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "read_only", "runtime_write_performed", "persistent_user_data_touched", "project_id", "candidate_id", "artifact_id", "clip_count", "max_clips", "clips", "quality_status", "limitations", "canonical_sha256"],
+  "properties": {
+    "schema_version": {"const": "ViewerMechanicalAnimationInventory@1"},
+    "status": {"const": "Ready"},
+    "read_only": {"const": true},
+    "runtime_write_performed": {"const": false},
+    "persistent_user_data_touched": {"const": false},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "clip_count": {"type": "integer", "minimum": 0, "maximum": 16},
+    "max_clips": {"const": 16},
+    "clips": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/clip_summary"}},
+    "quality_status": {"const": "structural_only"},
+    "limitations": {"const": ["caller-authored-rigid-links-only", "no-armature-skinning-ik-nla-fcurves-drivers-or-editing", "no-viewer-mesh-motion-without-link-part-transform-evidence", "structural-evidence-does-not-prove-visual-quality"]},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "clip_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clip_id", "clip_object_sha256", "clip_sha256", "rest_frame_sha256", "pose_action_sha256", "source_replay_worker_cohort_sha256", "materialization_status", "created_at"],
+      "properties": {
+        "clip_id": {"$ref": "#/$defs/identifier"},
+        "clip_object_sha256": {"$ref": "#/$defs/sha256"},
+        "clip_sha256": {"$ref": "#/$defs/sha256"},
+        "rest_frame_sha256": {"$ref": "#/$defs/sha256"},
+        "pose_action_sha256": {"$ref": "#/$defs/sha256"},
+        "source_replay_worker_cohort_sha256": {"$ref": "#/$defs/sha256"},
+        "materialization_status": {"const": "runtime-owned-immutable-cas-clip"},
+        "created_at": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    }
+  }
+}

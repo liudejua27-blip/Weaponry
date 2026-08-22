@@ -1,0 +1,75 @@
+{
+  "schema_version": "ForgeCADViewerProvenanceGraphSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-20",
+  "status": "PASS_SOURCE_READ_ONLY_STRUCTURAL_PROVENANCE_GRAPH",
+  "scope": "candidate-bound read-only Viewer provenance projection",
+  "contracts": {
+    "schema_count": 195,
+    "manifest_sha256": "bf1f97803cf89e8c470ea0be1068e68f8aa300f110fd7eccc9e2772759f98d1f",
+    "schema_content_set_sha256": "da3e6228833b5d9a3e25dc1c6cc8bc0fc1b863b060c4d13952da7227126fe7b9",
+    "request_schema": "ViewerProvenanceGraphRequest@1",
+    "response_schema": "ViewerProvenanceGraph@1"
+  },
+  "source_sha256": {
+    "runtime": "cbd22d9aa65a06d21e4edc920222cdeae86dc464cc7553a716efdbe7a4291be1",
+    "runtime_projection": "a8b919350d357140e14d56d46d24c535f2828aafe86776cebbfb82b78b4e49a9",
+    "tauri_viewer": "60784b0791ed5b4a033449efa9e35cafee16967812f699df1f146ef6637785cd",
+    "tauri_main": "266d375558e920b27d706717f6f04c12aa1a2fb561836629c9987ff8a0f0b6f6",
+    "viewer": "519a243efc3713d9cbe14808786f877d8c3a8e8992cf956a3b5040982695c606",
+    "normalizer": "00021fbac57721ebc0c91d450b5b8f2682bccec0ecd156c6a1d90fbf66597ddb",
+    "styles": "30dd562b7ed4abef5723effd4526e75a8d85881d435efd37f28d70b5a9116a99",
+    "viewer_gate": "f5b8bdb7363a98b5ddecaf3445900f05a2c1a409aa1104350755ac1529200261"
+  },
+  "binding": {
+    "project_candidate_candidate_state_artifact": "PASS_EXACT_FAIL_CLOSED",
+    "complete_or_fail": true,
+    "max_nodes": 64,
+    "max_edges": 128,
+    "max_response_bytes": 1048576,
+    "runtime_write_performed": false,
+    "persistent_user_data_touched": false
+  },
+  "branches": {
+    "geometry_operator_artifact_readback_quality": "PASS",
+    "visual_nine_aov": "PASS_WHEN_DURABLE_VISUAL_EVIDENCE_EXISTS",
+    "mechanical_animation": "PASS_WHEN_DURABLE_CLIP_LINK_EXISTS",
+    "visual_failure_preservation": "PASS_QUALITY_TARGET_NOT_MET_NOT_PROMOTED",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "tests": {
+    "contract_checker": "PASS_195_SCHEMAS",
+    "runtime_exact_binding_and_no_write": "PASS",
+    "runtime_fixed_renderer_visual_failure_branch": "PASS_SAME_COHORT_WORKERS",
+    "viewer_normalizer_negative_fixtures": "PASS",
+    "viewer_deferred_promise_race": "PASS_STALE_SUCCESS_ERROR_FINALLY_REJECTED_LATEST_WINS",
+    "typescript": "PASS",
+    "vite_build": "PASS"
+  },
+  "mcp_surface": {
+    "read_tools": 54,
+    "write_tools": 36,
+    "total_tools": 90,
+    "changed": false
+  },
+  "omitted_kinds": [
+    "modifier-apply-history",
+    "boolean-preview-history",
+    "subdivision-sidecar-history",
+    "design-session-history"
+  ],
+  "limitations": [
+    "source structural Viewer evidence only",
+    "does not prove Blender dependency graph or Python runtime parity",
+    "does not promote visible-view quality, PBR likeness, human review, packaged UI, VoiceOver, export restart hash or HQ360"
+  ],
+  "quality_truth": {
+    "visible_view": "QUALITY_TARGET_NOT_MET",
+    "evidence": "INCOMPLETE_TRUTH_BINDING",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "camera": "MISMATCH",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "independent_luna_review": "GO_SOURCE_RUNTIME_READ_ONLY_STRUCTURAL_GATE_NO_REMAINING_P0",
+  "canonical_sha256": "b4a8285d9a26708484f644ba774194719c9cbf17eca03d413cc9ae62f9b759df"
+}

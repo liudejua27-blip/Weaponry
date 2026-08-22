@@ -1,0 +1,80 @@
+{
+  "schema_version": "ForgeCADMCP010FViewerMechanicalFrameSourceGate@1",
+  "task_id": "FGC-MCP010F",
+  "date": "2026-08-20",
+  "status": "PASS_SOURCE_READ_ONLY_VERIFIED_DISCRETE_RIGID_FRAME",
+  "scope": "candidate-bound immutable MechanicalAnimationClip inspection plus Runtime-evaluated scheduled frame projection into the ephemeral Viewer scene",
+  "contracts": {
+    "schema_count": 195,
+    "manifest_sha256": "bf1f97803cf89e8c470ea0be1068e68f8aa300f110fd7eccc9e2772759f98d1f",
+    "inventory": "ViewerMechanicalAnimationInventory@1",
+    "clip": "MechanicalAnimationClipLink@1",
+    "frame": "MechanicalAnimationClipPreview@1",
+    "transient_geometry": "MechanicalPoseGeometryPreview@1"
+  },
+  "source": {
+    "tauri_viewer_sha256": "b807bf86954830d8ca4973bc4c948270eab290626a5b8937752cbc7f635436fc",
+    "tauri_main_sha256": "0aa0d55ecfc51b33c7f8e4555c1f23ef09c6abe4aab87cefca2c57265a79d1d3",
+    "runtime_viewer_sha256": "af272541636af1ff29498f238cca527ab88df8e718167fe0807a51ccc9a229ca",
+    "normalizer_sha256": "c9da679deb5bd717e93a36b04908f32a4b63b85677830dbc746570c95f6ab68c",
+    "viewer_gate_sha256": "ac52e7abaa6daa28b9d19759389986c9b44b1d5304f5e84353c0708c60e1087c"
+  },
+  "runtime_projection": {
+    "max_clips": 16,
+    "frame_preview_batch_size": 1,
+    "scheduled_integer_ticks_only": true,
+    "runtime_double_worker_replay_required": true,
+    "worker_build_cohort_exact": true,
+    "transient_artifact_byte_exact": true,
+    "read_only": true,
+    "runtime_write_performed": false,
+    "persistent_user_data_touched": false,
+    "mcp_tool_added": false,
+    "mcp_read_count": 54,
+    "mcp_write_count": 36,
+    "mcp_total_count": 90
+  },
+  "viewer_surface": {
+    "immutable_clip_selection": "PASS_SOURCE",
+    "discrete_schedule_ticks": "PASS_SOURCE_MAX_16_NO_AUTOPLAY",
+    "runtime_evaluated_part_delta": "PASS_SOURCE",
+    "strict_glb_part_owner_map": "PASS_EXACT_ONE_IDENTITY_DIRECT_SCENE_ROOT_NODE_OWNER_PER_EXPECTED_PART",
+    "embedded_gltf_animation": "FAIL_CLOSED",
+    "bone_or_skinned_mesh": "FAIL_CLOSED",
+    "unknown_duplicate_nested_or_nonidentity_part_owner": "FAIL_CLOSED",
+    "candidate_clip_or_tick_switch_stale_response": "PASS_EXECUTABLE_SUCCESS_ERROR_FINALLY_REJECTION",
+    "viewer_local_pose_evaluation": false,
+    "prepare_confirm_or_persistent_write": false,
+    "explosion_and_animation_transform_composition": "PASS_SOURCE_SINGLE_EFFECT_BASELINE_RESET_AND_WORLD_OFFSET_PARENT_INVERSE"
+  },
+  "tests": {
+    "contract_checker": "PASS_195_SCHEMAS",
+    "viewer_frontend_source_gate": "PASS",
+    "normalizer_and_negative_fixtures": "PASS_PROVENANCE_FRAME_COMPLETE_PART_COVERAGE_AND_PART_OWNER_NEGATIVES",
+    "deferred_response_race_fixtures": "PASS_STALE_SUCCESS_ERROR_AND_FINALLY_REJECTED",
+    "typescript_typecheck": "PASS",
+    "vite_production_build": "PASS_4816_MODULES",
+    "tauri_offline_tests": "PASS_6_OF_6",
+    "tauri_same_cohort_positive_scheduled_frame": "PASS_1_OF_1_FIXED_COHORT_WITH_SIBLING_GEOMETRY_WORKER",
+    "runtime_mechanical_animation_focused_tests": "PASS_2_OF_2",
+    "git_diff_check": "PASS"
+  },
+  "quality_truth": {
+    "quality_status": "structural_only",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "packaged_ui_e2e": "NOT_RUN",
+    "voiceover": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "caller-authored-rigid-links-only",
+    "discrete-explicit-tick-preview-only-no-continuous-playback",
+    "no-armature-skinning-deformation-ik-constraints-nla-fcurves-drivers-or-editing",
+    "no-glb-animation-channel-or-blender-python-parity",
+    "source-gate-does-not-prove-packaged-ui-accessibility-human-review-or-visual-quality"
+  ]
+}

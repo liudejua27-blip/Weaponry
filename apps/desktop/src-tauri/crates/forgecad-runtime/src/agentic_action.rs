@@ -54,12 +54,14 @@ const ACTION_KINDS: [&str; 16] = [
     "uv-pbr",
 ];
 
-const OPERATOR_IDS: [&str; 17] = [
+const OPERATOR_IDS: [&str; 25] = [
     "forgecad.geometry.primitive@2",
     "forgecad.geometry.profile-extrude@1",
     "forgecad.geometry.profile-loft@1",
     "forgecad.geometry.longitudinal-section-loft@1",
     "forgecad.geometry.subd-cage@1",
+    "forgecad.geometry.subd-cage@2",
+    "forgecad.geometry.authoring-mesh@1",
     "forgecad.geometry.surface-patch@1",
     "forgecad.geometry.surface-shell@1",
     "forgecad.geometry.revolve@1",
@@ -67,8 +69,14 @@ const OPERATOR_IDS: [&str; 17] = [
     "forgecad.geometry.transform@2",
     "forgecad.geometry.mirror@1",
     "forgecad.geometry.array@1",
+    "forgecad.geometry.bevel@1",
+    "forgecad.geometry.normal-policy@1",
     "forgecad.geometry.panel@1",
+    "forgecad.geometry.panel@2",
     "forgecad.geometry.vent-array@1",
+    "forgecad.geometry.vent-array@2",
+    "forgecad.geometry.recessed-channel@1",
+    "forgecad.geometry.energy-core@1",
     "forgecad.geometry.joint-stack@1",
     "forgecad.geometry.boolean@1",
     "forgecad.geometry.part-output@1",
@@ -2168,6 +2176,8 @@ enum RuntimeParameterSemantic {
     Position(usize),
     Rotation(usize),
     Radius,
+    OuterRadius,
+    InnerRadius,
     Thickness,
     Bevel,
     SurfaceControlPoint { index: usize, axis: usize },
@@ -2213,6 +2223,10 @@ fn runtime_parameter_semantic(parameter_id: &str) -> Option<RuntimeParameterSema
         Some(RuntimeParameterSemantic::Rotation(1))
     } else if matches("rotation-z") {
         Some(RuntimeParameterSemantic::Rotation(2))
+    } else if matches("outer-radius") {
+        Some(RuntimeParameterSemantic::OuterRadius)
+    } else if matches("inner-radius") {
+        Some(RuntimeParameterSemantic::InnerRadius)
     } else if matches("radius") {
         Some(RuntimeParameterSemantic::Radius)
     } else if matches("thickness") {
@@ -2294,26 +2308,35 @@ fn runtime_parameter_node_supports(
         operator_id,
         Some(
             "forgecad.geometry.subd-cage@1"
+                | "forgecad.geometry.subd-cage@2"
                 | "forgecad.geometry.surface-patch@1"
                 | "forgecad.geometry.surface-shell@1"
         )
     );
     let panel_operator = operator_id == Some("forgecad.geometry.panel@1");
+    let energy_core_operator = operator_id == Some("forgecad.geometry.energy-core@1");
     let Some(parameters) = node.get("parameters").and_then(Value::as_object) else {
         return false;
     };
     match semantic {
+        RuntimeParameterSemantic::Size(2) if energy_core_operator => {
+            parameters.get("depth_m").and_then(Value::as_f64).is_some()
+        }
         RuntimeParameterSemantic::Size(index) if primitive_or_panel => parameters
             .get("size_m")
             .and_then(Value::as_array)
             .is_some_and(|values| values.len() == 3 && values[index].as_f64().is_some()),
-        RuntimeParameterSemantic::Position(index) if primitive_or_panel || surface_operator => {
+        RuntimeParameterSemantic::Position(index)
+            if primitive_or_panel || surface_operator || energy_core_operator =>
+        {
             parameters
                 .get("position_m")
                 .and_then(Value::as_array)
                 .is_some_and(|values| values.len() == 3 && values[index].as_f64().is_some())
         }
-        RuntimeParameterSemantic::Rotation(index) if primitive_or_panel || surface_operator => {
+        RuntimeParameterSemantic::Rotation(index)
+            if primitive_or_panel || surface_operator || energy_core_operator =>
+        {
             parameters
                 .get("rotation_rad")
                 .and_then(Value::as_array)
@@ -2322,6 +2345,14 @@ fn runtime_parameter_node_supports(
         RuntimeParameterSemantic::Radius if primitive_or_panel => {
             parameters.get("radius_m").and_then(Value::as_f64).is_some()
         }
+        RuntimeParameterSemantic::OuterRadius if energy_core_operator => parameters
+            .get("outer_radius_m")
+            .and_then(Value::as_f64)
+            .is_some(),
+        RuntimeParameterSemantic::InnerRadius if energy_core_operator => parameters
+            .get("inner_radius_m")
+            .and_then(Value::as_f64)
+            .is_some(),
         RuntimeParameterSemantic::Thickness
             if panel_operator || operator_id == Some("forgecad.geometry.surface-shell@1") =>
         {
@@ -2356,6 +2387,8 @@ fn runtime_parameter_value_in_bounds(semantic: RuntimeParameterSemantic, value: 
             (-2.0 * std::f64::consts::PI..=2.0 * std::f64::consts::PI).contains(&value)
         }
         RuntimeParameterSemantic::Radius => value > 0.0 && value <= 5.0,
+        RuntimeParameterSemantic::OuterRadius => value > 0.0 && value <= 5.0,
+        RuntimeParameterSemantic::InnerRadius => (0.0..=5.0).contains(&value),
         RuntimeParameterSemantic::Thickness => value > 0.0 && value <= 10.0,
         RuntimeParameterSemantic::Bevel => value >= 0.0 && value <= 5.0,
         RuntimeParameterSemantic::SurfaceControlPoint { .. } => (-10.0..=10.0).contains(&value),
@@ -2368,6 +2401,8 @@ fn runtime_parameter_unit_allowed(semantic: RuntimeParameterSemantic, unit: &str
         RuntimeParameterSemantic::Size(_)
         | RuntimeParameterSemantic::Position(_)
         | RuntimeParameterSemantic::Radius
+        | RuntimeParameterSemantic::OuterRadius
+        | RuntimeParameterSemantic::InnerRadius
         | RuntimeParameterSemantic::Thickness
         | RuntimeParameterSemantic::Bevel
         | RuntimeParameterSemantic::SurfaceControlPoint { .. } => {
@@ -2382,6 +2417,38 @@ fn runtime_parameter_relationship_valid(
     semantic: RuntimeParameterSemantic,
     proposed: f64,
 ) -> bool {
+    if operator_id == "forgecad.geometry.energy-core@1" {
+        let outer_radius_m = parameters
+            .get("outer_radius_m")
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite());
+        let inner_radius_m = parameters
+            .get("inner_radius_m")
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite());
+        let component = parameters.get("component").and_then(Value::as_str);
+        let (Some(mut outer_radius_m), Some(mut inner_radius_m), Some(component)) =
+            (outer_radius_m, inner_radius_m, component)
+        else {
+            return false;
+        };
+        match semantic {
+            RuntimeParameterSemantic::OuterRadius => outer_radius_m = proposed,
+            RuntimeParameterSemantic::InnerRadius => inner_radius_m = proposed,
+            _ => return true,
+        }
+        if !(outer_radius_m > 0.0
+            && inner_radius_m >= 0.0
+            && inner_radius_m < outer_radius_m - 1.0e-5)
+        {
+            return false;
+        }
+        return match component {
+            "guard-ring" | "mechanical-ring" => inner_radius_m > 1.0e-5,
+            "emitter-core" | "mechanical-backplate" => inner_radius_m == 0.0,
+            _ => false,
+        };
+    }
     if operator_id != "forgecad.geometry.panel@1" {
         return true;
     }
@@ -2692,6 +2759,11 @@ fn materialize_runtime_parameter_patch_proposal(
                 RuntimeError::InvalidInput("REPAIR_PROGRAM_PARAMETERS_INVALID".to_owned())
             })?;
         let current = match semantic {
+            RuntimeParameterSemantic::Size(2)
+                if operator_id == "forgecad.geometry.energy-core@1" =>
+            {
+                parameters.get("depth_m").and_then(Value::as_f64)
+            }
             RuntimeParameterSemantic::Size(index) => parameters
                 .get("size_m")
                 .and_then(Value::as_array)
@@ -2708,6 +2780,12 @@ fn materialize_runtime_parameter_patch_proposal(
                 .and_then(|values| values.get(index))
                 .and_then(Value::as_f64),
             RuntimeParameterSemantic::Radius => parameters.get("radius_m").and_then(Value::as_f64),
+            RuntimeParameterSemantic::OuterRadius => {
+                parameters.get("outer_radius_m").and_then(Value::as_f64)
+            }
+            RuntimeParameterSemantic::InnerRadius => {
+                parameters.get("inner_radius_m").and_then(Value::as_f64)
+            }
             RuntimeParameterSemantic::Thickness => {
                 parameters.get("thickness_m").and_then(Value::as_f64)
             }
@@ -2757,6 +2835,11 @@ fn materialize_runtime_parameter_patch_proposal(
         }
         let proposed_value = runtime_parameter_number(proposed, parameter_id)?;
         match semantic {
+            RuntimeParameterSemantic::Size(2)
+                if operator_id == "forgecad.geometry.energy-core@1" =>
+            {
+                parameters.insert("depth_m".to_owned(), proposed_value);
+            }
             RuntimeParameterSemantic::Size(index) => {
                 let values = parameters
                     .get_mut("size_m")
@@ -2786,6 +2869,12 @@ fn materialize_runtime_parameter_patch_proposal(
             }
             RuntimeParameterSemantic::Radius => {
                 parameters.insert("radius_m".to_owned(), proposed_value);
+            }
+            RuntimeParameterSemantic::OuterRadius => {
+                parameters.insert("outer_radius_m".to_owned(), proposed_value);
+            }
+            RuntimeParameterSemantic::InnerRadius => {
+                parameters.insert("inner_radius_m".to_owned(), proposed_value);
             }
             RuntimeParameterSemantic::Thickness => {
                 parameters.insert("thickness_m".to_owned(), proposed_value);
@@ -5336,6 +5425,74 @@ mod tests {
                 .clone(),
             RuntimeParameterSemantic::Bevel,
             0.60
+        ));
+
+        let energy_core_node = json!({
+            "operator_id":"forgecad.geometry.energy-core@1",
+            "parameters":{
+                "shape":"energy-core",
+                "component":"guard-ring",
+                "outer_radius_m":0.48,
+                "inner_radius_m":0.40,
+                "depth_m":0.08,
+                "radial_segments":32,
+                "position_m":[0.0,0.0,0.0],
+                "rotation_rad":[0.0,0.0,0.0]
+            }
+        });
+        let energy_core_parameters = energy_core_node["parameters"]
+            .as_object()
+            .expect("energy-core parameters")
+            .clone();
+        assert_eq!(
+            runtime_parameter_semantic("energy-core-outer-radius"),
+            Some(RuntimeParameterSemantic::OuterRadius)
+        );
+        assert_eq!(
+            runtime_parameter_semantic("energy-core-inner-radius"),
+            Some(RuntimeParameterSemantic::InnerRadius)
+        );
+        assert!(runtime_parameter_node_supports(
+            energy_core_node.as_object().unwrap(),
+            RuntimeParameterSemantic::OuterRadius
+        ));
+        assert!(runtime_parameter_node_supports(
+            energy_core_node.as_object().unwrap(),
+            RuntimeParameterSemantic::InnerRadius
+        ));
+        assert!(runtime_parameter_node_supports(
+            energy_core_node.as_object().unwrap(),
+            RuntimeParameterSemantic::Size(2)
+        ));
+        assert!(runtime_parameter_relationship_valid(
+            "forgecad.geometry.energy-core@1",
+            &energy_core_parameters,
+            RuntimeParameterSemantic::OuterRadius,
+            0.50
+        ));
+        assert!(!runtime_parameter_relationship_valid(
+            "forgecad.geometry.energy-core@1",
+            &energy_core_parameters,
+            RuntimeParameterSemantic::InnerRadius,
+            0.0
+        ));
+        assert!(!runtime_parameter_relationship_valid(
+            "forgecad.geometry.energy-core@1",
+            &energy_core_parameters,
+            RuntimeParameterSemantic::OuterRadius,
+            0.39
+        ));
+
+        let solid_parameters = json!({
+            "component":"emitter-core",
+            "outer_radius_m":0.25,
+            "inner_radius_m":0.0
+        });
+        assert!(!runtime_parameter_relationship_valid(
+            "forgecad.geometry.energy-core@1",
+            solid_parameters.as_object().unwrap(),
+            RuntimeParameterSemantic::InnerRadius,
+            0.000001
         ));
         panel_action["parameter_changes"] = json!([
             {"parameter_id":"panel-bevel","before":0.12,"after":0.14,"minimum":0.0,"maximum":0.30,"unit":"meter"},

@@ -1,0 +1,118 @@
+{
+  "schema_version": "ForgeCADProductionStageTransitionV2SourceGate@1",
+  "task_id": "FGC-MCP010F-PRODUCTION-STAGE-V2-18",
+  "date": "2026-08-21",
+  "status": "PASS_SOURCE_RUNTIME_STORE_MCP_STRUCTURAL_ONLY",
+  "transition": {
+    "from_stage": "topology",
+    "to_stage": "material-surface",
+    "root_candidate_role": "topology-source",
+    "head_candidate_role": "material-surface-output",
+    "distinct_candidates_required": true,
+    "parent_v1_topology_transition_required": true,
+    "topology_quality_required": "passed",
+    "material_surface_quality_required": "passed",
+    "approval_required": true,
+    "durable_v2_head": true,
+    "restart_readback": true,
+    "candidate_confirmed": false,
+    "version_created": false,
+    "export_performed": false
+  },
+  "binding": {
+    "session_project_root_candidate": "exact",
+    "root_and_head_candidate_state": "exact",
+    "source_and_output_artifact": "exact",
+    "topology_and_material_quality_report_cas": "exact",
+    "reference_camera_evidence": "exact",
+    "approval_session_expiry_and_summary_digest": "exact",
+    "v1_head_remains_unchanged": true,
+    "parent_key_is_cas": false
+  },
+  "transaction": {
+    "transition_and_head_atomic": true,
+    "same_id_same_content_replay_exact": true,
+    "conflict_or_stale_head_fail_closed": true,
+    "receipt_cas_reservation": true,
+    "rollback_cleans_only_created_new_unlinked_receipt": true,
+    "get_is_read_only": true,
+    "owned_cas": [
+      "agentic-production-stage-transition-v2"
+    ]
+  },
+  "source_surface": {
+    "schemas": 314,
+    "schema_content_set_sha256": "ae996701c65153e83f9d38626b539a4bc1aa9b984b3272eb141a7c0555e83fa3",
+    "contract_manifest_sha256": "58553a3cad2bf6a52f0d564103cb5e1e3a1f0490c9aa06619f5db662a3f6d9ba",
+    "mcp_read_tools": 73,
+    "mcp_write_tools": 53,
+    "mcp_total_tools": 126,
+    "mcp_read_manifest_sha256": "23900bdb1ef3e893103314a4b66edfe4a4e730e04f980dfb550937503afb7367",
+    "mcp_write_manifest_sha256": "af7a4ee11de9b89926404b8788a0978978b7511abaa320e04474f9af58bed0d9"
+  },
+  "source_sha256": {
+    "contracts_rust": "c529e28d2eccb750a804247b1c12724809ffd5778fc069ef8a06d3c96cbec51f",
+    "store": "041cbac3f658712bebfcfcf59a0c93b2847ebe5b628571197597f0686bc88b29",
+    "runtime_agentic_session": "6469c574b9a8075db1b4c6c9cde766790d7caedcfc9153d576fd05ccb0a8a5c5",
+    "runtime_lib": "51878b22aa94137985d9352ee3cbc3edaa5481f204bc9c6f0f1b5e9492f84a9e",
+    "mcp_agentic_write_tools": "8c5038602a2f89ff7525b43759a798abc79d03cb6ff2d69d8065eb729aa84e19",
+    "mcp_main": "e5fbab3832e22c56e023fe70454b7f37737c4ecefa1588ee46bb15d3b4a912b5"
+  },
+  "verification": [
+    {
+      "gate": "contracts",
+      "result": "PASS_314_SCHEMAS"
+    },
+    {
+      "gate": "forgecad-store production_stage_transition_v2 focused",
+      "result": "PASS_2_OF_2"
+    },
+    {
+      "gate": "forgecad-store full lib",
+      "result": "PASS_51_OF_51"
+    },
+    {
+      "gate": "forgecad-runtime production_stage_transition_v2 focused",
+      "result": "PASS_5_OF_5"
+    },
+    {
+      "gate": "forgecad-runtime full lib",
+      "result": "PASS_277_EXECUTED_20_IGNORED"
+    },
+    {
+      "gate": "forgecad-mcp production_stage_transition_v2 focused",
+      "result": "PASS_4_OF_4"
+    },
+    {
+      "gate": "forgecad-mcp full same-cohort",
+      "result": "PASS_107_OF_107"
+    },
+    {
+      "gate": "cargo check store/runtime/mcp",
+      "result": "PASS"
+    },
+    {
+      "gate": "rustfmt and git diff check",
+      "result": "PASS"
+    }
+  ],
+  "quality_truth": {
+    "structural_topology_to_material_surface_promotion": "PASS",
+    "reference_bound_pbr_likeness": "NOT_PROVEN",
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "artistic_quality": "NOT_PROVEN",
+    "human_review": "NOT_RUN",
+    "commercial_fps_weapon_quality": "NOT_PROVEN",
+    "commercial_engine_roundtrip": "NOT_RUN",
+    "evidence_binding": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "limitations": [
+    "This gate proves a durable approval-gated dual-candidate production-stage transition, not commercial-FPS visual parity.",
+    "The material-surface head is not a confirmation, immutable version or export.",
+    "Independent human visual review, complete multi-view references and Unity/Unreal/Godot round-trip remain unrun.",
+    "Only fictional, nonfunctional game-art assets are in scope; no manufacturing dimensions, ballistics or operating guidance is represented."
+  ],
+  "persistent_user_data_touched": false
+}

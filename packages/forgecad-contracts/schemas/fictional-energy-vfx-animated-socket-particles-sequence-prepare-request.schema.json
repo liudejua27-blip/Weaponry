@@ -1,0 +1,226 @@
+{
+  "$id": "https://forgecad.local/contracts/fictional-energy-vfx-animated-socket-particles-sequence-prepare-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "frame_input": {
+      "additionalProperties": false,
+      "properties": {
+        "base_frame_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bloom_key_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "frame_index": {
+          "maximum": 15,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "projection_frame_canonical_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "projection_socket_transform_inventory_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "projection_socket_transform_readback_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sample_time_ticks": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "frame_index",
+        "sample_time_ticks",
+        "projection_frame_canonical_sha256",
+        "projection_socket_transform_inventory_sha256",
+        "projection_socket_transform_readback_sha256",
+        "base_frame_key_sha256",
+        "bloom_key_sha256"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "animated_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_anchor_set_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animated_socket_materialization_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_clip_id": {
+      "$ref": "#/$defs/id"
+    },
+    "animation_clip_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "animation_receipt_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "candidate_id": {
+      "$ref": "#/$defs/id"
+    },
+    "candidate_state_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_identity_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "camera_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "delivery_manifest_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "emitter_binding_policy": {
+      "const": "projection-role-muzzle-vfx-energy-core-vfx-to-particle-emitter@1"
+    },
+    "frame_scope": {
+      "const": "lod0-animation-particles-frame-range-1-16@1"
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/frame_input"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "type": "array"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/id"
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "particles_sequence_policy": {
+      "const": "projection-driven-animated-socket-particles@1"
+    },
+    "project_id": {
+      "$ref": "#/$defs/id"
+    },
+    "projection_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projection_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "render_worker_build_cohort_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_count": {
+      "maximum": 16,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "sample_schedule_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sample_time_ticks": {
+      "items": {
+        "maximum": 1000000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {
+      "const": "FictionalEnergyVfxAnimatedSocketParticlesSequencePrepareRequest@1"
+    },
+    "sequence_key_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_node_id_encoding_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "socket_roles_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_artifact_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "transform_projection_policy": {
+      "const": "glb-animation-linear-nlerp-flat-part-hierarchy-composed-world-trs@1"
+    },
+    "vfx_profile_canonical_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "vfx_profile_object_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sequence_key_sha256",
+    "project_id",
+    "candidate_id",
+    "candidate_state_sha256",
+    "delivery_manifest_object_sha256",
+    "source_artifact_sha256",
+    "projection_key_sha256",
+    "projection_object_sha256",
+    "projection_canonical_sha256",
+    "animated_socket_materialization_key_sha256",
+    "animated_artifact_sha256",
+    "animated_socket_anchor_set_object_sha256",
+    "animated_socket_anchor_set_canonical_sha256",
+    "animation_clip_id",
+    "animation_clip_object_sha256",
+    "animation_clip_canonical_sha256",
+    "animation_receipt_object_sha256",
+    "animation_receipt_canonical_sha256",
+    "vfx_profile_object_sha256",
+    "vfx_profile_canonical_sha256",
+    "socket_node_id_encoding_sha256",
+    "socket_roles_sha256",
+    "camera_object_sha256",
+    "camera_identity_sha256",
+    "render_profile_sha256",
+    "render_worker_build_cohort_sha256",
+    "sample_schedule_sha256",
+    "sample_count",
+    "sample_time_ticks",
+    "frame_scope",
+    "particles_sequence_policy",
+    "emitter_binding_policy",
+    "transform_projection_policy",
+    "frames",
+    "input_sha256",
+    "idempotency_key"
+  ],
+  "title": "FictionalEnergyVfxAnimatedSocketParticlesSequencePrepareRequest@1",
+  "type": "object"
+}

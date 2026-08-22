@@ -1,0 +1,59 @@
+{
+  "actual_engine_roundtrip": false,
+  "automatic_lod_default_read_invocation": "PASS_WITHOUT_WRITE_OPT_IN",
+  "automatic_lod_forbidden_python": "REJECTED_INVALID_TOOL_PARAMS",
+  "automatic_lod_generation": "PASS_RUNTIME_TYPED_PROGRAM_DERIVATION_PREVIEW",
+  "automatic_lod_materialization_required": true,
+  "automatic_lod_runtime_write_performed": false,
+  "automatic_lod_triangle_counts": [
+    256,
+    128,
+    64
+  ],
+  "automatic_lod_wire_bytes": 9019,
+  "automatic_lod_worker_replay": true,
+  "build_cohort_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+  "candidate_confirmed": false,
+  "candidate_state_unchanged": true,
+  "collision_proxy_count": 1,
+  "collision_proxy_object_sha256": "098e54202bad891b7ec14c7c8856aa7576b508cc957835e7cbeaf1fbbe9934c5",
+  "default_write_tool_visibility": "HIDDEN",
+  "delivery_manifest_object_sha256": "45e00e1ca93b0a9d7e3663c06f9eca99063d813a3744a56eb44499b712627a56",
+  "durable_get": "PASS_CURRENT_RUNTIME_CAS_REVERIFY",
+  "durable_link_materialization_status": "runtime-owned-durable-game-delivery-link",
+  "explicit_write_opt_in": "PASS",
+  "export_performed": false,
+  "forbidden_python": "REJECTED_INVALID_TOOL_PARAMS",
+  "gate": "PASS_AUTHORED_LOD_SET_COLLISION_DELIVERY_RAW_STDIO",
+  "godot": "NOT_RUN",
+  "lod_receipt_object_sha256": "93e9987838f2640a035ce88631a7b893f8d38612df3cad4c52c2168b1c29b376",
+  "lod_triangle_counts": [
+    256,
+    128,
+    64
+  ],
+  "material_zone_ids": [
+    "zone-delivery"
+  ],
+  "part_ids": [
+    "delivery-part"
+  ],
+  "ponytail_preflight": {
+    "knowledge_sha256": "1e7cf0b82068e9d4c0a9756f4dd8628a94fe859d1d80b28bf4490d45bfe1eb36",
+    "skill_id": "ponytail-preflight",
+    "skill_manifest_sha256": "26d664a31329d87b2a69329021d969b00b825958238b5e19748b41bef62c26b1",
+    "status": "PASS",
+    "version": "0.1.0"
+  },
+  "protocol_version": "2025-06-18",
+  "quality_status": "structural_only",
+  "readiness_object_sha256": "74c14e6e57a78df20f263d58f80c1a2c42cae3a19259d80bf8dc770971b4cc16",
+  "replay": "PASS_CONTENT_IDENTICAL",
+  "runtime_restart_get": "PASS_FOCUSED_RUNTIME_TEST",
+  "schema_version": "ForgeCADGameAssetDeliveryRawStdioProbe@1",
+  "threejs": "NOT_RUN_IN_THIS_RAW_PROBE",
+  "unity": "NOT_RUN",
+  "unreal": "NOT_RUN",
+  "version_state_unchanged": true,
+  "wire_bytes": 7297
+}

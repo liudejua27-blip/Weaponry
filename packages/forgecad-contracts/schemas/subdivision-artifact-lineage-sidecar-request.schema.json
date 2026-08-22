@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/subdivision-artifact-lineage-sidecar-request.schema.json",
+  "title": "SubdivisionArtifactLineageSidecarRequest",
+  "description": "A closed request used by both the explicit sidecar materialization and readback paths. Runtime obtains the persisted program and all evidence from the candidate; callers cannot provide program bytes or arbitrary CAS content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "project_id", "candidate_id", "artifact_id",
+    "artifact_readback_sha256", "subdivision_node_id", "max_lineage_elements",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SubdivisionArtifactLineageSidecarRequest@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "candidate_id": {"$ref": "#/$defs/identifier"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "artifact_readback_sha256": {"$ref": "#/$defs/sha256"},
+    "subdivision_node_id": {"$ref": "#/$defs/identifier"},
+    "max_lineage_elements": {"type": "integer", "minimum": 1, "maximum": 25000},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

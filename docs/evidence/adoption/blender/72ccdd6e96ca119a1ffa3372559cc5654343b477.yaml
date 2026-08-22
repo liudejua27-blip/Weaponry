@@ -1,0 +1,48 @@
+project: blender
+source_url: https://github.com/blender/blender
+revision: 72ccdd6e96ca119a1ffa3372559cc5654343b477
+identity: official-reference-only-research
+license_name: GNU General Public License version 2 or later
+license_spdx: GPL-2.0-or-later
+license_file: COPYING
+license_file_git_blob: 3be7c91320a650eb99fc4ebda1f5fab48c7dbea2
+license_file_sha256: 19e6f4b541772f9d7b98a52bdbca3ebd5ef9e404956a9a6de68bfc3c1a178387
+full_license_file: doc/license/GPL-license.txt
+full_license_file_git_blob: 8860b2a8afa8c8586992f7f374a099956563a152
+full_license_file_sha256: f2703dec1b0118070caabd3302e21738c00211b0cc3260dbeb1168d6eda726b7
+research_status: authorized
+vendored_files: []
+reference_paths:
+  - source/blender/blenkernel/BKE_modifier.hh
+  - source/blender/depsgraph/DEG_depsgraph.hh
+reference_git_blobs:
+  source/blender/blenkernel/BKE_modifier.hh: 237a1f28a1155562e2877bed45e967191c0199b6
+  source/blender/depsgraph/DEG_depsgraph.hh: a1e85cbebbf54c3a80146023406463ee6fcb9b30
+official_manual_refs:
+  - https://docs.blender.org/manual/en/latest/modeling/modifiers/introduction.html
+  - https://docs.blender.org/manual/en/latest/animation/index.html
+target: clean-room product-owned typed modifier evaluation, evaluated-state separation, immutable action-like data and read-only discrete frame projection
+adaptation_result:
+  - keep ordered modifier data separate from evaluated geometry
+  - keep immutable action and rest-frame identities separate from evaluated frame identities
+  - keep Viewer playhead ephemeral and Runtime evaluation authoritative
+  - bind every projected rigid Part delta to exact candidate, artifact, clip, scheduled tick, Worker cohort and transient artifact hash
+denied_capabilities:
+  - blender_source_copy_or_link
+  - blender_build_or_execution
+  - blend_file_as_product_truth
+  - bpy_or_arbitrary_python
+  - addon_or_socket_server
+  - arbitrary_dependency_graph
+  - armature_skinning_or_deformation
+  - runtime_network_or_dynamic_code
+lockfile_or_package_change: false
+sbom_status: not-applicable-reference-only
+static_security_review:
+  - only official documentation and exact frozen source headers were inspected; no upstream file entered the product tree or build
+  - GPL implementation remains reference-only; ForgeCAD behavior is expressed through independently owned closed Schema, Rust Runtime, fixed Worker and TypeScript Viewer code
+  - no Blender process, addon, Python runtime, install script, archive or repository clone was executed
+approval: research-authorized
+accepted_as_dependency: false
+next_gate: retain reference-only status; any future source reuse, linking, execution or distribution requires a separate license review, SBOM, security, determinism, resource and removal Gate
+fallback_or_removal_plan: ForgeCAD remains functional through its product-owned bounded operators and Runtime contracts; remove this research receipt without affecting Runtime, Viewer, lockfiles or packaged behavior.

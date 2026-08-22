@@ -1,0 +1,145 @@
+{
+  "schema_version": "ForgeCADSourceGateReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "slice_id": "blender-clean-room-topology-snapshot-v1",
+  "recorded_on": "2026-08-18",
+  "status": "PASS_WITH_UNRUN_PACKAGE_AND_VISUAL_GATES",
+  "research": {
+    "upstream": "blender/blender",
+    "frozen_commit": "72ccdd6e96ca119a1ffa3372559cc5654343b477",
+    "license_boundary": "GPL_REFERENCE_ONLY_CLEAN_ROOM_NO_CODE_COPIED_OR_LINKED",
+    "reviewed_semantics": [
+      "Mesh vertex edge face corner domains",
+      "BMesh edge endpoint order versus face loop winding",
+      "corner domain for UV split normal and tangent seams",
+      "runtime indices and lookup tables are not stable product IDs"
+    ]
+  },
+  "implemented": {
+    "contracts": [
+      "TopologySnapshotRequest@1",
+      "TopologySnapshot@1"
+    ],
+    "mcp_tool": "topology_snapshot_get",
+    "read_only": true,
+    "topology_space": "evaluated-glb-triangle-mesh@1",
+    "id_scope": "artifact-bound",
+    "cross_version_stable": false,
+    "source_lineage_status": "partial-operator-node-only",
+    "bindings": [
+      "project_id",
+      "candidate_id",
+      "artifact_id",
+      "artifact_readback_sha256",
+      "program_sha256",
+      "operator_catalog_sha256",
+      "readback_config_sha256",
+      "snapshot_policy_sha256"
+    ],
+    "budgets": {
+      "max_faces_per_part": 512,
+      "max_vertices": 1536,
+      "max_edges": 1536,
+      "max_corners": 1536,
+      "max_canonical_snapshot_bytes": 1048576,
+      "max_mcp_wire_response_bytes": 1048576,
+      "mcp_text_content": "BOUNDED_SUMMARY_WITH_COMPLETE_STRUCTURED_CONTENT",
+      "truncation_allowed": false
+    },
+    "projected_domains": [
+      "vertices with incident edges and faces",
+      "undirected edges with per-corner forward direction",
+      "ordered triangle faces with source node and material zone",
+      "corners with normal texcoord_0 and tangent"
+    ],
+    "persistence_effect": "NONE"
+  },
+  "source_hashes": {
+    "geometry_integrity_sha256": "faad6b38f13f14d34f85bd17b4339598c9965d9ef63e20909589873c96d53bd6",
+    "runtime_sha256": "5f3ef9ac4824a2edd118c6fb6b272f7af5a6c24074e740fdccec75a424be2633",
+    "mcp_sha256": "a1741e511979160ec3d9eede880acdd6fa7c11b37140f659e37ee0ef6a2a556c",
+    "request_schema_sha256": "a2abf4e74220b79a25a49ff56bdf440a7a31815a1f24e419f71c3ebf80fb17c0",
+    "result_schema_sha256": "0cccb004efcf5c99fce35b7c253cea663ab45dd2e38f77235b7558296aa28186",
+    "contract_manifest_sha256": "cfdeba1afecc111729c1c81ad56f37d751ded88038dbbfc82e4af9ceab50692d",
+    "schema_content_set_sha256": "b4517b270eb1b4738662faeb335d1330c76f3fe4e44ad8c40aee0a780a2ae08d",
+    "tool_manifest_summary_sha256": "aa8c44aaaa71cb6fdcf91a3afb2c55d9c53bdbe3c5f092d93f921af2f57ec544"
+  },
+  "current_source_counts": {
+    "schemas": 146,
+    "active_operators": 17,
+    "read_tools": 42,
+    "write_tools": 33,
+    "total_tools": 75
+  },
+  "focused_tests": [
+    {
+      "command": "cargo test -p forgecad-runtime topology_snapshot_is_complete_bounded_deterministic_and_read_only --offline",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo test -p forgecad-runtime topology_snapshot_covers_subd_and_boolean_evaluated_outputs --offline",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo test -p forgecad-mcp topology_snapshot_round_trips_as_a_closed_read_only_mcp_tool --offline",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo test -p forgecad-mcp --bin forgecad-mcp --offline",
+      "result": "PASS_71_OF_71"
+    },
+    {
+      "command": "python3 scripts/check_forgecad_contracts.py",
+      "result": "PASS_146_SCHEMAS"
+    }
+  ],
+  "negative_binding_coverage": [
+    "project_id",
+    "candidate_id",
+    "artifact_id",
+    "artifact_readback_sha256",
+    "program_sha256",
+    "operator_catalog_sha256",
+    "readback_config_sha256",
+    "snapshot_policy_sha256",
+    "max_face_count"
+  ],
+  "mcp_wire_budget_gate": "PASS_SERIALIZED_TOOLS_CALL_RESPONSE_AT_OR_BELOW_1_MIB",
+  "independent_luna_review": {
+    "result": "PASS_NO_OPEN_P0_P1",
+    "wire_budget": "RESOLVED",
+    "authority_counts": "RESOLVED",
+    "negative_binding_coverage": "RESOLVED"
+  },
+  "diagnostic_full_runtime_without_fixed_siblings": {
+    "result": "178_PASS_10_FAIL_12_IGNORED",
+    "failure_code": "GEOMETRY_WORKER_UNAVAILABLE",
+    "classification": "EXISTING_RENDER_DEPENDENT_TEST_ENVIRONMENT_NOT_TOPOLOGY_REGRESSION",
+    "replacement_gate": "script/test_mcp010f.sh builds and binds fixed sibling Workers",
+    "replacement_gate_result": "PASS_EXIT_0"
+  },
+  "full_source_gate": {
+    "command": "script/test_mcp010f.sh",
+    "result": "PASS_SOURCE_GATE_WITH_FAILED_VISUAL_QUALITY_AND_INCOMPLETE_BINDING",
+    "exit_code": 0,
+    "contracts": "PASS_146_SCHEMAS",
+    "viewer_source": "PASS",
+    "source_tool_manifest_summary": "PASS_EXACT_FIELD_EQUALITY"
+  },
+  "quality_truth": {
+    "visual_status": "QUALITY_TARGET_NOT_MET",
+    "evidence_status": "INCOMPLETE_TRUTH_BINDING",
+    "camera_binding": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "not_claimed": [
+    "authoring or BMesh topology",
+    "cross-version stable element IDs",
+    "SubD cage to evaluated face lineage",
+    "Boolean operand or face lineage",
+    "general subdivision bevel or weighted normals",
+    "Cycles EEVEE animation armature or Python ecosystem",
+    "packaged live visual human or 360 pass"
+  ]
+}
