@@ -92,6 +92,9 @@ GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_RECEIPT_PATH = (
 EXPECTED_GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_RECEIPT_SHA256 = (
     "64bc66c61cf8beadd393740521a495acae0db6339895ab9e091c4df9c06e4903"
 )
+EXPECTED_GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_TOOL_SUMMARY_SHA256 = (
+    "c901716c8ca0792674c14d0788a52d91b13322332e68bdd64ecd0e485eb5d3e2"
+)
 TASK_INDEX = ROOT / "docs/CODEX_TASK_INDEX.md"
 
 AUTHORITY_DOCS = (
@@ -2062,7 +2065,7 @@ def check_evidence_manifest(truth: dict[str, Any]) -> None:
         and projection_surface.get("mcp_write_count") == 69
         and projection_surface.get("mcp_total_count") == 159
         and projection_surface.get("source_tool_summary_canonical_sha256")
-        == json.loads(TOOL_SUMMARY_PATH.read_text(encoding="utf-8"))["canonical_sha256"],
+        == EXPECTED_GAME_WEAPON_ANIMATED_SOCKET_TRANSFORM_PROJECTION_V2_TOOL_SUMMARY_SHA256,
         "Animated socket transform Projection@2 source counts or summary binding drifted",
     )
     projection_boundary = projection_v2_receipt.get("durable_boundary", {})
@@ -2159,10 +2162,14 @@ def check_truth() -> dict[str, Any]:
     require(tool_summary.get("read_count") == len(read_names), "tool summary read count is stale")
     require(tool_summary.get("write_count") == len(write_names), "tool summary write count is stale")
     require(tool_summary.get("total_count") == len(read_names) + len(write_names), "tool summary total count is stale")
-    source_summary = source_tool_summary()
+    # The frozen receipt is emitted by the compiled MCP and hashes complete
+    # tool definitions, including input schemas.  The independent source
+    # parser below intentionally projects names only, so its digest must never
+    # be substituted for the compiled receipt's canonical hash.  The full
+    # source gate rebuilds the MCP and compares this receipt byte-for-value.
     require(
-        tool_summary.get("canonical_sha256") == source_summary["canonical_sha256"],
-        "tool summary source-name projection canonical hash mismatch",
+        re.fullmatch(r"[0-9a-f]{64}", str(tool_summary.get("canonical_sha256"))) is not None,
+        "compiled tool summary canonical hash is malformed",
     )
     tasks = task_rows()
     in_progress = sorted(task_id for task_id, row in tasks.items() if row["status"] == "in_progress")

@@ -163,6 +163,8 @@
     "silhouette-rig-v2.schema.json",
     "silhouette-rig-hash-request.schema.json",
     "silhouette-rig-hash-result.schema.json",
+    "silhouette-fit-intent-hash-request.schema.json",
+    "silhouette-fit-intent-hash-result.schema.json",
     "silhouette-fit-intent.schema.json",
     "silhouette-fit-result.schema.json",
     "primary-form-repair-prepare-result.schema.json",

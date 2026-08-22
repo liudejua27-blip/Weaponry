@@ -1285,6 +1285,36 @@ fn read_only_tools() -> Vec<Value> {
             true,
         ),
         tool(
+            "silhouette_fit_intent_hash",
+            "Validate a hash-free silhouette fit intent and return the Runtime-owned canonical hash without rendering or persisting anything",
+            json!({
+                "type":"object",
+                "additionalProperties":false,
+                "required":["schema_version","project_id","candidate_id","target_sha256","rig","base_camera","optimizer"],
+                "properties":{
+                    "schema_version":{"const":"SilhouetteFitIntentHashRequest@1"},
+                    "project_id":id_property(),
+                    "candidate_id":id_property(),
+                    "target_sha256":sha256_property(),
+                    "rig":{"type":"object"},
+                    "base_camera":{"type":"object"},
+                    "view_spec":{"type":"object"},
+                    "optimizer":{
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["algorithm","max_iterations","max_evaluations","step_fraction"],
+                        "properties":{
+                            "algorithm":{"enum":["grid","coordinate_descent"]},
+                            "max_iterations":{"type":"integer","minimum":1,"maximum":8},
+                            "max_evaluations":{"type":"integer","minimum":1,"maximum":64},
+                            "step_fraction":{"type":"number","exclusiveMinimum":0,"maximum":0.5}
+                        }
+                    }
+                }
+            }),
+            true,
+        ),
+        tool(
             "boundary_error_get",
             "Read candidate-bound directional silhouette boundary errors against a prepared reference target",
             json!({
@@ -1335,8 +1365,9 @@ fn read_only_tools() -> Vec<Value> {
             "Run a bounded deterministic camera and SilhouetteRig fit proposal against the reference mask; it never mutates the candidate.",
             json!({
                 "type":"object",
-                "required":["project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
+                "required":["schema_version","project_id","candidate_id","target_sha256","rig","base_camera","optimizer","canonical_sha256"],
                 "properties":{
+                    "schema_version":{"const":"SilhouetteFitIntent@1"},
                     "project_id":id_property(),"candidate_id":id_property(),"target_sha256":sha256_property(),
                     "rig":{"type":"object"},"base_camera":{"type":"object"},
                     "optimizer":{"type":"object","required":["algorithm","max_iterations","max_evaluations","step_fraction"],"properties":{"algorithm":{"enum":["grid","coordinate_descent"]},"max_iterations":{"type":"integer","minimum":1,"maximum":8},"max_evaluations":{"type":"integer","minimum":1,"maximum":64},"step_fraction":{"type":"number","minimum":0.000001,"maximum":0.5}},"additionalProperties":false},
@@ -7318,10 +7349,19 @@ fn backend_write_call(
     arguments: &Value,
     local_build_cohort: Option<&str>,
 ) -> Result<Value, String> {
+    // Authenticated IPC bypasses dispatch_in_process, so restore the same
+    // deterministic JSON float representation before sending a fit intent.
+    // Without this, a valid client hash can be rejected only on the packaged
+    // path even though the in-process backend accepts the identical request.
+    let canonicalized_arguments = if name == "silhouette_fit_prepare" {
+        canonicalize_silhouette_fit_wire(arguments)?
+    } else {
+        arguments.clone()
+    };
     let Some(local_build_cohort) = local_build_cohort else {
         // Ordinary and test builds intentionally omit a cohort and retain the
         // existing source-development behavior.
-        return backend_call(backend, name, arguments);
+        return backend_call(backend, name, &canonicalized_arguments);
     };
     match backend {
         Backend::AuthenticatedIpc(client) => {
@@ -7329,7 +7369,9 @@ fn backend_write_call(
                 .call("capabilities_get", json!({}))
                 .map_err(map_ipc_error)?;
             require_matching_build_cohort(Some(local_build_cohort), &runtime_capabilities)?;
-            client.call(name, arguments.clone()).map_err(map_ipc_error)
+            client
+                .call(name, canonicalized_arguments)
+                .map_err(map_ipc_error)
         }
         Backend::DynamicIpc(dynamic) => {
             let endpoint = dynamic.endpoint()?;
@@ -7338,13 +7380,15 @@ fn backend_write_call(
                 .call("capabilities_get", json!({}))
                 .map_err(map_ipc_error)?;
             require_matching_build_cohort(Some(local_build_cohort), &runtime_capabilities)?;
-            client.call(name, arguments.clone()).map_err(map_ipc_error)
+            client
+                .call(name, canonicalized_arguments)
+                .map_err(map_ipc_error)
         }
         Backend::InProcess(runtime) => {
             let runtime_capabilities =
                 serde_json::to_value(runtime.capabilities()).map_err(|error| error.to_string())?;
             require_matching_build_cohort(Some(local_build_cohort), &runtime_capabilities)?;
-            dispatch_in_process(runtime, name, arguments)
+            dispatch_in_process(runtime, name, &canonicalized_arguments)
         }
         Backend::Unavailable(detail) => Err(format!("RUNTIME_UNAVAILABLE: {detail}")),
     }
@@ -7371,13 +7415,18 @@ fn require_matching_build_cohort(
 }
 
 fn backend_call(backend: &mut Backend, name: &str, arguments: &Value) -> Result<Value, String> {
+    let canonicalized_arguments = if name == "silhouette_fit_prepare" {
+        canonicalize_silhouette_fit_wire(arguments)?
+    } else {
+        arguments.clone()
+    };
     match backend {
-        Backend::AuthenticatedIpc(client) => {
-            client.call(name, arguments.clone()).map_err(map_ipc_error)
-        }
-        Backend::DynamicIpc(dynamic) => dynamic.call(name, arguments),
+        Backend::AuthenticatedIpc(client) => client
+            .call(name, canonicalized_arguments)
+            .map_err(map_ipc_error),
+        Backend::DynamicIpc(dynamic) => dynamic.call(name, &canonicalized_arguments),
         Backend::Unavailable(detail) => Err(format!("RUNTIME_UNAVAILABLE: {detail}")),
-        Backend::InProcess(runtime) => dispatch_in_process(runtime, name, arguments),
+        Backend::InProcess(runtime) => dispatch_in_process(runtime, name, &canonicalized_arguments),
     }
 }
 
@@ -7661,6 +7710,31 @@ fn map_ipc_error(error: IpcError) -> String {
                 }
                 _ if code.starts_with("SILHOUETTE_PART_ERROR_") => {
                     format!("{code}: Runtime Part contour evidence request rejected")
+                }
+                "SILHOUETTE_FIT_INVALID" => {
+                    let reason = detail
+                        .split_once("SILHOUETTE_FIT_INVALID:")
+                        .map(|(_, value)| value.trim())
+                        .unwrap_or("");
+                    let reason = [
+                        "canonical_sha256 does not bind intent",
+                        "rig is required",
+                        "base_camera is required",
+                        "optimizer is required",
+                        "optimizer.algorithm is required",
+                        "unsupported optimizer",
+                        "optimizer.step_fraction is required",
+                        "optimizer.step_fraction is outside (0,0.5]",
+                        "candidate not found",
+                        "target not found",
+                    ]
+                    .into_iter()
+                    .find(|candidate| reason.starts_with(candidate))
+                    .unwrap_or("request shape or numeric canonicalization");
+                    format!("SILHOUETTE_FIT_INVALID: Runtime fit intent rejected ({reason})")
+                }
+                _ if code.starts_with("SILHOUETTE_FIT_") => {
+                    format!("{code}: Runtime silhouette fit request rejected")
                 }
                 _ if code.starts_with("OPTIMIZATION_") => {
                     format!("{code}: Runtime optimization request rejected")
@@ -8186,6 +8260,12 @@ fn dispatch_in_process(runtime: &Runtime, name: &str, arguments: &Value) -> Resu
                 .silhouette_rig_hash(project_id, arguments)
                 .map_err(|error| error.to_string())
         }
+        "silhouette_fit_intent_hash" => {
+            let project_id = required_id(arguments, "project_id")?;
+            runtime
+                .silhouette_fit_intent_hash(project_id, arguments)
+                .map_err(|error| error.to_string())
+        }
         "silhouette_target_get" => {
             let target_sha256 = required_sha256(arguments, "target_sha256")?;
             runtime
@@ -8674,10 +8754,14 @@ fn canonicalize_silhouette_fit_wire(arguments: &Value) -> Result<Value, String> 
     }
     restored["canonical_sha256"] = Value::String(String::new());
     let restored_hash = canonical_json_hash(&restored);
-    if supplied != wire_hash && supplied != restored_hash {
-        return Err("SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent".to_owned());
+    let normalized_hash = canonical_json_hash(&normalize_integral_json_numbers(&restored));
+    if supplied != wire_hash && supplied != restored_hash && supplied != normalized_hash {
+        return Err(format!(
+            "SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent expected={wire_hash} numeric_compatibility={normalized_hash} actual={supplied}"
+        ));
     }
-    restored["canonical_sha256"] = Value::String(restored_hash);
+    restored = normalize_integral_json_numbers(&restored);
+    restored["canonical_sha256"] = Value::String(normalized_hash);
     Ok(restored)
 }
 
@@ -8941,6 +9025,40 @@ fn normalize_optimizer_numbers(value: &Value) -> Value {
             })
             .collect(),
     )
+}
+
+fn normalize_integral_json_numbers(value: &Value) -> Value {
+    match value {
+        Value::Number(number) => {
+            if number.as_i64().is_some() || number.as_u64().is_some() {
+                value.clone()
+            } else if let Some(float) = number.as_f64() {
+                if float.is_finite()
+                    && float.fract() == 0.0
+                    && float >= i64::MIN as f64
+                    && float <= i64::MAX as f64
+                {
+                    Value::Number(serde_json::Number::from(float as i64))
+                } else {
+                    serde_json::Number::from_f64(float)
+                        .map(Value::Number)
+                        .unwrap_or_else(|| value.clone())
+                }
+            } else {
+                value.clone()
+            }
+        }
+        Value::Array(values) => {
+            Value::Array(values.iter().map(normalize_integral_json_numbers).collect())
+        }
+        Value::Object(object) => Value::Object(
+            object
+                .iter()
+                .map(|(key, child)| (key.clone(), normalize_integral_json_numbers(child)))
+                .collect(),
+        ),
+        _ => value.clone(),
+    }
 }
 
 fn required_sha256<'a>(arguments: &'a Value, key: &str) -> Result<&'a str, String> {
@@ -9461,6 +9579,18 @@ mod tests {
                 "SILHOUETTE_OBJECTIVE_TARGET_LINEAGE_MISMATCH".to_owned(),
             )),
             "SILHOUETTE_OBJECTIVE_TARGET_LINEAGE_MISMATCH: Runtime silhouette evaluation objective request rejected"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "SILHOUETTE_FIT_INVALID: canonical_sha256 does not bind intent".to_owned(),
+            )),
+            "SILHOUETTE_FIT_INVALID: Runtime fit intent rejected (canonical_sha256 does not bind intent)"
+        );
+        assert_eq!(
+            map_ipc_error(IpcError::RuntimeRequest(
+                "SILHOUETTE_FIT_INVALID: /private/user/reference.png".to_owned(),
+            )),
+            "SILHOUETTE_FIT_INVALID: Runtime fit intent rejected (request shape or numeric canonicalization)"
         );
         assert_eq!(
             map_ipc_error(IpcError::RuntimeRequest(
@@ -13445,6 +13575,26 @@ mod tests {
     }
 
     #[test]
+    fn silhouette_fit_intent_hash_is_a_default_read_only_tool() {
+        let tools = tools_with_writes(false);
+        let tool = tools
+            .iter()
+            .find(|tool| tool["name"] == "silhouette_fit_intent_hash")
+            .expect("silhouette_fit_intent_hash tool");
+        assert_eq!(tool["annotations"]["readOnlyHint"], true);
+        assert_eq!(tool["annotations"]["idempotentHint"], true);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["schema_version"]["const"],
+            "SilhouetteFitIntentHashRequest@1"
+        );
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+        assert_eq!(
+            tool["inputSchema"]["properties"]["optimizer"]["additionalProperties"],
+            false
+        );
+    }
+
+    #[test]
     fn silhouette_hash_arguments_accept_sha256_values() {
         let sha256 = "a".repeat(64);
         assert_eq!(
@@ -13460,6 +13610,7 @@ mod tests {
     #[test]
     fn silhouette_fit_wire_numbers_are_restored_before_hash_binding() {
         let mut request = json!({
+            "schema_version":"SilhouetteFitIntent@1",
             "project_id":"project-fit-wire",
             "candidate_id":"candidate-fit-wire",
             "target_sha256":"a".repeat(64),
@@ -13492,7 +13643,7 @@ mod tests {
         request = wire.clone();
         request["canonical_sha256"] = Value::String(canonical_json_hash(&wire));
         let restored = canonicalize_silhouette_fit_wire(&request).expect("wire hash accepted");
-        assert_eq!(restored["base_camera"]["fov_y_degrees"], json!(33.0));
+        assert_eq!(restored["base_camera"]["fov_y_degrees"], json!(33));
         assert_eq!(restored["base_camera"]["resolution"]["width"], json!(512));
         assert_ne!(restored["canonical_sha256"], Value::String(String::new()));
         request["canonical_sha256"] = Value::String("b".repeat(64));

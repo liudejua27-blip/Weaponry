@@ -1,8 +1,8 @@
 {
   "build_cohort_sha256": null,
-  "canonical_sha256": "c901716c8ca0792674c14d0788a52d91b13322332e68bdd64ecd0e485eb5d3e2",
-  "read_count": 90,
-  "read_manifest_sha256": "6742f41af8ab6d62a4c44b46e63ec2ffff0e0a674149db8b4688d087a3211992",
+  "canonical_sha256": "8a6f27c78ec6aa56066816d3825c71d5ce7b024e5fa7b70f23ae1f8c3e956c12",
+  "read_count": 91,
+  "read_manifest_sha256": "bb11195c1bd2a2235681916fdda30ffc8c2e95f4f314c28cdb0a7af8afc55a30",
   "read_names": [
     "appearance_source_lineage_get",
     "artifact_readback_get",
@@ -78,6 +78,7 @@
     "session_get",
     "silhouette_candidate_compare",
     "silhouette_evaluation_objective_prepare",
+    "silhouette_fit_intent_hash",
     "silhouette_fit_prepare",
     "silhouette_objective_compare",
     "silhouette_part_error_get",
@@ -96,9 +97,9 @@
     "visual_surface_get"
   ],
   "schema_version": "ForgeCADMcpToolManifestSummary@1",
-  "total_count": 159,
+  "total_count": 160,
   "write_count": 69,
-  "write_enabled_manifest_sha256": "dca015d6791ed7d0e2a8d1fa15d90672729cc78cad80615f494f5c880b95362f",
+  "write_enabled_manifest_sha256": "adc9bf523e6ca6e05cdcb7ce259058650e0b2e4f385cdd27f704859a6946ba9e",
   "write_names": [
     "appearance_prepare",
     "appearance_source_lineage_prepare",

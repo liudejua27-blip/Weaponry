@@ -1698,6 +1698,177 @@ impl Runtime {
         Ok(result)
     }
 
+    /// Return the Runtime-owned canonical hash for the exact wire intent used
+    /// by `silhouette_fit_prepare`. This keeps JSON float spelling out of
+    /// Codex/Python clients while remaining read-only: no render, candidate,
+    /// CAS object, event or version is created.
+    pub fn silhouette_fit_intent_hash(
+        &self,
+        project_id: &str,
+        request: &Value,
+    ) -> Result<Value, RuntimeError> {
+        validate_id(project_id)?;
+        let object = request.as_object().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INTENT_HASH_INVALID: request must be an object".to_owned(),
+            )
+        })?;
+        validate_request_keys(
+            object,
+            &[
+                "schema_version",
+                "project_id",
+                "candidate_id",
+                "target_sha256",
+                "rig",
+                "base_camera",
+                "optimizer",
+                "view_spec",
+            ],
+            "silhouette_fit_intent_hash",
+        )?;
+        if object.get("schema_version").and_then(Value::as_str)
+            != Some("SilhouetteFitIntentHashRequest@1")
+            || object.get("project_id").and_then(Value::as_str) != Some(project_id)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INTENT_HASH_INVALID: schema or project binding".to_owned(),
+            ));
+        }
+        let candidate_id = required_value_id(object.get("candidate_id"), "candidate_id")?;
+        let candidate = self.candidate(candidate_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput("NOT_FOUND: candidate not found".to_owned())
+        })?;
+        if candidate.project_id != project_id {
+            return Err(RuntimeError::InvalidInput(
+                "PROJECT_SCOPE_DENIED: candidate is outside the target project".to_owned(),
+            ));
+        }
+        let target_sha256 = required_value_sha(object.get("target_sha256"), "target_sha256")?;
+        let target = self.read_silhouette_target(target_sha256)?;
+        let target_reference_id = required_value_id(target.get("reference_id"), "reference_id")?;
+        let reference = self.reference(target_reference_id)?.ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "NOT_FOUND: silhouette fit target reference not found".to_owned(),
+            )
+        })?;
+        if reference.project_id != project_id {
+            return Err(RuntimeError::InvalidInput(
+                "REFERENCE_SCOPE_DENIED: silhouette fit target reference is outside the project"
+                    .to_owned(),
+            ));
+        }
+        if let Some(view_spec) = object.get("view_spec") {
+            validate_reference_view_spec(view_spec, &reference).map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "SILHOUETTE_FIT_INTENT_HASH_INVALID: view_spec: {error}"
+                ))
+            })?;
+        }
+        let rig = object.get("rig").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INTENT_HASH_INVALID: rig is required".to_owned(),
+            )
+        })?;
+        validate_silhouette_rig(rig, candidate_id)?;
+        let camera = object.get("base_camera").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INTENT_HASH_INVALID: base_camera is required".to_owned(),
+            )
+        })?;
+        if validate_camera_calibration(camera).is_err() {
+            let camera_ref = exact_object(
+                camera,
+                &["schema_version", "camera_hash", "canonical_sha256"],
+                "CameraCalibrationRef@1",
+            )?;
+            if camera_ref.get("schema_version").and_then(Value::as_str)
+                != Some("CameraCalibrationRef@1")
+            {
+                return Err(RuntimeError::InvalidInput(
+                    "SILHOUETTE_FIT_INTENT_HASH_INVALID: base_camera schema".to_owned(),
+                ));
+            }
+            let camera_hash = required_value_sha(camera_ref.get("camera_hash"), "camera_hash")?;
+            let camera_canonical =
+                required_value_sha(camera_ref.get("canonical_sha256"), "canonical_sha256")?;
+            let cache_key = camera_fit_cache_key(project_id, candidate_id, target_sha256);
+            let bound = self
+                .camera_fit_cache
+                .lock()
+                .ok()
+                .and_then(|cache| cache.get(&cache_key).cloned())
+                .and_then(|fit| fit.get("candidates").and_then(Value::as_array).cloned())
+                .is_some_and(|candidates| {
+                    candidates
+                        .iter()
+                        .filter_map(|row| row.get("camera"))
+                        .any(|candidate| {
+                            candidate.get("camera_hash").and_then(Value::as_str)
+                                == Some(camera_hash)
+                                && candidate.get("canonical_sha256").and_then(Value::as_str)
+                                    == Some(camera_canonical)
+                        })
+                });
+            if !bound {
+                return Err(RuntimeError::InvalidInput(
+                    "SILHOUETTE_FIT_INTENT_HASH_CAMERA_REF_UNAVAILABLE: compact camera is not bound in the current candidate/target cache; supply the full Runtime calibration"
+                        .to_owned(),
+                ));
+            }
+        }
+        let optimizer = object
+            .get("optimizer")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "SILHOUETTE_FIT_INTENT_HASH_INVALID: optimizer is required".to_owned(),
+                )
+            })?;
+        validate_request_keys(
+            optimizer,
+            &[
+                "algorithm",
+                "max_iterations",
+                "max_evaluations",
+                "step_fraction",
+            ],
+            "silhouette_fit_intent_hash.optimizer",
+        )?;
+        if !matches!(
+            optimizer.get("algorithm").and_then(Value::as_str),
+            Some("grid" | "coordinate_descent")
+        ) || optimizer
+            .get("max_iterations")
+            .and_then(Value::as_u64)
+            .is_none_or(|value| !(1..=8).contains(&value))
+            || optimizer
+                .get("max_evaluations")
+                .and_then(Value::as_u64)
+                .is_none_or(|value| !(1..=64).contains(&value))
+            || optimizer
+                .get("step_fraction")
+                .and_then(Value::as_f64)
+                .is_none_or(|value| !value.is_finite() || !(0.0 < value && value <= 0.5))
+        {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INTENT_HASH_INVALID: optimizer".to_owned(),
+            ));
+        }
+        let mut intent = request.clone();
+        intent["schema_version"] = Value::String("SilhouetteFitIntent@1".to_owned());
+        intent["canonical_sha256"] = Value::String(String::new());
+        let canonical_sha256 = canonical_json_hash(&normalize_json_numbers(&intent));
+        let result = json!({
+            "schema_version":"SilhouetteFitIntentHashResult@1",
+            "silhouette_fit_intent_schema_version":"SilhouetteFitIntent@1",
+            "canonical_sha256":canonical_sha256,
+            "validation_status":"passed"
+        });
+        validate_silhouette_fit_intent_hash_result_output(&result)?;
+        Ok(result)
+    }
+
     /// Materialize the reference silhouette as an immutable, hash-bound
     /// target.  A Codex contour, when supplied, is only a normalized polygon
     /// over the user-authorized reference; it never becomes geometry by
@@ -1912,21 +2083,23 @@ impl Runtime {
             .filter(|value| !value.is_null())
             .cloned()
             .unwrap_or_else(default_camera_calibration);
+        if base_camera.get("schema_version").and_then(Value::as_str) != Some("CameraCalibration@1")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "CAMERA_FIT_INVALID: V1 only accepts perspective CameraCalibration@1".to_owned(),
+            ));
+        }
         validate_camera_calibration(&base_camera)?;
-        let all_coarse_variants = camera_fit_search_variants(&base_camera);
-        // Prefer a spread of the deterministic yaw/pitch grid and retain the
-        // base/offset probes. The complete 37-row list remains available to
-        // offline tests; the product IPC path deliberately evaluates only a
-        // fixed eight-row subset so the request cannot monopolise Runtime.
-        // Reserve two slots for Runtime-owned framing candidates derived from
-        // the authored base camera. Those candidates preserve the historical
-        // height/extent calibration path without letting Codex search camera
-        // parameters continuously.
-        let coarse_indices = [0_usize, 5, 23, 11, 17, 13];
-        let mut coarse_variants = coarse_indices
-            .into_iter()
-            .filter_map(|index| all_coarse_variants.get(index).cloned())
-            .collect::<Vec<_>>();
+        camera_identity_hash(&base_camera)?;
+        // Keep the full 37-row neighborhood available to the bounded
+        // silhouette-fit path, but use a smaller, view-kind-aware schedule in
+        // this product endpoint.  The old fixed index slice happened to pick
+        // mostly yaw/pitch rows; it did not exercise the explicit
+        // distance/framing/target-offset rows that are needed when a caller
+        // supplies a calibrated side/front/top camera.  Two more slots remain
+        // reserved below for the Runtime-owned mask-derived framing probes,
+        // so the product path retains its existing eight-row budget.
+        let mut coarse_variants = camera_fit_runtime_search_variants(&base_camera);
         let base_full_passes = render_worker::render_glb_fit_batch_at_resolution(
             &glb,
             std::slice::from_ref(&base_camera),
@@ -1967,6 +2140,7 @@ impl Runtime {
                 coarse_variants.push(framing_camera);
             }
         }
+        coarse_variants.truncate(CAMERA_FIT_RUNTIME_MAX_EVALUATIONS);
         let mut rows = Vec::with_capacity(CAMERA_FIT_RUNTIME_MAX_EVALUATIONS);
         let coarse_passes =
             render_glb_fit_batch_with_runtime_worker_at_resolution(&glb, &coarse_variants, 128)
@@ -1987,7 +2161,7 @@ impl Runtime {
                 &inspection.part_ids,
             )?);
         }
-        rows.sort_by(primary_form_row_ordering);
+        rows.sort_by(camera_fit_row_ordering);
         let seeds = rows
             .iter()
             .take(3)
@@ -2035,7 +2209,7 @@ impl Runtime {
         // the Runtime-owned binding. Include the authored base camera even
         // when it did not make the coarse top-k; it is the fail-safe framing
         // fallback and must remain comparable to every proposed camera.
-        rows.sort_by(primary_form_row_ordering);
+        rows.sort_by(camera_fit_row_ordering);
         let base_camera_index = rows
             .iter()
             .position(|row| row.get("camera") == Some(&base_camera));
@@ -2102,7 +2276,15 @@ impl Runtime {
                 target.get("landmarks"),
                 part_context,
             );
-            let loss = camera_fit_loss(&loss_metrics);
+            let row_camera = rows
+                .get(index)
+                .and_then(|row| row.get("camera"))
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "CAMERA_FIT_RENDER_FAILED: full-resolution camera missing".to_owned(),
+                    )
+                })?;
+            let loss = camera_fit_framing_loss(&loss_metrics, &model_mask, 512, row_camera);
             // CameraFitResult@1 intentionally exposes only the four compact
             // camera metrics. Keep the full-resolution SDF/landmark values in
             // the internal ranking loss, but never widen the public contract.
@@ -2128,7 +2310,7 @@ impl Runtime {
             .iter()
             .find(|row| row.get("camera") == Some(&base_camera))
             .cloned();
-        rows.sort_by(primary_form_row_ordering);
+        rows.sort_by(camera_fit_row_ordering);
         rows.truncate(4);
         if let Some(base_row) = base_row {
             if !rows
@@ -2136,7 +2318,7 @@ impl Runtime {
                 .any(|row| row.get("camera") == base_row.get("camera"))
             {
                 rows.push(base_row);
-                rows.sort_by(primary_form_row_ordering);
+                rows.sort_by(camera_fit_row_ordering);
             }
         }
         let selected = rows
@@ -2351,6 +2533,27 @@ impl Runtime {
         part_ids: &[String],
         max_segments: usize,
     ) -> Vec<Value> {
+        let segments =
+            Self::all_boundary_error_segments_for_masks(reference, model, part_png, part_ids);
+        Self::retain_boundary_segments_with_part_coverage(&segments, max_segments)
+    }
+
+    /// Build the complete bounded correspondence pool used by Part-local
+    /// diagnostics before applying the public 64-segment response budget.
+    ///
+    /// The public boundary endpoint intentionally keeps a small global table,
+    /// but sharing that already-truncated table with a model that exposes many
+    /// Parts can leave only one sample for a large Part.  A one-pixel envelope
+    /// then produces a maximal shrink proposal even though the underlying
+    /// target contour contains many relevant samples.  Part-local consumers
+    /// therefore filter this deterministic 128-forward + 128-reverse pool
+    /// first; only public output is globally truncated.
+    fn all_boundary_error_segments_for_masks(
+        reference: &[bool],
+        model: &[bool],
+        part_png: Option<&[u8]>,
+        part_ids: &[String],
+    ) -> Vec<Value> {
         let target_boundary = boundary_mask(reference);
         let model_boundary = boundary_mask(model);
         let model_points: Vec<(usize, usize)> = model_boundary
@@ -2451,7 +2654,7 @@ impl Runtime {
             "part_id":part_id_at(mx, my)
         }));
         }
-        Self::retain_boundary_segments_with_part_coverage(&segments, max_segments)
+        segments
     }
 
     /// Project automatic silhouette boundary evidence onto one semantic Part.
@@ -2598,12 +2801,11 @@ impl Runtime {
             .unwrap_or_default();
         let automatic_target = target_parts.is_empty();
         let automatic_boundary_segments = if automatic_target {
-            Self::boundary_error_segments_for_masks(
+            Self::all_boundary_error_segments_for_masks(
                 &target_mask.mask,
                 &model_mask,
                 part_png.as_deref(),
                 &part_ids,
-                64,
             )
         } else {
             Vec::new()
@@ -2680,7 +2882,7 @@ impl Runtime {
             let target_boundary = if automatic_target {
                 Self::projected_part_boundary_mask(&automatic_boundary_segments, &part_id)
             } else {
-                target_part_boundary_mask(&target, &part_id)
+                declared_part_target_boundary(&target, &part_id, &target_mask.mask)
             };
             let target_envelope = target_boundary.as_deref().and_then(mask_envelope);
             let target_boundary_pixels = target_boundary
@@ -2809,6 +3011,7 @@ impl Runtime {
         validate_request_keys(
             object,
             &[
+                "schema_version",
                 "project_id",
                 "candidate_id",
                 "target_sha256",
@@ -2820,6 +3023,11 @@ impl Runtime {
             ],
             "silhouette_fit_prepare",
         )?;
+        if object.get("schema_version").and_then(Value::as_str) != Some("SilhouetteFitIntent@1") {
+            return Err(RuntimeError::InvalidInput(
+                "SILHOUETTE_FIT_INVALID: schema_version must be SilhouetteFitIntent@1".to_owned(),
+            ));
+        }
         let intent_hash = required_value_sha(object.get("canonical_sha256"), "canonical_sha256")?;
         let mut intent_without_hash = request.clone();
         intent_without_hash["canonical_sha256"] = Value::String(String::new());
@@ -3990,6 +4198,7 @@ impl Runtime {
             .as_object_mut()
             .expect("Primary Form request object")
             .remove("part_id");
+        fit_request["schema_version"] = Value::String("SilhouetteFitIntent@1".to_owned());
         if let Some(scoped_rig) = scoped_rig {
             fit_request["rig"] = scoped_rig;
         }
@@ -4518,14 +4727,14 @@ impl Runtime {
         let decoded_part_mask = part_png
             .as_deref()
             .and_then(|bytes| decode_part_mask(bytes, part_id, &part_ids));
-        let explicit_target_part_boundary = target_part_boundary_mask(&target, part_id);
+        let explicit_target_part_boundary =
+            declared_part_target_boundary(&target, part_id, &target_mask.mask);
         let automatic_boundary_segments = if explicit_target_part_boundary.is_none() {
-            Self::boundary_error_segments_for_masks(
+            Self::all_boundary_error_segments_for_masks(
                 &target_mask.mask,
                 &model_mask,
                 part_png.as_deref(),
                 &part_ids,
-                64,
             )
         } else {
             Vec::new()
@@ -4535,6 +4744,12 @@ impl Runtime {
         } else {
             None
         };
+        let automatic_part_point_count = projected_target_part_boundary
+            .as_deref()
+            .map(|mask| mask.iter().filter(|value| **value).count())
+            .unwrap_or_default();
+        let part_evidence_ready =
+            explicit_target_part_boundary.is_some() || automatic_part_point_count >= 4;
         let target_part_boundary = explicit_target_part_boundary
             .clone()
             .or(projected_target_part_boundary);
@@ -4564,53 +4779,69 @@ impl Runtime {
             // envelope.  Reusing the whole-body bbox here makes a chest or
             // shoulder correction inherit unrelated leg/head error and was
             // the main reason contour edits drifted away from the reference.
-            if let (Some(model_part_mask), Some(target_part_mask)) = (
-                decoded_part_mask.as_deref(),
-                target_part_boundary.as_deref(),
-            ) {
-                if let (Some(target_envelope), Some(model_envelope)) = (
-                    mask_envelope(&target_part_mask),
-                    mask_envelope(model_part_mask),
+            if part_evidence_ready {
+                if let (Some(model_part_mask), Some(target_part_mask)) = (
+                    decoded_part_mask.as_deref(),
+                    target_part_boundary.as_deref(),
                 ) {
-                    for parameter in parameters
-                        .iter()
-                        .filter(|value| {
-                            value.get("part_id").and_then(Value::as_str) == Some(part_id)
-                        })
-                        .take(16)
-                    {
-                        let value = parameter
-                            .get("value")
-                            .and_then(Value::as_f64)
-                            .unwrap_or(0.0);
-                        let min = parameter
-                            .get("min")
-                            .and_then(Value::as_f64)
-                            .unwrap_or(value);
-                        let max = parameter
-                            .get("max")
-                            .and_then(Value::as_f64)
-                            .unwrap_or(value);
-                        // This legacy proposal endpoint has no camera payload.
-                        // Keep meter offsets neutral instead of converting image
-                        // error with an arbitrary Rig step; ratio controls remain
-                        // valid because they are unitless.
-                        let delta = local_part_parameter_delta(
-                            parameter,
-                            target_envelope,
-                            model_envelope,
-                            None,
-                        );
-                        adjustments.push(json!({
+                    if let (Some(target_envelope), Some(model_envelope)) = (
+                        mask_envelope(&target_part_mask),
+                        mask_envelope(model_part_mask),
+                    ) {
+                        for parameter in parameters
+                            .iter()
+                            .filter(|value| {
+                                value.get("part_id").and_then(Value::as_str) == Some(part_id)
+                            })
+                            .take(16)
+                        {
+                            let value = parameter
+                                .get("value")
+                                .and_then(Value::as_f64)
+                                .unwrap_or(0.0);
+                            let min = parameter
+                                .get("min")
+                                .and_then(Value::as_f64)
+                                .unwrap_or(value);
+                            let max = parameter
+                                .get("max")
+                                .and_then(Value::as_f64)
+                                .unwrap_or(value);
+                            if !local_part_parameter_has_sufficient_evidence(
+                                parameter,
+                                target_envelope,
+                                model_envelope,
+                            ) {
+                                continue;
+                            }
+                            // This legacy proposal endpoint has no camera payload.
+                            // Keep meter offsets neutral instead of converting image
+                            // error with an arbitrary Rig step; ratio controls remain
+                            // valid because they are unitless.
+                            let delta = local_part_parameter_delta(
+                                parameter,
+                                target_envelope,
+                                model_envelope,
+                                None,
+                            );
+                            adjustments.push(json!({
                             "parameter_id":parameter.get("parameter_id").and_then(Value::as_str).unwrap_or("unknown"),
                             "delta":stable_visual_metric(delta),
                             "bounded_value":stable_visual_metric((value + delta).clamp(min, max))
                         }));
+                        }
                     }
                 }
             }
         }
-        let mut result = json!({"schema_version":"PartContourFitResult@1","project_id":project_id,"candidate_id":candidate_id,"target_sha256":target_sha256,"part_id":part_id,"adjustments":adjustments,"metrics":{"silhouette_iou":metrics["silhouette_iou"],"boundary_f1_4px":metrics["boundary_f1_4px"],"sdf_chamfer_px":metrics["sdf_chamfer_px"],"part_boundary_error_px":stable_visual_metric(part_error)},"status":if part_error > 1.0 {"proposal_ready"} else {"no_action"},"canonical_sha256":""});
+        let status = if part_error <= 1.0 {
+            "no_action"
+        } else if adjustments.is_empty() {
+            "unavailable"
+        } else {
+            "proposal_ready"
+        };
+        let mut result = json!({"schema_version":"PartContourFitResult@1","project_id":project_id,"candidate_id":candidate_id,"target_sha256":target_sha256,"part_id":part_id,"adjustments":adjustments,"metrics":{"silhouette_iou":metrics["silhouette_iou"],"boundary_f1_4px":metrics["boundary_f1_4px"],"sdf_chamfer_px":metrics["sdf_chamfer_px"],"part_boundary_error_px":stable_visual_metric(part_error)},"status":status,"canonical_sha256":""});
         result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
         validate_part_contour_fit_result(&result)?;
         Ok(result)
@@ -12897,6 +13128,15 @@ impl Runtime {
                     })?;
                 self.silhouette_rig_hash(project_id, payload)
             }
+            "silhouette_fit_intent_hash" => {
+                let project_id = payload
+                    .get("project_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput("project_id is required".to_owned())
+                    })?;
+                self.silhouette_fit_intent_hash(project_id, payload)
+            }
             "silhouette_target_get" => {
                 let target_sha256 = payload
                     .get("target_sha256")
@@ -19496,6 +19736,22 @@ fn camera_orbit_variant(base: &Value, yaw: f64, pitch: f64, distance_scale: f64)
         position[1] - target[1],
         position[2] - target[2],
     ];
+    // Preserve an authored ray exactly for pure framing probes.  Rebuilding
+    // an axis-aligned top camera through spherical coordinates used to clamp
+    // its +/-90 degree pitch to 1.25 radians, silently turning a top evidence
+    // view into an oblique view even when yaw and pitch deltas were both zero.
+    if yaw.abs() <= f64::EPSILON && pitch.abs() <= f64::EPSILON {
+        let new_position = [
+            target[0] + relative[0] * distance_scale,
+            target[1] + relative[1] * distance_scale,
+            target[2] + relative[2] * distance_scale,
+        ];
+        let mut camera = base.clone();
+        if let Some(transform) = camera.get_mut("transform").and_then(Value::as_object_mut) {
+            transform.insert("position_m".to_owned(), json!(new_position));
+        }
+        return stable_camera_calibration_hashes(camera);
+    }
     let horizontal = (relative[0] * relative[0] + relative[2] * relative[2])
         .sqrt()
         .max(1e-6);
@@ -19583,6 +19839,84 @@ fn camera_fit_search_variants(base: &Value) -> Vec<Value> {
     variants
 }
 
+/// Infer a coarse authored view kind from the supplied camera ray.  CameraFit
+/// keeps the wire contract intentionally small (the caller supplies a full
+/// `CameraCalibration@1`, not an untrusted free-form view label), so the
+/// Runtime uses the dominant view axis as the kind signal:
+/// camera along Z is a side view, along X is front/back, and along Y is top.
+/// Oblique cameras receive a balanced probe.  This is framing policy only; it
+/// never asserts that the source image was captured by that camera.
+fn camera_fit_view_kind(base: &Value) -> &'static str {
+    let Some(transform) = base.get("transform").and_then(Value::as_object) else {
+        return "oblique";
+    };
+    let Some(position) = camera_vec3(transform.get("position_m")) else {
+        return "oblique";
+    };
+    let Some(target) = camera_vec3(transform.get("target_m")) else {
+        return "oblique";
+    };
+    let direction = [
+        target[0] - position[0],
+        target[1] - position[1],
+        target[2] - position[2],
+    ];
+    let axes = [direction[0].abs(), direction[1].abs(), direction[2].abs()];
+    if !axes.iter().all(|value| value.is_finite()) {
+        return "oblique";
+    }
+    if axes[1] >= axes[0] && axes[1] >= axes[2] {
+        "top"
+    } else if axes[0] >= axes[2] {
+        "front"
+    } else {
+        "side"
+    }
+}
+
+/// Return the small Runtime product schedule.  Target offsets are expressed
+/// as normalized camera-plane fractions and converted to world units here;
+/// this prevents the same 0.04 value from being imperceptible for a long
+/// weapon or excessive for a small asset.  The schedule deliberately keeps
+/// one orientation probe plus explicit near/far framing and two target-offset
+/// probes.  `prepare_camera_fit` adds the two existing mask-derived candidates
+/// after this function, keeping the total at the historical eight rows.
+fn camera_fit_runtime_search_variants(base: &Value) -> Vec<Value> {
+    let kind = camera_fit_view_kind(base);
+    let (orientation_yaw, orientation_pitch, fov_delta, far_scale, offset_fraction) = match kind {
+        // Axis-authored cameras are evidence views.  Rotating them can score
+        // better by turning a top/front/side target into an oblique view, so
+        // their orientation must remain fixed; use one bounded FOV probe for
+        // the sixth row instead.  Only an already-oblique authored camera may
+        // receive an orientation probe.
+        "top" => (0.0, 0.0, -3.0, 1.25, 0.05),
+        "front" => (0.0, 0.0, -3.0, 1.18, 0.05),
+        "side" => (0.0, 0.0, -3.0, 1.12, 0.04),
+        _ => (0.06, 0.06, 0.0, 1.12, 0.04),
+    };
+    let (plane_width, plane_height) = camera_plane_world_scales(base).unwrap_or((1.0, 1.0));
+    let offset_x = (offset_fraction * plane_width).clamp(-1.0, 1.0);
+    let offset_y = (offset_fraction * plane_height).clamp(-1.0, 1.0);
+    vec![
+        base.clone(),
+        camera_fit_variant_extended(
+            base,
+            orientation_yaw,
+            orientation_pitch,
+            0.0,
+            fov_delta,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+        ),
+        camera_fit_variant_extended(base, 0.0, 0.0, 0.0, 0.0, 0.88, 0.0, 0.0, 1.0),
+        camera_fit_variant_extended(base, 0.0, 0.0, 0.0, 0.0, far_scale, 0.0, 0.0, 1.0),
+        camera_fit_variant_extended(base, 0.0, 0.0, 0.0, 0.0, 1.0, offset_x, 0.0, 1.0),
+        camera_fit_variant_extended(base, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, offset_y, 1.0),
+    ]
+}
+
 /// Return nine one-variable probes around a ranked coarse camera. This keeps
 /// the second stage attributable and guarantees a hard 64-render ceiling
 /// when three seeds are refined (37 coarse + 27 local).
@@ -19658,7 +19992,7 @@ fn camera_fit_row_from_passes(
         landmarks,
         part_context,
     );
-    let loss = camera_fit_loss(&loss_metrics);
+    let loss = camera_fit_framing_loss(&loss_metrics, &model_mask, FIT_RESOLUTION, &camera);
     Ok(json!({
         "camera": camera,
         "loss": stable_visual_metric(loss),
@@ -20140,6 +20474,28 @@ fn primary_form_row_ordering(left: &Value, right: &Value) -> std::cmp::Ordering 
     })
 }
 
+/// Camera fitting is a framing operation, so rank alignment before shape
+/// likeness.  Sharing the geometry comparator made Boundary F1 the first
+/// criterion and could retain a visibly under-filled or over-cropped camera.
+/// Geometry candidates continue to use `primary_form_row_ordering`; this
+/// comparator is restricted to the read-only CameraFit rows.
+fn camera_fit_row_ordering(left: &Value, right: &Value) -> std::cmp::Ordering {
+    let left_framing = left
+        .get("loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let right_framing = right
+        .get("loss")
+        .and_then(Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    if (left_framing - right_framing).abs() > 1e-9 {
+        return left_framing
+            .partial_cmp(&right_framing)
+            .unwrap_or(std::cmp::Ordering::Equal);
+    }
+    primary_form_row_ordering(left, right)
+}
+
 /// Produce the internal Primary Form ranking snapshot from the exact same
 /// public contour metrics and transient landmark evidence for both baseline
 /// and candidate renders. The extra fields stay internal to the bounded fit;
@@ -20493,8 +20849,8 @@ fn fit_rig_parameters_with_part_context(
             let Some(part_id) = part.get("part_id").and_then(Value::as_str) else {
                 continue;
             };
-            let Some(target_part) =
-                target_part_boundary_mask(target, part_id).and_then(|mask| mask_envelope(&mask))
+            let Some(target_part) = declared_part_target_boundary(target, part_id, target_mask)
+                .and_then(|mask| mask_envelope(&mask))
             else {
                 continue;
             };
@@ -20970,7 +21326,11 @@ fn materialize_rig_geometry_program(
                         .and_then(Value::as_str)
                         .unwrap_or_default()
                         .to_owned();
-                    if operator_id != "forgecad.geometry.surface-shell@1" {
+                    if !matches!(
+                        operator_id.as_str(),
+                        "forgecad.geometry.surface-shell@1"
+                            | "forgecad.geometry.longitudinal-section-loft@1"
+                    ) {
                         continue;
                     }
                     let Some(parameters) =
@@ -20980,6 +21340,7 @@ fn materialize_rig_geometry_program(
                     };
                     if apply_surface_control_point_to_node(
                         parameters,
+                        &operator_id,
                         control_point_index,
                         axis,
                         value,
@@ -21116,11 +21477,15 @@ fn materialize_rig_geometry_program(
     Ok((materialized, applied))
 }
 
-/// Apply one typed surface control to a first-party surface-shell node.
-/// `control_point_index` and `axis` come from the hash-bound SilhouetteRig;
-/// no free-form node path or expression is interpreted here.
+/// Apply one typed surface control to a first-party surface-shell or
+/// longitudinal-section-loft node. `control_point_index` and `axis` come from
+/// the hash-bound SilhouetteRig; no free-form node path or expression is
+/// interpreted here. Longitudinal loft points are flattened in deterministic
+/// section-major order and expose only their authored Y/Z coordinates. The X
+/// station remains immutable so one-view fitting cannot reorder sections.
 fn apply_surface_control_point_to_node(
     parameters: &mut serde_json::Map<String, Value>,
+    operator_id: &str,
     control_point_index: Option<usize>,
     axis: Option<&str>,
     value: f64,
@@ -21131,32 +21496,68 @@ fn apply_surface_control_point_to_node(
     let Some(axis) = axis else {
         return false;
     };
-    let axis_index = match axis {
-        "x" => 0,
-        "y" => 1,
-        "z" => 2,
-        _ => return false,
-    };
     if !value.is_finite() {
         return false;
     }
-    let Some(points) = parameters
-        .get_mut("control_points")
-        .and_then(Value::as_array_mut)
-    else {
-        return false;
-    };
-    let Some(point) = points
-        .get_mut(control_point_index)
-        .and_then(Value::as_array_mut)
-    else {
-        return false;
-    };
-    if point.len() != 3 {
-        return false;
+    match operator_id {
+        "forgecad.geometry.surface-shell@1" => {
+            let axis_index = match axis {
+                "x" => 0,
+                "y" => 1,
+                "z" => 2,
+                _ => return false,
+            };
+            let Some(points) = parameters
+                .get_mut("control_points")
+                .and_then(Value::as_array_mut)
+            else {
+                return false;
+            };
+            let Some(point) = points
+                .get_mut(control_point_index)
+                .and_then(Value::as_array_mut)
+            else {
+                return false;
+            };
+            if point.len() != 3 {
+                return false;
+            }
+            point[axis_index] = Value::from(value);
+            true
+        }
+        "forgecad.geometry.longitudinal-section-loft@1" => {
+            let axis_index = match axis {
+                "y" => 0,
+                "z" => 1,
+                // station_m owns X and must remain strictly increasing.
+                _ => return false,
+            };
+            let Some(sections) = parameters.get_mut("sections").and_then(Value::as_array_mut)
+            else {
+                return false;
+            };
+            let mut remaining = control_point_index;
+            for section in sections {
+                let Some(points) = section.get_mut("points").and_then(Value::as_array_mut) else {
+                    return false;
+                };
+                if remaining >= points.len() {
+                    remaining -= points.len();
+                    continue;
+                }
+                let Some(point) = points.get_mut(remaining).and_then(Value::as_array_mut) else {
+                    return false;
+                };
+                if point.len() != 2 {
+                    return false;
+                }
+                point[axis_index] = Value::from(value);
+                return true;
+            }
+            false
+        }
+        _ => false,
     }
-    point[axis_index] = Value::from(value);
-    true
 }
 
 /// Ensure that a Part output has a final typed Transform sink.  This keeps
@@ -22405,6 +22806,30 @@ fn merge_mask_envelopes(left: MaskEnvelope, right: MaskEnvelope) -> MaskEnvelope
     }
 }
 
+fn local_part_parameter_has_sufficient_evidence(
+    parameter: &Value,
+    target: MaskEnvelope,
+    model: MaskEnvelope,
+) -> bool {
+    let semantic = parameter
+        .get("semantic")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let target_has_width = target.min_x < target.max_x;
+    let target_has_height = target.min_y < target.max_y;
+    let model_has_width = model.min_x < model.max_x;
+    let model_has_height = model.min_y < model.max_y;
+    match semantic {
+        "width" => target_has_width && model_has_width,
+        "height" => target_has_height && model_has_height,
+        "scale" => target_has_width && target_has_height && model_has_width && model_has_height,
+        "offset_x" | "offset_y" => target.pixel_count >= 2.0 && model.pixel_count >= 2.0,
+        // A single view cannot support hidden-depth controls, and unknown
+        // semantics must not turn missing evidence into a proposal.
+        _ => false,
+    }
+}
+
 fn local_part_parameter_delta(
     parameter: &Value,
     target: MaskEnvelope,
@@ -22583,8 +23008,8 @@ fn part_boundary_error(
     if !selected_boundary.iter().any(|value| *value) {
         return 512.0;
     }
-    let target_boundary =
-        target_part_boundary_mask(target, part_id).unwrap_or_else(|| boundary_mask(target_mask));
+    let target_boundary = declared_part_target_boundary(target, part_id, target_mask)
+        .unwrap_or_else(|| boundary_mask(target_mask));
     let target_field = boundary_distance_field(&target_boundary);
     let mut total = 0.0;
     let mut count = 0.0;
@@ -22806,6 +23231,24 @@ fn target_part_region_mask(
     Some(local)
 }
 
+/// Resolve a reviewed Part target from the strongest available declaration.
+///
+/// A normalized Part region is a closed, image-space observation and can
+/// represent upper and lower silhouette edges that are separated in the
+/// canonical whole-object contour order. Prefer that bounded mask when it is
+/// present; otherwise retain the older contiguous contour-slice behavior.
+/// This does not infer hidden geometry or mutate the reference target.
+fn declared_part_target_boundary(
+    target: &Value,
+    part_id: &str,
+    target_mask: &[bool],
+) -> Option<Vec<bool>> {
+    target_part_region_mask(target, part_id, target_mask)
+        .map(|mask| boundary_mask(&mask))
+        .filter(|mask| mask.iter().any(|value| *value))
+        .or_else(|| target_part_boundary_mask(target, part_id))
+}
+
 fn rasterize_boundary_segment(mask: &mut [bool], start: [f64; 2], end: [f64; 2]) {
     let x0 = (start[0].clamp(0.0, 1.0) * 511.0).round() as i32;
     let y0 = (start[1].clamp(0.0, 1.0) * 511.0).round() as i32;
@@ -22892,6 +23335,36 @@ fn transient_loss_metrics_at_resolution(
 
 fn camera_fit_loss(metrics: &Value) -> f64 {
     weighted_contour_loss(metrics)
+}
+
+/// CameraFit framing target by authored view family.  Long side/top weapon
+/// views reserve roughly seven percent margin on each horizontal edge; a
+/// front/back view uses vertical occupancy so a narrow weapon is not enlarged
+/// until it clips laterally.  This value is internal ranking evidence carried
+/// in the existing `loss` field, so the V1 wire contract remains unchanged.
+fn camera_fit_framing_loss(
+    metrics: &Value,
+    model: &[bool],
+    resolution: usize,
+    camera: &Value,
+) -> f64 {
+    let Some((min_x, min_y, max_x, max_y)) = bbox_at_resolution(model, resolution) else {
+        return f64::INFINITY;
+    };
+    let width_occupancy = (max_x - min_x + 1) as f64 / resolution as f64;
+    let height_occupancy = (max_y - min_y + 1) as f64 / resolution as f64;
+    let (observed, target) = match camera_fit_view_kind(camera) {
+        "side" | "top" => (width_occupancy, 0.86),
+        "front" => (height_occupancy, 0.72),
+        _ => (width_occupancy.max(height_occupancy), 0.82),
+    };
+    let occupancy_error = (observed - target).abs();
+    let centroid_error = metrics
+        .get("centroid_error")
+        .and_then(Value::as_f64)
+        .unwrap_or(1.0)
+        .clamp(0.0, 1.0);
+    0.75 * occupancy_error + 0.25 * centroid_error
 }
 
 fn primary_form_strict_same_camera_improvement(
@@ -27406,6 +27879,37 @@ fn validate_silhouette_rig_hash_result_output(value: &Value) -> Result<(), Runti
         ));
     }
     required_contract_sha256(object, "canonical_sha256", "SilhouetteRigHashResult@1")?;
+    Ok(())
+}
+
+fn validate_silhouette_fit_intent_hash_result_output(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "silhouette_fit_intent_schema_version",
+            "canonical_sha256",
+            "validation_status",
+        ],
+        "SilhouetteFitIntentHashResult@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("SilhouetteFitIntentHashResult@1")
+        || object
+            .get("silhouette_fit_intent_schema_version")
+            .and_then(Value::as_str)
+            != Some("SilhouetteFitIntent@1")
+        || object.get("validation_status").and_then(Value::as_str) != Some("passed")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: SilhouetteFitIntentHashResult@1 constants drifted".to_owned(),
+        ));
+    }
+    required_contract_sha256(
+        object,
+        "canonical_sha256",
+        "SilhouetteFitIntentHashResult@1",
+    )?;
     Ok(())
 }
 
@@ -39564,6 +40068,19 @@ mod tests {
     }
 
     #[test]
+    fn camera_identity_hash_rejects_a_recanonicalized_spoofed_identity() {
+        let mut camera = default_camera_calibration();
+        camera["camera_hash"] = Value::String("f".repeat(64));
+        camera["canonical_sha256"] = Value::String(String::new());
+        camera["canonical_sha256"] = Value::String(canonical_json_hash(&camera));
+
+        // The canonical receipt binds the forged identity field, but the
+        // independent Runtime camera identity check must still fail closed.
+        assert!(validate_camera_calibration(&camera).is_ok());
+        assert!(camera_identity_hash(&camera).is_err());
+    }
+
+    #[test]
     fn stable_camera_hashes_survive_cross_process_number_round_trip() {
         let mut source = default_camera_calibration();
         source["transform"]["up"][2] =
@@ -43063,6 +43580,109 @@ mod tests {
     }
 
     #[test]
+    fn camera_fit_runtime_schedule_is_view_kind_aware_and_frames() {
+        let mut side = default_camera_calibration();
+        side["transform"]["position_m"] = json!([0.0, 1.5, 8.0]);
+        side["transform"]["target_m"] = json!([0.0, 1.5, 0.0]);
+        side = stable_camera_calibration_hashes(side);
+
+        let mut front = default_camera_calibration();
+        front["transform"]["position_m"] = json!([8.0, 1.5, 0.0]);
+        front["transform"]["target_m"] = json!([0.0, 1.5, 0.0]);
+        front = stable_camera_calibration_hashes(front);
+
+        let mut top = default_camera_calibration();
+        top["transform"]["position_m"] = json!([0.0, 8.0, 0.0]);
+        top["transform"]["target_m"] = json!([0.0, 0.0, 0.0]);
+        top["transform"]["up"] = json!([0.0, 0.0, -1.0]);
+        top = stable_camera_calibration_hashes(top);
+
+        assert_eq!(camera_fit_view_kind(&side), "side");
+        assert_eq!(camera_fit_view_kind(&front), "front");
+        assert_eq!(camera_fit_view_kind(&top), "top");
+
+        let radius = |camera: &Value| {
+            let transform = camera.get("transform").and_then(Value::as_object).unwrap();
+            let position = camera_vec3(transform.get("position_m")).unwrap();
+            let target = camera_vec3(transform.get("target_m")).unwrap();
+            ((position[0] - target[0]).powi(2)
+                + (position[1] - target[1]).powi(2)
+                + (position[2] - target[2]).powi(2))
+            .sqrt()
+        };
+        let target = |camera: &Value| {
+            camera["transform"]["target_m"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| value.as_f64().unwrap())
+                .collect::<Vec<_>>()
+        };
+        let unit_ray = |camera: &Value| {
+            let transform = camera.get("transform").and_then(Value::as_object).unwrap();
+            let position = camera_vec3(transform.get("position_m")).unwrap();
+            let target = camera_vec3(transform.get("target_m")).unwrap();
+            let ray = [
+                position[0] - target[0],
+                position[1] - target[1],
+                position[2] - target[2],
+            ];
+            let length = (ray[0].powi(2) + ray[1].powi(2) + ray[2].powi(2)).sqrt();
+            [ray[0] / length, ray[1] / length, ray[2] / length]
+        };
+
+        for base in [&side, &front, &top] {
+            let variants = camera_fit_runtime_search_variants(base);
+            assert_eq!(variants.len(), 6);
+            assert!(variants
+                .iter()
+                .all(|camera| validate_camera_calibration(camera).is_ok()));
+            assert!(radius(&variants[2]) < radius(base));
+            assert!(radius(&variants[3]) > radius(base));
+            assert_ne!(target(&variants[4]), target(base));
+            assert_ne!(target(&variants[5]), target(base));
+            let base_ray = unit_ray(base);
+            let probe_ray = unit_ray(&variants[1]);
+            assert!(base_ray
+                .iter()
+                .zip(probe_ray.iter())
+                .all(|(left, right)| (left - right).abs() < 1e-9));
+        }
+
+        // The sixth bounded probe is still view-kind-specific, but cardinal
+        // evidence views retain their exact authored ray.
+        let side_probe = &camera_fit_runtime_search_variants(&side)[1];
+        let top_probe = &camera_fit_runtime_search_variants(&top)[1];
+        assert_ne!(side_probe["camera_hash"], top_probe["camera_hash"]);
+    }
+
+    #[test]
+    fn camera_fit_ranks_framing_before_shape_likeness() {
+        let well_framed = json!({
+            "metrics":{
+                "bbox_edge_error":0.03,
+                "centroid_error":0.02,
+                "boundary_f1_4px":0.20,
+                "silhouette_iou":0.30
+            },
+            "loss":0.03
+        });
+        let under_filled = json!({
+            "metrics":{
+                "bbox_edge_error":0.15,
+                "centroid_error":0.01,
+                "boundary_f1_4px":0.60,
+                "silhouette_iou":0.70
+            },
+            "loss":0.15
+        });
+        assert_eq!(
+            camera_fit_row_ordering(&well_framed, &under_filled),
+            std::cmp::Ordering::Less
+        );
+    }
+
+    #[test]
     fn viewer_reference_bytes_are_hash_bound_and_project_scoped() {
         let runtime = Runtime::ephemeral().expect("runtime");
         let project = runtime
@@ -43171,6 +43791,113 @@ mod tests {
     }
 
     #[test]
+    fn silhouette_fit_intent_hash_is_runtime_owned_read_only_and_wire_exact() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let project = runtime
+            .create_project("fit intent hash", json!({"profile":"mvp"}))
+            .expect("project");
+        let reference = runtime
+            .import_reference(&ReferenceImportRequest {
+                project_id: project.project_id.clone(),
+                source: ReferenceImportSource::InlineContent {
+                    mime: "image/png".to_owned(),
+                    content_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=".to_owned(),
+                },
+                authorization: ReferenceAuthorization {
+                    user_authorized: true,
+                    declaration: "fit intent hash test".to_owned(),
+                },
+                expected_sha256: None,
+            })
+            .expect("reference")
+            .reference;
+        let target = runtime
+            .prepare_reference_mask(
+                &project.project_id,
+                json!({
+                    "project_id":project.project_id.clone(),
+                    "reference_id":reference.reference_id,
+                    "contour_points":[[0.2,0.1],[0.8,0.1],[0.85,0.9],[0.15,0.9]]
+                }),
+            )
+            .expect("target");
+        let prepared = runtime
+            .prepare_diagnostic_candidate(
+                &project.project_id,
+                None,
+                json!({"typed":"diagnostic","label":"fit-intent-hash"}),
+            )
+            .expect("candidate");
+        let candidate_id = prepared.candidate.candidate_id;
+        let mut rig = json!({
+            "schema_version":"SilhouetteRig@1",
+            "rig_id":"fit-intent-rig",
+            "candidate_id":candidate_id.clone(),
+            "parameters":[
+                {"parameter_id":"shell-width","part_id":"shell","semantic":"width","value":1.0,"min":0.8,"max":1.2,"step":0.04,"unit":"ratio"}
+            ],
+            "canonical_sha256":""
+        });
+        rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
+        let request = json!({
+            "schema_version":"SilhouetteFitIntentHashRequest@1",
+            "project_id":project.project_id.clone(),
+            "candidate_id":candidate_id,
+            "target_sha256":target["target_sha256"].clone(),
+            "rig":rig,
+            "base_camera":default_camera_calibration(),
+            "optimizer":{
+                "algorithm":"coordinate_descent",
+                "max_iterations":2,
+                "max_evaluations":16,
+                "step_fraction":0.1
+            }
+        });
+        let candidate_count = runtime
+            .candidates(&project.project_id)
+            .expect("candidates")
+            .len();
+        let result = runtime
+            .silhouette_fit_intent_hash(&project.project_id, &request)
+            .expect("fit intent hash");
+        assert_eq!(result["schema_version"], "SilhouetteFitIntentHashResult@1");
+        assert_eq!(result["validation_status"], "passed");
+        let mut intent = request;
+        intent["schema_version"] = Value::String("SilhouetteFitIntent@1".to_owned());
+        intent["canonical_sha256"] = Value::String(String::new());
+        assert_eq!(
+            result["canonical_sha256"],
+            Value::String(canonical_json_hash(&normalize_json_numbers(&intent)))
+        );
+        let mut unbound_camera_ref = intent;
+        unbound_camera_ref["schema_version"] =
+            Value::String("SilhouetteFitIntentHashRequest@1".to_owned());
+        unbound_camera_ref
+            .as_object_mut()
+            .expect("fit hash request")
+            .remove("canonical_sha256");
+        unbound_camera_ref["base_camera"] = json!({
+            "schema_version":"CameraCalibrationRef@1",
+            "camera_hash":"a".repeat(64),
+            "canonical_sha256":"b".repeat(64)
+        });
+        assert!(runtime
+            .silhouette_fit_intent_hash(&project.project_id, &unbound_camera_ref)
+            .is_err());
+        assert_eq!(
+            runtime
+                .candidates(&project.project_id)
+                .expect("candidates")
+                .len(),
+            candidate_count
+        );
+        assert!(runtime
+            .versions(Some(&project.project_id))
+            .expect("versions")
+            .is_empty());
+    }
+
+    #[test]
     fn silhouette_rig_accepts_hash_bound_surface_control_points() {
         let mut rig = json!({
             "schema_version":"SilhouetteRig@1",
@@ -43239,6 +43966,48 @@ mod tests {
         assert_eq!(points[5][2], 0.16);
         assert_eq!(points[6][2], 0.16);
         assert_eq!(points[0], json!([-0.83, 1.42, -0.02]));
+    }
+
+    #[test]
+    fn rig_materialization_applies_longitudinal_loft_control_points_without_moving_stations() {
+        let program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-longitudinal-materialization",
+            "nodes":[{
+                "node_id":"receiver-main",
+                "operator_id":"forgecad.geometry.longitudinal-section-loft@1",
+                "inputs":[],
+                "parameters":{
+                    "shape":"longitudinal-section-loft",
+                    "sections":[
+                        {"station_m":-1.0,"points":[[-0.2,-0.3],[0.2,-0.3],[0.25,0.0],[0.2,0.3],[-0.2,0.3],[-0.25,0.0]]},
+                        {"station_m":1.0,"points":[[-0.15,-0.25],[0.15,-0.25],[0.2,0.0],[0.15,0.25],[-0.15,0.25],[-0.2,0.0]]}
+                    ],
+                    "position_m":[0.0,1.48,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            }],
+            "part_outputs":[{"part_id":"receiver-main","input_node_ids":["receiver-main"],"material_zone_id":"zone-white-shell","solid":true}],
+            "canonical_sha256":""
+        });
+        let rig = json!({"parameters":[
+            {"parameter_id":"section-0-top-y","part_id":"receiver-main","semantic":"surface_control_point","control_point_index":2,"axis":"y","value":0.25,"min":0.18,"max":0.34,"step":0.02,"unit":"meter"},
+            {"parameter_id":"section-1-side-z","part_id":"receiver-main","semantic":"surface_control_point","control_point_index":7,"axis":"z","value":-0.25,"min":-0.34,"max":-0.18,"step":0.02,"unit":"meter"}
+        ]});
+        let selected = vec![
+            json!({"parameter_id":"section-0-top-y","part_id":"receiver-main","value":0.29}),
+            json!({"parameter_id":"section-1-side-z","part_id":"receiver-main","value":-0.21}),
+        ];
+        let (materialized, applied) =
+            materialize_rig_geometry_program(&program, &rig, &selected, None)
+                .expect("materialize longitudinal control points");
+        assert_eq!(applied, 2);
+        let sections = &materialized["nodes"][0]["parameters"]["sections"];
+        assert_eq!(sections[0]["station_m"], -1.0);
+        assert_eq!(sections[1]["station_m"], 1.0);
+        assert_eq!(sections[0]["points"][2][0], 0.29);
+        assert_eq!(sections[1]["points"][1][1], -0.21);
+        assert_eq!(sections[0]["points"][0], json!([-0.2, -0.3]));
     }
 
     #[test]
@@ -43317,7 +44086,7 @@ mod tests {
             .expect("first comparison");
         let mut rig = json!({"schema_version":"SilhouetteRig@1","rig_id":"robot-rig","candidate_id":first_id.clone(),"parameters":[{"parameter_id":"shell-width","part_id":"shell","semantic":"width","value":1.0,"min":0.5,"max":1.5,"step":0.05,"unit":"meter"}],"canonical_sha256":""});
         rig["canonical_sha256"] = Value::String(canonical_json_hash(&rig));
-        let mut fit_request = json!({"project_id":project.project_id.clone(),"candidate_id":first_id.clone(),"target_sha256":target["target_sha256"].clone(),"rig":rig.clone(),"base_camera":default_camera_calibration(),"optimizer":{"algorithm":"coordinate_descent","max_iterations":2,"max_evaluations":8,"step_fraction":0.1},"canonical_sha256":""});
+        let mut fit_request = json!({"schema_version":"SilhouetteFitIntent@1","project_id":project.project_id.clone(),"candidate_id":first_id.clone(),"target_sha256":target["target_sha256"].clone(),"rig":rig.clone(),"base_camera":default_camera_calibration(),"optimizer":{"algorithm":"coordinate_descent","max_iterations":2,"max_evaluations":8,"step_fraction":0.1},"canonical_sha256":""});
         fit_request["canonical_sha256"] = Value::String(canonical_json_hash(&fit_request));
         let fit = runtime
             .silhouette_fit_prepare(&project.project_id, fit_request)
@@ -43675,12 +44444,18 @@ mod tests {
         validate_target_part_ranges(target.get("parts").unwrap(), 6, "test")
             .expect("valid disjoint ranges");
         parse_target_parts(target.get("parts")).expect("image-derived Part ROI is accepted");
-        assert!(target_part_region_mask(&target, "left", &vec![true; 512 * 512]).is_some());
+        let full_target = vec![true; 512 * 512];
+        let region =
+            target_part_region_mask(&target, "left", &full_target).expect("declared Part region");
         let left = target_part_boundary_mask(&target, "left").expect("left boundary");
         let right = target_part_boundary_mask(&target, "right").expect("right boundary");
+        let declared = declared_part_target_boundary(&target, "left", &full_target)
+            .expect("region-backed Part boundary");
         assert!(left.iter().any(|value| *value));
         assert!(right.iter().any(|value| *value));
         assert_ne!(left, right);
+        assert_eq!(declared, boundary_mask(&region));
+        assert_ne!(declared, left);
         assert!(target_part_boundary_mask(&target, "missing").is_none());
         let overlapping = json!([
             {"part_id":"left","start_index":0,"end_index":2,"visibility":"observed"},
@@ -43917,6 +44692,66 @@ mod tests {
     }
 
     #[test]
+    fn part_contour_evidence_rejects_single_pixel_dimension_proposals() {
+        let single_pixel = MaskEnvelope {
+            min_x: 120,
+            min_y: 180,
+            max_x: 120,
+            max_y: 180,
+            centroid_x: 120.0 / 511.0,
+            centroid_y: 180.0 / 511.0,
+            pixel_count: 1.0,
+        };
+        let vertical_line = MaskEnvelope {
+            min_x: 120,
+            min_y: 140,
+            max_x: 120,
+            max_y: 220,
+            centroid_x: 120.0 / 511.0,
+            centroid_y: 180.0 / 511.0,
+            pixel_count: 81.0,
+        };
+        let model = MaskEnvelope {
+            min_x: 100,
+            min_y: 120,
+            max_x: 220,
+            max_y: 240,
+            centroid_x: 160.0 / 511.0,
+            centroid_y: 180.0 / 511.0,
+            pixel_count: 14_641.0,
+        };
+        let width = json!({"semantic":"width"});
+        let height = json!({"semantic":"height"});
+        let depth = json!({"semantic":"depth"});
+
+        assert!(!local_part_parameter_has_sufficient_evidence(
+            &width,
+            single_pixel,
+            model
+        ));
+        assert!(!local_part_parameter_has_sufficient_evidence(
+            &height,
+            single_pixel,
+            model
+        ));
+        assert!(!local_part_parameter_has_sufficient_evidence(
+            &width,
+            vertical_line,
+            model
+        ));
+        assert!(local_part_parameter_has_sufficient_evidence(
+            &height,
+            vertical_line,
+            model
+        ));
+        assert!(!local_part_parameter_has_sufficient_evidence(
+            &depth,
+            vertical_line,
+            model
+        ));
+    }
+
+    #[test]
     fn local_part_envelope_merges_bilateral_worker_parts_for_pair_rig() {
         let mut target_left_mask = vec![false; 512 * 512];
         let mut model_left_mask = vec![false; 512 * 512];
@@ -44125,6 +44960,71 @@ mod tests {
                 && segment["model"][0].as_f64().unwrap_or(0.0) > 0.65
                 && segment["distance_px"].as_f64().unwrap_or(0.0) > 4.0
         }));
+    }
+
+    #[test]
+    fn part_local_boundary_evidence_filters_before_the_public_segment_budget() {
+        let mut reference = vec![false; 512 * 512];
+        let mut model = vec![false; 512 * 512];
+        let mut part_image = RgbaImage::from_pixel(512, 512, Rgba([0, 0, 0, 0]));
+        let part_ids = (0..24)
+            .map(|index| format!("part-{index}"))
+            .collect::<Vec<_>>();
+        for y in 150..350 {
+            for x in 80..432 {
+                model[y * 512 + x] = true;
+                let part_index = ((x - 80) * part_ids.len() / (432 - 80)).min(part_ids.len() - 1);
+                let color = Rgba([
+                    (((part_index.wrapping_mul(97) + 53) % 220 + 20) as u8),
+                    (((part_index.wrapping_mul(53) + 79) % 170 + 40) as u8),
+                    (((part_index.wrapping_mul(31) + 131) % 120 + 80) as u8),
+                    255,
+                ]);
+                part_image.put_pixel(x as u32, y as u32, color);
+            }
+        }
+        for y in 130..330 {
+            for x in 80..432 {
+                reference[y * 512 + x] = true;
+            }
+        }
+        let mut part_png = Vec::new();
+        part_image
+            .write_to(&mut Cursor::new(&mut part_png), ImageFormat::Png)
+            .expect("part-id png");
+
+        let all = Runtime::all_boundary_error_segments_for_masks(
+            &reference,
+            &model,
+            Some(&part_png),
+            &part_ids,
+        );
+        let public = Runtime::boundary_error_segments_for_masks(
+            &reference,
+            &model,
+            Some(&part_png),
+            &part_ids,
+            64,
+        );
+        let selected_part = "part-10";
+        let all_part_samples = all
+            .iter()
+            .filter(|segment| segment["part_id"] == selected_part)
+            .count();
+        let public_part_samples = public
+            .iter()
+            .filter(|segment| segment["part_id"] == selected_part)
+            .count();
+
+        assert!(all.len() > 64);
+        assert_eq!(public.len(), 64);
+        assert!(all_part_samples >= 4);
+        assert!(all_part_samples > public_part_samples);
+        let projected = Runtime::projected_part_boundary_mask(&all, selected_part)
+            .expect("Part-local projection");
+        let envelope = mask_envelope(&projected).expect("Part-local envelope");
+        assert!(envelope.min_x < envelope.max_x);
+        assert!(envelope.min_y < envelope.max_y);
     }
 
     #[test]

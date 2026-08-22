@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/silhouette-fit-intent-hash-result.schema.json",
+  "title": "SilhouetteFitIntentHashResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "silhouette_fit_intent_schema_version", "canonical_sha256", "validation_status"],
+  "properties": {
+    "schema_version": {"const": "SilhouetteFitIntentHashResult@1"},
+    "silhouette_fit_intent_schema_version": {"const": "SilhouetteFitIntent@1"},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "validation_status": {"const": "passed"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
