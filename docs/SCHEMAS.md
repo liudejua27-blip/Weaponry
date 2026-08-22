@@ -1,5 +1,7 @@
 # ForgeCAD Runtime Schema 规范
 
+`MultiLoopProfileLoftRequest@1` / `MultiLoopProfileLoftProgram@1` 使用独立 `MultiLoopCrossSectionPlan@1` 语义，不扩展或破坏 `ProfileLoft@2`。每个 +X station 含 1–4 个稳定 component，每 component 含一个 CCW outer 与 0–4 个 CW holes；hole ID 在整个截面拓扑中全局唯一并跨 station 一致。策略精确限定为 `g0-only`、`closed-solid-boolean` 与 `manifold-difference`，拒绝脚本、路径、URL、网络、自交、接触、包含漂移和超预算输入。
+
 `ProfileLoftRequest@2` / `ProfileLoftProgram@2` 将 `CrossSectionPlan@1` 的稳定 feature/part/material/station lineage 绑定到固定 `profile-loft@2` Worker。策略闭集为 `g0-only`、`canonical-phase-arc-length`、linear 或 `catmull-rom-position-only`、0–16 中间环、4–64 重采样点、ear-clipped planar caps、`hole_policy=reject`；没有任意脚本、路径、URL 或网络字段。
 
 版本：2026-08-13
@@ -12,7 +14,7 @@ Stage 0 机器真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`；�
 
 `ReferenceCanvas@1` 的 view 项现可选绑定 `view_spec`、`target_sha256`、`mask_sha256` 与 `camera_claim.camera_canonical_sha256`；target/mask 必须成对出现，Runtime 还会检查它们与同一 `reference_id/reference_sha256`、CAS、相机和 evidence 的 lineage。`VisualEvidenceBundleProjection@1` 会投影这些 per-view hash，跨视图 compare 不得使用另一视图的 target，RepairIntent 的 evaluation kind 集合必须与 `coverage.supplied_views` 一一对应。旧 unbound 单视图仍显式使用 null，不能将兼容字段缺失解释为质量通过。
 
-<!-- forgecad-stage0: schemas=147 schema_set_sha256=8b292d3ea73475b9ad6c8ebe1eb6521d3dd8834a9410441f113524cef79d4759 read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=149 schema_set_sha256=2f3abdeabb315bfe1fea5e9247ff53d6ee8971da553555892f93a06386bec49f read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 ## 1. 唯一来源
 

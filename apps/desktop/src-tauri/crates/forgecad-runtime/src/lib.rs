@@ -53,7 +53,7 @@ use forgecad_contracts::{
 use image::{imageops, ImageFormat, ImageReader, Limits, Rgba, RgbaImage};
 use serde_json::{json, Value};
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -294,6 +294,11 @@ impl Runtime {
             == Some("ParametricDesignKitRequest@1")
         {
             return self.parametric_design_kit_program(object);
+        }
+        if object.get("schema_version").and_then(Value::as_str)
+            == Some("MultiLoopProfileLoftRequest@1")
+        {
+            return self.multi_loop_profile_loft_program(object);
         }
         if object.get("schema_version").and_then(Value::as_str) == Some("ProfileLoftRequest@2") {
             return self.profile_loft_program(object);
@@ -664,6 +669,262 @@ impl Runtime {
         });
         result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
         validate_profile_loft_program_output(&result)?;
+        Ok(result)
+    }
+
+    /// Expand the independent multi-loop profile contract into the fixed
+    /// multi-loop-profile-loft@1 Worker operator.  This branch is deliberately
+    /// separate from `profile_loft_program`: the historical ProfileLoft@2 and
+    /// CrossSectionPlan@1 contracts remain single-loop and continue to reject
+    /// holes/islands.  The producer is read-only and emits only a typed
+    /// GeometryProgram@2 draft plus its hash-bound program envelope.
+    fn multi_loop_profile_loft_program(
+        &self,
+        object: &serde_json::Map<String, Value>,
+    ) -> Result<Value, RuntimeError> {
+        validate_request_keys(
+            object,
+            &[
+                "schema_version",
+                "operator_id",
+                "project_id",
+                "feature_id",
+                "part_id",
+                "material_zone_id",
+                "cross_section_plan",
+                "continuity_policy",
+                "input_sha256",
+            ],
+            "multi_loop_profile_loft_request_v1",
+        )?;
+        if object.get("schema_version").and_then(Value::as_str)
+            != Some("MultiLoopProfileLoftRequest@1")
+            || object.get("operator_id").and_then(Value::as_str)
+                != Some("forgecad.geometry.multi-loop-profile-loft@1")
+        {
+            return Err(RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: schema_version or operator_id is unsupported"
+                    .to_owned(),
+            ));
+        }
+        let project_id = required_value_id(object.get("project_id"), "project_id")?;
+        let feature_id = required_value_id(object.get("feature_id"), "feature_id")?;
+        let part_id = required_value_id(object.get("part_id"), "part_id")?;
+        let material_zone_id =
+            required_value_id(object.get("material_zone_id"), "material_zone_id")?;
+        let plan = object.get("cross_section_plan").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: cross_section_plan is required".to_owned(),
+            )
+        })?;
+        let (
+            plan_sha256,
+            stations,
+            station_ids,
+            component_ids,
+            hole_ids,
+        ) = validate_multi_loop_cross_section_plan(plan, project_id)?;
+        let continuity_policy = object.get("continuity_policy").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: continuity_policy is required".to_owned(),
+            )
+        })?;
+        validate_multi_loop_profile_loft_continuity_policy(continuity_policy)?;
+        let interpolation = match continuity_policy
+            .get("station_interpolation")
+            .and_then(Value::as_str)
+        {
+            Some("linear") => "linear",
+            Some("catmull-rom-position-only") => "catmull-rom",
+            _ => unreachable!("multi-loop continuity policy was validated"),
+        };
+        let interpolation_rings = continuity_policy["interpolation_rings"]
+            .as_u64()
+            .expect("multi-loop continuity policy was validated");
+        let resample_points = continuity_policy["resample_points"]
+            .as_u64()
+            .expect("multi-loop continuity policy was validated");
+        let preserve_corners = continuity_policy["preserve_corners"]
+            .as_bool()
+            .expect("multi-loop continuity policy was validated");
+
+        let input_sha256 = required_value_sha(object.get("input_sha256"), "input_sha256")?;
+        let mut input_binding = Value::Object(object.clone());
+        input_binding
+            .as_object_mut()
+            .expect("request clone is an object")
+            .remove("input_sha256");
+        let expected_input_sha256 = canonical_json_hash(&input_binding);
+        if input_sha256 != expected_input_sha256 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "MULTI_LOOP_PROFILE_LOFT_INPUT_HASH_MISMATCH: expected={expected_input_sha256} actual={input_sha256}"
+            )));
+        }
+
+        let lowered_operator_id = "forgecad.geometry.multi-loop-profile-loft@1";
+        let lowerer_active = operator_catalog()
+            .get("operators")
+            .and_then(Value::as_array)
+            .and_then(|operators| {
+                operators.iter().find(|entry| {
+                    entry.get("operator_id").and_then(Value::as_str) == Some(lowered_operator_id)
+                })
+            })
+            .and_then(|entry| entry.get("status"))
+            .and_then(Value::as_str)
+            == Some("active");
+        if !lowerer_active {
+            return Err(RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_OPERATOR_UNAVAILABLE: multi-loop-profile-loft@1 is not active"
+                    .to_owned(),
+            ));
+        }
+
+        let ring_count = stations
+            .len()
+            .checked_add(
+                stations
+                    .len()
+                    .checked_sub(1)
+                    .and_then(|intervals| intervals.checked_mul(interpolation_rings as usize))
+                    .ok_or_else(|| {
+                        RuntimeError::InvalidInput(
+                            "MULTI_LOOP_PROFILE_LOFT_INVALID: ring count overflow".to_owned(),
+                        )
+                    })?,
+            )
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: ring count overflow".to_owned(),
+                )
+            })?;
+        let loop_count = component_ids
+            .len()
+            .checked_add(hole_ids.len())
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: loop count overflow".to_owned(),
+                )
+            })?
+            .max(1) as u64;
+        // Keep this identical to Worker `ValidatedOperator::triangle_count`:
+        // every resampled loop contributes two planar-cap triangles per
+        // resampled point minus two, plus two triangles per side quad, and
+        // Manifold difference receives one bounded eight-fold allowance.
+        let per_loop_triangles = 2_u64
+            .checked_mul(resample_points.checked_sub(2).ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: resample point bound underflow"
+                        .to_owned(),
+                )
+            })?)
+            .and_then(|caps| {
+                2_u64
+                    .checked_mul(resample_points)
+                    .and_then(|sides| sides.checked_mul(ring_count as u64 - 1))
+                    .and_then(|sides| caps.checked_add(sides))
+            })
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: triangle estimate overflow".to_owned(),
+                )
+            })?;
+        let estimated_triangles = per_loop_triangles
+            .checked_mul(loop_count)
+            .and_then(|value| value.checked_mul(8))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: triangle estimate overflow".to_owned(),
+                )
+            })?;
+        if estimated_triangles == 0 || estimated_triangles > 250_000 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "MULTI_LOOP_PROFILE_LOFT_BUDGET_EXCEEDED: Worker triangle estimate {estimated_triangles} exceeds 250000"
+            )));
+        }
+        let node = json!({
+            "node_id": feature_id,
+            "operator_id": lowered_operator_id,
+            "inputs": [],
+            "parameters": {
+                "shape": "multi-loop-profile-loft",
+                "stations": stations,
+                "resample_points": resample_points,
+                "interpolation": interpolation,
+                "interpolation_rings": interpolation_rings,
+                "preserve_corners": preserve_corners,
+                "position_m": [0.0, 0.0, 0.0],
+                "rotation_rad": [0.0, 0.0, 0.0]
+            }
+        });
+        let draft = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":project_id,
+            "representation_plan_sha256":plan_sha256,
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{"max_nodes":1,"max_triangles":estimated_triangles,"max_glb_bytes":16777216,"max_worker_memory_bytes":134217728,"max_runtime_ms":5000},
+            "nodes":[node],
+            "part_outputs":[{"part_id":part_id,"input_node_ids":[feature_id],"material_zone_id":material_zone_id,"solid":true}]
+        });
+        let hash_result = hash_geometry_program_with_runtime_worker(&draft).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "MULTI_LOOP_PROFILE_LOFT_GEOMETRY_REJECTED: {error}"
+            ))
+        })?;
+        let program_sha256 = hash_result
+            .get("canonical_sha256")
+            .and_then(Value::as_str)
+            .filter(|hash| is_sha256(hash))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_GEOMETRY_HASH_INVALID: Runtime returned no canonical hash"
+                        .to_owned(),
+                )
+            })?
+            .to_owned();
+        let mut geometry_program = draft;
+        geometry_program["canonical_sha256"] = Value::String(program_sha256.clone());
+        let mut result = json!({
+            "schema_version":"MultiLoopProfileLoftProgram@1",
+            "operator_id":lowered_operator_id,
+            "lowered_operator_id":lowered_operator_id,
+            "project_id":project_id,
+            "feature_id":feature_id,
+            "part_id":part_id,
+            "material_zone_id":material_zone_id,
+            "cross_section_plan_sha256":plan_sha256,
+            "continuity_policy":continuity_policy,
+            "geometry_program":geometry_program,
+            "program_sha256":program_sha256,
+            "source_map":{
+                "feature_id":feature_id,
+                "part_id":part_id,
+                "material_zone_id":material_zone_id,
+                "station_ids":station_ids,
+                "component_ids":component_ids,
+                "hole_ids":hole_ids,
+                "operator_id":lowered_operator_id,
+                "lowered_operator_id":lowered_operator_id,
+                "realized_surface_continuity":"g0-only"
+            },
+            "validator_status":"passed",
+            "quality_status":"structural_only",
+            "runtime_write_performed":false,
+            "user_approval_required":true,
+            "limitations":[
+                "candidate_not_created",
+                "visual_quality_not_evaluated",
+                "pbr_not_evaluated",
+                "user_approval_required_before_geometry_prepare",
+                "g1_g2_continuity_not_claimed",
+                "planar_caps_use_closed_solid_boolean_manifold_difference",
+                "scripts_paths_urls_network_rejected"
+            ],
+            "canonical_sha256":""
+        });
+        result["canonical_sha256"] = Value::String(canonical_json_hash(&result));
+        validate_multi_loop_profile_loft_program_output(&result)?;
         Ok(result)
     }
 
@@ -19687,6 +19948,1026 @@ fn expand_parametric_design_kit(
     }
 }
 
+fn validate_multi_loop_cross_section_plan(
+    value: &Value,
+    expected_project_id: &str,
+) -> Result<(String, Vec<Value>, Vec<String>, Vec<String>, Vec<String>), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "plan_id",
+            "project_id",
+            "scope",
+            "nonfunctional_asset",
+            "reference_view_set_sha256",
+            "reference_view_ids",
+            "coordinate_frame",
+            "station_policy",
+            "stations",
+            "canonical_sha256",
+        ],
+        "MultiLoopCrossSectionPlan@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("MultiLoopCrossSectionPlan@1")
+        || object.get("nonfunctional_asset").and_then(Value::as_bool) != Some(true)
+        || !matches!(
+            object.get("scope").and_then(Value::as_str),
+            Some("fictional-game-asset" | "fictional-film-visual-asset")
+        )
+    {
+        return Err(RuntimeError::InvalidInput(
+            "MULTI_LOOP_PROFILE_LOFT_INVALID: plan must be a fictional nonfunctional asset"
+                .to_owned(),
+        ));
+    }
+    let project_id = required_contract_identifier(
+        object,
+        "project_id",
+        "MultiLoopCrossSectionPlan@1",
+    )?;
+    if project_id != expected_project_id {
+        return Err(RuntimeError::InvalidInput(
+            "PROJECT_SCOPE_DENIED: MultiLoopCrossSectionPlan project differs from request"
+                .to_owned(),
+        ));
+    }
+    required_contract_identifier(object, "plan_id", "MultiLoopCrossSectionPlan@1")?;
+    required_contract_sha256(
+        object,
+        "reference_view_set_sha256",
+        "MultiLoopCrossSectionPlan@1",
+    )?;
+    let reference_view_ids = object
+        .get("reference_view_ids")
+        .and_then(Value::as_array)
+        .filter(|values| !values.is_empty() && values.len() <= 12)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: reference_view_ids are invalid".to_owned(),
+            )
+        })?;
+    let mut declared_view_ids = HashSet::new();
+    for value in reference_view_ids {
+        let id = value.as_str().ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: reference view id is invalid".to_owned(),
+            )
+        })?;
+        if !is_opaque_id(id) || !declared_view_ids.insert(id.to_owned()) {
+            return Err(RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: reference view ids are not unique opaque ids"
+                    .to_owned(),
+            ));
+        }
+    }
+    let coordinate_frame = exact_object(
+        object.get("coordinate_frame").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: coordinate_frame is missing".to_owned(),
+            )
+        })?,
+        &[
+            "length_unit",
+            "handedness",
+            "up_axis",
+            "longitudinal_axis",
+            "section_plane",
+            "axis_direction",
+        ],
+        "MultiLoopCrossSectionPlan@1.coordinate_frame",
+    )?;
+    if coordinate_frame.get("length_unit").and_then(Value::as_str) != Some("meter")
+        || coordinate_frame.get("handedness").and_then(Value::as_str)
+            != Some("right-handed")
+        || coordinate_frame.get("up_axis").and_then(Value::as_str) != Some("y")
+        || coordinate_frame
+            .get("longitudinal_axis")
+            .and_then(Value::as_str)
+            != Some("x")
+        || coordinate_frame.get("section_plane").and_then(Value::as_str) != Some("yz")
+        || coordinate_frame.get("axis_direction").and_then(Value::as_str) != Some("+x")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "MULTI_LOOP_PROFILE_LOFT_INVALID: coordinate frame must be meter/right-handed/y-up/x/yz/+x"
+                .to_owned(),
+        ));
+    }
+    let station_policy = exact_object(
+        object.get("station_policy").ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: station_policy is missing".to_owned(),
+            )
+        })?,
+        &[
+            "ordering",
+            "closed_profiles",
+            "point_order",
+            "max_station_count",
+            "max_component_count",
+            "max_holes_per_component",
+            "max_points_per_loop",
+        ],
+        "MultiLoopCrossSectionPlan@1.station_policy",
+    )?;
+    if station_policy.get("ordering").and_then(Value::as_str)
+        != Some("strictly-increasing-x")
+        || station_policy
+            .get("closed_profiles")
+            .and_then(Value::as_bool)
+            != Some(true)
+        || station_policy.get("point_order").and_then(Value::as_str)
+            != Some("outer-ccw-holes-cw-viewed-from-positive-x")
+        || station_policy
+            .get("max_station_count")
+            .and_then(Value::as_u64)
+            != Some(16)
+        || station_policy
+            .get("max_component_count")
+            .and_then(Value::as_u64)
+            != Some(4)
+        || station_policy
+            .get("max_holes_per_component")
+            .and_then(Value::as_u64)
+            != Some(4)
+        || station_policy
+            .get("max_points_per_loop")
+            .and_then(Value::as_u64)
+            != Some(64)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "MULTI_LOOP_PROFILE_LOFT_INVALID: station policy is unsupported".to_owned(),
+        ));
+    }
+    let station_values = object
+        .get("stations")
+        .and_then(Value::as_array)
+        .filter(|values| values.len() >= 2 && values.len() <= 16)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: plan requires 2-16 stations".to_owned(),
+            )
+        })?;
+    let mut station_ids = Vec::with_capacity(station_values.len());
+    let mut normalized_stations: Vec<Value> = Vec::with_capacity(station_values.len());
+    let mut previous_station = None;
+    let mut expected_components: Option<BTreeSet<String>> = None;
+    let mut expected_hole_sets: Option<BTreeMap<String, BTreeSet<String>>> = None;
+
+    for station_value in station_values {
+        let station = exact_object(
+            station_value,
+            &["station_id", "station_m", "components"],
+            "MultiLoopCrossSectionPlan@1.station",
+        )?;
+        let station_id = required_contract_identifier(
+            station,
+            "station_id",
+            "MultiLoopCrossSectionPlan@1.station",
+        )?;
+        if station_ids.iter().any(|id| id == &station_id) {
+            return Err(RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: station ids are not unique".to_owned(),
+            ));
+        }
+        let station_m = station
+            .get("station_m")
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && (-10.0..=10.0).contains(value))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: station_m is invalid".to_owned(),
+                )
+            })?;
+        if previous_station.is_some_and(|previous| station_m <= previous) {
+            return Err(RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: stations must be strictly increasing along +X"
+                    .to_owned(),
+            ));
+        }
+        previous_station = Some(station_m);
+        let components = station
+            .get("components")
+            .and_then(Value::as_array)
+            .filter(|values| !values.is_empty() && values.len() <= 4)
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: components must contain 1-4 entries"
+                        .to_owned(),
+                )
+            })?;
+        let mut component_ids_here = BTreeSet::new();
+        let mut hole_owner_here = BTreeMap::<String, String>::new();
+        let mut normalized_components = Vec::with_capacity(components.len());
+        let mut parsed_components = Vec::with_capacity(components.len());
+        for component_value in components {
+            let component = exact_object(
+                component_value,
+                &["component_id", "outer", "holes"],
+                "MultiLoopCrossSectionPlan@1.component",
+            )?;
+            let component_id = required_contract_identifier(
+                component,
+                "component_id",
+                "MultiLoopCrossSectionPlan@1.component",
+            )?;
+            if !component_ids_here.insert(component_id.clone()) {
+                return Err(RuntimeError::InvalidInput(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: component ids are not unique per station"
+                        .to_owned(),
+                ));
+            }
+            let (outer_points, outer_corner_indices, _outer_area) =
+                validate_multi_loop_loop_value(
+                    component.get("outer").ok_or_else(|| {
+                        RuntimeError::InvalidInput(
+                            "MULTI_LOOP_PROFILE_LOFT_INVALID: component outer is missing"
+                                .to_owned(),
+                        )
+                    })?,
+                    false,
+                    &format!("component {component_id}.outer"),
+                )?;
+            let holes = component
+                .get("holes")
+                .and_then(Value::as_array)
+                .filter(|values| values.len() <= 4)
+                .ok_or_else(|| {
+                    RuntimeError::InvalidInput(
+                        "MULTI_LOOP_PROFILE_LOFT_INVALID: holes must contain 0-4 entries"
+                            .to_owned(),
+                    )
+                })?;
+            let mut hole_ids_here = BTreeSet::new();
+            let mut normalized_holes = Vec::with_capacity(holes.len());
+            let mut parsed_holes: Vec<(Vec<[f64; 2]>, f64)> = Vec::with_capacity(holes.len());
+            for hole_value in holes {
+                let hole = exact_object(
+                    hole_value,
+                    &["hole_id", "points"],
+                    "MultiLoopCrossSectionPlan@1.hole",
+                )
+                .or_else(|_| {
+                    exact_object_with_optional(
+                        hole_value,
+                        &["hole_id", "points"],
+                        &["corner_indices"],
+                        "MultiLoopCrossSectionPlan@1.hole",
+                    )
+                })?;
+                let hole_id = required_contract_identifier(
+                    hole,
+                    "hole_id",
+                    "MultiLoopCrossSectionPlan@1.hole",
+                )?;
+                if !hole_ids_here.insert(hole_id.clone()) {
+                    return Err(RuntimeError::InvalidInput(
+                        "MULTI_LOOP_PROFILE_LOFT_INVALID: hole ids are not unique per component"
+                            .to_owned(),
+                    ));
+                }
+                if hole_owner_here
+                    .insert(hole_id.clone(), component_id.clone())
+                    .is_some()
+                {
+                    return Err(RuntimeError::InvalidInput(
+                        "MULTI_LOOP_PROFILE_LOFT_INVALID: hole ids must be globally unique across components"
+                            .to_owned(),
+                    ));
+                }
+                let (hole_points, hole_corner_indices, hole_area) =
+                    validate_multi_loop_loop_value(
+                        hole_value,
+                        true,
+                        &format!("component {component_id}.hole {hole_id}"),
+                    )?;
+                if hole_points
+                    .iter()
+                    .any(|point| !multi_loop_point_inside(point, &outer_points))
+                    || hole_points.iter().any(|point| {
+                        multi_loop_point_on_boundary(point, &outer_points)
+                    })
+                {
+                    return Err(RuntimeError::InvalidInput(
+                        "MULTI_LOOP_PROFILE_LOFT_INVALID: hole must be strictly inside its outer"
+                            .to_owned(),
+                    ));
+                }
+                for previous_hole in &parsed_holes {
+                    if multi_loop_polygons_touch_or_cross(
+                        &hole_points,
+                        &previous_hole.0,
+                    )
+                    || multi_loop_point_inside(&hole_points[0], &previous_hole.0)
+                    || multi_loop_point_inside(&previous_hole.0[0], &hole_points)
+                    {
+                        return Err(RuntimeError::InvalidInput(
+                            "MULTI_LOOP_PROFILE_LOFT_INVALID: holes overlap or touch".to_owned(),
+                        ));
+                    }
+                }
+                parsed_holes.push((hole_points.clone(), hole_area));
+                let mut normalized_hole = serde_json::Map::new();
+                normalized_hole.insert("hole_id".to_owned(), Value::String(hole_id.clone()));
+                normalized_hole.insert("points".to_owned(),
+                    Value::Array(hole_points.iter().map(|point| json!([point[0], point[1]])).collect()));
+                if let Some(indices) = hole_corner_indices {
+                    normalized_hole.insert("corner_indices".to_owned(), Value::Array(indices));
+                }
+                normalized_holes.push((hole_id, Value::Object(normalized_hole)));
+            }
+            let mut normalized_outer = serde_json::Map::new();
+            normalized_outer.insert(
+                "points".to_owned(),
+                Value::Array(
+                    outer_points
+                        .iter()
+                        .map(|point| json!([point[0], point[1]]))
+                        .collect(),
+                ),
+            );
+            if let Some(indices) = outer_corner_indices {
+                normalized_outer.insert("corner_indices".to_owned(), Value::Array(indices));
+            }
+            normalized_holes.sort_by(|left, right| left.0.cmp(&right.0));
+            let hole_values = normalized_holes
+                .iter()
+                .map(|(_, value)| value.clone())
+                .collect::<Vec<_>>();
+            let normalized_component = json!({
+                "component_id": component_id,
+                "outer": Value::Object(normalized_outer),
+                "holes": hole_values
+            });
+            parsed_components.push((
+                component_id.clone(),
+                outer_points,
+                parsed_holes
+                    .iter()
+                    .map(|(points, _)| points.clone())
+                .collect::<Vec<_>>(),
+            ));
+            normalized_components.push((component_id, normalized_component));
+        }
+        for left_index in 0..parsed_components.len() {
+            for right_index in (left_index + 1)..parsed_components.len() {
+                let left_id = &parsed_components[left_index].0;
+                let right_id = &parsed_components[right_index].0;
+                let left = &parsed_components[left_index].1;
+                let right = &parsed_components[right_index].1;
+                let left_holes = &parsed_components[left_index].2;
+                let right_holes = &parsed_components[right_index].2;
+                let left_loops = std::iter::once(left).chain(left_holes.iter());
+                let right_loops = std::iter::once(right).chain(right_holes.iter());
+                let boundaries_touch = left_loops.clone().any(|left_loop| {
+                    right_loops.clone().any(|right_loop| {
+                        multi_loop_polygons_touch_or_cross(left_loop, right_loop)
+                    })
+                });
+                let left_inside_right = left
+                    .iter()
+                    .all(|point| multi_loop_point_inside(point, right));
+                let right_inside_left = right
+                    .iter()
+                    .all(|point| multi_loop_point_inside(point, left));
+                let left_in_right_hole = right_holes.iter().any(|hole| {
+                    left.iter()
+                        .all(|point| multi_loop_point_inside(point, hole))
+                });
+                let right_in_left_hole = left_holes.iter().any(|hole| {
+                    right
+                        .iter()
+                        .all(|point| multi_loop_point_inside(point, hole))
+                });
+                if boundaries_touch
+                    || (left_inside_right && !left_in_right_hole)
+                    || (right_inside_left && !right_in_left_hole)
+                {
+                    return Err(RuntimeError::InvalidInput(format!(
+                        "MULTI_LOOP_PROFILE_LOFT_INVALID: components overlap or touch ({left_id},{right_id})"
+                    )));
+                }
+            }
+        }
+        if expected_components
+            .as_ref()
+            .is_some_and(|expected| expected != &component_ids_here)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: component ID set drifted between stations"
+                    .to_owned(),
+            ));
+        }
+        if expected_components.is_none() {
+            expected_components = Some(component_ids_here.clone());
+        }
+        let current_hole_sets = normalized_components
+            .iter()
+            .map(|(component_id, component)| {
+                let holes = component
+                    .get("holes")
+                    .and_then(Value::as_array)
+                    .expect("normalized component holes")
+                    .iter()
+                    .map(|hole| {
+                        hole.get("hole_id")
+                            .and_then(Value::as_str)
+                            .expect("normalized hole id")
+                            .to_owned()
+                    })
+                    .collect::<BTreeSet<_>>();
+                (component_id.clone(), holes)
+            })
+            .collect::<BTreeMap<_, _>>();
+        if expected_hole_sets
+            .as_ref()
+            .is_some_and(|expected| expected != &current_hole_sets)
+        {
+            return Err(RuntimeError::InvalidInput(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: hole ID set drifted between stations"
+                    .to_owned(),
+            ));
+        }
+        if expected_hole_sets.is_none() {
+            expected_hole_sets = Some(current_hole_sets);
+        }
+        normalized_components.sort_by(|left, right| left.0.cmp(&right.0));
+        normalized_stations.push(json!({
+            "station_id": station_id,
+            "station_m": station_m,
+            "components": normalized_components.iter().map(|(_, value)| value.clone()).collect::<Vec<_>>()
+        }));
+        station_ids.push(station_id);
+    }
+    let expected_hole_sets = expected_hole_sets.ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "MULTI_LOOP_PROFILE_LOFT_INVALID: no normalized station topology".to_owned(),
+        )
+    })?;
+    let plan_sha256 = required_contract_sha256(
+        object,
+        "canonical_sha256",
+        "MultiLoopCrossSectionPlan@1",
+    )?;
+    let mut plan_without_hash = value.clone();
+    plan_without_hash["canonical_sha256"] = Value::String(String::new());
+    if canonical_json_hash(&plan_without_hash) != plan_sha256
+        && canonical_json_hash(&normalize_json_numbers(&plan_without_hash)) != plan_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "MULTI_LOOP_PROFILE_LOFT_INVALID: plan canonical_sha256 does not bind its content"
+                .to_owned(),
+        ));
+    }
+    let component_ids = expected_components
+        .unwrap_or_default()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let hole_ids = expected_hole_sets
+        .values()
+        .flat_map(|ids| ids.iter().cloned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    Ok((
+        plan_sha256,
+        normalized_stations,
+        station_ids,
+        component_ids,
+        hole_ids,
+    ))
+}
+
+fn validate_multi_loop_loop_value(
+    value: &Value,
+    expect_hole_winding: bool,
+    label: &str,
+) -> Result<(Vec<[f64; 2]>, Option<Vec<Value>>, f64), RuntimeError> {
+    let required = if expect_hole_winding {
+        &["hole_id", "points"][..]
+    } else {
+        &["points"][..]
+    };
+    let object = exact_object_with_optional(
+        value,
+        required,
+        &["corner_indices"],
+        label,
+    )?;
+    let point_values = object
+        .get("points")
+        .and_then(Value::as_array)
+        .filter(|values| values.len() >= 3 && values.len() <= 64)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: {label}.points must contain 3-64 points"
+            ))
+        })?;
+    let mut points = Vec::with_capacity(point_values.len());
+    for point in point_values {
+        let pair = point.as_array().filter(|values| values.len() == 2).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: {label}.points must be yz pairs"
+            ))
+        })?;
+        let y = pair[0]
+            .as_f64()
+            .filter(|value| value.is_finite() && (-5.0..=5.0).contains(value))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: {label}.points contains invalid y"
+                ))
+            })?;
+        let z = pair[1]
+            .as_f64()
+            .filter(|value| value.is_finite() && (-5.0..=5.0).contains(value))
+            .ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: {label}.points contains invalid z"
+                ))
+            })?;
+        points.push([y, z]);
+    }
+    let area = multi_loop_signed_area(&points);
+    if !area.is_finite()
+        || area.abs() <= 1.0e-8
+        || (!expect_hole_winding && area <= 1.0e-8)
+        || (expect_hole_winding && area >= -1.0e-8)
+    {
+        return Err(RuntimeError::InvalidInput(format!(
+            "MULTI_LOOP_PROFILE_LOFT_INVALID: {label} winding or area is invalid"
+        )));
+    }
+    for index in 0..points.len() {
+        let next = (index + 1) % points.len();
+        let dx = points[index][0] - points[next][0];
+        let dz = points[index][1] - points[next][1];
+        if dx * dx + dz * dz <= 1.0e-12 {
+            return Err(RuntimeError::InvalidInput(format!(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: {label} contains a zero-length edge"
+            )));
+        }
+    }
+    if multi_loop_polygon_self_crosses(&points) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "MULTI_LOOP_PROFILE_LOFT_INVALID: {label} self-crosses"
+        )));
+    }
+    let corner_indices = object.get("corner_indices").map(|value| {
+        let values = value.as_array().ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: {label}.corner_indices is invalid"
+            ))
+        })?;
+        if values.len() > points.len() {
+            return Err(RuntimeError::InvalidInput(format!(
+                "MULTI_LOOP_PROFILE_LOFT_INVALID: {label}.corner_indices is too long"
+            )));
+        }
+        let mut seen = HashSet::new();
+        let mut normalized = Vec::with_capacity(values.len());
+        for value in values {
+            let index = value.as_u64().filter(|index| (*index as usize) < points.len()).ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: {label}.corner_indices is out of range"
+                ))
+            })?;
+            if !seen.insert(index) {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "MULTI_LOOP_PROFILE_LOFT_INVALID: {label}.corner_indices is not unique"
+                )));
+            }
+            normalized.push(Value::from(index));
+        }
+        Ok(normalized)
+    }).transpose()?;
+    Ok((points, corner_indices, area))
+}
+
+fn validate_multi_loop_profile_loft_continuity_policy(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "policy_id",
+            "surface_continuity",
+            "profile_point_correspondence",
+            "station_interpolation",
+            "interpolation_rings",
+            "resample_points",
+            "preserve_corners",
+            "endpoint_caps",
+            "hole_policy",
+            "shared_boundary_policy",
+        ],
+        "multi-loop-profile-loft-continuity@1",
+    )?;
+    if object.get("policy_id").and_then(Value::as_str)
+        != Some("multi-loop-profile-loft-continuity@1")
+        || object.get("surface_continuity").and_then(Value::as_str) != Some("g0-only")
+        || object
+            .get("profile_point_correspondence")
+            .and_then(Value::as_str)
+            != Some("canonical-phase-arc-length")
+        || !matches!(
+            object.get("station_interpolation").and_then(Value::as_str),
+            Some("linear" | "catmull-rom-position-only")
+        )
+        || object
+            .get("interpolation_rings")
+            .and_then(Value::as_u64)
+            .is_none_or(|value| value > 16)
+        || object
+            .get("resample_points")
+            .and_then(Value::as_u64)
+            .is_none_or(|value| !(4..=64).contains(&value))
+        || object.get("preserve_corners").and_then(Value::as_bool).is_none()
+        || object.get("endpoint_caps").and_then(Value::as_str)
+            != Some("closed-solid-boolean")
+        || object.get("hole_policy").and_then(Value::as_str) != Some("manifold-difference")
+        || object.get("shared_boundary_policy").and_then(Value::as_str) != Some("none")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "MULTI_LOOP_PROFILE_LOFT_INVALID: continuity policy is not the bounded G0 Manifold policy"
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_multi_loop_profile_loft_program_output(value: &Value) -> Result<(), RuntimeError> {
+    let object = exact_object(
+        value,
+        &[
+            "schema_version",
+            "operator_id",
+            "lowered_operator_id",
+            "project_id",
+            "feature_id",
+            "part_id",
+            "material_zone_id",
+            "cross_section_plan_sha256",
+            "continuity_policy",
+            "geometry_program",
+            "program_sha256",
+            "source_map",
+            "validator_status",
+            "quality_status",
+            "runtime_write_performed",
+            "user_approval_required",
+            "limitations",
+            "canonical_sha256",
+        ],
+        "MultiLoopProfileLoftProgram@1",
+    )?;
+    if object.get("schema_version").and_then(Value::as_str)
+        != Some("MultiLoopProfileLoftProgram@1")
+        || object.get("operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.multi-loop-profile-loft@1")
+        || object.get("lowered_operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.multi-loop-profile-loft@1")
+        || object.get("validator_status").and_then(Value::as_str) != Some("passed")
+        || object.get("quality_status").and_then(Value::as_str) != Some("structural_only")
+        || object
+            .get("runtime_write_performed")
+            .and_then(Value::as_bool)
+            != Some(false)
+        || object
+            .get("user_approval_required")
+            .and_then(Value::as_bool)
+            != Some(true)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 constants drifted".to_owned(),
+        ));
+    }
+    let project_id = required_contract_identifier(object, "project_id", "MultiLoopProfileLoftProgram@1")?;
+    let feature_id = required_contract_identifier(object, "feature_id", "MultiLoopProfileLoftProgram@1")?;
+    let part_id = required_contract_identifier(object, "part_id", "MultiLoopProfileLoftProgram@1")?;
+    let material_zone_id = required_contract_identifier(
+        object,
+        "material_zone_id",
+        "MultiLoopProfileLoftProgram@1",
+    )?;
+    let plan_sha256 = required_contract_sha256(
+        object,
+        "cross_section_plan_sha256",
+        "MultiLoopProfileLoftProgram@1",
+    )?;
+    let program_sha256 =
+        required_contract_sha256(object, "program_sha256", "MultiLoopProfileLoftProgram@1")?;
+    required_contract_sha256(object, "canonical_sha256", "MultiLoopProfileLoftProgram@1")?;
+    validate_multi_loop_profile_loft_continuity_policy(
+        object
+            .get("continuity_policy")
+            .expect("continuity policy field was required"),
+    )?;
+    verify_output_canonical_hash(value, "MultiLoopProfileLoftProgram@1")?;
+
+    let program = object.get("geometry_program").ok_or_else(|| {
+        RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1.geometry_program".to_owned(),
+        )
+    })?;
+    let program_object = exact_object(
+        program,
+        &[
+            "schema_version",
+            "project_id",
+            "representation_plan_sha256",
+            "operator_catalog_sha256",
+            "units",
+            "budgets",
+            "nodes",
+            "part_outputs",
+            "canonical_sha256",
+        ],
+        "MultiLoopProfileLoftProgram@1.geometry_program",
+    )?;
+    if program_object.get("schema_version").and_then(Value::as_str) != Some("GeometryProgram@2")
+        || program_object.get("project_id").and_then(Value::as_str) != Some(project_id.as_str())
+        || program_object
+            .get("representation_plan_sha256")
+            .and_then(Value::as_str)
+            != Some(plan_sha256.as_str())
+        || program_object
+            .get("operator_catalog_sha256")
+            .and_then(Value::as_str)
+            != Some(operator_catalog_sha256().as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 geometry program binding drifted"
+                .to_owned(),
+        ));
+    }
+    let program_canonical = required_contract_sha256(
+        program_object,
+        "canonical_sha256",
+        "MultiLoopProfileLoftProgram@1.geometry_program",
+    )?;
+    if program_canonical != program_sha256 {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 program hash does not bind the program"
+                .to_owned(),
+        ));
+    }
+    let mut program_without_hash = program.clone();
+    program_without_hash
+        .as_object_mut()
+        .expect("GeometryProgram@2 is an object")
+        .remove("canonical_sha256");
+    if canonical_json_hash(&program_without_hash) != program_sha256
+        && canonical_json_hash(&normalize_json_numbers(&program_without_hash)) != program_sha256
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 geometry hash is not canonical"
+                .to_owned(),
+        ));
+    }
+    let nodes = program_object
+        .get("nodes")
+        .and_then(Value::as_array)
+        .filter(|values| values.len() == 1)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: multi-loop profile loft node count".to_owned(),
+            )
+        })?;
+    let node = exact_object(
+        &nodes[0],
+        &["node_id", "operator_id", "inputs", "parameters"],
+        "MultiLoopProfileLoftProgram@1.geometry_program.nodes[0]",
+    )?;
+    if node.get("node_id").and_then(Value::as_str) != Some(feature_id.as_str())
+        || node.get("operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.multi-loop-profile-loft@1")
+        || node
+            .get("inputs")
+            .and_then(Value::as_array)
+            .is_none_or(|values| !values.is_empty())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 node lowering drifted"
+                .to_owned(),
+        ));
+    }
+    let parameters = node
+        .get("parameters")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: multi-loop profile loft parameters".to_owned(),
+            )
+        })?;
+    if parameters.get("shape").and_then(Value::as_str) != Some("multi-loop-profile-loft")
+        || parameters
+            .get("stations")
+            .and_then(Value::as_array)
+            .is_none_or(|values| values.len() < 2 || values.len() > 16)
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 worker parameters drifted"
+                .to_owned(),
+        ));
+    }
+    let outputs = program_object
+        .get("part_outputs")
+        .and_then(Value::as_array)
+        .filter(|values| values.len() == 1)
+        .ok_or_else(|| {
+            RuntimeError::InvalidInput(
+                "CONTRACT_OUTPUT_INVALID: multi-loop profile loft output count".to_owned(),
+            )
+        })?;
+    let output = exact_object(
+        &outputs[0],
+        &["part_id", "input_node_ids", "material_zone_id", "solid"],
+        "MultiLoopProfileLoftProgram@1.geometry_program.part_outputs[0]",
+    )?;
+    if output.get("part_id").and_then(Value::as_str) != Some(part_id.as_str())
+        || output.get("material_zone_id").and_then(Value::as_str)
+            != Some(material_zone_id.as_str())
+        || output.get("solid").and_then(Value::as_bool) != Some(true)
+        || output
+            .get("input_node_ids")
+            .and_then(Value::as_array)
+            .is_none_or(|values| {
+                values.len() != 1 || values[0].as_str() != Some(feature_id.as_str())
+            })
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 Part sink does not bind the feature"
+                .to_owned(),
+        ));
+    }
+    let source_map = exact_object(
+        object.get("source_map").expect("source map field was required"),
+        &[
+            "feature_id",
+            "part_id",
+            "material_zone_id",
+            "station_ids",
+            "component_ids",
+            "hole_ids",
+            "operator_id",
+            "lowered_operator_id",
+            "realized_surface_continuity",
+        ],
+        "MultiLoopProfileLoftProgram@1.source_map",
+    )?;
+    if source_map.get("feature_id").and_then(Value::as_str) != Some(feature_id.as_str())
+        || source_map.get("part_id").and_then(Value::as_str) != Some(part_id.as_str())
+        || source_map
+            .get("material_zone_id")
+            .and_then(Value::as_str)
+            != Some(material_zone_id.as_str())
+        || source_map.get("operator_id").and_then(Value::as_str)
+            != Some("forgecad.geometry.multi-loop-profile-loft@1")
+        || source_map
+            .get("lowered_operator_id")
+            .and_then(Value::as_str)
+            != Some("forgecad.geometry.multi-loop-profile-loft@1")
+        || source_map
+            .get("realized_surface_continuity")
+            .and_then(Value::as_str)
+            != Some("g0-only")
+    {
+        return Err(RuntimeError::InvalidInput(
+            "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 source map does not bind the feature"
+                .to_owned(),
+        ));
+    }
+    for key in ["station_ids", "component_ids", "hole_ids"] {
+        let values = source_map.get(key).and_then(Value::as_array).ok_or_else(|| {
+            RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 source_map.{key}"
+            ))
+        })?;
+        let mut seen = HashSet::new();
+        if values.iter().any(|value| {
+            value
+                .as_str()
+                .is_none_or(|id| !is_opaque_id(id) || !seen.insert(id.to_owned()))
+        }) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "CONTRACT_OUTPUT_INVALID: MultiLoopProfileLoftProgram@1 source_map.{key} ids are not unique"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn multi_loop_signed_area(points: &[[f64; 2]]) -> f64 {
+    points
+        .iter()
+        .enumerate()
+        .map(|(index, point)| {
+            let next = points[(index + 1) % points.len()];
+            point[0] * next[1] - next[0] * point[1]
+        })
+        .sum::<f64>()
+        * 0.5
+}
+
+fn multi_loop_orientation(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> f64 {
+    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+}
+
+fn multi_loop_point_on_segment(point: [f64; 2], start: [f64; 2], end: [f64; 2]) -> bool {
+    multi_loop_orientation(start, end, point).abs() <= 1.0e-9
+        && point[0] >= start[0].min(end[0]) - 1.0e-9
+        && point[0] <= start[0].max(end[0]) + 1.0e-9
+        && point[1] >= start[1].min(end[1]) - 1.0e-9
+        && point[1] <= start[1].max(end[1]) + 1.0e-9
+}
+
+fn multi_loop_segments_intersect(
+    a: [f64; 2],
+    b: [f64; 2],
+    c: [f64; 2],
+    d: [f64; 2],
+) -> bool {
+    let ab_c = multi_loop_orientation(a, b, c);
+    let ab_d = multi_loop_orientation(a, b, d);
+    let cd_a = multi_loop_orientation(c, d, a);
+    let cd_b = multi_loop_orientation(c, d, b);
+    let eps = 1.0e-9;
+    ((ab_c > eps && ab_d < -eps) || (ab_c < -eps && ab_d > eps))
+        && ((cd_a > eps && cd_b < -eps) || (cd_a < -eps && cd_b > eps))
+        || (ab_c.abs() <= eps && multi_loop_point_on_segment(c, a, b))
+        || (ab_d.abs() <= eps && multi_loop_point_on_segment(d, a, b))
+        || (cd_a.abs() <= eps && multi_loop_point_on_segment(a, c, d))
+        || (cd_b.abs() <= eps && multi_loop_point_on_segment(b, c, d))
+}
+
+fn multi_loop_polygon_self_crosses(points: &[[f64; 2]]) -> bool {
+    for left in 0..points.len() {
+        let left_next = (left + 1) % points.len();
+        for right in (left + 1)..points.len() {
+            let right_next = (right + 1) % points.len();
+            if left == right
+                || left_next == right
+                || right_next == left
+                || (left == 0 && right_next == points.len() - 1)
+            {
+                continue;
+            }
+            if multi_loop_segments_intersect(
+                points[left],
+                points[left_next],
+                points[right],
+                points[right_next],
+            ) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn multi_loop_point_on_boundary(point: &[f64; 2], polygon: &[[f64; 2]]) -> bool {
+    (0..polygon.len()).any(|index| {
+        multi_loop_point_on_segment(
+            *point,
+            polygon[index],
+            polygon[(index + 1) % polygon.len()],
+        )
+    })
+}
+
+fn multi_loop_point_inside(point: &[f64; 2], polygon: &[[f64; 2]]) -> bool {
+    if multi_loop_point_on_boundary(point, polygon) {
+        return false;
+    }
+    let mut inside = false;
+    for index in 0..polygon.len() {
+        let start = polygon[index];
+        let end = polygon[(index + 1) % polygon.len()];
+        if (start[1] > point[1]) != (end[1] > point[1]) {
+            let intersection = (end[0] - start[0]) * (point[1] - start[1])
+                / (end[1] - start[1])
+                + start[0];
+            if point[0] < intersection {
+                inside = !inside;
+            }
+        }
+    }
+    inside
+}
+
+fn multi_loop_polygons_touch_or_cross(left: &[[f64; 2]], right: &[[f64; 2]]) -> bool {
+    (0..left.len()).any(|left_index| {
+        (0..right.len()).any(|right_index| {
+            multi_loop_segments_intersect(
+                left[left_index],
+                left[(left_index + 1) % left.len()],
+                right[right_index],
+                right[(right_index + 1) % right.len()],
+            )
+        })
+    })
+}
+
 fn validate_profile_loft_cross_section_plan(
     value: &Value,
     expected_project_id: &str,
@@ -23263,6 +24544,122 @@ mod tests {
             .remove("input_sha256");
         request["input_sha256"] = Value::String(canonical_json_hash(&binding));
         request
+    }
+
+    fn multi_loop_profile_loft_fixture_request() -> Value {
+        serde_json::from_str(include_str!(
+            "../../../../../../packages/forgecad-contracts/fixtures/multi-loop-profile-loft-p1/positive/multi-loop-profile-loft.json"
+        ))
+        .expect("multi-loop profile loft fixture request")
+    }
+
+    #[test]
+    fn multi_loop_profile_loft_v1_expands_read_only_and_rejects_g1_and_global_hole_id_drift() {
+        let runtime = Runtime::ephemeral().expect("runtime");
+        let request = multi_loop_profile_loft_fixture_request();
+        let before_projects = runtime.projects().expect("projects before hash");
+        let result = runtime
+            .geometry_program_hash(&request)
+            .expect("multi-loop profile loft expansion");
+        assert_eq!(result["schema_version"], "MultiLoopProfileLoftProgram@1");
+        assert_eq!(
+            result["geometry_program"]["nodes"][0]["operator_id"],
+            "forgecad.geometry.multi-loop-profile-loft@1"
+        );
+        assert_eq!(result["quality_status"], "structural_only");
+        assert_eq!(result["runtime_write_performed"], false);
+        let parameters = &result["geometry_program"]["nodes"][0]["parameters"];
+        let station_count = parameters["stations"].as_array().unwrap().len() as u64;
+        let interpolation_rings = parameters["interpolation_rings"].as_u64().unwrap();
+        let ring_count = station_count + (station_count - 1) * interpolation_rings;
+        let loop_count = parameters["stations"][0]["components"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|component| {
+                1_u64 + component["holes"].as_array().unwrap().len() as u64
+            })
+            .sum::<u64>();
+        let resample_points = parameters["resample_points"].as_u64().unwrap();
+        let expected_worker_budget = (2 * (resample_points - 2)
+            + 2 * resample_points * (ring_count - 1))
+            * loop_count
+            * 8;
+        assert_eq!(
+            result["geometry_program"]["budgets"]["max_triangles"],
+            expected_worker_budget
+        );
+        assert_eq!(
+            runtime
+                .geometry_program_hash(&request)
+                .expect("repeat multi-loop expansion"),
+            result
+        );
+        assert_eq!(
+            runtime.projects().expect("projects after hash").len(),
+            before_projects.len()
+        );
+
+        let mut catmull_rom = request.clone();
+        catmull_rom["continuity_policy"]["station_interpolation"] =
+            json!("catmull-rom-position-only");
+        let mut catmull_binding = catmull_rom.clone();
+        catmull_binding
+            .as_object_mut()
+            .expect("catmull request object")
+            .remove("input_sha256");
+        catmull_rom["input_sha256"] = Value::String(canonical_json_hash(&catmull_binding));
+        let catmull_result = runtime
+            .geometry_program_hash(&catmull_rom)
+            .expect("catmull-rom position-only lowering");
+        assert_eq!(
+            catmull_result["geometry_program"]["nodes"][0]["parameters"]["interpolation"],
+            "catmull-rom"
+        );
+
+        let mut g1 = request.clone();
+        g1["continuity_policy"]["surface_continuity"] = json!("g1-required");
+        let mut binding = g1.clone();
+        binding
+            .as_object_mut()
+            .expect("request object")
+            .remove("input_sha256");
+        g1["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        assert!(runtime.geometry_program_hash(&g1).is_err());
+
+        let mut drop_hole = request.clone();
+        drop_hole["cross_section_plan"]["stations"][1]["components"][0]["holes"] =
+            json!([{"hole_id":"hole-a","points":[[-0.38,-0.25],[-0.38,0.25],[0.38,0.25],[0.38,-0.25]]}]);
+        drop_hole["cross_section_plan"]["canonical_sha256"] = json!("");
+        let drop_plan_hash = canonical_json_hash(&drop_hole["cross_section_plan"]);
+        drop_hole["cross_section_plan"]["canonical_sha256"] = Value::String(drop_plan_hash);
+        let mut binding = drop_hole.clone();
+        binding
+            .as_object_mut()
+            .expect("request object")
+            .remove("input_sha256");
+        drop_hole["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        let drop_hole_error = runtime
+            .geometry_program_hash(&drop_hole)
+            .expect_err("drop-hole topology drift must fail closed");
+        assert!(drop_hole_error
+            .to_string()
+            .contains("hole ID set drifted between stations"));
+
+        let mut duplicate_hole = request.clone();
+        duplicate_hole["cross_section_plan"]["stations"][0]["components"][1]["holes"] =
+            json!([{"hole_id":"hole-a","points":[[-0.05,-0.04],[-0.05,0.04],[0.05,0.04],[0.05,-0.04]]}]);
+        duplicate_hole["cross_section_plan"]["canonical_sha256"] = json!("");
+        let duplicate_plan_hash = canonical_json_hash(&duplicate_hole["cross_section_plan"]);
+        duplicate_hole["cross_section_plan"]["canonical_sha256"] =
+            Value::String(duplicate_plan_hash);
+        let mut binding = duplicate_hole.clone();
+        binding
+            .as_object_mut()
+            .expect("request object")
+            .remove("input_sha256");
+        duplicate_hole["input_sha256"] = Value::String(canonical_json_hash(&binding));
+        assert!(runtime.geometry_program_hash(&duplicate_hole).is_err());
     }
 
     #[test]

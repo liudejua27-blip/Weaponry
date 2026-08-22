@@ -1,0 +1,116 @@
+{
+  "schema_version": "MultiLoopProfileLoftRequest@1",
+  "operator_id": "forgecad.geometry.multi-loop-profile-loft@1",
+  "project_id": "multi-loop-quality-gate",
+  "feature_id": "receiver-through-holes",
+  "part_id": "receiver-shell",
+  "material_zone_id": "zone-white-shell",
+  "cross_section_plan": {
+    "schema_version": "MultiLoopCrossSectionPlan@1",
+    "plan_id": "receiver-through-hole-plan",
+    "project_id": "multi-loop-quality-gate",
+    "scope": "fictional-game-asset",
+    "nonfunctional_asset": true,
+    "reference_view_set_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "reference_view_ids": ["left", "right", "top"],
+    "coordinate_frame": {
+      "length_unit": "meter",
+      "handedness": "right-handed",
+      "up_axis": "y",
+      "longitudinal_axis": "x",
+      "section_plane": "yz",
+      "axis_direction": "+x"
+    },
+    "station_policy": {
+      "ordering": "strictly-increasing-x",
+      "closed_profiles": true,
+      "point_order": "outer-ccw-holes-cw-viewed-from-positive-x",
+      "max_station_count": 16,
+      "max_component_count": 4,
+      "max_holes_per_component": 4,
+      "max_points_per_loop": 64
+    },
+    "stations": [
+      {
+        "station_id": "station-front",
+        "station_m": -0.5,
+        "components": [
+          {
+            "component_id": "shell-core",
+            "outer": {
+              "points": [[-0.9, -0.6], [0.9, -0.6], [0.9, 0.6], [-0.9, 0.6]],
+              "corner_indices": [0, 1, 2, 3]
+            },
+            "holes": [
+              {
+                "hole_id": "hole-a",
+                "points": [[-0.35, -0.22], [-0.35, 0.22], [0.35, 0.22], [0.35, -0.22]],
+                "corner_indices": [0, 1, 2, 3]
+              },
+              {
+                "hole_id": "hole-b",
+                "points": [[0.5, -0.18], [0.5, 0.18], [0.75, 0.18], [0.75, -0.18]],
+                "corner_indices": [0, 1, 2, 3]
+              }
+            ]
+          },
+          {
+            "component_id": "island-a",
+            "outer": {
+              "points": [[-0.14, -0.1], [0.14, -0.1], [0.14, 0.1], [-0.14, 0.1]],
+              "corner_indices": [0, 1, 2, 3]
+            },
+            "holes": []
+          }
+        ]
+      },
+      {
+        "station_id": "station-rear",
+        "station_m": 0.5,
+        "components": [
+          {
+            "component_id": "shell-core",
+            "outer": {
+              "points": [[-1.0, -0.68], [1.0, -0.68], [1.0, 0.68], [-1.0, 0.68]],
+              "corner_indices": [0, 1, 2, 3]
+            },
+            "holes": [
+              {
+                "hole_id": "hole-a",
+                "points": [[-0.38, -0.25], [-0.38, 0.25], [0.38, 0.25], [0.38, -0.25]],
+                "corner_indices": [0, 1, 2, 3]
+              },
+              {
+                "hole_id": "hole-b",
+                "points": [[0.52, -0.21], [0.52, 0.21], [0.82, 0.21], [0.82, -0.21]],
+                "corner_indices": [0, 1, 2, 3]
+              }
+            ]
+          },
+          {
+            "component_id": "island-a",
+            "outer": {
+              "points": [[-0.16, -0.12], [0.16, -0.12], [0.16, 0.12], [-0.16, 0.12]],
+              "corner_indices": [0, 1, 2, 3]
+            },
+            "holes": []
+          }
+        ]
+      }
+    ],
+    "canonical_sha256": "6af1f2fc6609b96e938b7dc699087ceb3c0a9fcc7593542f58b71464560490e5"
+  },
+  "continuity_policy": {
+    "policy_id": "multi-loop-profile-loft-continuity@1",
+    "surface_continuity": "g0-only",
+    "profile_point_correspondence": "canonical-phase-arc-length",
+    "station_interpolation": "linear",
+    "interpolation_rings": 1,
+    "resample_points": 8,
+    "preserve_corners": true,
+    "endpoint_caps": "closed-solid-boolean",
+    "hole_policy": "manifold-difference",
+    "shared_boundary_policy": "none"
+  },
+  "input_sha256": "80839d95ce35b057280bb0778e12442ee59f5030a1a1e1bdcae4631afd0e2ad2"
+}

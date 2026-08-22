@@ -2813,6 +2813,102 @@ mod tests {
             .any(|id| id == "longitudinal-loft"));
     }
 
+    fn multi_loop_profile_loft_program() -> Value {
+        let mut program = json!({
+            "schema_version":"GeometryProgram@2",
+            "project_id":"project-multi-loop-profile-loft",
+            "representation_plan_sha256":"a".repeat(64),
+            "operator_catalog_sha256":operator_catalog_sha256(),
+            "units":{"length":"meter","angle":"radian","coordinate_system":"right-handed-y-up"},
+            "budgets":{
+                "max_nodes":1,
+                "max_triangles":100000,
+                "max_glb_bytes":67108864,
+                "max_worker_memory_bytes":536870912,
+                "max_runtime_ms":10000
+            },
+            "nodes":[{
+                "node_id":"receiver-negative-space",
+                "operator_id":"forgecad.geometry.multi-loop-profile-loft@1",
+                "inputs":[],
+                "parameters":{
+                    "shape":"multi-loop-profile-loft",
+                    "stations":[
+                        {
+                            "station_id":"rear",
+                            "station_m":-1.0,
+                            "components":[
+                                {
+                                    "component_id":"shell",
+                                    "outer":{"points":[[-1.2,-0.8],[1.2,-0.8],[1.2,0.8],[-1.2,0.8]],"corner_indices":[0,1,2,3]},
+                                    "holes":[{"hole_id":"void","points":[[-0.4,-0.25],[-0.4,0.25],[0.4,0.25],[0.4,-0.25]],"corner_indices":[0,1,2,3]}]
+                                },
+                                {
+                                    "component_id":"island",
+                                    "outer":{"points":[[-0.15,-0.1],[0.15,-0.1],[0.15,0.1],[-0.15,0.1]],"corner_indices":[0,1,2,3]},
+                                    "holes":[]
+                                }
+                            ]
+                        },
+                        {
+                            "station_id":"front",
+                            "station_m":1.5,
+                            "components":[
+                                {
+                                    "component_id":"island",
+                                    "outer":{"points":[[-0.12,-0.08],[0.12,-0.08],[0.12,0.08],[-0.12,0.08]],"corner_indices":[0,1,2,3]},
+                                    "holes":[]
+                                },
+                                {
+                                    "component_id":"shell",
+                                    "outer":{"points":[[-1.0,-0.7],[1.0,-0.7],[1.0,0.7],[-1.0,0.7]],"corner_indices":[0,1,2,3]},
+                                    "holes":[{"hole_id":"void","points":[[-0.32,-0.2],[-0.32,0.2],[0.32,0.2],[0.32,-0.2]],"corner_indices":[0,1,2,3]}]
+                                }
+                            ]
+                        }
+                    ],
+                    "resample_points":8,
+                    "interpolation":"linear",
+                    "interpolation_rings":1,
+                    "preserve_corners":true,
+                    "position_m":[0.0,0.0,0.0],
+                    "rotation_rad":[0.0,0.0,0.0]
+                }
+            }],
+            "part_outputs":[{
+                "part_id":"receiver-core",
+                "input_node_ids":["receiver-negative-space"],
+                "material_zone_id":"zone-white-shell",
+                "solid":true
+            }]
+        });
+        program["canonical_sha256"] = Value::String(canonical_hash(&program));
+        program
+    }
+
+    #[test]
+    fn multi_loop_profile_loft_compiles_to_deterministic_strict_glb_with_lineage() {
+        let program = multi_loop_profile_loft_program();
+        let first = compile_geometry_program(&program).expect("multi-loop profile loft artifact");
+        let second =
+            compile_geometry_program(&program).expect("multi-loop profile loft repeat artifact");
+        assert_eq!(first.glb, second.glb);
+        assert_eq!(first.program_sha256, second.program_sha256);
+        assert!(first.triangle_count > 0);
+
+        let inspection = integrity::inspect_glb(&first.glb).expect("multi-loop strict readback");
+        assert!(inspection.hard_gate_passed, "{:?}", inspection.failure_codes);
+        assert_eq!(inspection.boundary_edge_count, 0);
+        assert_eq!(inspection.non_manifold_edge_count, 0);
+        assert_eq!(inspection.part_bindings.len(), 1);
+        assert!(inspection.part_bindings[0].solid);
+        assert_eq!(inspection.part_bindings[0].part_id, "receiver-core");
+        assert!(inspection
+            .source_node_ids
+            .iter()
+            .any(|id| id == "receiver-negative-space"));
+    }
+
     fn surface_patch_program() -> Value {
         let control_points = (0..4)
             .flat_map(|v| {
@@ -3484,7 +3580,7 @@ mod tests {
         assert_eq!(declared, canonical_hash(&Value::Object(without_hash)));
         assert_eq!(
             catalog["operators"].as_array().expect("operators").len(),
-            18
+            19
         );
         assert_eq!(
             catalog["operators"][0]["operator_id"],
@@ -3495,6 +3591,13 @@ mod tests {
             .expect("operators")
             .iter()
             .any(|operator| operator["operator_id"] == "forgecad.geometry.profile-loft@2"));
+        assert!(catalog["operators"]
+            .as_array()
+            .expect("operators")
+            .iter()
+            .any(|operator| {
+                operator["operator_id"] == "forgecad.geometry.multi-loop-profile-loft@1"
+            }));
     }
 
     #[test]

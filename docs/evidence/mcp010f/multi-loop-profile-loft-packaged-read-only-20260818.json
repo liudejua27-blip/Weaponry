@@ -1,0 +1,64 @@
+{
+  "allowed_mcp_calls": [
+    "runtime_status",
+    "capabilities_get",
+    "skill_get",
+    "project_list",
+    "operator_catalog_get",
+    "geometry_program_hash"
+  ],
+  "authenticated_runtime_shutdown": "PASS",
+  "build_cohort_sha256": "63da99a92d7fd01b5472429692807496717eba2338e3c73c6fae57aa7ff1a7dc",
+  "candidate_created": false,
+  "codex_desktop_restart_gate": "NOT_RUN",
+  "component_cohort_match": true,
+  "cross_section_plan_sha256": "6af1f2fc6609b96e938b7dc699087ceb3c0a9fcc7593542f58b71464560490e5",
+  "endpoint_caps": "closed-solid-boolean",
+  "genus_gate": "NOT_RUN",
+  "glb_readback_gate": "NOT_RUN",
+  "hole_policy": "manifold-difference",
+  "hq_360_gate": "BLOCKED_REFERENCE_COVERAGE",
+  "human_review_gate": "NOT_RUN",
+  "job_created": false,
+  "lineage_readback_gate": "NOT_RUN",
+  "manifold_readback_gate": "NOT_RUN",
+  "multi_loop_read_only_expansion": "PASS",
+  "operator_catalog_sha256": "93d4368d376ecc712d783454066bbfb2ad95a92756c2233ee8c01e368acfd8ca",
+  "operator_id": "forgecad.geometry.multi-loop-profile-loft@1",
+  "operator_parameter_schema": "MultiLoopProfileLoftParameters@1",
+  "operator_status": "active",
+  "part_output_required": true,
+  "pbr_gate": "NOT_RUN",
+  "persistent_user_data_touched": false,
+  "ponytail_preflight": "PASS",
+  "program_canonical_sha256": "7d4af206a3c36659e73488dbd59b259fb0cd3afc65035d4e84cf6d392c20d561",
+  "program_schema_version": "MultiLoopProfileLoftProgram@1",
+  "projects_after": 0,
+  "projects_before": 0,
+  "quality_status": "structural_only",
+  "repeat_expansion_determinism": "PASS",
+  "runtime_state": "Ready",
+  "runtime_write_performed": false,
+  "schema_version": "ForgeCADMCP010FPackagedMultiLoopProfileLoftProbe@1",
+  "source_map": {
+    "component_ids": [
+      "island-a",
+      "shell-core"
+    ],
+    "hole_ids": [
+      "hole-a",
+      "hole-b"
+    ],
+    "realized_surface_continuity": "g0-only",
+    "station_ids": [
+      "station-front",
+      "station-rear"
+    ]
+  },
+  "source_revision": "8cf3c3a0f839250e62aa1d5f6ab3e2ec5b293af2",
+  "source_worktree_dirty": true,
+  "status": "PASS",
+  "task_id": "FGC-MCP010F",
+  "version_created": false,
+  "visual_reference_gate": "NOT_RUN"
+}

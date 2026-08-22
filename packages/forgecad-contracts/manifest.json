@@ -123,6 +123,8 @@
     "parametric-design-kit-program.schema.json",
     "profile-loft-request-v2.schema.json",
     "profile-loft-program-v2.schema.json",
+    "multi-loop-profile-loft-request-v1.schema.json",
+    "multi-loop-profile-loft-program-v1.schema.json",
     "fictional-energy-rifle-profile.schema.json",
     "fictional-energy-rifle-plan.schema.json",
     "reference-visual-structure.schema.json",

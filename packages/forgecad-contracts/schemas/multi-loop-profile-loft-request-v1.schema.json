@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/multi-loop-profile-loft-request-v1.schema.json",
+  "title": "MultiLoopProfileLoftRequestV1",
+  "description": "A closed, bounded request for the product-owned multi-loop-profile-loft@1 operator. The plan is a nonfunctional visual-asset section plan in the +X/y-z frame; it carries only declarative coordinates and stable component/hole correspondence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operator_id",
+    "project_id",
+    "feature_id",
+    "part_id",
+    "material_zone_id",
+    "cross_section_plan",
+    "continuity_policy",
+    "input_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "MultiLoopProfileLoftRequest@1"},
+    "operator_id": {"const": "forgecad.geometry.multi-loop-profile-loft@1"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "feature_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "cross_section_plan": {"$ref": "#/$defs/multi_loop_cross_section_plan"},
+    "continuity_policy": {"$ref": "#/$defs/continuity_policy"},
+    "input_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "coordinate_scalar": {
+      "type": "number",
+      "minimum": -10,
+      "maximum": 10
+    },
+    "profile_scalar": {
+      "type": "number",
+      "minimum": -5,
+      "maximum": 5
+    },
+    "point2": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/profile_scalar"}
+    },
+    "corner_indices": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "integer", "minimum": 0, "maximum": 63}
+    },
+    "points": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/point2"}
+    },
+    "outer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["points"],
+      "properties": {
+        "points": {"$ref": "#/$defs/points"},
+        "corner_indices": {"$ref": "#/$defs/corner_indices"}
+      }
+    },
+    "hole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hole_id", "points"],
+      "properties": {
+        "hole_id": {"$ref": "#/$defs/identifier"},
+        "points": {"$ref": "#/$defs/points"},
+        "corner_indices": {"$ref": "#/$defs/corner_indices"}
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component_id", "outer", "holes"],
+      "properties": {
+        "component_id": {"$ref": "#/$defs/identifier"},
+        "outer": {"$ref": "#/$defs/outer"},
+        "holes": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/hole"}
+        }
+      }
+    },
+    "station": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["station_id", "station_m", "components"],
+      "properties": {
+        "station_id": {"$ref": "#/$defs/identifier"},
+        "station_m": {"$ref": "#/$defs/coordinate_scalar"},
+        "components": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {"$ref": "#/$defs/component"}
+        }
+      }
+    },
+    "coordinate_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "length_unit",
+        "handedness",
+        "up_axis",
+        "longitudinal_axis",
+        "section_plane",
+        "axis_direction"
+      ],
+      "properties": {
+        "length_unit": {"const": "meter"},
+        "handedness": {"const": "right-handed"},
+        "up_axis": {"const": "y"},
+        "longitudinal_axis": {"const": "x"},
+        "section_plane": {"const": "yz"},
+        "axis_direction": {"const": "+x"}
+      }
+    },
+    "station_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordering",
+        "closed_profiles",
+        "point_order",
+        "max_station_count",
+        "max_component_count",
+        "max_holes_per_component",
+        "max_points_per_loop"
+      ],
+      "properties": {
+        "ordering": {"const": "strictly-increasing-x"},
+        "closed_profiles": {"const": true},
+        "point_order": {"const": "outer-ccw-holes-cw-viewed-from-positive-x"},
+        "max_station_count": {"const": 16},
+        "max_component_count": {"const": 4},
+        "max_holes_per_component": {"const": 4},
+        "max_points_per_loop": {"const": 64}
+      }
+    },
+    "multi_loop_cross_section_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "plan_id",
+        "project_id",
+        "scope",
+        "nonfunctional_asset",
+        "reference_view_set_sha256",
+        "reference_view_ids",
+        "coordinate_frame",
+        "station_policy",
+        "stations",
+        "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "MultiLoopCrossSectionPlan@1"},
+        "plan_id": {"$ref": "#/$defs/identifier"},
+        "project_id": {"$ref": "#/$defs/identifier"},
+        "scope": {"enum": ["fictional-game-asset", "fictional-film-visual-asset"]},
+        "nonfunctional_asset": {"const": true},
+        "reference_view_set_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_view_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "coordinate_frame": {"$ref": "#/$defs/coordinate_frame"},
+        "station_policy": {"$ref": "#/$defs/station_policy"},
+        "stations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {"$ref": "#/$defs/station"}
+        },
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "continuity_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "surface_continuity",
+        "profile_point_correspondence",
+        "station_interpolation",
+        "interpolation_rings",
+        "resample_points",
+        "preserve_corners",
+        "endpoint_caps",
+        "hole_policy",
+        "shared_boundary_policy"
+      ],
+      "properties": {
+        "policy_id": {"const": "multi-loop-profile-loft-continuity@1"},
+        "surface_continuity": {"const": "g0-only"},
+        "profile_point_correspondence": {"const": "canonical-phase-arc-length"},
+        "station_interpolation": {"enum": ["linear", "catmull-rom-position-only"]},
+        "interpolation_rings": {"type": "integer", "minimum": 0, "maximum": 16},
+        "resample_points": {"type": "integer", "minimum": 4, "maximum": 64},
+        "preserve_corners": {"type": "boolean"},
+        "endpoint_caps": {"const": "closed-solid-boolean"},
+        "hole_policy": {"const": "manifold-difference"},
+        "shared_boundary_policy": {"const": "none"}
+      }
+    }
+  }
+}

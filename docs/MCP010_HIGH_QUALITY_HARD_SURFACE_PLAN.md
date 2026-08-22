@@ -1,5 +1,7 @@
 # FGC-MCP010 高质量硬表面参考闭环计划
 
+2026-08-18 Multi-loop Profile Loft source/package slice 后当前为 149 个 JSON Schema。`multi-loop-profile-loft@1` 以新版本合同表达 outer/holes/disconnected islands，实现全局唯一 hole ID、逐站拓扑对应、有界重采样/插值和 Manifold difference，并通过 source strict GLB readback。MCP packaged stdio 真实请求发现并修复了封闭公共 Schema 的字段漏声明；Dev.app cohort `63da99a9…f1a7dc` 现已通过 preflight、Catalog active/binding、stable station/component/hole source map、重复只读确定性与零项目写入隔离探针。它解决负空间和 islands 的几何表达基础，但仍只声明 G0；该包为 dirty source build，不代表真实武器参考轮廓、packaged GLB/genus、PBR、独立人评或 HQ_360 已达标。receipts：`docs/evidence/mcp010f/multi-loop-profile-loft-source-20260818.json`、`docs/evidence/mcp010f/multi-loop-profile-loft-packaged-read-only-20260818.json`。
+
 2026-08-18 Profile Loft V2 source slice 后当前为 147 个 JSON Schema。新增 CrossSectionPlan/SketchProgram/WeaponDesignGraph、FeatureGraph 以及真实 `profile-loft@2` Worker/Runtime producer；后者提供 +X 多截面弧长重采样、相位对应、角点保护与 ear-clipped caps，但只声明 G0、拒绝 holes/islands。它扩展可表达性和局部重算计划，不改写 `QUALITY_TARGET_NOT_MET`、`BLOCKED_REFERENCE_COVERAGE` 或真人/PBR/export 门。receipt：`docs/evidence/mcp010f/profile-loft-v2-source-20260818.json`。
 
 2026-08-17 Reference Visual Structure source slice（仍属 `FGC-MCP010F`）：当前源码为 **145 个 JSON Schema**、41 read + 33 opt-in write = 74 tools。`ReferenceVisualStructure@1` 作为 `SilhouetteTarget@1` 的可选嵌套合同，强制全局轮廓优先、视觉几何而非功能零件、允许区域 overlap/shared boundary，并保存 continuity group、layer、depth policy 与开放 line-flow；轮廓细化会使结构 review 失效。它只进入 Runtime CAS reference evidence，不创建 candidate，不解锁 detail/PBR/confirm/export，真实视觉仍 `QUALITY_TARGET_NOT_MET`。
@@ -144,7 +146,7 @@ Stage 0 机器真值唯一入口为 `docs/evidence/mcp010f/current-benchmark-tru
 
 2026-08-15 Primary Form local-group convergence follow-up：when the Runtime joint evidence proposal is rejected, the bounded geometry phase now tests Part-local coupled width/height/offset hypotheses before scalar coordinate probes. This preserves the Runtime/Worker ownership boundary and does not expose a continuous search trace to Codex; focused tests pass, but no new real reference receipt has been generated and the previous visual truth remains below gate.
 
-<!-- forgecad-stage0: schemas=147 schema_set_sha256=8b292d3ea73475b9ad6c8ebe1eb6521d3dd8834a9410441f113524cef79d4759 read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=149 schema_set_sha256=2f3abdeabb315bfe1fea5e9247ff53d6ee8971da553555892f93a06386bec49f read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 本文是 MCP010A–F 的唯一详细执行合同。它不改写 MCP005–009 的历史 evidence，也不把目标 Schema、工具、Skill、库或素材写成当前能力。
 

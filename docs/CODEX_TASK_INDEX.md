@@ -1,5 +1,7 @@
 # ForgeCAD 当前原子任务索引
 
+2026-08-18 `FGC-MCP010F` multi-loop Profile Loft source/package slice：149 Schema 的 outer/holes/disconnected-islands 合同、Worker/Runtime lowerer 与 strict source GLB 已通过；packaged stdio 发现并修复 MCP 公共封闭 Schema 漏声明 profile-loft 字段的集成缺陷。Dev.app cohort `63da99a9…f1a7dc` 的同 cohort/preflight/Catalog/stable source-map/重复确定性只读探针 PASS，项目数 `0→0`。当前包为 dirty source build，真实参考 candidate、packaged GLB/genus、PBR、人评、export/restart 和 HQ_360 仍未通过；`FGC-MCP010F` 继续是唯一 `in_progress`。
+
 2026-08-18 `FGC-MCP010F` weapon-production foundation source slice：当前 147 Schema；新增 CrossSection/Sketch/WeaponDesignGraph 合同、全视图语义对齐、FeatureGraph 局部重算规划和未注册 weapon-production Skill/Bundle proposal。focused contract/Runtime/FeatureGraph Gate PASS，未产生新视觉 candidate；`FGC-MCP010F` 继续是唯一 `in_progress`。
 
 Reference Visual Structure source receipt：`docs/evidence/mcp010f/reference-visual-structure-source-20260817.json`。
@@ -246,7 +248,7 @@ Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.jso
 2026-08-14 Primary Form single-action prepare/evaluate follow-up：新增 Runtime-owned `primary_form_repair_prepare`，Codex 只提交一次 target/camera/Rig/optimizer typed intent；Runtime 在一个有界动作内完成 fit、GeometryProgram 编译、strict GLB readback、隔离 Render Worker 九 AOV 和 candidate-bound compare，返回 `PrimaryFormRepairPrepareResult@1`。成功只产生 staged candidate 和 Runtime `QualityReport@2`，不 confirm、不创建 version、不 export；无严格改善则保持 candidate unchanged。Runtime focused regression、MCP dispatch/manifest 和 Stage 0 truth 通过，真实 likeness 状态不变。
 2026-08-14 Primary Form 联合收敛 follow-up：`silhouette_fit_prepare` 的 bounded budget 现在显式保留 geometry-winner camera refit 段；Runtime 在几何试探严格改善后，使用同一最终 Geometry Worker GLB 通过隔离 Render Worker 重新比较局部相机邻域，再把最终 camera/metrics 交给 `primary_form_repair_prepare` 的 candidate-bound compare。三段预算总和不超过 `max_evaluations`，新增预算不透明化为 Codex 参数搜索；Runtime focused budget/refit tests 通过。该修复没有新的授权机器人 receipt，不改变 `QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING` 或未运行的人评/PBR/export-restart/360。
 
-<!-- forgecad-stage0: schemas=147 schema_set_sha256=8b292d3ea73475b9ad6c8ebe1eb6521d3dd8834a9410441f113524cef79d4759 read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=149 schema_set_sha256=2f3abdeabb315bfe1fea5e9247ff53d6ee8971da553555892f93a06386bec49f read_tools=41 write_tools=33 total_tools=74 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 2026-08-14 Primary Form convergence follow-up：Runtime 修复了 `max_evaluations=24` 实际只消费 16 次的预算截断，并让有界坐标 schedule 在反向试探前覆盖当前 12 个 Rig 参数；CLI receipt 新增 canonical observation 的 target/observation/fit 分阶段 projection。`script/test_mcp010f.sh` 当前 source Gate PASS，Stage 0 仍保留 `QUALITY_TARGET_NOT_MET`、`camera=MISMATCH`、`BLOCKED_INCOMPLETE_BINDING`，没有新增视觉 benchmark。
 

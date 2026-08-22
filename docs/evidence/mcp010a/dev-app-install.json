@@ -1,21 +1,21 @@
 {
-  "build_cohort_sha256": "a5d38dd4dbb42548c1627e624d75575e4879cbcb631ab2c134579c21b3a88784",
+  "build_cohort_sha256": "63da99a92d7fd01b5472429692807496717eba2338e3c73c6fae57aa7ff1a7dc",
   "codesign": "ad-hoc deep strict PASS",
   "developer_id": "NOT_RUN",
   "installed_app": "$USER_APPLICATIONS/ForgeCAD Runtime Dev.app",
   "notarization": "NOT_RUN",
   "previous_app_backup": "none",
   "resource_sha256": {
-    "forgecad-geometry-worker": "094c8f78f4adf0d51146eb9ba96d03da94c1ab13251cf0c700f9ccc639ee832e",
-    "forgecad-mcp": "82041c246884c314ebe7e29b51845ba7141af506deaf37cb1de823a46f4e37ac",
-    "forgecad-render-worker": "b3e5c1d04251aeab615d0b8a7929840f04f201070d3759fed835e303d8d4777b",
-    "forgecad-runtime": "99be55027888ffe60b677e6c29e8776fb6390d4c6f137369ebe08291de77eca8"
+    "forgecad-geometry-worker": "9de1096413cbac4f51c192d850a5a60563ffeb2329d254dadf7901fb9254c9d0",
+    "forgecad-mcp": "6dfd229dbda4c816829a0ca488858a4cf7d5a73eaf0d89fcd60bb33dd41d5656",
+    "forgecad-render-worker": "76c65cddfa9be29d5ddd09b450056480c851093929afe50f097b054d79532cad",
+    "forgecad-runtime": "af6f59302e2beee61fe937e028cafb31cc56cc5026a32bdcbfd2f1e5ab44e4d3"
   },
   "schema_version": "ForgeCADMCP010ADevInstallReceipt@1",
-  "source_file_count": 636,
-  "source_revision": "70541995d9a44cd983c62c2c495d74cd4f264909",
+  "source_file_count": 675,
+  "source_revision": "8cf3c3a0f839250e62aa1d5f6ab3e2ec5b293af2",
   "source_worktree_dirty": true,
   "status": "PASS",
   "task_id": "FGC-MCP010A",
-  "viewer_sha256": "50beb4e86e7d2f31bd2ff9e749f8072f75c9775337d2bddd849305dc5f8bb8e6"
+  "viewer_sha256": "d44ae0420d3b40dc888468c02a8e80ffdaef083662cbea3fd062ddef820132d8"
 }
