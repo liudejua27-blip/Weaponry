@@ -1,11 +1,11 @@
 # Blender 能力研究与 ForgeCAD 适配计划
 
-版本：2026-08-18
+版本：2026-08-23
 状态：`FGC-MCP010F in_progress`；Modifier Stack、TopologySnapshot、bounded Bevel/Normal、Modifier evaluation v2、bounded Subdivision evaluation v2、fixed RenderProfile/AOV lineage、Mechanical pose/sequence/transient geometry preview、Parametric Group v2、Render Evidence Integrity、Render Evidence Replay、Boolean Operand Lineage、bounded crease-aware Subdivision、Subdivision root-lineage、artifact-lineage reconstructed projection/durable sidecar 与 product-owned Authoring Mesh source/focused slices 已实现，完整目标未完成。
 
 ## 1. 结论
 
-ForgeCAD 不嵌入 Blender，也不把 Blender 的 `.blend`、DNA/RNA、BMesh、Depsgraph、EEVEE、`bpy` 或任意 Python 变成产品真值。本计划从 Blender 学习数据分层、非破坏求值、渲染 pass、颜色语义和动画求值边界，再以 ForgeCAD 自有 closed Schema、Rust Runtime、typed Worker 协议和 canonical hash clean-room 实现。
+ForgeCAD 不安装、不调用、不嵌入、不捆绑 Blender，也不提供 Blender Worker、Blender fallback 或 `.blend` 导入真值；Blender 的 `.blend`、DNA/RNA、BMesh、Depsgraph、EEVEE、`bpy` 和任意 Python 都不能进入产品执行链。本计划只从 Blender 学习数据分层、非破坏求值、渲染 pass、颜色语义、High-to-Low/Cage Bake 问题定义和动画求值边界，再以 ForgeCAD 自有 closed Schema、Rust Runtime、typed Worker 协议和 canonical hash clean-room 实现。FPS 武器生产的权威目标和阶段门见 ADR-0027。
 
 本轮官方研究冻结到 `blender/blender` commit `72ccdd6e96ca119a1ffa3372559cc5654343b477`（2026-08-18）。未克隆、安装、编译或执行 Blender；未复制 Blender 源文件。Blender 根 `COPYING` 将项目置于 GNU GPL，故官方源码只作为 reference-only 架构研究材料；冻结许可证、Modifier/Depsgraph header blob 与拒绝能力已记录在 `docs/evidence/adoption/blender/72ccdd6e96ca119a1ffa3372559cc5654343b477.yaml`。`intern/cycles` 中的个别 Apache-2.0 文件也不能让整个 Blender 或完整 Cycles 自动成为可采用依赖；任何未来采用必须逐文件、逐依赖重新审计。
 

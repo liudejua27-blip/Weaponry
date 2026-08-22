@@ -17,7 +17,7 @@ apps/
   desktop/
   geometry-worker/
   render-worker/
-  blender-worker/        optional
+  bake-worker/           target: typed high-to-low/cage executor
 packages/
   forgecad-contracts/
   forgecad-skills/       MCP006 historical + MCP010B first-party bundles（10 个旧 Bundle + primitive-blockout@0.2.0）
@@ -35,6 +35,7 @@ docs/
 - Runtime 进行单写者文件锁、权限、Job、审批、版本和 orchestration；
 - MCP/Tauri 是 adapter；MCP 配置 Runtime socket/token 时不能直接依赖 SQLite；
 - Worker 只接受 bounded internal message；
+- 产品不安装、调用或捆绑 Blender；不存在 Blender Worker 或 Blender fallback。Blender 仅允许按 ADR-0027 作为 reference-only 研究对象；
 - Viewer 只读投影和 ephemeral UI state。
 
 跨层快捷调用、第二 writer、compat fallback 和绝对路径协议会被 integrity Gate 拒绝。
