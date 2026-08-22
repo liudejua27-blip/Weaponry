@@ -50,10 +50,12 @@ const REQUIRED_ACTION_FIELDS: [&str; 7] = [
     "bounded",
 ];
 
-const OPERATOR_IDS: [&str; 25] = [
+const OPERATOR_IDS: [&str; 27] = [
     "forgecad.geometry.primitive@2",
     "forgecad.geometry.profile-extrude@1",
     "forgecad.geometry.profile-loft@1",
+    "forgecad.geometry.profile-loft@2",
+    "forgecad.geometry.multi-loop-profile-loft@1",
     "forgecad.geometry.longitudinal-section-loft@1",
     "forgecad.geometry.subd-cage@1",
     "forgecad.geometry.subd-cage@2",

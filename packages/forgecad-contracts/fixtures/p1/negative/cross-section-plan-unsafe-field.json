@@ -1,0 +1,9 @@
+{
+  "schema_version": "CrossSectionPlan@1",
+  "plan_id": "cross-plan-invalid",
+  "project_id": "fictional-asset-001",
+  "scope": "fictional-game-asset",
+  "nonfunctional_asset": true,
+  "reference_view_set_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "manufacturing_tolerance_m": 0.001
+}

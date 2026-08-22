@@ -1023,14 +1023,16 @@ fn read_only_tools() -> Vec<Value> {
         ),
         tool(
             "geometry_program_hash",
-            "Validate a hash-free GeometryProgram@2 draft, expand one bounded ParametricDesignKitRequest@1 or immutable first-party ParametricDesignKitRequest@2 geometry-group template, lower or compare one ordered modifier stack, or evaluate one bounded regular quad-grid smooth/crease subdivision request; return Runtime-owned structural hashes without compiling, caching or persisting a candidate",
+            "Validate a hash-free GeometryProgram@2 draft; expand bounded ParametricDesignKit, profile-loft@2, or MultiLoopProfileLoft requests; lower or compare an ordered modifier stack; or evaluate bounded regular quad-grid subdivision. Returns Runtime-owned structural hashes without compiling, caching, or persisting a candidate.",
             json!({
                 "type":"object",
                 "additionalProperties":false,
                 "properties":{
                     "schema_version":{"type":"string"},
                     "geometry_program_draft":{"type":"object"},
+                    "operator_id":{"type":"string"},
                     "project_id":id_property(),
+                    "feature_id":id_property(),
                     "representation_plan_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
                     "kit_id":{"type":"string"},
                     "template_id":{"type":"string"},
@@ -1048,6 +1050,8 @@ fn read_only_tools() -> Vec<Value> {
                     "policy":{"type":"object"},
                     "transform":{"type":"object"},
                     "budgets":{"type":"object"},
+                    "cross_section_plan":{"type":"object"},
+                    "continuity_policy":{"type":"object"},
                     "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
                 },
                 "oneOf":[
@@ -1230,6 +1234,38 @@ fn read_only_tools() -> Vec<Value> {
                                 }
                             },
                             "input_sha256":{"description":"SHA-256 of the closed request without input_sha256 after Runtime lexicographically normalizes crease_edges.","type":"string","pattern":"^[0-9a-f]{64}$"}
+                        }
+                    },
+                    {
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","operator_id","project_id","feature_id","part_id","material_zone_id","cross_section_plan","continuity_policy","input_sha256"],
+                        "properties":{
+                            "schema_version":{"const":"ProfileLoftRequest@2"},
+                            "operator_id":{"const":"forgecad.geometry.profile-loft@2"},
+                            "project_id":id_property(),
+                            "feature_id":id_property(),
+                            "part_id":id_property(),
+                            "material_zone_id":id_property(),
+                            "cross_section_plan":{"type":"object"},
+                            "continuity_policy":{"type":"object"},
+                            "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+                        }
+                    },
+                    {
+                        "type":"object",
+                        "additionalProperties":false,
+                        "required":["schema_version","operator_id","project_id","feature_id","part_id","material_zone_id","cross_section_plan","continuity_policy","input_sha256"],
+                        "properties":{
+                            "schema_version":{"const":"MultiLoopProfileLoftRequest@1"},
+                            "operator_id":{"const":"forgecad.geometry.multi-loop-profile-loft@1"},
+                            "project_id":id_property(),
+                            "feature_id":id_property(),
+                            "part_id":id_property(),
+                            "material_zone_id":id_property(),
+                            "cross_section_plan":{"type":"object"},
+                            "continuity_policy":{"type":"object"},
+                            "input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
                         }
                     }
                 ]
@@ -10054,9 +10090,39 @@ mod tests {
             branch["properties"]["schema_version"]["const"]
                 == "SubdivisionCreaseEvaluationRequest@1"
         }));
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"] == "ProfileLoftRequest@2"
+                && branch["properties"]["operator_id"]["const"]
+                    == "forgecad.geometry.profile-loft@2"
+        }));
+        assert!(branches.iter().any(|branch| {
+            branch["properties"]["schema_version"]["const"] == "MultiLoopProfileLoftRequest@1"
+                && branch["properties"]["operator_id"]["const"]
+                    == "forgecad.geometry.multi-loop-profile-loft@1"
+        }));
         assert_eq!(
             tool["inputSchema"]["additionalProperties"], false,
             "the public envelope must remain closed"
+        );
+        for property in [
+            "operator_id",
+            "feature_id",
+            "cross_section_plan",
+            "continuity_policy",
+        ] {
+            assert!(
+                tool["inputSchema"]["properties"].get(property).is_some(),
+                "the closed public envelope must declare {property}"
+            );
+        }
+        let multi_loop_request: Value = serde_json::from_str(include_str!(
+            "../../../../../../packages/forgecad-contracts/fixtures/multi-loop-profile-loft-p1/positive/multi-loop-profile-loft.json"
+        ))
+        .expect("multi-loop positive fixture");
+        assert!(
+            validate_declared_tool_input("geometry_program_hash", &multi_loop_request, false)
+                .is_ok(),
+            "the public read-only MCP schema must admit the strict multi-loop request"
         );
     }
 

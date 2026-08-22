@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/fictional-energy-rifle-plan.schema.json",
+  "title": "FictionalEnergyRiflePlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_sha256",
+    "project_id",
+    "representation_plan_sha256",
+    "subject_coordinate_frame_sha256",
+    "operator_catalog_sha256",
+    "scope",
+    "reference_state",
+    "macro_requests",
+    "stage_order",
+    "quality_status",
+    "limitations",
+    "hq_360_status",
+    "candidate_created",
+    "runtime_write_performed",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "FictionalEnergyRiflePlan@1"},
+    "profile_sha256": {"$ref": "#/$defs/sha256"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "subject_coordinate_frame_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+    "scope": {"const": "fictional-game-asset"},
+    "reference_state": {
+      "enum": ["original-brief", "authorized-reference-cas-bound", "authorized-reference-partial"]
+    },
+    "macro_requests": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 12,
+      "items": {"$ref": "#/$defs/pdk_request"}
+    },
+    "stage_order": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"enum": ["primary-form", "secondary-structure", "tertiary-detail"]}
+    },
+    "quality_status": {"const": "structural_only"},
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/safe_text"}
+    },
+    "hq_360_status": {"const": "BLOCKED_REFERENCE_COVERAGE"},
+    "candidate_created": {"const": false},
+    "runtime_write_performed": {"const": false},
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "not": {
+        "anyOf": [
+          {"pattern": "^[/\\\\]"},
+          {"pattern": "^[A-Za-z]:[/\\\\]"},
+          {"pattern": "^(file|data|https?|ftp)://"},
+          {"pattern": "[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]\\s*[:=]"},
+          {"pattern": "[Aa][Pp][Ii][-_]?[Kk][Ee][Yy]\\s*[:=]"},
+          {"pattern": "[Tt][Oo][Kk][Ee][Nn]\\s*[:=]"}
+        ]
+      }
+    },
+    "pdk_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "representation_plan_sha256",
+        "kit_id",
+        "part_id",
+        "material_zone_id",
+        "intent",
+        "input_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "ParametricDesignKitRequest@1"},
+        "project_id": {"$ref": "#/$defs/id"},
+        "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+        "kit_id": {
+          "enum": [
+            "forgecad.kit.housing@1",
+            "forgecad.kit.panel@1",
+            "forgecad.kit.vent@1",
+            "forgecad.kit.joint@1",
+            "forgecad.kit.sensor@1",
+            "forgecad.kit.frame@1"
+          ]
+        },
+        "part_id": {"$ref": "#/$defs/id"},
+        "material_zone_id": {"$ref": "#/$defs/id"},
+        "intent": {"type": "object"},
+        "input_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

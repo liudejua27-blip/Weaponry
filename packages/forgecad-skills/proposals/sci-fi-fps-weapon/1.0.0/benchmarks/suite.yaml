@@ -1,0 +1,18 @@
+schema_version: SkillBenchmarkSuite@1
+suite_id: sci-fi-fps-weapon-structural-smoke
+status: passed
+fixtures:
+  - fixtures/valid.json
+  - fixtures/invalid-cycle-unit-finite.json
+metrics:
+  - name: schema_and_binding_shape
+    threshold: 1
+  - name: dag_and_operator_lock
+    threshold: 1
+  - name: forbidden_capabilities
+    threshold: 0
+  - name: external_asset_payloads
+    threshold: 0
+notes:
+  - Static proposal validation only; no geometry, render, PBR likeness, human, export, or 360 result is claimed.
+  - A future registered consumer must rerun deterministic Runtime/Worker benchmarks before activation.

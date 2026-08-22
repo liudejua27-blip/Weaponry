@@ -55,18 +55,18 @@
       "relation_to_primary": "UNBOUND_SEPARATE_RUN"
     }
   },
-  "canonical_sha256": "4a72ec97220f574a151181ed76c37fefe9650c49741638e6ed4f7d2790ee0050",
+  "canonical_sha256": "b7e5a6f1187f19a27934bcbf1d8fb6c5903bad414f73117f0084864d6a2376e7",
   "current_source": {
     "contracts": {
       "manifest_path": "packages/forgecad-contracts/manifest.json",
-      "manifest_sha256": "d9b0c48a734afe3a9877a2a7e5e9581b7b0f7051735a1edf68f21cc4d17fd80e",
+      "manifest_sha256": "83712a0923466fa0e1385ba437b09f02773b2e83e1ca01abd39dd59e46b92e03",
       "schema_content_set_algorithm": "sha256(canonical-json(sorted[{path,sha256(bytes)}]))",
-      "schema_content_set_sha256": "a2517bd579b3caf769182c87aab9252323c8cfc9a5acd9ae0a779911c80d963a",
-      "schema_count": 404
+      "schema_content_set_sha256": "b8fb7befc5870a51fe3919767c8953065e4e0da718c6eed1eda2d1c858a45f30",
+      "schema_count": 411
     },
     "mcp_tools": {
       "read_count": 91,
-      "read_manifest_sha256": "bb11195c1bd2a2235681916fdda30ffc8c2e95f4f314c28cdb0a7af8afc55a30",
+      "read_manifest_sha256": "a9ee692a5240f88b95ffdd47ae13d561bf8c1b73a1ca2deb06b50e59a637f185",
       "read_names": [
         "appearance_source_lineage_get",
         "artifact_readback_get",
@@ -161,12 +161,12 @@
         "visual_surface_get"
       ],
       "source_path": "apps/desktop/src-tauri/crates/forgecad-mcp/src/main.rs",
-      "source_sha256": "b06cb382815bb7393f411aa684780a069f9774074ef9829e6ebb3e79e7c388be",
+      "source_sha256": "2c8aa0cdc98686a4541152ec486f2af8e0c2653367938ebd37240244736364e5",
       "summary_receipt_path": "docs/evidence/mcp010f/source-tool-manifest-summary.json",
-      "summary_receipt_sha256": "fc9a9c7cdc436d64533d59c3d004a4a07a13792bd703ca56d22626808ccb6220",
+      "summary_receipt_sha256": "ce53b553d24639d548b77aeb496ff8902a7c26f108d1d22b18f2417715145017",
       "total_count": 160,
       "write_count": 69,
-      "write_enabled_manifest_sha256": "adc9bf523e6ca6e05cdcb7ce259058650e0b2e4f385cdd27f704859a6946ba9e",
+      "write_enabled_manifest_sha256": "4676ae3aa0f2cce007e84b9fb912be2b88a3f6ee613f1ec94b63ab289497155a",
       "write_names": [
         "appearance_prepare",
         "appearance_source_lineage_prepare",
@@ -246,9 +246,9 @@
     "visible_view_policy": {
       "authority": "RUNTIME_SOURCE_POLICY_NOT_EMBEDDED_IN_ATTEMPT35_RECEIPT",
       "fit_plan_projection_path": "scripts/build_mcp010f_fit_plan.py",
-      "fit_plan_projection_sha256": "dd08ce2a8d4f6da2ea56468079fbe9423ef667e4a61fb1bcf4283e9ad4afe7ee",
+      "fit_plan_projection_sha256": "543491266884f806ae56af633718f8b3f1ad4c9c8a871f4b82de530356fc7f34",
       "runtime_source_path": "apps/desktop/src-tauri/crates/forgecad-runtime/src/lib.rs",
-      "runtime_source_sha256": "6e86b718bb5e0cb823cb91ecbdea426f99e657326a178baac00bdbd529e95d6d",
+      "runtime_source_sha256": "6a9a11ceddc3d8d6dd1a2a50a42ce5ec05984013d45085bbf50297c340a4df16",
       "viewer_projection_path": "apps/desktop/src/features/runtime-viewer/RuntimeViewer.tsx",
       "viewer_projection_sha256": "c052502c1fade18d16abd16c544c894ed4ceeea96d9a16427b690b6f77264927"
     }

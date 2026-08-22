@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/profile-loft-program-v2.schema.json",
+  "title": "ProfileLoftProgramV2",
+  "description": "A Runtime-owned, non-persistent expansion into the fixed profile-loft@2 worker operator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operator_id",
+    "lowered_operator_id",
+    "project_id",
+    "feature_id",
+    "part_id",
+    "material_zone_id",
+    "cross_section_plan_sha256",
+    "continuity_policy",
+    "geometry_program",
+    "program_sha256",
+    "source_map",
+    "validator_status",
+    "quality_status",
+    "runtime_write_performed",
+    "user_approval_required",
+    "limitations",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "ProfileLoftProgram@2"},
+    "operator_id": {"const": "forgecad.geometry.profile-loft@2"},
+    "lowered_operator_id": {"const": "forgecad.geometry.profile-loft@2"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "feature_id": {"$ref": "#/$defs/identifier"},
+    "part_id": {"$ref": "#/$defs/identifier"},
+    "material_zone_id": {"$ref": "#/$defs/identifier"},
+    "cross_section_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "continuity_policy": {"$ref": "#/$defs/continuity_policy"},
+    "geometry_program": {"$ref": "#/$defs/geometry_program"},
+    "program_sha256": {"$ref": "#/$defs/sha256"},
+    "source_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature_id",
+        "part_id",
+        "material_zone_id",
+        "station_ids",
+        "continuity_group_ids",
+        "operator_id",
+        "lowered_operator_id",
+        "realized_surface_continuity"
+      ],
+      "properties": {
+        "feature_id": {"$ref": "#/$defs/identifier"},
+        "part_id": {"$ref": "#/$defs/identifier"},
+        "material_zone_id": {"$ref": "#/$defs/identifier"},
+        "station_ids": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "continuity_group_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "operator_id": {"const": "forgecad.geometry.profile-loft@2"},
+        "lowered_operator_id": {"const": "forgecad.geometry.profile-loft@2"},
+        "realized_surface_continuity": {"const": "g0-only"}
+      }
+    },
+    "validator_status": {"const": "passed"},
+    "quality_status": {"const": "structural_only"},
+    "runtime_write_performed": {"const": false},
+    "user_approval_required": {"const": true},
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 256}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "coordinate_scalar": {
+      "type": "number",
+      "minimum": -10,
+      "maximum": 10
+    },
+    "profile_scalar": {
+      "type": "number",
+      "minimum": -5,
+      "maximum": 5
+    },
+    "point2": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/profile_scalar"}
+    },
+    "continuity_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "surface_continuity",
+        "profile_point_correspondence",
+        "station_interpolation",
+        "interpolation_rings",
+        "resample_points",
+        "preserve_corners",
+        "endpoint_caps",
+        "hole_policy",
+        "shared_boundary_policy"
+      ],
+      "properties": {
+        "policy_id": {"const": "profile-loft-continuity@1"},
+        "surface_continuity": {"const": "g0-only"},
+        "profile_point_correspondence": {"const": "canonical-phase-arc-length"},
+        "station_interpolation": {"enum": ["linear", "catmull-rom-position-only"]},
+        "interpolation_rings": {"type": "integer", "minimum": 0, "maximum": 16},
+        "resample_points": {"type": "integer", "minimum": 4, "maximum": 64},
+        "preserve_corners": {"type": "boolean"},
+        "endpoint_caps": {"const": "ear-clipped-planar"},
+        "hole_policy": {"const": "reject"},
+        "shared_boundary_policy": {"const": "none"}
+      }
+    },
+    "geometry_program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "representation_plan_sha256",
+        "operator_catalog_sha256",
+        "units",
+        "budgets",
+        "nodes",
+        "part_outputs",
+        "canonical_sha256"
+      ],
+      "properties": {
+        "schema_version": {"const": "GeometryProgram@2"},
+        "project_id": {"$ref": "#/$defs/identifier"},
+        "representation_plan_sha256": {"$ref": "#/$defs/sha256"},
+        "operator_catalog_sha256": {"$ref": "#/$defs/sha256"},
+        "units": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["length", "angle", "coordinate_system"],
+          "properties": {
+            "length": {"const": "meter"},
+            "angle": {"const": "radian"},
+            "coordinate_system": {"const": "right-handed-y-up"}
+          }
+        },
+        "budgets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_nodes", "max_triangles", "max_glb_bytes", "max_worker_memory_bytes", "max_runtime_ms"],
+          "properties": {
+            "max_nodes": {"type": "integer", "minimum": 1, "maximum": 512},
+            "max_triangles": {"type": "integer", "minimum": 1, "maximum": 250000},
+            "max_glb_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+            "max_worker_memory_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912},
+            "max_runtime_ms": {"type": "integer", "minimum": 1, "maximum": 10000}
+          }
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["node_id", "operator_id", "inputs", "parameters"],
+            "properties": {
+              "node_id": {"$ref": "#/$defs/identifier"},
+              "operator_id": {"const": "forgecad.geometry.profile-loft@2"},
+              "inputs": {"type": "array", "maxItems": 0},
+              "parameters": {"$ref": "#/$defs/profile_loft_v2_parameters"}
+            }
+          }
+        },
+        "part_outputs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["part_id", "input_node_ids", "material_zone_id", "solid"],
+            "properties": {
+              "part_id": {"$ref": "#/$defs/identifier"},
+              "input_node_ids": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 512,
+                "uniqueItems": true,
+                "items": {"$ref": "#/$defs/identifier"}
+              },
+              "material_zone_id": {"$ref": "#/$defs/identifier"},
+              "solid": {"type": "boolean"}
+            }
+          }
+        },
+        "canonical_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "profile_loft_v2_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "profiles", "resample_points", "interpolation", "interpolation_rings", "preserve_corners", "position_m", "rotation_rad"],
+      "properties": {
+        "shape": {"const": "profile-loft-v2"},
+        "profiles": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["station_m", "points", "corner_indices"],
+            "properties": {
+              "station_m": {"$ref": "#/$defs/coordinate_scalar"},
+              "points": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 64,
+                "items": {"$ref": "#/$defs/point2"}
+              },
+              "corner_indices": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 63}}
+            }
+          }
+        },
+        "resample_points": {"type": "integer", "minimum": 4, "maximum": 64},
+        "interpolation": {"enum": ["linear", "catmull-rom"]},
+        "interpolation_rings": {"type": "integer", "minimum": 0, "maximum": 16},
+        "preserve_corners": {"type": "boolean"},
+        "position_m": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"$ref": "#/$defs/coordinate_scalar"}
+        },
+        "rotation_rad": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"type": "number", "minimum": -6.283185307179586, "maximum": 6.283185307179586}
+        }
+      }
+    }
+  }
+}

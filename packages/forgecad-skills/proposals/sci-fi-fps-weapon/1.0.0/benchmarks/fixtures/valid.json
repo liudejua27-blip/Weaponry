@@ -1,0 +1,22 @@
+{
+  "schema_version": "SkillBenchmarkFixture@1",
+  "fixture_id": "sci-fi-fps-weapon-declarative-valid",
+  "skill_id": "sci-fi-fps-weapon",
+  "recipe_id": "sci-fi-fps-weapon-production",
+  "units": "meter",
+  "coordinate_system": "right-handed-y-up",
+  "values": {
+    "scope": "fictional-game-asset",
+    "nonfunctional_asset": true,
+    "max_parts": 64,
+    "max_macro_requests": 12,
+    "hq_360_status": "BLOCKED_REFERENCE_COVERAGE"
+  },
+  "expected": {
+    "dag": "acyclic",
+    "finite": true,
+    "operator_allowlist": "pass",
+    "external_assets": 0,
+    "runtime_write": false
+  }
+}

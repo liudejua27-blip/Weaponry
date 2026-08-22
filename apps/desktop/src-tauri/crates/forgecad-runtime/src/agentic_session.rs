@@ -4361,6 +4361,28 @@ mod tests {
         )
         .expect("runtime_write=true is a valid material quality binding");
     }
+
+    #[test]
+    fn authoring_views_cover_the_full_reference_view_set() {
+        for (kind, source_view) in [
+            ("front", "front"),
+            ("back", "back"),
+            ("left", "left"),
+            ("right", "right"),
+            ("top", "top"),
+            ("bottom", "bottom"),
+            ("perspective", "three-quarter"),
+            ("front-three-quarter", "front-three-quarter"),
+            ("rear-three-quarter", "rear-three-quarter"),
+            ("material", "detail"),
+            ("detail", "detail"),
+        ] {
+            let value = json!({"kind": kind});
+            validate_authoring_view_kind(value.as_object().expect("view object"), "kind")
+                .unwrap_or_else(|error| panic!("{kind} must be accepted: {error}"));
+            assert_eq!(expected_reference_source_view(kind), Some(source_view));
+        }
+    }
 }
 
 fn checkpoint_actions(gate: &Value, allowed: bool) -> Vec<String> {
@@ -5131,7 +5153,9 @@ fn validate_authoring_view_kind(
             | "left"
             | "right"
             | "top"
+            | "bottom"
             | "perspective"
+            | "front-three-quarter"
             | "rear-three-quarter"
             | "material"
             | "detail"
@@ -5485,7 +5509,12 @@ fn expected_reference_source_view(kind: &str) -> Option<&'static str> {
         "back" => Some("back"),
         "left" => Some("left"),
         "right" => Some("right"),
+        "top" => Some("top"),
+        "bottom" => Some("bottom"),
+        "front-three-quarter" => Some("front-three-quarter"),
         "rear-three-quarter" => Some("rear-three-quarter"),
+        "material" => Some("detail"),
+        "detail" => Some("detail"),
         _ => None,
     }
 }
@@ -5790,7 +5819,9 @@ fn view_kind_array(
                 | "left"
                 | "right"
                 | "top"
+                | "bottom"
                 | "perspective"
+                | "front-three-quarter"
                 | "rear-three-quarter"
                 | "material"
                 | "detail"

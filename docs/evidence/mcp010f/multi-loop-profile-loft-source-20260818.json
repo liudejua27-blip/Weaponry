@@ -1,0 +1,57 @@
+{
+  "schema_version": "ForgeCADMultiLoopProfileLoftSourceReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_at": "2026-08-18T00:00:00+08:00",
+  "scope": "source-contract-worker-runtime-mcp-strict-readback",
+  "status": "PASS_STRUCTURAL_SOURCE_ONLY",
+  "operator_id": "forgecad.geometry.multi-loop-profile-loft@1",
+  "contracts": ["MultiLoopCrossSectionPlan@1", "MultiLoopProfileLoftRequest@1", "MultiLoopProfileLoftProgram@1", "GeometryProgram@2"],
+  "implemented": [
+    "longitudinal_x_axis_multi_component_loft",
+    "outer_holes_and_disconnected_islands",
+    "globally_unique_stable_hole_ids",
+    "per_station_exact_topology_correspondence",
+    "independent_bounded_arc_length_resampling",
+    "deterministic_phase_alignment_and_corner_preservation",
+    "linear_or_catmull_rom_position_only_interpolation",
+    "closed_solid_endpoint_caps",
+    "product_owned_manifold_difference",
+    "shared_operator_runtime_and_triangle_budgets",
+    "runtime_owned_read_only_hash_bound_lowering",
+    "strict_glb_readback_with_part_and_node_lineage"
+  ],
+  "focused_gates": {
+    "contracts_149": "PASS",
+    "negative_contract_cases_18": "PASS",
+    "weapon_foundation": "PASS",
+    "geometry_worker_tests": "41_PASS_0_FAIL",
+    "runtime_full_suite": "190_PASS_0_FAIL_12_IGNORED",
+    "mcp_full_suite": "69_PASS_0_FAIL",
+    "strict_glb_single_hole_island_readback": "PASS_BOUNDARY_0_NON_MANIFOLD_0_DETERMINISTIC_LINEAGE",
+    "runtime_read_only_lowering": "PASS",
+    "worker_and_mcp_compile": "PASS"
+  },
+  "fail_closed": [
+    "g1_and_g2_continuity_not_claimed",
+    "duplicate_or_missing_hole_ids_rejected",
+    "self_intersection_winding_containment_touch_and_overlap_rejected",
+    "topology_drift_rejected",
+    "arbitrary_scripts_paths_urls_network_and_secrets_not_admitted",
+    "no_candidate_confirm_export_or_version_write_from_geometry_program_hash",
+    "active_skill_bundle_not_modified"
+  ],
+  "not_run_or_not_met": [
+    "complete_positive_fixture_genus_readback",
+    "installed_dev_app_same_cohort_activation",
+    "real_user_reference_candidate",
+    "candidate_bound_multiview_visual_comparison",
+    "pbr_material_likeness",
+    "independent_human_review",
+    "export_restart_hash",
+    "hq_360"
+  ],
+  "quality_status": "QUALITY_TARGET_NOT_MET",
+  "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+  "camera_binding": "MISMATCH",
+  "persistent_user_data_touched": false
+}

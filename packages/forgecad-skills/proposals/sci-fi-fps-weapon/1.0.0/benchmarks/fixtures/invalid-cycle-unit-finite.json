@@ -1,0 +1,19 @@
+{
+  "schema_version": "SkillBenchmarkFixture@1",
+  "fixture_id": "sci-fi-fps-weapon-declarative-invalid-cycle",
+  "skill_id": "sci-fi-fps-weapon",
+  "recipe_id": "sci-fi-fps-weapon-production",
+  "units": "millimeter",
+  "coordinate_system": "left-handed-z-up",
+  "values": {"scale": "NaN", "nonfunctional_asset": false},
+  "edges": [
+    {"from": "primary-housing", "to": "primary-profile"},
+    {"from": "primary-profile", "to": "primary-housing"}
+  ],
+  "expected": {
+    "dag": "reject",
+    "finite": "reject",
+    "units": "reject",
+    "scope": "reject"
+  }
+}

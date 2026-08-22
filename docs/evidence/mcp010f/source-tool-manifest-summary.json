@@ -1,8 +1,8 @@
 {
   "build_cohort_sha256": null,
-  "canonical_sha256": "8a6f27c78ec6aa56066816d3825c71d5ce7b024e5fa7b70f23ae1f8c3e956c12",
+  "canonical_sha256": "9f69df96c8fb1b34b7c34c8046d8699a8cdc7b672847e695f77e7c60748838fb",
   "read_count": 91,
-  "read_manifest_sha256": "bb11195c1bd2a2235681916fdda30ffc8c2e95f4f314c28cdb0a7af8afc55a30",
+  "read_manifest_sha256": "a9ee692a5240f88b95ffdd47ae13d561bf8c1b73a1ca2deb06b50e59a637f185",
   "read_names": [
     "appearance_source_lineage_get",
     "artifact_readback_get",
@@ -99,7 +99,7 @@
   "schema_version": "ForgeCADMcpToolManifestSummary@1",
   "total_count": 160,
   "write_count": 69,
-  "write_enabled_manifest_sha256": "adc9bf523e6ca6e05cdcb7ce259058650e0b2e4f385cdd27f704859a6946ba9e",
+  "write_enabled_manifest_sha256": "4676ae3aa0f2cce007e84b9fb912be2b88a3f6ee613f1ec94b63ab289497155a",
   "write_names": [
     "appearance_prepare",
     "appearance_source_lineage_prepare",

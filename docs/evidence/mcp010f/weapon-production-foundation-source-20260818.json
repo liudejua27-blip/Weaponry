@@ -1,0 +1,53 @@
+{
+  "schema_version": "ForgeCADWeaponProductionFoundationSourceReceipt@1",
+  "task_id": "FGC-MCP010F",
+  "recorded_on": "2026-08-18",
+  "status": "PASS_SOURCE_FOUNDATION_WITH_VISUAL_QUALITY_NOT_MET",
+  "contract_set": {
+    "schema_count": 145,
+    "schema_content_set_sha256": "96b14ac8c4364b4df8d2cc0f9e2ba18c71d15f354df524ec371c8e5805e52346",
+    "cross_section_plan_sha256": "c1873ef6eea26795a50c52e4741c2d1072b25e21715dd98e371e21e2c3de8251",
+    "sketch_program_sha256": "511519465a3c52fa024cf3c11536c3f32fa9508a89070f4dd634e3598b51e1c9",
+    "weapon_design_graph_sha256": "7c7770d65fa5876142b3f4207c7cc872775488108c4e61d1884d273356ddbe1f"
+  },
+  "source_capabilities": {
+    "reference_view_roles": ["front", "back", "left", "right", "top", "bottom", "front-three-quarter", "rear-three-quarter", "detail"],
+    "feature_graph_sha256": "128638a91776f51b55c50814650f71cd982ba4857b5de44d64870e5bf8f209bb",
+    "feature_graph_status": "PASS_DETERMINISTIC_DAG_DIRTY_PROPAGATION_RECOMPUTE_PLAN",
+    "codex_skill_sha256": "c58ba89d744ef3e38434701fb1685247cc7d55207078a61549fa055053a189f7",
+    "bundle_proposal_manifest_sha256": "d863cbcea8c79e2ff2d2b9c53bea47a9144fa3b3a332dbd186d23f629b16cece",
+    "bundle_registration": "NOT_REGISTERED",
+    "runtime_consumer": "UNAVAILABLE",
+    "weapon_material_pack": "UNAVAILABLE"
+  },
+  "focused_gates": {
+    "contracts": "PASS_145_SCHEMAS",
+    "weapon_p1_contracts": "PASS_POSITIVE_NEGATIVE_AND_CROSS_BINDINGS",
+    "feature_graph_tests": "PASS_9_OF_9",
+    "reference_view_runtime_test": "PASS",
+    "reference_canvas_authoring_view_test": "PASS",
+    "reference_canvas_projection_round_trip": "PASS_ALL_12_SUPPORTED_VIEW_KINDS",
+    "reference_view_set_cross_contract_binding": "PASS_FAIL_CLOSED_NEGATIVE_FIXTURES",
+    "stage0_truth": "PASS_WITH_RETAINED_VISUAL_FAILURES",
+    "geometry_worker_check": "PASS",
+    "weapon_skill_proposal_checker": "PASS_STATIC_ONLY_NOT_REGISTERED",
+    "release_docs_walkthrough": "PASS",
+    "repository_integrity": "PASS",
+    "release_safety_scope": "PASS",
+    "release_secrets_files": "PASS",
+    "release_license_sbom": "PASS",
+    "rustfmt_check": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "quality_boundaries": {
+    "candidate_created": false,
+    "runtime_state_written": false,
+    "visual_quality": "QUALITY_TARGET_NOT_MET",
+    "camera_binding": "MISMATCH",
+    "benchmark_eligibility": "BLOCKED_INCOMPLETE_BINDING",
+    "pbr_likeness": "NOT_RUN",
+    "human_visual_review": "NOT_RUN",
+    "export_restart_hash": "NOT_RUN",
+    "hq_360": "BLOCKED_REFERENCE_COVERAGE"
+  }
+}

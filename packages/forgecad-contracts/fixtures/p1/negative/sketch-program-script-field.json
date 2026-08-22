@@ -1,0 +1,8 @@
+{
+  "schema_version": "SketchProgram@1",
+  "program_id": "sketch-program-invalid",
+  "project_id": "fictional-asset-001",
+  "scope": "fictional-game-asset",
+  "nonfunctional_asset": true,
+  "script": "mirror(profile); export();"
+}

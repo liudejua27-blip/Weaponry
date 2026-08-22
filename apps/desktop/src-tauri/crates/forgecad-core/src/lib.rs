@@ -1,5 +1,7 @@
 use sha2::{Digest, Sha256};
 
+pub mod feature_graph;
+
 #[derive(Debug, thiserror::Error)]
 pub enum CoreError {
     #[error("invalid JSON payload: {0}")]

@@ -53,7 +53,7 @@ Render Evidence Integrity 追加覆盖 artifact/reference 原始 CAS byte/hash/s
 
 Stage 0 机器真值入口为 `docs/evidence/mcp010f/current-benchmark-truth.json`。源码门 PASS 不等于产品质量 PASS：attempt35 只是 provisional retained observation，它为 `QUALITY_TARGET_NOT_MET + INCOMPLETE_TRUTH_BINDING`，benchmark eligibility 为 `BLOCKED_INCOMPLETE_BINDING`，camera 绑定 `MISMATCH`。packaged Viewer 当前只能记为 `PASS_CURRENT_COHORT_BOUND_READ_MODEL`；UI E2E、正式 VoiceOver、视觉和人评仍分别 `NOT_RUN`。
 
-<!-- forgecad-stage0: schemas=404 schema_set_sha256=a2517bd579b3caf769182c87aab9252323c8cfc9a5acd9ae0a779911c80d963a read_tools=91 write_tools=69 total_tools=160 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=411 schema_set_sha256=b8fb7befc5870a51fe3919767c8953065e4e0da718c6eed1eda2d1c858a45f30 read_tools=91 write_tools=69 total_tools=160 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 ## 1. 证据层级
 

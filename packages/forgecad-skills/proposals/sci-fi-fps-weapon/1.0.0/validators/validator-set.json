@@ -1,0 +1,14 @@
+{
+  "schema_version": "SkillValidatorSet@1",
+  "network": false,
+  "dynamic_code": false,
+  "validators": [
+    {"id": "reference_hash_binding@1", "builtin": "reference_id_and_sha256"},
+    {"id": "reference_claim_bounds@1", "builtin": "claim_count_confidence_and_unknowns"},
+    {"id": "finite_parameters@1", "builtin": "finite_numbers_and_units"},
+    {"id": "geometry_budget@1", "builtin": "node_triangle_time_budget"},
+    {"id": "operator_allowlist@1", "builtin": "registered_operator_lock"},
+    {"id": "material_zone_binding@1", "builtin": "part_material_lineage"},
+    {"id": "preflight_read_before_design@1", "builtin": "session_preflight_read_before_modeling"}
+  ]
+}

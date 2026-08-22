@@ -62,7 +62,7 @@ Stage 0 机器真值为 `docs/evidence/mcp010f/current-benchmark-truth.json`；�
 
 `ReferenceCanvas@1` 的 view 项现可选绑定 `view_spec`、`target_sha256`、`mask_sha256` 与 `camera_claim.camera_canonical_sha256`；target/mask 必须成对出现，Runtime 还会检查它们与同一 `reference_id/reference_sha256`、CAS、相机和 evidence 的 lineage。`VisualEvidenceBundleProjection@1` 会投影这些 per-view hash，跨视图 compare 不得使用另一视图的 target，RepairIntent 的 evaluation kind 集合必须与 `coverage.supplied_views` 一一对应。旧 unbound 单视图仍显式使用 null，不能将兼容字段缺失解释为质量通过。
 
-<!-- forgecad-stage0: schemas=404 schema_set_sha256=a2517bd579b3caf769182c87aab9252323c8cfc9a5acd9ae0a779911c80d963a read_tools=91 write_tools=69 total_tools=160 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
+<!-- forgecad-stage0: schemas=411 schema_set_sha256=b8fb7befc5870a51fe3919767c8953065e4e0da718c6eed1eda2d1c858a45f30 read_tools=91 write_tools=69 total_tools=160 task=FGC-MCP010F observation=QUALITY_TARGET_NOT_MET eligibility=BLOCKED_INCOMPLETE_BINDING evidence=INCOMPLETE_TRUTH_BINDING camera=MISMATCH packaged=PASS_CURRENT_COHORT_BOUND_READ_MODEL latest_attempt=real-codex-cli-current-20260815-b37-complete-auto-v3.json latest_completed=real-codex-cli-current-20260815-b37-complete-auto-v3.json -->
 
 ## 1. 唯一来源
 

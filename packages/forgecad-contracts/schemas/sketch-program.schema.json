@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forgecad.local/contracts/sketch-program.schema.json",
+  "title": "SketchProgram",
+  "description": "A declarative, bounded sketch description for visual section authoring; it contains no executable script or runtime write instruction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "program_id",
+    "project_id",
+    "scope",
+    "nonfunctional_asset",
+    "cross_section_plan_sha256",
+    "coordinate_frame",
+    "program_policy",
+    "sketches",
+    "canonical_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "SketchProgram@1"},
+    "program_id": {"$ref": "#/$defs/identifier"},
+    "project_id": {"$ref": "#/$defs/identifier"},
+    "scope": {"enum": ["fictional-game-asset", "fictional-film-visual-asset"]},
+    "nonfunctional_asset": {"const": true},
+    "cross_section_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "coordinate_frame": {"$ref": "#/$defs/coordinate_frame"},
+    "program_policy": {"$ref": "#/$defs/program_policy"},
+    "sketches": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/sketch"}
+    },
+    "canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "coordinate_scalar": {
+      "type": "number",
+      "minimum": -10,
+      "maximum": 10
+    },
+    "profile_scalar": {
+      "type": "number",
+      "minimum": -5,
+      "maximum": 5
+    },
+    "point2": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/profile_scalar"}
+    },
+    "visibility": {
+      "enum": ["observed", "inferred", "unknown"]
+    },
+    "coordinate_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "length_unit",
+        "handedness",
+        "up_axis",
+        "longitudinal_axis",
+        "section_plane",
+        "axis_direction"
+      ],
+      "properties": {
+        "length_unit": {"const": "meter"},
+        "handedness": {"const": "right-handed"},
+        "up_axis": {"const": "y"},
+        "longitudinal_axis": {"const": "x"},
+        "section_plane": {"const": "yz"},
+        "axis_direction": {"const": "+x"}
+      }
+    },
+    "program_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declarative_only",
+        "arbitrary_script_allowed",
+        "runtime_write_performed",
+        "closed_profiles_required",
+        "max_sketch_count",
+        "max_entities_per_sketch",
+        "allowed_entity_kinds"
+      ],
+      "properties": {
+        "declarative_only": {"const": true},
+        "arbitrary_script_allowed": {"const": false},
+        "runtime_write_performed": {"const": false},
+        "closed_profiles_required": {"const": true},
+        "max_sketch_count": {"const": 16},
+        "max_entities_per_sketch": {"const": 128},
+        "allowed_entity_kinds": {
+          "const": ["polyline", "circle", "arc", "construction-line"]
+        }
+      }
+    },
+    "sketch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sketch_id",
+        "station_id",
+        "plane",
+        "profile_closed",
+        "observation_status",
+        "confidence",
+        "entities",
+        "constraints"
+      ],
+      "properties": {
+        "sketch_id": {"$ref": "#/$defs/identifier"},
+        "station_id": {"$ref": "#/$defs/identifier"},
+        "plane": {"const": "yz"},
+        "profile_closed": {"const": true},
+        "observation_status": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "entities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/polyline_entity"},
+              {"$ref": "#/$defs/circle_entity"},
+              {"$ref": "#/$defs/arc_entity"},
+              {"$ref": "#/$defs/construction_line_entity"}
+            ]
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/constraint"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"observation_status": {"const": "unknown"}},
+            "required": ["observation_status"]
+          },
+          "then": {"properties": {"confidence": {"const": 0}}}
+        }
+      ]
+    },
+    "polyline_entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_id",
+        "kind",
+        "construction",
+        "geometry",
+        "observation_status",
+        "confidence"
+      ],
+      "properties": {
+        "entity_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "polyline"},
+        "construction": {"type": "boolean"},
+        "geometry": {"$ref": "#/$defs/polyline_geometry"},
+        "observation_status": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "circle_entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_id",
+        "kind",
+        "construction",
+        "geometry",
+        "observation_status",
+        "confidence"
+      ],
+      "properties": {
+        "entity_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "circle"},
+        "construction": {"type": "boolean"},
+        "geometry": {"$ref": "#/$defs/circle_geometry"},
+        "observation_status": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "arc_entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_id",
+        "kind",
+        "construction",
+        "geometry",
+        "observation_status",
+        "confidence"
+      ],
+      "properties": {
+        "entity_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "arc"},
+        "construction": {"type": "boolean"},
+        "geometry": {"$ref": "#/$defs/arc_geometry"},
+        "observation_status": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "construction_line_entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_id",
+        "kind",
+        "construction",
+        "geometry",
+        "observation_status",
+        "confidence"
+      ],
+      "properties": {
+        "entity_id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "construction-line"},
+        "construction": {"const": true},
+        "geometry": {"$ref": "#/$defs/construction_line_geometry"},
+        "observation_status": {"$ref": "#/$defs/visibility"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "polyline_geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["points", "closed"],
+      "properties": {
+        "points": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": {"$ref": "#/$defs/point2"}
+        },
+        "closed": {"type": "boolean"}
+      }
+    },
+    "circle_geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["center", "radius_m"],
+      "properties": {
+        "center": {"$ref": "#/$defs/point2"},
+        "radius_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 5}
+      }
+    },
+    "arc_geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["center", "radius_m", "start_rad", "end_rad", "clockwise"],
+      "properties": {
+        "center": {"$ref": "#/$defs/point2"},
+        "radius_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 5},
+        "start_rad": {"type": "number", "minimum": -6.283185307179586, "maximum": 6.283185307179586},
+        "end_rad": {"type": "number", "minimum": -6.283185307179586, "maximum": 6.283185307179586},
+        "clockwise": {"type": "boolean"}
+      }
+    },
+    "construction_line_geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"$ref": "#/$defs/point2"},
+        "end": {"$ref": "#/$defs/point2"}
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["constraint_id", "kind", "entity_ids", "value", "unit"],
+      "properties": {
+        "constraint_id": {"$ref": "#/$defs/identifier"},
+        "kind": {
+          "enum": [
+            "coincident",
+            "horizontal",
+            "vertical",
+            "parallel",
+            "perpendicular",
+            "symmetric",
+            "distance",
+            "angle"
+          ]
+        },
+        "entity_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "value": {
+          "type": ["number", "null"],
+          "minimum": -10,
+          "maximum": 10
+        },
+        "unit": {"enum": ["meter", "radian", null]}
+      }
+    }
+  }
+}

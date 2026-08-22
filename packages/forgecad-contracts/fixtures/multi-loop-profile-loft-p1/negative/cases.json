@@ -1,0 +1,23 @@
+{
+  "schema_version": "MultiLoopProfileLoftNegativeFixtures@1",
+  "cases": [
+    {"id": "duplicate-station-id", "mutation": "duplicate_station_id", "expected_failure": "stable-id"},
+    {"id": "component-set-drift", "mutation": "drop_component", "expected_failure": "topology-correspondence"},
+    {"id": "hole-set-drift", "mutation": "drop_hole", "expected_failure": "topology-correspondence"},
+    {"id": "cross-component-hole-id", "mutation": "duplicate_cross_component_hole", "expected_failure": "stable-id"},
+    {"id": "nonexistent-corresponding-hole-id", "mutation": "rename_hole_id", "expected_failure": "topology-correspondence"},
+    {"id": "hole-wrong-winding", "mutation": "reverse_hole", "expected_failure": "winding"},
+    {"id": "outer-self-crossing", "mutation": "cross_outer", "expected_failure": "loop-crossing"},
+    {"id": "hole-touches-outer", "mutation": "touch_outer", "expected_failure": "hole-containment"},
+    {"id": "g1-policy", "mutation": "g1_policy", "expected_failure": "continuity"},
+    {"id": "g2-policy", "mutation": "g2_policy", "expected_failure": "continuity"},
+    {"id": "endpoint-cap-policy-alias", "mutation": "endpoint_cap_alias", "expected_failure": "continuity"},
+    {"id": "hole-policy-alias", "mutation": "hole_policy_alias", "expected_failure": "continuity"},
+    {"id": "invalid-interpolation-policy", "mutation": "invalid_interpolation", "expected_failure": "continuity"},
+    {"id": "script-field", "mutation": "script_field", "expected_failure": "closed-object"},
+    {"id": "url-field", "mutation": "url_field", "expected_failure": "closed-object"},
+    {"id": "path-field", "mutation": "path_field", "expected_failure": "closed-object"},
+    {"id": "network-field", "mutation": "network_field", "expected_failure": "closed-object"},
+    {"id": "interpolation-budget-overflow", "mutation": "rings_overflow", "expected_failure": "budget"}
+  ]
+}

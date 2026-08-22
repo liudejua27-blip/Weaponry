@@ -1,0 +1,8 @@
+{
+  "schema_version": "ForgeCADDevelopmentSignature@1",
+  "status": "deferred-to-mcp012-013",
+  "trust_profile": "development-root",
+  "manifest_sha256": "d863cbcea8c79e2ff2d2b9c53bea47a9144fa3b3a332dbd186d23f629b16cece",
+  "cryptographic_signature": null,
+  "proposal_status": "target-design"
+}

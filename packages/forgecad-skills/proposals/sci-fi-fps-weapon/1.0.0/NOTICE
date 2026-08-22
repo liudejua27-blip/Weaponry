@@ -1,0 +1,4 @@
+ForgeCAD first-party declarative Skill proposal. No third-party source, executable,
+model weight, texture, commercial-game asset, or remote asset is bundled.
+Bundle: sci-fi-fps-weapon@1.0.0 (unregistered target-design proposal).
+Material entries are declaration-only and carry no texture payload.
